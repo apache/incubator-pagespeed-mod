@@ -10,7 +10,7 @@ We require Apache (>= 2.2), g++ (>= 4.2), and subversion.
 == Chromium depot tools ==
 We require the Chromium 'depot_tools', which are used to build multiple open-source projects with dependencies on other open-source projects.
 {{{
-  mdir -p ~/bin
+  mkdir -p ~/bin
   cd ~/bin/
   svn co http://src.chromium.org/svn/trunk/tools/depot_tools
 }}}
