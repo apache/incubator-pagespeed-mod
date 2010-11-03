@@ -5,7 +5,7 @@ The build has only been tested on 64-bit GNU/linux, specifically Ubuntu Hardy/Lu
 
 We require Apache (>= 2.2), g++ (>= 4.2), and subversion.
   * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++`
-  * On CentOS: `sudo yum groupinstall 'Web Server' && sudo yum install subversion gcc-c++ gcc44`
+  * On CentOS: `sudo yum groupinstall 'Web Server' && sudo yum install at subversion gcc-c++ gcc44`
 
 == Chromium depot tools ==
 We require the Chromium 'depot_tools', which are used to build multiple open-source projects with dependencies on other open-source projects.
