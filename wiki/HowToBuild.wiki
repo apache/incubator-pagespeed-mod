@@ -1,30 +1,30 @@
 #summary How to build mod_pagespeed from source
 
 == Prerequisites ==
-The build has only been tested on 64-bit GNU/linux, specifically Ubuntu Hardy/Lucid and CentOS 5.4.  It should work elsewhere; if you try it somewhere new, please leave a comment with your success or failure.
+The build has been tested on Ubuntu Hardy/Lucid and CentOS 5.4. It should work elsewhere; if you try it somewhere new, please leave a comment with your success or failure.
 
-We require Apache (>= 2.2), g++ (>= 4.2), and subversion.
-  * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++`
-  * On CentOS: `sudo yum groupinstall 'Web Server' && sudo yum install at subversion gcc-c++ gcc44`
+We require Apache (>= 2.2), g++ (>= 4.2), subversion, and make.
+  * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++ make`
+  * On CentOS: `sudo yum install httpd subversion gcc-c++ make`
 
 == Chromium depot tools ==
 We require the Chromium 'depot_tools', which are used to build multiple open-source projects with dependencies on other open-source projects.
 {{{
   mkdir -p ~/bin
-  cd ~/bin/
+  cd ~/bin
   svn co http://src.chromium.org/svn/trunk/tools/depot_tools
 }}}
-We suggest putting `~/bin/depot_tools/gclient` in your path.  E.g. in bash:
+You will need to add the depot_tools to your path. i.e. in bash:
 {{{
-export PATH=$PATH:~/bin/depot_tools/
+export PATH=$PATH:~/bin/depot_tools
 }}}
 
 == Checking out mod_pagespeed and dependencies ==
 {{{
-    mkdir ~/mod_pagespeed
+    mkdir ~/mod_pagespeed    # any directory is fine
     cd ~/mod_pagespeed
-    gclient config https://modpagespeed.googlecode.com/svn/trunk/src
-    gclient update --force
+    gclient config http://modpagespeed.googlecode.com/svn/trunk/src
+    gclient sync --force     # this will download all source code
 }}}
 
 == Compiling mod_pagespeed ==
@@ -34,48 +34,20 @@ export PATH=$PATH:~/bin/depot_tools/
 }}}
 To see the actual g++ commands, you can type `make V=1`.
 
-== Installing and configuring mod_pagespeed ==
-The installation process is driven by scripts and a Makefile in the src/install directory.  Linux distributions vary widely in how they typically install Apache.  The Makefile has variables for all known variations in Apache distribution locations.  The scripts, currently centos.sh and ubuntu.sh, contain settings for these variables.  Let's assume, for the moment, that you are installing on CentOS.
+TODO: describe advanced compilation options such as compiling against system headers.
 
-First you must generate a configuration file, which is dependent on your local hostname, and the file system locations of various Apache directories.  You generate these files as a normal non-privileged user, into a staging area.  E.g. 
+== Building mod_pagespeed RPM/DEB packages ==
+
+You can build packages using the following commands:
 {{{
-          cd install
-          ./centos.sh staging
-    or    ./ubuntu.sh staging
-    or     make staging VAR1=... VAR2=...
+make BUILDTYPE=Release linux_package_rpm
+}}}
+or
+{{{
+make BUILDTYPE=Release linux_package_deb
 }}}
 
-The variables that you can edit are all defined and documented in the Makefile.  Please refer to that if you wish to override the settings provided in the wrapper scripts.  Once you settle on settings, you may want to consider adding a new wrapper script by changing centos.sh or ubuntu.sh with your own variable settings.
-
-Going forward we will just give the examples for `centos.sh`.
-
-Once the configuration files are staged,for your hostname and distribution, you can install them into your Apache installation.  If you trust our install scripts, you can simply type:
-{{{
-      sudo ./centos.sh install
-}}}
-To check what commands are going to be executed under 'sudo' on your system, you can first type:
-{{{
-      ./centos.sh -n install
-}}}
-Once you are satisfied, you can either run "sudo ./centos.sh install" or you can run the printed commands individually.  The next step is to start the server:
-{{{
-      sudo ./centos.sh stop start
-}}}
-Testing mod_pagespeed
-Once the server is running, the Makefile also provides some basic smoke-tests to ensure that mod_pagespeed is functional.  These are run un-privileged:
-{{{
-       ./centos.sh test
-}}}
-The tests install some examples in `/var/www/mod_pagespeed_example/`, then run `wget` to fetch them and verify that mod_pagespeed is transforming them in the expected ways.  You should use a modern version of `wget` for best results; `wget` version 1.10.2 is known to give false positives on some tests.
-
-For comparison to a working installation, you can check out http://modpagespeed.com .
-
-== Iterating through staging/install/stop/start/test ==
-If you are iterating configuration parameters, it can be tedious to run all these commands.  You can cycle through the entire set of commands listed above by typing:
-{{{
-      ./centos.sh restart
-}}}
-Note that we do not give the 'sudo' prefix here; we need the staging command to be run as a normal user.  The 'restart' Makefile rule includes the 'sudo' prefix where needed.
+The resulting package file will be in the `out\Release` directory.
 
 == Monitoring a mod_pagespeed installation ==
-You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable more hosts in `pagespeed.conf`.
+You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable additional hosts in `pagespeed.conf`.
