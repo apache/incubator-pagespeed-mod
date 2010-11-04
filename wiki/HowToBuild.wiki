@@ -16,7 +16,7 @@ We require the Chromium 'depot_tools', which are used to build multiple open-sou
 }}}
 You will need to add the depot_tools to your path. i.e. in bash:
 {{{
-export PATH=$PATH:~/bin/depot_tools
+  export PATH=$PATH:~/bin/depot_tools
 }}}
 
 == Checking out mod_pagespeed and dependencies ==
