@@ -1,0 +1,14 @@
+#summary Frequently Asked Questions
+
+If you're having trouble with `mod_pagespeed`, we'd love to hear about it on [http://groups.google.com/group/mod-pagespeed-discuss/ the mailing list].  But first, check below to see if your question has already been answered.
+
+Please do not post new questions to this page; if you do they will be deleted and moved to the mailing list.  But if you spot a recurring theme on the mailing list, feel free to post the question *and answer* below on this page.
+
+<wiki:toc max_depth="1" />
+
+= When will you support my favorite OS/http server/protocol/ice cream flavor? =
+While we have no dates to announce for upcoming releases, we definitely want to know what you think we should be working on.  Please click on the "Issues" tab, and search for your feature.  (If you don't find it, open a new issue and tag it "Type-Enhancement"). Then click on the Star icon in the top left of the Issue page.  That way, we'll know how many people are interested, and you'll get any updates we post about that feature.
+
+= I installed mod_instaweb; why isn't it rewriting any of my pages? =
+
+Check the HTTP response headers from your page (e.g., run `curl -D - http://example.com`).  Look for a header like `X-Mod-Pagespeed: 0.9.0.0-128`.  If you don't see one, this means that Apache is not adding `mod_pagespeed` to the filter chain, meaning the problem is probably in your Apache `.conf` files. If you do see the header, it's possible that none of the active filters found anything useful to rewrite in your page.  Try enabling more aggressive filters!
