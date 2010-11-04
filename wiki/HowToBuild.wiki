@@ -21,16 +21,16 @@ export PATH=$PATH:~/bin/depot_tools
 
 == Checking out mod_pagespeed and dependencies ==
 {{{
-    mkdir ~/mod_pagespeed    # any directory is fine
-    cd ~/mod_pagespeed
-    gclient config http://modpagespeed.googlecode.com/svn/trunk/src
-    gclient sync --force     # this will download all source code
+  mkdir ~/mod_pagespeed    # any directory is fine
+  cd ~/mod_pagespeed
+  gclient config http://modpagespeed.googlecode.com/svn/trunk/src
+  gclient sync --force     # this will download all source code
 }}}
 
 == Compiling mod_pagespeed ==
 {{{
-    cd ~/mod_pagespeed/src
-    make BUILDTYPE=Release   # BUILDTYPE defaults to 'Debug'
+  cd ~/mod_pagespeed/src
+  make BUILDTYPE=Release   # BUILDTYPE defaults to 'Debug'
 }}}
 To see the actual g++ commands, you can type `make V=1`.
 
@@ -40,11 +40,11 @@ TODO: describe advanced compilation options such as compiling against system hea
 
 You can build packages using the following commands:
 {{{
-make BUILDTYPE=Release linux_package_rpm
+  make BUILDTYPE=Release linux_package_rpm
 }}}
 or
 {{{
-make BUILDTYPE=Release linux_package_deb
+  make BUILDTYPE=Release linux_package_deb
 }}}
 
 The resulting package file will be in the `out\Release` directory.
