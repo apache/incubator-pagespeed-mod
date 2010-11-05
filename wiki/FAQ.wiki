@@ -15,6 +15,6 @@ While we have no dates to announce for upcoming releases, we definitely want to 
   # It's possible that none of the active mod_pagepspeed rewriters found anything useful to rewrite in your page.  Try enabling more aggressive ones!
   # mod_pagespeed cannot optimize resources (css, js, or images) that are marked as cache-control:nocache or cache-control:private. If your default caching headers are marked as such, mod-pagespeed will not rewrite the resources.
 
-= I am using WordPress and my log is filled with errors and my pages are blank =
+= I am using !WordPress and my log is filled with errors and my pages are blank =
 
 Disable compression in the plugin, so that mod_pagespeed will process uncompressed HTML.  mod_pagespeed automatically adds mod_deflate to the filter after running, so the optimized HTML will be compressed before serving.
