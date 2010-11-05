@@ -38,7 +38,7 @@ TODO: describe advanced compilation options such as compiling against system hea
 
 == Installing mod_pagespeed ==
 
-For RPM/DEB platforms, you can use the packaging instructions in the section below. For other platforms you can use the custom installer described below. Note that this installation process is likely to change (to use apxs) in the near future:
+For RPM/DEB platforms, you can use the packaging instructions in the "Building mod_pagespeed RPM/DEB packages" section below. For other platforms you can use the custom installer documented here. Note that the custom installer is likely to change (to use apxs) in the near future:
 
 {{{
   cd install
