@@ -36,6 +36,37 @@ To see the actual g++ commands, you can type `make V=1`.
 
 TODO: describe advanced compilation options such as compiling against system headers.
 
+== Installing mod_pagespeed ==
+
+{{{
+  cd install
+}}}
+
+Then you can run the [http://code.google.com/p/modpagespeed/source/browse/trunk/src/install/Makefile Makefile] with custom parameters for:
+{{{
+  APACHE_ROOT=/etc/httpd
+  APACHE_MODULES=/etc/httpd/modules
+  APACHE_CONTROL_PROGRAM=/etc/init.d/httpd
+  APACHE_USER=www-data
+  APACHE_DOC_ROOT=/var/www/html
+  ... # see makefile for more options
+}}}
+
+Run:
+{{{
+  make APACHE_ROOT=...  ... staging
+  sudo make ... install  # Use make ... -n install to see the commands without executing
+  sudo make ... stop start  # Restart your apache server
+}}}
+
+For the common configurations of Ubuntu and CentOS, we have included simple installer wrappers ubuntu.sh and centos.sh for your convenience (you can use them as guides for making your custom configuration as well). For example, on vanilla CentOS:
+
+{{{
+  ./centos.sh staging
+  sudo ./centos.sh install
+  sudo ./centos.sh stop start
+}}}
+
 == Building mod_pagespeed RPM/DEB packages ==
 
 You can build packages using the following commands:
