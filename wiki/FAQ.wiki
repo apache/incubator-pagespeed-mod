@@ -18,3 +18,9 @@ While we have no dates to announce for upcoming releases, we definitely want to 
 = I am using !WordPress and my log is filled with errors and my pages are blank =
 
 Disable compression in the plugin, so that mod_pagespeed will process uncompressed HTML.  mod_pagespeed automatically adds mod_deflate to the filter after running, so the optimized HTML will be compressed before serving.
+
+----
+
+Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
+
+  * yogeshsarkar@gmail.com
