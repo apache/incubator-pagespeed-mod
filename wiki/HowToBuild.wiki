@@ -61,6 +61,14 @@ Run:
   sudo make ... stop start  # Restart your apache server
 }}}
 
+For the common configurations of Ubuntu and CentOS, we have included simple installer wrappers ubuntu.sh and centos.sh for your convenience. You can use these as examples to build scripts for your custom environment and then run them as:
+
+{{{
+  ./foo.sh staging
+  sudo ./foo.sh install
+  sudo ./foo.sh stop start
+}}}
+
 == Building mod_pagespeed RPM/DEB packages ==
 
 You can build packages using the following commands:
