@@ -1,4 +1,4 @@
-# Welcome to the source-code page for mod_pagespeed.
+#summary Welcome to the source-code page for mod_pagespeed.
 
 [http://code.google.com/p/modpagespeed/source/browse/ Browse] |
 [http://code.google.com/p/modpagespeed/source/list Changes] |
