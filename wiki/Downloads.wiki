@@ -1,0 +1,6 @@
+#summary mod_pagespeed downloads
+
+To download binaries, please go to the
+[http://code.google.com/speed/page-speed/download.html code.google.com download page]
+
+To download source, please go to HowToBuild
