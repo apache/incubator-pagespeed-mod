@@ -4,7 +4,7 @@
 
 Welcome to the source-code page for mod_pagespeed.
 
-[http://code.google.com/p/modpagespeed/source/checkout/browse Browse]
+[http://code.google.com/p/modpagespeed/source/browse/ Browse]
 
  <span class="inst3"><a href="/p/modpagespeed/source/list">Changes</a></span> |
  
