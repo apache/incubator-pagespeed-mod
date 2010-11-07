@@ -1,26 +1,8 @@
-#summary Replacement for the default "Source" tab.
-
-= Introduction =
-
-Welcome to the source-code page for mod_pagespeed.
+# Welcome to the source-code page for mod_pagespeed.
 
 [http://code.google.com/p/modpagespeed/source/browse/ Browse] |
 [http://code.google.com/p/modpagespeed/source/list Changes]
 
- <span class="inst3"><a href="/p/modpagespeed/source/list">Changes</a></span> |
- 
- <form action="http://www.google.com/codesearch" method="get" style="display:inline"
- onsubmit="document.getElementById('codesearchq').value = document.getElementById('origq').value + ' package:http://modpagespeed\\.googlecode\\.com'"> 
- <input type="hidden" name="q" id="codesearchq" value=""> 
- <input maxlength="2048" size="38" id="origq" name="origq" value="" title="Google Code Search" style="font-size:92%">&nbsp;<input type="submit" value="Search Trunk" name="btnG" style="font-size:92%"> 
- 
-  |
- <a href="/p/modpagespeed/issues/entry?show=review&former=sourcelist">Request code review</a> 
+To do a code-search, click here, but don't use the instructions on that page for downloading source.  [http://code.google.com/p/modpagespeed/source/checkout Code Search]
 
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+To build from source, see HowToBuild
