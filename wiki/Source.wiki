@@ -1,7 +1,9 @@
 # Welcome to the source-code page for mod_pagespeed.
 
 [http://code.google.com/p/modpagespeed/source/browse/ Browse] |
-[http://code.google.com/p/modpagespeed/source/list Changes]
+[http://code.google.com/p/modpagespeed/source/list Changes] |
+[http://code.google.com/p/modpagespeed/issues/entry?show=review&former=sourcelist
+Request Code Review]
 
 To do a code-search, click here, but don't use the instructions on that page for downloading source.  [http://code.google.com/p/modpagespeed/source/checkout Code Search]
 
