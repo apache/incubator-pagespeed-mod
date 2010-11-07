@@ -2,8 +2,8 @@
 
 [http://code.google.com/p/modpagespeed/source/browse/ Browse] |
 [http://code.google.com/p/modpagespeed/source/list Changes] |
-[http://code.google.com/p/modpagespeed/issues/entry?show=review&former=sourcelist Request Code Review]
+[http://code.google.com/p/modpagespeed/issues/entry?show=review&former=sourcelist Request Code Review] (Please disregard the Checkout tab on these pages)
 
-To do a code-search, click here, but don't use the instructions on that page for downloading source.  [http://code.google.com/p/modpagespeed/source/checkout Code Search]
+To do a code-search, use the search bar at the top of the [http://code.google.com/p/modpagespeed/source/browse/ Browse] page
 
 To build from source, see HowToBuild
