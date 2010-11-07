@@ -4,8 +4,8 @@
 
 Welcome to the source-code page for mod_pagespeed.
 
- <span class="inst1"><a href="/p/modpagespeed/source/checkout">Checkout</a></span> |
- <span class="inst2"><a href="/p/modpagespeed/source/browse/">Browse</a></span> |
+[http://code.google.com/p/modpagespeed/source/checkout/browse Browse]
+
  <span class="inst3"><a href="/p/modpagespeed/source/list">Changes</a></span> |
  
  <form action="http://www.google.com/codesearch" method="get" style="display:inline"
