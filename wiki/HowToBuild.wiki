@@ -1,5 +1,11 @@
 #summary How to build mod_pagespeed from source
 
+Checkout | Browse | Changes |    | Request code review
+
+<a href="http://code.google.com/p/modpagespeed/source/browse/">Browse</a>
+&nbsp;
+
+
 == Prerequisites ==
 The build has been tested on Ubuntu Hardy/Lucid and CentOS 5.4. It should work elsewhere; if you try it somewhere new, please leave a comment with your success or failure.
 
