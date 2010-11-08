@@ -5,7 +5,7 @@ The build has been tested on Ubuntu Hardy/Lucid and CentOS 5.4. It should work e
 
 We require Apache (>= 2.2), g++ (>= 4.2), subversion, and make.
   * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++ make devscripts`
-  * On CentOS: `sudo yum install httpd subversion gcc-c++ make`
+  * On CentOS: `sudo yum install httpd subversion gcc-c++ make rpm-build`
 
 == Chromium depot tools ==
 We require the Chromium 'depot_tools', which are used to build multiple open-source projects with dependencies on other open-source projects.
