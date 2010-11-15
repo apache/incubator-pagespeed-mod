@@ -42,13 +42,26 @@ TODO: describe advanced compilation options such as compiling against system hea
 
 == Installing mod_pagespeed ==
 
-For RPM/DEB platforms, you can use the packaging instructions in the "Building mod_pagespeed RPM/DEB packages" section below. For other platforms you can use the custom installer documented here. Note that the custom installer is likely to change (to use apxs) in the near future:
+For RPM/DEB platforms, you can use the packaging instructions in the "Building mod_pagespeed RPM/DEB packages" section below. For other platforms you can use the custom installer documented here:
 
 {{{
   cd install
 }}}
 
-Then you can run the [http://code.google.com/p/modpagespeed/source/browse/trunk/src/install/Makefile Makefile] with custom parameters for:
+If you built and installed the Apache web server from source (as opposed to installing using a deb/rpm package manager), you can use the `install_apxs.sh` script:
+
+{{{
+  ./install_apxs.sh
+}}}
+
+The script will infer the proper installation locations for your system, based on information gathered from the Apache apxs tool. These defaults can be overridden on the command line by specifying environment variables. See the contents of the `install_apxs.sh` script for specific details on these environment variables. If you installed Apache in a non-default location, you may need to tell the script where to find the apxs tool, like so:
+
+{{{
+  # Specify the path to your apxs binary
+  APXS_BIN=/usr/local/exampleapache/bin/apxs ./install_apxs.sh
+}}}
+
+Alternatively, if you already know all of the installation details for your system, then you can run the [http://code.google.com/p/modpagespeed/source/browse/trunk/src/install/Makefile Makefile] with custom parameters for:
 {{{
   APACHE_ROOT=/etc/httpd
   APACHE_MODULES=/etc/httpd/modules
