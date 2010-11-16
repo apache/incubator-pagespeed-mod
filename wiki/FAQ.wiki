@@ -21,7 +21,9 @@ Disable compression in the !WordPress plugin, so that mod_pagespeed will process
 
 = mod_pagespeed broke my site; what do I do? =
 
-First of all, upgrade to the latest version, we are continually working on bug-fixes and turning off filters that break pages.
+First of all, sorry about that. We put a lot of work into validating our rewrites against a large corpus of websites and disable filters that cause problems as soon as we can, but sometimes things slip through.
+
+Second, please upgrade to the latest version, we are continually working on bug-fixes and turning off filters that break pages.
 
 If it's still breaking your site, please post a bug at http://code.google.com/p/modpagespeed/issues/list . If you can, the following information will make it much easier to diagnose:
 
@@ -39,7 +41,9 @@ http://www.modpagespeed.com/?ModPagespeed=on&ModPagespeedFilters=rewrite_css
 http://www.modpagespeed.com/?ModPagespeed=on&ModPagespeedFilters=rewrite_javascript
 }}}
 You may have to reload them a few times over several seconds to make sure they have had time to load sub-resources into cache and rewrite them. If one of these breaks your site, you now know which filter is at fault. Please [http://code.google.com/p/modpagespeed/issues/list post a bug] to let us know. You can disable that filter by adding a line to your pagespeed.conf file:
+{{{
    ModPagespeedDisableFilters foo
+}}}
 
 ----
 
