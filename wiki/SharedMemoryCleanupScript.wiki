@@ -1,5 +1,4 @@
 {{{
-{{{
 #!/bin/sh
 
 # See http://carlosrivero.com/fix-apache---no-space-left-on-device-couldnt-create-accept-lock
@@ -33,5 +32,4 @@ for ipsemId in $(ipcs -m | grep $apache_user | cut -f 2 -d ' '); do
  echo ipcrm -m $ipsemId
  ipcrm -m $ipsemId
 done
-}}}
 }}}
