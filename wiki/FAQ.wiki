@@ -11,7 +11,7 @@ While we have no dates to announce for upcoming releases, we definitely want to 
 
 = I installed mod_instaweb; why isn't it rewriting any of my pages? =
 
-  # Check the HTTP response headers from your page (e.g., run `curl -D - http://example.com`).  Look for a header like `X-Mod-Pagespeed: 0.9.0.0-128`.  If you don't see one, this means that Apache is not adding `mod_pagespeed` to the filter chain, meaning the problem is probably in your Apache `.conf` files. One possible cause for this is multiple references to {{{SetOutputFilter}}}: only one of those will win.  See http://httpd.apache.org/docs/current/mod/core.html#addoutputfilterbytype
+  # Check the HTTP response headers from your page (e.g., run `curl -D - http://example.com`).  Look for a header like `X-Mod-Pagespeed: 0.9.0.0-215`.  If you don't see one, this means that Apache is not adding `mod_pagespeed` to the filter chain, meaning the problem is probably in your Apache `.conf` files. One possible cause for this is multiple references to {{{SetOutputFilter}}}: only one of those will win.  See http://httpd.apache.org/docs/current/mod/core.html#addoutputfilterbytype
   # It's possible that none of the active mod_pagepspeed rewriters found anything useful to rewrite in your page.  Try enabling more aggressive ones!
   # mod_pagespeed cannot optimize resources (css, js, or images) that are marked as cache-control:nocache or cache-control:private. If your default caching headers are marked as such, mod-pagespeed will not rewrite the resources.
 
