@@ -52,9 +52,16 @@ You may have to reload them a few times over several seconds to make sure they h
 = Apache will not restart unless I disable mod_pagespeed =
 
 If you see error messages similar to this:
+{{{
+[Thu Nov 04 01:00:25 2010] [error] [1104/010025:ERROR:net/instaweb/apache/apr_statistics.cc(97)] Variable serf_fetch_cancel_count cannot create mutex: No space left on device /etc/apache2/mod_pagespeed/stats_mutex.serf_fetch_cancel_count
+}}}
+or
+{{{
+[Sat Oct 16 21:22:46 2010] [warn] pid file /usr/local/apache2/logs/httpd.pid
+# overwritten -- Unclean shutdown of previous Apache run?
+}}}
 
-
-then Apache previously exited uncleanly, and mod_pagespesed left behind some shared memory segments that need to be cleaned.  Try this SharedMeemoryCleanScript.
+then Apache previously exited uncleanly, and mod_pagespesed left behind some shared memory segments that need to be cleaned.  Try this SharedMemoryCleanupScript.
 
 ----
 
