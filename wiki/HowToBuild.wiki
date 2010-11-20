@@ -23,7 +23,7 @@ You will need to add the depot_tools to your path. i.e. in bash:
 {{{
   mkdir ~/mod_pagespeed    # any directory is fine
   cd ~/mod_pagespeed
-  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.1.1/src		
+  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.10.1/src		
   gclient sync --force     # this will download all source code
 }}}
 
