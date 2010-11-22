@@ -23,6 +23,8 @@ Disable compression in the !WordPress plugin, so that mod_pagespeed will process
 
 In order to use mod_pagespeed packages (.rpm, .deb) from the [http://code.google.com/speed/page-speed/download.html download site] you must have installed Apache httpd from a package manager. If you compiled them from source (for example, using cPanel/!EasyApache) then you cannot use the packages. Instead you need to install from source using the instructions at HowToBuild.
 
+We have an [http://code.google.com/p/modpagespeed/issues/detail?id=109 open Enhancement] to make this easier for people using cPanel !EasyApache. You can also try to follow this tutorial: http://www.technomenace.com/2010/11/install-mod_pagespeed_in_apache_for_cpanel/ We have not tried this and cannot vouch for it, so let us know if it fails.
+
 = mod_pagespeed broke my site; what do I do? =
 
 First of all, sorry about that. We put a lot of work into validating our rewrites against a large corpus of websites and disable filters that cause problems as soon as we can, but sometimes things slip through.
