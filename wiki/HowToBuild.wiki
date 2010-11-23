@@ -82,6 +82,20 @@ For the common configurations of Ubuntu and CentOS, we have included simple inst
   sudo ./foo.sh stop start
 }}}
 
+== Updating to a new version ==
+You can repeat the install process at any time to re-install mod_pagespeed.
+
+To update to the latest version, first configure to the latest tag, eg:
+{{{
+  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.10.1/src
+}}}
+Then sync your client:
+{{{
+  gclient sync --force
+}}}
+
+Now you can re-build and install using the instructions above.
+
 == Building mod_pagespeed RPM/DEB packages ==
 
 You can build packages using the following commands:
