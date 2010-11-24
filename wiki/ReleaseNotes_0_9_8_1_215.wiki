@@ -1,0 +1,20 @@
+mod_pagespeed release 0.9.8.1-215 is available for binary download.  It fixes the following issues:
+
+||[http://code.google.com/p/modpagespeed/issues/detail?id=3 Issue 3]||CSS Not Loading||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=7 Issue 7]||insert_img_dimensions not detecting existing dimensions||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=9 Issue 9]||rfc - generated cache names are too long||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=14 Issue 14]||Invalid url relative to '...'||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=21 Issue 21]||transparency of inlined PNG image||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=25 Issue 25]||Internal Server Error - Not actually an error||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=26 Issue 26]||PNG being scanned as HTML||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=27 Issue 27]||Internal Server Error for 304 - not actually an error?||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=33 Issue 33]||Do not warn on "Invalid url relative to..."||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=36 Issue 36]||Data URLs, such as those created by image inlining, clutter the log ...||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=37 Issue 37]||javascript with name rewriten not found||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=38 Issue 38]||javascripts doesn't work with rewrite_javascript enabled||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=44 Issue 44]||Do not warn on 'Failed to create or read input resource'||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=50 Issue 50]||rewrite_css filter incompatible with CSS3 media queries||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=51 Issue 51]||rewrite_css removes rgba color values||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=64 Issue 64]||Remove 'Failed to load resource' message from rewrite_css filter.||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=66 Issue 66]||rewrite_css removes transform values||
+||[http://code.google.com/p/modpagespeed/issues/detail?id=73 Issue 73]||false warning: end of document without finding body||
