@@ -1,4 +1,4 @@
-mod_pagespeed release 0.9.8.1-250 is available for binary download.  It fixes the following issues:
+mod_pagespeed release 0.9.8.1-250 was released on Nov 23, 2010.  It fixed the following issues:
 
 ||Issue 6||Page speed running on debian with mpm-worker + fcgi causes lots of errors written to apache log||
 ||Issue 24||Compile failure under g++ 4.5 on opensuse 11.3||
@@ -23,7 +23,7 @@ mod_pagespeed release 0.9.8.1-250 is available for binary download.  It fixes th
 ||Issue 100||extend_cache breaks WHMCS site..||
 ||Issue 102||doc that elide_attributes_filter has specific risks||
 
-mod_pagespeed release 0.9.8.1-215 is available for binary download.  It fixes the following issues:
+mod_pagespeed release 0.9.8.1-215 was released on Nov 16, 2010.  It fixed the following issues:
 
 ||Issue 3||CSS Not Loading||
 ||Issue 7||insert_img_dimensions not detecting existing dimensions||
@@ -43,3 +43,14 @@ mod_pagespeed release 0.9.8.1-215 is available for binary download.  It fixes th
 ||Issue 64||Remove 'Failed to load resource' message from rewrite_css filter.||
 ||Issue 66||rewrite_css removes transform values||
 ||Issue 73||false warning: end of document without finding body||
+
+mod_pagespeed version 0.9.1.1-171 was released on Nov 8, 2010.  It fixed the following issues:
+
+||Issue 5||Incorrectly handling not-quoted font-family names with spaces||
+||Issue 7||insert_img_dimensions not detecting existing dimensions||
+||Issue 10||A whole lot of HTTPD processes||
+||Issue 11||After installing module server becomes unusable||
+||Issue 18||!LogLevel seems to be ignored||
+||Issue 25||Misleading server error message||
+||Issue 30||Very slow memory leak||
+||Issue 33||Do not warn on "Invalid url relative to..."||
