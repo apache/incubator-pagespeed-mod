@@ -22,3 +22,24 @@ mod_pagespeed release 0.9.8.1-250 is available for binary download.  It fixes th
 ||Issue 99||Strange Last-Modified Header Response||
 ||Issue 100||extend_cache breaks WHMCS site..||
 ||Issue 102||doc that elide_attributes_filter has specific risks||
+
+mod_pagespeed release 0.9.8.1-215 is available for binary download.  It fixes the following issues:
+
+||Issue 3||CSS Not Loading||
+||Issue 7||insert_img_dimensions not detecting existing dimensions||
+||Issue 9||rfc - generated cache names are too long||
+||Issue 14||Invalid url relative to '...'||
+||Issue 21||transparency of inlined PNG image||
+||Issue 25||Internal Server Error - Not actually an error||
+||Issue 26||PNG being scanned as HTML||
+||Issue 27||Internal Server Error for 304 - not actually an error?||
+||Issue 33||Do not warn on "Invalid url relative to..."||
+||Issue 36||Data URLs, such as those created by image inlining, clutter the log ...||
+||Issue 37||javascript with name rewriten not found||
+||Issue 38||javascripts doesn't work with rewrite_javascript enabled||
+||Issue 44||Do not warn on 'Failed to create or read input resource'||
+||Issue 50||rewrite_css filter incompatible with CSS3 media queries||
+||Issue 51||rewrite_css removes rgba color values||
+||Issue 64||Remove 'Failed to load resource' message from rewrite_css filter.||
+||Issue 66||rewrite_css removes transform values||
+||Issue 73||false warning: end of document without finding body||
