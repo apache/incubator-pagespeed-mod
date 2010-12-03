@@ -80,6 +80,21 @@ Usually this should only be necessary if a new version of mod_pagespeed is insta
 
 These paths and commands are for Debian/Ubuntu; adjust accordingly for other distributions.
 
+= After turning on mod_pagespeed, I get errors in jquery or js_tinyMCE.
+
+Some Javascript libraries that are sensitive to their own names.  This sensitivity might result from a DOM search from javascript for its own script node.
+
+To workaround this problem, use the *ModPagespeedDisallow* directive in the configuration file.
+
+{{{
+  ModPagespeedDisallow */jquery-ui-1.8.2.custom.min.js
+  ModPagespeedDisallow */js_tinyMCE.js
+}}}
+
+This way mod_pagespeed can continue to operate on the other elements of the web page.
+
+Note: This option was added in mod_pagespeed 0.9.11.1-271
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
