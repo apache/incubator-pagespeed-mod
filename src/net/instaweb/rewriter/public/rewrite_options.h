@@ -103,7 +103,7 @@ class RewriteOptions {
   bool modified() const { return modified_; }
 
   void SetDefaultRewriteLevel(RewriteLevel level) {
-    modified_ = true;
+    // Do not set the modified bit -- we are only changing the default.
     level_.set_default(level);
   }
   void SetRewriteLevel(RewriteLevel level) {
@@ -225,6 +225,10 @@ class RewriteOptions {
   // a url is allowed.
   bool IsAllowed(const StringPiece& url) const {
     return allow_resources_.Match(url);
+  }
+
+  void CopyFrom(const RewriteOptions& src) {
+    Merge(src, src);  // We lack a better implementation of Copy.
   }
 
  private:
