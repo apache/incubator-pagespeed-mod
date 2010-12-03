@@ -80,7 +80,7 @@ Usually this should only be necessary if a new version of mod_pagespeed is insta
 
 These paths and commands are for Debian/Ubuntu; adjust accordingly for other distributions.
 
-= After turning on mod_pagespeed, I get errors in jquery or js_tinyMCE.
+= After turning on mod_pagespeed, I get errors in jquery or js_tinyMCE =
 
 Some Javascript libraries that are sensitive to their own names.  This sensitivity might result from a DOM search from javascript for its own script node.
 
