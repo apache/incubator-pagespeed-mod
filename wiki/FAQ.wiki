@@ -95,6 +95,16 @@ This way mod_pagespeed can continue to operate on the other elements of the web 
 
 Note: This option was added in mod_pagespeed 0.9.11.1-271
 
+= mod_pagespeeed gets 'serf' errors loading the sits own resources =
+
+This can happen when the DNS setup on the Apache server or the firewall prevents that host from being able to reference the js, css, and image files using the URLs from the HTML pages.  The solution is to use origin-mapping to indicate the host from which the resources should be fetched.
+
+{{{
+  ModPagespeedMapOriginDomain localhost www.myhost.com
+}}}
+
+This can also be used to improve the performance of mod_pagespeed when it is sitting behind a load balancer.  It may be preferable to use localhost to load the resources rather than going out to the load-balancer and back.
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
