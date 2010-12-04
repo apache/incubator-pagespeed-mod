@@ -1,3 +1,24 @@
+mod_pagespeed release 0.9.11.3 was released on Dec 3, 2010.  It fixed the following issues:
+
+||Issue 4|| mod_pagespeed does not handle application/xhtml+xml||
+||Issue 34|| when the server provides an Expires header, our cache extension may not work everywhere||
+||Issue 38|| js_tinyMCE breaks when it's name is changed||
+||Issue 56|| Feature: Moving images to another host name||
+||Issue 61|| Shorten hash||
+||Issue 76|| Allow explicit control over CSS concat etc||
+||Issue 81|| URLs with UTF-8 characters in them cannot be rewritten.||
+||Issue 90|| Support origin mapping||
+||Issue 99|| Strange Last-Modified Header Response||
+||Issue 107|| Rewriting images fails to load original image from alternative port||
+||Issue 112|| Support if-modified-since||
+||Issue 113|| Logfile error for CSS files||
+||Issue 114|| query-params in origin URL should have ? escaped in rewritten URL||
+||Issue 115|| Modpagespeed error when access wikimedia||
+||Issue 117|| Apache servers behind a load balancer on virtual IP cannot find input resources||
+||Issue 118|| mod_pagespeed doesn't support Application/ce-html+xml MIME type||
+||Issue 121|| CSS minification failes when font: shorthand||
+||Issue 128|| list-style-type: none rejected by CSS parser.||
+
 mod_pagespeed release 0.9.8.1-250 was released on Nov 23, 2010.  It fixed the following issues:
 
 ||Issue 6||Page speed running on debian with mpm-worker + fcgi causes lots of errors written to apache log||
