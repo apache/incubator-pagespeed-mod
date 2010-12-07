@@ -1,3 +1,7 @@
+mod_pagespeed release 0.9.11.5 was released on Dec 7, 2010.  It includes binary packages, and fixes the following issue with 0.9.11.3:
+
+||Issue 131||	Invalid command '!ModPagespeedImgMaxRewritesAtOnce'||
+
 mod_pagespeed release 0.9.11.3 was released on Dec 3, 2010.  It fixed the following issues:
 
 ||Issue 4|| mod_pagespeed does not handle application/xhtml+xml||
