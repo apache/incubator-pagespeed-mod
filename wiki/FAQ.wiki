@@ -114,8 +114,7 @@ user & group of your apache webserver, and the path to your needs.
 Feel free to change the size (here it is 256Mb):
 
 {{{
-tmpfs                   /var/www/mod_pagespeed/cache    tmpfs
-size=256m,mode=0775,uid=httpd,gid=httpd    0    0
+tmpfs /var/www/mod_pagespeed/cache tmpfs size=256m,mode=0775,uid=httpd,gid=httpd 0 0
 }}}
 
 Save it, and after that mount the tmpfs:
