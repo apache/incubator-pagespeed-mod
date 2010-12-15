@@ -105,8 +105,28 @@ This can happen when the DNS setup on the Apache server or the firewall prevents
 
 This can also be used to improve the performance of mod_pagespeed when it is sitting behind a load balancer.  It may be preferable to use localhost to load the resources rather than going out to the load-balancer and back.
 
+= Moving mod_pagespeed's file-based cache to memory =
+
+mod_pagespeed uses the file system for its cache implementation.  There is no requirement that this be a physical disk.  Disk pressure will be reduced and performance may be improved by using a memory-based file system.
+
+Put this in /etc/fstab, please change the uid & guid to the appropiate
+user & group of your apache webserver, and the path to your needs.
+Feel free to change the size (here it is 256Mb):
+
+{{{
+tmpfs                   /var/www/mod_pagespeed/cache    tmpfs
+size=256m,mode=0775,uid=httpd,gid=httpd    0    0
+}}}
+
+Save it, and after that mount the tmpfs:
+
+{{{
+mount /var/www/mod_pagespeed/cache
+}}}
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
 
   * yogeshsarkar@gmail.com
+  * pdreissen@gmail.com
