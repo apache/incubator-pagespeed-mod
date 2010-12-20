@@ -1,0 +1,22 @@
+# Whether this file will be read by httpd depends on settings in httpd.conf.  For
+# now, the presence of it verifies that these options are allowed.
+#
+# TODO(jmarantz): Add system test that proves these options are functional.
+ModPagespeed on
+ModPagespeedEnableFilters combine_css
+ModPagespeedJsOutlineMinBytes        3000
+ModPagespeedDisallow *
+ModPagespeedAllow *.htm*
+ModPagespeedAllow *.shtm*
+ModPagespeedAllow *.xhtm*
+ModPagespeedAllow */
+ModPagespeedAllow http://*/images/*.png
+ModPagespeedAllow http://*/images/*.jpg
+ModPagespeedAllow http://*/images/*.gif
+ModPagespeedAllow http://*/styles/*.css
+ModPagespeedAllow http://*/*.js
+ModPagespeedDisallow */images/captcha/*
+ModPagespeedMapRewriteDomain rewrite_to_domain rewrite_from_domain
+ModPagespeedMapOriginDomain origin_to_domain origin_from_domain
+ModPagespeedDomain my_domain
+ModPagespeedAllow *.cgi*
