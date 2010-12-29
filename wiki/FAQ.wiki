@@ -19,10 +19,9 @@ While we have no dates to announce for upcoming releases, we definitely want to 
 
 Disable compression in the !WordPress plugin, so that mod_pagespeed will process uncompressed HTML.  mod_pagespeed automatically adds mod_deflate to the filter after running, so the optimized HTML will be compressed before serving.
 
-= I installed Apache 2.2 with ... but mod_pagespeed rpm says "httpd >= 2.2 is needed" =
-= I installed mod_pagespeed from a .deb or .rpm and Apache from cPanel, and mod_pagespeed doesn't work =
+= I installed Apache 2.2 using cPanel, and can't get mod_pagespeed to work when I install from the .deb or .rpm =
 
-In order to use mod_pagespeed packages (.rpm, .deb) from the [http://code.google.com/speed/page-speed/download.html download site] you must have installed Apache httpd from a package manager. If you compiled them from source (for example, using cPanel/!EasyApache) then you cannot use the packages. Instead you need to install from source using the instructions at HowToBuild.
+In order to use mod_pagespeed packages (.rpm, .deb) from the [http://code.google.com/speed/page-speed/download.html download site] you must have installed Apache httpd from a package manager. If you compiled them from source (for example, using cPanel/!EasyApache) then you cannot use the packages. Instead you need to install from source using the instructions at HowToBuild.  If you try to install the .deb or .rpm you may either get an error at installation time, or you may simply discover that apache isn't running mod_pagespeed as you expect.
 
 We have an [http://code.google.com/p/modpagespeed/issues/detail?id=109 open Enhancement] to make this easier for people using cPanel !EasyApache. You can also try to follow this tutorial: http://www.technomenace.com/2010/11/install-mod_pagespeed_in_apache_for_cpanel/ We have not tried this and cannot vouch for it, so let us know if it fails.
 
