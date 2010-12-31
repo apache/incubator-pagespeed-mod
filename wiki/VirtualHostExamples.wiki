@@ -1,0 +1,5 @@
+#summary Examples of using mod_pagespeed on VirtualHosts
+
+By default mod_pagespeed installs itself for the entire Apache server including all [http://httpd.apache.org/docs/current/vhosts/ VirtualHost]s. If you want the exact same configuration for all !VirtualHosts than you can just use the default configuration layout. However, if you want to configure different !VirtualHosts differently, you will need to use a different layout for configuration options. This pages covers some examples of mixed installations on multi-server setups.
+
+= Examples =
