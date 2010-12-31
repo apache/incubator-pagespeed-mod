@@ -86,4 +86,4 @@ NameVirtualHost *:80
 </VirtualHost>
 }}}
 
-Then just stop loading the global pagespeed.conf file (either remove {{{Include /usr/local/apache2/conf/pagespeed.conf}}} from httpd.conf or delete the file pagespeed.conf if it is not explicitly loaded from httpd.conf). Or you could just set {{{ModPagespeed off}}} in pagespeed.conf.
+Then just stop loading the global pagespeed.conf file (either remove {{{Include /usr/local/apache2/conf/pagespeed.conf}}} from httpd.conf or delete the file pagespeed.conf if it is not explicitly loaded from httpd.conf).
