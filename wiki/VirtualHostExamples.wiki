@@ -8,6 +8,8 @@ We're no vhost experts, and wrote this based on reading the [http://httpd.apache
 
 = Examples =
 
+This is a work in progress and isn't working yet.
+
 The most basic example is just to move all configuration into each !VirtualHost, for example, starting with the !VirtualHost directives from [http://httpd.apache.org/docs/2.0/vhosts/examples.html this VirtualHost examples page]:
 
 {{{
