@@ -8,9 +8,7 @@ We're no vhost experts, and wrote this based on reading the [http://httpd.apache
 
 = Examples =
 
-This is a work in progress and isn't working yet.
-
-The most basic example is just to move all configuration into each !VirtualHost, for example, starting with the !VirtualHost directives from [http://httpd.apache.org/docs/2.0/vhosts/examples.html this VirtualHost examples page]:
+The most basic example is just to copy all configuration into each !VirtualHost and turn it off globaly, for example, starting with the !VirtualHost directives from [http://httpd.apache.org/docs/2.0/vhosts/examples.html this VirtualHost examples page]:
 
 {{{
 # Ensure that Apache listens on port 80
@@ -60,10 +58,6 @@ NameVirtualHost *:80
   # can set this to "off".
   ModPagespeed on
 
-  # Direct Apache to send all HTML output to the mod_pagespeed
-  # output handler.
-  AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER text/html
-
   # The ModPagespeedFileCachePath and
   # ModPagespeedGeneratedFilePrefix directories must exist and be
   # writable by the apache user (as specified by the User directive).
@@ -88,4 +82,19 @@ NameVirtualHost *:80
 </VirtualHost>
 }}}
 
-Then just stop loading the global pagespeed.conf file (either remove {{{Include /usr/local/apache2/conf/pagespeed.conf}}} from httpd.conf or delete the file pagespeed.conf if it is not explicitly loaded from httpd.conf).
+Notice that we don't copy over {{{AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER text/html}}}, we don't want to add it twice.
+
+Then we, just turn !ModPagespeed off in pagespeed.conf:
+
+{{{
+<IfModule pagespeed_module>
+    # Turn on mod_pagespeed. To completely disable mod_pagespeed, you
+    # can set this to "off".
+    ModPagespeed off
+
+    # Direct Apache to send all HTML output to the mod_pagespeed
+    # output handler.
+    AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER text/html
+
+    # ...
+}}}
