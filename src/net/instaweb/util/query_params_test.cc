@@ -1,13 +1,15 @@
 // Copyright 2010 and onwards Google Inc.
 // Author: jmarantz@google.com (Joshua Marantz)
 
-// Unit-test QueryParams.
+// Unit-test SimpleUrlData, in particular it's HTTP header parser.
 
 #include "net/instaweb/util/public/query_params.h"
 #include <algorithm>
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
