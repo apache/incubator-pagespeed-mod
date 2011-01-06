@@ -1,4 +1,4 @@
-# Copyright 2010-2011 Google Inc.
+# Copyright 2010 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,7 +61,6 @@
       'type': 'executable',
       'dependencies': [
         'instaweb_html_rewriter.gyp:html_rewriter',
-        'instaweb.gyp:instaweb_http',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/build/build_util.gyp:mod_pagespeed_version_header',
         '<(DEPTH)/testing/gtest.gyp:gtest',
@@ -105,9 +104,7 @@
         'util/mock_message_handler_test.cc',
         'util/mock_url_fetcher.cc',
         'util/mock_url_fetcher_test.cc',
-        'util/query_params_test.cc',
-        'util/simple_meta_data_test.cc',
-        'util/string_multi_map_test.cc',
+#        'util/simple_meta_data_test.cc',
 #        'util/simple_stats_test.cc',
         'util/statistics_work_bound_test.cc',
 #        'util/split_writer_test.cc',
@@ -156,7 +153,6 @@
         'rewriter/url_partnership_test.cc',
 #        'htmlparse/html_escape_test.cc',
         'htmlparse/html_parse_test.cc',
-        'http/response_headers_test.cc',
       ],
     },
 
