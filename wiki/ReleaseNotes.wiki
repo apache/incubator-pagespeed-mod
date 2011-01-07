@@ -1,8 +1,26 @@
-mod_pagespeed release 0.9.11.5 was released on Dec 7, 2010.  It includes binary packages, and fixes the following issue with 0.9.11.3:
+<wiki:toc max_depth="3" />
+===mod_pagespeed release 0.9.14.6===
+ was released on Jan 7, 2011.  It includes binary packages, and fixes the following issues:
+||Issue 53||	Firebug errors (404s) when mousing over images rewritten with mod_pagespeed enabled.||
+||Issue 63||	Breaks Gallery2 installation (issues with mod_rewrite?)||
+|| Issue 125||	Inline JavaScript breaks XHTML strict validation||
+||Issue 126||	font: menu not rewritten correctly||
+||Issue 134||	Reached end of document without finding body is an error, should be a warning or less||
+||Issue 144||	Have HTML rewriting respect ModPagespeedDisallow||
+||Issue 145||	Allow ?ModPagespeed=on when "ModPagespeed off"||
+|| Issue 146||	Add New Directive "ModPagepseedStatistics off"||
+||Issue 149||	Filters need to check that they do not make URLs that are too long||
+|| Issue 154||	mod_pagespeed breaks forms in IE 8 with Compatability mode||
+||Issue 157||	mod_pagespeed's caching headers break image caching on IE8||
+
+
+===mod_pagespeed release 0.9.11.5===
+ was released on Dec 7, 2010.  It includes binary packages, and fixes the following issue with 0.9.11.3:
 
 ||Issue 131||	Invalid command '!ModPagespeedImgMaxRewritesAtOnce'||
 
-mod_pagespeed release 0.9.11.3 was released on Dec 3, 2010.  It fixed the following issues:
+===mod_pagespeed release 0.9.11.3===
+ was released on Dec 3, 2010.  It fixed the following issues:
 
 ||Issue 4|| mod_pagespeed does not handle application/xhtml+xml||
 ||Issue 34|| when the server provides an Expires header, our cache extension may not work everywhere||
@@ -23,7 +41,7 @@ mod_pagespeed release 0.9.11.3 was released on Dec 3, 2010.  It fixed the follow
 ||Issue 121|| CSS minification failes when font: shorthand||
 ||Issue 128|| list-style-type: none rejected by CSS parser.||
 
-mod_pagespeed release 0.9.8.1-250 was released on Nov 23, 2010.  It fixed the following issues:
+===mod_pagespeed release 0.9.8.1-250=== was released on Nov 23, 2010.  It fixed the following issues:
 
 ||Issue 6||Page speed running on debian with mpm-worker + fcgi causes lots of errors written to apache log||
 ||Issue 24||Compile failure under g++ 4.5 on opensuse 11.3||
@@ -48,7 +66,7 @@ mod_pagespeed release 0.9.8.1-250 was released on Nov 23, 2010.  It fixed the fo
 ||Issue 100||extend_cache breaks WHMCS site..||
 ||Issue 102||doc that elide_attributes_filter has specific risks||
 
-mod_pagespeed release 0.9.8.1-215 was released on Nov 16, 2010.  It fixed the following issues:
+===mod_pagespeed release 0.9.8.1-215=== was released on Nov 16, 2010.  It fixed the following issues:
 
 ||Issue 3||CSS Not Loading||
 ||Issue 7||insert_img_dimensions not detecting existing dimensions||
@@ -69,7 +87,8 @@ mod_pagespeed release 0.9.8.1-215 was released on Nov 16, 2010.  It fixed the fo
 ||Issue 66||rewrite_css removes transform values||
 ||Issue 73||false warning: end of document without finding body||
 
-mod_pagespeed version 0.9.1.1-171 was released on Nov 8, 2010.  It fixed the following issues:
+===mod_pagespeed version 0.9.1.1-171===
+ was released on Nov 8, 2010.  It fixed the following issues:
 
 ||Issue 5||Incorrectly handling not-quoted font-family names with spaces||
 ||Issue 7||insert_img_dimensions not detecting existing dimensions||
