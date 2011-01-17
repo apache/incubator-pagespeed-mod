@@ -87,7 +87,7 @@ You can repeat the install process at any time to re-install mod_pagespeed.
 
 To update to the latest version, first configure to the latest tag, eg:
 {{{
-  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.11.5/src
+  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.14.6/src
 }}}
 Then sync your client:
 {{{
