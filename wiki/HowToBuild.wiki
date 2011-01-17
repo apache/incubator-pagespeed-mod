@@ -27,11 +27,11 @@ You will need to add the depot_tools to your path. i.e. in bash:
 Either latest stable version:
 {{{
   gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.14.6/src
+  gclient sync --force     # this will download all source code
 }}}
 or the bleeding edge version
 {{{
   gclient config http://modpagespeed.googlecode.com/svn/trunk/src
-}}}
   gclient sync --force     # this will download all source code
 }}}
 
