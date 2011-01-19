@@ -15,11 +15,11 @@ While we have no dates to announce for upcoming releases, we definitely want to 
   # It's possible that none of the active mod_pagepspeed rewriters found anything useful to rewrite in your page.  Try enabling more aggressive ones!
   # mod_pagespeed cannot optimize resources (css, js, or images) that are marked as cache-control:nocache or cache-control:private. If your default caching headers are marked as such, mod-pagespeed will not rewrite the resources.
 
-= I am using !WordPress and my pages are blank =
+= I am using !WordPress and my pages are blank.  What gives? =
 
 Disable compression in the !WordPress plugin, so that mod_pagespeed will process uncompressed HTML.  mod_pagespeed automatically adds mod_deflate to the filter after running, so the optimized HTML will be compressed before serving.
 
-= I installed Apache 2.2 using cPanel, and can't get mod_pagespeed to work when I install from the .deb or .rpm =
+= I installed Apache 2.2 using cPanel, and can't get mod_pagespeed to work when I install from the .deb or .rpm.  Little help?=
 
 In order to use mod_pagespeed packages (.rpm, .deb) from the [http://code.google.com/speed/page-speed/download.html download site] you must have installed Apache httpd from a package manager. If you compiled them from source (for example, using cPanel/!EasyApache) then you cannot use the packages. Instead you need to install from source using the instructions at HowToBuild.  If you try to install the .deb or .rpm you may either get an error at installation time, or you may simply discover that apache isn't running mod_pagespeed as you expect.
 
@@ -27,11 +27,11 @@ We have an [http://code.google.com/p/modpagespeed/issues/detail?id=109 open Enha
 
 = mod_pagespeed broke my site; what do I do? =
 
-First of all, sorry about that. We put a lot of work into validating our rewrites against a large corpus of websites and disable filters that cause problems as soon as we can, but sometimes things slip through.
+First of all, sorry about that. We put a lot of work into validating our rewriters against a large corpus of websites and we disable filters that cause problems as soon as we can, but sometimes things slip through.
 
-Second, please upgrade to the latest version, we are continually working on bug-fixes and turning off filters that break pages.
+Second, please upgrade to the latest version; we are continually working on bug-fixes and turning off filters that break pages.
 
-If it's still breaking your site, please post a bug at http://code.google.com/p/modpagespeed/issues/list . If you can, the following information will make it much easier to diagnose:
+If it's still breaking your site, please post a bug at http://code.google.com/p/modpagespeed/issues/list . If you can, including the following information will make it much easier to diagnose:
 
   # Try appending {{{?ModPagespeed=off}}} to the URL. This de-activates mod_pagespeed module. If the site is still broken, it is not a rewrite or HTML parsing problem. It might be a configuration clash, please ask us at mod-pagespeed-discuss@googlegroups.com or file a bug.
   # If that fixed the site, try appending {{{?ModPagespeed=on&ModPagespeedFilters=}}} to the URL. This turns on mod_pagespeed, but no filters. If the site is broken now, it is an HTML parsing problem. Please let us know.
@@ -51,7 +51,7 @@ You may have to reload them a few times over several seconds to make sure they h
    ModPagespeedDisableFilters foo
 }}}
 
-= Apache will not restart unless I disable mod_pagespeed =
+= Apache will not restart unless I disable mod_pagespeed!  What's up with that? =
 
 If you see error messages similar to this:
 {{{
@@ -80,7 +80,7 @@ Usually this should only be necessary if a new version of mod_pagespeed is insta
 
 These paths and commands are for Debian/Ubuntu; adjust accordingly for other distributions.
 
-= After turning on mod_pagespeed, I get errors in jquery or js_tinyMCE =
+= Why is mod_pagespeed giving me errors in jquery or js_tinyMCE? =
 
 Some Javascript libraries that are sensitive to their own names.  This sensitivity might result from a DOM search from javascript for its own script node.
 
@@ -95,7 +95,7 @@ This way mod_pagespeed can continue to operate on the other elements of the web 
 
 Note: This option was added in mod_pagespeed 0.9.11.1-271
 
-= mod_pagespeeed gets 'serf' errors loading the site's own resources =
+= What's with all these 'serf' errors in my logs? =
 
 This can happen when the DNS setup on the Apache server or the firewall prevents that host from being able to reference the js, css, and image files using the URLs from the HTML pages.  The solution is to use origin-mapping to indicate the host from which the resources should be fetched.
 
@@ -105,9 +105,9 @@ This can happen when the DNS setup on the Apache server or the firewall prevents
 
 This can also be used to improve the performance of mod_pagespeed when it is sitting behind a load balancer.  It may be preferable to use localhost to load the resources rather than going out to the load-balancer and back.
 
-= Moving mod_pagespeed's file-based cache to memory =
+= Can I move mod_pagespeed's file-based cache into RAM? =
 
-mod_pagespeed uses the file system for its cache implementation.  There is no requirement that this be a physical disk.  Disk pressure will be reduced and performance may be improved by using a memory-based file system.
+Why yes, you can.  mod_pagespeed uses the file system for its cache implementation.  There is no requirement that this be a physical disk.  Disk pressure will be reduced and performance may be improved by using a memory-based file system.
 
 Put this in /etc/fstab, please change the uid & guid to the appropiate
 user & group of your apache webserver, and the path to your needs.
