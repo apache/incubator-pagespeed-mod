@@ -1,0 +1,28 @@
+# Proxy configuration file to enable Instaweb to rewrite external
+# content.  In this configuration we use assume a browser proxy,
+# pointing to localhost:80.
+
+LoadModule proxy_module APACHE_MODULES/mod_proxy.so
+# Depends: proxy
+LoadModule proxy_http_module APACHE_MODULES/mod_proxy_http.so
+
+<IfModule mod_proxy.c>
+  ProxyRequests On
+  ProxyVia On
+
+  # limit connections to LAN clients
+  <Proxy *>
+    AddDefaultCharset off
+    Order Deny,Allow
+    Allow from all
+  </Proxy>
+  ProxyPreserveHost On
+  ProxyStatus On
+  ProxyBadHeader Ignore
+
+  # Enable/disable the handling of HTTP/1.1 "Via:" headers.
+  # ("Full" adds the server version; "Block" removes all outgoing Via: headers)
+  # Set to one of: Off | On | Full | Block
+  ProxyVia On
+
+</IfModule>
