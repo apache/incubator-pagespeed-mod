@@ -45,7 +45,6 @@ const uint64 Parser::kDeclarationError;
 const uint64 Parser::kSelectorError;
 const uint64 Parser::kFunctionError;
 const uint64 Parser::kMediaError;
-const uint64 Parser::kCounterError;
 
 
 // Using isascii with signed chars is unfortunately undefined.
@@ -682,12 +681,10 @@ Value* Parser::ParseAny() {
           toret = ParseUrl();
         } else if (id.utf8_length() == 7
                    && memcasecmp("counter", id.utf8_data(), 7) == 0) {
-          errors_seen_mask_ |= kCounterError;
           // TODO(yian): parse COUNTER parameters
           toret = new Value(Value::COUNTER, new Values());
         } else if (id.utf8_length() == 8
                    && memcasecmp("counters", id.utf8_data(), 8) == 0) {
-          errors_seen_mask_ |= kCounterError;
           // TODO(yian): parse COUNTERS parameters
           toret = new Value(Value::COUNTER, new Values());
         } else if (id.utf8_length() == 3

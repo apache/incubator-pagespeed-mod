@@ -50,7 +50,7 @@ class Variable;
 
 class UrlLeftTrimFilter : public EmptyHtmlFilter {
  public:
-  UrlLeftTrimFilter(HtmlParse* html_parse, Statistics* statistics);
+  UrlLeftTrimFilter(HtmlParse* html_parse, Statistics* resource_manager);
   static void Initialize(Statistics* statistics);
   virtual void StartElement(HtmlElement* element);
   // TODO(sligocki): This is broken and only adds base_urls. We need to be able
