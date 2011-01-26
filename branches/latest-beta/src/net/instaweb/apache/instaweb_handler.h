@@ -28,19 +28,16 @@ namespace net_instaweb {
 // declined so that other Apache handlers may operate on them.
 apr_status_t instaweb_handler(request_rec* request);
 
-// output-filter function to repair caching headers, which might have
-// been altered by a directive like:
-//
-//     <FilesMatch "\.(jpg|jpeg|gif|png|js|css)$">
-//       Header set Cache-control "public, max-age=600"
-//     </FilesMatch>
-apr_status_t repair_caching_header(ap_filter_t *filter, apr_bucket_brigade *bb);
-
 // We need to save the original URL as a request "note" before
 // mod_rewrite has a chance to corrupt mod_pagespeed's generated URLs,
 // which would prevent instaweb_handler from being able to decode the
 // resource.
 apr_status_t save_url_for_instaweb_handler(request_rec *request);
+
+// By default, apache imposes limitations on URL segments of around
+// 256 characters that appear to correspond to filename limitations.
+// To prevent that, we hook map_to_storage for our own purposes.
+apr_status_t instaweb_map_to_storage(request_rec* request);
 
 }  // namespace net_instaweb
 

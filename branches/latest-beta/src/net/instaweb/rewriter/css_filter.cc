@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -289,10 +289,9 @@ bool CssFilter::RewriteExternalCss(const StringPiece& in_url,
                                    std::string* out_url) {
   bool ret = false;
   scoped_ptr<Resource> input_resource(CreateInputResource(in_url));
-  scoped_ptr<OutputResource> output_resource(
-      resource_manager_->CreateOutputResourceFromResource(
-          filter_prefix_, &kContentTypeCss, resource_manager_->url_escaper(),
-          input_resource.get(), html_parse_->message_handler()));
+  scoped_ptr<OutputResource> output_resource(CreateOutputResourceFromResource(
+      &kContentTypeCss, resource_manager_->url_escaper(),
+      input_resource.get()));
   if (output_resource.get() != NULL &&
       RewriteExternalCssToResource(input_resource.get(),
                                    output_resource.get())) {
@@ -305,10 +304,16 @@ bool CssFilter::RewriteExternalCss(const StringPiece& in_url,
 // Rewrite in input_resource once it has already been loaded.
 bool CssFilter::RewriteExternalCssToResource(Resource* input_resource,
                                              OutputResource* output_resource) {
-  bool ret = false;
-  // If this OutputResource has not already been created, create it.
-  if (!output_resource->HasValidUrl()) {
-    // Load input stylesheet.
+  bool ret;
+  if (!output_resource->optimizable()) {
+    // We remember a failed attempt; don't retry until input expires.
+    ret = false;
+  } else if (output_resource->HasValidUrl()) {
+    // We remember result of a successful attempt, just use that.
+    ret = true;
+  } else {
+    // Need to do the work...
+    ret = false;
     MessageHandler* handler = html_parse_->message_handler();
     if (input_resource != NULL &&
         resource_manager_->ReadIfCached(input_resource, handler)) {
@@ -320,8 +325,6 @@ bool CssFilter::RewriteExternalCssToResource(Resource* input_resource,
                                  input_resource->url().c_str());
       }
     }
-  } else {
-    ret = true;
   }
 
   return ret;
@@ -336,6 +339,9 @@ bool CssFilter::RewriteLoadedResource(const Resource* input_resource,
     std::string out_contents;
     if (!RewriteCssText(in_contents, &out_contents, input_resource->url(),
                         html_parse_->message_handler())) {
+      resource_manager_->WriteUnoptimizable(
+          output_resource, input_resource->CacheExpirationTimeMs(),
+          html_parse_->message_handler());
       return false;
     }
 

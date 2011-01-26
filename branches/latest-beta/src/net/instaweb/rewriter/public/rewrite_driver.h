@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/user_agent.h"
 
 namespace net_instaweb {
@@ -58,10 +58,11 @@ class RewriteDriver {
   static const char kImageCompressionId[];
   static const char kJavascriptMinId[];
 
-  // A list of HTTP request headers.  These are the headers which should be
-  // passed through from the client request into the MetaData request_headers
-  // sent to the rewrite driver.  Headers not in this list will be ignored so
-  // there is no need to copy them over.
+  // A list of HTTP request headers.  These are the headers which
+  // should be passed through from the client request into the
+  // ResponseHeaders request_headers sent to the rewrite driver.
+  // Headers not in this list will be ignored so there is no need to
+  // copy them over.
   static const char* kPassThroughRequestAttributes[3];
 
   RewriteDriver(MessageHandler* message_handler,
@@ -139,8 +140,8 @@ class RewriteDriver {
   // 'final word' on this request, whether it was called with success=true or
   // success=false.
   bool FetchResource(const StringPiece& resource,
-                     const MetaData& request_headers,
-                     MetaData* response_headers,
+                     const RequestHeaders& request_headers,
+                     ResponseHeaders* response_headers,
                      Writer* writer,
                      MessageHandler* message_handler,
                      UrlAsyncFetcher::Callback* callback);

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/util/public/simple_meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include <string>
 #include "net/instaweb/util/public/string_writer.h"
 
@@ -150,8 +150,8 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
       scoped_ptr<OutputResource> output_resource(
           resource_manager_->CreateOutputResourceWithPath(
               GoogleUrl::AllExceptLeaf(html_parse_->gurl()),
-              kFilterId, "_",
-              &kContentTypeCss, handler));
+              kFilterId, "_", &kContentTypeCss, rewrite_driver()->options(),
+              handler));
 
       // Absolutify URLs in content.
       std::string absolute_content;

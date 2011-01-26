@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -78,7 +78,7 @@ TEST_F(DomainLawyerTest, ExternalDomainNotDeclared) {
 }
 
 TEST_F(DomainLawyerTest, ExternalDomainDeclared) {
-  StringPiece cdn_domain(kCdnPrefix, sizeof(kCdnPrefix) - 1);
+  StringPiece cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
   ASSERT_TRUE(domain_lawyer_.AddDomain(cdn_domain, &message_handler_));
   std::string mapped_domain_name;
   ASSERT_TRUE(MapRequest(
@@ -97,7 +97,7 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclared) {
 }
 
 TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutScheme) {
-  StringPiece cdn_domain(kCdnPrefix, sizeof(kCdnPrefix) - 1);
+  StringPiece cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
   ASSERT_TRUE(domain_lawyer_.AddDomain(kCdnPrefix + strlen("http://"),
                                        &message_handler_));
   std::string mapped_domain_name;
@@ -107,7 +107,7 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutScheme) {
 }
 
 TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutTrailingSlash) {
-  StringPiece cdn_domain(kCdnPrefix, sizeof(kCdnPrefix) - 1);
+  StringPiece cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
   StringPiece cdn_domain_no_slash(kCdnPrefix, sizeof(kCdnPrefix) - 2);
   ASSERT_TRUE(domain_lawyer_.AddDomain(cdn_domain_no_slash, &message_handler_));
   std::string mapped_domain_name;
@@ -117,7 +117,7 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutTrailingSlash) {
 }
 
 TEST_F(DomainLawyerTest, WildcardDomainDeclared) {
-  StringPiece cdn_domain(kCdnPrefix, sizeof(kCdnPrefix) - 1);
+  StringPiece cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
   ASSERT_TRUE(domain_lawyer_.AddDomain("*.nytimes.com", &message_handler_));
   std::string mapped_domain_name;
   ASSERT_TRUE(MapRequest(
@@ -270,6 +270,22 @@ TEST_F(DomainLawyerTest, MapOriginDomain) {
   ASSERT_TRUE(domain_lawyer_.MapOrigin("http://origin.com:8080/a/b/c?d=f",
                                        &mapped));
   EXPECT_EQ("http://localhost:8080/a/b/c?d=f", mapped);
+
+  // The origin domain, which might be, say, 'localhost', is not necessarily
+  // authorized as a domain for input resources.
+  GURL gurl = GoogleUrl::Create(
+      StringPiece("http://origin.com:8080/index.html"));
+  EXPECT_FALSE(MapRequest(gurl, "http://localhost:8080/blue.css", &mapped));
+
+  // Of course, if we were to explicitly authorize then it would be ok.
+  // First use a wildcard, which will not cover the ":8080", so the
+  // Map will still fail.
+  ASSERT_TRUE(domain_lawyer_.AddDomain("localhost*", &message_handler_));
+  EXPECT_FALSE(MapRequest(gurl, "http://localhost:8080/blue.css", &mapped));
+
+  // Now, include the port explicitly, and the mapping will be allowed.
+  ASSERT_TRUE(domain_lawyer_.AddDomain("localhost:8080", &message_handler_));
+  EXPECT_TRUE(MapRequest(gurl, "http://localhost:8080/blue.css", &mapped));
 }
 
 TEST_F(DomainLawyerTest, Merge) {
@@ -285,6 +301,9 @@ TEST_F(DomainLawyerTest, Merge) {
       "http://dest1/", "http://common_src1", &message_handler_));
   ASSERT_TRUE(domain_lawyer_.AddOriginDomainMapping(
       "http://dest2/", "http://common_src2", &message_handler_));
+
+  ASSERT_TRUE(domain_lawyer_.AddShard("foo.com", "bar1.com,bar2.com",
+                                      &message_handler_));
 
   // Now add a similar set of mappings for another lawyer.
   DomainLawyer merged;
@@ -332,6 +351,43 @@ TEST_F(DomainLawyerTest, Merge) {
 
   ASSERT_TRUE(merged.MapOrigin("http://common_src3", &mapped));
   EXPECT_EQ("http://dest4/", mapped);
+
+  std::string shard;
+  ASSERT_TRUE(merged.ShardDomain("http://foo.com/", 0, &shard));
+  EXPECT_EQ(std::string("http://bar1.com/"), shard);
+}
+
+TEST_F(DomainLawyerTest, AddMappingFailures) {
+  // You can never wildcard the target domains.
+  EXPECT_FALSE(domain_lawyer_.AddRewriteDomainMapping("foo*.com", "bar.com",
+                                                      &message_handler_));
+  EXPECT_FALSE(domain_lawyer_.AddOriginDomainMapping("foo*.com", "bar.com",
+                                                     &message_handler_));
+  EXPECT_FALSE(domain_lawyer_.AddShard("foo*.com", "bar.com",
+                                       &message_handler_));
+
+  // You can use wildcard in source domains for Rewrite and Origin, but not
+  // Sharding.
+  EXPECT_TRUE(domain_lawyer_.AddRewriteDomainMapping("foo.com", "bar*.com",
+                                                     &message_handler_));
+  EXPECT_TRUE(domain_lawyer_.AddOriginDomainMapping("foo.com", "bar*.com",
+                                                    &message_handler_));
+  EXPECT_FALSE(domain_lawyer_.AddShard("foo.com", "bar*.com",
+                                       &message_handler_));
+
+  EXPECT_TRUE(domain_lawyer_.AddShard("foo.com", "bar1.com,bar2.com",
+                                      &message_handler_));
+}
+
+TEST_F(DomainLawyerTest, Shard) {
+  ASSERT_TRUE(domain_lawyer_.AddShard("foo.com", "bar1.com,bar2.com",
+                                      &message_handler_));
+  std::string shard;
+  ASSERT_TRUE(domain_lawyer_.ShardDomain("http://foo.com/", 0, &shard));
+  EXPECT_EQ(std::string("http://bar1.com/"), shard);
+  ASSERT_TRUE(domain_lawyer_.ShardDomain("http://foo.com/", 1, &shard));
+  EXPECT_EQ(std::string("http://bar2.com/"), shard);
+  EXPECT_FALSE(domain_lawyer_.ShardDomain("http://other.com/", 0, &shard));
 }
 
 }  // namespace net_instaweb

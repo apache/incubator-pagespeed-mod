@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,10 +44,15 @@ class OutputResource : public Resource {
   // even though full_name embeds an extension.  This reflects current code
   // structure rather than a principled stand on anything.
   // TODO(jmaessen): remove redundancy.
+  //
+  // The 'options' argument can be NULL.  This is done in the Fetch path because
+  // that field is only used for domain sharding, and during the fetch, further
+  // domain makes no sense.
   OutputResource(ResourceManager* manager,
                  const StringPiece& resolved_base,
                  const ResourceNamer& resource_id,
-                 const ContentType* type);
+                 const ContentType* type,
+                 const RewriteOptions* options);
   ~OutputResource();
 
   virtual bool Load(MessageHandler* message_handler);
@@ -107,6 +112,12 @@ class OutputResource : public Resource {
   // when rewriting it we can, in some cases, exploit a URL swap.
   bool HasValidUrl() const { return has_hash(); }
 
+  // When this is false we have previously processed the URL and
+  // have marked down that we cannot do anything with it
+  // (by calling ResourceManager::WriteUnoptimizable);
+  // this being true carries no information.
+  bool optimizable() const { return optimizable_; }
+
   // Resources rewritten via a UrlPartnership will have a resolved
   // base to use in lieu of the legacy UrlPrefix held by the resource
   // manager.
@@ -144,6 +155,7 @@ class OutputResource : public Resource {
   void set_written(bool written) { writing_complete_ = true; }
   void set_generated(bool x) { generated_ = x; }
   bool generated() const { return generated_; }
+  void set_optimizable(bool new_val) { optimizable_ = new_val; }
   std::string TempPrefix() const;
 
   OutputWriter* BeginWrite(MessageHandler* message_handler);
@@ -161,15 +173,28 @@ class OutputResource : public Resource {
   // will be distinct because it's based on the hash of the content.
   bool generated_;
 
-  // If this output url was created via a partnership then this field
-  // will be non-empty, and we will not need to use the resource manager's
-  // prefix.
+  // This is set to false when the filter has explicitly reported to
+  // ResourceManager that it can't do anything useful
+  bool optimizable_;
+
+  // The resolved_base_ is the domain as reported by UrlPartnership.
+  // It takes into account domain-mapping via
+  // ModPagespeedMapRewriteDomain.  However, the resolved base is
+  // not affected by sharding.  Shard-selection is done when url() is called,
+  // relying on the content hash.
   std::string resolved_base_;
   ResourceNamer full_name_;
 
   // Lock guarding resource creation.  Lazily initialized by LockForCreation,
   // unlocked on destruction or EndWrite.
   scoped_ptr<AbstractLock> creation_lock_;
+
+  // rewrite_options_ is NULL when we are creating an output resource on
+  // behalf of a fetch.  This is because there's no point or need to implement
+  // sharding on the fetch -- we are not rewriting a URL, we are just decoding
+  // it.  However, when rewriting a resources, we need rewrite_options_ to
+  // be non-null.
+  const RewriteOptions* rewrite_options_;
 
   DISALLOW_COPY_AND_ASSIGN(OutputResource);
 };

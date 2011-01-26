@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class MetaData;
+class ResponseHeaders;
 class OutputResource;
 class ResourceManager;
 

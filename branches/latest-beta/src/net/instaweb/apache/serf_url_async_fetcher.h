@@ -21,9 +21,9 @@
 #include <list>
 #include <map>
 #include "base/basictypes.h"
-#include "net/instaweb/apache/url_pollable_async_fetcher.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/simple_meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/url_pollable_async_fetcher.h"
 
 struct apr_pool_t;
 struct serf_context_t;
@@ -49,14 +49,16 @@ struct SerfStats {
 
 class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
  public:
+  typedef std::list<SerfFetch*>::iterator FetchQueueEntry;
+
   SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
                       Statistics* statistics, Timer* timer, int64 timeout_ms);
   SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent, const char* proxy);
   virtual ~SerfUrlAsyncFetcher();
   static void Initialize(Statistics* statistics);
   virtual bool StreamingFetch(const std::string& url,
-                              const MetaData& request_headers,
-                              MetaData* response_headers,
+                              const RequestHeaders& request_headers,
+                              ResponseHeaders* response_headers,
                               Writer* fetched_content_writer,
                               MessageHandler* message_handler,
                               UrlAsyncFetcher::Callback* callback);
@@ -84,9 +86,6 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
 
  protected:
   typedef std::list<SerfFetch*> FetchQueue;
-  typedef std::list<SerfFetch*>::iterator FetchQueueEntry;
-  typedef std::map<SerfFetch*, FetchQueueEntry> FetchMap;
-  typedef std::map<SerfFetch*, FetchQueueEntry>::iterator FetchMapEntry;
   bool SetupProxy(const char* proxy);
   size_t NumActiveFetches();
   void CancelOutstandingFetches();
@@ -100,7 +99,6 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   AprMutex* mutex_;
   serf_context_t* serf_context_;
   FetchQueue active_fetches_;
-  FetchMap active_fetch_map_;
 
   typedef std::vector<SerfFetch*> FetchVector;
   FetchVector completed_fetches_;
@@ -111,10 +109,6 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   Variable* outstanding_count_;
 
  private:
-  // Removes the given fetch from both active_fetch_queue_ and
-  // active_fetch_map_.  You are expected to already be holding the appropriate
-  // locks.  Does not actually delete anything.  Returns a queue iterator
-  // pointing to the next fetch after this one in the queue.
   Variable* request_count_;
   Variable* byte_count_;
   Variable* time_duration_ms_;

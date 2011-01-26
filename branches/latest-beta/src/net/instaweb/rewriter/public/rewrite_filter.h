@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
 
@@ -60,14 +60,19 @@ class RewriteFilter : public CommonFilter {
   // all the original URLs separated by '+'.
   virtual bool Fetch(OutputResource* output_resource,
                      Writer* response_writer,
-                     const MetaData& request_header,
-                     MetaData* response_headers,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
                      MessageHandler* message_handler,
                      UrlAsyncFetcher::Callback* callback) = 0;
 
   const std::string& id() const { return filter_prefix_; }
   HtmlParse* html_parse() { return driver_->html_parse(); }
   ResourceManager* resource_manager() { return driver_->resource_manager(); }
+
+  OutputResource* CreateOutputResourceFromResource(
+      const ContentType* content_type,
+      UrlSegmentEncoder* encoder,
+      Resource* input_resource);
 
  protected:
   std::string filter_prefix_;  // Prefix that should be used in front of all

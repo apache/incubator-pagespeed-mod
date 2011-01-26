@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class MetaData;
+class ResponseHeaders;
 class RewriteOptions;
 class UrlFetcher;
 
@@ -45,6 +45,8 @@ class UrlInputResource : public Resource {
 
   virtual std::string url() const { return url_; }
   const RewriteOptions* rewrite_options() const { return rewrite_options_; }
+
+  void Freshen(MessageHandler* handler);
 
  protected:
   virtual bool Load(MessageHandler* message_handler);

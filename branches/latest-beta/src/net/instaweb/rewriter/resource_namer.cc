@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,7 +67,7 @@ bool TokenizeSegmentFromRight(StringPiece* src, std::string* dest) {
 
 }  // namespace
 
-const int ResourceNamer::kOverhead = 4 + sizeof(kSystemId) - 1;
+const int ResourceNamer::kOverhead = 4 + STATIC_STRLEN(kSystemId);
 
 bool ResourceNamer::Decode(const StringPiece& encoded_string) {
   StringPiece src(encoded_string);
@@ -161,15 +161,6 @@ bool ResourceNamer::DecodeHashExt(const StringPiece& encoded_hash_ext) {
     names[1].CopyToString(&ext_);
   }
   return ret;
-}
-
-size_t ResourceNamer::Hash() const {
-  size_t id_hash   = HashString(  id_.data(),   id_.size());
-  size_t name_hash = HashString(name_.data(), name_.size());
-  size_t hash_hash = HashString(hash_.data(), hash_.size());
-  size_t ext_hash  = HashString( ext_.data(),  ext_.size());
-  return
-      JoinHash(JoinHash(JoinHash(id_hash, name_hash), hash_hash), ext_hash);
 }
 
 const ContentType* ResourceNamer::ContentTypeFromExt() const {

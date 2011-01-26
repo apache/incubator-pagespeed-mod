@@ -15,6 +15,7 @@
 {
   'variables': {
     'instaweb_root': '../..',
+    'protoc_out_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/instaweb',
     'chromium_code': 1,
   },
   'targets': [
@@ -24,6 +25,7 @@
       'type': '<(library)',
       'dependencies': [
         'instaweb_core.gyp:instaweb_util_core',
+        'instaweb_http',
         '<(instaweb_root)/third_party/base64/base64.gyp:base64',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
         '<(DEPTH)/base/base.gyp:base',
@@ -32,13 +34,28 @@
         '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
       ],
       'sources': [
+        'http/cache_url_async_fetcher.cc',
+        'http/cache_url_fetcher.cc',
+        'http/dummy_url_fetcher.cc',
+        'http/fake_url_async_fetcher.cc',
+        'http/http_cache.cc',
+        'http/http_dump_url_async_writer.cc',
+        'http/http_dump_url_fetcher.cc',
+        'http/http_dump_url_writer.cc',
+        'http/http_response_parser.cc',
+        'http/http_value.cc',
+        'http/meta_data.cc',
+        'http/sync_fetcher_adapter.cc',
+        'http/sync_fetcher_adapter_callback.cc',
+        'http/url_async_fetcher.cc',
+        'http/url_fetcher.cc',
+        'http/url_pollable_async_fetcher.cc',
+        'http/wait_url_async_fetcher.cc',
+        'http/wget_url_fetcher.cc',
+        'util/abstract_condvar.cc',
         'util/abstract_mutex.cc',
         'util/cache_interface.cc',
-        'util/cache_url_async_fetcher.cc',
-        'util/cache_url_fetcher.cc',
         'util/data_url.cc',
-        'util/dummy_url_fetcher.cc',
-        'util/fake_url_async_fetcher.cc',
         'util/file_cache.cc',
         'util/file_system.cc',
         'util/file_system_lock_manager.cc',
@@ -46,14 +63,7 @@
         'util/filename_encoder.cc',
         'util/gzip_inflater.cc',
         'util/hasher.cc',
-        'util/http_cache.cc',
-        'util/http_response_parser.cc',
-        'util/http_dump_url_async_writer.cc',
-        'util/http_dump_url_fetcher.cc',
-        'util/http_dump_url_writer.cc',
-        'util/http_value.cc',
         'util/lru_cache.cc',
-        'util/meta_data.cc',
         'util/md5_hasher.cc',
         'util/mock_hasher.cc',
         'util/mock_message_handler.cc',
@@ -61,26 +71,21 @@
         'util/named_lock_manager.cc',
         'util/null_message_handler.cc',
         'util/null_writer.cc',
-        'util/pthread_mutex.cc',
+        'util/query_params.cc',
         'util/ref_counted.cc',
         'util/rolling_hash.cc',
-        'util/query_params.cc',
-        'util/simple_meta_data.cc',
         'util/simple_stats.cc',
+#        'util/split_writer.cc',                Not currently needed
         'util/statistics.cc',
         'util/statistics_work_bound.cc',
         'util/stdio_file_system.cc',
         'util/threadsafe_cache.cc',
         'util/time_util.cc',
         'util/timer_based_abstract_lock.cc',
-        'util/url_async_fetcher.cc',
         'util/url_escaper.cc',
-        'util/url_fetcher.cc',
         'util/url_multipart_encoder.cc',
         'util/url_segment_encoder.cc',
         'util/user_agent.cc',
-        'util/wait_url_async_fetcher.cc',
-        'util/wget_url_fetcher.cc',
         'util/wildcard.cc',
         'util/wildcard_group.cc',
         'util/work_bound.cc',
@@ -96,6 +101,24 @@
           '<(DEPTH)',
         ],
       },
+    },
+    {
+      'target_name': 'instaweb_util_pthread',
+      'type': '<(library)',
+      'dependencies': [
+        'instaweb_util',
+      ],
+      'sources': [
+        'util/pthread_condvar.cc',
+        'util/pthread_mutex.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'ldflags': [
+        '-lrt',
+      ]
     },
     {
       'target_name': 'instaweb_htmlparse',
@@ -122,12 +145,65 @@
           '<(DEPTH)',
         ],
       },
+      'export_dependent_settings': [
+        'instaweb_core.gyp:instaweb_htmlparse_core',
+      ],
+    },
+    {
+      'target_name': 'instaweb_http',
+      'type': '<(library)',
+      'dependencies': [
+        'instaweb_core.gyp:instaweb_util_core',
+        'instaweb_http_pb',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
+      ],
+      'sources': [
+        'http/headers.cc',
+        'http/request_headers.cc',
+        'http/response_headers.cc',
+        'http/response_headers_parser.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+    },
+    {
+      'target_name': 'instaweb_http_test',
+      'type': '<(library)',
+      'dependencies': [
+        'instaweb_http',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
+      ],
+      'sources': [
+        'http/counting_url_async_fetcher.cc',
+        'util/counting_writer.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
     },
     {
       'target_name': 'instaweb_rewriter_base',
       'type': '<(library)',
       'dependencies': [
         'instaweb_util',
+        'instaweb_core.gyp:instaweb_htmlparse_core',
         '<(DEPTH)/base/base.gyp:base',
       ],
       'sources': [
@@ -147,6 +223,9 @@
           '<(DEPTH)',
         ],
       },
+      'export_dependent_settings': [
+        'instaweb_core.gyp:instaweb_htmlparse_core',
+      ],
     },
     {
       'variables': {
@@ -244,6 +323,7 @@
       'dependencies': [
         'instaweb_rewriter_base',
         'instaweb_core.gyp:instaweb_rewriter_html',
+        'instaweb_http',
         'instaweb_rewriter_css',
         'instaweb_rewriter_image',
         'instaweb_rewriter_javascript',
@@ -255,6 +335,7 @@
         'rewriter/add_instrumentation_filter.cc',
         'rewriter/base_tag_filter.cc',
         'rewriter/cache_extender.cc',
+        'rewriter/combine_filter_base.cc',
         'rewriter/common_filter.cc',
         'rewriter/css_combine_filter.cc',
         'rewriter/css_inline_filter.cc',
@@ -287,6 +368,61 @@
           '<(DEPTH)',
         ],
       },
+    },
+    {
+      'target_name': 'instaweb_http_genproto',
+      'type': 'none',
+      'sources': [
+        'http/http.proto',
+      ],
+      'rules': [
+        {
+          'rule_name': 'genproto',
+          'extension': 'proto',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+          ],
+          'outputs': [
+            '<(protoc_out_dir)/net/instaweb/http/<(RULE_INPUT_ROOT).pb.h',
+            '<(protoc_out_dir)/net/instaweb/http/<(RULE_INPUT_ROOT).pb.cc',
+          ],
+          'action': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+            '--proto_path=http',
+            './http/<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
+            '--cpp_out=<(protoc_out_dir)/net/instaweb/http',
+          ],
+          'message': 'Generating C++ code from <(RULE_INPUT_PATH)',
+        },
+      ],
+      'dependencies': [
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protoc#host',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(protoc_out_dir)',
+        ]
+      },
+      'export_dependent_settings': [
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+      ],
+    },
+    {
+      'target_name': 'instaweb_http_pb',
+      'type': '<(library)',
+      'hard_dependency': 1,
+      'dependencies': [
+        'instaweb_http_genproto',
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+       ],
+      'sources': [
+        '<(protoc_out_dir)/net/instaweb/http/http.pb.cc',
+      ],
+      'export_dependent_settings': [
+        'instaweb_http_genproto',
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+      ]
     },
   ],
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_OUTLINE_FILTER_H_
 
 #include "base/basictypes.h"
-#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/atom.h"
@@ -29,20 +29,20 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class MetaData;
+class ResponseHeaders;
 class OutputResource;
 class ResourceManager;
 
 // Filter to take explicit <style> and <script> tags and outline them to files.
-class JsOutlineFilter : public HtmlFilter {
+class JsOutlineFilter : public CommonFilter {
  public:
   explicit JsOutlineFilter(RewriteDriver* driver);
   static const char kFilterId[];
 
-  virtual void StartDocument();
+  virtual void StartDocumentImpl();
 
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  virtual void StartElementImpl(HtmlElement* element);
+  virtual void EndElementImpl(HtmlElement* element);
 
   virtual void Flush();
 

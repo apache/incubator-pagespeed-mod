@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -119,14 +119,23 @@ class DomainLawyer {
                               MessageHandler* handler);
 
   // Specifies domain-sharding.  This implicitly calls AddDomain(to_domain).
-  // The shard_pattern must include exactly one '%d'.
   //
   // Wildcards may not be used in the to_domain or the from_domain.
+  bool AddShard(const StringPiece& to_domain,
+                const StringPiece& comma_separated_shards,
+                MessageHandler* handler);
+
+  // Computes a domain shard based on a passed-in hash, returning true
+  // if the domain was sharded.  Output argument 'shard' is only updated
+  // if when the return value is true.
   //
-  // TODO(jmarantz): implement this
-  bool ShardDomain(const StringPiece& to_domain,
-                   const StringPiece& shard_pattern,
-                   int num_shards, MessageHandler* handler);
+  // The hash is an explicit uint32 so that we get the same shard for a
+  // resource, whether the server is 32-bit or 64-bit.  If we have
+  // 5 shards and used size_t for hashes, then we'd wind up with different
+  // shards on 32-bit and 64-bit machines and that would reduce cacheability
+  // of the sharded resources.
+  bool ShardDomain(const StringPiece& domain_name, uint32 hash,
+                   std::string* shard) const;
 
   // Merge the domains declared in src into this.  There are no exclusions, so
   // this is really just aggregating the mappings and authorizations declared in
@@ -142,11 +151,15 @@ class DomainLawyer {
       const StringPiece& to_domain_name,
       const StringPiece& comma_separated_from_domains,
       SetDomainFn set_domain_fn,
+      bool allow_wildcards,
+      bool authorize,
       MessageHandler* handler);
 
   Domain* AddDomainHelper(const StringPiece& domain_name,
                           bool warn_on_duplicate,
+                          bool authorize,
                           MessageHandler* handler);
+  Domain* CloneAndAdd(const Domain* src);
 
   Domain* FindDomain(const std::string& domain_name) const;
 

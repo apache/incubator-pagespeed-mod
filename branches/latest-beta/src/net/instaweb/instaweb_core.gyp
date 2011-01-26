@@ -23,6 +23,8 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
       ],
       'sources': [
         'util/content_type.cc',
@@ -33,6 +35,7 @@
         'util/string_convert.cc',
         'util/string_util.cc',
         'util/string_writer.cc',
+        'util/symbol_table.cc',
         'util/timer.cc',
         'util/writer.cc',
       ],
@@ -46,6 +49,10 @@
           '<(DEPTH)',
         ],
       },
+      'export_dependent_settings': [
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
+      ],
     },
     {
       'target_name': 'instaweb_htmlparse_core',
@@ -54,6 +61,7 @@
         'instaweb_util_core',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
+        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
         'htmlparse/doctype.cc',
@@ -86,6 +94,7 @@
       'type': '<(library)',
       'dependencies': [
         'instaweb_util_core',
+        'instaweb_htmlparse_core',
         '<(DEPTH)/base/base.gyp:base',
       ],
       'sources': [
@@ -104,6 +113,10 @@
           '<(DEPTH)',
         ],
       },
+      'export_dependent_settings': [
+        'instaweb_util_core',
+        'instaweb_htmlparse_core',
+      ]
     },
     # We build this target to make sure that we don't accidentially
     # introduce dependencies from the core libraries to non-core

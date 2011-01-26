@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/statistics.h"
 #include <string>
 #include "net/instaweb/util/public/string_writer.h"
@@ -77,7 +77,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
         !IsRewrittenResource(input_resource->url()) &&
         resource_manager_->ReadIfCached(input_resource.get(),
                                         message_handler)) {
-      const MetaData* headers = input_resource->metadata();
+      const ResponseHeaders* headers = input_resource->metadata();
       int64 now_ms = resource_manager_->timer()->NowMs();
 
       // We cannot cache-extend a resource that's completely uncacheable,
@@ -90,11 +90,9 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
       } else if (((headers->CacheExpirationTimeMs() - now_ms) <
                   kMinThresholdMs) &&
                  (input_resource->type() != NULL)) {
-        scoped_ptr<OutputResource> output(
-            resource_manager_->CreateOutputResourceFromResource(
-                filter_prefix_, input_resource->type(),
-                resource_manager_->url_escaper(), input_resource.get(),
-                message_handler));
+        scoped_ptr<OutputResource> output(CreateOutputResourceFromResource(
+            input_resource->type(), resource_manager_->url_escaper(),
+            input_resource.get()));
         if (output.get() != NULL) {
           CHECK(!output->IsWritten());
 

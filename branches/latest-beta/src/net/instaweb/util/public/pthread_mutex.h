@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +33,8 @@ class PthreadMutex : public AbstractMutex {
   virtual void Lock();
   virtual void Unlock();
  private:
+  friend class PthreadCondvar;
+
   pthread_mutex_t mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(PthreadMutex);

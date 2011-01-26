@@ -21,6 +21,7 @@
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
+#include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "net/instaweb/util/public/url_escaper.h"
 
@@ -79,7 +80,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
     const char c_css_body[] = ".c3 {\n font-weight: bold;\n}\n";
 
     // Put original CSS files into our fetcher.
-    SimpleMetaData default_css_header;
+    ResponseHeaders default_css_header;
     resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
     mock_url_fetcher_.SetResponse(a_css_url, default_css_header, a_css_body);
     mock_url_fetcher_.SetResponse(b_css_url, default_css_header, b_css_body);
@@ -136,7 +137,8 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
     EXPECT_EQ(headers + expected_combination, actual_combination);
 
     // Fetch the combination to make sure we can serve the result from above.
-    SimpleMetaData request_headers, response_headers;
+    RequestHeaders request_headers;
+    ResponseHeaders response_headers;
     std::string fetched_resource_content;
     StringWriter writer(&fetched_resource_content);
     DummyCallback dummy_callback(true);
@@ -150,7 +152,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
     // does not already have the combination cached.
     // TODO(sligocki): This has too much shared state with the first server.
     // See RewriteImage for details.
-    SimpleMetaData other_response_headers;
+    ResponseHeaders other_response_headers;
     fetched_resource_content.clear();
     message_handler_.Message(kInfo, "Now with serving.");
     file_system_.Enable();
@@ -179,7 +181,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
     AddFilter(RewriteOptions::kCombineCss);
 
     // Put original CSS files into our fetcher.
-    SimpleMetaData default_css_header;
+    ResponseHeaders default_css_header;
     resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
     mock_url_fetcher_.SetResponse(a_css_url, default_css_header, a_css_body);
     mock_url_fetcher_.SetResponse(c_css_url, default_css_header, c_css_body);
@@ -190,7 +192,8 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
     std::string kACUrl = Encode(kDomain, "cc", "0", "a.css+c.css", "css");
     std::string kABCUrl = Encode(kDomain, "cc", "0", "a.css+bbb.css+c.css",
                                   "css");
-    SimpleMetaData request_headers, response_headers;
+    RequestHeaders request_headers;
+    ResponseHeaders response_headers;
     std::string fetched_resource_content;
     StringWriter writer(&fetched_resource_content);
     DummyCallback dummy_callback(true);
@@ -265,7 +268,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
       if (gurl.is_valid()) {
         *base = GoogleUrl::AllExceptLeaf(gurl);
         ResourceNamer namer;
-        if (namer.Decode(GoogleUrl::Leaf(gurl)) &&
+        if (namer.Decode(GoogleUrl::LeafWithQuery(gurl)) &&
             (namer.id() == "cc")) {  // TODO(jmarantz): Share this literal
           UrlEscaper escaper;
           UrlMultipartEncoder multipart_encoder;
@@ -352,7 +355,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
       const CssLink::Vector& input_css_links,
       CssLink::Vector* output_css_links) {
     // TODO(sligocki): Allow other domains (this is constrained right now b/c
-    // of InitMetaData.
+    // of InitResponseHeaders.
     std::string html_url = StrCat("http://test.com/", id, ".html");
     std::string html_input("<head>\n");
     for (int i = 0, n = input_css_links.size(); i < n; ++i) {
@@ -361,7 +364,7 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
         if (link->supply_mock_) {
           // If the css-vector contains a 'true' for this, then we supply the
           // mock fetcher with headers and content for the CSS file.
-          InitMetaData(link->url_, kContentTypeCss, link->content_, 600);
+          InitResponseHeaders(link->url_, kContentTypeCss, link->content_, 600);
         }
         std::string style("  <");
         style += StringPrintf("link rel='stylesheet' type='text/css' href='%s'",
@@ -384,6 +387,27 @@ class CssCombineFilterTest : public ResourceManagerTestBase {
                     output_css_links);
 
     // TODO(jmarantz): fetch all content and provide output as text.
+  }
+
+  // Helper for testing handling of URLs with trailing junk
+  void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
+    CssLink::Vector css_in, css_out;
+    css_in.Add("1.css", kYellow, "", true);
+    css_in.Add("2.css", kYellow, "", true);
+    BarrierTestHelper("no_ext_corrupt", css_in, &css_out);
+    ASSERT_EQ(1, css_out.size());
+    std::string normal_url = css_out[0]->url_;
+
+    std::string out;
+    EXPECT_EQ(should_fetch_ok,
+              ServeResourceUrl(StrCat(normal_url, junk),  &out));
+
+    // Now re-do it and make sure %22 didn't get stuck in the URL
+    STLDeleteElements(&css_out);
+    css_out.clear();
+    BarrierTestHelper("no_ext_corrupt", css_in, &css_out);
+    ASSERT_EQ(1, css_out.size());
+    EXPECT_EQ(css_out[0]->url_, normal_url);
   }
 };
 
@@ -463,7 +487,7 @@ TEST_F(CssCombineFilterTest, CombineCssWithNoscriptBarrier) {
   // Put this in the Test class to remove repetition here and below.
   std::string d_css_url = StrCat(kDomain, "d.css");
   const char d_css_body[] = ".c4 {\n color: green;\n}\n";
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse(d_css_url, default_css_header, d_css_body);
 
@@ -484,7 +508,7 @@ TEST_F(CssCombineFilterTest, CombineCssWithMediaBarrier) {
 
   std::string d_css_url = StrCat(kDomain, "d.css");
   const char d_css_body[] = ".c4 {\n color: green;\n}\n";
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse(d_css_url, default_css_header, d_css_body);
 
@@ -504,7 +528,7 @@ TEST_F(CssCombineFilterTest, CombineCssWithNonMediaBarrier) {
   const char c_css_body[] = ".c3 {\n font-weight: bold;\n}\n";
   const char d_css_body[] = ".c4 {\n color: green;\n}\n";
 
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse(a_css_url, default_css_header, a_css_body);
   mock_url_fetcher_.SetResponse(b_css_url, default_css_header, b_css_body);
@@ -553,7 +577,7 @@ TEST_F(CssCombineFilterTest, CombineCssBaseUrl) {
   const char a_css_body[] = ".c1 {\n background-color: blue;\n}\n";
   const char b_css_body[] = ".c2 {\n color: yellow;\n}\n";
 
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse(a_css_url, default_css_header, a_css_body);
   mock_url_fetcher_.SetResponse(b_css_url, default_css_header, b_css_body);
@@ -624,10 +648,10 @@ TEST_F(CssCombineFilterTest, CombineCssManyFiles) {
   // this on the constant declared in RewriteOptions but I think it's
   // easier to understand leaving these exposed as constants; we can
   // abstract them later.
-  const int kNumCssLinks = 20;
+  const int kNumCssLinks = 100;
   // Note: Without CssCombine::Partnership::kUrlSlack this was:
   //const int kNumCssInCombination = 18
-  const int kNumCssInCombination = 10;  // based on how we encode "yellow%d.css"
+  const int kNumCssInCombination = 70;  // based on how we encode "yellow%d.css"
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks; ++i) {
     css_in.Add(StringPrintf("styles/yellow%d.css", i),
@@ -656,7 +680,7 @@ TEST_F(CssCombineFilterTest, CombineCssManyFilesOneOrphan) {
   // that stays on its own.
   // Note: Without CssCombine::Partnership::kUrlSlack this was:
   //const int kNumCssInCombination = 18
-  const int kNumCssInCombination = 10;  // based on how we encode "yellow%d.css"
+  const int kNumCssInCombination = 70;  // based on how we encode "yellow%d.css"
   const int kNumCssLinks = kNumCssInCombination + 1;
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks - 1; ++i) {
@@ -763,7 +787,7 @@ TEST_F(CssCombineFilterTest, DoAbsolutifyDifferentDir) {
 // Verifies that we don't produce URLs that are too long in a corner case.
 TEST_F(CssCombineFilterTest, CrossAcrossPathsExceedingUrlSize) {
   CssLink::Vector css_in, css_out;
-  std::string long_name(200, 'z');
+  std::string long_name(600, 'z');
   css_in.Add(long_name + "/a.css", "a", "", true);
   css_in.Add(long_name + "/b.css", "b", "", true);
 
@@ -778,9 +802,21 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsExceedingUrlSize) {
   GURL gurl = GoogleUrl::Create(css_out[0]->url_);
   EXPECT_EQ("/" + long_name + "/", GoogleUrl::PathSansLeaf(gurl));
   ResourceNamer namer;
-  ASSERT_TRUE(namer.Decode(GoogleUrl::Leaf(gurl)));
+  ASSERT_TRUE(namer.Decode(GoogleUrl::LeafWithQuery(gurl)));
   EXPECT_EQ("a.css+b.css", namer.name());
   EXPECT_EQ("ab", actual_combination);
+}
+
+// Verifies that we don't allow path-crossing URLs if that option is turned off.
+TEST_F(CssCombineFilterTest, CrossAcrossPathsDisallowed) {
+  options_.set_combine_across_paths(false);
+  CssLink::Vector css_in, css_out;
+  css_in.Add("a/a.css", "a", "", true);
+  css_in.Add("b/b.css", "b", "", true);
+  BarrierTestHelper("cross_paths", css_in, &css_out);
+  ASSERT_EQ(2, css_out.size());
+  EXPECT_EQ("a/a.css", css_out[0]->url_);
+  EXPECT_EQ("b/b.css", css_out[1]->url_);
 }
 
 TEST_F(CssCombineFilterTest, CrossMappedDomain) {
@@ -790,7 +826,7 @@ TEST_F(CssCombineFilterTest, CrossMappedDomain) {
   bool supply_mock = false;
   css_in.Add("http://a.com/1.css", kYellow, "", supply_mock);
   css_in.Add("http://b.com/2.css", kBlue, "", supply_mock);
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse("http://a.com/1.css", default_css_header,
                                 kYellow);
@@ -815,7 +851,7 @@ TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
   const char kUrl2[] = "http://b.com/2.css";
   css_in.Add(kUrl1, kYellow, "", supply_mock);
   css_in.Add(kUrl2, kBlue, "", supply_mock);
-  SimpleMetaData default_css_header;
+  ResponseHeaders default_css_header;
   resource_manager_->SetDefaultHeaders(&kContentTypeCss, &default_css_header);
   mock_url_fetcher_.SetResponse(kUrl1, default_css_header, kYellow);
   mock_url_fetcher_.SetResponse(kUrl2, default_css_header, kBlue);
@@ -824,6 +860,15 @@ TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
   std::string actual_combination;
   EXPECT_EQ(kUrl1, css_out[0]->url_);
   EXPECT_EQ(kUrl2, css_out[1]->url_);
+}
+
+// Make sure bad requests do not corrupt our extension.
+TEST_F(CssCombineFilterTest, NoExtensionCorruption) {
+  TestCorruptUrl("%22", false);
+}
+
+TEST_F(CssCombineFilterTest, NoQueryCorruption) {
+  TestCorruptUrl("?query", true);
 }
 
 /*

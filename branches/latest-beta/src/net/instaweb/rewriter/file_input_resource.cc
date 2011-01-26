@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@
 
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/file_system.h"
-#include "net/instaweb/util/public/simple_meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 
 namespace net_instaweb {
 
@@ -31,7 +31,7 @@ bool FileInputResource::Load(MessageHandler* message_handler) {
   FileSystem* file_system = resource_manager_->file_system();
   if (file_system->ReadFile(filename_.c_str(), &value_, message_handler)) {
     resource_manager_->SetDefaultHeaders(type_, &meta_data_);
-    value_.SetHeaders(meta_data_);
+    value_.SetHeaders(&meta_data_);
   }
   return loaded();
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -360,9 +360,40 @@ TEST_F(HandlerCalledTest, CommentCalled) {
   EXPECT_TRUE(handler_called_filter_.called_comment_.Test());
 }
 
-TEST_F(HandlerCalledTest, IEDirectiveCalled) {
+TEST_F(HandlerCalledTest, IEDirectiveCalled1) {
   Parse("ie_directive_called", "<!--[if IE]>...<![endif]-->");
   // Looks like a comment, but isn't.
+  EXPECT_FALSE(handler_called_filter_.called_comment_.Test());
+  EXPECT_TRUE(handler_called_filter_.called_ie_directive_.Test());
+}
+
+TEST_F(HandlerCalledTest, IEDirectiveCalled2) {
+  // See http://code.google.com/p/modpagespeed/issues/detail?id=136 and
+  // http://msdn.microsoft.com/en-us/library/ms537512(VS.85).aspx#dlrevealed
+  Parse("ie_directive_called", "<!--[if lte IE 8]>...<![endif]-->");
+  EXPECT_FALSE(handler_called_filter_.called_comment_.Test());
+  EXPECT_TRUE(handler_called_filter_.called_ie_directive_.Test());
+}
+
+TEST_F(HandlerCalledTest, IEDirectiveCalled3) {
+  Parse("ie_directive_called", "<!--[if false]>...<![endif]-->");
+  EXPECT_FALSE(handler_called_filter_.called_comment_.Test());
+  EXPECT_TRUE(handler_called_filter_.called_ie_directive_.Test());
+}
+
+// Downlevel-revealed commments normally look like <![if foo]>...<![endif]>.
+// However, although most (non-IE) browsers will ignore those, they're
+// technically not valid, so some sites use the below trick (which is valid
+// HTML, and still works for IE).  For an explanation, see
+// http://en.wikipedia.org/wiki/Conditional_comment#
+// Downlevel-revealed_conditional_comment
+TEST_F(HandlerCalledTest, IEDirectiveCalledRevealedOpen) {
+  Parse("ie_directive_called", "<!--[if !IE]><!-->");
+  EXPECT_FALSE(handler_called_filter_.called_comment_.Test());
+  EXPECT_TRUE(handler_called_filter_.called_ie_directive_.Test());
+}
+TEST_F(HandlerCalledTest, IEDirectiveCalledRevealedClose) {
+  Parse("ie_directive_called", "<!--<![endif]-->");
   EXPECT_FALSE(handler_called_filter_.called_comment_.Test());
   EXPECT_TRUE(handler_called_filter_.called_ie_directive_.Test());
 }
@@ -377,7 +408,7 @@ class EventListManipulationTest : public HtmlParseTest {
   virtual void SetUp() {
     HtmlParseTest::SetUp();
     static const char kUrl[] = "http://html.parse.test/event_list_test.html";
-    html_parse_.StartParse(kUrl);
+    ASSERT_TRUE(html_parse_.StartParse(kUrl));
     node1_ = html_parse_.NewCharactersNode(NULL, "1");
     HtmlTestingPeer::AddEvent(&html_parse_,
                               new HtmlCharactersEvent(node1_, -1));
@@ -633,7 +664,7 @@ class AttributeManipulationTest : public HtmlParseTest {
     HtmlParseTest::SetUp();
     static const char kUrl[] =
         "http://html.parse.test/attribute_manipulation_test.html";
-    html_parse_.StartParse(kUrl);
+    ASSERT_TRUE(html_parse_.StartParse(kUrl));
     node_ = html_parse_.NewElement(NULL, MakeAtom("a"));
     html_parse_.AddElement(node_, 0);
     node_->AddAttribute(MakeAtom("href"), "http://www.google.com/", "\"");
@@ -719,6 +750,13 @@ TEST_F(AttributeManipulationTest, ModifyKeepAttribute) {
   href->set_quote(href->quote());
   href->set_name(href->name());
   CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'/>");
+}
+
+TEST_F(AttributeManipulationTest, BadUrl) {
+  EXPECT_FALSE(html_parse_.StartParse(")(*&)(*&(*"));
+
+  // To avoid having the TearDown crash, restart the parse.
+  html_parse_.StartParse("http://www.example.com");
 }
 
 }  // namespace net_instaweb

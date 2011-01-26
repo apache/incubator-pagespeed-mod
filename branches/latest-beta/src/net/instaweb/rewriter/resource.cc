@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,7 @@ void Resource::DetermineContentType() {
   // Try to determine the content type from the URL extension, or
   // the response headers.
   CharStarVector content_types;
-  MetaData* headers = metadata();
+  ResponseHeaders* headers = metadata();
   const ContentType* content_type = NULL;
   if (headers->Lookup("Content-type", &content_types)) {
     for (int i = 0, n = content_types.size(); (i < n) && content_type == NULL;
@@ -82,6 +82,10 @@ bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
 
 bool Resource::IsCacheable() const {
   return true;
+}
+
+void Resource::Freshen(MessageHandler* handler) {
+  // We don't need Freshining for data urls or output resources.
 }
 
 }  // namespace net_instaweb

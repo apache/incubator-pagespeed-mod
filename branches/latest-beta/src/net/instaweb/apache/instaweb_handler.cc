@@ -20,12 +20,13 @@
 #include "apr_strings.h"
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/apache/apache_slurp.h"
 #include "net/instaweb/apache/apr_statistics.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/instaweb_context.h"
-#include "net/instaweb/apache/serf_async_callback.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
@@ -33,9 +34,9 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/simple_meta_data.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "http_config.h"
 #include "http_core.h"
 #include "http_log.h"
@@ -48,6 +49,7 @@ namespace {
 const char kStatisticsHandler[] = "mod_pagespeed_statistics";
 const char kBeaconHandler[] = "mod_pagespeed_beacon";
 const char kResourceUrlNote[] = "mod_pagespeed_resource";
+const char kResourceUrlPass[] = "<PASS>";
 
 bool IsCompressibleContentType(const char* content_type) {
   if (content_type == NULL) {
@@ -93,7 +95,7 @@ void instaweb_default_handler(const std::string& url, request_rec* request) {
 // predeclare to minimize diffs for now.  TODO(jmarantz): reorder
 void send_out_headers_and_body(
     request_rec* request,
-    const SimpleMetaData& response_headers,
+    const ResponseHeaders& response_headers,
     const std::string& output);
 
 // Determines whether the url can be handled as a mod_pagespeed resource,
@@ -106,7 +108,8 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
                         const std::string& url) {
   RewriteDriver* rewrite_driver = factory->NewRewriteDriver();
 
-  SimpleMetaData request_headers, response_headers;
+  RequestHeaders request_headers;
+  ResponseHeaders response_headers;
   int n = arraysize(RewriteDriver::kPassThroughRequestAttributes);
   for (int i = 0; i < n; ++i) {
     const char* value = apr_table_get(
@@ -120,17 +123,17 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
   std::string output;  // TODO(jmarantz): quit buffering resource output
   StringWriter writer(&output);
   MessageHandler* message_handler = factory->message_handler();
-  SerfAsyncCallback* callback = new SerfAsyncCallback(
+  SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
       &response_headers, &writer);
   bool handled = rewrite_driver->FetchResource(
       url, request_headers, callback->response_headers(), callback->writer(),
       message_handler, callback);
   if (handled) {
+    AprTimer timer;
     message_handler->Message(kInfo, "Fetching resource %s...", url.c_str());
     if (!callback->done()) {
       UrlPollableAsyncFetcher* sub_resource_fetcher =
           factory->SubResourceFetcher();
-      AprTimer timer;
       int64 max_ms = factory->fetcher_time_out_ms();
       for (int64 start_ms = timer.NowMs(), now_ms = start_ms;
            !callback->done() && now_ms - start_ms < max_ms;
@@ -143,6 +146,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
         message_handler->Message(kError, "Timeout on url %s", url.c_str());
       }
     }
+    response_headers.SetDate(timer.NowMs());
     if (callback->success()) {
       message_handler->Message(kInfo, "Fetch succeeded for %s, status=%d",
                               url.c_str(), response_headers.status_code());
@@ -163,28 +167,9 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
 
 void send_out_headers_and_body(
     request_rec* request,
-    const SimpleMetaData& response_headers,
+    const ResponseHeaders& response_headers,
     const std::string& output) {
-  if (response_headers.status_code() != 0) {
-    request->status = response_headers.status_code();
-  }
-  for (int idx = 0; idx < response_headers.NumAttributes(); ++idx) {
-    const char* name = response_headers.Name(idx);
-    const char* value = response_headers.Value(idx);
-    if (strcasecmp(name, HttpAttributes::kContentType) == 0) {
-      // ap_set_content_type does not make a copy of the string, we need
-      // to duplicate it.
-      char* ptr = apr_pstrdup(request->pool, value);
-      ap_set_content_type(request, ptr);
-    } else {
-      if (strcasecmp(name, HttpAttributes::kCacheControl) == 0) {
-        SetupCacheRepair(value, request);
-      }
-      // apr_table_add makes copies of both head key and value, so we do not
-      // have to duplicate them.
-      apr_table_add(request->headers_out, name, value);
-    }
-  }
+  ResponseHeadersToApacheRequest(response_headers, request);
   if (response_headers.status_code() == HttpStatus::kOK &&
       IsCompressibleContentType(request->content_type)) {
     // Make sure compression is enabled for this response.
@@ -197,72 +182,94 @@ void send_out_headers_and_body(
   ap_rwrite(output.c_str(), output.size(), request);
 }
 
-}  // namespace
+const char* get_instaweb_url(request_rec* request) {
+  const char* url = apr_table_get(request->notes, kResourceUrlNote);
 
-apr_status_t repair_caching_header(ap_filter_t *filter,
-                                   apr_bucket_brigade *bb) {
-  request_rec* request = filter->r;
-  RepairCachingHeaders(request);
-  ap_remove_output_filter(filter);
-  return ap_pass_brigade(filter->next, bb);
+  // If our translate_name hook, save_url_for_instaweb_handler, failed
+  // to run because some other module's translate_hook returned OK first,
+  // then run it now.  The main reason we try to do this early is to
+  // save our URL before mod_rewrite mutates it.
+  if (url == NULL) {
+    save_url_for_instaweb_handler(request);
+    url = apr_table_get(request->notes, kResourceUrlNote);
+  }
+
+  // If we have handled the URL, and did not note it as a 'pass', then
+  // handle it.
+  if ((url != NULL) && (strcmp(url, kResourceUrlPass) == 0)) {
+    url = NULL;
+  }
+  return url;
 }
+
+}  // namespace
 
 apr_status_t instaweb_handler(request_rec* request) {
   apr_status_t ret = DECLINED;
-  const char* url = apr_table_get(request->notes, kResourceUrlNote);
-  if (url != NULL) {
-    ApacheRewriteDriverFactory* factory =
-        InstawebContext::Factory(request->server);
+  const char* url = get_instaweb_url(request);
+  ApacheRewriteDriverFactory* factory =
+      InstawebContext::Factory(request->server);
+
+  if (strcmp(request->handler, kStatisticsHandler) == 0) {
+    std::string output;
+    ResponseHeaders response_headers;
+    StringWriter writer(&output);
+    AprStatistics* statistics = factory->statistics();
+    if (statistics) {
+      statistics->Dump(&writer, factory->message_handler());
+    }
+    response_headers.SetStatusAndReason(HttpStatus::kOK);
+    response_headers.set_major_version(1);
+    response_headers.set_minor_version(1);
+    response_headers.Add(HttpAttributes::kContentType, "text/plain");
+    AprTimer timer;
+    int64 now_ms = timer.NowMs();
+    response_headers.SetDate(now_ms);
+    response_headers.SetLastModified(now_ms);
+    response_headers.Add(HttpAttributes::kCacheControl,
+                         HttpAttributes::kNoCache);
+    send_out_headers_and_body(request, response_headers, output);
     ret = OK;
 
+  } else if (strcmp(request->handler, kBeaconHandler) == 0) {
+    RewriteDriver* driver = factory->NewRewriteDriver();
+    AddInstrumentationFilter* aif = driver->add_instrumentation_filter();
+    if (aif != NULL) {
+      aif->HandleBeacon(request->unparsed_uri);
+    }
+    factory->ReleaseRewriteDriver(driver);
+    ret = HTTP_NO_CONTENT;
+
+  } else if (url != NULL) {
     // Only handle GET request
     if (request->method_number != M_GET) {
       ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                     "Not GET request: %d.", request->method_number);
-      ret = DECLINED;
-    } else if (strcmp(request->handler, kStatisticsHandler) == 0) {
-      std::string output;
-      SimpleMetaData response_headers;
-      StringWriter writer(&output);
-      AprStatistics* statistics = factory->statistics();
-      if (statistics) {
-        statistics->Dump(&writer, factory->message_handler());
-      }
-      send_out_headers_and_body(request, response_headers, output);
-    } else if (strcmp(request->handler, kBeaconHandler) == 0) {
-      RewriteDriver* driver = factory->NewRewriteDriver();
-      AddInstrumentationFilter* aif = driver->add_instrumentation_filter();
-      if (aif && aif->HandleBeacon(request->unparsed_uri)) {
-        ret = HTTP_NO_CONTENT;
-      } else {
-        ret = DECLINED;
-      }
-      factory->ReleaseRewriteDriver(driver);
-    } else {
-      if (!handle_as_resource(factory, request, url)) {
-        if (factory->slurping_enabled()) {
-          SlurpUrl(url, factory, request);
-          if (request->status == HTTP_NOT_FOUND) {
-            factory->IncrementSlurpCount();
-          }
-        } else {
-          ret = DECLINED;
-        }
-      }
+    } else if (handle_as_resource(factory, request, url)) {
+      ret = OK;
     }
+
+  } else if (factory->slurping_enabled()) {
+    SlurpUrl(request->unparsed_uri, factory, request);
+    if (request->status == HTTP_NOT_FOUND) {
+      factory->IncrementSlurpCount();
+    }
+    ret = OK;
   }
   return ret;
 }
 
 // This translator must be inserted into the translate_name chain
-// prior to mod_rewrite.  By responding "OK" we prevent mod_rewrite
-// from running on this request and borking URL names that need to be
-// handled by mod_pagespeed.
+// prior to mod_rewrite.  By saving the original URL in a
+// request->notes and using that in our handler, we prevent
+// mod_rewrite from borking URL names that need to be handled by
+// mod_pagespeed.
 //
 // This hack seems to be the most robust way to immunize mod_pagespeed
 // from when mod_rewrite rewrites the URL.  We still need mod_rewrite
 // to do required complex processing of the filename (e.g. prepending
-// the DocumentRoot) so mod_authz_host is happy.
+// the DocumentRoot) so mod_authz_host is happy, so we return DECLINED
+// even for mod_pagespeed resources.
 //
 // One alternative strategy is to return OK to bypass mod_rewrite
 // entirely, but then we'd have to duplicate the functionality in
@@ -271,7 +278,9 @@ apr_status_t instaweb_handler(request_rec* request) {
 // ap_document_root().
 //
 // Or we could return DECLINED but set a note "mod_rewrite_rewritten"
-// to try to convince mod_rewrite to leave our URLs alone.
+// to try to convince mod_rewrite to leave our URLs alone, which seems
+// fragile as that's an internal string literal in mod_rewrite.c and
+// is not documented anywhwere.
 //
 // Another strategy is to return OK but leave request->filename NULL.
 // In that case, the server kernel generates an ominious 'info'
@@ -314,10 +323,14 @@ apr_status_t save_url_for_instaweb_handler(request_rec *request) {
     need_copy = false;
   }
 
-  StringPiece url_piece(url);
+  StringPiece parsed_url(request->uri);
   bool bypass_mod_rewrite = false;
-  if (url_piece.ends_with(kStatisticsHandler) ||
-      url_piece.ends_with(kBeaconHandler)) {
+  // Note: We cannot use request->handler because it may not be set yet :(
+  // TODO(sligocki): Make this robust to custom statistics and beacon URLs.
+  // Note: we must compare against the parsed URL because unparsed_url has
+  // ?ets=load:xx at the end for kBeaconHandler.
+  if (parsed_url.ends_with(kStatisticsHandler) ||
+      parsed_url.ends_with(kBeaconHandler)) {
     bypass_mod_rewrite = true;
   } else {
     ApacheRewriteDriverFactory* factory =
@@ -338,8 +351,23 @@ apr_status_t save_url_for_instaweb_handler(request_rec *request) {
     } else {
       apr_table_setn(request->notes, kResourceUrlNote, url);
     }
+  } else {
+    // Leave behind a note for non-instaweb requests that says that
+    // our handler got called and we decided to pass.  This gives us
+    // one final chance at serving resources in the presence of a
+    // module that intercepted 'translate_name' before mod_pagespeed.
+    // The absense of this marker indicates that translate_name did
+    // not get a chance to run, and thus we should try to look at
+    // the URI directly.
+    apr_table_set(request->notes, kResourceUrlNote, kResourceUrlPass);
   }
   return DECLINED;
+}
+
+// overrides core_map_to_storage to avoid imposing filename limits.
+apr_status_t instaweb_map_to_storage(request_rec* request) {
+  apr_status_t ret = (get_instaweb_url(request) != NULL) ? OK : DECLINED;
+  return ret;
 }
 
 }  // namespace net_instaweb

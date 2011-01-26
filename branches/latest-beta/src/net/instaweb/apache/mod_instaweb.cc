@@ -30,6 +30,7 @@
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apr_statistics.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/version.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -37,7 +38,6 @@
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/simple_meta_data.h"
 #include "net/instaweb/util/public/query_params.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -100,6 +100,7 @@ const char* kModPagespeedImgInlineMaxBytes = "ModPagespeedImgInlineMaxBytes";
 const char* kModPagespeedImgMaxRewritesAtOnce =
     "ModPagespeedImgMaxRewritesAtOnce";
 const char* kModPagespeedJsInlineMaxBytes = "ModPagespeedJsInlineMaxBytes";
+const char* kModPagespeedMaxSegmentLength = "ModPagespeedMaxSegmentLength";
 const char* kModPagespeedDomain = "ModPagespeedDomain";
 const char* kModPagespeedMapRewriteDomain = "ModPagespeedMapRewriteDomain";
 const char* kModPagespeedMapOriginDomain = "ModPagespeedMapOriginDomain";
@@ -108,6 +109,7 @@ const char* kModPagespeedBeaconUrl = "ModPagespeedBeaconUrl";
 const char* kModPagespeedAllow = "ModPagespeedAllow";
 const char* kModPagespeedDisallow = "ModPagespeedDisallow";
 const char* kModPagespeedStatistics = "ModPagespeedStatistics";
+const char* kModPagespeedCombineAcrossPaths = "ModPagespeedCombineAcrossPaths";
 
 // TODO(jmarantz): determine the version-number from SVN at build time.
 const char kModPagespeedVersion[] = MOD_PAGESPEED_VERSION_STRING "-"
@@ -227,6 +229,7 @@ bool ScanQueryParamsForRewriterOptions(RewriteDriverFactory* factory,
       // specified filters should be enabled.
       options->SetRewriteLevel(RewriteOptions::kPassThrough);
       if (options->EnableFiltersByCommaSeparatedList(value, handler)) {
+        options->DisableAllFiltersNotExplicitlyEnabled();
         ++option_count;
       } else {
         handler->Message(kWarning,
@@ -412,6 +415,15 @@ InstawebContext* build_context_for_request(request_rec* request) {
                 "ModPagespeed OutputFilter called for request %s",
                 request->unparsed_uri);
 
+  // TODO(sligocki): Should we rewrite any other statuses?
+  // Maybe 206 Partial Content?
+  if (request->status != 200) {
+    ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
+                  "ModPagespeed not rewriting HTML because status is %d",
+                  request->status);
+    return NULL;
+  }
+
   QueryParams query_params;
   if (request->parsed_uri.query != NULL) {
     query_params.Parse(request->parsed_uri.query);
@@ -495,8 +507,15 @@ InstawebContext* build_context_for_request(request_rec* request) {
 
   apr_table_setn(request->headers_out, kModPagespeedHeader,
                  kModPagespeedVersion);
-  SetCacheControl(HttpAttributes::kNoCache, request);
-  SetupCacheRepair(HttpAttributes::kNoCache, request);
+
+  // Turn off caching for the HTTP requests, and remove any filters
+  // that might run downstream of us and mess up our caching headers.
+  apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
+                HttpAttributes::kNoCache);
+  apr_table_unset(request->headers_out, HttpAttributes::kExpires);
+  apr_table_unset(request->headers_out, HttpAttributes::kEtag);
+  apr_table_unset(request->headers_out, HttpAttributes::kLastModified);
+  DisableDownstreamHeaderFilters(request);
 
   apr_table_unset(request->headers_out, HttpAttributes::kContentLength);
   apr_table_unset(request->headers_out, "Content-MD5");
@@ -692,13 +711,6 @@ void mod_pagespeed_register_hooks(apr_pool_t *pool) {
   ap_hook_handler(instaweb_handler, NULL, NULL, APR_HOOK_FIRST - 1);
   ap_register_output_filter(
       kModPagespeedFilterName, instaweb_out_filter, NULL, AP_FTYPE_RESOURCE);
-  // We need our repair headers filter to run after mod_headers. The
-  // mod_headers, which is the filter that is used to add the cache settings, is
-  // AP_FTYPE_CONTENT_SET. Using (AP_FTYPE_CONTENT_SET + 2) to make sure that we
-  // run after mod_headers.
-  ap_register_output_filter(
-      InstawebContext::kRepairHeadersFilterName, repair_caching_header, NULL,
-      static_cast<ap_filter_type>(AP_FTYPE_CONTENT_SET + 2));
   ap_hook_post_config(pagespeed_post_config, NULL, NULL, APR_HOOK_MIDDLE);
   ap_hook_child_init(pagespeed_child_init, NULL, NULL, APR_HOOK_LAST);
   ap_hook_log_transaction(pagespeed_log_transaction, NULL, NULL, APR_HOOK_LAST);
@@ -710,10 +722,17 @@ void mod_pagespeed_register_hooks(apr_pool_t *pool) {
   // the URL somewhere safe (a request->note) before mod_rewrite
   // corrupts it.  The latter is easier to deploy as it does not
   // require users editing their rewrite rules for mod_pagespeed.
-  // mod_rewrite registers at APR_HOOK_FIRST so we go to
-  // APR_HOOK_FIRST - 1.
+  // mod_rewrite registers at APR_HOOK_FIRST.  We'd like to leave
+  // space for user modules at APR_HOOK_FIRST-1, so we go to
+  // APR_HOOK_FIRST - 2.
   ap_hook_translate_name(save_url_for_instaweb_handler, NULL, NULL,
-                         APR_HOOK_FIRST - 1);
+                         APR_HOOK_FIRST - 2);
+
+  // By default, apache imposes limitations on URL segments of around
+  // 256 characters that appear to correspond to filename limitations.
+  // To prevent that, we hook map_to_storage for our own purposes.
+  ap_hook_map_to_storage(instaweb_map_to_storage, NULL, NULL,
+                         APR_HOOK_FIRST - 2);
 }
 
 apr_status_t pagespeed_child_exit(void* data) {
@@ -813,6 +832,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
   if (strcasecmp(directive, kModPagespeed) == 0) {
     ret = ParseBoolOption(options, cmd,
                           &RewriteOptions::set_enabled, arg);
+  } else if (strcasecmp(directive, kModPagespeedCombineAcrossPaths) == 0) {
+    ret = ParseBoolOption(options, cmd,
+                          &RewriteOptions::set_combine_across_paths, arg);
   } else if (strcasecmp(directive, kModPagespeedUrlPrefix) == 0) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
   } else if (strcasecmp(directive, kModPagespeedFetchProxy) == 0) {
@@ -852,6 +874,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
   } else if (strcasecmp(directive, kModPagespeedCssInlineMaxBytes) == 0) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_css_inline_max_bytes, arg);
+  } else if (strcasecmp(directive, kModPagespeedMaxSegmentLength) == 0) {
+    ret = ParseIntOption(options,
+        cmd, &RewriteOptions::set_max_url_segment_size, arg);
   } else if (strcasecmp(directive, kModPagespeedLRUCacheKbPerProcess) == 0) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_lru_cache_kb_per_process, arg);
@@ -965,6 +990,8 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
 
 static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_DIR_OPTION(kModPagespeed, "Enable instaweb"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCombineAcrossPaths,
+                           "Allow combining resources from different paths"),
   APACHE_CONFIG_OPTION(kModPagespeedUrlPrefix, "Set the url prefix"),
   APACHE_CONFIG_OPTION(kModPagespeedFetchProxy, "Set the fetch proxy"),
   APACHE_CONFIG_OPTION(kModPagespeedGeneratedFilePrefix,
@@ -1015,6 +1042,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Number of bytes below which javascript will be inlined."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssInlineMaxBytes,
         "Number of bytes below which stylesheets will be inlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxSegmentLength,
+        "Maximum size of a URL segment"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedBeaconUrl, "URL for beacon callback"
                        " injected by add_instrumentation."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDomain,

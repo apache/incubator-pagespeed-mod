@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@
 #include "net/instaweb/util/public/file_system.h"
 #include <string>
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/statistics_work_bound.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -54,13 +54,6 @@ const double kMaxRewrittenRatio = 1.0;
 // Might need to differ depending upon img format.
 // TODO(jmaessen): Make adjustable.
 const double kMaxAreaRatio = 1.0;
-
-// We overload some http status codes for our own purposes
-
-// This is used to retain the knowledge that a particular image is not
-// profitable to optimize.  According to pagespeed, 200, 203, 206, and
-// 304 are cacheable.  So we must select from those.
-const HttpStatus::Code kNotOptimizable = HttpStatus::kNotModified;  // 304
 
 // names for Statistics variables.
 const char kImageRewrites[] = "image_rewrites";
@@ -190,10 +183,9 @@ void ImgRewriteFilter::OptimizeImage(
         }
       }
     } else {
-      // Write nothing and set status code to indicate not to rewrite
-      // in future.
-      resource_manager_->Write(kNotOptimizable, "", result,
-                               origin_expire_time_ms, message_handler);
+      // Indicate not to rewrite in future.
+      resource_manager_->WriteUnoptimizable(result, origin_expire_time_ms,
+                                            message_handler);
     }
     work_bound_->WorkComplete();
   }
@@ -290,20 +282,21 @@ void ImgRewriteFilter::RewriteImageUrl(HtmlElement* element,
       std::string rewritten_name;
       ImageUrlEncoder encoder(resource_manager_->url_escaper(), &page_dim);
       scoped_ptr<OutputResource> output_resource(
-          resource_manager_->CreateOutputResourceFromResource(
-              filter_prefix_, content_type, &encoder, input_resource.get(),
-              message_handler));
+          CreateOutputResourceFromResource(content_type, &encoder,
+                                           input_resource.get()));
       if (output_resource.get() != NULL) {
-        if (!resource_manager_->FetchOutputResource(
+        if (output_resource->optimizable() &&
+            !resource_manager_->FetchOutputResource(
                 output_resource.get(), NULL, NULL, message_handler,
                 ResourceManager::kNeverBlock)) {
           OptimizeImage(*input_resource, page_dim, image.get(),
                         output_resource.get());
         }
-        if (output_resource->IsWritten()) {
-          UpdateTargetElement(*input_resource, *output_resource,
-                              page_dim, actual_dim, element, src);
-        }
+
+        // Potentially inline the best version we have, or
+        // perhaps update the src to point to the newest version
+        UpdateTargetElement(*input_resource, *output_resource,
+                            page_dim, actual_dim, element, src);
       }
     }
   }
@@ -320,7 +313,7 @@ bool ImgRewriteFilter::CanInline(
   return ok;
 }
 
-// Given image processing reflected in the already-written output_resource,
+// Given any image processing reflected in an output_resource
 // actually update the element (particularly the src attribute), and log
 // statistics on what happened.
 void ImgRewriteFilter::UpdateTargetElement(
@@ -331,7 +324,7 @@ void ImgRewriteFilter::UpdateTargetElement(
   if (actual_dim.valid() &&
       (actual_dim.width() > 1 || actual_dim.height() > 1)) {
     std::string inlined_url;
-    bool output_ok =
+    bool output_ok = output_resource.IsWritten() &&
         output_resource.metadata()->status_code() == HttpStatus::kOK;
     bool ie6or7 = driver_->user_agent().IsIe6or7();
     if (!ie6or7 &&
@@ -392,8 +385,8 @@ void ImgRewriteFilter::Flush() {
 
 bool ImgRewriteFilter::Fetch(OutputResource* resource,
                              Writer* writer,
-                             const MetaData& request_header,
-                             MetaData* response_headers,
+                             const RequestHeaders& request_header,
+                             ResponseHeaders* response_headers,
                              MessageHandler* message_handler,
                              UrlAsyncFetcher::Callback* callback) {
   bool ok = true;

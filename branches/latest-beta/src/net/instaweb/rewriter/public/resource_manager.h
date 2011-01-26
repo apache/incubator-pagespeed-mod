@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,12 +24,12 @@
 #include <vector>
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
-#include "net/instaweb/util/public/http_cache.h"
-#include "net/instaweb/util/public/meta_data.h"
+#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
 class GURL;
@@ -44,7 +44,7 @@ class HTTPCache;
 class HTTPValue;
 class Hasher;
 class MessageHandler;
-class MetaData;
+class ResponseHeaders;
 class NamedLockManager;
 class OutputResource;
 class ResourceNamer;
@@ -98,6 +98,7 @@ class ResourceManager {
       const ContentType* content_type,
       UrlSegmentEncoder* encoder,
       Resource* input_resource,
+      const RewriteOptions* rewrite_options,
       MessageHandler* handler);
 
   // Constructs and permissions-checks an output resource for the specified url,
@@ -130,7 +131,7 @@ class ResourceManager {
   OutputResource* CreateOutputResourceWithPath(
       const StringPiece& path, const StringPiece& filter_prefix,
       const StringPiece& name,  const ContentType* type,
-      MessageHandler* handler);
+      const RewriteOptions* rewrite_options, MessageHandler* handler);
 
   // Creates a resource based on a URL.  This is used for serving rewritten
   // resources.  No permission checks are performed on the url, though it
@@ -158,8 +159,7 @@ class ResourceManager {
       const RewriteOptions* rewrite_options, MessageHandler* handler);
 
   // Create an input resource by decoding output_resource using the given
-  // encoder.  Assures legality by checking hash signatures, rather than
-  // explicitly permission-checking the result.
+  // encoder.  Assures legality by explicitly permission-checking the result.
   Resource* CreateInputResourceFromOutputResource(
     UrlSegmentEncoder* encoder,
     OutputResource* output_resource,
@@ -186,10 +186,10 @@ class ResourceManager {
   // If content_type is null, the Content-Type is omitted.
   // This method may only be called once on a header.
   void SetDefaultHeaders(const ContentType* content_type,
-                         MetaData* header) const;
+                         ResponseHeaders* header) const;
 
   // Changes the content type of a pre-initialized header.
-  void SetContentType(const ContentType* content_type, MetaData* header);
+  void SetContentType(const ContentType* content_type, ResponseHeaders* header);
 
   StringPiece filename_prefix() const { return file_prefix_; }
   void set_filename_prefix(const StringPiece& file_prefix);
@@ -213,7 +213,7 @@ class ResourceManager {
   // serving thread.
   bool FetchOutputResource(
     OutputResource* output_resource,
-    Writer* writer, MetaData* response_headers,
+    Writer* writer, ResponseHeaders* response_headers,
     MessageHandler* handler, BlockingBehavior blocking) const;
 
   // Writes the specified contents into the output resource, retaining
@@ -223,6 +223,13 @@ class ResourceManager {
   bool Write(HttpStatus::Code status_code,
              const StringPiece& contents, OutputResource* output,
              int64 origin_expire_time_ms, MessageHandler* handler);
+
+  // Writes out a note that constructing given output resource is
+  // not beneficial, and hence should not be attempted until origin's expiration
+  // If your filter uses this, it should look at the ->optimizable() property
+  // of resources when transforming
+  void WriteUnoptimizable(OutputResource* output,
+                          int64 origin_expire_time_ms, MessageHandler* handler);
 
   // Load the resource if it is cached (or if it can be fetched quickly).
   // If not send off an asynchronous fetch and store the result in the cache.
@@ -251,7 +258,10 @@ class ResourceManager {
   FileSystem* file_system() { return file_system_; }
   FilenameEncoder* filename_encoder() const { return filename_encoder_; }
   UrlAsyncFetcher* url_async_fetcher() { return url_async_fetcher_; }
-  Timer* timer() { return http_cache_->timer(); }
+  void set_url_async_fetcher(UrlAsyncFetcher* fetcher) {
+    url_async_fetcher_ = fetcher;
+  }
+  Timer* timer() const { return http_cache_->timer(); }
   HTTPCache* http_cache() { return http_cache_; }
   UrlEscaper* url_escaper() { return url_escaper_.get(); }
 
@@ -262,7 +272,19 @@ class ResourceManager {
   }
 
  private:
+  void RefreshImminentlyExpiringResource(
+      Resource* resource, MessageHandler* handler) const;
   inline void IncrementResourceUrlDomainRejections();
+
+  // Writes out a cache entry telling us how to get to the processed version
+  // (output) of some resource given the original source URL and summary of the
+  // processing done, such as the filter code and any custom information
+  // stored by the filter which are all packed inside the ResourceNamer.
+  // This entry expires as soon as the origin does. If no optimization
+  // was possible, it records that fact.
+  void CacheComputedResourceMapping(OutputResource* output,
+                                    int64 origin_expire_time_ms,
+                                    MessageHandler* handler);
 
   std::string file_prefix_;
   int resource_id_;  // Sequential ids for temporary Resource filenames.

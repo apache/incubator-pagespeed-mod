@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,8 +31,8 @@
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/http_cache.h"
-#include "net/instaweb/util/public/http_value.h"
+#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -53,6 +53,7 @@ const char kResourceUrlDomainRejections[] = "resource_url_domain_rejections";
 
 const int64 kGeneratedMaxAgeMs = Timer::kYearMs;
 const int64 kGeneratedMaxAgeSec = Timer::kYearMs / Timer::kSecondMs;
+const int64 kRefreshExpirePercent = 75;
 
 // Our HTTP cache mostly stores full URLs, including the http: prefix,
 // mapping them into the URL contents and HTTP headers.  However, we
@@ -71,6 +72,11 @@ const int64 kGeneratedMaxAgeSec = Timer::kYearMs / Timer::kSecondMs;
 // TODO(jmarantz): inject the SVN version number here to automatically bust
 // caches whenever pagespeed is upgraded.
 const char kCacheKeyPrefix[] = "rname/";
+
+// In the case when we want to remember that it was not beneficial to produce
+// a certain resource we include this header in the metadata of the entry
+// in the above cache.
+const char kCacheUnoptimizableHeader[] = "X-ModPagespeed-Unoptimizable";
 
 }  // namespace
 
@@ -117,77 +123,10 @@ void ResourceManager::Initialize(Statistics* statistics) {
   statistics->AddVariable(kResourceUrlDomainRejections);
 }
 
-#if 0
-// Preserved for the sake of making it easier to revive sharding.
-
-std::string ResourceManager::UrlPrefixFor(const ResourceNamer& namer) const {
-  CHECK(!namer.hash().empty());
-  std::string url_prefix;
-  if (num_shards_ == 0) {
-    url_prefix = url_prefix_pattern_;
-  } else {
-    size_t hash = namer.Hash();
-    int shard = hash % num_shards_;
-    CHECK_NE(std::string::npos, url_prefix_pattern_.find("%d"));
-    // The following uses a user-provided printf format string; this would be
-    // really dangerous if we did not validate url_prefix_pattern_ by calling
-    // ValidateShardsAgainstUrlPrefixPattern() below.
-    url_prefix = StringPrintf(url_prefix_pattern_.c_str(), shard);  // NOLINT
-  }
-  return url_prefix;
-}
-
-// Decode a base path into a shard number and canonical base url.
-// Right now the canonical base url is empty for the old resource
-// naming scheme, and non-empty otherwise.
-// TODO(jmaessen): Either axe or adapt to sharding post-url_prefix.
-std::string ResourceManager::CanonicalizeBase(
-    const StringPiece& base, int* shard) const {
-  std::string base_str = base.as_string();
-  base_str += "/";
-  std::string result;
-  if (num_shards_ == 0) {
-    CHECK_EQ(std::string::npos, url_prefix_pattern_.find("%d"));
-    if (url_prefix_pattern_.compare(base_str) != 0) {
-      base.CopyToString(&result);
-    }
-  } else {
-    CHECK_NE(std::string::npos, url_prefix_pattern_.find("%d"));
-    // TODO(jmaessen): Ugh.  Lint hates this sscanf call and so do I.  Can parse
-    // based on the results of the above find.
-    if (!sscanf(base_str.c_str(), url_prefix_pattern_.c_str(), shard) == 1) {
-      base.CopyToString(&result);
-    }
-  }
-  return result;
-}
-
-void ResourceManager::ValidateShardsAgainstUrlPrefixPattern() {
-  std::string::size_type pos = url_prefix_pattern_.find('%');
-  if (num_shards_ == 0) {
-    CHECK(pos == StringPiece::npos) << "URL prefix should not have a percent "
-                                    << "when num_shards==0";
-  } else {
-    // Ensure that the % is followed by a 'd'.  But be careful because
-    // the percent may have appeared at the end of the string, which
-    // is not necessarily null-terminated.
-    if ((pos == std::string::npos) ||
-        ((pos + 1) == url_prefix_pattern_.size()) ||
-        (url_prefix_pattern_.substr(pos + 1, 1) != "d")) {
-      CHECK(false) << "url_prefix must contain exactly one %d";
-    } else {
-      // make sure there is not another percent
-      pos = url_prefix_pattern_.find('%', pos + 2);
-      CHECK(pos == std::string::npos) << "Extra % found in url_prefix_pattern";
-    }
-  }
-}
-#endif
-
-// TODO(jmarantz): consider moving this method to MetaData
+// TODO(jmarantz): consider moving this method to ResponseHeaders
 void ResourceManager::SetDefaultHeaders(const ContentType* content_type,
-                                        MetaData* header) const {
-  CHECK_EQ(0, header->major_version());
+                                        ResponseHeaders* header) const {
+  CHECK(!header->has_major_version());
   CHECK_EQ(0, header->NumAttributes());
   header->set_major_version(1);
   header->set_minor_version(1);
@@ -233,9 +172,9 @@ void ResourceManager::SetDefaultHeaders(const ContentType* content_type,
   header->ComputeCaching();
 }
 
-// TODO(jmarantz): consider moving this method to MetaData
+// TODO(jmarantz): consider moving this method to ResponseHeaders
 void ResourceManager::SetContentType(const ContentType* content_type,
-                                     MetaData* header) {
+                                     ResponseHeaders* header) {
   CHECK(content_type != NULL);
   header->RemoveAll(HttpAttributes::kContentType);
   header->Add(HttpAttributes::kContentType, content_type->mime_type());
@@ -249,6 +188,7 @@ OutputResource* ResourceManager::CreateOutputResourceFromResource(
     const ContentType* content_type,
     UrlSegmentEncoder* encoder,
     Resource* input_resource,
+    const RewriteOptions* rewrite_options,
     MessageHandler* handler) {
   OutputResource* result = NULL;
   if (input_resource != NULL) {
@@ -256,10 +196,10 @@ OutputResource* ResourceManager::CreateOutputResourceFromResource(
     GURL input_gurl(url);
     CHECK(input_gurl.is_valid());  // or input_resource should have been NULL.
     std::string name;
-    encoder->EncodeToUrlSegment(GoogleUrl::Leaf(input_gurl), &name);
+    encoder->EncodeToUrlSegment(GoogleUrl::LeafWithQuery(input_gurl), &name);
     result = CreateOutputResourceWithPath(
         GoogleUrl::AllExceptLeaf(input_gurl),
-        filter_prefix, name, content_type, handler);
+        filter_prefix, name, content_type, rewrite_options, handler);
   }
   return result;
 }
@@ -280,7 +220,7 @@ OutputResource* ResourceManager::CreateOutputResourceForRewrittenUrl(
     std::string name;
     encoder->EncodeToUrlSegment(relative_url, &name);
     output_resource = CreateOutputResourceWithPath(
-        base, filter_prefix, name, content_type, handler);
+        base, filter_prefix, name, content_type, rewrite_options, handler);
   }
   return output_resource;
 }
@@ -290,6 +230,7 @@ OutputResource* ResourceManager::CreateOutputResourceWithPath(
     const StringPiece& filter_prefix,
     const StringPiece& name,
     const ContentType* content_type,
+    const RewriteOptions* rewrite_options,
     MessageHandler* handler) {
   CHECK(content_type != NULL);
   ResourceNamer full_name;
@@ -299,24 +240,29 @@ OutputResource* ResourceManager::CreateOutputResourceWithPath(
   // make this convention consistent and fix all code.
   full_name.set_ext(content_type->file_extension() + 1);
   OutputResource* resource =
-      new OutputResource(this, path, full_name, content_type);
+      new OutputResource(this, path, full_name, content_type, rewrite_options);
 
   // Determine whether this output resource is still valid by looking
   // up by hash in the http cache.  Note that this cache entry will
   // expire when any of the origin resources expire.
-  SimpleMetaData meta_data;
+  ResponseHeaders meta_data;
   StringPiece hash_extension;
   HTTPValue value;
   std::string name_key = StrCat(kCacheKeyPrefix, resource->name_key());
   if ((http_cache_->Find(name_key, &value, &meta_data, handler)
        == HTTPCache::kFound) &&
       value.ExtractContents(&hash_extension)) {
-    ResourceNamer hash_ext;
-    if (hash_ext.DecodeHashExt(hash_extension)) {
-      resource->SetHash(hash_ext.hash());
-      // Note that the '.' must be included in the suffix
-      // TODO(jmarantz): remove this from the suffix.
-      resource->set_suffix(StrCat(".", hash_ext.ext()));
+    CharStarVector dummy;
+    if (meta_data.Lookup(kCacheUnoptimizableHeader, &dummy)) {
+      resource->set_optimizable(false);
+    } else {
+      ResourceNamer hash_ext;
+      if (hash_ext.DecodeHashExt(hash_extension)) {
+        resource->SetHash(hash_ext.hash());
+        // Note that the '.' must be included in the suffix
+        // TODO(jmarantz): remove this from the suffix.
+        resource->set_suffix(StrCat(".", hash_ext.ext()));
+      }
     }
   }
   return resource;
@@ -328,11 +274,15 @@ OutputResource* ResourceManager::CreateOutputResourceForFetch(
   std::string url_string(url.data(), url.size());
   GURL gurl(url_string);
   if (gurl.is_valid()) {
-    std::string name = GoogleUrl::Leaf(gurl);
+    std::string name = GoogleUrl::LeafSansQuery(gurl);
     ResourceNamer namer;
     if (namer.Decode(name)) {
       std::string base = GoogleUrl::AllExceptLeaf(gurl);
-      resource = new OutputResource(this, base, namer, NULL);
+      // The RewriteOptions* is not supplied when creating an output-resource
+      // on behalf of a fetch.  This is because that field is only used for
+      // domain sharding, which is a rewriting activity, not a fetching
+      // activity.
+      resource = new OutputResource(this, base, namer, NULL, NULL);
     }
   }
   return resource;
@@ -369,7 +319,7 @@ Resource* ResourceManager::CreateInputResource(
     resource = CreateInputResourceUnchecked(*input_gurl, rewrite_options,
                                             handler);
   } else {
-    handler->Message(kInfo, "%s: Invalid url relative to '%s'",
+    handler->Message(kInfo, "Invalid resource url '%s' relative to '%s'",
                      input_url.as_string().c_str(), base_gurl.spec().c_str());
     IncrementResourceUrlDomainRejections();
     resource = NULL;
@@ -400,16 +350,12 @@ Resource* ResourceManager::CreateInputResourceFromOutputResource(
     OutputResource* output_resource,
     const RewriteOptions* rewrite_options,
     MessageHandler* handler) {
-  // Assumes output_resource has a url that's been checked by a lawyer.  We
-  // should already have checked the signature on the encoded resource name and
-  // failed to create output_resource if it didn't match.
   Resource* input_resource = NULL;
   std::string input_name;
   if (encoder->DecodeFromUrlSegment(output_resource->name(), &input_name)) {
     GURL base_gurl(output_resource->resolved_base());
-    GURL input_gurl = base_gurl.Resolve(input_name);
-    input_resource = CreateInputResourceUnchecked(input_gurl,
-                                                  rewrite_options, handler);
+    input_resource = CreateInputResource(base_gurl, input_name,
+                                         rewrite_options, handler);
   }
   return input_resource;
 }
@@ -429,7 +375,7 @@ Resource* ResourceManager::CreateInputResourceUnchecked(
     // Note: Bad user-content can leave us here.  But it's really hard
     // to concatenate a valid protocol and domain onto an arbitrary string
     // and end up with an invalid GURL.
-    handler->Message(kWarning, "%s: Invalid url",
+    handler->Message(kWarning, "Invalid resource url '%s'",
                      url.possibly_invalid_spec().c_str());
     return NULL;
   }
@@ -466,7 +412,7 @@ Resource* ResourceManager::CreateInputResourceUnchecked(
 // It will also simplify this routine quite a bit.
 bool ResourceManager::FetchOutputResource(
     OutputResource* output_resource,
-    Writer* writer, MetaData* response_headers,
+    Writer* writer, ResponseHeaders* response_headers,
     MessageHandler* handler, BlockingBehavior blocking) const {
   if (output_resource == NULL) {
     return false;
@@ -482,7 +428,7 @@ bool ResourceManager::FetchOutputResource(
   // doing the StrCat inside.
   bool ret = false;
   StringPiece content;
-  MetaData* meta_data = output_resource->metadata();
+  ResponseHeaders* meta_data = output_resource->metadata();
   if (output_resource->IsWritten()) {
     ret = ((writer == NULL) ||
            ((output_resource->value_.ExtractContents(&content)) &&
@@ -504,7 +450,7 @@ bool ResourceManager::FetchOutputResource(
         ret = true;
       } else if (ReadIfCached(output_resource, handler)) {
         content = output_resource->contents();
-        http_cache_->Put(url, *meta_data, content, handler);
+        http_cache_->Put(url, meta_data, content, handler);
         ret = ((writer == NULL) || writer->Write(content, handler));
       }
       // On the first iteration, obtain the lock if we don't have data.
@@ -533,10 +479,14 @@ bool ResourceManager::Write(HttpStatus::Code status_code,
                             OutputResource* output,
                             int64 origin_expire_time_ms,
                             MessageHandler* handler) {
-  MetaData* meta_data = output->metadata();
+  ResponseHeaders* meta_data = output->metadata();
   SetDefaultHeaders(output->type(), meta_data);
   meta_data->SetStatusAndReason(status_code);
 
+  // The URL for any resource we will write includes the hash of contents,
+  // so it can can live, essentially, forever. So compute this hash,
+  // and cache the output using meta_data's default headers which are to cache
+  // forever.
   scoped_ptr<OutputResource::OutputWriter> writer(output->BeginWrite(handler));
   bool ret = (writer != NULL);
   if (ret) {
@@ -544,40 +494,11 @@ bool ResourceManager::Write(HttpStatus::Code status_code,
     ret &= output->EndWrite(writer.get(), handler);
     http_cache_->Put(output->url(), &output->value_, handler);
 
+    // If our URL is derived from some pre-existing URL (and not invented by
+    // us due to something like outlining), cache the mapping from original URL
+    // to the constructed one.
     if (!output->generated()) {
-      // Map the name of this resource to the fully expanded filename.  The
-      // name of the output resource is usually a function of how it is
-      // constructed from input resources.  For example, with combine_css,
-      // output->name() encodes all the component CSS filenames.  The filename
-      // this maps to includes the hash of the content.  Thus the two mappings
-      // have different lifetimes.
-      //
-      // The name->filename map expires when any of the origin files expire.
-      // When that occurs, fresh content must be read, and the output must
-      // be recomputed and re-hashed.
-      //
-      // However, the hashed output filename can live, essentially, forever.
-      // This is what we'll hash first as meta_data's default headers are
-      // to cache forever.
-
-      // Now we'll mutate meta_data to expire when the origin expires, and
-      // map the name to the hash.
-      int64 delta_ms = origin_expire_time_ms - http_cache_->timer()->NowMs();
-      int64 delta_sec = delta_ms / 1000;
-      if ((delta_sec > 0) || http_cache_->force_caching()) {
-        SimpleMetaData origin_meta_data;
-        SetDefaultHeaders(output->type(), &origin_meta_data);
-        std::string cache_control = StringPrintf(
-            "max-age=%ld",
-            static_cast<long>(delta_sec));  // NOLINT
-        origin_meta_data.RemoveAll(HttpAttributes::kCacheControl);
-        origin_meta_data.Add(HttpAttributes::kCacheControl, cache_control);
-        origin_meta_data.ComputeCaching();
-
-        std::string name_key = StrCat(kCacheKeyPrefix, output->name_key());
-        http_cache_->Put(name_key, origin_meta_data, output->hash_ext(),
-                         handler);
-      }
+      CacheComputedResourceMapping(output, origin_expire_time_ms, handler);
     }
   } else {
     // Note that we've already gotten a "could not open file" message;
@@ -587,6 +508,88 @@ bool ResourceManager::Write(HttpStatus::Code status_code,
                      file_prefix_.c_str());
   }
   return ret;
+}
+
+void ResourceManager::WriteUnoptimizable(OutputResource* output,
+                                         int64 origin_expire_time_ms,
+                                         MessageHandler* handler) {
+  output->set_optimizable(false);
+  CacheComputedResourceMapping(output, origin_expire_time_ms, handler);
+}
+
+// Map the name of this resource to information on its contents:
+// either the fully expanded filename, or the fact that we don't want
+// to make this resource (!optimizable()).
+//
+// The name of the output resource is usually a function of how it is
+// constructed from input resources.  For example, with combine_css,
+// output->name() encodes all the component CSS filenames.  The filename
+// this maps to includes the hash of the content.
+//
+// The name->filename map expires when any of the origin files expire.
+// When that occurs, fresh content must be read, and the output must
+// be recomputed and re-hashed. We'll hence mutate meta_data to expire when the
+// origin expires
+//
+// TODO(morlovich) We should consider caching based on the input hash, too,
+// so we don't end redoing work when input resources don't change but have
+// short expiration.
+void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
+    int64 origin_expire_time_ms, MessageHandler* handler) {
+  int64 delta_ms = origin_expire_time_ms - http_cache_->timer()->NowMs();
+  int64 delta_sec = delta_ms / 1000;
+  if ((delta_sec > 0) || http_cache_->force_caching()) {
+    ResponseHeaders origin_meta_data;
+    SetDefaultHeaders(output->type(), &origin_meta_data);
+    std::string cache_control = StringPrintf(
+        "max-age=%ld",
+        static_cast<long>(delta_sec));  // NOLINT
+    origin_meta_data.RemoveAll(HttpAttributes::kCacheControl);
+    origin_meta_data.Add(HttpAttributes::kCacheControl, cache_control);
+    if (!output->optimizable()) {
+      origin_meta_data.Add(kCacheUnoptimizableHeader, "true");
+    }
+    origin_meta_data.ComputeCaching();
+
+    std::string name_key = StrCat(kCacheKeyPrefix, output->name_key());
+    std::string file_mapping;
+    if (output->optimizable()) {
+      file_mapping = output->hash_ext();
+    }
+    http_cache_->Put(name_key, &origin_meta_data, file_mapping, handler);
+  }
+}
+
+void ResourceManager::RefreshImminentlyExpiringResource(
+    Resource* resource, MessageHandler* handler) const {
+  // Consider a resource with 5 minute expiration time (the default
+  // assumed by mod_pagespeed when a potentialy cacheable resource
+  // lacks a cache control header, which happens a lot).  If the
+  // origin TTL was 5 minutes and 4 minutes have expired, then re-fetch
+  // it so that we can avoid expiring the data.
+  //
+  // If we don't do this, then every 5 minutes, someone will see
+  // this page unoptimized.  In a site with very low QPS, including
+  // test instances of a site, this can happen quite often.
+  if (!http_cache_->force_caching() && resource->IsCacheable()) {
+    int64 now_ms = timer()->NowMs();
+    const ResponseHeaders* headers = resource->metadata();
+    int64 start_date_ms = headers->timestamp_ms();
+    int64 expire_ms = headers->CacheExpirationTimeMs();
+    int64 ttl_ms = expire_ms - start_date_ms;
+
+    // Only proactively refresh resources that have at least our
+    // default expiration of 5 minutes.
+    //
+    // TODO(jmaessen): Lower threshold when If-Modified-Since checking is in
+    // place; consider making this settable.
+    if (ttl_ms >= ResponseHeaders::kImplicitCacheTtlMs) {
+      int64 elapsed_ms = now_ms - start_date_ms;
+      if ((elapsed_ms * 100) >= (kRefreshExpirePercent * ttl_ms)) {
+        resource->Freshen(handler);
+      }
+    }
+  }
 }
 
 void ResourceManager::ReadAsync(Resource* resource,
@@ -605,6 +608,7 @@ void ResourceManager::ReadAsync(Resource* resource,
 
   switch (result) {
     case HTTPCache::kFound:
+      RefreshImminentlyExpiringResource(resource, handler);
       callback->Done(true, resource);
       break;
     case HTTPCache::kRecentFetchFailedDoNotRefetch:
@@ -645,6 +649,7 @@ bool ResourceManager::ReadIfCached(Resource* resource,
   }
   if (result == HTTPCache::kFound) {
     resource->DetermineContentType();
+    RefreshImminentlyExpiringResource(resource, handler);
     return true;
   }
   return false;

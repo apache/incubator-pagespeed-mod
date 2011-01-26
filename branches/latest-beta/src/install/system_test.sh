@@ -121,6 +121,24 @@ function test_filter() {
   FETCHED=$OUTDIR/$FILE
 }
 
+# Helper to test if we mess up extensions on requests to broken url
+function test_resource_ext_corruption() {
+  URL=$1
+  RESOURCE=$EXAMPLE_ROOT/$2
+
+  # Make sure the resource is actually there, that the test isn't broken
+  $WGET_DUMP $URL | grep -qi $RESOURCE
+  check [ $? = 0 ]
+
+  # Now fetch the broken version
+  BROKEN="$RESOURCE"broken
+  $WGET_PREREQ $BROKEN
+  check [ $? != 0 ]
+
+  # Fetch normal again; ensure rewritten url for RESOURCE doesn't contain broken
+  $WGET_DUMP $URL | grep broken
+  check [ $? != 0 ]
+}
 
 # General system tests
 
@@ -176,11 +194,29 @@ echo TEST: compression is enabled for HTML.
 check "$WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
   $EXAMPLE_ROOT/ 2>&1 | grep -qi 'Content-Encoding: gzip'"
 
+
 # Individual filter tests, in alphabetical order
 
 test_filter add_instrumentation adds 2 script tags
 check $WGET_PREREQ $URL
 check [ `cat $FETCHED | sed 's/>/>\n/g' | grep -c '<script'` = 2 ]
+check $WGET_PREREQ http://$HOSTNAME/mod_pagespeed_beacon?ets=load:13
+check grep -q '"204 No Content"' $WGET_OUTPUT
+
+echo "TEST: We don't add_instrumentation if URL params tell us not to"
+FILE=add_instrumentation.html?ModPagespeedFilters=
+URL=$EXAMPLE_ROOT/$FILE
+FETCHED=$OUTDIR/$FILE
+check $WGET_PREREQ $URL
+check [ `cat $FETCHED | sed 's/>/>\n/g' | grep -c '<script'` = 0 ]
+
+echo "TEST: Make sure 404s aren't rewritten"
+# Note: We run this in the add_instrumentation section because that is the
+# easiest to detect which changes every page
+THIS_BAD_URL=$BAD_RESOURCE_URL?ModPagespeedFilters=add_instrumentation
+# We use curl, because wget does not save 404 contents
+curl --silent $THIS_BAD_URL | grep /mod_pagespeed_beacon
+check [ $? != 0 ]
 
 test_filter collapse_whitespace removes whitespace, but not from pre tags.
 check $WGET_PREREQ $URL
@@ -189,6 +225,8 @@ check [ `egrep -c '^ +<' $FETCHED` = 1 ]
 test_filter combine_css combines 4 CSS files into 1.
 fetch_until $URL 'grep -c text/css' 1
 check $WGET_PREREQ $URL
+test_resource_ext_corruption $URL\
+  styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
 
 test_filter combine_heads combines 2 heads into 1
 check $WGET_PREREQ $URL
@@ -204,6 +242,7 @@ check [ $? != 0 ]
 test_filter extend_cache rewrites an image tag.
 fetch_until $URL 'grep -c src.*91_WewrLtP' 1
 check $WGET_PREREQ $URL
+test_resource_ext_corruption $URL images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
 
 echo TEST: Cache-extended image should respond 304 to an If-Modified-Since.
 URL=$EXAMPLE_ROOT/images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
@@ -236,6 +275,7 @@ check egrep -q "'<script.*src=.*large'" $FETCHED       # outlined
 check egrep -q "'<script.*small.*var hello'" $FETCHED  # not outlined
 
 echo TEST: compression is enabled for rewritten JS.
+echo JS_URL=\$\(egrep -o http://.*.pagespeed.*.js $FETCHED\)
 JS_URL=$(egrep -o http://.*.pagespeed.*.js $FETCHED)
 JS_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
   $JS_URL 2>&1)
@@ -304,6 +344,27 @@ echo TEST: rewrite_images redirects unknown image $IMG_URL
 $WGET_PREREQ $IMG_URL;  # fails
 check grep '"307 Temporary Redirect"' $WGET_OUTPUT
 
+# Note: this large URL can only be processed by Apache if
+# ap_hook_map_to_storage is called to bypass the default
+# handler that maps URLs to filenames.
+echo TEST: Fetch large css_combine URL
+LARGE_URL="$EXAMPLE_ROOT/styles/yellow.css+blue.css+big.css+\
+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+\
+bold.css.pagespeed.cc.46IlzLf_NK.css"
+$WGET --save-headers -q -O - $LARGE_URL | head -1 | grep "HTTP/1.1 200 OK"
+check [ $? = 0 ];
+LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
+check [ $? = 0 ]
+echo Checking that response body is at least 900 lines -- it should be 954
+check [ $LARGE_URL_LINE_COUNT -gt 900 ]
 
 test_filter rewrite_javascript removes comments and saves a bunch of bytes.
 fetch_until $URL 'grep -c src.*1o978_K0_L' 2   # external scripts rewritten

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,8 +87,8 @@ class ImgRewriteFilter : public RewriteFilter {
   virtual void Flush();
   virtual bool Fetch(OutputResource* resource,
                      Writer* writer,
-                     const MetaData& request_header,
-                     MetaData* response_headers,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
                      MessageHandler* message_handler,
                      UrlAsyncFetcher::Callback* callback);
   virtual const char* Name() const { return "ImgRewrite"; }

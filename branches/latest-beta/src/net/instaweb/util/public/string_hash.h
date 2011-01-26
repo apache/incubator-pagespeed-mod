@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,20 +23,15 @@
 
 namespace net_instaweb {
 
-inline size_t HashString(const char* s, size_t len) {
-  // TODO(jmarantz): The portability layers defined in
-  //   third_party/chromium/src/base/hash_tables.h
-  //   third_party/protobuf2/src/src/google/protobuf/stubs/hash.h
-  // do not make it obvious how to hash a string directly -- they only
-  // make it possible to instantiate hash_set<string> and hash_map<string,...>.
-  // A reasonable hashing function looks available in apr_hashfunc_default,
-  // but for build isolation reasons we don't want to reference that here.
-  //
-  // For now, define our own implemention, copied from code in
+// A hash function for strings that can be used both in a case-sensitive
+// and case-insensitive way
+template<class CharTransform, typename IntType>
+inline IntType HashString(const char* s, size_t len) {
+  // This implemention is based on code in
   // third_party/chromium/src/base/hash_tables.h.
-  size_t result = 0;
+  IntType result = 0;
   for (size_t i = 0; i < len; ++i, ++s) {
-    result = (result * 131) + *s;
+    result = (result * 131) + CharTransform::Normalize(*s);
   }
   return result;
 }
@@ -46,6 +41,31 @@ inline size_t HashString(const char* s, size_t len) {
 inline size_t JoinHash(size_t a, size_t b) {
   return (a + 56) * 137 + b * 151;  // Uses different prime multipliers.
 }
+
+// A helper for case-sensitive hashing
+struct CasePreserve {
+  // We want to use unsigned characters for the return value of Normalize
+  // here and in CaseFold::Normalize.  This is so that we get the same
+  // hash-value arithmetic regardless of whether the c++ compiler treats
+  // chars as signed or unsigned by default.  We want to get the same
+  // hash-values independent of machine so that we get consistent domain
+  // sharding and therefore better caching behavior in a multi-server setup
+  // that contains heterogeneous machines.
+  static unsigned char Normalize(char c) {
+    return c;
+  }
+};
+
+// A helper for case-insensitive hashing, which folds to lowercase
+struct CaseFold {
+  static unsigned char Normalize(char c) {
+    if (c >= 'A' && c <= 'Z') {
+      return c + ('a' - 'A');
+    } else {
+      return c;
+    }
+  }
+};
 
 }  // namespace net_instaweb
 

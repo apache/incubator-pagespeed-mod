@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,10 @@
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+
+// Quick macro to get the size of a static char[] without trailing '\0'.
+// Note: Cannot be used for char*, std::string, etc.
+#define STATIC_STRLEN(static_string) (arraysize(static_string) - 1)
 
 namespace net_instaweb {
 
@@ -94,6 +98,10 @@ inline bool OnlyWhitespace(const std::string& str) {
   return ContainsOnlyWhitespaceASCII(str);
 }
 
+int GlobalReplaceSubstring(const StringPiece& substring,
+                           const StringPiece& replacement,
+                           std::string* s);
+
 inline char* strdup(const char* str) {
   return base::strdup(str);
 }
@@ -136,6 +144,12 @@ struct CharStarCompareSensitive {
   bool operator()(const char* s1, const char* s2) const {
     return strcmp(s1, s2) < 0;
   }
+};
+
+struct StringCompareSensitive {
+  bool operator()(const std::string& s1, const std::string& s2) const {
+    return strcmp(s1.c_str(), s2.c_str()) < 0;
+  };
 };
 
 struct StringCompareInsensitive {

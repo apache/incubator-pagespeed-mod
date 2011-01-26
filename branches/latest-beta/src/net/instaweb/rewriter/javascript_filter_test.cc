@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,12 +57,30 @@ class JavascriptFilterTest : public ResourceManagerTestBase {
   }
 
   void InitTest(int64 ttl) {
-    InitMetaData(kOrigJsName, kContentTypeJavascript, kJsData, ttl);
+    InitResponseHeaders(kOrigJsName, kContentTypeJavascript, kJsData, ttl);
   }
 
   // Generate HTML loading 3 resources with the specified URLs
   std::string GenerateHtml(const char* a) {
     return StringPrintf(kHtmlFormat, a);
+  }
+
+  void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
+    // Do a normal rewrite test
+    InitTest(100);
+    ValidateExpected("no_ext_corruption",
+                    GenerateHtml(kOrigJsName).c_str(),
+                    GenerateHtml(expected_rewritten_path_.c_str()).c_str());
+
+    // Fetch messed up URL.
+    std::string out;
+    EXPECT_EQ(should_fetch_ok,
+              ServeResourceUrl(StrCat(expected_rewritten_path_, junk), &out));
+
+    // Rewrite again; should still get normal URL
+    ValidateExpected("no_ext_corruption",
+                    GenerateHtml(kOrigJsName).c_str(),
+                    GenerateHtml(expected_rewritten_path_.c_str()).c_str());
   }
 
   std::string expected_rewritten_path_;
@@ -99,9 +117,9 @@ TEST_F(JavascriptFilterTest, ServeFiles) {
   // When we start, there are no mock fetchers, so we'll need to get it
   // from the cache or the disk.  Start with the cache.
   file_system_.Disable();
-  SimpleMetaData headers;
+  ResponseHeaders headers;
   resource_manager_->SetDefaultHeaders(&kContentTypeJavascript, &headers);
-  http_cache_.Put(expected_rewritten_path_, headers, kJsMinData,
+  http_cache_.Put(expected_rewritten_path_, &headers, kJsMinData,
                   &message_handler_);
   EXPECT_EQ(0, lru_cache_->num_hits());
   ASSERT_TRUE(ServeResource(kSourcePrefix, kFilterId,
@@ -154,6 +172,15 @@ TEST_F(JavascriptFilterTest, ServeFiles) {
                                 RewriteOptions::kRewriteJavascript,
                                 &mock_hasher_,
                                 kJsMinData);
+}
+
+// Make sure bad requests do not corrupt our extension.
+TEST_F(JavascriptFilterTest, NoExtensionCorruption) {
+  TestCorruptUrl("%22", false);
+}
+
+TEST_F(JavascriptFilterTest, NoQueryCorruption) {
+  TestCorruptUrl("?query", true);
 }
 
 }  // namespace net_instaweb

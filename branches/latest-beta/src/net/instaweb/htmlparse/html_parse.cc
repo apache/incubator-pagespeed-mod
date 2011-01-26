@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,12 +42,13 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
                      // Visual Studio builds).
       sequence_(0),
       current_(queue_.end()),
-      deleted_current_(false),
       message_handler_(message_handler),
       line_number_(1),
+      deleted_current_(false),
       need_sanity_check_(false),
       coalesce_characters_(true),
       need_coalesce_characters_(false),
+      valid_(false),
       parse_start_time_us_(0),
       timer_(NULL) {
   lexer_ = new HtmlLexer(this);
@@ -116,47 +117,42 @@ void HtmlParse::SetCurrent(HtmlNode* node) {
 
 HtmlCdataNode* HtmlParse::NewCdataNode(HtmlElement* parent,
                                        const StringPiece& contents) {
-  HtmlCdataNode* cdata = new HtmlCdataNode(parent, contents, queue_.end());
-  nodes_.insert(cdata);
+  HtmlCdataNode* cdata =
+      new (&nodes_) HtmlCdataNode(parent, contents, queue_.end());
   return cdata;
 }
 
 HtmlCharactersNode* HtmlParse::NewCharactersNode(HtmlElement* parent,
                                                  const StringPiece& literal) {
   HtmlCharactersNode* characters =
-      new HtmlCharactersNode(parent, literal, queue_.end());
-  nodes_.insert(characters);
+      new (&nodes_) HtmlCharactersNode(parent, literal, queue_.end());
   return characters;
 }
 
 HtmlCommentNode* HtmlParse::NewCommentNode(HtmlElement* parent,
                                            const StringPiece& contents) {
-  HtmlCommentNode* comment = new HtmlCommentNode(parent, contents,
-                                                 queue_.end());
-  nodes_.insert(comment);
+  HtmlCommentNode* comment =
+      new (&nodes_) HtmlCommentNode(parent, contents, queue_.end());
   return comment;
 }
 
 HtmlIEDirectiveNode* HtmlParse::NewIEDirectiveNode(
     HtmlElement* parent, const StringPiece& contents) {
   HtmlIEDirectiveNode* directive =
-      new HtmlIEDirectiveNode(parent, contents, queue_.end());
-  nodes_.insert(directive);
+      new (&nodes_) HtmlIEDirectiveNode(parent, contents, queue_.end());
   return directive;
 }
 
 HtmlDirectiveNode* HtmlParse::NewDirectiveNode(HtmlElement* parent,
                                                const StringPiece& contents) {
-  HtmlDirectiveNode* directive = new HtmlDirectiveNode(parent, contents,
-                                                       queue_.end());
-  nodes_.insert(directive);
+  HtmlDirectiveNode* directive =
+      new (&nodes_) HtmlDirectiveNode(parent, contents, queue_.end());
   return directive;
 }
 
 HtmlElement* HtmlParse::NewElement(HtmlElement* parent, Atom tag) {
-  HtmlElement* element = new HtmlElement(parent, tag, queue_.end(),
-                                         queue_.end());
-  nodes_.insert(element);
+  HtmlElement* element =
+      new (&nodes_) HtmlElement(parent, tag, queue_.end(), queue_.end());
   element->set_sequence(sequence_++);
   return element;
 }
@@ -169,22 +165,26 @@ void HtmlParse::AddElement(HtmlElement* element, int line_number) {
   element->set_begin_line_number(line_number);
 }
 
-void HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
+bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
                              const ContentType& content_type) {
   url.CopyToString(&url_);
   GURL gurl(url_);
-  // TODO(jmaessen): warn and propagate upwards.  This will require
-  // major changes to the callers.
-  message_handler_->Check(gurl.is_valid(), "Invalid url %s", url_.c_str());
-  gurl_.Swap(&gurl);
-  line_number_ = 1;
-  id.CopyToString(&id_);
-  if (timer_ != NULL) {
-    parse_start_time_us_ = timer_->NowUs();
-    InfoHere("HtmlParse::StartParse");
+  valid_ = gurl.is_valid();
+  if (!valid_) {
+    message_handler_->Message(kWarning, "HtmlParse: Invalid document url %s",
+                              url_.c_str());
+  } else {
+    gurl_.Swap(&gurl);
+    line_number_ = 1;
+    id.CopyToString(&id_);
+    if (timer_ != NULL) {
+      parse_start_time_us_ = timer_->NowUs();
+      InfoHere("HtmlParse::StartParse");
+    }
+    AddEvent(new HtmlStartDocumentEvent(line_number_));
+    lexer_->StartParse(id, content_type);
   }
-  AddEvent(new HtmlStartDocumentEvent(line_number_));
-  lexer_->StartParse(id, content_type);
+  return valid_;
 }
 
 void HtmlParse::ShowProgress(const char* message) {
@@ -195,15 +195,21 @@ void HtmlParse::ShowProgress(const char* message) {
 }
 
 void HtmlParse::FinishParse() {
-  lexer_->FinishParse();
-  AddEvent(new HtmlEndDocumentEvent(line_number_));
-  Flush();
-  ClearElements();
-  ShowProgress("FinishParse");
+  DCHECK(valid_) << "Invalid to call FinishParse on invalid input";
+  if (valid_) {
+    lexer_->FinishParse();
+    AddEvent(new HtmlEndDocumentEvent(line_number_));
+    Flush();
+    ClearElements();
+    ShowProgress("FinishParse");
+  }
 }
 
 void HtmlParse::ParseText(const char* text, int size) {
-  lexer_->Parse(text, size);
+  DCHECK(valid_) << "Invalid to call ParseText with invalid url";
+  if (valid_) {
+    lexer_->Parse(text, size);
+  }
 }
 
 // This is factored out of Flush() for testing purposes.
@@ -330,37 +336,40 @@ void HtmlParse::SanityCheck() {
 }
 
 void HtmlParse::Flush() {
-  ShowProgress("Flush");
+  DCHECK(valid_) << "Invalid to call FinishParse with invalid url";
+  if (valid_) {
+    ShowProgress("Flush");
 
-  for (size_t i = 0; i < filters_.size(); ++i) {
-    HtmlFilter* filter = filters_[i];
-    ApplyFilter(filter);
-  }
+    for (size_t i = 0; i < filters_.size(); ++i) {
+      HtmlFilter* filter = filters_[i];
+      ApplyFilter(filter);
+    }
 
-  // Detach all the elements from their events, as we are now invalidating
-  // the events, but not the elements.
-  for (current_ = queue_.begin(); current_ != queue_.end(); ++current_) {
-    HtmlEvent* event = *current_;
-    line_number_ = event->line_number();
-    HtmlElement* element = event->GetElementIfStartEvent();
-    if (element != NULL) {
-      element->set_begin(queue_.end());
-    } else {
-      element = event->GetElementIfEndEvent();
+    // Detach all the elements from their events, as we are now invalidating
+    // the events, but not the elements.
+    for (current_ = queue_.begin(); current_ != queue_.end(); ++current_) {
+      HtmlEvent* event = *current_;
+      line_number_ = event->line_number();
+      HtmlElement* element = event->GetElementIfStartEvent();
       if (element != NULL) {
-        element->set_end(queue_.end());
+        element->set_begin(queue_.end());
       } else {
-        HtmlLeafNode* leaf_node = event->GetLeafNode();
-        if (leaf_node != NULL) {
-          leaf_node->set_iter(queue_.end());
+        element = event->GetElementIfEndEvent();
+        if (element != NULL) {
+          element->set_end(queue_.end());
+        } else {
+          HtmlLeafNode* leaf_node = event->GetLeafNode();
+          if (leaf_node != NULL) {
+            leaf_node->set_iter(queue_.end());
+          }
         }
       }
+      delete event;
     }
-    delete event;
+    queue_.clear();
+    need_sanity_check_ = false;
+    need_coalesce_characters_ = false;
   }
-  queue_.clear();
-  need_sanity_check_ = false;
-  need_coalesce_characters_ = false;
 }
 
 void HtmlParse::InsertElementBeforeElement(const HtmlNode* existing_node,
@@ -559,8 +568,6 @@ bool HtmlParse::DeleteElement(HtmlNode* node) {
         nested_node = event->GetLeafNode();
       }
       if (nested_node != NULL) {
-        std::set<HtmlNode*>::iterator iter = nodes_.find(nested_node);
-        message_handler_->Check(iter != nodes_.end(), "iter == nodes_.end()");
         message_handler_->Check(nested_node->live(), "!nested_node->live()");
         nested_node->MarkAsDead(queue_.end());
       }
@@ -624,12 +631,7 @@ bool HtmlParse::IsInEventWindow(const HtmlEventListIterator& iter) const {
 }
 
 void HtmlParse::ClearElements() {
-  for (std::set<HtmlNode*>::iterator p = nodes_.begin(),
-           e = nodes_.end(); p != e; ++p) {
-    HtmlNode* node = *p;
-    delete node;
-  }
-  nodes_.clear();
+  nodes_.DestroyObjects();
 }
 
 void HtmlParse::DebugPrintQueue() {
