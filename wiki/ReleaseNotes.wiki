@@ -1,4 +1,16 @@
 <wiki:toc max_depth="3" />
+===mod_pagespeed release 0.9.15.3===
+ was released on Jan 28, 2011.  It includes binary packages, and fixes the following issues:
+||Issue 124|| Error log noise with relative img links.||
+||Issue 161|| Add directive to disable combining CSS files across paths.||
+||Issue 170|| Should not rewrite 404 error pages.||
+||Issue 176|| Increase the URL segment limitation to 1k characters, but allow a user-level override to tighten it.||
+||Issue 179|| Caching headers are not set correctly on some sites.||
+||Issue 192|| Fix problems with trailing junk & queries after resource URLs.||
+||Issue 193|| /mod_pagespeed_beacon returning a 404.||
+||Issue 196|| Don't inline css with @import statements, until we add code to absolutify them.||
+
+
 ===mod_pagespeed release 0.9.14.6===
  was released on Jan 7, 2011.  It includes binary packages, and fixes the following issues:
 ||Issue 53||	Firebug errors (404s) when mousing over images rewritten with mod_pagespeed enabled.||
