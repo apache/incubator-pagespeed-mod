@@ -26,7 +26,7 @@ You will need to add the depot_tools to your path. i.e. in bash:
 }}}
 Either latest stable version:
 {{{
-  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.14.6/src
+  gclient config http://modpagespeed.googlecode.com/svn/branches/latest-beta/src
   gclient sync --force     # this will download all source code
 }}}
 or the bleeding edge version
@@ -95,7 +95,7 @@ You can repeat the install process at any time to re-install mod_pagespeed.
 
 To update to the latest version, first configure to the latest tag, eg:
 {{{
-  gclient config http://modpagespeed.googlecode.com/svn/tags/0.9.14.6/src
+  gclient config http://modpagespeed.googlecode.com/svn/branches/latest-beta/src
 }}}
 Then sync your client:
 {{{
