@@ -4,7 +4,7 @@ Do you want to port mod_pagespeed to another server or integrate it in another s
 
 If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc source], our main code is in [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb net/instaweb/]:
 
- * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Futil util/] and [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhttp http/] have many of our basic tools, including abstract base classes like !MessageHandler, !Timer and !UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
+ * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Futil util/] and [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhttp http/] have many of our basic tools, including abstract base classes like !MessageHandler, Timer and !UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhtmlparse htmlparse/] has the core HTML parser, you shouldn't have to deal with that at all.
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Frewriter rewriter/] has the rewriting filters and framework, there is at least one class here you'll need to implement, !RewriteDriverFactory.
 
