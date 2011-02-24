@@ -1,0 +1,24 @@
+#summary What you need to do to port mod_pagespeed to another server/system
+
+Do you want to port mod_pagespeed to another server or integrate it in another system? Great! We developed mod_pagespeed to be modular and almost completely independent from Apache. In fact, we believe the only Apache-specific code is in the net/instaweb/apache directory.
+
+If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc source], our main code is in [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb net/instaweb/]:
+
+ * util/ and http/ have many of our basic tools, including abstract base classes like MessageHandler, Timer and UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
+ * htmlparse/ has the core HTML parser, you shouldn't have to deal with that at all.
+ * rewriter/ has the rewriting filters and framework, there is at least one class here you'll need to implement, RewriteDriverFactory.
+
+Looking in the apache/ directory, I see the following classes you'll probably have to implement for a port:
+
+ * MessageHandler - Error handling
+ * RewriteDriverFactory - Manages all the options and classes specific to an implementation
+ * FileSystem
+ * Mutex
+ * Statistics - Keep track of various global stats
+ * Timer
+ * UrlFetcher - Fetcher for resources by URL
+ * UrlAsyncFetcher - Same but with a callback interface
+
+Then to actually invoke the code, you'll need to create a FooRewriteDriverFactory to create all your objects, and then StartParseWithContentType(url), ParseText(text) between each flush of the server, and FinishParse() for each request.
+
+Please contact us (mod-pagespeed-discuss@googlegroups.com) if you are looking into this or having any problems. We are not guaranteeing that any internal interfaces stay the same, so we could easily break you if we don't know that your are using them.
