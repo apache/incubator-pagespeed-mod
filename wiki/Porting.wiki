@@ -22,4 +22,4 @@ Looking in the [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk
 
 Then to actually invoke the code, you'll need to create a !FooRewriteDriverFactory to create all your objects, and then [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/instaweb_context.cc#124 StartParseWithType(url, content_type)], [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/instaweb_context.cc#162 ParseText(text)] between each flush of the server, and [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/instaweb_context.h#63 FinishParse()] for each request.
 
-Please contact us (mod-pagespeed-discuss@googlegroups.com) if you are looking into this or having any problems. We are not guaranteeing that any internal interfaces stay the same, so we could easily break you if we don't know that your are using them.
+Please contact us (mod-pagespeed-discuss@googlegroups.com) if you are looking into this or having any problems. We are not guaranteeing that any internal interfaces stay the same, so we could easily break you if we don't know that you are using them.
