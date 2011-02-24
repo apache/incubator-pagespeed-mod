@@ -8,7 +8,7 @@ If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhtmlparse htmlparse/] has the core HTML parser, you shouldn't have to deal with that at all.
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Frewriter rewriter/] has the rewriting filters and framework, there is at least one class here you'll need to implement, !RewriteDriverFactory.
 
-Looking in the [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fapache apache/] directory, I see the following classes you'll probably have to implement for a port:
+You will probably have to implement a port for the following classes in the [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fapache apache/] directory:
 
  * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/message_handler.h MessageHandler] - Error handling (See for example [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/file_message_handler.h FileMessageHandler] and [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/apache_message_handler.h ApacheMessageHandler])
  * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/file_system.h FileSystem] (See example [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/stdio_file_system.h StdioFileSystem] and [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/apr_file_system.h AprFileSystem])
