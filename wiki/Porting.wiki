@@ -4,21 +4,21 @@ Do you want to port mod_pagespeed to another server or integrate it in another s
 
 If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc source], our main code is in [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb net/instaweb/]:
 
- * util/ and http/ have many of our basic tools, including abstract base classes like MessageHandler, Timer and UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
- * htmlparse/ has the core HTML parser, you shouldn't have to deal with that at all.
- * rewriter/ has the rewriting filters and framework, there is at least one class here you'll need to implement, RewriteDriverFactory.
+ * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Futil util/] and [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhttp http/] have many of our basic tools, including abstract base classes like !MessageHandler, !Timer and !UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
+ * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhtmlparse htmlparse/] has the core HTML parser, you shouldn't have to deal with that at all.
+ * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Frewriter rewriter/] has the rewriting filters and framework, there is at least one class here you'll need to implement, !RewriteDriverFactory.
 
-Looking in the apache/ directory, I see the following classes you'll probably have to implement for a port:
+Looking in the [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fapache apache/] directory, I see the following classes you'll probably have to implement for a port:
 
- * MessageHandler - Error handling
- * RewriteDriverFactory - Manages all the options and classes specific to an implementation
- * FileSystem
- * Mutex
- * Statistics - Keep track of various global stats
- * Timer
- * UrlFetcher - Fetcher for resources by URL
- * UrlAsyncFetcher - Same but with a callback interface
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/message_handler.h MessageHandler] - Error handling (See for example [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/apache_message_handler.h ApacheMessageHandler])
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/file_system.h FileSystem] (See example StdioFileSystem and AprFileSystem)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/abstract_mutex.h AbstractMutex] (See example ...)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/statistics.h Statistics] - Keep track of various global stats (See example SimpleStats and AprStats)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/util/public/timer.h Timer] (See example ...)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/http/public/url_fetcher.h UrlFetcher] - Fetcher for resources by URL (See example ...)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/http/public/url_async_fetcher.h UrlAsyncFetcher] - Same but with a callback interface (See example ...)
+ * [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/rewriter/public/rewrite_driver_factory.h RewriteDriverFactory] - Manages all the options and classes specific to an implementation (See example [http://code.google.com/p/modpagespeed/source/browse/trunk/src/net/instaweb/apache/apache_rewrite_driver_factory.h ApacheRewriteDriverFactory])
 
-Then to actually invoke the code, you'll need to create a FooRewriteDriverFactory to create all your objects, and then StartParseWithContentType(url), ParseText(text) between each flush of the server, and FinishParse() for each request.
+Then to actually invoke the code, you'll need to create a !FooRewriteDriverFactory to create all your objects, and then !StartParseWithContentType(url), !ParseText(text) between each flush of the server, and !FinishParse() for each request.
 
 Please contact us (mod-pagespeed-discuss@googlegroups.com) if you are looking into this or having any problems. We are not guaranteeing that any internal interfaces stay the same, so we could easily break you if we don't know that your are using them.
