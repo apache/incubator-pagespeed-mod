@@ -6,7 +6,7 @@ If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2
 
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Futil util/] and [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhttp http/] have many of our basic tools, including abstract base classes like !MessageHandler, Timer and !UrlFetcher and some example implementations, you will have to make your own implementations of many of these.
  * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fhtmlparse htmlparse/] has the core HTML parser, you shouldn't have to deal with that at all.
- * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Frewriter rewriter/] has the rewriting filters and framework, there is at least one class here you'll need to implement, !RewriteDriverFactory.
+ * [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Frewriter rewriter/] has the rewriting filters and framework.   The central integration point is the partially abstract class here !RewriteDriverFactory.  Your integration effort will start by subclassing it and implementing its pure virtual methods.
 
 You will probably have to implement a port for the following classes (see example implementations in the [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb%2Fapache apache/] directory):
 
