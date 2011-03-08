@@ -137,7 +137,7 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
     GoogleUrl resolved_newurl(base_url, trimmed_url_piece);
     DCHECK(resolved_newurl == long_url);
     if (!resolved_newurl.is_valid() || resolved_newurl != long_url) {
-      handler->Message(kError, "Left trimming of %s referring to %s was %s, "
+      handler->Message(kInfo, "Left trimming of %s referring to %s was %s, "
                        "which instead refers to %s.",
                        url_to_trim.as_string().c_str(),
                        long_url_buffer.as_string().c_str(),

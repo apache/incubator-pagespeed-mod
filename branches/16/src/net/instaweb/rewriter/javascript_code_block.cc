@@ -87,7 +87,7 @@ void JavascriptCodeBlock::Rewrite() {
   config_->AddBlock();
   if ((config_->minify() || config_->redirect())) {
     if (!pagespeed::jsminify::MinifyJs(original_code_, &rewritten_code_)) {
-      handler_->Message(kError, "Minification failed.  Preserving old code.");
+      handler_->Message(kInfo, "Javascript minification failed.  Preserving old code.");
       config_->AddMinificationFailure();
       TrimWhitespace(original_code_, &rewritten_code_);
     }
