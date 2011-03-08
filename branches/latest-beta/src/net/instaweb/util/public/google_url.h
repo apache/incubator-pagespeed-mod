@@ -180,7 +180,7 @@ class GoogleUrl {
   size_t LeafStartPosition() const;
   size_t PathStartPosition() const;
 
-  DISALLOW_COPY_AND_ASSIGN(GoogleUrl);
+  //DISALLOW_COPY_AND_ASSIGN(GoogleUrl);
 };  // class GoogleUrl
 
 }  // namespace net_instaweb
