@@ -126,7 +126,7 @@ class OutputResource : public Resource {
   // The 'options' argument can be NULL.  This is done in the Fetch path because
   // that field is only used for domain sharding, and during the fetch, further
   // domain makes no sense.
-  OutputResource(RewriteDriver* driver,
+  OutputResource(ResourceManager* manager,
                  const StringPiece& resolved_base,
                  const ResourceNamer& resource_id,
                  const ContentType* type,

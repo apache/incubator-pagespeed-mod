@@ -32,7 +32,7 @@
 #endif
 
 #if (CV_MAJOR_VERSION == 2 && CV_MINOR_VERSION >= 1) || (CV_MAJOR_VERSION > 2)
-#define USE_OPENCV_2_1
+#define USE_OPENCV_IN_MEM
 #endif
 
 namespace net_instaweb {
@@ -125,11 +125,6 @@ class Image {
         const StringPiece& file_prefix,
         MessageHandler* handler);
 
-  // Creates a blank image of the given dimensions and type.
-  // For now, this is assumed to be an 8-bit 3-channel image.
-  Image(int width, int height, Type type,
-        const StringPiece& tmp_dir, MessageHandler* handler);
-
   ~Image();
 
   // Stores the image dimensions in natural_dim (on success, sets
@@ -176,6 +171,9 @@ class Image {
   // fails.  Otherwise the image contents and type can change.
   bool ResizeTo(const ImageDim& new_dim);
 
+  // UndoResize lets us bail out if a resize actually cost space!
+  void UndoResize();
+
   // Returns image-appropriate content type, or NULL if no content type is
   // known.  Result is a top-level const pointer and should not be deleted etc.
   const ContentType* content_type();
@@ -184,20 +182,15 @@ class Image {
   // then Contents() will have NULL data().
   StringPiece Contents();
 
-  // Draws the given image on top of this one at the given offset.  Returns true
-  // if successful.
-  bool DrawImage(Image* image, int x, int y);
-
  private:
   // byte buffer type most convenient for working with given OpenCV version
-#ifdef USE_OPENCV_2_1
+#ifdef USE_OPENCV_IN_MEM
   typedef std::vector<unsigned char> OpenCvBuffer;
 #else
   typedef std::string OpenCvBuffer;
 #endif
 
   // Internal methods used only in image.cc (see there for more).
-  void UndoChange();
   void ComputeImageType();
   void FindJpegSize();
   inline void FindPngSize();
@@ -207,9 +200,6 @@ class Image {
   void CleanOpenCv();
   bool ComputeOutputContents();
 
-  // Initializes an empty image.
-  bool LoadOpenCvEmpty();
-
   // Assumes all filetype + transparency checks have been done.
   // Reads data, writes to opencv_image_
   bool LoadOpenCvFromBuffer(const StringPiece& data);
@@ -218,9 +208,9 @@ class Image {
   bool SaveOpenCvToBuffer(OpenCvBuffer* buf);
 
   // Encodes 'buf' in a StringPiece
-  static StringPiece OpenCvBufferToStringPiece(const OpenCvBuffer& buf);
+  StringPiece OpenCvBufferToStringPiece(const OpenCvBuffer& buf);
 
-#ifndef USE_OPENCV_2_1
+#ifndef USE_OPENCV_IN_MEM
   // Helper that creates & writes a temporary file for us in proper prefix with
   // proper extension.
   bool TempFileForImage(FileSystem* fs, const StringPiece& contents,
@@ -235,7 +225,7 @@ class Image {
   bool output_valid_;             // Indicates output_contents_ now correct.
   IplImage* opencv_image_;        // Lazily filled on OpenCV load.
   bool opencv_load_possible_;     // Attempt opencv_load in future?
-  bool changed_;
+  bool resized_;
   const std::string url_;
   ImageDim dims_;
 

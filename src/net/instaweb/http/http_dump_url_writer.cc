@@ -39,8 +39,7 @@ bool HttpDumpUrlWriter::StreamingFetchUrl(
   bool ret = true;
   std::string filename;
 
-  GoogleUrl gurl(url);
-  if (!dump_fetcher_.GetFilename(gurl, &filename, handler)) {
+  if (!dump_fetcher_.GetFilename(GURL(url), &filename, handler)) {
     handler->Message(kError, "HttpDumpUrlWriter: Invalid url: %s", url.c_str());
     ret = false;
   } else if (!file_system_->Exists(filename.c_str(), handler).is_true()) {
