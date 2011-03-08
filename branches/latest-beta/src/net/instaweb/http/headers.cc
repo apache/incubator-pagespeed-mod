@@ -67,12 +67,12 @@ template<class Proto> int Headers<Proto>::NumAttributes() const {
   return proto_->header_size();
 }
 
-template<class Proto> const char* Headers<Proto>::Name(int i) const {
-  return proto_->header(i).name().c_str();
+template<class Proto> const std::string& Headers<Proto>::Name(int i) const {
+  return proto_->header(i).name();
 }
 
-template<class Proto> const char* Headers<Proto>::Value(int i) const {
-  return proto_->header(i).value().c_str();
+template<class Proto> const std::string& Headers<Proto>::Value(int i) const {
+  return proto_->header(i).value();
 }
 
 template<class Proto> void Headers<Proto>::PopulateMap() const {
@@ -90,7 +90,7 @@ template<class Proto> int Headers<Proto>::NumAttributeNames() const {
 }
 
 template<class Proto> bool Headers<Proto>::Lookup(
-    const char* name, CharStarVector* values) const {
+    const StringPiece& name, StringStarVector* values) const {
   PopulateMap();
   return map_->Lookup(name, values);
 }
@@ -116,12 +116,12 @@ template<class Proto> void Headers<Proto>::Add(
   }
 }
 
-template<class Proto> bool Headers<Proto>::RemoveAll(const char* name) {
+template<class Proto> bool Headers<Proto>::RemoveAll(const StringPiece& name) {
   // Protobufs lack a convenient remove method for array elements, so
   // we copy the data into the map and do the remove there, then
   // reconstruct the protobuf.
   PopulateMap();
-  CharStarVector values;
+  StringStarVector values;
   bool removed = map_->Lookup(name, &values);
   if (removed) {
     proto_->clear_header();
@@ -129,10 +129,18 @@ template<class Proto> bool Headers<Proto>::RemoveAll(const char* name) {
     for (int i = 0, n = map_->num_values(); i < n; ++i) {
       NameValue* name_value = proto_->add_header();
       name_value->set_name(map_->name(i));
-      name_value->set_value(map_->value(i));
+      DCHECK(map_->value(i) != NULL) << "Null-valued header";
+      name_value->set_value(*(map_->value(i)));
     }
   }
   return removed;
+}
+
+template<class Proto> void Headers<Proto>::Replace(
+    const StringPiece& name, const StringPiece& value) {
+  // TODO(jmarantz): This could be arguably be implemented more efficiently.
+  RemoveAll(name);
+  Add(name, value);
 }
 
 template<class Proto> bool Headers<Proto>::WriteAsBinary(

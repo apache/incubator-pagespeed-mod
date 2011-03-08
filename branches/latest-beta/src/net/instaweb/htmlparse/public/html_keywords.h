@@ -16,17 +16,19 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_ESCAPE_H_
-#define NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_ESCAPE_H_
+#ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_KEYWORDS_H_
+#define NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_KEYWORDS_H_
 
 #include <map>
+#include <vector>
 #include "base/basictypes.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class HtmlEscape {
+class HtmlKeywords {
  public:
   // Initialize a singleton instance of this class.  This call is
   // inherently thread unsafe, but only the first time it is called.
@@ -37,6 +39,11 @@ class HtmlEscape {
   // Tear down the singleton instance of this class, freeing any
   // allocated memory. This call is inherently thread unsafe.
   static void ShutDown();
+
+  // Returns an HTML keyword as a string, or NULL if not a keyword.
+  static const char* KeywordToString(HtmlName::Keyword keyword) {
+    return singleton_->keyword_vector_[keyword];
+  }
 
   // Take a raw text and escape it so it's safe for an HTML attribute,
   // e.g.    a&b --> a&amp;b
@@ -62,10 +69,10 @@ class HtmlEscape {
   // text parsed from HTML files, and pass that to browsers.
 
  private:
-  HtmlEscape();
+  HtmlKeywords();
   const char* UnescapeAttributeValue();
 
-  static HtmlEscape* singleton_;
+  static HtmlKeywords* singleton_;
 
   StringPiece EscapeHelper(const StringPiece& unescaped,
                            std::string* buf) const;
@@ -78,10 +85,11 @@ class HtmlEscape {
   StringStringMapInsensitive unescape_insensitive_map_;
   StringStringMapSensitive unescape_sensitive_map_;
   StringStringMapSensitive escape_map_;
+  CharStarVector keyword_vector_;
 
-  DISALLOW_COPY_AND_ASSIGN(HtmlEscape);
+  DISALLOW_COPY_AND_ASSIGN(HtmlKeywords);
 };
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_ESCAPE_H_
+#endif  // NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_KEYWORDS_H_

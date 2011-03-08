@@ -51,9 +51,7 @@ const int64 kMinThresholdMs = Timer::kMonthMs;
 
 CacheExtender::CacheExtender(RewriteDriver* driver, const char* filter_prefix)
     : RewriteSingleResourceFilter(driver, filter_prefix),
-      html_parse_(driver->html_parse()),
-      resource_manager_(driver->resource_manager()),
-      tag_scanner_(html_parse_),
+      tag_scanner_(driver_),
       extension_count_(NULL),
       not_cacheable_count_(NULL) {
   Statistics* stats = resource_manager_->statistics();
@@ -68,46 +66,43 @@ void CacheExtender::Initialize(Statistics* statistics) {
   statistics->AddVariable(kNotCacheable);
 }
 
+bool CacheExtender::ShouldRewriteResource(
+    const ResponseHeaders* headers, int64 now_ms,
+    const Resource* input_resource, const StringPiece& url) const {
+  if (input_resource->type() == NULL) {
+    return false;
+  }
+  if ((headers->CacheExpirationTimeMs() - now_ms) < kMinThresholdMs) {
+    return true;
+  }
+  GoogleUrl origin_gurl(url);
+  StringPiece origin = origin_gurl.Origin();
+  const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
+  return lawyer->WillDomainChange(origin);
+}
+
 void CacheExtender::StartElementImpl(HtmlElement* element) {
-  MessageHandler* message_handler = html_parse_->message_handler();
   HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
-  if ((href != NULL) && html_parse_->IsRewritable(element)) {
+
+  // TODO(jmarantz): figure out how to get better coverage of referenced
+  // resources for cache extension.  E.g. we need to find images in CSS
+  // files.  Plus we currently ignore .css links with id or other
+  // non-essential tags.
+  //
+  // TODO(jmarantz): We ought to be able to domain-shard even if the
+  // resources are non-cacheable or privately cacheable.
+  if ((href != NULL) && driver_->IsRewritable(element)) {
     scoped_ptr<Resource> input_resource(CreateInputResource(href->value()));
     if ((input_resource.get() != NULL) &&
-        !IsRewrittenResource(input_resource->url()) &&
-        resource_manager_->ReadIfCached(input_resource.get(),
-                                        message_handler)) {
-      const ResponseHeaders* headers = input_resource->metadata();
-      int64 now_ms = resource_manager_->timer()->NowMs();
-
-      // We cannot cache-extend a resource that's completely uncacheable,
-      // as our serving-side image would b
-      if (!resource_manager_->http_cache()->force_caching() &&
-          !headers->IsCacheable()) {
-        if (not_cacheable_count_ != NULL) {
-          not_cacheable_count_->Add(1);
-        }
-      } else if (((headers->CacheExpirationTimeMs() - now_ms) <
-                  kMinThresholdMs) &&
-                 (input_resource->type() != NULL)) {
-        scoped_ptr<OutputResource> output(CreateOutputResourceFromResource(
-            input_resource->type(), resource_manager_->url_escaper(),
-            input_resource.get()));
-        if (output.get() != NULL) {
-          CHECK(!output->IsWritten());
-
-          // TODO(sligocki): Shouldn't we be rewriting if !IsWritten?
-          if (!output->HasValidUrl()) {
-            // Transfer the input resource to output resource.
-            RewriteLoadedResource(input_resource.get(), output.get());
-          }
-
-          if (output->HasValidUrl()) {
-            href->SetValue(output->url());
-            if (extension_count_ != NULL) {
-              extension_count_->Add(1);
-            }
-          }
+        !IsRewrittenResource(input_resource->url())) {
+      scoped_ptr<OutputResource::CachedResult> rewrite_info(
+          RewriteResourceWithCaching(input_resource.get(),
+                                     resource_manager_->url_escaper()));
+      if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
+        // Rewrite URL to cache-extended version
+        href->SetValue(rewrite_info->url());
+        if (extension_count_ != NULL) {
+          extension_count_->Add(1);
         }
       }
     }
@@ -131,32 +126,59 @@ bool CacheExtender::IsRewrittenResource(const StringPiece& url) const {
   return (output_resource.get() != NULL);
 }
 
-bool CacheExtender::RewriteLoadedResource(const Resource* input_resource,
-                                          OutputResource* output_resource) {
+bool CacheExtender::ReuseByContentHash() const {
+  return true;
+}
+
+RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
+    const Resource* input_resource,
+    OutputResource* output_resource,
+    UrlSegmentEncoder* encoder) {
   CHECK(input_resource->loaded());
 
-  MessageHandler* message_handler = html_parse_->message_handler();
+  MessageHandler* message_handler = driver_->message_handler();
+  const ResponseHeaders* headers = input_resource->metadata();
+  std::string url = input_resource->url();
+  int64 now_ms = resource_manager_->timer()->NowMs();
+
+  // See if the resource is cacheable; and if so whether there is any need
+  // to cache extend it.
+  bool ok = false;
+  if (!resource_manager_->http_cache()->force_caching() &&
+      !headers->IsCacheable()) {
+    if (not_cacheable_count_ != NULL) {
+      not_cacheable_count_->Add(1);
+    }
+  } else if (ShouldRewriteResource(headers, now_ms, input_resource, url)) {
+    output_resource->SetType(input_resource->type());
+    ok = true;
+  }
+
+  if (!ok) {
+    return kRewriteFailed;
+  }
+
   StringPiece contents(input_resource->contents());
   std::string absolutified;
-  std::string input_dir =
-      GoogleUrl::AllExceptLeaf(GoogleUrl::Create(input_resource->url()));
+  GoogleUrl input_resource_gurl(input_resource->url());
+  StringPiece input_dir = input_resource_gurl.AllExceptLeaf();
   if ((input_resource->type() == &kContentTypeCss) &&
       (input_dir != output_resource->resolved_base())) {
     // TODO(jmarantz): find a mechanism to write this directly into
     // the HTTPValue so we can reduce the number of times that we
     // copy entire resources.
     StringWriter writer(&absolutified);
-    CssTagScanner::AbsolutifyUrls(contents, input_resource->url(),
-                                  &writer, message_handler);
+    CssTagScanner::AbsolutifyUrls(contents, url, &writer, message_handler);
     contents = absolutified;
   }
   // TODO(sligocki): Should we preserve the response headers from the
   // original resource?
   // TODO(sligocki): Maybe we shouldn't cache the rewritten resource,
   // just the input_resource.
-  return resource_manager_->Write(
+  ok = resource_manager_->Write(
       HttpStatus::kOK, contents, output_resource,
-      input_resource->metadata()->CacheExpirationTimeMs(), message_handler);
+      headers->CacheExpirationTimeMs(), message_handler);
+  return ok ? kRewriteOk : kRewriteFailed;
 }
 
 }  // namespace net_instaweb

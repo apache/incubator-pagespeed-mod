@@ -34,9 +34,14 @@ class ResourceManager;
 class Timer;
 class Variable;
 
-// Rewrites resources to extend their cache lifetime, encoding the
-// content hash into the new URL to ensure we do not serve stale
-// data.
+// Rewrites resources without changing their content -- just their
+// URLs and headers.  The original intent of this filter was limited
+// to cache extension.  However, its scope has been expanded to include
+// domain sharding and moving static resources to cookieless domains or
+// CDNs.
+//
+// TODO(jmarantz): rename this class to something more generic, like
+// RenameUrlFilter or ProxyUrlFilter.
 class CacheExtender : public RewriteSingleResourceFilter {
  public:
   CacheExtender(RewriteDriver* driver, const char* path_prefix);
@@ -50,14 +55,17 @@ class CacheExtender : public RewriteSingleResourceFilter {
   virtual const char* Name() const { return "CacheExtender"; }
 
  protected:
-  virtual bool RewriteLoadedResource(const Resource* input_resource,
-                                     OutputResource* output_resource);
+  virtual bool ReuseByContentHash() const;
+  virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
+                                              OutputResource* output_resource,
+                                              UrlSegmentEncoder* encoder);
 
  private:
   bool IsRewrittenResource(const StringPiece& url) const;
+  bool ShouldRewriteResource(
+      const ResponseHeaders* headers, int64 now_ms,
+      const Resource* input_resource, const StringPiece& url) const;
 
-  HtmlParse* html_parse_;
-  ResourceManager* resource_manager_;
   ResourceTagScanner tag_scanner_;
   Variable* extension_count_;
   Variable* not_cacheable_count_;

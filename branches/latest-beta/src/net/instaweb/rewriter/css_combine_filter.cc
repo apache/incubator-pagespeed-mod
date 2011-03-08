@@ -20,6 +20,7 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/resource_combiner_template.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -42,10 +43,20 @@ const char kCssFileCountReduction[] = "css_file_count_reduction";
 
 }  // namespace
 
-class CssCombineFilter::Partnership : public CombineFilterBase::Partnership {
+class CssCombineFilter::CssCombiner
+    : public ResourceCombinerTemplate<HtmlElement*> {
  public:
-  Partnership(CssCombineFilter* filter, RewriteDriver* driver, int url_overhead)
-      : CombineFilterBase::Partnership(filter, driver, url_overhead) {
+  CssCombiner(RewriteDriver* driver, const StringPiece& filter_prefix,
+              CssTagScanner* css_tag_scanner)
+      : ResourceCombinerTemplate<HtmlElement*>(
+          driver, filter_prefix, kContentTypeCss.file_extension() + 1),
+        css_tag_scanner_(css_tag_scanner),
+        css_file_count_reduction_(NULL) {
+    filter_prefix.CopyToString(&filter_prefix_);
+    Statistics* stats = resource_manager_->statistics();
+    if (stats != NULL) {
+      css_file_count_reduction_ = stats->GetVariable(kCssFileCountReduction);
+    }
   }
 
   virtual bool ResourceCombinable(Resource* resource, MessageHandler* handler) {
@@ -55,8 +66,9 @@ class CssCombineFilter::Partnership : public CombineFilterBase::Partnership {
             || !CssTagScanner::HasImport(resource->contents(), handler));
   }
 
-  bool AddElement(HtmlElement* element, const StringPiece& href,
-                  const StringPiece& media, MessageHandler* handler) {
+  virtual bool AddElementWithMedia(
+      HtmlElement* element, const StringPiece& href,
+      const StringPiece& media, MessageHandler* handler) {
     if (num_urls() == 0) {
       // TODO(jmarantz): do media='' and media='display mean the same
       // thing?  sligocki thinks mdsteele looked into this and it
@@ -68,13 +80,30 @@ class CssCombineFilter::Partnership : public CombineFilterBase::Partnership {
       if (media_ != media)
         return false;
     }
-    return CombineFilterBase::Partnership::AddElement(element, href, handler);
+    return AddElement(element, href, handler);
   }
 
-  const std::string& media() const { return media_; }
+  // Try to combine all the CSS files we have seen so far.
+  // Insert the combined resource where the first original CSS link was.
+  void TryCombineAccumulated();
 
  private:
+  virtual bool WritePiece(Resource* input, OutputResource* combination,
+                          Writer* writer, MessageHandler* handler);
+
+  // Returns true iff all elements in current combination can be rewritten.
+  bool CanRewrite() const {
+    bool ret = (num_urls() > 0);
+    for (int i = 0; ret && (i < num_urls()); ++i) {
+      ret = rewrite_driver_->IsRewritable(element(i));
+    }
+    return ret;
+  }
+
   std::string media_;
+  std::string filter_prefix_;
+  CssTagScanner* css_tag_scanner_;
+  Variable* css_file_count_reduction_;
 };
 
 // TODO(jmarantz) We exhibit zero intelligence about which css files to
@@ -91,21 +120,9 @@ class CssCombineFilter::Partnership : public CombineFilterBase::Partnership {
 // make this convention consistent and fix all code.
 CssCombineFilter::CssCombineFilter(RewriteDriver* driver,
                                    const char* filter_prefix)
-    : CombineFilterBase(driver, filter_prefix,
-                        kContentTypeCss.file_extension() + 1),
-      html_parse_(driver->html_parse()),
-      css_tag_scanner_(html_parse_),
-      css_file_count_reduction_(NULL) {
-  s_link_ = html_parse_->Intern("link");
-  s_href_ = html_parse_->Intern("href");
-  s_type_ = html_parse_->Intern("type");
-  s_rel_  = html_parse_->Intern("rel");
-  s_media_ = html_parse_->Intern("media");
-  s_style_ = html_parse_->Intern("style");
-  Statistics* stats = resource_manager()->statistics();
-  if (stats != NULL) {
-    css_file_count_reduction_ = stats->GetVariable(kCssFileCountReduction);
-  }
+    : RewriteFilter(driver, filter_prefix),
+      css_tag_scanner_(driver_) {
+  combiner_.reset(new CssCombiner(driver_, filter_prefix, &css_tag_scanner_));
 }
 
 CssCombineFilter::~CssCombineFilter() {
@@ -116,26 +133,24 @@ void CssCombineFilter::Initialize(Statistics* statistics) {
 }
 
 void CssCombineFilter::StartDocumentImpl() {
-  // This should already be clear, but just in case.
-  partnership_.reset(new Partnership(this, driver_, url_overhead_));
 }
 
-void CssCombineFilter::EndElementImpl(HtmlElement* element) {
+void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
   if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
     // We cannot combine with a link in <noscript> tag and we cannot combine
     // over a link in a <noscript> tag, so this is a barrier.
     if (noscript_element() != NULL) {
-      TryCombineAccumulated();
+      combiner_->TryCombineAccumulated();
     } else {
       const char* url = href->value();
-      MessageHandler* handler = html_parse_->message_handler();
+      MessageHandler* handler = driver_->message_handler();
 
-      if (!partnership_->AddElement(element, url, media, handler)) {
+      if (!combiner_->AddElementWithMedia(element, url, media, handler)) {
         // This element can't be included in the previous combination,
         // so try to flush out what we have.
-        TryCombineAccumulated();
+        combiner_->TryCombineAccumulated();
 
         // Now we'll try to start a new partnership with this CSS file --
         // perhaps we ran out out of space in the previous combination
@@ -144,15 +159,15 @@ void CssCombineFilter::EndElementImpl(HtmlElement* element) {
         //
         // Note that it's OK if this fails; we will simply not rewrite
         // the element in that case
-        partnership_->AddElement(element, url, media, handler);
+        combiner_->AddElementWithMedia(element, url, media, handler);
       }
     }
-  } else if (element->tag() == s_style_) {
+  } else if (element->keyword() == HtmlName::kStyle) {
     // We can't reorder styles on a page, so if we are only combining <link>
     // tags, we can't combine them across a <style> tag.
     // TODO(sligocki): Maybe we should just combine <style>s too?
     // We can run outline_css first for now to make all <style>s into <link>s.
-    TryCombineAccumulated();
+    combiner_->TryCombineAccumulated();
   }
 }
 
@@ -161,79 +176,57 @@ void CssCombineFilter::EndElementImpl(HtmlElement* element) {
 void CssCombineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   // TODO(sligocki): Figure out how to safely parse IEDirectives, for now we
   // just consider them black boxes / solid barriers.
-  TryCombineAccumulated();
+  combiner_->TryCombineAccumulated();
 }
 
 void CssCombineFilter::Flush() {
-  TryCombineAccumulated();
+  combiner_->TryCombineAccumulated();
 }
 
-void CssCombineFilter::TryCombineAccumulated() {
-  CHECK(partnership_.get() != NULL);
-  MessageHandler* handler = html_parse_->message_handler();
-  if (partnership_->num_urls() > 1) {
-    // Ideally like to have a data-driven service tell us which elements should
-    // be combined together.  Note that both the resources and the elements
-    // are managed, so we don't delete them even if the spriting fails.
+void CssCombineFilter::CssCombiner::TryCombineAccumulated() {
+  if (CanRewrite()) {
+    MessageHandler* handler = rewrite_driver_->message_handler();
+    scoped_ptr<OutputResource> combination(Combine(kContentTypeCss, handler));
+    if (combination.get() != NULL) {
+      // Ideally like to have a data-driven service tell us which elements
+      // should be combined together.  Note that both the resources and the
+      // elements are managed, so we don't delete them even if the spriting
+      // fails.
 
-    // First, compute the name of the new resource based on the names of
-    // the CSS files.
-    std::string url_safe_id = partnership_->UrlSafeId();
-    HtmlElement* combine_element = html_parse_->NewElement(NULL, s_link_);
-    combine_element->AddAttribute(s_rel_, "stylesheet", "\"");
-    combine_element->AddAttribute(s_type_, "text/css", "\"");
-    StringPiece media = partnership_->media();
-    if (!media.empty()) {
-      combine_element->AddAttribute(s_media_, media, "\"");
-    }
+      HtmlElement* combine_element =
+          rewrite_driver_->NewElement(NULL, HtmlName::kLink);
+      rewrite_driver_->AddAttribute(
+          combine_element, HtmlName::kRel, "stylesheet");
+      rewrite_driver_->AddAttribute(combine_element, HtmlName::kType,
+                                    kContentTypeCss.mime_type());
+      if (!media_.empty()) {
+        rewrite_driver_->AddAttribute(
+            combine_element, HtmlName::kMedia, media_);
+      }
 
-    // Start building up the combination.  At this point we are still
-    // not committed to the combination, because the 'write' can fail.
-    // TODO(jmaessen, jmarantz): encode based on partnership
-    scoped_ptr<OutputResource> combination(
-        resource_manager()->CreateOutputResourceWithPath(
-            partnership_->ResolvedBase(),
-            filter_prefix_, url_safe_id, &kContentTypeCss,
-            driver_->options(), handler));
-
-    bool do_rewrite_html = false;
-    // If the combination has a Url set on it we have cached information
-    // on what the output would be, so we'll just use that.
-    if (combination->HasValidUrl()) {
-      do_rewrite_html = true;
-      html_parse_->InfoHere("Reusing existing CSS combination: %s",
-                            combination->url().c_str());
-    } else {
-      // Otherwise, we have to compute it.
-      do_rewrite_html = WriteCombination(partnership_->resources(),
-                                         combination.get(), handler);
-      do_rewrite_html = do_rewrite_html && combination->IsWritten();
-    }
-
-    // Update the DOM for new elements.
-    if (do_rewrite_html) {
-      combine_element->AddAttribute(s_href_, combination->url(), "\"");
+      rewrite_driver_->AddAttribute(combine_element, HtmlName::kHref,
+                                    combination->url());
       // TODO(sligocki): Put at top of head/flush-window.
       // Right now we're putting it where the first original element used to be.
-      html_parse_->InsertElementBeforeElement(partnership_->element(0),
-                                              combine_element);
+      rewrite_driver_->InsertElementBeforeElement(element(0),
+                                                  combine_element);
       // ... and removing originals from the DOM.
-      for (int i = 0; i < partnership_->num_urls(); ++i) {
-        html_parse_->DeleteElement(partnership_->element(i));
+      for (int i = 0; i < num_urls(); ++i) {
+        rewrite_driver_->DeleteElement(element(i));
       }
-      html_parse_->InfoHere("Combined %d CSS files into one at %s",
-                            partnership_->num_urls(),
-                            combination->url().c_str());
+      rewrite_driver_->InfoHere("Combined %d CSS files into one at %s",
+                                num_urls(), combination->url().c_str());
       if (css_file_count_reduction_ != NULL) {
-        css_file_count_reduction_->Add(partnership_->num_urls() - 1);
+        css_file_count_reduction_->Add(num_urls() - 1);
       }
     }
   }
-  partnership_.reset(new Partnership(this, driver_, url_overhead_));
+  Reset();
 }
 
-bool CssCombineFilter::WritePiece(Resource* input, OutputResource* combination,
-                                  Writer* writer, MessageHandler* handler) {
+bool CssCombineFilter::CssCombiner::WritePiece(
+    Resource* input, OutputResource* combination, Writer* writer,
+    MessageHandler* handler) {
   StringPiece contents = input->contents();
   std::string input_dir =
       GoogleUrl::AllExceptLeaf(GoogleUrl::Create(input->url()));
@@ -243,9 +236,19 @@ bool CssCombineFilter::WritePiece(Resource* input, OutputResource* combination,
   } else {
     // If they are different directories, we need to absolutify.
     // TODO(sligocki): Perhaps we should use the real CSS parser.
-    return css_tag_scanner_.AbsolutifyUrls(contents, input->url(), writer,
-                                           handler);
+    return css_tag_scanner_->AbsolutifyUrls(contents, input->url(), writer,
+                                            handler);
   }
+}
+
+bool CssCombineFilter::Fetch(OutputResource* resource,
+                             Writer* writer,
+                             const RequestHeaders& request_header,
+                             ResponseHeaders* response_headers,
+                             MessageHandler* message_handler,
+                             UrlAsyncFetcher::Callback* callback) {
+  return combiner_->Fetch(resource, writer, request_header, response_headers,
+                          message_handler, callback);
 }
 
 }  // namespace net_instaweb

@@ -15,6 +15,7 @@
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 
 #include "apr_pools.h"
+
 #include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apr_file_system.h"
 #include "net/instaweb/apache/apr_mutex.h"
@@ -22,12 +23,13 @@
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/http/public/sync_fetcher_adapter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/file_cache.h"
+#include "net/instaweb/util/public/gflags.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/http/public/sync_fetcher_adapter.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/write_through_cache.h"
 
@@ -46,7 +48,8 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
       fetcher_time_out_ms_(5 * Timer::kSecondMs),
       slurp_flush_limit_(0),
       version_(version.data(), version.size()),
-      statistics_enabled_(true) {
+      statistics_enabled_(true),
+      test_proxy_(false) {
   apr_pool_create(&pool_, NULL);
   cache_mutex_.reset(NewMutex());
   rewrite_drivers_mutex_.reset(NewMutex());
@@ -112,7 +115,7 @@ CacheInterface* ApacheRewriteDriverFactory::DefaultCacheInterface() {
 
 UrlPollableAsyncFetcher* ApacheRewriteDriverFactory::SubResourceFetcher() {
   assert(FetchersComputed());
-  return serf_url_async_fetcher_; // may be null in a readonly slurping mode
+  return serf_url_async_fetcher_;  // may be null in a readonly slurping mode
 }
 
 UrlFetcher* ApacheRewriteDriverFactory::DefaultUrlFetcher() {
@@ -152,7 +155,7 @@ ResourceManager* ApacheRewriteDriverFactory::ComputeResourceManager() {
 
 void ApacheRewriteDriverFactory::ShutDown() {
   if (serf_url_async_fetcher_ != NULL) {
-    serf_url_async_fetcher_->WaitForInProgressFetches(
+    serf_url_async_fetcher_->WaitForActiveFetches(
         fetcher_time_out_ms_, message_handler(),
         SerfUrlAsyncFetcher::kThreadedAndMainline);
   }
@@ -162,6 +165,7 @@ void ApacheRewriteDriverFactory::ShutDown() {
 }
 
 void ApacheRewriteDriverFactory::Terminate() {
+  google::ShutDownCommandLineFlags();
 }
 
 }  // namespace net_instaweb

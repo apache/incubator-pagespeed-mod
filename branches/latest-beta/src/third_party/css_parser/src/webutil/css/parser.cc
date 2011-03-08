@@ -21,6 +21,7 @@
 
 #include <ctype.h>  // isascii
 
+#include <algorithm>  // std::min
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
 #include "util/gtl/stl_util-inl.h"
+#include "util/utf8/public/unicodetext.h"
 #include "webutil/css/string.h"
 #include "webutil/css/string_util.h"
 #include "webutil/css/util.h"
@@ -45,6 +47,7 @@ const uint64 Parser::kDeclarationError;
 const uint64 Parser::kSelectorError;
 const uint64 Parser::kFunctionError;
 const uint64 Parser::kMediaError;
+const uint64 Parser::kCounterError;
 
 
 // Using isascii with signed chars is unfortunately undefined.
@@ -63,24 +66,43 @@ class Tracer {  // in opt mode, do nothing.
 // ****************
 
 Parser::Parser(const char* utf8text, const char* textend)
-    : in_(utf8text),
+    : begin_(utf8text),
+      in_(begin_),
       end_(textend),
       quirks_mode_(true),
+      allow_all_values_(false),
       errors_seen_mask_(kNoError) {
 }
 
 Parser::Parser(const char* utf8text)
-    : in_(utf8text),
+    : begin_(utf8text),
+      in_(begin_),
       end_(utf8text + strlen(utf8text)),
       quirks_mode_(true),
+      allow_all_values_(false),
       errors_seen_mask_(kNoError) {
 }
 
 Parser::Parser(StringPiece s)
-    : in_(s.begin()),
+    : begin_(s.begin()),
+      in_(begin_),
       end_(s.end()),
       quirks_mode_(true),
+      allow_all_values_(false),
       errors_seen_mask_(kNoError) {
+}
+
+const int Parser::kErrorContext = 20;
+void Parser::ReportParsingError(uint64 error_type,
+                                const StringPiece& message) {
+  errors_seen_mask_ |= error_type;
+  // Make sure we don't print outside of the range in_ begin_ to end_.
+  const char* context_begin = in_ - std::min(static_cast<int64>(kErrorContext),
+                                             static_cast<int64>(in_ - begin_));
+  const char* context_end = in_ + std::min(static_cast<int64>(kErrorContext),
+                                           static_cast<int64>(end_ - in_));
+  VLOG(1) << message << " at " << CurrentOffset() << " \"..."
+          << StringPiece(context_begin, context_end - context_begin) << "...\"";
 }
 
 // ****************
@@ -214,14 +236,15 @@ static bool StartsIdent(char c) {
           || !IsAscii(c));
 }
 
-UnicodeText Parser::ParseIdent() {
+UnicodeText Parser::ParseIdent(const StringPiece& allowed_chars) {
   Tracer trace(__func__, &in_);
   UnicodeText s;
   while (in_ < end_) {
     if ((*in_ >= 'A' && *in_ <= 'Z')
         || (*in_ >= 'a' && *in_ <= 'z')
         || (*in_ >= '0' && *in_ <= '9')
-        || *in_ == '-' || *in_ == '_') {
+        || *in_ == '-' || *in_ == '_'
+        || allowed_chars.find(*in_) != allowed_chars.npos) {
       s.push_back(*in_);
       in_++;
     } else if (!IsAscii(*in_)) {
@@ -235,7 +258,7 @@ UnicodeText Parser::ParseIdent() {
           return s;
         }
       } else {  // Encoding error.  Be a little forgiving.
-        errors_seen_mask_ |= kUtf8Error;
+        ReportParsingError(kUtf8Error, "UTF8 parsing error");
         in_++;
       }
     } else if (*in_ == '\\') {
@@ -264,7 +287,7 @@ char32 Parser::ParseEscape() {
     if (len && rune != Runeerror) {
       in_ += len;
     } else {
-      errors_seen_mask_ |= kUtf8Error;
+      ReportParsingError(kUtf8Error, "UTF8 parsing error");
       in_++;
     }
     return rune;
@@ -319,7 +342,7 @@ UnicodeText Parser::ParseString() {
             s.push_back(rune);
             in_ += len;
           } else {
-            errors_seen_mask_ |= kUtf8Error;
+            ReportParsingError(kUtf8Error, "UTF8 parsing error");
             in_++;
           }
         } else {
@@ -466,6 +489,50 @@ HtmlColor Parser::ParseColor() {
   }
 }
 
+// Parse body of generic function foo(a, "b" 3, d(e, #fff)) without
+// consuming final right-paren.
+//
+// Both commas and spaces are allowed as separators and are remembered.
+FunctionParameters* Parser::ParseFunction() {
+  Tracer trace(__func__, &in_);
+  scoped_ptr<FunctionParameters> params(new FunctionParameters);
+
+  SkipSpace();
+  // Separator before next value. Initial value doesn't matter.
+  FunctionParameters::Separator separator = FunctionParameters::SPACE_SEPARATED;
+  while (!Done()) {
+    DCHECK_LT(in_, end_);
+    switch (*in_) {
+      case ')':
+        // End of function.
+        return params.release();
+        break;
+      case ',':
+        // Note that next value is comma-separated.
+        separator = FunctionParameters::COMMA_SEPARATED;
+        in_++;
+        break;
+      default: {
+        // TODO(sligocki): Should we parse Opacity=80 as a single value?
+        const StringPiece allowed_chars("=");
+        scoped_ptr<Value> val(ParseAny(allowed_chars));
+        if (!val.get()) {
+          ReportParsingError(kFunctionError,
+                             "Cannot parse parameter in function");
+          return NULL;
+        }
+        params->AddSepValue(separator, val.release());
+        // Unless otherwise indicated, next item is space-separated.
+        separator = FunctionParameters::SPACE_SEPARATED;
+        break;
+      }
+    }
+    SkipSpace();
+  }
+
+  return NULL;
+}
+
 // Returns the 0-255 RGB value corresponding to Value v.  Only
 // unusual thing is percentages are interpreted as percentages of
 // 255.0.
@@ -549,7 +616,7 @@ Value* Parser::ParseUrl() {
           s.push_back(rune);
           in_ += len;
         } else {
-          errors_seen_mask_ |= kUtf8Error;
+          ReportParsingError(kUtf8Error, "UTF8 parsing error");
           in_++;
         }
       } else {
@@ -565,38 +632,7 @@ Value* Parser::ParseUrl() {
   return NULL;
 }
 
-// parse rect(top, right, bottom, left) without consuming final right-paren.
-// Spaces are allowed as delimiters here for historical reasons.
-Value* Parser::ParseRect() {
-  scoped_ptr<Values> params(new Values);
-
-  SkipSpace();
-  if (Done()) return NULL;
-  DCHECK_LT(in_, end_);
-
-  // Never parse after the final right-paren!
-  if (*in_ == ')') return NULL;
-
-  for (int i = 0; i < 4; i++) {
-    scoped_ptr<Value> val(ParseAny());
-    if (!val.get())
-      break;
-    params->push_back(val.release());
-    SkipSpace();
-    // Make sure the correct syntax is followed.
-    if (Done() || (*in_ == ')' && i != 3))
-      break;
-
-    if (*in_ == ')')
-      return new Value(Value::RECT, params.release());
-    else if (*in_ == ',')
-      in_++;
-  }
-
-  return NULL;
-}
-
-Value* Parser::ParseAnyExpectingColor() {
+Value* Parser::ParseAnyExpectingColor(const StringPiece& allowed_chars) {
   Tracer trace(__func__, &in_);
   Value* toret = NULL;
 
@@ -610,13 +646,13 @@ Value* Parser::ParseAnyExpectingColor() {
     toret = new Value(c);
   } else {
     in_ = oldin;  // no valid color.  rollback.
-    toret = ParseAny();
+    toret = ParseAny(allowed_chars);
   }
   return toret;
 }
 
 // Parses a CSS value.  Could be just about anything.
-Value* Parser::ParseAny() {
+Value* Parser::ParseAny(const StringPiece& allowed_chars) {
   Tracer trace(__func__, &in_);
   Value* toret = NULL;
 
@@ -671,7 +707,7 @@ Value* Parser::ParseAny() {
       }
       // fail through
     default: {
-      UnicodeText id = ParseIdent();
+      UnicodeText id = ParseIdent(allowed_chars);
       if (id.empty()) {
         toret = NULL;
       } else if (*in_ == '(') {
@@ -679,24 +715,27 @@ Value* Parser::ParseAny() {
         if (id.utf8_length() == 3
             && memcasecmp("url", id.utf8_data(), 3) == 0) {
           toret = ParseUrl();
-        } else if (id.utf8_length() == 7
-                   && memcasecmp("counter", id.utf8_data(), 7) == 0) {
-          // TODO(yian): parse COUNTER parameters
-          toret = new Value(Value::COUNTER, new Values());
-        } else if (id.utf8_length() == 8
-                   && memcasecmp("counters", id.utf8_data(), 8) == 0) {
-          // TODO(yian): parse COUNTERS parameters
-          toret = new Value(Value::COUNTER, new Values());
         } else if (id.utf8_length() == 3
                    && memcasecmp("rgb", id.utf8_data(), 3) == 0) {
           toret = ParseRgbColor();
         } else if (id.utf8_length() == 4
                    && memcasecmp("rect", id.utf8_data(), 4) == 0) {
-          toret = ParseRect();
+          scoped_ptr<FunctionParameters> params(ParseFunction());
+          if (params.get() != NULL && params->size() == 4) {
+            toret = new Value(Value::RECT, params.release());
+          } else {
+            ReportParsingError(kFunctionError, "Could not parse parameters "
+                               "for function rect");
+          }
         } else {
-          errors_seen_mask_ |= kFunctionError;
-          // TODO(yian): parse FUNCTION parameters
-          toret = new Value(id, new Values());
+          scoped_ptr<FunctionParameters> params(ParseFunction());
+          if (params.get() != NULL) {
+            toret = new Value(id, params.release());
+          } else {
+            ReportParsingError(kFunctionError, StringPrintf(
+                "Could not parse function parameters for function %s",
+                UnicodeTextToUTF8(id).c_str()));
+          }
         }
         SkipPastDelimiter(')');
       } else {
@@ -748,10 +787,14 @@ Values* Parser::ParseValues(Property::Prop prop) {
 
   scoped_ptr<Values> values(new Values);
   while (SkipToNextToken()) {
+    const StringPiece allowed_chars(":.");
     scoped_ptr<Value> v(expecting_color ?
-                        ParseAnyExpectingColor() :
-                        ParseAny());
-    if (v.get() && ValueValidator::Get()->IsValidValue(prop, *v, quirks_mode_))
+                        ParseAnyExpectingColor(allowed_chars) :
+                        ParseAny(allowed_chars));
+
+    if (v.get() &&
+        (allow_all_values_ ||
+         ValueValidator::Get()->IsValidValue(prop, *v, quirks_mode_)))
       values->push_back(v.release());
     else
       return NULL;
@@ -1246,14 +1289,35 @@ Declarations* Parser::ParseRawDeclarations() {
       case '}':
         return declarations;
       default: {
-        UnicodeText id = ParseIdent();
-        if (id.empty()) {
-          ignore_this_decl = true;
-          break;
+        UnicodeText id;
+        // While not allowed by the CSS spec, there is a common hack
+        // placing * before idents selectively allowing them to be parsed
+        // on some IE versions.
+        // See: http://en.wikipedia.org/wiki/CSS_filter#Star_hack
+        if (*in_ == '*') {
+          id.CopyUTF8("*", 1);
+          in_++;
+          UnicodeText rest = ParseIdent();
+          if (rest.empty()) {
+            ReportParsingError(kDeclarationError, "Ignoring * property");
+            ignore_this_decl = true;
+            break;
+          }
+          id.append(rest);
+        } else {
+          id = ParseIdent();
+          if (id.empty()) {
+            ReportParsingError(kDeclarationError, "Ignoring empty property");
+            ignore_this_decl = true;
+            break;
+          }
         }
         Property prop(id);
         SkipSpace();
         if (Done() || *in_ != ':') {
+          ReportParsingError(kDeclarationError,
+                             StringPrintf("Ignoring property with no values %s",
+                                          prop.prop_text().c_str()));
           ignore_this_decl = true;
           break;
         }
@@ -1278,6 +1342,10 @@ Declarations* Parser::ParseRawDeclarations() {
         }
 
         if (vals == NULL) {
+          ReportParsingError(kDeclarationError,
+                             StringPrintf(
+                                 "Failed to parse values for property %s",
+                                 prop.prop_text().c_str()));
           ignore_this_decl = true;
           break;
         }
@@ -1409,7 +1477,19 @@ SimpleSelector* Parser::ParseSimpleSelector() {
       break;
     }
     case ':': {
+      UnicodeText sep;
       in_++;
+      // CSS3 requires all pseudo-elements to use :: to distinguish them from
+      // pseudo-classes. We save which separator was used in the Pseudoclass
+      // object, so that the original value can be reconstructed.
+      //
+      // http://www.w3.org/TR/css3-selectors/#pseudo-elements
+      if (*in_ == ':') {
+        in_++;
+        sep.CopyUTF8("::", 2);
+      } else {
+        sep.CopyUTF8(":", 1);
+      }
       UnicodeText pseudoclass = ParseIdent();
       // FIXME(yian): skip constructs "(en)" in lang(en) for now.
       if (in_ < end_ && *in_ == '(') {
@@ -1420,7 +1500,7 @@ SimpleSelector* Parser::ParseSimpleSelector() {
           break;
       }
       if (!pseudoclass.empty())
-        return SimpleSelector::NewPseudoclass(pseudoclass);
+        return SimpleSelector::NewPseudoclass(pseudoclass, sep);
       break;
     }
     case '[': {
@@ -1588,7 +1668,7 @@ Ruleset* Parser::ParseRuleset() {
     // valid CSS 2.1), it must ignore the declaration block as
     // well.
     success = false;
-    errors_seen_mask_ |= kSelectorError;
+    ReportParsingError(kSelectorError, "Failed to parse selector");
   } else {
     ruleset->set_selectors(selectors.release());
   }
@@ -1620,10 +1700,11 @@ void Parser::ParseMediumList(std::vector<UnicodeText>* media) {
         break;
       default:
         scoped_ptr<Value> v(ParseAny());
-        if (v.get() && v->GetLexicalUnitType() == Value::IDENT)
+        if (v.get() && v->GetLexicalUnitType() == Value::IDENT) {
           media->push_back(v->GetIdentifierText());
-        else
-          errors_seen_mask_ |= kMediaError;
+        } else {
+          ReportParsingError(kMediaError, "Failed to parse media");
+        }
         break;
     }
     SkipSpace();

@@ -18,23 +18,25 @@
 
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/rewriter/public/css_tag_scanner.h"
+
 namespace net_instaweb {
 
-// Finds resource references.
-ResourceTagScanner::ResourceTagScanner(HtmlParse* html_parse)
-    : css_tag_scanner_(html_parse),
-      img_tag_scanner_(html_parse),
-      script_tag_scanner_(html_parse) {
-}
-
 HtmlElement::Attribute* ResourceTagScanner::ScanElement(HtmlElement* element) {
+  HtmlName::Keyword keyword = element->keyword();
   HtmlElement::Attribute* attr = NULL;
-  const char* media;
-  if (!css_tag_scanner_.ParseCssElement(element, &attr, &media)) {
-    attr = img_tag_scanner_.ParseImgElement(element);
-    if (attr == NULL) {
-      script_tag_scanner_.ParseScriptElement(element, &attr);
+  if (keyword == HtmlName::kLink) {
+    // See http://www.whatwg.org/specs/web-apps/current-work/multipage/
+    // links.html#linkTypes
+    HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
+    if ((rel_attr != NULL) &&
+        StringCaseEqual(rel_attr->value(), CssTagScanner::kStylesheet)) {
+      attr = element->FindAttribute(HtmlName::kHref);
     }
+  } else if ((keyword == HtmlName::kScript) || (keyword == HtmlName::kImg)) {
+    attr = element->FindAttribute(HtmlName::kSrc);
   }
   return attr;
 }

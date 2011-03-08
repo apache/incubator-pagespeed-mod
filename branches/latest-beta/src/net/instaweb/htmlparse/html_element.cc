@@ -20,17 +20,17 @@
 
 #include <stdio.h>
 
-#include "net/instaweb/htmlparse/public/html_escape.h"
 #include "net/instaweb/htmlparse/html_event.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include <string>
 
 namespace net_instaweb {
 
-HtmlElement::HtmlElement(HtmlElement* parent, Atom tag,
+HtmlElement::HtmlElement(HtmlElement* parent, const HtmlName& name,
     const HtmlEventListIterator& begin, const HtmlEventListIterator& end)
     : HtmlNode(parent),
       sequence_(-1),
-      tag_(tag),
+      name_(name),
       begin_(begin),
       end_(end),
       close_style_(AUTO_CLOSE),
@@ -64,10 +64,10 @@ void HtmlElement::DeleteAttribute(int i) {
   attributes_.erase(iter);
 }
 
-bool HtmlElement::DeleteAttribute(Atom name) {
+bool HtmlElement::DeleteAttribute(HtmlName::Keyword keyword) {
   for (int i = 0; i < attribute_size(); ++i) {
     const Attribute* attribute = attributes_[i];
-    if (attribute->name() == name) {
+    if (attribute->keyword() == keyword) {
       DeleteAttribute(i);
       return true;
     }
@@ -76,11 +76,11 @@ bool HtmlElement::DeleteAttribute(Atom name) {
 }
 
 const HtmlElement::Attribute* HtmlElement::FindAttribute(
-    const Atom name) const {
+    HtmlName::Keyword keyword) const {
   const Attribute* ret = NULL;
   for (int i = 0; i < attribute_size(); ++i) {
     const Attribute* attribute = attributes_[i];
-    if (attribute->name() == name) {
+    if (attribute->keyword() == keyword) {
       ret = attribute;
       break;
     }
@@ -90,11 +90,11 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
 
 void HtmlElement::ToString(std::string* buf) const {
   *buf += "<";
-  *buf += tag_.c_str();
+  *buf += name_.c_str();
   for (int i = 0; i < attribute_size(); ++i) {
     const Attribute& attribute = *attributes_[i];
     *buf += ' ';
-    *buf += attribute.name().c_str();
+    *buf += attribute.name_str();
     if (attribute.value() != NULL) {
       *buf += "=";
       const char* quote = (attribute.quote() != NULL) ? attribute.quote() : "?";
@@ -107,7 +107,7 @@ void HtmlElement::ToString(std::string* buf) const {
     case AUTO_CLOSE:       *buf += "> (not yet closed)"; break;
     case IMPLICIT_CLOSE:   *buf += ">";  break;
     case EXPLICIT_CLOSE:   *buf += "></";
-                           *buf += tag_.c_str();
+                           *buf += name_.c_str();
                            *buf += ">";
                            break;
     case BRIEF_CLOSE:      *buf += "/>"; break;
@@ -137,28 +137,20 @@ void HtmlElement::AddAttribute(const Attribute& src_attr) {
   attributes_.push_back(attr);
 }
 
-void HtmlElement::AddAttribute(Atom name, const StringPiece& value,
+void HtmlElement::AddAttribute(const HtmlName& name, const StringPiece& value,
                                const char* quote) {
   std::string buf;
-  Attribute* attr = new Attribute(name, value, HtmlEscape::Escape(value, &buf),
-                                  quote);
+  Attribute* attr = new Attribute(name, value,
+                                  HtmlKeywords::Escape(value, &buf), quote);
   attributes_.push_back(attr);
 }
 
-void HtmlElement::AddAttribute(Atom name, int value) {
-  std::string buf = IntegerToString(value);
-  // We include quotes here because XHTML requires them.  If it later turns out
-  // we're in HTML, the remove_quotes filter can take them back out.
-  Attribute* attr = new Attribute(name, buf, buf, "\"");
-  attributes_.push_back(attr);
-}
-
-void HtmlElement::AddEscapedAttribute(Atom name,
+void HtmlElement::AddEscapedAttribute(const HtmlName& name,
                                       const StringPiece& escaped_value,
                                       const char* quote) {
   std::string buf;
   Attribute* attr = new Attribute(name,
-                                  HtmlEscape::Unescape(escaped_value, &buf),
+                                  HtmlKeywords::Unescape(escaped_value, &buf),
                                   escaped_value, quote);
   attributes_.push_back(attr);
 }
@@ -177,7 +169,8 @@ void HtmlElement::Attribute::CopyValue(const StringPiece& src,
   }
 }
 
-HtmlElement::Attribute::Attribute(Atom name, const StringPiece& value,
+HtmlElement::Attribute::Attribute(const HtmlName& name,
+                                  const StringPiece& value,
                                   const StringPiece& escaped_value,
                                   const char* quote)
     : name_(name), quote_(quote) {
@@ -197,7 +190,7 @@ void HtmlElement::Attribute::SetValue(const StringPiece& value) {
   DCHECK(value.data() + value.size() < escaped_chars ||
          escaped_chars + strlen(escaped_chars) < value.data())
       << "Setting unescaped value from substring of escaped value.";
-  CopyValue(HtmlEscape::Escape(value, &buf), &escaped_value_);
+  CopyValue(HtmlKeywords::Escape(value, &buf), &escaped_value_);
   CopyValue(value, &value_);
 }
 
@@ -210,7 +203,7 @@ void HtmlElement::Attribute::SetEscapedValue(const StringPiece& escaped_value) {
   DCHECK(value_chars + strlen(value_chars) < escaped_value.data() ||
          escaped_value.data() + escaped_value.size() < value_chars)
       << "Setting escaped value from substring of unescaped value.";
-  CopyValue(HtmlEscape::Unescape(escaped_value, &buf), &value_);
+  CopyValue(HtmlKeywords::Unescape(escaped_value, &buf), &value_);
   CopyValue(escaped_value, &escaped_value_);
 }
 

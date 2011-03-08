@@ -24,6 +24,7 @@
 #include <string>
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/html_testing_peer.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -35,10 +36,13 @@ namespace net_instaweb {
 
 class HtmlParseTestBaseNoAlloc : public testing::Test {
  protected:
+  static const char kTestDomain[];
+
   HtmlParseTestBaseNoAlloc()
       : write_to_string_(&output_buffer_),
         added_filter_(false) {
   }
+  virtual ~HtmlParseTestBaseNoAlloc();
 
   virtual void TearDown() {
     output_buffer_.clear();
@@ -98,7 +102,7 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   void Parse(const StringPiece& case_id, const std::string& html_input) {
     // HtmlParser needs a valid HTTP URL to evaluate relative paths,
     // so we create a dummy URL.
-    std::string dummy_url = StrCat("http://test.com/", case_id, ".html");
+    std::string dummy_url = StrCat(kTestDomain, case_id, ".html");
     ParseUrl(dummy_url, html_input);
   }
 

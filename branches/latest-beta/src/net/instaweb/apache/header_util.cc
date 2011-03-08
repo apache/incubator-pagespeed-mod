@@ -54,20 +54,20 @@ void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
       (response_headers.major_version() * 1000) +
       response_headers.minor_version();
   for (int i = 0, n = response_headers.NumAttributes(); i < n; ++i) {
-    const char* name = response_headers.Name(i);
-    const char* value = response_headers.Value(i);
-    if (strcasecmp(name, HttpAttributes::kContentType) == 0) {
+    const std::string& name = response_headers.Name(i);
+    const std::string& value = response_headers.Value(i);
+    if (StringCaseEqual(name, HttpAttributes::kContentType)) {
       // ap_set_content_type does not make a copy of the string, we need
       // to duplicate it.
-      char* ptr = apr_pstrdup(request->pool, value);
+      char* ptr = apr_pstrdup(request->pool, value.c_str());
       ap_set_content_type(request, ptr);
     } else {
-      if (strcasecmp(name, HttpAttributes::kCacheControl) == 0) {
+      if (StringCaseEqual(name, HttpAttributes::kCacheControl)) {
         DisableDownstreamHeaderFilters(request);
       }
       // apr_table_add makes copies of both head key and value, so we do not
       // have to duplicate them.
-      apr_table_add(request->headers_out, name, value);
+      apr_table_add(request->headers_out, name.c_str(), value.c_str());
     }
   }
 }
@@ -77,8 +77,8 @@ void DisableDownstreamHeaderFilters(request_rec* request) {
   ap_filter_t* filter = request->output_filters;
   while (filter != NULL) {
     ap_filter_t* next = filter->next;
-    if ((strcasecmp(filter->frec->name, "MOD_EXPIRES") == 0) ||
-        (strcasecmp(filter->frec->name, "FIXUP_HEADERS_OUT") == 0)) {
+    if ((StringCaseEqual(filter->frec->name, "MOD_EXPIRES")) ||
+        (StringCaseEqual(filter->frec->name, "FIXUP_HEADERS_OUT"))) {
       ap_remove_output_filter(filter);
     }
     filter = next;

@@ -26,28 +26,23 @@
 #include "net/instaweb/util/public/writer.h"
 
 namespace {
-const char kStylesheet[] = "stylesheet";
 const char kTextCss[] = "text/css";
 }
 
 namespace net_instaweb {
 
+const char CssTagScanner::kStylesheet[] = "stylesheet";
+
 // Finds CSS files and calls another filter.
 CssTagScanner::CssTagScanner(HtmlParse* html_parse) {
-  s_link_  = html_parse->Intern("link");
-  s_href_  = html_parse->Intern("href");
-  s_type_  = html_parse->Intern("type");
-  s_rel_   = html_parse->Intern("rel");
-  s_media_ = html_parse->Intern("media");
 }
 
-// TODO(jmarantz): add test for this method to css_tag_scanner_test.cc
 bool CssTagScanner::ParseCssElement(
     HtmlElement* element, HtmlElement::Attribute** href, const char** media) {
   int num_required_attributes_found = 0;
   *media = "";
   *href = NULL;
-  if (element->tag() == s_link_) {
+  if (element->keyword() == HtmlName::kLink) {
     // We must have all attributes rel='stylesheet' href='name.css', and
     // type='text/css', although they can be in any order.  If there are,
     // other attributes, we better learn about them so we don't lose them
@@ -64,25 +59,25 @@ bool CssTagScanner::ParseCssElement(
     if ((num_attrs >= 2) || (num_attrs <= 4)) {
       for (int i = 0; i < num_attrs; ++i) {
         HtmlElement::Attribute& attr = element->attribute(i);
-        if (attr.name() == s_href_) {
+        if (attr.keyword() == HtmlName::kHref) {
           *href = &attr;
           ++num_required_attributes_found;
-        } else if (attr.name() == s_rel_) {
-          if (strcasecmp(attr.value(), kStylesheet) == 0) {
+        } else if (attr.keyword() == HtmlName::kRel) {
+          if (StringCaseEqual(attr.value(), kStylesheet)) {
             ++num_required_attributes_found;
           } else {
             // rel=something_else.  abort.
             num_required_attributes_found = 0;
             break;
           }
-        } else if (attr.name() == s_media_) {
+        } else if (attr.keyword() == HtmlName::kMedia) {
           *media = attr.value();
         } else {
           // The only other attribute we should see is type=text/css.  This
           // attribute is not required, but if the attribute we are
           // finding here is anything else then abort.
-          if ((attr.name() != s_type_) ||
-              (strcasecmp(attr.value(), kTextCss) != 0)) {
+          if ((attr.keyword() != HtmlName::kType) ||
+              !StringCaseEqual(attr.value(), kTextCss)) {
             num_required_attributes_found = 0;
             break;
           }
@@ -119,7 +114,7 @@ bool ExtractQuote(std::string* url, char* quote) {
 //
 // TODO(jmarantz): Add parsing & absolutification of @import.
 bool CssTagScanner::AbsolutifyUrls(
-    const StringPiece& contents, const std::string& base_url,
+    const StringPiece& contents, const StringPiece& base_url,
     Writer* writer, MessageHandler* handler) {
   size_t pos = 0;
   size_t prev_pos = 0;
@@ -134,7 +129,7 @@ bool CssTagScanner::AbsolutifyUrls(
   //
   // TODO(jmarantz): Consider calling image optimization, if enabled, on any
   // images found.
-  GURL base_gurl(base_url);
+  GoogleUrl base_gurl(base_url);
   if (base_gurl.is_valid()) {
     while (ok && ((pos = contents.find("url(", pos)) != StringPiece::npos)) {
       ok = writer->Write(contents.substr(prev_pos, pos - prev_pos), handler);
@@ -146,19 +141,18 @@ bool CssTagScanner::AbsolutifyUrls(
         TrimWhitespace(contents.substr(pos, end_of_url - pos), &url);
         char quote;
         bool is_quoted = ExtractQuote(&url, &quote);
-        std::string url_string(url.data(), url.size());
-        GURL gurl(url_string);
+        GoogleUrl gurl(url);
 
         // Relative paths are considered invalid by GURL, and those are the
         // ones we need to resolve.
         if (!gurl.is_valid()) {
-          GURL resolved = base_gurl.Resolve(url_string.c_str());
+          GoogleUrl resolved(base_gurl, url);
           if (resolved.is_valid()) {
             ok = writer->Write("url(", handler);
             if (is_quoted) {
               writer->Write(StringPiece(&quote, 1), handler);
             }
-            ok = writer->Write(resolved.spec().c_str(), handler);
+            ok = writer->Write(resolved.Spec().as_string().c_str(), handler);
             if (is_quoted) {
               writer->Write(StringPiece(&quote, 1), handler);
             }
@@ -170,8 +164,9 @@ bool CssTagScanner::AbsolutifyUrls(
               line += (contents[i] == '\n');
             }
             handler->Error(
-                base_url.c_str(), line,
-                "CSS URL resolution failed: %s", url_string.c_str());
+                base_url.as_string().c_str(), line,
+                "CSS URL resolution failed: %s",
+                url.c_str());
           }
         }
       }
@@ -187,13 +182,11 @@ bool CssTagScanner::HasImport(const StringPiece& contents,
                               MessageHandler* handler) {
   // Search for case insensitive @import.
   size_t pos = -1;  // So that pos + 1 == 0 below.
-  static const char kImport[] = "import";
-  static const size_t kImportSize = STATIC_STRLEN(kImport);
+  const StringPiece kImport("import");
   while ((pos = contents.find("@", pos + 1)) != StringPiece::npos) {
     // Rest is everything past the @ (non-inclusive).
     StringPiece rest = contents.substr(pos + 1);
-    if (rest.size() >= kImportSize &&
-        (strncasecmp(kImport, rest.data(), kImportSize) == 0)) {
+    if (StringCaseStartsWith(rest, kImport)) {
       return true;
     }
   }

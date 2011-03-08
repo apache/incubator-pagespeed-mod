@@ -31,6 +31,11 @@ namespace Css {
 
 class ParserTest : public testing::Test {
  protected:
+  // Accessor for private method.
+  Value* ParseAny(Parser* p) {
+    return p->ParseAny();
+  }
+
   // The various Test* functions below check that parselen characters
   // are parsed.  Pass -1 to indicate that the entire string should be
   // parsed.
@@ -518,7 +523,7 @@ TEST_F(ParserTest, font_family) {
   EXPECT_TRUE(a->ParseFontFamily(t.get()));
   ASSERT_EQ(4, t->size());
   EXPECT_EQ(Value::IDENT, t->get(0)->GetLexicalUnitType());
-  EXPECT_EQ("arial font", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
+  EXPECT_EQ("Arial font", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
   EXPECT_EQ(Value::STRING, t->get(1)->GetLexicalUnitType());
   EXPECT_EQ("system", UnicodeTextToUTF8(t->get(2)->GetIdentifierText()));
   EXPECT_EQ("menu new", UnicodeTextToUTF8(t->get(3)->GetIdentifierText()));
@@ -536,7 +541,7 @@ TEST_F(ParserTest, font_family) {
   EXPECT_TRUE(a->ParseFontFamily(t.get()));
   ASSERT_EQ(1, t->size());
   EXPECT_EQ(Value::IDENT, t->get(0)->GetLexicalUnitType());
-  EXPECT_EQ("verdana", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
+  EXPECT_EQ("Verdana", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
 }
 
 TEST_F(ParserTest, font) {
@@ -725,7 +730,7 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ(Value::COLOR, t->get(0)->values()->get(0)->GetLexicalUnitType());
   EXPECT_EQ("#333333", t->get(0)->values()->get(0)->GetColorValue().ToString());
 
-  ASSERT_EQ(6, (*t->get(3)->values()).size());
+  ASSERT_EQ(6, t->get(3)->values()->size());
   EXPECT_EQ(Value::STRING,
             t->get(3)->values()->get(0)->GetLexicalUnitType());
   EXPECT_EQ("Gill Sans MT",
@@ -1225,25 +1230,25 @@ TEST_F(ParserTest, rulesets) {
       "h1 p + #id { font-size: 7px; width:10pt !important;}"));
   t.reset(a->ParseRuleset());
 
-  ASSERT_EQ(1, (*t).selectors().size());
-  ASSERT_EQ(3, (*t).selector(0).size());
+  ASSERT_EQ(1, t->selectors().size());
+  ASSERT_EQ(3, t->selector(0).size());
   EXPECT_EQ(SimpleSelectors::SIBLING,
-            (*(*t).selectors()[0])[2]->combinator());
-  ASSERT_EQ(2, (*t).declarations().size());
-  EXPECT_EQ(false, (*t).declarations()[0]->IsImportant());
-  EXPECT_EQ(Property::WIDTH, (*t).declarations()[1]->prop());
-  EXPECT_EQ(true, (*t).declarations()[1]->IsImportant());
+            t->selectors()[0]->at(2)->combinator());
+  ASSERT_EQ(2, t->declarations().size());
+  EXPECT_EQ(false, t->declarations()[0]->IsImportant());
+  EXPECT_EQ(Property::WIDTH, t->declarations()[1]->prop());
+  EXPECT_EQ(true, t->declarations()[1]->IsImportant());
 
   a.reset(new Parser("h1 p + #id , h1:first_child { font-size: 10px; }"));
   t.reset(a->ParseRuleset());
 
-  ASSERT_EQ(2, (*t).selectors().size());
-  ASSERT_EQ(3, (*t).selector(0).size());
-  ASSERT_EQ(1, (*t).selector(1).size());
+  ASSERT_EQ(2, t->selectors().size());
+  ASSERT_EQ(3, t->selector(0).size());
+  ASSERT_EQ(1, t->selector(1).size());
   EXPECT_EQ(SimpleSelectors::SIBLING,
-            (*(*t).selectors()[0])[2]->combinator());
-  ASSERT_EQ(1, (*t).declarations().size());
-  EXPECT_EQ(false, (*t).declarations()[0]->IsImportant());
+            t->selectors()[0]->at(2)->combinator());
+  ASSERT_EQ(1, t->declarations().size());
+  EXPECT_EQ(false, t->declarations()[0]->IsImportant());
 }
 
 TEST_F(ParserTest, atrules) {
@@ -1252,8 +1257,8 @@ TEST_F(ParserTest, atrules) {
   scoped_ptr<Stylesheet> t(new Stylesheet());
   a->ParseAtrule(t.get());
 
-  ASSERT_EQ(1, (*t).imports().size());
-  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8((*t).import(0).link));
+  ASSERT_EQ(1, t->imports().size());
+  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link));
   EXPECT_EQ(true, a->Done());
 
   a.reset(new Parser("@charset \"ISO-8859-1\" ;"));
@@ -1267,16 +1272,17 @@ TEST_F(ParserTest, atrules) {
   t.reset(new Stylesheet());
   a->ParseAtrule(t.get());
 
-  ASSERT_EQ(1, (*t).rulesets().size());
-  ASSERT_EQ(1, (*t).ruleset(0).selectors().size());
-  ASSERT_EQ(2, (*t).ruleset(0).media().size());
-  EXPECT_EQ("print", UnicodeTextToUTF8((*t).ruleset(0).medium(0)));
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*t).ruleset(0).medium(1)));
-  ASSERT_EQ(1, (*(*t).ruleset(0).selectors()[0]).size());
+  ASSERT_EQ(1, t->rulesets().size());
+  ASSERT_EQ(1, t->ruleset(0).selectors().size());
+  ASSERT_EQ(2, t->ruleset(0).media().size());
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(0).medium(0)));
+  EXPECT_EQ("screen", UnicodeTextToUTF8(t->ruleset(0).medium(1)));
+  ASSERT_EQ(1, t->ruleset(0).selectors()[0]->size());
   EXPECT_EQ(kHtmlTagBody,
-            (*t).ruleset(0).selector(0)[0]->get(0)->element_type());
+            t->ruleset(0).selector(0)[0]->get(0)->element_type());
+  ASSERT_EQ(1, t->ruleset(0).declarations().size());
   EXPECT_EQ(Property::FONT_SIZE,
-            (*t).ruleset(0).declarations()[0]->prop());
+            t->ruleset(0).declarations()[0]->prop());
   EXPECT_EQ(true, a->Done());
 
   a.reset(new Parser(
@@ -1284,7 +1290,7 @@ TEST_F(ParserTest, atrules) {
   t.reset(new Stylesheet());
   a->ParseAtrule(t.get());
 
-  EXPECT_EQ(0, (*t).rulesets().size());
+  EXPECT_EQ(0, t->rulesets().size());
   EXPECT_EQ(true, a->Done());
 
   // Make sure media strings can be shared between multiple rulesets.
@@ -1429,13 +1435,6 @@ TEST_F(ParserTest, SelectorError) {
   EXPECT_EQ(Parser::kSelectorError, p.errors_seen_mask());
 }
 
-TEST_F(ParserTest, FunctionError) {
-  Parser p("box-shadow: -1px -2px 2px rgba(0, 0, 0, .15)");
-  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
-  EXPECT_EQ(1, declarations->size());
-  EXPECT_EQ(Parser::kFunctionError, p.errors_seen_mask());
-}
-
 TEST_F(ParserTest, MediaError) {
   Parser p("@media screen and (max-width: 290px) {}");
   scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
@@ -1450,6 +1449,98 @@ TEST_F(ParserTest, AcceptCorrectValues) {
   EXPECT_EQ(1, declarations->size());
   EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
   EXPECT_EQ("list-style-type: none", declarations->ToString());
+}
+
+TEST_F(ParserTest, AcceptAllValues) {
+  Parser p("display: -moz-inline-box");
+  p.set_allow_all_values(true);
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  ASSERT_EQ(1, declarations->size());
+  ASSERT_EQ(1, declarations->at(0)->values()->size());
+  const Value* value = declarations->at(0)->values()->at(0);
+  EXPECT_EQ(Value::IDENT, value->GetLexicalUnitType());
+  EXPECT_EQ(Identifier::OTHER, value->GetIdentifier().ident());
+  EXPECT_EQ("-moz-inline-box",
+            UnicodeTextToUTF8(value->GetIdentifier().ident_text()));
+  EXPECT_EQ("display: -moz-inline-box", declarations->ToString());
+
+  Parser p2("display: -moz-inline-box");
+  p2.set_allow_all_values(false);
+  declarations.reset(p2.ParseDeclarations());
+  EXPECT_EQ(Parser::kDeclarationError, p2.errors_seen_mask());
+  EXPECT_EQ(0, declarations->size());
+  EXPECT_EQ("", declarations->ToString());
+}
+
+TEST_F(ParserTest, CssHacks) {
+  Parser p("*border: 0px");
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  ASSERT_EQ(1, declarations->size());
+  EXPECT_EQ(Property::OTHER, declarations->at(0)->prop());
+  EXPECT_EQ("*border", declarations->at(0)->prop_text());
+  EXPECT_EQ("*border: 0px", declarations->ToString());
+
+  Parser p2("width: 1px; _width: 3px;");
+  declarations.reset(p2.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  ASSERT_EQ(2, declarations->size());
+  EXPECT_EQ(Property::WIDTH, declarations->at(0)->prop());
+  EXPECT_EQ(Property::OTHER, declarations->at(1)->prop());
+  EXPECT_EQ("_width", declarations->at(1)->prop_text());
+  EXPECT_EQ("width: 1px; _width: 3px", declarations->ToString());
+}
+
+TEST_F(ParserTest, Function) {
+  Parser p("box-shadow: -1px -2px 2px rgba(0, 13, 255, .15)");
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  ASSERT_EQ(1, declarations->size());
+  EXPECT_EQ(4, declarations->at(0)->values()->size());
+  const Value* val = declarations->at(0)->values()->at(3);
+  EXPECT_EQ(Value::FUNCTION, val->GetLexicalUnitType());
+  EXPECT_EQ(UTF8ToUnicodeText("rgba"), val->GetFunctionName());
+  const Values& params = *val->GetParameters();
+  ASSERT_EQ(4, params.size());
+  EXPECT_EQ(Value::NUMBER, params[0]->GetLexicalUnitType());
+  EXPECT_EQ(0, params[0]->GetIntegerValue());
+  EXPECT_EQ(Value::NUMBER, params[1]->GetLexicalUnitType());
+  EXPECT_EQ(13, params[1]->GetIntegerValue());
+  EXPECT_EQ(Value::NUMBER, params[2]->GetLexicalUnitType());
+  EXPECT_EQ(255, params[2]->GetIntegerValue());
+  EXPECT_EQ(Value::NUMBER, params[3]->GetLexicalUnitType());
+  EXPECT_FLOAT_EQ(0.15, params[3]->GetFloatValue());
+
+  EXPECT_EQ("box-shadow: -1px -2px 2px rgba(0, 13, 255, 0.15)",
+            declarations->ToString());
+}
+
+// Functions inside functions and mixed use of commas and spaces, oh my.
+TEST_F(ParserTest, ComplexFunction) {
+  Parser p(
+      "-webkit-gradient(linear, left top, left bottom, from(#ccc), to(#ddd))");
+  scoped_ptr<Value> val(ParseAny(&p));
+  EXPECT_EQ("-webkit-gradient(linear, left top, left bottom, "
+            "from(#cccccc), to(#dddddd))", val->ToString());
+}
+
+TEST_F(ParserTest, Counter) {
+  Parser p("content: \"Section \" counter(section)");
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  ASSERT_EQ(1, declarations->size());
+  ASSERT_EQ(2, declarations->at(0)->values()->size());
+  const Value* val = declarations->at(0)->values()->at(1);
+  EXPECT_EQ(Value::FUNCTION, val->GetLexicalUnitType());
+  EXPECT_EQ(UTF8ToUnicodeText("counter"), val->GetFunctionName());
+  const Values& params = *val->GetParameters();
+  ASSERT_EQ(1, params.size());
+  EXPECT_EQ(Value::IDENT, params[0]->GetLexicalUnitType());
+  EXPECT_EQ(UTF8ToUnicodeText("section"), params[0]->GetIdentifierText());
+
+  EXPECT_EQ("content: \"Section \" counter(section)",
+            declarations->ToString());
 }
 
 }  // namespace

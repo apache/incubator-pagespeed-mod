@@ -27,7 +27,7 @@
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/html_lexer.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_escape.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
@@ -48,11 +48,12 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       need_sanity_check_(false),
       coalesce_characters_(true),
       need_coalesce_characters_(false),
-      valid_(false),
+      url_valid_(false),
+      log_rewrite_timing_(false),
       parse_start_time_us_(0),
       timer_(NULL) {
   lexer_ = new HtmlLexer(this);
-  HtmlEscape::Init();
+  HtmlKeywords::Init();
 }
 
 HtmlParse::~HtmlParse() {
@@ -150,9 +151,9 @@ HtmlDirectiveNode* HtmlParse::NewDirectiveNode(HtmlElement* parent,
   return directive;
 }
 
-HtmlElement* HtmlParse::NewElement(HtmlElement* parent, Atom tag) {
+HtmlElement* HtmlParse::NewElement(HtmlElement* parent, const HtmlName& name) {
   HtmlElement* element =
-      new (&nodes_) HtmlElement(parent, tag, queue_.end(), queue_.end());
+      new (&nodes_) HtmlElement(parent, name, queue_.end(), queue_.end());
   element->set_sequence(sequence_++);
   return element;
 }
@@ -169,34 +170,35 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
                              const ContentType& content_type) {
   url.CopyToString(&url_);
   GURL gurl(url_);
-  valid_ = gurl.is_valid();
-  if (!valid_) {
+  url_valid_ = gurl.is_valid();
+  if (!url_valid_) {
     message_handler_->Message(kWarning, "HtmlParse: Invalid document url %s",
                               url_.c_str());
   } else {
-    gurl_.Swap(&gurl);
+    string_table_.Clear();
+    google_url_.Swap(&gurl);
     line_number_ = 1;
     id.CopyToString(&id_);
-    if (timer_ != NULL) {
+    if (log_rewrite_timing_) {
       parse_start_time_us_ = timer_->NowUs();
       InfoHere("HtmlParse::StartParse");
     }
     AddEvent(new HtmlStartDocumentEvent(line_number_));
     lexer_->StartParse(id, content_type);
   }
-  return valid_;
+  return url_valid_;
 }
 
 void HtmlParse::ShowProgress(const char* message) {
-  if (timer_ != NULL) {
+  if (log_rewrite_timing_) {
     long delta = static_cast<long>(timer_->NowUs() - parse_start_time_us_);
     InfoHere("%ldus: HtmlParse::%s", delta, message);
   }
 }
 
 void HtmlParse::FinishParse() {
-  DCHECK(valid_) << "Invalid to call FinishParse on invalid input";
-  if (valid_) {
+  DCHECK(url_valid_) << "Invalid to call FinishParse on invalid input";
+  if (url_valid_) {
     lexer_->FinishParse();
     AddEvent(new HtmlEndDocumentEvent(line_number_));
     Flush();
@@ -206,8 +208,8 @@ void HtmlParse::FinishParse() {
 }
 
 void HtmlParse::ParseText(const char* text, int size) {
-  DCHECK(valid_) << "Invalid to call ParseText with invalid url";
-  if (valid_) {
+  DCHECK(url_valid_) << "Invalid to call ParseText with invalid url";
+  if (url_valid_) {
     lexer_->Parse(text, size);
   }
 }
@@ -336,8 +338,8 @@ void HtmlParse::SanityCheck() {
 }
 
 void HtmlParse::Flush() {
-  DCHECK(valid_) << "Invalid to call FinishParse with invalid url";
-  if (valid_) {
+  DCHECK(url_valid_) << "Invalid to call FinishParse with invalid url";
+  if (url_valid_) {
     ShowProgress("Flush");
 
     for (size_t i = 0; i < filters_.size(); ++i) {
@@ -622,6 +624,15 @@ bool HtmlParse::ReplaceNode(HtmlNode* existing_node, HtmlNode* new_node) {
   return replaced;
 }
 
+HtmlElement* HtmlParse::CloneElement(HtmlElement* in_element) {
+  HtmlElement* out_element = NewElement(NULL, in_element->name());
+  out_element->set_close_style(in_element->close_style());
+  for (int i = 0; i < in_element->attribute_size(); ++i) {
+    out_element->AddAttribute(in_element->attribute(i));
+  }
+  return out_element;
+}
+
 bool HtmlParse::IsRewritable(const HtmlNode* node) const {
   return IsInEventWindow(node->begin()) && IsInEventWindow(node->end());
 }
@@ -650,12 +661,12 @@ void HtmlParse::DebugPrintQueue() {
   fflush(stdout);
 }
 
-bool HtmlParse::IsImplicitlyClosedTag(Atom tag) const {
-  return lexer_->IsImplicitlyClosedTag(tag);
+bool HtmlParse::IsImplicitlyClosedTag(HtmlName::Keyword keyword) const {
+  return lexer_->IsImplicitlyClosedTag(keyword);
 }
 
-bool HtmlParse::TagAllowsBriefTermination(Atom tag) const {
-  return lexer_->TagAllowsBriefTermination(tag);
+bool HtmlParse::TagAllowsBriefTermination(HtmlName::Keyword keyword) const {
+  return lexer_->TagAllowsBriefTermination(keyword);
 }
 
 const DocType& HtmlParse::doctype() const {
@@ -747,6 +758,26 @@ void HtmlParse::CloseElement(
   AddEvent(end_event);
   element->set_end(Last());
   element->set_end_line_number(line_number);
+}
+
+HtmlName HtmlParse::MakeName(HtmlName::Keyword keyword) {
+  const char* str = HtmlKeywords::KeywordToString(keyword);
+  return HtmlName(keyword, str);
+}
+
+HtmlName HtmlParse::MakeName(const StringPiece& str_piece) {
+  HtmlName::Keyword keyword = HtmlName::Lookup(str_piece);
+  const char* str = HtmlKeywords::KeywordToString(keyword);
+
+  // If the passed-in string is not in its canonical form, or is not a
+  // recognized keyword, then we must make a permanent copy in our
+  // string table.  Note that we are comparing the bytes of the
+  // keyword from the table, not the pointer.
+  if ((str == NULL) || (str_piece != str)) {
+    Atom atom = string_table_.Intern(str_piece);
+    str = atom.c_str();
+  }
+  return HtmlName(keyword, str);
 }
 
 }  // namespace net_instaweb

@@ -17,9 +17,9 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 //     and sligocki@google.com (Shawn Ligocki)
 
-// Unit-test the html rewriter
-#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
+
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/img_tag_scanner.h"
@@ -30,6 +30,8 @@
 #include <string>
 
 namespace net_instaweb {
+
+namespace {
 
 class CssFilterTest : public ResourceManagerTestBase {
  protected:
@@ -54,7 +56,8 @@ class CssFilterTest : public ResourceManagerTestBase {
     kExpectFailure = 4,
     kExpectSuccess = 8,
     kNoStatCheck = 16,
-    kNoClearFetcher = 32
+    kNoClearFetcher = 32,
+    kNoOtherContexts = 64
   };
 
   static bool ExactlyOneTrue(bool a, bool b) {
@@ -123,15 +126,20 @@ class CssFilterTest : public ResourceManagerTestBase {
                       const std::string& expected_css_output,
                       ResourceNamer* namer) {
     namer->set_id(RewriteDriver::kCssFilterId);
-    namer->set_hash(mock_hasher_.Hash(expected_css_output));
+    namer->set_hash(resource_manager_->hasher()->Hash(expected_css_output));
     namer->set_ext("css");
-    // TODO(sligocki): Derive these from css_url the "right" way.
-    std::string url_prefix = kTestDomain;
     namer->set_name(StrCat(id, ".css"));
   }
 
   std::string ExpectedUrlForNamer(const ResourceNamer& namer) {
     return StrCat(kTestDomain, namer.Encode());
+  }
+
+  std::string ExpectedUrlForCss(const StringPiece& id,
+                                 const std::string& expected_css_output) {
+    ResourceNamer namer;
+    GetNamerForCss(id, expected_css_output, &namer);
+    return ExpectedUrlForNamer(namer);
   }
 
   // Check that external CSS gets rewritten correctly.
@@ -142,14 +150,13 @@ class CssFilterTest : public ResourceManagerTestBase {
     CheckFlags(flags);
 
     // TODO(sligocki): Allow arbitrary URLs.
-    std::string url_prefix = kTestDomain;
-    std::string css_url = StrCat(url_prefix, id, ".css");
+    std::string css_url = StrCat(kTestDomain, id, ".css");
 
     // Set input file.
     if ((flags & kNoClearFetcher) == 0) {
       mock_url_fetcher_.Clear();
-      InitResponseHeaders(StrCat(id, ".css"), kContentTypeCss, css_input, 300);
     }
+    InitResponseHeaders(StrCat(id, ".css"), kContentTypeCss, css_input, 300);
 
     static const char html_template[] =
         "<head>\n"
@@ -203,15 +210,17 @@ class CssFilterTest : public ResourceManagerTestBase {
     if (flags & kExpectChange) {
       std::string actual_output;
       // TODO(sligocki): This will only work with mock_hasher.
-      EXPECT_TRUE(ServeResource(url_prefix,
+      EXPECT_TRUE(ServeResource(kTestDomain,
                                 namer.id(), namer.name(), namer.ext(),
                                 &actual_output));
       EXPECT_EQ(expected_css_output, actual_output);
 
       // Serve from new context.
-      ServeResourceFromManyContexts(expected_new_url,
-                                    RewriteOptions::kRewriteCss,
-                                    &mock_hasher_, expected_css_output);
+      if ((flags & kNoOtherContexts) == 0) {
+        ServeResourceFromManyContexts(expected_new_url,
+                                      RewriteOptions::kRewriteCss,
+                                      &mock_hasher_, expected_css_output);
+      }
     }
   }
 
@@ -253,9 +262,7 @@ class CssFilterTest : public ResourceManagerTestBase {
                               kExpectChange | kExpectSuccess);
 
     // Fetch with messed up extension
-    ResourceNamer namer;
-    GetNamerForCss("rep", kOutput, &namer);
-    std::string css_url = ExpectedUrlForNamer(namer);
+    std::string css_url = ExpectedUrlForCss("rep", kOutput);
     std::string output;
     EXPECT_EQ(should_fetch_ok,
               ServeResourceUrl(StrCat(css_url, junk), &output));
@@ -325,11 +332,6 @@ TEST_F(CssFilterTest, NoRewriteParseError) {
   // From http://www.baidu.com/
   ValidateFailParse("non_unicode_baidu",
                     "#lk span {font:14px \"\xCB\xCE\xCC\xE5\"}");
-  // From http://www.yahoo.com/
-  const char confusing_value[] =
-      "a { background-image:-webkit-gradient(linear, 50% 0%, 50% 100%,"
-      " from(rgb(232, 237, 240)), to(rgb(252, 252, 253)));}";
-  ValidateFailParse("non_standard_value", confusing_value);
 
   ValidateFailParse("bad_char_in_selector", ".bold: { font-weight: bold }");
 }
@@ -354,11 +356,29 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "a{margin:0}",  // 0 w/ no units
     "a{padding:0.01em 0.25em}",  // fractions and em
     "a{-moz-border-radius-topleft:0}",  // Browser-specific (-moz)
+    ".ds{display:-moz-inline-box}",
     "a{background:none}",  // CSS Parser used to expand this.
     // http://code.google.com/p/modpagespeed/issues/detail?id=5
     "a{font-family:trebuchet ms}",  // Keep space between trebuchet and ms.
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     "a{color:inherit}",
+    // Added for code coverage.
+    "@import url(http://www.example.com)",
+    "@media a,b{a{color:red}}",
+    "a{content:\"Odd chars: \\(\\)\\,\\\"\\\'\"}",
+    "img{clip:rect(0px,60px,200px,0px)}",
+    // CSS3-style pseudo-elements.
+    "p.normal::selection{background:#c00;color:#fff}",
+    "::-moz-focus-inner{border:0}",
+    "input::-webkit-input-placeholder{color:#ababab}"
+    // http://code.google.com/p/modpagespeed/issues/detail?id=51
+    "a{box-shadow:-1px -2px 2px rgba(0,0,0,0.15)}",  // CSS3 rgba
+    // http://code.google.com/p/modpagespeed/issues/detail?id=66
+    "a{-moz-transform:rotate(7deg)}",
+    // Microsoft syntax values.
+    "a{filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=80)}",
+    // Found in the wild:
+    "a{width:overflow:hidden}",
     };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
@@ -367,12 +387,20 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
   }
 
   const char* fail_examples[] = {
+    // CSS3 media "and (max-width: 290px).
     // http://code.google.com/p/modpagespeed/issues/detail?id=50
-    "@media screen and (max-width:290px){a{color:red}}",  // CSS3 "and (...)"
-    // http://code.google.com/p/modpagespeed/issues/detail?id=51
-    "a{box-shadow:-1px -2px 2px rgba(0, 0, 0, .15)}",  // CSS3 rgba
-    // http://code.google.com/p/modpagespeed/issues/detail?id=66
-    "a{-moz-transform:rotate(7deg)}",
+    "@media screen and (max-width: 290px) { a { color:red } }",
+
+    // Slashes in value list.
+    ".border8 { border-radius: 36px / 12px; }"
+
+    // http://code.google.com/p/modpagespeed/issues/detail?id=220
+    // See https://developer.mozilla.org/en/CSS/-moz-transition-property
+    // and http://www.webkit.org/blog/138/css-animation/
+    "a { -webkit-transition-property:opacity,-webkit-transform; }",
+
+    // Should fail (bad syntax):
+    "a { font:bold verdana 10px; }",
     };
 
   for (int i = 0; i < arraysize(fail_examples); ++i) {
@@ -381,6 +409,27 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
   }
 }
 
+// Things we could be optimizing.
+// This test will fail when we start optimizing these thing.
+TEST_F(CssFilterTest, ToOptimize) {
+  const char* examples[][2] = {
+    // Noticed from YUI minification.
+    { "td { line-height: 0.8em; }",
+      // Could be: "td{line-height:.8em}"
+      "td{line-height:0.8em}", },
+    { ".gb1, .gb3 {}",
+      // Could be: ""
+      ".gb1,.gb3{}", },
+    { ".lst:focus { outline:none; }",
+      // Could be: ".lst:focus{outline:0}"
+      ".lst:focus{outline:none}", },
+  };
+
+  for (int i = 0; i < arraysize(examples); ++i) {
+    std::string id = StringPrintf("to_optimize_%d", i);
+    ValidateRewrite(id, examples[i][0], examples[i][1]);
+  }
+}
 
 // Test more complicated CSS.
 TEST_F(CssFilterTest, ComplexCssTest) {
@@ -450,6 +499,41 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "li.ui-state-disabled a,.ui-tabs .ui-tabs-nav li.ui-state-processing a{"
       "cursor:pointer}"},
 
+    { ".ui-datepicker-cover {\n"
+      "  display: none; /*sorry for IE5*/\n"
+      "  display/**/: block; /*sorry for IE5*/\n"
+      "  position: absolute; /*must have*/\n"
+      "  z-index: -1; /*must have*/\n"
+      "  filter: mask(); /*must have*/\n"
+      "  top: -4px; /*must have*/\n"
+      "  left: -4px; /*must have*/\n"
+      "  width: 200px; /*must have*/\n"
+      "  height: 200px; /*must have*/\n"
+      "}\n",
+
+      // TODO(sligocki): Should we preserve the dispaly/**/:?
+      //".ui-datepicker-cover{display:none;display/**/:block;position:absolute;"
+      //"z-index:-1;filter:mask();top:-4px;left:-4px;width:200px;height:200px}"
+
+      ".ui-datepicker-cover{display:none;display:block;position:absolute;"
+      "z-index:-1;filter:mask();top:-4px;left:-4px;width:200px;height:200px}" },
+
+    { ".shift {\n"
+      "  -moz-transform: rotate(7deg);\n"
+      "  -webkit-transform: rotate(7deg);\n"
+      "  -moz-transform: skew(-25deg);\n"
+      "  -webkit-transform: skew(-25deg);\n"
+      "  -moz-transform: scale(0.5);\n"
+      "  -webkit-transform: scale(0.5);\n"
+      "  -moz-transform: translate(3em, 0);\n"
+      "  -webkit-transform: translate(3em, 0);\n"
+      "}\n",
+
+      ".shift{-moz-transform:rotate(7deg);-webkit-transform:rotate(7deg);"
+      "-moz-transform:skew(-25deg);-webkit-transform:skew(-25deg);"
+      "-moz-transform:scale(0.5);-webkit-transform:scale(0.5);"
+      "-moz-transform:translate(3em,0);-webkit-transform:translate(3em,0)}" },
+
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     { "body { font: 2em sans-serif; }", "body{font:2em sans-serif}" },
     { "body { font: 0.75em sans-serif; }", "body{font:0.75em sans-serif}" },
@@ -462,6 +546,64 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // Extra spaces assure that we actually rewrite the first arg even if
     // font: is expanded by parser.
     { ".menu { font: menu; }               ", ".menu{font:menu}" },
+
+    // http://code.google.com/p/modpagespeed/issues/detail?id=211
+    { "#some_id {\n"
+      "background: #cccccc url(images/picture.png) 50% 50% repeat-x;\n"
+      "}\n",
+
+      "#some_id{background:#ccc url(images/picture.png) 50% 50% repeat-x}" },
+
+    { ".gac_od { border-color: -moz-use-text-color #E7E7E7 #E7E7E7 "
+      "-moz-use-text-color; }",
+
+      ".gac_od{border-color:-moz-use-text-color #e7e7e7 #e7e7e7 "
+      "-moz-use-text-color}" },
+
+    // Star/Underscore hack
+    // See: http://developer.yahoo.com/yui/compressor/css.html
+    { "a { *padding-bottom: 0px; }",
+      "a{*padding-bottom:0px}" },
+
+    { "#element { width: 1px; _width: 3px; }",
+      "#element{width:1px;_width:3px}" },
+
+    // Complex nested functions
+    { "body {\n"
+      "  background-image:-webkit-gradient(linear, 50% 0%, 50% 100%,"
+      " from(rgb(232, 237, 240)), to(rgb(252, 252, 253)));\n"
+      "  color: red;\n"
+      "}\n"
+      ".foo { color: rgba(1, 2, 3, 0.4); }\n",
+
+      "body{background-image:-webkit-gradient(linear,50% 0%,50% 100%,"
+      "from(#e8edf0),to(#fcfcfd));color:red}.foo{color:rgba(1,2,3,0.4)}" },
+
+    // Counters
+    // http://www.w3schools.com/CSS/tryit.asp?filename=trycss_gen_counter-reset
+    { "body {counter-reset:section;}\n"
+      "h1 {counter-reset:subsection;}\n"
+      "h1:before\n"
+      "{\n"
+      "counter-increment:section;\n"
+      "content:\"Section \" counter(section) \". \";\n"
+      "}\n"
+      "h2:before \n"
+      "{\n"
+      "counter-increment:subsection;\n"
+      "content:counter(section) \".\" counter(subsection) \" \";\n"
+      "}\n",
+
+      "body{counter-reset:section}"
+      "h1{counter-reset:subsection}"
+      "h1:before{counter-increment:section;"
+      "content:\"Section \" counter(section) \". \"}"
+      "h2:before{counter-increment:subsection;"
+      "content:counter(section) \".\" counter(subsection) \" \"}" },
+
+    // Don't lowercase font names.
+    { "a { font-family: Arial; }",
+      "a{font-family:Arial}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -470,47 +612,120 @@ TEST_F(CssFilterTest, ComplexCssTest) {
   }
 
   const char* parse_fail_examples[] = {
-    ".ui-datepicker-cover {\n"
-    "  display: none; /*sorry for IE5*/\n"
-    "  display/**/: block; /*sorry for IE5*/\n"
-    "  position: absolute; /*must have*/\n"
-    "  z-index: -1; /*must have*/\n"
-    "  filter: mask(); /*must have*/\n"
-    "  top: -4px; /*must have*/\n"
-    "  left: -4px; /*must have*/\n"
-    "  width: 200px; /*must have*/\n"
-    "  height: 200px; /*must have*/\n"
-    "}\n",
-
-    // Right now we bail on parsing the above. Could probably be minified to:
-    //".ui-datepicker-cover{display:none;display/**/:block;position:absolute;"
-    //"z-index:-1;filter:mask();top:-4px;left:-4px;width:200px;height:200px}"
-    // TODO(sligocki): When this is parsed correctly, move it up to examples[][]
-
-    ".shift {\n"
-    "  -moz-transform: rotate(7deg);\n"
-    "  -webkit-transform: rotate(7deg);\n"
-    "  -moz-transform: skew(-25deg);\n"
-    "  -webkit-transform: skew(-25deg);\n"
-    "  -moz-transform: scale(0.5);\n"
-    "  -webkit-transform: scale(0.5);\n"
-    "  -moz-transform: translate(3em, 0);\n"
-    "  -webkit-transform: translate(3em, 0);\n"
-    "}\n",
-
-    // Right now we bail on parsing the above. Could probably be minified to:
-    //".shift{-moz-transform:rotate(7deg);-webkit-transform:rotate(7deg);"
-    //"-moz-transform:skew(-25deg);-webkit-transform:skew(-25deg);"
-    //"-moz-transform:scale(0.5);-webkit-transform:scale(0.5);"
-    //"-moz-transform:translate(3em,0);-webkit-transform:translate(3em,0);}"
-    // TODO(sligocki): When this is parsed correctly, move it up to examples[][]
-  };
+    // http://code.google.com/p/modpagespeed/issues/detail?id=220
+    ".mui-navbar-wrap, .mui-navbar-clone {"
+    "opacity:1;-webkit-transform:translateX(0);"
+    "-webkit-transition-property:opacity,-webkit-transform;"
+    "-webkit-transition-duration:400ms;}",
+    };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
     std::string id = StringPrintf("complex_css_parse_fail%d", i);
     ValidateFailParse(id, parse_fail_examples[i]);
   }
-
 }
+
+// These tests are to make sure our TTL considers that of subresources.
+class CssFilterSubresourceTest : public CssFilterTest {
+ public:
+  virtual void SetUp() {
+    // We setup the options before the upcall so that the
+    // CSS filter is created aware of these.
+    options_.EnableFilter(RewriteOptions::kExtendCache);
+    options_.EnableFilter(RewriteOptions::kRewriteImages);
+    CssFilterTest::SetUp();
+
+    // We want a real hasher here so that subresources get separate locks.
+    resource_manager_->set_hasher(&md5_hasher_);
+
+    // As we use invalid payloads, we expect image rewriting to
+    // fail but cache extension to succeed.
+    InitResponseHeaders("a.png", kContentTypePng, "notapng", 10);
+    InitResponseHeaders("b.png", kContentTypePng, "notbpng", 20);
+  }
+
+  void ValidateExpirationTime(const char* id, const char* output,
+                              int64 expected_expire_ms) {
+    std::string css_url = ExpectedUrlForCss(id, output);
+
+    // See what cache information we have
+    scoped_ptr<OutputResource> output_resource(
+        rewrite_driver_.CreateOutputResourceWithPath(
+            kTestDomain, RewriteDriver::kCssFilterId, StrCat(id, ".css"),
+            &kContentTypeCss, RewriteDriver::kRewrittenResource));
+    ASSERT_TRUE(output_resource.get() != NULL);
+    EXPECT_EQ(css_url, output_resource->url());
+    ASSERT_TRUE(output_resource->cached_result() != NULL);
+
+    EXPECT_EQ(expected_expire_ms,
+              output_resource->cached_result()->origin_expiration_time_ms());
+  }
+
+  std::string ExpectedUrlForPng(const StringPiece& name,
+                                 const std::string& expected_output) {
+    return Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
+                  resource_manager_->hasher()->Hash(expected_output),
+                  name, "png");
+  }
+
+};
+
+// Test to make sure expiration time for cached result is the
+// smallest of subresource and CSS times, not just CSS time.
+TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
+  const char kInput[] = "div { background-image: url(a.png); }"
+                        "span { background-image: url(b.png); }";
+
+  // Figure out where cache-extended PNGs will go.
+  std::string img_url1 = ExpectedUrlForPng("a.png", "notapng");
+  std::string img_url2 = ExpectedUrlForPng("b.png", "notbpng");
+  std::string output = StrCat("div{background-image:url(", img_url1, ")}",
+                               "span{background-image:url(", img_url2, ")}");
+
+  // Here we don't use the other contexts since it has different
+  // synchronicity, and we presently do best-effort for loaded subresources
+  // even in Fetch.
+  ValidateRewriteExternalCss(
+      "ext", kInput, output, kNoOtherContexts | kNoClearFetcher |
+                             kExpectChange | kExpectSuccess);
+
+  // 10 is the smaller of expiration times of a.png, b.png and ext.css
+  ValidateExpirationTime("ext", output.c_str(), 10 * Timer::kSecondMs);
+}
+
+// Test to make sure we don't cache for long if the rewrite was based
+// on not-yet-loaded resources.
+TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
+  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher(SetupWaitFetcher());
+
+  // Disable atime simulation so that the clock doesn't move on us.
+  file_system_.set_atime_enabled(false);
+
+  const char kInput[] = "div { background-image: url(a.png); }"
+                        "span { background-image: url(b.png); }";
+  const char kOutput[] = "div{background-image:url(a.png)}"
+                        "span{background-image:url(b.png)}";
+
+  // At first try, not even the CSS gets loaded, so nothing gets
+  // changed at all.
+  ValidateRewriteExternalCss(
+      "wip", kInput, kInput, kNoOtherContexts | kNoClearFetcher |
+                             kExpectNoChange | kExpectSuccess);
+
+  // Get the CSS to load (resources are still unavailable).
+  wait_fetcher->CallCallbacks();
+  ValidateRewriteExternalCss(
+      "wip", kInput, kOutput, kNoOtherContexts | kNoClearFetcher |
+                              kExpectChange | kExpectSuccess);
+
+  // Since resources haven't loaded, the output cache should have a very small
+  // expiration time.
+  ValidateExpirationTime("wip", kOutput, Timer::kSecondMs);
+
+  // Make sure the subresource callbacks fire for leak cleanliness
+  wait_fetcher->CallCallbacks();
+}
+
+}  // namespace
 
 }  // namespace net_instaweb

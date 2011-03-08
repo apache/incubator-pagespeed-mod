@@ -120,8 +120,8 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     STLDeleteElements(&contents_);
     STLDeleteElements(&writers_);
     STLDeleteElements(&callbacks_);
-    apr_pool_destroy(pool_);
     delete mutex_;
+    apr_pool_destroy(pool_);
   }
 
   void AddTestUrl(const std::string& url,
@@ -145,8 +145,8 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     }
   }
 
-  int OutstandingFetches() {
-    return statistics_.GetVariable(SerfStats::kSerfFetchOutstandingCount)
+  int ActiveFetches() {
+    return statistics_.GetVariable(SerfStats::kSerfFetchActiveCount)
         ->Get();
   }
 
@@ -170,6 +170,11 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     }
   }
 
+  // Valgrind will not allow the async-fetcher thread to run without a sleep.
+  void YieldToThread() {
+    usleep(1);
+  }
+
   int WaitTillDone(size_t begin, size_t end, int64 delay_ms) {
     AprTimer timer;
     bool done = false;
@@ -177,8 +182,12 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     int64 end_ms = now_ms + delay_ms;
     size_t done_count = 0;
     while (!done && (now_ms < end_ms)) {
-      int64 remaining_ms = end_ms - now_ms;
-      serf_url_async_fetcher_->Poll(1000 * remaining_ms);
+      int64 to_wait_ms = end_ms - now_ms;
+      if (to_wait_ms > kThreadedPollMs) {
+        to_wait_ms = kThreadedPollMs;
+      }
+      YieldToThread();
+      serf_url_async_fetcher_->Poll(to_wait_ms);
       done_count = 0;
       for (size_t idx = begin; idx < end; ++idx) {
         if (callbacks_[idx]->IsDone()) {
@@ -200,11 +209,6 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     int done = WaitTillDone(begin, end, kMaxMs);
     ValidateFetches(begin, end);
     return (done == (end - begin));
-  }
-
-  // Valgrind will not allow the async-fetcher thread to run without a sleep.
-  void YieldToThread() {
-    usleep(1);
   }
 
   apr_pool_t* pool_;
@@ -255,7 +259,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
   request_headers_[0]->Add(HttpAttributes::kUserAgent,
                            kDefaultUserAgent);
   StartFetches(0, 1, false);
-  EXPECT_EQ(1, OutstandingFetches());
+  EXPECT_EQ(1, ActiveFetches());
   ASSERT_EQ(1, WaitTillDone(0, 1, kMaxMs));
   ASSERT_TRUE(callbacks_[0]->IsDone());
   EXPECT_LT(static_cast<size_t>(0), contents_[0]->size());
@@ -270,7 +274,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
   scoped_array<char> buf(new char[size]);
   ASSERT_EQ(size, inflater.InflateBytes(buf.get(), size));
   EXPECT_EQ(content_starts_[0], std::string(buf.get(), size));
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
@@ -286,7 +290,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
   int time_duration =
       statistics_.GetVariable(SerfStats::kSerfFetchTimeDurationMs)->Get();
   EXPECT_EQ(2 * kTimerAdvanceMs, time_duration);
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestCancelThreeThreaded) {
@@ -305,21 +309,21 @@ TEST_F(SerfUrlAsyncFetcherTest, TestCancelTwoThreadedOneSync) {
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitThreeThreaded) {
   StartFetches(0, 3, true);
-  serf_url_async_fetcher_->WaitForInProgressFetches(
+  serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedOnly);
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   StartFetches(0, 1, true);
-  serf_url_async_fetcher_->WaitForInProgressFetches(
+  serf_url_async_fetcher_->WaitForActiveFetches(
       10 /* milliseconds */, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedOnly);
   StartFetches(1, 3, true);
 
   // In this test case, we are not going to call the explicit threaded
-  // wait function, WaitForInProgressFetches.  We have initiated async
+  // wait function, WaitForActiveFetches.  We have initiated async
   // fetches and we are hoping they will complete within a certain amount
   // of time.  If the system is running well then we they will finish
   // within a 100ms or so, so we'll loop in 50ms sleep intervals until
@@ -348,34 +352,31 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   // async fetches.
   ASSERT_EQ(3, completed) << "Async fetches times out before completing";
   ValidateFetches(0, 3);
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitOneThreadedTwoSync) {
   StartFetches(0, 1, true);
   StartFetches(1, 3, false);
-  serf_url_async_fetcher_->WaitForInProgressFetches(
+  serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedAndMainline);
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitTwoThreadedOneSync) {
   StartFetches(0, 1, false),
   StartFetches(1, 3, true);
-  serf_url_async_fetcher_->WaitForInProgressFetches(
+  serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedAndMainline);
-  EXPECT_EQ(0, OutstandingFetches());
+  EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreaded) {
   StartFetches(0, 3, true);
   int done = 0;
-  for (int i = 0; (done < 3) && (i < 100); ++i) {
-    YieldToThread();
-    done = WaitTillDone(0, 3, kThreadedPollMs);
-  }
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
   ValidateFetches(0, 3);
 }
@@ -384,10 +385,7 @@ TEST_F(SerfUrlAsyncFetcherTest, TestOneThreadedTwoSync) {
   StartFetches(0, 1, true);
   StartFetches(1, 3, false);
   int done = 0;
-  for (int i = 0; (done < 3) && (i < 100); ++i) {
-    YieldToThread();
-    done = WaitTillDone(0, 3, kThreadedPollMs);
-  }
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
   ValidateFetches(0, 3);
 }
@@ -396,10 +394,7 @@ TEST_F(SerfUrlAsyncFetcherTest, TestTwoThreadedOneSync) {
   StartFetches(0, 1, false);
   StartFetches(1, 3, true);
   int done = 0;
-  for (int i = 0; (done < 3) && (i < 100); ++i) {
-    YieldToThread();
-    done = WaitTillDone(0, 3, kThreadedPollMs);
-  }
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
   ValidateFetches(0, 3);
 }

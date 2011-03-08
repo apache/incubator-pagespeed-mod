@@ -21,6 +21,8 @@
 
 #include <stddef.h>
 
+#include "net/instaweb/util/public/string_util.h"
+
 namespace net_instaweb {
 
 // A hash function for strings that can be used both in a case-sensitive
@@ -54,16 +56,20 @@ struct CasePreserve {
   static unsigned char Normalize(char c) {
     return c;
   }
+
+  static bool Compare(const StringPiece& a, const StringPiece& b) {
+    return a < b;
+  }
 };
 
 // A helper for case-insensitive hashing, which folds to lowercase
 struct CaseFold {
   static unsigned char Normalize(char c) {
-    if (c >= 'A' && c <= 'Z') {
-      return c + ('a' - 'A');
-    } else {
-      return c;
-    }
+    return LowerChar(c);
+  }
+
+  static bool Compare(const StringPiece& a, const StringPiece& b) {
+    return StringCaseCompare(a, b) < 0;
   }
 };
 

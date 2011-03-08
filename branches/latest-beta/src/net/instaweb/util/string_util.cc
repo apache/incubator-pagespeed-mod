@@ -74,20 +74,36 @@ void BackslashEscape(const StringPiece& src,
   }
 }
 
+// From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
+// but we don't need any other aspect of protobufs so we don't want to
+// incur the link cost.
+void LowerString(std::string* s) {
+  std::string::iterator end = s->end();
+  for (std::string::iterator i = s->begin(); i != end; ++i) {
+    *i = LowerChar(*i);
+  }
+}
+
+void UpperString(std::string* s) {
+  std::string::iterator end = s->end();
+  for (std::string::iterator i = s->begin(); i != end; ++i) {
+    *i = UpperChar(*i);
+  }
+}
+
 bool StringCaseEqual(const StringPiece& s1, const StringPiece& s2) {
-  return (s1.size() == s2.size() &&
-          0 == strncasecmp(s1.data(), s2.data(), s1.size()));
+  return ((s1.size() == s2.size()) && (0 == StringCaseCompare(s1, s2)));
 }
 
 bool StringCaseStartsWith(const StringPiece& str, const StringPiece& prefix) {
-  return (str.size() >= prefix.size() &&
-          0 == strncasecmp(str.data(), prefix.data(), prefix.size()));
+  return ((str.size() >= prefix.size()) &&
+          (0 == StringCaseCompare(prefix, str.substr(0, prefix.size()))));
 }
 
 bool StringCaseEndsWith(const StringPiece& str, const StringPiece& suffix) {
-  return (str.size() >= suffix.size() &&
-          0 == strncasecmp(str.data() + str.size() - suffix.size(),
-                           suffix.data(), suffix.size()));
+  return ((str.size() >= suffix.size()) &&
+          (0 == StringCaseCompare(suffix,
+                                  str.substr(str.size() - suffix.size()))));
 }
 
 void ParseShellLikeString(const StringPiece& input,
@@ -128,18 +144,7 @@ void ParseShellLikeString(const StringPiece& input,
   }
 }
 
-// From src/third_party/protobuf2/src/src/google/protobuf/stubs/strutil.h
-// but we don't need any other aspect of protobufs so we don't want to
-// incur the link cost.
-void LowerString(std::string* s) {
-  std::string::iterator end = s->end();
-  for (std::string::iterator i = s->begin(); i != end; ++i) {
-    // tolower() changes based on locale.  We don't want this!
-    if ('A' <= *i && *i <= 'Z') *i += 'a' - 'A';
-  }
-}
-
-// From src/third_party/protobuf2/src/src/google/protobuf/stubs/strutil.h
+// From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
 // but we don't need any other aspect of protobufs so we don't want to
 // incur the link cost.
 bool HasPrefixString(const StringPiece& str, const StringPiece& prefix) {
@@ -182,7 +187,26 @@ int GlobalReplaceSubstring(const StringPiece& substring,
   return num_replacements;
 }
 
-
+// TODO(jmarantz): This is a very slow implementation.  But strncasecmp
+// will fail test StringCaseTest.Locale.  If this shows up as a performance
+// bottleneck then an SSE implementation would be better.
+int StringCaseCompare(const StringPiece& s1, const StringPiece& s2) {
+  for (int i = 0, n = std::min(s1.size(), s2.size()); i < n; ++i) {
+    unsigned char c1 = UpperChar(s1[i]);
+    unsigned char c2 = UpperChar(s2[i]);
+    if (c1 < c2) {
+      return -1;
+    } else if (c1 > c2) {
+      return 1;
+    }
+  }
+  if (s1.size() < s2.size()) {
+    return -1;
+  } else if (s1.size() > s2.size()) {
+    return 1;
+  }
+  return 0;
+}
 
 const StringPiece EmptyString::kEmptyString;
 

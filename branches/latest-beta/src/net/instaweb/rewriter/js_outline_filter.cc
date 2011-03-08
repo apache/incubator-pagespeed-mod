@@ -35,13 +35,9 @@ const char JsOutlineFilter::kFilterId[] = "jo";
 JsOutlineFilter::JsOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       inline_element_(NULL),
-      html_parse_(driver->html_parse()),
       resource_manager_(driver->resource_manager()),
       size_threshold_bytes_(driver->options()->js_outline_min_bytes()),
-      s_script_(html_parse_->Intern("script")),
-      s_src_(html_parse_->Intern("src")),
-      s_type_(html_parse_->Intern("type")),
-      script_tag_scanner_(html_parse_) { }
+      script_tag_scanner_(driver_) { }
 
 void JsOutlineFilter::StartDocumentImpl() {
   inline_element_ = NULL;
@@ -52,8 +48,7 @@ void JsOutlineFilter::StartElementImpl(HtmlElement* element) {
   // No tags allowed inside script element.
   if (inline_element_ != NULL) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
-    html_parse_->ErrorHere("Tag '%s' found inside script.",
-                           element->tag().c_str());
+    driver_->ErrorHere("Tag '%s' found inside script.", element->name_str());
     inline_element_ = NULL;  // Don't outline what we don't understand.
     buffer_.clear();
   }
@@ -75,16 +70,14 @@ void JsOutlineFilter::EndElementImpl(HtmlElement* element) {
   if (inline_element_ != NULL) {
     if (element != inline_element_) {
       // No other tags allowed inside script element.
-      html_parse_->ErrorHere("Tag '%s' found inside script.",
-                             element->tag().c_str());
-
+      driver_->ErrorHere("Tag '%s' found inside script.", element->name_str());
     } else if (buffer_.size() >= size_threshold_bytes_) {
       OutlineScript(inline_element_, buffer_);
     } else {
-      html_parse_->InfoHere("Inline element not outlined because its size %d, "
-                            "is below threshold %d",
-                            static_cast<int>(buffer_.size()),
-                            static_cast<int>(size_threshold_bytes_));
+      driver_->InfoHere("Inline element not outlined because its size %d, "
+                        "is below threshold %d",
+                        static_cast<int>(buffer_.size()),
+                        static_cast<int>(size_threshold_bytes_));
     }
     inline_element_ = NULL;
     buffer_.clear();
@@ -105,7 +98,7 @@ void JsOutlineFilter::Characters(HtmlCharactersNode* characters) {
 
 void JsOutlineFilter::Comment(HtmlCommentNode* comment) {
   if (inline_element_ != NULL) {
-    html_parse_->ErrorHere("Comment found inside script.");
+    driver_->ErrorHere("Comment found inside script.");
     inline_element_ = NULL;  // Don't outline what we don't understand.
     buffer_.clear();
   }
@@ -113,7 +106,7 @@ void JsOutlineFilter::Comment(HtmlCommentNode* comment) {
 
 void JsOutlineFilter::Cdata(HtmlCdataNode* cdata) {
   if (inline_element_ != NULL) {
-    html_parse_->ErrorHere("CDATA found inside script.");
+    driver_->ErrorHere("CDATA found inside script.");
     inline_element_ = NULL;  // Don't outline what we don't understand.
     buffer_.clear();
   }
@@ -121,7 +114,7 @@ void JsOutlineFilter::Cdata(HtmlCdataNode* cdata) {
 
 void JsOutlineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   if (inline_element_ != NULL) {
-    html_parse_->ErrorHere("IE Directive found inside script.");
+    driver_->ErrorHere("IE Directive found inside script.");
     inline_element_ = NULL;  // Don't outline what we don't understand.
     buffer_.clear();
   }
@@ -142,33 +135,27 @@ bool JsOutlineFilter::WriteResource(const std::string& content,
 // TODO(sligocki): We probably will break any relative URL references here.
 void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
                                     const std::string& content) {
-  if (html_parse_->IsRewritable(inline_element)) {
+  if (driver_->IsRewritable(inline_element)) {
     // Create script file from content.
-    MessageHandler* handler = html_parse_->message_handler();
+    MessageHandler* handler = driver_->message_handler();
     // Create outline resource at the document location, not base URL location
     scoped_ptr<OutputResource> resource(
-        resource_manager_->CreateOutputResourceWithPath(
-            GoogleUrl::AllExceptLeaf(html_parse_->gurl()), kFilterId, "_",
-            &kContentTypeJavascript, rewrite_driver()->options(),
-            handler));
+        driver_->CreateOutputResourceWithPath(
+            GoogleUrl::AllExceptLeaf(driver_->gurl()), kFilterId, "_",
+            &kContentTypeJavascript, RewriteDriver::kOutlinedResource));
     if (WriteResource(content, resource.get(), handler)) {
-      HtmlElement* outline_element = html_parse_->NewElement(
-          inline_element->parent(), s_script_);
-      outline_element->AddAttribute(s_src_, resource->url(), "'");
-      // Add all atrributes from old script element to new script src element.
-      for (int i = 0; i < inline_element->attribute_size(); ++i) {
-        const HtmlElement::Attribute& attr = inline_element->attribute(i);
-        outline_element->AddAttribute(attr);
-      }
+      HtmlElement* outline_element = driver_->CloneElement(inline_element);
+      driver_->AddAttribute(outline_element, HtmlName::kSrc,
+                            resource->url());
       // Add <script src=...> element to DOM.
-      html_parse_->InsertElementBeforeElement(inline_element,
-                                              outline_element);
+      driver_->InsertElementBeforeElement(inline_element,
+                                          outline_element);
       // Remove original script element from DOM.
-      if (!html_parse_->DeleteElement(inline_element)) {
-        html_parse_->FatalErrorHere("Failed to delete inline script element");
+      if (!driver_->DeleteElement(inline_element)) {
+        driver_->FatalErrorHere("Failed to delete inline script element");
       }
     } else {
-      html_parse_->ErrorHere("Failed to write outlined script resource.");
+      driver_->ErrorHere("Failed to write outlined script resource.");
     }
   }
 }

@@ -22,11 +22,23 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/apache/apr_mutex.h"
+#include "net/instaweb/util/public/debug.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/stack_buffer.h"
 
 namespace net_instaweb {
+
+namespace {
+
+apr_status_t locked_apr_dir_read(AprMutex* lock, apr_finfo_t* finfo,
+                                 apr_int32_t wanted, apr_dir_t* dir) {
+  ScopedMutex hold_mutex(lock);
+  return apr_dir_read(finfo, wanted, dir);
+}
+
+}  // namespace
 
 void AprReportError(MessageHandler* message_handler, const char* filename,
                     int line, const char* message, int error_code) {
@@ -41,9 +53,10 @@ void AprReportError(MessageHandler* message_handler, const char* filename,
 // Output files, in lieu of multiple inheritance.
 class FileHelper {
  public:
-  FileHelper(apr_file_t* file, const char* filename)
+  FileHelper(apr_file_t* file, const char* filename, AprMutex* mutex)
       : file_(file),
-        filename_(filename) {
+        filename_(filename),
+        mutex_(mutex) {
   }
 
   void ReportError(MessageHandler* message_handler, const char* format,
@@ -58,11 +71,15 @@ class FileHelper {
  private:
   apr_file_t* const file_;
   const std::string filename_;
+  AprMutex* mutex_;  // owned by the FS object
 
   DISALLOW_COPY_AND_ASSIGN(FileHelper);
 };
 
 bool FileHelper::Close(MessageHandler* message_handler) {
+  // We must hold the lock as apr_file_close accesses the pool_ in order to
+  // remove a cleanup entry that would close the file on pool destruction.
+  ScopedMutex hold_mutex(mutex_);
   apr_status_t ret = apr_file_close(file_);
   if (ret != APR_SUCCESS) {
     ReportError(message_handler, "close file", ret);
@@ -74,7 +91,7 @@ bool FileHelper::Close(MessageHandler* message_handler) {
 
 class HtmlWriterInputFile : public FileSystem::InputFile {
  public:
-  HtmlWriterInputFile(apr_file_t* file, const char* filename);
+  HtmlWriterInputFile(apr_file_t* file, const char* filename, AprMutex* mutex);
   virtual int Read(char* buf, int size, MessageHandler* message_handler);
   virtual bool Close(MessageHandler* message_handler) {
     return helper_.Close(message_handler);
@@ -88,7 +105,7 @@ class HtmlWriterInputFile : public FileSystem::InputFile {
 
 class HtmlWriterOutputFile : public FileSystem::OutputFile {
  public:
-  HtmlWriterOutputFile(apr_file_t* file, const char* filename);
+  HtmlWriterOutputFile(apr_file_t* file, const char* filename, AprMutex* mutex);
   virtual bool Write(const StringPiece& buf,
                      MessageHandler* message_handler);
   virtual bool Flush(MessageHandler* message_handler);
@@ -103,8 +120,9 @@ class HtmlWriterOutputFile : public FileSystem::OutputFile {
   DISALLOW_COPY_AND_ASSIGN(HtmlWriterOutputFile);
 };
 
-HtmlWriterInputFile::HtmlWriterInputFile(apr_file_t* file, const char* filename)
-    : helper_(file, filename) {
+HtmlWriterInputFile::HtmlWriterInputFile(apr_file_t* file, const char* filename,
+                                         AprMutex* mutex)
+    : helper_(file, filename, mutex) {
 }
 
 int HtmlWriterInputFile::Read(char* buf,
@@ -123,8 +141,9 @@ int HtmlWriterInputFile::Read(char* buf,
 }
 
 HtmlWriterOutputFile::HtmlWriterOutputFile(apr_file_t* file,
-                                           const char* filename)
-    : helper_(file, filename) {
+                                           const char* filename,
+                                           AprMutex* mutex)
+    : helper_(file, filename, mutex) {
 }
 
 bool HtmlWriterOutputFile::Write(const StringPiece& buf,
@@ -165,14 +184,17 @@ bool HtmlWriterOutputFile::SetWorldReadable(MessageHandler* message_handler) {
 AprFileSystem::AprFileSystem(apr_pool_t* pool)
     : pool_(NULL) {
   apr_pool_create(&pool_, pool);
+  mutex_ = new AprMutex(pool_);
 }
 
 AprFileSystem::~AprFileSystem() {
+  delete mutex_;
   apr_pool_destroy(pool_);
 }
 
 FileSystem::InputFile* AprFileSystem::OpenInputFile(
     const char* filename, MessageHandler* message_handler) {
+  ScopedMutex hold_mutex(mutex_);
   apr_file_t* file;
   apr_status_t ret = apr_file_open(&file, filename, APR_FOPEN_READ,
                                    APR_OS_DEFAULT, pool_);
@@ -180,11 +202,12 @@ FileSystem::InputFile* AprFileSystem::OpenInputFile(
     AprReportError(message_handler, filename, 0, "open input file", ret);
     return NULL;
   }
-  return new HtmlWriterInputFile(file, filename);
+  return new HtmlWriterInputFile(file, filename, mutex_);
 }
 
 FileSystem::OutputFile* AprFileSystem::OpenOutputFileHelper(
     const char* filename, MessageHandler* message_handler) {
+  ScopedMutex hold_mutex(mutex_);
   apr_file_t* file;
   apr_status_t ret = apr_file_open(&file, filename,
                                    APR_WRITE | APR_CREATE | APR_TRUNCATE,
@@ -193,12 +216,13 @@ FileSystem::OutputFile* AprFileSystem::OpenOutputFileHelper(
     AprReportError(message_handler, filename, 0, "open output file", ret);
     return NULL;
   }
-  return new HtmlWriterOutputFile(file, filename);
+  return new HtmlWriterOutputFile(file, filename, mutex_);
 }
 
 FileSystem::OutputFile* AprFileSystem::OpenTempFileHelper(
     const StringPiece& prefix_name,
     MessageHandler* message_handler) {
+  ScopedMutex hold_mutex(mutex_);
   static const char mkstemp_hook[] = "XXXXXX";
   scoped_array<char> template_name(
       new char[prefix_name.size() + sizeof(mkstemp_hook)]);
@@ -219,12 +243,13 @@ FileSystem::OutputFile* AprFileSystem::OpenTempFileHelper(
                    "open temp file", ret);
     return NULL;
   }
-  return new HtmlWriterOutputFile(file, template_name.get());
+  return new HtmlWriterOutputFile(file, template_name.get(), mutex_);
 }
 
 bool AprFileSystem::RenameFileHelper(
     const char* old_filename, const char* new_filename,
     MessageHandler* message_handler) {
+  ScopedMutex hold_mutex(mutex_);
   apr_status_t ret = apr_file_rename(old_filename, new_filename, pool_);
   if (ret != APR_SUCCESS) {
     AprReportError(message_handler, new_filename, 0, "renaming temp file", ret);
@@ -234,6 +259,7 @@ bool AprFileSystem::RenameFileHelper(
 }
 bool AprFileSystem::RemoveFile(const char* filename,
                                MessageHandler* message_handler) {
+  ScopedMutex hold_mutex(mutex_);
   apr_status_t ret = apr_file_remove(filename, pool_);
   if (ret != APR_SUCCESS) {
     AprReportError(message_handler, filename, 0, "removing file", ret);
@@ -244,6 +270,7 @@ bool AprFileSystem::RemoveFile(const char* filename,
 
 bool AprFileSystem::MakeDir(const char* directory_path,
                             MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   apr_status_t ret = apr_dir_make(directory_path, APR_FPROT_OS_DEFAULT, pool_);
   if (ret != APR_SUCCESS) {
     AprReportError(handler, directory_path, 0, "creating dir", ret);
@@ -253,6 +280,7 @@ bool AprFileSystem::MakeDir(const char* directory_path,
 }
 
 BoolOrError AprFileSystem::Exists(const char* path, MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   BoolOrError exists;  // Error is the default state.
   apr_int32_t wanted = APR_FINFO_TYPE;
   apr_finfo_t finfo;
@@ -267,6 +295,7 @@ BoolOrError AprFileSystem::Exists(const char* path, MessageHandler* handler) {
 }
 
 BoolOrError AprFileSystem::IsDir(const char* path, MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   BoolOrError is_dir;  // Error is the default state.
   apr_int32_t wanted = APR_FINFO_TYPE;
   apr_finfo_t finfo;
@@ -287,21 +316,25 @@ bool AprFileSystem::ListContents(const StringPiece& dir,
   EnsureEndsInSlash(&dirString);
   const char* dirname = dirString.c_str();
   apr_dir_t* mydir;
+  mutex_->Lock();
   apr_status_t ret = apr_dir_open(&mydir, dirname, pool_);
+  mutex_->Unlock();
   if (ret != APR_SUCCESS) {
     AprReportError(handler, dirname, 0, "failed to opendir", ret);
     return false;
   } else {
     apr_finfo_t finfo;
     apr_int32_t wanted = APR_FINFO_NAME;
-    while (apr_dir_read(&finfo, wanted, mydir) != APR_ENOENT) {
+    while (locked_apr_dir_read(mutex_, &finfo, wanted, mydir) != APR_ENOENT) {
       if ((strcmp(finfo.name, ".") != 0) &&
           (strcmp(finfo.name, "..") != 0)) {
         files->push_back(dirString + finfo.name);
       }
     }
   }
+  mutex_->Lock();
   ret = apr_dir_close(mydir);
+  mutex_->Unlock();
   if (ret != APR_SUCCESS) {
     AprReportError(handler, dirname, 0, "failed to closedir", ret);
     return false;
@@ -311,6 +344,7 @@ bool AprFileSystem::ListContents(const StringPiece& dir,
 
 bool AprFileSystem::Atime(const StringPiece& path,
                           int64* timestamp_sec, MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   // TODO(abliss): there are some situations where this doesn't work
   // -- e.g. if the filesystem is mounted noatime.
   const std::string path_string = path.as_string();
@@ -329,6 +363,7 @@ bool AprFileSystem::Atime(const StringPiece& path,
 
 bool AprFileSystem::Ctime(const StringPiece& path,
                           int64* timestamp_sec, MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   const std::string path_string = path.as_string();
   const char* path_str = path_string.c_str();
   apr_int32_t wanted = APR_FINFO_CTIME;
@@ -345,6 +380,7 @@ bool AprFileSystem::Ctime(const StringPiece& path,
 
 bool AprFileSystem::Size(const StringPiece& path, int64* size,
                            MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   const std::string path_string = path.as_string();
   const char* path_str = path_string.c_str();
   apr_int32_t wanted = APR_FINFO_SIZE;
@@ -361,6 +397,7 @@ bool AprFileSystem::Size(const StringPiece& path, int64* size,
 
 BoolOrError AprFileSystem::TryLock(const StringPiece& lock_name,
                                    MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   const std::string lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
   // TODO(abliss): mkdir is not atomic on all platforms.  We should
@@ -393,23 +430,42 @@ BoolOrError AprFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
   }
 
   if (apr_time_now() - c_time_us < timeout_ms * 1000) {
-    // The lock is insufficiently stale.
+    // The lock is held and timeout hasn't elapsed.
     return BoolOrError(false);
   }
+  // Lock has timed out.  We have two options here:
+  // 1) Leave the lock in its present state and assume we've taken ownership.
+  //    This is kind to the file system, but causes lots of repeated work at
+  //    timeout, as subsequent threads also see a timed-out lock.
+  // 2) Force-unlock the lock and re-lock it.  This resets the timeout period,
+  //    but is hard on the file system metadata log.
   if (!Unlock(lock_name, handler)) {
     // We couldn't break the lock.  Maybe someone else beat us to it.
-    return BoolOrError();
+    // We optimistically forge ahead anyhow (1), since we know we've timed out.
+    handler->Info(lock_str, 0,
+                  "Breaking lock without reset! now-ctime=%d-%d > %d (sec)\n%s",
+                  static_cast<int>(apr_time_now() / Timer::kSecondUs),
+                  static_cast<int>(c_time_us / Timer::kSecondUs),
+                  static_cast<int>(timeout_ms / Timer::kSecondMs),
+                  StackTraceString().c_str());
+    return BoolOrError(true);
   }
-  handler->Info(lock_str, 0, "Breaking lock! now-ctime=%d-%d > %d (sec)",
+  handler->Info(lock_str, 0, "Broke lock! now-ctime=%d-%d > %d (sec)\n%s",
                 static_cast<int>(apr_time_now() / Timer::kSecondUs),
                 static_cast<int>(c_time_us / Timer::kSecondUs),
-                static_cast<int>(timeout_ms / Timer::kSecondMs));
-
-  return TryLock(lock_name, handler);
+                static_cast<int>(timeout_ms / Timer::kSecondMs),
+                StackTraceString().c_str());
+  result = TryLock(lock_name, handler);
+  if (!result.is_true()) {
+    // Someone else grabbed the lock after we broke it.
+    handler->Info(lock_str, 0, "Failed to take lock after breaking it!");
+  }
+  return result;
 }
 
 bool AprFileSystem::Unlock(const StringPiece& lock_name,
                            MessageHandler* handler) {
+  ScopedMutex hold_mutex(mutex_);
   const std::string lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
   apr_status_t ret = apr_dir_remove(lock_str, pool_);

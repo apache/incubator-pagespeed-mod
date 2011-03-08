@@ -99,16 +99,13 @@ string Value::ToString() const {
     case URI:
       return StringPrintf("url(%s)",
                           CSSEscapeString(GetStringValue()).c_str());
-    case COUNTER:
-      return StringPrintf("counter(%s)",
-                          GetParameters()->ToString().c_str());
     case FUNCTION:
       return StringPrintf("%s(%s)",
                           CSSEscapeString(GetFunctionName()).c_str(),
-                          GetParameters()->ToString().c_str());
+                          GetParametersWithSeparators()->ToString().c_str());
     case RECT:
       return StringPrintf("rect(%s)",
-                          GetParameters()->ToString().c_str());
+                          GetParametersWithSeparators()->ToString().c_str());
     case COLOR:
       if (GetColorValue().IsDefined())
         return GetColorValue().ToString();
@@ -130,6 +127,25 @@ string Value::ToString() const {
 
 string Values::ToString() const {
   return JoinElementStrings(*this, " ");
+}
+
+string FunctionParameters::ToString() const {
+  string ret;
+  if (size() >= 1) {
+    ret += value(0)->ToString();
+  }
+  for (int i = 1, n = size(); i < n; ++i) {
+    switch (separator(i)) {
+      case FunctionParameters::COMMA_SEPARATED:
+        ret += ", ";
+        break;
+      case FunctionParameters::SPACE_SEPARATED:
+        ret += " ";
+        break;
+    }
+    ret += value(i)->ToString();
+  }
+  return ret;
 }
 
 string SimpleSelector::ToString() const {
@@ -172,7 +188,9 @@ string SimpleSelector::ToString() const {
       return StringPrintf("#%s",
                           CSSEscapeString(value()).c_str());
     case PSEUDOCLASS:
-      return StringPrintf(":%s",
+      return StringPrintf("%s%s",
+                          // pseudoclass_separator() is either ":" or "::".
+                          UnicodeTextToUTF8(pseudoclass_separator()).c_str(),
                           CSSEscapeString(pseudoclass()).c_str());
     case LANG:
       return StringPrintf(":lang(%s)",

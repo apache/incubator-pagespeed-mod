@@ -32,26 +32,14 @@ namespace net_instaweb {
 
 CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
-      html_parse_(driver->html_parse()),
-      href_atom_(html_parse_->Intern("href")),
-      link_atom_(html_parse_->Intern("link")),
-      media_atom_(html_parse_->Intern("media")),
-      rel_atom_(html_parse_->Intern("rel")),
-      style_atom_(html_parse_->Intern("style")),
       size_threshold_bytes_(driver->options()->css_inline_max_bytes()) {}
 
 void CssInlineFilter::StartDocumentImpl() {
-  // TODO(sligocki): Domain lawyerify.
-  domain_ = html_parse_->gurl().host();
-}
-
-void CssInlineFilter::EndDocument() {
-  domain_.clear();
 }
 
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
-  if (element->tag() == link_atom_) {
-    const char* rel = element->AttributeValue(rel_atom_);
+  if (element->keyword() == HtmlName::kLink) {
+    const char* rel = element->AttributeValue(HtmlName::kRel);
     if (rel == NULL || strcmp(rel, "stylesheet")) {
       return;
     }
@@ -59,13 +47,13 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     // If the link tag has a media attribute whose value isn't "all", don't
     // inline.  (Note that "all" is equivalent to having no media attribute;
     // see http://www.w3.org/TR/html5/semantics.html#the-style-element)
-    const char* media = element->AttributeValue(media_atom_);
+    const char* media = element->AttributeValue(HtmlName::kMedia);
     if (media != NULL && strcmp(media, "all") != 0) {
       return;
     }
 
     // Get the URL where the external script is stored
-    const char* href = element->AttributeValue(href_atom_);
+    const char* href = element->AttributeValue(HtmlName::kHref);
     if (href == NULL) {
       return;  // We obviously can't inline if the URL isn't there.
     }
@@ -76,7 +64,7 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     // Or do we still have to check for strict domain equivalence?
     // If so, add an inline-in-page policy to domainlawyer in some form,
     // as we make a similar policy decision in js_inline_filter.
-    MessageHandler* message_handler = html_parse_->message_handler();
+    MessageHandler* message_handler = driver_->message_handler();
     scoped_ptr<Resource> resource(CreateInputResourceAndReadIfCached(href));
     if (resource == NULL  || !resource->ContentsValid()) {
       return;
@@ -118,11 +106,11 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
 
     // Inline the CSS.
     HtmlElement* style_element =
-        html_parse_->NewElement(element->parent(), style_atom_);
-    if (html_parse_->ReplaceNode(element, style_element)) {
-      html_parse_->AppendChild(
-          style_element, html_parse_->NewCharactersNode(element,
-                                                        rewritten_contents));
+        driver_->NewElement(element->parent(), HtmlName::kStyle);
+    if (driver_->ReplaceNode(element, style_element)) {
+      driver_->AppendChild(
+          style_element,
+          driver_->NewCharactersNode(element, rewritten_contents));
     }
   }
 }

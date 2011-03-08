@@ -18,6 +18,8 @@
 
 #include "net/instaweb/rewriter/public/css_filter.h"
 
+#include <algorithm>
+
 #include "base/at_exit.h"
 
 #include "base/scoped_ptr.h"
@@ -54,15 +56,12 @@ const char CssFilter::kFilesMinified[] = "css_filter_files_minified";
 const char CssFilter::kMinifiedBytesSaved[] = "css_filter_minified_bytes_saved";
 const char CssFilter::kParseFailures[] = "css_filter_parse_failures";
 
-CssFilter::CssFilter(RewriteDriver* driver, const StringPiece& path_prefix)
+CssFilter::CssFilter(RewriteDriver* driver, const StringPiece& path_prefix,
+                     CacheExtender* cache_extender,
+                     ImgRewriteFilter* image_rewriter)
     : RewriteSingleResourceFilter(driver, path_prefix),
-      html_parse_(driver->html_parse()),
-      resource_manager_(driver->resource_manager()),
       in_style_element_(false),
-      s_style_(html_parse_->Intern("style")),
-      s_link_(html_parse_->Intern("link")),
-      s_rel_(html_parse_->Intern("rel")),
-      s_href_(html_parse_->Intern("href")),
+      image_rewriter_(driver, cache_extender, image_rewriter),
       num_files_minified_(NULL),
       minified_bytes_saved_(NULL),
       num_parse_failures_(NULL) {
@@ -74,11 +73,16 @@ CssFilter::CssFilter(RewriteDriver* driver, const StringPiece& path_prefix)
   }
 }
 
+int CssFilter::FilterCacheFormatVersion() const {
+  return 1;
+}
+
 void CssFilter::Initialize(Statistics* statistics) {
   if (statistics != NULL) {
     statistics->AddVariable(CssFilter::kFilesMinified);
     statistics->AddVariable(CssFilter::kMinifiedBytesSaved);
     statistics->AddVariable(CssFilter::kParseFailures);
+    CssImageRewriter::Initialize(statistics);
   }
 
   InitializeAtExitManager();
@@ -106,7 +110,7 @@ void CssFilter::StartDocumentImpl() {
 void CssFilter::StartElementImpl(HtmlElement* element) {
   // HtmlParse should not pass us elements inside a style element.
   CHECK(!in_style_element_);
-  if (element->tag() == s_style_) {
+  if (element->keyword() == HtmlName::kStyle) {
     in_style_element_ = true;
     style_element_ = element;
     style_char_node_ = NULL;
@@ -119,7 +123,7 @@ void CssFilter::Characters(HtmlCharactersNode* characters_node) {
     if (style_char_node_ == NULL) {
       style_char_node_ = characters_node;
     } else {
-      html_parse_->ErrorHere("Multiple character nodes in style.");
+      driver_->ErrorHere("Multiple character nodes in style.");
       in_style_element_ = false;
     }
   }
@@ -130,25 +134,28 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
   if (in_style_element_) {
     CHECK(style_element_ == element);  // HtmlParse should not pass unmatching.
 
-    if (html_parse_->IsRewritable(element) && style_char_node_ != NULL) {
+    if (driver_->IsRewritable(element) && style_char_node_ != NULL) {
       CHECK(element == style_char_node_->parent());  // Sanity check.
       std::string new_content;
+      int64 input_expire_ms;  // not used here.
       if (RewriteCssText(style_char_node_->contents(), &new_content,
-                         StrCat("inline CSS in ", html_parse_->url()),
-                         html_parse_->message_handler())) {
+                         driver_->base_url(), &input_expire_ms,
+                         driver_->message_handler())) {
         // Note: Copy of new_content here.
         HtmlCharactersNode* new_style_char_node =
-            html_parse_->NewCharactersNode(element, new_content);
-        html_parse_->ReplaceNode(style_char_node_, new_style_char_node);
+            driver_->NewCharactersNode(element, new_content);
+        driver_->ReplaceNode(style_char_node_, new_style_char_node);
       }
     }
     in_style_element_ = false;
 
   // Rewrite an external style.
-  } else if (element->tag() == s_link_ && html_parse_->IsRewritable(element)) {
-    StringPiece relation(element->AttributeValue(s_rel_));
+  } else if (element->keyword() == HtmlName::kLink &&
+             driver_->IsRewritable(element)) {
+    StringPiece relation(element->AttributeValue(HtmlName::kRel));
     if (relation == kStylesheet) {
-      HtmlElement::Attribute* element_href = element->FindAttribute(s_href_);
+      HtmlElement::Attribute* element_href = element->FindAttribute(
+          HtmlName::kHref);
       if (element_href != NULL) {
         // If it has a href= attribute
         std::string new_url;
@@ -156,7 +163,7 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
           element_href->SetValue(new_url);  // Update the href= attribute.
         }
       } else {
-        html_parse_->ErrorHere("Link element with no href.");
+        driver_->ErrorHere("Link element with no href.");
       }
     }
   }
@@ -164,24 +171,34 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
 
 // Return value answers the question: May we rewrite?
 // If return false, out_text is undefined.
-// id should be the URL for external CSS and other identifying info
-// for inline CSS. It is used to log where the CSS parsing error was.
+// css_gurl is the URL used to resolve relative URLs in the CSS.
+// Specifically, it should be the address of the CSS document itself.
 bool CssFilter::RewriteCssText(const StringPiece& in_text,
                                std::string* out_text,
-                               const std::string& id,
+                               const GoogleUrl& css_gurl,
+                               int64* subresource_expiration_time_ms,
                                MessageHandler* handler) {
-  // Load stylesheet w/o expanding background attributes.
+  // Load stylesheet w/o expanding background attributes and preserving all
+  // values from original document.
   Css::Parser parser(in_text);
+  parser.set_allow_all_values(true);
   scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
-  bool ret = false;
-  if (parser.errors_seen_mask() != Css::Parser::kNoError) {
-    html_parse_->InfoHere("CSS parsing error in %s", id.c_str());
+  bool ret = true;
+  if (stylesheet.get() == NULL ||
+      parser.errors_seen_mask() != Css::Parser::kNoError) {
+    ret = false;
+    driver_->InfoHere("CSS parsing error in %s",
+                      css_gurl.Spec().as_string().c_str());
     if (num_parse_failures_ != NULL) {
       num_parse_failures_->Add(1);
     }
   } else {
-    // TODO(sligocki): Edit stylesheet.
+    // Edit stylesheet.
+    bool edited_css =
+        image_rewriter_.RewriteCssImages(css_gurl.gurl(), stylesheet.get(),
+                                         subresource_expiration_time_ms,
+                                         handler);
 
     // Re-serialize stylesheet.
     StringWriter writer(out_text);
@@ -190,24 +207,36 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
     // Get signed versions so that we can subtract them.
     int64 out_text_size = static_cast<int64>(out_text->size());
     int64 in_text_size = static_cast<int64>(in_text.size());
+    int64 bytes_saved = in_text_size - out_text_size;
 
-    // Don't rewrite if we don't make it smaller.
-    ret = (out_text_size < in_text_size);
+    // Don't rewrite if we didn't edit it or make it any smaller.
+    if (!edited_css && bytes_saved <= 0) {
+      ret = false;
+      driver_->InfoHere("CSS parser increased size of CSS file %s by %lld "
+                        "bytes.", css_gurl.Spec().as_string().c_str(),
+                        static_cast<long long int>(-bytes_saved));
+    }
 
     // Don't rewrite if we blanked the CSS file! (This is a parse error)
     // TODO(sligocki): Don't error if in_text is all whitespace.
     if (out_text_size == 0 && in_text_size != 0) {
       ret = false;
-      html_parse_->InfoHere("CSS parsing error in %s", id.c_str());
+      driver_->InfoHere("CSS parsing error in %s",
+                        css_gurl.Spec().as_string().c_str());
       if (num_parse_failures_ != NULL) {
         num_parse_failures_->Add(1);
       }
     }
 
     // Statistics
-    if (ret && num_files_minified_ != NULL) {
-      num_files_minified_->Add(1);
-      minified_bytes_saved_->Add(in_text_size - out_text_size);
+    if (ret) {
+      driver_->InfoHere("Successfully rewrote CSS file %s saving %lld "
+                        "bytes.", css_gurl.Spec().as_string().c_str(),
+                        static_cast<long long int>(bytes_saved));
+      if (num_files_minified_ != NULL) {
+        num_files_minified_->Add(1);
+        minified_bytes_saved_->Add(bytes_saved);
+      }
     }
     // TODO(sligocki): Do we want to save the AST 'stylesheet' somewhere?
     // It currently, deletes itself at the end of the function.
@@ -215,7 +244,6 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
 
   return ret;
 }
-
 
 // Combine all 'original_stylesheets' (and all their sub stylescripts) into a
 // single returned stylesheet which has no @imports or returns NULL if we fail
@@ -268,7 +296,7 @@ bool CssFilter::LoadAllSubStylesheets(
     // Fetch external stylesheet from url ...
     Css::Stylesheet* sub_stylesheet = LoadStylesheet(url);
     if (sub_stylesheet == NULL) {
-      html_parse_->ErrorHere("Failed to load sub-resource %s",
+      driver_->ErrorHere("Failed to load sub-resource %s",
                              url.as_string().c_str());
       return false;
     }
@@ -287,75 +315,47 @@ bool CssFilter::LoadAllSubStylesheets(
 // Read an external CSS file, rewrite it and write a new external CSS file.
 bool CssFilter::RewriteExternalCss(const StringPiece& in_url,
                                    std::string* out_url) {
-  bool ret = false;
-  scoped_ptr<Resource> input_resource(CreateInputResource(in_url));
-  scoped_ptr<OutputResource> output_resource(CreateOutputResourceFromResource(
-      &kContentTypeCss, resource_manager_->url_escaper(),
-      input_resource.get()));
-  if (output_resource.get() != NULL &&
-      RewriteExternalCssToResource(input_resource.get(),
-                                   output_resource.get())) {
-    ret = true;
-    *out_url = output_resource->url();
+  scoped_ptr<OutputResource::CachedResult> rewrite_info(
+      RewriteWithCaching(in_url, resource_manager_->url_escaper()));
+
+  if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
+    *out_url = rewrite_info->url();
+    return true;
   }
-  return ret;
+  return false;
 }
 
-// Rewrite in input_resource once it has already been loaded.
-bool CssFilter::RewriteExternalCssToResource(Resource* input_resource,
-                                             OutputResource* output_resource) {
-  bool ret;
-  if (!output_resource->optimizable()) {
-    // We remember a failed attempt; don't retry until input expires.
-    ret = false;
-  } else if (output_resource->HasValidUrl()) {
-    // We remember result of a successful attempt, just use that.
-    ret = true;
-  } else {
-    // Need to do the work...
-    ret = false;
-    MessageHandler* handler = html_parse_->message_handler();
-    if (input_resource != NULL &&
-        resource_manager_->ReadIfCached(input_resource, handler)) {
-      if (input_resource->ContentsValid()) {
-        ret = RewriteLoadedResource(input_resource, output_resource);
-      } else {
-        // TODO(sligocki): Should these really be HtmlParse warnings?
-        html_parse_->WarningHere("CSS resource fetch failed: %s",
-                                 input_resource->url().c_str());
-      }
-    }
-  }
-
-  return ret;
-}
-
-bool CssFilter::RewriteLoadedResource(const Resource* input_resource,
-                                      OutputResource* output_resource) {
+RewriteSingleResourceFilter::RewriteResult CssFilter::RewriteLoadedResource(
+    const Resource* input_resource,
+    OutputResource* output_resource,
+    UrlSegmentEncoder* encoder) {
   CHECK(input_resource->loaded());
+  bool ret = false;
   if (input_resource->ContentsValid()) {
     // Rewrite stylesheet.
     StringPiece in_contents = input_resource->contents();
     std::string out_contents;
-    if (!RewriteCssText(in_contents, &out_contents, input_resource->url(),
-                        html_parse_->message_handler())) {
-      resource_manager_->WriteUnoptimizable(
-          output_resource, input_resource->CacheExpirationTimeMs(),
-          html_parse_->message_handler());
-      return false;
-    }
-
-    // Write new stylesheet.
-    if (!resource_manager_->Write(HttpStatus::kOK,
-                                  out_contents,
-                                  output_resource,
-                                  input_resource->CacheExpirationTimeMs(),
-                                  html_parse_->message_handler())) {
-      return false;
+    // TODO(sligocki): Store the GURL in the input_resource.
+    GoogleUrl css_gurl(input_resource->url());
+    int64 subresource_expire_ms;
+    if (css_gurl.is_valid() &&
+        RewriteCssText(in_contents, &out_contents, css_gurl,
+                       &subresource_expire_ms,
+                       driver_->message_handler())) {
+      // Write new stylesheet.
+      int64 expire_ms = std::min(subresource_expire_ms,
+                                 input_resource->CacheExpirationTimeMs());
+      output_resource->SetType(&kContentTypeCss);
+      if (resource_manager_->Write(HttpStatus::kOK,
+                                   out_contents,
+                                   output_resource,
+                                   expire_ms,
+                                   driver_->message_handler())) {
+        ret = output_resource->IsWritten();
+      }
     }
   }
-
-  return output_resource->IsWritten();
+  return ret ? kRewriteOk : kRewriteFailed;
 }
 
 }  // namespace net_instaweb

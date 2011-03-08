@@ -19,21 +19,39 @@
 
 #include "net/instaweb/util/public/symbol_table.h"
 
+namespace {
+
+// Strategically select a chunk size that will allow for some fixed
+// overhead imposed by some versions of malloc.  If we have a
+// zero-overhead malloc like tcmalloc there's no big deal in missing
+// out on 16 bytes on a chunk this big.
+const size_t kChunkSize = 32768 - 16;
+
+}  // namespace
+
 namespace net_instaweb {
 
 template<class CharTransform>
-SymbolTable<CharTransform>::SymbolTable() {
-  string_set_.set_empty_key(StringPiece());
+SymbolTable<CharTransform>::SymbolTable()
+    : next_ptr_(NULL),
+      string_bytes_allocated_(0) {
 }
 
 template<class CharTransform>
-SymbolTable<CharTransform>::~SymbolTable() {
-  // Note: this is safe because we don't need the actual contents to test
-  // the data vs. empty keys, which is all we need in ~dense_hash_set
-  for (typename SymbolSet::iterator p = string_set_.begin();
-        p != string_set_.end(); ++p) {
-    std::free(const_cast<char*>(p->data()));
+void SymbolTable<CharTransform>::Clear() {
+  string_set_.clear();
+  for (int i = 0, n = storage_.size(); i < n; ++i) {
+    std::free(storage_[i]);
   }
+  storage_.clear();
+  next_ptr_ = NULL;
+  string_bytes_allocated_ = 0;
+}
+
+template<class CharTransform>
+void SymbolTable<CharTransform>::NewStorage() {
+  next_ptr_ = static_cast<char*>(std::malloc(kChunkSize));
+  storage_.push_back(next_ptr_);
 }
 
 template<class CharTransform>
@@ -44,9 +62,39 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
 
   typename SymbolSet::const_iterator iter = string_set_.find(src);
   if (iter == string_set_.end()) {
-    char* str = strdup(src.data());
-    string_set_.insert(StringPiece(str));
-    return Atom(str);
+    // Lazy-initialize to ensure at least one available block.
+    if (storage_.empty()) {
+      NewStorage();
+    }
+
+    size_t bytes_required = src.size() + 1;  // leave space for null byte
+    char* new_symbol_storage = NULL;
+    if (bytes_required > kChunkSize / 4) {
+      // The string we are trying to put into the symbol table is sufficiently
+      // large that it might waste a lot of our chunked storage, so just
+      // allocate it directly.
+      new_symbol_storage = static_cast<char*>(std::malloc(bytes_required));
+
+      // Insert this large chunk into the second-to-last position in the
+      // storage array so that we can keep using the last normal chunk.
+      int last_pos = storage_.size() - 1;
+      storage_.push_back(storage_[last_pos]);
+      storage_[last_pos] = new_symbol_storage;
+    } else {
+      DCHECK_GE(next_ptr_, storage_.back());
+      size_t bytes_used = next_ptr_ - storage_.back();
+      size_t bytes_remaining = kChunkSize - bytes_used;
+      if (bytes_remaining < bytes_required) {
+        NewStorage();
+      }
+      new_symbol_storage = next_ptr_;
+      next_ptr_ += bytes_required;
+    }
+    memcpy(new_symbol_storage, src.data(), src.size());
+    new_symbol_storage[src.size()] = '\0';
+    string_set_.insert(StringPiece(new_symbol_storage, src.size()));
+    string_bytes_allocated_ += bytes_required;
+    return Atom(new_symbol_storage);
   }
   return Atom(iter->data());
 }

@@ -39,14 +39,18 @@ namespace net_instaweb {
 
 class Timer;
 
+// TODO(jmarantz): rename HtmlParse to HtmlContext.  The actual
+// parsing occurs in HtmlLexer, and this class is dominated by methods
+// to manipulate DOM as it streams through.
 class HtmlParse {
  public:
   explicit HtmlParse(MessageHandler* message_handler);
-  ~HtmlParse();
+  virtual ~HtmlParse();
 
   // Application methods for parsing functions and adding filters
 
-  // Add a new html filter to the filter-chain
+  // Add a new html filter to the filter-chain, without taking ownership
+  // of it.
   void AddFilter(HtmlFilter* filter);
 
   // Initiate a chunked parsing session.  Finish with FinishParse.  The
@@ -59,10 +63,15 @@ class HtmlParse {
                           const ContentType& content_type) {
     return StartParseId(url, url, content_type);
   }
+
+  // Returns whether the gurl() URL is valid.
+  bool is_url_valid() const { return url_valid_; }
+
   // Use an error message id that is distinct from the url.
-  // Mostly useful for testing.
-  bool StartParseId(const StringPiece& url, const StringPiece& id,
-                    const ContentType& content_type);
+  // Mostly useful for file-based rewriters so that messages can reference
+  // the HTML file and produce navigable errors.
+  virtual bool StartParseId(const StringPiece& url, const StringPiece& id,
+                            const ContentType& content_type);
 
   // Parses an arbitrary block of an html file, queuing up the events.  Call
   // Flush to send the events through the Filter.
@@ -93,7 +102,7 @@ class HtmlParse {
   //
   // It is invalid to call FinishParse when the StartParse* routines returned
   // false.
-  void FinishParse();
+  virtual void FinishParse();
 
 
   // Utility methods for implementing filters
@@ -170,8 +179,33 @@ class HtmlParse {
   // otherwise, do nothing and return false.
   bool ReplaceNode(HtmlNode* existing_node, HtmlNode* new_node);
 
+  // Creates an another element with the same name and attributes as in_element.
+  // Does not duplicate the children or insert it anywhere.
+  HtmlElement* CloneElement(HtmlElement* in_element);
 
-  HtmlElement* NewElement(HtmlElement* parent, Atom tag);
+  HtmlElement* NewElement(HtmlElement* parent, const StringPiece& str) {
+    return NewElement(parent, MakeName(str));
+  }
+  HtmlElement* NewElement(HtmlElement* parent, HtmlName::Keyword keyword) {
+    return NewElement(parent, MakeName(keyword));
+  }
+  HtmlElement* NewElement(HtmlElement* parent, const HtmlName& name);
+
+  void AddAttribute(HtmlElement* element, HtmlName::Keyword keyword,
+                    const StringPiece& value) {
+    return element->AddAttribute(MakeName(keyword), value, "\"");
+  }
+  void AddAttribute(HtmlElement* element, HtmlName::Keyword keyword,
+                    int value) {
+    return AddAttribute(element, keyword, IntegerToString(value));
+  }
+  void SetAttributeName(HtmlElement::Attribute* attribute,
+                        HtmlName::Keyword keyword) {
+    attribute->set_name(MakeName(keyword));
+  }
+
+  HtmlName MakeName(const StringPiece& str);
+  HtmlName MakeName(HtmlName::Keyword keyword);
 
   bool IsRewritable(const HtmlNode* node) const;
 
@@ -179,28 +213,22 @@ class HtmlParse {
 
   void DebugPrintQueue();  // Print queue (for debugging)
 
-  Atom Intern(const std::string& name) {
-    return string_table_.Intern(name);
-  }
-  Atom Intern(const char* name) {
-    return string_table_.Intern(name);
-  }
-
   // Implementation helper with detailed knowledge of html parsing libraries
   friend class HtmlLexer;
 
   // Determines whether a tag should be terminated in HTML.
-  bool IsImplicitlyClosedTag(Atom tag) const;
+  bool IsImplicitlyClosedTag(HtmlName::Keyword keyword) const;
 
   // Determines whether a tag allows brief termination in HTML, e.g. <tag/>
-  bool TagAllowsBriefTermination(Atom tag) const;
+  bool TagAllowsBriefTermination(HtmlName::Keyword keyword) const;
 
   MessageHandler* message_handler() const { return message_handler_; }
   // Gets the current location information; typically to help with error
   // messages.
   const char* url() const { return url_.c_str(); }
   // Gets a parsed GURL& corresponding to url().
-  const GURL& gurl() const { return gurl_; }
+  const GURL& gurl() const { return google_url_.gurl(); }
+  const GoogleUrl& google_url() const { return google_url_; }
   const char* id() const { return id_.c_str(); }
   int line_number() const { return line_number_; }
   // Return the current assumed doctype of the document (based on the content
@@ -249,9 +277,10 @@ class HtmlParse {
   // for testing.
   void ApplyFilter(HtmlFilter* filter);
 
-  // Provide timer to helping to report timing of each filter.  In the absense
-  // of a timer, reporting will be suppressed.
+  // Provide timer to helping to report timing of each filter.  You must also
+  // set_log_rewrite_timing(true) to turn on this reporting.
   void set_timer(Timer* timer) { timer_ = timer; }
+  void set_log_rewrite_timing(bool x) { log_rewrite_timing_ = x; }
 
  private:
   HtmlEventListIterator Last();  // Last element in queue
@@ -275,8 +304,11 @@ class HtmlParse {
   void AddEvent(HtmlEvent* event);
   void SetCurrent(HtmlNode* node);
   void set_coalesce_characters(bool x) { coalesce_characters_ = x; }
+  size_t symbol_table_size() const {
+    return string_table_.string_bytes_allocated();
+  }
 
-  SymbolTableInsensitive string_table_;
+  SymbolTableSensitive string_table_;
   std::vector<HtmlFilter*> filters_;
   HtmlLexer* lexer_;
   int sequence_;
@@ -286,14 +318,15 @@ class HtmlParse {
   // Have we deleted current? Then we shouldn't do certain manipulations to it.
   MessageHandler* message_handler_;
   std::string url_;
-  GURL gurl_;
+  GoogleUrl google_url_;
   std::string id_;  // Per-request identifier string used in error messages.
   int line_number_;
   bool deleted_current_;
   bool need_sanity_check_;
   bool coalesce_characters_;
   bool need_coalesce_characters_;
-  bool valid_;
+  bool url_valid_;
+  bool log_rewrite_timing_;  // Should we time the speed of parsing?
   int64 parse_start_time_us_;
   Timer* timer_;
 

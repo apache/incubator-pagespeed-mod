@@ -23,8 +23,7 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
-        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
         'util/content_type.cc',
@@ -50,8 +49,7 @@
         ],
       },
       'export_dependent_settings': [
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
-        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
     },
     {
@@ -61,15 +59,16 @@
         'instaweb_util_core',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
+        'genfiles/htmlparse/html_name.cc',
         'htmlparse/doctype.cc',
         'htmlparse/empty_html_filter.cc',
         'htmlparse/html_element.cc',
-        'htmlparse/html_escape.cc',
         'htmlparse/html_event.cc',
         'htmlparse/html_filter.cc',
+        'htmlparse/html_keywords.cc',
         'htmlparse/html_lexer.cc',
         'htmlparse/html_node.cc',
         'htmlparse/html_parse.cc',

@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 
 namespace net_instaweb {
 
@@ -39,6 +40,9 @@ class HtmlTestingPeer {
   }
   static void set_coalesce_characters(HtmlParse* parser, bool x) {
     parser->set_coalesce_characters(x);
+  }
+  static size_t symbol_table_size(HtmlParse* parser) {
+    return parser->symbol_table_size();
   }
 
  private:

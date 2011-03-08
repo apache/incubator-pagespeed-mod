@@ -35,18 +35,11 @@ class CssInlineFilter : public CommonFilter {
   explicit CssInlineFilter(RewriteDriver* driver);
 
   virtual void StartDocumentImpl();
-  virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "InlineCss"; }
 
  private:
-  HtmlParse* const html_parse_;
-  const Atom href_atom_;
-  const Atom link_atom_;
-  const Atom media_atom_;
-  const Atom rel_atom_;
-  const Atom style_atom_;
   const size_t size_threshold_bytes_;
 
   std::string domain_;

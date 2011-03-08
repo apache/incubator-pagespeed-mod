@@ -127,7 +127,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
       &response_headers, &writer);
   bool handled = rewrite_driver->FetchResource(
       url, request_headers, callback->response_headers(), callback->writer(),
-      message_handler, callback);
+      callback);
   if (handled) {
     AprTimer timer;
     message_handler->Message(kInfo, "Fetching resource %s...", url.c_str());
@@ -138,8 +138,8 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
       for (int64 start_ms = timer.NowMs(), now_ms = start_ms;
            !callback->done() && now_ms - start_ms < max_ms;
            now_ms = timer.NowMs()) {
-        int64 remaining_us = max_ms - (now_ms - start_ms);
-        sub_resource_fetcher->Poll(remaining_us);
+        int64 remaining_ms = max_ms - (now_ms - start_ms);
+        sub_resource_fetcher->Poll(remaining_ms);
       }
 
       if (!callback->done()) {
@@ -249,8 +249,8 @@ apr_status_t instaweb_handler(request_rec* request) {
       ret = OK;
     }
 
-  } else if (factory->slurping_enabled()) {
-    SlurpUrl(request->unparsed_uri, factory, request);
+  } else if (factory->slurping_enabled() || factory->test_proxy()) {
+    SlurpUrl(factory, request);
     if (request->status == HTTP_NOT_FOUND) {
       factory->IncrementSlurpCount();
     }
@@ -305,24 +305,7 @@ apr_status_t instaweb_handler(request_rec* request) {
 // request->unparsed_uri (which mod_rewrite might have mangled) when
 // procesing the request.
 apr_status_t save_url_for_instaweb_handler(request_rec *request) {
-  char* url = NULL;
-  bool need_copy = true;
-
-  /*
-   * In some contexts we are seeing relative URLs passed
-   * into request->unparsed_uri.  But when using mod_slurp, the rewritten
-   * HTML contains complete URLs, so this construction yields the host:port
-   * prefix twice.
-   *
-   * TODO(jmarantz): Figure out how to do this correctly at all times.
-   */
-  if (strncmp(request->unparsed_uri, "http://", 7) == 0) {
-    url = request->unparsed_uri;
-  } else {
-    url = ap_construct_url(request->pool, request->unparsed_uri, request);
-    need_copy = false;
-  }
-
+  char* url = InstawebContext::MakeRequestUrl(request);
   StringPiece parsed_url(request->uri);
   bool bypass_mod_rewrite = false;
   // Note: We cannot use request->handler because it may not be set yet :(
@@ -346,11 +329,7 @@ apr_status_t save_url_for_instaweb_handler(request_rec *request) {
   }
 
   if (bypass_mod_rewrite) {
-    if (need_copy) {
-      apr_table_set(request->notes, kResourceUrlNote, url);
-    } else {
-      apr_table_setn(request->notes, kResourceUrlNote, url);
-    }
+    apr_table_setn(request->notes, kResourceUrlNote, url);
   } else {
     // Leave behind a note for non-instaweb requests that says that
     // our handler got called and we decided to pass.  This gives us

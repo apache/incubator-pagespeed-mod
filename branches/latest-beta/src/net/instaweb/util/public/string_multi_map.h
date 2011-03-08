@@ -39,7 +39,7 @@ template<class StringCompare> class StringMultiMap {
 
   void Clear() {
     for (int i = 0, n = vector_.size(); i < n; ++i) {
-      delete [] vector_[i].second;
+      delete vector_[i].second;
     }
     map_.clear();
     vector_.clear();
@@ -56,8 +56,8 @@ template<class StringCompare> class StringMultiMap {
   // specify a variable multiple times by calling Add multiple times
   // with the same variable, and each of these values will be returned
   // in the vector.
-  bool Lookup(const char* name, CharStarVector* values) const {
-    typename Map::const_iterator p = map_.find(name);
+  bool Lookup(const StringPiece& name, StringStarVector* values) const {
+    typename Map::const_iterator p = map_.find(name.as_string());
     bool ret = false;
     if (p != map_.end()) {
       ret = true;
@@ -67,18 +67,19 @@ template<class StringCompare> class StringMultiMap {
   }
 
   // Remove all variables by name.  Returns true if anything was removed.
-  bool RemoveAll(const char* var_name) {
-    typename Map::iterator p = map_.find(var_name);
+  bool RemoveAll(const StringPiece& var_name) {
+    std::string var_string(var_name.data(), var_name.size());
+    typename Map::iterator p = map_.find(var_string);
     bool removed = (p != map_.end());
     if (removed) {
       StringPairVector temp_vector;  // Temp variable for new vector.
       temp_vector.reserve(vector_.size());
       for (int i = 0; i < num_values(); ++i) {
-        if (strcasecmp(name(i),  var_name) != 0) {
+        if (!StringCaseEqual(name(i),  var_string)) {
           temp_vector.push_back(vector_[i]);
         } else {
           removed = true;
-          delete [] vector_[i].second;
+          delete vector_[i].second;
         }
       }
 
@@ -93,22 +94,19 @@ template<class StringCompare> class StringMultiMap {
   const char* name(int index) const { return vector_[index].first; }
 
   // Note that the value can be NULL.
-  const char* value(int index) const { return vector_[index].second; }
+  const std::string* value(int index) const { return vector_[index].second; }
 
   // Add a new variable.  The value can be null.
   void Add(const StringPiece& var_name, const StringPiece& value) {
-    CharStarVector dummy_values;
+    StringStarVector dummy_values;
     std::string name_buf(var_name.data(), var_name.size());
     std::pair<typename Map::iterator, bool> iter_inserted = map_.insert(
         typename Map::value_type(name_buf.c_str(), dummy_values));
     typename Map::iterator iter = iter_inserted.first;
-    CharStarVector& values = iter->second;
-    char* value_copy = NULL;
+    StringStarVector& values = iter->second;
+    std::string* value_copy = NULL;
     if (value.data() != NULL) {
-      int value_size = value.size();
-      value_copy = new char[value_size + 1];
-      memcpy(value_copy, value.data(), value_size);
-      value_copy[value_size] = '\0';
+      value_copy = new std::string(value.as_string());
     }
     values.push_back(value_copy);
     vector_.push_back(StringPair(iter->first.c_str(), value_copy));
@@ -123,8 +121,8 @@ template<class StringCompare> class StringMultiMap {
   // Names (keys) in a std::string, and the string-pair-vector own the
   // value as an explicitly newed char*.  The risk of using a std::string
   // to hold the value is that the pointers will not survive a resize.
-  typedef std::pair<const char*, char*> StringPair;  // owns the value
-  typedef std::map<std::string, CharStarVector, StringCompare> Map;
+  typedef std::pair<const char*, std::string*> StringPair;  // owns the value
+  typedef std::map<std::string, StringStarVector, StringCompare> Map;
   typedef std::vector<StringPair> StringPairVector;
 
   Map map_;

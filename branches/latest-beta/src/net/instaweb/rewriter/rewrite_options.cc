@@ -75,16 +75,16 @@ bool RewriteOptions::ParseRewriteLevel(
     const StringPiece& in, RewriteLevel* out) {
   bool ret = false;
   if (in != NULL) {
-    if (strcasecmp(in.data(), "CoreFilters") == 0) {
+    if (StringCaseEqual(in, "CoreFilters")) {
       *out = kCoreFilters;
       ret = true;
-    } else if (strcasecmp(in.data(), "PassThrough") == 0) {
+    } else if (StringCaseEqual(in, "PassThrough")) {
       *out = kPassThrough;
       ret = true;
-    } else if (strcasecmp(in.data(), "TestingCoreFilters") == 0) {
+    } else if (StringCaseEqual(in, "TestingCoreFilters")) {
       *out = kTestingCoreFilters;
       ret = true;
-    } else if (strcasecmp(in.data(), "AllFilters") == 0) {
+    } else if (StringCaseEqual(in, "AllFilters")) {
       *out = kAllFilters;
       ret = true;
     }
@@ -106,7 +106,9 @@ RewriteOptions::RewriteOptions()
       max_url_segment_size_(kDefaultMaxUrlSegmentSize),
       max_url_size_(kMaxUrlSize),
       enabled_(true),
-      combine_across_paths_(true) {
+      combine_across_paths_(true),
+      log_rewrite_timing_(false),
+      lowercase_html_names_(false) {
   // TODO: If we instantiate many RewriteOptions, this should become a
   // public static method called once at startup.
   SetUp();
@@ -116,7 +118,6 @@ RewriteOptions::~RewriteOptions() {
 }
 
 void RewriteOptions::SetUp() {
-  name_filter_map_["add_base_tag"] = kAddBaseTag;
   name_filter_map_["add_head"] = kAddHead;
   name_filter_map_["add_instrumentation"] = kAddInstrumentation;
   name_filter_map_["collapse_whitespace"] = kCollapseWhitespace;
@@ -128,7 +129,8 @@ void RewriteOptions::SetUp() {
   name_filter_map_["inline_css"] = kInlineCss;
   name_filter_map_["inline_javascript"] = kInlineJavascript;
   name_filter_map_["insert_img_dimensions"] = kInsertImgDimensions;
-  name_filter_map_["left_trim_urls"] = kLeftTrimUrls;
+  name_filter_map_["left_trim_urls"] = kLeftTrimUrls;  // Deprecated
+  name_filter_map_["make_google_analytics_async"] = kMakeGoogleAnalyticsAsync;
   name_filter_map_["move_css_to_head"] = kMoveCssToHead;
   name_filter_map_["outline_css"] = kOutlineCss;
   name_filter_map_["outline_javascript"] = kOutlineJavascript;
@@ -138,6 +140,7 @@ void RewriteOptions::SetUp() {
   name_filter_map_["rewrite_images"] = kRewriteImages;
   name_filter_map_["rewrite_javascript"] = kRewriteJavascript;
   name_filter_map_["strip_scripts"] = kStripScripts;
+  name_filter_map_["trim_urls"] = kLeftTrimUrls;
 
   // Create an empty set for the pass-through level.
   level_filter_set_map_[kPassThrough];
@@ -145,26 +148,28 @@ void RewriteOptions::SetUp() {
   // Core filter level includes the "core" filter set.
   level_filter_set_map_[kCoreFilters].insert(kAddHead);
   level_filter_set_map_[kCoreFilters].insert(kCombineCss);
+  level_filter_set_map_[kCoreFilters].insert(kExtendCache);
+  level_filter_set_map_[kCoreFilters].insert(kInlineCss);
+  level_filter_set_map_[kCoreFilters].insert(kInlineJavascript);
+  level_filter_set_map_[kCoreFilters].insert(kInsertImgDimensions);
+  level_filter_set_map_[kCoreFilters].insert(kLeftTrimUrls);
+  level_filter_set_map_[kCoreFilters].insert(kRewriteImages);
   // TODO(jmarantz): re-enable javascript and CSS minification in
   // the core set after the reported bugs have been fixed.  They
   // can still be enabled individually.
-  // level_filter_set_map_[kCoreFilters].insert(kRewriteJavascript);
   // level_filter_set_map_[kCoreFilters].insert(kRewriteCss);
-  level_filter_set_map_[kCoreFilters].insert(kInlineCss);
-  level_filter_set_map_[kCoreFilters].insert(kInlineJavascript);
-  level_filter_set_map_[kCoreFilters].insert(kRewriteImages);
-  level_filter_set_map_[kCoreFilters].insert(kInsertImgDimensions);
-  level_filter_set_map_[kCoreFilters].insert(kExtendCache);
+  // level_filter_set_map_[kCoreFilters].insert(kRewriteJavascript);
 
   // Copy CoreFilters set into TestingCoreFilters set ...
   level_filter_set_map_[kTestingCoreFilters] =
       level_filter_set_map_[kCoreFilters];
   // ... and add possibly unsafe filters.
-  level_filter_set_map_[kTestingCoreFilters].insert(kRewriteJavascript);
+  level_filter_set_map_[kTestingCoreFilters].insert(kMakeGoogleAnalyticsAsync);
   level_filter_set_map_[kTestingCoreFilters].insert(kRewriteCss);
+  level_filter_set_map_[kTestingCoreFilters].insert(kRewriteJavascript);
 
   // Set complete set for all filters set.
-  for (int f = kFirstEnumFilter; f != kLastEnumFilter; ++f) {
+  for (int f = kFirstFilter; f != kLastFilter; ++f) {
     level_filter_set_map_[kAllFilters].insert(static_cast<Filter>(f));
   }
 }
@@ -182,7 +187,7 @@ bool RewriteOptions::DisableFiltersByCommaSeparatedList(
 }
 
 void RewriteOptions::DisableAllFiltersNotExplicitlyEnabled() {
-  for (int f = kFirstEnumFilter; f != kLastEnumFilter; ++f) {
+  for (int f = kFirstFilter; f != kLastFilter; ++f) {
     Filter filter = static_cast<Filter>(f);
     if (enabled_filters_.find(filter) == enabled_filters_.end()) {
       DisableFilter(filter);
@@ -285,6 +290,10 @@ void RewriteOptions::Merge(const RewriteOptions& first,
                               second.max_url_segment_size_);
   max_url_size_.Merge(first.max_url_size_,
                       second.max_url_size_);
+  log_rewrite_timing_.Merge(first.log_rewrite_timing_,
+                            second.log_rewrite_timing_);
+  lowercase_html_names_.Merge(first.lowercase_html_names_,
+                              second.lowercase_html_names_);
 
   // Note that the domain-lawyer merge works one-at-a-time, which is easier
   // to unit test.  So we have to call it twice.

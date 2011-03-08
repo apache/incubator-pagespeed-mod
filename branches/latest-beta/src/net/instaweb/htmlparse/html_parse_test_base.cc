@@ -16,9 +16,13 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#ifndef NET_INSTAWEB_HTMLPARSE_NULL_FILTER_H_
-#define NET_INSTAWEB_HTMLPARSE_NULL_FILTER_H_
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 
-int null_filter(int argc, char** argv);
+namespace net_instaweb {
 
-#endif  // NET_INSTAWEB_HTMLPARSE_NULL_FILTER_H_
+const char HtmlParseTestBaseNoAlloc::kTestDomain[] = "http://test.com/";
+
+HtmlParseTestBaseNoAlloc::~HtmlParseTestBaseNoAlloc() {
+}
+
+}  // namespace net_instaweb

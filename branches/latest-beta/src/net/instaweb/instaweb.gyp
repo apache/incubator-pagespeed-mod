@@ -55,7 +55,9 @@
         'util/abstract_condvar.cc',
         'util/abstract_mutex.cc',
         'util/cache_interface.cc',
+        'util/chunking_writer.cc',
         'util/data_url.cc',
+        'util/debug.cc',
         'util/file_cache.cc',
         'util/file_system.cc',
         'util/file_system_lock_manager.cc',
@@ -132,7 +134,6 @@
         'htmlparse/file_driver.cc',
         'htmlparse/file_statistics_log.cc',
         'htmlparse/logging_html_filter.cc',
-        'htmlparse/null_filter.cc',
         'htmlparse/statistics_log.cc',
       ],
       'include_dirs': [
@@ -303,6 +304,7 @@
       ],
       'sources': [
         'rewriter/css_filter.cc',
+        'rewriter/css_image_rewriter.cc',
         'rewriter/css_minify.cc',
       ],
       'include_dirs': [
@@ -333,9 +335,7 @@
       'sources': [
         'rewriter/add_head_filter.cc',
         'rewriter/add_instrumentation_filter.cc',
-        'rewriter/base_tag_filter.cc',
         'rewriter/cache_extender.cc',
-        'rewriter/combine_filter_base.cc',
         'rewriter/common_filter.cc',
         'rewriter/css_combine_filter.cc',
         'rewriter/css_inline_filter.cc',
@@ -344,14 +344,17 @@
         'rewriter/css_tag_scanner.cc',
         'rewriter/data_url_input_resource.cc',
         'rewriter/file_input_resource.cc',
+        'rewriter/google_analytics_filter.cc',
         'rewriter/js_inline_filter.cc',
         'rewriter/js_outline_filter.cc',
+        'rewriter/resource_combiner.cc',
         'rewriter/resource_tag_scanner.cc',
         'rewriter/rewrite_driver.cc',
         'rewriter/rewrite_driver_factory.cc',
         'rewriter/rewrite_filter.cc',
         'rewriter/rewrite_single_resource_filter.cc',
         'rewriter/rewrite_options.cc',
+        'rewriter/scan_filter.cc',
         'rewriter/script_tag_scanner.cc',
         'rewriter/strip_scripts_filter.cc',
         'rewriter/url_input_resource.cc',
@@ -396,8 +399,8 @@
         },
       ],
       'dependencies': [
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protoc#host',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -405,7 +408,7 @@
         ]
       },
       'export_dependent_settings': [
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
     },
     {
@@ -414,14 +417,14 @@
       'hard_dependency': 1,
       'dependencies': [
         'instaweb_http_genproto',
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
        ],
       'sources': [
         '<(protoc_out_dir)/net/instaweb/http/http.pb.cc',
       ],
       'export_dependent_settings': [
         'instaweb_http_genproto',
-        '<(DEPTH)/third_party/protobuf2/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ]
     },
   ],

@@ -49,7 +49,6 @@
 namespace net_instaweb {
 
 const int kCacheSize = 100 * 1000 * 1000;
-const char kTestDomain[] = "http://test.com/";
 
 class RewriteFilter;
 
@@ -200,7 +199,10 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
       Hasher* hasher,
       const StringPiece& expected_content);
 
-  virtual HtmlParse* html_parse() { return rewrite_driver_.html_parse(); }
+  // This definition is required by HtmlParseTestBase which defines this as
+  // pure abstract, so that the test subclass can define how it instantiates
+  // HtmlParse.
+  virtual RewriteDriver* html_parse() { return &rewrite_driver_; }
 
   // Initializes a resource for mock fetching.
   void InitResponseHeaders(const StringPiece& resource_name,
@@ -281,8 +283,7 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
     StringWriter writer(content);
     FetchCallback callback;
     bool fetched = rewrite_driver_.FetchResource(
-        url, request_headers, &response_headers, &writer, &message_handler_,
-        &callback);
+        url, request_headers, &response_headers, &writer, &callback);
     // The callback should be called if and only if FetchResource
     // returns true.
     EXPECT_EQ(fetched, callback.done());
@@ -299,6 +300,17 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   std::string Encode(const StringPiece& path,
                       const StringPiece& filter_id, const StringPiece& hash,
                       const StringPiece& name, const StringPiece& ext);
+
+  // Overrides the async fetcher on the primary context to be a
+  // wait fetcher which permits delaying callback invocation, and returns a
+  // pointer to the new fetcher.
+  WaitUrlAsyncFetcher* SetupWaitFetcher() {
+    WaitUrlAsyncFetcher* delayer =
+        new WaitUrlAsyncFetcher(&mock_url_fetcher_);
+    rewrite_driver_.set_async_fetcher(delayer);
+    resource_manager_->set_url_async_fetcher(delayer);
+    return delayer;
+  }
 
   // Testdata directory.
   static const char kTestData[];

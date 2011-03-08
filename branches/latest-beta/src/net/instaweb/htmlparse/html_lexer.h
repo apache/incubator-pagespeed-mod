@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_HTMLPARSE_HTML_LEXER_H_
 
 #include <stdarg.h>
-#include <set>
 #include <vector>
 #include "base/basictypes.h"
 #include "net/instaweb/htmlparse/public/doctype.h"
@@ -55,13 +54,13 @@ class HtmlLexer {
   void FinishParse();
 
   // Determines whether a tag should be terminated in HTML.
-  bool IsImplicitlyClosedTag(Atom tag) const;
+  bool IsImplicitlyClosedTag(HtmlName::Keyword keyword) const;
 
   // Determines whether a tag can be terminated briefly (e.g. <tag/>)
-  bool TagAllowsBriefTermination(Atom tag) const;
+  bool TagAllowsBriefTermination(HtmlName::Keyword keyword) const;
 
   // Determines whether it's OK to leave a tag unclosed.
-  bool IsOptionallyClosedTag(Atom tag) const;
+  bool IsOptionallyClosedTag(HtmlName::Keyword keyword) const;
 
   // Print element stack to stdout (for debugging).
   void DebugPrintStack();
@@ -121,17 +120,17 @@ class HtmlLexer {
   // Emits a syntax error message.
   void SyntaxError(const char* format, ...) INSTAWEB_PRINTF_FORMAT(2, 3);
 
-  // Takes an interned tag, and tries to find a matching HTML element on
-  // the stack.  If it finds it, it pops all the intervening elements off
-  // the stack, issuing warnings for each discarded tag, the matching element
-  // is also popped off the stack, and returned.
+  // Tries to find a HTML element on the stack matching a tag.  If it
+  // finds it, it pops all the intervening elements off the stack,
+  // issuing warnings for each discarded tag, the matching element is
+  // also popped off the stack, and returned.
   //
   // If the tag is not matched, then no mutations are done to the stack,
   // and NULL is returned.
   //
   // The tag name should be interned.
   // TODO(jmarantz): use type system
-  HtmlElement* PopElementMatchingTag(Atom tag);
+  HtmlElement* PopElementMatchingTag(const StringPiece& tag);
 
   HtmlElement* PopElement();
   void CloseElement(HtmlElement* element, HtmlElement::CloseStyle close_style,
@@ -209,10 +208,6 @@ class HtmlLexer {
   ContentType content_type_;
   DocType doctype_;
 
-  AtomSet implicitly_closed_;
-  AtomSet non_brief_terminated_tags_;
-  AtomSet literal_tags_;
-  AtomSet optionally_closed_tags_;
   std::vector<HtmlElement*> element_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlLexer);

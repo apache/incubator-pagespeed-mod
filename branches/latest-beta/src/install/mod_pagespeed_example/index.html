@@ -296,6 +296,48 @@ remove_comments
 
 <tr>
   <td class="code">
+    <a href="http://code.google.com/speed/page-speed/docs/filter-trim-urls.html">
+trim_urls
+    </a>
+  </td>
+  <td class="desc">
+    Removes unnecessary prefixes from URLs.
+  </td>
+  <td class="before">
+    <a href="trim_urls.html?ModPagespeed=off">
+      before
+    </a>
+  </td>
+  <td class="after">
+    <a href="trim_urls.html?ModPagespeed=on&ModPagespeedFilters=trim_urls">
+      after
+    </a>
+  </td>
+</tr>
+
+<tr>
+  <td class="code">
+    <a href="http://code.google.com/speed/page-speed/docs/filter-make-google-analytics-async.html">
+make_google_analytics_async
+    </a>
+  </td>
+  <td class="desc">
+    Converts synchronous Google Analytics code to load asynchronously.
+  </td>
+  <td class="before">
+    <a href="make_google_analytics_async.html?ModPagespeed=off">
+      before
+    </a>
+  </td>
+  <td class="after">
+    <a href="make_google_analytics_async.html?ModPagespeed=on&ModPagespeedFilters=make_google_analytics_async">
+      after
+    </a>
+  </td>
+</tr>
+
+<tr>
+  <td class="code">
     <a href="http://code.google.com/speed/page-speed/docs/filter-css-rewrite.html">
 rewrite_css
     </a>
@@ -310,6 +352,44 @@ rewrite_css
   </td>
   <td class="after">
     <a href="rewrite_css.html?ModPagespeed=on&ModPagespeedFilters=rewrite_css">
+      after
+    </a>
+  </td>
+</tr>
+
+<tr>
+  <td class="code">
+rewrite_css + cache_extend
+  </td>
+  <td class="desc">
+    Cache extends images in CSS.
+  </td>
+  <td class="before">
+    <a href="rewrite_css_images.html?ModPagespeed=off">
+      before
+    </a>
+  </td>
+  <td class="after">
+    <a href="rewrite_css_images.html?ModPagespeed=on&ModPagespeedFilters=rewrite_css,extend_cache">
+      after
+    </a>
+  </td>
+</tr>
+
+<tr>
+  <td class="code">
+rewrite_css + rewrite_images
+  </td>
+  <td class="desc">
+    Re-compress images in CSS.
+  </td>
+  <td class="before">
+    <a href="rewrite_css_images.html?ModPagespeed=off">
+      before
+    </a>
+  </td>
+  <td class="after">
+    <a href="rewrite_css_images.html?ModPagespeed=on&ModPagespeedFilters=rewrite_css,rewrite_images">
       after
     </a>
   </td>
@@ -356,6 +436,7 @@ rewrite_javascript
     </a>
   </td>
 </tr>
+
     </table>
   </body>
 <html>

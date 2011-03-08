@@ -131,17 +131,11 @@ TEST_F(CssTagScannerTest, TestGurl) {
 // seen.
 TEST_F(CssTagScannerTest, TestFull) {
   HtmlParse html_parse(&message_handler_);
-  Atom s_link  = html_parse.Intern("link");
-  Atom s_href  = html_parse.Intern("href");
-  Atom s_type  = html_parse.Intern("type");
-  Atom s_rel   = html_parse.Intern("rel");
-  Atom s_media = html_parse.Intern("media");
-  Atom s_other = html_parse.Intern("other");
-  HtmlElement* link = html_parse.NewElement(NULL, s_link);
+  HtmlElement* link = html_parse.NewElement(NULL, HtmlName::kLink);
   const char kUrl[] = "http://www.myhost.com/static/mycss.css";
   const char kPrint[] = "print";
-  link->AddAttribute(s_rel, "stylesheet", "\"");
-  link->AddAttribute(s_href, kUrl, "\"");
+  html_parse.AddAttribute(link, HtmlName::kRel, "stylesheet");
+  html_parse.AddAttribute(link, HtmlName::kHref, kUrl);
   HtmlElement::Attribute* href = NULL;
   const char* media = NULL;
   CssTagScanner scanner(&html_parse);
@@ -152,20 +146,20 @@ TEST_F(CssTagScannerTest, TestFull) {
   EXPECT_EQ(kUrl, std::string(href->value()));
 
   // Add an unexpected attribute.  Now we don't know what to do with it.
-  link->AddAttribute(s_other, "value", "\"");
+  link->AddAttribute(html_parse.MakeName("other"), "value", "\"");
   EXPECT_FALSE(scanner.ParseCssElement(link, &href, &media));
 
   // Mutate it to the correct attribute.
-  HtmlElement::Attribute* attr = link->FindAttribute(s_other);
+  HtmlElement::Attribute* attr = link->FindAttribute(HtmlName::kOther);
   ASSERT_TRUE(attr != NULL);
-  attr->set_name(s_type);
+  html_parse.SetAttributeName(attr, HtmlName::kType);
   attr->SetValue("text/css");
   EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
   EXPECT_EQ("", std::string(media));
   EXPECT_EQ(kUrl, std::string(href->value()));
 
   // Add a media attribute.  It should still pass, yielding media.
-  link->AddAttribute(s_media, kPrint, "\"");
+  html_parse.AddAttribute(link, HtmlName::kMedia, kPrint);
   EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
   EXPECT_EQ(kPrint, std::string(media));
   EXPECT_EQ(kUrl, std::string(href->value()));

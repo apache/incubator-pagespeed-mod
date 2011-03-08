@@ -81,15 +81,15 @@ Value::Value(const Identifier::Ident ident)
       color_(0, 0, 0) {
 }
 
-Value::Value(ValueType ty, Values* params)
+Value::Value(ValueType ty, FunctionParameters* params)
     : type_(ty),
       params_(params),
       color_(0, 0, 0) {
   DCHECK(params != NULL);
-  DCHECK(ty == RECT || ty == COUNTER);
+  DCHECK(ty == RECT);
 }
 
-Value::Value(const UnicodeText& func, Values* params)
+Value::Value(const UnicodeText& func, FunctionParameters* params)
     : type_(FUNCTION),
       str_(func),
       params_(params),
@@ -108,14 +108,10 @@ Value::Value(const Value& other)
     unit_(other.unit_),
     identifier_(other.identifier_),
     str_(other.str_),
+    params_(new FunctionParameters),
     color_(other.color_) {
   if (other.params_.get() != NULL) {
-    Values* vals = new Values;
-    vals->reserve(other.params_->size());
-    for (Values::const_iterator iter = other.params_->begin();
-         iter < other.params_->end(); ++iter)
-      vals->push_back(new Value(**iter));
-    params_.reset(vals);
+    params_->Copy(*other.params_);
   }
 }
 
@@ -128,12 +124,7 @@ Value& Value::operator=(const Value& other) {
   str_ = other.str_;
   color_ = other.color_;
   if (other.params_.get() != NULL) {
-    Values* vals = new Values;
-    vals->reserve(other.params_->size());
-    for (Values::const_iterator iter = other.params_->begin();
-         iter < other.params_->end(); ++iter)
-      vals->push_back(new Value(**iter));
-    params_.reset(vals);
+    params_->Copy(*other.params_);
   } else {
     params_.reset();
   }
@@ -167,18 +158,10 @@ bool Value::Equals(const Value& other) const {
       if (str_ != other.str_)
         return false;
       // pass through
-    case COUNTER:
     case RECT:
       if (params_.get() == NULL)
         return other.params_.get() == NULL;
-      if (params_->size() != other.params_->size())
-        return false;
-      for (Values::const_iterator iter = params_->begin(),
-               other_iter = other.params_->begin();
-           iter < params_->end(); ++iter, ++other_iter)
-        if (!(**iter).Equals(**other_iter))
-          return false;
-      return true;
+      return params_->Equals(*other.params_);
     default:
       LOG(FATAL) << "Unknown type:" << type_;
   }
@@ -289,7 +272,12 @@ float Value::GetFloatValue() const {
 }
 
 const Values* Value::GetParameters() const {
-  DCHECK(type_ == FUNCTION || type_ == RECT || type_ == COUNTER);
+  DCHECK(type_ == FUNCTION || type_ == RECT);
+  return params_->values();
+}
+
+const FunctionParameters* Value::GetParametersWithSeparators() const {
+  DCHECK(type_ == FUNCTION || type_ == RECT);
   return params_.get();
 }
 
@@ -319,5 +307,41 @@ const HtmlColor& Value::GetColorValue() const {
 }
 
 Values::~Values() { STLDeleteElements(this); }
+
+FunctionParameters::~FunctionParameters() {}
+
+void FunctionParameters::AddSepValue(Separator separator, Value* value) {
+  separators_.push_back(separator);
+  values_->push_back(value);
+  DCHECK_EQ(separators_.size(), values_->size());
+}
+
+bool FunctionParameters::Equals(const FunctionParameters& other) const {
+  if (size() != other.size()) {
+    return false;
+  }
+  for (int i = 0, n = size(); i < n; ++i) {
+    if (!value(i)->Equals(*other.value(i)) ||
+        separator(i) != other.separator(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void FunctionParameters::Copy(const FunctionParameters& other) {
+  if (this != &other) {
+    int size = other.size();
+    values_->clear();
+    values_->reserve(size);
+    separators_.clear();
+    separators_.reserve(size);
+    for (int i = 0; i < size; ++i) {
+      values_->push_back(new Value(*other.values_->at(i)));
+      separators_.push_back(other.separators_[i]);
+    }
+  }
+  DCHECK(this->Equals(other));
+}
 
 }  // namespace

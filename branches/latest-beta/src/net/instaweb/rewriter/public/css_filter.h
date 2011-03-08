@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "net/instaweb/rewriter/public/css_image_rewriter.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/atom.h"
 #include <string>
@@ -35,7 +36,9 @@ class Stylesheet;
 
 namespace net_instaweb {
 
+class CacheExtender;
 class HtmlParse;
+class ImgRewriteFilter;
 class MessageHandler;
 class OutputResource;
 class Resource;
@@ -53,7 +56,11 @@ class ResourceManager;
 // It does not consider style= attributes on arbitrary elements.
 class CssFilter : public RewriteSingleResourceFilter {
  public:
-  CssFilter(RewriteDriver* driver, const StringPiece& filter_prefix);
+  CssFilter(RewriteDriver* driver, const StringPiece& filter_prefix,
+            // TODO(sligocki): Temporary pattern until we figure out a better
+            // way to do this without passing all filters around everywhere.
+            CacheExtender* cache_extender,
+            ImgRewriteFilter* image_rewriter);
 
   static void Initialize(Statistics* statistics);
   static void Terminate();
@@ -69,6 +76,7 @@ class CssFilter : public RewriteSingleResourceFilter {
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual const char* Name() const { return "CssFilter"; }
+  virtual int FilterCacheFormatVersion() const;
 
   static const char kFilesMinified[];
   static const char kMinifiedBytesSaved[];
@@ -76,13 +84,14 @@ class CssFilter : public RewriteSingleResourceFilter {
 
  private:
   bool RewriteCssText(const StringPiece& in_text, std::string* out_text,
-                      const std::string& id, MessageHandler* handler);
+                      const GoogleUrl& css_gurl,
+                      int64* subresource_expiration_time_ms,
+                      MessageHandler* handler);
   bool RewriteExternalCss(const StringPiece& in_url, std::string* out_url);
-  bool RewriteExternalCssToResource(Resource* input_resource,
-                                    OutputResource* output_resource);
 
-  virtual bool RewriteLoadedResource(const Resource* input_resource,
-                                     OutputResource* output_resource);
+  virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
+                                              OutputResource* output_resource,
+                                              UrlSegmentEncoder* encoder);
 
   Css::Stylesheet* CombineStylesheets(
       std::vector<Css::Stylesheet*>* stylesheets);
@@ -91,18 +100,12 @@ class CssFilter : public RewriteSingleResourceFilter {
 
   Css::Stylesheet* LoadStylesheet(const StringPiece& url) { return NULL; }
 
-  HtmlParse* html_parse_;
-  ResourceManager* resource_manager_;
-
   bool in_style_element_;  // Are we in a style element?
   // These are meaningless if in_style_element_ is false:
   HtmlElement* style_element_;  // The element we are in.
   HtmlCharactersNode* style_char_node_;  // The single character node in style.
 
-  Atom s_style_;
-  Atom s_link_;
-  Atom s_rel_;
-  Atom s_href_;
+  CssImageRewriter image_rewriter_;
 
   // Statistics
   Variable* num_files_minified_;

@@ -55,12 +55,12 @@ class InstawebContext {
   void Rewrite(const char* input, int size);
   void Flush() {
     if (content_detection_state_ == kHtml) {
-      rewrite_driver_->html_parse()->Flush();
+      rewrite_driver_->Flush();
     }
   }
   void Finish() {
     if (content_detection_state_ == kHtml) {
-      rewrite_driver_->html_parse()->FinishParse();
+      rewrite_driver_->FinishParse();
     }
   }
   bool empty() const { return output_.empty(); }
@@ -73,6 +73,10 @@ class InstawebContext {
   // TODO(jmarantz): Is there a better place to put this?  It needs to
   // be used by both mod_instaweb.cc and instaweb_handler.cc.
   static ApacheRewriteDriverFactory* Factory(server_rec* server);
+
+  // Constructs a copy of a fetchable URI from a request, using the
+  // request pool.
+  static char* MakeRequestUrl(request_rec* request);
 
  private:
   void ComputeContentEncoding(request_rec* request);

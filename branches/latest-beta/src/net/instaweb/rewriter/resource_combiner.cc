@@ -16,12 +16,13 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/rewriter/public/combine_filter_base.h"
+#include "net/instaweb/rewriter/public/resource_combiner.h"
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -36,40 +37,59 @@
 
 namespace net_instaweb {
 
-CombineFilterBase::Partnership::Partnership(CombineFilterBase* filter,
-                                            RewriteDriver* driver,
-                                            int url_overhead)
-    : UrlPartnership(driver->options(), filter->base_gurl()),
-      filter_(filter),
-      resource_manager_(driver->resource_manager()),
+// Another approach is to put a CHECK that the final URL with the
+// resource naming does not exceed the limit.
+//
+// Another option too is to just instantiate a ResourceNamer and a
+// hasher put in the correct ID and EXT and leave the name blank and
+// take size of that.
+
+ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
+                                   const StringPiece& filter_prefix,
+                                   const StringPiece& extension)
+    : resource_manager_(driver->resource_manager()),
+      rewrite_driver_(driver),
+      partnership_(driver->options(), GURL()),
       prev_num_components_(0),
       accumulated_leaf_size_(0),
-      url_overhead_(url_overhead) {
+      // TODO(jmarantz): The URL overhead computation is arguably fragile.
+      url_overhead_(filter_prefix.size() + ResourceNamer::kOverhead +
+                    extension.size()) {
+  // This CHECK is here because RewriteDriver is constructed with its
+  // resource_manager_ == NULL.
+  // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
+  CHECK(resource_manager_ != NULL);
+  filter_prefix.CopyToString(&filter_prefix_);
 }
 
-CombineFilterBase::Partnership::~Partnership() {
-  STLDeleteElements(&resources_);
+ResourceCombiner::~ResourceCombiner() {
+  Clear();
 }
 
-bool CombineFilterBase::Partnership::AddElement(HtmlElement* element,
-                                               const StringPiece& url,
-                                               MessageHandler* handler) {
+bool ResourceCombiner::AddResource(const StringPiece& url,
+                                   MessageHandler* handler) {
   // Assert the sanity of three parallel vectors.
   CHECK_EQ(num_urls(), static_cast<int>(resources_.size()));
-  CHECK_EQ(num_urls(), static_cast<int>(elements_.size()));
   CHECK_EQ(num_urls(), static_cast<int>(multipart_encoder_.num_urls()));
+  if (num_urls() == 0) {
+    // Make sure to initialize the base URL.
+    Reset();
+  }
 
   // See if we have the source loaded, or start loading it
   // TODO(morlovich) this may not always be desirable.
   //    we want to do this if we can't combine due to URL limits,
   //    as we will eventually need the data, but not when it's
   //    disabled due to policy.
-  scoped_ptr<Resource> resource(filter_->CreateInputResource(url));
+
+  scoped_ptr<Resource> resource(
+      rewrite_driver_->CreateInputResource(rewrite_driver_->base_url().gurl(),
+                                           url));
   if (resource.get() == NULL) {
     return false;
   }
 
-  if (!(resource_manager_->ReadIfCached(resource.get(), handler) &&
+  if (!(rewrite_driver_->ReadIfCached(resource.get()) &&
         resource->ContentsValid())) {
     return false;
   }
@@ -81,16 +101,15 @@ bool CombineFilterBase::Partnership::AddElement(HtmlElement* element,
   }
 
   // Now manage the URL and policy.
-  bool added = AddUrl(url, handler);
+  bool added = partnership_.AddUrl(url, handler);
 
   if (added) {
     int index = num_urls() - 1;
-    CHECK_EQ(index, static_cast<int>(elements_.size()));
 
-    if (num_components() != prev_num_components_) {
+    if (partnership_.NumCommonComponents() != prev_num_components_) {
       UpdateResolvedBase();
     }
-    const std::string relative_path = RelativePath(index);
+    const std::string relative_path = partnership_.RelativePath(index);
     multipart_encoder_.AddUrl(relative_path);
 
     if (accumulated_leaf_size_ == 0) {
@@ -99,38 +118,39 @@ bool CombineFilterBase::Partnership::AddElement(HtmlElement* element,
       AccumulateLeafSize(relative_path);
     }
 
+    resources_.push_back(resource.release());
     if (UrlTooBig()) {
+      RemoveLastResource();
       added = false;
-      RemoveLast();
-      multipart_encoder_.pop_back();
-
-      // The base might have changed again
-      if (num_components() != prev_num_components_) {
-        UpdateResolvedBase();
-      }
-    } else {
-      elements_.push_back(element);
-      resources_.push_back(resource.release());
     }
   }
   return added;
 }
 
-std::string CombineFilterBase::Partnership::UrlSafeId() const {
+void ResourceCombiner::RemoveLastResource() {
+  partnership_.RemoveLast();
+  delete resources_.back();
+  resources_.pop_back();
+  multipart_encoder_.pop_back();
+  if (partnership_.NumCommonComponents() != prev_num_components_) {
+    UpdateResolvedBase();
+  }
+}
+
+std::string ResourceCombiner::UrlSafeId() const {
   UrlEscaper* escaper = resource_manager_->url_escaper();
   std::string segment;
   escaper->EncodeToUrlSegment(multipart_encoder_.Encode(), &segment);
   return segment;
 }
 
-void CombineFilterBase::Partnership::ComputeLeafSize() {
+void ResourceCombiner::ComputeLeafSize() {
   std::string segment = UrlSafeId();
   accumulated_leaf_size_ = segment.size() + url_overhead_
       + resource_manager_->hasher()->HashSizeInChars();
 }
 
-void CombineFilterBase::Partnership::AccumulateLeafSize(
-    const StringPiece& url) {
+void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
   std::string segment;
   UrlEscaper* escaper = resource_manager_->url_escaper();
   escaper->EncodeToUrlSegment(url, &segment);
@@ -138,68 +158,76 @@ void CombineFilterBase::Partnership::AccumulateLeafSize(
   accumulated_leaf_size_ += segment.size() + kMultipartOverhead;
 }
 
-bool CombineFilterBase::Partnership::UrlTooBig() {
+bool ResourceCombiner::UrlTooBig() {
   // Note: We include kUrlSlack in our computations so that other filters,
   // which might add to URL length, can run after ours
-  int expanded_size = accumulated_leaf_size_ + CombineFilterBase::kUrlSlack;
+  int expanded_size = accumulated_leaf_size_ + ResourceCombiner::kUrlSlack;
 
-  if (expanded_size > rewrite_options()->max_url_segment_size()) {
+  if (expanded_size > rewrite_driver_->options()->max_url_segment_size()) {
     return true;
   }
 
   if ((expanded_size + static_cast<int>(resolved_base_.size())) >
-      rewrite_options()->max_url_size()) {
+      rewrite_driver_->options()->max_url_size()) {
     return true;
   }
   return false;
 }
 
-bool CombineFilterBase::Partnership::ResourceCombinable(Resource* /*resource*/,
+bool ResourceCombiner::ResourceCombinable(Resource* /*resource*/,
     MessageHandler* /*handler*/) {
   return true;
 }
 
-void CombineFilterBase::Partnership::UpdateResolvedBase() {
+void ResourceCombiner::UpdateResolvedBase() {
   // If the addition of this URL changes the base path,
   // then we will have to recompute the multi-part encoding.
   // This is n^2 in the pathological case and if this code
   // gets used for image spriting then this
   // algorithm should be revisited.  For CSS and JS we expect N to
   // be relatively small.
-  prev_num_components_ = num_components();
+  prev_num_components_ = partnership_.NumCommonComponents();
   resolved_base_ = ResolvedBase();
   multipart_encoder_.clear();
-  for (size_t i = 0; i < elements_.size(); ++i) {
-    multipart_encoder_.AddUrl(RelativePath(i));
+  for (size_t i = 0; i < resources_.size(); ++i) {
+    multipart_encoder_.AddUrl(partnership_.RelativePath(i));
   }
 
   accumulated_leaf_size_ = 0;
 }
 
-// Another approach is to put a CHECK that the final URL with the
-// resource naming does not exceed the limit.
-//
-// Another option too is to just instantiate a ResourceNamer and a
-// hasher put in the correct ID and EXT and leave the name blank and
-// take size of that.
-
-CombineFilterBase::CombineFilterBase(RewriteDriver* driver,
-                                     const char* filter_prefix,
-                                     const char* extension)
-    : RewriteFilter(driver, filter_prefix),
-      // TODO(jmarantz): The URL overhead computation is arguably fragile.
-      url_overhead_(strlen(filter_prefix) + ResourceNamer::kOverhead +
-                    strlen(extension)) {
-  // This CHECK is here because RewriteDriver is constructed with its
-  // resource_manager_ == NULL.
-  // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
-  CHECK(resource_manager() != NULL);
+OutputResource* ResourceCombiner::Combine(const ContentType& content_type,
+                                          MessageHandler* handler) {
+  if (resources_.size() <= 1) {
+    // No point in combining.
+    return NULL;
+  }
+  // First, compute the name of the new resource based on the names of
+  // the old resources.
+  std::string url_safe_id = UrlSafeId();
+  // Start building up the combination.  At this point we are still
+  // not committed to the combination, because the 'write' can fail.
+  // TODO(jmaessen, jmarantz): encode based on partnership
+  scoped_ptr<OutputResource> combination(
+      rewrite_driver_->CreateOutputResourceWithPath(
+          ResolvedBase(), filter_prefix_, url_safe_id, &content_type,
+          RewriteDriver::kRewrittenResource));
+  if (combination->cached_result() != NULL &&
+      combination->cached_result()->optimizable()) {
+    // If the combination has a Url set on it we have cached information
+    // on what the output would be, so we'll just use that.
+    return combination.release();
+  }
+  if (WriteCombination(resources_, combination.get(), handler)
+      && combination->IsWritten()) {
+    // Otherwise, we have to compute it.
+    return combination.release();
+  }
+  // No dice.
+  return NULL;
 }
 
-CombineFilterBase::~CombineFilterBase() {
-}
-
-bool CombineFilterBase::WriteCombination(
+bool ResourceCombiner::WriteCombination(
     const ResourceVector& combine_resources,
     OutputResource* combination,
     MessageHandler* handler) {
@@ -223,17 +251,17 @@ bool CombineFilterBase::WriteCombination(
   }
   if (written) {
     written =
-        resource_manager()->Write(
+        resource_manager_->Write(
             HttpStatus::kOK, combined_contents, combination,
             min_origin_expiration_time_ms, handler);
   }
   return written;
 }
 
-bool CombineFilterBase::WritePiece(Resource* input,
-                                   OutputResource* /*combination*/,
-                                   Writer* writer,
-                                   MessageHandler* handler) {
+bool ResourceCombiner::WritePiece(Resource* input,
+                                  OutputResource* /*combination*/,
+                                  Writer* writer,
+                                  MessageHandler* handler) {
   return writer->Write(input->contents(), handler);
 }
 
@@ -242,7 +270,7 @@ bool CombineFilterBase::WritePiece(Resource* input,
 // it aggregates the results and calls the final callback with the result.
 class CombinerCallback : public Resource::AsyncCallback {
  public:
-  CombinerCallback(CombineFilterBase* filter,
+  CombinerCallback(ResourceCombiner* combiner,
                    MessageHandler* handler,
                    UrlAsyncFetcher::Callback* callback,
                    OutputResource* combination,
@@ -252,7 +280,7 @@ class CombinerCallback : public Resource::AsyncCallback {
       emit_done_(true),
       done_count_(0),
       fail_count_(0),
-      filter_(filter),
+      combiner_(combiner),
       message_handler_(handler),
       callback_(callback),
       combination_(combination),
@@ -313,8 +341,8 @@ class CombinerCallback : public Resource::AsyncCallback {
       ok = resource->ContentsValid();
     }
     if (ok) {
-      ok = (filter_->WriteCombination(combine_resources_, combination_,
-                                      message_handler_) &&
+      ok = (combiner_->WriteCombination(combine_resources_, combination_,
+                                        message_handler_) &&
             combination_->IsWritten() &&
             ((writer_ == NULL) ||
              writer_->Write(combination_->contents(), message_handler_)));
@@ -323,7 +351,9 @@ class CombinerCallback : public Resource::AsyncCallback {
     }
     if (ok) {
       response_headers_->CopyFrom(*combination_->metadata());
-    } else {
+    } else if (emit_done_) {
+      // we can only safely touch response_headers_ if we can emit
+      // Done() safely.
       response_headers_->SetStatusAndReason(HttpStatus::kNotFound);
     }
 
@@ -343,30 +373,30 @@ class CombinerCallback : public Resource::AsyncCallback {
   bool emit_done_;
   size_t done_count_;
   size_t fail_count_;
-  CombineFilterBase* filter_;
+  ResourceCombiner* combiner_;
   MessageHandler* message_handler_;
   UrlAsyncFetcher::Callback* callback_;
   OutputResource* combination_;
-  CombineFilterBase::ResourceVector combine_resources_;
+  ResourceCombiner::ResourceVector combine_resources_;
   Writer* writer_;
   ResponseHeaders* response_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(CombinerCallback);
 };
 
-bool CombineFilterBase::Fetch(OutputResource* combination,
-                              Writer* writer,
-                              const RequestHeaders& request_header,
-                              ResponseHeaders* response_headers,
-                              MessageHandler* message_handler,
-                              UrlAsyncFetcher::Callback* callback) {
+bool ResourceCombiner::Fetch(OutputResource* combination,
+                             Writer* writer,
+                             const RequestHeaders& request_header,
+                             ResponseHeaders* response_headers,
+                             MessageHandler* message_handler,
+                             UrlAsyncFetcher::Callback* callback) {
   CHECK(response_headers != NULL);
   bool ret = false;
   StringPiece url_safe_id = combination->name();
   UrlMultipartEncoder multipart_encoder;
-  UrlEscaper* escaper = resource_manager()->url_escaper();
+  UrlEscaper* escaper = resource_manager_->url_escaper();
   std::string multipart_encoding;
-  GURL gurl(combination->url());
+  GoogleUrl gurl(combination->url());
   if (gurl.is_valid() &&
       escaper->DecodeFromUrlSegment(url_safe_id, &multipart_encoding) &&
       multipart_encoder.Decode(multipart_encoding, message_handler)) {
@@ -375,13 +405,16 @@ bool CombineFilterBase::Fetch(OutputResource* combination,
     CombinerCallback* combiner = new CombinerCallback(
         this, message_handler, callback, combination, writer, response_headers);
 
-    std::string root = GoogleUrl::AllExceptLeaf(gurl);
+    StringPiece root = gurl.AllExceptLeaf();
     for (int i = 0; ret && (i < multipart_encoder.num_urls()); ++i)  {
       std::string url = StrCat(root, multipart_encoder.url(i));
-      Resource* resource = CreateInputResourceAbsolute(url);
+      // Safe since we use StrCat to absolutize the URL rather than
+      // full resolve, so it will always be a subpath of root.
+      Resource* resource =
+          rewrite_driver_->CreateInputResourceAbsoluteUnchecked(url);
       ret = combiner->AddResource(resource);
       if (ret) {
-        resource_manager()->ReadAsync(resource, combiner, message_handler);
+        rewrite_driver_->ReadAsync(resource, combiner, message_handler);
       }
     }
 
@@ -400,6 +433,20 @@ bool CombineFilterBase::Fetch(OutputResource* combination,
                            "Unable to decode resource string");
   }
   return ret;
+}
+
+void ResourceCombiner::Clear() {
+  STLDeleteElements(&resources_);
+  resources_.clear();
+  multipart_encoder_.clear();
+}
+
+void ResourceCombiner::Reset() {
+  Clear();
+  partnership_.Reset(rewrite_driver_->base_url().gurl());
+  prev_num_components_ = 0;
+  accumulated_leaf_size_ = 0;
+  resolved_base_.clear();
 }
 
 }  // namespace net_instaweb

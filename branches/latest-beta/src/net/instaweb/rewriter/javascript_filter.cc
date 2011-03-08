@@ -41,24 +41,14 @@
 
 namespace net_instaweb {
 
-namespace {
-const HttpStatus::Code kNotOptimizable = HttpStatus::kNotModified;
-}  // namespace
-
-
 JavascriptFilter::JavascriptFilter(RewriteDriver* driver,
                                    const StringPiece& path_prefix)
     : RewriteSingleResourceFilter(driver, path_prefix),
-      html_parse_(driver->html_parse()),
       script_in_progress_(NULL),
       script_src_(NULL),
-      resource_manager_(driver->resource_manager()),
       some_missing_scripts_(false),
       config_(driver->resource_manager()->statistics()),
-      s_script_(html_parse_->Intern("script")),
-      s_src_(html_parse_->Intern("src")),
-      s_type_(html_parse_->Intern("type")),
-      script_tag_scanner_(html_parse_) { }
+      script_tag_scanner_(driver_) { }
 
 JavascriptFilter::~JavascriptFilter() { }
 
@@ -73,14 +63,14 @@ void JavascriptFilter::StartElementImpl(HtmlElement* element) {
     case ScriptTagScanner::kJavaScript: {
       script_in_progress_ = element;
       if (script_src_ != NULL) {
-        html_parse_->InfoHere("Found script with src %s", script_src_->value());
+        driver_->InfoHere("Found script with src %s", script_src_->value());
       }
       break;
     }
     case ScriptTagScanner::kUnknownScript: {
       std::string script_dump;
       element->ToString(&script_dump);
-      html_parse_->InfoHere("Unrecognized script:'%s'", script_dump.c_str());
+      driver_->InfoHere("Unrecognized script:'%s'", script_dump.c_str());
       break;
     }
     case ScriptTagScanner::kNonScript:
@@ -120,32 +110,24 @@ void JavascriptFilter::RewriteInlineScript() {
     // First buffer up script data and minify it.
     std::string script_buffer;
     const StringPiece script = FlattenBuffer(&script_buffer);
-    MessageHandler* message_handler = html_parse_->message_handler();
+    MessageHandler* message_handler = driver_->message_handler();
     JavascriptCodeBlock code_block(script, &config_, message_handler);
     JavascriptLibraryId library = code_block.ComputeJavascriptLibrary();
     if (library.recognized()) {
-      html_parse_->InfoHere("Script is %s %s",
-                            library.name(), library.version());
+      driver_->InfoHere("Script is %s %s",
+                        library.name(), library.version());
     }
     if (code_block.ProfitableToRewrite()) {
       // Now replace all CharactersNodes with a single CharactersNode containing
       // the minified script.
-      HtmlCharactersNode* new_script =
-          html_parse_->NewCharactersNode(buffer_[0]->parent(),
-                                         code_block.Rewritten());
-      html_parse_->ReplaceNode(buffer_[0], new_script);
+      HtmlCharactersNode* new_script = driver_->NewCharactersNode(
+          buffer_[0]->parent(), code_block.Rewritten());
+      driver_->ReplaceNode(buffer_[0], new_script);
       for (int i = 1; i < buffer_size; i++) {
-        html_parse_->DeleteElement(buffer_[i]);
+        driver_->DeleteElement(buffer_[i]);
       }
     }
   }
-}
-
-// Load script resource located at the given URL,
-// on error report & return NULL (caller need not report)
-Resource* JavascriptFilter::ScriptAtUrl(const StringPiece& script_url) {
-  Resource* script_input = CreateInputResourceAndReadIfCached(script_url);
-  return script_input;
 }
 
 // Take script_out, which is derived from the script at script_url,
@@ -155,14 +137,14 @@ bool JavascriptFilter::WriteExternalScriptTo(
     const Resource* script_resource,
     const StringPiece& script_out, OutputResource* script_dest) {
   bool ok = false;
-  MessageHandler* message_handler = html_parse_->message_handler();
+  MessageHandler* message_handler = driver_->message_handler();
   int64 origin_expire_time_ms = script_resource->CacheExpirationTimeMs();
   if (resource_manager_->Write(HttpStatus::kOK, script_out, script_dest,
                                origin_expire_time_ms, message_handler)) {
     ok = true;
-    html_parse_->InfoHere("Rewrite script %s to %s",
-                          script_resource->url().c_str(),
-                          script_dest->url().c_str());
+    driver_->InfoHere("Rewrite script %s to %s",
+                      script_resource->url().c_str(),
+                      script_dest->url().c_str());
   }
   return ok;
 }
@@ -170,60 +152,13 @@ bool JavascriptFilter::WriteExternalScriptTo(
 // External script; minify and replace with rewritten version (also external).
 void JavascriptFilter::RewriteExternalScript() {
   const StringPiece script_url(script_src_->value());
-  MessageHandler* message_handler = html_parse_->message_handler();
-  scoped_ptr<OutputResource> script_dest(
-      resource_manager_->CreateOutputResourceForRewrittenUrl(
-          base_gurl(), filter_prefix_, script_url,
-          &kContentTypeJavascript, resource_manager_->url_escaper(),
-          driver_->options(), message_handler));
-  if (script_dest != NULL) {
-    bool ok;
-    if (resource_manager_->FetchOutputResource(
-            script_dest.get(), NULL, NULL, message_handler,
-            ResourceManager::kNeverBlock)) {
-      // Only rewrite URL if we have usable rewritten data.
-      ok = script_dest->metadata()->status_code() == HttpStatus::kOK;
-    } else {
-      scoped_ptr<Resource> script_input(ScriptAtUrl(script_url));
-      ok = script_input != NULL;
-      if (ok) {
-        StringPiece script = script_input->contents();
-        MessageHandler* message_handler = html_parse_->message_handler();
-        JavascriptCodeBlock code_block(script, &config_, message_handler);
-        JavascriptLibraryId library = code_block.ComputeJavascriptLibrary();
-        if (library.recognized()) {
-          html_parse_->InfoHere("Script %s is %s %s",
-                                script_input->url().c_str(),
-                                library.name(), library.version());
-        }
-        ok = code_block.ProfitableToRewrite();
-        if (ok) {
-          ok = WriteExternalScriptTo(script_input.get(), code_block.Rewritten(),
-                                     script_dest.get());
-        } else {
-          // Rewriting happened but wasn't useful; remember this for later
-          // so we don't attempt to rewrite twice.
-          html_parse_->InfoHere("Script %s didn't shrink",
-                                script_input->url().c_str());
-          int64 origin_expire_time_ms = script_input->CacheExpirationTimeMs();
+  scoped_ptr<OutputResource::CachedResult> rewrite_info(
+      RewriteWithCaching(script_url, resource_manager_->url_escaper()));
 
-          // TODO(jmarantz): currently this will not work, because HTTPCache
-          // will not report a 'hit' on any status other than OK.  This should
-          // be fixed by either:
-          //   1. adding a few other codes that HTTPCache will return hits for
-          //   2. using a special header to indicate failed-to-optimize.
-          resource_manager_->Write(
-              kNotOptimizable, "",
-              script_dest.get(), origin_expire_time_ms, message_handler);
-        }
-      } else {
-        some_missing_scripts_ = true;
-      }
-    }
-    if (ok) {
-      script_src_->SetValue(script_dest->url());
-    }
+  if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
+    script_src_->SetValue(rewrite_info->url());
   }
+
   // Finally, note that the script might contain body data.
   // We erase this if it is just whitespace; otherwise we leave it alone.
   // The script body is ignored by all browsers we know of.
@@ -237,14 +172,14 @@ void JavascriptFilter::RewriteExternalScript() {
     for (size_t j = 0; allSpaces && j < contents.size(); ++j) {
       char c = contents[j];
       if (!isspace(c) && c != 0) {
-        html_parse_->WarningHere("Retaining contents of script tag"
-                                 " even though script is external.");
+        driver_->WarningHere("Retaining contents of script tag"
+                             " even though script is external.");
         allSpaces = false;
       }
     }
   }
   for (size_t i = 0; allSpaces && i < buffer_.size(); ++i) {
-    html_parse_->DeleteElement(buffer_[i]);
+    driver_->DeleteElement(buffer_[i]);
   }
 }
 
@@ -257,11 +192,11 @@ void JavascriptFilter::CompleteScriptInProgress() {
 
 void JavascriptFilter::EndElementImpl(HtmlElement* element) {
   if (script_in_progress_ != NULL &&
-      html_parse_->IsRewritable(script_in_progress_) &&
-      html_parse_->IsRewritable(element)) {
-    if (element->tag() == s_script_) {
+      driver_->IsRewritable(script_in_progress_) &&
+      driver_->IsRewritable(element)) {
+    if (element->keyword() == HtmlName::kScript) {
       if (element->close_style() == HtmlElement::BRIEF_CLOSE) {
-        html_parse_->ErrorHere("Brief close of script tag (non-portable)");
+        driver_->ErrorHere("Brief close of script tag (non-portable)");
       }
       if (script_src_ == NULL) {
         RewriteInlineScript();
@@ -283,7 +218,7 @@ void JavascriptFilter::Flush() {
   // by buffering an in-progress script across the flush boundary).
   if (script_in_progress_ != NULL) {
     // Not actually an error!
-    html_parse_->InfoHere("Flush in mid-script; leaving script untouched.");
+    driver_->InfoHere("Flush in mid-script; leaving script untouched.");
     CompleteScriptInProgress();
     some_missing_scripts_ = true;
   }
@@ -295,14 +230,37 @@ void JavascriptFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   some_missing_scripts_ = true;
 }
 
-bool JavascriptFilter::RewriteLoadedResource(const Resource* script_input,
-                                             OutputResource* output_resource) {
+bool JavascriptFilter::ReuseByContentHash() const {
+  return true;
+}
+
+RewriteSingleResourceFilter::RewriteResult
+JavascriptFilter::RewriteLoadedResource(const Resource* script_input,
+                                        OutputResource* output_resource,
+                                        UrlSegmentEncoder* encoder) {
+  MessageHandler* message_handler = driver_->message_handler();
+
   StringPiece script = script_input->contents();
-  std::string script_out;
-  JavascriptCodeBlock code_block(script, &config_,
-                                 html_parse_->message_handler());
-  return WriteExternalScriptTo(script_input,
-                               code_block.Rewritten(), output_resource);
+  JavascriptCodeBlock code_block(script, &config_, message_handler);
+  JavascriptLibraryId library = code_block.ComputeJavascriptLibrary();
+  if (library.recognized()) {
+    driver_->InfoHere("Script %s is %s %s",
+                      script_input->url().c_str(),
+                      library.name(), library.version());
+  }
+
+  bool ok = code_block.ProfitableToRewrite();
+  if (ok) {
+    output_resource->SetType(&kContentTypeJavascript);
+    ok = WriteExternalScriptTo(script_input, code_block.Rewritten(),
+                               output_resource);
+  } else {
+    // Rewriting happened but wasn't useful; as we return false base class
+    // will remember this for later so we don't attempt to rewrite twice.
+    driver_->InfoHere("Script %s didn't shrink", script_input->url().c_str());
+  }
+
+  return ok ? kRewriteOk : kRewriteFailed;
 }
 
 }  // namespace net_instaweb

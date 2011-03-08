@@ -41,28 +41,32 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   static const int64 kImplicitCacheTtlMs;
 
   ResponseHeaders();
-  ~ResponseHeaders();
+  virtual ~ResponseHeaders();
 
-  void Clear();
+  virtual void Clear();
 
   void CopyFrom(const ResponseHeaders& other);
 
   // Add a new header.
-  void Add(const StringPiece& name, const StringPiece& value);
+  virtual void Add(const StringPiece& name, const StringPiece& value);
 
   // Remove all headers by name.
-  void RemoveAll(const char* name);
+  virtual bool RemoveAll(const StringPiece& name);
+
+  // Similar to RemoveAll followed by Add.  Note that the attribute
+  // order may be changed as a side effect of this operation.
+  virtual void Replace(const StringPiece& name, const StringPiece& value);
 
   // Serialize HTTP response header to a binary stream.
-  bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
+  virtual bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
 
   // Read HTTP response header from a binary string.  Note that this
   // is distinct from HTTP response-header parsing, which is in
   // ResponseHeadersParser.
-  bool ReadFromBinary(const StringPiece& buf, MessageHandler* message_handler);
+  virtual bool ReadFromBinary(const StringPiece& buf, MessageHandler* handler);
 
   // Serialize HTTP response header in HTTP format so it can be re-parsed
-  bool WriteAsHttp(Writer* writer, MessageHandler* message_handler) const;
+  virtual bool WriteAsHttp(Writer* writer, MessageHandler* handler) const;
 
   // Compute caching information.  The current time is used to compute
   // the absolute time when a cache resource will expire.  The timestamp
@@ -108,11 +112,11 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // Parses a date header such as HttpAttributes::kDate or
   // HttpAttributes::kExpires, returning the timestamp as
   // number of milliseconds since 1970.
-  bool ParseDateHeader(const char* attr, int64* date_ms) const;
+  bool ParseDateHeader(const StringPiece& attr, int64* date_ms) const;
 
   // Updates a date header using time specified as a number of milliseconds
   // since 1970.
-  void UpdateDateHeader(const char* attr, int64 date_ms);
+  void UpdateDateHeader(const StringPiece& attr, int64 date_ms);
 
   // Set whole first line.
   void set_first_line(int major_version,

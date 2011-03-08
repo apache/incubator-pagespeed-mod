@@ -27,52 +27,55 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-// Relatively simple filter that trims redundant information from the left end
-// of each url.  In particular, we can drop http: from any url that is on a page
-// served via http (etc. for other protocols).  By the same token, a page often
-// contains fully-qualified urls that can be made base-relative (especially as
-// we may do this as a result of rewriting itself), or root-relative.  We should
-// strip the leading portions of these urls.
-//
-// We actually register the base url of a page.  This in turn registers
-// individual trimmings for the protocol, host, and path in that order.  These
-// portions of the url are then trimmed off in order by the Trim(...) operation.
-//
-// TODO(jmaessen): url references in css / outside src= and href= properties
-// TODO(jmaessen): do we need a generic filter base class that just finds urls
-// and calls a class method?  Or do we need context information for any
-// transform other than the sort of thing you see here?
-// TODO(jmaessen): Do we care to introduce ../ in order to relativize more urls?
-// Do we have a library solution to do so with minimal effort?
 
 class Statistics;
 class Variable;
 
+// Filter that trims redundant information from the left end of each url.
+//
+// For example: if the page's base URL is http://www.example.com/foo/bar.html
+// then the following URLs can be trimmed:
+//   http://www.example.com/foo/bar/other.html -> bar/other.html
+//   http://www.example.com/another.html -> /another.html
+//   http://www.example.org/index.html -> //www.example.org/index.html
+//
+// TODO(jmaessen): Do we care to introduce ../ in order to relativize more urls?
+// For example, if base URL is http://www.example.com/foo/bar/index.html
+// we could convert: http://www.example.com/foo/other.html -> ../other.html
+// rather than -> /foo/other.html.
 class UrlLeftTrimFilter : public EmptyHtmlFilter {
  public:
-  UrlLeftTrimFilter(HtmlParse* html_parse, Statistics* resource_manager);
+  UrlLeftTrimFilter(HtmlParse* html_parse, Statistics* statistics);
   static void Initialize(Statistics* statistics);
+  virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
-  // TODO(sligocki): This is broken and only adds base_urls. We need to be able
-  // to ResetBaseUrl to a new value. There is only one base_url at a time.
-  virtual void AddBaseUrl(const StringPiece& base_url);
   virtual const char* Name() const { return "UrlLeftTrim"; }
 
- protected:
-  friend class UrlLeftTrimFilterTest;
-  bool Trim(StringPiece* url);
-  void AddTrimming(const StringPiece& trimming);
+  // Trim 'url_to_trim' relative to 'base_url' returning the result in
+  // 'trimmed_url'. Returns true if we succeeded at trimming the URL.
+  //
+  // This is static and requires the base_url explicitly, so that it can be
+  // called from other places (like the CSS filter).
+  static bool Trim(const GoogleUrl& base_url, const StringPiece& url_to_trim,
+                   std::string* trimmed_url, MessageHandler* handler);
 
  private:
+  void TrimAttribute(HtmlElement::Attribute* attr);
+  void ClearBaseUrl();
+  // There is only one base_url at a time, so calling the function clears out
+  // the previous base_url.
+  // SetBaseUrl() should be called at the beginning of the document with the
+  // document's url, and whenever we encounter a base tag.
+  void SetBaseUrl(const StringPiece& base_url);
+
+  friend class UrlLeftTrimFilterTest;
+
   HtmlParse* html_parse_;
-  StringVector left_trim_strings_;
-  const Atom s_base_;
-  const Atom s_href_;
-  const Atom s_src_;
+  GoogleUrl  base_url_;              // url we make paths relative to
+
+  // Stats on how much trimming we've done.
   Variable* trim_count_;
   Variable* trim_saved_bytes_;
-
-  void TrimAttribute(HtmlElement::Attribute* attr);
 
   DISALLOW_COPY_AND_ASSIGN(UrlLeftTrimFilter);
 };

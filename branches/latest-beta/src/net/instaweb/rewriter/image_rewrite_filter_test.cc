@@ -92,10 +92,12 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     AppendDefaultHeaders(kContentTypeJpeg, resource_manager_, &headers);
 
     writer.Write(headers, &message_handler_);
+    writer.Flush(&message_handler_);
+    int header_size = fetched_resource_content.length();
     EXPECT_TRUE(
         rewrite_driver_.FetchResource(src_string, request_headers,
                                       &response_headers, &writer,
-                                      &message_handler_, &dummy_callback));
+                                      &dummy_callback));
     EXPECT_EQ(HttpStatus::kOK, response_headers.status_code()) <<
         "Looking for " << src_string;
     // For readability, only do EXPECT_EQ on initial portions of data
@@ -108,88 +110,10 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     EXPECT_TRUE(rewritten_image_data == fetched_resource_content) <<
         "In " << src_string;
 
-    // Now we fetch from the "other" server. To simulate first fetch, we
-    // need to:
-    // 1) Clear the cache, so we don't just find the result there.
-    // TODO(sligocki): We should just use a separate cache.
-    lru_cache_->Clear();
-    // 2) Disable the file system, so we don't find the resource there.
-    // TODO(sligocki): We should just use a separate mem_file_system.
-    file_system_.Disable();
-    // 3) Disable the fetcher, so that the fetch doesn't finish imidiately.
-    // TODO(sligocki): We could use the CallCallbacks() trick to get a more
-    // correct response, rather than effectively shutting off our network.
-    mock_url_fetcher_.Disable();
-
-    fetched_resource_content.clear();
-    dummy_callback.Reset();
-    ResponseHeaders redirect_headers;
-    other_rewrite_driver_.FetchResource(src_string, request_headers,
-                                        &redirect_headers, &writer,
-                                        &message_handler_, &dummy_callback);
-    std::string expected_redirect =
-        StrCat("<img src=\"", image_url, "\" alt=\"Temporarily Moved\"/>");
-
-    EXPECT_EQ(HttpStatus::kTemporaryRedirect, redirect_headers.status_code());
-    EXPECT_EQ(expected_redirect, fetched_resource_content);
-
-    // Now we switch the file system and fetcher back on, corresponding to
-    // the case where a prior async fetch completed and we're ready to rewrite.
-    // This should yield the same results as the original html- driven rewrite.
-    file_system_.Enable();
-    mock_url_fetcher_.Enable();
-
-    // TODO(jmarantz): Refactor this code which tries the serving-fetch twice,
-    // the second after the cache stops 'remembering' that the origin fetch
-    // failed.
-    message_handler_.Message(
-        kInfo, "Now with serving, but with a recent fetch failure.");
-    ResponseHeaders other_headers;
-    // size_t header_size = fetched_resource_content.size();
-    dummy_callback.Reset();
-
-    // Trying this twice.  The first time, we will again fail to rewrite
-    // the resource because the cache will 'remembered' that the image origin
-    // fetch failed and so the resource manager will not try again for 5
-    // minutes.
-    fetched_resource_content.clear();
-    other_rewrite_driver_.FetchResource(src_string, request_headers,
-                                        &other_headers, &writer,
-                                        &message_handler_, &dummy_callback);
-    EXPECT_EQ(HttpStatus::kTemporaryRedirect, redirect_headers.status_code());
-    EXPECT_EQ(expected_redirect, fetched_resource_content);
-
-    // Now let some time go by and try again.
-    message_handler_.Message(
-        kInfo, "Now with serving, but 5 minutes expired since fetch failure.");
-    other_file_system_.timer()->advance_ms(
-        5 * Timer::kMinuteMs + 1 * Timer::kSecondMs);
-    fetched_resource_content.clear();
-    writer.Write(headers, &message_handler_);
-    EXPECT_EQ(headers, fetched_resource_content);
-    dummy_callback.Reset();
-    other_rewrite_driver_.FetchResource(src_string, request_headers,
-                                        &other_headers, &writer,
-                                        &message_handler_, &dummy_callback);
-    EXPECT_EQ(HttpStatus::kOK, other_headers.status_code());
-    EXPECT_EQ(rewritten_image_data.substr(0, 100),
-              fetched_resource_content.substr(0, 100));
-    EXPECT_TRUE(rewritten_image_data == fetched_resource_content);
-
-    std::string secondary_image_data;
-    ASSERT_TRUE(file_system_.ReadFile(rewritten_filename.c_str(),
-                                      &secondary_image_data,
-                                      &message_handler_));
-    EXPECT_EQ(rewritten_image_data.substr(0, 100),
-              secondary_image_data.substr(0, 100));
-    EXPECT_EQ(rewritten_image_data, secondary_image_data);
-
     // Try to fetch from an independent server.
-    /* TODO(sligocki): Get this working. Right now it returns a redirect.
     ServeResourceFromManyContexts(src_string, RewriteOptions::kRewriteImages,
                                   &mock_hasher_,
-                                  fetched_resource_content.substr(header_size));
-    */
+                                  rewritten_image_data.substr(header_size));
   }
 
   // Helper class to collect img srcs.
@@ -248,24 +172,18 @@ class ImageRewriteTest : public ResourceManagerTestBase {
         "kEenp/8oyIBf2ZEWaEfyv8BsICdAZ/XeTCAAAAAElFTkSuQmCC";
     std::string cuppa_string(kCuppaData);
     scoped_ptr<Resource> cuppa_resource(
-        resource_manager_->CreateInputResourceAbsolute(cuppa_string,
-                                                       &options_,
-                                                       &message_handler_));
+        rewrite_driver_.CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(cuppa_resource != NULL);
-    EXPECT_TRUE(resource_manager_->ReadIfCached(cuppa_resource.get(),
-                                                &message_handler_));
+    EXPECT_TRUE(rewrite_driver_.ReadIfCached(cuppa_resource.get()));
     std::string cuppa_contents;
     cuppa_resource->contents().CopyToString(&cuppa_contents);
     // Now make sure axing the original cuppa_string doesn't affect the
     // internals of the cuppa_resource.
     scoped_ptr<Resource> other_resource(
-        resource_manager_->CreateInputResourceAbsolute(cuppa_string,
-                                                       &options_,
-                                                       &message_handler_));
+        rewrite_driver_.CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(other_resource != NULL);
     cuppa_string.clear();
-    EXPECT_TRUE(resource_manager_->ReadIfCached(other_resource.get(),
-                                                &message_handler_));
+    EXPECT_TRUE(rewrite_driver_.ReadIfCached(other_resource.get()));
     std::string other_contents;
     cuppa_resource->contents().CopyToString(&other_contents);
     ASSERT_EQ(cuppa_contents, other_contents);
@@ -285,8 +203,8 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     AddFilter(RewriteOptions::kRewriteImages);
 
     StringVector img_srcs;
-    ImgCollector img_collect(html_parse(), &img_srcs);
-    html_parse()->AddFilter(&img_collect);
+    ImgCollector img_collect(&rewrite_driver_, &img_srcs);
+    rewrite_driver_.AddFilter(&img_collect);
 
     ParseUrl(kTestDomain, kHtml);
     ASSERT_EQ(2, img_srcs.size());
@@ -402,6 +320,23 @@ TEST_F(ImageRewriteTest, NoExtensionCorruption) {
 
 TEST_F(ImageRewriteTest, NoQueryCorruption) {
   TestCorruptUrl("?query", true);
+}
+
+TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
+  options_.EnableFilter(RewriteOptions::kRewriteImages);
+  options_.EnableFilter(RewriteOptions::kInsertImgDimensions);
+  rewrite_driver_.AddFilters();
+  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"),
+                       StrCat(GTestSrcDir(), kTestData, kBikePngFile),
+                       kContentTypePng);
+
+  ParseUrl(kTestDomain, "<img width=0 height=0 src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=0 height=42 src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=42 height=0 src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=\"-5\" height=\"5\" src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=\"-5\" height=\"0\" src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=\"-5\" height=\"-5\" src=\"a.png\">");
+  ParseUrl(kTestDomain, "<img width=\"5\" height=\"-5\" src=\"a.png\">");
 }
 
 }  // namespace

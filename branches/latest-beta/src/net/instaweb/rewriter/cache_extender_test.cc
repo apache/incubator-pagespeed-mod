@@ -21,6 +21,7 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
+#include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -30,8 +31,6 @@
 namespace net_instaweb {
 
 namespace {
-
-static const char kDomain[] = "http://test.com/";
 
 const char kHtmlFormat[] =
     "<link rel='stylesheet' href='%s' type='text/css'>\n"
@@ -67,9 +66,9 @@ class CacheExtenderTest : public ResourceManagerTestBase {
   // Helper to test for how we handle trailing junk in URLs
   void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
     InitTest(100);
-    std::string a_ext = Encode(kDomain, "ce", "0", "a.css", "css");
-    std::string b_ext = Encode(kDomain, "ce", "0", "b.jpg", "jpg");
-    std::string c_ext = Encode(kDomain, "ce", "0", "c.js", "js");
+    std::string a_ext = Encode(kTestDomain, "ce", "0", "a.css", "css");
+    std::string b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
+    std::string c_ext = Encode(kTestDomain, "ce", "0", "c.js", "js");
 
     ValidateExpected("no_ext_corrupt", GenerateHtml("a.css", "b.jpg", "c.js"),
                     GenerateHtml(a_ext, b_ext, c_ext));
@@ -89,47 +88,100 @@ TEST_F(CacheExtenderTest, DoExtend) {
         "do_extend",
         GenerateHtml("a.css", "b.jpg", "c.js"),
         GenerateHtml(
-            Encode(kDomain, "ce", "0", "a.css", "css"),
-            Encode(kDomain, "ce", "0", "b.jpg", "jpg"),
-            Encode(kDomain, "ce", "0", "c.js", "js")));
+            Encode(kTestDomain, "ce", "0", "a.css", "css"),
+            Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
+            Encode(kTestDomain, "ce", "0", "c.js", "js")));
   }
+}
+
+TEST_F(CacheExtenderTest, NoInputResource) {
+  InitTest(100);
+  // Test for not crashing on bad/disallowed URL.
+  ValidateNoChanges("bad url",
+                    GenerateHtml("swly://example.com/a.css",
+                                 "http://evil.com/b.jpg",
+                                 "http://moreevil.com/c.js"));
 }
 
 TEST_F(CacheExtenderTest, NoExtendAlreadyCachedProperly) {
   InitTest(100000000);  // cached for a long time to begin with
-  ValidateExpected("no_extend_cached_properly",
-                   GenerateHtml("a.css", "b.jpg", "c.js"),
-                   GenerateHtml("a.css", "b.jpg", "c.js"));
+  ValidateNoChanges("no_extend_cached_properly",
+                    GenerateHtml("a.css", "b.jpg", "c.js"));
 }
+
+TEST_F(CacheExtenderTest, ExtendIfSharded) {
+  InitTest(100000000);  // cached for a long time to begin with
+  EXPECT_TRUE(options_.domain_lawyer()->AddShard(
+      "test.com", "shard0.com,shard1.com", &message_handler_));
+  // shard0 is always selected in the test because of our mock hasher
+  // that always returns 0.
+  ValidateExpected("extend_if_sharded",
+                   GenerateHtml("a.css", "b.jpg", "c.js"),
+                   GenerateHtml("http://shard0.com/a.css.pagespeed.ce.0.css",
+                                "http://shard0.com/b.jpg.pagespeed.ce.0.jpg",
+                                "http://shard0.com/c.js.pagespeed.ce.0.js"));
+}
+
+TEST_F(CacheExtenderTest, ExtendIfRewritten) {
+  InitTest(100000000);  // cached for a long time to begin with
+
+  EXPECT_TRUE(options_.domain_lawyer()->AddRewriteDomainMapping(
+      "cdn.com", "test.com", &message_handler_));
+  ValidateExpected("extend_if_rewritten",
+                   GenerateHtml("a.css", "b.jpg", "c.js"),
+                   GenerateHtml("http://cdn.com/a.css.pagespeed.ce.0.css",
+                                "http://cdn.com/b.jpg.pagespeed.ce.0.jpg",
+                                "http://cdn.com/c.js.pagespeed.ce.0.js"));
+}
+
+TEST_F(CacheExtenderTest, ExtendIfShardedAndRewritten) {
+  InitTest(100000000);  // cached for a long time to begin with
+
+  EXPECT_TRUE(options_.domain_lawyer()->AddRewriteDomainMapping(
+      "cdn.com", "test.com", &message_handler_));
+
+  // Domain-rewriting is performed first.  Then we shard.
+  EXPECT_TRUE(options_.domain_lawyer()->AddShard(
+      "cdn.com", "shard0.com,shard1.com", &message_handler_));
+  // shard0 is always selected in the test because of our mock hasher
+  // that always returns 0.
+  ValidateExpected("extend_if_sharded_and_rewritten",
+                   GenerateHtml("a.css", "b.jpg", "c.js"),
+                   GenerateHtml("http://shard0.com/a.css.pagespeed.ce.0.css",
+                                "http://shard0.com/b.jpg.pagespeed.ce.0.jpg",
+                                "http://shard0.com/c.js.pagespeed.ce.0.js"));
+}
+
+// TODO(jmarantz): consider implementing and testing the sharding and
+// domain-rewriting of uncacheable resources -- just don't sign the URLs.
 
 TEST_F(CacheExtenderTest, NoExtendOriginUncacheable) {
   InitTest(0);  // origin not cacheable
-  ValidateExpected("no_extend_origin_not_cacheable",
-                   GenerateHtml("a.css", "b.jpg", "c.js"),
-                   GenerateHtml("a.css", "b.jpg", "c.js"));
+  ValidateNoChanges("no_extend_origin_not_cacheable",
+                    GenerateHtml("a.css", "b.jpg", "c.js"));
 }
 
 TEST_F(CacheExtenderTest, ServeFiles) {
   std::string content;
 
   InitTest(100);
-  ASSERT_TRUE(ServeResource(kDomain, kFilterId, "a.css", "css", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "a.css", "css", &content));
   EXPECT_EQ(std::string(kCssData), content);
-  ASSERT_TRUE(ServeResource(kDomain, kFilterId, "b.jpg", "jpg", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "b.jpg", "jpg", &content));
   EXPECT_EQ(std::string(kImageData), content);
-  ASSERT_TRUE(ServeResource(kDomain, kFilterId, "c.js", "js", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "c.js", "js", &content));
   EXPECT_EQ(std::string(kJsData), content);
 }
 
 TEST_F(CacheExtenderTest, ServeFilesFromDelayedFetch) {
   InitTest(100);
-  ServeResourceFromManyContexts(Encode(kDomain, "ce", "0", "a.css", "css"),
+  ServeResourceFromManyContexts(Encode(kTestDomain, "ce", "0", "a.css", "css"),
                                 RewriteOptions::kExtendCache,
                                 &mock_hasher_, kCssData);
-  ServeResourceFromManyContexts(Encode(kDomain, "ce", "0", "b.jpg", "jpg"),
+  ServeResourceFromManyContexts(Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
                                 RewriteOptions::kExtendCache,
                                 &mock_hasher_, kImageData);
-  ServeResourceFromManyContexts(Encode(kDomain, "ce", "0", "c.js", "js"),
+  ServeResourceFromManyContexts(Encode(kTestDomain, "ce", "0", "c.js", "js"),
                                 RewriteOptions::kExtendCache,
                                 &mock_hasher_, kJsData);
 
@@ -146,8 +198,9 @@ TEST_F(CacheExtenderTest, MinimizeCacheHits) {
   rewrite_driver_.AddFilters();
   std::string html_input = StrCat("<style>", kCssData, "</style>");
   std::string html_output = StringPrintf(
-      "<link rel='stylesheet' href='%s'>",
-      Encode(kDomain, "co", "0", "_", "css").c_str());
+      "<link rel=\"stylesheet\" href=\"%s\">",
+      Encode(kTestDomain, CssOutlineFilter::kFilterId, "0", "_",
+             "css").c_str());
   ValidateExpected("no_extend_origin_not_cacheable", html_input, html_output);
 
   // The key thing about this test is that the CacheExtendFilter should
@@ -156,8 +209,10 @@ TEST_F(CacheExtenderTest, MinimizeCacheHits) {
   // resource from the cache, then we'll get a cache-hit and decide that
   // it's already got a long cache lifetime.  But we should know, just from
   // the name of the resource, that it should not be cache extended.
+  // The CSS outliner also should not produce any cache misses, as it currently
+  // does not cache.
   EXPECT_EQ(0, lru_cache_->num_hits());
-  EXPECT_EQ(1, lru_cache_->num_misses());
+  EXPECT_EQ(0, lru_cache_->num_misses());
 }
 
 TEST_F(CacheExtenderTest, NoExtensionCorruption) {

@@ -86,31 +86,27 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
   virtual const char* Name() const { return "Javascript"; }
 
  protected:
-  virtual bool RewriteLoadedResource(const Resource* input_resource,
-                                     OutputResource* output_resource);
+  virtual bool ReuseByContentHash() const;
+  virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
+                                              OutputResource* output_resource,
+                                              UrlSegmentEncoder* encoder);
 
  private:
   inline void CompleteScriptInProgress();
   inline void RewriteInlineScript();
   inline void RewriteExternalScript();
-  inline Resource* ScriptAtUrl(const StringPiece& script_url);
   const StringPiece FlattenBuffer(std::string* script_buffer);
   bool WriteExternalScriptTo(const Resource* script_resource,
                              const StringPiece& script_out,
                              OutputResource* script_dest);
 
   std::vector<HtmlCharactersNode*> buffer_;
-  HtmlParse* html_parse_;
   HtmlElement* script_in_progress_;
   HtmlElement::Attribute* script_src_;
-  ResourceManager* resource_manager_;
   // some_missing_scripts indicates that we stopped processing a script and
   // therefore can't assume we know all of the Javascript on a page.
   bool some_missing_scripts_;
   JavascriptRewriteConfig config_;
-  const Atom s_script_;
-  const Atom s_src_;
-  const Atom s_type_;
   ScriptTagScanner script_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptFilter);

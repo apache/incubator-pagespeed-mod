@@ -110,10 +110,18 @@ void ResponseHeaders::Add(const StringPiece& name, const StringPiece& value) {
   cache_fields_dirty_ = true;
 }
 
-void ResponseHeaders::RemoveAll(const char* name) {
+bool ResponseHeaders::RemoveAll(const StringPiece& name) {
   if (Headers<HttpResponseHeaders>::RemoveAll(name)) {
     cache_fields_dirty_ = true;
+    return true;
   }
+  return false;
+}
+
+void ResponseHeaders::Replace(
+    const StringPiece& name, const StringPiece& value) {
+  cache_fields_dirty_ = true;
+  Headers<HttpResponseHeaders>::Replace(name, value);
 }
 
 bool ResponseHeaders::WriteAsBinary(Writer* writer, MessageHandler* handler) {
@@ -170,16 +178,14 @@ int64 ResponseHeaders::CacheExpirationTimeMs() const {
 void ResponseHeaders::SetDate(int64 date_ms) {
   std::string time_string;
   if (ConvertTimeToString(date_ms, &time_string)) {
-    RemoveAll(HttpAttributes::kDate);
-    Add(HttpAttributes::kDate, time_string.c_str());
+    Replace(HttpAttributes::kDate, time_string);
   }
 }
 
 void ResponseHeaders::SetLastModified(int64 last_modified_ms) {
   std::string time_string;
   if (ConvertTimeToString(last_modified_ms, &time_string)) {
-    RemoveAll(HttpAttributes::kLastModified);
-    Add(HttpAttributes::kLastModified, time_string.c_str());
+    Replace(HttpAttributes::kLastModified, time_string);
   }
 }
 
@@ -190,11 +196,11 @@ void ResponseHeaders::ComputeCaching() {
   }
   resource.SetResponseStatusCode(proto_->status_code());
 
-  CharStarVector values;
+  StringStarVector values;
   int64 date;
   // Compute the timestamp if we can find it
   if (Lookup("Date", &values) && (values.size() == 1) &&
-      ConvertStringToTime(values[0], &date)) {
+      ConvertStringToTime(*(values[0]), &date)) {
     proto_->set_timestamp_ms(date);
   }
 
@@ -248,10 +254,11 @@ void ResponseHeaders::ComputeCaching() {
     values.clear();
     if (Lookup(HttpAttributes::kCacheControl, &values)) {
       for (int i = 0, n = values.size(); i < n; ++i) {
-        const char* cache_control = values[i];
+        const std::string* cache_control = values[i];
         pagespeed::resource_util::DirectiveMap directive_map;
-        if (pagespeed::resource_util::GetHeaderDirectives(
-                cache_control, &directive_map)) {
+        if ((cache_control != NULL)
+            && pagespeed::resource_util::GetHeaderDirectives(
+                *cache_control, &directive_map)) {
           pagespeed::resource_util::DirectiveMap::iterator p =
               directive_map.find("private");
           if (p != directive_map.end()) {
@@ -285,19 +292,19 @@ bool ResponseHeaders::ParseTime(const char* time_str, int64* time_ms) {
 }
 
 bool ResponseHeaders::IsGzipped() const {
-  CharStarVector v;
+  StringStarVector v;
   return (Lookup(HttpAttributes::kContentEncoding, &v) && (v.size() == 1) &&
-          (strcmp(v[0], HttpAttributes::kGzip) == 0));
+          (v[0] != NULL) && (v[0]->compare(HttpAttributes::kGzip) == 0));
 }
 
-bool ResponseHeaders::ParseDateHeader(const char* attr, int64* date_ms) const {
-  CharStarVector values;
-  return (Lookup(attr, &values) &&
-          (values.size() == 1) &&
-          ConvertStringToTime(values[0], date_ms));
+bool ResponseHeaders::ParseDateHeader(
+    const StringPiece& attr, int64* date_ms) const {
+  StringStarVector values;
+  return (Lookup(attr, &values) && (values.size() == 1) &&
+          (values[0] != NULL) && ConvertStringToTime(*(values[0]), date_ms));
 }
 
-void ResponseHeaders::UpdateDateHeader(const char* attr, int64 date_ms) {
+void ResponseHeaders::UpdateDateHeader(const StringPiece& attr, int64 date_ms) {
   RemoveAll(attr);
   std::string buf;
   if (ConvertTimeToString(date_ms, &buf)) {

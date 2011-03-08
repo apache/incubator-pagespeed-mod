@@ -28,6 +28,7 @@
 namespace net_instaweb {
 
 class HtmlParseTest : public HtmlParseTestBase {
+ protected:
   virtual bool AddBody() const { return true; }
 };
 
@@ -259,6 +260,55 @@ TEST_F(HtmlParseTest, OpenBracketAfterSpace) {
   ValidateExpected("open_brack_after_name", input, expected);
 }
 
+TEST_F(HtmlParseTest, MakeName) {
+  EXPECT_EQ(0, HtmlTestingPeer::symbol_table_size(&html_parse_));
+
+  // Empty names are a corner case that we hope does not crash.  Note
+  // that empty-string atoms are special-cased in the symbol table
+  // and require no new allocated bytes.
+  {
+    HtmlName empty = html_parse_.MakeName("");
+    EXPECT_EQ(0, HtmlTestingPeer::symbol_table_size(&html_parse_));
+    EXPECT_EQ(HtmlName::kNotAKeyword, empty.keyword());
+    EXPECT_EQ('\0', *empty.c_str());
+  }
+
+  // When we make a name using its enum, there should be no symbol table growth.
+  HtmlName body_symbol = html_parse_.MakeName(HtmlName::kBody);
+  EXPECT_EQ(0, HtmlTestingPeer::symbol_table_size(&html_parse_));
+  EXPECT_EQ(HtmlName::kBody, body_symbol.keyword());
+
+  // When we make a name using the canonical form (all-lower-case) there
+  // should still be no symbol table growth.
+  HtmlName body_canonical = html_parse_.MakeName("body");
+  EXPECT_EQ(0, HtmlTestingPeer::symbol_table_size(&html_parse_));
+  EXPECT_EQ(HtmlName::kBody, body_canonical.keyword());
+
+  // But when we introduce a new capitalization, we want to retain the
+  // case, even though we do html keyword matching.  We will have to
+  // store the new form in the symbol table so we'll be allocating
+  // some bytes, including the nul terminator.
+  HtmlName body_new_capitalization = html_parse_.MakeName("Body");
+  EXPECT_EQ(5, HtmlTestingPeer::symbol_table_size(&html_parse_));
+  EXPECT_EQ(HtmlName::kBody, body_new_capitalization.keyword());
+
+  // Make a name out of something that is not a keyword.
+  // This should also increase the symbol-table size.
+  HtmlName non_keyword = html_parse_.MakeName("hiybbprqag");
+  EXPECT_EQ(16, HtmlTestingPeer::symbol_table_size(&html_parse_));
+  EXPECT_EQ(HtmlName::kNotAKeyword, non_keyword.keyword());
+
+  // Empty names are a corner case that we hope does not crash.  Note
+  // that empty-string atoms are special-cased in the symbol table
+  // and require no new allocated bytes.
+  {
+    HtmlName empty = html_parse_.MakeName("");
+    EXPECT_EQ(16, HtmlTestingPeer::symbol_table_size(&html_parse_));
+    EXPECT_EQ(HtmlName::kNotAKeyword, empty.keyword());
+    EXPECT_EQ('\0', *empty.c_str());
+  }
+}
+
 // bug 2508140 : <noscript> in <head>
 TEST_F(HtmlParseTestNoBody, NoscriptInHead) {
   // Some real websites (ex: google.com) have <noscript> in the <head> even
@@ -269,6 +319,26 @@ TEST_F(HtmlParseTestNoBody, NoscriptInHead) {
       "</noscript></head>");
 }
 
+TEST_F(HtmlParseTestNoBody, NoCaseFold) {
+  // Case folding is off by default.  However, we don't keep the
+  // closing-tag separate in the IR so we will always make that
+  // match.
+  ValidateExpected("no_case_fold",
+                   "<DiV><Other xY='AbC' Href='dEf'>Hello</OTHER></diV>",
+                   "<DiV><Other xY='AbC' Href='dEf'>Hello</Other></DiV>");
+  // Despite the fact that we retain case, in our IR, and the cases did not
+  // match between opening and closing tags, there should be no messages
+  // warning about unmatched tags.
+  EXPECT_EQ(0, message_handler_.TotalMessages());
+}
+
+TEST_F(HtmlParseTestNoBody, CaseFold) {
+  SetupWriter();
+  html_writer_filter_->set_case_fold(true);
+  ValidateExpected("case_fold",
+                   "<DiV><Other xY='AbC' Href='dEf'>Hello</OTHER></diV>",
+                   "<div><other xy='AbC' href='dEf'>Hello</other></div>");
+}
 
 // Bool that is auto-initialized to false
 class Bool {
@@ -521,25 +591,25 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node3_, div));
   CheckExpected("<div>123</div>");
 
   // Now interpose a span between the div and the Characeters nodes.
-  HtmlElement* span = html_parse_.NewElement(div, html_parse_.Intern("span"));
+  HtmlElement* span = html_parse_.NewElement(div, HtmlName::kSpan);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, span));
   CheckExpected("<div><span>12</span>3</div>");
 
   // Next, add an HTML block above the div.  Note that we pass 'div' in as
   // both 'first' and 'last'.
-  HtmlElement* html = html_parse_.NewElement(NULL, html_parse_.Intern("html"));
+  HtmlElement* html = html_parse_.NewElement(NULL, HtmlName::kHtml);
   EXPECT_TRUE(html_parse_.AddParentToSequence(div, div, html));
   CheckExpected("<html><div><span>12</span>3</div></html>");
 }
 
 TEST_F(EventListManipulationTest, TestPrependChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   html_parse_.InsertElementBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -553,7 +623,7 @@ TEST_F(EventListManipulationTest, TestPrependChild) {
 
 TEST_F(EventListManipulationTest, TestAppendChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   html_parse_.InsertElementBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -568,7 +638,7 @@ TEST_F(EventListManipulationTest, TestAppendChild) {
 TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -578,7 +648,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
 
 TEST_F(EventListManipulationTest, TestDeleteGroup) {
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   html_parse_.DeleteElement(div);
@@ -586,11 +656,11 @@ TEST_F(EventListManipulationTest, TestDeleteGroup) {
 }
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
-  HtmlElement* head = html_parse_.NewElement(NULL, html_parse_.Intern("head"));
+  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node2_, node2_, div));
   CheckExpected("<head>1</head><div>2</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -602,13 +672,13 @@ TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent2) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* head = html_parse_.NewElement(NULL, html_parse_.Intern("head"));
+  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
   CheckExpected("<head>1</head>23");
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node3_, node3_, div));
   CheckExpected("<head>1</head>2<div>3</div>");
   HtmlTestingPeer::SetCurrent(&html_parse_, div);
@@ -634,7 +704,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnAdd) {
 
 TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
   CheckExpected("1");
-  HtmlElement* div = html_parse_.NewElement(NULL, html_parse_.Intern("div"));
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer testing_peer;
@@ -665,21 +735,17 @@ class AttributeManipulationTest : public HtmlParseTest {
     static const char kUrl[] =
         "http://html.parse.test/attribute_manipulation_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
-    node_ = html_parse_.NewElement(NULL, MakeAtom("a"));
+    node_ = html_parse_.NewElement(NULL, HtmlName::kA);
     html_parse_.AddElement(node_, 0);
-    node_->AddAttribute(MakeAtom("href"), "http://www.google.com/", "\"");
-    node_->AddAttribute(MakeAtom("id"), "37", "");
-    node_->AddAttribute(MakeAtom("class"), "search!", "'");
+    html_parse_.AddAttribute(node_, HtmlName::kHref, "http://www.google.com/");
+    node_->AddAttribute(html_parse_.MakeName(HtmlName::kId), "37", "");
+    node_->AddAttribute(html_parse_.MakeName(HtmlName::kClass), "search!", "'");
     html_parse_.CloseElement(node_, HtmlElement::BRIEF_CLOSE, 0);
   }
 
   virtual void TearDown() {
     html_parse_.FinishParse();
     HtmlParseTest::TearDown();
-  }
-
-  Atom MakeAtom(const char *name) {
-    return html_parse_.Intern(name);
   }
 
   void CheckExpected(const std::string& expected) {
@@ -699,29 +765,29 @@ TEST_F(AttributeManipulationTest, PropertiesAndDeserialize) {
   StringPiece number37("37");
   StringPiece search("search!");
   EXPECT_EQ(3, node_->attribute_size());
-  EXPECT_EQ(google, node_->AttributeValue(MakeAtom("href")));
-  EXPECT_EQ(number37, node_->AttributeValue(MakeAtom("id")));
-  EXPECT_EQ(search, node_->AttributeValue(MakeAtom("class")));
-  EXPECT_TRUE(NULL == node_->AttributeValue(MakeAtom("absent")));
+  EXPECT_EQ(google, node_->AttributeValue(HtmlName::kHref));
+  EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
+  EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
+  EXPECT_TRUE(NULL == node_->AttributeValue(HtmlName::kNotAKeyword));
   int val = -35;
-  EXPECT_FALSE(node_->IntAttributeValue(MakeAtom("absent"), &val));
+  EXPECT_FALSE(node_->IntAttributeValue(HtmlName::kNotAKeyword, &val));
   EXPECT_EQ(-35, val);
-  EXPECT_FALSE(node_->IntAttributeValue(MakeAtom("href"), &val));
+  EXPECT_FALSE(node_->IntAttributeValue(HtmlName::kHref, &val));
   EXPECT_EQ(0, val);
-  EXPECT_TRUE(node_->IntAttributeValue(MakeAtom("id"), &val));
+  EXPECT_TRUE(node_->IntAttributeValue(HtmlName::kId, &val));
   EXPECT_EQ(37, val);
-  EXPECT_TRUE(NULL == node_->FindAttribute(MakeAtom("absent")));
-  EXPECT_EQ(google, node_->FindAttribute(MakeAtom("href"))->value());
-  EXPECT_EQ(number37, node_->FindAttribute(MakeAtom("id"))->value());
-  EXPECT_EQ(search, node_->FindAttribute(MakeAtom("class"))->value());
-  EXPECT_EQ(google, node_->FindAttribute(MakeAtom("href"))->escaped_value());
-  EXPECT_EQ(number37, node_->FindAttribute(MakeAtom("id"))->escaped_value());
-  EXPECT_EQ(search, node_->FindAttribute(MakeAtom("class"))->escaped_value());
+  EXPECT_TRUE(NULL == node_->FindAttribute(HtmlName::kNotAKeyword));
+  EXPECT_EQ(google, node_->FindAttribute(HtmlName::kHref)->value());
+  EXPECT_EQ(number37, node_->FindAttribute(HtmlName::kId)->value());
+  EXPECT_EQ(search, node_->FindAttribute(HtmlName::kClass)->value());
+  EXPECT_EQ(google, node_->FindAttribute(HtmlName::kHref)->escaped_value());
+  EXPECT_EQ(number37, node_->FindAttribute(HtmlName::kId)->escaped_value());
+  EXPECT_EQ(search, node_->FindAttribute(HtmlName::kClass)->escaped_value());
   CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'/>");
 }
 
 TEST_F(AttributeManipulationTest, AddAttribute) {
-  node_->AddAttribute(MakeAtom("lang"), "ENG-US", "\"");
+  html_parse_.AddAttribute(node_, HtmlName::kLang, "ENG-US");
   CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'"
                 " lang=\"ENG-US\"/>");
 }
@@ -733,17 +799,17 @@ TEST_F(AttributeManipulationTest, DeleteAttribute) {
 
 TEST_F(AttributeManipulationTest, ModifyAttribute) {
   HtmlElement::Attribute* href =
-      node_->FindAttribute(MakeAtom("href"));
+      node_->FindAttribute(HtmlName::kHref);
   EXPECT_TRUE(href != NULL);
   href->SetValue("google");
   href->set_quote("'");
-  href->set_name(MakeAtom("src"));
+  html_parse_.SetAttributeName(href, HtmlName::kSrc);
   CheckExpected("<a src='google' id=37 class='search!'/>");
 }
 
 TEST_F(AttributeManipulationTest, ModifyKeepAttribute) {
   HtmlElement::Attribute* href =
-      node_->FindAttribute(MakeAtom("href"));
+      node_->FindAttribute(HtmlName::kHref);
   EXPECT_TRUE(href != NULL);
   // This apparently do-nothing call to SetValue exposed an allocation bug.
   href->SetValue(href->value());
@@ -757,6 +823,35 @@ TEST_F(AttributeManipulationTest, BadUrl) {
 
   // To avoid having the TearDown crash, restart the parse.
   html_parse_.StartParse("http://www.example.com");
+}
+
+TEST_F(AttributeManipulationTest, CloneElement) {
+  HtmlElement* clone = html_parse_.CloneElement(node_);
+
+  // The clone is identical (but not the same object).
+  EXPECT_NE(clone, node_);
+  EXPECT_EQ(HtmlName::kA, clone->keyword());
+  EXPECT_EQ(node_->close_style(), clone->close_style());
+  EXPECT_EQ(3, clone->attribute_size());
+  EXPECT_EQ(HtmlName::kHref, clone->attribute(0).keyword());
+  EXPECT_EQ(std::string("http://www.google.com/"),
+            clone->attribute(0).value());
+  EXPECT_EQ(HtmlName::kId, clone->attribute(1).keyword());
+  EXPECT_EQ(std::string("37"), clone->attribute(1).value());
+  EXPECT_EQ(HtmlName::kClass, clone->attribute(2).keyword());
+  EXPECT_EQ(std::string("search!"), clone->attribute(2).value());
+
+  HtmlElement::Attribute* id = clone->FindAttribute(HtmlName::kId);
+  ASSERT_TRUE(id != NULL);
+  id->SetValue("38");
+
+  // Clone is not added initially, and the original is not touched.
+  CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'/>");
+
+  // Looks sane when added.
+  html_parse_.InsertElementBeforeElement(node_, clone);
+  CheckExpected("<a href=\"http://www.google.com/\" id=38 class='search!'/>"
+                "<a href=\"http://www.google.com/\" id=37 class='search!'/>");
 }
 
 }  // namespace net_instaweb

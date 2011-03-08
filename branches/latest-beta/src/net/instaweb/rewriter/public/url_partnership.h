@@ -39,7 +39,7 @@ class RewriteOptions;
 class UrlPartnership {
  public:
   UrlPartnership(const RewriteOptions* options, const GURL& original_request);
-  ~UrlPartnership();
+  virtual ~UrlPartnership();
 
   // Adds a URL to a combination.  If it can be legally added, consulting
   // the DomainLaywer, then true is returned.
@@ -50,7 +50,7 @@ class UrlPartnership {
   std::string ResolvedBase() const;
 
   // Returns the number of URLs that have been successfully added.
-  int num_urls() { return gurl_vector_.size(); }
+  int num_urls() const { return gurl_vector_.size(); }
 
   // Returns the relative path of a particular URL that was added into
   // the partnership.  This requires that Resolve() be called first.
@@ -62,8 +62,13 @@ class UrlPartnership {
   // Removes the last URL that was added to the partnership.
   void RemoveLast();
 
+  virtual void Reset(const GURL& original_request);
+
+  // Returns the number of common path components for all resources
+  // in this partnership.
+  int NumCommonComponents() const { return common_components_.size(); }
+
  protected:
-  int num_components() const { return common_components_.size(); }
   const RewriteOptions* rewrite_options() const { return rewrite_options_; }
 
  private:
@@ -72,9 +77,9 @@ class UrlPartnership {
   typedef std::vector<GURL*> GurlVector;
   GurlVector gurl_vector_;
   std::string domain_;
-  GURL domain_gurl_;
+  GoogleUrl domain_gurl_;
   const RewriteOptions* rewrite_options_;
-  GURL original_origin_and_path_;
+  GoogleUrl original_origin_and_path_;
 
   // common_components_ is updated while adding Urls to support incremental
   // resolution.

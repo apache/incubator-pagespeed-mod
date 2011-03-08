@@ -21,6 +21,7 @@
 #include <vector>
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -37,9 +38,6 @@ namespace net_instaweb {
 UrlLeftTrimFilter::UrlLeftTrimFilter(HtmlParse* html_parse,
                                      Statistics* stats)
     : html_parse_(html_parse),
-      s_base_(html_parse->Intern("base")),
-      s_href_(html_parse->Intern("href")),
-      s_src_(html_parse->Intern("src")),
       trim_count_((stats == NULL) ? NULL : stats->GetVariable(kUrlTrims)),
       trim_saved_bytes_(
           (stats == NULL) ? NULL : stats->GetVariable(kUrlTrimSavedBytes)) {
@@ -50,85 +48,121 @@ void UrlLeftTrimFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kUrlTrimSavedBytes);
 }
 
+void UrlLeftTrimFilter::StartDocument() {
+  GoogleUrl tmp(html_parse_->url());
+  base_url_.Swap(&tmp);
+}
+
+// If the element is a base tag, set the base url to be the href value.
+// Do not rewrite the base tag.
 void UrlLeftTrimFilter::StartElement(HtmlElement* element) {
-  // TODO(jmaessen): handle other places urls might lurk in html.
-  // But never rewrite the base tag; always include its full url.
-  if (element->tag() != s_base_) {
-    TrimAttribute(element->FindAttribute(s_href_));
-    TrimAttribute(element->FindAttribute(s_src_));
-  }
-}
-
-void UrlLeftTrimFilter::AddTrimming(const StringPiece& trimming) {
-  CHECK_LT(0u, trimming.size());
-  left_trim_strings_.push_back(trimming.as_string());
-}
-
-void UrlLeftTrimFilter::AddBaseUrl(const StringPiece& base) {
-  size_t colon_pos = base.find(':');
-  size_t host_start = 0;
-  if (colon_pos != base.npos) {
-    StringPiece protocol(base.data(), colon_pos+1);
-    AddTrimming(protocol);
-    host_start = colon_pos + 3;
+  if (element->keyword() == HtmlName::kBase) {
+    HtmlElement::Attribute *base_href = element->FindAttribute(HtmlName::kHref);
+    if (base_href != NULL) {
+      SetBaseUrl(base_href->value());
+    }
   } else {
-    colon_pos = -1;
-  }
-  size_t first_slash_pos = base.find('/', host_start);
-  if (first_slash_pos != base.npos) {
-    StringPiece host_name(base.data() + colon_pos + 1,
-                          first_slash_pos - colon_pos - 1);
-    AddTrimming(host_name);
-    size_t last_slash_pos = base.rfind('/');
-    if (last_slash_pos != base.npos &&
-        last_slash_pos > first_slash_pos) {
-      // Note that we leave a case on the floor here: when base is the root of a
-      // domain (such as http://www.nytimes.com/ ) we can strip the leading /
-      // off rooted urls.  We do not do so as the path / is a proper prefix of a
-      // protocol-stripped url such as //www.google.com/, and we don't want to
-      // transform the latter into the incorrect relative url /www.google.com/.
-      // If we simply require last_slash_pos >= first_slash_pos we include this
-      // case, and sites like nytimes break badly.
-      StringPiece base_dir(base.data() + first_slash_pos,
-                           last_slash_pos-first_slash_pos+1);
-      AddTrimming(base_dir);
-    }
+    TrimAttribute(element->FindAttribute(HtmlName::kHref));
+    TrimAttribute(element->FindAttribute(HtmlName::kSrc));
   }
 }
 
-// Left trim all strings in left_trim_strings_ from url, in order.
-// StringPiece supports left and right trimming in place (the only
-// mutation it permits).
-bool UrlLeftTrimFilter::Trim(StringPiece* url) {
-  bool trimmed = false;
-  for (StringVector::iterator i = left_trim_strings_.begin();
-       i != left_trim_strings_.end(); ++i) {
-    // First condition below guarantees that we never completely
-    // remove a url, leaving it empty.
-    if (url->length() > i->length() && url->starts_with(*i)) {
-      url->remove_prefix(i->length());
-      trimmed = true;
+void UrlLeftTrimFilter::SetBaseUrl(const StringPiece& base) {
+  if(base_url_.is_empty()) {
+    GoogleUrl tmp(base);
+    base_url_.Swap(&tmp);
+  } else {
+    GoogleUrl tmp(html_parse_->google_url(), base);
+    base_url_.Swap(&tmp);
+  }
+}
+
+// Resolve the url we want to trim, and then remove the scheme, origin
+// and/or path as appropriate.
+bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
+                             const StringPiece& url_to_trim,
+                             std::string* trimmed_url,
+                             MessageHandler* handler) {
+  if (!base_url.is_valid() || !base_url.is_standard() || url_to_trim.empty()) {
+    return false;
+  }
+
+  GoogleUrl long_url(base_url, url_to_trim);
+  //  Don't try to rework an invalid url
+  if (!long_url.is_valid() || !long_url.is_standard()) {
+    return false;
+  }
+
+  StringPiece long_url_buffer = long_url.Spec();
+  size_t to_trim = 0;
+
+  // If we can strip the whole origin (http://www.google.com/) do it,
+  // then see if we can strip the prefix of the path.
+  StringPiece origin = base_url.Origin();
+  if (origin.length() < long_url_buffer.length() &&
+      long_url.Origin() == origin) {
+    to_trim = origin.length();
+    StringPiece path = base_url.PathSansLeaf();
+    if (to_trim + path.length() < long_url_buffer.length() &&
+        long_url.PathSansLeaf().find(path) == 0) {
+      to_trim += path.length();
     }
   }
-  return trimmed;
+
+  // If we can't strip the whole origin, see if we can strip off the scheme.
+  StringPiece scheme = base_url.Scheme();
+  if (to_trim == 0 && scheme.length() + 1 < long_url_buffer.length() &&
+      long_url.SchemeIs(scheme)) {
+    // +1 for : (not included in scheme)
+    to_trim = scheme.length() + 1;
+  }
+
+  // Candidate trimmed URL.
+  StringPiece trimmed_url_piece(long_url_buffer);
+  trimmed_url_piece.remove_prefix(to_trim);
+
+  if (trimmed_url_piece.length() < url_to_trim.length()) {
+    // If we have a colon before the first slash there are two options:
+    // option 1 - we still have our scheme, in which case we're not shortening
+    // anything, and can just abort.
+    // option 2 - the original url had some nasty scheme-looking stuff in the
+    // middle of the url, and now it's at the front.  This causes Badness,
+    // revert to the original.
+    size_t colon_pos = trimmed_url_piece.find(':');
+    if (colon_pos != trimmed_url_piece.npos) {
+      if (trimmed_url_piece.rfind('/', colon_pos) == trimmed_url_piece.npos) {
+        return false;
+      }
+    }
+    GoogleUrl resolved_newurl(base_url, trimmed_url_piece);
+    DCHECK(resolved_newurl == long_url);
+    if (!resolved_newurl.is_valid() || resolved_newurl != long_url) {
+      handler->Message(kInfo, "Left trimming of %s referring to %s was %s, "
+                       "which instead refers to %s.",
+                       url_to_trim.as_string().c_str(),
+                       long_url_buffer.as_string().c_str(),
+                       trimmed_url_piece.as_string().c_str(),
+                       resolved_newurl.Spec().as_string().c_str());
+      return false;
+    }
+    *trimmed_url = trimmed_url_piece.as_string();
+    return true;
+  }
+  return false;
 }
 
 // Trim the value of the given attribute, if the attribute is non-NULL.
 void UrlLeftTrimFilter::TrimAttribute(HtmlElement::Attribute* attr) {
   if (attr != NULL) {
     StringPiece val(attr->value());
+    std::string trimmed_val;
     size_t orig_size = val.size();
-    if (Trim(&val)) {
-      size_t saved = orig_size - val.size();
-      const char* q = attr->quote();
-      html_parse_->InfoHere(
-          "trimmed %u %s=%s%s%s to %s%s%s.", static_cast<unsigned>(saved),
-          attr->name().c_str(), q, attr->value(), q,
-          q, val.as_string().c_str(), q);
-      attr->SetValue(val);
+    if (Trim(base_url_, val, &trimmed_val,
+             html_parse_->message_handler())) {
+      attr->SetValue(trimmed_val);
       if (trim_count_ != NULL) {
         trim_count_->Add(1);
-        trim_saved_bytes_->Add(orig_size - val.size());
+        trim_saved_bytes_->Add(orig_size - trimmed_val.size());
       }
     }
   }

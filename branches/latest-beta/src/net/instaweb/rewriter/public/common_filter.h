@@ -16,8 +16,8 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_BASE_FILTER_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_BASE_FILTER_H_
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 
 #include "base/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
@@ -49,14 +49,9 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual ~CommonFilter();
 
   // Getters
-  RewriteDriver* rewrite_driver() const { return driver_; }
-  const GURL& base_gurl() const { return base_gurl_; }
+  const GURL& base_gurl() const { return driver_->base_url().gurl(); }
+  const GoogleUrl& base_url() const { return driver_->base_url(); }
   HtmlElement* noscript_element() const { return noscript_element_; }
-  // Convenience getters
-  HtmlParse* html_parse() const { return driver_->html_parse(); }
-  ResourceManager* resource_manager() const {
-    return driver_->resource_manager(); }
-  const RewriteOptions* rewrite_options() const { return driver_->options(); }
 
   // Note: Don't overload these methods, overload the implementers instead!
   virtual void StartDocument();
@@ -64,7 +59,6 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual void EndElement(HtmlElement* element);
 
   Resource* CreateInputResource(const StringPiece& url);
-  Resource* CreateInputResourceAbsolute(const StringPiece& url);
   Resource* CreateInputResourceAndReadIfCached(const StringPiece& url);
   Resource* CreateInputResourceFromOutputResource(
       UrlSegmentEncoder* encoder, OutputResource* output_resource);
@@ -77,15 +71,13 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual void StartElementImpl(HtmlElement* element) = 0;
   virtual void EndElementImpl(HtmlElement* element) = 0;
 
- private:
+  // Protected pointers for inheriter's to use
   RewriteDriver* driver_;
-  // TODO(sligocki): Maybe: don't store a separate GURL in each filter.
-  GURL base_gurl_;
-  HtmlElement* noscript_element_;
+  ResourceManager* resource_manager_;
+  const RewriteOptions* rewrite_options_;
 
-  const Atom s_base_;
-  const Atom s_href_;
-  const Atom s_noscript_;
+ private:
+  HtmlElement* noscript_element_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CommonFilter);
@@ -93,4 +85,4 @@ class CommonFilter : public EmptyHtmlFilter {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_BASE_FILTER_H_
+#endif  // NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_

@@ -31,6 +31,8 @@ namespace net_instaweb {
 
 class CssTagScanner {
  public:
+  static const char kStylesheet[];
+
   explicit CssTagScanner(HtmlParse* html_parse);
 
   // Examines an HTML element to determine if it's a CSS link,
@@ -43,7 +45,7 @@ class CssTagScanner {
   // path.  If xxx is quoted with single-quotes or double-quotes, those are
   // retained and the URL inside is absolutified.
   static bool AbsolutifyUrls(const StringPiece& contents,
-                             const std::string& base_url,
+                             const StringPiece& base_url,
                              Writer* writer, MessageHandler* handler);
 
   // Does this CSS file contain @import? If so, it cannot be combined with
@@ -51,12 +53,6 @@ class CssTagScanner {
   static bool HasImport(const StringPiece& contents, MessageHandler* handler);
 
  private:
-  Atom s_link_;
-  Atom s_href_;
-  Atom s_type_;
-  Atom s_rel_;
-  Atom s_media_;
-
   DISALLOW_COPY_AND_ASSIGN(CssTagScanner);
 };
 

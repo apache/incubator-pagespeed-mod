@@ -27,33 +27,22 @@ namespace net_instaweb {
 
 CommonFilter::CommonFilter(RewriteDriver* driver)
     : driver_(driver),
-      s_base_(html_parse()->Intern("base")),
-      s_href_(html_parse()->Intern("href")),
-      s_noscript_(html_parse()->Intern("noscript")) {}
+      resource_manager_(driver->resource_manager()),
+      rewrite_options_(driver->options()) {
+}
 
 CommonFilter::~CommonFilter() {}
 
 void CommonFilter::StartDocument() {
   // Base URL starts as document URL.
-  base_gurl_ = html_parse()->gurl();
   noscript_element_ = NULL;
   // Run the actual filter's StartDocumentImpl.
   StartDocumentImpl();
 }
 
 void CommonFilter::StartElement(HtmlElement* element) {
-  // <base>
-  if (element->tag() == s_base_) {
-    HtmlElement::Attribute* href = element->FindAttribute(s_href_);
-    if (href != NULL) {
-      GURL temp_url(href->value());
-      if (temp_url.is_valid()) {
-        base_gurl_.Swap(&temp_url);
-      }
-    }
-
   // <noscript>
-  } else if (element->tag() == s_noscript_) {
+  if (element->keyword() == HtmlName::kNoscript) {
     if (noscript_element_ == NULL) {
       noscript_element_ = element;  // Record top-level <noscript>
     }
@@ -72,40 +61,22 @@ void CommonFilter::EndElement(HtmlElement* element) {
   EndElementImpl(element);
 }
 
-// TODO(jmarantz): While it is expedient to route the input-resource creation
-// through this base class, it's not clear this is the right place.  I think
-// it would be easier to argue that it should be RewriteDriver.  But this
-// fitler had access to the base_gurl which is very convenient, and was already
-// the base class of all filters that needed this.  We should revisit and
-// decide where this should go.
-//
-// jmaessen also points out that we have not been symmetric: we have ignored
-// OutputResources here.  In any case, we should strive for consistency.
+// TODO(jmarantz): Remove these methods -- they used to serve an
+// important contextual purpose but now that the resource creation
+// methods were moved to RewriteDriver they won't add much value.
 Resource* CommonFilter::CreateInputResource(const StringPiece& url) {
-  ResourceManager* resource_manager = driver_->resource_manager();
-  return resource_manager->CreateInputResource(
-      base_gurl(), url, driver_->options(), html_parse()->message_handler());
-}
-
-Resource* CommonFilter::CreateInputResourceAbsolute(const StringPiece& url) {
-  ResourceManager* resource_manager = driver_->resource_manager();
-  return resource_manager->CreateInputResourceAbsolute(
-      url, driver_->options(), html_parse()->message_handler());
+  return driver_->CreateInputResource(base_gurl(), url);
 }
 
 Resource* CommonFilter::CreateInputResourceAndReadIfCached(
     const StringPiece& url) {
-  ResourceManager* resource_manager = driver_->resource_manager();
-  return resource_manager->CreateInputResourceAndReadIfCached(
-      base_gurl(), url, driver_->options(), html_parse()->message_handler());
+  return driver_->CreateInputResourceAndReadIfCached(base_gurl(), url);
 }
 
 Resource* CommonFilter::CreateInputResourceFromOutputResource(
     UrlSegmentEncoder* encoder, OutputResource* output_resource) {
-  ResourceManager* resource_manager = driver_->resource_manager();
-  return resource_manager->CreateInputResourceFromOutputResource(
-      encoder, output_resource, driver_->options(),
-      html_parse()->message_handler());
+  return driver_->CreateInputResourceFromOutputResource(
+      encoder, output_resource);
 }
 
 }  // namespace net_instaweb

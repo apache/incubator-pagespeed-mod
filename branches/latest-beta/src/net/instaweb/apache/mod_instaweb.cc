@@ -94,6 +94,7 @@ const char* kModPagespeedDisableFilters = "ModPagespeedDisableFilters";
 const char* kModPagespeedSlurpDirectory = "ModPagespeedSlurpDirectory";
 const char* kModPagespeedSlurpReadOnly = "ModPagespeedSlurpReadOnly";
 const char* kModPagespeedSlurpFlushLimit = "ModPagespeedSlurpFlushLimit";
+const char* kModPagespeedTestProxy = "ModPagespeedTestProxy";
 const char* kModPagespeedForceCaching = "ModPagespeedForceCaching";
 const char* kModPagespeedCssInlineMaxBytes = "ModPagespeedCssInlineMaxBytes";
 const char* kModPagespeedImgInlineMaxBytes = "ModPagespeedImgInlineMaxBytes";
@@ -101,6 +102,7 @@ const char* kModPagespeedImgMaxRewritesAtOnce =
     "ModPagespeedImgMaxRewritesAtOnce";
 const char* kModPagespeedJsInlineMaxBytes = "ModPagespeedJsInlineMaxBytes";
 const char* kModPagespeedMaxSegmentLength = "ModPagespeedMaxSegmentLength";
+const char* kModPagespeedLogRewriteTiming = "ModPagespeedLogRewriteTiming";
 const char* kModPagespeedDomain = "ModPagespeedDomain";
 const char* kModPagespeedMapRewriteDomain = "ModPagespeedMapRewriteDomain";
 const char* kModPagespeedMapOriginDomain = "ModPagespeedMapOriginDomain";
@@ -110,6 +112,8 @@ const char* kModPagespeedAllow = "ModPagespeedAllow";
 const char* kModPagespeedDisallow = "ModPagespeedDisallow";
 const char* kModPagespeedStatistics = "ModPagespeedStatistics";
 const char* kModPagespeedCombineAcrossPaths = "ModPagespeedCombineAcrossPaths";
+const char* kModPagespeedLowercaseHtmlNames = "ModPagespeedLowercaseHtmlNames";
+const char* kModPagespeedShardDomain = "ModPagespeedShardDomain";
 
 // TODO(jmarantz): determine the version-number from SVN at build time.
 const char kModPagespeedVersion[] = MOD_PAGESPEED_VERSION_STRING "-"
@@ -205,7 +209,7 @@ bool ScanQueryParamsForRewriterOptions(RewriteDriverFactory* factory,
   int option_count = 0;
   for (int i = 0; i < query_params.size(); ++i) {
     const char* name = query_params.name(i);
-    const char* value = query_params.value(i);
+    const std::string* value = query_params.value(i);
     if (value == NULL) {
       // Empty; all our options require a value, so skip.  It might be a
       // perfectly legitimate query param for the underlying page.
@@ -213,37 +217,37 @@ bool ScanQueryParamsForRewriterOptions(RewriteDriverFactory* factory,
     }
     int64 int_val;
     if (strcmp(name, kModPagespeed) == 0) {
-      bool is_on = (strcmp(value, "on") == 0);
-      if (is_on || (strcmp(value, "off") == 0)) {
+      bool is_on = (value->compare("on") == 0);
+      if (is_on || (value->compare("off") == 0)) {
         options->set_enabled(is_on);
         ++option_count;
       } else {
         // TODO(sligocki): Return 404s instead of logging server errors here
         // and below.
         handler->Message(kWarning, "Invalid value for %s: %s "
-                         "(should be on or off)", name, value);
+                         "(should be on or off)", name, value->c_str());
         ret = false;
       }
     } else if (strcmp(name, kModPagespeedFilters) == 0) {
       // When using ModPagespeedFilters query param, only the
       // specified filters should be enabled.
       options->SetRewriteLevel(RewriteOptions::kPassThrough);
-      if (options->EnableFiltersByCommaSeparatedList(value, handler)) {
+      if (options->EnableFiltersByCommaSeparatedList(*value, handler)) {
         options->DisableAllFiltersNotExplicitlyEnabled();
         ++option_count;
       } else {
         handler->Message(kWarning,
-                         "Invalid filter name in %s: %s", name, value);
+                         "Invalid filter name in %s: %s", name, value->c_str());
         ret = false;
       }
     // TODO(jmarantz): add js inlinine threshold, outline threshold.
     } else if (strcmp(name, kModPagespeedCssInlineMaxBytes) == 0) {
-      if (StringToInt64(value, &int_val)) {
+      if (StringToInt64(*value, &int_val)) {
         options->set_css_inline_max_bytes(int_val);
         ++option_count;
       } else {
         handler->Message(kWarning, "Invalid integer value for %s: %s",
-                         name, value);
+                         name, value->c_str());
         ret = false;
       }
     }
@@ -451,21 +455,8 @@ InstawebContext* build_context_for_request(request_rec* request) {
     return NULL;
   }
 
-  // Determine the absolute URL for this request, which might take on different
-  // forms in the request structure depending on whether this request comes
-  // from a browser proxy, or whether mod_proxy is enabled.
-  std::string absolute_url;
-  if (strncmp(request->unparsed_uri, "http://", 7) == 0) {
-    absolute_url = request->unparsed_uri;
-  } else {
-    absolute_url = ap_construct_url(request->pool, request->unparsed_uri,
-                                    request);
-  }
-  if ((request->filename != NULL) &&
-      (strncmp(request->filename, "proxy:", 6) == 0)) {
-    absolute_url.assign(request->filename + 6, strlen(request->filename) - 6);
-  }
-
+  // Determine the absolute URL for this request.
+  char* absolute_url = InstawebContext::MakeRequestUrl(request);
   RewriteOptions query_options;
   query_options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   if (ScanQueryParamsForRewriterOptions(
@@ -769,9 +760,9 @@ const char* ParseBoolOption(Options* options, cmd_parms* cmd,
                             void (Options::*fn)(bool val),
                             const char* arg) {
   const char* ret = NULL;
-  if (strcasecmp(arg, "on") == 0) {
+  if (StringCaseEqual(arg, "on")) {
     (options->*fn)(true);
-  } else if (strcasecmp(arg, "off") == 0) {
+  } else if (StringCaseEqual(arg, "off")) {
     (options->*fn)(false);
   } else {
     ret = apr_pstrcat(cmd->pool, cmd->directive->directive, " on|off", NULL);
@@ -815,6 +806,22 @@ void warn_deprecated(cmd_parms* cmd, const char* remedy) {
                cmd->directive->directive, remedy);
 }
 
+// Determines the Option structure into which to write a parsed directive.
+// If the directive was parsed from the default pagespeed.conf file then
+// we will write the information into the factory's RewriteOptions.  However,
+// if this was parsed from a Directory scope or .htaccess file then we will
+// be using the RewriteOptions structure from a tree of ApacheConfig objects
+// that is built up per-request.
+static RewriteOptions* CmdOptions(cmd_parms* cmd, void* data) {
+  ApacheRewriteDriverFactory* factory = InstawebContext::Factory(cmd->server);
+  ApacheConfig* config = static_cast<ApacheConfig*>(data);
+  RewriteOptions* options = factory->options();
+  if (!config->description().empty()) {
+    options = config->options();
+  }
+  return options;
+}
+
 // Callback function that parses a single-argument directive.  This is called
 // by the Apache config parser.
 static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
@@ -823,104 +830,111 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
   MessageHandler* handler = factory->message_handler();
   const char* directive = cmd->directive->directive;
   const char* ret = NULL;
-  ApacheConfig* config = static_cast<ApacheConfig*>(data);
-  RewriteOptions* options = factory->options();
-  if (!config->description().empty()) {
-    options = config->options();
-  }
+  RewriteOptions* options = CmdOptions(cmd, data);
 
-  if (strcasecmp(directive, kModPagespeed) == 0) {
+  if (StringCaseEqual(directive, kModPagespeed)) {
     ret = ParseBoolOption(options, cmd,
                           &RewriteOptions::set_enabled, arg);
-  } else if (strcasecmp(directive, kModPagespeedCombineAcrossPaths) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedCombineAcrossPaths)) {
     ret = ParseBoolOption(options, cmd,
                           &RewriteOptions::set_combine_across_paths, arg);
-  } else if (strcasecmp(directive, kModPagespeedUrlPrefix) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedLowercaseHtmlNames)) {
+    ret = ParseBoolOption(options, cmd,
+                          &RewriteOptions::set_lowercase_html_names, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedUrlPrefix)) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
-  } else if (strcasecmp(directive, kModPagespeedFetchProxy) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedFetchProxy)) {
     factory->set_fetcher_proxy(arg);
-  } else if (strcasecmp(directive, kModPagespeedGeneratedFilePrefix) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedGeneratedFilePrefix)) {
     if (!factory->set_filename_prefix(arg)) {
       ret = apr_pstrcat(cmd->pool, "Directory ", arg,
                         " does not exist and can't be created.", NULL);
     }
-  } else if (strcasecmp(directive, kModPagespeedFileCachePath) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedFileCachePath)) {
     factory->set_file_cache_path(arg);
-  } else if (strcasecmp(directive, kModPagespeedFileCacheSizeKb) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedFileCacheSizeKb)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_file_cache_clean_size_kb, arg);
-  } else if (strcasecmp(directive,
-                        kModPagespeedFileCacheCleanIntervalMs) == 0) {
+  } else if (StringCaseEqual(directive,
+                        kModPagespeedFileCacheCleanIntervalMs)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_file_cache_clean_interval_ms,
         arg);
-  } else if (strcasecmp(directive, kModPagespeedFetcherTimeoutMs) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedFetcherTimeoutMs)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_fetcher_time_out_ms, arg);
-  } else if (strcasecmp(directive, kModPagespeedNumShards) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedNumShards)) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
-  } else if (strcasecmp(directive, kModPagespeedCssOutlineMinBytes) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedCssOutlineMinBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_css_outline_min_bytes, arg);
-  } else if (strcasecmp(directive, kModPagespeedJsOutlineMinBytes) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedJsOutlineMinBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_js_outline_min_bytes, arg);
-  } else if (strcasecmp(directive, kModPagespeedImgInlineMaxBytes) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedImgInlineMaxBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_img_inline_max_bytes, arg);
-  } else if (strcasecmp(directive, kModPagespeedJsInlineMaxBytes) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedJsInlineMaxBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_js_inline_max_bytes, arg);
-  } else if (strcasecmp(directive, kModPagespeedCssInlineMaxBytes) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedCssInlineMaxBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_css_inline_max_bytes, arg);
-  } else if (strcasecmp(directive, kModPagespeedMaxSegmentLength) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedMaxSegmentLength)) {
+    // TODO(sligocki): Convert to ParseInt64Option for consistency?
     ret = ParseIntOption(options,
         cmd, &RewriteOptions::set_max_url_segment_size, arg);
-  } else if (strcasecmp(directive, kModPagespeedLRUCacheKbPerProcess) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedLRUCacheKbPerProcess)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_lru_cache_kb_per_process, arg);
-  } else if (strcasecmp(directive, kModPagespeedLRUCacheByteLimit) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedLRUCacheByteLimit)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_lru_cache_byte_limit, arg);
-  } else if (strcasecmp(directive, kModPagespeedImgMaxRewritesAtOnce) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedImgMaxRewritesAtOnce)) {
+    // TODO(sligocki): Convert to ParseInt64Option for consistency?
     ret = ParseIntOption(options,
         cmd, &RewriteOptions::set_img_max_rewrites_at_once, arg);
-  } else if (strcasecmp(directive, kModPagespeedEnableFilters) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedLogRewriteTiming)) {
+    ret = ParseBoolOption(
+        options, cmd, &RewriteOptions::set_log_rewrite_timing, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedEnableFilters)) {
     if (!options->EnableFiltersByCommaSeparatedList(arg, handler)) {
       ret = "Failed to enable some filters.";
     }
-  } else if (strcasecmp(directive, kModPagespeedDisableFilters) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedDisableFilters)) {
     if (!options->DisableFiltersByCommaSeparatedList(arg, handler)) {
       ret = "Failed to disable some filters.";
     }
-  } else if (strcasecmp(directive, kModPagespeedRewriteLevel) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedRewriteLevel)) {
     RewriteOptions::RewriteLevel level = RewriteOptions::kPassThrough;
     if (RewriteOptions::ParseRewriteLevel(arg, &level)) {
       options->SetRewriteLevel(level);
     } else {
       ret = "Failed to parse RewriteLevel.";
     }
-  } else if (strcasecmp(directive, kModPagespeedSlurpDirectory) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedSlurpDirectory)) {
     factory->set_slurp_directory(arg);
-  } else if (strcasecmp(directive, kModPagespeedSlurpReadOnly) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedSlurpReadOnly)) {
     ret = ParseBoolOption(static_cast<RewriteDriverFactory*>(factory),
         cmd, &ApacheRewriteDriverFactory::set_slurp_read_only, arg);
-  } else if (strcasecmp(directive, kModPagespeedSlurpFlushLimit) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedSlurpFlushLimit)) {
     ret = ParseInt64Option(factory,
         cmd, &ApacheRewriteDriverFactory::set_slurp_flush_limit, arg);
-  } else if (strcasecmp(directive, kModPagespeedForceCaching) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedTestProxy)) {
+    ret = ParseBoolOption(factory,
+        cmd, &ApacheRewriteDriverFactory::set_test_proxy, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedForceCaching)) {
     ret = ParseBoolOption(static_cast<RewriteDriverFactory*>(factory),
         cmd, &ApacheRewriteDriverFactory::set_force_caching, arg);
-  } else if (strcasecmp(directive, kModPagespeedBeaconUrl) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedBeaconUrl)) {
     options->set_beacon_url(arg);
-  } else if (strcasecmp(directive, kModPagespeedDomain) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedDomain)) {
     options->domain_lawyer()->AddDomain(arg, factory->message_handler());
-  } else if (strcasecmp(directive, kModPagespeedAllow) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedAllow)) {
     options->Allow(arg);
-  } else if (strcasecmp(directive, kModPagespeedDisallow) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedDisallow)) {
     options->Disallow(arg);
-  } else if (strcasecmp(directive, kModPagespeedStatistics) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedStatistics)) {
     ret = ParseBoolOption(factory, cmd,
         &ApacheRewriteDriverFactory::set_statistics_enabled, arg);
   } else {
@@ -936,15 +950,17 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
                                    const char* arg1, const char* arg2) {
   ScopedTimer timer(&ApacheProcessContext::AddParseTimeUs);
   ApacheRewriteDriverFactory* factory = InstawebContext::Factory(cmd->server);
-  RewriteOptions* options = factory->options();
+  RewriteOptions* options = CmdOptions(cmd, data);
   const char* directive = cmd->directive->directive;
   const char* ret = NULL;
-  if (strcasecmp(directive, kModPagespeedMapRewriteDomain) == 0) {
+  if (StringCaseEqual(directive, kModPagespeedMapRewriteDomain)) {
     options->domain_lawyer()->AddRewriteDomainMapping(
         arg1, arg2, factory->message_handler());
-  } else if (strcasecmp(directive, kModPagespeedMapOriginDomain) == 0) {
+  } else if (StringCaseEqual(directive, kModPagespeedMapOriginDomain)) {
     options->domain_lawyer()->AddOriginDomainMapping(
         arg1, arg2, factory->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedShardDomain)) {
+    options->domain_lawyer()->AddShard(arg1, arg2, factory->message_handler());
   } else {
     return "Unknown directive.";
   }
@@ -1025,6 +1041,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_OPTION(kModPagespeedSlurpFlushLimit,
         "Set the maximum byte size for the slurped content to hold before "
         "a flush"),
+  APACHE_CONFIG_OPTION(kModPagespeedTestProxy,
+        "Act as a proxy without maintaining a slurp dump."),
   APACHE_CONFIG_OPTION(kModPagespeedForceCaching,
         "Ignore HTTP cache headers and TTLs"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssOutlineMinBytes,
@@ -1043,15 +1061,19 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssInlineMaxBytes,
         "Number of bytes below which stylesheets will be inlined."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxSegmentLength,
-        "Maximum size of a URL segment"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedBeaconUrl, "URL for beacon callback"
-                       " injected by add_instrumentation."),
+        "Maximum size of a URL segment."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedLogRewriteTiming,
+        "Whether or not to report timing information about HtmlParse."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedBeaconUrl,
+        "URL for beacon callback injected by add_instrumentation."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDomain,
         "Authorize mod_pagespeed to rewrite resources in a domain."),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,
          "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
          "to_domain from_domain[,from_domain]*"),
+  APACHE_CONFIG_DIR_OPTION2(kModPagespeedShardDomain,
+         "from_domain shard_domain1[,shard_domain2]*"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedAllow,
         "wildcard_spec for urls"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisallow,

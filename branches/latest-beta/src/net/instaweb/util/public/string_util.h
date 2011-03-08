@@ -20,6 +20,7 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_STRING_UTIL_H_
 
 
+#include <algorithm>
 #include <set>
 #include <vector>
 #include <string>
@@ -28,6 +29,10 @@
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+
+using base::StringAppendF;
+using base::StringAppendV;
+using base::SStringPrintf;
 
 // Quick macro to get the size of a static char[] without trailing '\0'.
 // Note: Cannot be used for char*, std::string, etc.
@@ -90,7 +95,13 @@ void BackslashEscape(const StringPiece& src,
                      const StringPiece& to_escape,
                      std::string* dest);
 
+// TODO(jmarantz): Eliminate these definitions of HasPrefixString,
+// UpperString, and LowerString, and re-add dependency on protobufs
+// which also provide definitions for these.
+
 bool HasPrefixString(const StringPiece& str, const StringPiece& prefix);
+
+void UpperString(std::string* str);
 
 void LowerString(std::string* str);
 
@@ -102,17 +113,35 @@ int GlobalReplaceSubstring(const StringPiece& substring,
                            const StringPiece& replacement,
                            std::string* s);
 
+
+// See also: ./src/third_party/css_parser/src/strings/ascii_ctype.h
+// We probably don't want our core string header file to have a
+// dependecy on the Google CSS parser, so for now we'll write this here:
+
+// upper-case a single character and return it.
+// toupper() changes based on locale.  We don't want this!
+inline char UpperChar(char c) {
+  if ((c >= 'a') && (c <= 'z')) {
+    c += 'A' - 'a';
+  }
+  return c;
+}
+
+// lower-case a single character and return it.
+// tolower() changes based on locale.  We don't want this!
+inline char LowerChar(char c) {
+  if ((c >= 'A') && (c <= 'Z')) {
+    c += 'a' - 'A';
+  }
+  return c;
+}
+
 inline char* strdup(const char* str) {
   return base::strdup(str);
 }
 
-inline int strcasecmp(const char* s1, const char* s2) {
-  return base::strcasecmp(s1, s2);
-}
-
-inline int strncasecmp(const char* s1, const char* s2, size_t count) {
-  return base::strncasecmp(s1, s2, count);
-}
+// Case-insensitive string comparison that is locale-independent.
+int StringCaseCompare(const StringPiece& s1, const StringPiece& s2);
 
 inline void TrimWhitespace(const StringPiece& in, std::string* output) {
   static const char whitespace[] = " \r\n\t";
@@ -136,29 +165,30 @@ bool StringCaseEndsWith(const StringPiece& str, const StringPiece& suffix);
 
 struct CharStarCompareInsensitive {
   bool operator()(const char* s1, const char* s2) const {
-    return strcasecmp(s1, s2) < 0;
+    return (StringCaseCompare(s1, s2) < 0);
   };
 };
 
 struct CharStarCompareSensitive {
   bool operator()(const char* s1, const char* s2) const {
-    return strcmp(s1, s2) < 0;
+    return (strcmp(s1, s2) < 0);
   }
 };
 
 struct StringCompareSensitive {
   bool operator()(const std::string& s1, const std::string& s2) const {
-    return strcmp(s1.c_str(), s2.c_str()) < 0;
+    return (strcmp(s1.c_str(), s2.c_str()) < 0);
   };
 };
 
 struct StringCompareInsensitive {
   bool operator()(const std::string& s1, const std::string& s2) const {
-    return strcasecmp(s1.c_str(), s2.c_str()) < 0;
+    return (StringCaseCompare(s1, s2) < 0);
   };
 };
 
 typedef std::vector<const char*> CharStarVector;
+typedef std::vector<const std::string*> StringStarVector;
 typedef std::vector<std::string> StringVector;
 typedef std::set<std::string> StringSet;
 

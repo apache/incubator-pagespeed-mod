@@ -19,6 +19,8 @@ else
   echo WGET = $WGET
 fi
 
+WGET="$WGET --no-proxy"
+
 $WGET --version | head -1 | grep 1.12 >/dev/null
 if [ $? != 0 ]; then
   echo You have the wrong version of wget.  1.12 is required.
@@ -31,6 +33,7 @@ if [ $PORT = $HOSTNAME ]; then
   PORT=80
 fi;
 EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
+TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
 STATISTICS_URL=http://localhost:$PORT/mod_pagespeed_statistics
 BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/bad.pagespeed.cf.hash.css
 
@@ -127,6 +130,7 @@ function test_resource_ext_corruption() {
   RESOURCE=$EXAMPLE_ROOT/$2
 
   # Make sure the resource is actually there, that the test isn't broken
+  echo checking that wgetting $URL finds $RESOURCE ...
   $WGET_DUMP $URL | grep -qi $RESOURCE
   check [ $? = 0 ]
 
@@ -228,6 +232,28 @@ check $WGET_PREREQ $URL
 test_resource_ext_corruption $URL\
   styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
 
+# Note: this large URL can only be processed by Apache if
+# ap_hook_map_to_storage is called to bypass the default
+# handler that maps URLs to filenames.
+echo TEST: Fetch large css_combine URL
+LARGE_URL="$EXAMPLE_ROOT/styles/yellow.css+blue.css+big.css+\
+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
+big.css+bold.css+yellow.css+blue.css+big.css+\
+bold.css.pagespeed.cc.46IlzLf_NK.css"
+$WGET --save-headers -q -O - $LARGE_URL | head -1 | grep "HTTP/1.1 200 OK"
+check [ $? = 0 ];
+LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
+check [ $? = 0 ]
+echo Checking that response body is at least 900 lines -- it should be 954
+check [ $LARGE_URL_LINE_COUNT -gt 900 ]
+
 test_filter combine_heads combines 2 heads into 1
 check $WGET_PREREQ $URL
 check [ `grep -ce '<head>' $FETCHED` = 1 ]
@@ -242,6 +268,7 @@ check [ $? != 0 ]
 test_filter extend_cache rewrites an image tag.
 fetch_until $URL 'grep -c src.*91_WewrLtP' 1
 check $WGET_PREREQ $URL
+echo about to test resource ext corruption...
 test_resource_ext_corruption $URL images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
 
 echo TEST: Cache-extended image should respond 304 to an If-Modified-Since.
@@ -256,7 +283,7 @@ check "$WGET_DUMP $URL | grep -q 'HTTP/1.1 200 OK'"
 
 test_filter move_css_to_head does what it says on the tin.
 check $WGET_PREREQ $URL
-check grep -q "'<head><link'" $FETCHED  # link moved to head
+check grep -q "'styles/all_styles.css\"></head>'" $FETCHED  # link moved to head
 
 test_filter inline_css converts a link tag to a style tag
 fetch_until $URL 'grep -c style' 2
@@ -271,7 +298,7 @@ check egrep -q "'<style.*small'" $FETCHED           # not outlined
 
 test_filter outline_javascript outlines large scripts, but not small ones.
 check $WGET_PREREQ $URL
-check egrep -q "'<script.*src=.*large'" $FETCHED       # outlined
+check egrep -q "'<script.*large.*src='" $FETCHED       # outlined
 check egrep -q "'<script.*small.*var hello'" $FETCHED  # not outlined
 
 echo TEST: compression is enabled for rewritten JS.
@@ -299,16 +326,22 @@ check $WGET_PREREQ $URL
 check [ `sed 's/ /\n/g' $FETCHED | grep -c '"' ` = 2 ]  # 2 quoted attrs
 check [ `grep -c "'" $FETCHED` = 0 ]                    # no apostrophes
 
+test_filter trim_urls makes urls relative
+check $WGET_PREREQ $URL
+grep "http:" $FETCHED                     # scheme, should not find
+check [ $? != 0 ]
+check [ `stat -c %s $FETCHED` -lt 153 ]   # down from 157
+
 test_filter rewrite_css removes comments and saves a bunch of bytes.
 check $WGET_PREREQ $URL
 grep "comment" $FETCHED                   # comment, should not find
 check [ $? != 0 ]
-check [ `stat -c %s $FETCHED` -lt 315 ]   # down from 472
+check [ `stat -c %s $FETCHED` -lt 380 ]   # down from 538
 
 test_filter rewrite_images inlines, compresses, and resizes.
 fetch_until $URL 'grep -c image/png' 1    # inlined
 check $WGET_PREREQ $URL
-check [ `stat -c %s $OUTDIR/*1023x766*Puzzle*` -lt 241260 ]  # compressed
+check [ `stat -c %s $OUTDIR/xBikeCrashIcn*` -lt 25000 ]      # re-encoded
 check [ `stat -c %s $OUTDIR/*256x192*Puzzle*`  -lt 24126  ]  # resized
 
 IMG_URL=$(egrep -o http://.*.pagespeed.*.jpg $FETCHED | head -n1)
@@ -340,31 +373,25 @@ echo "$IMG_HEADERS" | grep -qi 'Last-Modified'
 check [ $? = 0 ]
 
 IMG_URL=${IMG_URL/Puzzle/BadName}
-echo TEST: rewrite_images redirects unknown image $IMG_URL
+echo TEST: rewrite_images fails broken image $IMG_URL
 $WGET_PREREQ $IMG_URL;  # fails
-check grep '"307 Temporary Redirect"' $WGET_OUTPUT
+check grep '"404 Not Found"' $WGET_OUTPUT
 
-# Note: this large URL can only be processed by Apache if
-# ap_hook_map_to_storage is called to bypass the default
-# handler that maps URLs to filenames.
-echo TEST: Fetch large css_combine URL
-LARGE_URL="$EXAMPLE_ROOT/styles/yellow.css+blue.css+big.css+\
-bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
-big.css+bold.css+yellow.css+blue.css+big.css+\
-bold.css.pagespeed.cc.46IlzLf_NK.css"
-$WGET --save-headers -q -O - $LARGE_URL | head -1 | grep "HTTP/1.1 200 OK"
-check [ $? = 0 ];
-LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
-check [ $? = 0 ]
-echo Checking that response body is at least 900 lines -- it should be 954
-check [ $LARGE_URL_LINE_COUNT -gt 900 ]
+# These have to run after image_rewrite tests. Otherwise it causes some images
+# to be loaded into memory before they should be.
+test_filter rewrite_css,extend_cache extends cache of images in CSS
+FILE=rewrite_css_images.html?ModPagespeedFilters=$FILTER_NAME
+URL=$EXAMPLE_ROOT/$FILE
+FETCHED=$OUTDIR/$FILE
+fetch_until $URL 'grep -c .pagespeed.ce.' 1  # image cache extended
+check $WGET_PREREQ $URL
+
+test_filter rewrite_css,rewrite_images rewrites images in CSS
+FILE=rewrite_css_images.html?ModPagespeedFilters=$FILTER_NAME
+URL=$EXAMPLE_ROOT/$FILE
+FETCHED=$OUTDIR/$FILE
+fetch_until $URL 'grep -c .pagespeed.ic.' 1  # image rewritten
+check $WGET_PREREQ $URL
 
 test_filter rewrite_javascript removes comments and saves a bunch of bytes.
 fetch_until $URL 'grep -c src.*1o978_K0_L' 2   # external scripts rewritten
@@ -376,6 +403,14 @@ check grep -q preserved $FETCHED          # preserves certain comments
 # rewritten JS is cache-extended
 check grep -qi "'Cache-control: max-age=31536000'" $WGET_OUTPUT
 check grep -qi "'Expires:'" $WGET_OUTPUT
+
+echo TEST: ModPagespeedShardDomain directive in .htaccess file
+rm -rf $OUTDIR
+mkdir $OUTDIR
+check $WGET_DUMP http://localhost:8080/mod_pagespeed_test/shard/shard.html \
+  > $OUTDIR/shard.out.html
+check [ `grep -ce href=\"http://shard1 $OUTDIR/shard.out.html` = 2 ];
+check [ `grep -ce href=\"http://shard2 $OUTDIR/shard.out.html` = 2 ];
 
 # Cleanup
 rm -rf $OUTDIR

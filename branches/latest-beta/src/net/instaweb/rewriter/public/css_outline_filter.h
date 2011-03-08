@@ -68,15 +68,8 @@ class CssOutlineFilter : public CommonFilter {
   HtmlElement* inline_element_;
   // Temporarily buffers the content between open and close of inline_element_.
   std::string buffer_;
-  HtmlParse* html_parse_;
-  ResourceManager* resource_manager_;
   size_t size_threshold_bytes_;
   // HTML strings interned into a symbol table.
-  Atom s_link_;
-  Atom s_style_;
-  Atom s_rel_;
-  Atom s_href_;
-  Atom s_type_;
 
   DISALLOW_COPY_AND_ASSIGN(CssOutlineFilter);
 };

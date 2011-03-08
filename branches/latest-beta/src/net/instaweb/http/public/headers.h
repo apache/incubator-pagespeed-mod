@@ -31,13 +31,13 @@ class HttpResponseHeaders;
 class StringMultiMapInsensitive;
 class Writer;
 
-// Read/write API for HTTP headers (shared non-virtual base class)
+// Read/write API for HTTP headers (shared base class)
 template<class Proto> class Headers {
  public:
   Headers();
-  ~Headers();
+  virtual ~Headers();
 
-  void Clear();
+  virtual void Clear();
 
   int major_version() const;
   bool has_major_version() const;
@@ -47,8 +47,8 @@ template<class Proto> class Headers {
 
   // Raw access for random access to attribute name/value pairs.
   int NumAttributes() const;
-  const char* Name(int i) const;
-  const char* Value(int i) const;
+  const std::string& Name(int i) const;
+  const std::string& Value(int i) const;
 
   // Note that Lookup, though declared const, is NOT thread-safe.  This
   // is because it lazily generates a map.
@@ -58,25 +58,29 @@ template<class Proto> class Headers {
   // around this problem by moving the Map to an explicit separate class that
   // can be instantiated to assist with Lookups and Remove.  But that should
   // be done in a separate CL from the one I'm typing into now.
-  bool Lookup(const char* name, CharStarVector* values) const;
+  bool Lookup(const StringPiece& name, StringStarVector* values) const;
 
   // Likewise, NumAttributeNames is const but not thread-safe.
   int NumAttributeNames() const;
 
-  // Add a new header.
-  void Add(const StringPiece& name, const StringPiece& value);
+  // Adds a new header, even if a header with the 'name' exists already.
+  virtual void Add(const StringPiece& name, const StringPiece& value);
 
   // Remove all headers by name.  Return true if anything was removed.
-  bool RemoveAll(const char* name);
+  virtual bool RemoveAll(const StringPiece& name);
+
+  // Similar to RemoveAll followed by Add.  Note that the attribute
+  // order may be changed as a side effect of this operation.
+  virtual void Replace(const StringPiece& name, const StringPiece& value);
 
   // Serialize HTTP header to a binary stream.
-  bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
+  virtual bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
 
   // Read HTTP header from a binary string.
-  bool ReadFromBinary(const StringPiece& buf, MessageHandler* message_handler);
+  virtual bool ReadFromBinary(const StringPiece& buf, MessageHandler* handler);
 
   // Serialize HTTP headers in HTTP format so it can be re-parsed
-  bool WriteAsHttp(Writer* writer, MessageHandler* handler) const;
+  virtual bool WriteAsHttp(Writer* writer, MessageHandler* handler) const;
 
  protected:
   void PopulateMap() const;  // the 'const' is a lie -- it mutates map_.

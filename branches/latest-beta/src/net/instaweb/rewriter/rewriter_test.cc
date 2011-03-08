@@ -56,38 +56,6 @@ TEST_F(RewriterTest, MergeHead) {
       "<body>bye</body>");
 }
 
-TEST_F(RewriterTest, BaseTagNoHead) {
-  AddFilter(RewriteOptions::kAddBaseTag);
-  rewrite_driver_.SetBaseUrl("http://base");
-  ValidateExpected("base_tag",
-      "<body><p>text</p></body>",
-      "<head><base href=\"http://base\"></head><body><p>text</p></body>");
-}
-
-TEST_F(RewriterTest, BaseTagExistingHead) {
-  AddFilter(RewriteOptions::kAddBaseTag);
-  rewrite_driver_.SetBaseUrl("http://base");
-  ValidateExpected("base_tag",
-      "<head><meta></head><body><p>text</p></body>",
-      "<head><base href=\"http://base\"><meta></head><body><p>text</p></body>");
-}
-
-TEST_F(RewriterTest, BaseTagExistingHeadAndNonHrefBase) {
-  AddFilter(RewriteOptions::kAddBaseTag);
-  rewrite_driver_.SetBaseUrl("http://base");
-  ValidateExpected("base_tag",
-      "<head><base x><meta></head><body></body>",
-      "<head><base href=\"http://base\"><base x><meta></head><body></body>");
-}
-
-TEST_F(RewriterTest, BaseTagExistingHeadAndHrefBase) {
-  AddFilter(RewriteOptions::kAddBaseTag);
-  rewrite_driver_.SetBaseUrl("http://base");
-  ValidateExpected("base_tag",
-      "<head><meta><base href=\"http://old\"></head><body></body>",
-      "<head><base href=\"http://base\"><meta></head><body></body>");
-}
-
 TEST_F(RewriterTest, HandlingOfInvalidUrls) {
   Hasher* hasher = &md5_hasher_;
   resource_manager_->set_hasher(hasher);
@@ -100,7 +68,7 @@ TEST_F(RewriterTest, HandlingOfInvalidUrls) {
   // TODO(sligocki): This will need to be regolded if naming format changes.
   std::string hash = hasher->Hash(kCssData);
   std::string good_url =
-      Encode("http://test.com/", "ce", hash, "a.css", "css");
+      Encode(kTestDomain, "ce", hash, "a.css", "css");
   EXPECT_TRUE(TryFetchResource(good_url));
 
   // Querying with an appended query should work fine, too, and cause a cache
@@ -117,16 +85,16 @@ TEST_F(RewriterTest, HandlingOfInvalidUrls) {
   // Changing hash still works.
   // Note: If any of these switch from true to false, that's probably fine.
   // We'd just like to keep track of what causes errors and what doesn't.
-  EXPECT_TRUE(TryFetchResource(Encode("http://test.com/", "ce", "foobar",
+  EXPECT_TRUE(TryFetchResource(Encode(kTestDomain, "ce", "foobar",
                                       "a.css", "css")));
 
   // ... however fetches with invalid extensions should fail
   EXPECT_FALSE(
-      TryFetchResource(Encode("http://test.com/", "ce", hash, "a.css",
+      TryFetchResource(Encode(kTestDomain, "ce", hash, "a.css",
                               "ext")));
 
   // Changing other fields can lead to error.
-  std::string bad_url = Encode("http://test.com/", "xz", hash, "a.css", "css");
+  std::string bad_url = Encode(kTestDomain, "xz", hash, "a.css", "css");
 
   EXPECT_FALSE(TryFetchResource(bad_url));
 }

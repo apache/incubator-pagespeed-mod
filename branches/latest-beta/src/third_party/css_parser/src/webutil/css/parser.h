@@ -22,7 +22,6 @@
 
 #include <string>
 #include <vector>
-
 #include "base/scoped_ptr.h"
 #include "strings/stringpiece.h"
 #include "testing/production_stub/public/gunit_prod.h"
@@ -148,14 +147,23 @@ class Parser {
   bool quirks_mode() const { return quirks_mode_; }
   void set_quirks_mode(bool quirks_mode) { quirks_mode_ = quirks_mode; }
 
+  // Whether we allow all values to be stored in declarations.
+  //
+  // If false (the default), we will strip all values that we don't recognize
+  // or don't think belong in a declaration.
+  // If true, we will remember all values referenced in declarations.
+  bool allow_all_values() const { return allow_all_values_; }
+  void set_allow_all_values(bool x) { allow_all_values_ = x; }
+
   // This is a bitmask of errors seen during the parse.  This is decidedly
   // incomplete --- there are definitely many errors that are not reported here.
   static const uint64 kNoError          = 0;
-  static const uint64 kUtf8Error        = 1ULL << 0;
-  static const uint64 kDeclarationError = 1ULL << 1;
-  static const uint64 kSelectorError    = 1ULL << 2;
-  static const uint64 kFunctionError    = 1ULL << 3;
-  static const uint64 kMediaError       = 1ULL << 4;
+  static const uint64 kUtf8Error        = 1ULL << 0; // 1
+  static const uint64 kDeclarationError = 1ULL << 1; // 2
+  static const uint64 kSelectorError    = 1ULL << 2; // 4
+  static const uint64 kFunctionError    = 1ULL << 3; // 8
+  static const uint64 kMediaError       = 1ULL << 4; // 16
+  static const uint64 kCounterError     = 1ULL << 5; // 32
   uint64 errors_seen_mask() const { return errors_seen_mask_; }
 
   friend class ParserTest;  // we need to unit test private Parse functions.
@@ -217,7 +225,11 @@ class Parser {
   // This method does not skip spaces like most other methods do, because it
   // may be used to identify things like "import" in "@import", which is
   // different from "@ import".
-  UnicodeText ParseIdent();  // parse an identifier like justify
+  //
+  // You may supply a string of additional allowed_chars. For example,
+  // there are many IE proprietary declarations whose values contain ':'
+  // Ex: filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=80)
+  UnicodeText ParseIdent(const StringPiece& allowed_chars = "");
 
   // Starting at \, parse the escape and return the corresponding
   // unicode codepoint.  If the \ is the last character in the
@@ -302,8 +314,17 @@ class Parser {
                                                    // or black
 
   //
-  // FUNCTION-like objects: rgb(), url(), rect()
+  // FUNCTIONS and FUNCTION-like objects: rgb(), url(), rect()
   //
+
+  // Parse a generic list of function parameters.
+  //
+  // Specifically, starting after the opening '(', repeatedly ParseAny() as
+  // values either comma or space separated until we reach the closing ')'.
+  //
+  // ParseFunction() does not consume closing ')' and returns a vector of
+  // values if successful, and NULL if the contents were mal-formed.
+  FunctionParameters* ParseFunction();
 
   // Converts a Value number or percentage to an RGB value.
   static unsigned char ValueToRGB(Value* v);
@@ -319,7 +340,7 @@ class Parser {
   //  rgb(100%,100%,100%) = #FFF. Whitespace characters are allowed
   //  around the numerical values.
   //
-  // Starting just past 'rgb(', ParseColor() consumes up to (but not
+  // Starting just past 'rgb(', ParseRgbColor() consumes up to (but not
   // including) the closing ) and returns the color it finds.
   // Returns NULL if mal-formed.
   Value* ParseRgbColor();   // parse an rgbcolor like 125, 25, 12
@@ -341,15 +362,6 @@ class Parser {
   // Returns NULL for mal-formed URLs.
   Value* ParseUrl();      // parse a url like yellow.png or 'blah.png'
 
-  // Parses between the parentheses of rect(top, right, bottom, left).
-  //
-  // The contents should be a comma or space separated list of four numerical
-  // values or the keyword "auto". Note that spaces are allowed to separate
-  // values for historical reasons.
-  //
-  // Returns NULL if the contents is not well-formed.
-  Value* ParseRect();  // parse rect(top, right, bottom, left)
-
   //
   // Value and Values
   //
@@ -360,13 +372,13 @@ class Parser {
   // in the latter case.  We call this instead of ParseAny() after
   // color, background-color, and background properties to accomodate bad CSS.
   // If no value is found, ParseAnyExpectingColor returns NULL.
-  Value* ParseAnyExpectingColor();
+  Value* ParseAnyExpectingColor(const StringPiece& allowed_chars = "");
 
   // ParseAny() parses a css value and consumes it.  It does not skip
   // leading or trailing whitespace.
   // If no value is found, ParseAny returns NULL and make sure at least one
   // character is consumed (to make progress).
-  Value* ParseAny();  // parse a value, which is pretty much anything.
+  Value* ParseAny(const StringPiece& allowed_chars = "");
 
   // Parse a list of values for the given property.
   // We parse until we see a !, ;, or } delimiter. However, if there are any
@@ -461,10 +473,19 @@ class Parser {
   // nested blocks.  We discard the result.
   void ParseBlock();
 
-  const char *in_;   // The current point in the parse.
-  const char *end_;  // The end of the document to parse.
+  // Current position in document (bytes from beginning).
+  int CurrentOffset() const { return in_ - begin_; }
+
+  static const int kErrorContext;
+  // Error type should be one of the static const k*Error's above.
+  void ReportParsingError(uint64 error_type, const StringPiece& message);
+
+  const char *begin_;  // The beginning of the doc (used to report offset).
+  const char *in_;     // The current point in the parse.
+  const char *end_;    // The end of the document to parse.
 
   bool quirks_mode_;  // Whether we are in quirks mode.
+  bool allow_all_values_;  // If false, strip all values we don't recognize.
   uint64 errors_seen_mask_;
 
   FRIEND_TEST(ParserTest, color);
