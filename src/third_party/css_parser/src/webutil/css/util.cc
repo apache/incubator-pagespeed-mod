@@ -20,7 +20,6 @@
 #include "webutil/css/util.h"
 
 #include "base/commandlineflags.h"
-#include "strings/ascii_ctype.h"
 #include "strings/memutil.h"
 #include "strings/stringpiece_utils.h"
 #include "strings/strutil.h"
@@ -166,12 +165,10 @@ static const RgbValue known_system_color_values[] = {
 };
 
 const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
-  switch (ascii_tolower(colorstr[0])) {
+  switch (tolower(colorstr[0])) {
   case 'a':
-    switch (ascii_tolower(colorstr[1])) {
+    switch (tolower(colorstr[1])) {
     case 'c':
-      // TODO(sligocki): Use a locale-independent function instead of
-      // strcasecmp so that this code is more portable.
       if (!strcasecmp("activeborder", colorstr)) {
         return &known_system_color_values[0];
       } else if (!strcasecmp("activecaption", colorstr)) {
@@ -186,7 +183,7 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
     }
     return NULL;
   case 'b':
-    switch (ascii_tolower(colorstr[1])) {
+    switch (tolower(colorstr[1])) {
     case 'a':
       if (!strcasecmp("background", colorstr)) {
         return &known_system_color_values[3];

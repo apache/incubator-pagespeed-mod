@@ -19,6 +19,7 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_FILTER_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_FILTER_H_
 
+#include <string>
 #include "net/instaweb/htmlparse/public/html_parser_types.h"
 
 namespace net_instaweb {

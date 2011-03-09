@@ -51,8 +51,7 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       url_valid_(false),
       log_rewrite_timing_(false),
       parse_start_time_us_(0),
-      timer_(NULL),
-      first_filter_(0) {
+      timer_(NULL) {
   lexer_ = new HtmlLexer(this);
   HtmlKeywords::Init();
 }
@@ -170,7 +169,7 @@ void HtmlParse::AddElement(HtmlElement* element, int line_number) {
 bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
                              const ContentType& content_type) {
   url.CopyToString(&url_);
-  GoogleUrl gurl(url);
+  GURL gurl(url_);
   url_valid_ = gurl.is_valid();
   if (!url_valid_) {
     message_handler_->Message(kWarning, "HtmlParse: Invalid document url %s",
@@ -343,11 +342,10 @@ void HtmlParse::Flush() {
   if (url_valid_) {
     ShowProgress("Flush");
 
-    for (int i = first_filter_, n = filters_.size(); i < n; ++i) {
+    for (size_t i = 0; i < filters_.size(); ++i) {
       HtmlFilter* filter = filters_[i];
       ApplyFilter(filter);
     }
-    first_filter_ = 0;
 
     // Detach all the elements from their events, as we are now invalidating
     // the events, but not the elements.

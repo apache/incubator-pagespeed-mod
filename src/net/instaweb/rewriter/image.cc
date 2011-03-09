@@ -27,6 +27,8 @@
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
+#undef PAGESPEED_PNG_OPTIMIZER_GIF_READER
+#define PAGESPEED_PNG_OPTIMIZER_GIF_READER 0
 #ifdef USE_SYSTEM_OPENCV
 #include "cv.h"
 #include "highgui.h"
@@ -77,23 +79,8 @@ Image::Image(const StringPiece& original_contents,
       output_valid_(false),
       opencv_image_(NULL),
       opencv_load_possible_(true),
-      changed_(false),
+      resized_(false),
       url_(url) { }
-
-Image::Image(int width, int height, Type type,
-      const StringPiece& tmp_dir, MessageHandler* handler)
-    : file_prefix_(tmp_dir.data(), tmp_dir.size()),
-      handler_(handler),
-      image_type_(type),
-      original_contents_(),
-      output_contents_(),
-      output_valid_(false),
-      opencv_image_(NULL),
-      opencv_load_possible_(true),
-      changed_(false),
-      url_() {
-      dims_.set_dims(width, height);
-}
 
 Image::~Image() {
   CleanOpenCv();
@@ -227,9 +214,7 @@ void Image::ComputeImageType() {
         if ((StringPiece(buf.data(), ImageHeaders::kGifHeaderLength) ==
              StringPiece(ImageHeaders::kGifHeader,
                          ImageHeaders::kGifHeaderLength)) &&
-            (buf[ImageHeaders::kGifHeaderLength] == '7' ||
-             buf[ImageHeaders::kGifHeaderLength] == '9') &&
-            buf[ImageHeaders::kGifHeaderLength + 1] == 'a') {
+            (buf[4] == '7' || buf[4] == '9') && buf[5] == 'a') {
           image_type_ = IMAGE_GIF;
           FindGifSize();
         }
@@ -264,10 +249,11 @@ const ContentType* Image::content_type() {
 // If the colour type (UK spelling from spec) includes an alpha channel, or
 // there is a tRNS section with at least one entry before IDAT, then we assume
 // the image contains non-opaque pixels and return true.
-bool Image::ComputePngTransparency(const StringPiece& buf) {
+bool Image::ComputePngTransparency() {
   // We assume the image has transparency until we prove otherwise.
   // This allows us to deal conservatively with truncation etc.
   bool has_transparency = true;
+  const StringPiece& buf = original_contents_;
   if (buf.size() > ImageHeaders::kPngColourTypeOffset &&
       ((buf[ImageHeaders::kPngColourTypeOffset] &
         ImageHeaders::kPngAlphaChannel) == 0)) {
@@ -295,20 +281,15 @@ bool Image::ComputePngTransparency(const StringPiece& buf) {
   return has_transparency;
 }
 
-// Returns true if the image has transparency (an alpha channel, or a
-// transparent color).  Note that certain ambiguously-formatted images might
-// yield false positive results here; we don't check whether alpha channels
-// contain non-opaque data, nor do we check if a distinguished transparent color
-// is actually used in an image.  We assume that if the image file contains
-// flags for transparency, it does so for a reason.
-bool Image::HasTransparency(const StringPiece& buf) {
+bool Image::HasTransparency() {
   bool result;
   switch (image_type()) {
     case IMAGE_PNG:
-      result = ComputePngTransparency(buf);
+      result = ComputePngTransparency();
       break;
     case IMAGE_GIF:
-      // This means we didn't translate to png for whatever reason.
+      // Conservative.
+      // TODO(jmaessen): fix when gif transcoding is enabled.
       result = true;
       break;
     default:
@@ -323,45 +304,29 @@ bool Image::HasTransparency(const StringPiece& buf) {
 // Note that if the load fails, opencv_load_possible_ will be false
 // and future calls to LoadOpenCv will fail fast.
 bool Image::LoadOpenCv() {
-  if (!(opencv_image_ == NULL && opencv_load_possible_)) {
-    // Already attempted load, fall through.
-  } else if (image_type() == IMAGE_UNKNOWN) {
-    // Can't load, remember that fact.
-    opencv_load_possible_ = false;
-  } else {
-    // Attempt to load into opencv.
-    StringPiece image_data_source(original_contents_);
-    if (image_type_ == IMAGE_GIF) {
-      // OpenCV doesn't understand gif format directly, but png works well.  So
-      // we perform a pre-emptive early translation to png, which we'll end
-      // up keeping if the OpenCV load or resize operations fail.
-      opencv_load_possible_ = output_valid_ || ComputeOutputContents();
-      if (opencv_load_possible_) {
-        image_data_source = output_contents_;
-      }
-    }
-    if (original_contents_.size() == 0) {
-      opencv_load_possible_ = LoadOpenCvEmpty();
-    } else if (opencv_load_possible_) {
-      opencv_load_possible_ = !HasTransparency(image_data_source);
-      if (opencv_load_possible_) {
-        opencv_load_possible_ = LoadOpenCvFromBuffer(image_data_source);
-      }
-    }
+  if (opencv_image_ == NULL && opencv_load_possible_) {
+    Image::Type image_type = this->image_type();
+    const ContentType* content_type = this->content_type();
+    opencv_load_possible_ = (content_type != NULL &&
+                             image_type != IMAGE_GIF &&
+                             !HasTransparency());
     if (opencv_load_possible_) {
-      // A bit of belt and suspenders dimension checking.  We used to do this
-      // for every image we loaded, but now we only do it when we're already
-      // paying the cost of OpenCV image conversion.
-      if (dims_.valid() && dims_.width() != opencv_image_->width) {
-        handler_->Error(url_.c_str(), 0,
-                        "Computed width %d doesn't match OpenCV %d",
-                        dims_.width(), opencv_image_->width);
-      }
-      if (dims_.valid() && dims_.height() != opencv_image_->height) {
-        handler_->Error(url_.c_str(), 0,
-                        "Computed height %d doesn't match OpenCV %d",
-                        dims_.height(), opencv_image_->height);
-      }
+      opencv_load_possible_ = LoadOpenCvFromBuffer(original_contents_);
+    }
+  }
+  if (opencv_load_possible_) {
+    // A bit of belt and suspenders dimension checking.  We used to do this for
+    // every image we loaded, but now we only do it when we're already paying
+    // the cost of OpenCV image conversion.
+    if (dims_.valid() && dims_.width() != opencv_image_->width) {
+      handler_->Error(url_.c_str(), 0,
+                      "Computed width %d doesn't match OpenCV %d",
+                      dims_.width(), opencv_image_->width);
+    }
+    if (dims_.valid() && dims_.height() != opencv_image_->height) {
+      handler_->Error(url_.c_str(), 0,
+                      "Computed height %d doesn't match OpenCV %d",
+                      dims_.height(), opencv_image_->height);
     }
   }
   return opencv_load_possible_;
@@ -374,21 +339,7 @@ void Image::CleanOpenCv() {
   }
 }
 
-bool Image::LoadOpenCvEmpty() {
-  // empty canvas -- width and height must be set already.
-  if (dims_.valid()) {
-    // TODO(abliss): Need to figure out the right values for these.
-    int depth = 8, channels = 3;
-    opencv_image_ = cvCreateImage(cvSize(dims_.width(), dims_.height()),
-                                  depth, channels);
-    cvSetZero(opencv_image_);
-    return true;
-  } else {
-    return false;
-  }
-}
-
-#ifdef USE_OPENCV_2_1
+#ifdef USE_OPENCV_IN_MEM
 
 bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   CvMat cv_original_contents =
@@ -427,7 +378,7 @@ bool Image::TempFileForImage(FileSystem* fs,
 bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   StdioFileSystem fs;
   std::string filename;
-  bool ok = TempFileForImage(&fs, data, &filename);
+  bool ok = TempFileForImage(&fs, original_contents_, &filename);
   if (ok) {
     opencv_image_ = cvLoadImage(filename.c_str());
     fs.RemoveFile(filename.c_str(), handler_);
@@ -454,9 +405,6 @@ StringPiece Image::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
 #endif
 
 void Image::Dimensions(ImageDim* natural_dim) {
-  if (!(dims_.valid())) {
-    ComputeImageType();
-  }
   if (dims_.valid()) {
     natural_dim->set_dims(dims_.width(), dims_.height());
   } else {
@@ -470,9 +418,9 @@ bool Image::ResizeTo(const ImageDim& new_dim) {
     return false;
   }
 
-  if (changed_) {
+  if (resized_) {
     // If we already resized, drop data and work with original image.
-    UndoChange();
+    UndoResize();
   }
   bool ok = opencv_image_ != NULL || LoadOpenCv();
   if (ok) {
@@ -485,19 +433,18 @@ bool Image::ResizeTo(const ImageDim& new_dim) {
       cvResize(opencv_image_, rescaled_image);
       cvReleaseImage(&opencv_image_);
       opencv_image_ = rescaled_image;
-      changed_ = true;
-      output_valid_ = false;
     }
+    resized_ = ok;
   }
-  return changed_;
+  return resized_;
 }
 
-void Image::UndoChange() {
-  if (changed_) {
+void Image::UndoResize() {
+  if (resized_) {
     CleanOpenCv();
     output_valid_ = false;
     image_type_ = IMAGE_UNKNOWN;
-    changed_ = false;
+    resized_ = false;
   }
 }
 
@@ -509,7 +456,7 @@ bool Image::ComputeOutputContents() {
     StringPiece contents = original_contents_;
     // Choose appropriate source for image contents.
     // Favor original contents if image unchanged.
-    if (changed_ && opencv_image_ != NULL) {
+    if (resized_ && opencv_image_ != NULL) {
       ok = SaveOpenCvToBuffer(&opencv_contents);
       if (ok) {
         contents = OpenCvBufferToStringPiece(opencv_contents);
@@ -532,21 +479,21 @@ bool Image::ComputeOutputContents() {
           break;
         case IMAGE_PNG: {
           pagespeed::image_compression::PngReader png_reader;
-          ok = PngOptimizer::OptimizePng
-              (png_reader,
+          ok = PngOptimizer::OptimizePng(
+              png_reader,
               std::string(contents.data(), contents.size()),
               &output_contents_);
           break;
         }
         case IMAGE_GIF: {
+#if PAGESPEED_PNG_OPTIMIZER_GIF_READER
           pagespeed::image_compression::GifReader gif_reader;
-          ok = PngOptimizer::OptimizePng
-              (gif_reader,
-              std::string(contents.data(), contents.size()),
-              &output_contents_);
+          ok = PngOptimizer::OptimizePng(
+              gif_reader, contents, &output_contents_);
           if (ok) {
             image_type_ = IMAGE_PNG;
           }
+#endif
           break;
         }
       }
@@ -565,41 +512,6 @@ StringPiece Image::Contents() {
     }
   }
   return contents;
-}
-
-bool Image::DrawImage(Image* image, int x, int y) {
-  if (!LoadOpenCv() || !image->LoadOpenCv()) {
-    return false;
-  }
-  ImageDim other_dim;
-  image->Dimensions(&other_dim);
-  if (!(other_dim.valid()) ||
-      (other_dim.width() + x > dims_.width())
-      || (other_dim.height() + y > dims_.height())) {
-    // image will not fit.
-    return false;
-  }
-#ifdef USE_OPENCV_2_1
-  // OpenCV 2.1.0 api
-  cv::Mat mat(image->opencv_image_, false);
-  cv::Mat canvas(opencv_image_, false);
-  cv::Mat submat = canvas.rowRange(y, y + other_dim.height())
-      .colRange(x, x + other_dim.width());
-  mat.copyTo(submat);
-#else
-  // OpenCV 1.0.0 api
-  CvMat mat;
-  cvGetMat(image->opencv_image_, &mat);
-  CvMat canvas;
-  cvGetMat(opencv_image_, &canvas);
-  CvMat submat;
-  cvGetRows(opencv_image_, &submat, y, y + other_dim.height(), 1);
-  CvMat submat2;
-  cvGetCols(&submat, &submat2, x, x + other_dim.width());
-  cvCopy(&mat, &submat2);
-#endif
-  changed_ = true;
-  return true;
 }
 
 }  // namespace net_instaweb
