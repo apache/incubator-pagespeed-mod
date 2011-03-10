@@ -20,17 +20,16 @@
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 
 #include "base/basictypes.h"
-#include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 
@@ -70,7 +69,6 @@ class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
         resource_manager_->filename_prefix(),
         resource_manager_->hasher()->Hash(url()),
         ".lock");
-    lock_.reset(resource_manager_->lock_manager()->CreateNamedLock(lock_name));
     int64 lock_timeout = fetcher->timeout_ms();
     if (lock_timeout == UrlAsyncFetcher::kUnspecifiedTimeout) {
       // Even if the fetcher never explicitly times out requests, they probably
@@ -80,8 +78,8 @@ class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
       // Give a little slack for polling, writing the file, freeing the lock.
       lock_timeout *= 2;
     }
-    if (!lock_->TryLockStealOld(lock_timeout)) {
-      lock_.reset(NULL);
+    if (resource_manager_->file_system()->TryLockWithTimeout(
+            lock_name, lock_timeout, message_handler_).is_false()) {
       // TODO(abliss): a per-unit-time statistic would be useful here.
       if (should_yield()) {
         message_handler_->Message(
@@ -97,19 +95,19 @@ class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
     } else {
       message_handler_->Message(kInfo, "%s: Locking (lock %s)",
                                 url().c_str(), lock_name.c_str());
+      lock_name_ = lock_name;
     }
 
-    std::string origin_url;
+    std::string url_string = url(), origin_url;
     bool ret = false;
     const DomainLawyer* lawyer = rewrite_options_->domain_lawyer();
-    if (lawyer->MapOrigin(url(), &origin_url)) {
-      if (origin_url != url()) {
+    if (lawyer->MapOrigin(url_string, &origin_url)) {
+      if (origin_url != url_string) {
         // If mapping the URL changes its host, then add a 'Host' header
         // pointing to the origin URL's hostname.
-        GoogleUrl gurl(url());
+        GURL gurl = GoogleUrl::Create(url_string);
         if (gurl.is_valid()) {
-          request_headers.Add(HttpAttributes::kHost,
-                              gurl.Host().as_string().c_str());
+          request_headers.Add(HttpAttributes::kHost, gurl.host().c_str());
         }
       }
       ret = fetcher->StreamingFetch(
@@ -123,12 +121,11 @@ class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
 
   virtual void Done(bool success) {
     AddToCache(success);
-    if (lock_.get() != NULL) {
+    if (!lock_name_.empty()) {
       message_handler_->Message(
           kInfo, "%s: Unlocking lock %s with success=%s",
-          url().c_str(), lock_->name().c_str(), success ? "true" : "false");
-      lock_->Unlock();
-      lock_.reset(NULL);
+          url().c_str(), lock_name_.c_str(), success ? "true" : "false");
+      resource_manager_->file_system()->Unlock(lock_name_, message_handler_);
     }
     DoneInternal(success);
     delete this;
@@ -158,7 +155,7 @@ class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
   MessageHandler* message_handler_;
 
  private:
-  scoped_ptr<AbstractLock> lock_;
+  std::string lock_name_;
   DISALLOW_COPY_AND_ASSIGN(UrlResourceFetchCallback);
 };
 

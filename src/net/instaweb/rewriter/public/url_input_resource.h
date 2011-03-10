@@ -33,11 +33,11 @@ class UrlFetcher;
 
 class UrlInputResource : public Resource {
  public:
-  UrlInputResource(RewriteDriver* driver,
+  UrlInputResource(ResourceManager* manager,
                    const RewriteOptions* options,
                    const ContentType* type,
                    const StringPiece& url)
-      : Resource(driver, type),
+      : Resource(manager, type),
         url_(url.data(), url.size()),
         rewrite_options_(options) {
   }
