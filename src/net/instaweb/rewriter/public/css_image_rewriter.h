@@ -19,11 +19,11 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_IMAGE_REWRITER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_IMAGE_REWRITER_H_
 
-#include "net/instaweb/util/public/google_url.h"
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
 
-class GoogleUrl;
+class GURL;
 
 namespace Css {
 
@@ -34,7 +34,6 @@ class Stylesheet;
 namespace net_instaweb {
 
 class CacheExtender;
-class CachedResult;
 class ImgRewriteFilter;
 class MessageHandler;
 class RewriteDriver;
@@ -57,7 +56,7 @@ class CssImageRewriter {
   // Returns whether or not it made any changes.
   // Output 'expiration_time_ms' is the min TTL for all subresources in CSS.
   // (or kint64max if there are none)
-  bool RewriteCssImages(const GoogleUrl& base_url, Css::Stylesheet* stylesheet,
+  bool RewriteCssImages(const GURL& base_url, Css::Stylesheet* stylesheet,
                         int64* expiration_time_ms, MessageHandler* handler);
 
   // Are any rewrites enabled?
@@ -69,7 +68,7 @@ class CssImageRewriter {
   static const char kNoRewrite[];
 
  private:
-  bool RewriteImageUrl(const GoogleUrl& base_url,
+  bool RewriteImageUrl(const GURL& base_url,
                        const StringPiece& old_rel_url,
                        std::string* new_url,
                        int64* expire_at_ms,
@@ -78,7 +77,7 @@ class CssImageRewriter {
   // Tells when we should expire our output based on a cached_result
   // produced from the rewriter. If NULL, it will produce a short delay
   // to permit the input to finish loading.
-  int64 ExpirationTimeMs(CachedResult* cached_result);
+  int64 ExpirationTimeMs(OutputResource::CachedResult* cached_result);
 
   // Needed for resource_manager and options.
   RewriteDriver* driver_;

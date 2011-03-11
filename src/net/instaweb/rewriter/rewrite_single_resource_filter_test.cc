@@ -183,7 +183,7 @@ class TestRewriter : public RewriteSingleResourceFilter {
       encoder = CreateCustomUrlEncoder();
     }
 
-    scoped_ptr<CachedResult> result(
+    scoped_ptr<OutputResource::CachedResult> result(
         RewriteWithCaching(StringPiece(src->value()), encoder));
     if (result.get() != NULL) {
       ++num_cached_results_;
@@ -267,14 +267,14 @@ class RewriteSingleResourceFilterTest
   }
 
   // Transfers ownership and may return NULL.
-  CachedResult* CachedResultForInput(const char* url) {
+  OutputResource::CachedResult* CachedResultForInput(const char* url) {
     UrlSegmentEncoder* encoder = resource_manager_->url_escaper();
     if (filter_->create_custom_encoder()) {
       encoder = filter_->CreateCustomUrlEncoder();
     }
 
     scoped_ptr<Resource> input_resource(
-      rewrite_driver_.CreateInputResource(GoogleUrl(kTestDomain), url));
+      rewrite_driver_.CreateInputResource(GURL(kTestDomain), url));
     EXPECT_TRUE(input_resource.get() != NULL);
     scoped_ptr<OutputResource> output_resource(
         filter_->CreateOutputResourceFromResource(
@@ -286,6 +286,12 @@ class RewriteSingleResourceFilterTest
     }
 
     return output_resource->ReleaseCachedResult();
+  }
+
+  bool HasTimestamp(const OutputResource::CachedResult* cached) {
+    std::string timestamp_val;
+    return cached->Remembered(RewriteSingleResourceFilter::kInputTimestampKey,
+                              &timestamp_val);
   }
 
   CountingUrlAsyncFetcher* SetupCountingFetcher() {
@@ -590,9 +596,10 @@ TEST_P(RewriteSingleResourceFilterTest, FetchGoodCache2) {
   EXPECT_EQ(1, filter_->num_rewrites_called());
 
   // Make sure the above also cached the timestamp
-  scoped_ptr<CachedResult> cached(CachedResultForInput("a.tst"));
+  scoped_ptr<OutputResource::CachedResult> cached(
+      CachedResultForInput("a.tst"));
   ASSERT_TRUE(cached.get() != NULL);
-  EXPECT_TRUE(cached->has_input_timestamp_ms());
+  EXPECT_TRUE(HasTimestamp(cached.get()));
 }
 
 // Regression test: Fetch() should update cache version, too.
@@ -634,7 +641,8 @@ TEST_P(RewriteSingleResourceFilterTest, Fetch404) {
   ASSERT_FALSE(ServeRelativeUrl(OutputName("404.tst"), &out));
 
   // Make sure the above also cached the failure.
-  scoped_ptr<CachedResult> cached(CachedResultForInput("404.tst"));
+  scoped_ptr<OutputResource::CachedResult> cached(
+      CachedResultForInput("404.tst"));
   ASSERT_TRUE(cached.get() != NULL);
   EXPECT_FALSE(cached->optimizable());
 }
