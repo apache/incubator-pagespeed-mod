@@ -111,8 +111,7 @@ void JavascriptFilter::RewriteInlineScript() {
     std::string script_buffer;
     const StringPiece script = FlattenBuffer(&script_buffer);
     MessageHandler* message_handler = driver_->message_handler();
-    JavascriptCodeBlock code_block(script, &config_, driver_->UrlLine(),
-                                   message_handler);
+    JavascriptCodeBlock code_block(script, &config_, message_handler);
     JavascriptLibraryId library = code_block.ComputeJavascriptLibrary();
     if (library.recognized()) {
       driver_->InfoHere("Script is %s %s",
@@ -153,7 +152,7 @@ bool JavascriptFilter::WriteExternalScriptTo(
 // External script; minify and replace with rewritten version (also external).
 void JavascriptFilter::RewriteExternalScript() {
   const StringPiece script_url(script_src_->value());
-  scoped_ptr<CachedResult> rewrite_info(
+  scoped_ptr<OutputResource::CachedResult> rewrite_info(
       RewriteWithCaching(script_url, resource_manager_->url_escaper()));
 
   if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
@@ -242,8 +241,7 @@ JavascriptFilter::RewriteLoadedResource(const Resource* script_input,
   MessageHandler* message_handler = driver_->message_handler();
 
   StringPiece script = script_input->contents();
-  JavascriptCodeBlock code_block(script, &config_, script_input->url(),
-                                 message_handler);
+  JavascriptCodeBlock code_block(script, &config_, message_handler);
   JavascriptLibraryId library = code_block.ComputeJavascriptLibrary();
   if (library.recognized()) {
     driver_->InfoHere("Script %s is %s %s",

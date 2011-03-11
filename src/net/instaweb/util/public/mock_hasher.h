@@ -26,14 +26,10 @@ namespace net_instaweb {
 
 class MockHasher : public Hasher {
  public:
-  MockHasher()
-      : Hasher(kint32max),
-        hash_value_("\xd0") { // base64-encodes to "0"
-  }
-
+  MockHasher(): hash_value_("0") {}
   virtual ~MockHasher();
 
-  virtual std::string RawHash(const StringPiece& content) const {
+  virtual std::string Hash(const StringPiece& content) const {
     return hash_value_;
   }
 
@@ -41,7 +37,7 @@ class MockHasher : public Hasher {
     hash_value_ = new_hash_value;
   }
 
-  virtual int RawHashSizeInBytes() const { return hash_value_.length(); }
+  virtual int HashSizeInChars() const { return hash_value_.length(); }
 
  private:
   std::string hash_value_;

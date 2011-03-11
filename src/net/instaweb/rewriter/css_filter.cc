@@ -189,14 +189,14 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
       parser.errors_seen_mask() != Css::Parser::kNoError) {
     ret = false;
     driver_->InfoHere("CSS parsing error in %s",
-                      css_gurl.spec_c_str());
+                      css_gurl.Spec().as_string().c_str());
     if (num_parse_failures_ != NULL) {
       num_parse_failures_->Add(1);
     }
   } else {
     // Edit stylesheet.
     bool edited_css =
-        image_rewriter_.RewriteCssImages(css_gurl, stylesheet.get(),
+        image_rewriter_.RewriteCssImages(css_gurl.gurl(), stylesheet.get(),
                                          subresource_expiration_time_ms,
                                          handler);
 
@@ -213,7 +213,7 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
     if (!edited_css && bytes_saved <= 0) {
       ret = false;
       driver_->InfoHere("CSS parser increased size of CSS file %s by %lld "
-                        "bytes.", css_gurl.spec_c_str(),
+                        "bytes.", css_gurl.Spec().as_string().c_str(),
                         static_cast<long long int>(-bytes_saved));
     }
 
@@ -222,7 +222,7 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
     if (out_text_size == 0 && in_text_size != 0) {
       ret = false;
       driver_->InfoHere("CSS parsing error in %s",
-                        css_gurl.spec_c_str());
+                        css_gurl.Spec().as_string().c_str());
       if (num_parse_failures_ != NULL) {
         num_parse_failures_->Add(1);
       }
@@ -231,7 +231,7 @@ bool CssFilter::RewriteCssText(const StringPiece& in_text,
     // Statistics
     if (ret) {
       driver_->InfoHere("Successfully rewrote CSS file %s saving %lld "
-                        "bytes.", css_gurl.spec_c_str(),
+                        "bytes.", css_gurl.Spec().as_string().c_str(),
                         static_cast<long long int>(bytes_saved));
       if (num_files_minified_ != NULL) {
         num_files_minified_->Add(1);
@@ -315,7 +315,7 @@ bool CssFilter::LoadAllSubStylesheets(
 // Read an external CSS file, rewrite it and write a new external CSS file.
 bool CssFilter::RewriteExternalCss(const StringPiece& in_url,
                                    std::string* out_url) {
-  scoped_ptr<CachedResult> rewrite_info(
+  scoped_ptr<OutputResource::CachedResult> rewrite_info(
       RewriteWithCaching(in_url, resource_manager_->url_escaper()));
 
   if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {

@@ -37,10 +37,6 @@ ModPagespeedEnableFilters add_instrumentation
     AllowOverride All
 </Directory>
 
-# Enable mod_speling to ensure that we don't regress Issue 194
-#SPELING CheckSpelling on
-
-
 #STRESS # These lines are only needed for the stress test.
 #STRESS <Directory /usr/local/apache2/htdocs/mod_pagespeed_example/cgi>
 #STRESS   Options +ExecCGI
@@ -55,10 +51,6 @@ ModPagespeedEnableFilters add_instrumentation
 #REWRITE RewriteRule (.*).jpg.pagespeed.(.*).jpg /broken.jpg
 #REWRITE RewriteRule mod_pagespeed_statistics /broken
 #REWRITE RewriteRule shortcut.html /mod_pagespeed_example/index.html
-#REWRITE ModPagespeedRewriteLevel PassThrough
-#REWRITE ModPagespeedEnableFilters trim_urls
-#REWRITE RewriteRule mod_pagespeed_test/php/ /mod_pagespeed_test/menu_php.html
-#REWRITE ModPagespeedDisableFilters trim_urls
 
 #COVERAGE # These lines are used for large-scale code coverage testing.
 #COVERAGE # We use 2 servers for it, one doing rewriting and fetching
@@ -66,8 +58,7 @@ ModPagespeedEnableFilters add_instrumentation
 #COVERAGE Listen 8081
 #COVERAGE <VirtualHost *:8080>
 #COVERAGE   ModPagespeed on
-#COVERAGE   # Proxy using SERF
-#COVERAGE   ModPagespeedTestProxy on
+#COVERAGE   ModPagespeedTestProxy on   # Proxy using SERF
 #COVERAGE   ModPagespeedFetchProxy "127.0.0.1:8081"
 #COVERAGE
 #COVERAGE   ModPagespeedFileCachePath            "@@MODPAGESPEED_CACHE_ROOT@@/cache/"
@@ -148,8 +139,3 @@ ModPagespeedEnableFilters add_instrumentation
 #PROXY   ModPagespeedGeneratedFilePrefix      "@@MODPAGESPEED_CACHE_ROOT@@-alt/files/"
 #PROXY   ModPagespeedRewriteLevel PassThrough
 #PROXY </VirtualHost>
-
-
-#SLURP # This is used for Slurp testing.
-#SLURP ModPagespeedSlurpDirectory /usr/local/apache2/htdocs/mod_pagespeed_test/slurp
-#SLURP ModPagespeedSlurpReadOnly on
