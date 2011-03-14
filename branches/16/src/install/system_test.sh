@@ -226,11 +226,14 @@ test_filter collapse_whitespace removes whitespace, but not from pre tags.
 check $WGET_PREREQ $URL
 check [ `egrep -c '^ +<' $FETCHED` = 1 ]
 
+combine_css_filename=\
+styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
+
 test_filter combine_css combines 4 CSS files into 1.
 fetch_until $URL 'grep -c text/css' 1
 check $WGET_PREREQ $URL
 test_resource_ext_corruption $URL\
-  styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
+  $combine_css_filename
 
 # Note: this large URL can only be processed by Apache if
 # ap_hook_map_to_storage is called to bypass the default
@@ -411,6 +414,13 @@ check $WGET_DUMP http://localhost:8080/mod_pagespeed_test/shard/shard.html \
   > $OUTDIR/shard.out.html
 check [ `grep -ce href=\"http://shard1 $OUTDIR/shard.out.html` = 2 ];
 check [ `grep -ce href=\"http://shard2 $OUTDIR/shard.out.html` = 2 ];
+
+echo TEST: server-side includes
+rm -rf $OUTDIR
+mkdir $OUTDIR
+check $WGET_DUMP http://localhost:8080/mod_pagespeed_test/ssi/ssi.shtml \
+  > $OUTDIR/ssi.out.html
+check [ `grep -ce $combine_css_filename $OUTDIR/ssi.out.html` = 1 ];
 
 # Cleanup
 rm -rf $OUTDIR
