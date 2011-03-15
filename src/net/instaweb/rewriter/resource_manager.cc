@@ -102,6 +102,7 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
       statistics_(NULL),
       resource_url_domain_rejections_(NULL),
       http_cache_(http_cache),
+      url_escaper_(new UrlEscaper()),
       relative_path_(false),
       store_outputs_in_file_system_(true),
       lock_manager_(lock_manager),
@@ -257,7 +258,7 @@ void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     int64 origin_expire_time_ms, MessageHandler* handler) {
   std::string name_key = StrCat(kCacheKeyResourceNamePrefix,
                                  output->name_key());
-  CachedResult* cached = output->EnsureCachedResultCreated();
+  OutputResource::CachedResult* cached = output->EnsureCachedResultCreated();
   if (cached->optimizable()) {
     cached->set_url(output->url());
   }

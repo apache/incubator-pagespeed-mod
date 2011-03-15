@@ -81,24 +81,23 @@ bool CacheExtender::ShouldRewriteResource(
   return lawyer->WillDomainChange(origin);
 }
 
-void CacheExtender::ScanStartElement(HtmlElement* element) {
-  HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
-  if ((href != NULL) && driver_->IsRewritable(element)) {
-    driver_->ScanRequestUrl(href->value());
-  }
-}
-
 void CacheExtender::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
 
+  // TODO(jmarantz): figure out how to get better coverage of referenced
+  // resources for cache extension.  E.g. we need to find images in CSS
+  // files.  Plus we currently ignore .css links with id or other
+  // non-essential tags.
+  //
   // TODO(jmarantz): We ought to be able to domain-shard even if the
   // resources are non-cacheable or privately cacheable.
   if ((href != NULL) && driver_->IsRewritable(element)) {
-    Resource* input_resource = driver_->GetScannedInputResource(href->value());
-    if ((input_resource != NULL) &&
+    scoped_ptr<Resource> input_resource(CreateInputResource(href->value()));
+    if ((input_resource.get() != NULL) &&
         !IsRewrittenResource(input_resource->url())) {
-      scoped_ptr<CachedResult> rewrite_info(
-          RewriteExternalResource(input_resource, NULL));
+      scoped_ptr<OutputResource::CachedResult> rewrite_info(
+          RewriteResourceWithCaching(input_resource.get(),
+                                     resource_manager_->url_escaper()));
       if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
         // Rewrite URL to cache-extended version
         href->SetValue(rewrite_info->url());
@@ -117,7 +116,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
 // extension, there is no benefit because every rewriter generates
 // URLs that are served with long cache lifetimes.  This filter
 // just wants to pick up the scraps.  Note that we would discover
-// this anyway in the cache expiration time below, but it's worth
+// this anywahy in the cache expiration time below, but it's worth
 // going to the extra trouble to reduce the cache lookups since this
 // happens for basically every resource.
 bool CacheExtender::IsRewrittenResource(const StringPiece& url) const {
@@ -133,7 +132,8 @@ bool CacheExtender::ReuseByContentHash() const {
 
 RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
     const Resource* input_resource,
-    OutputResource* output_resource) {
+    OutputResource* output_resource,
+    UrlSegmentEncoder* encoder) {
   CHECK(input_resource->loaded());
 
   MessageHandler* message_handler = driver_->message_handler();

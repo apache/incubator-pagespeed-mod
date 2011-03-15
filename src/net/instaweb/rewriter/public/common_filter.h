@@ -39,22 +39,17 @@ class UrlSegmentEncoder;
 // All filters who want this functionality should inherit from CommonFilter and
 // define the Helper methods rather than the main methods.
 //
-// Currently, it stores whether we are in a <noscript> element (in
-// which case, we should be careful about moving things out of this
-// element).
-//
-// The base-tag is maintained in the RewriteDriver, although it can be
-// accessed via a convenience method here for historical reasons.
-//
-// CommonFilters are given the opportunity to scan HTML elements for
-// resources prior to the HTML rewriting phase to initiate fetching
-// and rewriting.  See the Scan methods below.
+// Currently, it stores the current base URL (which can depend on where you
+// are on a page since the <base> element does not have to be first)
+// and whether we are in a <noscript> element (in which case, we should be
+// careful about moving things out of this element).
 class CommonFilter : public EmptyHtmlFilter {
  public:
   CommonFilter(RewriteDriver* driver);
   virtual ~CommonFilter();
 
   // Getters
+  const GURL& base_gurl() const { return driver_->base_url().gurl(); }
   const GoogleUrl& base_url() const { return driver_->base_url(); }
   HtmlElement* noscript_element() const { return noscript_element_; }
 
@@ -65,25 +60,8 @@ class CommonFilter : public EmptyHtmlFilter {
 
   Resource* CreateInputResource(const StringPiece& url);
   Resource* CreateInputResourceAndReadIfCached(const StringPiece& url);
-
-  // Methods to help implement two-pass scanning of HTML documents, where:
-  // 1.  In the first pass we make requests of an asynchronous cache
-  // 2.  Between the two passes, we wait a bounded amount of time for caches
-  //     and URL fetchers to respond
-  // 3.  In the second pass we rewrite HTML.
-  //
-  // Each filter's Scan* methods will be called in the first pass.  During
-  // this pass, the document and the filter state should not be mutated.
-  // All that should happen in this pass is new URLs can be requested.
-  virtual void ScanStartDocument();
-  virtual void ScanEndDocument();
-  virtual void ScanStartElement(HtmlElement* element);
-  virtual void ScanEndElement(HtmlElement* element);
-  virtual void ScanComment(HtmlCommentNode* comment);
-  virtual void ScanIEDirective(HtmlIEDirectiveNode* directive);
-  virtual void ScanCharacters(HtmlCharactersNode* characters);
-  virtual void ScanDirective(HtmlDirectiveNode* directive);
-  virtual void ScanCdata(HtmlCdataNode* cdata);
+  Resource* CreateInputResourceFromOutputResource(
+      UrlSegmentEncoder* encoder, OutputResource* output_resource);
 
  protected:
   // Overload these implementer methods:

@@ -69,48 +69,36 @@ const char kDataUrlKey[] = "ImgRewriteFilter_DataUrl";
 }  // namespace
 
 
+ImageUrlEncoder::ImageUrlEncoder(UrlEscaper* url_escaper)
+    : url_escaper_(url_escaper) { }
+
 ImageUrlEncoder::~ImageUrlEncoder() { }
 
-void ImageUrlEncoder::Encode(const StringVector& urls,
-                             const ResourceContext* data,
-                             std::string* rewritten_url) const {
-  DCHECK(data != NULL) << "null data passed to ImageUrlEncoder::Encode";
-  ImageDim dim(*data);
-  DCHECK_EQ(1U, urls.size());
-  dim.EncodeTo(rewritten_url);
-  UrlEscaper::EncodeToUrlSegment(urls[0], rewritten_url);
+void ImageUrlEncoder::EncodeToUrlSegment(
+    const StringPiece& origin_url, std::string* rewritten_url) {
+  stored_dim_.EncodeTo(rewritten_url);
+  url_escaper_->EncodeToUrlSegment(origin_url, rewritten_url);
 }
 
-bool ImageUrlEncoder::Decode(const StringPiece& url_segment,
-                             StringVector* urls,
-                             ResourceContext* data,
-                             MessageHandler* handler) const {
-  ImageDim dimensions;
-  std::string url;
-  if (DecodeUrlAndDimensions(url_segment, &dimensions, &url)) {
-    urls->push_back(url);
-    dimensions.ToResourceContext(data);
-    return true;
-  }
-  return false;
-}
-
-bool ImageUrlEncoder::DecodeUrlAndDimensions(const StringPiece& rewritten_url,
-                                             ImageDim* image_dim,
-                                             std::string* origin_url) const {
+bool ImageUrlEncoder::DecodeFromUrlSegment(
+    const StringPiece& rewritten_url, std::string* origin_url) {
   // Note that "remaining" is shortened from the left as we parse.
   StringPiece remaining(rewritten_url.data(), rewritten_url.size());
-  return (image_dim->DecodeFrom(&remaining) &&
-          UrlEscaper::DecodeFromUrlSegment(remaining, origin_url));
+  return (stored_dim_.DecodeFrom(&remaining) &&
+          url_escaper_->DecodeFromUrlSegment(remaining, origin_url));
 }
 
 ImgRewriteFilter::ImgRewriteFilter(RewriteDriver* driver,
+                                   bool log_image_elements,
+                                   bool insert_image_dimensions,
                                    StringPiece path_prefix,
                                    size_t img_inline_max_bytes,
                                    size_t img_max_rewrites_at_once)
     : RewriteSingleResourceFilter(driver, path_prefix),
       img_filter_(new ImgTagScanner(driver)),
       img_inline_max_bytes_(img_inline_max_bytes),
+      log_image_elements_(log_image_elements),
+      insert_image_dimensions_(insert_image_dimensions),
       rewrite_count_(NULL),
       inline_count_(NULL),
       rewrite_saved_bytes_(NULL) {
@@ -131,18 +119,22 @@ void ImgRewriteFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kImageInline);
   statistics->AddVariable(kImageRewriteSavedBytes);
   statistics->AddVariable(kImageRewrites);
+
   statistics->AddVariable(kImageOngoingRewrites);
+}
+
+UrlSegmentEncoder* ImgRewriteFilter::CreateCustomUrlEncoder() const {
+  return new ImageUrlEncoder(resource_manager_->url_escaper());
 }
 
 RewriteSingleResourceFilter::RewriteResult
 ImgRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
-                                        OutputResource* result) {
+                                        OutputResource* result,
+                                        UrlSegmentEncoder* raw_encoder) {
+  ImageUrlEncoder* encoder = static_cast<ImageUrlEncoder*>(raw_encoder);
   MessageHandler* message_handler = driver_->message_handler();
-  std::string url;
-  ImageDim page_dim;
-  if (!encoder_.DecodeUrlAndDimensions(result->name(), &page_dim, &url)) {
-    return kRewriteFailed;
-  }
+
+  ImageDim page_dim = encoder->stored_dim();
   scoped_ptr<Image> image(
       new Image(input_resource->contents(), input_resource->url(),
                 resource_manager_->filename_prefix(), message_handler));
@@ -188,11 +180,10 @@ ImgRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
     }
 
     // Cache image dimensions, including any resizing we did
-    CachedResult* cached = result->EnsureCachedResultCreated();
+    OutputResource::CachedResult* cached = result->EnsureCachedResultCreated();
     if (post_resize_dim.valid()) {
-      CachedResult::ImageDims* dims = cached->mutable_image_dims();
-      dims->set_width(post_resize_dim.width());
-      dims->set_height(post_resize_dim.height());
+      cached->SetRememberedInt(kWidthKey, post_resize_dim.width());
+      cached->SetRememberedInt(kHeightKey, post_resize_dim.height());
     }
 
     std::string inlined_url;
@@ -205,7 +196,7 @@ ImgRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
       // This needs to happen before Write to persist.
       if (CanInline(img_inline_max_bytes_, image->Contents(),
                     result->type(), &inlined_url)) {
-        cached->set_image_inlined_uri(inlined_url);
+        cached->SetRemembered(kDataUrlKey, inlined_url);
       }
 
       int64 origin_expire_time_ms = input_resource->CacheExpirationTimeMs();
@@ -241,7 +232,7 @@ ImgRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
     if (inlined_url.empty() &&
         CanInline(img_inline_max_bytes_, input_resource->contents(),
                   input_resource->type(), &inlined_url)) {
-      cached->set_image_inlined_uri(inlined_url);
+      cached->SetRemembered(kDataUrlKey, inlined_url);
     }
     work_bound_->WorkComplete();
   }
@@ -286,24 +277,27 @@ const ContentType* ImgRewriteFilter::ImageToContentType(
 
 void ImgRewriteFilter::RewriteImageUrl(HtmlElement* element,
                                        HtmlElement::Attribute* src) {
-  ResourceContext page_dim;
+  ImageDim page_dim;
   int width, height;
   if (element->IntAttributeValue(HtmlName::kWidth, &width) &&
       element->IntAttributeValue(HtmlName::kHeight, &height)) {
     // Specific image size is called for.  Rewrite to that size.
-    page_dim.set_width(width);
-    page_dim.set_height(height);
+    page_dim.set_dims(width, height);
   }
 
-  scoped_ptr<CachedResult> cached(RewriteWithCaching(src->value(), &page_dim));
+  ImageUrlEncoder encoder(resource_manager_->url_escaper());
+  encoder.set_stored_dim(page_dim);
+  scoped_ptr<OutputResource::CachedResult> cached(RewriteWithCaching(
+                                                      src->value(), &encoder));
   if (cached.get() == NULL) {
     return;
   }
 
   // See if we have a data URL, and if so use it if the browser can handle it
+  std::string inlined_url;
   bool ie6or7 = driver_->user_agent().IsIe6or7();
-  if (!ie6or7 && cached->has_image_inlined_uri()) {
-    src->SetValue(cached->image_inlined_uri());
+  if (!ie6or7 && cached->Remembered(kDataUrlKey, &inlined_url)) {
+    src->SetValue(inlined_url);
     if (inline_count_ != NULL) {
       inline_count_->Add(1);
     }
@@ -316,13 +310,12 @@ void ImgRewriteFilter::RewriteImageUrl(HtmlElement* element,
       }
     }
 
-    if (driver_->options()->Enabled(RewriteOptions::kInsertImgDimensions) &&
+    int actual_width, actual_height;
+    if (insert_image_dimensions_ &&
         !element->FindAttribute(HtmlName::kWidth) &&
         !element->FindAttribute(HtmlName::kHeight) &&
-        cached->has_image_dims()) {
-      int actual_width = cached->image_dims().width();
-      int actual_height = cached->image_dims().height();
-
+        cached->RememberedInt(kWidthKey, &actual_width) &&
+        cached->RememberedInt(kHeightKey, &actual_height)) {
       // Add image dimensions.  We don't bother if even a single image
       // dimension is already specified---even though we don't resize in that
       // case, either, because we might be off by a pixel in the other
@@ -351,7 +344,7 @@ bool ImgRewriteFilter::CanInline(
 void ImgRewriteFilter::EndElementImpl(HtmlElement* element) {
   HtmlElement::Attribute *src = img_filter_->ParseImgElement(element);
   if (src != NULL) {
-    if (driver_->options()->Enabled(RewriteOptions::kDebugLogImgTags)) {
+    if (log_image_elements_) {
       // We now know that element is an img tag.
       // Log the element in its original form.
       std::string tagstring;
@@ -362,10 +355,6 @@ void ImgRewriteFilter::EndElementImpl(HtmlElement* element) {
     }
     RewriteImageUrl(element, src);
   }
-}
-
-const UrlSegmentEncoder* ImgRewriteFilter::encoder() const {
-  return &encoder_;
 }
 
 }  // namespace net_instaweb

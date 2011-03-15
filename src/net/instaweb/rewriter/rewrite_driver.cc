@@ -50,8 +50,8 @@
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 #include "net/instaweb/rewriter/public/url_partnership.h"
 #include "net/instaweb/util/public/stl_util.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -65,6 +65,10 @@ const char RewriteDriver::kCacheExtenderId[] = "ce";
 const char RewriteDriver::kImageCompressionId[] = "ic";
 const char RewriteDriver::kJavascriptMinId[] = "jm";
 
+// TODO(jmarantz): Simplify the interface so we can just use
+// asynchronous fetchers, employing FakeUrlAsyncFetcher as needed
+// for running functional regression-tests where we don't mind blocking
+// behavior.
 RewriteDriver::RewriteDriver(MessageHandler* message_handler,
                              FileSystem* file_system,
                              UrlAsyncFetcher* url_async_fetcher,
@@ -133,28 +137,6 @@ void RewriteDriver::Initialize(Statistics* statistics) {
 void RewriteDriver::SetResourceManager(ResourceManager* resource_manager) {
   resource_manager_ = resource_manager;
   set_timer(resource_manager->timer());
-
-  DCHECK(resource_filter_map_.empty());
-
-  // Add the rewriting filters to the map unconditionally -- we may
-  // need the to process resource requests due to a query-specific
-  // 'rewriters' specification.  We still use the passed-in options
-  // to determine whether they get added to the html parse filter chain.
-  // Note: RegisterRewriteFilter takes ownership of these filters.
-  CacheExtender* cache_extender = new CacheExtender(this, kCacheExtenderId);
-  ImgRewriteFilter* image_rewriter =
-      new ImgRewriteFilter(
-          this,
-          kImageCompressionId,
-          options_.img_inline_max_bytes(),
-          options_.img_max_rewrites_at_once());
-
-  RegisterRewriteFilter(new CssCombineFilter(this, kCssCombinerId));
-  RegisterRewriteFilter(
-      new CssFilter(this, kCssFilterId, cache_extender, image_rewriter));
-  RegisterRewriteFilter(new JavascriptFilter(this, kJavascriptMinId));
-  RegisterRewriteFilter(image_rewriter);
-  RegisterRewriteFilter(cache_extender);
 }
 
 // If flag starts with key (a string ending in "="), call m on the remainder of
@@ -196,6 +178,28 @@ bool RewriteDriver::ParseKeyInt64(const StringPiece& key, SetInt64Method m,
 
 void RewriteDriver::AddFilters() {
   CHECK(html_writer_filter_ == NULL);
+
+  // Add the rewriting filters to the map unconditionally -- we may
+  // need the to process resource requests due to a query-specific
+  // 'rewriters' specification.  We still use the passed-in options
+  // to determine whether they get added to the html parse filter chain.
+  // Note: RegisterRewriteFilter takes ownership of these filters.
+  CacheExtender* cache_extender = new CacheExtender(this, kCacheExtenderId);
+  ImgRewriteFilter* image_rewriter =
+      new ImgRewriteFilter(
+          this,
+          options_.Enabled(RewriteOptions::kDebugLogImgTags),
+          options_.Enabled(RewriteOptions::kInsertImgDimensions),
+          kImageCompressionId,
+          options_.img_inline_max_bytes(),
+          options_.img_max_rewrites_at_once());
+
+  RegisterRewriteFilter(new CssCombineFilter(this, kCssCombinerId));
+  RegisterRewriteFilter(
+      new CssFilter(this, kCssFilterId, cache_extender, image_rewriter));
+  RegisterRewriteFilter(new JavascriptFilter(this, kJavascriptMinId));
+  RegisterRewriteFilter(image_rewriter);
+  RegisterRewriteFilter(cache_extender);
 
   // This function defines the order that filters are run.  We document
   // in pagespeed.conf.template that the order specified in the conf
@@ -322,17 +326,10 @@ void RewriteDriver::AddOwnedFilter(HtmlFilter* filter) {
   HtmlParse::AddFilter(filter);
 }
 
-void RewriteDriver::AddCommonFilter(CommonFilter* filter) {
-  filters_.push_back(filter);
-  HtmlParse::AddFilter(filter);
-  scan_filter_.add_filter(filter);
-}
-
 void RewriteDriver::EnableRewriteFilter(const char* id) {
   RewriteFilter* filter = resource_filter_map_[id];
   CHECK(filter);
   HtmlParse::AddFilter(filter);
-  scan_filter_.add_filter(filter);
 }
 
 void RewriteDriver::RegisterRewriteFilter(RewriteFilter* filter) {
@@ -413,10 +410,7 @@ OutputResource* RewriteDriver::DecodeOutputResource(
     // in the rewrite drivers.
     //
     // We also reject any unknown extensions, which includes
-    // rejecting requests with trailing junk. URLs without any hash
-    // are rejected as well, as they do not produce OutputResources with
-    // a computable URL. (We do accept 'wrong' hashes since they could come
-    // up legitimately under some asynchrony scenarios)
+    // rejecting requests with trailing junk
     //
     // TODO(jmarantz): it might be better to 'handle' requests with known
     // IDs even if that filter is not enabled, rather rejecting the request.
@@ -433,7 +427,7 @@ OutputResource* RewriteDriver::DecodeOutputResource(
     // TODO(jmarantz): figure out a better way to refactor this.
     // TODO(jmarantz): add a unit-test to show serving outline-filter resources.
     bool ok = false;
-    if (output_resource->type() != NULL && output_resource->has_hash()) {
+    if (output_resource->type() != NULL) {
       if (p != resource_filter_map_.end()) {
         *filter = p->second;
         ok = true;
@@ -483,16 +477,15 @@ bool RewriteDriver::FetchResource(
       response_headers->SetStatusAndReason(HttpStatus::kNotModified);
       callback->Done(true);
       queued = true;
-    } else if (FetchExtantOutputResourceOrLock(
-        output_resource, writer, response_headers)) {
+    } else if (FetchOutputResource(
+        output_resource, writer, response_headers,
+        ResourceManager::kMayBlock)) {
       callback->Done(true);
       queued = true;
       if (cached_resource_fetches_ != NULL) {
         cached_resource_fetches_->Add(1);
       }
     } else if (filter != NULL) {
-      // The resource is locked for creation by
-      // the call to FetchExtantOutputResourceOrLock() above.
       queued = filter->Fetch(output_resource, writer,
                              request_headers, response_headers,
                              message_handler(), callback);
@@ -520,27 +513,14 @@ bool RewriteDriver::FetchResource(
 // save the effort of copying the headers.
 //
 // It will also simplify this routine quite a bit.
-bool RewriteDriver::FetchExtantOutputResourceOrLock(
+bool RewriteDriver::FetchOutputResource(
     OutputResource* output_resource,
-    Writer* writer, ResponseHeaders* response_headers) {
-  // 1) See if resource is already cached, if so return it.
-  if (FetchExtantOutputResource(output_resource, writer, response_headers)) {
-    return true;
+    Writer* writer, ResponseHeaders* response_headers,
+    ResourceManager::BlockingBehavior blocking) {
+  if (output_resource == NULL) {
+    return false;
   }
 
-  // 2) Grab a lock for creation, blocking for it if needed.
-  output_resource->LockForCreation(resource_manager_,
-                                   ResourceManager::kMayBlock);
-
-  // 3) See if the resource got created while we were waiting for the lock.
-  // (If it did, the lock will get released almost immediately in our caller,
-  //  as it will cleanup the resource).
-  return FetchExtantOutputResource(output_resource, writer, response_headers);
-}
-
-bool RewriteDriver::FetchExtantOutputResource(
-    OutputResource* output_resource,
-    Writer* writer, ResponseHeaders* response_headers) {
   // TODO(jmarantz): we are making lots of copies of the data.  We should
   // retrieve the data from the cache without copying it.
 
@@ -553,23 +533,48 @@ bool RewriteDriver::FetchExtantOutputResource(
   StringPiece content;
   MessageHandler* handler = message_handler();
   ResponseHeaders* meta_data = output_resource->metadata();
-  std::string url = output_resource->url();
-  HTTPCache* http_cache = resource_manager_->http_cache();
-  if ((http_cache->Find(url, &output_resource->value_, meta_data, handler)
-          == HTTPCache::kFound) &&
-      output_resource->value_.ExtractContents(&content) &&
-      writer->Write(content, handler)) {
-    output_resource->set_written(true);
-    ret = true;
-  } else if (output_resource->Load(handler)) {
-    // OutputResources can also be loaded while not in cache if
-    // store_outputs_in_file_system() is true.
-    content = output_resource->contents();
-    http_cache->Put(url, meta_data, content, handler);
-    ret = writer->Write(content, handler);
+  if (output_resource->IsWritten()) {
+    ret = ((writer == NULL) ||
+           ((output_resource->value_.ExtractContents(&content)) &&
+            writer->Write(content, handler)));
+  } else if (output_resource->has_hash()) {
+    std::string url = output_resource->url();
+    // Check cache once without lock, then if that fails try again with lock.
+    // Note that it would be *correct* to lock up front and only check once.
+    // However, the common case here is that the resource is present (because
+    // this path mostly happens during resource fetch).  We want to avoid
+    // unnecessarily serializing resource fetch on a lock.
+    HTTPCache* http_cache = resource_manager_->http_cache();
+    for (int i = 0; !ret && i < 2; ++i) {
+      if ((http_cache->Find(url, &output_resource->value_, meta_data, handler)
+           == HTTPCache::kFound) &&
+          ((writer == NULL) ||
+           output_resource->value_.ExtractContents(&content)) &&
+          ((writer == NULL) || writer->Write(content, handler))) {
+        output_resource->set_written(true);
+        ret = true;
+      } else if (ReadIfCached(output_resource)) {
+        content = output_resource->contents();
+        http_cache->Put(url, meta_data, content, handler);
+        ret = ((writer == NULL) || writer->Write(content, handler));
+      }
+      // On the first iteration, obtain the lock if we don't have data.
+      if (!ret && i == 0 && !output_resource->LockForCreation(
+              resource_manager_, blocking)) {
+        // We didn't get the lock; we need to abandon ship.  The caller should
+        // see this as a successful fetch for which IsWritten() remains false.
+        CHECK(!output_resource->IsWritten());
+        ret = true;
+      }
+    }
+  } else {
+    // TODO(jmaessen): This path should also re-try fetching the resource after
+    // obtaining the lock.  However, in this case we need to look for the hash
+    // in the cache first, which duplicates logic from creation time and makes
+    // life generally complicated.
+    ret = !output_resource->LockForCreation(resource_manager_, blocking);
   }
-
-  if (ret && (response_headers != meta_data)) {
+  if (ret && (response_headers != NULL) && (response_headers != meta_data)) {
     response_headers->CopyFrom(*meta_data);
   }
   return ret;
@@ -580,23 +585,20 @@ bool RewriteDriver::FetchExtantOutputResource(
 OutputResource* RewriteDriver::CreateOutputResourceFromResource(
     const StringPiece& filter_prefix,
     const ContentType* content_type,
-    const UrlSegmentEncoder* encoder,
-    const ResourceContext* data,
+    UrlSegmentEncoder* encoder,
     Resource* input_resource) {
   OutputResource* result = NULL;
   if (input_resource != NULL) {
     // TODO(jmarantz): It would be more efficient to pass in the base
     // document GURL or save that in the input resource.
     GoogleUrl gurl(input_resource->url());
-    UrlPartnership partnership(&options_, gurl);
+    UrlPartnership partnership(&options_, gurl.gurl());
     if (partnership.AddUrl(input_resource->url(), message_handler())) {
-      const GoogleUrl *mapped_gurl = partnership.FullPath(0);
+      const GoogleUrl mapped_gurl(*partnership.FullPath(0));
       std::string name;
-      StringVector v;
-      v.push_back(mapped_gurl->LeafWithQuery().as_string());
-      encoder->Encode(v, data, &name);
+      encoder->EncodeToUrlSegment(mapped_gurl.LeafWithQuery(), &name);
       result = CreateOutputResourceWithPath(
-          mapped_gurl->AllExceptLeaf(),
+          mapped_gurl.AllExceptLeaf(),
           filter_prefix, name, content_type, kRewrittenResource);
     }
   }
@@ -618,7 +620,7 @@ OutputResource* RewriteDriver::CreateOutputResourceWithPath(
     full_name.set_ext(content_type->file_extension() + 1);
   }
   OutputResource* resource = new OutputResource(
-      this, path, full_name, content_type, &options_);
+      resource_manager_, path, full_name, content_type, &options_);
   resource->set_outlined(kind == kOutlinedResource);
 
   // Determine whether this output resource is still valid by looking
@@ -632,7 +634,7 @@ OutputResource* RewriteDriver::CreateOutputResourceWithPath(
   return resource;
 }
 
-Resource* RewriteDriver::CreateInputResource(const GoogleUrl& base_gurl,
+Resource* RewriteDriver::CreateInputResource(const GURL& base_gurl,
                                              const StringPiece& input_url) {
   UrlPartnership partnership(&options_, base_gurl);
   MessageHandler* handler = message_handler();
@@ -647,7 +649,7 @@ Resource* RewriteDriver::CreateInputResource(const GoogleUrl& base_gurl,
     resource = CreateInputResourceUnchecked(input_gurl);
   } else {
     handler->Message(kInfo, "Invalid resource url '%s' relative to '%s'",
-                     input_url.as_string().c_str(), base_gurl.spec_c_str());
+                     input_url.as_string().c_str(), base_gurl.spec().c_str());
     resource_manager_->IncrementResourceUrlDomainRejections();
     resource = NULL;
   }
@@ -655,22 +657,35 @@ Resource* RewriteDriver::CreateInputResource(const GoogleUrl& base_gurl,
 }
 
 Resource* RewriteDriver::CreateInputResourceAndReadIfCached(
-    const GoogleUrl& base_gurl, const StringPiece& input_url) {
+    const GURL& base_gurl, const StringPiece& input_url) {
   Resource* input_resource = CreateInputResource(base_gurl, input_url);
   if ((input_resource != NULL) &&
       (!input_resource->IsCacheable() || !ReadIfCached(input_resource))) {
     message_handler()->Message(
         kInfo, "%s: Couldn't fetch resource %s to rewrite.",
-        base_gurl.spec_c_str(), input_url.as_string().c_str());
+        base_gurl.spec().c_str(), input_url.as_string().c_str());
     delete input_resource;
     input_resource = NULL;
   }
   return input_resource;
 }
 
+Resource* RewriteDriver::CreateInputResourceFromOutputResource(
+    UrlSegmentEncoder* encoder,
+    OutputResource* output_resource) {
+  Resource* input_resource = NULL;
+  std::string input_name;
+  if (encoder->DecodeFromUrlSegment(output_resource->name(), &input_name)) {
+    GURL base_gurl(output_resource->resolved_base());
+    input_resource = CreateInputResource(base_gurl, input_name);
+  }
+  return input_resource;
+}
+
 Resource* RewriteDriver::CreateInputResourceAbsoluteUnchecked(
     const StringPiece& absolute_url) {
-  GoogleUrl url(absolute_url);
+  std::string url_string(absolute_url.data(), absolute_url.size());
+  GURL url(url_string);
   return CreateInputResourceUnchecked(url);
 }
 
@@ -680,7 +695,7 @@ Resource* RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
     // to concatenate a valid protocol and domain onto an arbitrary string
     // and end up with an invalid GURL.
     message_handler()->Message(kWarning, "Invalid resource url '%s'",
-                               url.spec_c_str());
+                               url.Spec().as_string().c_str());
     return NULL;
   }
 
@@ -688,7 +703,7 @@ Resource* RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
   Resource* resource = NULL;
 
   if (url.SchemeIs("data")) {
-    resource = DataUrlInputResource::Make(url_string, this);
+    resource = DataUrlInputResource::Make(url_string, resource_manager_);
     if (resource == NULL) {
       // Note: Bad user-content can leave us here.
       message_handler()->Message(kWarning, "Badly formatted data url '%s'",
@@ -700,7 +715,8 @@ Resource* RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
 
     // Note: type may be NULL if url has an unexpected or malformed extension.
     const ContentType* type = NameExtensionToContentType(url_string);
-    resource = new UrlInputResource(this, &options_, type, url_string);
+    resource = new UrlInputResource(
+        resource_manager_, &options_, type, url_string);
   } else {
     // Note: Bad user-content can leave us here.
     message_handler()->Message(kWarning, "Unsupported scheme '%s' for url '%s'",
@@ -723,7 +739,7 @@ OutputResource* RewriteDriver::CreateOutputResourceForFetch(
       // on behalf of a fetch.  This is because that field is only used for
       // domain sharding, which is a rewriting activity, not a fetching
       // activity.
-      resource = new OutputResource(this, base, namer, NULL, NULL);
+      resource = new OutputResource(resource_manager_, base, namer, NULL, NULL);
     }
   }
   return resource;
@@ -810,8 +826,8 @@ void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
     if (base_was_set_) {
       if (new_base_url.Spec() != base_url_.Spec()) {
         InfoHere("Conflicting base tags: %s and %s",
-                 new_base_url.spec_c_str(),
-                 base_url_.spec_c_str());
+                 new_base_url.Spec().as_string().c_str(),
+                 base_url_.Spec().as_string().c_str());
       }
     } else {
       base_was_set_ = true;
@@ -820,7 +836,7 @@ void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
   } else {
     InfoHere("Invalid base tag %s relative to %s",
              new_base.as_string().c_str(),
-             base_url_.spec_c_str());
+             base_url_.Spec().as_string().c_str());
   }
 }
 
@@ -829,46 +845,6 @@ void RewriteDriver::InitBaseUrl() {
   if (is_url_valid()) {
     base_url_.Reset(google_url().AllExceptLeaf());
   }
-}
-
-void RewriteDriver::Scan() {
-  ApplyFilter(&scan_filter_);
-  set_first_filter(1);
-}
-
-void RewriteDriver::ScanRequestUrl(const StringPiece& url) {
-  std::string url_str(url.data(), url.size());
-  Resource* resource = NULL;
-  ResourceMap::iterator iter = resource_map_.find(url_str);
-  if (iter != resource_map_.end()) {
-    resource = iter->second;
-  } else {
-    resource = CreateInputResource(base_url_, url);
-
-    // note that 'resource' can be NULL.  If we fail to create
-    // the resource, then we record that it the map so we don't
-    // attempt the lookup multiple times.
-    resource_map_[url_str] = resource;
-  }
-}
-
-Resource* RewriteDriver::GetScannedInputResource(const StringPiece& url) const {
-  std::string url_str(url.data(), url.size());
-  Resource* resource = NULL;
-  ResourceMap::const_iterator iter = resource_map_.find(url_str);
-  if (iter != resource_map_.end()) {
-    resource = iter->second;
-  }
-  return resource;
-}
-
-RewriteFilter* RewriteDriver::FindFilter(const StringPiece& id) const {
-  RewriteFilter* filter = NULL;
-  StringFilterMap::const_iterator p = resource_filter_map_.find(id.as_string());
-  if (p != resource_filter_map_.end()) {
-    filter = p->second;
-  }
-  return filter;
 }
 
 }  // namespace net_instaweb

@@ -33,17 +33,6 @@ namespace net_instaweb {
 
 namespace {
 
-// Note that these values of "10" and "20" are very tight.  This is a
-// feature.  It serves as an early warning system because extra cache
-// lookups will induce time-advancement from
-// MemFileSystem::UpdateAtime, which can make these resources expire
-// before they are used.  So if you find tests in this module failing
-// unexpectedly, you may be tempted to bump up these values.  Don't.
-// Figure out how to make fewer cache lookups.
-const int kMinExpirationTimeMs = 10 * Timer::kSecondMs;
-const int kExpireAPngSec = 10;
-const int kExpireBPngSec = 20;
-
 class CssFilterTest : public ResourceManagerTestBase {
  protected:
   CssFilterTest() {
@@ -57,6 +46,7 @@ class CssFilterTest : public ResourceManagerTestBase {
 
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
+    resource_manager_->set_statistics(&statistics_);
     AddFilter(RewriteOptions::kRewriteCss);
   }
 
@@ -283,6 +273,7 @@ class CssFilterTest : public ResourceManagerTestBase {
         kExpectChange | kExpectSuccess | kNoClearFetcher | kNoStatCheck);
   }
 
+  SimpleStats statistics_;
   Variable* num_files_minified_;
   Variable* minified_bytes_saved_;
   Variable* num_parse_failures_;
@@ -355,8 +346,6 @@ TEST_F(CssFilterTest, NoQueryCorruption) {
 }
 
 TEST_F(CssFilterTest, RewriteVariousCss) {
-  // TODO(sligocki): Get these tests to pass with setlocale.
-  //EXPECT_TRUE(setlocale(LC_ALL, "tr_TR.utf8"));
   // Distilled examples.
   const char* good_examples[] = {
     "a.b #c.d e#d,f:g>h+i>j{color:red}",  // .#,>+: in selectors
@@ -651,8 +640,8 @@ class CssFilterSubresourceTest : public CssFilterTest {
 
     // As we use invalid payloads, we expect image rewriting to
     // fail but cache extension to succeed.
-    InitResponseHeaders("a.png", kContentTypePng, "notapng", kExpireAPngSec);
-    InitResponseHeaders("b.png", kContentTypePng, "notbpng", kExpireBPngSec);
+    InitResponseHeaders("a.png", kContentTypePng, "notapng", 10);
+    InitResponseHeaders("b.png", kContentTypePng, "notbpng", 20);
   }
 
   void ValidateExpirationTime(const char* id, const char* output,
@@ -701,7 +690,7 @@ TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
                              kExpectChange | kExpectSuccess);
 
   // 10 is the smaller of expiration times of a.png, b.png and ext.css
-  ValidateExpirationTime("ext", output.c_str(), kMinExpirationTimeMs);
+  ValidateExpirationTime("ext", output.c_str(), 10 * Timer::kSecondMs);
 }
 
 // Test to make sure we don't cache for long if the rewrite was based
