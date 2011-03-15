@@ -184,9 +184,6 @@ size_t GoogleUrl::LeafStartPosition(const GURL& gurl) {
   url_parse::Parsed parsed = gurl.parsed_for_possibly_invalid_spec();
   // query doesn't include '?'
   size_t question = parsed.query.begin - 1;
-  if (question < 0) {
-    question = std::string::npos;
-  }
   size_t last_slash = gurl.spec().rfind('/', question);
   return last_slash;
 }
