@@ -6,8 +6,6 @@
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/img_rewrite_filter.h"
 
-#include <algorithm>
-
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/base64_util.h"
@@ -22,10 +20,8 @@
 namespace {
 
 const char kTestData[] = "/net/instaweb/rewriter/testdata/";
-const char kCuppa[] = "Cuppa.png";
 const char kBikeCrash[] = "BikeCrashIcn.png";
 const char kIronChef[] = "IronChef2.gif";
-const char kCradle[] = "CradleAnimation.gif";
 const char kPuzzle[] = "Puzzle.jpg";
 
 }  // namespace
@@ -80,13 +76,6 @@ class ImageTest : public testing::Test {
     EXPECT_EQ("ZZx", encoded);
   }
 
-  Image* ReadImageFromFile(const char* filename, std::string* buffer) {
-    EXPECT_TRUE(file_system_.ReadFile(
-        StrCat(GTestSrcDir(), kTestData, filename).c_str(),
-        buffer, &handler_));
-    return ImageFromString(filename, *buffer);
-  }
-
   void CheckImageFromFile(const char* filename,
                           Image::Type image_type,
                           int min_bytes_to_type,
@@ -94,10 +83,15 @@ class ImageTest : public testing::Test {
                           int width, int height,
                           int size, bool optimizable) {
     std::string contents;
-    ImagePtr image(ReadImageFromFile(filename, &contents));
+    ASSERT_TRUE(file_system_.ReadFile(
+        StrCat(GTestSrcDir(), kTestData, filename).c_str(),
+        &contents, &handler_));
+    ASSERT_EQ(size, contents.size());
+
+    ImagePtr image(ImageFromString(filename, contents));
     ExpectDimensions(image_type, size, width, height, image.get());
     if (optimizable) {
-      EXPECT_GT(size, image->output_size());
+      EXPECT_LT(image->output_size(), size);
     } else {
       EXPECT_EQ(size, image->output_size());
     }
@@ -153,16 +147,7 @@ class ImageTest : public testing::Test {
         8,  // Min bytes to bother checking file type at all.
         ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
         192, 256,
-        24941, true);
-  }
-
-  void DoAnimationTest() {
-    CheckImageFromFile(
-        kCradle, Image::IMAGE_GIF,
-        8,  // Min bytes to bother checking file type at all.
-        ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
-        200, 150,
-        583374, false);
+        24941, false);
   }
 
   void DoJpegTest() {
@@ -172,18 +157,6 @@ class ImageTest : public testing::Test {
         6468,  // Specific to this test
         1023, 766,
         241260, true);
-  }
-
-  std::string EncodeUrlAndDimensions(const StringPiece& origin_url,
-                                      const ImageDim& dim) {
-    ResourceContext data;
-    dim.ToResourceContext(&data);
-    StringVector v;
-    v.push_back(origin_url.as_string());
-    std::string out;
-    ImageUrlEncoder encoder;
-    encoder.Encode(v, &data, &out);
-    return out;
   }
 
   StdioFileSystem file_system_;
@@ -204,102 +177,75 @@ TEST_F(ImageTest, GifTest) {
   DoGifTest();
 }
 
-TEST_F(ImageTest, AnimationTest) {
-  DoAnimationTest();
-}
-
 TEST_F(ImageTest, JpegTest) {
   DoJpegTest();
 }
 
-TEST_F(ImageTest, DrawImage) {
-  std::string buf1;
-  ImagePtr image1(ReadImageFromFile(kBikeCrash, &buf1));
-  ImageDim image_dim1;
-  image1->Dimensions(&image_dim1);
-
-  std::string buf2;
-  ImagePtr image2(ReadImageFromFile(kCuppa, &buf2));
-  ImageDim image_dim2;
-  image2->Dimensions(&image_dim2);
-
-  int width = std::max(image_dim1.width(), image_dim2.width());
-  int height = image_dim1.height() + image_dim2.height();
-  ASSERT_GT(width, 0);
-  ASSERT_GT(height, 0);
-  ImagePtr canvas(new Image(width, height, Image::IMAGE_PNG,
-                            GTestTempDir(), &handler_));
-  EXPECT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
-  EXPECT_TRUE(canvas->DrawImage(image2.get(), 0, image_dim1.height()));
-  // The combined image should be bigger than either of the components, but
-  // smaller than their unoptimized sum.
-  EXPECT_GT(canvas->output_size(), image1->output_size());
-  EXPECT_GT(canvas->output_size(), image2->output_size());
-  EXPECT_GT(image1->input_size() + image2->input_size(),
-            canvas->output_size());
-}
-
-
 const char kActualUrl[] = "http://encoded.url/with/various.stuff";
 
-TEST_F(ImageTest, NoDims) {
+TEST(ImageUrlTest, NoDims) {
   const char kNoDimsUrl[] = "x,hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_TRUE(encoder.DecodeUrlAndDimensions(kNoDimsUrl, &dim, &origin_url));
-  EXPECT_FALSE(dim.valid());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_TRUE(encoder.DecodeFromUrlSegment(kNoDimsUrl, &origin_url));
+  EXPECT_FALSE(encoder.stored_dim().valid());
   EXPECT_EQ(kActualUrl, origin_url);
-  EXPECT_EQ(kNoDimsUrl, EncodeUrlAndDimensions(origin_url, dim));
+  std::string final_url;
+  encoder.EncodeToUrlSegment(origin_url, &final_url);
+  EXPECT_EQ(kNoDimsUrl, final_url);
 }
 
-TEST_F(ImageTest, HasDims) {
+TEST(ImageUrlTest, HasDims) {
   const char kDimsUrl[] = "17x33x,hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_TRUE(encoder.DecodeUrlAndDimensions(kDimsUrl, &dim, &origin_url));
-  EXPECT_TRUE(dim.valid());
-  EXPECT_EQ(17, dim.width());
-  EXPECT_EQ(33, dim.height());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_TRUE(encoder.DecodeFromUrlSegment(kDimsUrl, &origin_url));
+  ImageDim page_dim = encoder.stored_dim();
+  EXPECT_TRUE(page_dim.valid());
+  EXPECT_EQ(17, page_dim.width());
+  EXPECT_EQ(33, page_dim.height());
   EXPECT_EQ(kActualUrl, origin_url);
-  EXPECT_EQ(kDimsUrl, EncodeUrlAndDimensions(origin_url, dim));
+  std::string final_url;
+  encoder.EncodeToUrlSegment(origin_url, &final_url);
+  EXPECT_EQ(kDimsUrl, final_url);
 }
 
 TEST(ImageUrlTest, BadFirst) {
   const char kBadFirst[] = "badx33x,hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_FALSE(encoder.DecodeUrlAndDimensions(kBadFirst, &dim, &origin_url));
-  EXPECT_FALSE(dim.valid());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_FALSE(encoder.DecodeFromUrlSegment(kBadFirst, &origin_url));
+  EXPECT_FALSE(encoder.stored_dim().valid());
 }
 
 TEST(ImageUrlTest, BadSecond) {
   const char kBadSecond[] = "17xbadx,hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_FALSE(encoder.DecodeUrlAndDimensions(kBadSecond, &dim, &origin_url));
-  EXPECT_FALSE(dim.valid());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_FALSE(encoder.DecodeFromUrlSegment(kBadSecond, &origin_url));
+  EXPECT_FALSE(encoder.stored_dim().valid());
 }
 
 TEST(ImageUrlTest, NoXs) {
   const char kNoXs[] = ",hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_FALSE(encoder.DecodeUrlAndDimensions(kNoXs, &dim, &origin_url));
-  EXPECT_FALSE(dim.valid());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_FALSE(encoder.DecodeFromUrlSegment(kNoXs, &origin_url));
+  EXPECT_FALSE(encoder.stored_dim().valid());
 }
 
 TEST(ImageUrlTest, BlankSecond) {
   const char kBlankSecond[] = "17xx,hencoded.url,_with,_various.stuff";
   std::string origin_url;
-  ImageUrlEncoder encoder;
-  ImageDim dim;
-  EXPECT_FALSE(encoder.DecodeUrlAndDimensions(kBlankSecond, &dim, &origin_url));
-  EXPECT_FALSE(dim.valid());
+  UrlEscaper escaper;
+  ImageUrlEncoder encoder(&escaper);
+  EXPECT_FALSE(encoder.DecodeFromUrlSegment(kBlankSecond, &origin_url));
+  EXPECT_FALSE(encoder.stored_dim().valid());
 }
 
 }  // namespace net_instaweb

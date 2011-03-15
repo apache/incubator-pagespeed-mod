@@ -21,7 +21,6 @@
 
 #include <string>
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
 
@@ -40,18 +39,35 @@ class MessageHandler;
 // arbitrary numbers of pieces in & out.  However, that would change
 // an interface that's used in multiple places, so this is left as
 // a TODO.
-class UrlMultipartEncoder : public UrlSegmentEncoder {
+class UrlMultipartEncoder {
  public:
   UrlMultipartEncoder() {}
-  virtual ~UrlMultipartEncoder();
 
-  virtual void Encode(const StringVector& urls, const ResourceContext* data,
-                      std::string* encoding) const;
+  // Removes all the URLs from the encoding.
+  void clear() { urls_.clear(); }
 
-  virtual bool Decode(const StringPiece& url_segment,
-                      StringVector* urls,
-                      ResourceContext* data,
-                      MessageHandler* handler) const;
+  // Adds a new URL to the encoding.  Actually there are no
+  // character-set restrictions imposed by this method.
+  void AddUrl(const StringPiece& url) {
+    urls_.push_back(std::string(url.data(), url.size()));
+  }
+
+  // Encode the URLs added to this class into a single string.
+  std::string Encode() const;
+
+  // Decodde an encoding produced by Encode() above to populate
+  // this class.
+  bool Decode(const StringPiece& encoding, MessageHandler* handler);
+
+  // Returns the number of URLs stored (either by Decode or by
+  // AddUrl.
+  int num_urls() const { return urls_.size(); }
+
+  // Returns the url at the index.
+  const std::string& url(int index) const { return urls_[index]; }
+
+  // Removes the last URL.
+  void pop_back() { urls_.pop_back(); }
 
  private:
   StringVector urls_;

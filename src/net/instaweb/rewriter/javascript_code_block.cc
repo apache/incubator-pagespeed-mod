@@ -61,9 +61,8 @@ void JavascriptRewriteConfig::Initialize(Statistics* statistics) {
 
 JavascriptCodeBlock::JavascriptCodeBlock(
     const StringPiece& original_code, JavascriptRewriteConfig* config,
-    const StringPiece& message_id, MessageHandler* handler)
+    MessageHandler* handler)
     : config_(config),
-      message_id_(message_id.data(), message_id.size()),
       handler_(handler),
       original_code_(original_code.data(), original_code.size()),
       output_code_(original_code_),
@@ -88,8 +87,7 @@ void JavascriptCodeBlock::Rewrite() {
   config_->AddBlock();
   if ((config_->minify() || config_->redirect())) {
     if (!pagespeed::jsminify::MinifyJs(original_code_, &rewritten_code_)) {
-      handler_->Message(kInfo, "%s: Javascript minification failed.  "
-                        "Preserving old code.", message_id_.c_str());
+      handler_->Message(kInfo, "Javascript minification failed.  Preserving old code.");
       config_->AddMinificationFailure();
       TrimWhitespace(original_code_, &rewritten_code_);
     }

@@ -66,8 +66,7 @@ AddOutputFilter INCLUDES .shtml
 #COVERAGE Listen 8081
 #COVERAGE <VirtualHost *:8080>
 #COVERAGE   ModPagespeed on
-#COVERAGE   # Proxy using SERF
-#COVERAGE   ModPagespeedTestProxy on
+#COVERAGE   ModPagespeedTestProxy on   # Proxy using SERF
 #COVERAGE   ModPagespeedFetchProxy "127.0.0.1:8081"
 #COVERAGE
 #COVERAGE   ModPagespeedFileCachePath            "@@MODPAGESPEED_CACHE_ROOT@@/cache/"
@@ -148,8 +147,3 @@ AddOutputFilter INCLUDES .shtml
 #PROXY   ModPagespeedGeneratedFilePrefix      "@@MODPAGESPEED_CACHE_ROOT@@-alt/files/"
 #PROXY   ModPagespeedRewriteLevel PassThrough
 #PROXY </VirtualHost>
-
-
-#SLURP # This is used for Slurp testing.
-#SLURP ModPagespeedSlurpDirectory /usr/local/apache2/htdocs/mod_pagespeed_test/slurp
-#SLURP ModPagespeedSlurpReadOnly on

@@ -63,8 +63,6 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     // output_buffer_ should have exactly one image file (Puzzle.jpg).
     EXPECT_EQ(1UL, img_srcs.size());
     const std::string& src_string = img_srcs[0];
-    // Make sure the next two checks won't abort().
-    ASSERT_LT(strlen(domain) + 4, src_string.size());
     EXPECT_EQ(domain, src_string.substr(0, strlen(domain)));
     EXPECT_EQ(".jpg", src_string.substr(src_string.size() - 4, 4));
 
@@ -297,13 +295,13 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
 
   EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
 
-  GoogleUrl new_png_gurl(new_png_url);
+  GURL new_png_gurl = GoogleUrl::Create(new_png_url);
   EXPECT_TRUE(new_png_gurl.is_valid());
-  EXPECT_EQ("other_domain.test", new_png_gurl.Host());
+  EXPECT_EQ("other_domain.test", new_png_gurl.host());
 
-  GoogleUrl new_jpeg_gurl(new_jpeg_url);
+  GURL new_jpeg_gurl = GoogleUrl::Create(new_jpeg_url);
   EXPECT_TRUE(new_jpeg_gurl.is_valid());
-  EXPECT_EQ("other_domain.test", new_jpeg_gurl.Host());
+  EXPECT_EQ("other_domain.test", new_jpeg_gurl.host());
 }
 
 TEST_F(ImageRewriteTest, FetchInvalid) {

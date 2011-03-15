@@ -25,8 +25,6 @@
 
 namespace net_instaweb {
 
-class ResourceContext;
-
 // A helper base class for RewriteFilters which only convert one input resource
 // to one output resource. This class helps implement both HTML rewriting
 // and Fetch in terms of a single RewriteLoadedResource method, and takes
@@ -58,12 +56,18 @@ class RewriteSingleResourceFilter : public RewriteFilter {
                // it's worth trying again or not.
   };
 
-  // Rewrites the given resource using as much caching as possible and
+  // Rewrites a non-HTML resource using as much caching as possible and
   // the filter-supplied URL encoding scheme.
+  OutputResource::CachedResult* RewriteExternalResource(Resource* in);
+
+ protected:
+  // Rewrite the given resource using this filter's RewriteLoadedResource,
+  // taking  advantage of various caching techniques to avoid recomputation
+  // whenever possible.
   //
-  // The Resource* arg is the already-created input object.  'data' may be
-  // NULL, or include other meta-data needed for the rewrite, such as image
-  // dimensions.
+  // If your filter code and the original URL are enough to produce your output
+  // pass in resource_manager_->url_escaper() into encoder. If not, pass in
+  // an encoder that incorporates any other settings into the output URL.
   //
   // A return value of NULL indicates that some resources needed for
   // processing are not available yet --- either the inputs are in the process
@@ -80,15 +84,14 @@ class RewriteSingleResourceFilter : public RewriteFilter {
   // width and height.
   //
   // Precondition: in != NULL, in is security-checked
-  CachedResult* RewriteExternalResource(Resource* in,
-                                        const ResourceContext* data);
+  OutputResource::CachedResult* RewriteResourceWithCaching(
+      Resource* in, UrlSegmentEncoder* encoder);
 
- protected:
   // Variant of the above that makes and cleans up input resource for in_url.
   // Note that the URL will be expanded and security checked with respect to the
   // current base URL for the HTML parser.
-  CachedResult* RewriteWithCaching(const StringPiece& url,
-                                   const ResourceContext* data);
+  OutputResource::CachedResult* RewriteWithCaching(const StringPiece& in_url,
+                                                   UrlSegmentEncoder* encoder);
 
   // RewriteSingleResourceFilter will make sure to disregard any written
   // cache data with a version number different from what this method returns.
@@ -126,8 +129,20 @@ class RewriteSingleResourceFilter : public RewriteFilter {
   // In case it would be inadvisable to run the rewrite due to external
   // factors such as system load (rather than contents of the input)
   // return kTooBusy.
-  virtual RewriteResult RewriteLoadedResource(
-      const Resource* input_resource, OutputResource* output_resource) = 0;
+  virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
+                                              OutputResource* output_resource,
+                                              UrlSegmentEncoder* encoder) = 0;
+
+  // If the filter does any custom encoding of result URLs it should
+  // override this method to return a fresh, non-NULL UrlSegmentEncoder object.
+  // This object will be used to help decode the URL for a Fetch, as well as to
+  // provide the encoding for RewriteResourceWithCaching.
+  // The RewriteSingleResourceFilter  class will take and hold ownership of
+  // the returned object.
+  //
+  // The default implementation returns NULL which makes
+  // resource_manager_->url_escaper() be used.
+  virtual UrlSegmentEncoder* CreateCustomUrlEncoder() const;
 
  private:
   class FetchCallback;
@@ -139,32 +154,38 @@ class RewriteSingleResourceFilter : public RewriteFilter {
 
   // Check and record whether metadata version matches
   // FilterCacheFormatVersion() respectively.
-  bool IsValidCacheFormat(const CachedResult* cached);
+  bool IsValidCacheFormat(OutputResource::CachedResult* cached);
   void UpdateCacheFormat(OutputResource* output_resource);
 
   // If the filter requests reuse of results based on input hash,
   // stores it in cached.
-  void UpdateInputHash(const Resource* input_resource, CachedResult* cached);
+  void UpdateInputHash(const Resource* input_resource,
+                       OutputResource::CachedResult* cached);
 
   // Returns true if origin expiration time passed.
-  bool IsOriginExpired(CachedResult* cached) const;
+  bool IsOriginExpired(OutputResource::CachedResult* cached) const;
 
   // Releases a valid cached result inside output_resource,
   // taking care to freshen the input if needed.
-  CachedResult* ReleaseCachedAfterAnyFreshening(
+  OutputResource::CachedResult* ReleaseCachedAfterAnyFreshening(
       Resource* input_resource, OutputResource* output_resource);
 
   // Tries to rewrite input_resource to output_resource, and if successful
   // updates the cache as appropriate. Does not call WriteUnoptimizable on
   // failure.
   RewriteResult RewriteLoadedResourceAndCacheIfOk(
-      const Resource* input_resource, OutputResource* output_resource);
+      const Resource* input_resource, OutputResource* output_resource,
+      UrlSegmentEncoder* encoder);
 
   // Records that rewrite of input -> output failed (either due to
   // unavailability of input or failed conversion).
   void CacheRewriteFailure(const Resource* input_resource,
                            OutputResource* output_resource,
                            MessageHandler* message_handler);
+
+  // If given custom encoder is non-NULL, return it. Otherwise returns
+  // the resource manager's url_escaper.
+  UrlSegmentEncoder* EncoderToUse(UrlSegmentEncoder* custom_encoder);
 
   DISALLOW_COPY_AND_ASSIGN(RewriteSingleResourceFilter);
 };

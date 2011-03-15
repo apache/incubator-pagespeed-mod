@@ -23,7 +23,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/response_headers_parser.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
@@ -32,8 +31,6 @@
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/proto_util.h"
-#include <string>
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/timer.h"
@@ -45,14 +42,72 @@ namespace {
 
 const char kLockSuffix[] = ".outputlock";
 
+// Prefix we use to distinguish keys used by filters
+const char kCustomKeyPrefix[] = "X-ModPagespeedCustom-";
+
+// OutputResource::{Fetch,Save}Cached encodes the state
+// of the optimizable bit via presence of this header
+// TODO(morlovich): Should this just use SetRemembered?
+const char kCacheUnoptimizableHeader[] = "X-ModPagespeed-Unoptimizable";
+
+const char kOriginExpirationKey[] = "OutputResource_OriginExpiration";
+
 }  // namespace
 
-OutputResource::OutputResource(RewriteDriver* driver,
+OutputResource::CachedResult::CachedResult() : frozen_(false),
+                                               optimizable_(true),
+                                               auto_expire_(true),
+                                               origin_expiration_time_ms_(0) {}
+
+void OutputResource::CachedResult::SetRemembered(const StringPiece& key,
+                                                 const std::string& val) {
+  DCHECK(!frozen_) << "Any custom metadata must be set before "
+                      "ResourceManager::Write* is called";
+  std::string full_key = StrCat(kCustomKeyPrefix, key);
+  headers_.Replace(full_key, val);
+}
+
+bool OutputResource::CachedResult::Remembered(const StringPiece& key,
+                                              std::string* out) const {
+  std::string full_key = StrCat(kCustomKeyPrefix, key);
+  StringStarVector vals;
+  if (headers_.Lookup(full_key, &vals) && vals.size() == 1
+      && (vals[0] != NULL)) {
+    out->assign(*(vals[0]));
+    return true;
+  }
+
+  return false;
+}
+
+void OutputResource::CachedResult::SetRememberedInt64(const StringPiece& key,
+                                                      int64 val) {
+  SetRemembered(key, Integer64ToString(val));
+}
+
+bool OutputResource::CachedResult::RememberedInt64(const StringPiece& key,
+                                                   int64* out) {
+  std::string out_str;
+  return Remembered(key, &out_str) && StringToInt64(out_str, out);
+}
+
+void OutputResource::CachedResult::SetRememberedInt(
+    const StringPiece& key, int val) {
+  SetRemembered(key, IntegerToString(val));
+}
+
+bool OutputResource::CachedResult::RememberedInt(
+    const StringPiece& key, int* out) {
+  std::string out_str;
+  return Remembered(key, &out_str) && StringToInt(out_str, out);
+}
+
+OutputResource::OutputResource(ResourceManager* manager,
                                const StringPiece& resolved_base,
                                const ResourceNamer& full_name,
                                const ContentType* type,
                                const RewriteOptions* options)
-    : Resource(driver, type),
+    : Resource(manager, type),
       output_file_(NULL),
       writing_complete_(false),
       outlined_(false),
@@ -69,8 +124,7 @@ OutputResource::OutputResource(RewriteDriver* driver,
     // make this convention consistent and fix all code.
     CHECK_EQ((type->file_extension() + 1), full_name.ext());
   }
-  CHECK(EndsInSlash(resolved_base)) <<
-      "resolved_base must end in a slash, was: " << resolved_base;
+  CHECK(EndsInSlash(resolved_base)) << "resolved_base must end in a slash.";
 }
 
 OutputResource::~OutputResource() {
@@ -96,7 +150,8 @@ OutputResource::OutputWriter* OutputResource::BeginWrite(
     // Always write to a tempfile, so that if we get interrupted in the middle
     // we won't leave a half-baked file in the serving path.
     std::string temp_prefix = TempPrefix();
-    output_file_ = file_system->OpenTempFile(temp_prefix, handler);
+    output_file_ = file_system->OpenTempFile(
+        temp_prefix.c_str(), handler);
     bool success = (output_file_ != NULL);
     if (success) {
       std::string header;
@@ -190,6 +245,10 @@ std::string OutputResource::name_key() const {
   CHECK(!resolved_base_.empty());  // Corresponding path in url() is dead code
   result = StrCat(resolved_base_, id_name);
   return result;
+}
+
+std::string OutputResource::hash_ext() const {
+  return full_name_.EncodeHashExt();
 }
 
 // TODO(jmarantz): change the name to reflect the fact that it is not
@@ -299,9 +358,12 @@ bool OutputResource::LockForCreation(const ResourceManager* resource_manager,
 }
 
 void OutputResource::SaveCachedResult(const std::string& name_key,
-                                      MessageHandler* handler) {
-  HTTPCache* http_cache = resource_manager_->http_cache();
-  CachedResult* cached = EnsureCachedResultCreated();
+                                      MessageHandler* handler) const {
+  HTTPCache* http_cache = resource_manager()->http_cache();
+  CachedResult* cached = cached_result_.get();
+  CHECK(cached != NULL);
+  cached->SetRememberedInt64(kOriginExpirationKey,
+                             cached->origin_expiration_time_ms());
   cached->set_frozen(true);
 
   int64 delta_ms = cached->origin_expiration_time_ms() -
@@ -311,51 +373,56 @@ void OutputResource::SaveCachedResult(const std::string& name_key,
     delta_sec = std::max(delta_sec, Timer::kYearMs / Timer::kSecondMs);
   }
   if ((delta_sec > 0) || http_cache->force_caching()) {
-    ResponseHeaders meta_data;
-    resource_manager_->SetDefaultHeaders(type(), &meta_data);
+    ResponseHeaders* meta_data = &cached->headers_;
+    resource_manager()->SetDefaultHeaders(type(), meta_data);
     std::string cache_control = StringPrintf(
         "max-age=%ld",
         static_cast<long>(delta_sec));  // NOLINT
-    meta_data.Replace(HttpAttributes::kCacheControl, cache_control);
-    meta_data.ComputeCaching();
+    meta_data->Replace(HttpAttributes::kCacheControl, cache_control);
+    meta_data->RemoveAll(kCacheUnoptimizableHeader);
+    if (!cached->optimizable()) {
+      meta_data->Add(kCacheUnoptimizableHeader, "true");
+    }
+    meta_data->ComputeCaching();
 
+    std::string file_mapping;
     if (cached->optimizable()) {
-      cached->set_hash(full_name_.hash().as_string());
-      cached->set_extension(full_name_.ext().as_string());
+      file_mapping = hash_ext();
     }
-    std::string buf;
-    {
-      StringOutputStream sstream(&buf);
-      cached->SerializeToZeroCopyStream(&sstream);
-      // destructor of sstream prepares buf.
-    }
-    http_cache->Put(name_key, &meta_data, buf, handler);
+    http_cache->Put(name_key, meta_data, file_mapping, handler);
   }
 }
 
 void OutputResource::FetchCachedResult(const std::string& name_key,
                                        MessageHandler* handler) {
-  HTTPCache* cache = resource_manager_->http_cache();
+  HTTPCache* cache = resource_manager()->http_cache();
   cached_result_.reset();
   CachedResult* cached = EnsureCachedResultCreated();
 
+  StringPiece hash_extension;
   HTTPValue value;
   bool ok = false;
-  ResponseHeaders headers;
-  StringPiece buf;
-  bool found = cache->Find(name_key, &value, &headers, handler) ==
+  bool found = cache->Find(name_key, &value, &cached->headers_, handler) ==
                    HTTPCache::kFound;
-  if (found && value.ExtractContents(&buf)) {
-    ArrayInputStream input(buf.data(), buf.size());
-    if (cached->ParseFromZeroCopyStream(&input)) {
-      cached->set_frozen(false);
-      if (!cached->optimizable()) {
-        ok = true;
-      } else if (cached->has_hash() && cached->has_extension()) {
-        SetHash(cached->hash());
+  if (found && value.ExtractContents(&hash_extension)) {
+    int64 origin_expiration_time_ms;
+    if (!cached->RememberedInt64(kOriginExpirationKey,
+                                 &origin_expiration_time_ms)) {
+      origin_expiration_time_ms = cached->headers_.CacheExpirationTimeMs();
+    }
+    cached->set_origin_expiration_time_ms(origin_expiration_time_ms);
+
+    StringStarVector dummy;
+    if (cached->headers_.Lookup(kCacheUnoptimizableHeader, &dummy)) {
+      cached->set_optimizable(false);
+      ok = true;
+    } else {
+      ResourceNamer hash_ext;
+      if (hash_ext.DecodeHashExt(hash_extension)) {
+        SetHash(hash_ext.hash());
         // Note that the '.' must be included in the suffix
         // TODO(jmarantz): remove this from the suffix.
-        set_suffix(StrCat(".", cached->extension()));
+        set_suffix(StrCat(".", hash_ext.ext()));
         cached->set_optimizable(true);
         cached->set_url(url());
         ok = true;

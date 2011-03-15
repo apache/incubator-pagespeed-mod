@@ -41,6 +41,7 @@ void CommonFilter::StartDocument() {
 }
 
 void CommonFilter::StartElement(HtmlElement* element) {
+  // <noscript>
   if (element->keyword() == HtmlName::kNoscript) {
     if (noscript_element_ == NULL) {
       noscript_element_ = element;  // Record top-level <noscript>
@@ -64,39 +65,18 @@ void CommonFilter::EndElement(HtmlElement* element) {
 // important contextual purpose but now that the resource creation
 // methods were moved to RewriteDriver they won't add much value.
 Resource* CommonFilter::CreateInputResource(const StringPiece& url) {
-  return driver_->CreateInputResource(base_url(), url);
+  return driver_->CreateInputResource(base_gurl(), url);
 }
 
 Resource* CommonFilter::CreateInputResourceAndReadIfCached(
     const StringPiece& url) {
-  return driver_->CreateInputResourceAndReadIfCached(base_url(), url);
+  return driver_->CreateInputResourceAndReadIfCached(base_gurl(), url);
 }
 
-void CommonFilter::ScanStartDocument() {
-}
-
-void CommonFilter::ScanEndDocument() {
-}
-
-void CommonFilter::ScanStartElement(HtmlElement* element) {
-}
-
-void CommonFilter::ScanEndElement(HtmlElement* element) {
-}
-
-void CommonFilter::ScanComment(HtmlCommentNode* comment) {
-}
-
-void CommonFilter::ScanIEDirective(HtmlIEDirectiveNode* directive) {
-}
-
-void CommonFilter::ScanCharacters(HtmlCharactersNode* characters) {
-}
-
-void CommonFilter::ScanDirective(HtmlDirectiveNode* directive) {
-}
-
-void CommonFilter::ScanCdata(HtmlCdataNode* cdata) {
+Resource* CommonFilter::CreateInputResourceFromOutputResource(
+    UrlSegmentEncoder* encoder, OutputResource* output_resource) {
+  return driver_->CreateInputResourceFromOutputResource(
+      encoder, output_resource);
 }
 
 }  // namespace net_instaweb

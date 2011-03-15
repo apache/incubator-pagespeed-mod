@@ -45,15 +45,25 @@ In the meantime we can replace . with ^ in this encoder so the they
 don't change size.  So the transform table is:
 
 a-zA-Z0-9_=+-&? unchanged
-http://         ,h
-%               ,P
-/               ,_
-\               ,-
-,               ,
-?               ,q
-&               ,a
+%               %%
+/               %_
+\               %-
+http://         %h
+.com            %c
+.css            %s
+.edu            %e
+.gif            %g
+.html           %t
+.jpeg           %k
+.jpg            %j
+.js             %l
+.net            %n
+.png            %p
+www.            %w
+.               ^
+^               %^
 
-everything else ,XX  where xx are hex digits using capital latters
+everything else  %XX  where xx are hex digits using capital latters
 
 
 The intent of this class to to help encode arbitrary URLs (really, any
@@ -62,12 +72,14 @@ used in one 'segment' of a new URL.  This means we will not output
 . or / but will instead escape those.
 */
 
-namespace UrlEscaper {
-
-void EncodeToUrlSegment(const StringPiece& in, std::string* url_segment);
-bool DecodeFromUrlSegment(const StringPiece& url_segment, std::string* out);
-
-}  // namespace UrlEscaper
+class UrlEscaper : public UrlSegmentEncoder {
+ public:
+  virtual ~UrlEscaper();
+  virtual void EncodeToUrlSegment(
+      const StringPiece& in, std::string* url_segment);
+  virtual bool DecodeFromUrlSegment(
+      const StringPiece& url_segment, std::string* out);
+};
 
 }  // namespace net_instaweb
 
