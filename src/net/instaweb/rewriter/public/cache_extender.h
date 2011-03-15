@@ -52,14 +52,13 @@ class CacheExtender : public RewriteSingleResourceFilter {
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
 
-  virtual void ScanStartElement(HtmlElement* element);
-
   virtual const char* Name() const { return "CacheExtender"; }
 
  protected:
   virtual bool ReuseByContentHash() const;
   virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
-                                              OutputResource* output_resource);
+                                              OutputResource* output_resource,
+                                              UrlSegmentEncoder* encoder);
 
  private:
   bool IsRewrittenResource(const StringPiece& url) const;

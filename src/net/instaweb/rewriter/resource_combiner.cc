@@ -49,12 +49,12 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
                                    const StringPiece& extension)
     : resource_manager_(driver->resource_manager()),
       rewrite_driver_(driver),
-      partnership_(driver->options()),
+      partnership_(driver->options(), GURL()),
       prev_num_components_(0),
       accumulated_leaf_size_(0),
       // TODO(jmarantz): The URL overhead computation is arguably fragile.
       url_overhead_(filter_prefix.size() + ResourceNamer::kOverhead +
-                     extension.size()) {
+                    extension.size()) {
   // This CHECK is here because RewriteDriver is constructed with its
   // resource_manager_ == NULL.
   // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
@@ -70,7 +70,7 @@ bool ResourceCombiner::AddResource(const StringPiece& url,
                                    MessageHandler* handler) {
   // Assert the sanity of three parallel vectors.
   CHECK_EQ(num_urls(), static_cast<int>(resources_.size()));
-  CHECK_EQ(num_urls(), static_cast<int>(multipart_encoder_urls_.size()));
+  CHECK_EQ(num_urls(), static_cast<int>(multipart_encoder_.num_urls()));
   if (num_urls() == 0) {
     // Make sure to initialize the base URL.
     Reset();
@@ -83,7 +83,7 @@ bool ResourceCombiner::AddResource(const StringPiece& url,
   //    disabled due to policy.
 
   scoped_ptr<Resource> resource(
-      rewrite_driver_->CreateInputResource(rewrite_driver_->base_url(),
+      rewrite_driver_->CreateInputResource(rewrite_driver_->base_url().gurl(),
                                            url));
   if (resource.get() == NULL) {
     return false;
@@ -110,7 +110,7 @@ bool ResourceCombiner::AddResource(const StringPiece& url,
       UpdateResolvedBase();
     }
     const std::string relative_path = partnership_.RelativePath(index);
-    multipart_encoder_urls_.push_back(relative_path);
+    multipart_encoder_.AddUrl(relative_path);
 
     if (accumulated_leaf_size_ == 0) {
       ComputeLeafSize();
@@ -131,16 +131,16 @@ void ResourceCombiner::RemoveLastResource() {
   partnership_.RemoveLast();
   delete resources_.back();
   resources_.pop_back();
-  multipart_encoder_urls_.pop_back();
+  multipart_encoder_.pop_back();
   if (partnership_.NumCommonComponents() != prev_num_components_) {
     UpdateResolvedBase();
   }
 }
 
 std::string ResourceCombiner::UrlSafeId() const {
+  UrlEscaper* escaper = resource_manager_->url_escaper();
   std::string segment;
-  UrlMultipartEncoder encoder;
-  encoder.Encode(multipart_encoder_urls_, NULL, &segment);
+  escaper->EncodeToUrlSegment(multipart_encoder_.Encode(), &segment);
   return segment;
 }
 
@@ -152,7 +152,8 @@ void ResourceCombiner::ComputeLeafSize() {
 
 void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
   std::string segment;
-  UrlEscaper::EncodeToUrlSegment(url, &segment);
+  UrlEscaper* escaper = resource_manager_->url_escaper();
+  escaper->EncodeToUrlSegment(url, &segment);
   const int kMultipartOverhead = 1;  // for the '+'
   accumulated_leaf_size_ += segment.size() + kMultipartOverhead;
 }
@@ -187,9 +188,9 @@ void ResourceCombiner::UpdateResolvedBase() {
   // be relatively small.
   prev_num_components_ = partnership_.NumCommonComponents();
   resolved_base_ = ResolvedBase();
-  multipart_encoder_urls_.clear();
+  multipart_encoder_.clear();
   for (size_t i = 0; i < resources_.size(); ++i) {
-    multipart_encoder_urls_.push_back(partnership_.RelativePath(i));
+    multipart_encoder_.AddUrl(partnership_.RelativePath(i));
   }
 
   accumulated_leaf_size_ = 0;
@@ -393,19 +394,20 @@ bool ResourceCombiner::Fetch(OutputResource* combination,
   bool ret = false;
   StringPiece url_safe_id = combination->name();
   UrlMultipartEncoder multipart_encoder;
-  StringVector urls;
+  UrlEscaper* escaper = resource_manager_->url_escaper();
   std::string multipart_encoding;
   GoogleUrl gurl(combination->url());
   if (gurl.is_valid() &&
-      multipart_encoder.Decode(url_safe_id, &urls, NULL, message_handler)) {
+      escaper->DecodeFromUrlSegment(url_safe_id, &multipart_encoding) &&
+      multipart_encoder.Decode(multipart_encoding, message_handler)) {
     std::string url, decoded_resource;
     ret = true;
     CombinerCallback* combiner = new CombinerCallback(
         this, message_handler, callback, combination, writer, response_headers);
 
     StringPiece root = gurl.AllExceptLeaf();
-    for (int i = 0, n = urls.size(); ret && (i < n); ++i)  {
-      std::string url = StrCat(root, urls[i]);
+    for (int i = 0; ret && (i < multipart_encoder.num_urls()); ++i)  {
+      std::string url = StrCat(root, multipart_encoder.url(i));
       // Safe since we use StrCat to absolutize the URL rather than
       // full resolve, so it will always be a subpath of root.
       Resource* resource =
@@ -436,12 +438,12 @@ bool ResourceCombiner::Fetch(OutputResource* combination,
 void ResourceCombiner::Clear() {
   STLDeleteElements(&resources_);
   resources_.clear();
-  multipart_encoder_urls_.clear();
+  multipart_encoder_.clear();
 }
 
 void ResourceCombiner::Reset() {
   Clear();
-  partnership_.Reset(rewrite_driver_->base_url());
+  partnership_.Reset(rewrite_driver_->base_url().gurl());
   prev_num_components_ = 0;
   accumulated_leaf_size_ = 0;
   resolved_base_.clear();

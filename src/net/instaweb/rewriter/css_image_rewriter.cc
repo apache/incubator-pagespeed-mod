@@ -48,6 +48,10 @@ CssImageRewriter::CssImageRewriter(RewriteDriver* driver,
     : driver_(driver),
       // For now we use the same options as for rewriting and cache-extending
       // images found in HTML.
+      cache_extend_(driver->options()->Enabled(RewriteOptions::kExtendCache)),
+      rewrite_images_(
+          driver->options()->Enabled(RewriteOptions::kRewriteImages)),
+      trim_urls_(driver->options()->Enabled(RewriteOptions::kLeftTrimUrls)),
       cache_extender_(cache_extender),
       image_rewriter_(image_rewriter),
       image_rewrites_(NULL),
@@ -73,14 +77,7 @@ void CssImageRewriter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kNoRewrite);
 }
 
-bool CssImageRewriter::RewritesEnabled() const {
-  const RewriteOptions* options = driver_->options();
-  return (options->Enabled(RewriteOptions::kRewriteImages) ||
-          options->Enabled(RewriteOptions::kLeftTrimUrls) ||
-          options->Enabled(RewriteOptions::kExtendCache));
-}
-
-bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
+bool CssImageRewriter::RewriteImageUrl(const GURL& base_url,
                                        const StringPiece& old_rel_url,
                                        std::string* new_url,
                                        int64* expire_at_ms,
@@ -90,16 +87,14 @@ bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
   std::string old_rel_url_str = old_rel_url.as_string();
   scoped_ptr<Resource> input_resource(
       driver_->CreateInputResource(base_url, old_rel_url));
-  const RewriteOptions* options = driver_->options();
   if (input_resource.get() != NULL) {
-    scoped_ptr<CachedResult> rewrite_info;
+    scoped_ptr<OutputResource::CachedResult> rewrite_info;
     // Try image rewriting.
-    if (options->Enabled(RewriteOptions::kRewriteImages)) {
+    if (rewrite_images_) {
       handler->Message(kInfo, "Attempting to rewrite image %s",
                        old_rel_url_str.c_str());
-      ResourceContext dim;
-      rewrite_info.reset(image_rewriter_->RewriteExternalResource(
-          input_resource.get(), &dim));
+      rewrite_info.reset(
+          image_rewriter_->RewriteExternalResource(input_resource.get()));
       *expire_at_ms = ExpirationTimeMs(rewrite_info.get());
       if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
         if (image_rewrites_ != NULL) {
@@ -110,11 +105,11 @@ bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
       }
     }
     // Try cache extending.
-    if (!ret && options->Enabled(RewriteOptions::kExtendCache)) {
+    if (!ret && cache_extend_) {
       handler->Message(kInfo, "Attempting to cache extend image %s",
                        old_rel_url_str.c_str());
       rewrite_info.reset(
-          cache_extender_->RewriteExternalResource(input_resource.get(), NULL));
+          cache_extender_->RewriteExternalResource(input_resource.get()));
       *expire_at_ms = std::min(*expire_at_ms,
                                ExpirationTimeMs(rewrite_info.get()));
 
@@ -128,7 +123,7 @@ bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
     }
 
     // Try trimming the URL.
-    if (options->Enabled(RewriteOptions::kLeftTrimUrls)) {
+    if (trim_urls_) {
       StringPiece url_to_trim;
       if (ret) {
         url_to_trim = *new_url;
@@ -136,8 +131,8 @@ bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
         url_to_trim = old_rel_url;
       }
       std::string trimmed_url;
-      if (UrlLeftTrimFilter::Trim(base_url, url_to_trim,
-                                  &trimmed_url, handler)) {
+      GoogleUrl base(base_url);
+      if (UrlLeftTrimFilter::Trim(base, url_to_trim, &trimmed_url, handler)) {
         *new_url = trimmed_url;
         ret = true;
       }
@@ -146,7 +141,8 @@ bool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
   return ret;
 }
 
-int64 CssImageRewriter::ExpirationTimeMs(CachedResult* cached_result) {
+int64 CssImageRewriter::ExpirationTimeMs(
+    OutputResource::CachedResult* cached_result) {
   if (cached_result == NULL) {
     // A NULL cached_result means that the rewrite was unable to proceed,
     // but will likely be able to do so shortly, so we want to expire
@@ -159,7 +155,7 @@ int64 CssImageRewriter::ExpirationTimeMs(CachedResult* cached_result) {
   }
 }
 
-bool CssImageRewriter::RewriteCssImages(const GoogleUrl& base_url,
+bool CssImageRewriter::RewriteCssImages(const GURL& base_url,
                                         Css::Stylesheet* stylesheet,
                                         int64* expiration_time_ms,
                                         MessageHandler* handler) {
@@ -167,7 +163,7 @@ bool CssImageRewriter::RewriteCssImages(const GoogleUrl& base_url,
   int64 expire_at_ms = kint64max;
   if (RewritesEnabled()) {
     handler->Message(kInfo, "Starting to rewrite images in CSS in %s",
-                     base_url.spec_c_str());
+                     base_url.spec().c_str());
     Css::Rulesets& rulesets = stylesheet->mutable_rulesets();
     for (Css::Rulesets::iterator ruleset_iter = rulesets.begin();
          ruleset_iter != rulesets.end(); ++ruleset_iter) {
@@ -225,7 +221,7 @@ bool CssImageRewriter::RewriteCssImages(const GoogleUrl& base_url,
   } else {
     handler->Message(kInfo, "Image rewriting and cache extension not enabled, "
                      "so not rewriting images in CSS in %s",
-                     base_url.spec_c_str());
+                     base_url.spec().c_str());
   }
   *expiration_time_ms = expire_at_ms;
   return edited;
