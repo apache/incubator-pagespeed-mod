@@ -35,6 +35,14 @@ or the bleeding edge version
   gclient sync --force     # this will download all source code
 }}}
 
+== Running unit tests ==
+{{{
+  cd ~/mod_pagespeed/src
+  make BUILDTYPE=Release mod_pagespeed_test
+  ./out/Release/mod_pagespeed_test
+}}}
+If you get any errors while running tests, report a bug or send us an email at mod-pagespeed-discuss@googlegroups.com.
+
 == Compiling mod_pagespeed ==
 {{{
   cd ~/mod_pagespeed/src
