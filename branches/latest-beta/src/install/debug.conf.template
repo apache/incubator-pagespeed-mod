@@ -37,6 +37,14 @@ ModPagespeedEnableFilters add_instrumentation
     AllowOverride All
 </Directory>
 
+# This is needed for the server-side includes test at the end of
+# system_test.sh.  See mod_pagespeed_test/ssi/.htaccess as well.
+AddType text/html .shtml
+AddOutputFilter INCLUDES .shtml
+
+#SPELING # Enable mod_speling to ensure that we don't regress Issue 194
+#SPELING CheckSpelling on
+
 #STRESS # These lines are only needed for the stress test.
 #STRESS <Directory /usr/local/apache2/htdocs/mod_pagespeed_example/cgi>
 #STRESS   Options +ExecCGI
@@ -51,10 +59,6 @@ ModPagespeedEnableFilters add_instrumentation
 #REWRITE RewriteRule (.*).jpg.pagespeed.(.*).jpg /broken.jpg
 #REWRITE RewriteRule mod_pagespeed_statistics /broken
 #REWRITE RewriteRule shortcut.html /mod_pagespeed_example/index.html
-#REWRITE ModPagespeedRewriteLevel PassThrough
-#REWRITE ModPagespeedEnableFilters trim_urls
-#REWRITE RewriteRule mod_pagespeed_test/php/ /mod_pagespeed_test/menu_php.html
-#REWRITE ModPagespeedDisableFilters trim_urls
 
 #COVERAGE # These lines are used for large-scale code coverage testing.
 #COVERAGE # We use 2 servers for it, one doing rewriting and fetching
