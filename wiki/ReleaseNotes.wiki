@@ -1,4 +1,22 @@
 <wiki:toc max_depth="3" />
+
+===mod_pagespeed release 0.9.16.3===
+ was released on March 9, 2011. It fixes the following issues:
+
+||Issue 74|| Wrong Hostname in relative path with mod_proxy||
+||Issue 83|| Add domain sharding||
+||Issue 87|| Optimize images in css files||
+||Issue 153|| Treat the entire input file, including tags and attribute names, as case sensitive||
+||Issue 173|| Rewrite resources when that moves them to a new domain||
+||Issue 183|| Make !clean!time! Errors into warnings (or infos) and make them more descriptive||
+||Issue 197|| CSS parser breaks counter()||
+||Issue 202|| CSS resource fetch failed followed by another error||
+||Issue 203|| Chunked encoding + Content-Length = broken||
+||Issue 206|| Retain case of all tag and attribute names by default.||
+||Issue 219|| HandleResponse called on URL which is already erased||
+||Issue 221|| Bad hostname when mod_proxy is used to make Apache a reverse proxy||
+
+
 ===mod_pagespeed release 0.9.15.3===
  was released on Jan 28, 2011.  It includes binary packages, and fixes the following issues:
 ||Issue 124|| Error log noise with relative img links.||
