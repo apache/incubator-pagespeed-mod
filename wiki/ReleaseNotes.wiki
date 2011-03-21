@@ -1,5 +1,14 @@
 <wiki:toc max_depth="3" />
 
+===mod_pagespeed release 0.9.16.9===
+ was released on March 16, 2011. It fixes the following issues:
+
+||Issue 182|| Server-side includes are stripped by remove_comments and rewrite_css||
+||Issue 194|| conflict with mod_speling||
+||Issue 234|| Wrong document URL when mod_rewrite used||
+||Issue 235|| Invalid command 'ModPagespeedLowercaseHtmlNames'||
+||Issue 238|| outline_javascript generating broken links||
+
 ===mod_pagespeed release 0.9.16.3===
  was released on March 9, 2011. It fixes the following issues:
 
