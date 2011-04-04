@@ -72,10 +72,8 @@ then Apache previously exited uncleanly, and mod_pagespesed left behind some sha
 Usually this should only be necessary if a new version of mod_pagespeed is installed, and the cache has invalid data from a previous version.  To clear the cache with minimal server downtime, type:
 
 {{{
-  sudo mkdir /var/mod_pagespeed/cache.old
   sudo /etc/init.d/apachectl stop
-  sleep 2   # allow time for apache to terminate
-  sudo mv /var/mod_pagespeed/cache/* /var/mod_pagespeed/cache.old
+  sudo mv /var/mod_pagespeed/cache /var/mod_pagespeed/cache.old
   sudo /etc/init.d/apachectl start
   sudo rm -rf  /var/mod_pagespeed/cache.old
 }}}
