@@ -123,6 +123,22 @@ Save it, and after that mount the tmpfs:
 mount /var/www/mod_pagespeed/cache
 }}}
 
+= Why don't you allow source-installs via ./configure && make? =
+
+mod_pagespeed is dependent on at least two other packages that use 'gclient':  http://code.google.com/p/page-speed/ and http://code.google.com/p/chromium/.  So for us to switch away from this build methodology we'd have to either:
+
+   (a) rewrite the functionality we get for free from other packages
+
+OR
+
+   (b) get the Page Speed & Chromium teams to switch methodologies AND
+        document to our source installers that they must configure&make about 10 other
+        packages before they could compile ours.
+
+To do either of those would cost us a lot of development time that we'd prefer to spend making mod_pagespeed better.
+
+The benefit of gclient, besides beyond done, is that it lets us control explicitly which library versions we link in of a large number of direct & transitive dependencies, helping us create a consistent experience for our source-code builds.  If we had to ask our source-code installers to configure&&make multiple dependent libraries there would likely be a lot of version-incompatibilities.
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
