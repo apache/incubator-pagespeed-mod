@@ -19,17 +19,23 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_OUTLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_OUTLINE_FILTER_H_
 
-#include "base/basictypes.h"
+#include <cstddef>
+
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class HtmlCdataNode;
+class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlDirectiveNode;
+class HtmlElement;
+class HtmlIEDirectiveNode;
 class MessageHandler;
-class ResponseHeaders;
 class OutputResource;
-class ResourceManager;
+class RewriteDriver;
 
 // Filter to take explicit <style> and <script> tags and outline them to files.
 class CssOutlineFilter : public CommonFilter {
@@ -61,13 +67,13 @@ class CssOutlineFilter : public CommonFilter {
  private:
   bool WriteResource(const StringPiece& content, OutputResource* resource,
                      MessageHandler* handler);
-  void OutlineStyle(HtmlElement* element, const std::string& content);
+  void OutlineStyle(HtmlElement* element, const GoogleString& content);
 
   // The style or script element we are in (if it hasn't been flushed).
   // If we are not in a script or style element, inline_element_ == NULL.
   HtmlElement* inline_element_;
   // Temporarily buffers the content between open and close of inline_element_.
-  std::string buffer_;
+  GoogleString buffer_;
   size_t size_threshold_bytes_;
   // HTML strings interned into a symbol table.
 

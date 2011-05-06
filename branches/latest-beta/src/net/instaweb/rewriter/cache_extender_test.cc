@@ -18,15 +18,22 @@
 
 // Unit-test the cache extender.
 
-
-#include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/cache_extender.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -57,22 +64,22 @@ class CacheExtenderTest : public ResourceManagerTestBase {
   }
 
   // Generate HTML loading 3 resources with the specified URLs
-  std::string GenerateHtml(const std::string& a,
-                            const std::string& b,
-                            const std::string& c) {
+  GoogleString GenerateHtml(const GoogleString& a,
+                            const GoogleString& b,
+                            const GoogleString& c) {
     return StringPrintf(kHtmlFormat, a.c_str(), b.c_str(), c.c_str());
   }
 
   // Helper to test for how we handle trailing junk in URLs
   void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
     InitTest(100);
-    std::string a_ext = Encode(kTestDomain, "ce", "0", "a.css", "css");
-    std::string b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
-    std::string c_ext = Encode(kTestDomain, "ce", "0", "c.js", "js");
+    GoogleString a_ext = Encode(kTestDomain, "ce", "0", "a.css", "css");
+    GoogleString b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
+    GoogleString c_ext = Encode(kTestDomain, "ce", "0", "c.js", "js");
 
     ValidateExpected("no_ext_corrupt", GenerateHtml("a.css", "b.jpg", "c.js"),
                     GenerateHtml(a_ext, b_ext, c_ext));
-    std::string output;
+    GoogleString output;
     EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(a_ext, junk), &output));
     EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(b_ext, junk), &output));
     EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(c_ext, junk), &output));
@@ -92,6 +99,23 @@ TEST_F(CacheExtenderTest, DoExtend) {
             Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
             Encode(kTestDomain, "ce", "0", "c.js", "js")));
   }
+}
+
+TEST_F(CacheExtenderTest, UrlTooLong) {
+  AddFilter(RewriteOptions::kExtendCache);
+
+  // Make the filename too long.
+  GoogleString long_string(options_.max_url_segment_size() + 1, 'z');
+
+  GoogleString css_name = StrCat("style.css?z=", long_string);
+  GoogleString jpg_name = StrCat("image.jpg?z=", long_string);
+  GoogleString js_name  = StrCat("script.js?z=", long_string);
+  InitResponseHeaders(css_name, kContentTypeCss, kCssData, 100);
+  InitResponseHeaders(jpg_name, kContentTypeJpeg, kImageData, 100);
+  InitResponseHeaders(js_name, kContentTypeJavascript, kJsData, 100);
+
+  // If filename wasn't too long, this would be rewritten (like in DoExtend).
+  ValidateNoChanges("url_too_long", GenerateHtml(css_name, jpg_name, js_name));
 }
 
 TEST_F(CacheExtenderTest, NoInputResource) {
@@ -162,15 +186,15 @@ TEST_F(CacheExtenderTest, NoExtendOriginUncacheable) {
 }
 
 TEST_F(CacheExtenderTest, ServeFiles) {
-  std::string content;
+  GoogleString content;
 
   InitTest(100);
   ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "a.css", "css", &content));
-  EXPECT_EQ(std::string(kCssData), content);
+  EXPECT_EQ(GoogleString(kCssData), content);
   ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "b.jpg", "jpg", &content));
-  EXPECT_EQ(std::string(kImageData), content);
+  EXPECT_EQ(GoogleString(kImageData), content);
   ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "c.js", "js", &content));
-  EXPECT_EQ(std::string(kJsData), content);
+  EXPECT_EQ(GoogleString(kJsData), content);
 }
 
 TEST_F(CacheExtenderTest, ServeFilesFromDelayedFetch) {
@@ -196,8 +220,8 @@ TEST_F(CacheExtenderTest, MinimizeCacheHits) {
   options_.EnableFilter(RewriteOptions::kExtendCache);
   options_.set_css_outline_min_bytes(1);
   rewrite_driver_.AddFilters();
-  std::string html_input = StrCat("<style>", kCssData, "</style>");
-  std::string html_output = StringPrintf(
+  GoogleString html_input = StrCat("<style>", kCssData, "</style>");
+  GoogleString html_output = StringPrintf(
       "<link rel=\"stylesheet\" href=\"%s\">",
       Encode(kTestDomain, CssOutlineFilter::kFilterId, "0", "_",
              "css").c_str());
@@ -221,6 +245,27 @@ TEST_F(CacheExtenderTest, NoExtensionCorruption) {
 
 TEST_F(CacheExtenderTest, NoQueryCorruption) {
   TestCorruptUrl("?query", true);
+}
+
+TEST_F(CacheExtenderTest, MadeOnTheFly) {
+  // Make sure our fetches go through on-the-fly construction and not the cache.
+  InitTest(100000);
+
+  GoogleString b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
+  ValidateExpected("and_img", "<img src=\"b.jpg\">",
+                   StrCat("<img src=\"", b_ext, "\">"));
+
+  Variable* cached_resource_fetches =
+      statistics_->GetVariable(RewriteDriver::kResourceFetchesCached);
+  Variable* succeeded_filter_resource_fetches =
+      statistics_->GetVariable(RewriteDriver::kResourceFetchConstructSuccesses);
+
+  EXPECT_EQ(0, cached_resource_fetches->Get());
+  EXPECT_EQ(0, succeeded_filter_resource_fetches->Get());
+  GoogleString out;
+  EXPECT_TRUE(ServeResourceUrl(b_ext, &out));
+  EXPECT_EQ(0, cached_resource_fetches->Get());
+  EXPECT_EQ(1, succeeded_filter_resource_fetches->Get());
 }
 
 }  // namespace

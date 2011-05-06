@@ -19,14 +19,20 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_ASYNC_WRITER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_ASYNC_WRITER_H_
 
-#include "base/basictypes.h"
-#include "net/instaweb/http/public/http_dump_url_fetcher.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/http_dump_url_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class FileSystem;
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
+class Timer;
+class Writer;
 
 // HttpDumpWriter checks to see whether the HTTP dump is available on the
 // filesystem.  If not, it fetches it from another fetcher (e.g. one that
@@ -47,7 +53,7 @@ class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
   virtual ~HttpDumpUrlAsyncWriter();
 
   // This is a synchronous/blocking implementation.
-  virtual bool StreamingFetch(const std::string& url,
+  virtual bool StreamingFetch(const GoogleString& url,
                               const RequestHeaders& request_headers,
                               ResponseHeaders* response_headers,
                               Writer* response_writer,
@@ -66,7 +72,7 @@ class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
   HttpDumpUrlFetcher dump_fetcher_;
   // Used to fetch urls that aren't in the dump yet.
   UrlAsyncFetcher* base_fetcher_;
-  std::string root_dir_;  // Root directory of the HTTP dumps.
+  GoogleString root_dir_;  // Root directory of the HTTP dumps.
   FileSystem* file_system_;
   bool accept_gzip_;
 

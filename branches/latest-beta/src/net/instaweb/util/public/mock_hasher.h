@@ -19,28 +19,34 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_MOCK_HASHER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_MOCK_HASHER_H_
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class MockHasher : public Hasher {
  public:
-  MockHasher(): hash_value_("0") {}
+  MockHasher()
+      : Hasher(kint32max),
+        hash_value_("\xd0") {  // base64-encodes to "0"
+  }
+
   virtual ~MockHasher();
 
-  virtual std::string Hash(const StringPiece& content) const {
+  virtual GoogleString RawHash(const StringPiece& content) const {
     return hash_value_;
   }
 
-  void set_hash_value(const std::string& new_hash_value) {
+  void set_hash_value(const GoogleString& new_hash_value) {
     hash_value_ = new_hash_value;
   }
 
-  virtual int HashSizeInChars() const { return hash_value_.length(); }
+  virtual int RawHashSizeInBytes() const { return hash_value_.length(); }
 
  private:
-  std::string hash_value_;
+  GoogleString hash_value_;
   DISALLOW_COPY_AND_ASSIGN(MockHasher);
 };
 

@@ -20,50 +20,45 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_MANAGER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_MANAGER_H_
 
-#include <map>
-#include <vector>
-#include "base/basictypes.h"
-#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/rewriter/public/blocking_behavior.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/http/public/url_async_fetcher.h"
-#include "net/instaweb/util/public/url_segment_encoder.h"
 
-class GURL;
+template <class C> class scoped_ptr;
 
 namespace net_instaweb {
 
+class AbstractLock;
+class CacheInterface;
 class ContentType;
-class DomainLawyer;
 class FileSystem;
 class FilenameEncoder;
-class HTTPCache;
-class HTTPValue;
 class Hasher;
 class MessageHandler;
-class ResponseHeaders;
 class NamedLockManager;
-class OutputResource;
-class ResourceNamer;
+class ResourceContext;
+class ResponseHeaders;
 class RewriteOptions;
 class Statistics;
+class Timer;
 class UrlAsyncFetcher;
-class UrlEscaper;
+class UrlSegmentEncoder;
 class Variable;
-class Writer;
+
+typedef RefCountedPtr<OutputResource> OutputResourcePtr;
 
 // TODO(jmarantz): Rename this class to ServerContext, as it no longer
 // contains much logic about resources -- that's been moved to RewriteDriver,
 // which should be renamed RequestContext.
 class ResourceManager {
  public:
-  enum BlockingBehavior { kNeverBlock, kMayBlock };
-
-  static const int kNotSharded;
-
   // This value is a shared constant so that it can also be used in
   // the Apache-specific code that repairs our caching headers downstream
   // of mod_headers.
@@ -76,7 +71,10 @@ class ResourceManager {
                   UrlAsyncFetcher* url_async_fetcher,
                   Hasher* hasher,
                   HTTPCache* http_cache,
-                  NamedLockManager* lock_manager);
+                  CacheInterface* metadata_cache,
+                  NamedLockManager* lock_manager,
+                  MessageHandler* handler,
+                  Statistics* statistics);
   ~ResourceManager();
 
   // Initialize statistics gathering.
@@ -93,10 +91,6 @@ class ResourceManager {
   StringPiece filename_prefix() const { return file_prefix_; }
   void set_filename_prefix(const StringPiece& file_prefix);
   Statistics* statistics() const { return statistics_; }
-  void set_statistics(Statistics* s) {
-    statistics_ = s;
-    resource_url_domain_rejections_ = NULL;  // Lazily initialized.
-  }
   void set_relative_path(bool x) { relative_path_ = x; }
   NamedLockManager* lock_manager() const { return lock_manager_; }
 
@@ -142,7 +136,12 @@ class ResourceManager {
   }
   Timer* timer() const { return http_cache_->timer(); }
   HTTPCache* http_cache() { return http_cache_; }
-  UrlEscaper* url_escaper() { return url_escaper_.get(); }
+
+  // Cache for small non-HTTP objects.
+  //
+  // Note that this might share namespace with the HTTP cache, so make sure
+  // your key names do not start with http://.
+  CacheInterface* metadata_cache() { return metadata_cache_; }
 
   // Whether or not resources should hit the filesystem.
   bool store_outputs_in_file_system() { return store_outputs_in_file_system_; }
@@ -153,27 +152,129 @@ class ResourceManager {
   void RefreshIfImminentlyExpiring(Resource* resource,
                                    MessageHandler* handler) const;
 
-  // This method is here because it updates a thread-safe Statistic which
-  // can be shared between multiple requests.
-  void IncrementResourceUrlDomainRejections();
+  Variable* resource_url_domain_rejections() {
+    return resource_url_domain_rejections_;
+  }
+  Variable* cached_output_missed_deadline() {
+    return cached_output_missed_deadline_;
+  }
+  Variable* cached_output_hits() {
+    return cached_output_hits_;
+  }
+  Variable* cached_output_misses() {
+    return cached_output_misses_;
+  }
+  Variable* resource_404_count() { return resource_404_count_; }
+  Variable* slurp_404_count() { return slurp_404_count_; }
+
+  MessageHandler* message_handler() const { return message_handler_; }
+
+  // Loads contents of resource asynchronously, calling callback when
+  // done.  If the resource contents are cached, the callback will
+  // be called directly, rather than asynchronously.  The resource
+  // will be passed to the callback, with its contents and headers filled in.
+  void ReadAsync(Resource::AsyncCallback* callback);
+
+  // Creates a reference-counted pointer to a new OutputResource object.
+  //
+  // The content type is taken from the input_resource, but can be modified
+  // with SetType later if that is not correct (e.g. due to image transcoding).
+
+  // Constructs an output resource corresponding to the specified input resource
+  // and encoded using the provided encoder.  Assumes permissions checking
+  // occurred when the input resource was constructed, and does not do it again.
+  // To avoid if-chains, tolerates a NULL input_resource (by returning NULL).
+  // TODO(jmaessen, jmarantz): Do we want to permit NULL input_resources here?
+  // jmarantz has evinced a distaste.
+  OutputResourcePtr CreateOutputResourceFromResource(
+      const RewriteOptions* options,
+      const StringPiece& filter_prefix,
+      const UrlSegmentEncoder* encoder,
+      const ResourceContext* data,
+      const ResourcePtr& input_resource,
+      OutputResourceKind kind);
+
+  // Creates an output resource where the name is provided by the rewriter.
+  // The intent is to be able to derive the content from the name, for example,
+  // by encoding URLs and metadata.
+  //
+  // This method succeeds unless the filename is too long.
+  //
+  // This name is prepended with path for writing hrefs, and the resulting url
+  // is encoded and stored at file_prefix when working with the file system.  So
+  // hrefs are:
+  //    $(PATH)/$(NAME).pagespeed.$(FILTER_PREFIX).$(HASH).$(CONTENT_TYPE_EXT)
+  //
+  // 'type' arg can be null if it's not known, or is not in our ContentType
+  // library.
+  OutputResourcePtr CreateOutputResourceWithPath(
+      const RewriteOptions* options, const StringPiece& path,
+      const StringPiece& filter_prefix, const StringPiece& name,
+      const ContentType* type, OutputResourceKind kind);
+
+  // Attempt to obtain a named lock.  Return true if we do so.  If the
+  // object is expensive to create, this lock should be held during
+  // its creation to avoid multiple rewrites happening at once.  The
+  // lock will be unlocked when creation_lock is reset or destructed.
+  bool LockForCreation(const GoogleString& name,
+                       BlockingBehavior block,
+                       scoped_ptr<AbstractLock>* creation_lock);
 
  private:
-  std::string file_prefix_;
+  GoogleString file_prefix_;
   int resource_id_;  // Sequential ids for temporary Resource filenames.
   FileSystem* file_system_;
   FilenameEncoder* filename_encoder_;
   UrlAsyncFetcher* url_async_fetcher_;
   Hasher* hasher_;
   Statistics* statistics_;
+
+  // Counts how many URLs we reject because they come from a domain that
+  // is not authorized.
   Variable* resource_url_domain_rejections_;
+
+  // Counts how many times we had a cache-hit for the output resource
+  // partitioning, but it came too late to be used for the rewrite.
+  Variable* cached_output_missed_deadline_;
+
+  // Counts how many times we had a successful cache-hit for output
+  // resource partitioning.
+  Variable* cached_output_hits_;
+
+  // Counts how many times we had a cache-miss for output
+  // resource partitioning.
+  Variable* cached_output_misses_;
+
+  // Tracks 404s sent to clients for resource requests.
+  Variable* resource_404_count_;
+
+  // Tracks 404s sent clients to when slurping.
+  Variable* slurp_404_count_;
+
   HTTPCache* http_cache_;
-  scoped_ptr<UrlEscaper> url_escaper_;
+  CacheInterface* metadata_cache_;
   bool relative_path_;
   bool store_outputs_in_file_system_;
   NamedLockManager* lock_manager_;
-  std::string max_age_string_;
+  GoogleString max_age_string_;
+  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceManager);
+};
+
+class ResourceManagerHttpCallback : public HTTPCache::Callback {
+ public:
+  ResourceManagerHttpCallback(Resource::AsyncCallback* resource_callback,
+                              ResourceManager* resource_manager)
+      : resource_callback_(resource_callback),
+        resource_manager_(resource_manager) {
+  }
+  virtual ~ResourceManagerHttpCallback();
+  virtual void Done(HTTPCache::FindResult find_result);
+
+ private:
+  Resource::AsyncCallback* resource_callback_;
+  ResourceManager* resource_manager_;
 };
 
 }  // namespace net_instaweb

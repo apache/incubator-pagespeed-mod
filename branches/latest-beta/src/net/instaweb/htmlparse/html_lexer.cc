@@ -17,14 +17,17 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/htmlparse/html_lexer.h"
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
+#include <cctype>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdio>
 #include <algorithm>
+#include "base/logging.h"
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -366,7 +369,7 @@ void HtmlLexer::EvalTagBriefClose(char c) {
     EmitTagOpen(false);
     EmitTagBriefClose();
   } else {
-    std::string expected(literal_.data(), literal_.size() - 1);
+    GoogleString expected(literal_.data(), literal_.size() - 1);
     SyntaxError("Invalid close tag syntax: expected %s>, got %s",
                 expected.c_str(), literal_.c_str());
     // Recover by returning to the mode from whence we came.
@@ -651,8 +654,8 @@ void HtmlLexer::EmitComment() {
   // is whitespace tolerated?) doesn't seem to be specified anywhere, but my
   // brief experiments suggest that this heuristic is okay.  (mdsteele)
   // See http://en.wikipedia.org/wiki/Conditional_comment
-  if ((token_.find("[if") != std::string::npos) ||
-      (token_.find("[endif]") != std::string::npos)) {
+  if ((token_.find("[if") != GoogleString::npos) ||
+      (token_.find("[endif]") != GoogleString::npos)) {
     HtmlIEDirectiveNode* node =
         html_parse_->NewIEDirectiveNode(Parent(), token_);
     html_parse_->AddEvent(new HtmlIEDirectiveEvent(node, tag_start_line_));
@@ -999,9 +1002,13 @@ void HtmlLexer::Parse(const char* text, int size) {
   }
 }
 
+// The HTML-input sloppiness in these three methods is applied independent
+// of whether we think the document is XHTML, either via doctype or
+// mime-type.  The internet is full of lies.  See Issue 252:
+//   http://code.google.com/p/modpagespeed/issues/detail?id=252
+
 bool HtmlLexer::IsImplicitlyClosedTag(HtmlName::Keyword keyword) const {
-  return (!doctype_.IsXhtml() &&
-          IS_IN_SET(kImplicitlyClosedHtmlTags, keyword));
+  return IS_IN_SET(kImplicitlyClosedHtmlTags, keyword);
 }
 
 bool HtmlLexer::TagAllowsBriefTermination(HtmlName::Keyword keyword) const {
@@ -1009,13 +1016,12 @@ bool HtmlLexer::TagAllowsBriefTermination(HtmlName::Keyword keyword) const {
 }
 
 bool HtmlLexer::IsOptionallyClosedTag(HtmlName::Keyword keyword) const {
-  return (!doctype_.IsXhtml() &&
-          IS_IN_SET(kOptionallyClosedTags, keyword));
+  return IS_IN_SET(kOptionallyClosedTags, keyword);
 }
 
 void HtmlLexer::DebugPrintStack() {
   for (size_t i = kStartStack; i < element_stack_.size(); ++i) {
-    std::string buf;
+    GoogleString buf;
     element_stack_[i]->ToString(&buf);
     fprintf(stdout, "%s\n", buf.c_str());
   }

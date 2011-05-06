@@ -16,13 +16,18 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
 
-#include <stdio.h>
-
+#include <cstdio>
+#include <vector>
+#include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
-#include <string>
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -88,7 +93,7 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
   return ret;
 }
 
-void HtmlElement::ToString(std::string* buf) const {
+void HtmlElement::ToString(GoogleString* buf) const {
   *buf += "<";
   *buf += name_.c_str();
   for (int i = 0; i < attribute_size(); ++i) {
@@ -126,7 +131,7 @@ void HtmlElement::ToString(std::string* buf) const {
 }
 
 void HtmlElement::DebugPrint() const {
-  std::string buf;
+  GoogleString buf;
   ToString(&buf);
   fprintf(stdout, "%s\n", buf.c_str());
 }
@@ -139,7 +144,7 @@ void HtmlElement::AddAttribute(const Attribute& src_attr) {
 
 void HtmlElement::AddAttribute(const HtmlName& name, const StringPiece& value,
                                const char* quote) {
-  std::string buf;
+  GoogleString buf;
   Attribute* attr = new Attribute(name, value,
                                   HtmlKeywords::Escape(value, &buf), quote);
   attributes_.push_back(attr);
@@ -148,7 +153,7 @@ void HtmlElement::AddAttribute(const HtmlName& name, const StringPiece& value,
 void HtmlElement::AddEscapedAttribute(const HtmlName& name,
                                       const StringPiece& escaped_value,
                                       const char* quote) {
-  std::string buf;
+  GoogleString buf;
   Attribute* attr = new Attribute(name,
                                   HtmlKeywords::Unescape(escaped_value, &buf),
                                   escaped_value, quote);
@@ -182,7 +187,7 @@ HtmlElement::Attribute::Attribute(const HtmlName& name,
 // As with the constructor, copies the string in, so caller retains
 // ownership of value.
 void HtmlElement::Attribute::SetValue(const StringPiece& value) {
-  std::string buf;
+  GoogleString buf;
   // Note that we execute the lines in this order in case value
   // is a substring of value_.  This copies the value just prior
   // to deallocation of the old value_.
@@ -195,7 +200,7 @@ void HtmlElement::Attribute::SetValue(const StringPiece& value) {
 }
 
 void HtmlElement::Attribute::SetEscapedValue(const StringPiece& escaped_value) {
-  std::string buf;
+  GoogleString buf;
   // Note that we execute the lines in this order in case value
   // is a substring of value_.  This copies the value just prior
   // to deallocation of the old value_.

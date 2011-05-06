@@ -21,15 +21,13 @@
 
 #include <vector>
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parser_types.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/symbol_table.h"
 
 namespace net_instaweb {
 
@@ -240,7 +238,7 @@ class HtmlElement : public HtmlNode {
 
   // Render an element as a string for debugging.  This is not
   // intended as a fully legal serialization.
-  void ToString(std::string* buf) const;
+  void ToString(GoogleString* buf) const;
   void DebugPrint() const;
 
   int begin_line_number() const { return begin_line_number_; }

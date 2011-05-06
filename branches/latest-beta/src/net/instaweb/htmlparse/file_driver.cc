@@ -19,17 +19,20 @@
 #include "net/instaweb/htmlparse/public/file_driver.h"
 
 #include "net/instaweb/htmlparse/public/file_statistics_log.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/htmlparse/public/logging_html_filter.h"
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_writer.h"
-#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
 bool GenerateFilename(
     const char* extension, const bool keep_old_extension,
-    const char* infilename, std::string* outfilename) {
+    const char* infilename, GoogleString* outfilename) {
   bool ret = false;
   const char* dot = strrchr(infilename, '.');
   if (dot != NULL) {
@@ -48,6 +51,7 @@ bool GenerateFilename(
 }  // namespace
 
 namespace net_instaweb {
+class MessageHandler;
 
 FileDriver::FileDriver(HtmlParse* html_parse, FileSystem* file_system)
     : html_parse_(html_parse),
@@ -58,12 +62,12 @@ FileDriver::FileDriver(HtmlParse* html_parse, FileSystem* file_system)
 }
 
 bool FileDriver::GenerateOutputFilename(
-    const char* infilename, std::string* outfilename) {
+    const char* infilename, GoogleString* outfilename) {
   return GenerateFilename(".out", true, infilename, outfilename);
 }
 
 bool FileDriver::GenerateStatsFilename(
-    const char* infilename, std::string* outfilename) {
+    const char* infilename, GoogleString* outfilename) {
   return GenerateFilename(".stats", false, infilename, outfilename);
 }
 
@@ -89,7 +93,7 @@ bool FileDriver::ParseFile(const char* infilename,
     if (f != NULL) {
       // HtmlParser needs a valid HTTP URL to evaluate relative paths,
       // so we create a dummy URL.
-      std::string dummy_url = StrCat("http://file.name/", infilename);
+      GoogleString dummy_url = StrCat("http://file.name/", infilename);
       html_parse_->StartParseId(dummy_url, infilename, kContentTypeHtml);
       char buf[1000];
       int nread;

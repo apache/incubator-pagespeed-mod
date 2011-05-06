@@ -20,7 +20,7 @@
 #include <vector>
 #include <list>
 #include <map>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/pool.h"
 #include "net/instaweb/util/public/pool_element.h"
@@ -87,7 +87,9 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
  protected:
   typedef Pool<SerfFetch> SerfFetchPool;
 
+  void Init(apr_pool_t* parent_pool, const char* proxy);
   bool SetupProxy(const char* proxy);
+
   // AnyPendingFetches is accurate only at the time of call; this is
   // used conservatively during shutdown.  It counts fetches that have been
   // requested by some thread, and can include fetches for which no action
@@ -99,6 +101,11 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   void CancelActiveFetches();
   bool WaitForActiveFetchesHelper(int64 max_ms,
                                   MessageHandler* message_handler);
+
+  // This cleans up the serf resources for fetches that errored out.
+  // Must be called only immediately after running the serf event loop.
+  // Must be called with mutex_ held.
+  void CleanupFetchesWithErrors();
 
   apr_pool_t* pool_;
   Timer* timer_;

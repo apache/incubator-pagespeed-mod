@@ -19,18 +19,20 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_THREADSAFE_CACHE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_THREADSAFE_CACHE_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/cache_interface.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
-class MessageHandler;
-class Writer;
 class AbstractMutex;
+class SharedString;
 
-// Composes a cache with a Mutex to form a threadsafe cache.
+// Composes a cache with a Mutex to form a threadsafe cache.  Note
+// that cache callbacks will be run in a thread that is dependent
+// on the cache implementation.  This wrapper class just guarantees
+// the thread safety of the cache itself, not the callbacks.
 class ThreadsafeCache : public CacheInterface {
  public:
   // Takes ownership of the cache that's passed in.
@@ -40,10 +42,10 @@ class ThreadsafeCache : public CacheInterface {
   }
   virtual ~ThreadsafeCache();
 
-  virtual bool Get(const std::string& key, SharedString* value);
-  virtual void Put(const std::string& key, SharedString* value);
-  virtual void Delete(const std::string& key);
-  virtual KeyState Query(const std::string& key);
+  virtual void Get(const GoogleString& key, Callback* callback);
+  virtual void Put(const GoogleString& key, SharedString* value);
+  virtual void Delete(const GoogleString& key);
+  virtual void Query(const GoogleString& key, Callback* callback);
 
  private:
   scoped_ptr<CacheInterface> cache_;

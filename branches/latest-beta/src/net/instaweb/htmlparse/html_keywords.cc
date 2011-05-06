@@ -18,6 +18,13 @@
 
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include <set>
+#include <cstddef>
+#include <map>
+#include <utility>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -137,7 +144,7 @@ namespace net_instaweb {
 HtmlKeywords* HtmlKeywords::singleton_ = NULL;
 
 HtmlKeywords::HtmlKeywords() {
-  typedef std::set<std::string, StringCompareInsensitive> CaseInsensitiveSet;
+  typedef std::set<GoogleString, StringCompareInsensitive> CaseInsensitiveSet;
   CaseInsensitiveSet case_sensitive_symbols;
   for (size_t i = 0; i < arraysize(kHtmlKeywordsSequences); ++i) {
     // Put all symbols in the case-sensitive map
@@ -198,7 +205,7 @@ void HtmlKeywords::ShutDown() {
 }
 
 StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
-                                       std::string* buf) const {
+                                       GoogleString* buf) const {
   if (escaped.data() == NULL) {
     return escaped;
   }
@@ -212,7 +219,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
   //    href="host.com/path?v1&amp;v2"
   // Un-escape the attribute value here before populating the
   // attribute data structure.
-  std::string escape;
+  GoogleString escape;
   int numeric_value = 0;
   bool accumulate_numeric_code = false;
   bool hex_mode = false;
@@ -287,13 +294,13 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
 }
 
 StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
-                                     std::string* buf) const {
+                                     GoogleString* buf) const {
   if (unescaped.data() == NULL) {
     return unescaped;
   }
   buf->clear();
 
-  std::string char_to_escape;
+  GoogleString char_to_escape;
   for (size_t i = 0; i < unescaped.size(); ++i) {
     int ch = static_cast<unsigned char>(unescaped[i]);
     // See http://www.htmlescape.net/htmlescape_tool.html.  Single-quote and

@@ -17,12 +17,18 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/string_util.h"
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
 #include <vector>
+
+#include "base/logging.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
 void SplitStringPieceToVector(const StringPiece& sp, const char* separator,
-                              std::vector<StringPiece>* components,
+                              StringPieceVector* components,
                               bool omit_empty_strings) {
   size_t prev_pos = 0;
   size_t pos = 0;
@@ -39,7 +45,7 @@ void SplitStringPieceToVector(const StringPiece& sp, const char* separator,
   }
 }
 
-std::string StrCat(const StringPiece& a,
+GoogleString StrCat(const StringPiece& a,
                     const StringPiece& b,
                     const StringPiece& c,
                     const StringPiece& d,
@@ -47,7 +53,7 @@ std::string StrCat(const StringPiece& a,
                     const StringPiece& f,
                     const StringPiece& g,
                     const StringPiece& h) {
-  std::string res;
+  GoogleString res;
   res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
               g.size() + h.size());
   a.AppendToString(&res);
@@ -61,9 +67,31 @@ std::string StrCat(const StringPiece& a,
   return res;
 }
 
+void StrAppend(GoogleString* target,
+               const StringPiece& a,
+               const StringPiece& b,
+               const StringPiece& c,
+               const StringPiece& d,
+               const StringPiece& e,
+               const StringPiece& f,
+               const StringPiece& g,
+               const StringPiece& h) {
+  target->reserve(target->size() +
+                  a.size() + b.size() + c.size() + d.size() + e.size() +
+                  f.size() + g.size() + h.size());
+  a.AppendToString(target);
+  b.AppendToString(target);
+  c.AppendToString(target);
+  d.AppendToString(target);
+  e.AppendToString(target);
+  f.AppendToString(target);
+  g.AppendToString(target);
+  h.AppendToString(target);
+}
+
 void BackslashEscape(const StringPiece& src,
                      const StringPiece& to_escape,
-                     std::string* dest) {
+                     GoogleString* dest) {
   dest->reserve(dest->size() + src.size());
   for (const char *p = src.data(), *end = src.data() + src.size();
        p != end; ++p) {
@@ -77,16 +105,16 @@ void BackslashEscape(const StringPiece& src,
 // From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
 // but we don't need any other aspect of protobufs so we don't want to
 // incur the link cost.
-void LowerString(std::string* s) {
-  std::string::iterator end = s->end();
-  for (std::string::iterator i = s->begin(); i != end; ++i) {
+void LowerString(GoogleString* s) {
+  GoogleString::iterator end = s->end();
+  for (GoogleString::iterator i = s->begin(); i != end; ++i) {
     *i = LowerChar(*i);
   }
 }
 
-void UpperString(std::string* s) {
-  std::string::iterator end = s->end();
-  for (std::string::iterator i = s->begin(); i != end; ++i) {
+void UpperString(GoogleString* s) {
+  GoogleString::iterator end = s->end();
+  for (GoogleString::iterator i = s->begin(); i != end; ++i) {
     *i = UpperChar(*i);
   }
 }
@@ -107,7 +135,7 @@ bool StringCaseEndsWith(const StringPiece& str, const StringPiece& suffix) {
 }
 
 void ParseShellLikeString(const StringPiece& input,
-                          std::vector<std::string>* output) {
+                          std::vector<GoogleString>* output) {
   output->clear();
   for (size_t index = 0; index < input.size();) {
     const char ch = input[index];
@@ -117,7 +145,7 @@ void ParseShellLikeString(const StringPiece& input,
       const char quote = ch;
       ++index;  // skip open quote
       output->push_back("");
-      std::string& part = output->back();
+      GoogleString& part = output->back();
       for (; index < input.size() && input[index] != quote; ++index) {
         if (input[index] == '\\') {
           ++index;  // skip backslash
@@ -132,8 +160,8 @@ void ParseShellLikeString(const StringPiece& input,
     // Without quotes, items are whitespace-separated.
     else if (!isspace(ch)) {
       output->push_back("");
-      std::string& part = output->back();
-      for (;index < input.size() && !isspace(input[index]); ++index) {
+      GoogleString& part = output->back();
+      for (; index < input.size() && !isspace(input[index]); ++index) {
         part.push_back(input[index]);
       }
     }
@@ -161,15 +189,15 @@ bool HasPrefixString(const StringPiece& str, const StringPiece& prefix) {
 // ----------------------------------------------------------------------
 int GlobalReplaceSubstring(const StringPiece& substring,
                            const StringPiece& replacement,
-                           std::string* s) {
+                           GoogleString* s) {
   CHECK(s != NULL);
   if (s->empty())
     return 0;
-  std::string tmp;
+  GoogleString tmp;
   int num_replacements = 0;
   size_t pos = 0;
   for (size_t match_pos = s->find(substring.data(), pos, substring.length());
-       match_pos != std::string::npos;
+       match_pos != GoogleString::npos;
        pos = match_pos + substring.length(),
            match_pos = s->find(substring.data(), pos, substring.length())) {
     ++num_replacements;

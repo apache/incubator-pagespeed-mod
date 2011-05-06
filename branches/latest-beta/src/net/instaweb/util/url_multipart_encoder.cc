@@ -17,7 +17,12 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/url_multipart_encoder.h"
+
+#include "base/logging.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_escaper.h"
 
 namespace {
 
@@ -34,37 +39,64 @@ const char kEscapedSeparator[] = "=+";
 }  // namespace
 
 namespace net_instaweb {
+class ResourceContext;
 
-std::string UrlMultipartEncoder::Encode() const {
-  std::string encoding;
-  for (int i = 0, n = urls_.size(); i <n; ++i) {
+UrlMultipartEncoder::~UrlMultipartEncoder() {
+}
+
+void UrlMultipartEncoder::Encode(const StringVector& urls,
+                                 const ResourceContext* data,
+                                 GoogleString* encoding) const {
+  DCHECK(data == NULL)
+      << "Unexpected non-null data passed to UrlMultipartEncodeer";
+  GoogleString buf;
+
+  // Encoding is a two-part process.  First we take the array of
+  // URLs and concatenate them together with + signs, escaping
+  // any + signs that appear in the URLs themselves.  Since the
+  // escape for this encoder is '=' we must escape that too.
+  for (int i = 0, n = urls.size(); i < n; ++i) {
     if (i != 0) {
-      encoding += kSeparator;
+      buf += kSeparator;
     }
-    const std::string& url = urls_[i];
+    const GoogleString& url = urls[i];
     for (int c = 0, nc = url.size(); c < nc; ++c) {
       char ch = url[c];
       if (ch == kEscape) {
-        encoding += kEscapedEscape;
+        buf += kEscapedEscape;
       } else if (ch == kSeparator) {
-        encoding += kEscapedSeparator;
+        buf += kEscapedSeparator;
       } else {
-        encoding += ch;
+        buf += ch;
       }
     }
   }
-  return encoding;
+
+  // Next we escape the whole blob with restrictions appropriate for URLs.
+  UrlEscaper::EncodeToUrlSegment(buf, encoding);
 }
 
 bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
-                                 MessageHandler* handler) {
-  urls_.clear();
-  std::string url;
+                                 StringVector* urls,
+                                 ResourceContext* data,
+                                 MessageHandler* handler) const {
+  GoogleString buf;
+
+  // Reverse the two-step encoding process described above.
+  if (!UrlEscaper::DecodeFromUrlSegment(encoding, &buf)) {
+    handler->Message(kError,
+                     "Invalid escaped URL segment: %s",
+                     encoding.as_string().c_str());
+    return false;
+  }
+
+  urls->clear();
+  GoogleString url;
   bool append_last = false;
-  for (int c = 0, nc = encoding.size(); c < nc; ++c) {
-    char ch = encoding[c];
+  for (int c = 0, nc = buf.size(); c < nc; ++c) {
+    char ch = buf[c];
     if (ch == kSeparator) {
-      urls_.push_back(url);
+      urls->push_back(url);
       url.clear();
       append_last = true;
       // ensure that a "a+b+" results in 3 urls with the last one empty.
@@ -74,14 +106,14 @@ bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
         if (c == nc) {
           handler->Message(kError,
                            "Invalid encoding: escape at end of string %s",
-                           encoding.as_string().c_str());
+                           buf.c_str());
           return false;
         }
-        ch = encoding[c];
+        ch = buf[c];
         if ((ch != kEscape) && (ch != kSeparator)) {
           handler->Message(kError,
                            "Invalid character `%c', after escape `%c' in %s",
-                           ch, kEscape, encoding.as_string().c_str());
+                           ch, kEscape, buf.c_str());
           return false;
         }
       }
@@ -89,7 +121,7 @@ bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
     }
   }
   if (append_last || !url.empty()) {
-    urls_.push_back(url);
+    urls->push_back(url);
   }
   return true;
 }

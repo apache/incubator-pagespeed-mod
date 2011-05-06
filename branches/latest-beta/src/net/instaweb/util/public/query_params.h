@@ -19,6 +19,10 @@
 
 #include "net/instaweb/util/public/string_multi_map.h"
 
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+
 namespace net_instaweb {
 
 // Parses and rewrites URL query parameters.
@@ -34,7 +38,7 @@ class QueryParams : public StringMultiMapSensitive {
   // be {"0", NULL, ""}.
   void Parse(const StringPiece& query_string);
 
-  std::string ToString() const;
+  GoogleString ToString() const;
 
   int size() const { return num_values(); }
 

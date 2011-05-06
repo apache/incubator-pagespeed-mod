@@ -18,11 +18,14 @@
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include <cstddef>
+
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace {
@@ -30,6 +33,7 @@ const char kTextCss[] = "text/css";
 }
 
 namespace net_instaweb {
+class HtmlParse;
 
 const char CssTagScanner::kStylesheet[] = "stylesheet";
 
@@ -93,7 +97,7 @@ bool CssTagScanner::ParseCssElement(
 
 namespace {
 
-bool ExtractQuote(std::string* url, char* quote) {
+bool ExtractQuote(GoogleString* url, char* quote) {
   bool ret = false;
   int size = url->size();
   if (size > 2) {
@@ -137,7 +141,7 @@ bool CssTagScanner::AbsolutifyUrls(
       pos += 4;
       size_t end_of_url = contents.find(')', pos);
       if ((end_of_url != StringPiece::npos) && (end_of_url != pos)) {
-        std::string url;
+        GoogleString url;
         TrimWhitespace(contents.substr(pos, end_of_url - pos), &url);
         char quote;
         bool is_quoted = ExtractQuote(&url, &quote);
@@ -152,7 +156,7 @@ bool CssTagScanner::AbsolutifyUrls(
             if (is_quoted) {
               writer->Write(StringPiece(&quote, 1), handler);
             }
-            ok = writer->Write(resolved.Spec().as_string().c_str(), handler);
+            ok = writer->Write(resolved.Spec(), handler);
             if (is_quoted) {
               writer->Write(StringPiece(&quote, 1), handler);
             }

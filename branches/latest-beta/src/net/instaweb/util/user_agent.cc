@@ -14,6 +14,8 @@
 
 #include "net/instaweb/util/public/user_agent.h"
 
+#include "net/instaweb/util/public/string.h"
+
 namespace net_instaweb {
 
 UserAgent::UserAgent() {
@@ -28,15 +30,15 @@ void UserAgent::set_user_agent(const char* user_agent) {
 }
 
 bool UserAgent::IsIe() const {
-  return user_agent_.find(" MSIE ") != std::string::npos;
+  return user_agent_.find(" MSIE ") != GoogleString::npos;
 }
 
 bool UserAgent::IsIe6() const {
-  return user_agent_.find(" MSIE 6.") != std::string::npos;
+  return user_agent_.find(" MSIE 6.") != GoogleString::npos;
 }
 
 bool UserAgent::IsIe7() const {
-  return user_agent_.find(" MSIE 7.") != std::string::npos;
+  return user_agent_.find(" MSIE 7.") != GoogleString::npos;
 }
 
 }  // namespace net_instaweb

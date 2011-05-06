@@ -18,14 +18,20 @@
 
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 
-#include "base/basictypes.h"
 #include "net/instaweb/http/public/cache_url_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class RequestHeaders;
 
 namespace {
 
@@ -86,13 +92,13 @@ CacheUrlAsyncFetcher::~CacheUrlAsyncFetcher() {
 }
 
 bool CacheUrlAsyncFetcher::StreamingFetch(
-    const std::string& url, const RequestHeaders& request_headers,
+    const GoogleString& url, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, Writer* writer, MessageHandler* handler,
     Callback* callback) {
   HTTPValue value;
   StringPiece contents;
   bool ret = false;
-  if ((http_cache_->Find(url.c_str(), &value, response_headers, handler) ==
+  if ((http_cache_->Find(url, &value, response_headers, handler) ==
        HTTPCache::kFound) &&
       !CacheUrlFetcher::RememberNotCached(*response_headers) &&
       value.ExtractContents(&contents)) {

@@ -16,14 +16,19 @@
 
 #include "net/instaweb/rewriter/public/js_inline_filter.h"
 
+#include <cstddef>
+
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
-#include "base/string_util.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/script_tag_scanner.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -36,13 +41,10 @@ JsInlineFilter::JsInlineFilter(RewriteDriver* driver)
 JsInlineFilter::~JsInlineFilter() {}
 
 void JsInlineFilter::StartDocumentImpl() {
-  // TODO(sligocki): This should go in the domain lawyer, right?
-  domain_ = driver_->gurl().host();
   should_inline_ = false;
 }
 
 void JsInlineFilter::EndDocument() {
-  domain_.clear();
 }
 
 void JsInlineFilter::StartElementImpl(HtmlElement* element) {
@@ -65,12 +67,12 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
     // TODO(morlovich): Consider async/defer here; it may not be a good
     // idea to inline async scripts in particular
 
-    scoped_ptr<Resource> resource(CreateInputResourceAndReadIfCached(src));
+    ResourcePtr resource(CreateInputResourceAndReadIfCached(src));
     // TODO(jmaessen): Is the domain lawyer policy the appropriate one here?
     // Or do we still have to check for strict domain equivalence?
     // If so, add an inline-in-page policy to domainlawyer in some form,
     // as we make a similar policy decision in css_inline_filter.
-    if (resource != NULL && resource->ContentsValid()) {
+    if ((resource.get() != NULL) && resource->ContentsValid()) {
       StringPiece contents = resource->contents();
       // Only inline if it's small enough, and if it doesn't contain
       // "</script>" anywhere.  If we inline an external script containing
@@ -101,10 +103,9 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
             driver_->InsertElementBeforeCurrent(node);
             element->DeleteAttribute(HtmlName::kSrc);
           }
-        }
-        // If we're not in XHTML, we can simply paste in the external script
-        // verbatim.
-        else {
+        } else {
+          // If we're not in XHTML, we can simply paste in the external script
+          // verbatim.
           driver_->InsertElementBeforeCurrent(
               driver_->NewCharactersNode(element, contents));
           element->DeleteAttribute(HtmlName::kSrc);

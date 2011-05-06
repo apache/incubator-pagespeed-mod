@@ -16,19 +16,22 @@
 
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 
-#include "base/logging.h"
-#include "base/scoped_ptr.h"
-#include "base/string_util.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
@@ -38,7 +41,8 @@ void CssInlineFilter::StartDocumentImpl() {
 }
 
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kLink) {
+  if ((element->keyword() == HtmlName::kLink) &&
+      !driver_->HasChildrenInFlushWindow(element)) {
     const char* rel = element->AttributeValue(HtmlName::kRel);
     if (rel == NULL || strcmp(rel, "stylesheet")) {
       return;
@@ -65,8 +69,8 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     // If so, add an inline-in-page policy to domainlawyer in some form,
     // as we make a similar policy decision in js_inline_filter.
     MessageHandler* message_handler = driver_->message_handler();
-    scoped_ptr<Resource> resource(CreateInputResourceAndReadIfCached(href));
-    if (resource == NULL  || !resource->ContentsValid()) {
+    ResourcePtr resource(CreateInputResourceAndReadIfCached(href));
+    if ((resource.get() == NULL) || !resource->ContentsValid()) {
       return;
     }
 
@@ -85,11 +89,11 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     }
 
     // Absolutify the URLs in the CSS -- relative URLs will break otherwise.
-    std::string rewritten_contents;
+    GoogleString rewritten_contents;
     StringWriter writer(&rewritten_contents);
-    std::string input_dir =
-        GoogleUrl::AllExceptLeaf(GoogleUrl::Create(resource->url()));
-    std::string base_dir = GoogleUrl::AllExceptLeaf(base_gurl());
+    GoogleUrl resource_url(resource->url());
+    StringPiece input_dir = resource_url.AllExceptLeaf();
+    StringPiece base_dir = base_url().AllExceptLeaf();
     bool written;
     if (input_dir == base_dir) {
       // We don't need to absolutify URLs if input directory is same as base.

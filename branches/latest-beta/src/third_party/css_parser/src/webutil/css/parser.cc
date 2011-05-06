@@ -48,6 +48,12 @@ const uint64 Parser::kSelectorError;
 const uint64 Parser::kFunctionError;
 const uint64 Parser::kMediaError;
 const uint64 Parser::kCounterError;
+const uint64 Parser::kHtmlCommentError;
+const uint64 Parser::kValueError;
+const uint64 Parser::kRulesetError;
+const uint64 Parser::kSkippedTokenError;
+const uint64 Parser::kCharsetError;
+const uint64 Parser::kBlockError;
 
 
 // Using isascii with signed chars is unfortunately undefined.
@@ -196,9 +202,13 @@ bool Parser::SkipToNextToken() {
   while (in_ < end_) {
     switch (*in_) {
       case '{':
+        ReportParsingError(kSkippedTokenError,
+                           "Ignoring block between tokens.");
         ParseBlock();  // ignore
         break;
       case '@':
+        ReportParsingError(kSkippedTokenError,
+                           "Ignoring @ident between tokens.");
         in_++;
         ParseIdent();  // ignore
         break;
@@ -583,7 +593,9 @@ Value* Parser::ParseRgbColor() {
 
     if (*in_ == ')')
       return new Value(HtmlColor(rgb[0], rgb[1], rgb[2]));
-    in_++;  // ','
+
+    DCHECK_EQ(',', *in_);
+    in_++;
   }
 
   return NULL;
@@ -676,6 +688,8 @@ Value* Parser::ParseAny(const StringPiece& allowed_chars) {
       toret = ParseNumber();
       break;
     case '(': case '[': {
+      ReportParsingError(kValueError, StringPrintf(
+          "Unsupported value starting with %c", *in_));
       char delim = *in_ == '(' ? ')' : ']';
       SkipPastDelimiter(delim);
       toret = NULL;  // we don't understand this construct.
@@ -736,6 +750,11 @@ Value* Parser::ParseAny(const StringPiece& allowed_chars) {
                 "Could not parse function parameters for function %s",
                 UnicodeTextToUTF8(id).c_str()));
           }
+        }
+        SkipSpace();
+        if (*in_ != ')') {
+          ReportParsingError(kFunctionError,
+                             "Ignored chars at end of function.");
         }
         SkipPastDelimiter(')');
       } else {
@@ -1284,6 +1303,8 @@ Declarations* Parser::ParseRawDeclarations() {
     bool ignore_this_decl = false;
     switch (*in_) {
       case ';':
+        // TODO(sligocki): Is there any way declarations might not be separated
+        // by ';' in the current code? We don't explicitly check.
         in_++;
         break;
       case '}':
@@ -1321,6 +1342,7 @@ Declarations* Parser::ParseRawDeclarations() {
           ignore_this_decl = true;
           break;
         }
+        DCHECK_EQ(':', *in_);
         in_++;
 
         Values* vals;
@@ -1449,6 +1471,10 @@ SimpleSelector* Parser::ParseAttributeSelector() {
         break;
     }
   }
+  SkipSpace();
+  if (*in_ != ']') {
+    ReportParsingError(kSelectorError, "Ignoring chars in attribute selector.");
+  }
   if (SkipPastDelimiter(']'))
     return newcond.release();
   else
@@ -1493,6 +1519,8 @@ SimpleSelector* Parser::ParseSimpleSelector() {
       UnicodeText pseudoclass = ParseIdent();
       // FIXME(yian): skip constructs "(en)" in lang(en) for now.
       if (in_ < end_ && *in_ == '(') {
+        ReportParsingError(kSelectorError,
+                           "Cannot parse parameters for pseudoclass.");
         in_++;
         SkipSpace();
         ParseIdent();
@@ -1576,7 +1604,7 @@ SimpleSelectors* Parser::ParseSimpleSelectors(bool expecting_combinator) {
   }
 
   if (selectors->size() > 0 &&  // at least one simple selector stored
-      in_ == oldin &&         // the last NULL does not make progress
+      in_ == oldin &&           // the last NULL does not make progress
       AtValidSimpleSelectorsTerminator())  // stop at a valid terminator
     return selectors.release();
 
@@ -1609,6 +1637,8 @@ Selectors* Parser::ParseSelectors() {
       case ',':
         if (selector->size() == 0) {
           success = false;
+          ReportParsingError(kSelectorError,
+                             "Could not parse ruleset: unexpected ,");
         } else {
           selector = new Selector();
           selectors->push_back(selector);
@@ -1622,8 +1652,11 @@ Selectors* Parser::ParseSelectors() {
           = ParseSimpleSelectors(expecting_combinator);
         if (!simple_selectors) {
           success = false;
-          if (in_ == oldin)
+          if (in_ == oldin) {
+            ReportParsingError(kSelectorError, StringPrintf(
+                "Could not parse selector: illegal char %c", *in_));
             in_++;
+          }
         } else {
           selector->push_back(simple_selectors);
         }
@@ -1673,8 +1706,15 @@ Ruleset* Parser::ParseRuleset() {
     ruleset->set_selectors(selectors.release());
   }
 
-  in_++;  // '{'
+  DCHECK_EQ('{', *in_);
+  in_++;
   ruleset->set_declarations(ParseRawDeclarations());
+
+  SkipSpace();
+  if (*in_ != '}') {
+    // TODO(sligocki): Can this ever be hit? Add a test that does.
+    ReportParsingError(kRulesetError, "Ignored chars at end of ruleset.");
+  }
   SkipPastDelimiter('}');
 
   if (success)
@@ -1751,12 +1791,34 @@ void Parser::ParseAtrule(Stylesheet* stylesheet) {
 
   // @charset string ;
   } else if (ident.utf8_length() == 7 &&
-      memcasecmp(ident.utf8_data(), "charset", 7) == 0) {
+             memcasecmp(ident.utf8_data(), "charset", 7) == 0) {
+    SkipSpace();
+    UnicodeText s;
+    switch (*in_) {
+      case '\'': {
+        s = ParseString<'\''>();
+        break;
+      }
+      case '"': {
+        s = ParseString<'"'>();
+        break;
+      }
+      default: {
+        ReportParsingError(kCharsetError, "@charset lacks string.");
+        break;
+      }
+    }
+    SkipSpace();
+    if (*in_ != ';') {
+      ReportParsingError(kCharsetError,
+                         "Ignoring chars at end of charset declaration.");
+    }
     SkipPastDelimiter(';');
+    stylesheet->mutable_charsets().push_back(s);
 
   // @media medium-list { ruleset-list }
   } else if (ident.utf8_length() == 5 &&
-      memcasecmp(ident.utf8_data(), "media", 5) == 0) {
+             memcasecmp(ident.utf8_data(), "media", 5) == 0) {
     std::vector<UnicodeText> media;
     ParseMediumList(&media);
     if (Done() || *in_ != '{')
@@ -1766,15 +1828,21 @@ void Parser::ParseAtrule(Stylesheet* stylesheet) {
     while (in_ < end_ && *in_ != '}') {
       const char* oldin = in_;
       scoped_ptr<Ruleset> ruleset(ParseRuleset());
-      if (!ruleset.get() && in_ == oldin)
+      if (!ruleset.get() && in_ == oldin) {
+        ReportParsingError(kSelectorError, StringPrintf(
+            "Could not parse ruleset: illegal char %c", *in_));
         in_++;
+      }
       if (ruleset.get()) {
         ruleset->set_media(media);
         stylesheet->mutable_rulesets().push_back(ruleset.release());
       }
       SkipSpace();
     }
-    if (in_ < end_) in_++;
+    if (in_ < end_) {
+      DCHECK_EQ('}', *in_);
+      in_++;
+    }
 
   // @page pseudo_page? { declaration-list }
   } else if (ident.utf8_length() == 4 &&
@@ -1784,8 +1852,11 @@ void Parser::ParseAtrule(Stylesheet* stylesheet) {
 }
 
 // TODO(dpeng): What exactly does this code do?
+// TODO(sligocki): This appears to skip over the next {} block???
 void Parser::ParseBlock() {
   Tracer trace(__func__, &in_);
+
+  ReportParsingError(kBlockError, "Ignoring {} block.");
 
   SkipSpace();
   DCHECK_LT(in_, end_);
@@ -1811,6 +1882,7 @@ void Parser::ParseBlock() {
           return;
         break;
       default:
+        // TODO(sligocki): What's going on here? Just ignoring the next value?
         scoped_ptr<Value> v(ParseAny());
         break;
     }
@@ -1828,16 +1900,23 @@ Stylesheet* Parser::ParseRawStylesheet() {
   Stylesheet* stylesheet = new Stylesheet();
   while (in_ < end_) {
     switch (*in_) {
+      // HTML-style comments are not allowed in CSS.
+      // In fact, "<!--" and "-->" are ignored when parsing CSS.
+      // Probably a legacy from when browsers didn't support <style> tags.
       case '<':
         in_++;
         if (end_ - in_ >= 3 && memcmp(in_, "!--", 3) == 0) {
           in_ += 3;
+        } else {
+          ReportParsingError(kHtmlCommentError, "< without following !--");
         }
         break;
       case '-':
         in_++;
         if (end_ - in_ >= 2 && memcmp(in_, "->", 2) == 0) {
           in_ += 2;
+        } else {
+          ReportParsingError(kHtmlCommentError, "- without following ->");
         }
         break;
       case '@':
@@ -1846,8 +1925,11 @@ Stylesheet* Parser::ParseRawStylesheet() {
       default: {
         const char* oldin = in_;
         scoped_ptr<Ruleset> ruleset(ParseRuleset());
-        if (!ruleset.get() && oldin == in_)
+        if (!ruleset.get() && oldin == in_) {
+          ReportParsingError(kSelectorError, StringPrintf(
+              "Could not parse ruleset: illegal char %c", *in_));
           in_++;
+        }
         if (ruleset.get())
           stylesheet->mutable_rulesets().push_back(ruleset.release());
         break;
@@ -1855,6 +1937,9 @@ Stylesheet* Parser::ParseRawStylesheet() {
     }
     SkipSpace();
   }
+
+  DCHECK(Done()) << "Finished parsing before end of document.";
+
   return stylesheet;
 }
 
@@ -1878,6 +1963,7 @@ Stylesheet* Parser::ParseStylesheet() {
 
 Declarations::~Declarations() { STLDeleteElements(this); }
 Rulesets::~Rulesets() { STLDeleteElements(this); }
+Charsets::~Charsets() {}
 Imports::~Imports() { STLDeleteElements(this); }
 
 }  // namespace

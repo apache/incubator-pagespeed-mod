@@ -17,15 +17,14 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_RESPONSE_HEADERS_PARSER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_RESPONSE_HEADERS_PARSER_H_
 
-#include <stdlib.h>
-#include <map>
-#include <vector>
-#include "base/basictypes.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class ResponseHeaders;
 
 // Parses a stream of HTTP header text into a ResponseHeaders instance.
 class ResponseHeadersParser {
@@ -43,15 +42,15 @@ class ResponseHeadersParser {
   void set_headers_complete(bool x) { headers_complete_ = x; }
 
  private:
-  bool GrabLastToken(const std::string& input, std::string* output);
+  bool GrabLastToken(const GoogleString& input, GoogleString* output);
 
   ResponseHeaders* response_headers_;
 
   bool parsing_http_;
   bool parsing_value_;
   bool headers_complete_;
-  std::string parse_name_;
-  std::string parse_value_;
+  GoogleString parse_name_;
+  GoogleString parse_value_;
 
   DISALLOW_COPY_AND_ASSIGN(ResponseHeadersParser);
 };

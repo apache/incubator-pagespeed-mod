@@ -16,7 +16,15 @@
 
 // Author: mdsteele@google.com (Matthew D. Steele)
 
+#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -24,43 +32,43 @@ namespace {
 
 class JsInlineFilterTest : public ResourceManagerTestBase {
  protected:
-  void TestInlineJavascript(const std::string& html_url,
-                            const std::string& js_url,
-                            const std::string& js_original_inline_body,
-                            const std::string& js_outline_body,
+  void TestInlineJavascript(const GoogleString& html_url,
+                            const GoogleString& js_url,
+                            const GoogleString& js_original_inline_body,
+                            const GoogleString& js_outline_body,
                             bool expect_inline) {
     TestInlineJavascriptGeneral(
         html_url,
-        "", // don't use a doctype for these tests
+        "",  // don't use a doctype for these tests
         js_url,
         js_original_inline_body,
         js_outline_body,
-        js_outline_body, // expect ouline body to be inlined verbatim
+        js_outline_body,  // expect ouline body to be inlined verbatim
         expect_inline);
   }
 
-  void TestInlineJavascriptXhtml(const std::string& html_url,
-                                 const std::string& js_url,
-                                 const std::string& js_outline_body,
+  void TestInlineJavascriptXhtml(const GoogleString& html_url,
+                                 const GoogleString& js_url,
+                                 const GoogleString& js_outline_body,
                                  bool expect_inline) {
     TestInlineJavascriptGeneral(
         html_url,
         "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" "
         "\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">",
         js_url,
-        "", // use an empty original inline body for these tests
+        "",  // use an empty original inline body for these tests
         js_outline_body,
         // Expect outline body to get surrounded by a CDATA block:
         "//<![CDATA[\n" + js_outline_body + "\n//]]>",
         expect_inline);
   }
 
-  void TestInlineJavascriptGeneral(const std::string& html_url,
-                                   const std::string& doctype,
-                                   const std::string& js_url,
-                                   const std::string& js_original_inline_body,
-                                   const std::string& js_outline_body,
-                                   const std::string& js_expected_inline_body,
+  void TestInlineJavascriptGeneral(const GoogleString& html_url,
+                                   const GoogleString& doctype,
+                                   const GoogleString& js_url,
+                                   const GoogleString& js_original_inline_body,
+                                   const GoogleString& js_outline_body,
+                                   const GoogleString& js_expected_inline_body,
                                    bool expect_inline) {
     AddFilter(RewriteOptions::kInlineJavascript);
 
@@ -68,13 +76,13 @@ class JsInlineFilterTest : public ResourceManagerTestBase {
     if (!doctype.empty()) {
       SetDoctype(doctype);
     }
-    const std::string html_input =
+    const GoogleString html_input =
         "<head>\n"
         "  <script src=\"" + js_url + "\">" +
           js_original_inline_body + "</script>\n"
         "</head>\n"
         "<body>Hello, world!</body>\n";
-    const std::string expected_output =
+    const GoogleString expected_output =
         (!expect_inline ? html_input :
          "<head>\n"
          "  <script>" + js_expected_inline_body + "</script>\n"
@@ -135,7 +143,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptTooBig) {
                        "http://www.example.com/script.js",
                        "",
                        ("function longstr() { return '" +
-                        std::string(length, 'z') + "'; }\n"),
+                        GoogleString(length, 'z') + "'; }\n"),
                        false);
 }
 

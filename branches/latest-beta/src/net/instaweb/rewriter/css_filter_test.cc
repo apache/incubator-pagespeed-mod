@@ -17,286 +17,64 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 //     and sligocki@google.com (Shawn Ligocki)
 
-#include "net/instaweb/rewriter/public/css_filter.h"
-
-#include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
-#include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/img_tag_scanner.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/public/simple_stats.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 namespace {
 
-class CssFilterTest : public ResourceManagerTestBase {
- protected:
-  CssFilterTest() {
-    RewriteDriver::Initialize(&statistics_);
-
-    num_files_minified_ = statistics_.GetVariable(CssFilter::kFilesMinified);
-    minified_bytes_saved_ =
-        statistics_.GetVariable(CssFilter::kMinifiedBytesSaved);
-    num_parse_failures_ = statistics_.GetVariable(CssFilter::kParseFailures);
-  }
-
-  virtual void SetUp() {
-    ResourceManagerTestBase::SetUp();
-    resource_manager_->set_statistics(&statistics_);
-    AddFilter(RewriteOptions::kRewriteCss);
-  }
-
-  enum ValidationFlags {
-    kExpectNoChange = 1,
-    kExpectChange = 2,
-    kExpectFailure = 4,
-    kExpectSuccess = 8,
-    kNoStatCheck = 16,
-    kNoClearFetcher = 32,
-    kNoOtherContexts = 64
-  };
-
-  static bool ExactlyOneTrue(bool a, bool b) {
-    return a ^ b;
-  }
-
-  bool FlagSet(int flags, ValidationFlags f) {
-    return (flags & f) != 0;
-  }
-
-  // Sanity check on flags passed in -- should specify exactly
-  // one of kExpectChange/kExpectNoChange and kExpectFailure/kExpectSuccess
-  void CheckFlags(int flags) {
-    CHECK(ExactlyOneTrue(FlagSet(flags, kExpectChange),
-                         FlagSet(flags, kExpectNoChange)));
-    CHECK(ExactlyOneTrue(FlagSet(flags, kExpectFailure),
-                         FlagSet(flags, kExpectSuccess)));
-  }
-
-  // Check that inline CSS gets rewritten correctly.
-  void ValidateRewriteInlineCss(const StringPiece& id,
-                                const StringPiece& css_input,
-                                const StringPiece& expected_css_output,
-                                int flags) {
-    static const char prefix[] =
-        "<head>\n"
-        "  <title>Example style outline</title>\n"
-        "  <!-- Style starts here -->\n"
-        "  <style type='text/css'>";
-    static const char suffix[] = "</style>\n"
-        "  <!-- Style ends here -->\n"
-        "</head>";
-
-    CheckFlags(flags);
-    std::string html_input  = StrCat(prefix, css_input, suffix);
-    std::string html_output = StrCat(prefix, expected_css_output, suffix);
-
-    // Reset stats
-    num_files_minified_->Set(0);
-    minified_bytes_saved_->Set(0);
-    num_parse_failures_->Set(0);
-
-    // Rewrite
-    ValidateExpected(id, html_input, html_output);
-
-    // Check stats
-    if (!(flags & kNoStatCheck)) {
-      if (flags & kExpectChange) {
-        EXPECT_EQ(1, num_files_minified_->Get());
-        EXPECT_EQ(css_input.size() - expected_css_output.size(),
-                  minified_bytes_saved_->Get());
-        EXPECT_EQ(0, num_parse_failures_->Get());
-      } else {
-        EXPECT_EQ(0, num_files_minified_->Get());
-        EXPECT_EQ(0, minified_bytes_saved_->Get());
-        if (flags & kExpectFailure) {
-          EXPECT_EQ(1, num_parse_failures_->Get()) << id;
-        } else {
-          EXPECT_EQ(0, num_parse_failures_->Get()) << id;
-        }
-      }
-    }
-  }
-
-  void GetNamerForCss(const StringPiece& id,
-                      const std::string& expected_css_output,
-                      ResourceNamer* namer) {
-    namer->set_id(RewriteDriver::kCssFilterId);
-    namer->set_hash(resource_manager_->hasher()->Hash(expected_css_output));
-    namer->set_ext("css");
-    namer->set_name(StrCat(id, ".css"));
-  }
-
-  std::string ExpectedUrlForNamer(const ResourceNamer& namer) {
-    return StrCat(kTestDomain, namer.Encode());
-  }
-
-  std::string ExpectedUrlForCss(const StringPiece& id,
-                                 const std::string& expected_css_output) {
-    ResourceNamer namer;
-    GetNamerForCss(id, expected_css_output, &namer);
-    return ExpectedUrlForNamer(namer);
-  }
-
-  // Check that external CSS gets rewritten correctly.
-  void ValidateRewriteExternalCss(const StringPiece& id,
-                                  const std::string& css_input,
-                                  const std::string& expected_css_output,
-                                  int flags) {
-    CheckFlags(flags);
-
-    // TODO(sligocki): Allow arbitrary URLs.
-    std::string css_url = StrCat(kTestDomain, id, ".css");
-
-    // Set input file.
-    if ((flags & kNoClearFetcher) == 0) {
-      mock_url_fetcher_.Clear();
-    }
-    InitResponseHeaders(StrCat(id, ".css"), kContentTypeCss, css_input, 300);
-
-    static const char html_template[] =
-        "<head>\n"
-        "  <title>Example style outline</title>\n"
-        "  <!-- Style starts here -->\n"
-        "  <link rel='stylesheet' type='text/css' href='%s'>\n"
-        "  <!-- Style ends here -->\n"
-        "</head>";
-
-    std::string html_input  = StringPrintf(html_template, css_url.c_str());
-
-    std::string html_output;
-
-    ResourceNamer namer;
-    GetNamerForCss(id, expected_css_output, &namer);
-    std::string expected_new_url = ExpectedUrlForNamer(namer);
-
-    if (flags & kExpectChange) {
-      html_output = StringPrintf(html_template, expected_new_url.c_str());
-    } else {
-      html_output = html_input;
-    }
-
-    // Reset stats
-    num_files_minified_->Set(0);
-    minified_bytes_saved_->Set(0);
-    num_parse_failures_->Set(0);
-
-    // Rewrite
-    ValidateExpected(id, html_input, html_output);
-
-    // Check stats, if requested
-    if (!(flags & kNoStatCheck)) {
-      if (flags & kExpectChange) {
-        EXPECT_EQ(1, num_files_minified_->Get());
-        EXPECT_EQ(css_input.size() - expected_css_output.size(),
-                  minified_bytes_saved_->Get());
-        EXPECT_EQ(0, num_parse_failures_->Get());
-      } else {
-        EXPECT_EQ(0, num_files_minified_->Get());
-        EXPECT_EQ(0, minified_bytes_saved_->Get());
-        if (flags & kExpectFailure) {
-          EXPECT_EQ(1, num_parse_failures_->Get()) << id;
-        } else {
-          EXPECT_EQ(0, num_parse_failures_->Get()) << id;
-        }
-      }
-    }
-
-    // If we produced a new output resource, check it.
-    if (flags & kExpectChange) {
-      std::string actual_output;
-      // TODO(sligocki): This will only work with mock_hasher.
-      EXPECT_TRUE(ServeResource(kTestDomain,
-                                namer.id(), namer.name(), namer.ext(),
-                                &actual_output));
-      EXPECT_EQ(expected_css_output, actual_output);
-
-      // Serve from new context.
-      if ((flags & kNoOtherContexts) == 0) {
-        ServeResourceFromManyContexts(expected_new_url,
-                                      RewriteOptions::kRewriteCss,
-                                      &mock_hasher_, expected_css_output);
-      }
-    }
-  }
-
-  void ValidateRewrite(const StringPiece& id,
-                       const std::string& css_input,
-                       const std::string& gold_output) {
-    ValidateRewriteInlineCss(StrCat(id, "-inline"),
-                             css_input, gold_output,
-                             kExpectChange | kExpectSuccess);
-    ValidateRewriteExternalCss(StrCat(id, "-external"),
-                               css_input, gold_output,
-                               kExpectChange | kExpectSuccess);
-  }
-
-  void ValidateNoChange(const StringPiece& id, const std::string& css_input) {
-    ValidateRewriteInlineCss(StrCat(id, "-inline"),
-                             css_input, css_input,
-                             kExpectNoChange | kExpectSuccess);
-    ValidateRewriteExternalCss(StrCat(id, "-external"),
-                               css_input, "",
-                               kExpectNoChange | kExpectSuccess);
-  }
-
-  void ValidateFailParse(const StringPiece& id, const std::string& css_input) {
-    ValidateRewriteInlineCss(StrCat(id, "-inline"),
-                             css_input, css_input,
-                             kExpectNoChange | kExpectFailure);
-    ValidateRewriteExternalCss(StrCat(id, "-external"),
-                               css_input, "",
-                               kExpectNoChange | kExpectFailure);
-  }
-
-  // Helper to test for how we handle trailing junk
-  void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
-    const char kInput[] = " div { } ";
-    const char kOutput[] = "div{}";
-    // Compute normal version
-    ValidateRewriteExternalCss("rep", kInput, kOutput,
-                              kExpectChange | kExpectSuccess);
-
-    // Fetch with messed up extension
-    std::string css_url = ExpectedUrlForCss("rep", kOutput);
-    std::string output;
-    EXPECT_EQ(should_fetch_ok,
-              ServeResourceUrl(StrCat(css_url, junk), &output));
-
-    // Now see that output is correct
-    ValidateRewriteExternalCss(
-        "rep", kInput, kOutput,
-        kExpectChange | kExpectSuccess | kNoClearFetcher | kNoStatCheck);
-  }
-
-  SimpleStats statistics_;
-  Variable* num_files_minified_;
-  Variable* minified_bytes_saved_;
-  Variable* num_parse_failures_;
+class CssFilterTest : public CssRewriteTestBase {
 };
 
 TEST_F(CssFilterTest, SimpleRewriteCssTest) {
-  std::string input_style =
+  GoogleString input_style =
       ".background_blue { background-color: #f00; }\n"
       ".foreground_yellow { color: yellow; }\n";
-  std::string output_style =
+  GoogleString output_style =
       ".background_blue{background-color:red}"
       ".foreground_yellow{color:#ff0}";
 
   ValidateRewrite("rewrite_css", input_style, output_style);
 }
 
+TEST_F(CssFilterTest, UrlTooLong) {
+  // Make the filename maximum size, so we cannot rewrite it.
+  // -4 because .css will be appended.
+  GoogleString filename(options_.max_url_segment_size() - 4, 'z');
+  // If filename wasn't too long, this would be rewritten (like in
+  // SimpleRewriteCssTest).
+  GoogleString input_style =
+      ".background_blue { background-color: #f00; }\n"
+      ".foreground_yellow { color: yellow; }\n";
+  ValidateRewriteExternalCss(filename, input_style, input_style,
+                             kExpectNoChange | kExpectSuccess);
+}
+
 // Make sure we can deal with 0 character nodes between open and close of style.
 TEST_F(CssFilterTest, RewriteEmptyCssTest) {
-  ValidateNoChange("rewrite_empty_css", "");
+  ValidateRewriteInlineCss("rewrite_empty_css-inline", "", "",
+                           kExpectChange | kExpectSuccess | kNoStatCheck);
+  // Note: We must check stats ourselves because, for technical reasons,
+  // empty inline styles are not treated as being rewritten at all.
+  // EXPECT_EQ(0, num_files_minified_->Get());
+  EXPECT_EQ(0, minified_bytes_saved_->Get());
+  EXPECT_EQ(0, num_parse_failures_->Get());
+
+  ValidateRewriteExternalCss("rewrite_empty_css-external", "", "",
+                             kExpectChange | kExpectSuccess | kNoStatCheck);
+  EXPECT_EQ(0, minified_bytes_saved_->Get());
+  EXPECT_EQ(0, num_parse_failures_->Get());
 }
 
 // Make sure we do not recompute external CSS when re-processing an already
-// handled page
+// handled page.
 TEST_F(CssFilterTest, RewriteRepeated) {
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectChange | kExpectSuccess);
@@ -312,15 +90,20 @@ TEST_F(CssFilterTest, RewriteRepeated) {
 }
 
 // Make sure we do not reparse external CSS when we know it already has
-// a parse error
+// a parse error.
 TEST_F(CssFilterTest, RewriteRepeatedParseError) {
-  const char kInvalidCss[] = "}}";
+  const char kInvalidCss[] = "@media }}";
+  // Note: It is important that these both have the same id so that the
+  // generated CSS file names are identical.
+  // TODO(sligocki): This is sort of annoying for error reporting which
+  // is suposed to use id to uniquely distinguish which test was running.
   ValidateRewriteExternalCss("rep_fail", kInvalidCss, "",
                              kExpectNoChange | kExpectFailure);
+  // First time, we fail to parse.
+  EXPECT_EQ(1, num_parse_failures_->Get());
   ValidateRewriteExternalCss("rep_fail", kInvalidCss, "",
                              kExpectNoChange | kExpectFailure | kNoStatCheck);
-  // We expect num_parse_failures_ to be reset to 0 at the beginning of the
-  // test, and to remain at it since we should remember the failure
+  // Second time, we remember failure and so don't try to reparse.
   EXPECT_EQ(0, num_parse_failures_->Get());
 }
 
@@ -346,6 +129,8 @@ TEST_F(CssFilterTest, NoQueryCorruption) {
 }
 
 TEST_F(CssFilterTest, RewriteVariousCss) {
+  // TODO(sligocki): Get these tests to pass with setlocale.
+  // EXPECT_TRUE(setlocale(LC_ALL, "tr_TR.utf8"));
   // Distilled examples.
   const char* good_examples[] = {
     "a.b #c.d e#d,f:g>h+i>j{color:red}",  // .#,>+: in selectors
@@ -363,7 +148,8 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     "a{color:inherit}",
     // Added for code coverage.
-    "@import url(http://www.example.com)",
+    // TODO(sligocki): Get rid of the " ;"?
+    "@import url(http://www.example.com) ;",
     "@media a,b{a{color:red}}",
     "a{content:\"Odd chars: \\(\\)\\,\\\"\\\'\"}",
     "img{clip:rect(0px,60px,200px,0px)}",
@@ -382,8 +168,8 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
-    std::string id = StringPrintf("distilled_css_good%d", i);
-    ValidateNoChange(id, good_examples[i]);
+    GoogleString id = StringPrintf("distilled_css_good%d", i);
+    ValidateRewrite(id, good_examples[i], good_examples[i]);
   }
 
   const char* fail_examples[] = {
@@ -399,12 +185,24 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // and http://www.webkit.org/blog/138/css-animation/
     "a { -webkit-transition-property:opacity,-webkit-transform; }",
 
+    // IE8 Hack \0/
+    // See http://dimox.net/personal-css-hacks-for-ie6-ie7-ie8/
+    "a { color: red\\0/; }",
+
+    // Parameterized pseudo-selector.
+    "div:nth-child(1n) { color: red; }",
+
+    // @charsets aren't parsed yet.
+    "@charset \"UTF-8\";"
+
     // Should fail (bad syntax):
     "a { font:bold verdana 10px; }",
+    "}}",
+    "a { color: red; }}}",
     };
 
   for (int i = 0; i < arraysize(fail_examples); ++i) {
-    std::string id = StringPrintf("distilled_css_fail%d", i);
+    GoogleString id = StringPrintf("distilled_css_fail%d", i);
     ValidateFailParse(id, fail_examples[i]);
   }
 }
@@ -426,7 +224,7 @@ TEST_F(CssFilterTest, ToOptimize) {
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
-    std::string id = StringPrintf("to_optimize_%d", i);
+    GoogleString id = StringPrintf("to_optimize_%d", i);
     ValidateRewrite(id, examples[i][0], examples[i][1]);
   }
 }
@@ -604,10 +402,20 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // Don't lowercase font names.
     { "a { font-family: Arial; }",
       "a{font-family:Arial}" },
+
+    // Don't drop precision on large integers (this is 2^31 + 1 which is
+    // just larger than larges z-index accepted by chrome, 2^31 - 1).
+    { "#foo { z-index: 2147483649; }",
+      // Not "#foo{z-index:2.14748e+09}"
+      "#foo{z-index:2147483649}" },
+
+    { "#foo { z-index: 123456789012345678901234567890; }",
+      // TODO(sligocki): "#foo{z-index:12345678901234567890}" },
+      "#foo{z-index:1.234567890123457e+29}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
-    std::string id = StringPrintf("complex_css%d", i);
+    GoogleString id = StringPrintf("complex_css%d", i);
     ValidateRewrite(id, examples[i][0], examples[i][1]);
   }
 
@@ -617,113 +425,71 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     "opacity:1;-webkit-transform:translateX(0);"
     "-webkit-transition-property:opacity,-webkit-transform;"
     "-webkit-transition-duration:400ms;}",
+
+    // IE 8 hack \0/.
+    ".gbxms{background-color:#ccc;display:block;position:absolute;"
+    "z-index:1;top:-1px;left:-2px;right:-2px;bottom:-2px;opacity:.4;"
+    "-moz-border-radius:3px;"
+    "filter:progid:DXImageTransform.Microsoft.Blur(pixelradius=5);"
+    "*opacity:1;*top:-2px;*left:-5px;*right:5px;*bottom:4px;"
+    "-ms-filter:\"progid:DXImageTransform.Microsoft.Blur(pixelradius=5)\";"
+    "opacity:1\\0/;top:-4px\\0/;left:-6px\\0/;right:5px\\0/;bottom:4px\\0/}",
     };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
-    std::string id = StringPrintf("complex_css_parse_fail%d", i);
+    GoogleString id = StringPrintf("complex_css_parse_fail%d", i);
     ValidateFailParse(id, parse_fail_examples[i]);
   }
 }
 
-// These tests are to make sure our TTL considers that of subresources.
-class CssFilterSubresourceTest : public CssFilterTest {
- public:
-  virtual void SetUp() {
-    // We setup the options before the upcall so that the
-    // CSS filter is created aware of these.
-    options_.EnableFilter(RewriteOptions::kExtendCache);
-    options_.EnableFilter(RewriteOptions::kRewriteImages);
-    CssFilterTest::SetUp();
+// Most tests are run with set_always_rewrite_css(true),
+// but all production use has set_always_rewrite_css(false).
+// This test makes sure that setting to false still does what we intend.
+TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
+  // When we force always_rewrite_css, we can expand some statements.
+  // Note: when this example is fixed in the minifier, this test will break :/
+  options_.set_always_rewrite_css(true);
+  ValidateRewrite("expanding_example",
+                  "@import url(http://www.example.com)",
+                  "@import url(http://www.example.com) ;");
+  // With it set false, we do not expand CSS (as long as we didn't do anything
+  // else, like rewrite sub-resources.
+  options_.set_always_rewrite_css(false);
+  ValidateRewrite("non_expanding_example",
+                  "@import url(http://www.example.com)",
+                  "@import url(http://www.example.com)",
+                  kExpectNoChange | kExpectSuccess);
+  // Here: kExpectSuccess means there was no error. (Minification that
+  // actually expands the statement is not considered an error.)
 
-    // We want a real hasher here so that subresources get separate locks.
-    resource_manager_->set_hasher(&md5_hasher_);
-
-    // As we use invalid payloads, we expect image rewriting to
-    // fail but cache extension to succeed.
-    InitResponseHeaders("a.png", kContentTypePng, "notapng", 10);
-    InitResponseHeaders("b.png", kContentTypePng, "notbpng", 20);
-  }
-
-  void ValidateExpirationTime(const char* id, const char* output,
-                              int64 expected_expire_ms) {
-    std::string css_url = ExpectedUrlForCss(id, output);
-
-    // See what cache information we have
-    scoped_ptr<OutputResource> output_resource(
-        rewrite_driver_.CreateOutputResourceWithPath(
-            kTestDomain, RewriteDriver::kCssFilterId, StrCat(id, ".css"),
-            &kContentTypeCss, RewriteDriver::kRewrittenResource));
-    ASSERT_TRUE(output_resource.get() != NULL);
-    EXPECT_EQ(css_url, output_resource->url());
-    ASSERT_TRUE(output_resource->cached_result() != NULL);
-
-    EXPECT_EQ(expected_expire_ms,
-              output_resource->cached_result()->origin_expiration_time_ms());
-  }
-
-  std::string ExpectedUrlForPng(const StringPiece& name,
-                                 const std::string& expected_output) {
-    return Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
-                  resource_manager_->hasher()->Hash(expected_output),
-                  name, "png");
-  }
-
-};
-
-// Test to make sure expiration time for cached result is the
-// smallest of subresource and CSS times, not just CSS time.
-TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
-  const char kInput[] = "div { background-image: url(a.png); }"
-                        "span { background-image: url(b.png); }";
-
-  // Figure out where cache-extended PNGs will go.
-  std::string img_url1 = ExpectedUrlForPng("a.png", "notapng");
-  std::string img_url2 = ExpectedUrlForPng("b.png", "notbpng");
-  std::string output = StrCat("div{background-image:url(", img_url1, ")}",
-                               "span{background-image:url(", img_url2, ")}");
-
-  // Here we don't use the other contexts since it has different
-  // synchronicity, and we presently do best-effort for loaded subresources
-  // even in Fetch.
-  ValidateRewriteExternalCss(
-      "ext", kInput, output, kNoOtherContexts | kNoClearFetcher |
-                             kExpectChange | kExpectSuccess);
-
-  // 10 is the smaller of expiration times of a.png, b.png and ext.css
-  ValidateExpirationTime("ext", output.c_str(), 10 * Timer::kSecondMs);
+  // When we force always_rewrite_css, we allow rewriting something to nothing.
+  options_.set_always_rewrite_css(true);
+  ValidateRewrite("contracting_example",     "  ", "");
+  // With it set false, we do not allow something to be minified to nothing.
+  // Note: We may allow this in the future if contents are all whitespace.
+  options_.set_always_rewrite_css(false);
+  ValidateRewrite("non_contracting_example", "  ", "  ",
+                  kExpectNoChange | kExpectFailure);
 }
 
-// Test to make sure we don't cache for long if the rewrite was based
-// on not-yet-loaded resources.
-TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
-  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher(SetupWaitFetcher());
+TEST_F(CssFilterTest, NoQuirksModeForXhtml) {
+  const char quirky_css[]     = "body {color:DECAFB}";
+  const char normalized_css[] = "body{color:#decafb}";
+  const char no_quirks_css[]  = "body{color:DECAFB}";
 
-  // Disable atime simulation so that the clock doesn't move on us.
-  file_system_.set_atime_enabled(false);
+  // By default we parse the CSS with quirks-mode enabled and "fix" the CSS.
+  ValidateRewrite("quirks_mode", quirky_css, normalized_css,
+                  kExpectChange | kExpectSuccess);
 
-  const char kInput[] = "div { background-image: url(a.png); }"
-                        "span { background-image: url(b.png); }";
-  const char kOutput[] = "div{background-image:url(a.png)}"
-                        "span{background-image:url(b.png)}";
-
-  // At first try, not even the CSS gets loaded, so nothing gets
-  // changed at all.
-  ValidateRewriteExternalCss(
-      "wip", kInput, kInput, kNoOtherContexts | kNoClearFetcher |
-                             kExpectNoChange | kExpectSuccess);
-
-  // Get the CSS to load (resources are still unavailable).
-  wait_fetcher->CallCallbacks();
-  ValidateRewriteExternalCss(
-      "wip", kInput, kOutput, kNoOtherContexts | kNoClearFetcher |
-                              kExpectChange | kExpectSuccess);
-
-  // Since resources haven't loaded, the output cache should have a very small
-  // expiration time.
-  ValidateExpirationTime("wip", kOutput, Timer::kSecondMs);
-
-  // Make sure the subresource callbacks fire for leak cleanliness
-  wait_fetcher->CallCallbacks();
+  // But when in XHTML mode, we don't allow CSS quirks.
+  SetDoctype("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
+             "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">");
+  ValidateRewrite("no_quirks_mode", quirky_css, no_quirks_css,
+                  kExpectChange | kExpectSuccess | kNoOtherContexts);
+  // NOTE: We must set kNoOtherContexts, because this change depends upon the
+  // rewriter knowing that the original resource was found in an XHTML page
+  // which we don't know if we are recieving a Fetch request and don't have
+  // the resource. This could cause issues :/
 }
 
 }  // namespace

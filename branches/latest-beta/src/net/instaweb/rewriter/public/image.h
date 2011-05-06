@@ -19,11 +19,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_H_
 
+#include <cstddef>
 #include <vector>
 
-#include "base/basictypes.h"
-#include "net/instaweb/rewriter/public/image_dim.h"
-#include <string>
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #ifdef USE_SYSTEM_OPENCV
 #include "cv.h"
@@ -32,16 +33,13 @@
 #endif
 
 #if (CV_MAJOR_VERSION == 2 && CV_MINOR_VERSION >= 1) || (CV_MAJOR_VERSION > 2)
-#define USE_OPENCV_IN_MEM
+#define USE_OPENCV_2_1
 #endif
 
 namespace net_instaweb {
 
-struct ContentType;
-struct ImageDim;
-class FileSystem;
 class MessageHandler;
-class Writer;
+struct ContentType;
 
 // The following four helper functions were moved here for testability.  We ran
 // into problems with sign extension under different compiler versions, and we'd
@@ -121,18 +119,25 @@ class Image {
   // intent is that an Image is created in a scoped fashion from an existing
   // known resource.
   Image(const StringPiece& original_contents,
-        const std::string& url,
+        const GoogleString& url,
         const StringPiece& file_prefix,
         MessageHandler* handler);
+
+  // Creates a blank image of the given dimensions and type.
+  // For now, this is assumed to be an 8-bit 3-channel image.
+  Image(int width, int height, Type type,
+        const StringPiece& tmp_dir, MessageHandler* handler);
 
   ~Image();
 
   // Stores the image dimensions in natural_dim (on success, sets
-  // natural_dim->{width, height} and natural_dim->valid = true).  This method
-  // can fail (natural_dim->valid == false) for various reasons: we don't
-  // understand the image format (eg a gif), we can't find the headers, the
-  // library doesn't support a particular encoding, etc.  In that case the other
-  // fields are left alone.
+  // natural_dim->{width, height} and
+  // ImageUrlEncoder::HasValidDimensions(natural_dim) == true).  This
+  // method can fail (ImageUrlEncoder::HasValidDimensions(natural_dim)
+  // == false) for various reasons: we don't understand the image
+  // format, we can't find the headers, the library doesn't support a
+  // particular encoding, etc.  In that case the other fields are left
+  // alone.
   void Dimensions(ImageDim* natural_dim);
 
   // Returns the size of original input in bytes.
@@ -158,21 +163,10 @@ class Image {
     return image_type_;
   }
 
-  // Returns true if the image has transparency (an alpha channel, or a
-  // transparent color).  Note that certain ambiguously-formatted images might
-  // yield false positive results here; we don't check whether alpha channels
-  // contain non-opaque data, nor do we check if a distinguished transparent
-  // color is actually used in an image.  We assume that if the image file
-  // contains flags for transparency, it does so for a reason.
-  bool HasTransparency();
-
   // Changes the size of the image to the given width and height.  This will run
   // image processing on the image, and return false if the image processing
   // fails.  Otherwise the image contents and type can change.
   bool ResizeTo(const ImageDim& new_dim);
-
-  // UndoResize lets us bail out if a resize actually cost space!
-  void UndoResize();
 
   // Returns image-appropriate content type, or NULL if no content type is
   // known.  Result is a top-level const pointer and should not be deleted etc.
@@ -182,23 +176,38 @@ class Image {
   // then Contents() will have NULL data().
   StringPiece Contents();
 
+  // Draws the given image on top of this one at the given offset.  Returns true
+  // if successful.
+  bool DrawImage(Image* image, int x, int y);
+
+  // Attempts to decode this image and load its raster into memory.  If this
+  // returns false, future calls to DrawImage and ResizeTo will fail.
+  bool EnsureLoaded() { return LoadOpenCv(); }
+
  private:
   // byte buffer type most convenient for working with given OpenCV version
-#ifdef USE_OPENCV_IN_MEM
+#ifdef USE_OPENCV_2_1
   typedef std::vector<unsigned char> OpenCvBuffer;
 #else
-  typedef std::string OpenCvBuffer;
+  typedef GoogleString OpenCvBuffer;
 #endif
 
+  // Internal helper used only in image.cc.
+  static bool ComputePngTransparency(const StringPiece& buf);
+
   // Internal methods used only in image.cc (see there for more).
+  void UndoChange();
   void ComputeImageType();
   void FindJpegSize();
   inline void FindPngSize();
-  bool ComputePngTransparency();
   inline void FindGifSize();
+  bool HasTransparency(const StringPiece& buf);
   bool LoadOpenCv();
   void CleanOpenCv();
   bool ComputeOutputContents();
+
+  // Initializes an empty image.
+  bool LoadOpenCvEmpty();
 
   // Assumes all filetype + transparency checks have been done.
   // Reads data, writes to opencv_image_
@@ -208,25 +217,25 @@ class Image {
   bool SaveOpenCvToBuffer(OpenCvBuffer* buf);
 
   // Encodes 'buf' in a StringPiece
-  StringPiece OpenCvBufferToStringPiece(const OpenCvBuffer& buf);
+  static StringPiece OpenCvBufferToStringPiece(const OpenCvBuffer& buf);
 
-#ifndef USE_OPENCV_IN_MEM
+#ifndef USE_OPENCV_2_1
   // Helper that creates & writes a temporary file for us in proper prefix with
   // proper extension.
   bool TempFileForImage(FileSystem* fs, const StringPiece& contents,
-                        std::string* filename);
+                        GoogleString* filename);
 #endif
 
-  const std::string file_prefix_;
+  const GoogleString file_prefix_;
   MessageHandler* handler_;
   Type image_type_;  // Lazily initialized, initially IMAGE_UNKNOWN.
   const StringPiece original_contents_;
-  std::string output_contents_;  // Lazily filled.
+  GoogleString output_contents_;  // Lazily filled.
   bool output_valid_;             // Indicates output_contents_ now correct.
   IplImage* opencv_image_;        // Lazily filled on OpenCV load.
   bool opencv_load_possible_;     // Attempt opencv_load in future?
-  bool resized_;
-  const std::string url_;
+  bool changed_;
+  const GoogleString url_;
   ImageDim dims_;
 
   DISALLOW_COPY_AND_ASSIGN(Image);

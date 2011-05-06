@@ -21,9 +21,9 @@
 
 #include <map>
 #include <set>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/wildcard_group.h"
 
@@ -39,22 +39,26 @@ class RewriteOptions {
     kCollapseWhitespace,
     kCombineCss,
     kCombineHeads,
-    kDebugLogImgTags,
+    kCombineJavascript,
     kElideAttributes,
     kExtendCache,
     kInlineCss,
+    kInlineImages,
     kInlineJavascript,
-    kInsertImgDimensions,
+    kInsertImageDimensions,
     kLeftTrimUrls,
     kMakeGoogleAnalyticsAsync,
     kMoveCssToHead,
     kOutlineCss,
     kOutlineJavascript,
+    kRecompressImages,
     kRemoveComments,
     kRemoveQuotes,
+    kResizeImages,
     kRewriteCss,
-    kRewriteImages,
+    kRewriteDomains,
     kRewriteJavascript,
+    kSpriteImages,
     kStripScripts,  // Update kLastFilter if you add something after this.
   };
 
@@ -87,17 +91,17 @@ class RewriteOptions {
   };
 
   static const int64 kDefaultCssInlineMaxBytes;
-  static const int64 kDefaultImgInlineMaxBytes;
+  static const int64 kDefaultImageInlineMaxBytes;
   static const int64 kDefaultJsInlineMaxBytes;
   static const int64 kDefaultCssOutlineMinBytes;
   static const int64 kDefaultJsOutlineMinBytes;
-  static const std::string kDefaultBeaconUrl;
+  static const GoogleString kDefaultBeaconUrl;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
   static const int kMaxUrlSize;
 
-  static const int kDefaultImgMaxRewritesAtOnce;
+  static const int kDefaultImageMaxRewritesAtOnce;
 
   // See http://code.google.com/p/modpagespeed/issues/detail?id=9
   // Apache evidently limits each URL path segment (between /) to
@@ -161,10 +165,12 @@ class RewriteOptions {
     modified_ = true;
     js_outline_min_bytes_.set(x);
   }
-  int64 img_inline_max_bytes() const { return img_inline_max_bytes_.value(); }
-  void set_img_inline_max_bytes(int64 x) {
+  int64 image_inline_max_bytes() const {
+    return image_inline_max_bytes_.value();
+  }
+  void set_image_inline_max_bytes(int64 x) {
     modified_ = true;
-    img_inline_max_bytes_.set(x);
+    image_inline_max_bytes_.set(x);
   }
   int64 css_inline_max_bytes() const { return css_inline_max_bytes_.value(); }
   void set_css_inline_max_bytes(int64 x) {
@@ -176,16 +182,10 @@ class RewriteOptions {
     modified_ = true;
     js_inline_max_bytes_.set(x);
   }
-  int num_shards() const { return num_shards_.value(); }
-  void set_num_shards(int x) {
-    modified_ = true;
-    num_shards_.set(x);
-  }
-  const std::string& beacon_url() const { return beacon_url_.value(); }
+  const GoogleString& beacon_url() const { return beacon_url_.value(); }
   void set_beacon_url(const StringPiece& p) {
     modified_ = true;
-    beacon_url_.set(std::string(p.data(), p.size()));
-
+    beacon_url_.set(GoogleString(p.data(), p.size()));
   }
   // The maximum length of a URL segment.
   // for http://a/b/c.d, this is == strlen("c.d")
@@ -195,12 +195,12 @@ class RewriteOptions {
     max_url_segment_size_.set(x);
   }
 
-  int img_max_rewrites_at_once() const {
-    return img_max_rewrites_at_once_.value();
+  int image_max_rewrites_at_once() const {
+    return image_max_rewrites_at_once_.value();
   }
-  void set_img_max_rewrites_at_once(int x) {
+  void set_image_max_rewrites_at_once(int x) {
     modified_ = true;
-    img_max_rewrites_at_once_.set(x);
+    image_max_rewrites_at_once_.set(x);
   }
 
   // The maximum size of the entire URL.  If '0', this is left unlimited.
@@ -234,6 +234,12 @@ class RewriteOptions {
   }
   bool lowercase_html_names() const { return lowercase_html_names_.value(); }
 
+  void set_always_rewrite_css(bool x) {
+    modified_ = true;
+    always_rewrite_css_.set(x);
+  }
+  bool always_rewrite_css() const { return always_rewrite_css_.value(); }
+
   // Merge together two source RewriteOptions to populate this.  The order
   // is significant: the second will override the first.  One semantic
   // subject to interpretation is when a core-filter is disabled in the
@@ -262,7 +268,20 @@ class RewriteOptions {
   // Determines, based on the sequence of Allow/Disallow calls above, whether
   // a url is allowed.
   bool IsAllowed(const StringPiece& url) const {
-    return allow_resources_.Match(url);
+    return allow_resources_.Match(url, true);
+  }
+
+  // Adds a new comment wildcard pattern to be retained.
+  void RetainComment(const StringPiece& comment) {
+    modified_ = true;
+    retain_comments_.Allow(comment);
+  }
+
+  // If enabled, the 'remove_comments' filter will remove all HTML comments.
+  // As discussed in Issue 237, some comments have semantic value and must
+  // be retained.
+  bool IsRetainedComment(const StringPiece& comment) const {
+    return retain_comments_.Match(comment, false);
   }
 
   void CopyFrom(const RewriteOptions& src) {
@@ -317,7 +336,8 @@ class RewriteOptions {
   };
 
   typedef std::set<Filter> FilterSet;
-  typedef std::map<std::string, Filter> NameToFilterMap;
+  typedef std::map<GoogleString, Filter> NameToFilterMap;
+  typedef std::map<GoogleString, FilterSet> NameToFilterSetMap;
   typedef std::map<RewriteLevel, FilterSet> RewriteLevelToFilterSetMap;
 
   void SetUp();
@@ -326,6 +346,7 @@ class RewriteOptions {
 
   bool modified_;
   NameToFilterMap name_filter_map_;
+  NameToFilterSetMap name_filter_set_map_;
   RewriteLevelToFilterSetMap level_filter_set_map_;
   FilterSet enabled_filters_;
   FilterSet disabled_filters_;
@@ -337,23 +358,25 @@ class RewriteOptions {
   // we don't really care we'll try to keep the code structured better.
   Option<RewriteLevel> level_;
   Option<int64> css_inline_max_bytes_;
-  Option<int64> img_inline_max_bytes_;
-  Option<int64> img_max_rewrites_at_once_;
+  Option<int64> image_inline_max_bytes_;
+  Option<int64> image_max_rewrites_at_once_;
   Option<int64> js_inline_max_bytes_;
   Option<int64> css_outline_min_bytes_;
   Option<int64> js_outline_min_bytes_;
-  Option<int> num_shards_;
-  Option<std::string> beacon_url_;
+  Option<GoogleString> beacon_url_;
   Option<int> max_url_segment_size_;  // for http://a/b/c.d, use strlen("c.d")
   Option<int> max_url_size_;          // but this is strlen("http://a/b/c.d")
   Option<bool> enabled_;
   Option<bool> combine_across_paths_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
   Option<bool> lowercase_html_names_;
-  DomainLawyer domain_lawyer_;
+  Option<bool> always_rewrite_css_;  // For tests/debugging.
   // Be sure to update Merge() if a new field is added.
 
+  DomainLawyer domain_lawyer_;
+
   WildcardGroup allow_resources_;
+  WildcardGroup retain_comments_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteOptions);
 };

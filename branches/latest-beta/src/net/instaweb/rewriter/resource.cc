@@ -18,11 +18,30 @@
 //         jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/rewriter/public/resource.h"
+
+#include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
+class MessageHandler;
+class ResourceManager;
+class SharedString;
 
-const int64 Resource::kDefaultExpireTimeMs = 5 * 60 * 1000;
+namespace {
+
+const int64 kDefaultExpireTimeMs = 5 * Timer::kMinuteMs;
+
+}  // namespace
+
+Resource::Resource(ResourceManager* resource_manager, const ContentType* type)
+    : resource_manager_(resource_manager),
+      type_(type) {
+}
 
 Resource::~Resource() {
 }
@@ -58,7 +77,7 @@ void Resource::DetermineContentType() {
   if (content_type == NULL) {
     // If there is no content type in input headers, then try to
     // determine it from the name.
-    std::string trimmed_url;
+    GoogleString trimmed_url;
     TrimWhitespace(url(), &trimmed_url);
     content_type = NameExtensionToContentType(trimmed_url);
   }
@@ -70,8 +89,8 @@ void Resource::DetermineContentType() {
 // Default, blocking implementation which calls Load.
 // Resources which can fetch asynchronously should override this.
 void Resource::LoadAndCallback(AsyncCallback* callback,
-                                MessageHandler* message_handler) {
-  callback->Done(Load(message_handler), this);
+                               MessageHandler* message_handler) {
+  callback->Done(Load(message_handler));
 }
 
 Resource::AsyncCallback::~AsyncCallback() {

@@ -18,20 +18,31 @@
 
 #include "net/instaweb/rewriter/public/cache_extender.h"
 
+#include "base/logging.h"
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/css_tag_scanner.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/timer.h"
-#include "net/instaweb/util/public/url_escaper.h"
 
 namespace {
 
@@ -42,6 +53,8 @@ const char kNotCacheable[] = "not_cacheable";
 }  // namespace
 
 namespace net_instaweb {
+class MessageHandler;
+class RewriteFilter;
 
 // We do not want to bother to extend the cache lifetime for any resource
 // that is already cached for a month.
@@ -84,26 +97,18 @@ bool CacheExtender::ShouldRewriteResource(
 void CacheExtender::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
 
-  // TODO(jmarantz): figure out how to get better coverage of referenced
-  // resources for cache extension.  E.g. we need to find images in CSS
-  // files.  Plus we currently ignore .css links with id or other
-  // non-essential tags.
-  //
   // TODO(jmarantz): We ought to be able to domain-shard even if the
   // resources are non-cacheable or privately cacheable.
   if ((href != NULL) && driver_->IsRewritable(element)) {
-    scoped_ptr<Resource> input_resource(CreateInputResource(href->value()));
+    ResourcePtr input_resource(CreateInputResource(href->value()));
     if ((input_resource.get() != NULL) &&
         !IsRewrittenResource(input_resource->url())) {
-      scoped_ptr<OutputResource::CachedResult> rewrite_info(
-          RewriteResourceWithCaching(input_resource.get(),
-                                     resource_manager_->url_escaper()));
+      scoped_ptr<CachedResult> rewrite_info(
+          RewriteExternalResource(input_resource, NULL));
       if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
         // Rewrite URL to cache-extended version
         href->SetValue(rewrite_info->url());
-        if (extension_count_ != NULL) {
-          extension_count_->Add(1);
-        }
+        extension_count_->Add(1);
       }
     }
   }
@@ -116,29 +121,28 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
 // extension, there is no benefit because every rewriter generates
 // URLs that are served with long cache lifetimes.  This filter
 // just wants to pick up the scraps.  Note that we would discover
-// this anywahy in the cache expiration time below, but it's worth
+// this anyway in the cache expiration time below, but it's worth
 // going to the extra trouble to reduce the cache lookups since this
 // happens for basically every resource.
 bool CacheExtender::IsRewrittenResource(const StringPiece& url) const {
   RewriteFilter* filter;
-  scoped_ptr<OutputResource> output_resource(driver_->DecodeOutputResource(
+  OutputResourcePtr output_resource(driver_->DecodeOutputResource(
       url, &filter));
   return (output_resource.get() != NULL);
 }
 
-bool CacheExtender::ReuseByContentHash() const {
+bool CacheExtender::ComputeOnTheFly() const {
   return true;
 }
 
 RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
     const Resource* input_resource,
-    OutputResource* output_resource,
-    UrlSegmentEncoder* encoder) {
+    OutputResource* output_resource) {
   CHECK(input_resource->loaded());
 
   MessageHandler* message_handler = driver_->message_handler();
   const ResponseHeaders* headers = input_resource->metadata();
-  std::string url = input_resource->url();
+  GoogleString url = input_resource->url();
   int64 now_ms = resource_manager_->timer()->NowMs();
 
   // See if the resource is cacheable; and if so whether there is any need
@@ -146,9 +150,7 @@ RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
   bool ok = false;
   if (!resource_manager_->http_cache()->force_caching() &&
       !headers->IsCacheable()) {
-    if (not_cacheable_count_ != NULL) {
-      not_cacheable_count_->Add(1);
-    }
+    not_cacheable_count_->Add(1);
   } else if (ShouldRewriteResource(headers, now_ms, input_resource, url)) {
     output_resource->SetType(input_resource->type());
     ok = true;
@@ -159,7 +161,7 @@ RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
   }
 
   StringPiece contents(input_resource->contents());
-  std::string absolutified;
+  GoogleString absolutified;
   GoogleUrl input_resource_gurl(input_resource->url());
   StringPiece input_dir = input_resource_gurl.AllExceptLeaf();
   if ((input_resource->type() == &kContentTypeCss) &&

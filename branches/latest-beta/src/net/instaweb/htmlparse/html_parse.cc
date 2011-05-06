@@ -18,10 +18,10 @@
 
 #include "net/instaweb/htmlparse/public/html_parse.h"
 
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <utility>  // for std::pair
+#include <cstdarg>
+#include <cstdio>
+#include <list>
+#include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/html_event.h"
@@ -29,12 +29,21 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
+#include "net/instaweb/util/public/arena.h"
+#include "net/instaweb/util/public/atom.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/symbol_table.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
+class DocType;
+struct ContentType;
 
 HtmlParse::HtmlParse(MessageHandler* message_handler)
     : lexer_(NULL),  // Can't initialize here, since "this" should not be used
@@ -51,7 +60,8 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       url_valid_(false),
       log_rewrite_timing_(false),
       parse_start_time_us_(0),
-      timer_(NULL) {
+      timer_(NULL),
+      first_filter_(0) {
   lexer_ = new HtmlLexer(this);
   HtmlKeywords::Init();
 }
@@ -169,7 +179,7 @@ void HtmlParse::AddElement(HtmlElement* element, int line_number) {
 bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
                              const ContentType& content_type) {
   url.CopyToString(&url_);
-  GURL gurl(url_);
+  GoogleUrl gurl(url);
   url_valid_ = gurl.is_valid();
   if (!url_valid_) {
     message_handler_->Message(kWarning, "HtmlParse: Invalid document url %s",
@@ -259,7 +269,7 @@ void HtmlParse::CoalesceAdjacentCharactersNodes() {
 void HtmlParse::CheckEventParent(HtmlEvent* event, HtmlElement* expect,
                                  HtmlElement* actual) {
   if ((expect != NULL) && (actual != expect)) {
-    std::string actual_buf, expect_buf, event_buf;
+    GoogleString actual_buf, expect_buf, event_buf;
     if (actual != NULL) {
       actual->ToString(&actual_buf);
     } else {
@@ -342,10 +352,11 @@ void HtmlParse::Flush() {
   if (url_valid_) {
     ShowProgress("Flush");
 
-    for (size_t i = 0; i < filters_.size(); ++i) {
+    for (int i = first_filter_, n = filters_.size(); i < n; ++i) {
       HtmlFilter* filter = filters_[i];
       ApplyFilter(filter);
     }
+    first_filter_ = 0;
 
     // Detach all the elements from their events, as we are now invalidating
     // the events, but not the elements.
@@ -614,6 +625,18 @@ bool HtmlParse::DeleteSavingChildren(HtmlElement* element) {
   return deleted;
 }
 
+bool HtmlParse::HasChildrenInFlushWindow(HtmlElement* element) {
+  bool has_children = false;
+  if (IsRewritable(element)) {
+    HtmlEventListIterator first = element->begin();
+    if (first != queue_.end()) {
+      ++first;
+      has_children = (first != element->end());
+    }
+  }
+  return has_children;
+}
+
 bool HtmlParse::ReplaceNode(HtmlNode* existing_node, HtmlNode* new_node) {
   bool replaced = false;
   if (IsRewritable(existing_node)) {
@@ -648,7 +671,7 @@ void HtmlParse::ClearElements() {
 void HtmlParse::DebugPrintQueue() {
   for (HtmlEventList::iterator p = queue_.begin(), e = queue_.end();
        p != e; ++p) {
-    std::string buf;
+    GoogleString buf;
     HtmlEvent* event = *p;
     event->ToString(&buf);
     long node_ptr = reinterpret_cast<long>(event->GetNode());

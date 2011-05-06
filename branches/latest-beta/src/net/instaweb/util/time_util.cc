@@ -17,13 +17,15 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/time_util.h"
-#include <time.h>
-
+#include <ctime>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/core/resource_util.h"
 
 namespace net_instaweb {
 
-bool ConvertTimeToString(int64 time_ms, std::string* time_string) {
+bool ConvertTimeToString(int64 time_ms, GoogleString* time_string) {
   time_t time_sec = time_ms / 1000;
   struct tm time_buf;
   struct tm* time_info = gmtime_r(&time_sec, &time_buf);
@@ -59,7 +61,7 @@ bool ConvertTimeToString(int64 time_ms, std::string* time_string) {
 }
 
 bool ConvertStringToTime(const StringPiece& time_string, int64 *time_ms) {
-  std::string buf(time_string.data(), time_string.size());
+  GoogleString buf(time_string.data(), time_string.size());
   return pagespeed::resource_util::ParseTimeValuedHeader(buf.c_str(), time_ms);
 }
 

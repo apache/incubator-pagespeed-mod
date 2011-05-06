@@ -17,8 +17,12 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/string_util.h"
+
+#include <cstdarg>
 #include "base/logging.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -60,8 +64,8 @@ void GoogleMessageHandler::FileMessageVImpl(MessageType type, const char* file,
 }
 
 // TODO(sligocki): It'd be nice not to do so much string copying.
-std::string GoogleMessageHandler::Format(const char* msg, va_list args) {
-  std::string buffer;
+GoogleString GoogleMessageHandler::Format(const char* msg, va_list args) {
+  GoogleString buffer;
 
   // Ignore the name of this routine: it formats with vsnprintf.
   // See base/stringprintf.cc.

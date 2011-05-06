@@ -19,17 +19,20 @@
 // Unit-test the lru cache
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "base/basictypes.h"
-#include "base/logging.h"
+
+#include <cstddef>                     // for size_t
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/simple_stats.h"
-#include <string>
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace {
@@ -40,8 +43,28 @@ const char kStartDate[] = "Sun, 16 Dec 1979 02:27:45 GMT";
 
 namespace net_instaweb {
 
+class MessageHandler;
+
 class HTTPCacheTest : public testing::Test {
  protected:
+  // Helper class for calling Get and Query methods on cache implementations
+  // that are blocking in nature (e.g. in-memory LRU or blocking file-system).
+  class Callback : public HTTPCache::Callback {
+   public:
+    Callback() { Reset(); }
+    Callback* Reset() {
+      called_ = false;
+      result_ = HTTPCache::kNotFound;
+      return this;
+    }
+    virtual void Done(HTTPCache::FindResult result) {
+      called_ = true;
+      result_ = result;
+    }
+    bool called_;
+    HTTPCache::FindResult result_;
+  };
+
   static int64 ParseDate(const char* start_date) {
     int64 time_ms;
     ResponseHeaders::ParseTime(start_date, &time_ms);
@@ -49,7 +72,8 @@ class HTTPCacheTest : public testing::Test {
   }
 
   HTTPCacheTest() : mock_timer_(ParseDate(kStartDate)),
-                    http_cache_(new LRUCache(kMaxSize), &mock_timer_) {
+                    http_cache_(new LRUCache(kMaxSize), &mock_timer_,
+                                simple_stats_) {
   }
 
   void InitHeaders(ResponseHeaders* headers, const char* cache_control) {
@@ -77,6 +101,19 @@ class HTTPCacheTest : public testing::Test {
     testing::Test::TearDownTestCase();
   }
 
+  HTTPCache::FindResult Find(const GoogleString& key, HTTPValue* value,
+                             ResponseHeaders* headers,
+                             MessageHandler* handler) {
+    Callback callback;
+    http_cache_.Find(key, handler, &callback);
+    EXPECT_TRUE(callback.called_);
+    if (callback.result_ == HTTPCache::kFound) {
+      value->Link(callback.http_value());
+    }
+    headers->CopyFrom(*callback.response_headers());
+    return callback.result_;
+  }
+
   MockTimer mock_timer_;
   HTTPCache http_cache_;
   GoogleMessageHandler message_handler_;
@@ -90,7 +127,6 @@ SimpleStats* HTTPCacheTest::simple_stats_ = NULL;
 
 // Simple flow of putting in an item, getting it.
 TEST_F(HTTPCacheTest, PutGet) {
-  http_cache_.SetStatistics(simple_stats_);
   ResponseHeaders meta_data_in, meta_data_out;
   InitHeaders(&meta_data_in, "max-age=300");
   http_cache_.Put("mykey", &meta_data_in, "content", &message_handler_);
@@ -98,7 +134,7 @@ TEST_F(HTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(CacheInterface::kAvailable, http_cache_.Query("mykey"));
   HTTPValue value;
-  HTTPCache::FindResult found = http_cache_.Find(
+  HTTPCache::FindResult found = Find(
       "mykey", &value, &meta_data_out, &message_handler_);
   ASSERT_EQ(HTTPCache::kFound, found);
   ASSERT_TRUE(meta_data_out.headers_complete());
@@ -107,14 +143,14 @@ TEST_F(HTTPCacheTest, PutGet) {
   StringStarVector values;
   ASSERT_TRUE(meta_data_out.Lookup("name", &values));
   ASSERT_EQ(static_cast<size_t>(1), values.size());
-  EXPECT_EQ(std::string("value"), *(values[0]));
+  EXPECT_EQ(GoogleString("value"), *(values[0]));
   EXPECT_EQ("content", contents);
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
+  EXPECT_EQ(2, GetStat(HTTPCache::kCacheHits));  // The "query" counts as a hit.
 
   // Now advance time 301 seconds and the we should no longer
   // be able to fetch this resource out of the cache.
   mock_timer_.advance_ms(301 * 1000);
-  found = http_cache_.Find("mykey", &value, &meta_data_out, &message_handler_);
+  found = Find("mykey", &value, &meta_data_out, &message_handler_);
   ASSERT_EQ(HTTPCache::kNotFound, found);
   ASSERT_FALSE(meta_data_out.headers_complete());
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
@@ -128,15 +164,13 @@ TEST_F(HTTPCacheTest, RememberNotCacheable) {
   http_cache_.RememberNotCacheable("mykey", &message_handler_);
   HTTPValue value;
   EXPECT_EQ(HTTPCache::kRecentFetchFailedDoNotRefetch,
-            http_cache_.Find("mykey", &value, &meta_data_out,
-                             &message_handler_));
+            Find("mykey", &value, &meta_data_out, &message_handler_));
 
   // Now advance time 301 seconds; the cache should allow us to try fetching
   // again.
   mock_timer_.advance_ms(301 * 1000);
   EXPECT_EQ(HTTPCache::kNotFound,
-            http_cache_.Find("mykey", &value, &meta_data_out,
-                             &message_handler_));
+            Find("mykey", &value, &meta_data_out, &message_handler_));
 }
 
 TEST_F(HTTPCacheTest, Uncacheable) {
@@ -145,7 +179,7 @@ TEST_F(HTTPCacheTest, Uncacheable) {
   http_cache_.Put("mykey", &meta_data_in, "content", &message_handler_);
   EXPECT_EQ(CacheInterface::kNotFound, http_cache_.Query("mykey"));
   HTTPValue value;
-  HTTPCache::FindResult found = http_cache_.Find(
+  HTTPCache::FindResult found = Find(
       "mykey", &value, &meta_data_out, &message_handler_);
   ASSERT_EQ(HTTPCache::kNotFound, found);
   ASSERT_FALSE(meta_data_out.headers_complete());
@@ -157,7 +191,7 @@ TEST_F(HTTPCacheTest, UncacheablePrivate) {
   http_cache_.Put("mykey", &meta_data_in, "content", &message_handler_);
   EXPECT_EQ(CacheInterface::kNotFound, http_cache_.Query("mykey"));
   HTTPValue value;
-  HTTPCache::FindResult found = http_cache_.Find(
+  HTTPCache::FindResult found = Find(
       "mykey", &value, &meta_data_out, &message_handler_);
   ASSERT_EQ(HTTPCache::kNotFound, found);
   ASSERT_FALSE(meta_data_out.headers_complete());

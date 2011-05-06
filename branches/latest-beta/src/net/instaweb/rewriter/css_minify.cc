@@ -18,17 +18,27 @@
 
 #include "net/instaweb/rewriter/public/css_minify.h"
 
+#include <vector>
+
+#include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
+#include "util/utf8/public/unicodetext.h"
 #include "webutil/css/parser.h"
+#include "webutil/css/property.h"
+#include "webutil/css/selector.h"
+#include "webutil/css/value.h"
+#include "webutil/html/htmlcolor.h"
 
 namespace net_instaweb {
 
 namespace {
 
 // Escape [(), \t\r\n\\'"]
-std::string CSSEscapeString(const StringPiece& src) {
+GoogleString CSSEscapeString(const StringPiece& src) {
   const int dest_length = src.size() * 2 + 1;  // Maximum possible expansion
   scoped_array<char> dest(new char[dest_length]);
 
@@ -48,10 +58,10 @@ std::string CSSEscapeString(const StringPiece& src) {
     }
   }
 
-  return std::string(dest.get(), used);
+  return GoogleString(dest.get(), used);
 }
 
-std::string CSSEscapeString(const UnicodeText& src) {
+GoogleString CSSEscapeString(const UnicodeText& src) {
   return CSSEscapeString(StringPiece(src.utf8_data(), src.utf8_length()));
 }
 
@@ -120,8 +130,18 @@ void CssMinify::JoinMediaMinify(const Container& container,
 void CssMinify::Minify(const Css::Stylesheet& stylesheet) {
   // We might want to add in unnecessary newlines between rules and imports
   // so that some readability is preserved.
+  Minify(stylesheet.charsets());
   JoinMinify(stylesheet.imports(), "");
   JoinMinify(stylesheet.rulesets(), "");
+}
+
+void CssMinify::Minify(const Css::Charsets& charsets) {
+  for (Css::Charsets::const_iterator iter = charsets.begin();
+       iter != charsets.end(); ++iter) {
+    Write("@charset \"");
+    Write(CSSEscapeString(*iter));
+    Write("\";");
+  }
 }
 
 void CssMinify::Minify(const Css::Import& import) {
@@ -185,9 +205,9 @@ namespace {
 //
 // Note that currently the style is terrible and it will crash the program if
 // we have >= 5 args.
-std::string FontToString(const Css::Values& font_values) {
+GoogleString FontToString(const Css::Values& font_values) {
   CHECK_LE(5U, font_values.size());
-  std::string tmp, result;
+  GoogleString tmp, result;
 
   // font-style: defaults to normal
   tmp = font_values.get(0)->ToString();
@@ -247,7 +267,9 @@ void CssMinify::Minify(const Css::Value& value) {
     case Css::Value::NUMBER:
       // TODO(sligocki): Minify number
       // TODO(sligocki): Check that exponential notation is appropriate.
-      Write(StringPrintf("%g%s",
+      // TODO(sligocki): Distinguish integers from float and print differently.
+      // We use .16 to get most precission without getting rounding artifacts.
+      Write(StringPrintf("%.16g%s",
                          value.GetFloatValue(),
                          value.GetDimensionUnitText().c_str()));
       break;

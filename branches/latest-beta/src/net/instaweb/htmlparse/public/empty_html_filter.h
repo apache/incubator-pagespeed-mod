@@ -19,8 +19,14 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_EMPTY_HTML_FILTER_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_EMPTY_HTML_FILTER_H_
 
-#include <string>
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
+
+// This 'string' is not needed for this include.  But removing it breaks
+// Page Speed.  See
+// third_party/pagespeed/src/pagespeed/html/external_resource_filter.h
+// Remove this once that one is fixed.
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 

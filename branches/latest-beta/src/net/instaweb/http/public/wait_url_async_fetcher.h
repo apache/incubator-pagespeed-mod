@@ -21,12 +21,17 @@
 
 #include <vector>
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
 
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class UrlFetcher;
+class Writer;
 
 // Fake UrlAsyncFetcher which waits to call underlying blocking fetcher until
 // you explicitly call CallCallbacks().
@@ -37,7 +42,7 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   virtual ~WaitUrlAsyncFetcher();
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  virtual bool StreamingFetch(const std::string& url,
+  virtual bool StreamingFetch(const GoogleString& url,
                               const RequestHeaders& request_headers,
                               ResponseHeaders* response_headers,
                               Writer* response_writer,

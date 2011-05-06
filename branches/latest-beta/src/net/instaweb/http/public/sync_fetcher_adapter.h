@@ -17,14 +17,18 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_SYNC_FETCHER_ADAPTER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_SYNC_FETCHER_ADAPTER_H_
 
-#include <string>
-#include "base/basictypes.h"
 #include "net/instaweb/http/public/url_fetcher.h"
-#include "net/instaweb/http/public/url_pollable_async_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class Timer;
+class UrlPollableAsyncFetcher;
+class Writer;
 
 class SyncFetcherAdapter : public UrlFetcher {
  public:
@@ -34,7 +38,7 @@ class SyncFetcherAdapter : public UrlFetcher {
                      int64 fetcher_timeout_ms,
                      UrlPollableAsyncFetcher* async_fetcher);
   virtual ~SyncFetcherAdapter();
-  virtual bool StreamingFetchUrl(const std::string& url,
+  virtual bool StreamingFetchUrl(const GoogleString& url,
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* fetched_content_writer,
@@ -51,4 +55,3 @@ class SyncFetcherAdapter : public UrlFetcher {
 }  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_HTTP_PUBLIC_SYNC_FETCHER_ADAPTER_H_
-

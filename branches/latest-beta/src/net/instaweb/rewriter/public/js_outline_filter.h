@@ -19,19 +19,24 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_OUTLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_OUTLINE_FILTER_H_
 
-#include "base/basictypes.h"
+#include <cstddef>
+
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
-
+class HtmlCdataNode;
+class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlDirectiveNode;
+class HtmlElement;
+class HtmlIEDirectiveNode;
 class MessageHandler;
-class ResponseHeaders;
 class OutputResource;
 class ResourceManager;
+class RewriteDriver;
 
 // Filter to take explicit <style> and <script> tags and outline them to files.
 class JsOutlineFilter : public CommonFilter {
@@ -61,15 +66,15 @@ class JsOutlineFilter : public CommonFilter {
   virtual const char* Name() const { return "OutlineJs"; }
 
  private:
-  bool WriteResource(const std::string& content, OutputResource* resource,
+  bool WriteResource(const GoogleString& content, OutputResource* resource,
                      MessageHandler* handler);
-  void OutlineScript(HtmlElement* element, const std::string& content);
+  void OutlineScript(HtmlElement* element, const GoogleString& content);
 
   // The style or script element we are in (if it hasn't been flushed).
   // If we are not in a script or style element, inline_element_ == NULL.
   HtmlElement* inline_element_;
   // Temporarily buffers the content between open and close of inline_element_.
-  std::string buffer_;
+  GoogleString buffer_;
   ResourceManager* resource_manager_;
   size_t size_threshold_bytes_;
   ScriptTagScanner script_tag_scanner_;

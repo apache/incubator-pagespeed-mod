@@ -21,26 +21,21 @@
 
 #include <vector>
 
-#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
-
-#include "base/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
+#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/util/public/atom.h"
-#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
-class HtmlParse;
-class MessageHandler;
-class ResponseHeaders;
+class HtmlCharactersNode;
+class HtmlIEDirectiveNode;
 class OutputResource;
 class Resource;
-class ResourceManager;
+class RewriteDriver;
 class Statistics;
-class Writer;
 
 /*
  * Find Javascript elements (either inline scripts or imported js files) and
@@ -88,17 +83,13 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
  protected:
   virtual bool ReuseByContentHash() const;
   virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
-                                              OutputResource* output_resource,
-                                              UrlSegmentEncoder* encoder);
+                                              OutputResource* output_resource);
 
  private:
   inline void CompleteScriptInProgress();
   inline void RewriteInlineScript();
   inline void RewriteExternalScript();
-  const StringPiece FlattenBuffer(std::string* script_buffer);
-  bool WriteExternalScriptTo(const Resource* script_resource,
-                             const StringPiece& script_out,
-                             OutputResource* script_dest);
+  const StringPiece FlattenBuffer(GoogleString* script_buffer);
 
   std::vector<HtmlCharactersNode*> buffer_;
   HtmlElement* script_in_progress_;

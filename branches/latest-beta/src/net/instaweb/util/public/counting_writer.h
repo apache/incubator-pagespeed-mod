@@ -19,10 +19,12 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_COUNTING_WRITER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_COUNTING_WRITER_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+class MessageHandler;
 
 // Delegates to another writer, but counts bytes along the way.
 class CountingWriter : public Writer {

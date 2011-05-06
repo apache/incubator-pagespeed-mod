@@ -18,7 +18,34 @@
 
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
+#include "base/logging.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_escaper.h"
+
 namespace net_instaweb {
-// This file exists *only* to declare the virtual destructor implementation.
-UrlSegmentEncoder::~UrlSegmentEncoder() { }
+class MessageHandler;
+class ResourceContext;
+
+UrlSegmentEncoder::~UrlSegmentEncoder() {
+}
+
+void UrlSegmentEncoder::Encode(const StringVector& urls,
+                               const ResourceContext* data,
+                               GoogleString* url_segment) const {
+  DCHECK(data == NULL) << "non-null data passed to default SegmentEncoder";
+  DCHECK_EQ(1U, urls.size());
+  UrlEscaper::EncodeToUrlSegment(urls[0], url_segment);
+}
+
+bool UrlSegmentEncoder::Decode(const StringPiece& url_segment,
+                               StringVector* urls,
+                               ResourceContext* out_data,
+                               MessageHandler* handler) const {
+  urls->clear();
+  urls->push_back(GoogleString());
+  GoogleString& url = urls->back();
+  return UrlEscaper::DecodeFromUrlSegment(url_segment, &url);
+}
+
 }  // namespace net_instaweb

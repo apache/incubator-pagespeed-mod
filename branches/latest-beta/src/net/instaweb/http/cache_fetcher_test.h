@@ -22,13 +22,15 @@
 #ifndef NET_INSTAWEB_HTTP_CACHE_FETCHER_TEST_H_
 #define NET_INSTAWEB_HTTP_CACHE_FETCHER_TEST_H_
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/instaweb/http/public/fetcher_test.h"
-#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/simple_stats.h"
 
 namespace net_instaweb {
 
@@ -38,7 +40,7 @@ class CacheFetcherTest : public FetcherTest {
 
   CacheFetcherTest()
       : mock_timer_(0),
-        http_cache_(new LRUCache(kMaxSize), &mock_timer_) {
+        http_cache_(new LRUCache(kMaxSize), &mock_timer_, statistics_) {
     int64 start_time_ms;
     bool parsed = ResponseHeaders::ParseTime(kStartDate, &start_time_ms);
     CHECK(parsed);

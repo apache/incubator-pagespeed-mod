@@ -20,15 +20,13 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_GTEST_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_GTEST_H_
 
-#include <vector>
-
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "gtest/gtest.h"
 
 namespace net_instaweb {
 
-std::string GTestSrcDir();
-std::string GTestTempDir();
+GoogleString GTestSrcDir();
+GoogleString GTestTempDir();
 
 }  // namespace net_instaweb
 

@@ -15,12 +15,13 @@
 #ifndef NET_INSTAWEB_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 
-#include <stdio.h>
+#include <cstdio>
 #include <set>
 #include <string>
 #include <vector>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/apache/shared_mem_lifecycle.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 struct apr_pool_t;
@@ -28,8 +29,10 @@ struct server_rec;
 
 namespace net_instaweb {
 
-class AprStatistics;
+class AbstractSharedMem;
 class SerfUrlAsyncFetcher;
+class SharedMemLockManager;
+class SharedMemStatistics;
 class SyncFetcherAdapter;
 class UrlPollableAsyncFetcher;
 
@@ -59,9 +62,8 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   }
   void set_file_cache_clean_size_kb(int64 x) { file_cache_clean_size_kb_ = x; }
   void set_fetcher_time_out_ms(int64 x) { fetcher_time_out_ms_ = x; }
-  void set_file_cache_path(const StringPiece& x) {
-    x.CopyToString(&file_cache_path_);
-  }
+  bool set_file_cache_path(const StringPiece& x);
+
   void set_fetcher_proxy(const StringPiece& x) {
     x.CopyToString(&fetcher_proxy_);
   }
@@ -71,13 +73,45 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   void set_test_proxy(bool p) { test_proxy_ = p; }
   bool test_proxy() const { return test_proxy_; }
 
+  // Whether to use shared memory locking or not.
+  void set_use_shared_mem_locking(bool x) { use_shared_mem_locking_ = x; }
+
   StringPiece file_cache_path() { return file_cache_path_; }
   int64 file_cache_clean_size_kb() { return file_cache_clean_size_kb_; }
   int64 fetcher_time_out_ms() { return fetcher_time_out_ms_; }
-  AprStatistics* statistics() { return statistics_; }
-  void set_statistics(AprStatistics* x) { statistics_ = x; }
+  virtual Statistics* statistics();
+  void SetStatistics(SharedMemStatistics* x);
   void set_statistics_enabled(bool x) { statistics_enabled_ = x; }
   bool statistics_enabled() const { return statistics_enabled_; }
+
+  AbstractSharedMem* shared_mem_runtime() const {
+    return shared_mem_runtime_.get();
+  }
+
+  // For shared memory resources the general setup we follow is to have the
+  // first running process (aka the root) create the necessary segments and
+  // fill in their shared data structures, while processes created to actually
+  // handle requests attach to already existing shared data structures.
+  //
+  // During normal server startup[1], RootInit() is called from the Apache hooks
+  // in the root process for the first task, and then ChildInit() is called in
+  // any child process.
+  //
+  // Keep in mind, however, that when fork() is involved a process may
+  // effectively see both calls, in which case the 'ChildInit' call would
+  // come second and override the previous root status. Both calls are also
+  // invoked in the debug single-process mode (httpd -X).
+  //
+  // Note that these are not static methods --- they are invoked on every
+  // ApacheRewriteDriverFactory instance, which exist for the global
+  // configuration as well as all the vhosts.
+  //
+  // [1] Besides normal startup, Apache also uses a temporary process to
+  // syntax check the config file. That basically looks like a complete
+  // normal startup and shutdown to the code.
+  bool is_root_process() const { return is_root_process_; }
+  void RootInit();
+  void ChildInit();
 
   // Relinquish all static data
   static void Terminate();
@@ -93,6 +127,7 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   virtual HtmlParse* DefaultHtmlParse();
   virtual Timer* DefaultTimer();
   virtual CacheInterface* DefaultCacheInterface();
+  virtual NamedLockManager* DefaultLockManager();
   virtual AbstractMutex* cache_mutex() { return cache_mutex_.get(); }
   virtual AbstractMutex* rewrite_drivers_mutex() {
     return rewrite_drivers_mutex_.get(); }
@@ -101,9 +136,12 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // write-through http_cache.
   virtual bool ShouldWriteResourcesToFileSystem() { return false; }
 
-  // When computing the resource manager for Apache, be sure to set up
-  // the statistics.
-  virtual ResourceManager* ComputeResourceManager();
+  // As we use the cache for storage, locks should be scoped to it.
+  virtual StringPiece LockFilePrefix() { return file_cache_path_; }
+
+  // Creates a shared memory lock manager for our settings, but doesn't
+  // initialize it.
+  SharedMemLockManager* CreateSharedMemLockManager();
 
   // Release all the resources. It also calls the base class ShutDown to release
   // the base class resources.
@@ -116,7 +154,8 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   scoped_ptr<AbstractMutex> rewrite_drivers_mutex_;
   SyncFetcherAdapter* serf_url_fetcher_;
   SerfUrlAsyncFetcher* serf_url_async_fetcher_;
-  AprStatistics* statistics_;
+  SharedMemStatistics* shared_mem_statistics_;
+  scoped_ptr<AbstractSharedMem> shared_mem_runtime_;
 
   // TODO(jmarantz): These options could be consolidated in a protobuf or
   // some other struct, which would keep them distinct from the rest of the
@@ -132,7 +171,22 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   std::string fetcher_proxy_;
   std::string version_;
   bool statistics_enabled_;
+  bool statistics_frozen_;
   bool test_proxy_;
+  bool is_root_process_;
+
+  // Shared memory locking is enabled.
+  bool use_shared_mem_locking_;
+
+  SharedMemLifecycle<SharedMemLockManager> shared_mem_lock_manager_lifecycler_;
+
+  // These maps keeps are used by SharedMemSubsystemLifecycleManager to
+  // keep track of which of ours instance ApacheRewriteDriverFactory
+  // is responsible for cleanup of shared memory segments for given
+  // cache path (the key).
+  //
+  // This map is only used from the root process.
+  static SharedMemOwnerMap* lock_manager_owners_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheRewriteDriverFactory);
 };

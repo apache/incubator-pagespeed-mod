@@ -18,17 +18,15 @@
 
 #include "net/instaweb/rewriter/public/image.h"
 
-#include "base/basictypes.h"
-#include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
+#include <cstddef>
+
+#include "base/logging.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/stdio_file_system.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/writer.h"
-#undef PAGESPEED_PNG_OPTIMIZER_GIF_READER
-#define PAGESPEED_PNG_OPTIMIZER_GIF_READER 0
 #ifdef USE_SYSTEM_OPENCV
 #include "cv.h"
 #include "highgui.h"
@@ -68,7 +66,7 @@ const size_t kJpegIntSize = 2;
 }  // namespace ImageHeaders
 
 Image::Image(const StringPiece& original_contents,
-             const std::string& url,
+             const GoogleString& url,
              const StringPiece& file_prefix,
              MessageHandler* handler)
     : file_prefix_(file_prefix.data(), file_prefix.size()),
@@ -79,8 +77,24 @@ Image::Image(const StringPiece& original_contents,
       output_valid_(false),
       opencv_image_(NULL),
       opencv_load_possible_(true),
-      resized_(false),
+      changed_(false),
       url_(url) { }
+
+Image::Image(int width, int height, Type type,
+      const StringPiece& tmp_dir, MessageHandler* handler)
+    : file_prefix_(tmp_dir.data(), tmp_dir.size()),
+      handler_(handler),
+      image_type_(type),
+      original_contents_(),
+      output_contents_(),
+      output_valid_(false),
+      opencv_image_(NULL),
+      opencv_load_possible_(true),
+      changed_(false),
+      url_() {
+  dims_.set_width(width);
+  dims_.set_height(height);
+}
 
 Image::~Image() {
   CleanOpenCv();
@@ -121,16 +135,17 @@ void Image::FindJpegSize() {
       // actually 8 + 3 * buf[pos+2], but for our purposes this
       // will suffice as we don't parse subsequent metadata (which
       // describes the formatting of chunks of image data).
-      int height = JpegIntAtPosition(buf, pos + 1 + ImageHeaders::kJpegIntSize);
-      int width = JpegIntAtPosition(buf,
-                                    pos + 1 + 2 * ImageHeaders::kJpegIntSize);
-      dims_.set_dims(width, height);
+      dims_.set_height(
+          JpegIntAtPosition(buf, pos + 1 + ImageHeaders::kJpegIntSize));
+      dims_.set_width(
+          JpegIntAtPosition(buf, pos + 1 + 2 * ImageHeaders::kJpegIntSize));
       break;
     }
     pos += length;
   }
-  if (dims_.height() <= 0 || dims_.width() <= 0) {
-    dims_.invalidate();
+  if (!ImageUrlEncoder::HasValidDimensions(dims_) ||
+      (dims_.height() <= 0) || (dims_.width() <= 0)) {
+    dims_.Clear();
     handler_->Error(url_.c_str(), 0,
                     "Couldn't find jpeg dimensions (data truncated?).");
   }
@@ -150,10 +165,9 @@ void Image::FindPngSize() {
                    ImageHeaders::kPngSectionHeaderLength) ==
        StringPiece(ImageHeaders::kPngIHDR,
                    ImageHeaders::kPngSectionHeaderLength))) {
-    int width = PngIntAtPosition(buf, ImageHeaders::kIHDRDataStart);
-    int height = PngIntAtPosition(
-        buf, ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize);
-    dims_.set_dims(width, height);
+    dims_.set_width(PngIntAtPosition(buf, ImageHeaders::kIHDRDataStart));
+    dims_.set_height(PngIntAtPosition(
+        buf, ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize));
   } else {
     handler_->Error(url_.c_str(), 0,
                     "Couldn't find png dimensions "
@@ -170,10 +184,9 @@ void Image::FindGifSize() {
   if (buf.size() >=
       ImageHeaders::kGifDimStart + 2 * ImageHeaders::kGifIntSize) {
     // Not truncated
-    int width = GifIntAtPosition(buf, ImageHeaders::kGifDimStart);
-    int height = GifIntAtPosition(
-        buf, ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize);
-    dims_.set_dims(width, height);
+    dims_.set_width(GifIntAtPosition(buf, ImageHeaders::kGifDimStart));
+    dims_.set_height(GifIntAtPosition(
+        buf, ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize));
   } else {
     handler_->Error(url_.c_str(), 0,
                     "Couldn't find gif dimensions (data truncated)");
@@ -214,7 +227,9 @@ void Image::ComputeImageType() {
         if ((StringPiece(buf.data(), ImageHeaders::kGifHeaderLength) ==
              StringPiece(ImageHeaders::kGifHeader,
                          ImageHeaders::kGifHeaderLength)) &&
-            (buf[4] == '7' || buf[4] == '9') && buf[5] == 'a') {
+            (buf[ImageHeaders::kGifHeaderLength] == '7' ||
+             buf[ImageHeaders::kGifHeaderLength] == '9') &&
+            buf[ImageHeaders::kGifHeaderLength + 1] == 'a') {
           image_type_ = IMAGE_GIF;
           FindGifSize();
         }
@@ -249,11 +264,10 @@ const ContentType* Image::content_type() {
 // If the colour type (UK spelling from spec) includes an alpha channel, or
 // there is a tRNS section with at least one entry before IDAT, then we assume
 // the image contains non-opaque pixels and return true.
-bool Image::ComputePngTransparency() {
+bool Image::ComputePngTransparency(const StringPiece& buf) {
   // We assume the image has transparency until we prove otherwise.
   // This allows us to deal conservatively with truncation etc.
   bool has_transparency = true;
-  const StringPiece& buf = original_contents_;
   if (buf.size() > ImageHeaders::kPngColourTypeOffset &&
       ((buf[ImageHeaders::kPngColourTypeOffset] &
         ImageHeaders::kPngAlphaChannel) == 0)) {
@@ -281,15 +295,20 @@ bool Image::ComputePngTransparency() {
   return has_transparency;
 }
 
-bool Image::HasTransparency() {
+// Returns true if the image has transparency (an alpha channel, or a
+// transparent color).  Note that certain ambiguously-formatted images might
+// yield false positive results here; we don't check whether alpha channels
+// contain non-opaque data, nor do we check if a distinguished transparent color
+// is actually used in an image.  We assume that if the image file contains
+// flags for transparency, it does so for a reason.
+bool Image::HasTransparency(const StringPiece& buf) {
   bool result;
   switch (image_type()) {
     case IMAGE_PNG:
-      result = ComputePngTransparency();
+      result = ComputePngTransparency(buf);
       break;
     case IMAGE_GIF:
-      // Conservative.
-      // TODO(jmaessen): fix when gif transcoding is enabled.
+      // This means we didn't translate to png for whatever reason.
       result = true;
       break;
     default:
@@ -304,29 +323,46 @@ bool Image::HasTransparency() {
 // Note that if the load fails, opencv_load_possible_ will be false
 // and future calls to LoadOpenCv will fail fast.
 bool Image::LoadOpenCv() {
-  if (opencv_image_ == NULL && opencv_load_possible_) {
-    Image::Type image_type = this->image_type();
-    const ContentType* content_type = this->content_type();
-    opencv_load_possible_ = (content_type != NULL &&
-                             image_type != IMAGE_GIF &&
-                             !HasTransparency());
+  if (!(opencv_image_ == NULL && opencv_load_possible_)) {
+    // Already attempted load, fall through.
+  } else if (image_type() == IMAGE_UNKNOWN) {
+    // Can't load, remember that fact.
+    opencv_load_possible_ = false;
+  } else {
+    // Attempt to load into opencv.
+    StringPiece image_data_source(original_contents_);
+    if (image_type_ == IMAGE_GIF) {
+      // OpenCV doesn't understand gif format directly, but png works well.  So
+      // we perform a pre-emptive early translation to png, which we'll end
+      // up keeping if the OpenCV load or resize operations fail.
+      opencv_load_possible_ = output_valid_ || ComputeOutputContents();
+      if (opencv_load_possible_) {
+        image_data_source = output_contents_;
+      }
+    }
+    if (original_contents_.size() == 0) {
+      opencv_load_possible_ = LoadOpenCvEmpty();
+    } else if (opencv_load_possible_) {
+      opencv_load_possible_ = !HasTransparency(image_data_source);
+      if (opencv_load_possible_) {
+        opencv_load_possible_ = LoadOpenCvFromBuffer(image_data_source);
+      }
+    }
     if (opencv_load_possible_) {
-      opencv_load_possible_ = LoadOpenCvFromBuffer(original_contents_);
-    }
-  }
-  if (opencv_load_possible_) {
-    // A bit of belt and suspenders dimension checking.  We used to do this for
-    // every image we loaded, but now we only do it when we're already paying
-    // the cost of OpenCV image conversion.
-    if (dims_.valid() && dims_.width() != opencv_image_->width) {
-      handler_->Error(url_.c_str(), 0,
-                      "Computed width %d doesn't match OpenCV %d",
-                      dims_.width(), opencv_image_->width);
-    }
-    if (dims_.valid() && dims_.height() != opencv_image_->height) {
-      handler_->Error(url_.c_str(), 0,
-                      "Computed height %d doesn't match OpenCV %d",
-                      dims_.height(), opencv_image_->height);
+      // A bit of belt and suspenders dimension checking.  We used to do this
+      // for every image we loaded, but now we only do it when we're already
+      // paying the cost of OpenCV image conversion.
+      bool has_dims = ImageUrlEncoder::HasValidDimensions(dims_);
+      if (has_dims && (dims_.width() != opencv_image_->width)) {
+        handler_->Error(url_.c_str(), 0,
+                        "Computed width %d doesn't match OpenCV %d",
+                        dims_.width(), opencv_image_->width);
+      }
+      if (has_dims && (dims_.height() != opencv_image_->height)) {
+        handler_->Error(url_.c_str(), 0,
+                        "Computed height %d doesn't match OpenCV %d",
+                        dims_.height(), opencv_image_->height);
+      }
     }
   }
   return opencv_load_possible_;
@@ -339,7 +375,21 @@ void Image::CleanOpenCv() {
   }
 }
 
-#ifdef USE_OPENCV_IN_MEM
+bool Image::LoadOpenCvEmpty() {
+  // empty canvas -- width and height must be set already.
+  if (ImageUrlEncoder::HasValidDimensions(dims_)) {
+    // TODO(abliss): Need to figure out the right values for these.
+    int depth = 8, channels = 3;
+    opencv_image_ = cvCreateImage(cvSize(dims_.width(), dims_.height()),
+                                  depth, channels);
+    cvSetZero(opencv_image_);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+#ifdef USE_OPENCV_2_1
 
 bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   CvMat cv_original_contents =
@@ -357,16 +407,12 @@ bool Image::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
   return cv::imencode(content_type()->file_extension(), opencv_image_, *buf);
 }
 
-StringPiece Image::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
-  return StringPiece(reinterpret_cast<const char*>(buf.data()), buf.size());
-}
-
 #else
 
 bool Image::TempFileForImage(FileSystem* fs,
                              const StringPiece& contents,
-                             std::string* filename) {
-  std::string tmp_filename;
+                             GoogleString* filename) {
+  GoogleString tmp_filename;
   bool ok = fs->WriteTempFile(file_prefix_, contents, &tmp_filename, handler_);
   if (ok) {
     *filename = StrCat(tmp_filename, content_type()->file_extension());
@@ -377,8 +423,8 @@ bool Image::TempFileForImage(FileSystem* fs,
 
 bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   StdioFileSystem fs;
-  std::string filename;
-  bool ok = TempFileForImage(&fs, original_contents_, &filename);
+  GoogleString filename;
+  bool ok = TempFileForImage(&fs, data, &filename);
   if (ok) {
     opencv_image_ = cvLoadImage(filename.c_str());
     fs.RemoveFile(filename.c_str(), handler_);
@@ -388,7 +434,7 @@ bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
 
 bool Image::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
   StdioFileSystem fs;
-  std::string filename;
+  GoogleString filename;
   bool ok = TempFileForImage(&fs, StringPiece(), &filename);
   if (ok) {
     cvSaveImage(filename.c_str(), opencv_image_);
@@ -398,29 +444,28 @@ bool Image::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
   return ok;
 }
 
-StringPiece Image::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
-  return StringPiece(buf);
-}
-
 #endif
 
+StringPiece Image::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
+  return StringPiece(reinterpret_cast<const char*>(&buf[0]), buf.size());
+}
+
 void Image::Dimensions(ImageDim* natural_dim) {
-  if (dims_.valid()) {
-    natural_dim->set_dims(dims_.width(), dims_.height());
-  } else {
-    natural_dim->invalidate();
+  if (!ImageUrlEncoder::HasValidDimensions(dims_)) {
+    ComputeImageType();
   }
+  *natural_dim = dims_;
 }
 
 bool Image::ResizeTo(const ImageDim& new_dim) {
-  CHECK(new_dim.valid());
-  if (new_dim.width() <= 0 || new_dim.height() <= 0) {
+  CHECK(ImageUrlEncoder::HasValidDimensions(new_dim));
+  if ((new_dim.width() <= 0) || (new_dim.height() <= 0)) {
     return false;
   }
 
-  if (resized_) {
+  if (changed_) {
     // If we already resized, drop data and work with original image.
-    UndoResize();
+    UndoChange();
   }
   bool ok = opencv_image_ != NULL || LoadOpenCv();
   if (ok) {
@@ -433,18 +478,19 @@ bool Image::ResizeTo(const ImageDim& new_dim) {
       cvResize(opencv_image_, rescaled_image);
       cvReleaseImage(&opencv_image_);
       opencv_image_ = rescaled_image;
+      changed_ = true;
+      output_valid_ = false;
     }
-    resized_ = ok;
   }
-  return resized_;
+  return changed_;
 }
 
-void Image::UndoResize() {
-  if (resized_) {
+void Image::UndoChange() {
+  if (changed_) {
     CleanOpenCv();
     output_valid_ = false;
     image_type_ = IMAGE_UNKNOWN;
-    resized_ = false;
+    changed_ = false;
   }
 }
 
@@ -456,7 +502,7 @@ bool Image::ComputeOutputContents() {
     StringPiece contents = original_contents_;
     // Choose appropriate source for image contents.
     // Favor original contents if image unchanged.
-    if (resized_ && opencv_image_ != NULL) {
+    if (changed_ && opencv_image_ != NULL) {
       ok = SaveOpenCvToBuffer(&opencv_contents);
       if (ok) {
         contents = OpenCvBufferToStringPiece(opencv_contents);
@@ -474,26 +520,26 @@ bool Image::ComputeOutputContents() {
           // StringPiece args rather than const string&.  We would save
           // lots of string-copying if we made that change.
           ok = pagespeed::image_compression::OptimizeJpeg(
-              std::string(contents.data(), contents.size()),
+              GoogleString(contents.data(), contents.size()),
               &output_contents_);
           break;
         case IMAGE_PNG: {
           pagespeed::image_compression::PngReader png_reader;
-          ok = PngOptimizer::OptimizePng(
-              png_reader,
-              std::string(contents.data(), contents.size()),
+          ok = PngOptimizer::OptimizePngBestCompression
+              (png_reader,
+              GoogleString(contents.data(), contents.size()),
               &output_contents_);
           break;
         }
         case IMAGE_GIF: {
-#if PAGESPEED_PNG_OPTIMIZER_GIF_READER
           pagespeed::image_compression::GifReader gif_reader;
-          ok = PngOptimizer::OptimizePng(
-              gif_reader, contents, &output_contents_);
+          ok = PngOptimizer::OptimizePngBestCompression
+              (gif_reader,
+              GoogleString(contents.data(), contents.size()),
+              &output_contents_);
           if (ok) {
             image_type_ = IMAGE_PNG;
           }
-#endif
           break;
         }
       }
@@ -512,6 +558,42 @@ StringPiece Image::Contents() {
     }
   }
   return contents;
+}
+
+bool Image::DrawImage(Image* image, int x, int y) {
+  if (!LoadOpenCv() || !image->LoadOpenCv()) {
+    return false;
+  }
+  ImageDim other_dim;
+  image->Dimensions(&other_dim);
+  if (!ImageUrlEncoder::HasValidDimensions(dims_) ||
+      !ImageUrlEncoder::HasValidDimensions(other_dim) ||
+      (other_dim.width() + x > dims_.width())
+      || (other_dim.height() + y > dims_.height())) {
+    // image will not fit.
+    return false;
+  }
+#ifdef USE_OPENCV_2_1
+  // OpenCV 2.1.0 api
+  cv::Mat mat(image->opencv_image_, false);
+  cv::Mat canvas(opencv_image_, false);
+  cv::Mat submat = canvas.rowRange(y, y + other_dim.height())
+      .colRange(x, x + other_dim.width());
+  mat.copyTo(submat);
+#else
+  // OpenCV 1.0.0 api
+  CvMat mat;
+  cvGetMat(image->opencv_image_, &mat);
+  CvMat canvas;
+  cvGetMat(opencv_image_, &canvas);
+  CvMat submat;
+  cvGetRows(opencv_image_, &submat, y, y + other_dim.height(), 1);
+  CvMat submat2;
+  cvGetCols(&submat, &submat2, x, x + other_dim.width());
+  cvCopy(&mat, &submat2);
+#endif
+  changed_ = true;
+  return true;
 }
 
 }  // namespace net_instaweb

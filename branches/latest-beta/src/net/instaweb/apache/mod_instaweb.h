@@ -16,7 +16,7 @@
 #ifndef MOD_INSTAWEB_MOD_INSTAWEB_H_
 #define MOD_INSTAWEB_MOD_INSTAWEB_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 // Forward declaration.
 struct server_rec;

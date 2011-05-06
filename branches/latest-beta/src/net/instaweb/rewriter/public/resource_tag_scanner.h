@@ -19,17 +19,17 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_TAG_SCANNER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_TAG_SCANNER_H_
 
-#include "base/basictypes.h"
-#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
+class HtmlParse;
 
 class ResourceTagScanner {
  public:
-  explicit ResourceTagScanner(HtmlParse* html_parse) {}
+  explicit ResourceTagScanner(HtmlParse* html_parse)
+      : find_a_tags_(false) {
+  }
 
   // Examines an HTML element to determine if it's a link to any sort
   // of resource, extracting out the HREF or SRC.  In this scanner,
@@ -37,9 +37,12 @@ class ResourceTagScanner {
   // anything that matches the pattern "<script src=...>", "<img src=...>",
   // or "<link rel="stylesheet" href=...>", without worrying about what
   // the other attributes are.
-  HtmlElement::Attribute* ScanElement(HtmlElement* element);
+  HtmlElement::Attribute* ScanElement(HtmlElement* element) const;
+
+  void set_find_a_tags(bool val) { find_a_tags_ = val; }
 
  private:
+  bool find_a_tags_;
   DISALLOW_COPY_AND_ASSIGN(ResourceTagScanner);
 };
 

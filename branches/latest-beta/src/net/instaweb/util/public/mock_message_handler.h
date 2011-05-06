@@ -19,9 +19,12 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_MOCK_MESSAGE_HANDLER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_MOCK_MESSAGE_HANDLER_H_
 
+#include <cstdarg>
 #include <map>
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/message_handler.h"
 
 namespace net_instaweb {
 
@@ -55,4 +58,4 @@ class MockMessageHandler : public GoogleMessageHandler {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_UTIL_PUBLIC_MOCK_HASHER_H_
+#endif  // NET_INSTAWEB_UTIL_PUBLIC_MOCK_MESSAGE_HANDLER_H_

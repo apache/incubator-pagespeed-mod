@@ -19,45 +19,30 @@
 // Unit-test the lru cache
 
 #include "net/instaweb/util/public/lru_cache.h"
-#include "base/basictypes.h"
-#include "base/logging.h"
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
+
+#include <cstddef>
+#include "net/instaweb/util/cache_test_base.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 const size_t kMaxSize = 100;
 }
 
 namespace net_instaweb {
+class CacheInterface;
 
-class LRUCacheTest : public testing::Test {
+class LRUCacheTest : public CacheTestBase {
  protected:
   LRUCacheTest()
       : cache_(kMaxSize) {
   }
 
-  void CheckGet(const char* key, const std::string& expected_value) {
-    SharedString value_buffer;
-    ASSERT_TRUE(cache_.Get(key, &value_buffer));
-    EXPECT_EQ(expected_value, *value_buffer);
-    EXPECT_EQ(CacheInterface::kAvailable, cache_.Query(key));
-    cache_.SanityCheck();
-  }
-
-  void CheckPut(const char* key, const char* value) {
-    SharedString put_buffer(value);
-    cache_.Put(key, &put_buffer);
-    cache_.SanityCheck();
-  }
-
-  void CheckNotFound(const char* key) {
-    SharedString value_buffer;
-    ASSERT_FALSE(cache_.Get(key, &value_buffer));
-    EXPECT_EQ(CacheInterface::kNotFound, cache_.Query(key));
-    cache_.SanityCheck();
-  }
+  virtual CacheInterface* Cache() { return &cache_; }
+  virtual void SanityCheck() { cache_.SanityCheck(); }
 
   LRUCache cache_;
 
@@ -84,7 +69,7 @@ TEST_F(LRUCacheTest, PutGetDelete) {
   cache_.Delete("Name");
   cache_.SanityCheck();
   SharedString value_buffer;
-  EXPECT_FALSE(cache_.Get("Name", &value_buffer));
+  CheckNotFound("Name");
   EXPECT_EQ(static_cast<size_t>(0), cache_.size_bytes());
   EXPECT_EQ(static_cast<size_t>(0), cache_.num_elements());
 }
@@ -94,7 +79,7 @@ TEST_F(LRUCacheTest, PutGetDelete) {
 // understand when objects fall off the end.
 TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   // Fill the cache.
-  std::string keys[10], values[10];
+  GoogleString keys[10], values[10];
   const char key_pattern[]      = "name%d";
   const char value_pattern[]    = "valu%d";
   const int key_plus_value_size = 10;  // strlen("name7") + strlen("valu7")
@@ -109,7 +94,7 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
 
   // Ensure we can see those.
   for (int i = 0; i < 10; ++i) {
-    CheckGet(keys[i].c_str(), values[i].c_str());
+    CheckGet(keys[i].c_str(), values[i]);
   }
 
   // Now if we insert a new entry totaling 10 bytes, that should work,
@@ -138,7 +123,7 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   CheckGet("nameC", "valueC");
   CheckGet("name1", "valu1");
   for (int i = 5; i < 10; ++i) {
-    CheckGet(keys[i].c_str(), values[i].c_str());
+    CheckGet(keys[i].c_str(), values[i]);
   }
 
   // Now the oldest item is "nameA".  Freshen it by re-inserting it, tickling
@@ -152,7 +137,7 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   CheckGet("nameC", "valueC");
   CheckGet("name1", "valu1");
   for (int i = 5; i < 10; ++i) {
-    CheckGet(keys[i].c_str(), values[i].c_str());
+    CheckGet(keys[i].c_str(), values[i]);
   }
 }
 

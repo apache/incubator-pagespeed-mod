@@ -24,13 +24,20 @@
 
 #include "net/instaweb/http/public/http_dump_url_writer.h"
 
-#include "base/basictypes.h"
 #include "net/instaweb/http/public/fetcher_test.h"
+#include "net/instaweb/http/public/http_dump_url_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 
 namespace net_instaweb {
+
+class UrlFetcher;
 
 class HttpDumpUrlWriterTest : public FetcherTest {
  protected:
@@ -49,8 +56,8 @@ class HttpDumpUrlWriterTest : public FetcherTest {
   }
 
   void RemoveFileIfPresent(const char* url) {
-    GURL gurl(url);
-    std::string path;
+    GoogleUrl gurl(url);
+    GoogleString path;
     HttpDumpUrlFetcher::GetFilenameFromUrl(GTestTempDir() + "/http_dump/",
                                            gurl, &path, &message_handler_);
     file_system_.RemoveFile(path.c_str(), &message_handler_);

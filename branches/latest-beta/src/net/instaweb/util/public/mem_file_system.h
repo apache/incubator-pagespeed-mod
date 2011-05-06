@@ -19,13 +19,15 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_MEM_FILE_SYSTEM_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_MEM_FILE_SYSTEM_H_
 
-#include <stdlib.h>
 #include <map>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class MessageHandler;
 
 // An in-memory implementation of the FileSystem interface, for use in
 // unit tests.  Does not fully support directories.  Not particularly efficient.
@@ -85,17 +87,16 @@ class MemFileSystem : public FileSystem {
  private:
   inline void UpdateAtime(const StringPiece& path);
   bool enabled_;  // When disabled, OpenInputFile returns NULL.
-  typedef std::map<std::string, std::string> StringMap;
-  StringMap string_map_;
+  StringStringMap string_map_;
   MockTimer timer_;
   // atime_map_ holds times (in s) that files were last opened/modified.  Each
   // time we do such an operation, timer() advances by 1s (so all ATimes are
   // distinct).
-  std::map<std::string, int64> atime_map_;
+  std::map<GoogleString, int64> atime_map_;
   int temp_file_index_;
   // lock_map_ holds times that locks were established (in ms).
   // locking and unlocking don't advance time.
-  std::map<std::string, int64> lock_map_;
+  std::map<GoogleString, int64> lock_map_;
   bool atime_enabled_;
   DISALLOW_COPY_AND_ASSIGN(MemFileSystem);
 };

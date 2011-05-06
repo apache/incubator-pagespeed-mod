@@ -19,55 +19,38 @@
 // Unit-test the file cache
 
 #include "net/instaweb/util/public/file_cache.h"
-#include "base/basictypes.h"
-#include "base/logging.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/cache_test_base.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/shared_string.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
+class CacheInterface;
 
-class FileCacheTest : public testing::Test {
+class FileCacheTest : public CacheTestBase {
  protected:
   FileCacheTest()
       : mock_timer_(0),
         kCleanIntervalMs(Timer::kMinuteMs),
-        kTargetSize(12), // Small enough to overflow with a few strings.
+        kTargetSize(12),  // Small enough to overflow with a few strings.
         cache_(GTestTempDir(), &file_system_, &filename_encoder_,
                new FileCache::CachePolicy(
                    &mock_timer_, kCleanIntervalMs, kTargetSize),
                &message_handler_) {
   }
 
-  void CheckGet(const StringPiece& key, const StringPiece& expected_value) {
-    SharedString value_buffer;
-    EXPECT_TRUE(cache_.Get(key.as_string(), &value_buffer));
-    EXPECT_EQ(expected_value, *value_buffer);
-    EXPECT_EQ(CacheInterface::kAvailable, cache_.Query(key.as_string()));
-  }
-
-  void Put(const StringPiece& key, const StringPiece& value) {
-    SharedString put_buffer(value);
-    cache_.Put(key.as_string(), &put_buffer);
-  }
-
-  void CheckNotFound(const StringPiece& key) {
-    SharedString value_buffer;
-    EXPECT_FALSE(cache_.Get(key.as_string(), &value_buffer));
-    EXPECT_EQ(CacheInterface::kNotFound, cache_.Query(key.as_string()));
-  }
-
   void CheckCleanTimestamp(int64 min_time_ms) {
-    std::string buffer;
+    GoogleString buffer;
     file_system_.ReadFile(cache_.clean_time_path_.c_str(), &buffer,
                            &message_handler_);
     int64 clean_time_ms;
-    StringToInt64(buffer,&clean_time_ms);
+    StringToInt64(buffer, &clean_time_ms);
     EXPECT_LT(min_time_ms, clean_time_ms);
   }
 
@@ -75,6 +58,9 @@ class FileCacheTest : public testing::Test {
     file_system_.Clear();
     file_system_.set_atime_enabled(true);
   }
+
+  virtual CacheInterface* Cache() { return &cache_; }
+  virtual void SanityCheck() { }
 
  protected:
   MemFileSystem file_system_;
@@ -91,16 +77,15 @@ class FileCacheTest : public testing::Test {
 
 // Simple flow of putting in an item, getting it, deleting it.
 TEST_F(FileCacheTest, PutGetDelete) {
-  Put("Name", "Value");
+  CheckPut("Name", "Value");
   CheckGet("Name", "Value");
   CheckNotFound("Another Name");
 
-  Put("Name", "NewValue");
+  CheckPut("Name", "NewValue");
   CheckGet("Name", "NewValue");
 
   cache_.Delete("Name");
-  SharedString value_buffer;
-  EXPECT_FALSE(cache_.Get("Name", &value_buffer));
+  CheckNotFound("Name");
 }
 
 // Throw a bunch of files into the cache and verify that they are
@@ -108,8 +93,8 @@ TEST_F(FileCacheTest, PutGetDelete) {
 TEST_F(FileCacheTest, Clean) {
   // Make some "directory" entries so that the mem_file_system recurses
   // correctly.
-  std::string dir1 = GTestTempDir() + "/a/";
-  std::string dir2 = GTestTempDir() + "/b/";
+  GoogleString dir1 = GTestTempDir() + "/a/";
+  GoogleString dir2 = GTestTempDir() + "/b/";
   EXPECT_TRUE(file_system_.MakeDir(dir1.c_str(), &message_handler_));
   EXPECT_TRUE(file_system_.MakeDir(dir2.c_str(), &message_handler_));
   // Commonly-used keys
@@ -122,10 +107,10 @@ TEST_F(FileCacheTest, Clean) {
                             "b2", "b234", "b2345678",
                             "b2", "b234", "b2345678"};
   for (int i = 0; i < 3; i++) {
-    Put(names1[i], values1[i]);
+    CheckPut(names1[i], values1[i]);
   }
   for (int i = 0; i < 9; i++) {
-    Put(names2[i], values2[i]);
+    CheckPut(names2[i], values2[i]);
   }
   int64 total_size = 0;
   EXPECT_TRUE(
@@ -157,7 +142,7 @@ TEST_F(FileCacheTest, Clean) {
 
 // Test the auto-cleaning behavior
 TEST_F(FileCacheTest, CheckClean) {
-  Put("Name1", "Value1");
+  CheckPut("Name1", "Value1");
   // Cache should not clean at first.
   EXPECT_FALSE(cache_.CheckClean());
   mock_timer_.SleepMs(kCleanIntervalMs + 1);
@@ -170,8 +155,8 @@ TEST_F(FileCacheTest, CheckClean) {
   CheckCleanTimestamp(time_ms);
 
   // Make the cache oversize
-  Put("Name2", "Value2");
-  Put("Name3", "Value3");
+  CheckPut("Name2", "Value2");
+  CheckPut("Name3", "Value3");
   // Not enough time has elapsed.
   EXPECT_FALSE(cache_.CheckClean());
   mock_timer_.SleepMs(kCleanIntervalMs + 1);

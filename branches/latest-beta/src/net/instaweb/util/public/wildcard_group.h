@@ -16,10 +16,11 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#ifndef NET_INSTAWEB_UTIL_PUBLIC_SELECTOR_H_
-#define NET_INSTAWEB_UTIL_PUBLIC_SELECTOR_H_
+#ifndef NET_INSTAWEB_UTIL_PUBLIC_WILDCARD_GROUP_H_
+#define NET_INSTAWEB_UTIL_PUBLIC_WILDCARD_GROUP_H_
 
 #include <vector>
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -47,8 +48,10 @@ class WildcardGroup {
   WildcardGroup() {}
   ~WildcardGroup();
 
-  // Determines whether a string matches the wildcard group.
-  bool Match(const StringPiece& str) const;
+  // Determines whether a string matches the wildcard group.  If
+  // none of the wildcards in the group matches, allow_by_default is
+  // returned.
+  bool Match(const StringPiece& str, bool allow_by_default) const;
 
   // Add an expression to Allow, potentially overriding previous calls to
   // Disallow.
@@ -62,8 +65,6 @@ class WildcardGroup {
   void AppendFrom(const WildcardGroup& src);
 
  private:
-  bool MatchHelper(int piece_index, const StringPiece& str);
-
   // To avoid having to new another structure we use two parallel
   // vectors.  Note that vector<bool> is special-case implemented
   // in STL to be bit-packed.
@@ -74,4 +75,4 @@ class WildcardGroup {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_UTIL_PUBLIC_SELECTOR_H_
+#endif  // NET_INSTAWEB_UTIL_PUBLIC_WILDCARD_GROUP_H_

@@ -19,11 +19,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_MINIFY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_MINIFY_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
 class Stylesheet;
+class Charsets;
 class Import;
 class Ruleset;
 class Selector;
@@ -63,6 +64,7 @@ class CssMinify {
   // We name all of these methods identically to simplify the writing of the
   // templated Join* methods.
   void Minify(const Css::Stylesheet& stylesheet);
+  void Minify(const Css::Charsets& charsets);
   void Minify(const Css::Import& import);
   void Minify(const Css::Ruleset& ruleset);
   void Minify(const Css::Selector& selector);

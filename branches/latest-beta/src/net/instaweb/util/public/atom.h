@@ -19,10 +19,8 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_ATOM_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_ATOM_H_
 
-#include <stdlib.h>
 #include <set>
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 

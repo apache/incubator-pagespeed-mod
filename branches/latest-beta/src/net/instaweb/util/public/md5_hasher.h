@@ -18,31 +18,25 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_MD5_HASHER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_MD5_HASHER_H_
 
-#include <algorithm>  // for std::min
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class MD5Hasher : public Hasher {
  public:
-  static const int kMaxHashSize;
   static const int kDefaultHashSize = 10;
 
-  MD5Hasher() : hash_size_(kDefaultHashSize) {}
-  MD5Hasher(int hash_size) {
-    CHECK(hash_size >= 0);
-    hash_size_ = std::min(hash_size, kMaxHashSize);
-  }
+  MD5Hasher() : Hasher(kDefaultHashSize) {}
+  explicit MD5Hasher(int hash_size) : Hasher(hash_size) { }
   virtual ~MD5Hasher();
 
-  virtual std::string Hash(const StringPiece& content) const;
-
-  virtual int HashSizeInChars() const { return hash_size_; }
+  virtual GoogleString RawHash(const StringPiece& content) const;
+  virtual int RawHashSizeInBytes() const;
 
  private:
-  int hash_size_;
-
   DISALLOW_COPY_AND_ASSIGN(MD5Hasher);
 };
 

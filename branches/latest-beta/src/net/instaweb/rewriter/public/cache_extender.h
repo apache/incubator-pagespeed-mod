@@ -19,19 +19,18 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 
-#include <vector>
-
-#include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-class Hasher;
-class ResourceManager;
-class Timer;
+class HtmlElement;
+class OutputResource;
+class Resource;
+class ResponseHeaders;
+class RewriteDriver;
+class Statistics;
 class Variable;
 
 // Rewrites resources without changing their content -- just their
@@ -55,10 +54,9 @@ class CacheExtender : public RewriteSingleResourceFilter {
   virtual const char* Name() const { return "CacheExtender"; }
 
  protected:
-  virtual bool ReuseByContentHash() const;
+  virtual bool ComputeOnTheFly() const;
   virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
-                                              OutputResource* output_resource,
-                                              UrlSegmentEncoder* encoder);
+                                              OutputResource* output_resource);
 
  private:
   bool IsRewrittenResource(const StringPiece& url) const;

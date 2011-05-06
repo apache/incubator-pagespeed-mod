@@ -27,7 +27,7 @@
 #include "apr_strings.h"
 #include "apr_thread_proc.h"
 #include "apr_version.h"
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/stl_util-inl.h"
 #include "net/instaweb/apache/apr_condvar.h"
@@ -57,7 +57,7 @@ const char kFetchMethod[] = "GET";
 }  // namespace
 
 extern "C" {
-  // Declares a new function added to
+  // Declares new functions added to
   // src/third_party/serf/instaweb_context.c
 serf_bucket_t* serf_request_bucket_request_create_for_host(
     serf_request_t *request,
@@ -65,7 +65,9 @@ serf_bucket_t* serf_request_bucket_request_create_for_host(
     const char *uri,
     serf_bucket_t *body,
     serf_bucket_alloc_t *allocator, const char* host);
-}
+
+int serf_connection_is_in_error_state(serf_connection_t* connection);
+}  // extern "C"
 
 namespace net_instaweb {
 
@@ -88,8 +90,7 @@ std::string GetAprErrorString(apr_status_t status) {
 class SerfFetch : public PoolElement<SerfFetch> {
  public:
   // TODO(lsong): make use of request_headers.
-  SerfFetch(apr_pool_t* pool,
-            const std::string& url,
+  SerfFetch(const std::string& url,
             const RequestHeaders& request_headers,
             ResponseHeaders* response_headers,
             Writer* fetched_content_writer,
@@ -104,20 +105,22 @@ class SerfFetch : public PoolElement<SerfFetch> {
         fetched_content_writer_(fetched_content_writer),
         message_handler_(message_handler),
         callback_(callback),
+        pool_(NULL),  // filled in once assigned to a thread, to use its pool.
+        bucket_alloc_(NULL),
         connection_(NULL),
         bytes_received_(0),
         fetch_start_ms_(0),
         fetch_end_ms_(0) {
     request_headers_.CopyFrom(request_headers);
-    apr_pool_create(&pool_, pool);
-    bucket_alloc_ = serf_bucket_allocator_create(pool_, NULL, NULL);
   }
 
   ~SerfFetch() {
     if (connection_ != NULL) {
       serf_connection_close(connection_);
     }
-    apr_pool_destroy(pool_);
+    if (pool_ != NULL) {
+      apr_pool_destroy(pool_);
+    }
   }
 
   // Start the fetch. It returns immediately.  This can only be run when
@@ -149,6 +152,25 @@ class SerfFetch : public PoolElement<SerfFetch> {
       callback->Done(success);
       fetch_end_ms_ = timer_->NowMs();
       fetcher_->FetchComplete(this);
+    }
+  }
+
+  // If last poll of this fetch's connection resulted in an error, clean it up.
+  // Must be called after serf_context_run, with fetcher's mutex_ held.
+  void CleanupIfError() {
+    if ((connection_ != NULL) &&
+        serf_connection_is_in_error_state(connection_)) {
+      message_handler_->Message(
+          kInfo, "Serf cleanup for error'd fetch of: %s", str_url());
+
+      // Close the errant connection here immediately to remove it from
+      // the poll set immediately so that other jobs can proceed w/o trouble,
+      // rather than waiting for ~SerfFetch.
+      serf_connection_close(connection_);
+      connection_ = NULL;
+
+      // Do the rest of normal cleanup, including calling Done(false);
+      Cancel();
     }
   }
 
@@ -310,7 +332,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
   void FixUserAgent() {
     // Supply a default user-agent if none is present, and in any case
     // append on a 'serf' suffix.
-    std::string user_agent;
+    GoogleString user_agent;
     StringStarVector v;
     if (request_headers_.Lookup(HttpAttributes::kUserAgent, &v)) {
       for (int i = 0, n = v.size(); i < n; ++i) {
@@ -371,8 +393,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
     serf_bucket_t* hdrs_bkt = serf_bucket_request_get_headers(*req_bkt);
 
     for (int i = 0; i < fetch->request_headers_.NumAttributes(); ++i) {
-      const std::string& name = fetch->request_headers_.Name(i);
-      const std::string& value = fetch->request_headers_.Value(i);
+      const GoogleString& name = fetch->request_headers_.Name(i);
+      const GoogleString& value = fetch->request_headers_.Value(i);
       if ((StringCaseEqual(name, HttpAttributes::kUserAgent)) ||
           (StringCaseEqual(name, HttpAttributes::kAcceptEncoding)) ||
           (StringCaseEqual(name, HttpAttributes::kReferer))) {
@@ -636,8 +658,13 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
 };
 
 bool SerfFetch::Start(SerfUrlAsyncFetcher* fetcher) {
-  fetch_start_ms_ = timer_->NowMs();
+  // Note: this is called in the thread's context, so this is when we do
+  // the pool ops.
   fetcher_ = fetcher;
+  apr_pool_create(&pool_, fetcher_->pool());
+  bucket_alloc_ = serf_bucket_allocator_create(pool_, NULL, NULL);
+
+  fetch_start_ms_ = timer_->NowMs();
   // Parse and validate the URL.
   if (!ParseUrl()) {
     return false;
@@ -698,7 +725,7 @@ bool SerfUrlAsyncFetcher::SetupProxy(const char* proxy) {
 SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
                                          Statistics* statistics, Timer* timer,
                                          int64 timeout_ms)
-    : pool_(pool),
+    : pool_(NULL),
       timer_(timer),
       mutex_(NULL),
       serf_context_(NULL),
@@ -710,29 +737,22 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       cancel_count_(NULL),
       timeout_count_(NULL),
       timeout_ms_(timeout_ms) {
-  if (statistics != NULL) {
-    request_count_  =
-        statistics->GetVariable(SerfStats::kSerfFetchRequestCount);
-    byte_count_ = statistics->GetVariable(SerfStats::kSerfFetchByteCount);
-    time_duration_ms_ =
-        statistics->GetVariable(SerfStats::kSerfFetchTimeDurationMs);
-    cancel_count_ = statistics->GetVariable(SerfStats::kSerfFetchCancelCount);
-    active_count_ = statistics->GetVariable(
-        SerfStats::kSerfFetchActiveCount);
-    timeout_count_ = statistics->GetVariable(
-        SerfStats::kSerfFetchTimeoutCount);
-  }
-  mutex_ = new AprMutex(pool_);
-  serf_context_ = serf_context_create(pool_);
+  CHECK(statistics != NULL);
+  request_count_  =
+      statistics->GetVariable(SerfStats::kSerfFetchRequestCount);
+  byte_count_ = statistics->GetVariable(SerfStats::kSerfFetchByteCount);
+  time_duration_ms_ =
+      statistics->GetVariable(SerfStats::kSerfFetchTimeDurationMs);
+  cancel_count_ = statistics->GetVariable(SerfStats::kSerfFetchCancelCount);
+  active_count_ = statistics->GetVariable(SerfStats::kSerfFetchActiveCount);
+  timeout_count_ = statistics->GetVariable(SerfStats::kSerfFetchTimeoutCount);
+  Init(pool, proxy);
   threaded_fetcher_ = new SerfThreadedFetcher(this, proxy);
-  if (!SetupProxy(proxy)) {
-    LOG(WARNING) << "Proxy failed: " << proxy;
-  }
 }
 
 SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
                                          const char* proxy)
-    : pool_(parent->pool_),
+    : pool_(NULL),
       timer_(parent->timer_),
       mutex_(NULL),
       serf_context_(NULL),
@@ -744,12 +764,8 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
       cancel_count_(parent->cancel_count_),
       timeout_count_(parent->timeout_count_),
       timeout_ms_(parent->timeout_ms()) {
-  mutex_ = new AprMutex(pool_);
-  serf_context_ = serf_context_create(pool_);
+  Init(parent->pool(), proxy);
   threaded_fetcher_ = NULL;
-  if (!SetupProxy(proxy)) {
-    LOG(WARNING) << "Proxy failed: " << proxy;
-  }
 }
 
 SerfUrlAsyncFetcher::~SerfUrlAsyncFetcher() {
@@ -772,6 +788,32 @@ SerfUrlAsyncFetcher::~SerfUrlAsyncFetcher() {
     delete threaded_fetcher_;
   }
   delete mutex_;
+  apr_pool_destroy(pool_);  // also calls apr_allocator_destroy on the allocator
+}
+
+void SerfUrlAsyncFetcher::Init(apr_pool_t* parent_pool, const char* proxy) {
+  // Here, we give each our Serf threads' (main and work) separate pools
+  // with separate allocators. This is done because:
+  //
+  // 1) Concurrent allocations from the same pools are not (thread)safe.
+  // 2) Concurrent allocations from different pools using the same allocator
+  //    are not safe unless the allocator has a mutex set.
+  // 3) prefork's pchild pool (which is our ancestor) has an allocator without
+  //    a mutex set.
+  //
+  // Note: the above is all about the release version of the pool code, the
+  // checking one has some additional locking!
+  apr_allocator_t* allocator = NULL;
+  CHECK(apr_allocator_create(&allocator) == APR_SUCCESS);
+  apr_pool_create_ex(&pool_, parent_pool, NULL /*abortfn*/, allocator);
+  apr_allocator_owner_set(allocator, pool_);
+
+  mutex_ = new AprMutex(pool_);
+  serf_context_ = serf_context_create(pool_);
+
+  if (!SetupProxy(proxy)) {
+    LOG(WARNING) << "Proxy failed: " << proxy;
+  }
 }
 
 void SerfUrlAsyncFetcher::CancelActiveFetches() {
@@ -803,11 +845,9 @@ bool SerfUrlAsyncFetcher::StreamingFetch(const std::string& url,
                                          MessageHandler* message_handler,
                                          UrlAsyncFetcher::Callback* callback) {
   SerfFetch* fetch = new SerfFetch(
-      pool_, url, request_headers, response_headers, fetched_content_writer,
+      url, request_headers, response_headers, fetched_content_writer,
       message_handler, callback, timer_);
-  if (request_count_ != NULL) {
-    request_count_->Add(1);
-  }
+  request_count_->Add(1);
   if (callback->EnableThreaded()) {
     message_handler->Message(kInfo, "Initiating async fetch for %s",
                              url.c_str());
@@ -819,9 +859,7 @@ bool SerfUrlAsyncFetcher::StreamingFetch(const std::string& url,
       ScopedMutex mutex(mutex_);
       if (fetch->Start(this)) {
         active_fetches_.Add(fetch);
-        if (active_count_ != NULL) {
-          active_count_->Add(1);
-        }
+        active_count_->Add(1);
       } else {
         callback->Done(false);
         delete fetch;
@@ -900,6 +938,7 @@ int SerfUrlAsyncFetcher::Poll(int64 max_wait_ms) {
                      : ": (non-blocking)")
                  << " (" << this << ") for " << max_wait_ms/1.0e3
                  << " seconds";
+      CleanupFetchesWithErrors();
     }
   }
   return active_fetches_.size();
@@ -975,6 +1014,23 @@ bool SerfUrlAsyncFetcher::WaitForActiveFetchesHelper(
   }
   return true;
 }
+
+void SerfUrlAsyncFetcher::CleanupFetchesWithErrors() {
+  // Create a copy of list of active fetches, as we may have to cancel
+  // some failed ones, modifying the list.
+  std::vector<SerfFetch*> fetches;
+  for (SerfFetchPool::iterator i = active_fetches_.begin();
+       i != active_fetches_.end(); ++i) {
+    fetches.push_back(*i);
+  }
+
+  // Check each fetch to see if it needs cleanup because its serf connection
+  // got into an error state.
+  for (int i = 0, size = fetches.size(); i < size; ++i) {
+    fetches[i]->CleanupIfError();
+  }
+}
+
 void SerfUrlAsyncFetcher::Initialize(Statistics* statistics) {
   if (statistics != NULL) {
     statistics->AddVariable(SerfStats::kSerfFetchRequestCount);

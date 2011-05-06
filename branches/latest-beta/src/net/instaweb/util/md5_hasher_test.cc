@@ -17,6 +17,7 @@
 #include "net/instaweb/util/public/md5_hasher.h"
 
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -27,12 +28,14 @@ namespace {
 class MD5HasherTest : public ::testing::Test {};
 
 TEST_F(MD5HasherTest, CorrectHashSize) {
-  for (int i = MD5Hasher::kMaxHashSize; i >= 0; --i) {
+  // MD5 is 128-bit, which is 21.333 6-bit chars.
+  const int kMaxHashSize = 21;
+  for (int i = kMaxHashSize; i >= 0; --i) {
     MD5Hasher hasher(i);
     EXPECT_EQ(i, hasher.HashSizeInChars());
     EXPECT_EQ(i, hasher.Hash("foobar").size());
     // Large string.
-    EXPECT_EQ(i, hasher.Hash(std::string(5000, 'z')).size());
+    EXPECT_EQ(i, hasher.Hash(GoogleString(5000, 'z')).size());
   }
 }
 
@@ -41,8 +44,8 @@ TEST_F(MD5HasherTest, HashesDiffer) {
 
   // Basic sanity tests. More thorough tests belong in the base implementation.
   EXPECT_NE(hasher.Hash("foo"), hasher.Hash("bar"));
-  EXPECT_NE(hasher.Hash(std::string(5000, 'z')),
-            hasher.Hash(std::string(5001, 'z')));
+  EXPECT_NE(hasher.Hash(GoogleString(5000, 'z')),
+            hasher.Hash(GoogleString(5001, 'z')));
 }
 
 }  // namespace

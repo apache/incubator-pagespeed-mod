@@ -36,7 +36,7 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/statistics.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -50,6 +50,12 @@ namespace {
 // could have rewritten, except that they lay in a domain that did not
 // permit resource rewriting relative to the current page.
 const char kResourceUrlDomainRejections[] = "resource_url_domain_rejections";
+static const char kCachedOutputMissedDeadline[] =
+    "rewrite_cached_output_missed_deadline";
+static const char kCachedOutputHits[] = "rewrite_cached_output_hits";
+static const char kCachedOutputMisses[] = "rewrite_cached_output_misses";
+const char kInstawebResource404Count[] = "resource_404_count";
+const char kInstawebSlurp404Count[] = "slurp_404_count";
 
 const int64 kGeneratedMaxAgeMs = Timer::kYearMs;
 const int64 kGeneratedMaxAgeSec = Timer::kYearMs / Timer::kSecondMs;
@@ -74,7 +80,6 @@ const int64 kRefreshExpirePercent = 75;
 // TODO(jmarantz): inject the SVN version number here to automatically bust
 // caches whenever pagespeed is upgraded.
 const char ResourceManager::kCacheKeyResourceNamePrefix[] = "rname/";
-const int ResourceManager::kNotSharded = -1;
 
 // We set etags for our output resources to "W/0".  The "W" means
 // that this etag indicates a functional consistency, but is not
@@ -92,29 +97,49 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
                                  UrlAsyncFetcher* url_async_fetcher,
                                  Hasher* hasher,
                                  HTTPCache* http_cache,
-                                 NamedLockManager* lock_manager)
+                                 CacheInterface* metadata_cache,
+                                 NamedLockManager* lock_manager,
+                                 MessageHandler* handler,
+                                 Statistics* statistics)
     : file_prefix_(file_prefix.data(), file_prefix.size()),
       resource_id_(0),
       file_system_(file_system),
       filename_encoder_(filename_encoder),
       url_async_fetcher_(url_async_fetcher),
       hasher_(hasher),
-      statistics_(NULL),
-      resource_url_domain_rejections_(NULL),
+      statistics_(statistics),
+      resource_url_domain_rejections_(
+          statistics_->GetVariable(kResourceUrlDomainRejections)),
+      cached_output_missed_deadline_(
+          statistics->GetVariable(kCachedOutputMissedDeadline)),
+      cached_output_hits_(statistics->GetVariable(kCachedOutputHits)),
+      cached_output_misses_(statistics->GetVariable(kCachedOutputMisses)),
+      resource_404_count_(statistics->GetVariable(kInstawebResource404Count)),
+      slurp_404_count_(statistics->GetVariable(kInstawebSlurp404Count)),
       http_cache_(http_cache),
-      url_escaper_(new UrlEscaper()),
+      metadata_cache_(metadata_cache),
       relative_path_(false),
       store_outputs_in_file_system_(true),
       lock_manager_(lock_manager),
       max_age_string_(StringPrintf("max-age=%d",
-                                   static_cast<int>(kGeneratedMaxAgeSec))) {
+                                   static_cast<int>(kGeneratedMaxAgeSec))),
+      message_handler_(handler) {
 }
 
 ResourceManager::~ResourceManager() {
 }
 
 void ResourceManager::Initialize(Statistics* statistics) {
-  statistics->AddVariable(kResourceUrlDomainRejections);
+  if (statistics != NULL) {
+    statistics->AddVariable(kResourceUrlDomainRejections);
+    statistics->AddVariable(kCachedOutputMissedDeadline);
+    statistics->AddVariable(kCachedOutputHits);
+    statistics->AddVariable(kCachedOutputMisses);
+    statistics->AddVariable(kInstawebResource404Count);
+    statistics->AddVariable(kInstawebSlurp404Count);
+    HTTPCache::Initialize(statistics);
+    RewriteDriver::Initialize(statistics);
+  }
 }
 
 // TODO(jmarantz): consider moving this method to ResponseHeaders
@@ -129,7 +154,7 @@ void ResourceManager::SetDefaultHeaders(const ContentType* content_type,
   }
   int64 now_ms = http_cache_->timer()->NowMs();
   header->Replace(HttpAttributes::kCacheControl, max_age_string_);
-  std::string expires_string;
+  GoogleString expires_string;
   header->RemoveAll(HttpAttributes::kExpires);
   if (ConvertTimeToString(now_ms + kGeneratedMaxAgeMs, &expires_string)) {
     header->Add(HttpAttributes::kExpires, expires_string);
@@ -178,21 +203,6 @@ void ResourceManager::set_filename_prefix(const StringPiece& file_prefix) {
   file_prefix.CopyToString(&file_prefix_);
 }
 
-// Implements lazy initialization of resource_url_domain_rejections_,
-// necessitated by the fact that we can set_statistics before
-// Initialize(...) has been called and thus can't safely look
-// for the variable until first use.
-void ResourceManager::IncrementResourceUrlDomainRejections() {
-  if (resource_url_domain_rejections_ == NULL) {
-    if (statistics_ == NULL) {
-      return;
-    }
-    resource_url_domain_rejections_ =
-        statistics_->GetVariable(kResourceUrlDomainRejections);
-  }
-  resource_url_domain_rejections_->Add(1);
-}
-
 bool ResourceManager::Write(HttpStatus::Code status_code,
                             const StringPiece& contents,
                             OutputResource* output,
@@ -211,12 +221,15 @@ bool ResourceManager::Write(HttpStatus::Code status_code,
   if (ret) {
     ret = writer->Write(contents, handler);
     ret &= output->EndWrite(writer.get(), handler);
-    http_cache_->Put(output->url(), &output->value_, handler);
+
+    if (output->kind() != kOnTheFlyResource) {
+      http_cache_->Put(output->url(), &output->value_, handler);
+    }
 
     // If our URL is derived from some pre-existing URL (and not invented by
     // us due to something like outlining), cache the mapping from original URL
     // to the constructed one.
-    if (!output->outlined()) {
+    if (output->kind() != kOutlinedResource) {
       output->EnsureCachedResultCreated()->set_optimizable(true);
       CacheComputedResourceMapping(output, origin_expire_time_ms, handler);
     }
@@ -256,9 +269,9 @@ void ResourceManager::WriteUnoptimizable(OutputResource* output,
 // short expiration.
 void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     int64 origin_expire_time_ms, MessageHandler* handler) {
-  std::string name_key = StrCat(kCacheKeyResourceNamePrefix,
+  GoogleString name_key = StrCat(kCacheKeyResourceNamePrefix,
                                  output->name_key());
-  OutputResource::CachedResult* cached = output->EnsureCachedResultCreated();
+  CachedResult* cached = output->EnsureCachedResultCreated();
   if (cached->optimizable()) {
     cached->set_url(output->url());
   }
@@ -303,6 +316,151 @@ void ResourceManager::RefreshIfImminentlyExpiring(
       resource->Freshen(handler);
     }
   }
+}
+
+ResourceManagerHttpCallback::~ResourceManagerHttpCallback() {
+}
+
+void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
+  ResourcePtr resource(resource_callback_->resource());
+  MessageHandler* handler = resource_manager_->message_handler();
+  switch (find_result) {
+    case HTTPCache::kFound:
+      resource->Link(http_value(), handler);
+      resource->metadata()->CopyFrom(*response_headers());
+      resource_manager_->RefreshIfImminentlyExpiring(resource.get(), handler);
+      resource_callback_->Done(true);
+      break;
+    case HTTPCache::kRecentFetchFailedDoNotRefetch:
+      // TODO(jmarantz): in this path, should we try to fetch again
+      // sooner than 5 minutes?  The issue is that in this path we are
+      // serving for the user, not for a rewrite.  This could get
+      // frustrating, even if the software is functioning as intended,
+      // because a missing resource that is put in place by a site
+      // admin will not be checked again for 5 minutes.
+      //
+      // The "good" news is that if the admin is willing to crank up
+      // logging to 'info' then http_cache.cc will log the
+      // 'remembered' failure.
+      resource_callback_->Done(false);
+      break;
+    case HTTPCache::kNotFound:
+      // If not, load it asynchronously.
+      resource->LoadAndCallback(resource_callback_, handler);
+      break;
+  }
+  delete this;
+}
+
+void ResourceManager::ReadAsync(Resource::AsyncCallback* callback) {
+  // If the resource is not already loaded, and this type of resource (e.g.
+  // URL vs File vs Data) is cacheable, then try to load it.
+  ResourcePtr resource = callback->resource();
+  if (resource->loaded()) {
+    RefreshIfImminentlyExpiring(resource.get(), message_handler_);
+    callback->Done(true);
+  } else if (resource->IsCacheable()) {
+    ResourceManagerHttpCallback* resource_manager_callback =
+        new ResourceManagerHttpCallback(callback, this);
+    http_cache_->Find(resource->url(), message_handler_,
+                      resource_manager_callback);
+  }
+}
+
+// Constructs an output resource corresponding to the specified input resource
+// and encoded using the provided encoder.
+OutputResourcePtr ResourceManager::CreateOutputResourceFromResource(
+    const RewriteOptions* options,
+    const StringPiece& filter_id,
+    const UrlSegmentEncoder* encoder,
+    const ResourceContext* data,
+    const ResourcePtr& input_resource,
+    OutputResourceKind kind) {
+  OutputResourcePtr result;
+  if (input_resource.get() != NULL) {
+    // TODO(jmarantz): It would be more efficient to pass in the base
+    // document GURL or save that in the input resource.
+    GoogleUrl gurl(input_resource->url());
+    UrlPartnership partnership(options, gurl);
+    if (partnership.AddUrl(input_resource->url(), message_handler_)) {
+      const GoogleUrl *mapped_gurl = partnership.FullPath(0);
+      GoogleString name;
+      StringVector v;
+      v.push_back(mapped_gurl->LeafWithQuery().as_string());
+      encoder->Encode(v, data, &name);
+      result.reset(CreateOutputResourceWithPath(
+          options, mapped_gurl->AllExceptLeaf(),
+          filter_id, name, input_resource->type(), kind));
+    }
+  }
+  return result;
+}
+
+OutputResourcePtr ResourceManager::CreateOutputResourceWithPath(
+    const RewriteOptions* options,
+    const StringPiece& path,
+    const StringPiece& filter_id,
+    const StringPiece& name,
+    const ContentType* content_type,
+    OutputResourceKind kind) {
+  ResourceNamer full_name;
+  full_name.set_id(filter_id);
+  full_name.set_name(name);
+  if (content_type != NULL) {
+    // TODO(jmaessen): The addition of 1 below avoids the leading ".";
+    // make this convention consistent and fix all code.
+    full_name.set_ext(content_type->file_extension() + 1);
+  }
+  OutputResourcePtr resource;
+
+  int leaf_size = full_name.EventualSize(*hasher());
+  int url_size = path.size() + leaf_size;
+  if ((leaf_size <= options->max_url_segment_size()) &&
+      (url_size <= options->max_url_size())) {
+    resource.reset(new OutputResource(
+        this, path, full_name, content_type, options, kind));
+
+    // Determine whether this output resource is still valid by looking
+    // up by hash in the http cache.  Note that this cache entry will
+    // expire when any of the origin resources expire.
+    if (kind != kOutlinedResource) {
+      GoogleString name_key = StrCat(
+          ResourceManager::kCacheKeyResourceNamePrefix, resource->name_key());
+      resource->FetchCachedResult(name_key, message_handler_);
+    }
+  }
+  return resource;
+}
+
+bool ResourceManager::LockForCreation(const GoogleString& name,
+                                      BlockingBehavior block,
+                                      scoped_ptr<AbstractLock>* creation_lock) {
+  const int64 kBreakLockMs = 30 * Timer::kSecondMs;
+  const int64 kBlockLockMs = 5 * Timer::kSecondMs;
+  const char kLockSuffix[] = ".outputlock";
+
+  bool result = true;
+  if (creation_lock->get() == NULL) {
+    GoogleString lock_name = StrCat(hasher_->Hash(name), kLockSuffix);
+    creation_lock->reset(lock_manager_->CreateNamedLock(lock_name));
+  }
+  switch (block) {
+    case kNeverBlock:
+      result = (*creation_lock)->TryLockStealOld(kBreakLockMs);
+      break;
+    case kMayBlock:
+      // TODO(jmaessen): It occurs to me that we probably ought to be
+      // doing something like this if we *really* care about lock aging:
+      // if (!(*creation_lock)->LockTimedWaitStealOld(kBlockLockMs,
+      //                                              kBreakLockMs)) {
+      //   (*creation_lock)->TryLockStealOld(0);  // Force lock steal
+      // }
+      // This updates the lock hold time so that another thread is less likely
+      // to steal the lock while we're doing the blocking rewrite.
+      (*creation_lock)->LockTimedWaitStealOld(kBlockLockMs, kBreakLockMs);
+      break;
+  }
+  return result;
 }
 
 }  // namespace net_instaweb

@@ -22,10 +22,12 @@
 #include <vector>
 
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class CommonFilter;
 class MessageHandler;
+class RewriteDriver;
 
 // A templatized extension of ResourceCombiner that can track elements of a
 // custom type.
@@ -34,28 +36,37 @@ class ResourceCombinerTemplate : public ResourceCombiner {
  public:
   ResourceCombinerTemplate(RewriteDriver* rewrite_driver,
                            const StringPiece& path_prefix,
-                           const StringPiece& extension)
-      : ResourceCombiner(rewrite_driver, path_prefix, extension) {
+                           const StringPiece& extension,
+                           CommonFilter* filter)
+      : ResourceCombiner(rewrite_driver, path_prefix, extension, filter) {
   }
-  virtual ~ResourceCombinerTemplate() {}
+  virtual ~ResourceCombinerTemplate() {
+    // Note that the superclass's dtor will not call our overridden Clear.
+    // Fortunately there's no harm in calling Clear() several times.
+    Clear();
+  }
 
-  bool AddElement(T element, const StringPiece& url, MessageHandler* handler) {
-    if (AddResource(url, handler)) {
+  TimedBool AddElement(T element, const StringPiece& url,
+                       MessageHandler* handler) {
+    TimedBool result = AddResource(url, handler);
+    if (result.value) {
       elements_.push_back(element);
-      return true;
     }
-    return false;
+    return result;
   }
 
-  // Removes the last element that was added to this combiner.
+  // Removes the last element that was added to this combiner, and the
+  // corresponding resource.
   void RemoveLastElement() {
-    ResourceCombiner::RemoveLastResource();
+    RemoveLastResource();
     elements_.pop_back();
   }
 
   T element(int i) const { return elements_[i]; }
 
  protected:
+  int num_elements() const { return elements_.size(); }
+
   virtual void Clear() {
     elements_.clear();
     ResourceCombiner::Clear();

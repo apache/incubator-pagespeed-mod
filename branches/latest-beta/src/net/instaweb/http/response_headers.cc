@@ -16,22 +16,26 @@
 
 #include "net/instaweb/http/public/response_headers.h"
 
-#include "base/logging.h"
-#include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
+#include <cstdio>                      // for fprintf, stderr, snprintf
+#include <map>
 
-#include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/proto_util.h"
+#include "base/logging.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
+#include "net/instaweb/http/public/headers.h"  // for Headers
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_multi_map.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/writer.h"
 #include "pagespeed/core/resource_util.h"
 
 namespace net_instaweb {
 
-const int64 ResponseHeaders::kImplicitCacheTtlMs =
-    5 * net_instaweb::Timer::kMinuteMs;
+class MessageHandler;
 
 ResponseHeaders::ResponseHeaders() {
   proto_.reset(new HttpResponseHeaders);
@@ -44,20 +48,7 @@ ResponseHeaders::~ResponseHeaders() {
 
 void ResponseHeaders::CopyFrom(const ResponseHeaders& other) {
   map_.reset(NULL);
-  proto_->clear_header();
-
-  proto_->set_cacheable(other.proto_->cacheable());
-  proto_->set_proxy_cacheable(other.proto_->proxy_cacheable());
-  proto_->set_expiration_time_ms(other.proto_->expiration_time_ms());
-  proto_->set_timestamp_ms(other.proto_->timestamp_ms());
-  proto_->set_major_version(other.proto_->major_version());
-  proto_->set_minor_version(other.proto_->minor_version());
-  proto_->set_status_code(other.proto_->status_code());
-  proto_->set_reason_phrase(other.proto_->reason_phrase());
-
-  for (int i = 0; i < other.NumAttributes(); ++i) {
-    Add(other.Name(i), other.Value(i));
-  }
+  *(proto_.get()) = *(other.proto_.get());
   cache_fields_dirty_ = other.cache_fields_dirty_;
 }
 
@@ -118,10 +109,20 @@ bool ResponseHeaders::RemoveAll(const StringPiece& name) {
   return false;
 }
 
+void ResponseHeaders::RemoveAllFromSet(const StringSet& names) {
+  cache_fields_dirty_ = true;
+  Headers<HttpResponseHeaders>::RemoveAllFromSet(names);
+}
+
 void ResponseHeaders::Replace(
     const StringPiece& name, const StringPiece& value) {
   cache_fields_dirty_ = true;
   Headers<HttpResponseHeaders>::Replace(name, value);
+}
+
+void ResponseHeaders::UpdateFrom(const Headers<HttpResponseHeaders>& other) {
+  cache_fields_dirty_ = true;
+  Headers<HttpResponseHeaders>::UpdateFrom(other);
 }
 
 bool ResponseHeaders::WriteAsBinary(Writer* writer, MessageHandler* handler) {
@@ -176,14 +177,14 @@ int64 ResponseHeaders::CacheExpirationTimeMs() const {
 }
 
 void ResponseHeaders::SetDate(int64 date_ms) {
-  std::string time_string;
+  GoogleString time_string;
   if (ConvertTimeToString(date_ms, &time_string)) {
     Replace(HttpAttributes::kDate, time_string);
   }
 }
 
 void ResponseHeaders::SetLastModified(int64 last_modified_ms) {
-  std::string time_string;
+  GoogleString time_string;
   if (ConvertTimeToString(last_modified_ms, &time_string)) {
     Replace(HttpAttributes::kLastModified, time_string);
   }
@@ -254,7 +255,7 @@ void ResponseHeaders::ComputeCaching() {
     values.clear();
     if (Lookup(HttpAttributes::kCacheControl, &values)) {
       for (int i = 0, n = values.size(); i < n; ++i) {
-        const std::string* cache_control = values[i];
+        const GoogleString* cache_control = values[i];
         pagespeed::resource_util::DirectiveMap directive_map;
         if ((cache_control != NULL)
             && pagespeed::resource_util::GetHeaderDirectives(
@@ -275,8 +276,8 @@ void ResponseHeaders::ComputeCaching() {
   cache_fields_dirty_ = false;
 }
 
-std::string ResponseHeaders::ToString() const {
-  std::string str;
+GoogleString ResponseHeaders::ToString() const {
+  GoogleString str;
   StringWriter writer(&str);
   WriteAsHttp(&writer, NULL);
   return str;
@@ -306,9 +307,9 @@ bool ResponseHeaders::ParseDateHeader(
 
 void ResponseHeaders::UpdateDateHeader(const StringPiece& attr, int64 date_ms) {
   RemoveAll(attr);
-  std::string buf;
+  GoogleString buf;
   if (ConvertTimeToString(date_ms, &buf)) {
-    Add(attr, buf.c_str());
+    Add(attr, buf);
   }
 }
 

@@ -16,9 +16,13 @@
 
 // Author: bmcquade@google.com (Bryan McQuade)
 
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+
+#include <cstddef>
+#include <set>
+
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 
 namespace {
 
@@ -120,6 +124,22 @@ TEST_F(RewriteOptionsTest, CommaSeparatedList) {
   s.insert(RewriteOptions::kAddInstrumentation);
   s.insert(RewriteOptions::kLeftTrimUrls);
   const char* kList = "add_instrumentation,trim_urls";
+  NullMessageHandler handler;
+  ASSERT_TRUE(
+      options_.EnableFiltersByCommaSeparatedList(kList, &handler));
+  ASSERT_TRUE(OnlyEnabled(s));
+  ASSERT_TRUE(
+      options_.DisableFiltersByCommaSeparatedList(kList, &handler));
+  ASSERT_TRUE(NoneEnabled());
+}
+
+TEST_F(RewriteOptionsTest, CompoundFlag) {
+  FilterSet s;
+  s.insert(RewriteOptions::kInlineImages);
+  s.insert(RewriteOptions::kInsertImageDimensions);
+  s.insert(RewriteOptions::kRecompressImages);
+  s.insert(RewriteOptions::kResizeImages);
+  const char* kList = "rewrite_images";
   NullMessageHandler handler;
   ASSERT_TRUE(
       options_.EnableFiltersByCommaSeparatedList(kList, &handler));

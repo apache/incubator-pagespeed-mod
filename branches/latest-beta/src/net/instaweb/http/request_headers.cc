@@ -18,16 +18,19 @@
 
 #include <vector>
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/http.pb.h"  // for HttpRequestHeaders
-#include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/http/public/headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_multi_map.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/timer.h"
-#include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 RequestHeaders::RequestHeaders() {
   proto_.reset(new HttpRequestHeaders);
@@ -40,19 +43,11 @@ void RequestHeaders::Clear() {
 
 void RequestHeaders::CopyFrom(const RequestHeaders& other) {
   map_.reset(NULL);
-  proto_->clear_header();
-
-  proto_->set_method(other.proto_->method());
-  proto_->set_major_version(other.proto_->major_version());
-  proto_->set_minor_version(other.proto_->minor_version());
-
-  for (int i = 0; i < other.NumAttributes(); ++i) {
-    Add(other.Name(i), other.Value(i));
-  }
+  *(proto_.get()) = *(other.proto_.get());
 }
 
-std::string RequestHeaders::ToString() const {
-  std::string str;
+GoogleString RequestHeaders::ToString() const {
+  GoogleString str;
   StringWriter writer(&str);
   WriteAsHttp("", &writer, NULL);
   return str;
@@ -110,7 +105,7 @@ const char* RequestHeaders::method_string() const {
 bool RequestHeaders::WriteAsHttp(
     const StringPiece& url, Writer* writer, MessageHandler* handler) const {
   bool ret = true;
-  std::string buf = StringPrintf("%s %s HTTP/%d.%d\r\n",
+  GoogleString buf = StringPrintf("%s %s HTTP/%d.%d\r\n",
                                   method_string(), url.as_string().c_str(),
                                   major_version(), minor_version());
   ret &= writer->Write(buf, handler);

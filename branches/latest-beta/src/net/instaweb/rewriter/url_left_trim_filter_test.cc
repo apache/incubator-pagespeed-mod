@@ -18,41 +18,56 @@
 
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
-#include "base/basictypes.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "base/logging.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class UrlLeftTrimFilterTest : public HtmlParseTestBase {
+class UrlLeftTrimFilterTest : public ResourceManagerTestBase {
  protected:
   UrlLeftTrimFilterTest()
-      : left_trim_filter_(&html_parse_, NULL) {
-    html_parse_.AddFilter(&left_trim_filter_);
+      : left_trim_filter_(&rewrite_driver_, statistics_),
+        base_url_(NULL) {
+    rewrite_driver_.AddFilter(&left_trim_filter_);
+  }
+
+  ~UrlLeftTrimFilterTest() {
+    delete base_url_;
   }
 
   void OneTrim(bool changed,
-               const StringPiece init, const StringPiece expected) {
+               const StringPiece& init, const StringPiece& expected) {
     StringPiece url(init);
-    std::string trimmed;
-    EXPECT_EQ(changed, left_trim_filter_.Trim(left_trim_filter_.base_url_,
-                                              url, &trimmed,
-                                              html_parse_.message_handler()));
+    GoogleString trimmed;
+    CHECK(base_url_ != NULL);
+    EXPECT_EQ(changed, left_trim_filter_.Trim(
+        *base_url_, url, &trimmed,
+        rewrite_driver_.message_handler()));
     if (changed) {
       EXPECT_EQ(expected, trimmed);
     }
   }
 
   void SetFilterBaseUrl(const StringPiece& base_url) {
-    left_trim_filter_.SetBaseUrl(base_url);
+    if (base_url_ != NULL) {
+      delete base_url_;
+    }
+    base_url_ = new GoogleUrl(base_url);
   }
 
   virtual bool AddBody() const { return false; }
 
-  UrlLeftTrimFilter left_trim_filter_;
-
  private:
+  UrlLeftTrimFilter left_trim_filter_;
+  GoogleUrl *base_url_;
+
   DISALLOW_COPY_AND_ASSIGN(UrlLeftTrimFilterTest);
 };
 
@@ -69,7 +84,7 @@ TEST_F(UrlLeftTrimFilterTest, SimpleTrims) {
   OneTrim(true, "/baz/quux", "quux");
   OneTrim(true, "//foo.bar/img/img1.jpg", "/img/img1.jpg");
   OneTrim(false, "/img/img1.jpg", "/img/img1.jpg");
-  OneTrim(false, kHttp, kHttp);  //false, because /baz/ is 5 chars long
+  OneTrim(false, kHttp, kHttp);  // false, because /baz/ is 5 chars long
   OneTrim(true, "//foo.bar/baz/quux", "quux");
   OneTrim(false, "baz/img.jpg", "baz/img.jpg");
 }
@@ -88,7 +103,7 @@ TEST_F(UrlLeftTrimFilterTest, RootedTrims) {
 
 static const char kNone[] =
     "<head><base href='ftp://what.the/heck/'/>"
-    "<link src='http://what.the.cow/heck/'></head>"
+    "<link rel='stylesheet' href='http://what.the.cow/heck/'/></head>"
     "<body><a href='spdy://www.google.com/'>google</a>"
     "<img src='file:///where/the/heck.jpg'/></body>";
 
@@ -98,7 +113,7 @@ TEST_F(UrlLeftTrimFilterTest, NoChanges) {
 
 static const char kSome[] =
     "<head><base href='http://foo.bar/baz/'/>"
-    "<link src='http://foo.bar/baz/'></head>"
+    "<link rel='stylesheet' href='http://foo.bar/baz/'/></head>"
     "<body><a href='http://www.google.com/'>google</a>"
     "<img src='http://foo.bar/baz/nav.jpg'/>"
     "<img src='http://foo.bar/img/img1.jpg'/>"
@@ -108,7 +123,7 @@ static const char kSome[] =
 
 static const char kSomeRewritten[] =
     "<head><base href='http://foo.bar/baz/'/>"
-    "<link src='/baz/'></head>"
+    "<link rel='stylesheet' href='/baz/'/></head>"
     "<body><a href='//www.google.com/'>google</a>"
     "<img src='nav.jpg'/>"
     "<img src='/img/img1.jpg'/>"
@@ -165,9 +180,9 @@ TEST_F(UrlLeftTrimFilterTest, PartialUrl) {
   ValidateExpected("partial_url", kPartialUrl, kPartialUrlRewritten);
 }
 
-// TODO: in correct html, the base tag (with href) must come before any other
-// urls, thereby making them all relative to the same thing (i.e. the doc's
-// url if there is no base tag, and the base tag url if there is one).
+// TODO(nforman): in correct html, the base tag (with href) must come before
+// any other urls, thereby making them all relative to the same thing (i.e.
+// the doc's url if there is no base tag, and the base tag url if there is one).
 // However, different browsers deal with malformed html in different ways.
 // Some browsers change the base at the point of the base tag (Firefox),
 // and therefore will resolve the following (located at http://abc.com/foo.html)
@@ -185,16 +200,17 @@ TEST_F(UrlLeftTrimFilterTest, PartialUrl) {
 // giving http://www.google.com/imghp and http://www.google.com.
 // Furthermore, chrome and firefox handle the multiple base tags issue
 // differently.
-// Our current behavior is to use the last base url we've seen to resolve all
-// urls until we see another base tag.  If your page can't handle that, it
-// has bigger problems.
+// Our current behavior is to ignore any src or href attributes that come
+// before the base tag.
 static const char kMidBase[] =
-    "<head><link src='http://foo.bar/baz'>"
+    "<head><link rel='stylesheet' href='http://foo.bar/baz'/>"
+    "<a href='baz.html'>strange link in header</a>"
     "<base href='http://foo.bar'></head>"
-    "<body><img src='//foo.bar/img.jpg'</body>";
+    "<body><img src='//foo.bar/img.jpg'></body>";
 
 static const char kMidBaseRewritten[] =
-    "<head><link src='//foo.bar/baz'>"
+    "<head><link rel='stylesheet' href='http://foo.bar/baz'/>"
+    "<a href='baz.html'>strange link in header</a>"
     "<base href='http://foo.bar'></head>"
     "<body><img src='img.jpg'></body>";
 
@@ -234,6 +250,31 @@ TEST_F(UrlLeftTrimFilterTest, XKCD) {
 TEST_F(UrlLeftTrimFilterTest, OneDot) {
   SetFilterBaseUrl("http://foo.bar/baz/index.html");
   OneTrim(true, "./cows/index.html", "cows/index.html");
+}
+
+TEST_F(UrlLeftTrimFilterTest, Query) {
+  SetFilterBaseUrl("http://foo.bar/index.html");
+  OneTrim(true, "http://foo.bar/?a=b", "/?a=b");
+}
+
+TEST_F(UrlLeftTrimFilterTest, TrimQuery) {
+  SetFilterBaseUrl("http://foo.bar/baz/index.html");
+  OneTrim(true, "http://foo.bar/baz/other.html?a=b", "other.html?a=b");
+}
+
+TEST_F(UrlLeftTrimFilterTest, DoubleSlashPath) {
+  SetFilterBaseUrl("http://foo.bar/baz/index.html");
+  OneTrim(true, "http://foo.bar/baz//other.html", "/baz//other.html");
+}
+
+TEST_F(UrlLeftTrimFilterTest, DoubleSlashBeginningPath) {
+  SetFilterBaseUrl("http://foo.bar/index.html");
+  OneTrim(true, "http://foo.bar//other.html", "//foo.bar//other.html");
+}
+
+TEST_F(UrlLeftTrimFilterTest, TripleSlashPath) {
+  SetFilterBaseUrl("http://foo.bar/example/index.html");
+  OneTrim(true, "http://foo.bar/example///other.html", "/example///other.html");
 }
 
 static const char kBlankBase[] =

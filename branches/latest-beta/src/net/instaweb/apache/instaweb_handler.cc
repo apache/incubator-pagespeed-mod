@@ -18,12 +18,12 @@
 #include "net/instaweb/apache/instaweb_handler.h"
 
 #include "apr_strings.h"
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/apache/apache_slurp.h"
-#include "net/instaweb/apache/apr_statistics.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/instaweb_context.h"
@@ -36,7 +36,7 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
+#include "net/instaweb/util/public/shared_mem_statistics.h"
 #include "http_config.h"
 #include "http_core.h"
 #include "http_log.h"
@@ -56,9 +56,9 @@ bool IsCompressibleContentType(const char* content_type) {
   if (content_type == NULL) {
     return false;
   }
-  std::string type = content_type;
+  GoogleString type = content_type;
   size_t separator_idx = type.find(";");
-  if (separator_idx != std::string::npos) {
+  if (separator_idx != GoogleString::npos) {
     type.erase(separator_idx);
   }
 
@@ -83,7 +83,7 @@ bool IsCompressibleContentType(const char* content_type) {
 }
 
 // Default handler when the file is not found
-void instaweb_default_handler(const std::string& url, request_rec* request) {
+void instaweb_default_handler(const GoogleString& url, request_rec* request) {
   request->status = HTTP_NOT_FOUND;
   ap_set_content_type(request, "text/html; charset=utf-8");
   ap_rputs("<html><head><title>Not Found</title></head>", request);
@@ -97,7 +97,7 @@ void instaweb_default_handler(const std::string& url, request_rec* request) {
 void send_out_headers_and_body(
     request_rec* request,
     const ResponseHeaders& response_headers,
-    const std::string& output);
+    const GoogleString& output);
 
 // Determines whether the url can be handled as a mod_pagespeed resource,
 // and handles it, returning true.  A 'true' routine means that this
@@ -106,7 +106,7 @@ void send_out_headers_and_body(
 // in the status code in the response headers.
 bool handle_as_resource(ApacheRewriteDriverFactory* factory,
                         request_rec* request,
-                        const std::string& url) {
+                        const GoogleString& url) {
   RewriteDriver* rewrite_driver = factory->NewRewriteDriver();
 
   RequestHeaders request_headers;
@@ -121,7 +121,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
                           value);
     }
   }
-  std::string output;  // TODO(jmarantz): quit buffering resource output
+  GoogleString output;  // TODO(jmarantz): quit buffering resource output
   StringWriter writer(&output);
   MessageHandler* message_handler = factory->message_handler();
   SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
@@ -155,7 +155,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
     } else {
       message_handler->Message(kError, "Fetch failed for %s, status=%d",
                               url.c_str(), response_headers.status_code());
-      factory->Increment404Count();
+      rewrite_driver->resource_manager()->resource_404_count()->Add(1);
       instaweb_default_handler(url, request);
     }
   } else {
@@ -169,7 +169,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
 void send_out_headers_and_body(
     request_rec* request,
     const ResponseHeaders& response_headers,
-    const std::string& output) {
+    const GoogleString& output) {
   ResponseHeadersToApacheRequest(response_headers, request);
   if (response_headers.status_code() == HttpStatus::kOK &&
       IsCompressibleContentType(request->content_type)) {
@@ -212,11 +212,11 @@ apr_status_t instaweb_handler(request_rec* request) {
       InstawebContext::Factory(request->server);
 
   if (strcmp(request->handler, kStatisticsHandler) == 0) {
-    std::string output;
+    GoogleString output;
     ResponseHeaders response_headers;
     StringWriter writer(&output);
-    AprStatistics* statistics = factory->statistics();
-    if (statistics) {
+    Statistics* statistics = factory->statistics();
+    if (statistics != NULL) {
       statistics->Dump(&writer, factory->message_handler());
     } else {
       writer.Write("mod_pagespeed statistics is not enabled\n",
@@ -256,7 +256,7 @@ apr_status_t instaweb_handler(request_rec* request) {
   } else if (factory->slurping_enabled() || factory->test_proxy()) {
     SlurpUrl(factory, request);
     if (request->status == HTTP_NOT_FOUND) {
-      factory->IncrementSlurpCount();
+      factory->ComputeResourceManager()->slurp_404_count()->Add(1);
     }
     ret = OK;
   }
@@ -332,7 +332,7 @@ apr_status_t save_url_hook(request_rec *request) {
         InstawebContext::Factory(request->server);
     RewriteDriver* rewrite_driver = factory->NewRewriteDriver();
     RewriteFilter* filter;
-    scoped_ptr<OutputResource> output_resource(
+    OutputResourcePtr output_resource(
         rewrite_driver->DecodeOutputResource(url, &filter));
     if (output_resource.get() != NULL) {
       bypass_mod_rewrite = true;

@@ -18,10 +18,10 @@
 
 #include "net/instaweb/util/public/query_params.h"
 
-#include <stdio.h>
 #include <vector>
 #include "base/logging.h"
-#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -39,8 +39,8 @@ void QueryParams::Parse(const StringPiece& text) {
   }
 }
 
-std::string QueryParams::ToString() const {
-  std::string str;
+GoogleString QueryParams::ToString() const {
+  GoogleString str;
   const char* prefix="";
   for (int i = 0; i < size(); ++i) {
     if (value(i) == NULL) {

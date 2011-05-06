@@ -19,9 +19,11 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_GOOGLE_MESSAGE_HANDLER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_GOOGLE_MESSAGE_HANDLER_H_
 
-#include "base/basictypes.h"
+#include <cstdarg>
+
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -38,7 +40,7 @@ class GoogleMessageHandler : public MessageHandler {
                                 int line, const char* msg, va_list args);
 
  private:
-  std::string Format(const char* msg, va_list args);
+  GoogleString Format(const char* msg, va_list args);
 
   DISALLOW_COPY_AND_ASSIGN(GoogleMessageHandler);
 };

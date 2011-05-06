@@ -18,19 +18,25 @@
 
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 
-#include <stdio.h>
-#include "base/basictypes.h"
+#include <cstdio>
+#include <cstddef>                     // for size_t
+#include <set>
+#include <utility>                      // for pair
+#include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/http_response_parser.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
-#include "net/instaweb/http/public/http_response_parser.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/writer.h"
 #include "net/instaweb/util/stack_buffer.h"
@@ -86,8 +92,8 @@ HttpDumpUrlFetcher::~HttpDumpUrlFetcher() {
 }
 
 bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
-                                            const GURL& gurl,
-                                            std::string* filename,
+                                            const GoogleUrl& gurl,
+                                            GoogleString* filename,
                                             MessageHandler* handler) {
   bool ret = false;
   if (!EndsInSlash(root_dir)) {
@@ -102,32 +108,32 @@ bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
     // Seperate the url into domain and path.  Note: we ignore scheme, username,
     // password, port and ref (stuff after '#').
     // TODO(sligocki): Perhaps we should include these (except ref).
-    std::string domain = gurl.host();
-    std::string path = gurl.path();
+    StringPiece domain = gurl.Host();
+    GoogleString path(gurl.Path().data(), gurl.Path().length());
 
     // Add other bits of url used by latency lab.
-    if (!gurl.query().empty()) {  // Part after '?' in url.
+    if (!gurl.Query().empty()) {  // Part after '?' in url.
       path.append(1, '?');
-      path.append(gurl.query());
+      path.append(gurl.Query().data(), gurl.Query().length());
     }
 
     FilenameEncoder encoder;
-    const std::string prefix = StrCat(root_dir, domain);
+    const GoogleString prefix = StrCat(root_dir, domain);
     encoder.Encode(prefix, path, filename);  // Writes encoded filename.
   }
   return ret;
 }
 
 bool HttpDumpUrlFetcher::GetFilenamePrefixFromUrl(const StringPiece& root_dir,
-                                                  const GURL& url,
-                                                  std::string* filename,
+                                                  const GoogleUrl& url,
+                                                  GoogleString* filename,
                                                   MessageHandler* handler) {
-  handler->Check(EndsInSlash(StringPiece(url.spec())),
-                 "Prefix url must end in '/', was %s", url.spec().c_str());
+  handler->Check(EndsInSlash(url.Spec()),
+                 "Prefix url must end in '/', was %s", url.spec_c_str());
   bool ret = GetFilenameFromUrl(root_dir, url, filename, handler);
   if (ret) {
     size_t last_slash = filename->find_last_of('/');
-    CHECK(last_slash != std::string::npos);
+    CHECK(last_slash != GoogleString::npos);
     filename->resize(last_slash + 1);
   }
   return ret;
@@ -210,7 +216,7 @@ class HttpResponseWriter : public Writer {
   int gzip_content_length() const { return gzip_content_length_; }
 
  private:
-  std::string url_;
+  GoogleString url_;
   int content_length_;
   int gzip_content_length_;
   bool want_gzip_;
@@ -223,13 +229,13 @@ class HttpResponseWriter : public Writer {
 };
 
 bool HttpDumpUrlFetcher::StreamingFetchUrl(
-    const std::string& url, const RequestHeaders& request_headers,
+    const GoogleString& url, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, Writer* response_writer,
     MessageHandler* handler) {
   bool ret = false;
-  std::string filename;
-  GURL gurl(url);
-  if (gurl.is_valid() && gurl.IsStandard() &&
+  GoogleString filename;
+  GoogleUrl gurl(url);
+  if (gurl.is_valid() && gurl.is_standard() &&
       GetFilenameFromUrl(root_dir_, gurl, &filename, handler)) {
     NullMessageHandler null_handler;
     // Pass in NullMessageHandler so that we don't get errors for file not found
@@ -260,7 +266,7 @@ bool HttpDumpUrlFetcher::StreamingFetchUrl(
         }
         if (writer.gzip_content_length() != 0) {
           response_headers->Add(kGzipContentLengthAttribute, IntegerToString(
-              writer.gzip_content_length()).c_str());
+              writer.gzip_content_length()));
         }
         response_headers->ComputeCaching();
         ret = true;

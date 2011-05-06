@@ -21,21 +21,25 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_FETCHER_TEST_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_FETCHER_TEST_H_
 
-#include <algorithm>
 #include <utility>  // for pair
 #include <vector>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/logging.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class RequestHeaders;
+class SimpleStats;
+class Writer;
 
 class FetcherTest : public testing::Test {
  protected:
@@ -50,6 +54,9 @@ class FetcherTest : public testing::Test {
 
   FetcherTest() : mock_async_fetcher_(&mock_fetcher_) {}
 
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
   // Helpful classes for testing.
 
   // This mock fetcher will only fetch kGoodUrl, returning kHtmlContent.
@@ -59,7 +66,7 @@ class FetcherTest : public testing::Test {
     MockFetcher() : num_fetches_(0) {}
 
 
-    virtual bool StreamingFetchUrl(const std::string& url,
+    virtual bool StreamingFetchUrl(const GoogleString& url,
                                    const RequestHeaders& request_headers,
                                    ResponseHeaders* response_headers,
                                    Writer* response_writer,
@@ -84,7 +91,7 @@ class FetcherTest : public testing::Test {
     explicit MockAsyncFetcher(UrlFetcher* url_fetcher)
         : url_fetcher_(url_fetcher) {}
 
-    virtual bool StreamingFetch(const std::string& url,
+    virtual bool StreamingFetch(const GoogleString& url,
                                 const RequestHeaders& request_headers,
                                 ResponseHeaders* response_headers,
                                 Writer* response_writer,
@@ -119,7 +126,7 @@ class FetcherTest : public testing::Test {
 
     bool expect_success_;
     ResponseHeaders response_headers_;
-    std::string content_;
+    GoogleString content_;
     StringWriter content_writer_;
     bool* callback_called_;
 
@@ -128,7 +135,7 @@ class FetcherTest : public testing::Test {
   };
 
   static void ValidateMockFetcherResponse(
-      bool success, bool check_error_message, const std::string& content,
+      bool success, bool check_error_message, const GoogleString& content,
       const ResponseHeaders& response_headers);
 
   // Do a URL fetch, and return the number of times the mock fetcher
@@ -160,19 +167,20 @@ class FetcherTest : public testing::Test {
   };
 
 
-  std::string TestFilename() {
+  GoogleString TestFilename() {
     return (GTestSrcDir() +
             "/net/instaweb/http/testdata/google.http");
   }
 
   // This validation code is hard-coded to the http request capture in
   // testdata/google.http.
-  void ValidateOutput(const std::string& content,
+  void ValidateOutput(const GoogleString& content,
                       const ResponseHeaders& response_headers);
 
   GoogleMessageHandler message_handler_;
   MockFetcher mock_fetcher_;
   MockAsyncFetcher mock_async_fetcher_;
+  static SimpleStats* statistics_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FetcherTest);

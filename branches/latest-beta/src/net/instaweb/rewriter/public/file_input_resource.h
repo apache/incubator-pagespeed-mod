@@ -21,32 +21,37 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FILE_INPUT_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FILE_INPUT_RESOURCE_H_
 
-#include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class MessageHandler;
+class ResourceManager;
+struct ContentType;
 
 class FileInputResource : public Resource {
  public:
-  FileInputResource(ResourceManager* manager,
+  FileInputResource(ResourceManager* resource_manager,
                     const ContentType* type,
                     const StringPiece& url,
                     const StringPiece& filename)
-      : Resource(manager, type),
+      : Resource(resource_manager, type),
         url_(url.data(), url.size()),
         filename_(filename.data(), filename.size()) {
   }
 
   virtual ~FileInputResource();
 
-  virtual std::string url() const { return url_; }
+  virtual GoogleString url() const { return url_; }
 
  protected:
   virtual bool Load(MessageHandler* message_handler);
 
  private:
-  std::string url_;
-  std::string filename_;
+  GoogleString url_;
+  GoogleString filename_;
 
   DISALLOW_COPY_AND_ASSIGN(FileInputResource);
 };

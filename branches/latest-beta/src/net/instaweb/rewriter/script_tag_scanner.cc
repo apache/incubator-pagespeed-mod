@@ -18,13 +18,18 @@
 
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 
+#include <set>
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/util/public/atom.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 // The list is from HTML5, "4.3.1.1 Scripting languages"
+class HtmlParse;
+
 static const char* const javascript_mimetypes[] = {
   "application/ecmascript",
   "application/javascript",
@@ -45,8 +50,8 @@ static const char* const javascript_mimetypes[] = {
 };
 
 ScriptTagScanner::ScriptTagScanner(HtmlParse* html_parse) {
-  for (int i = 0; i < int(arraysize(javascript_mimetypes)); ++i) {
-    javascript_mimetypes_.insert(std::string(javascript_mimetypes[i]));
+  for (int i = 0; i < static_cast<int>(arraysize(javascript_mimetypes)); ++i) {
+    javascript_mimetypes_.insert(GoogleString(javascript_mimetypes[i]));
   }
 }
 
@@ -81,8 +86,8 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
     // Without type= the ultra-deprecated language attribute determines things.
     // empty or null one is ignored. The test is done case-insensitively,
     // but leading/trailing whitespace matters.
-    // (Note: null check on ->value() above as it's passed to std::string)
-    std::string lang_str = lang_attr->value();
+    // (Note: null check on ->value() above as it's passed to GoogleString)
+    GoogleString lang_str = lang_attr->value();
     LowerString(&lang_str);
     if (lang_str.empty() || IsJsMime(StrCat("text/", lang_str))) {
       lang = kJavaScript;
@@ -123,7 +128,7 @@ int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
     if (Normalized(for_attr->value()) != "window") {
       flags |= kExecuteForEvent;
     }
-    std::string event_str = Normalized(event_attr->value());
+    GoogleString event_str = Normalized(event_attr->value());
     if (event_str != "onload" && event_str != "onload()") {
       flags |= kExecuteForEvent;
     }
@@ -132,14 +137,14 @@ int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
   return flags;
 }
 
-std::string ScriptTagScanner::Normalized(const StringPiece& str) {
-  std::string normal_form;
+GoogleString ScriptTagScanner::Normalized(const StringPiece& str) {
+  GoogleString normal_form;
   TrimWhitespace(str, &normal_form);
   LowerString(&normal_form);
   return normal_form;
 }
 
-bool ScriptTagScanner::IsJsMime(const std::string& type_str) {
+bool ScriptTagScanner::IsJsMime(const GoogleString& type_str) {
   return javascript_mimetypes_.find(type_str) != javascript_mimetypes_.end();
 }
 

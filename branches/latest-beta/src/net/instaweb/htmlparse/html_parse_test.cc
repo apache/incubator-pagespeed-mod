@@ -19,11 +19,22 @@
 // Unit-test the html reader/writer to ensure that a few tricky
 // constructs come through without corruption.
 
-#include "base/basictypes.h"
-#include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/html_testing_peer.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_filter.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -100,11 +111,11 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
     }
   }
 
-  const std::string& value() { return value_; }
+  const GoogleString& value() { return value_; }
   virtual const char* Name() const { return "attr_saver"; }
 
  private:
-  std::string value_;
+  GoogleString value_;
 
   DISALLOW_COPY_AND_ASSIGN(AttrValuesSaverFilter);
 };
@@ -492,7 +503,7 @@ class EventListManipulationTest : public HtmlParseTest {
     HtmlParseTest::TearDown();
   }
 
-  void CheckExpected(const std::string& expected) {
+  void CheckExpected(const GoogleString& expected) {
     SetupWriter();
     html_parse()->ApplyFilter(html_writer_filter_.get());
     EXPECT_EQ(expected, output_buffer_);
@@ -723,6 +734,25 @@ TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
   CheckExpected("");
 }
 
+TEST_F(EventListManipulationTest, TestHasChildren) {
+  CheckExpected("1");
+  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  html_parse_.AddElement(div, -1);
+  EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
+  HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
+  HtmlTestingPeer testing_peer;
+  testing_peer.SetNodeParent(node2_, div);
+
+  // Despite having added a new element into the stream, the div is not
+  // closed yet, so it's not recognized as a child.
+  EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
+
+  html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
+  EXPECT_TRUE(html_parse_.HasChildrenInFlushWindow(div));
+  EXPECT_TRUE(html_parse_.DeleteElement(node2_));
+  EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
+}
+
 // Unit tests for attribute manipulation.
 // Goal is to make sure we don't (eg) read deallocated storage
 // while manipulating attribute values.
@@ -748,7 +778,7 @@ class AttributeManipulationTest : public HtmlParseTest {
     HtmlParseTest::TearDown();
   }
 
-  void CheckExpected(const std::string& expected) {
+  void CheckExpected(const GoogleString& expected) {
     SetupWriter();
     html_parse_.ApplyFilter(html_writer_filter_.get());
     EXPECT_EQ(expected, output_buffer_);
@@ -834,12 +864,12 @@ TEST_F(AttributeManipulationTest, CloneElement) {
   EXPECT_EQ(node_->close_style(), clone->close_style());
   EXPECT_EQ(3, clone->attribute_size());
   EXPECT_EQ(HtmlName::kHref, clone->attribute(0).keyword());
-  EXPECT_EQ(std::string("http://www.google.com/"),
+  EXPECT_EQ(GoogleString("http://www.google.com/"),
             clone->attribute(0).value());
   EXPECT_EQ(HtmlName::kId, clone->attribute(1).keyword());
-  EXPECT_EQ(std::string("37"), clone->attribute(1).value());
+  EXPECT_EQ(GoogleString("37"), clone->attribute(1).value());
   EXPECT_EQ(HtmlName::kClass, clone->attribute(2).keyword());
-  EXPECT_EQ(std::string("search!"), clone->attribute(2).value());
+  EXPECT_EQ(GoogleString("search!"), clone->attribute(2).value());
 
   HtmlElement::Attribute* id = clone->FindAttribute(HtmlName::kId);
   ASSERT_TRUE(id != NULL);

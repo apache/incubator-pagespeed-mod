@@ -18,12 +18,24 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
-#include "base/basictypes.h"
-#include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class RewriteFilter;
 
 class RewriteDriverTest : public ResourceManagerTestBase {
  protected:
@@ -31,12 +43,12 @@ class RewriteDriverTest : public ResourceManagerTestBase {
 
   bool CanDecodeUrl(const StringPiece& url) {
     RewriteFilter* filter;
-    scoped_ptr<OutputResource> resource(
+    OutputResourcePtr resource(
         rewrite_driver_.DecodeOutputResource(url, &filter));
     return (resource.get() != NULL);
   }
 
-  std::string BaseUrlSpec() {
+  GoogleString BaseUrlSpec() {
     return rewrite_driver_.base_url().Spec().as_string();
   }
 
@@ -68,19 +80,45 @@ TEST_F(RewriteDriverTest, TestLegacyUrl) {
       << "invalid extension";
 }
 
-// Test to make sure we do not put in extra things into the cache
+TEST_F(RewriteDriverTest, TestModernUrl) {
+  rewrite_driver_.AddFilters();
+
+  // Sanity-check on a valid one
+  EXPECT_TRUE(
+      CanDecodeUrl("http://example.com/Puzzle.jpg.pagespeed.ce.HASH.jpg"));
+
+  // Query is OK, too.
+  EXPECT_TRUE(
+      CanDecodeUrl("http://example.com/Puzzle.jpg.pagespeed.ce.HASH.jpg?s=ok"));
+
+  // Invalid filter code
+  EXPECT_FALSE(
+      CanDecodeUrl("http://example.com/Puzzle.jpg.pagespeed.nf.HASH.jpg"));
+
+  // Nonsense extension
+  EXPECT_FALSE(
+      CanDecodeUrl("http://example.com/Puzzle.jpg.pagespeed.ce.HASH.jpgif"));
+
+  // No hash
+  EXPECT_FALSE(
+      CanDecodeUrl("http://example.com/Puzzle.jpg.pagespeed.ce..jpg"));
+}
+
+// Test to make sure we do not put in extra things into the cache.
+// This is using the CSS rewriter, which caches the output.
 TEST_F(RewriteDriverTest, TestCacheUse) {
-  AddFilter(RewriteOptions::kExtendCache);
+  AddFilter(RewriteOptions::kRewriteCss);
 
   const char kCss[] = "* { display: none; }";
+  const char kMinCss[] = "*{display:none}";
   InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
 
-  std::string cacheExtendedUrl =
-      Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
-             mock_hasher_.Hash(kCss), "a.css", "css");
+  GoogleString cssMinifiedUrl =
+      Encode(kTestDomain, RewriteDriver::kCssFilterId,
+             mock_hasher_.Hash(kMinCss), "a.css", "css");
 
   // Cold load.
-  EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
+  EXPECT_TRUE(TryFetchResource(cssMinifiedUrl));
 
   // We should have 3 things inserted:
   // 1) the source data
@@ -90,10 +128,37 @@ TEST_F(RewriteDriverTest, TestCacheUse) {
   EXPECT_EQ(3, cold_num_inserts);
 
   // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
+  EXPECT_TRUE(TryFetchResource(cssMinifiedUrl));
   EXPECT_EQ(cold_num_inserts, lru_cache_->num_inserts());
   EXPECT_EQ(0, lru_cache_->num_identical_reinserts());
 }
+
+// Similar to the above, but with cache-extender which reconstructs on the fly.
+TEST_F(RewriteDriverTest, TestCacheUseOnTheFly) {
+  AddFilter(RewriteOptions::kExtendCache);
+
+  const char kCss[] = "* { display: none; }";
+  InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
+
+  GoogleString cacheExtendedUrl =
+      Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
+             mock_hasher_.Hash(kCss), "a.css", "css");
+
+  // Cold load.
+  EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
+
+  // We should have 2 things inserted:
+  // 1) the source data
+  // 2) the rname entry for the result
+  int cold_num_inserts = lru_cache_->num_inserts();
+  EXPECT_EQ(2, cold_num_inserts);
+
+  // Warm load. This one re-inserts in the rname entry, without changing it.
+  EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
+  EXPECT_EQ(cold_num_inserts, lru_cache_->num_inserts());
+  EXPECT_EQ(1, lru_cache_->num_identical_reinserts());
+}
+
 
 TEST_F(RewriteDriverTest, BaseTags) {
   // Starting the parse, the base-tag will be derived from the html url.
@@ -149,6 +214,74 @@ TEST_F(RewriteDriverTest, InvalidBaseTag) {
   rewrite_driver_.ParseText("<base href='http://example.com/absolute/'>");
   rewrite_driver_.Flush();
   EXPECT_EQ("http://example.com/absolute/", BaseUrlSpec());
+}
+
+TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
+  const ContentType* content_types[] = { NULL, &kContentTypeJpeg};
+  const OutputResourceKind resource_kinds[] = {
+    kRewrittenResource,
+    kOnTheFlyResource,
+    kOutlinedResource,
+  };
+
+  // short_path.size() < options_.max_url_size() < long_path.size()
+  GoogleString short_path = "http://www.example.com/dir/";
+  GoogleString long_path = short_path;
+  for (int i = 0; 2 * i < options_.max_url_size(); ++i) {
+    long_path += "z/";
+  }
+
+  // short_name.size() < options_.max_url_segment_size() < long_name.size()
+  GoogleString short_name = "foo.html";
+  GoogleString long_name =
+      StrCat("foo.html?",
+             GoogleString(options_.max_url_segment_size() + 1, 'z'));
+
+  GoogleString dummy_filter_id = "xy";
+
+  OutputResourcePtr resource;
+  for (int t = 0; t < arraysize(content_types); ++t) {
+    for (int k = 0; k < arraysize(resource_kinds); ++k) {
+      // Short name should always succeed at creating new resource.
+      resource.reset(rewrite_driver_.CreateOutputResourceWithPath(
+          short_path, dummy_filter_id, short_name,
+          content_types[t], resource_kinds[k]));
+      EXPECT_TRUE(NULL != resource.get());
+
+      // Long leaf-name should always fail at creating new resource.
+      resource.reset(rewrite_driver_.CreateOutputResourceWithPath(
+          short_path, dummy_filter_id, long_name,
+          content_types[t], resource_kinds[k]));
+      EXPECT_TRUE(NULL == resource.get());
+
+      // Long total URL length should always fail at creating new resource.
+      resource.reset(rewrite_driver_.CreateOutputResourceWithPath(
+          long_path, dummy_filter_id, short_name,
+          content_types[t], resource_kinds[k]));
+      EXPECT_TRUE(NULL == resource.get());
+    }
+  }
+}
+
+TEST_F(RewriteDriverTest, MultipleDomains) {
+  // Make sure we authorize domains for resources properly. This is a regression
+  // test for where loading things from a domain would prevent loads from an
+  // another domain from the same RewriteDriver.
+
+  const char kCss[] = "* { display: none; }";
+  const char kAltDomain[] = "http://www.example.co.uk/";
+  InitResponseHeaders(StrCat(kTestDomain, "a.css"), kContentTypeCss, kCss, 100);
+  InitResponseHeaders(StrCat(kAltDomain, "b.css"), kContentTypeCss, kCss, 100);
+
+  GoogleString rewritten1 = Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
+                                   mock_hasher_.Hash(kCss), "a.css", "css");
+
+  GoogleString rewritten2 = Encode(kAltDomain, RewriteDriver::kCacheExtenderId,
+                                   mock_hasher_.Hash(kCss), "b.css", "css");
+
+  EXPECT_TRUE(TryFetchResource(rewritten1));
+  rewrite_driver_.Clear();
+  EXPECT_TRUE(TryFetchResource(rewritten2));
 }
 
 }  // namespace net_instaweb

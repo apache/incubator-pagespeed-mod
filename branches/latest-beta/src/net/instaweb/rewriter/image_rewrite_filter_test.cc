@@ -16,13 +16,31 @@
 
 // Author: jmaessen@google.com (Jan Maessen)
 
-#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
-
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/rewriter/public/img_tag_scanner.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/image_tag_scanner.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/util/public/filename_encoder.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
 
@@ -31,30 +49,27 @@ namespace {
 // Filenames of resource files.
 const char kBikePngFile[] = "BikeCrashIcn.png";
 const char kPuzzleJpgFile[] = "Puzzle.jpg";
+const char kChefGifFile[] = "IronChef2.gif";
 
 class ImageRewriteTest : public ResourceManagerTestBase {
  protected:
   // Simple image rewrite test to check resource fetching functionality.
-  void RewriteImage(const std::string& tag_string) {
-    options_.EnableFilter(RewriteOptions::kRewriteImages);
-    options_.EnableFilter(RewriteOptions::kInsertImgDimensions);
-    options_.set_img_inline_max_bytes(2000);
+  void RewriteImage(const GoogleString& tag_string) {
+    options_.EnableFilter(RewriteOptions::kInsertImageDimensions);
+    options_.EnableFilter(RewriteOptions::kRecompressImages);
+    options_.set_image_inline_max_bytes(2000);
     rewrite_driver_.AddFilters();
-
-    AddOtherFilter(RewriteOptions::kRewriteImages);
 
     // URLs and content for HTML document and resources.
     const char domain[] = "http://rewrite_image.test/";
     const char html_url[] = "http://rewrite_image.test/RewriteImage.html";
     const char image_url[] = "http://rewrite_image.test/Puzzle.jpg";
 
-    const std::string image_html =
+    const GoogleString image_html =
         StrCat("<head/><body><", tag_string, " src=\"Puzzle.jpg\"/></body>");
 
     // Store image contents into fetcher.
-    const std::string image_filename =
-        StrCat(GTestSrcDir(), kTestData, "Puzzle.jpg");
-    AddFileToMockFetcher(image_url, image_filename, kContentTypeJpeg);
+    AddFileToMockFetcher(image_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
 
     // Rewrite the HTML page.
     ParseUrl(html_url, image_html);
@@ -62,21 +77,23 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     CollectImgSrcs("RewriteImage/collect_sources", output_buffer_, &img_srcs);
     // output_buffer_ should have exactly one image file (Puzzle.jpg).
     EXPECT_EQ(1UL, img_srcs.size());
-    const std::string& src_string = img_srcs[0];
+    const GoogleString& src_string = img_srcs[0];
+    // Make sure the next two checks won't abort().
+    ASSERT_LT(strlen(domain) + 4, src_string.size());
     EXPECT_EQ(domain, src_string.substr(0, strlen(domain)));
     EXPECT_EQ(".jpg", src_string.substr(src_string.size() - 4, 4));
 
-    std::string rewritten_data;
+    GoogleString rewritten_data;
 
-    const std::string expected_output =
+    const GoogleString expected_output =
         StrCat("<head/><body><", tag_string, " src=\"", src_string,
                "\" width=\"1023\" height=\"766\"/></body>");
     EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
 
-    std::string rewritten_filename;
+    GoogleString rewritten_filename;
     filename_encoder_.Encode(file_prefix_, src_string, &rewritten_filename);
 
-    std::string rewritten_image_data;
+    GoogleString rewritten_image_data;
     ASSERT_TRUE(file_system_.ReadFile(rewritten_filename.c_str(),
                                       &rewritten_image_data,
                                       &message_handler_));
@@ -84,11 +101,11 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     // Also fetch the resource to ensure it can be created dynamically
     RequestHeaders request_headers;
     ResponseHeaders response_headers;
-    std::string fetched_resource_content;
+    GoogleString fetched_resource_content;
     StringWriter writer(&fetched_resource_content);
-    DummyCallback dummy_callback(true);
+    ExpectCallback dummy_callback(true);
 
-    std::string headers;
+    GoogleString headers;
     AppendDefaultHeaders(kContentTypeJpeg, resource_manager_, &headers);
 
     writer.Write(headers, &message_handler_);
@@ -111,42 +128,42 @@ class ImageRewriteTest : public ResourceManagerTestBase {
         "In " << src_string;
 
     // Try to fetch from an independent server.
-    ServeResourceFromManyContexts(src_string, RewriteOptions::kRewriteImages,
+    ServeResourceFromManyContexts(src_string, RewriteOptions::kRecompressImages,
                                   &mock_hasher_,
                                   rewritten_image_data.substr(header_size));
   }
 
-  // Helper class to collect img srcs.
-  class ImgCollector : public EmptyHtmlFilter {
+  // Helper class to collect image srcs.
+  class ImageCollector : public EmptyHtmlFilter {
    public:
-    ImgCollector(HtmlParse* html_parse, StringVector* img_srcs)
+    ImageCollector(HtmlParse* html_parse, StringVector* img_srcs)
         : img_srcs_(img_srcs),
-          img_filter_(html_parse) {
+          image_filter_(html_parse) {
     }
 
     virtual void StartElement(HtmlElement* element) {
-      HtmlElement::Attribute* src = img_filter_.ParseImgElement(element);
+      HtmlElement::Attribute* src = image_filter_.ParseImageElement(element);
       if (src != NULL) {
         img_srcs_->push_back(src->value());
       }
     }
 
-    virtual const char* Name() const { return "ImgCollector"; }
+    virtual const char* Name() const { return "ImageCollector"; }
 
    private:
     StringVector* img_srcs_;
-    ImgTagScanner img_filter_;
+    ImageTagScanner image_filter_;
 
-    DISALLOW_COPY_AND_ASSIGN(ImgCollector);
+    DISALLOW_COPY_AND_ASSIGN(ImageCollector);
   };
 
   // Fills `img_srcs` with the urls in img src attributes in `html`
   void CollectImgSrcs(const StringPiece& id, const StringPiece& html,
-                       StringVector* img_srcs) {
+                        StringVector* img_srcs) {
     HtmlParse html_parse(&message_handler_);
-    ImgCollector collector(&html_parse, img_srcs);
+    ImageCollector collector(&html_parse, img_srcs);
     html_parse.AddFilter(&collector);
-    std::string dummy_url = StrCat("http://collect.css.links/", id, ".html");
+    GoogleString dummy_url = StrCat("http://collect.css.links/", id, ".html");
     html_parse.StartParse(dummy_url);
     html_parse.ParseText(html.data(), html.size());
     html_parse.FinishParse();
@@ -170,61 +187,108 @@ class ImageRewriteTest : public ResourceManagerTestBase {
         "GQR9ZCRVDhbl1RtIoNngBC/yzozLJqLwUQqCjotTPR1fTnxVTBs3ra89T6/ikHfgK9"
         "dQa+t1eS//gJVB8WUCgnLYHaYwIAeaQp0GC25S8cG9cWiOrm+AHrnhMJBLplmwLkE8"
         "kEenp/8oyIBf2ZEWaEfyv8BsICdAZ/XeTCAAAAAElFTkSuQmCC";
-    std::string cuppa_string(kCuppaData);
-    scoped_ptr<Resource> cuppa_resource(
+    GoogleString cuppa_string(kCuppaData);
+    ResourcePtr cuppa_resource(
         rewrite_driver_.CreateInputResourceAbsoluteUnchecked(cuppa_string));
-    ASSERT_TRUE(cuppa_resource != NULL);
-    EXPECT_TRUE(rewrite_driver_.ReadIfCached(cuppa_resource.get()));
-    std::string cuppa_contents;
+    ASSERT_TRUE(cuppa_resource.get() != NULL);
+    EXPECT_TRUE(rewrite_driver_.ReadIfCached(cuppa_resource));
+    GoogleString cuppa_contents;
     cuppa_resource->contents().CopyToString(&cuppa_contents);
     // Now make sure axing the original cuppa_string doesn't affect the
     // internals of the cuppa_resource.
-    scoped_ptr<Resource> other_resource(
+    ResourcePtr other_resource(
         rewrite_driver_.CreateInputResourceAbsoluteUnchecked(cuppa_string));
-    ASSERT_TRUE(other_resource != NULL);
+    ASSERT_TRUE(other_resource.get() != NULL);
     cuppa_string.clear();
-    EXPECT_TRUE(rewrite_driver_.ReadIfCached(other_resource.get()));
-    std::string other_contents;
+    EXPECT_TRUE(rewrite_driver_.ReadIfCached(other_resource));
+    GoogleString other_contents;
     cuppa_resource->contents().CopyToString(&other_contents);
     ASSERT_EQ(cuppa_contents, other_contents);
   }
 
   // Helper to test for how we handle trailing junk in URLs
   void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
-    const char kHtml[] = "<img src=\"a.jpg\"><img src=\"b.png\">";
-    AddFileToMockFetcher(StrCat(kTestDomain, "a.jpg"),
-                        StrCat(GTestSrcDir(), kTestData, kPuzzleJpgFile),
-                        kContentTypeJpeg);
+    const char kHtml[] =
+        "<img src=\"a.jpg\"><img src=\"b.png\"><img src=\"c.gif\">";
+    AddFileToMockFetcher(StrCat(kTestDomain, "a.jpg"), kPuzzleJpgFile,
+                         kContentTypeJpeg, 100);
 
-    AddFileToMockFetcher(StrCat(kTestDomain, "b.png"),
-                        StrCat(GTestSrcDir(), kTestData, kBikePngFile),
-                        kContentTypeJpeg);
+    AddFileToMockFetcher(StrCat(kTestDomain, "b.png"), kBikePngFile,
+                         kContentTypePng, 100);
 
-    AddFilter(RewriteOptions::kRewriteImages);
+    AddFileToMockFetcher(StrCat(kTestDomain, "c.gif"), kChefGifFile,
+                         kContentTypeGif, 100);
+
+    AddFilter(RewriteOptions::kRecompressImages);
 
     StringVector img_srcs;
-    ImgCollector img_collect(&rewrite_driver_, &img_srcs);
-    rewrite_driver_.AddFilter(&img_collect);
+    ImageCollector image_collect(&rewrite_driver_, &img_srcs);
+    rewrite_driver_.AddFilter(&image_collect);
 
     ParseUrl(kTestDomain, kHtml);
-    ASSERT_EQ(2, img_srcs.size());
-    std::string normal_output = output_buffer_;
-    std::string url1 = img_srcs[0];
-    std::string url2 = img_srcs[1];
+    ASSERT_EQ(3, img_srcs.size());
+    GoogleString normal_output = output_buffer_;
+    GoogleString url1 = img_srcs[0];
+    GoogleString url2 = img_srcs[1];
+    GoogleString url3 = img_srcs[2];
 
     // Fetch messed up versions. Currently image rewriter doesn't actually
     // fetch them.
-    std::string out;
+    GoogleString out;
     EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(url1, junk), &out));
     EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(url2, junk), &out));
+    EXPECT_EQ(should_fetch_ok, ServeResourceUrl(StrCat(url3, junk), &out));
 
     // Now run through again to make sure we didn't cache the messed up URL
     img_srcs.clear();
     ParseUrl(kTestDomain, kHtml);
     EXPECT_EQ(normal_output, output_buffer_);
-    ASSERT_EQ(2, img_srcs.size());
+    ASSERT_EQ(3, img_srcs.size());
     EXPECT_EQ(url1, img_srcs[0]);
     EXPECT_EQ(url2, img_srcs[1]);
+    EXPECT_EQ(url3, img_srcs[2]);
+  }
+
+  // Fetch a simple document referring to an image with filename "name" on a
+  // mock domain.  Check that final dimensions are as expected, that rewriting
+  // occurred as expected, and that inlining occurred if that was anticipated.
+  // Assumes rewrite_driver has already been appropriately configured for the
+  // image rewrites under test.
+  void TestSingleRewrite(const StringPiece& name,
+                         const ContentType& content_type,
+                         const char* initial_dims, const char* final_dims,
+                         bool expect_rewritten, bool expect_inline) {
+    const char domain[] = "http://single_rewrite.test/";
+    GoogleString initial_url = StrCat(domain, name);
+    GoogleString page_url = StrCat(domain, "test.html");
+    AddFileToMockFetcher(initial_url, name, content_type, 100);
+
+    const char html_boilerplate[] = "<img src='%s'%s>";
+    GoogleString html_input =
+        StringPrintf(html_boilerplate, initial_url.c_str(), initial_dims);
+
+    ParseUrl(page_url, html_input);
+
+    // Check for single image file in the rewritten page.
+    StringVector image_urls;
+    CollectImgSrcs(initial_url, output_buffer_, &image_urls);
+    EXPECT_EQ(1, image_urls.size());
+    const GoogleString& rewritten_url = image_urls[0];
+    const GoogleUrl rewritten_gurl(rewritten_url);
+    EXPECT_TRUE(rewritten_gurl.is_valid());
+
+    if (expect_inline) {
+      EXPECT_TRUE(rewritten_gurl.SchemeIs("data"))
+          << rewritten_gurl.spec_c_str();
+    } else if (expect_rewritten) {
+      EXPECT_NE(initial_url, rewritten_url);
+    } else {
+      EXPECT_EQ(initial_url, rewritten_url);
+    }
+
+    GoogleString html_expected_output =
+        StringPrintf(html_boilerplate, rewritten_url.c_str(), final_dims);
+    EXPECT_EQ(AddHtmlBody(html_expected_output), output_buffer_);
   }
 };
 
@@ -240,75 +304,139 @@ TEST_F(ImageRewriteTest, DataUrlTest) {
   DataUrlResource();
 }
 
+TEST_F(ImageRewriteTest, AddDimTest) {
+  // Make sure optimizable image isn't optimized, but
+  // dimensions are inserted.
+  options_.EnableFilter(RewriteOptions::kInsertImageDimensions);
+  rewrite_driver_.AddFilters();
+  TestSingleRewrite(kBikePngFile, kContentTypePng,
+                    "", " width=\"100\" height=\"100\"", false, false);
+}
+
+TEST_F(ImageRewriteTest, ResizeTest) {
+  // Make sure we resize images, but don't optimize them in place.
+  options_.EnableFilter(RewriteOptions::kResizeImages);
+  rewrite_driver_.AddFilters();
+  const char kResizedDims[] = " width=\"256\" height=\"192\"";
+  // Without explicit resizing, we leave the image alone.
+  TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg,
+                    "", "", false, false);
+  // With resizing, we optimize.
+  TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg,
+                    kResizedDims, kResizedDims, true, false);
+}
+
+TEST_F(ImageRewriteTest, InlineTest) {
+  // Make sure we resize and inline images, but don't optimize them in place.
+  options_.set_image_inline_max_bytes(10000);
+  options_.EnableFilter(RewriteOptions::kResizeImages);
+  options_.EnableFilter(RewriteOptions::kInlineImages);
+  options_.EnableFilter(RewriteOptions::kInsertImageDimensions);
+  rewrite_driver_.AddFilters();
+  const char kChefDims[] = " width=\"192\" height=\"256\"";
+  const char kResizedDims[] = " width=48 height=64";
+  // Without resize, it's not optimizable.
+  TestSingleRewrite(kChefGifFile, kContentTypeGif,
+                    "", kChefDims, false, false);
+  // With resize, the image shrinks quite a bit, and we can inline it
+  // given the 10K threshold explicitly set above.  This also strips the
+  // size information, which is now embedded in the image itself anyway.
+  TestSingleRewrite(kChefGifFile, kContentTypeGif,
+                    kResizedDims, "", true, true);
+}
+
+TEST_F(ImageRewriteTest, InlineNoRewrite) {
+  // Make sure we inline an image that isn't otherwise altered in any way.
+  options_.set_image_inline_max_bytes(30000);
+  options_.EnableFilter(RewriteOptions::kInlineImages);
+  rewrite_driver_.AddFilters();
+  const char kChefDims[] = " width=192 height=256";
+  // This image is just small enough to inline, which also erases
+  // dimension information.
+  TestSingleRewrite(kChefGifFile, kContentTypeGif,
+                    kChefDims, "", false, true);
+  // This image is too big to inline, and we don't insert missing
+  // dimension information because that is not explicitly enabled.
+  TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg,
+                    "", "", false, false);
+}
+
 TEST_F(ImageRewriteTest, RespectsBaseUrl) {
   // Put original files into our fetcher.
   const char html_url[] = "http://image.test/base_url.html";
   const char png_url[]  = "http://other_domain.test/foo/bar/a.png";
   const char jpeg_url[] = "http://other_domain.test/baz/b.jpeg";
+  const char gif_url[]  = "http://other_domain.test/foo/c.gif";
 
-  AddFileToMockFetcher(png_url,
-                       StrCat(GTestSrcDir(), kTestData, kBikePngFile),
-                       kContentTypePng);
-  AddFileToMockFetcher(jpeg_url,
-                       StrCat(GTestSrcDir(), kTestData, kPuzzleJpgFile),
-                       kContentTypeJpeg);
+  AddFileToMockFetcher(png_url, kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher(jpeg_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
+  AddFileToMockFetcher(gif_url, kChefGifFile, kContentTypeGif, 100);
 
-  // Second stylesheet is on other domain.
-  const char html_input[] =
+  // First two images are on base domain.  Last is on origin domain.
+  const char html_format[] =
       "<head>\n"
       "  <base href='http://other_domain.test/foo/'>\n"
       "</head>\n"
       "<body>\n"
-      "  <img src='bar/a.png'>\n"
-      "  <img src='/baz/b.jpeg'>\n"
+      "  <img src='%s'>\n"
+      "  <img src='%s'>\n"
+      "  <img src='%s'>\n"
       "</body>";
+
+  GoogleString html_input =
+      StringPrintf(html_format, "bar/a.png", "/baz/b.jpeg", "c.gif");
 
   // Rewrite
-  AddFilter(RewriteOptions::kRewriteImages);
+  AddFilter(RewriteOptions::kRecompressImages);
   ParseUrl(html_url, html_input);
 
-  // Check for CSS files in the rewritten page.
+  // Check for image files in the rewritten page.
   StringVector image_urls;
   CollectImgSrcs("base_url-links", output_buffer_, &image_urls);
-  EXPECT_EQ(2UL, image_urls.size());
-  const std::string& new_png_url = image_urls[0];
-  const std::string& new_jpeg_url = image_urls[1];
+  EXPECT_EQ(3UL, image_urls.size());
+  const GoogleString& new_png_url = image_urls[0];
+  const GoogleString& new_jpeg_url = image_urls[1];
+  const GoogleString& new_gif_url = image_urls[2];
 
   // Sanity check that we changed the URL.
-  EXPECT_NE("a.png", new_png_url);
-  EXPECT_NE("b.jpeg", new_jpeg_url);
+  EXPECT_NE("bar/a.png", new_png_url);
+  EXPECT_NE("/baz/b.jpeg", new_jpeg_url);
+  EXPECT_NE("c.gif", new_gif_url);
 
-  LOG(INFO) << "new_png_url: " << new_png_url;
-  LOG(INFO) << "new_jpeg_url: " << new_jpeg_url;
-
-  const char expected_output_format[] =
-      "<head>\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "</head>\n"
-      "<body>\n"
-      "  <img src='%s'>\n"
-      "  <img src='%s'>\n"
-      "</body>";
-  std::string expected_output = StringPrintf(expected_output_format,
-                                              new_png_url.c_str(),
-                                              new_jpeg_url.c_str());
+  GoogleString expected_output =
+      StringPrintf(html_format, new_png_url.c_str(),
+                   new_jpeg_url.c_str(), new_gif_url.c_str());
 
   EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
 
-  GURL new_png_gurl = GoogleUrl::Create(new_png_url);
+  GoogleUrl new_png_gurl(new_png_url);
   EXPECT_TRUE(new_png_gurl.is_valid());
-  EXPECT_EQ("other_domain.test", new_png_gurl.host());
+  if (new_png_gurl.is_valid()) {
+    // Will fail otherwise.
+    EXPECT_EQ("other_domain.test", new_png_gurl.Host());
+    EXPECT_EQ("/foo/bar/", new_png_gurl.PathSansLeaf());
+  }
 
-  GURL new_jpeg_gurl = GoogleUrl::Create(new_jpeg_url);
+  GoogleUrl new_jpeg_gurl(new_jpeg_url);
   EXPECT_TRUE(new_jpeg_gurl.is_valid());
-  EXPECT_EQ("other_domain.test", new_jpeg_gurl.host());
+  if (new_jpeg_gurl.is_valid()) {
+    EXPECT_EQ("other_domain.test", new_jpeg_gurl.Host());
+    EXPECT_EQ("/baz/", new_jpeg_gurl.PathSansLeaf());
+  }
+
+  GoogleUrl new_gif_gurl(new_gif_url);
+  EXPECT_TRUE(new_gif_gurl.is_valid());
+  if (new_gif_gurl.is_valid()) {
+    EXPECT_EQ("other_domain.test", new_gif_gurl.Host());
+    EXPECT_EQ("/foo/", new_gif_gurl.PathSansLeaf());
+  }
 }
 
 TEST_F(ImageRewriteTest, FetchInvalid) {
   // Make sure that fetching invalid URLs cleanly reports a problem by
   // calling Done(false).
-  AddFilter(RewriteOptions::kRewriteImages);
-  std::string out;
+  AddFilter(RewriteOptions::kRecompressImages);
+  GoogleString out;
   EXPECT_FALSE(
       ServeResourceUrl(
           "http://www.example.com/70x53x,.pagespeed.ic.ABCDEFGHIJ.jpg", &out));
@@ -323,12 +451,11 @@ TEST_F(ImageRewriteTest, NoQueryCorruption) {
 }
 
 TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
-  options_.EnableFilter(RewriteOptions::kRewriteImages);
-  options_.EnableFilter(RewriteOptions::kInsertImgDimensions);
+  options_.EnableFilter(RewriteOptions::kRecompressImages);
+  options_.EnableFilter(RewriteOptions::kInsertImageDimensions);
   rewrite_driver_.AddFilters();
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"),
-                       StrCat(GTestSrcDir(), kTestData, kBikePngFile),
-                       kContentTypePng);
+  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
+                       kContentTypePng, 100);
 
   ParseUrl(kTestDomain, "<img width=0 height=0 src=\"a.png\">");
   ParseUrl(kTestDomain, "<img width=0 height=42 src=\"a.png\">");

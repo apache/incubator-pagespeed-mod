@@ -19,8 +19,7 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_URL_ESCAPER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_URL_ESCAPER_H_
 
-#include "net/instaweb/util/public/url_segment_encoder.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -45,25 +44,15 @@ In the meantime we can replace . with ^ in this encoder so the they
 don't change size.  So the transform table is:
 
 a-zA-Z0-9_=+-&? unchanged
-%               %%
-/               %_
-\               %-
-http://         %h
-.com            %c
-.css            %s
-.edu            %e
-.gif            %g
-.html           %t
-.jpeg           %k
-.jpg            %j
-.js             %l
-.net            %n
-.png            %p
-www.            %w
-.               ^
-^               %^
+http://         ,h
+%               ,P
+/               ,_
+\               ,-
+,               ,
+?               ,q
+&               ,a
 
-everything else  %XX  where xx are hex digits using capital latters
+everything else ,XX  where xx are hex digits using capital latters
 
 
 The intent of this class to to help encode arbitrary URLs (really, any
@@ -72,14 +61,12 @@ used in one 'segment' of a new URL.  This means we will not output
 . or / but will instead escape those.
 */
 
-class UrlEscaper : public UrlSegmentEncoder {
- public:
-  virtual ~UrlEscaper();
-  virtual void EncodeToUrlSegment(
-      const StringPiece& in, std::string* url_segment);
-  virtual bool DecodeFromUrlSegment(
-      const StringPiece& url_segment, std::string* out);
-};
+namespace UrlEscaper {
+
+void EncodeToUrlSegment(const StringPiece& in, GoogleString* url_segment);
+bool DecodeFromUrlSegment(const StringPiece& url_segment, GoogleString* out);
+
+}  // namespace UrlEscaper
 
 }  // namespace net_instaweb
 

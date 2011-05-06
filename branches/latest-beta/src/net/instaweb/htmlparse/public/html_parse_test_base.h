@@ -21,16 +21,15 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_PARSE_TEST_BASE_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_PARSE_TEST_BASE_H_
 
-#include <string>
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
-#include "net/instaweb/htmlparse/html_testing_peer.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
@@ -70,8 +69,8 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
     directive.CopyToString(&doctype_string_);
   }
 
-  std::string AddHtmlBody(const std::string& html) {
-    std::string ret = AddBody() ? "<html><body>\n" : "<html>\n";
+  GoogleString AddHtmlBody(const GoogleString& html) {
+    GoogleString ret = AddBody() ? "<html><body>\n" : "<html>\n";
     ret += html + (AddBody() ? "\n</body></html>\n" : "\n</html>");
     return ret;
   }
@@ -79,13 +78,13 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   // Check that the output HTML is serialized to string-compare
   // precisely with the input.
   void ValidateNoChanges(const StringPiece& case_id,
-                         const std::string& html_input) {
+                         const GoogleString& html_input) {
     ValidateExpected(case_id, html_input, html_input);
   }
 
   // Fail to ValidateNoChanges.
   void ValidateNoChangesFail(const StringPiece& case_id,
-                             const std::string& html_input) {
+                             const GoogleString& html_input) {
     ValidateExpectedFail(case_id, html_input, html_input);
   }
 
@@ -99,15 +98,15 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   }
 
   // Parse html_input, the result is stored in output_buffer_.
-  void Parse(const StringPiece& case_id, const std::string& html_input) {
+  void Parse(const StringPiece& case_id, const GoogleString& html_input) {
     // HtmlParser needs a valid HTTP URL to evaluate relative paths,
     // so we create a dummy URL.
-    std::string dummy_url = StrCat(kTestDomain, case_id, ".html");
+    GoogleString dummy_url = StrCat(kTestDomain, case_id, ".html");
     ParseUrl(dummy_url, html_input);
   }
 
   // Parse given an explicit URL rather than an id to build URL around.
-  void ParseUrl(const StringPiece& url, const std::string& html_input) {
+  void ParseUrl(const StringPiece& url, const GoogleString& html_input) {
     // We don't add the filter in the constructor because it needs to be the
     // last filter added.
     SetupWriter();
@@ -119,30 +118,30 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   // Validate that the output HTML serializes as specified in
   // 'expected', which might not be identical to the input.
   void ValidateExpected(const StringPiece& case_id,
-                        const std::string& html_input,
-                        const std::string& expected) {
+                        const GoogleString& html_input,
+                        const GoogleString& expected) {
     Parse(case_id, html_input);
-    std::string xbody = doctype_string_ + AddHtmlBody(expected);
+    GoogleString xbody = doctype_string_ + AddHtmlBody(expected);
     EXPECT_EQ(xbody, output_buffer_);
     output_buffer_.clear();
   }
 
   // Same as ValidateExpected, but with an explicit URL rather than an id.
   void ValidateExpectedUrl(const StringPiece& url,
-                           const std::string& html_input,
-                           const std::string& expected) {
+                           const GoogleString& html_input,
+                           const GoogleString& expected) {
     ParseUrl(url, html_input);
-    std::string xbody = doctype_string_ + AddHtmlBody(expected);
+    GoogleString xbody = doctype_string_ + AddHtmlBody(expected);
     EXPECT_EQ(xbody, output_buffer_);
     output_buffer_.clear();
   }
 
   // Fail to ValidateExpected.
   void ValidateExpectedFail(const StringPiece& case_id,
-                            const std::string& html_input,
-      const std::string& expected) {
+                            const GoogleString& html_input,
+      const GoogleString& expected) {
     Parse(case_id, html_input);
-    std::string xbody = AddHtmlBody(expected);
+    GoogleString xbody = AddHtmlBody(expected);
     EXPECT_NE(xbody, output_buffer_);
     output_buffer_.clear();
   }
@@ -151,10 +150,10 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
 
   MockMessageHandler message_handler_;
   StringWriter write_to_string_;
-  std::string output_buffer_;
+  GoogleString output_buffer_;
   bool added_filter_;
   scoped_ptr<HtmlWriterFilter> html_writer_filter_;
-  std::string doctype_string_;
+  GoogleString doctype_string_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HtmlParseTestBaseNoAlloc);

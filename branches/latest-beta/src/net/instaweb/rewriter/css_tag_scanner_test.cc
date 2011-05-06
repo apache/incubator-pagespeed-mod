@@ -20,15 +20,16 @@
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 
-#include <string>
-#include "base/basictypes.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-
-#include "net/instaweb/util/public/google_url.h"
 
 namespace net_instaweb {
 
@@ -46,14 +47,14 @@ class CssTagScannerTest : public testing::Test {
     Check(value, value);
   }
 
-  void CheckGurlResolve(const GURL& base, const char* relative_path,
+  void CheckGurlResolve(const GoogleUrl& base, const char* relative_path,
                         const char* abs_path) {
-    GURL resolved = base.Resolve(relative_path);
+    GoogleUrl resolved(base, relative_path);
     EXPECT_TRUE(resolved.is_valid());
-    EXPECT_EQ(std::string(abs_path), resolved.spec());
+    EXPECT_EQ(resolved.Spec(), abs_path);
   }
 
-  std::string output_buffer_;
+  GoogleString output_buffer_;
   StringWriter writer_;
   GoogleMessageHandler message_handler_;
 
@@ -110,16 +111,16 @@ TEST_F(CssTagScannerTest, TestAbsolutifyUrls2Relative1Abs) {
         "url(http://a/3.png) d");
 }
 
-// This test verifies that we understand how GURL::Resolve works.
+// This test verifies that we understand how Resolve works.
 TEST_F(CssTagScannerTest, TestGurl) {
-  GURL base_slash("http://base/");
+  GoogleUrl base_slash("http://base/");
   EXPECT_TRUE(base_slash.is_valid());
   CheckGurlResolve(base_slash, "r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "/r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "../r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "./r/path.ext", "http://base/r/path.ext");
 
-  GURL base_no_slash("http://base");
+  GoogleUrl base_no_slash("http://base");
   EXPECT_TRUE(base_no_slash.is_valid());
   CheckGurlResolve(base_no_slash, "r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_no_slash, "/r/path.ext", "http://base/r/path.ext");
@@ -142,8 +143,8 @@ TEST_F(CssTagScannerTest, TestFull) {
 
   // We can parse css even lacking a 'type' attribute.  Default to text/css.
   EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
-  EXPECT_EQ("", std::string(media));
-  EXPECT_EQ(kUrl, std::string(href->value()));
+  EXPECT_EQ("", GoogleString(media));
+  EXPECT_EQ(kUrl, GoogleString(href->value()));
 
   // Add an unexpected attribute.  Now we don't know what to do with it.
   link->AddAttribute(html_parse.MakeName("other"), "value", "\"");
@@ -155,14 +156,14 @@ TEST_F(CssTagScannerTest, TestFull) {
   html_parse.SetAttributeName(attr, HtmlName::kType);
   attr->SetValue("text/css");
   EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
-  EXPECT_EQ("", std::string(media));
-  EXPECT_EQ(kUrl, std::string(href->value()));
+  EXPECT_EQ("", GoogleString(media));
+  EXPECT_EQ(kUrl, GoogleString(href->value()));
 
   // Add a media attribute.  It should still pass, yielding media.
   html_parse.AddAttribute(link, HtmlName::kMedia, kPrint);
   EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
-  EXPECT_EQ(kPrint, std::string(media));
-  EXPECT_EQ(kUrl, std::string(href->value()));
+  EXPECT_EQ(kPrint, GoogleString(media));
+  EXPECT_EQ(kUrl, GoogleString(href->value()));
 
   // TODO(jmarantz): test removal of 'rel' and 'href' attributes
 }
@@ -185,7 +186,7 @@ TEST_F(CssTagScannerTest, TestHasImport) {
       "@charset 'iso-8859-1';\n"
       "@impor", &message_handler_));
   // Make sure we aren't overflowing the buffer.
-  std::string import_string = "@import";
+  GoogleString import_string = "@import";
   StringPiece truncated_import(import_string.data(), import_string.size() - 1);
   EXPECT_FALSE(CssTagScanner::HasImport(truncated_import, &message_handler_));
 

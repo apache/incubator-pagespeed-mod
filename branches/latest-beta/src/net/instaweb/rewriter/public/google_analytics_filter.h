@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,18 +50,20 @@
 
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-class MessageHandler;
-class MetaData;
-class OutputResource;
-class ResourceManager;
+class HtmlCdataNode;
+class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlElement;
+class HtmlIEDirectiveNode;
+class HtmlParse;
 class Statistics;
 class Variable;
 
@@ -76,8 +78,8 @@ class ScriptEditor {
   };
   ScriptEditor(HtmlElement* script_element_,
                HtmlCharactersNode* characters_node,
-               std::string::size_type pos,
-               std::string::size_type len,
+               GoogleString::size_type pos,
+               GoogleString::size_type len,
                Type editor_type);
 
   HtmlElement* GetScriptElement() const { return script_element_; }
@@ -87,14 +89,14 @@ class ScriptEditor {
   Type GetType() const { return editor_type_; }
 
   void NewContents(const StringPiece &replacement,
-                   std::string* contents) const;
+                   GoogleString* contents) const;
 
  private:
   HtmlElement* script_element_;
   HtmlCharactersNode* script_characters_node_;
 
-  std::string::size_type pos_;
-  std::string::size_type len_;
+  GoogleString::size_type pos_;
+  GoogleString::size_type len_;
 
   Type editor_type_;
   DISALLOW_COPY_AND_ASSIGN(ScriptEditor);
@@ -142,16 +144,16 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
   void ResetFilter();
 
   bool MatchSyncLoad(StringPiece contents,
-                     std::string::size_type &pos,
-                     std::string::size_type &len) const;
+                     GoogleString::size_type &pos,
+                     GoogleString::size_type &len) const;
   bool MatchSyncInit(StringPiece contents,
-                     std::string::size_type start_pos,
-                     std::string::size_type &pos,
-                     std::string::size_type &len) const;
+                     GoogleString::size_type start_pos,
+                     GoogleString::size_type &pos,
+                     GoogleString::size_type &len) const;
   bool MatchUnhandledCalls(StringPiece contents,
-                           std::string::size_type start_pos) const;
+                           GoogleString::size_type start_pos) const;
   void FindRewritableScripts();
-  void GetSyncToAsyncScript(std::string *buffer) const;
+  void GetSyncToAsyncScript(GoogleString *buffer) const;
   bool RewriteAsAsync();
 
   bool is_load_found_;

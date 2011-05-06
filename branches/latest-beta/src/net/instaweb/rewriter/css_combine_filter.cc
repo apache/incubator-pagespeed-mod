@@ -15,26 +15,37 @@
  */
 
 // Author: jmarantz@google.com (Joshua Marantz)
+//
+// Contains implementation of CssCombineFilter, which concatenates multiple
+// CSS files into one. Implemented in part via delegating to
+// CssCombineFilter::CssCombiner, a ResourceCombiner subclass.
 
 #include "net/instaweb/rewriter/public/css_combine_filter.h"
 
 #include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/resource_combiner_template.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/stl_util.h"
-#include <string>
-#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
+class HtmlIEDirectiveNode;
 
 namespace {
 
@@ -43,13 +54,16 @@ const char kCssFileCountReduction[] = "css_file_count_reduction";
 
 }  // namespace
 
+// Combining helper. Takes care of checking that media matches, that we do not
+// produce @import's in the middle and of URL absolutification.
 class CssCombineFilter::CssCombiner
     : public ResourceCombinerTemplate<HtmlElement*> {
  public:
   CssCombiner(RewriteDriver* driver, const StringPiece& filter_prefix,
-              CssTagScanner* css_tag_scanner)
+              CssTagScanner* css_tag_scanner, CssCombineFilter *filter)
       : ResourceCombinerTemplate<HtmlElement*>(
-          driver, filter_prefix, kContentTypeCss.file_extension() + 1),
+          driver, filter_prefix, kContentTypeCss.file_extension() + 1,
+          filter),
         css_tag_scanner_(css_tag_scanner),
         css_file_count_reduction_(NULL) {
     filter_prefix.CopyToString(&filter_prefix_);
@@ -80,7 +94,7 @@ class CssCombineFilter::CssCombiner
       if (media_ != media)
         return false;
     }
-    return AddElement(element, href, handler);
+    return AddElement(element, href, handler).value;
   }
 
   // Try to combine all the CSS files we have seen so far.
@@ -88,7 +102,7 @@ class CssCombineFilter::CssCombiner
   void TryCombineAccumulated();
 
  private:
-  virtual bool WritePiece(Resource* input, OutputResource* combination,
+  virtual bool WritePiece(const Resource* input, OutputResource* combination,
                           Writer* writer, MessageHandler* handler);
 
   // Returns true iff all elements in current combination can be rewritten.
@@ -100,8 +114,8 @@ class CssCombineFilter::CssCombiner
     return ret;
   }
 
-  std::string media_;
-  std::string filter_prefix_;
+  GoogleString media_;
+  GoogleString filter_prefix_;
   CssTagScanner* css_tag_scanner_;
   Variable* css_file_count_reduction_;
 };
@@ -122,7 +136,8 @@ CssCombineFilter::CssCombineFilter(RewriteDriver* driver,
                                    const char* filter_prefix)
     : RewriteFilter(driver, filter_prefix),
       css_tag_scanner_(driver_) {
-  combiner_.reset(new CssCombiner(driver_, filter_prefix, &css_tag_scanner_));
+  combiner_.reset(new CssCombiner(driver_, filter_prefix, &css_tag_scanner_,
+                                  this));
 }
 
 CssCombineFilter::~CssCombineFilter() {
@@ -138,7 +153,8 @@ void CssCombineFilter::StartDocumentImpl() {
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
+  if (!driver_->HasChildrenInFlushWindow(element) &&
+      css_tag_scanner_.ParseCssElement(element, &href, &media)) {
     // We cannot combine with a link in <noscript> tag and we cannot combine
     // over a link in a <noscript> tag, so this is a barrier.
     if (noscript_element() != NULL) {
@@ -186,7 +202,7 @@ void CssCombineFilter::Flush() {
 void CssCombineFilter::CssCombiner::TryCombineAccumulated() {
   if (CanRewrite()) {
     MessageHandler* handler = rewrite_driver_->message_handler();
-    scoped_ptr<OutputResource> combination(Combine(kContentTypeCss, handler));
+    OutputResourcePtr combination(Combine(kContentTypeCss, handler));
     if (combination.get() != NULL) {
       // Ideally like to have a data-driven service tell us which elements
       // should be combined together.  Note that both the resources and the
@@ -225,11 +241,11 @@ void CssCombineFilter::CssCombiner::TryCombineAccumulated() {
 }
 
 bool CssCombineFilter::CssCombiner::WritePiece(
-    Resource* input, OutputResource* combination, Writer* writer,
+    const Resource* input, OutputResource* combination, Writer* writer,
     MessageHandler* handler) {
   StringPiece contents = input->contents();
-  std::string input_dir =
-      GoogleUrl::AllExceptLeaf(GoogleUrl::Create(input->url()));
+  GoogleUrl input_url(input->url());
+  StringPiece input_dir = input_url.AllExceptLeaf();
   if (input_dir == combination->resolved_base()) {
       // We don't need to absolutify URLs if input directory is same as output.
       return writer->Write(contents, handler);
@@ -241,7 +257,7 @@ bool CssCombineFilter::CssCombiner::WritePiece(
   }
 }
 
-bool CssCombineFilter::Fetch(OutputResource* resource,
+bool CssCombineFilter::Fetch(const OutputResourcePtr& resource,
                              Writer* writer,
                              const RequestHeaders& request_header,
                              ResponseHeaders* response_headers,

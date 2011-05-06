@@ -21,11 +21,16 @@
 
 #include <map>
 #include "net/instaweb/http/public/response_headers.h"
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/http/public/url_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class RequestHeaders;
+class Writer;
 
 // Simple UrlFetcher meant for tests, you can set responses for individual URLs.
 class MockUrlFetcher : public UrlFetcher {
@@ -37,8 +42,16 @@ class MockUrlFetcher : public UrlFetcher {
                    const ResponseHeaders& response_header,
                    const StringPiece& response_body);
 
+  // Set a conditional response which will either respond with the supplied
+  // response_headers and response_body or a simple 304 Not Modified depending
+  // upon last_modified_time and conditional GET "If-Modified-Since" headers.
+  void SetConditionalResponse(const StringPiece& url,
+                              int64 last_modified_date,
+                              const ResponseHeaders& response_header,
+                              const StringPiece& response_body);
+
   // Fetching unset URLs will cause EXPECT failures as well as return false.
-  virtual bool StreamingFetchUrl(const std::string& url,
+  virtual bool StreamingFetchUrl(const GoogleString& url,
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* response_writer,
@@ -59,21 +72,25 @@ class MockUrlFetcher : public UrlFetcher {
  private:
   class HttpResponse {
    public:
-    HttpResponse(const ResponseHeaders& in_header, const StringPiece& in_body)
-        : body_(in_body.data(), in_body.size()) {
+    HttpResponse(int64 last_modified_time,
+                 const ResponseHeaders& in_header, const StringPiece& in_body)
+        : last_modified_time_(last_modified_time),
+          body_(in_body.data(), in_body.size()) {
       header_.CopyFrom(in_header);
     }
 
+    const int64 last_modified_time() const { return last_modified_time_; }
     const ResponseHeaders& header() const { return header_; }
-    const std::string& body() const { return body_; }
+    const GoogleString& body() const { return body_; }
 
    private:
+    int64 last_modified_time_;
     ResponseHeaders header_;
-    std::string body_;
+    GoogleString body_;
 
     DISALLOW_COPY_AND_ASSIGN(HttpResponse);
   };
-  typedef std::map<const std::string, const HttpResponse*> ResponseMap;
+  typedef std::map<const GoogleString, const HttpResponse*> ResponseMap;
 
   ResponseMap response_map_;
   bool enabled_;

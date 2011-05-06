@@ -18,19 +18,27 @@
 
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
-#include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include <string>
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 const char kStylesheet[] = "stylesheet";
 
@@ -131,7 +139,7 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
 
 // Create file with style content and remove that element from DOM.
 void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
-                                    const std::string& content_str) {
+                                    const GoogleString& content_str) {
   StringPiece content(content_str);
   if (driver_->IsRewritable(style_element)) {
     // Create style file from content.
@@ -140,47 +148,47 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
     // See http://www.w3.org/TR/html5/semantics.html#the-style-element
     if (type == NULL || strcmp(type, kContentTypeCss.mime_type()) == 0) {
       MessageHandler* handler = driver_->message_handler();
-      // Create outline resource at the document location, not base URL location
-      // TODO Add a test case that puts a relative URL ref into an inlined
-      // CSS file, preceded by a base-tag.  This will break.  Fix it.
-      scoped_ptr<OutputResource> output_resource(
+      // Create outline resource at the document location,
+      // not base URL location.
+      OutputResourcePtr output_resource(
           driver_->CreateOutputResourceWithPath(
               driver_->google_url().AllExceptLeaf(), kFilterId, "_",
-              &kContentTypeCss, RewriteDriver::kOutlinedResource));
+              &kContentTypeCss, kOutlinedResource));
 
-      // Absolutify URLs in content.
-      std::string absolute_content;
-      StringWriter absolute_writer(&absolute_content);
-      StringPiece base_dir = base_url().Spec();      // base url has no leaf.
-      bool content_valid = true;
-      if (base_dir != output_resource->resolved_base()) {
-        // TODO(sligocki): Use CssParser instead of CssTagScanner hack.
-        content_valid = CssTagScanner::AbsolutifyUrls(
-            content, base_url().Spec(), &absolute_writer, handler);
-        content = absolute_content;  // StringPiece point to the new string.
-
-      }
-      if (content_valid &&
-          WriteResource(content, output_resource.get(), handler)) {
-        HtmlElement* link_element = driver_->NewElement(
-            style_element->parent(), HtmlName::kLink);
-        driver_->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
-        driver_->AddAttribute(link_element, HtmlName::kHref,
-                                  output_resource->url());
-        // Add all style atrributes to link.
-        for (int i = 0; i < style_element->attribute_size(); ++i) {
-          const HtmlElement::Attribute& attr = style_element->attribute(i);
-          link_element->AddAttribute(attr);
+      if (output_resource.get() != NULL) {
+        // Absolutify URLs in content.
+        GoogleString absolute_content;
+        StringWriter absolute_writer(&absolute_content);
+        StringPiece base_dir = base_url().Spec();      // base url has no leaf.
+        bool content_valid = true;
+        if (base_dir != output_resource->resolved_base()) {
+          // TODO(sligocki): Use CssParser instead of CssTagScanner hack.
+          content_valid = CssTagScanner::AbsolutifyUrls(
+              content, base_url().Spec(), &absolute_writer, handler);
+          content = absolute_content;  // StringPiece point to the new string.
         }
-        // Add link to DOM.
-        driver_->InsertElementAfterElement(style_element, link_element);
-        // Remove style element from DOM.
-        if (!driver_->DeleteElement(style_element)) {
-          driver_->FatalErrorHere("Failed to delete inline sytle element");
+        if (content_valid &&
+            WriteResource(content, output_resource.get(), handler)) {
+          HtmlElement* link_element = driver_->NewElement(
+              style_element->parent(), HtmlName::kLink);
+          driver_->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
+          driver_->AddAttribute(link_element, HtmlName::kHref,
+                                output_resource->url());
+          // Add all style atrributes to link.
+          for (int i = 0; i < style_element->attribute_size(); ++i) {
+            const HtmlElement::Attribute& attr = style_element->attribute(i);
+            link_element->AddAttribute(attr);
+          }
+          // Add link to DOM.
+          driver_->InsertElementAfterElement(style_element, link_element);
+          // Remove style element from DOM.
+          if (!driver_->DeleteElement(style_element)) {
+            driver_->FatalErrorHere("Failed to delete inline sytle element");
+          }
         }
       }
     } else {
-      std::string element_string;
+      GoogleString element_string;
       style_element->ToString(&element_string);
       driver_->InfoHere("Cannot outline non-css stylesheet %s",
                         element_string.c_str());

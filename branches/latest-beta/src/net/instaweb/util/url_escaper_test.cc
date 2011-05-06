@@ -16,8 +16,11 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
+#include <cctype>
+#include <cstddef>
 #include "net/instaweb/util/public/url_escaper.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace {
@@ -35,8 +38,8 @@ namespace net_instaweb {
 class UrlEscaperTest : public testing::Test {
  protected:
   void CheckEncoding(const StringPiece& url) {
-    std::string encoded, decoded;
-    escaper_.EncodeToUrlSegment(url, &encoded);
+    GoogleString encoded, decoded;
+    UrlEscaper::EncodeToUrlSegment(url, &encoded);
 
     // Make sure there are only alphanumerics and _+-=%
     for (size_t i = 0; i < encoded.size(); ++i) {
@@ -44,32 +47,30 @@ class UrlEscaperTest : public testing::Test {
       EXPECT_TRUE(isalnum(c) || (strchr(kAcceptableSpecialChars, c) != NULL));
     }
 
-    EXPECT_TRUE(escaper_.DecodeFromUrlSegment(encoded, &decoded));
+    EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
     EXPECT_EQ(url, decoded);
   }
 
   // Some basic text should be completely unchanged upon encode/decode.
   void CheckUnchanged(const StringPiece& url) {
-    std::string encoded, decoded;
-    escaper_.EncodeToUrlSegment(url, &encoded);
+    GoogleString encoded, decoded;
+    UrlEscaper::EncodeToUrlSegment(url, &encoded);
     EXPECT_EQ(url, encoded);
-    EXPECT_TRUE(escaper_.DecodeFromUrlSegment(encoded, &decoded));
+    EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
     EXPECT_EQ(url, decoded);
   }
 
-  std::string Decode(const StringPiece& encoding) {
-    std::string decoded;
-    EXPECT_TRUE(escaper_.DecodeFromUrlSegment(encoding, &decoded));
+  GoogleString Decode(const StringPiece& encoding) {
+    GoogleString decoded;
+    EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoding, &decoded));
     return decoded;
   }
 
-  std::string Encode(const StringPiece& url) {
-    std::string encoded;
-    escaper_.EncodeToUrlSegment(url, &encoded);
+  GoogleString Encode(const StringPiece& url) {
+    GoogleString encoded;
+    UrlEscaper::EncodeToUrlSegment(url, &encoded);
     return encoded;
   }
-
-  UrlEscaper escaper_;
 };
 
 TEST_F(UrlEscaperTest, TestUrls) {

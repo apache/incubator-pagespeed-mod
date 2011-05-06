@@ -18,10 +18,17 @@
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 
-#include "base/basictypes.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/counting_writer.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
+class Writer;
 
 class CountingUrlAsyncFetcher::Fetch : public UrlAsyncFetcher::Callback {
  public:
@@ -58,7 +65,7 @@ CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {
 }
 
 bool CountingUrlAsyncFetcher::StreamingFetch(
-    const std::string& url, const RequestHeaders& request_headers,
+    const GoogleString& url, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, Writer* fetched_content_writer,
     MessageHandler* message_handler, Callback* callback) {
   Fetch* fetch = new Fetch(callback, this, fetched_content_writer);

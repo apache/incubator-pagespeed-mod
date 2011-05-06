@@ -17,9 +17,10 @@
 // Copyright 2006 Google Inc. All Rights Reserved.
 // Author: dpeng@google.com (Daniel Peng)
 
-#include "base/basictypes.h"
 #include "webutil/html/htmltagenum.h"
-#include "strings/stringprintf.h"
+
+#include "base/macros.h"
+#include "base/stringprintf.h"
 
 const char* HtmlTagEnumNames[] =
 {    "Unknown",
@@ -60,6 +61,11 @@ const char* HtmlTagEnumNames[] =
      "Noindex",
   // Old style comments,
      "!Comment",
+  // New tags in HTML5.
+     "Article", "Aside", "Audio", "Bdi", "Canvas", "Command", "Datalist",
+     "Details", "Figcaption", "Figure", "Footer", "Header", "Hgroup", "Mark",
+     "Meter", "Nav", "Output", "Progress", "Rp", "Rt", "Ruby", "Section",
+     "Source", "Summary", "Time", "Track", "Video",
 };
 
 COMPILE_ASSERT(arraysize(HtmlTagEnumNames) == kHtmlTagBuiltinMax,

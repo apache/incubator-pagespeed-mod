@@ -15,35 +15,39 @@
  */
 
 // Author: jmarantz@google.com (Joshua Marantz)
+//
+// Provides the ResourceCombiner class which helps implement filters that
+// combine multiple resources, as well as the TimedBool, which is useful
+// when figuring out how long results are valid for.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_COMBINER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_COMBINER_H_
 
-#include <vector>
-
-#include "base/basictypes.h"
-#include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/url_partnership.h"
-#include "net/instaweb/util/public/stl_util.h"
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/url_partnership.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class CommonFilter;
 class ContentType;
-class HtmlElement;
 class MessageHandler;
 class OutputResource;
 class RequestHeaders;
-class Resource;
-class ResourceManager;
 class ResponseHeaders;
 class RewriteDriver;
-class RewriteDriver;
-class Variable;
 class Writer;
+
+// A boolean with an expiration date.
+struct TimedBool {
+  // A date, in milliseconds since the epoch, after which value should
+  // no longer be considered valid.
+  int64 expiration_ms;
+  bool value;
+};
 
 // This class is a utility for filters that combine multiple resource
 // files into one. It provides two major pieces of functionality to help out:
@@ -66,11 +70,12 @@ class ResourceCombiner {
   // Note: extension should not include the leading dot here.
   ResourceCombiner(RewriteDriver* rewrite_driver,
                    const StringPiece& path_prefix,
-                   const StringPiece& extension);
+                   const StringPiece& extension,
+                   CommonFilter* filter);
 
   virtual ~ResourceCombiner();
 
-  bool Fetch(OutputResource* resource,
+  bool Fetch(const OutputResourcePtr& resource,
              Writer* writer,
              const RequestHeaders& request_header,
              ResponseHeaders* response_headers,
@@ -84,44 +89,46 @@ class ResourceCombiner {
 
   // Computes a name for the URL that meets all known character-set and
   // size restrictions.
-  std::string UrlSafeId() const;
+  GoogleString UrlSafeId() const;
 
   // Returns the number of URLs that have been successfully added.
   int num_urls() const { return partnership_.num_urls(); }
 
-  typedef std::vector<Resource*> ResourceVector;
   const ResourceVector& resources() const { return resources_; }
 
   // Base common to all URLs. Always has a trailing slash.
-  std::string ResolvedBase() const { return partnership_.ResolvedBase(); }
+  GoogleString ResolvedBase() const { return partnership_.ResolvedBase(); }
 
  protected:
   // Tries to add a resource with given source URL to the current partnership.
   // Returns whether successful or not (in which case the partnership will be
   // unchanged). This will succeed only if we both have the data ready and can
   // fit in the names into the combined URL.
-  bool AddResource(const StringPiece& url, MessageHandler* handler);
+  virtual TimedBool AddResource(const StringPiece& url,
+                                MessageHandler* handler);
 
-  // Removes the last resource that was added here.
-  void RemoveLastResource();
+  // Removes the last resource that was added here, assuming the last call to
+  // AddResource was successful.  If the last call to AddResource returned
+  // false, behavior is undefined.
+  virtual void RemoveLastResource();
 
   // Returns one resource containing the combination of all added resources,
   // creating it if necessary.  Caller takes ownership.  Returns NULL if the
   // combination does not exist and cannot be created. Will not combine fewer
   // than 2 resources.
-  OutputResource* Combine(const ContentType& content_type,
-                          MessageHandler* handler);
+  OutputResourcePtr Combine(const ContentType& content_type,
+                            MessageHandler* handler);
 
   // Override this if your combination is not a matter of combining
   // text pieces (perhaps adjusted by WritePiece)
   virtual bool WriteCombination(const ResourceVector& combine_resources,
-                                OutputResource* combination,
+                                const OutputResourcePtr& combination,
                                 MessageHandler* handler);
 
   // Override this to alter how pieces are processed when included inside
   // a combination. Returns whether successful. The default implementation
   // writes input->contents() to the writer without any alteration.
-  virtual bool WritePiece(Resource* input, OutputResource* combination,
+  virtual bool WritePiece(const Resource* input, OutputResource* combination,
                           Writer* writer, MessageHandler* handler);
 
   // Override this if you need to remove some state whenever Reset() is called.
@@ -132,7 +139,7 @@ class ResourceCombiner {
   RewriteDriver* const rewrite_driver_;
 
  private:
-  friend class CombinerCallback;
+  friend class AggregateCombiner;
 
   // Recomputes the leaf size if our base has changed
   void UpdateResolvedBase();
@@ -156,13 +163,14 @@ class ResourceCombiner {
                                   MessageHandler* handler);
 
   UrlPartnership partnership_;
-  std::vector<Resource*> resources_;
-  UrlMultipartEncoder multipart_encoder_;
+  ResourceVector resources_;
+  StringVector multipart_encoder_urls_;
   int prev_num_components_;
   int accumulated_leaf_size_;
-  std::string resolved_base_;
+  GoogleString resolved_base_;
   const int url_overhead_;
-  std::string filter_prefix_;
+  GoogleString filter_prefix_;
+  CommonFilter *filter_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCombiner);
 };

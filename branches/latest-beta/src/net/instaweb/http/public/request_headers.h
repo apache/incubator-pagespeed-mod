@@ -17,11 +17,16 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_REQUEST_HEADERS_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_REQUEST_HEADERS_H_
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/http/public/headers.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class HttpRequestHeaders;
+class MessageHandler;
+class Writer;
 
 // Read/write API for HTTP request headers.
 class RequestHeaders : public Headers<HttpRequestHeaders> {
@@ -33,7 +38,7 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
   void Clear();
   void CopyFrom(const RequestHeaders& other);
 
-  std::string ToString() const;
+  GoogleString ToString() const;
   Method method() const;
   const char* method_string() const;
   void set_method(Method method);

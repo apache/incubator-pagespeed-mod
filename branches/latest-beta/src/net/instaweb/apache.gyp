@@ -34,7 +34,9 @@
         '<(instaweb_root)/instaweb.gyp:instaweb_htmlparse',
         '<(instaweb_root)/instaweb.gyp:instaweb_http',
         '<(instaweb_root)/instaweb.gyp:instaweb_rewriter',
+        '<(instaweb_root)/instaweb.gyp:instaweb_spriter',
         '<(instaweb_root)/instaweb.gyp:instaweb_util',
+        '<(instaweb_root)/instaweb.gyp:instaweb_util_pthread',
       ],
       'include_dirs': [
         '<(DEPTH)',
@@ -52,6 +54,7 @@
         'apache/instaweb_context.cc',
         'apache/log_message_handler.cc',
         'apache/serf_url_async_fetcher.cc',
+        'apache/shared_mem_lifecycle.cc'
       ],
       'export_dependent_settings': [
         '<(instaweb_root)/instaweb.gyp:instaweb_util',

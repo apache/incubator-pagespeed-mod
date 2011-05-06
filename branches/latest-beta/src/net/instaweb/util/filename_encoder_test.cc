@@ -18,10 +18,12 @@
 
 #include "net/instaweb/util/public/filename_encoder.h"
 
-#include <string>
 #include <vector>
-#include "base/basictypes.h"
+#include <cstddef>
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 // net::kMaximumSubdirectoryLength is defined in url_to_filename_encoder.cc, but
@@ -62,8 +64,8 @@ class FilenameEncoderTest : public ::testing::Test {
     }
   }
 
-  void Validate(const std::string& in_word) {
-    std::string escaped_word, decoded_url;
+  void Validate(const GoogleString& in_word) {
+    GoogleString escaped_word, decoded_url;
     encoder.Encode("", in_word, &escaped_word);
     CheckSegmentLength(escaped_word);
     CheckValidChars(escaped_word);
@@ -127,7 +129,7 @@ TEST_F(FilenameEncoderTest, LongTailDots) {
 TEST_F(FilenameEncoderTest, CornerCasesNearMaxLenNoEscape) {
   // hit corner cases, +/- 4 characters from kMaxLen
   for (int i = -4; i <= 4; ++i) {
-    std::string input;
+    GoogleString input;
     input.append(i + kMaxLen, 'x');
     Validate(input);
   }
@@ -138,7 +140,7 @@ TEST_F(FilenameEncoderTest, CornerCasesNearMaxLenWithEscape) {
   // leave off the last 'x' and put in a '.', which ensures that we
   // are truncating with '/' *after* the expansion.
   for (int i = -4; i <= 4; ++i) {
-    std::string input;
+    GoogleString input;
     input.append(i + kMaxLen - 1, 'x');
     input.append(1, '.');  // this will expand to 3 characters.
     Validate(input);

@@ -19,18 +19,17 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 
-#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class CacheInterface;
-class HTTPValue;
 class MessageHandler;
-class ResponseHeaders;
 class Statistics;
 class Timer;
 class Variable;
@@ -48,56 +47,65 @@ class HTTPCache {
   static const char kCacheInserts[];
 
   // Takes over ownership of the cache.
-  HTTPCache(CacheInterface* cache, Timer* timer)
-      : cache_(cache),
-        timer_(timer),
-        force_caching_(false),
-        cache_time_us_(NULL),
-        cache_hits_(NULL),
-        cache_misses_(NULL),
-        cache_expirations_(NULL),
-        cache_inserts_(NULL) {
-  }
-
+  HTTPCache(CacheInterface* cache, Timer* timer, Statistics* stats);
   ~HTTPCache();
 
   // When a lookup is done in the HTTP Cache, it returns one of these
   // values.  2 of these are obvious, one is used to help avoid
   // frequently re-fetching the same content that failed to fetch, or
   // was fetched but was not cacheable.
-  //
-  // TODO(jmarantz): consider merging these 3 into the 3 status codes defined
-  // CacheInterface, making 4 distinct codes.  That would be a little clearer,
-  // but would require that all callers of Find handle kInTransit which no
-  // cache implementations currently generate.
   enum FindResult {
     kFound,
     kRecentFetchFailedDoNotRefetch,
     kNotFound
   };
 
-  FindResult Find(const std::string& key, HTTPValue* value,
-                  ResponseHeaders* headers,
-                  MessageHandler* handler);
+  class Callback {
+   public:
+    virtual ~Callback();
+    virtual void Done(FindResult find_result) = 0;
+
+    HTTPValue* http_value() { return &http_value_; }
+    ResponseHeaders* response_headers() { return &response_headers_; }
+
+   private:
+    HTTPValue http_value_;
+    ResponseHeaders response_headers_;
+  };
+
+  // Non-blocking Find.  Calls callback when done.  'handler' must all
+  // stay valid until callback->Done() is called.
+  void Find(const GoogleString& key, MessageHandler* handler,
+            Callback* callback);
+
+  // Blocking Find.  This method is deprecated for transition to strictly
+  // non-blocking cache usage.
+  //
+  // TODO(jmarantz): remove this when blocking callers of HTTPCache::Find
+  // are removed from the codebase.
+  HTTPCache::FindResult Find(const GoogleString& key, HTTPValue* value,
+                             ResponseHeaders* headers, MessageHandler* handler);
 
   // Note that Put takes a non-const pointer for HTTPValue so it can
   // bump the reference count.
-  void Put(const std::string& key, HTTPValue* value, MessageHandler* handler);
+  void Put(const GoogleString& key, HTTPValue* value, MessageHandler* handler);
 
   // Note that Put takes a non-const pointer for ResponseHeaders* so it
   // can update the caching fields prior to storing.
-  void Put(const std::string& key, ResponseHeaders* headers,
+  void Put(const GoogleString& key, ResponseHeaders* headers,
            const StringPiece& content, MessageHandler* handler);
 
-  CacheInterface::KeyState Query(const std::string& key);
-  void Delete(const std::string& key);
+  // Deprecated method to make a blocking query for the state of an
+  // element in the cache.
+  // TODO(jmarantz): remove this interface when blocking callers are removed.
+  CacheInterface::KeyState Query(const GoogleString& key);
+
+  // Deletes an element in the cache.
+  void Delete(const GoogleString& key);
 
   void set_force_caching(bool force) { force_caching_ = force; }
   bool force_caching() const { return force_caching_; }
   Timer* timer() const { return timer_; }
-
-  // Initializes statistics for the cache (time, hits, misses, expirations)
-  void SetStatistics(Statistics* stats);
 
   // Tell the HTTP Cache to remember that a particular key is not cacheable.
   // This may be due to the associated URL failing Fetch, or it may be because
@@ -112,7 +120,7 @@ class HTTPCache {
   // TODO(jmarantz): if fetch failed, maybe we should try back soon,
   // but if it is Cache-Control: private, we can probably assume that
   // it still will be in 5 minutes.
-  void RememberNotCacheable(const std::string& key, MessageHandler * handler);
+  void RememberNotCacheable(const GoogleString& key, MessageHandler * handler);
 
   // Initialize statistics variables for the cache
   static void Initialize(Statistics* statistics);
@@ -123,9 +131,12 @@ class HTTPCache {
   bool IsAlreadyExpired(const ResponseHeaders& headers);
 
  private:
+  friend class HTTPCacheCallback;
+
   bool IsCurrentlyValid(const ResponseHeaders& headers, int64 now_ms);
-  void PutHelper(const std::string& key, int64 now_us,
+  void PutHelper(const GoogleString& key, int64 now_us,
                  HTTPValue* value, MessageHandler* handler);
+  void UpdateStats(FindResult result, int64 delta_us);
 
   scoped_ptr<CacheInterface> cache_;
   Timer* timer_;

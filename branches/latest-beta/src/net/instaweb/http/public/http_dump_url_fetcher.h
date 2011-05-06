@@ -19,18 +19,21 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 
-#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/url_fetcher.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-
-class GURL;
 
 namespace net_instaweb {
 
+class GoogleUrl;
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class Timer;
+class Writer;
 
 // TODO(sligocki): Can we forward declare these somehow?
 // class FileSystem;
@@ -56,13 +59,13 @@ class HttpDumpUrlFetcher : public UrlFetcher {
   // Converts URL into filename the way that Latency Lab does.
   // Note: root_dir_ must be standardized to have a / at end already.
   static bool GetFilenameFromUrl(const StringPiece& root_dir,
-                                 const GURL& url,
-                                 std::string* filename,
+                                 const GoogleUrl& url,
+                                 GoogleString* filename,
                                  MessageHandler* message_handler);
 
   // Non-static version that uses the fetcher's root dir.
-  bool GetFilename(const GURL& url,
-                   std::string* filename,
+  bool GetFilename(const GoogleUrl& url,
+                   GoogleString* filename,
                    MessageHandler* message_handler) {
     return GetFilenameFromUrl(root_dir_, url, filename, message_handler);
   }
@@ -70,12 +73,12 @@ class HttpDumpUrlFetcher : public UrlFetcher {
   // Converts URL into filename prefix the way that Latency Lab does.
   // Note: root_dir_ must be standardized to have a / at end already.
   static bool GetFilenamePrefixFromUrl(const StringPiece& root_dir,
-                                       const GURL& url,
-                                       std::string* filename,
+                                       const GoogleUrl& url,
+                                       GoogleString* filename,
                                        MessageHandler* message_handler);
 
   // This is a synchronous/blocking implementation.
-  virtual bool StreamingFetchUrl(const std::string& url,
+  virtual bool StreamingFetchUrl(const GoogleString& url,
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* fetched_content_writer,
@@ -96,12 +99,12 @@ class HttpDumpUrlFetcher : public UrlFetcher {
   void set_print_urls(bool on);
 
  private:
-  std::string root_dir_;  // Root directory of the HTTP dumps.
+  GoogleString root_dir_;  // Root directory of the HTTP dumps.
   FileSystem* file_system_;
   Timer* timer_;
 
   // Response to use if something goes wrong.
-  std::string error_body_;
+  GoogleString error_body_;
 
   scoped_ptr<StringSet> urls_;
 

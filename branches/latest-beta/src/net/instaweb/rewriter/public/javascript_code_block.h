@@ -19,16 +19,17 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_CODE_BLOCK_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_CODE_BLOCK_H_
 
-#include "base/basictypes.h"
+#include <cstddef>
+
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
-class Statistics;
-class Variable;
 
 // Class wrapping up configuration information for javascript
 // rewriting, in order to minimize footprint of later changes
@@ -91,6 +92,7 @@ class JavascriptCodeBlock {
  public:
   JavascriptCodeBlock(const StringPiece& original_code,
                       JavascriptRewriteConfig* config,
+                      const StringPiece& message_id,
                       MessageHandler* handler);
 
   virtual ~JavascriptCodeBlock();
@@ -127,14 +129,15 @@ class JavascriptCodeBlock {
   void Rewrite();
 
   JavascriptRewriteConfig* config_;
+  const GoogleString message_id_;  // ID to stick at begining of message.
   MessageHandler* handler_;
-  const std::string original_code_;
+  const GoogleString original_code_;
   // Note that output_code_ points to either original_code_ or
   // to rewritten_code_ depending upon the results of processing
   // (ie it's an indirection to locally-owned data).
   StringPiece output_code_;
   bool rewritten_;
-  std::string rewritten_code_;
+  GoogleString rewritten_code_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptCodeBlock);
 };

@@ -18,7 +18,8 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_WILDCARD_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_WILDCARD_H_
 
-#include <vector>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -46,12 +47,12 @@ class Wildcard {
   Wildcard* Duplicate() const;
 
  private:
-  Wildcard(const std::string& storage, int num_blocks,
+  Wildcard(const GoogleString& storage, int num_blocks,
            int last_block_offset, bool is_simple);
 
   void InitFromSpec(const StringPiece& wildcard_spec);
 
-  std::string storage_;
+  GoogleString storage_;
   int num_blocks_;
   int last_block_offset_;
   bool is_simple_;

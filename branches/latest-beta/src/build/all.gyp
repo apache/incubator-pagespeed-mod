@@ -19,11 +19,36 @@
       'type': 'none',
       'xcode_create_dependents_test_runner': 1,
       'dependencies': [
+        'mod_pagespeed',
+        'test',
+        'pagespeed_automatic',
+      ],},
+    {
+      'target_name': 'mod_pagespeed',
+      'type': 'none',
+      'dependencies': [
+        '../net/instaweb/instaweb.gyp:instaweb_rewriter',
+        '../net/instaweb/apache.gyp:*',
+        '../net/instaweb/mod_pagespeed.gyp:*',
+        'install.gyp:*',
+      ],},
+    {
+      'target_name': 'pagespeed_automatic',
+      'type': 'none',
+      'dependencies': [
+        '../net/instaweb/test.gyp:pagespeed_automatic_test',
+      ],},
+    {
+      'target_name': 'test',
+      'type': 'none',
+      'xcode_create_dependents_test_runner': 1,
+      'dependencies': [
         '../net/instaweb/instaweb.gyp:*',
         '../net/instaweb/instaweb_core.gyp:*',
         '../net/instaweb/apache.gyp:*',
-        '../net/instaweb/mod_pagespeed.gyp:*',
-        '../net/instaweb/test.gyp:*',
+        '../net/instaweb/test.gyp:mod_pagespeed_test',
         'install.gyp:*',
-      ],} ]
+      ]
+    },
+  ],
 }

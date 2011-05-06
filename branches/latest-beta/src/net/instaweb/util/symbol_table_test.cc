@@ -19,9 +19,10 @@
 // Unit-test the symbol table
 
 #include "net/instaweb/util/public/symbol_table.h"
-#include "base/logging.h"
+
+#include "net/instaweb/util/public/atom.h"
 #include "net/instaweb/util/public/gtest.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -31,10 +32,10 @@ class SymbolTableTest : public testing::Test {
 
 TEST_F(SymbolTableTest, TestInternSensitive) {
   SymbolTableSensitive symbol_table;
-  std::string s1("hello");
-  std::string s2("hello");
-  std::string s3("goodbye");
-  std::string s4("Goodbye");
+  GoogleString s1("hello");
+  GoogleString s2("hello");
+  GoogleString s3("goodbye");
+  GoogleString s4("Goodbye");
   EXPECT_NE(s1.c_str(), s2.c_str());
   Atom a1 = symbol_table.Intern(s1);
   Atom a2 = symbol_table.Intern(s2);
@@ -57,9 +58,9 @@ TEST_F(SymbolTableTest, TestInternSensitive) {
 
 TEST_F(SymbolTableTest, TestInternInsensitive) {
   SymbolTableInsensitive symbol_table;
-  std::string s1("hello");
-  std::string s2("Hello");
-  std::string s3("goodbye");
+  GoogleString s1("hello");
+  GoogleString s2("Hello");
+  GoogleString s3("goodbye");
   Atom a1 = symbol_table.Intern(s1);
   Atom a2 = symbol_table.Intern(s2);
   Atom a3 = symbol_table.Intern(s3);
@@ -68,9 +69,9 @@ TEST_F(SymbolTableTest, TestInternInsensitive) {
   EXPECT_FALSE(a1 == a3);
   EXPECT_NE(a1.c_str(), a3.c_str());
 
-  EXPECT_EQ(0, StringCaseCompare(s1.c_str(), a1.c_str()));
-  EXPECT_EQ(0, StringCaseCompare(s2.c_str(), a2.c_str()));
-  EXPECT_EQ(0, StringCaseCompare(s3.c_str(), a3.c_str()));
+  EXPECT_EQ(0, StringCaseCompare(s1, a1.c_str()));
+  EXPECT_EQ(0, StringCaseCompare(s2, a2.c_str()));
+  EXPECT_EQ(0, StringCaseCompare(s3, a3.c_str()));
 
   Atom empty = symbol_table.Intern("");
   EXPECT_TRUE(Atom() == empty);
@@ -92,13 +93,13 @@ TEST_F(SymbolTableTest, TestClear) {
 // test interleaved allocating of small and large strings.
 TEST_F(SymbolTableTest, TestBigInsert) {
   SymbolTableSensitive symbol_table;
-  Atom a = symbol_table.Intern(std::string(100000, 'a'));
+  Atom a = symbol_table.Intern(GoogleString(100000, 'a'));
   Atom b = symbol_table.Intern("b");
-  Atom c = symbol_table.Intern(std::string(100000, 'c'));
+  Atom c = symbol_table.Intern(GoogleString(100000, 'c'));
   Atom d = symbol_table.Intern("d");
-  EXPECT_TRUE(a == symbol_table.Intern(std::string(100000, 'a')));
+  EXPECT_TRUE(a == symbol_table.Intern(GoogleString(100000, 'a')));
   EXPECT_TRUE(b == symbol_table.Intern("b"));
-  EXPECT_TRUE(c == symbol_table.Intern(std::string(100000, 'c')));
+  EXPECT_TRUE(c == symbol_table.Intern(GoogleString(100000, 'c')));
   EXPECT_TRUE(d == symbol_table.Intern("d"));
 }
 

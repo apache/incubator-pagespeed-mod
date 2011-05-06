@@ -17,17 +17,14 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HEADERS_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HEADERS_H_
 
-#include <stdlib.h>
-#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/meta_data.h"  // HttpAttributes, HttpStatus
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
-class HttpResponseHeaders;
 class StringMultiMapInsensitive;
 class Writer;
 
@@ -47,8 +44,8 @@ template<class Proto> class Headers {
 
   // Raw access for random access to attribute name/value pairs.
   int NumAttributes() const;
-  const std::string& Name(int i) const;
-  const std::string& Value(int i) const;
+  const GoogleString& Name(int i) const;
+  const GoogleString& Value(int i) const;
 
   // Note that Lookup, though declared const, is NOT thread-safe.  This
   // is because it lazily generates a map.
@@ -69,9 +66,18 @@ template<class Proto> class Headers {
   // Remove all headers by name.  Return true if anything was removed.
   virtual bool RemoveAll(const StringPiece& name);
 
+  // Remove all headers whose name is in |names|.
+  virtual void RemoveAllFromSet(const StringSet& names);
+
   // Similar to RemoveAll followed by Add.  Note that the attribute
   // order may be changed as a side effect of this operation.
   virtual void Replace(const StringPiece& name, const StringPiece& value);
+
+  // Merge headers. Replaces all headers specified both here and in
+  // other with the version in other. Useful for updating headers
+  // when recieving 304 Not Modified responses.
+  // Note: This is order-scrambling.
+  virtual void UpdateFrom(const Headers<Proto>& other);
 
   // Serialize HTTP header to a binary stream.
   virtual bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);

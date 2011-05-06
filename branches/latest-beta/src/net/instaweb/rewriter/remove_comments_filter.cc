@@ -18,15 +18,19 @@
 
 #include "net/instaweb/rewriter/public/remove_comments_filter.h"
 
+#include <cstddef>
+
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 
 namespace net_instaweb {
 
-RemoveCommentsFilter::RemoveCommentsFilter(HtmlParse* html_parse)
-    : html_parse_(html_parse) {}
-
 void RemoveCommentsFilter::Comment(HtmlCommentNode* comment) {
-  html_parse_->DeleteElement(comment);
+  if ((rewrite_options_ == NULL) ||
+      !rewrite_options_->IsRetainedComment(comment->contents())) {
+    html_parse_->DeleteElement(comment);
+  }
 }
 
 }  // namespace net_instaweb

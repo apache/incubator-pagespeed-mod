@@ -18,18 +18,46 @@
 
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
+
 namespace net_instaweb {
 
 RewriteFilter::~RewriteFilter() {
 }
 
-OutputResource* RewriteFilter::CreateOutputResourceFromResource(
-    const ContentType* content_type,
-    UrlSegmentEncoder* encoder,
-    Resource* input_resource) {
-  return driver_->CreateOutputResourceFromResource(
-      filter_prefix_, content_type,
-      encoder, input_resource);
+ResourcePtr RewriteFilter::CreateInputResourceFromOutputResource(
+    OutputResource* output_resource) {
+  ResourcePtr input_resource;
+  StringVector urls;
+  ResourceContext data;
+  if (encoder()->Decode(output_resource->name(), &urls, &data,
+                        driver_->message_handler()) &&
+      (urls.size() == 1)) {
+    GoogleUrl base_gurl(output_resource->resolved_base());
+    GoogleUrl resource_url(base_gurl, urls[0]);
+    if (base_gurl != driver_->base_url()) {
+      if (driver_->MayRewriteUrl(base_gurl, resource_url)) {
+        input_resource = driver_->CreateInputResource(resource_url);
+      }
+    } else {
+      input_resource = driver_->CreateInputResource(resource_url);
+    }
+  }
+  return input_resource;
+}
+
+const UrlSegmentEncoder* RewriteFilter::encoder() const {
+  return driver_->default_encoder();
+}
+
+bool RewriteFilter::ComputeOnTheFly() const {
+  return false;
 }
 
 }  // namespace net_instaweb

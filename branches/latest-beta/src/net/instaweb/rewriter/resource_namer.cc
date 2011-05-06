@@ -18,10 +18,14 @@
 
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
+#include <cctype>
 #include <vector>
+
+#include "base/logging.h"
 #include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/util/public/filename_encoder.h"
-#include "net/instaweb/util/public/string_hash.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -55,7 +59,7 @@ static const int kNumSegments = 5;
 static const char kSeparatorString[] = ".";
 static const char kSeparatorChar = kSeparatorString[0];
 
-bool TokenizeSegmentFromRight(StringPiece* src, std::string* dest) {
+bool TokenizeSegmentFromRight(StringPiece* src, GoogleString* dest) {
   StringPiece::size_type pos = src->rfind(kSeparatorChar);
   if (pos == StringPiece::npos) {
     return false;
@@ -71,7 +75,7 @@ const int ResourceNamer::kOverhead = 4 + STATIC_STRLEN(kSystemId);
 
 bool ResourceNamer::Decode(const StringPiece& encoded_string) {
   StringPiece src(encoded_string);
-  std::string system_id;
+  GoogleString system_id;
   if (TokenizeSegmentFromRight(&src, &ext_) &&
       TokenizeSegmentFromRight(&src, &hash_) &&
       TokenizeSegmentFromRight(&src, &id_) &&
@@ -121,7 +125,7 @@ bool ResourceNamer::LegacyDecode(const StringPiece& encoded_string) {
 
 // This is used for legacy compatibility as we transition to the grand new
 // world.
-std::string ResourceNamer::InternalEncode() const {
+GoogleString ResourceNamer::InternalEncode() const {
   return StrCat(name_, kSeparatorString,
                 kSystemId, kSeparatorString,
                 id_, kSeparatorString,
@@ -131,36 +135,17 @@ std::string ResourceNamer::InternalEncode() const {
 // The current encoding assumes there are no dots in any of the components.
 // This restriction may be relaxed in the future, but check it aggressively
 // for now.
-std::string ResourceNamer::Encode() const {
+GoogleString ResourceNamer::Encode() const {
   CHECK_EQ(StringPiece::npos, id_.find(kSeparatorChar));
   CHECK(!hash_.empty());
   CHECK_EQ(StringPiece::npos, hash_.find(kSeparatorChar));
   CHECK_EQ(StringPiece::npos, ext_.find(kSeparatorChar));
- return InternalEncode();
+  return InternalEncode();
 }
 
-std::string ResourceNamer::EncodeIdName() const {
+GoogleString ResourceNamer::EncodeIdName() const {
   CHECK(id_.find(kSeparatorChar) == StringPiece::npos);
   return StrCat(id_, kSeparatorString, name_);
-}
-
-// Note: there is no need at this time to decode the name key.
-
-std::string ResourceNamer::EncodeHashExt() const {
-  CHECK_EQ(StringPiece::npos, hash_.find(kSeparatorChar));
-  CHECK_EQ(StringPiece::npos, ext_.find(kSeparatorChar));
-  return StrCat(hash_, kSeparatorString, ext_);
-}
-
-bool ResourceNamer::DecodeHashExt(const StringPiece& encoded_hash_ext) {
-  std::vector<StringPiece> names;
-  SplitStringPieceToVector(encoded_hash_ext, kSeparatorString, &names, true);
-  bool ret = (names.size() == 2);
-  if (ret) {
-    names[0].CopyToString(&hash_);
-    names[1].CopyToString(&ext_);
-  }
-  return ret;
 }
 
 const ContentType* ResourceNamer::ContentTypeFromExt() const {
@@ -172,6 +157,11 @@ void ResourceNamer::CopyFrom(const ResourceNamer& other) {
   other.name().CopyToString(&name_);
   other.hash().CopyToString(&hash_);
   other.ext().CopyToString(&ext_);
+}
+
+int ResourceNamer::EventualSize(const Hasher& hasher) const {
+  return name_.size() + id_.size() + ext_.size() + kOverhead +
+         hasher.HashSizeInChars();
 }
 
 }  // namespace net_instaweb

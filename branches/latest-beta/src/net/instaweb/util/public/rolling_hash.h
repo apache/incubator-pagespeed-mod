@@ -15,11 +15,12 @@
  */
 // Author: jmaessen@google.com (Jan Maessen)
 
-#ifndef NET_INSTAWEB_UTIL_PUBLIC_CYCLIC_HASH_H_
-#define NET_INSTAWEB_UTIL_PUBLIC_CYCLIC_HASH_H_
+#ifndef NET_INSTAWEB_UTIL_PUBLIC_ROLLING_HASH_H_
+#define NET_INSTAWEB_UTIL_PUBLIC_ROLLING_HASH_H_
 
-#include "base/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
+#include <cstddef>
+#include "base/logging.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 

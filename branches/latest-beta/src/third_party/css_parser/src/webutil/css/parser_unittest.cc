@@ -77,7 +77,7 @@ class ParserTest : public testing::Test {
   }
 
   // Checks that ParseAny(s) returns goldennum with goldenunit unit.
-  void TestAnyNum(const char* s, int parselen, float goldennum,
+  void TestAnyNum(const char* s, int parselen, double goldennum,
                   Value::Unit goldenunit) {
     SCOPED_TRACE(s);
     Parser a(s);
@@ -85,13 +85,13 @@ class ParserTest : public testing::Test {
     scoped_ptr<Value> t(a.ParseAny());
     EXPECT_EQ(t->GetLexicalUnitType(), Value::NUMBER);
     EXPECT_EQ(t->GetDimension(), goldenunit);
-    EXPECT_FLOAT_EQ(t->GetFloatValue(), goldennum);
+    EXPECT_DOUBLE_EQ(t->GetFloatValue(), goldennum);
     EXPECT_EQ(parselen, a.getpos() - s);
   }
 
   // Checks that ParseAny(s) returns goldennum with OTHER unit (with
   // unit text goldenunit).
-  void TestAnyNumOtherUnit(const char* s, int parselen, float goldennum,
+  void TestAnyNumOtherUnit(const char* s, int parselen, double goldennum,
                            string goldenunit) {
     SCOPED_TRACE(s);
     Parser a(s);
@@ -572,13 +572,13 @@ TEST_F(ParserTest, font) {
   a.reset(new Parser("normal 10px /120% Arial 'Sans'"));
   scoped_ptr<Values> t(a->ParseFont());
   ASSERT_EQ(7, t->size());
-  EXPECT_FLOAT_EQ(10, t->get(3)->GetFloatValue());
+  EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Value::PERCENT, t->get(4)->GetDimension());
 
   a.reset(new Parser("italic 10px Arial, Sans"));
   t.reset(a->ParseFont());
   ASSERT_EQ(7, t->size());
-  EXPECT_FLOAT_EQ(10, t->get(3)->GetFloatValue());
+  EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Identifier::NORMAL, t->get(4)->GetIdentifier().ident());
 
   a.reset(new Parser("SMALL-caps normal x-large Arial"));
@@ -1355,7 +1355,7 @@ TEST_F(ParserTest, ParseRawStylesheetDoesNotExpand) {
     EXPECT_EQ(Identifier::NORMAL, values[0]->GetIdentifier().ident());
     EXPECT_EQ(Identifier::NORMAL, values[1]->GetIdentifier().ident());
     EXPECT_EQ(Identifier::NORMAL, values[2]->GetIdentifier().ident());
-    EXPECT_EQ(12.0, values[3]->GetFloatValue());
+    EXPECT_DOUBLE_EQ(12.0, values[3]->GetFloatValue());
     EXPECT_EQ(Value::PX, values[3]->GetDimension());
     EXPECT_EQ(Identifier::NORMAL, values[4]->GetIdentifier().ident());
     EXPECT_EQ("verdana", UnicodeTextToUTF8(values[5]->GetIdentifierText()));
@@ -1433,13 +1433,86 @@ TEST_F(ParserTest, SelectorError) {
   scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
   EXPECT_EQ(0, stylesheet->rulesets().size());
   EXPECT_EQ(Parser::kSelectorError, p.errors_seen_mask());
+
+  Parser p2("div:nth-child(1n) { color: red; }");
+  stylesheet.reset(p2.ParseStylesheet());
+  EXPECT_EQ(Parser::kSelectorError, p2.errors_seen_mask());
+  // Note: We fail to parse the (1n). If this is fixed, this test should be
+  // updated accordingly.
+  EXPECT_EQ("/* AUTHOR */\n\n\ndiv:nth-child {color: #ff0000}\n",
+            stylesheet->ToString());
+
+  Parser p3("}}");
+  stylesheet.reset(p3.ParseStylesheet());
+  EXPECT_EQ(0, stylesheet->rulesets().size());
+  EXPECT_EQ(Parser::kSelectorError, p3.errors_seen_mask());
+
+  Parser p4("div[too=many=equals] { color: red; }");
+  stylesheet.reset(p4.ParseStylesheet());
+  EXPECT_EQ(Parser::kSelectorError, p4.errors_seen_mask());
+  EXPECT_EQ("/* AUTHOR */\n\n\ndiv[too=many] {color: #ff0000}\n",
+            stylesheet->ToString());
 }
 
 TEST_F(ParserTest, MediaError) {
   Parser p("@media screen and (max-width: 290px) {}");
   scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
   EXPECT_EQ(0, stylesheet->rulesets().size());
-  EXPECT_EQ(Parser::kMediaError, p.errors_seen_mask());
+  EXPECT_TRUE(Parser::kMediaError & p.errors_seen_mask());
+}
+
+TEST_F(ParserTest, HtmlCommentError) {
+  Parser good("<!-- a { color: red } -->");
+  scoped_ptr<Stylesheet> stylesheet(good.ParseStylesheet());
+  EXPECT_EQ(Parser::kNoError, good.errors_seen_mask());
+  EXPECT_EQ("/* AUTHOR */\n\n\na {color: #ff0000}\n", stylesheet->ToString());
+
+  const char* bad_strings[] = {
+    "<    a { color: red } -->",
+    "<!   a { color: red } -->",
+    "<!-  a { color: red } -->",
+    "<!-- a { color: red } --",
+    "<!-- a { color: red } ->",
+    "<!-- a { color: red } -",
+    "<>a { color: red }",
+    };
+
+  for (int i = 0; i < arraysize(bad_strings); ++i) {
+    Parser bad(bad_strings[i]);
+    stylesheet.reset(bad.ParseStylesheet());
+    EXPECT_TRUE(Parser::kHtmlCommentError & bad.errors_seen_mask());
+  }
+}
+
+TEST_F(ParserTest, ValueError) {
+  Parser p("(12)");
+  scoped_ptr<Value> value(p.ParseAny());
+  EXPECT_TRUE(Parser::kValueError & p.errors_seen_mask());
+  EXPECT_TRUE(NULL == value.get());
+}
+
+TEST_F(ParserTest, SkippedTokenError) {
+  Parser p("12pt @foo Arial");
+  scoped_ptr<Values> values(p.ParseValues(Property::FONT));
+  EXPECT_TRUE(Parser::kSkippedTokenError & p.errors_seen_mask());
+  EXPECT_EQ("12pt Arial", values->ToString());
+}
+
+TEST_F(ParserTest, CharsetError) {
+  Parser p("@charset \"UTF-8\";");
+  scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
+  EXPECT_EQ("/* AUTHOR */\n@charset \"UTF-8\";\n\n\n", stylesheet->ToString());
+
+  Parser p2("@charset foobar;");
+  stylesheet.reset(p2.ParseStylesheet());
+  EXPECT_EQ(Parser::kCharsetError, p2.errors_seen_mask());
+  EXPECT_EQ("/* AUTHOR */\n@charset \"\";\n\n\n", stylesheet->ToString());
+
+  Parser p3("@charset \"UTF-8\" \"or 9\";");
+  stylesheet.reset(p3.ParseStylesheet());
+  EXPECT_EQ(Parser::kCharsetError, p3.errors_seen_mask());
+  EXPECT_EQ("/* AUTHOR */\n@charset \"UTF-8\";\n\n\n", stylesheet->ToString());
 }
 
 TEST_F(ParserTest, AcceptCorrectValues) {
@@ -1510,7 +1583,7 @@ TEST_F(ParserTest, Function) {
   EXPECT_EQ(Value::NUMBER, params[2]->GetLexicalUnitType());
   EXPECT_EQ(255, params[2]->GetIntegerValue());
   EXPECT_EQ(Value::NUMBER, params[3]->GetLexicalUnitType());
-  EXPECT_FLOAT_EQ(0.15, params[3]->GetFloatValue());
+  EXPECT_DOUBLE_EQ(0.15, params[3]->GetFloatValue());
 
   EXPECT_EQ("box-shadow: -1px -2px 2px rgba(0, 13, 255, 0.15)",
             declarations->ToString());

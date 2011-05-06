@@ -18,11 +18,16 @@
 
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
-#include <vector>
+#include <cstddef>
+#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace {
@@ -31,16 +36,17 @@ namespace {
 const char kUrlTrims[] = "url_trims";
 const char kUrlTrimSavedBytes[] = "url_trim_saved_bytes";
 
-} // namespace
+}  // namespace
 
 namespace net_instaweb {
 
-UrlLeftTrimFilter::UrlLeftTrimFilter(HtmlParse* html_parse,
-                                     Statistics* stats)
-    : html_parse_(html_parse),
-      trim_count_((stats == NULL) ? NULL : stats->GetVariable(kUrlTrims)),
-      trim_saved_bytes_(
-          (stats == NULL) ? NULL : stats->GetVariable(kUrlTrimSavedBytes)) {
+UrlLeftTrimFilter::UrlLeftTrimFilter(RewriteDriver* rewrite_driver,
+                                     Statistics *stats)
+    : CommonFilter(rewrite_driver),
+      tag_scanner_(rewrite_driver),
+      trim_count_(stats->GetVariable(kUrlTrims)),
+      trim_saved_bytes_(stats->GetVariable(kUrlTrimSavedBytes)) {
+  tag_scanner_.set_find_a_tags(true);
 }
 
 void UrlLeftTrimFilter::Initialize(Statistics* statistics) {
@@ -48,32 +54,11 @@ void UrlLeftTrimFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kUrlTrimSavedBytes);
 }
 
-void UrlLeftTrimFilter::StartDocument() {
-  GoogleUrl tmp(html_parse_->url());
-  base_url_.Swap(&tmp);
-}
-
-// If the element is a base tag, set the base url to be the href value.
 // Do not rewrite the base tag.
-void UrlLeftTrimFilter::StartElement(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kBase) {
-    HtmlElement::Attribute *base_href = element->FindAttribute(HtmlName::kHref);
-    if (base_href != NULL) {
-      SetBaseUrl(base_href->value());
-    }
-  } else {
-    TrimAttribute(element->FindAttribute(HtmlName::kHref));
-    TrimAttribute(element->FindAttribute(HtmlName::kSrc));
-  }
-}
-
-void UrlLeftTrimFilter::SetBaseUrl(const StringPiece& base) {
-  if(base_url_.is_empty()) {
-    GoogleUrl tmp(base);
-    base_url_.Swap(&tmp);
-  } else {
-    GoogleUrl tmp(html_parse_->google_url(), base);
-    base_url_.Swap(&tmp);
+void UrlLeftTrimFilter::StartElementImpl(HtmlElement* element) {
+  if (element->keyword() != HtmlName::kBase &&
+      BaseUrlIsValid()) {
+    TrimAttribute(tag_scanner_.ScanElement(element));
   }
 }
 
@@ -81,7 +66,7 @@ void UrlLeftTrimFilter::SetBaseUrl(const StringPiece& base) {
 // and/or path as appropriate.
 bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
                              const StringPiece& url_to_trim,
-                             std::string* trimmed_url,
+                             GoogleString* trimmed_url,
                              MessageHandler* handler) {
   if (!base_url.is_valid() || !base_url.is_standard() || url_to_trim.empty()) {
     return false;
@@ -103,9 +88,31 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
       long_url.Origin() == origin) {
     to_trim = origin.length();
     StringPiece path = base_url.PathSansLeaf();
-    if (to_trim + path.length() < long_url_buffer.length() &&
-        long_url.PathSansLeaf().find(path) == 0) {
-      to_trim += path.length();
+
+    // If the path still starts with a "//", we can't trim the origin.
+    // "//" is not actually the same as a single /, though most
+    // servers will do the same thing with it.
+    // E.g. on http://example.com/foo.html, don't trim
+    // http://example.com//bar.html to //bar or /bar.
+    if (long_url_buffer.data()[to_trim + 1] == '/' &&
+        long_url_buffer.data()[to_trim] == '/') {
+      to_trim = 0;
+    } else if (to_trim + path.length() < long_url_buffer.length() &&
+               long_url.PathSansLeaf().find(path) == 0) {
+      // Don't trim the path off queries in the form http://foo.com/?a=b
+      // Instead resolve to /?a=b (not ?a=b, which resolves to
+      // index.html?a=b on http://foo.com/index.html).
+      if (!long_url.has_query() || long_url.LeafSansQuery().length() > 0) {
+        to_trim += path.length();
+
+        // If the path now starts with "//", we need to undo the trim.
+        // E.g. on http://example.com/foo/bar/index.html, don't trim
+        // http://example.com/foo/bar//baz/other.html to //baz/other.html
+        // or to /baz/other.html.
+        if (long_url_buffer.data()[to_trim] == '/') {
+          to_trim -= path.length();
+        }
+      }
     }
   }
 
@@ -137,12 +144,12 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
     GoogleUrl resolved_newurl(base_url, trimmed_url_piece);
     DCHECK(resolved_newurl == long_url);
     if (!resolved_newurl.is_valid() || resolved_newurl != long_url) {
-      handler->Message(kInfo, "Left trimming of %s referring to %s was %s, "
+      handler->Message(kError, "Left trimming of %s referring to %s was %s, "
                        "which instead refers to %s.",
                        url_to_trim.as_string().c_str(),
                        long_url_buffer.as_string().c_str(),
                        trimmed_url_piece.as_string().c_str(),
-                       resolved_newurl.Spec().as_string().c_str());
+                       resolved_newurl.spec_c_str());
       return false;
     }
     *trimmed_url = trimmed_url_piece.as_string();
@@ -155,15 +162,13 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
 void UrlLeftTrimFilter::TrimAttribute(HtmlElement::Attribute* attr) {
   if (attr != NULL) {
     StringPiece val(attr->value());
-    std::string trimmed_val;
+    GoogleString trimmed_val;
     size_t orig_size = val.size();
-    if (Trim(base_url_, val, &trimmed_val,
-             html_parse_->message_handler())) {
+    if (Trim(driver_->base_url(), val, &trimmed_val,
+             driver_->message_handler())) {
       attr->SetValue(trimmed_val);
-      if (trim_count_ != NULL) {
-        trim_count_->Add(1);
-        trim_saved_bytes_->Add(orig_size - trimmed_val.size());
-      }
+      trim_count_->Add(1);
+      trim_saved_bytes_->Add(orig_size - trimmed_val.size());
     }
   }
 }

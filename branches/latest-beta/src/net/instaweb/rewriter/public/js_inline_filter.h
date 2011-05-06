@@ -19,15 +19,15 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_INLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_INLINE_FILTER_H_
 
-#include "base/basictypes.h"
+#include <cstddef>
+
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
-
-class ResourceManager;
+class HtmlElement;
+class HtmlCharactersNode;
 class RewriteDriver;
 
 // Inline small Javascript files.
@@ -46,8 +46,6 @@ class JsInlineFilter : public CommonFilter {
  private:
   const size_t size_threshold_bytes_;
   ScriptTagScanner script_tag_scanner_;
-
-  std::string domain_;  // The domain of the HTML file we're parsing
 
   // This is set to true during StartElement() for a <script> tag that we
   // should maybe inline, but may be set back to false by Characters().  If it

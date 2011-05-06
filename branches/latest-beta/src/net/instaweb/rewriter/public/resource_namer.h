@@ -17,13 +17,15 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_NAMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_NAMER_H_
 
-#include <string>
+#include "base/logging.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class ContentType;
-class ResourceManager;
+class Hasher;
 
 // Encapsulates the naming of resource URL leafs.  The class holds the context
 // of a single resource, and is not intended for re-use.  We could, of course,
@@ -39,13 +41,13 @@ class ResourceNamer {
 
   // Encoding and decoding in various formats.
 
-  // Decodes an entire resource name (ID.HASH.NAME.EXT), placing
+  // Decodes an entire resource name (NAME.pagespeed.ID.HASH.EXT), placing
   // the result in the fields in this encoder.
   bool Decode(const StringPiece& encoded_string);
 
   // Encodes the fields in this encoder into an absolute url, with the
   // trailing portion "NAME.pagespeed.ID.HASH.EXT".
-  std::string Encode() const;
+  GoogleString Encode() const;
 
   // Encode a key that can used to do a lookup based on an id
   // and the name.  This key can be used to find the hash-code for a
@@ -53,14 +55,13 @@ class ResourceNamer {
   //
   // The 'id' is a short code indicating which Instaweb rewriter was
   // used to generate the resource.
-  std::string EncodeIdName() const;
+  GoogleString EncodeIdName() const;
 
   // Note: there is no need at this time to decode the name key.
 
-  // Encode/decode the hash and extension, which is used as the value
-  // in the origin-TTL-bounded cache.
-  std::string EncodeHashExt() const;
-  bool DecodeHashExt(const StringPiece& encoded_hash_ext);
+  // Eventual length of name. Gets eventual hash length from passed in hasher.
+  // Needed by ResourceManager to check that filenames aren't too long.
+  int EventualSize(const Hasher& hasher) const;
 
   // Simple getters
   StringPiece id() const { return id_; }
@@ -86,19 +87,19 @@ class ResourceNamer {
   // Utility functions
 
   // Name suitable for debugging and logging
-  std::string PrettyName() const {return  InternalEncode(); }
+  GoogleString PrettyName() const {return  InternalEncode(); }
 
   // Compute a content-type based on ext().  NULL if unrecognized.
   const ContentType* ContentTypeFromExt() const;
 
  private:
-  std::string InternalEncode() const;
+  GoogleString InternalEncode() const;
   bool LegacyDecode(const StringPiece& encoded_string);
 
-  std::string id_;
-  std::string name_;
-  std::string hash_;
-  std::string ext_;
+  GoogleString id_;
+  GoogleString name_;
+  GoogleString hash_;
+  GoogleString ext_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceNamer);
 };

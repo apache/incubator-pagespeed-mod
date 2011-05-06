@@ -21,7 +21,7 @@
 #include "apr_pools.h"
 #include "apr_strings.h"
 #include "apr_version.h"
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/stl_util-inl.h"
 #include "net/instaweb/apache/apr_file_system.h"
@@ -273,7 +273,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
   int size = content_starts_[0].size();
   scoped_array<char> buf(new char[size]);
   ASSERT_EQ(size, inflater.InflateBytes(buf.get(), size));
-  EXPECT_EQ(content_starts_[0], std::string(buf.get(), size));
+  EXPECT_EQ(content_starts_[0], GoogleString(buf.get(), size));
   EXPECT_EQ(0, ActiveFetches());
 }
 
@@ -327,8 +327,8 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   // fetches and we are hoping they will complete within a certain amount
   // of time.  If the system is running well then we they will finish
   // within a 100ms or so, so we'll loop in 50ms sleep intervals until
-  // we hit a max.  We'll give it 5 seconds before declaring failure.
-  const int kMaxSeconds = 5;
+  // we hit a max.  We'll give it 20 seconds before declaring failure.
+  const int kMaxSeconds = 20;
   const int kPollTimeUs = 50000;
   const int kPollsPerSecond = 1000000 / kPollTimeUs;
   const int kMaxIters = kMaxSeconds * kPollsPerSecond;

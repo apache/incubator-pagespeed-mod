@@ -18,8 +18,12 @@
 
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include <cstddef>
+
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/util/public/statistics.h"
 
 namespace {
@@ -27,7 +31,7 @@ namespace {
 // names for Statistics variables.
 const char kCssElements[] = "css_elements";
 
-} // namespace
+}  // namespace
 
 namespace net_instaweb {
 
@@ -35,10 +39,7 @@ CssMoveToHeadFilter::CssMoveToHeadFilter(HtmlParse* html_parse,
                                          Statistics* statistics)
     : html_parse_(html_parse),
       css_tag_scanner_(html_parse),
-      counter_(NULL) {
-  if (statistics != NULL) {
-    counter_ = statistics->GetVariable(kCssElements);
-  }
+      counter_(statistics->GetVariable(kCssElements)) {
 }
 
 void CssMoveToHeadFilter::Initialize(Statistics* statistics) {
@@ -61,21 +62,18 @@ void CssMoveToHeadFilter::EndElement(HtmlElement* element) {
     head_element_ = element;
 
   } else if (element == noscript_element_) {
-    noscript_element_ = NULL; // We are exitting the top level </noscript>.
+    noscript_element_ = NULL;  // We are exitting the top level </noscript>.
 
   // Do not move anything out of a <noscript> element and we can only move
   // this to <head> if <head> is still rewritable.
   } else if (noscript_element_ == NULL && head_element_ != NULL &&
-             html_parse_->IsRewritable(head_element_)){
+             html_parse_->IsRewritable(head_element_)) {
     HtmlElement::Attribute* href;
     const char* media;
     if ((element->keyword() == HtmlName::kStyle) ||
         css_tag_scanner_.ParseCssElement(element, &href, &media)) {
       html_parse_->MoveCurrentInto(head_element_);
-      // TODO(sligocki): It'd be nice to have this pattern simplified.
-      if (counter_ != NULL) {
-        counter_->Add(1);
-      }
+      counter_->Add(1);
     }
   }
 }

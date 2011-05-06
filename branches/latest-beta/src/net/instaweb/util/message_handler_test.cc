@@ -18,8 +18,10 @@
 
 #include "net/instaweb/util/public/message_handler.h"
 
+#include <cstdarg>
 #include <vector>
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -28,14 +30,14 @@ namespace {
 
 class TestMessageHandler : public net_instaweb::MessageHandler {
  public:
-  typedef std::vector<std::string> MessageVector;
+  typedef std::vector<GoogleString> MessageVector;
 
   const MessageVector& messages() { return messages_; }
 
  protected:
   virtual void MessageVImpl(MessageType type, const char* msg,
                             va_list args) {
-    std::string message;
+    GoogleString message;
     StringAppendF(&message, "%s: ", MessageTypeToString(type));
     StringAppendV(&message, msg, args);
     messages_.push_back(message);
@@ -43,7 +45,7 @@ class TestMessageHandler : public net_instaweb::MessageHandler {
 
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args) {
-    std::string message;
+    GoogleString message;
     StringAppendF(&message, "%s: %s: %d: ", MessageTypeToString(type),
                   filename, line);
     StringAppendV(&message, msg, args);

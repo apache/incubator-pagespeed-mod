@@ -18,13 +18,15 @@
 
 #include "net/instaweb/util/public/chunking_writer.h"
 
-#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+class MessageHandler;
 
 namespace {
 
@@ -37,7 +39,7 @@ namespace {
 // trigger failures on a given operation.
 class TracingWriter : public Writer {
  public:
-  TracingWriter(MessageHandler* expected_handler) :
+  explicit TracingWriter(MessageHandler* expected_handler) :
       expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {
   }
 
@@ -69,7 +71,7 @@ class TracingWriter : public Writer {
     return true;
   }
 
-  const std::string& recorded() const { return recorded_; }
+  const GoogleString& recorded() const { return recorded_; }
 
   // Tells this filter to report a failure on n'th invocation exactly.
   // (starting from 0)
@@ -77,7 +79,7 @@ class TracingWriter : public Writer {
 
  private:
   MessageHandler* expected_handler_;
-  std::string recorded_;
+  GoogleString recorded_;
   int ops_;
   int fail_on_op_;
 };
@@ -119,7 +121,8 @@ TEST_F(ChunkingWriterTest, ChunkedBasicLong) {
   SetUpWithLimit(4);
   EXPECT_TRUE(chunker_->Write("abcdefghijklmnopqrs", &message_handler_));
   EXPECT_TRUE(chunker_->Flush(&message_handler_));
-  EXPECT_EQ("W:abcd|F|W:efgh|F|W:ijkl|F|W:mnop|F|W:qrs|F|", tracer_->recorded());
+  EXPECT_EQ("W:abcd|F|W:efgh|F|W:ijkl|F|W:mnop|F|W:qrs|F|",
+            tracer_->recorded());
 }
 
 TEST_F(ChunkingWriterTest, ChunkedManualFlush) {

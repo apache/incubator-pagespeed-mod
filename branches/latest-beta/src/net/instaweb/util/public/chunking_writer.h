@@ -19,10 +19,13 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_CHUNKING_WRITER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_CHUNKING_WRITER_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 // Wraps around an another writer forcing periodic flushes, and making sure
 // writes are not too long.

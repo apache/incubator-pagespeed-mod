@@ -19,17 +19,20 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SIMPLE_STATS_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SIMPLE_STATS_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/statistics_template.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class SimpleStats;
 class SimpleStatsVariable : public Variable {
  public:
   SimpleStatsVariable() : value_(0) {}
   virtual ~SimpleStatsVariable();
   virtual int Get() const { return value_; }
+  virtual int64 Get64() const { return value_; }
   virtual void Set(int value) { value_ = value; }
 
  private:

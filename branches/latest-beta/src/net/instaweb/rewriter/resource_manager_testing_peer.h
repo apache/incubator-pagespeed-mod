@@ -20,6 +20,8 @@
 #define NET_INSTAWEB_REWRITER_RESOURCE_MANAGER_TESTING_PEER_H_
 
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -30,8 +32,9 @@ class ResourceManagerTestingPeer {
   static bool HasHash(const OutputResource* resource) {
     return resource->has_hash();
   }
-  static bool Outlined(const OutputResource* resource) {
-    return resource->outlined();
+
+  static void SetHash(OutputResource* resource, const StringPiece& hash) {
+    resource->SetHash(hash);
   }
 
  private:

@@ -26,27 +26,29 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
 
-#include "base/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
+#include <vector>
+
+#include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
-
+class MessageHandler;
+class Resource;
 class ResourceManager;
+struct ContentType;
 
-class Resource {
+typedef RefCountedPtr<Resource> ResourcePtr;
+typedef std::vector<ResourcePtr> ResourceVector;
+
+class Resource : public RefCounted<Resource> {
  public:
-  static const int64 kDefaultExpireTimeMs;
-
-  Resource(ResourceManager* manager, const ContentType* type)
-      : resource_manager_(manager),
-        type_(type) {
-  }
-  virtual ~Resource();
+  Resource(ResourceManager* resource_manager, const ContentType* type);
 
   // Common methods across all deriviations
   ResourceManager* resource_manager() const { return resource_manager_; }
@@ -69,7 +71,7 @@ class Resource {
   virtual bool IsCacheable() const;
 
   // Gets the absolute URL of the resource
-  virtual std::string url() const = 0;
+  virtual GoogleString url() const = 0;
 
   virtual void DetermineContentType();
 
@@ -78,8 +80,15 @@ class Resource {
   // collect the fetched data.
   class AsyncCallback {
    public:
+    explicit AsyncCallback(const ResourcePtr& resource) : resource_(resource) {}
+
     virtual ~AsyncCallback();
-    virtual void Done(bool success, Resource* resource) = 0;
+    virtual void Done(bool success) = 0;
+
+    const ResourcePtr& resource() { return resource_; }
+
+   private:
+    ResourcePtr resource_;
   };
 
   // Links in the HTTP contents and header from a fetched value.
@@ -94,15 +103,21 @@ class Resource {
   virtual void Freshen(MessageHandler* handler);
 
  protected:
+  virtual ~Resource();
+  REFCOUNT_FRIEND_DECLARATION(Resource);
   friend class ResourceManager;
-  friend class RewriteDriver;
+  friend class RewriteDriver;  // for ReadIfCachedWithStatus
   friend class UrlReadAsyncFetchCallback;
+  friend class ResourceManagerHttpCallback;
 
   // Load the resource asynchronously, storing ResponseHeaders and
   // contents in cache.  Returns true, if the resource is already
   // loaded or loaded synchronously.
   virtual bool Load(MessageHandler* message_handler) = 0;
-  // Same as Load, but calls a callback when finished.
+
+  // Same as Load, but calls a callback when finished.  The ResourcePtr
+  // used to construct 'callback' must be the same as the resource used
+  // to invoke this method.
   virtual void LoadAndCallback(AsyncCallback* callback,
                                MessageHandler* message_handler);
 

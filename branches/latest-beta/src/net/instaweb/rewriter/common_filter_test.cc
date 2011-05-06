@@ -18,21 +18,31 @@
 
 #include "net/instaweb/rewriter/public/common_filter.h"
 
-#include "base/scoped_ptr.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "base/logging.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class HtmlElement;
+class HtmlParse;
 
 namespace {
 
 class CountingFilter : public CommonFilter {
  public:
-  CountingFilter(RewriteDriver* driver) : CommonFilter(driver),
-                                          start_doc_calls_(0),
-                                          start_element_calls_(0),
-                                          end_element_calls_(0) {}
+  explicit CountingFilter(RewriteDriver* driver) : CommonFilter(driver),
+                                                   start_doc_calls_(0),
+                                                   start_element_calls_(0),
+                                                   end_element_calls_(0) {}
 
   virtual void StartDocumentImpl() { ++start_doc_calls_; }
   virtual void StartElementImpl(HtmlElement* element) {
@@ -53,13 +63,14 @@ class CommonFilterTest : public ResourceManagerTestBase {
     rewrite_driver_.AddFilter(&filter_);
   }
 
-  void ExpectUrl(const std::string& expected_url, const GURL& actual_gurl) {
-    LOG(INFO) << actual_gurl;
-    EXPECT_EQ(expected_url, GoogleUrl::Spec(actual_gurl));
+  void ExpectUrl(const GoogleString& expected_url,
+                 const GoogleUrl& actual_gurl) {
+    LOG(INFO) << actual_gurl.spec_c_str();
+    EXPECT_EQ(expected_url, actual_gurl.Spec());
   }
 
   bool CanRewriteResource(CommonFilter* filter, const StringPiece& url) {
-    scoped_ptr<Resource> resource(filter->CreateInputResource(url));
+    ResourcePtr resource(filter->CreateInputResource(url));
     return (resource.get() != NULL);
   }
 
@@ -96,33 +107,33 @@ TEST_F(CommonFilterTest, DoesCallImpls) {
 }
 
 TEST_F(CommonFilterTest, StoresCorrectBaseUrl) {
-  std::string doc_url = "http://www.example.com/";
+  GoogleString doc_url = "http://www.example.com/";
   rewrite_driver_.StartParse(doc_url);
   rewrite_driver_.Flush();
   // Base URL starts out as document URL.
-  ExpectUrl(doc_url, rewrite_driver_.gurl());
-  ExpectUrl(doc_url, filter_.base_gurl());
+  ExpectUrl(doc_url, rewrite_driver_.google_url());
+  ExpectUrl(doc_url, filter_.base_url());
 
   rewrite_driver_.ParseText(
       "<html><head><link rel='stylesheet' href='foo.css'>");
   rewrite_driver_.Flush();
-  ExpectUrl(doc_url, filter_.base_gurl());
+  ExpectUrl(doc_url, filter_.base_url());
 
-  std::string base_url = "http://www.baseurl.com/foo/";
+  GoogleString base_url = "http://www.baseurl.com/foo/";
   rewrite_driver_.ParseText("<base href='");
   rewrite_driver_.ParseText(base_url);
   rewrite_driver_.ParseText("' />");
   rewrite_driver_.Flush();
   // Update to base URL.
-  ExpectUrl(base_url, filter_.base_gurl());
+  ExpectUrl(base_url, filter_.base_url());
   // Make sure we didn't change the document URL.
-  ExpectUrl(doc_url, rewrite_driver_.gurl());
+  ExpectUrl(doc_url, rewrite_driver_.google_url());
 
   rewrite_driver_.ParseText("<link rel='stylesheet' href='foo.css'>");
   rewrite_driver_.Flush();
-  ExpectUrl(base_url, filter_.base_gurl());
+  ExpectUrl(base_url, filter_.base_url());
 
-  std::string new_base_url = "http://www.somewhere-else.com/";
+  GoogleString new_base_url = "http://www.somewhere-else.com/";
   rewrite_driver_.ParseText("<base href='");
   rewrite_driver_.ParseText(new_base_url);
   rewrite_driver_.ParseText("' />");
@@ -130,16 +141,17 @@ TEST_F(CommonFilterTest, StoresCorrectBaseUrl) {
   EXPECT_EQ(1, message_handler_.TotalMessages());
 
   // Uses old base URL.
-  ExpectUrl(base_url, filter_.base_gurl());
+  ExpectUrl(base_url, filter_.base_url());
 
   rewrite_driver_.ParseText("</head></html>");
+  rewrite_driver_.Flush();
+  ExpectUrl(base_url, filter_.base_url());
   rewrite_driver_.FinishParse();
-  ExpectUrl(base_url, filter_.base_gurl());
-  ExpectUrl(doc_url, rewrite_driver_.gurl());
+  ExpectUrl(doc_url, rewrite_driver_.google_url());
 }
 
 TEST_F(CommonFilterTest, DetectsNoScriptCorrectly) {
-  std::string doc_url = "http://www.example.com/";
+  GoogleString doc_url = "http://www.example.com/";
   rewrite_driver_.StartParse(doc_url);
   rewrite_driver_.Flush();
   EXPECT_TRUE(filter_.noscript_element() == NULL);
@@ -174,7 +186,6 @@ TEST_F(CommonFilterTest, DetectsNoScriptCorrectly) {
   rewrite_driver_.ParseText("</head></html>");
   rewrite_driver_.FinishParse();
   EXPECT_TRUE(filter_.noscript_element() == NULL);
-
 }
 
 TEST_F(CommonFilterTest, TestTwoDomainLawyers) {

@@ -20,8 +20,7 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SYMBOL_TABLE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SYMBOL_TABLE_H_
 
-#include <cstdlib>
-#include <cstring>
+#include <cstddef>
 #include <vector>
 
 #ifdef __GNUC__
@@ -61,9 +60,8 @@
 #include <set>
 #endif
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/atom.h"
-#include <string>
 #include "net/instaweb/util/public/string_hash.h"
 #include "net/instaweb/util/public/string_util.h"
 

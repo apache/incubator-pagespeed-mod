@@ -18,17 +18,25 @@
 
 #include "net/instaweb/rewriter/public/js_outline_filter.h"
 
-#include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/script_tag_scanner.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include <string>
-#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 const char JsOutlineFilter::kFilterId[] = "jo";
 
@@ -121,7 +129,7 @@ void JsOutlineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
 }
 
 // Try to write content and possibly header to resource.
-bool JsOutlineFilter::WriteResource(const std::string& content,
+bool JsOutlineFilter::WriteResource(const GoogleString& content,
                                     OutputResource* resource,
                                     MessageHandler* handler) {
   // We set the TTL of the origin->hashed_name map to 0 because this is
@@ -134,16 +142,17 @@ bool JsOutlineFilter::WriteResource(const std::string& content,
 // Create file with script content and remove that element from DOM.
 // TODO(sligocki): We probably will break any relative URL references here.
 void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
-                                    const std::string& content) {
+                                    const GoogleString& content) {
   if (driver_->IsRewritable(inline_element)) {
     // Create script file from content.
     MessageHandler* handler = driver_->message_handler();
     // Create outline resource at the document location, not base URL location
-    scoped_ptr<OutputResource> resource(
+    OutputResourcePtr resource(
         driver_->CreateOutputResourceWithPath(
-            GoogleUrl::AllExceptLeaf(driver_->gurl()), kFilterId, "_",
-            &kContentTypeJavascript, RewriteDriver::kOutlinedResource));
-    if (WriteResource(content, resource.get(), handler)) {
+            driver_->google_url().AllExceptLeaf(), kFilterId, "_",
+            &kContentTypeJavascript, kOutlinedResource));
+    if (resource.get() != NULL &&
+        WriteResource(content, resource.get(), handler)) {
       HtmlElement* outline_element = driver_->CloneElement(inline_element);
       driver_->AddAttribute(outline_element, HtmlName::kSrc,
                             resource->url());

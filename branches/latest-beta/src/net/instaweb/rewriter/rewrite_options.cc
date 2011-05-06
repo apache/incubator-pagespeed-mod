@@ -16,8 +16,16 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 
+#include <map>
+#include <set>
+#include <utility>
 #include <vector>
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/wildcard_group.h"
 
 namespace net_instaweb {
 
@@ -40,21 +48,21 @@ namespace net_instaweb {
 // jmarantz says:
 //
 // One thing we could do, if we believe they should be conceptually
-// merged, is in img_rewrite_filter you could apply the
+// merged, is in image_rewrite_filter you could apply the
 // base64-bloat-factor before comparing against the threshold.  Then
 // we could use one number if we like that idea.
 //
 
-// jmaessen: For the moment, there's a separate threshold for img inline.
+// jmaessen: For the moment, there's a separate threshold for image inline.
 const int64 RewriteOptions::kDefaultCssInlineMaxBytes = 2048;
-const int64 RewriteOptions::kDefaultImgInlineMaxBytes = 2048;
+const int64 RewriteOptions::kDefaultImageInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultJsInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
 const int64 RewriteOptions::kDefaultJsOutlineMinBytes = 3000;
 
-// Limit on concurrent ongoing img rewrites.
+// Limit on concurrent ongoing image rewrites.
 // TODO(jmaessen): Determine a sane default for this value.
-const int RewriteOptions::kDefaultImgMaxRewritesAtOnce = 8;
+const int RewriteOptions::kDefaultImageMaxRewritesAtOnce = 8;
 
 // IE limits URL size overall to about 2k characters.  See
 // http://support.microsoft.com/kb/208427/EN-US
@@ -68,7 +76,7 @@ const int RewriteOptions::kMaxUrlSize = 2083;
 // Apache.  See http://code.google.com/p/modpagespeed/issues/detail?id=176
 const int RewriteOptions::kDefaultMaxUrlSegmentSize = 1024;
 
-const std::string RewriteOptions::kDefaultBeaconUrl =
+const GoogleString RewriteOptions::kDefaultBeaconUrl =
     "/mod_pagespeed_beacon?ets=";
 
 bool RewriteOptions::ParseRewriteLevel(
@@ -96,20 +104,20 @@ RewriteOptions::RewriteOptions()
     : modified_(false),
       level_(kPassThrough),
       css_inline_max_bytes_(kDefaultCssInlineMaxBytes),
-      img_inline_max_bytes_(kDefaultImgInlineMaxBytes),
-      img_max_rewrites_at_once_(kDefaultImgMaxRewritesAtOnce),
+      image_inline_max_bytes_(kDefaultImageInlineMaxBytes),
+      image_max_rewrites_at_once_(kDefaultImageMaxRewritesAtOnce),
       js_inline_max_bytes_(kDefaultJsInlineMaxBytes),
       css_outline_min_bytes_(kDefaultCssInlineMaxBytes),
       js_outline_min_bytes_(kDefaultJsInlineMaxBytes),
-      num_shards_(0),
       beacon_url_(kDefaultBeaconUrl),
       max_url_segment_size_(kDefaultMaxUrlSegmentSize),
       max_url_size_(kMaxUrlSize),
       enabled_(true),
       combine_across_paths_(true),
       log_rewrite_timing_(false),
-      lowercase_html_names_(false) {
-  // TODO: If we instantiate many RewriteOptions, this should become a
+      lowercase_html_names_(false),
+      always_rewrite_css_(false) {
+  // TODO(jmarantz): If we instantiate many RewriteOptions, this should become a
   // public static method called once at startup.
   SetUp();
 }
@@ -122,25 +130,38 @@ void RewriteOptions::SetUp() {
   name_filter_map_["add_instrumentation"] = kAddInstrumentation;
   name_filter_map_["collapse_whitespace"] = kCollapseWhitespace;
   name_filter_map_["combine_css"] = kCombineCss;
+  name_filter_map_["combine_javascript"] = kCombineJavascript;
   name_filter_map_["combine_heads"] = kCombineHeads;
-  name_filter_map_["debug_log_img_tags"] = kDebugLogImgTags;
   name_filter_map_["elide_attributes"] = kElideAttributes;
   name_filter_map_["extend_cache"] = kExtendCache;
   name_filter_map_["inline_css"] = kInlineCss;
+  name_filter_map_["inline_images"] = kInlineImages;
   name_filter_map_["inline_javascript"] = kInlineJavascript;
-  name_filter_map_["insert_img_dimensions"] = kInsertImgDimensions;
+  name_filter_map_["insert_img_dimensions"] =
+      kInsertImageDimensions;  // Deprecated due to spelling.
+  name_filter_map_["insert_image_dimensions"] = kInsertImageDimensions;
   name_filter_map_["left_trim_urls"] = kLeftTrimUrls;  // Deprecated
   name_filter_map_["make_google_analytics_async"] = kMakeGoogleAnalyticsAsync;
   name_filter_map_["move_css_to_head"] = kMoveCssToHead;
   name_filter_map_["outline_css"] = kOutlineCss;
   name_filter_map_["outline_javascript"] = kOutlineJavascript;
+  name_filter_map_["recompress_images"] = kRecompressImages;
   name_filter_map_["remove_comments"] = kRemoveComments;
   name_filter_map_["remove_quotes"] = kRemoveQuotes;
+  name_filter_map_["resize_images"] = kResizeImages;
   name_filter_map_["rewrite_css"] = kRewriteCss;
-  name_filter_map_["rewrite_images"] = kRewriteImages;
+  name_filter_map_["rewrite_domains"] = kRewriteDomains;
   name_filter_map_["rewrite_javascript"] = kRewriteJavascript;
+  name_filter_map_["sprite_images"] = kSpriteImages;
   name_filter_map_["strip_scripts"] = kStripScripts;
   name_filter_map_["trim_urls"] = kLeftTrimUrls;
+
+  // Create filter sets for compound filter flags
+  // (right now this is just rewrite_images)
+  name_filter_set_map_["rewrite_images"].insert(kInlineImages);
+  name_filter_set_map_["rewrite_images"].insert(kInsertImageDimensions);
+  name_filter_set_map_["rewrite_images"].insert(kRecompressImages);
+  name_filter_set_map_["rewrite_images"].insert(kResizeImages);
 
   // Create an empty set for the pass-through level.
   level_filter_set_map_[kPassThrough];
@@ -150,23 +171,22 @@ void RewriteOptions::SetUp() {
   level_filter_set_map_[kCoreFilters].insert(kCombineCss);
   level_filter_set_map_[kCoreFilters].insert(kExtendCache);
   level_filter_set_map_[kCoreFilters].insert(kInlineCss);
+  level_filter_set_map_[kCoreFilters].insert(kInlineImages);
   level_filter_set_map_[kCoreFilters].insert(kInlineJavascript);
-  level_filter_set_map_[kCoreFilters].insert(kInsertImgDimensions);
+  level_filter_set_map_[kCoreFilters].insert(kInsertImageDimensions);
   level_filter_set_map_[kCoreFilters].insert(kLeftTrimUrls);
-  level_filter_set_map_[kCoreFilters].insert(kRewriteImages);
-  // TODO(jmarantz): re-enable javascript and CSS minification in
-  // the core set after the reported bugs have been fixed.  They
-  // can still be enabled individually.
-  // level_filter_set_map_[kCoreFilters].insert(kRewriteCss);
-  // level_filter_set_map_[kCoreFilters].insert(kRewriteJavascript);
+  level_filter_set_map_[kCoreFilters].insert(kRecompressImages);
+  level_filter_set_map_[kCoreFilters].insert(kResizeImages);
+  level_filter_set_map_[kCoreFilters].insert(kRewriteCss);
+  level_filter_set_map_[kCoreFilters].insert(kRewriteJavascript);
 
   // Copy CoreFilters set into TestingCoreFilters set ...
   level_filter_set_map_[kTestingCoreFilters] =
       level_filter_set_map_[kCoreFilters];
   // ... and add possibly unsafe filters.
+  // TODO(jmarantz): Migrate these over to CoreFilters.
   level_filter_set_map_[kTestingCoreFilters].insert(kMakeGoogleAnalyticsAsync);
-  level_filter_set_map_[kTestingCoreFilters].insert(kRewriteCss);
-  level_filter_set_map_[kTestingCoreFilters].insert(kRewriteJavascript);
+  level_filter_set_map_[kTestingCoreFilters].insert(kRewriteDomains);
 
   // Set complete set for all filters set.
   for (int f = kFirstFilter; f != kLastFilter; ++f) {
@@ -213,11 +233,23 @@ bool RewriteOptions::AddCommaSeparatedListToFilterSet(
   SplitStringPieceToVector(filters, ",", &names, true);
   bool ret = true;
   for (int i = 0, n = names.size(); i < n; ++i) {
-    std::string option(names[i].data(), names[i].size());
+    GoogleString option(names[i].data(), names[i].size());
     NameToFilterMap::iterator p = name_filter_map_.find(option);
     if (p == name_filter_map_.end()) {
-      handler->Message(kWarning, "Invalid filter name: %s", option.c_str());
-      ret = false;
+      // Handle a compound filter name.  This is much less common.
+      NameToFilterSetMap::iterator s = name_filter_set_map_.find(option);
+      if (s == name_filter_set_map_.end()) {
+        handler->Message(kWarning, "Invalid filter name: %s", option.c_str());
+        ret = false;
+      } else {
+        const FilterSet& new_flags = s->second;
+        // Insert all new_flags into set.
+        for (FilterSet::iterator j = new_flags.begin(), m = new_flags.end();
+             j != m; ++j) {
+          std::pair<FilterSet::iterator, bool> inserted = set->insert(*j);
+          modified_ |= inserted.second;
+        }
+      }
     } else {
       std::pair<FilterSet::iterator, bool> inserted = set->insert(p->second);
       modified_ |= inserted.second;
@@ -272,18 +304,16 @@ void RewriteOptions::Merge(const RewriteOptions& first,
   level_.Merge(first.level_, second.level_);
   css_inline_max_bytes_.Merge(first.css_inline_max_bytes_,
                               second.css_inline_max_bytes_);
-  img_inline_max_bytes_.Merge(first.img_inline_max_bytes_,
-                              second.img_inline_max_bytes_);
-  img_max_rewrites_at_once_.Merge(first.img_max_rewrites_at_once_,
-                                  second.img_max_rewrites_at_once_);
+  image_inline_max_bytes_.Merge(first.image_inline_max_bytes_,
+                                second.image_inline_max_bytes_);
+  image_max_rewrites_at_once_.Merge(first.image_max_rewrites_at_once_,
+                                    second.image_max_rewrites_at_once_);
   js_inline_max_bytes_.Merge(first.js_inline_max_bytes_,
                              second.js_inline_max_bytes_);
   css_outline_min_bytes_.Merge(first.css_outline_min_bytes_,
                                second.css_outline_min_bytes_);
   js_outline_min_bytes_.Merge(first.js_outline_min_bytes_,
                               second.js_outline_min_bytes_);
-  num_shards_.Merge(first.num_shards_,
-                    second.num_shards_);
   beacon_url_.Merge(first.beacon_url_,
                     second.beacon_url_);
   max_url_segment_size_.Merge(first.max_url_segment_size_,
@@ -294,6 +324,8 @@ void RewriteOptions::Merge(const RewriteOptions& first,
                             second.log_rewrite_timing_);
   lowercase_html_names_.Merge(first.lowercase_html_names_,
                               second.lowercase_html_names_);
+  always_rewrite_css_.Merge(first.always_rewrite_css_,
+                            second.always_rewrite_css_);
 
   // Note that the domain-lawyer merge works one-at-a-time, which is easier
   // to unit test.  So we have to call it twice.
@@ -302,6 +334,9 @@ void RewriteOptions::Merge(const RewriteOptions& first,
 
   allow_resources_.CopyFrom(first.allow_resources_);
   allow_resources_.AppendFrom(second.allow_resources_);
+
+  retain_comments_.CopyFrom(first.retain_comments_);
+  retain_comments_.AppendFrom(second.retain_comments_);
 }
 
 }  // namespace net_instaweb

@@ -17,9 +17,20 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/rewriter/public/scan_filter.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
+
+#include <cstddef>
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 
 namespace net_instaweb {
+
+ScanFilter::ScanFilter(RewriteDriver* driver)
+    : driver_(driver),
+      tag_scanner_(driver) {
+  tag_scanner_.set_find_a_tags(true);
+}
 
 ScanFilter::~ScanFilter() {
 }
@@ -28,6 +39,8 @@ void ScanFilter::StartDocument() {
   // TODO(jmarantz): consider having rewrite_driver access the url in this
   // class, rather than poking it into rewrite_driver.
   driver_->InitBaseUrl();
+  seen_refs_ = false;
+  seen_base_ = false;
 }
 
 void ScanFilter::StartElement(HtmlElement* element) {
@@ -40,8 +53,15 @@ void ScanFilter::StartElement(HtmlElement* element) {
       // TODO(jmarantz): consider having rewrite_driver access the url in this
       // class, rather than poking it into rewrite_driver.
       driver_->SetBaseUrlIfUnset(href->value());
+      seen_base_ = true;
+      if (seen_refs_) {
+        driver_->set_refs_before_base();
+      }
     }
     // TODO(jmarantz): handle base targets in addition to hrefs.
+  } else if (!seen_refs_ && !seen_base_ &&
+             tag_scanner_.ScanElement(element) != NULL) {
+    seen_refs_ = true;
   }
 }
 

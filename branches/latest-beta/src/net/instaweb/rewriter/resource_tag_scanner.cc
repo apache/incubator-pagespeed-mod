@@ -18,25 +18,41 @@
 
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 
+#include <cstddef>
+
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-HtmlElement::Attribute* ResourceTagScanner::ScanElement(HtmlElement* element) {
+HtmlElement::Attribute* ResourceTagScanner::ScanElement(HtmlElement* element)
+    const {
   HtmlName::Keyword keyword = element->keyword();
   HtmlElement::Attribute* attr = NULL;
-  if (keyword == HtmlName::kLink) {
-    // See http://www.whatwg.org/specs/web-apps/current-work/multipage/
-    // links.html#linkTypes
-    HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
-    if ((rel_attr != NULL) &&
-        StringCaseEqual(rel_attr->value(), CssTagScanner::kStylesheet)) {
-      attr = element->FindAttribute(HtmlName::kHref);
+  switch (keyword) {
+    case HtmlName::kLink: {
+      // See http://www.whatwg.org/specs/web-apps/current-work/multipage/
+      // links.html#linkTypes
+      HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
+      if ((rel_attr != NULL) &&
+          StringCaseEqual(rel_attr->value(), CssTagScanner::kStylesheet)) {
+        attr = element->FindAttribute(HtmlName::kHref);
+      }
+      break;
     }
-  } else if ((keyword == HtmlName::kScript) || (keyword == HtmlName::kImg)) {
-    attr = element->FindAttribute(HtmlName::kSrc);
+    case HtmlName::kScript:
+    case HtmlName::kImg:
+      attr = element->FindAttribute(HtmlName::kSrc);
+      break;
+    case HtmlName::kA:
+      if (find_a_tags_) {
+        attr = element->FindAttribute(HtmlName::kHref);
+      }
+      break;
+    default:
+      break;
   }
   return attr;
 }

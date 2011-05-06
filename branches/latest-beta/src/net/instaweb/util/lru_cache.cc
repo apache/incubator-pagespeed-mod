@@ -18,8 +18,14 @@
 
 #include "net/instaweb/util/public/lru_cache.h"
 
+#include <cstddef>
+#include <list>
+#include <map>
+#include <utility>
 #include "base/logging.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -35,24 +41,24 @@ LRUCache::ListNode LRUCache::Freshen(KeyValuePair* key_value) {
   return lru_ordered_list_.begin();
 }
 
-bool LRUCache::Get(const std::string& key, SharedString* value) {
+void LRUCache::Get(const GoogleString& key, Callback* callback) {
+  KeyState key_state = kNotFound;
   Map::iterator p = map_.find(key);
-  bool ret = false;
   if (p != map_.end()) {
-    ret = true;
+    key_state = kAvailable;
     ListNode cell = p->second;
     KeyValuePair* key_value = *cell;
     lru_ordered_list_.erase(cell);
     p->second = Freshen(key_value);
-    *value = key_value->second;
+    *callback->value() = key_value->second;
     ++num_hits_;
   } else {
     ++num_misses_;
   }
-  return ret;
+  callback->Done(key_state);
 }
 
-void LRUCache::Put(const std::string& key, SharedString* new_value) {
+void LRUCache::Put(const GoogleString& key, SharedString* new_value) {
   // Just do one map operation, calling the awkward 'insert' which returns
   // a pair.  The bool indicates whether a new value was inserted, and the
   // iterator provides access to the element, whether it's new or old.
@@ -127,7 +133,7 @@ bool LRUCache::EvictIfNecessary(size_t bytes_needed) {
   return ret;
 }
 
-void LRUCache::Delete(const std::string& key) {
+void LRUCache::Delete(const GoogleString& key) {
   Map::iterator p = map_.find(key);
   if (p != map_.end()) {
     ListNode cell = p->second;
@@ -171,13 +177,13 @@ void LRUCache::SanityCheck() {
   CHECK(count == map_.size());
 }
 
-CacheInterface::KeyState LRUCache::Query(const std::string& key) {
+void LRUCache::Query(const GoogleString& key, Callback* callback) {
   Map::iterator p = map_.find(key);
   KeyState state = kNotFound;
   if (p != map_.end()) {
     state = kAvailable;
   }
-  return state;
+  callback->Done(state);
 }
 
 // TODO(jmarantz): consider accounting for overhead for list cells, map

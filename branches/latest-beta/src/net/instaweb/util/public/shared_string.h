@@ -25,52 +25,34 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SHARED_STRING_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SHARED_STRING_H_
 
-#include "base/basictypes.h"
-#include <string>
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-
-#include "base/ref_counted.h"
 
 namespace net_instaweb {
 
-
-class RefCountedString : public base::RefCountedThreadSafe<RefCountedString> {
+// Reference-counted string.  This class just adds the StringPiece constructor.
+class SharedString : public RefCountedObj<GoogleString> {
  public:
-  RefCountedString() { }
-  explicit RefCountedString(const StringPiece& str)
-      : string_(str.data(), str.size()) {
+  SharedString() {}
+  explicit SharedString(const StringPiece& str) {
+    str.CopyToString(get());
   }
-  const std::string& value() const { return string_; }
-  std::string& value() { return string_; }
-  size_t size() const { return string_.size(); }
-  const char* data() const { return string_.data(); }
 
- private:
-  friend class base::RefCountedThreadSafe<RefCountedString>;
-  ~RefCountedString() { }
+  // When constructing with a GoogleString, we going through the StringPiece
+  // ctor above causes an extra copy compared with string implementations that
+  // use copy-on-write.
+  explicit SharedString(const GoogleString& str)
+      : RefCountedObj<GoogleString>(str) {}
 
-  std::string string_;
-
-  DISALLOW_COPY_AND_ASSIGN(RefCountedString);
+  // Given the two constructors above, it is ambiguous which one gets
+  // called when passed a string-literal, so making an explicit const char*
+  // constructor eliminates the ambiguity.  This is likely beneficial mostly
+  // for tests.
+  explicit SharedString(const char* str) {
+    *get() = str;
+  }
 };
-
-class SharedString : public scoped_refptr<RefCountedString> {
- public:
-  SharedString() : scoped_refptr<RefCountedString>(new RefCountedString) {
-  }
-
-  explicit SharedString(const StringPiece& str)
-      : scoped_refptr<RefCountedString>(new RefCountedString(str)) {
-  }
-  std::string& operator*() { return ptr_->value(); }
-  std::string* get() { return &(ptr_->value()); }
-  const std::string* get() const { return &(ptr_->value()); }
-  std::string* operator->() { return &(ptr_->value()); }
-  const std::string* operator->() const { return &(ptr_->value()); }
-  bool unique() const { return ptr_->HasOneRef(); }
-  std::string::size_type size() const { return ptr_->value().size(); }
-};
-
 
 }  // namespace net_instaweb
 

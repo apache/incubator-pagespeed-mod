@@ -19,19 +19,21 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 
-#include "base/basictypes.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-class HtmlParse;
+class MessageHandler;
 class OutputResource;
-class ResourceManager;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteDriver;
-class UrlAsyncFetcher;
+class UrlSegmentEncoder;
 class Writer;
 
 class RewriteFilter : public CommonFilter {
@@ -53,7 +55,7 @@ class RewriteFilter : public CommonFilter {
   // resource, it replaces the href with a url constructed as
   //   HOST://PATH/ENCODED_NAME.pagespeed.FILTER_ID.HASH.EXT
   // Most ENCODED_NAMEs are just the original URL with a few
-  // characters, notably '?' and '&' esacped.  For "ic" (ImgRewriterFilter)
+  // characters, notably '?' and '&' esacped.  For "ic" (ImageRewriterFilter)
   // the encoding includes the original image URL, plus the pixel-dimensions
   // to which the image was resized.  For combine_css it includes
   // all the original URLs separated by '+'.
@@ -68,22 +70,36 @@ class RewriteFilter : public CommonFilter {
   // response_writer or response_headers from callbacks for any
   // requests it has initiated itself.
   //
-  virtual bool Fetch(OutputResource* output_resource,
+  virtual bool Fetch(const OutputResourcePtr& output_resource,
                      Writer* response_writer,
                      const RequestHeaders& request_header,
                      ResponseHeaders* response_headers,
                      MessageHandler* message_handler,
                      UrlAsyncFetcher::Callback* callback) = 0;
 
-  const std::string& id() const { return filter_prefix_; }
+  const GoogleString& id() const { return filter_prefix_; }
 
-  OutputResource* CreateOutputResourceFromResource(
-      const ContentType* content_type,
-      UrlSegmentEncoder* encoder,
-      Resource* input_resource);
+  // Create an input resource by decoding output_resource using the
+  // filter's. Assures legality by explicitly permission-checking the result.
+  ResourcePtr CreateInputResourceFromOutputResource(
+      OutputResource* output_resource);
+
+  // All RewriteFilters define how they encode URLs and other
+  // associated information needed for a rewrite into a URL.
+  // The default implementation handles a single URL with
+  // no extra data.  The filter owns the encoder.
+  virtual const UrlSegmentEncoder* encoder() const;
+
+  // If this method returns true, the data output of this filter will not be
+  // cached, and will instead be recomputed on the fly every time it is needed.
+  // (However, the transformed URL and similar metadata in CachedResult will be
+  //  kept in cache).
+  //
+  // The default implementation returns false.
+  virtual bool ComputeOnTheFly() const;
 
  protected:
-  std::string filter_prefix_;  // Prefix that should be used in front of all
+  GoogleString filter_prefix_;  // Prefix that should be used in front of all
                                 // rewritten URLs
  private:
   DISALLOW_COPY_AND_ASSIGN(RewriteFilter);

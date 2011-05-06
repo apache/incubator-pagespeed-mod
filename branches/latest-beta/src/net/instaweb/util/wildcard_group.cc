@@ -16,8 +16,11 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
+#include <vector>
+#include "base/logging.h"
 #include "net/instaweb/util/public/wildcard_group.h"
 #include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/wildcard.h"
 
 namespace net_instaweb {
@@ -38,8 +41,7 @@ void WildcardGroup::Disallow(const StringPiece& expr) {
   allow_.push_back(false);
 }
 
-bool WildcardGroup::Match(const StringPiece& str) const {
-  bool allow = true;
+bool WildcardGroup::Match(const StringPiece& str, bool allow) const {
   CHECK_EQ(wildcards_.size(), allow_.size());
   for (int i = 0, n = wildcards_.size(); i < n; ++i) {
     // Do not bother to execute the wildcard match if a match would

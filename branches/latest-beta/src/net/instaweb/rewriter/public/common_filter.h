@@ -19,37 +19,34 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/util/public/atom.h"
-#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class GoogleUrl;
 class HtmlElement;
-class HtmlParse;
-class Resource;
 class ResourceManager;
 class RewriteOptions;
-class OutputResource;
-class UrlSegmentEncoder;
 
 // CommonFilter encapsulates useful functionality that many filters will want.
 // All filters who want this functionality should inherit from CommonFilter and
 // define the Helper methods rather than the main methods.
 //
-// Currently, it stores the current base URL (which can depend on where you
-// are on a page since the <base> element does not have to be first)
-// and whether we are in a <noscript> element (in which case, we should be
-// careful about moving things out of this element).
+// Currently, it stores whether we are in a <noscript> element (in
+// which case, we should be careful about moving things out of this
+// element).
+//
+// The base-tag is maintained in the RewriteDriver, although it can be
+// accessed via a convenience method here for historical reasons.
 class CommonFilter : public EmptyHtmlFilter {
  public:
-  CommonFilter(RewriteDriver* driver);
+  explicit CommonFilter(RewriteDriver* driver);
   virtual ~CommonFilter();
 
   // Getters
-  const GURL& base_gurl() const { return driver_->base_url().gurl(); }
   const GoogleUrl& base_url() const { return driver_->base_url(); }
   HtmlElement* noscript_element() const { return noscript_element_; }
 
@@ -58,10 +55,23 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
 
-  Resource* CreateInputResource(const StringPiece& url);
-  Resource* CreateInputResourceAndReadIfCached(const StringPiece& url);
-  Resource* CreateInputResourceFromOutputResource(
-      UrlSegmentEncoder* encoder, OutputResource* output_resource);
+  // Creates an input resource with the url evaluated based on input_url
+  // which may need to be absolutified relative to base_url().  Returns NULL if
+  // the input resource url isn't valid, or can't legally be rewritten in the
+  // context of this page.
+  ResourcePtr CreateInputResource(const StringPiece& input_url);
+
+  // Create input resource from input_url, if it is legal in the context of
+  // base_url(), and if the resource can be read from cache.  If it's not in
+  // cache, initiate an asynchronous fetch so it will be on next access.  This
+  // is a common case for filters.
+  ResourcePtr CreateInputResourceAndReadIfCached(const StringPiece& input_url);
+
+  // Returns whether or not the base url is valid.  This value will change
+  // as a filter processes the document.  E.g. If there are url refs before
+  // the base tag is reached, it will return false until the filter sees the
+  // base tag.  After the filter sees the base tag, it will return true.
+  bool BaseUrlIsValid() const;
 
  protected:
   // Overload these implementer methods:
@@ -78,8 +88,8 @@ class CommonFilter : public EmptyHtmlFilter {
 
  private:
   HtmlElement* noscript_element_;
+  bool seen_base_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(CommonFilter);
 };
 

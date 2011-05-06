@@ -23,14 +23,7 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_META_DATA_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_META_DATA_H_
 
-#include <vector>
-#include "base/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
-
 namespace net_instaweb {
-
-class MessageHandler;
-class Writer;
 
 // Global constants for common HTML attribues names and values.
 //
@@ -102,6 +95,7 @@ enum Code {
   kUnsupportedMediaType = 415,
   kRangeNotSatisfiable = 416,
   kExpectationFailed = 417,
+  kImATeapot = 418,
 
   kInternalServerError = 500,
   kNotImplemented = 501,

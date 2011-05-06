@@ -19,12 +19,16 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_WGET_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_WGET_URL_FETCHER_H_
 
-#include <stdio.h>
-#include "base/basictypes.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/http/public/url_fetcher.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
+class Writer;
 
 // Runs 'wget' via popen for blocking URL fetches.
 class WgetUrlFetcher : public UrlFetcher {
@@ -34,7 +38,7 @@ class WgetUrlFetcher : public UrlFetcher {
 
   // TODO(sligocki): Allow protocol version number (e.g. HTTP/1.1)
   // and request type (e.g. GET, POST, etc.) to be specified.
-  virtual bool StreamingFetchUrl(const std::string& url,
+  virtual bool StreamingFetchUrl(const GoogleString& url,
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* writer,

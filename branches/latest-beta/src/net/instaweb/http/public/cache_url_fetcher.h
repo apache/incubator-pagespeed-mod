@@ -19,20 +19,20 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_CACHE_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_CACHE_URL_FETCHER_H_
 
-#include "base/basictypes.h"
-#include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/http_value.h"
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_fetcher.h"
+#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
-class UrlAsyncFetcher;
+class RequestHeaders;
+class ResponseHeaders;
+class Writer;
 
 // Composes a URL fetcher with an http cache, to generate a caching
 // URL fetcher.
@@ -70,7 +70,7 @@ class CacheUrlFetcher : public UrlFetcher {
   virtual ~CacheUrlFetcher();
 
   virtual bool StreamingFetchUrl(
-      const std::string& url,
+      const GoogleString& url,
       const RequestHeaders& request_headers,
       ResponseHeaders* response_headers,
       Writer* fetched_content_writer,
@@ -104,7 +104,7 @@ class CacheUrlFetcher : public UrlFetcher {
     MessageHandler* message_handler_;
 
    private:
-    std::string url_;
+    GoogleString url_;
     HTTPCache* http_cache_;
     bool force_caching_;
   };

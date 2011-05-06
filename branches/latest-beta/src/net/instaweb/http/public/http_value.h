@@ -19,13 +19,17 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_VALUE_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_VALUE_H_
 
+#include <cstddef>                     // for size_t
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
 class ResponseHeaders;
+class MessageHandler;
 
 // Provides shared, ref-counted, copy-on-write storage for HTTP
 // contents, to aid sharing between active fetches and filters, and
@@ -65,15 +69,6 @@ class HTTPValue : public Writer {
   // object is in scope.
   bool ExtractContents(StringPiece* str) const;
 
-  // Explicit support for copy-construction and assignment operators
-  HTTPValue(const HTTPValue& src) : storage_(src.storage_) { }
-  HTTPValue& operator=(const HTTPValue& src) {
-    if (&src != this) {
-      storage_ = src.storage_;
-    }
-    return *this;
-  }
-
   // Tests whether this reference is the only active one to the string object.
   bool unique() const { return storage_.unique(); }
 
@@ -84,6 +79,14 @@ class HTTPValue : public Writer {
   // Extracts the headers into the provided ResponseHeaders buffer.
   bool Link(SharedString* src, ResponseHeaders* headers,
             MessageHandler* handler);
+
+  // Links two HTTPValues together, using the contents of 'src' and discarding
+  // the contents of this.
+  void Link(HTTPValue* src) {
+    if (src != this) {
+      storage_ = src->storage_;  // SharedString links via assignment.
+    }
+  }
 
   // Access the shared string, for insertion into a cache via Put.
   SharedString* share() { return &storage_; }
@@ -100,6 +103,8 @@ class HTTPValue : public Writer {
   void CopyOnWrite();
 
   SharedString storage_;
+
+  DISALLOW_COPY_AND_ASSIGN(HTTPValue);
 };
 
 }  // namespace net_instaweb

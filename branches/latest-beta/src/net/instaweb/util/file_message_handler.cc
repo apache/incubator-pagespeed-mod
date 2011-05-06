@@ -18,8 +18,11 @@
 
 #include "net/instaweb/util/public/file_message_handler.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+
+#include "net/instaweb/util/public/message_handler.h"
 
 namespace net_instaweb {
 

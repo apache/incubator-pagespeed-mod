@@ -15,7 +15,10 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 //         jmaessen@google.com (Jan-Willem Maessen)
 
+#include <cstddef>
+#include "base/logging.h"
 #include "net/instaweb/util/public/wildcard.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -27,7 +30,7 @@ Wildcard::Wildcard(const StringPiece& wildcard_spec) {
   InitFromSpec(wildcard_spec);
 }
 
-Wildcard::Wildcard(const std::string& storage, int num_blocks,
+Wildcard::Wildcard(const GoogleString& storage, int num_blocks,
                    int last_block_offset, bool is_simple)
     : storage_(storage),
       num_blocks_(num_blocks),

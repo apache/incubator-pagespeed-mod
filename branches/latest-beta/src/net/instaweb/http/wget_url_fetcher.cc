@@ -18,11 +18,15 @@
 
 #include "net/instaweb/http/public/wget_url_fetcher.h"
 
-#include <errno.h>
+#include <cerrno>
+#include <cstdio>                      // for pclose, popen, FILE
 #include "net/instaweb/http/public/http_response_parser.h"
-#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace {
@@ -58,12 +62,12 @@ const char WgetUrlFetcher::kDefaultUserAgent[] =
 WgetUrlFetcher::~WgetUrlFetcher() {
 }
 
-bool WgetUrlFetcher::StreamingFetchUrl(const std::string& url,
+bool WgetUrlFetcher::StreamingFetchUrl(const GoogleString& url,
                                        const RequestHeaders& request_headers,
                                        ResponseHeaders* response_headers,
                                        Writer* writer,
                                        MessageHandler* handler) {
-  std::string cmd("/usr/bin/wget --save-headers -q -O -"), escaped_url;
+  GoogleString cmd("/usr/bin/wget --save-headers -q -O -"), escaped_url;
 
   // Use default user-agent if none is set in headers.
   StringStarVector values;
@@ -73,7 +77,7 @@ bool WgetUrlFetcher::StreamingFetchUrl(const std::string& url,
   }
 
   for (int i = 0, n = request_headers.NumAttributes(); i < n; ++i) {
-    std::string escaped_name, escaped_value;
+    GoogleString escaped_name, escaped_value;
 
     BackslashEscape(request_headers.Name(i), kEscapeChars, &escaped_name);
     BackslashEscape(request_headers.Value(i), kEscapeChars, &escaped_value);

@@ -19,8 +19,9 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_FILE_MESSAGE_HANDLER_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_FILE_MESSAGE_HANDLER_H_
 
-#include <stdio.h>
-#include "base/basictypes.h"
+#include <cstdarg>
+#include <cstdio>
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
 
 namespace net_instaweb {

@@ -19,37 +19,41 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_CACHE_INTERFACE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_CACHE_INTERFACE_H_
 
-// TODO(sligocki): We shouldn't need to include this in the .h, but it was
-// breaking someone somewhere, look into later.
 #include "net/instaweb/util/public/shared_string.h"
-#include <string>
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
-
-class MessageHandler;
-class SharedString;
 
 // Abstract interface for a cache.
 class CacheInterface {
  public:
   enum KeyState {
     kAvailable,    // Requested key is available for serving
-    kInTransit,    // Requested key is being written, but is not readable
     kNotFound      // Requested key needs to be written
+  };
+
+  class Callback {
+   public:
+    virtual ~Callback();
+    virtual void Done(KeyState state) = 0;
+    SharedString* value() { return &value_; }
+
+   private:
+    SharedString value_;
   };
 
   virtual ~CacheInterface();
 
-  // Gets an object from the cache, returning false on a cache miss
-  virtual bool Get(const std::string& key, SharedString* value) = 0;
+  // Initiates a cache fetch, calling callback->Done(state) when done.
+  virtual void Get(const GoogleString& key, Callback* callback) = 0;
+  //   virtual bool Get(const GoogleString& key, SharedString* value) = 0;
 
   // Puts a value into the cache.  The value that is passed in is not modified,
   // but the SharedString is passed by non-const pointer because its reference
   // count is bumped.
-  virtual void Put(const std::string& key, SharedString* value) = 0;
-  virtual void Delete(const std::string& key) = 0;
-  virtual KeyState Query(const std::string& key) = 0;
+  virtual void Put(const GoogleString& key, SharedString* value) = 0;
+  virtual void Delete(const GoogleString& key) = 0;
+  virtual void Query(const GoogleString& key, Callback* callback) = 0;
 };
 
 }  // namespace net_instaweb

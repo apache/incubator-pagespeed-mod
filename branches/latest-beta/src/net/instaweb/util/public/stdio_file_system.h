@@ -19,10 +19,12 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_STDIO_FILE_SYSTEM_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_STDIO_FILE_SYSTEM_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class MessageHandler;
 
 class StdioFileSystem : public FileSystem {
  public:

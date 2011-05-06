@@ -18,9 +18,38 @@
 
 #include "net/instaweb/util/public/hasher.h"
 
+#include <algorithm>
+
+#include "base/logging.h"
+#include "net/instaweb/util/public/base64_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+
 namespace net_instaweb {
 
+Hasher::Hasher(int max_chars): max_chars_(max_chars) {
+  CHECK_LE(0, max_chars);
+}
+
 Hasher::~Hasher() {
+}
+
+GoogleString Hasher::Hash(const StringPiece& content) const {
+  GoogleString raw_hash = RawHash(content);
+  GoogleString out;
+  Web64Encode(raw_hash, &out);
+
+  // Truncate to how many characters are actually requested. We use
+  // HashSizeInChars() here for consistency of rounding.
+  out.resize(HashSizeInChars());
+  return out;
+}
+
+int Hasher::HashSizeInChars() const {
+  // For char hashes, we return the hash after Base64 encoding, which expands by
+  // 4/3. We round down, this should not matter unless someone really wants that
+  // extra few bits.
+  return std::min(max_chars_, RawHashSizeInBytes() * 4 / 3);
 }
 
 }  // namespace net_instaweb

@@ -18,6 +18,11 @@
 
 #include "net/instaweb/util/public/pthread_mutex.h"
 
+#include <pthread.h>
+#include <cstddef>
+#include "net/instaweb/util/public/pthread_condvar.h"
+#include "net/instaweb/util/public/thread_system.h"
+
 namespace net_instaweb {
 
 PthreadMutex::PthreadMutex() {
@@ -35,5 +40,10 @@ void PthreadMutex::Lock() {
 void PthreadMutex::Unlock() {
   pthread_mutex_unlock(&mutex_);
 }
+
+ThreadSystem::Condvar* PthreadMutex::NewCondvar() {
+  return new PthreadCondvar(this);
+}
+
 
 }  // namespace net_instaweb

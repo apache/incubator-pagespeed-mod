@@ -16,13 +16,15 @@
 
 #include "net/instaweb/util/public/gzip_inflater.h"
 
-#include <stdlib.h>
+#include <cstddef>
+#include <cstdlib>
 #include "base/logging.h"
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
 #include "third_party/zlib/zlib.h"
 #endif
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 

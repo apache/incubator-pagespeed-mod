@@ -16,9 +16,13 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
+
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -38,11 +42,10 @@ TEST_F(ResourceNamerTest, TestEncode) {
   full_name_.set_name("name.ext.as.many.as.I.like");
   full_name_.set_hash("hash");
   full_name_.set_ext("ext");
-  EXPECT_EQ(std::string("name.ext.as.many.as.I.like.pagespeed.id.hash.ext"),
+  EXPECT_EQ(GoogleString("name.ext.as.many.as.I.like.pagespeed.id.hash.ext"),
             full_name_.Encode());
-  EXPECT_EQ(std::string("id.name.ext.as.many.as.I.like"),
+  EXPECT_EQ(GoogleString("id.name.ext.as.many.as.I.like"),
             full_name_.EncodeIdName());
-  EXPECT_EQ(std::string("hash.ext"), full_name_.EncodeHashExt());
 }
 
 TEST_F(ResourceNamerTest, TestDecode) {
@@ -56,20 +59,10 @@ TEST_F(ResourceNamerTest, TestDecode) {
 
 TEST_F(ResourceNamerTest, TestDecodeTooMany) {
   EXPECT_TRUE(full_name_.Decode("name.extra_dot.pagespeed.id.hash.ext"));
-  EXPECT_FALSE(full_name_.DecodeHashExt("id.hash.ext"));
 }
 
 TEST_F(ResourceNamerTest, TestDecodeNotEnough) {
   EXPECT_FALSE(full_name_.Decode("id.name.hash"));
-  EXPECT_FALSE(full_name_.DecodeHashExt("ext"));
-}
-
-TEST_F(ResourceNamerTest, TestDecodeHashExt) {
-  EXPECT_TRUE(full_name_.DecodeHashExt("hash.ext"));
-  EXPECT_EQ("", full_name_.id());
-  EXPECT_EQ("", full_name_.name());
-  EXPECT_EQ("hash", full_name_.hash());
-  EXPECT_EQ("ext", full_name_.ext());
 }
 
 TEST_F(ResourceNamerTest, TestLegacyDecode) {
@@ -78,6 +71,24 @@ TEST_F(ResourceNamerTest, TestLegacyDecode) {
   EXPECT_EQ("name", full_name_.name());
   EXPECT_EQ("0123456789abcdef0123456789ABCDEF", full_name_.hash());
   EXPECT_EQ("js", full_name_.ext());
+}
+
+TEST_F(ResourceNamerTest, TestEventualSize) {
+  MockHasher mock_hasher;
+  GoogleString file = "some_name.pagespeed.idn.0.extension";
+  EXPECT_TRUE(full_name_.Decode(file));
+  EXPECT_EQ(file.size(), full_name_.EventualSize(mock_hasher));
+}
+
+TEST_F(ResourceNamerTest, TestSizeWithoutHash_HashNotSet) {
+  MD5Hasher md5_hasher;
+  full_name_.set_name("file.css");
+  full_name_.set_id("id");
+  full_name_.set_ext("ext");
+  EXPECT_EQ(STATIC_STRLEN("file.css") + STATIC_STRLEN("id") +
+            STATIC_STRLEN("ext") + ResourceNamer::kOverhead +
+            md5_hasher.HashSizeInChars(),
+            full_name_.EventualSize(md5_hasher));
 }
 
 }  // namespace

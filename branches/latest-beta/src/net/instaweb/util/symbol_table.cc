@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,14 @@
 //         morlovich@google.com (Maksim Orlovich)
 
 #include "net/instaweb/util/public/symbol_table.h"
+
+#include <cstddef>
+#include <cstdlib>
+#include <vector>
+#include "base/logging.h"
+#include "net/instaweb/util/public/atom.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -100,6 +108,8 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
 }
 
 // We explicitly instantiate since we want ::Intern to be out-of-line
+struct CaseFold;
+struct CasePreserve;
 template class SymbolTable<CaseFold>;
 template class SymbolTable<CasePreserve>;
 

@@ -20,18 +20,20 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_PTHREAD_MUTEX_H_
 
 #include <pthread.h>
-#include "base/basictypes.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
-// Implementation of AbstractMutex for Pthread mutexes.
-class PthreadMutex : public AbstractMutex {
+// Implementation of ThreadSystem::CondvarCapableMutexMutex for Pthread mutexes.
+class PthreadMutex : public ThreadSystem::CondvarCapableMutex {
  public:
   PthreadMutex();
   virtual ~PthreadMutex();
   virtual void Lock();
   virtual void Unlock();
+  virtual ThreadSystem::Condvar* NewCondvar();
+
  private:
   friend class PthreadCondvar;
 

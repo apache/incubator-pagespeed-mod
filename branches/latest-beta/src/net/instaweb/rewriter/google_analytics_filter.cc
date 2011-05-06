@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,15 +32,21 @@
 //        the current buffer).
 //
 
-
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
-#include "net/instaweb/rewriter/google_analytics_snippet.h"
 
-#include "net/instaweb/htmlparse/public/html_parse.h"
+#include <cctype>
+#include <vector>
+
+#include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/rewriter/google_analytics_snippet.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -60,8 +66,8 @@ const char GoogleAnalyticsFilter::kRewrittenCount[] =
 
 ScriptEditor::ScriptEditor(HtmlElement* script_element,
                            HtmlCharactersNode *characters_node,
-                           std::string::size_type pos,
-                           std::string::size_type len,
+                           GoogleString::size_type pos,
+                           GoogleString::size_type len,
                            Type editor_type)
     : script_element_(script_element),
       script_characters_node_(characters_node),
@@ -70,8 +76,8 @@ ScriptEditor::ScriptEditor(HtmlElement* script_element,
       editor_type_(editor_type) {}
 
 void ScriptEditor::NewContents(const StringPiece& replacement,
-                               std::string* contents) const {
-  if (pos_ == std::string::npos) {
+                               GoogleString* contents) const {
+  if (pos_ == GoogleString::npos) {
     replacement.CopyToString(contents);
   } else {
     StringPiece old_contents = script_characters_node_->contents();
@@ -161,10 +167,10 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
   glue_methods_->push_back("_setXValue");
 
   unhandled_methods_->push_back("_anonymizeIp");
-  unhandled_methods_->push_back("_createEventTracker"); // getter method
-  unhandled_methods_->push_back("_createXObj");         // getter method
+  unhandled_methods_->push_back("_createEventTracker");  // getter method
+  unhandled_methods_->push_back("_createXObj");          // getter method
   unhandled_methods_->push_back("_require");
-  unhandled_methods_->push_back("_visitCode");          // getter method
+  unhandled_methods_->push_back("_visitCode");           // getter method
   unhandled_methods_->push_back("_get");
   unhandled_methods_->push_back("_getAccount");
   unhandled_methods_->push_back("_getClientInfo");
@@ -206,19 +212,14 @@ void GoogleAnalyticsFilter::Initialize(Statistics* statistics) {
 
 void GoogleAnalyticsFilter::StartDocument() {
   ResetFilter();
-
-  if (page_load_count_ != NULL) {
-    page_load_count_->Add(1);
-  }
+  page_load_count_->Add(1);
 }
 
 void GoogleAnalyticsFilter::EndDocument() {
   if (is_load_found_) {
     if (is_init_found_) {
       if (RewriteAsAsync()) {
-        if (rewritten_count_ != NULL) {
-          rewritten_count_->Add(1);
-        }
+        rewritten_count_->Add(1);
         html_parse_->InfoHere("Google Analytics rewritten: SUCCESS!");
       } else {
         html_parse_->InfoHere("Google Analytics not rewritten: rewrite failed");
@@ -307,28 +308,28 @@ void GoogleAnalyticsFilter::ResetFilter() {
 }
 
 bool GoogleAnalyticsFilter::MatchSyncLoad(StringPiece contents,
-                                          std::string::size_type &pos,
-                                          std::string::size_type &len) const {
-  std::string::size_type url_pos = contents.find(kGaJsUrlSuffix);
-  if (url_pos != std::string::npos) {
+                                          GoogleString::size_type &pos,
+                                          GoogleString::size_type &len) const {
+  GoogleString::size_type url_pos = contents.find(kGaJsUrlSuffix);
+  if (url_pos != GoogleString::npos) {
     // In the common case, document.write is 56 characters before the url.
     // Allow a little extra wiggle room (e.g. for different formating), but
     // not so much that an unrelated document.write is found.
-    const std::string::size_type max_distance = 80;
-    std::string::size_type write_start_pos =
+    const GoogleString::size_type max_distance = 80;
+    GoogleString::size_type write_start_pos =
         url_pos < max_distance ? 0 : url_pos - max_distance;
     StringPiece write_start(contents.data() + write_start_pos,
                             url_pos - write_start_pos);
-    std::string::size_type write_pos = write_start.find(
+    GoogleString::size_type write_pos = write_start.find(
         kGaJsDocumentWriteStart);
-    if (write_pos == std::string::npos) {
+    if (write_pos == GoogleString::npos) {
       html_parse_->InfoHere("Found ga.js without a matching document.write");
     } else {
       write_pos += write_start_pos;
-      std::string::size_type write_end_pos = contents.find(
+      GoogleString::size_type write_end_pos = contents.find(
           kGaJsDocumentWriteEnd,
           url_pos + StringPiece(kGaJsUrlSuffix).size());
-      if (write_end_pos != std::string::npos) {
+      if (write_end_pos != GoogleString::npos) {
         write_end_pos += StringPiece(kGaJsDocumentWriteEnd).size();
         pos = write_pos;
         len = write_end_pos - write_pos;
@@ -341,17 +342,17 @@ bool GoogleAnalyticsFilter::MatchSyncLoad(StringPiece contents,
 }
 
 bool GoogleAnalyticsFilter::MatchSyncInit(StringPiece contents,
-                                          std::string::size_type start_pos,
-                                          std::string::size_type &pos,
-                                          std::string::size_type &len) const {
+                                          GoogleString::size_type start_pos,
+                                          GoogleString::size_type &pos,
+                                          GoogleString::size_type &len) const {
   StringPiece tracker_method(kGaJsGetTracker);
-  std::string::size_type tracker_method_pos = contents.find(
+  GoogleString::size_type tracker_method_pos = contents.find(
       tracker_method, start_pos);
-  if (tracker_method_pos == std::string::npos) {
+  if (tracker_method_pos == GoogleString::npos) {
     tracker_method = StringPiece(kGaJsCreateTracker);
     tracker_method_pos = contents.find(tracker_method, start_pos);
   }
-  if (tracker_method_pos != std::string::npos) {
+  if (tracker_method_pos != GoogleString::npos) {
     html_parse_->InfoHere("Found ga.js init: %s", tracker_method.data());
     pos = tracker_method_pos;
     len = tracker_method.size();
@@ -361,11 +362,11 @@ bool GoogleAnalyticsFilter::MatchSyncInit(StringPiece contents,
 }
 
 bool GoogleAnalyticsFilter::MatchUnhandledCalls(
-    StringPiece contents, std::string::size_type start_pos) const {
+    StringPiece contents, GoogleString::size_type start_pos) const {
   // TODO(slamm): Use a more efficient multiple pattern algorithm
   while (1) {
-    std::string::size_type candidate_pos = contents.find("._");
-    if (candidate_pos == std::string::npos) {
+    GoogleString::size_type candidate_pos = contents.find("._");
+    if (candidate_pos == GoogleString::npos) {
       break;
     }
     contents = contents.substr(candidate_pos + 1);
@@ -396,14 +397,14 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
         is_load_found_ = true;
         script_editors_.push_back(new ScriptEditor(
             script_element_, script_characters_node_,
-            std::string::npos, std::string::npos,
+            GoogleString::npos, GoogleString::npos,
             ScriptEditor::kGaJsScriptSrcLoad));
       }
     } else if (script_characters_node_ != NULL) {
       StringPiece contents = script_characters_node_->contents();
       if (!contents.empty()) {
-        std::string::size_type start_pos = 0;
-        std::string::size_type pos, len;
+        GoogleString::size_type start_pos = 0;
+        GoogleString::size_type pos, len;
         if (MatchSyncLoad(contents, pos, len)) {
           is_load_found_ = true;
           script_editors_.push_back(new ScriptEditor(
@@ -428,7 +429,7 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
   }
 }
 
-void GoogleAnalyticsFilter::GetSyncToAsyncScript(std::string *buffer) const {
+void GoogleAnalyticsFilter::GetSyncToAsyncScript(GoogleString *buffer) const {
   buffer->clear();
   buffer->append(kGaSnippetPrefix);
   int last_index = glue_methods_->size() - 1;
@@ -458,7 +459,7 @@ bool GoogleAnalyticsFilter::RewriteAsAsync() {
   CHECK(first_type == ScriptEditor::kGaJsScriptSrcLoad ||
         first_type == ScriptEditor::kGaJsDocWriteLoad);
 
-  std::string replacement_script;
+  GoogleString replacement_script;
   for (int i = script_editors_.size() - 1; i > 0; --i) {
     ScriptEditor* editor = script_editors_[i];
     HtmlElement* script = editor->GetScriptElement();
@@ -480,7 +481,7 @@ bool GoogleAnalyticsFilter::RewriteAsAsync() {
     }
   }
 
-  std::string glue_script;
+  GoogleString glue_script;
   GetSyncToAsyncScript(&glue_script);
   if (first_type == ScriptEditor::kGaJsScriptSrcLoad) {
     html_parse_->PrependChild(

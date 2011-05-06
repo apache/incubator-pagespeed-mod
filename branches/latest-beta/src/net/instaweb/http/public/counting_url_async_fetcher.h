@@ -21,12 +21,14 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_COUNTING_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_COUNTING_URL_ASYNC_FETCHER_H_
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
+class RequestHeaders;
 class ResponseHeaders;
 class Writer;
 
@@ -38,7 +40,7 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
   }
   virtual ~CountingUrlAsyncFetcher();
 
-  virtual bool StreamingFetch(const std::string& url,
+  virtual bool StreamingFetch(const GoogleString& url,
                               const RequestHeaders& request_headers,
                               ResponseHeaders* response_headers,
                               Writer* fetched_content_writer,

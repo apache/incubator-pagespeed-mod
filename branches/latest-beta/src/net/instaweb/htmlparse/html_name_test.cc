@@ -23,7 +23,8 @@
 
 #include <set>
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/symbol_table.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -43,15 +44,15 @@ TEST_F(HtmlNameTest, AllKeywordsDefaultCase) {
 
 TEST_F(HtmlNameTest, AllKeywordsUpperCase) {
   for (HtmlName::Iterator iter; !iter.AtEnd(); iter.Next()) {
-    std::string upper(iter.name());
+    GoogleString upper(iter.name());
     UpperString(&upper);
-    EXPECT_EQ(iter.keyword(), HtmlName::Lookup(upper.c_str()));
+    EXPECT_EQ(iter.keyword(), HtmlName::Lookup(upper));
   }
 }
 
 TEST_F(HtmlNameTest, AllKeywordsMixedCase) {
   for (HtmlName::Iterator iter; !iter.AtEnd(); iter.Next()) {
-    std::string mixed(iter.name());
+    GoogleString mixed(iter.name());
     bool upper = false;
     for (int i = 0, n = mixed.size(); i < n; ++i) {
       char c = mixed[i];
@@ -63,7 +64,7 @@ TEST_F(HtmlNameTest, AllKeywordsMixedCase) {
       }
       mixed[i] = c;
     }
-    EXPECT_EQ(iter.keyword(), HtmlName::Lookup(mixed.c_str()));
+    EXPECT_EQ(iter.keyword(), HtmlName::Lookup(mixed));
   }
 }
 

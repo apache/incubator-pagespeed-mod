@@ -18,13 +18,21 @@
 
 #include "net/instaweb/http/public/http_dump_url_writer.h"
 
+#include "base/logging.h"
+#include "net/instaweb/http/public/http_dump_url_fetcher.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/url_fetcher.h"
+#include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_writer.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/writer.h"
 #include "net/instaweb/util/stack_buffer.h"
 
 namespace net_instaweb {
@@ -33,13 +41,14 @@ HttpDumpUrlWriter::~HttpDumpUrlWriter() {
 }
 
 bool HttpDumpUrlWriter::StreamingFetchUrl(
-    const std::string& url, const RequestHeaders& request_headers,
+    const GoogleString& url, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, Writer* response_writer,
     MessageHandler* handler) {
   bool ret = true;
-  std::string filename;
+  GoogleString filename;
 
-  if (!dump_fetcher_.GetFilename(GURL(url), &filename, handler)) {
+  GoogleUrl gurl(url);
+  if (!dump_fetcher_.GetFilename(gurl, &filename, handler)) {
     handler->Message(kError, "HttpDumpUrlWriter: Invalid url: %s", url.c_str());
     ret = false;
   } else if (!file_system_->Exists(filename.c_str(), handler).is_true()) {
@@ -49,7 +58,7 @@ bool HttpDumpUrlWriter::StreamingFetchUrl(
     // TODO(jmarantz): Re-integrate the use of SplitWriter.  We'll have
     // to do a lazy-open of the OutputFile* in a custom writer, though, to
     // avoid opening up a zero-size file when the URL fetch fails.
-    std::string contents;
+    GoogleString contents;
     StringWriter string_writer(&contents);
     // TODO(sligocki): Have this actually stream to response_writer.
 
@@ -98,7 +107,7 @@ bool HttpDumpUrlWriter::StreamingFetchUrl(
       if (file != NULL) {
         handler->Message(kInfo, "Storing %s as %s", url.c_str(),
                      filename.c_str());
-        std::string temp_filename = file->filename();
+        GoogleString temp_filename = file->filename();
         FileWriter file_writer(file);
         ret = compressed_response.WriteAsHttp(&file_writer, handler) &&
             file->Write(contents, handler);

@@ -164,6 +164,12 @@ class Parser {
   static const uint64 kFunctionError    = 1ULL << 3; // 8
   static const uint64 kMediaError       = 1ULL << 4; // 16
   static const uint64 kCounterError     = 1ULL << 5; // 32
+  static const uint64 kHtmlCommentError = 1ULL << 6; // 64
+  static const uint64 kValueError       = 1ULL << 7; // 128
+  static const uint64 kRulesetError     = 1ULL << 8; // 256
+  static const uint64 kSkippedTokenError = 1ULL << 9; // 512
+  static const uint64 kCharsetError     = 1ULL << 10; // 1024
+  static const uint64 kBlockError       = 1ULL << 11; // 2048
   uint64 errors_seen_mask() const { return errors_seen_mask_; }
 
   friend class ParserTest;  // we need to unit test private Parse functions.
@@ -508,6 +514,8 @@ class Parser {
   FRIEND_TEST(ParserTest, ruleset_starts_with_combinator);
   FRIEND_TEST(ParserTest, atrules);
   FRIEND_TEST(ParserTest, percentage_colors);
+  FRIEND_TEST(ParserTest, ValueError);
+  FRIEND_TEST(ParserTest, SkippedTokenError);
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };
 
@@ -617,6 +625,13 @@ class Rulesets : public std::vector<Css::Ruleset*> {
   ~Rulesets();
 };
 
+class Charsets : public std::vector<UnicodeText> {
+ public:
+  ~Charsets();
+
+  string ToString() const;
+};
+
 struct Import {
   std::vector<UnicodeText> media;
   UnicodeText link;
@@ -639,19 +654,23 @@ class Stylesheet {
   // USER is currently unused.
   enum StylesheetType { AUTHOR, USER, SYSTEM };
   StylesheetType type() const { return type_; }
+  const Charsets& charsets() const { return charsets_; }
   const Imports& imports() const { return imports_; }
   const Rulesets& rulesets() const { return rulesets_; }
 
+  const UnicodeText& charset(int i) const { return charsets_[i]; }
   const Import& import(int i) const { return *imports_[i]; }
   const Ruleset& ruleset(int i) const { return *rulesets_[i]; }
 
   void set_type(StylesheetType type) { type_ = type; }
+  Charsets& mutable_charsets() { return charsets_; }
   Imports& mutable_imports() { return imports_; }
   Rulesets& mutable_rulesets() { return rulesets_; }
 
   string ToString() const;
  private:
   StylesheetType type_;
+  Charsets charsets_;
   Imports imports_;
   Rulesets rulesets_;
 

@@ -17,7 +17,11 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/write_through_cache.h"
+#include <cstddef>
+#include "base/scoped_ptr.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -26,48 +30,72 @@ const size_t WriteThroughCache::kUnlimited = static_cast<size_t>(-1);
 WriteThroughCache::~WriteThroughCache() {
 }
 
-void WriteThroughCache::PutInCache1(const std::string& key,
+void WriteThroughCache::PutInCache1(const GoogleString& key,
                                     SharedString* value) {
   if ((cache1_size_limit_ == kUnlimited) ||
-      (key.size() + value->size() < cache1_size_limit_)) {
+      (key.size() + value->get()->size() < cache1_size_limit_)) {
     cache1_->Put(key, value);
   }
 }
 
-bool WriteThroughCache::Get(const std::string& key, SharedString* value) {
-  bool ret = cache1_->Get(key, value);
-  if (!ret) {
-    ret = cache2_->Get(key, value);
-    if (ret) {
-      PutInCache1(key, value);
+class WriteThroughCallback : public CacheInterface::Callback {
+ public:
+  WriteThroughCallback(WriteThroughCache* wtc,
+                       const GoogleString& key,
+                       bool is_query,
+                       CacheInterface::Callback* callback)
+      : write_through_cache_(wtc),
+        key_(key),
+        is_query_(is_query),
+        callback_(callback),
+        trying_cache2_(false) {
+  }
+
+  virtual void Done(CacheInterface::KeyState state) {
+    if (state == CacheInterface::kAvailable) {
+      if (trying_cache2_ && !is_query_) {
+        write_through_cache_->PutInCache1(key_, value());
+      }
+      *callback_->value() = *value();
+      callback_->Done(state);
+      delete this;
+    } else if (trying_cache2_) {
+      callback_->Done(state);
+      delete this;
+    } else {
+      trying_cache2_ = true;
+      if (is_query_) {
+        write_through_cache_->cache2()->Query(key_, this);
+      } else {
+        write_through_cache_->cache2()->Get(key_, this);
+      }
     }
   }
-  return ret;
+
+
+  WriteThroughCache* write_through_cache_;
+  const GoogleString& key_;
+  bool is_query_;
+  CacheInterface::Callback* callback_;
+  bool trying_cache2_;
+};
+
+void WriteThroughCache::Get(const GoogleString& key, Callback* callback) {
+  cache1_->Get(key, new WriteThroughCallback(this, key, false, callback));
 }
 
-void WriteThroughCache::Put(const std::string& key, SharedString* value) {
+void WriteThroughCache::Put(const GoogleString& key, SharedString* value) {
   PutInCache1(key, value);
   cache2_->Put(key, value);
 }
 
-void WriteThroughCache::Delete(const std::string& key) {
+void WriteThroughCache::Delete(const GoogleString& key) {
   cache1_->Delete(key);
   cache2_->Delete(key);
 }
 
-CacheInterface::KeyState WriteThroughCache::Query(const std::string& key) {
-  // There are 3 possible states, kAvailable, kInTransit, and kNotFound.
-  // We want to 'promote' the state obtained from cache1.  But we don't want
-  // to demote.  Specifically, if cache1 says kInTransit, and cache2 says
-  // kNotFound, we'd want to return kInTransit.
-  CacheInterface::KeyState state = cache1_->Query(key);
-  if (state != kAvailable) {
-    CacheInterface::KeyState state2 = cache2_->Query(key);
-    if (state2 != kNotFound) {
-      state = state2;
-    }
-  }
-  return state;
+void WriteThroughCache::Query(const GoogleString& key, Callback* callback) {
+  cache1_->Query(key, new WriteThroughCallback(this, key, true, callback));
 }
 
 }  // namespace net_instaweb

@@ -18,8 +18,12 @@
 
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 
+#include <cstddef>
+
+#include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/jsminify/js_minify.h"
 
@@ -61,8 +65,9 @@ void JavascriptRewriteConfig::Initialize(Statistics* statistics) {
 
 JavascriptCodeBlock::JavascriptCodeBlock(
     const StringPiece& original_code, JavascriptRewriteConfig* config,
-    MessageHandler* handler)
+    const StringPiece& message_id, MessageHandler* handler)
     : config_(config),
+      message_id_(message_id.data(), message_id.size()),
       handler_(handler),
       original_code_(original_code.data(), original_code.size()),
       output_code_(original_code_),
@@ -87,7 +92,8 @@ void JavascriptCodeBlock::Rewrite() {
   config_->AddBlock();
   if ((config_->minify() || config_->redirect())) {
     if (!pagespeed::jsminify::MinifyJs(original_code_, &rewritten_code_)) {
-      handler_->Message(kInfo, "Javascript minification failed.  Preserving old code.");
+      handler_->Message(kInfo, "%s: Javascript minification failed.  "
+                        "Preserving old code.", message_id_.c_str());
       config_->AddMinificationFailure();
       TrimWhitespace(original_code_, &rewritten_code_);
     }

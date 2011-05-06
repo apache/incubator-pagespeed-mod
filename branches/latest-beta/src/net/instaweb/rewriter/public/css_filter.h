@@ -21,11 +21,11 @@
 
 #include <vector>
 
-#include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/css_image_rewriter.h"
+#include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
-#include "net/instaweb/util/public/atom.h"
-#include <string>
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
@@ -37,12 +37,17 @@ class Stylesheet;
 namespace net_instaweb {
 
 class CacheExtender;
-class HtmlParse;
-class ImgRewriteFilter;
+class GoogleUrl;
+class HtmlCharactersNode;
+class HtmlElement;
+class ImageCombineFilter;
+class ImageRewriteFilter;
 class MessageHandler;
 class OutputResource;
 class Resource;
-class ResourceManager;
+class RewriteDriver;
+class Statistics;
+class Variable;
 
 // Find and parse all CSS in the page and apply transformations including:
 // minification, combining, refactoring, and optimizing sub-resources.
@@ -60,7 +65,8 @@ class CssFilter : public RewriteSingleResourceFilter {
             // TODO(sligocki): Temporary pattern until we figure out a better
             // way to do this without passing all filters around everywhere.
             CacheExtender* cache_extender,
-            ImgRewriteFilter* image_rewriter);
+            ImageRewriteFilter* image_rewriter,
+            ImageCombineFilter* image_combiner);
 
   static void Initialize(Statistics* statistics);
   static void Terminate();
@@ -83,15 +89,13 @@ class CssFilter : public RewriteSingleResourceFilter {
   static const char kParseFailures[];
 
  private:
-  bool RewriteCssText(const StringPiece& in_text, std::string* out_text,
-                      const GoogleUrl& css_gurl,
-                      int64* subresource_expiration_time_ms,
-                      MessageHandler* handler);
-  bool RewriteExternalCss(const StringPiece& in_url, std::string* out_url);
+  TimedBool RewriteCssText(const StringPiece& in_text, GoogleString* out_text,
+                           const GoogleUrl& css_gurl,
+                           MessageHandler* handler);
+  bool RewriteExternalCss(const StringPiece& in_url, GoogleString* out_url);
 
   virtual RewriteResult RewriteLoadedResource(const Resource* input_resource,
-                                              OutputResource* output_resource,
-                                              UrlSegmentEncoder* encoder);
+                                              OutputResource* output_resource);
 
   Css::Stylesheet* CombineStylesheets(
       std::vector<Css::Stylesheet*>* stylesheets);

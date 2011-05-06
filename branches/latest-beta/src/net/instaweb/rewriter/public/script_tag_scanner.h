@@ -21,9 +21,10 @@
 
 #include <set>
 
-#include "base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/util/public/atom.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class HtmlParse;
@@ -41,9 +42,9 @@ class ScriptTagScanner {
     kExecuteSync = 0,
     kExecuteDefer = 1,
     kExecuteAsync = 2,
-    kExecuteForEvent = 4 // IE extension. If this is set,
-                         // script will not run in browsers following HTML5,
-                         // and will run at hard-to-describe time in IE.
+    kExecuteForEvent = 4  // IE extension. If this is set,
+                          // script will not run in browsers following HTML5,
+                          // and will run at hard-to-describe time in IE.
   };
 
   explicit ScriptTagScanner(HtmlParse* html_parse);
@@ -61,11 +62,11 @@ class ScriptTagScanner {
   int ExecutionMode(const HtmlElement* element) const;
  private:
   // Normalizes the input str by trimming whitespace and lowercasing.
-  static std::string Normalized(const StringPiece& str);
+  static GoogleString Normalized(const StringPiece& str);
 
-  bool IsJsMime(const std::string& type_str);
+  bool IsJsMime(const GoogleString& type_str);
 
-  std::set<std::string> javascript_mimetypes_;
+  std::set<GoogleString> javascript_mimetypes_;
 
   DISALLOW_COPY_AND_ASSIGN(ScriptTagScanner);
 };

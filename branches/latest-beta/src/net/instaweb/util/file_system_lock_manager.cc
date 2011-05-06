@@ -17,14 +17,16 @@
 // Author: jmaessen@google.com (Jan Maessen)
 #include "net/instaweb/util/public/file_system_lock_manager.h"
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
-#include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/timer_based_abstract_lock.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class AbstractLock;
+class MessageHandler;
+class Timer;
 
 class FileSystemLock : public TimerBasedAbstractLock {
  public:
@@ -33,6 +35,7 @@ class FileSystemLock : public TimerBasedAbstractLock {
       Unlock();
     }
   }
+
   virtual bool TryLock() {
     bool result = false;
     if (manager_->file_system()->
@@ -41,6 +44,7 @@ class FileSystemLock : public TimerBasedAbstractLock {
     }
     return result;
   }
+
   virtual bool TryLockStealOld(int64 timeout_ms) {
     bool result = false;
     if (manager_->file_system()->
@@ -49,13 +53,20 @@ class FileSystemLock : public TimerBasedAbstractLock {
     }
     return result;
   }
+
   virtual void Unlock() {
     held_ = !manager_->file_system()->Unlock(name_, manager_->handler());
   }
+
+  virtual GoogleString name() {
+    return name_;
+  }
+
  protected:
   virtual Timer* timer() const {
     return manager_->timer();
   }
+
  private:
   friend class FileSystemLockManager;
 
@@ -65,7 +76,7 @@ class FileSystemLock : public TimerBasedAbstractLock {
         manager_(manager),
         held_(false) { }
 
-  std::string name_;
+  GoogleString name_;
   FileSystemLockManager* manager_;
   // The held_ field contains an approximation to whether the lock is locked or
   // not.  If we believe the lock to be locked, we will unlock on destruction.
@@ -75,10 +86,20 @@ class FileSystemLock : public TimerBasedAbstractLock {
   DISALLOW_COPY_AND_ASSIGN(FileSystemLock);
 };
 
+FileSystemLockManager::FileSystemLockManager(
+    FileSystem* file_system, const StringPiece& base_path, Timer* timer,
+    MessageHandler* handler)
+    : file_system_(file_system),
+      base_path_(base_path.as_string()),
+      timer_(timer),
+      handler_(handler) {
+  EnsureEndsInSlash(&base_path_);
+}
+
 FileSystemLockManager::~FileSystemLockManager() { }
 
 AbstractLock* FileSystemLockManager::CreateNamedLock(const StringPiece& name) {
-  return new FileSystemLock(name, this);
+  return new FileSystemLock(StrCat(base_path_, name), this);
 }
 
 }  // namespace net_instaweb

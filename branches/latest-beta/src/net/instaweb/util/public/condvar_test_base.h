@@ -17,18 +17,20 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_CONDVAR_TEST_BASE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_CONDVAR_TEST_BASE_H_
 
-#include "net/instaweb/util/public/abstract_condvar.h"
+#include "net/instaweb/util/public/condvar.h"
 
 #include "base/logging.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
-
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
 class CondvarTestBase : public testing::Test {
  protected:
-  typedef void (AbstractCondvar::*SignalMethod)();
+  typedef void (ThreadSystem::Condvar::*SignalMethod)();
 
   CondvarTestBase()
       : mutex_(NULL),
@@ -37,7 +39,7 @@ class CondvarTestBase : public testing::Test {
         ready_to_start_(false),
         iters_(0),
         current_iter_(0),
-        signal_method_(&AbstractCondvar::Signal),
+        signal_method_(&ThreadSystem::Condvar::Signal),
         wait_after_signal_(false),
         helper_increments_(0),
         init_called_(false) {
@@ -45,8 +47,9 @@ class CondvarTestBase : public testing::Test {
 
   // Init is intended to be called from the constructor of the derived class.
   // Ownership of the objects remains with the caller.
-  void Init(AbstractMutex* mutex,
-            AbstractCondvar* startup_condvar, AbstractCondvar* condvar) {
+  void Init(ThreadSystem::CondvarCapableMutex* mutex,
+            ThreadSystem::Condvar* startup_condvar,
+            ThreadSystem::Condvar* condvar) {
     CHECK(!init_called_);
     mutex_ = mutex;
     startup_condvar_ = startup_condvar;
@@ -114,7 +117,7 @@ class CondvarTestBase : public testing::Test {
   }
 
   // Run the helper without interacting with it.
-  // Also run with signal_method_ = &AbstractCondvar::Broadcast
+  // Also run with signal_method_ = &ThreadSystem::Condvar::Broadcast
   void BlindSignalsTest() {
     iters_ = 10;
     StartHelper();
@@ -124,7 +127,7 @@ class CondvarTestBase : public testing::Test {
   }
 
   // Use condvars to pass control back and forth between worker and main thread.
-  // Also run with signal_method_ = &AbstractCondvar::Broadcast
+  // Also run with signal_method_ = &ThreadSystem::Condvar::Broadcast
   void PingPongTest() {
     iters_ = 10;
     wait_after_signal_ = true;
@@ -160,9 +163,26 @@ class CondvarTestBase : public testing::Test {
     FinishHelper();
   }
 
+  // Make sure that a long timeout doesn't exit too early.
+  void LongTimeoutTest(int wait_ms) {
+    iters_ = 0;
+    StartHelper();
+    int64 start_ms = timer()->NowMs();
+    {
+      ScopedMutex lock(mutex_);
+      condvar_->TimedWait(wait_ms);
+    }
+    int64 end_ms = timer()->NowMs();
+
+    // This test should not be flaky even if it runs slowly, as we are
+    // not placing an *upper* bound on the lock duration.
+    EXPECT_LE(wait_ms, end_ms - start_ms);
+    FinishHelper();
+  }
+
   // Use condvars to pass control back and forth between worker and main thread.
   // Final interaction will be one-sided and will time out.
-  // Also run with signal_method_ = &AbstractCondvar::Broadcast
+  // Also run with signal_method_ = &ThreadSystem::Condvar::Broadcast
   void TimeoutPingPongTest() {
     iters_ = 10;
     wait_after_signal_ = true;
@@ -190,9 +210,11 @@ class CondvarTestBase : public testing::Test {
     EXPECT_EQ(11, local_increments + helper_increments_);
   }
 
-  AbstractMutex* mutex_;
-  AbstractCondvar* startup_condvar_;
-  AbstractCondvar* condvar_;
+  virtual Timer* timer() = 0;
+
+  ThreadSystem::CondvarCapableMutex* mutex_;
+  ThreadSystem::Condvar* startup_condvar_;
+  ThreadSystem::Condvar* condvar_;
   bool ready_to_start_;
   int iters_;
   int current_iter_;

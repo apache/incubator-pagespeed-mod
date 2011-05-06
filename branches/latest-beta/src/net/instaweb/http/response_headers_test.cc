@@ -17,15 +17,16 @@
 // Unit-test SimpleUrlData, in particular it's HTTP header parser.
 
 #include "net/instaweb/http/public/response_headers.h"
+
+#include <cstddef>                     // for size_t
 #include <algorithm>
-#include "base/basictypes.h"
-#include "base/logging.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes
 #include "net/instaweb/http/public/response_headers_parser.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes
 #include "net/instaweb/util/public/mock_timer.h"
-#include <string>
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 
@@ -39,29 +40,29 @@ class ResponseHeadersTest : public testing::Test {
     EXPECT_EQ(200, response_headers.status_code());
     EXPECT_EQ(1, response_headers.major_version());
     EXPECT_EQ(0, response_headers.minor_version());
-    EXPECT_EQ(std::string("OK"),
-              std::string(response_headers.reason_phrase()));
+    EXPECT_EQ(GoogleString("OK"),
+              GoogleString(response_headers.reason_phrase()));
     StringStarVector values;
     EXPECT_TRUE(response_headers.Lookup("X-Google-Experiment", &values));
-    EXPECT_EQ(std::string("23729,24249,24253"), *(values[0]));
+    EXPECT_EQ(GoogleString("23729,24249,24253"), *(values[0]));
     EXPECT_TRUE(response_headers.Lookup(HttpAttributes::kSetCookie, &values));
     EXPECT_EQ(2, values.size());
-    EXPECT_EQ(std::string("PREF=ID=3935f510d83d2a7a:TM=1270493386:LM=127049338"
+    EXPECT_EQ(GoogleString("PREF=ID=3935f510d83d2a7a:TM=1270493386:LM=127049338"
                            "6:S=u_18e6r8aJ83N6P1; "
                            "expires=Wed, 04-Apr-2012 18:49:46 GMT; path=/; "
                            "domain=.google.com"),
               *(values[0]));
-    EXPECT_EQ(std::string("NID=33=aGkk7cKzznoUuCd19qTgXlBjXC8fc_luIo2Yk9BmrevU"
+    EXPECT_EQ(GoogleString("NID=33=aGkk7cKzznoUuCd19qTgXlBjXC8fc_luIo2Yk9BmrevU"
                            "gXYPTazDF8Q6JvsO6LvTu4mfI8_44iIBLu4pF-Mvpe4wb7pYwej"
                            "4q9HvbMLRxt-OzimIxmd-bwyYVfZ2PY1B; "
                            "expires=Tue, 05-Oct-2010 18:49:46 GMT; path=/; "
                            "domain=.google.com; HttpOnly"),
               *(values[1]));
     EXPECT_EQ(15, response_headers.NumAttributes());
-    EXPECT_EQ(std::string("X-Google-GFE-Response-Body-Transformations"),
-              std::string(response_headers.Name(14)));
-    EXPECT_EQ(std::string("gunzipped"),
-              std::string(response_headers.Value(14)));
+    EXPECT_EQ(GoogleString("X-Google-GFE-Response-Body-Transformations"),
+              GoogleString(response_headers.Name(14)));
+    EXPECT_EQ(GoogleString("gunzipped"),
+              GoogleString(response_headers.Value(14)));
   }
 
   void ParseHeaders(const StringPiece& headers) {
@@ -76,7 +77,7 @@ class ResponseHeadersTest : public testing::Test {
   }
 
   bool ComputeImplicitCaching(int status_code, const char* content_type) {
-    std::string header_text =
+    GoogleString header_text =
         StringPrintf("HTTP/1.0 %d OK\r\n"
                      "Date: Mon, 05 Apr 2010 18:49:46 GMT\r\n"
                      "Content-type: %s\r\n\r\n",
@@ -160,7 +161,7 @@ TEST_F(ResponseHeadersTest, TestParseAndWrite) {
   CheckGoogleHeaders(response_headers_);
 
   // Now write the headers into a string.
-  std::string outbuf;
+  GoogleString outbuf;
   StringWriter writer(&outbuf);
   response_headers_.WriteAsHttp(&writer, &message_handler_);
 
@@ -269,12 +270,12 @@ TEST_F(ResponseHeadersTest, TestRemoveAll) {
                "Vary: Accept-Encoding\r\n"
                "\r\n");
   ExpectSizes(8, 4);
-  response_headers_.RemoveAll("Vary");
+  response_headers_.RemoveAll(HttpAttributes::kVary);
   ExpectSizes(6, 3);
   response_headers_.RemoveAll(HttpAttributes::kSetCookie);
   ExpectSizes(2, 2);
   EXPECT_EQ(2, response_headers_.NumAttributes());
-  response_headers_.RemoveAll("Date");
+  response_headers_.RemoveAll(HttpAttributes::kDate);
   ExpectSizes(1, 1);
   response_headers_.RemoveAll(HttpAttributes::kCacheControl);
   ExpectSizes(0, 0);
@@ -283,8 +284,8 @@ TEST_F(ResponseHeadersTest, TestRemoveAll) {
 TEST_F(ResponseHeadersTest, TestReasonPhrase) {
   response_headers_.SetStatusAndReason(HttpStatus::kOK);
   EXPECT_EQ(HttpStatus::kOK, response_headers_.status_code());
-  EXPECT_EQ(std::string("OK"),
-            std::string(response_headers_.reason_phrase()));
+  EXPECT_EQ(GoogleString("OK"),
+            GoogleString(response_headers_.reason_phrase()));
 }
 
 TEST_F(ResponseHeadersTest, TestSetDate) {
@@ -298,6 +299,64 @@ TEST_F(ResponseHeadersTest, TestSetDate) {
   const int64 k100_sec = 100 * 1000;
   ASSERT_EQ(MockTimer::kApr_5_2010_ms + k100_sec,
             response_headers_.CacheExpirationTimeMs());
+}
+
+TEST_F(ResponseHeadersTest, TestUpdateFrom) {
+  const char old_header_string[] =
+      "HTTP/1.1 200 OK\r\n"
+      "Date: Fri, 22 Apr 2011 19:34:33 GMT\r\n"
+      "Server: Apache/2.2.3 (CentOS)\r\n"
+      "Last-Modified: Tue, 08 Mar 2011 18:28:32 GMT\r\n"
+      "Accept-Ranges: bytes\r\n"
+      "Content-Length: 241260\r\n"
+      "Cache-control: public, max-age=600\r\n"
+      "Content-Type: image/jpeg\r\n"
+      "\r\n";
+  const char new_header_string[] =
+      "HTTP/1.1 304 Not Modified\r\n"
+      "Date: Fri, 22 Apr 2011 19:49:59 GMT\r\n"
+      "Server: Apache/2.2.3 (CentOS)\r\n"
+      "Cache-control: public, max-age=3600\r\n"
+      "Set-Cookie: LA=1275937193\r\n"
+      "Set-Cookie: UA=chrome\r\n"
+      "\r\n";
+  const char expected_merged_header_string[] =
+      "HTTP/1.1 200 OK\r\n"
+      "Last-Modified: Tue, 08 Mar 2011 18:28:32 GMT\r\n"
+      "Accept-Ranges: bytes\r\n"
+      "Content-Length: 241260\r\n"
+      "Content-Type: image/jpeg\r\n"
+      "Date: Fri, 22 Apr 2011 19:49:59 GMT\r\n"
+      "Server: Apache/2.2.3 (CentOS)\r\n"
+      "Cache-control: public, max-age=3600\r\n"
+      "Set-Cookie: LA=1275937193\r\n"
+      "Set-Cookie: UA=chrome\r\n"
+      "\r\n";
+
+  // Setup old and new headers
+  ResponseHeaders old_headers, new_headers;
+  ResponseHeadersParser old_parser(&old_headers), new_parser(&new_headers);
+  old_parser.ParseChunk(old_header_string, &message_handler_);
+  new_parser.ParseChunk(new_header_string, &message_handler_);
+
+  // Update old_headers from new_headers.
+  old_headers.UpdateFrom(new_headers);
+
+  // Make sure in memory map is updated.
+  StringStarVector date_strings;
+  EXPECT_TRUE(old_headers.Lookup("Date", &date_strings));
+  EXPECT_EQ(1, date_strings.size());
+  EXPECT_EQ("Fri, 22 Apr 2011 19:49:59 GMT", *date_strings[0]);
+  StringStarVector set_cookie_strings;
+  EXPECT_TRUE(old_headers.Lookup("Set-Cookie", &set_cookie_strings));
+  EXPECT_EQ(8, old_headers.NumAttributeNames());
+
+  // Make sure protobuf is updated.
+  GoogleString actual_merged_header_string;
+  StringWriter merged_writer(&actual_merged_header_string);
+  old_headers.WriteAsHttp(&merged_writer, &message_handler_);
+
+  EXPECT_EQ(expected_merged_header_string, actual_merged_header_string);
 }
 
 }  // namespace net_instaweb

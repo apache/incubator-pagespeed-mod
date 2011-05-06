@@ -19,10 +19,11 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_ARENA_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_ARENA_H_
 
+#include <stdint.h>
 #include <vector>
+#include <cstddef>
 
-#include "base/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "base/logging.h"
 
 namespace net_instaweb {
 

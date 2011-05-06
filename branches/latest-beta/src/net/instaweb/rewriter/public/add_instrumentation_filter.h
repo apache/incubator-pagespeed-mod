@@ -19,12 +19,14 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_ADD_INSTRUMENTATION_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_ADD_INSTRUMENTATION_FILTER_H_
 
-#include "base/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/util/public/atom.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class HtmlElement;
+class HtmlParse;
 class Statistics;
 class Variable;
 
@@ -50,7 +52,7 @@ class AddInstrumentationFilter : public EmptyHtmlFilter {
   bool found_head_;
   Variable* total_page_load_ms_;
   Variable* page_load_count_;
-  std::string beacon_url_;
+  GoogleString beacon_url_;
 
   DISALLOW_COPY_AND_ASSIGN(AddInstrumentationFilter);
 };
