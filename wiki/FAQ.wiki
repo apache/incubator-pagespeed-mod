@@ -108,13 +108,26 @@ This way mod_pagespeed can continue to operate on the other elements of the web 
 
 Note: This option was added in mod_pagespeed 0.9.11.1-271
 
-= What's with all these 'serf' errors in my logs? =
+= What's with all these 'serf' errors in my logs? Error status=670003 (Temporary failure in name resolution) =
 
-This can happen when the DNS setup on the Apache server or the firewall prevents that host from being able to reference the js, css, and image files using the URLs from the HTML pages.  The solution is to use origin-mapping to indicate the host from which the resources should be fetched.
+This can happen when the DNS cannot be accessed accurately from the server. Thus sub-resources cannot be fetched and rewritten correctly.
+
+To test that this is the case try ssh-ing into your machine and wget-ing a URL:
 
 {{{
-  ModPagespeedMapOriginDomain localhost www.myhost.com
+  $ ssh YOUR_SITE
+  $ wget http://YOUR_SITE/
 }}}
+
+If this fails, then DNS is not accessible or there is some other networking issue stopping you from accessing your host from itself.
+
+One solution is to use [http://code.google.com/speed/page-speed/docs/domains.html#mapping_origin origin-mapping] to indicate the host from which the resources should be fetched.
+
+{{{
+  ModPagespeedMapOriginDomain localhost www.example.com
+}}}
+
+This bypasses DNS lookup by telling mod_pagespeed to get all resources for domain www.example.com from localhost.
 
 This can also be used to improve the performance of mod_pagespeed when it is sitting behind a load balancer.  It may be preferable to use localhost to load the resources rather than going out to the load-balancer and back.
 
