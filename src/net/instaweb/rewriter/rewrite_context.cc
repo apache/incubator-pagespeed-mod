@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 
-#include <algorithm>  // for std::max
-
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -93,92 +91,14 @@ class ResourceFetchCallback : public Resource::AsyncCallback {
 
 }  // namespace
 
-// This class encodes a few data members used for responding to
-// resource-requests when the output_resource is not in cache.
-class RewriteContext::FetchContext {
- public:
-  FetchContext(Writer* writer,
-               ResponseHeaders* response_headers,
-               UrlAsyncFetcher::Callback* callback,
-               const OutputResourcePtr& output_resource,
-               MessageHandler* handler)
-      : writer_(writer),
-        response_headers_(response_headers),
-        callback_(callback),
-        output_resource_(output_resource),
-        handler_(handler) {
-  }
-
-  void FetchDone(bool success) {
-    GoogleString output;
-    if (success) {
-      // TODO(sligocki): It might be worth streaming this.
-      response_headers_->CopyFrom(*(output_resource_->metadata()));
-      writer_->Write(output_resource_->contents(), handler_);
-    } else {
-      // TODO(jmarantz): implement this:
-      // CacheRewriteFailure();
-      // Rewrite failed. If we have the original, write it out instead.
-      // if (input_resource_->ContentsValid()) {
-      //  WriteFromResource(input_resource_.get());
-      //    success = true;
-      // }   else {
-      //  // If not, log the failure.
-      //  GoogleString url = input_resource_.get()->url();
-      //  handler_->Error(
-      //      output_resource_->name().as_string().c_str(), 0,
-      //      "Resource based on %s but cannot find the original", url.c_str());
-      // }
-      //
-      // TODO(jmarantz): morlovich points out: Looks like you'll need the
-      // vector of inputs for both cases (and multiple inputs can't do
-      // the passthrough fallback)
-    }
-
-    callback_->Done(success);
-  }
-
-#if 0
-  void RewriteContext::CacheRewriteFailure() {
-    // Either we couldn't rewrite this successfully or the input resource plain
-    // isn't there. If so, do not try again until the input resource expires
-    // or a minimal TTL has passed.
-    int64 now_ms = resource_manager_->timer()->NowMs();
-    int64 expire_at_ms = std::max(now_ms + ResponseHeaders::kImplicitCacheTtlMs,
-                                  input_resource_->CacheExpirationTimeMs());
-    CachedResult* result = output_resource_->EnsureCachedResultCreated();
-
-    // TODO(jmarantz): add versioning.
-    result->set_cache_version(0 /* FilterCacheFormatVersion()*/);
-    if (input_resource_->ContentsValid()) {
-      // TODO(jmarantz): handle & test ReuseByContentHash:
-      //
-      // if (ReuseByContentHash()) {
-      //   cached->set_input_hash(
-      //   resource_manager_->hasher()->Hash(input_resource->contents()));
-      // }
-    }
-    resource_manager_->WriteUnoptimizable(output_resource_.get(),
-                                          expire_at_ms, handler_);
-  }
-#endif
-
-  OutputResourcePtr output_resource() { return output_resource_; }
-
-  Writer* writer_;
-  ResponseHeaders* response_headers_;
-  UrlAsyncFetcher::Callback* callback_;
-  OutputResourcePtr output_resource_;
-  MessageHandler* handler_;
-};
-
 RewriteContext::RewriteContext(RewriteDriver* driver,
                                ResourceContext* resource_context)
   : driver_(driver),
     resource_manager_(driver->resource_manager()),
     started_(false),
     outstanding_fetches_(0),
-    resource_context_(resource_context) {
+    resource_context_(resource_context),
+    block_(kNeverBlock) {
   // TODO(jmarantz): if this duplication proves expensive, then do this
   // lazily.  We don't need our own copy of the RewriteOptions until the
   // RewriteDriver is detached.  for now just do the simple thing and
@@ -244,79 +164,55 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
     ArrayInputStream input(val_str->data(), val_str->size());
     OutputPartitions partitions;
     if (partitions.ParseFromZeroCopyStream(&input)) {
-      OutputResourceVector outputs;
-      for (int i = 0, n = partitions.partition_size(); i < n; ++i) {
-        const OutputPartition& partition = partitions.partition(i);
-        const CachedResult& cached_result = partition.result();
-        OutputResourcePtr output_resource;
-        const ContentType* content_type = NameExtensionToContentType(
-            StrCat(".", cached_result.extension()));
-        if (CreateOutputResourceForCachedOutput(
-            cached_result.url(), content_type, &output_resource)) {
-          outputs.push_back(output_resource);
-        }
-      }
-
-      if (outputs.size() == static_cast<size_t>(partitions.partition_size())) {
-        RenderPartitions(partitions, outputs);
+      RenderPartitions(partitions);
+      // CAREFUL ABOUT LOCKING SEMANTICS HERE...
+      if (driver_ == NULL) {
+        delete this;
       }
     } else {
       state = CacheInterface::kNotFound;
       // TODO(jmarantz): count cache corruptions in a stat?
     }
+
   } else {
     resource_manager_->cached_output_misses()->Add(1);
   }
 
+
   // If the cache gave a miss, or yielded unparsable data, then acquire a lock
   // and start fetching the input resources.
   if (state != CacheInterface::kAvailable) {
-    FetchInputs(kNeverBlock);
-  }
-}
+    // NOTE: This locks based on hash's so if you use a MockHasher, you may
+    // only rewrite a single resource at a time (e.g. no rewriting resources
+    // inside resources, see css_image_rewriter_test.cc for examples.)
+    //
+    // TODO(jmarantz): In the multi-resource rewriters that can
+    // generate more than one partition, we create a lock based on the
+    // entire set of input URLs, plus a lock for each individual
+    // output.  However, in single-resource rewriters, we really only
+    // need one of these locks.  So figure out which one we'll go with
+    // and use that.
+    GoogleString lock_name = StrCat(kRewriteContextLockPrefix, partition_key_);
+    if (resource_manager_->LockForCreation(lock_name, block_, &lock_)) {
+      for (int i = 0, n = slots_.size(); i < n; ++i) {
+        const ResourceSlotPtr& slot = slots_[i];
+        ResourcePtr resource(slot->resource());
+        if (!(resource->loaded() && resource->ContentsValid())) {
+          ResourceFetchCallback* callback =
+              new ResourceFetchCallback(this, resource, i);
+          ++outstanding_fetches_;
+          resource_manager_->ReadAsync(callback);
 
-void RewriteContext::FetchInputs(BlockingBehavior block) {
-  // NOTE: This lock is based on hashes so if you use a MockHasher, you may
-  // only rewrite a single resource at a time (e.g. no rewriting resources
-  // inside resources, see css_image_rewriter_test.cc for examples.)
-  //
-  // TODO(jmarantz): In the multi-resource rewriters that can
-  // generate more than one partition, we create a lock based on the
-  // entire set of input URLs, plus a lock for each individual
-  // output.  However, in single-resource rewriters, we really only
-  // need one of these locks.  So figure out which one we'll go with
-  // and use that.
-  GoogleString lock_name = StrCat(kRewriteContextLockPrefix, partition_key_);
-
-  // If all the resources are already loaded in memory then we can call the
-  // Finish callback directly.  Note that we cannot look at outstanding_fetches_
-  // to do this as it might be written by async callbacks.
-  bool finish_immediately = true;
-
-  if (resource_manager_->LockForCreation(lock_name, block, &lock_)) {
-    for (int i = 0, n = slots_.size(); i < n; ++i) {
-      const ResourceSlotPtr& slot = slots_[i];
-      ResourcePtr resource(slot->resource());
-      if (!(resource->loaded() && resource->ContentsValid())) {
-        ResourceFetchCallback* callback =
-            new ResourceFetchCallback(this, resource, i);
-        ++outstanding_fetches_;
-        finish_immediately = false;
-        resource_manager_->ReadAsync(callback);
-
-        // TODO(jmarantz): as currently coded this will not work with Apache,
-        // as we don't do these async fetches using the threaded fetcher.
-        // Those details need to be sorted before we test async rewrites
-        // with Apache.
+          // TODO(jmarantz): as currently coded this will not work with Apache,
+          // as we don't do these async fetches using the threaded fetcher.
+          // Those details need to be sorted before we test async rewrites
+          // with Apache.
+        }
       }
+    } else {
+      // TODO(jmarantz): bump stat for abandoned rewrites due to lock
+      // contention.
     }
-  } else {
-    // TODO(jmarantz): bump stat for abandoned rewrites due to lock
-    // contention.
-  }
-
-  if (finish_immediately) {
-    Finish();
   }
 }
 
@@ -338,22 +234,14 @@ void RewriteContext::ResourceFetchDone(
   if (finished) {
     Finish();
   }
-  // TODO(jmarantz): handle the case where the slots didn't get filled in
-  // due to a fetch failure.
 }
 
 void RewriteContext::Finish() {
-  if (fetch_.get() == NULL) {
-    FinishRewrite();
-  } else {
-    FinishFetch();
-  }
-}
+  // TODO(jmarantz): handle the case where the slots didn't get filled in
+  // due to a fetch failure.
 
-void RewriteContext::FinishRewrite() {
   OutputPartitions partitions;
-  OutputResourceVector outputs;
-  if (PartitionAndRewrite(&partitions, &outputs)) {
+  if (PartitionAndRewrite(&partitions)) {
     CacheInterface* metadata_cache = resource_manager_->metadata_cache();
     SharedString buf;
     {
@@ -362,53 +250,23 @@ void RewriteContext::FinishRewrite() {
       // destructor of sstream prepares *buf.get()
     }
     metadata_cache->Put(partition_key_, &buf);
-    RenderPartitions(partitions, outputs);
   }
   lock_.reset();
-  if (driver_ == NULL) {
-    delete this;
-  }
+
+  RenderPartitions(partitions);
 }
 
-void RewriteContext::FinishFetch() {
-  // Make a fake partition that has all the inputs, since we are
-  // performing the rewrite for only one output resource.
-  OutputPartition partition;
-  for (int i = 0, n = slots_.size(); i < n; ++i) {
-    partition.add_input(i);
-  }
-  OutputResourcePtr output(fetch_->output_resource());
-  bool success = Rewrite(&partition, output);
-  fetch_->FetchDone(success);
-  delete this;
-}
-
-bool RewriteContext::CreateOutputResourceForCachedOutput(
-    const StringPiece& url, const ContentType* content_type,
-    OutputResourcePtr* output_resource) {
-  bool ret = false;
-  GoogleUrl gurl(url);
-  ResourceNamer namer;
-  if (gurl.is_valid() && namer.Decode(gurl.LeafWithQuery())) {
-    output_resource->reset(new OutputResource(
-        resource_manager_, gurl.AllExceptLeaf(), namer, content_type,
-        &options_, kind()));
-    (*output_resource)->set_written_using_rewrite_context_flow(true);
-    ret = true;
-  }
-  return ret;
-}
-
-void RewriteContext::RenderPartitions(const OutputPartitions& partitions,
-                                      const OutputResourceVector& outputs) {
+void RewriteContext::RenderPartitions(const OutputPartitions& partitions) {
   // LOCK driver
   if (driver_ != NULL) {
     for (int i = 0, n = partitions.partition_size(); i < n; ++i) {
       const OutputPartition& partition = partitions.partition(i);
       const CachedResult& cached_result = partition.result();
-      OutputResourcePtr output_resource(outputs[i]);
-      if ((output_resource.get() != NULL) &&
-          FreshenAndCheckExpiration(cached_result)) {
+      const ContentType* content_type = NameExtensionToContentType(
+          StrCat(".", cached_result.extension()));
+      if ((content_type != NULL) && FreshenAndCheckExpiration(cached_result)) {
+        ResourcePtr output_resource(new UrlInputResource(
+            resource_manager(), options(), content_type, cached_result.url()));
         Render(partition, output_resource);
       } else {
         // TODO(jmarantz): bump a failure-due-to-corrupt-cache statistic
@@ -443,41 +301,6 @@ void RewriteContext::RenderAndDetach() {
     driver_ = NULL;
   }
   // UNLOCK driver_
-}
-
-bool RewriteContext::Fetch(
-    RewriteDriver* driver,
-    const OutputResourcePtr& output_resource,
-    Writer* response_writer,
-    ResponseHeaders* response_headers,
-    MessageHandler* message_handler,
-    UrlAsyncFetcher::Callback* callback) {
-  // Decode the URLs required to execute the rewrite.
-  bool ret = false;
-  StringVector urls;
-  GoogleUrl gurl(output_resource->url());
-  GoogleUrl base(gurl.AllExceptLeaf());
-  if (encoder()->Decode(output_resource->name(), &urls, resource_context_.get(),
-                        message_handler)) {
-    for (int i = 0, n = urls.size(); i < n; ++i) {
-      GoogleUrl url(base, urls[i]);
-      if (!url.is_valid()) {
-        return false;
-      }
-      ResourcePtr resource(driver->CreateInputResource(url));
-      if (resource.get() == NULL) {
-        // TODO(jmarantz): bump invalid-input-resource count
-        return false;
-      }
-      ResourceSlotPtr slot(new FetchResourceSlot(resource));
-      AddSlot(slot);
-    }
-    fetch_.reset(new FetchContext(response_writer, response_headers, callback,
-                                  output_resource, message_handler));
-    FetchInputs(kMayBlock);
-    ret = true;
-  }
-  return ret;
 }
 
 }  // namespace net_instaweb

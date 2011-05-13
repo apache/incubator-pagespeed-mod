@@ -40,22 +40,19 @@ class SingleRewriteContext : public RewriteContext {
  public:
   // Transfers ownership of resource_context, which must be NULL or
   // allocated with 'new'.
-  SingleRewriteContext(RewriteDriver* driver,
+  SingleRewriteContext(RewriteDriver* driver, const ResourceSlotPtr& slot,
                        ResourceContext* resource_context);
   virtual ~SingleRewriteContext();
 
  protected:
   // Subclasses of SingleRewriteContext must override this:
-  virtual RewriteSingleResourceFilter::RewriteResult RewriteSingle(
-      const ResourcePtr& input, const OutputResourcePtr& output) = 0;
+  virtual RewriteSingleResourceFilter::RewriteResult Rewrite(
+      const Resource* script_input, OutputResource* output_resource) = 0;
 
   // SingleRewriteContext takes care of these methods from RewriteContext:
   virtual void Render(const OutputPartition& partition,
-                      const OutputResourcePtr& output_resource);
-  virtual bool PartitionAndRewrite(OutputPartitions* partitions,
-                                   OutputResourceVector* outputs);
-  virtual RewriteSingleResourceFilter::RewriteResult Rewrite(
-      OutputPartition* partition, const OutputResourcePtr& output);
+                      const ResourcePtr& output_resource);
+  virtual bool PartitionAndRewrite(OutputPartitions* partitions);
 
   DISALLOW_COPY_AND_ASSIGN(SingleRewriteContext);
 };

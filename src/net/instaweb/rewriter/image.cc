@@ -22,9 +22,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/image_data_lookup.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
@@ -39,13 +37,6 @@
 #include "pagespeed/image_compression/gif_reader.h"
 #include "pagespeed/image_compression/jpeg_optimizer.h"
 #include "pagespeed/image_compression/png_optimizer.h"
-
-#if (CV_MAJOR_VERSION == 2 && CV_MINOR_VERSION >= 1) || (CV_MAJOR_VERSION > 2)
-#include <vector>
-#define USE_OPENCV_2_1
-#else
-#include "net/instaweb/util/public/stdio_file_system.h"
-#endif
 
 using pagespeed::image_compression::PngOptimizer;
 
@@ -74,114 +65,29 @@ const size_t kJpegIntSize = 2;
 
 }  // namespace ImageHeaders
 
-// TODO(jmaessen): Put ImageImpl into private namespace.
-
-class ImageImpl : public Image {
- public:
-  ImageImpl(const StringPiece& original_contents,
-            const GoogleString& url,
-            const StringPiece& file_prefix,
-            MessageHandler* handler);
-  ImageImpl(int width, int height, Type type,
-            const StringPiece& tmp_dir, MessageHandler* handler);
-
-  virtual void Dimensions(ImageDim* natural_dim);
-  virtual bool ResizeTo(const ImageDim& new_dim);
-  virtual bool DrawImage(Image* image, int x, int y);
-  virtual bool EnsureLoaded();
-
- private:
-  // byte buffer type most convenient for working with given OpenCV version
-#ifdef USE_OPENCV_2_1
-  typedef std::vector<unsigned char> OpenCvBuffer;
-#else
-  typedef GoogleString OpenCvBuffer;
-#endif
-  virtual ~ImageImpl();
-
-  // Concrete helper methods called by parent class
-  virtual void ComputeImageType();
-  virtual bool ComputeOutputContents();
-
-  // Helper methods
-  static bool ComputePngTransparency(const StringPiece& buf);
-
-  // Internal methods used only in the implementation
-  void UndoChange();
-  void FindJpegSize();
-  void FindPngSize();
-  void FindGifSize();
-  bool HasTransparency(const StringPiece& buf);
-  bool LoadOpenCv();
-  void CleanOpenCv();
-
-  // Initializes an empty image.
-  bool LoadOpenCvEmpty();
-
-  // Assumes all filetype + transparency checks have been done.
-  // Reads data, writes to opencv_image_
-  bool LoadOpenCvFromBuffer(const StringPiece& data);
-
-  // Reads from opencv_image_, writes to buf
-  bool SaveOpenCvToBuffer(OpenCvBuffer* buf);
-
-  // Encodes 'buf' in a StringPiece
-  static StringPiece OpenCvBufferToStringPiece(const OpenCvBuffer& buf);
-
-#ifndef USE_OPENCV_2_1
-  // Helper that creates & writes a temporary file for us in proper prefix with
-  // proper extension.
-  bool TempFileForImage(FileSystem* fs, const StringPiece& contents,
-                        GoogleString* filename);
-#endif
-
-  const GoogleString file_prefix_;
-  MessageHandler* handler_;
-  IplImage* opencv_image_;        // Lazily filled on OpenCV load.
-  bool opencv_load_possible_;     // Attempt opencv_load in future?
-  bool changed_;
-  const GoogleString url_;
-  ImageDim dims_;
-
-  DISALLOW_COPY_AND_ASSIGN(ImageImpl);
-};
-
-Image::Image(const StringPiece& original_contents)
-    : image_type_(IMAGE_UNKNOWN),
+Image::Image(const StringPiece& original_contents,
+             const GoogleString& url,
+             const StringPiece& file_prefix,
+             MessageHandler* handler)
+    : file_prefix_(file_prefix.data(), file_prefix.size()),
+      handler_(handler),
+      image_type_(IMAGE_UNKNOWN),
       original_contents_(original_contents),
       output_contents_(),
-      output_valid_(false) { }
-
-ImageImpl::ImageImpl(const StringPiece& original_contents,
-                     const GoogleString& url,
-                     const StringPiece& file_prefix,
-                     MessageHandler* handler)
-    : Image(original_contents),
-      file_prefix_(file_prefix.data(), file_prefix.size()),
-      handler_(handler),
+      output_valid_(false),
       opencv_image_(NULL),
       opencv_load_possible_(true),
       changed_(false),
       url_(url) { }
 
-Image* NewImage(const StringPiece& original_contents,
-                const GoogleString& url,
-                const StringPiece& file_prefix,
-                MessageHandler* handler) {
-  return new ImageImpl(original_contents, url, file_prefix, handler);
-}
-
-Image::Image(Type type)
-    : image_type_(type),
+Image::Image(int width, int height, Type type,
+      const StringPiece& tmp_dir, MessageHandler* handler)
+    : file_prefix_(tmp_dir.data(), tmp_dir.size()),
+      handler_(handler),
+      image_type_(type),
       original_contents_(),
       output_contents_(),
-      output_valid_(false) { }
-
-ImageImpl::ImageImpl(int width, int height, Type type,
-                     const StringPiece& tmp_dir, MessageHandler* handler)
-    : Image(type),
-      file_prefix_(tmp_dir.data(), tmp_dir.size()),
-      handler_(handler),
+      output_valid_(false),
       opencv_image_(NULL),
       opencv_load_possible_(true),
       changed_(false),
@@ -190,15 +96,7 @@ ImageImpl::ImageImpl(int width, int height, Type type,
   dims_.set_height(height);
 }
 
-Image* BlankImage(int width, int height, Image::Type type,
-                  const StringPiece& tmp_dir, MessageHandler* handler) {
-  return new ImageImpl(width, height, type, tmp_dir, handler);
-}
-
 Image::~Image() {
-}
-
-ImageImpl::~ImageImpl() {
   CleanOpenCv();
 }
 
@@ -206,7 +104,7 @@ ImageImpl::~ImageImpl() {
 // indicating encoding and dimensions of image.
 // Loosely based on code and FAQs found here:
 //    http://www.faqs.org/faqs/jpeg-faq/part1/
-void ImageImpl::FindJpegSize() {
+void Image::FindJpegSize() {
   const StringPiece& buf = original_contents_;
   size_t pos = 2;  // Position of first data block after header.
   while (pos < buf.size()) {
@@ -255,7 +153,7 @@ void ImageImpl::FindJpegSize() {
 
 // Looks at first (IHDR) block of png stream to find image dimensions.
 // See also: http://www.w3.org/TR/PNG/
-void ImageImpl::FindPngSize() {
+void Image::FindPngSize() {
   const StringPiece& buf = original_contents_;
   // Here we make sure that buf contains at least enough data that we'll be able
   // to decipher the image dimensions first, before we actually check for the
@@ -279,7 +177,7 @@ void ImageImpl::FindPngSize() {
 
 // Looks at header of GIF file to extract image dimensions.
 // See also: http://en.wikipedia.org/wiki/Graphics_Interchange_Format
-void ImageImpl::FindGifSize() {
+void Image::FindGifSize() {
   const StringPiece& buf = original_contents_;
   // Make sure that buf contains enough data that we'll be able to
   // decipher the image dimensions before we attempt to do so.
@@ -297,7 +195,7 @@ void ImageImpl::FindGifSize() {
 
 // Looks at image data in order to determine image type, and also fills in any
 // dimension information it can (setting image_type_ and dims_).
-void ImageImpl::ComputeImageType() {
+void Image::ComputeImageType() {
   // Image classification based on buffer contents gakked from leptonica,
   // but based on well-documented headers (see Wikipedia etc.).
   // Note that we can be fooled if we're passed random binary data;
@@ -366,7 +264,7 @@ const ContentType* Image::content_type() {
 // If the colour type (UK spelling from spec) includes an alpha channel, or
 // there is a tRNS section with at least one entry before IDAT, then we assume
 // the image contains non-opaque pixels and return true.
-bool ImageImpl::ComputePngTransparency(const StringPiece& buf) {
+bool Image::ComputePngTransparency(const StringPiece& buf) {
   // We assume the image has transparency until we prove otherwise.
   // This allows us to deal conservatively with truncation etc.
   bool has_transparency = true;
@@ -403,7 +301,7 @@ bool ImageImpl::ComputePngTransparency(const StringPiece& buf) {
 // contain non-opaque data, nor do we check if a distinguished transparent color
 // is actually used in an image.  We assume that if the image file contains
 // flags for transparency, it does so for a reason.
-bool ImageImpl::HasTransparency(const StringPiece& buf) {
+bool Image::HasTransparency(const StringPiece& buf) {
   bool result;
   switch (image_type()) {
     case IMAGE_PNG:
@@ -423,8 +321,8 @@ bool ImageImpl::HasTransparency(const StringPiece& buf) {
 // Makes sure OpenCV version of image is loaded if that is possible.
 // Returns value of opencv_load_possible_ after load attempted.
 // Note that if the load fails, opencv_load_possible_ will be false
-// and future calls to EnsureLoaded will fail fast.
-bool ImageImpl::EnsureLoaded() {
+// and future calls to LoadOpenCv will fail fast.
+bool Image::LoadOpenCv() {
   if (!(opencv_image_ == NULL && opencv_load_possible_)) {
     // Already attempted load, fall through.
   } else if (image_type() == IMAGE_UNKNOWN) {
@@ -471,13 +369,13 @@ bool ImageImpl::EnsureLoaded() {
 }
 
 // Get rid of OpenCV image data gracefully (requires a call to OpenCV).
-void ImageImpl::CleanOpenCv() {
+void Image::CleanOpenCv() {
   if (opencv_image_ != NULL) {
     cvReleaseImage(&opencv_image_);
   }
 }
 
-bool ImageImpl::LoadOpenCvEmpty() {
+bool Image::LoadOpenCvEmpty() {
   // empty canvas -- width and height must be set already.
   if (ImageUrlEncoder::HasValidDimensions(dims_)) {
     // TODO(abliss): Need to figure out the right values for these.
@@ -493,7 +391,7 @@ bool ImageImpl::LoadOpenCvEmpty() {
 
 #ifdef USE_OPENCV_2_1
 
-bool ImageImpl::LoadOpenCvFromBuffer(const StringPiece& data) {
+bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   CvMat cv_original_contents =
       cvMat(1, data.size(), CV_8UC1, const_cast<char*>(data.data()));
 
@@ -503,7 +401,7 @@ bool ImageImpl::LoadOpenCvFromBuffer(const StringPiece& data) {
   return opencv_image_ != NULL;
 }
 
-bool ImageImpl::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
+bool Image::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
   // This is preferable to cvEncodeImage as it makes it easy to avoid a copy.
   // Note: period included with the extension on purpose.
   return cv::imencode(content_type()->file_extension(), opencv_image_, *buf);
@@ -511,7 +409,7 @@ bool ImageImpl::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
 
 #else
 
-bool ImageImpl::TempFileForImage(FileSystem* fs,
+bool Image::TempFileForImage(FileSystem* fs,
                              const StringPiece& contents,
                              GoogleString* filename) {
   GoogleString tmp_filename;
@@ -523,7 +421,7 @@ bool ImageImpl::TempFileForImage(FileSystem* fs,
   return ok;
 }
 
-bool ImageImpl::LoadOpenCvFromBuffer(const StringPiece& data) {
+bool Image::LoadOpenCvFromBuffer(const StringPiece& data) {
   StdioFileSystem fs;
   GoogleString filename;
   bool ok = TempFileForImage(&fs, data, &filename);
@@ -534,7 +432,7 @@ bool ImageImpl::LoadOpenCvFromBuffer(const StringPiece& data) {
   return opencv_image_ != NULL;
 }
 
-bool ImageImpl::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
+bool Image::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
   StdioFileSystem fs;
   GoogleString filename;
   bool ok = TempFileForImage(&fs, StringPiece(), &filename);
@@ -548,18 +446,18 @@ bool ImageImpl::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
 
 #endif
 
-StringPiece ImageImpl::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
+StringPiece Image::OpenCvBufferToStringPiece(const OpenCvBuffer& buf) {
   return StringPiece(reinterpret_cast<const char*>(&buf[0]), buf.size());
 }
 
-void ImageImpl::Dimensions(ImageDim* natural_dim) {
+void Image::Dimensions(ImageDim* natural_dim) {
   if (!ImageUrlEncoder::HasValidDimensions(dims_)) {
     ComputeImageType();
   }
   *natural_dim = dims_;
 }
 
-bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
+bool Image::ResizeTo(const ImageDim& new_dim) {
   CHECK(ImageUrlEncoder::HasValidDimensions(new_dim));
   if ((new_dim.width() <= 0) || (new_dim.height() <= 0)) {
     return false;
@@ -569,7 +467,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
     // If we already resized, drop data and work with original image.
     UndoChange();
   }
-  bool ok = opencv_image_ != NULL || EnsureLoaded();
+  bool ok = opencv_image_ != NULL || LoadOpenCv();
   if (ok) {
     IplImage* rescaled_image =
         cvCreateImage(cvSize(new_dim.width(), new_dim.height()),
@@ -587,7 +485,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   return changed_;
 }
 
-void ImageImpl::UndoChange() {
+void Image::UndoChange() {
   if (changed_) {
     CleanOpenCv();
     output_valid_ = false;
@@ -597,7 +495,7 @@ void ImageImpl::UndoChange() {
 }
 
 // Performs image optimization and output
-bool ImageImpl::ComputeOutputContents() {
+bool Image::ComputeOutputContents() {
   if (!output_valid_) {
     bool ok = true;
     OpenCvBuffer opencv_contents;
@@ -662,13 +560,12 @@ StringPiece Image::Contents() {
   return contents;
 }
 
-bool ImageImpl::DrawImage(Image* image, int x, int y) {
-  ImageImpl* impl = static_cast<ImageImpl*>(image);
-  if (!EnsureLoaded() || !image->EnsureLoaded()) {
+bool Image::DrawImage(Image* image, int x, int y) {
+  if (!LoadOpenCv() || !image->LoadOpenCv()) {
     return false;
   }
   ImageDim other_dim;
-  impl->Dimensions(&other_dim);
+  image->Dimensions(&other_dim);
   if (!ImageUrlEncoder::HasValidDimensions(dims_) ||
       !ImageUrlEncoder::HasValidDimensions(other_dim) ||
       (other_dim.width() + x > dims_.width())
@@ -678,7 +575,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   }
 #ifdef USE_OPENCV_2_1
   // OpenCV 2.1.0 api
-  cv::Mat mat(impl->opencv_image_, false);
+  cv::Mat mat(image->opencv_image_, false);
   cv::Mat canvas(opencv_image_, false);
   cv::Mat submat = canvas.rowRange(y, y + other_dim.height())
       .colRange(x, x + other_dim.width());
@@ -686,7 +583,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 #else
   // OpenCV 1.0.0 api
   CvMat mat;
-  cvGetMat(impl->opencv_image_, &mat);
+  cvGetMat(image->opencv_image_, &mat);
   CvMat canvas;
   cvGetMat(opencv_image_, &canvas);
   CvMat submat;

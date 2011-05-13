@@ -182,7 +182,8 @@ RewriteSingleResourceFilter::RewriteLoadedResourceAndCacheIfOk(
   result->set_input_timestamp_ms(input_resource->metadata()->timestamp_ms());
   UpdateCacheFormat(output_resource.get());
   UpdateInputHash(input_resource.get(), result);
-  RewriteResult res = RewriteLoadedResource(input_resource, output_resource);
+  RewriteResult res = RewriteLoadedResource(input_resource.get(),
+                                            output_resource.get());
   if (res == kRewriteOk) {
     CHECK(output_resource->type() != NULL);
   }
