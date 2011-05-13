@@ -225,7 +225,7 @@ TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
 // Test to make sure we don't cache for long if the rewrite was based
 // on not-yet-loaded resources.
 TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
-  SetupWaitFetcher();
+  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher(SetupWaitFetcher());
 
   // Disable atime simulation so that the clock doesn't move on us.
   file_system_.set_atime_enabled(false);
@@ -242,7 +242,7 @@ TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
                              kExpectNoChange | kExpectSuccess);
 
   // Get the CSS to load (resources are still unavailable).
-  wait_url_async_fetcher_.CallCallbacks();
+  wait_fetcher->CallCallbacks();
   ValidateRewriteExternalCss(
       "wip", kInput, kOutput, kNoOtherContexts | kNoClearFetcher |
                               kExpectChange | kExpectSuccess);
@@ -252,7 +252,7 @@ TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
   ValidateExpirationTime("wip", kOutput, Timer::kSecondMs);
 
   // Make sure the subresource callbacks fire for leak cleanliness
-  wait_url_async_fetcher_.CallCallbacks();
+  wait_fetcher->CallCallbacks();
 }
 
 }  // namespace

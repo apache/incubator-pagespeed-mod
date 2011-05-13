@@ -37,7 +37,7 @@ FetchResourceSlot::~FetchResourceSlot() {
 }
 
 void FetchResourceSlot::Render() {
-  DCHECK(false) << "FetchResourceSlot::Render should never be called";
+  DCHECK(false) << "FetchResourceSLot::Render should never be called";
 }
 
 HtmlResourceSlot::~HtmlResourceSlot() {

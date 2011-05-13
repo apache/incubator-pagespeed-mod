@@ -85,7 +85,6 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
   virtual RewriteResult RewriteLoadedResource(
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource);
-  virtual bool HasAsyncFlow() const { return driver_->asynchronous_rewrites(); }
 
  private:
   inline void CompleteScriptInProgress();

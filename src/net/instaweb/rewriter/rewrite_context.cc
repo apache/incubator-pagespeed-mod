@@ -147,9 +147,7 @@ class RewriteContext::FetchContext {
     int64 expire_at_ms = std::max(now_ms + ResponseHeaders::kImplicitCacheTtlMs,
                                   input_resource_->CacheExpirationTimeMs());
     CachedResult* result = output_resource_->EnsureCachedResultCreated();
-
-    // TODO(jmarantz): add versioning.
-    result->set_cache_version(0 /* FilterCacheFormatVersion()*/);
+    2result->set_cache_version(0 /* FilterCacheFormatVersion()*/);
     if (input_resource_->ContentsValid()) {
       // TODO(jmarantz): handle & test ReuseByContentHash:
       //
@@ -249,10 +247,8 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
         const OutputPartition& partition = partitions.partition(i);
         const CachedResult& cached_result = partition.result();
         OutputResourcePtr output_resource;
-        const ContentType* content_type = NameExtensionToContentType(
-            StrCat(".", cached_result.extension()));
-        if (CreateOutputResourceForCachedOutput(
-            cached_result.url(), content_type, &output_resource)) {
+        if (CreateOutputResourceForCachedOutput(cached_result.url(),
+                                                &output_resource)) {
           outputs.push_back(output_resource);
         }
       }
@@ -260,13 +256,20 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
       if (outputs.size() == static_cast<size_t>(partitions.partition_size())) {
         RenderPartitions(partitions, outputs);
       }
+
+      // CAREFUL ABOUT LOCKING SEMANTICS HERE...
+      if (driver_ == NULL) {
+        delete this;
+      }
     } else {
       state = CacheInterface::kNotFound;
       // TODO(jmarantz): count cache corruptions in a stat?
     }
+
   } else {
     resource_manager_->cached_output_misses()->Add(1);
   }
+
 
   // If the cache gave a miss, or yielded unparsable data, then acquire a lock
   // and start fetching the input resources.
@@ -287,12 +290,6 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
   // need one of these locks.  So figure out which one we'll go with
   // and use that.
   GoogleString lock_name = StrCat(kRewriteContextLockPrefix, partition_key_);
-
-  // If all the resources are already loaded in memory then we can call the
-  // Finish callback directly.  Note that we cannot look at outstanding_fetches_
-  // to do this as it might be written by async callbacks.
-  bool finish_immediately = true;
-
   if (resource_manager_->LockForCreation(lock_name, block, &lock_)) {
     for (int i = 0, n = slots_.size(); i < n; ++i) {
       const ResourceSlotPtr& slot = slots_[i];
@@ -301,7 +298,6 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
         ResourceFetchCallback* callback =
             new ResourceFetchCallback(this, resource, i);
         ++outstanding_fetches_;
-        finish_immediately = false;
         resource_manager_->ReadAsync(callback);
 
         // TODO(jmarantz): as currently coded this will not work with Apache,
@@ -313,10 +309,6 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
   } else {
     // TODO(jmarantz): bump stat for abandoned rewrites due to lock
     // contention.
-  }
-
-  if (finish_immediately) {
-    Finish();
   }
 }
 
@@ -336,17 +328,13 @@ void RewriteContext::ResourceFetchDone(
     DCHECK_EQ(resource.get(), slot->resource().get());
   }
   if (finished) {
-    Finish();
-  }
-  // TODO(jmarantz): handle the case where the slots didn't get filled in
-  // due to a fetch failure.
-}
-
-void RewriteContext::Finish() {
-  if (fetch_.get() == NULL) {
-    FinishRewrite();
-  } else {
-    FinishFetch();
+    // TODO(jmarantz): handle the case where the slots didn't get filled in
+    // due to a fetch failure.
+    if (fetch_.get() == NULL) {
+      FinishRewrite();
+    } else {
+      FinishFetch();
+    }
   }
 }
 
@@ -365,9 +353,6 @@ void RewriteContext::FinishRewrite() {
     RenderPartitions(partitions, outputs);
   }
   lock_.reset();
-  if (driver_ == NULL) {
-    delete this;
-  }
 }
 
 void RewriteContext::FinishFetch() {
@@ -377,24 +362,25 @@ void RewriteContext::FinishFetch() {
   for (int i = 0, n = slots_.size(); i < n; ++i) {
     partition.add_input(i);
   }
-  OutputResourcePtr output(fetch_->output_resource());
-  bool success = Rewrite(&partition, output);
-  fetch_->FetchDone(success);
+  fetch_->FetchDone(Rewrite(&partition, fetch_->output_resource()));
   delete this;
 }
 
 bool RewriteContext::CreateOutputResourceForCachedOutput(
-    const StringPiece& url, const ContentType* content_type,
-    OutputResourcePtr* output_resource) {
+    const StringPiece& url, OutputResourcePtr* output_resource) {
   bool ret = false;
   GoogleUrl gurl(url);
   ResourceNamer namer;
   if (gurl.is_valid() && namer.Decode(gurl.LeafWithQuery())) {
-    output_resource->reset(new OutputResource(
-        resource_manager_, gurl.AllExceptLeaf(), namer, content_type,
-        &options_, kind()));
-    (*output_resource)->set_written_using_rewrite_context_flow(true);
-    ret = true;
+    const ContentType* content_type = NameExtensionToContentType(
+        StrCat(".", namer.ext()));
+    if (content_type != NULL) {
+      output_resource->reset(new OutputResource(
+          resource_manager_, gurl.AllExceptLeaf(), namer, content_type,
+          &options_, kRewrittenResource));
+      // TODO(jmarantz): figure out the 'Kind'.
+      ret = true;
+    }
   }
   return ret;
 }
