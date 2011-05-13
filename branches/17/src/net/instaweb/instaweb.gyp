@@ -75,8 +75,10 @@
       'type': '<(library)',
       'dependencies': [
         'instaweb_spriter_pb',
+        '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
       ],
       'sources': [
+          'spriter/libpng_image_library.cc',
           'spriter/image_library_interface.cc',
           'spriter/image_spriter.cc',
           'spriter/public/image_spriter.proto',
@@ -142,11 +144,13 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         'instaweb_spriter_genproto',
+        '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
       ],
       'sources': [
         'spriter/image_spriter_test.cc',
+        'spriter/libpng_image_library_test.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -457,6 +461,15 @@
     },
     {
       'variables': {
+        # OpenCV has compile warnings in gcc 4.1 in a header file so turn off
+        # strict checking.
+        #
+        # TODO(jmarantz): disable the specific warning rather than
+        # turning off all warnings, and also scope this down to a
+        # minimal wrapper around the offending header file.
+        #
+        # TODO(jmarantz): figure out how to test for this failure in
+        # checkin tests, as it passes in gcc 4.2 and fails in gcc 4.1.
         'chromium_code': 0,
       },
       'target_name': 'instaweb_rewriter_css',

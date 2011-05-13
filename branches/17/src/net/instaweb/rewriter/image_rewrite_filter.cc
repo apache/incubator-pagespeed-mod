@@ -102,8 +102,8 @@ void ImageRewriteFilter::Initialize(Statistics* statistics) {
 }
 
 RewriteSingleResourceFilter::RewriteResult
-ImageRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
-                                          OutputResource* result) {
+ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
+                                          const OutputResourcePtr& result) {
   MessageHandler* message_handler = driver_->message_handler();
   GoogleString url;
   ImageDim page_dim;
@@ -112,8 +112,8 @@ ImageRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
     return kRewriteFailed;
   }
   scoped_ptr<Image> image(
-      new Image(input_resource->contents(), input_resource->url(),
-                resource_manager_->filename_prefix(), message_handler));
+      NewImage(input_resource->contents(), input_resource->url(),
+               resource_manager_->filename_prefix(), message_handler));
   if (image->image_type() == Image::IMAGE_UNKNOWN) {
     message_handler->Error(result->name().as_string().c_str(), 0,
                            "Unrecognized image content type.");
@@ -189,7 +189,7 @@ ImageRewriteFilter::RewriteLoadedResource(const Resource* input_resource,
 
       int64 origin_expire_time_ms = input_resource->CacheExpirationTimeMs();
       if (resource_manager_->Write(
-              HttpStatus::kOK, image->Contents(), result,
+              HttpStatus::kOK, image->Contents(), result.get(),
               origin_expire_time_ms, message_handler)) {
         driver_->InfoHere(
             "Shrinking image `%s' (%u bytes) to `%s' (%u bytes)",
