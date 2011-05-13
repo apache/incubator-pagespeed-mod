@@ -57,15 +57,14 @@ class SimpleTextFilter : public RewriteFilter {
                              const StringPiece& in,
                              GoogleString* out,
                              ResourceManager* resource_manager) = 0;
+    virtual const char* id() const = 0;
+    virtual const char* Name() const = 0;
     virtual HtmlElement::Attribute* FindResourceAttribute(
         HtmlElement* element) = 0;
 
-    virtual OutputResourceKind kind() const = 0;
-    virtual const char* id() const = 0;
-    virtual const char* name() const = 0;
-
    protected:
     REFCOUNT_FRIEND_DECLARATION(Rewriter);
+
     virtual ~Rewriter();
 
    private:
@@ -76,18 +75,18 @@ class SimpleTextFilter : public RewriteFilter {
 
   class Context : public SingleRewriteContext {
    public:
-    Context(const RewriterPtr& rewriter,
+    Context(const ResourceSlotPtr& slot,
+            const RewriterPtr& rewriter,
             RewriteDriver* driver)
-        : SingleRewriteContext(driver, NULL),
+        : SingleRewriteContext(driver, slot, NULL),
           rewriter_(rewriter) {
     }
     virtual ~Context();
-    virtual RewriteSingleResourceFilter::RewriteResult RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output);
+    virtual RewriteSingleResourceFilter::RewriteResult Rewrite(
+        const Resource* input_resource, OutputResource* output_resource);
 
    protected:
     virtual const char* id() const { return rewriter_->id(); }
-    virtual OutputResourceKind kind() const { return rewriter_->kind(); }
 
    private:
     RewriterPtr rewriter_;
@@ -110,13 +109,10 @@ class SimpleTextFilter : public RewriteFilter {
 
  protected:
   virtual GoogleString id() const { return rewriter_->id(); }
-  virtual const char* Name() const { return rewriter_->name(); }
-  virtual bool HasAsyncFlow() const { return driver_->asynchronous_rewrites(); }
-  virtual bool ComputeOnTheFly() const {
-    return rewriter_->kind() == kOnTheFlyResource;
-  }
+  virtual const char* Name() const { return rewriter_->Name(); }
 
  private:
+  class FetchCallback;
   RewriterPtr rewriter_;
 
   DISALLOW_COPY_AND_ASSIGN(SimpleTextFilter);

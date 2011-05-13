@@ -332,16 +332,12 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
   // Now we see if policy permits us merging this element with previous ones.
   StringPiece url = src->value();
   MessageHandler* handler = driver_->message_handler();
-  if (!combiner_->AddElement(element, url, handler).value) {
+  if (!combiner_->AddElement(element, src->value(), handler).value) {
     // No -> try to flush what we have thus far.
-    // Note: this flush is important in part because it ensure that all scripts
-    // within combination have the same hostname, so we can safely name
-    // variables excluding the hostname, without worrying about foo.com/a.js
-    // and bar.com/a.js colliding.
     combiner_->TryCombineAccumulated();
 
     // ... and try to start a new combination
-    combiner_->AddElement(element, url, handler);
+    combiner_->AddElement(element, src->value(), handler);
   }
 }
 
@@ -353,11 +349,7 @@ bool JsCombineFilter::IsCurrentScriptInCombination() const {
 }
 
 GoogleString JsCombineFilter::VarName(const GoogleString& url) const {
-  // We hash the non-host portion of URL to keep it consistent when sharding.
-  // This is safe since we never include URLs from different hosts in a single
-  // combination.
-  GoogleString url_hash =
-      resource_manager_->hasher()->Hash(GoogleUrl(url).PathAndLeaf());
+  GoogleString url_hash = resource_manager_->hasher()->Hash(url);
   // Our hashes are web64, which are almost valid identifier continuations,
   // except for use of -. We simply replace it with $.
   size_t pos = 0;
