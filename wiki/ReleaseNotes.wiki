@@ -1,12 +1,12 @@
 <wiki:toc max_depth="3" />
 
-==mod_pagespeed release 0.9.17.6===
+===mod_pagespeed release 0.9.17.6===
  was released on May 16, 2011. It fixes the following issues:
 
 ||Issue 285|| Removing cache per FAQ causes mod_pagespeed to re-create "cache" location with root permissions||
 ||Issue 287|| combine_javascript conflict with rewrite_domains||
 
-==mod_pagespeed release 0.9.17.3===
+===mod_pagespeed release 0.9.17.3===
  was released on May 6, 2011. It fixes the following issues:
 
 ||Issue 71|| Apache cannot restart if too many mutices from stats remain from unclean exits||
