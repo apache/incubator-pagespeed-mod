@@ -1,5 +1,30 @@
 <wiki:toc max_depth="3" />
 
+==mod_pagespeed release 0.9.17.6===
+ was released on May 16, 2011. It fixes the following issues:
+
+||Issue 285|| Removing cache per FAQ causes mod_pagespeed to re-create "cache" location with root permissions||
+||Issue 287|| combine_javascript conflict with rewrite_domains||
+
+==mod_pagespeed release 0.9.17.3===
+ was released on May 6, 2011. It fixes the following issues:
+
+||Issue 71|| Apache cannot restart if too many mutices from stats remain from unclean exits||
+||Issue 97|| Keep relative URLs relative after rewrite.||
+||Issue 104|| CSS optimizations are conservative in the presence of extra attributes||
+||Issue 116|| Need documentation describing how to configure VirtualHost with mod_pagespeed||
+||Issue 173|| Rewrite resources when that moves them to a new domain||
+||Issue 181|| Filters need to check that they do not make URLs that are too long||
+||Issue 182|| Server-side includes are stripped by remove_comments and rewrite_css||
+||Issue 194|| conflict with mod_speling||
+||Issue 237|| need a way to selectively keep some comments||
+||Issue 238|| outline_javascript generating broken links||
+||Issue 239|| Add support of GIF files in rewrite_images filter, both from HTML and CSS||
+||Issue 248|| Inappropriately converting / -> /index.html while mirroring sites with Slurping||
+||Issue 252|| combine_css on XHTML file with unbalanced tags can strip elements||
+||Issue 255|| script tags missing from rewritten HTML output after inlined css||
+||Issue 264|| domain sharding & rewriting should apply to resources that are not cacheable.||
+
 ===mod_pagespeed release 0.9.16.9===
  was released on March 16, 2011. It fixes the following issues:
 
