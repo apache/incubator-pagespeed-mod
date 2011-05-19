@@ -123,8 +123,4 @@ ResourcePtr CommonFilter::CreateInputResourceAndReadIfCached(
   return input_resource;
 }
 
-const GoogleUrl& CommonFilter::base_url() const {
-  return driver_->base_url();
-}
-
 }  // namespace net_instaweb

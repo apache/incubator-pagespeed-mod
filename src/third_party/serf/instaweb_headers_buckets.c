@@ -20,6 +20,7 @@
 #include "serf.h"
 #include "serf_bucket_util.h"
 
+
 typedef struct header_list {
     const char *header;
     const char *value;
@@ -52,7 +53,7 @@ typedef struct {
 } headers_context_t;
 
 
-serf_bucket_t *serf_bucket_headers_create(
+SERF_DECLARE(serf_bucket_t *) serf_bucket_headers_create(
     serf_bucket_alloc_t *allocator)
 {
     headers_context_t *ctx;
@@ -64,14 +65,51 @@ serf_bucket_t *serf_bucket_headers_create(
     return serf_bucket_create(&serf_bucket_type_headers, allocator, ctx);
 }
 
-void serf_bucket_headers_setx(
+SERF_DECLARE(void) serf_bucket_headers_setx(
     serf_bucket_t *bkt,
     const char *header, apr_size_t header_size, int header_copy,
     const char *value, apr_size_t value_size, int value_copy)
 {
     headers_context_t *ctx = bkt->data;
-    header_list_t *iter = ctx->list;
+    header_list_t *found = ctx->list;
     header_list_t *hdr;
+
+    /* Check to see if this header is already present. */
+    while (found) {
+      if (strncasecmp(found->header, header, header_size) == 0)
+            break;
+      found = found->next;
+    }
+
+    if (found) {
+
+        /* The header is already present.  RFC 2616, section 4.2
+           indicates that we should append the new value, separated by
+           a comma.  Reasoning: for headers whose values are known to
+           be comma-separated, that is clearly the correct behavior;
+           for others, the correct behavior is undefined anyway. */
+
+        /* The "+1" is for the comma; serf_bstrmemdup() will also add
+           one slot for the terminating '\0'. */
+        apr_size_t new_size = found->value_size + value_size + 1;
+        char *new_val = serf_bucket_mem_alloc(bkt->allocator, new_size);
+        memcpy(new_val, found->value, found->value_size);
+        new_val[found->value_size] = ',';
+        memcpy(new_val + found->value_size + 1, value, value_size);
+        new_val[new_size] = '\0';
+
+        // If the previous value was added, we must free it before overwriting
+        if (found->alloc_flags & ALLOC_VALUE) {
+            serf_bucket_mem_free(bkt->allocator, (void *)found->value);
+        }
+
+        found->value = new_val;
+        found->value_size = new_size;
+        found->alloc_flags |= ALLOC_VALUE;
+        return;
+    }
+
+    /* Else the header is not already present.  Add it to the bucket. */
 
 #if 0
     /* ### include this? */
@@ -85,7 +123,6 @@ void serf_bucket_headers_setx(
     hdr->header_size = header_size;
     hdr->value_size = value_size;
     hdr->alloc_flags = 0;
-    hdr->next = NULL;
 
     if (header_copy) {
         hdr->header = serf_bstrmemdup(bkt->allocator, header, header_size);
@@ -103,17 +140,11 @@ void serf_bucket_headers_setx(
         hdr->value = value;
     }
 
-    /* Add the new header at the end of the list. */
-    while (iter && iter->next) {
-        iter = iter->next;
-    }
-    if (iter)
-        iter->next = hdr;
-    else
-        ctx->list = hdr;
+    hdr->next = ctx->list;
+    ctx->list = hdr;
 }
 
-void serf_bucket_headers_set(
+SERF_DECLARE(void) serf_bucket_headers_set(
     serf_bucket_t *headers_bucket,
     const char *header,
     const char *value)
@@ -123,7 +154,7 @@ void serf_bucket_headers_set(
                              value, strlen(value), 1);
 }
 
-void serf_bucket_headers_setc(
+SERF_DECLARE(void) serf_bucket_headers_setc(
     serf_bucket_t *headers_bucket,
     const char *header,
     const char *value)
@@ -133,7 +164,7 @@ void serf_bucket_headers_setc(
                              value, strlen(value), 1);
 }
 
-void serf_bucket_headers_setn(
+SERF_DECLARE(void) serf_bucket_headers_setn(
     serf_bucket_t *headers_bucket,
     const char *header,
     const char *value)
@@ -143,54 +174,23 @@ void serf_bucket_headers_setn(
                              value, strlen(value), 0);
 }
 
-const char *serf_bucket_headers_get(
+SERF_DECLARE(const char *) serf_bucket_headers_get(
     serf_bucket_t *headers_bucket,
     const char *header)
 {
     headers_context_t *ctx = headers_bucket->data;
-    header_list_t *found = ctx->list;
-    const char *val = NULL;
-    int value_size = 0;
-    int val_alloc = 0;
+    header_list_t *scan = ctx->list;
 
-    while (found) {
-        if (strcasecmp(found->header, header) == 0) {
-            if (val) {
-                /* The header is already present.  RFC 2616, section 4.2
-                   indicates that we should append the new value, separated by
-                   a comma.  Reasoning: for headers whose values are known to
-                   be comma-separated, that is clearly the correct behavior;
-                   for others, the correct behavior is undefined anyway. */
-
-                /* The "+1" here is for the comma; the +1 in the alloc
-                   call is for the terminating '\0' */
-                apr_size_t new_size = found->value_size + value_size + 1;
-                char *new_val = serf_bucket_mem_alloc(headers_bucket->allocator,
-                                                      new_size + 1);
-                memcpy(new_val, val, value_size);
-                new_val[value_size] = ',';
-                memcpy(new_val + value_size + 1, found->value,
-                       found->value_size);
-                new_val[new_size] = '\0';
-                /* Copy the new value over the already existing value. */
-                if (val_alloc)
-                    serf_bucket_mem_free(headers_bucket->allocator, (void*)val);
-                val_alloc |= ALLOC_VALUE;
-                val = new_val;
-                value_size = new_size;
-            }
-            else {
-                val = found->value;
-                value_size = found->value_size;
-            }
-        }
-        found = found->next;
+    while (scan) {
+        if (strcasecmp(scan->header, header) == 0)
+            return scan->value;
+        scan = scan->next;
     }
 
-    return val;
+    return NULL;
 }
 
-void serf_bucket_headers_do(
+SERF_DECLARE(void) serf_bucket_headers_do(
     serf_bucket_t *headers_bucket,
     serf_bucket_headers_do_callback_fn_t func,
     void *baton)
@@ -416,7 +416,7 @@ static apr_status_t serf_headers_read_iovec(serf_bucket_t *bucket,
     return APR_SUCCESS;
 }
 
-const serf_bucket_type_t serf_bucket_type_headers = {
+SERF_DECLARE_DATA const serf_bucket_type_t serf_bucket_type_headers = {
     "HEADERS",
     serf_headers_read,
     serf_headers_readline,

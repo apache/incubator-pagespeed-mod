@@ -110,11 +110,10 @@ static apr_status_t allocator_cleanup(void *data)
     if (allocator->own_allocator == 1) {
         apr_allocator_destroy(allocator->allocator);
     }
-
     return APR_SUCCESS;
 }
 
-serf_bucket_alloc_t *serf_bucket_allocator_create(
+SERF_DECLARE(serf_bucket_alloc_t *) serf_bucket_allocator_create(
     apr_pool_t *pool,
     serf_unfreed_func_t unfreed,
     void *unfreed_baton)
@@ -155,14 +154,13 @@ serf_bucket_alloc_t *serf_bucket_allocator_create(
     return allocator;
 }
 
-apr_pool_t *serf_bucket_allocator_get_pool(
+SERF_DECLARE(apr_pool_t *) serf_bucket_allocator_get_pool(
     const serf_bucket_alloc_t *allocator)
 {
     return allocator->pool;
 }
 
-
-void *serf_bucket_mem_alloc(
+SERF_DECLARE(void *) serf_bucket_mem_alloc(
     serf_bucket_alloc_t *allocator,
     apr_size_t size)
 {
@@ -194,10 +192,6 @@ void *serf_bucket_mem_alloc(
                 /* ran out of room. grab another block. */
                 active = apr_allocator_alloc(allocator->allocator, ALLOC_AMT);
 
-                /* System couldn't provide us with memory. */
-                if (active == NULL)
-                    return NULL;
-
                 /* link the block into our tracking list */
                 allocator->blocks = active;
                 active->next = head;
@@ -212,9 +206,6 @@ void *serf_bucket_mem_alloc(
         apr_memnode_t *memnode = apr_allocator_alloc(allocator->allocator,
                                                      size);
 
-        if (memnode == NULL)
-            return NULL;
-
         node = (node_header_t *)memnode->first_avail;
         node->u.memnode = memnode;
         node->size = size;
@@ -223,21 +214,17 @@ void *serf_bucket_mem_alloc(
     return ((char *)node) + SIZEOF_NODE_HEADER_T;
 }
 
-
-void *serf_bucket_mem_calloc(
+SERF_DECLARE(void *) serf_bucket_mem_calloc(
     serf_bucket_alloc_t *allocator,
     apr_size_t size)
 {
     void *mem;
     mem = serf_bucket_mem_alloc(allocator, size);
-    if (mem == NULL)
-        return NULL;
     memset(mem, 0, size);
     return mem;
 }
 
-
-void serf_bucket_mem_free(
+SERF_DECLARE(void) serf_bucket_mem_free(
     serf_bucket_alloc_t *allocator,
     void *block)
 {
@@ -325,7 +312,7 @@ static read_status_t *find_read_status(
 #endif /* SERF_DEBUG_BUCKET_USE */
 
 
-apr_status_t serf_debug__record_read(
+SERF_DECLARE(apr_status_t) serf_debug__record_read(
     const serf_bucket_t *bucket,
     apr_status_t status)
 {
@@ -349,8 +336,7 @@ apr_status_t serf_debug__record_read(
 #endif
 }
 
-
-void serf_debug__entered_loop(serf_bucket_alloc_t *allocator)
+SERF_DECLARE(void) serf_debug__entered_loop(serf_bucket_alloc_t *allocator)
 {
 #ifdef SERF_DEBUG_BUCKET_USE
 
@@ -372,8 +358,7 @@ void serf_debug__entered_loop(serf_bucket_alloc_t *allocator)
 #endif
 }
 
-
-void serf_debug__closed_conn(serf_bucket_alloc_t *allocator)
+SERF_DECLARE(void) serf_debug__closed_conn(serf_bucket_alloc_t *allocator)
 {
 #ifdef SERF_DEBUG_BUCKET_USE
 
@@ -384,8 +369,7 @@ void serf_debug__closed_conn(serf_bucket_alloc_t *allocator)
 #endif
 }
 
-
-void serf_debug__bucket_destroy(const serf_bucket_t *bucket)
+SERF_DECLARE(void) serf_debug__bucket_destroy(const serf_bucket_t *bucket)
 {
 #ifdef SERF_DEBUG_BUCKET_USE
 
@@ -420,8 +404,7 @@ void serf_debug__bucket_destroy(const serf_bucket_t *bucket)
 #endif
 }
 
-
-void serf_debug__bucket_alloc_check(
+SERF_DECLARE(void) serf_debug__bucket_alloc_check(
     serf_bucket_alloc_t *allocator)
 {
 #ifdef SERF_DEBUG_BUCKET_USE
@@ -430,4 +413,3 @@ void serf_debug__bucket_alloc_check(
     }
 #endif
 }
-

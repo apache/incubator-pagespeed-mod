@@ -19,8 +19,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 
-#include <vector>
-
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/blocking_behavior.h"
@@ -28,7 +26,6 @@
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/string.h"
@@ -122,37 +119,39 @@ class RewriteContext {
   // Establishes that a slot has been rewritten.  So when RenderAndDetach
   // is called, the resource update that has been written to this slot can
   // be propagated to the DOM.
-  void RenderSlotOnDetach(int rewrite_index);
+  void RenderSlotOnDetach(const ResourceSlotPtr& slot) {
+    render_slots_.push_back(slot);
+  }
 
-  // Called by subclasses when an individual rewrite partition is
-  // done.  Note that RewriteDone may directly 'delete this' so no
-  // further references to 'this' should follow a call to RewriteDone.
-  void RewriteDone(RewriteSingleResourceFilter::RewriteResult result,
-                   int rewrite_index);
 
   // The next set of methods must be implemented by subclasses:
 
-  // Partitions the input resources into one or more outputs.  Return
-  // 'true' if the partitioning could complete (whether a rewrite was
-  // found or not), false if the attempt was abandoned and no
-  // conclusion can be drawn.
+  // Takes a completed rewrite partition and performs the document mutations
+  // needed to render the rewrite.
   //
-  // Note that if partitioner finds that the resources are not
-  // rewritable, it will still return true; it will simply have
-  // an empty inputs-array in OutputPartitions and leave
-  // 'outputs' unmodified.  'false' is only returned if the subclass
-  // skipped the rewrite attempt due to a lock conflict.
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs) = 0;
+  // A Resource object is provided that can be used to set into appropriate
+  // slot(s).  Note that this is conceptutally an output resource but is
+  // not guaranteed to be of type OutputResource; for rendering purposes
+  // we primarily need a URL.
+  //
+  // It is the responsibility of RewriteContext, not its subclasses, to
+  // verify the validity of the output resource, with respect to domain
+  // legality, cache freshness, etc.
+  //
+  // TODO(jmarantz): verify domain lawyering, cache freshness, etc.
+  virtual void Render(const OutputPartition& partition,
+                      const OutputResourcePtr& output_resource) = 0;
 
-  // Takes a completed rewrite partition and rewrites it.  When
-  // complete calls RewriteDone with
-  // RewriteSingleResourceFilter::kRewriteOk if successful.  Note that
-  // a value of RewriteSingleResourceFilter::kTooBusy means
-  // that an HTML rewrite will skip this resource, but we should not
-  // cache it as "do not optimize".
-  virtual void Rewrite(OutputPartition* partition,
-                       const OutputResourcePtr& output) = 0;
+  // Partitions the input resources into one or more outputs, writing
+  // the end results into the http cache.  Return 'true' if the partitioning
+  // could complete (whether a rewrite was found or not), false if the attempt
+  // was abandoned and no conclusion can be drawn.
+  virtual bool PartitionAndRewrite(OutputPartitions* partitions,
+                                   OutputResourceVector* outputs) = 0;
+
+  // Rewrites the specified partition, returning true of successful.
+  virtual bool Rewrite(OutputPartition* partition,
+                       const OutputResourcePtr& output_resource) = 0;
 
   // This final set of protected methods can be optionally overridden
   // by subclasses.
@@ -191,12 +190,6 @@ class RewriteContext {
   // that way too (though we don't at the moment).
   virtual OutputResourceKind kind() const = 0;
 
-  // Deconstructs a URL by name and creates an output resource that
-  // corresponds to it.
-  bool CreateOutputResourceForCachedOutput(const StringPiece& url,
-                                           const ContentType* content_type,
-                                           OutputResourcePtr* output_resource);
-
  private:
   // Initiates an asynchronous fetch for the resources associated with
   // each slot, calling ResourceFetchDone() when complete.
@@ -210,10 +203,10 @@ class RewriteContext {
   // the same rewrite.
   void FetchInputs(BlockingBehavior block);
 
-  // Generally a RewriteContext is waiting for one or more
-  // asynchronous events to take place.  Activate is called
-  // to run some action to help us advance to the next state.
-  void Activate();
+  // Deconstructs a URL by name and creates an output resource that
+  // corresponds to it.
+  bool CreateOutputResourceForCachedOutput(const StringPiece& url,
+                                           OutputResourcePtr* output_resource);
 
   // With all resources loaded, the rewrite can now be done, writing:
   //    The metadata into the cache
@@ -221,7 +214,7 @@ class RewriteContext {
   //    if the driver has not been detached,
   //      the url+data->rewritten_resource is written into the rewrite
   //      driver's map, for each of the URLs.
-  void StartRewrite();
+  void FinishRewrite();
   void FinishFetch();
 
   // Collects all rewritten results and queues them for rendering into
@@ -230,30 +223,12 @@ class RewriteContext {
   // TODO(jmarantz): This method should be made thread-safe so it can
   // be called from a worker thread once callbacks are done or rewrites
   // are complete.
-  void RenderPartitions();
+  void RenderPartitions(const OutputPartitions& partitions,
+                        const OutputResourceVector& outputs);
 
   // Returns 'true' if the resources are not expired.  Freshens resources
   // proactively to avoid expiration in the near future.
   bool FreshenAndCheckExpiration(const CachedResult& group);
-
-  // Determines whether the Context is in a state where it's ready to
-  // rewrite.  This requires:
-  //    - no preceding RewriteContexts in progress
-  //    - no outstanding cache lookups
-  //    - no outstanding fetches
-  //    - rewriting not already complete.
-  bool ReadyToRewrite() const;
-
-  // Activate any Rewrites that come after this one, for serializability
-  // of access to common slots.
-  void RunSuccessors();
-
-  // Writes out the partition-table into the metadata cache.  This method
-  // may call 'delete this' so it should be the last call at its call-site.
-  //
-  // It will *not* call 'delete this' if there is a live RewriteDriver,
-  // waiting for a convenient point to render the rewrites into HTML.
-  void WritePartition();
 
   // To perform a rewrite, we need to have data for all of its input slots.
   ResourceSlotVector slots_;
@@ -297,10 +272,7 @@ class RewriteContext {
   RewriteOptions options_;
 
   bool started_;
-  OutputPartitions partitions_;
-  OutputResourceVector outputs_;
   int outstanding_fetches_;
-  int outstanding_rewrites_;
   scoped_ptr<ResourceContext> resource_context_;
   GoogleString partition_key_;
 
@@ -315,24 +287,6 @@ class RewriteContext {
   // FetchContext so they can be used once the inputs are available.
   class FetchContext;
   scoped_ptr<FetchContext> fetch_;
-
-  // Track the RewriteContexts that must be run after this one because they
-  // share a slot.
-  std::vector<RewriteContext*> successors_;
-
-  // Track the number of ResourceContexts that must be run before this one.
-  int num_predecessors_;
-
-  // True if there is a pending lookup to the metadata cache.
-  bool cache_lookup_active_;
-
-  // True if all the rewriting is done for this context.
-  bool rewrite_done_;
-
-  // True if it's valid to write the partiiton table to the metadata cache.
-  // We would *not* want to do that if one of the Rewrites completed
-  // with status kTooBusy.
-  bool ok_to_write_output_partitions_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);
 };

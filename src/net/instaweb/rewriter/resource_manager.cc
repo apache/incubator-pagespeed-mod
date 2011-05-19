@@ -19,13 +19,10 @@
 #include "net/instaweb/rewriter/public/resource_manager.h"
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -34,6 +31,8 @@
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -42,7 +41,6 @@
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_escaper.h"
-#include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
 
@@ -269,13 +267,6 @@ void ResourceManager::WriteUnoptimizable(OutputResource* output,
 // TODO(morlovich) We should consider caching based on the input hash, too,
 // so we don't end redoing work when input resources don't change but have
 // short expiration.
-//
-// TODO(jmarantz): It would be nicer for all the cache-related
-// twiddling for the new methodology (including both
-// set_optimizable(true) and set_optimizable(false)) was in
-// RewriteContext, perhaps right next to the Put; and if
-// CacheComputedResourceMapping was not called if
-// written_using_rewrite_context_flow at all.
 void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     int64 origin_expire_time_ms, MessageHandler* handler) {
   GoogleString name_key = StrCat(kCacheKeyResourceNamePrefix,
@@ -285,9 +276,7 @@ void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     cached->set_url(output->url());
   }
   cached->set_origin_expiration_time_ms(origin_expire_time_ms);
-  if (!output->written_using_rewrite_context_flow()) {
-    output->SaveCachedResult(name_key, handler);
-  }
+  output->SaveCachedResult(name_key, handler);
 }
 
 bool ResourceManager::IsImminentlyExpiring(int64 start_date_ms,

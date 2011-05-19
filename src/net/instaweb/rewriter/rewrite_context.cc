@@ -147,9 +147,7 @@ class RewriteContext::FetchContext {
     int64 expire_at_ms = std::max(now_ms + ResponseHeaders::kImplicitCacheTtlMs,
                                   input_resource_->CacheExpirationTimeMs());
     CachedResult* result = output_resource_->EnsureCachedResultCreated();
-
-    // TODO(jmarantz): add versioning.
-    result->set_cache_version(0 /* FilterCacheFormatVersion()*/);
+    2result->set_cache_version(0 /* FilterCacheFormatVersion()*/);
     if (input_resource_->ContentsValid()) {
       // TODO(jmarantz): handle & test ReuseByContentHash:
       //
@@ -178,12 +176,7 @@ RewriteContext::RewriteContext(RewriteDriver* driver,
     resource_manager_(driver->resource_manager()),
     started_(false),
     outstanding_fetches_(0),
-    outstanding_rewrites_(0),
-    resource_context_(resource_context),
-    num_predecessors_(0),
-    cache_lookup_active_(false),
-    rewrite_done_(false),
-    ok_to_write_output_partitions_(true) {
+    resource_context_(resource_context) {
   // TODO(jmarantz): if this duplication proves expensive, then do this
   // lazily.  We don't need our own copy of the RewriteOptions until the
   // RewriteDriver is detached.  for now just do the simple thing and
@@ -192,67 +185,44 @@ RewriteContext::RewriteContext(RewriteDriver* driver,
 }
 
 RewriteContext::~RewriteContext() {
-  DCHECK_EQ(0, num_predecessors_);
-  DCHECK_EQ(0, outstanding_fetches_);
-  DCHECK(successors_.empty());
 }
 
 void RewriteContext::AddSlot(const ResourceSlotPtr& slot) {
   CHECK(!started_);
-
-  // TODO(jmarantz): eliminate this transitional code to allow JavascriptFilter
-  // to straddle the old rewrite flow and the new async flow.
-  if (slot.get() == NULL) {
-    return;
-  }
-
   slots_.push_back(slot);
-
-  RewriteContext* predecessor = slot->LastContext();
-  if (predecessor != NULL) {
-    // Note that we don't check for duplicate connections between this and
-    // predecessor.  They'll all get counted.
-    predecessor->successors_.push_back(this);
-    ++num_predecessors_;
-  }
-  slot->AddContext(this);
 }
 
 // Initiate a Rewrite, returning false if we decide not to rewrite, say, due
 // to lock failure.
 void RewriteContext::Start() {
   CHECK(!started_);
-  if (num_predecessors_ == 0) {
-    started_ = true;
+  started_ = true;
 
-    // The best-case scenario for a Rewrite is that we have already done
-    // it, and just need to look up in our metadata cache what the final
-    // rewritten URL is.  In the simplest scenario, we are doing a
-    // simple URL substitution.  In a more complex example, we have M
-    // css files that get reduced to N combinations.  The
-    // OutputPartitions held in the cache tells us that, and we don't
-    // need to get any data about the resources that need to be
-    // rewritten.  But in either case, we only need one cache lookup.
-    //
-    // Note that the output_key_name is not necessarily the same as the
-    // name of the output.
-    // Write partition to metadata cache.
-    StringVector urls;
-    for (int i = 0, n = num_slots(); i < n; ++i) {
-      urls.push_back(slot(i)->resource()->url());
-    }
-    encoder()->Encode(urls, resource_context_.get(), &partition_key_);
-    CacheInterface* metadata_cache = resource_manager_->metadata_cache();
-
-    // When the cache lookup is finished, OutputCacheDone will be called.
-    cache_lookup_active_ = true;
-    metadata_cache->Get(partition_key_, new OutputCacheCallback(this));
+  // The best-case scenario for a Rewrite is that we have already done
+  // it, and just need to look up in our metadata cache what the final
+  // rewritten URL is.  In the simplest scenario, we are doing a
+  // simple URL substitution.  In a more complex example, we have M
+  // css files that get reduced to N combinations.  The
+  // OutputPartitions held in the cache tells us that, and we don't
+  // need to get any data about the resources that need to be
+  // rewritten.  But in either case, we only need one cache lookup.
+  //
+  // Note that the output_key_name is not necessarily the same as the
+  // name of the output.
+  // Write partition to metadata cache.
+  StringVector urls;
+  for (int i = 0, n = num_slots(); i < n; ++i) {
+    urls.push_back(slot(i)->resource()->url());
   }
+  encoder()->Encode(urls, resource_context_.get(), &partition_key_);
+  CacheInterface* metadata_cache = resource_manager_->metadata_cache();
+
+  // When the cache lookup is finished, OutputCacheDone will be called.
+  metadata_cache->Get(partition_key_, new OutputCacheCallback(this));
 }
 
 void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
                                      SharedString* value) {
-  cache_lookup_active_ = false;
   if (state == CacheInterface::kAvailable) {
     // If the output cache lookup came as a HIT in after the deadline, that
     // means that (a) we can't use the result and (b) we don't need
@@ -270,37 +240,40 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
     // be a protobuf.  Try to parse it.
     const GoogleString* val_str = value->get();
     ArrayInputStream input(val_str->data(), val_str->size());
-    if (partitions_.ParseFromZeroCopyStream(&input)) {
-      for (int i = 0, n = partitions_.partition_size(); i < n; ++i) {
-        const OutputPartition& partition = partitions_.partition(i);
+    OutputPartitions partitions;
+    if (partitions.ParseFromZeroCopyStream(&input)) {
+      OutputResourceVector outputs;
+      for (int i = 0, n = partitions.partition_size(); i < n; ++i) {
+        const OutputPartition& partition = partitions.partition(i);
         const CachedResult& cached_result = partition.result();
         OutputResourcePtr output_resource;
-        const ContentType* content_type = NameExtensionToContentType(
-            StrCat(".", cached_result.extension()));
-        if (cached_result.optimizable() &&
-            CreateOutputResourceForCachedOutput(
-            cached_result.url(), content_type, &output_resource) &&
-            FreshenAndCheckExpiration(cached_result)) {
-          outputs_.push_back(output_resource);
-          RenderSlotOnDetach(i);
-        } else {
-          outputs_.push_back(OutputResourcePtr(NULL));
+        if (CreateOutputResourceForCachedOutput(cached_result.url(),
+                                                &output_resource)) {
+          outputs.push_back(output_resource);
         }
       }
-      rewrite_done_ = true;
+
+      if (outputs.size() == static_cast<size_t>(partitions.partition_size())) {
+        RenderPartitions(partitions, outputs);
+      }
+
+      // CAREFUL ABOUT LOCKING SEMANTICS HERE...
+      if (driver_ == NULL) {
+        delete this;
+      }
     } else {
       state = CacheInterface::kNotFound;
       // TODO(jmarantz): count cache corruptions in a stat?
     }
+
   } else {
     resource_manager_->cached_output_misses()->Add(1);
   }
 
+
   // If the cache gave a miss, or yielded unparsable data, then acquire a lock
   // and start fetching the input resources.
-  if (state == CacheInterface::kAvailable) {
-    RunSuccessors();
-  } else {
+  if (state != CacheInterface::kAvailable) {
     FetchInputs(kNeverBlock);
   }
 }
@@ -317,16 +290,13 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
   // need one of these locks.  So figure out which one we'll go with
   // and use that.
   GoogleString lock_name = StrCat(kRewriteContextLockPrefix, partition_key_);
-
   if (resource_manager_->LockForCreation(lock_name, block, &lock_)) {
-    ++num_predecessors_;
-
     for (int i = 0, n = slots_.size(); i < n; ++i) {
       const ResourceSlotPtr& slot = slots_[i];
       ResourcePtr resource(slot->resource());
       if (!(resource->loaded() && resource->ContentsValid())) {
-        ResourceFetchCallback* callback = new ResourceFetchCallback(
-            this, resource, i);
+        ResourceFetchCallback* callback =
+            new ResourceFetchCallback(this, resource, i);
         ++outstanding_fetches_;
         resource_manager_->ReadAsync(callback);
 
@@ -336,14 +306,10 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
         // with Apache.
       }
     }
-
-    --num_predecessors_;
   } else {
     // TODO(jmarantz): bump stat for abandoned rewrites due to lock
     // contention.
   }
-
-  Activate();
 }
 
 void RewriteContext::ResourceFetchDone(
@@ -351,6 +317,7 @@ void RewriteContext::ResourceFetchDone(
   // LOCK outstanding_fetches_
   CHECK_LT(0, outstanding_fetches_);
   --outstanding_fetches_;
+  bool finished = (outstanding_fetches_ == 0);
   // UNLOCK outstanding_fetches_
 
   if (success) {
@@ -360,159 +327,81 @@ void RewriteContext::ResourceFetchDone(
     DCHECK(slot.get() != NULL);
     DCHECK_EQ(resource.get(), slot->resource().get());
   }
-  Activate();
-}
-
-bool RewriteContext::ReadyToRewrite() const {
-  // LOCK outstanding_fetches_
-  bool ready = ((outstanding_fetches_ == 0) && (num_predecessors_ == 0) &&
-                !cache_lookup_active_ && !rewrite_done_);
-  // UNLOCK outstanding_fetches_
-  return ready;
-}
-
-void RewriteContext::Activate() {
-  if (ReadyToRewrite()) {
+  if (finished) {
+    // TODO(jmarantz): handle the case where the slots didn't get filled in
+    // due to a fetch failure.
     if (fetch_.get() == NULL) {
-      if (started_) {
-        StartRewrite();
-      } else {
-        Start();
-      }
+      FinishRewrite();
     } else {
       FinishFetch();
     }
   }
 }
 
-void RewriteContext::StartRewrite() {
-  if (Partition(&partitions_, &outputs_)) {
-    outstanding_rewrites_ = partitions_.partition_size();
-    if (outstanding_rewrites_ == 0) {
-      // The partitioning succeeded, but yielded zero rewrites.  Write out the
-      // empty partition table and let any successor Rewrites run.  Note that
-      // WritePartitoin can 'delete this'.
-      rewrite_done_ = true;
-      WritePartition();
-    } else {
-      // We will let the Rewrites complete prior to writing the
-      // OutputPartitions, which contain not just the partition table
-      // but the content-hashes for the rewritten content.  So we must
-      // rewrite before callling WritePartitions.
-      for (int i = 0; i < outstanding_rewrites_; ++i) {
-        Rewrite(partitions_.mutable_partition(i), outputs_[i]);
-      }
-    }
-  }
-}
-
-void RewriteContext::WritePartition() {
-  if (ok_to_write_output_partitions_) {
+void RewriteContext::FinishRewrite() {
+  OutputPartitions partitions;
+  OutputResourceVector outputs;
+  if (PartitionAndRewrite(&partitions, &outputs)) {
     CacheInterface* metadata_cache = resource_manager_->metadata_cache();
     SharedString buf;
     {
       StringOutputStream sstream(buf.get());
-      partitions_.SerializeToZeroCopyStream(&sstream);
+      partitions.SerializeToZeroCopyStream(&sstream);
       // destructor of sstream prepares *buf.get()
     }
     metadata_cache->Put(partition_key_, &buf);
+    RenderPartitions(partitions, outputs);
   }
   lock_.reset();
-  RunSuccessors();
-  if (driver_ == NULL) {
-    delete this;
-  }
-}
-
-void RewriteContext::RewriteDone(
-    RewriteSingleResourceFilter::RewriteResult result,
-    int rewrite_index) {
-  if (result == RewriteSingleResourceFilter::kTooBusy) {
-    ok_to_write_output_partitions_ = false;
-  } else {
-    OutputPartition* partition = partitions_.mutable_partition(rewrite_index);
-    bool optimizable = (result == RewriteSingleResourceFilter::kRewriteOk);
-    partition->mutable_result()->set_optimizable(optimizable);
-    if (optimizable && (fetch_.get() == NULL)) {
-      // TODO(jmarantz): In the async world we consider any mutation
-      // to the DOM an 'optimization', even if the resource is not
-      // rewritten.  We should cache that in the OutputPartitions.  I
-      // think our current usage of the CachedResult protobuf does not
-      // have a representation for that but we could probably invent
-      // a convention, like leaving the url() in the protobuf unset.
-      RenderSlotOnDetach(rewrite_index);
-    }
-  }
-  --outstanding_rewrites_;
-  if (outstanding_rewrites_ == 0) {
-    rewrite_done_ = true;
-    if (fetch_.get() != NULL) {
-      bool success = (result == RewriteSingleResourceFilter::kRewriteOk);
-      fetch_->FetchDone(success);
-      delete this;
-    } else {
-      WritePartition();
-    }
-  }
-}
-
-void RewriteContext::RenderSlotOnDetach(int rewrite_index) {
-  ResourceSlotPtr resource_slot(slot(rewrite_index));
-  ResourcePtr resource(outputs_[rewrite_index]);
-  resource_slot->SetResource(resource);
-  render_slots_.push_back(resource_slot);
-}
-
-void RewriteContext::RunSuccessors() {
-  for (int i = 0, n = slots_.size(); i < n; ++i) {
-    slot(i)->DetachContext(this);
-  }
-
-  for (int i = 0, n = successors_.size(); i < n; ++i) {
-    RewriteContext* successor = successors_[i];
-    --successor->num_predecessors_;
-    successor->Activate();
-  }
-  successors_.clear();
 }
 
 void RewriteContext::FinishFetch() {
   // Make a fake partition that has all the inputs, since we are
   // performing the rewrite for only one output resource.
-  OutputPartition* partition = partitions_.add_partition();
-  bool ok_to_rewrite = true;
+  OutputPartition partition;
   for (int i = 0, n = slots_.size(); i < n; ++i) {
-    ResourcePtr resource(slot(i)->resource());
-    if (resource->loaded() && resource->ContentsValid()) {
-      partition->add_input(i);
-    } else {
-      ok_to_rewrite = false;
-      break;
-    }
+    partition.add_input(i);
   }
-  OutputResourcePtr output(fetch_->output_resource());
-  ++outstanding_rewrites_;
-  if (ok_to_rewrite) {
-    Rewrite(partition, output);
-  } else {
-    RewriteDone(RewriteSingleResourceFilter::kRewriteFailed, 0);
-  }
+  fetch_->FetchDone(Rewrite(&partition, fetch_->output_resource()));
+  delete this;
 }
 
 bool RewriteContext::CreateOutputResourceForCachedOutput(
-    const StringPiece& url, const ContentType* content_type,
-    OutputResourcePtr* output_resource) {
+    const StringPiece& url, OutputResourcePtr* output_resource) {
   bool ret = false;
   GoogleUrl gurl(url);
   ResourceNamer namer;
   if (gurl.is_valid() && namer.Decode(gurl.LeafWithQuery())) {
-    output_resource->reset(new OutputResource(
-        resource_manager_, gurl.AllExceptLeaf(), namer, content_type,
-        &options_, kind()));
-    (*output_resource)->set_written_using_rewrite_context_flow(true);
-    ret = true;
+    const ContentType* content_type = NameExtensionToContentType(
+        StrCat(".", namer.ext()));
+    if (content_type != NULL) {
+      output_resource->reset(new OutputResource(
+          resource_manager_, gurl.AllExceptLeaf(), namer, content_type,
+          &options_, kRewrittenResource));
+      // TODO(jmarantz): figure out the 'Kind'.
+      ret = true;
+    }
   }
   return ret;
+}
+
+void RewriteContext::RenderPartitions(const OutputPartitions& partitions,
+                                      const OutputResourceVector& outputs) {
+  // LOCK driver
+  if (driver_ != NULL) {
+    for (int i = 0, n = partitions.partition_size(); i < n; ++i) {
+      const OutputPartition& partition = partitions.partition(i);
+      const CachedResult& cached_result = partition.result();
+      OutputResourcePtr output_resource(outputs[i]);
+      if ((output_resource.get() != NULL) &&
+          FreshenAndCheckExpiration(cached_result)) {
+        Render(partition, output_resource);
+      } else {
+        // TODO(jmarantz): bump a failure-due-to-corrupt-cache statistic
+      }
+    }
+  }
+  // UNLOCK driver
 }
 
 bool RewriteContext::FreshenAndCheckExpiration(const CachedResult& group) {
@@ -530,7 +419,7 @@ bool RewriteContext::ComputeOnTheFly() const {
 
 void RewriteContext::RenderAndDetach() {
   // LOCK driver_
-  if (rewrite_done_) {
+  if (outstanding_fetches_ == 0) {
     for (int i = 0, n = render_slots_.size(); i < n; ++i) {
       render_slots_[i]->Render();
     }

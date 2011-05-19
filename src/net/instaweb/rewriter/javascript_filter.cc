@@ -32,7 +32,6 @@
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -43,7 +42,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -76,7 +74,7 @@ class JavascriptRewriteContext : public SingleRewriteContext {
     AddSlot(slot);
   }
 
-  RewriteSingleResourceFilter::RewriteResult RewriteJavascript(
+  RewriteSingleResourceFilter::RewriteResult RewriteSingle(
       const ResourcePtr& input, const OutputResourcePtr& output) {
     MessageHandler* message_handler = resource_manager()->message_handler();
     StringPiece script = input->contents();
@@ -102,18 +100,9 @@ class JavascriptRewriteContext : public SingleRewriteContext {
       message_handler->Message(kInfo, "Script %s didn't shrink",
                                input->url().c_str());
     }
-    return ok ? RewriteSingleResourceFilter::kRewriteOk
-      : RewriteSingleResourceFilter::kRewriteFailed;
-  }
 
-  // Implements the asynchronous interface required by SingleRewriteContext.
-  //
-  // TODO(jmarantz): this should be done as a SimpleTextFilter, but that would
-  // require cutting the umbilical chord with RewriteSingleResourceFilter,
-  // because we can't inherite from both that and SimpleTextFilter.
-  virtual void RewriteSingle(
-      const ResourcePtr& input, const OutputResourcePtr& output) {
-    RewriteDone(RewriteJavascript(input, output), 0);
+    return ok ? RewriteSingleResourceFilter::kRewriteOk :
+        RewriteSingleResourceFilter::kRewriteFailed;
   }
 
   // Take script_out, which is derived from the script at script_url,
@@ -323,11 +312,7 @@ JavascriptFilter::RewriteLoadedResource(
   // the old blocking rewrite model and the new async model.
   ResourceSlotPtr dummy_slot;
   JavascriptRewriteContext jrc(driver_, dummy_slot, &config_);
-  return jrc.RewriteJavascript(script_input, output_resource);
-}
-
-bool JavascriptFilter::HasAsyncFlow() const {
-  return driver_->asynchronous_rewrites();
+  return jrc.RewriteSingle(script_input, output_resource);
 }
 
 }  // namespace net_instaweb

@@ -23,8 +23,6 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
-#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -32,9 +30,10 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
 class HtmlCharactersNode;
 class HtmlIEDirectiveNode;
+class OutputResource;
+class Resource;
 class RewriteDriver;
 class Statistics;
 
@@ -86,7 +85,6 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
   virtual RewriteResult RewriteLoadedResource(
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource);
-  virtual bool HasAsyncFlow() const;
 
  private:
   inline void CompleteScriptInProgress();

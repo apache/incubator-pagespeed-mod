@@ -18,20 +18,16 @@
 
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 
+#include <cstddef>
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/url_partnership.h"
-#include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/util/public/google_url.h"  // for GoogleUrl
+#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/string.h"  // for GoogleString, NULL
-#include "net/instaweb/util/public/string_util.h"  // for StringVector, etc
-#include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
 
@@ -45,55 +41,68 @@ SingleRewriteContext::SingleRewriteContext(RewriteDriver* driver,
 SingleRewriteContext::~SingleRewriteContext() {
 }
 
-bool SingleRewriteContext::Partition(OutputPartitions* partitions,
-                                     OutputResourceVector* outputs) {
+void SingleRewriteContext::Render(const OutputPartition& partition,
+                                  const OutputResourcePtr& output_resource) {
+  // We CHECK num_slots because there's no way we should be creating
+  // a SingleRewriteContext with more than one slot.
+  CHECK_EQ(1, num_slots());
+
+  // However, we soft-fail on corrupt data read from the cache.
+  if ((partition.input_size() == 1) && (partition.input(0) == 0)) {
+    ResourceSlotPtr resource_slot(slot(0));
+    ResourcePtr resource(output_resource);
+    resource_slot->SetResource(resource);
+    RenderSlotOnDetach(resource_slot);
+  } else {
+    // TODO(jmarantz): bump a failure-due-to-corrupt-cache statistic
+  }
+}
+
+bool SingleRewriteContext::PartitionAndRewrite(OutputPartitions* partitions,
+                                               OutputResourceVector* outputs) {
   bool ret = false;
   if (num_slots() == 1) {
-    ret = true;
     ResourcePtr resource(slot(0)->resource());
-    GoogleUrl gurl(resource->url());
-    UrlPartnership partnership(options(), gurl);
-    ResourceNamer full_name;
-    if (resource->loaded() &&
-        resource->ContentsValid() &&
-        partnership.AddUrl(resource->url(),
-                           resource_manager()->message_handler())) {
-      const GoogleUrl* mapped_gurl = partnership.FullPath(0);
-      GoogleString name;
-      StringVector v;
-      GoogleString encoded_url;
-      v.push_back(mapped_gurl->LeafWithQuery().as_string());
-      encoder()->Encode(v, resource_context(), &encoded_url);
-      full_name.set_name(encoded_url);
-      full_name.set_id(id());
-      const ContentType* content_type = resource->type();
-      if (content_type != NULL) {
-        // TODO(jmaessen): The addition of 1 below avoids the leading ".";
-        // make this convention consistent and fix all code.
-        full_name.set_ext(content_type->file_extension() + 1);
+    OutputResourcePtr output_resource(
+        resource_manager()->CreateOutputResourceFromResource(
+            options(), id(), encoder(), resource_context(), resource, kind()));
+    if (output_resource.get() != NULL) {
+      OutputPartition partition;
+      if (Rewrite(&partition, output_resource)) {
+        partition.add_input(0);
+        *partitions->add_partition() = partition;
+        outputs->push_back(output_resource);
+        ret = true;
       }
-
-      OutputResourcePtr output_resource(new OutputResource(
-          resource_manager(), gurl.AllExceptLeaf(), full_name, content_type,
-          options(), kind()));
-      output_resource->set_written_using_rewrite_context_flow(true);
-      OutputPartition* partition = partitions->add_partition();
-      partition->add_input(0);
-      output_resource->set_cached_result(partition->mutable_result());
-      outputs->push_back(output_resource);
     }
   }
   return ret;
 }
 
-void SingleRewriteContext::Rewrite(OutputPartition* partition,
+bool SingleRewriteContext::Rewrite(OutputPartition* partition,
                                    const OutputResourcePtr& output_resource) {
+  RewriteSingleResourceFilter::RewriteResult result =
+      RewriteSingleResourceFilter::kRewriteFailed;
   ResourcePtr resource(slot(0)->resource());
-  CHECK(resource.get() != NULL);
-  CHECK(resource->loaded());
-  CHECK(resource->ContentsValid());
-  output_resource->set_cached_result(partition->mutable_result());
-  RewriteSingle(resource, output_resource);
+  if ((resource.get() != NULL) && resource->loaded() &&
+      resource->ContentsValid()) {
+    OutputResourceKind kind = kRewrittenResource;
+    if (ComputeOnTheFly()) {
+      kind = kOnTheFlyResource;
+    }
+    output_resource->set_cached_result(partition->mutable_result());
+    result = RewriteSingle(resource, output_resource);
+  }
+
+  if (result == RewriteSingleResourceFilter::kRewriteOk) {
+    return true;
+  } else if (result == RewriteSingleResourceFilter::kRewriteFailed) {
+    partition->mutable_result()->set_optimizable(false);
+    // TODO(jmarantz): currently this optimizable=false bit is tossed
+    // because we don't add the partition to the OutputPartitions unless
+    // it passed.  Test & change this.
+  }
+  return false;
 }
 
 }  // namespace net_instaweb

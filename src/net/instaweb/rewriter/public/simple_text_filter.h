@@ -19,12 +19,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 
-#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "net/instaweb/rewriter/public/output_resource_kind.h"
-#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
+#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -32,9 +32,10 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
 class MessageHandler;
+class OutputResource;
 class RequestHeaders;
+class Resource;
 class ResponseHeaders;
 class RewriteDriver;
 class Writer;
@@ -81,7 +82,7 @@ class SimpleTextFilter : public RewriteFilter {
           rewriter_(rewriter) {
     }
     virtual ~Context();
-    virtual void RewriteSingle(
+    virtual RewriteSingleResourceFilter::RewriteResult RewriteSingle(
         const ResourcePtr& input, const OutputResourcePtr& output);
 
    protected:
@@ -110,10 +111,6 @@ class SimpleTextFilter : public RewriteFilter {
  protected:
   virtual GoogleString id() const { return rewriter_->id(); }
   virtual const char* Name() const { return rewriter_->name(); }
-  virtual bool HasAsyncFlow() const;
-  virtual bool ComputeOnTheFly() const {
-    return rewriter_->kind() == kOnTheFlyResource;
-  }
 
  private:
   RewriterPtr rewriter_;
