@@ -283,7 +283,8 @@ class ApacheProcessContext {
       : merge_time_us_(NULL),
         parse_time_us_(NULL),
         html_rewrite_time_us_(NULL),
-        stored_parse_time_us_(0) {
+        stored_parse_time_us_(0),
+        all_factories_cleared_(false) {
   }
 
   ~ApacheProcessContext() {
@@ -303,6 +304,9 @@ class ApacheProcessContext {
   // is being deleted on a pool hook.
   void remove_factory(ApacheRewriteDriverFactory* factory) {
     factories_.erase(factory);
+    if (factories_.empty()) {
+      all_factories_cleared_ = true;
+    }
   }
 
   // Delete the specified config on process exit.
@@ -316,21 +320,30 @@ class ApacheProcessContext {
     configs_.erase(config);
   }
 
-  SharedMemStatistics* InitStatistics(AbstractSharedMem* shmem_runtime,
-                                      const StringPiece& filename_prefix,
-                                      MessageHandler* message_handler) {
+  // Initializes global statistics object if needed, using factory to
+  // help with the settings if needed.
+  // Note: does not call set_statistics() on the factory.
+  SharedMemStatistics* InitStatistics(ApacheRewriteDriverFactory* factory) {
+    if (all_factories_cleared_) {
+      // Get rid of stale instance from configuration check.
+      all_factories_cleared_ = false;
+      statistics_.reset(NULL);
+    }
+
     if (statistics_.get() == NULL) {
       // Note that we create the statistics object in the parent process, and
       // it stays around in the kids but gets reinitialized for them
       // with a call to InitVariables(false) inside pagespeed_child_init.
+      factory->set_owns_statistics(true);
       statistics_.reset(
-          new SharedMemStatistics(shmem_runtime, filename_prefix.as_string()));
+          new SharedMemStatistics(factory->shared_mem_runtime(),
+                                  factory->filename_prefix().as_string()));
       ResourceManager::Initialize(statistics_.get());
       SerfUrlAsyncFetcher::Initialize(statistics_.get());
       statistics_->AddVariable("merge_time_us");
       statistics_->AddVariable("parse_time_us");
       statistics_->AddVariable("html_rewrite_time_us");
-      statistics_->InitVariables(true, message_handler);
+      statistics_->InitVariables(true, factory->message_handler());
       merge_time_us_ = statistics_->GetVariable("merge_time_us");
       parse_time_us_ = statistics_->GetVariable("parse_time_us");
       html_rewrite_time_us_ = statistics_->GetVariable("html_rewrite_time_us");
@@ -375,6 +388,13 @@ class ApacheProcessContext {
   Variable* parse_time_us_;
   Variable* html_rewrite_time_us_;
   int64 stored_parse_time_us_;
+
+  // This variable is used to detect us retaining some state from between
+  // the configuration check and configuration parse; if we see all factories
+  // be destroyed while we remain it means Apache proceeded from config check
+  // to actual config parse + startup without ~ApacheProcessContext being
+  // called.
+  bool all_factories_cleared_;
 };
 ApacheProcessContext apache_process_context;
 
@@ -713,12 +733,6 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
         return HTTP_INTERNAL_SERVER_ERROR;
       }
 
-      if ((factory->statistics_enabled() && (statistics == NULL))) {
-        statistics = apache_process_context.InitStatistics(
-            factory->shared_mem_runtime(), factory->filename_prefix(),
-            factory->message_handler());
-      }
-
       // If we are running as root, hand over the ownership of data directories
       // we made to the eventual Apache uid/gid.
       // (Apache will not switch from current euid otherwise --- see
@@ -734,8 +748,13 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
         }
       }
     }
-  }
 
+    // See if we need a statistics object. We may need that even when
+    // we are disabled, in case we get turned on via .htaccess or query param.
+    if (factory->statistics_enabled() && (statistics == NULL)) {
+      statistics = apache_process_context.InitStatistics(factory);
+    }
+  }
   // Next we do the instance-independent static initialization, once we have
   // established whether *any* of the servers have stats enabled.
   ResourceManager::Initialize(statistics);
