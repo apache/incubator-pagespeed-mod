@@ -38,7 +38,7 @@ or the bleeding edge version
 == Running unit tests ==
 {{{
   cd ~/mod_pagespeed/src
-  make BUILDTYPE=Release mod_pagespeed_test
+  make BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
   ./out/Release/mod_pagespeed_test
   ./out/Release/pagespeed_automatic_test
 }}}
