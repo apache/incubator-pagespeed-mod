@@ -21,21 +21,26 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
+#include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -54,19 +59,41 @@ const char kNotCacheable[] = "not_cacheable";
 
 namespace net_instaweb {
 class MessageHandler;
+class RewriteContext;
 class RewriteFilter;
 
 // We do not want to bother to extend the cache lifetime for any resource
 // that is already cached for a month.
 const int64 kMinThresholdMs = Timer::kMonthMs;
 
-// TODO(jmarantz): consider factoring out the code that finds external resources
+class CacheExtender::Context : public SingleRewriteContext {
+ public:
+  Context(CacheExtender* extender, RewriteDriver* driver,
+          RewriteContext* parent)
+      : SingleRewriteContext(driver, parent,
+                             NULL /* no resource context */),
+        extender_(extender),
+        driver_(driver) {}
+  virtual ~Context() {}
+
+  virtual void Render();
+  virtual void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output);
+  virtual const char* id() const { return extender_->id().c_str(); }
+  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
+
+ private:
+  CacheExtender* extender_;
+  RewriteDriver* driver_;
+  DISALLOW_COPY_AND_ASSIGN(Context);
+};
 
 CacheExtender::CacheExtender(RewriteDriver* driver, const char* filter_prefix)
     : RewriteSingleResourceFilter(driver, filter_prefix),
       tag_scanner_(driver_),
       extension_count_(NULL),
-      not_cacheable_count_(NULL) {
+      not_cacheable_count_(NULL),
+      domain_rewriter_(NULL) {
   Statistics* stats = resource_manager_->statistics();
   if (stats != NULL) {
     extension_count_ = stats->GetVariable(kCacheExtensions);
@@ -86,6 +113,7 @@ bool CacheExtender::ShouldRewriteResource(
     return false;
   }
   if ((headers->CacheExpirationTimeMs() - now_ms) < kMinThresholdMs) {
+    // This also includes the case where a previous filter rewrote this.
     return true;
   }
   GoogleUrl origin_gurl(url);
@@ -95,6 +123,12 @@ bool CacheExtender::ShouldRewriteResource(
 }
 
 void CacheExtender::StartElementImpl(HtmlElement* element) {
+  // Disable extend_cache for img is ModPagespeedDisableForBots is on
+  // and the user-agent is a bot.
+  if (element->keyword() == HtmlName::kImg &&
+      driver_->ShouldNotRewriteImages()) {
+    return;
+  }
   HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
 
   // TODO(jmarantz): We ought to be able to domain-shard even if the
@@ -103,12 +137,19 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     ResourcePtr input_resource(CreateInputResource(href->value()));
     if ((input_resource.get() != NULL) &&
         !IsRewrittenResource(input_resource->url())) {
-      scoped_ptr<CachedResult> rewrite_info(
-          RewriteExternalResource(input_resource, NULL));
-      if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
-        // Rewrite URL to cache-extended version
-        href->SetValue(rewrite_info->url());
-        extension_count_->Add(1);
+      if (HasAsyncFlow()) {
+        ResourceSlotPtr slot(driver_->GetSlot(input_resource, element, href));
+        Context* context = new Context(this, driver_, NULL /* not nested */);
+        context->AddSlot(slot);
+        driver_->InitiateRewrite(context);
+      } else {
+        scoped_ptr<CachedResult> rewrite_info(
+            RewriteExternalResource(input_resource, NULL));
+        if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
+          // Rewrite URL to cache-extended version
+          href->SetValue(rewrite_info->url());
+          extension_count_->Add(1);
+        }
       }
     }
   }
@@ -135,13 +176,46 @@ bool CacheExtender::ComputeOnTheFly() const {
   return true;
 }
 
+namespace {
+
+class RewriteDomainTransformer : public CssTagScanner::Transformer {
+ public:
+  RewriteDomainTransformer(const GoogleUrl& base_url,
+                           DomainRewriteFilter* domain_rewrite_filter)
+      : base_url_(base_url), domain_rewrite_filter_(domain_rewrite_filter) {
+  }
+
+  virtual ~RewriteDomainTransformer() {}
+
+  virtual bool Transform(const StringPiece& in, GoogleString* out) {
+    return domain_rewrite_filter_->Rewrite(in, base_url_, out);
+  }
+
+ private:
+  const GoogleUrl& base_url_;
+  DomainRewriteFilter* domain_rewrite_filter_;
+};
+
+}  // namespace
+
+void CacheExtender::Context::RewriteSingle(
+    const ResourcePtr& input_resource,
+    const OutputResourcePtr& output_resource) {
+  RewriteDone(
+      extender_->RewriteLoadedResource(input_resource, output_resource), 0);
+}
+
+void CacheExtender::Context::Render() {
+  extender_->extension_count_->Add(1);
+}
+
 RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
   CHECK(input_resource->loaded());
 
   MessageHandler* message_handler = driver_->message_handler();
-  const ResponseHeaders* headers = input_resource->metadata();
+  const ResponseHeaders* headers = input_resource->response_headers();
   GoogleString url = input_resource->url();
   int64 now_ms = resource_manager_->timer()->NowMs();
 
@@ -157,30 +231,56 @@ RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
   }
 
   if (!ok) {
-    return kRewriteFailed;
+    return RewriteSingleResourceFilter::kRewriteFailed;
   }
 
   StringPiece contents(input_resource->contents());
   GoogleString absolutified;
   GoogleUrl input_resource_gurl(input_resource->url());
   StringPiece input_dir = input_resource_gurl.AllExceptLeaf();
-  if ((input_resource->type() == &kContentTypeCss) &&
-      (input_dir != output_resource->resolved_base())) {
-    // TODO(jmarantz): find a mechanism to write this directly into
-    // the HTTPValue so we can reduce the number of times that we
-    // copy entire resources.
-    StringWriter writer(&absolutified);
-    CssTagScanner::AbsolutifyUrls(contents, url, &writer, message_handler);
-    contents = absolutified;
+  const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
+  if ((domain_rewriter_ != NULL) &&
+      (input_resource->type() == &kContentTypeCss) &&
+      (lawyer->WillDomainChange(input_resource_gurl.Origin()) ||
+       (input_dir != output_resource->resolved_base()))) {
+    // Embedded URLs in the CSS must be evaluated with respect to
+    // the CSS files rewritten domain, not the input domain.
+    GoogleUrl output_gurl(output_resource->resolved_base());
+    if (output_gurl.is_valid()) {
+      // TODO(jmarantz): find a mechanism to write this directly into
+      // the HTTPValue so we can reduce the number of times that we
+      // copy entire resources.
+      StringWriter writer(&absolutified);
+      RewriteDomainTransformer transformer(output_gurl, domain_rewriter_);
+      CssTagScanner::TransformUrls(contents, &writer, &transformer,
+                                   message_handler);
+      contents = absolutified;
+    }
   }
   // TODO(sligocki): Should we preserve the response headers from the
   // original resource?
-  // TODO(sligocki): Maybe we shouldn't cache the rewritten resource,
-  // just the input_resource.
-  ok = resource_manager_->Write(
-      HttpStatus::kOK, contents, output_resource.get(),
-      headers->CacheExpirationTimeMs(), message_handler);
-  return ok ? kRewriteOk : kRewriteFailed;
+  if (resource_manager_->Write(
+          HttpStatus::kOK, contents, output_resource.get(),
+          headers->CacheExpirationTimeMs(), message_handler)) {
+    return RewriteSingleResourceFilter::kRewriteOk;
+  } else {
+    return RewriteSingleResourceFilter::kRewriteFailed;
+  }
+}
+
+bool CacheExtender::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
+}
+
+RewriteContext* CacheExtender::MakeRewriteContext() {
+  return new Context(this, driver_, NULL /*not nested*/);
+}
+
+RewriteContext* CacheExtender::MakeNestedContext(
+    RewriteContext* parent, const ResourceSlotPtr& slot) {
+  Context* context = new Context(this, NULL /* driver*/, parent);
+  context->AddSlot(slot);
+  return context;
 }
 
 }  // namespace net_instaweb

@@ -16,10 +16,10 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
-#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
@@ -27,12 +27,11 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -53,12 +52,56 @@ class CssImageRewriterTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options_.EnableFilter(RewriteOptions::kExtendCache);
+    options()->EnableFilter(RewriteOptions::kExtendCache);
     CssRewriteTestBase::SetUp();
   }
 };
 
-TEST_F(CssImageRewriterTest, CacheExtendsImages) {
+TEST_P(CssImageRewriterTest, CacheExtendsImagesSimple) {
+  // Simplified version of CacheExtendsImages, which doesn't have many copies of
+  // the same URL.
+  InitResponseHeaders("foo.png", kContentTypePng, kImageData, 100);
+
+  static const char css_before[] =
+      "body {\n"
+      "  background-image: url(foo.png);\n"
+      "}\n";
+  static const char css_after[] =
+      "body{background-image:url(http://test.com/foo.png.pagespeed.ce.0.png)}";
+
+  ValidateRewriteInlineCss("cache_extends_images-inline",
+                           css_before, css_after,
+                           kExpectChange | kExpectSuccess);
+  ValidateRewriteExternalCss("cache_extends_images-external",
+                             css_before, css_after,
+                             kExpectChange | kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
+}
+
+TEST_P(CssImageRewriterTest, CacheExtendsWhenCssGrows) {
+  // We run most tests with set_always_rewrite_css(true) which bypasses
+  // checks on whether rewriting is worthwhile or not. Test to make sure we make
+  // the right decision when we do do the check in the case where the produced
+  // CSS is actually larger, but contains rewritten resources.
+  // (We want to rewrite the CSS in that case)
+  options()->set_always_rewrite_css(false);
+  InitResponseHeaders("foo.png", kContentTypePng, kImageData, 100);
+  static const char css_before[] =
+      "body{background-image: url(foo.png)}";
+  static const char css_after[] =
+      "body{background-image:url(http://test.com/foo.png.pagespeed.ce.0.png)}";
+
+  ValidateRewriteInlineCss("cache_extends_images_growcheck-inline",
+                           css_before, css_after,
+                           kExpectChange | kExpectSuccess);
+  ValidateRewriteExternalCss("cache_extends_images_growcheck-external",
+                             css_before, css_after,
+                             kExpectChange | kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
+}
+
+TEST_P(CssImageRewriterTest, CacheExtendsImages) {
+  CSS_XFAIL_ASYNC();
   InitResponseHeaders("foo.png", kContentTypePng, kImageData, 100);
   InitResponseHeaders("bar.png", kContentTypePng, kImageData, 100);
   InitResponseHeaders("baz.png", kContentTypePng, kImageData, 100);
@@ -98,13 +141,117 @@ TEST_F(CssImageRewriterTest, CacheExtendsImages) {
                            kExpectChange | kExpectSuccess);
   ValidateRewriteExternalCss("cache_extends_images-external",
                              css_before, css_after,
-                             kExpectChange | kExpectSuccess | kNoOtherContexts);
+                             kExpectChange | kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
-TEST_F(CssImageRewriterTest, UseCorrectBaseUrl) {
-  // We want a real hasher here so that subresources get separate locks.
-  resource_manager_->set_hasher(&md5_hasher_);
+TEST_P(CssImageRewriterTest, TrimsImageUrls) {
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
+  InitResponseHeaders("foo.png", kContentTypePng, kImageData, 100);
+  static const char kCss[] =
+      "body {\n"
+      "  background-image: url(foo.png);\n"
+      "}\n";
 
+  static const char kCssAfter[] =
+      "body{background-image:url(foo.png.pagespeed.ce.0.png)}";
+
+  ValidateRewriteExternalCss("trims_css_urls", kCss, kCssAfter,
+                              kExpectChange | kExpectSuccess |
+                              kNoOtherContexts | kNoClearFetcher);
+}
+
+TEST_P(CssImageRewriterTest, InlinePaths) {
+  // Make sure we properly handle CSS relative references when we have the same
+  // inline CSS in different places. This is also a regression test for a bug
+  // during development of async + inline case which caused us to do
+  // null rewrites from cache.
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
+  InitResponseHeaders("dir/foo.png", kContentTypePng, kImageData, 100);
+
+  static const char kCssBefore[] =
+      "body {\n"
+      "  background-image: url(http://test.com/dir/foo.png);\n"
+      "}\n";
+
+  static const char kCssAfter[] =
+      "body{background-image:url(dir/foo.png.pagespeed.ce.0.png)}";
+  ValidateRewriteInlineCss("nosubdir",
+                           kCssBefore, kCssAfter,
+                           kExpectChange | kExpectSuccess);
+
+  static const char kCssAfterRel[] =
+      "body{background-image:url(foo.png.pagespeed.ce.0.png)}";
+  ValidateRewriteInlineCss("dir/yessubdir",
+                           kCssBefore, kCssAfterRel,
+                           kExpectChange | kExpectSuccess);
+}
+
+TEST_P(CssImageRewriterTest, RewriteCached) {
+  // Make sure we produce the same output from cache.
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
+  InitResponseHeaders("dir/foo.png", kContentTypePng, kImageData, 100);
+
+  static const char kCssBefore[] =
+      "body {\n"
+      "  background-image: url(http://test.com/dir/foo.png);\n"
+      "}\n";
+
+  static const char kCssAfter[] =
+      "body{background-image:url(dir/foo.png.pagespeed.ce.0.png)}";
+  ValidateRewriteInlineCss("nosubdir",
+                           kCssBefore, kCssAfter,
+                           kExpectChange | kExpectSuccess);
+
+  statistics()->Clear();
+  ValidateRewriteInlineCss("nosubdir2",
+                           kCssBefore, kCssAfter,
+                           kExpectChange | kExpectSuccess | kNoStatCheck);
+  // Should not re-serialize. Works only under the new flow...
+  if (rewrite_driver()->asynchronous_rewrites()) {
+    EXPECT_EQ(
+        0, statistics()->GetVariable(CssFilter::kMinifiedBytesSaved)->Get());
+  }
+}
+
+TEST_P(CssImageRewriterTest, CacheInlineParseFailures) {
+  const char kInvalidCss[] = " div{";
+
+  Variable* num_parse_failures =
+      statistics()->GetVariable(CssFilter::kParseFailures);
+
+  ValidateRewriteInlineCss("inline-invalid", kInvalidCss, kInvalidCss,
+                           kExpectNoChange | kExpectFailure | kNoOtherContexts);
+  EXPECT_EQ(1, num_parse_failures->Get());
+
+  // This works properly only under new flow...
+  if (rewrite_driver()->asynchronous_rewrites()) {
+    ValidateRewriteInlineCss(
+        "inline-invalid2", kInvalidCss, kInvalidCss,
+        kExpectNoChange | kExpectFailure | kNoOtherContexts | kNoStatCheck);
+    // Shouldn't reparse -- and stats are reset between runs.
+    EXPECT_EQ(0, num_parse_failures->Get());
+  }
+}
+
+TEST_P(CssImageRewriterTest, RecompressImages) {
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
+  AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
+                        kContentTypePng, 100);
+  static const char kCss[] =
+      "body {\n"
+      "  background-image: url(foo.png);\n"
+      "}\n";
+
+  static const char kCssAfter[] =
+      "body{background-image:url(http://test.com/xfoo.png.pagespeed.ic.0.png)}";
+
+  ValidateRewriteExternalCss("recompress_css_images", kCss, kCssAfter,
+                              kExpectChange | kExpectSuccess |
+                              kNoOtherContexts | kNoClearFetcher);
+}
+
+TEST_P(CssImageRewriterTest, UseCorrectBaseUrl) {
   // Initialize resources.
   static const char css_url[] = "http://www.example.com/bar/style.css";
   static const char css_before[] = "body { background: url(image.png); }";
@@ -142,6 +289,10 @@ TEST_F(CssImageRewriterTest, UseCorrectBaseUrl) {
   EXPECT_EQ(css_after, actual_css_after);
 }
 
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
+INSTANTIATE_TEST_CASE_P(CssImageRewriterTestInstance,
+                        CssImageRewriterTest,
+                        ::testing::Bool());
 
 // Note that these values of "10" and "20" are very tight.  This is a
 // feature.  It serves as an early warning system because extra cache
@@ -161,12 +312,9 @@ class CssFilterSubresourceTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options_.EnableFilter(RewriteOptions::kExtendCache);
-    options_.EnableFilter(RewriteOptions::kRecompressImages);
+    options()->EnableFilter(RewriteOptions::kExtendCache);
+    options()->EnableFilter(RewriteOptions::kRecompressImages);
     CssRewriteTestBase::SetUp();
-
-    // We want a real hasher here so that subresources get separate locks.
-    resource_manager_->set_hasher(&md5_hasher_);
 
     // As we use invalid payloads, we expect image rewriting to
     // fail but cache extension to succeed.
@@ -179,10 +327,11 @@ class CssFilterSubresourceTest : public CssRewriteTestBase {
     GoogleString css_url = ExpectedUrlForCss(id, output);
 
     // See what cache information we have
+    bool use_async_flow = false;
     OutputResourcePtr output_resource(
-        rewrite_driver_.CreateOutputResourceWithPath(
+        rewrite_driver()->CreateOutputResourceWithPath(
             kTestDomain, RewriteDriver::kCssFilterId, StrCat(id, ".css"),
-            &kContentTypeCss, kRewrittenResource));
+            &kContentTypeCss, kRewrittenResource, use_async_flow));
     ASSERT_TRUE(output_resource.get() != NULL);
     EXPECT_EQ(css_url, output_resource->url());
     ASSERT_TRUE(output_resource->cached_result() != NULL);
@@ -194,14 +343,17 @@ class CssFilterSubresourceTest : public CssRewriteTestBase {
   GoogleString ExpectedUrlForPng(const StringPiece& name,
                                  const GoogleString& expected_output) {
     return Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
-                  resource_manager_->hasher()->Hash(expected_output),
+                  hasher()->Hash(expected_output),
                   name, "png");
   }
 };
 
 // Test to make sure expiration time for cached result is the
 // smallest of subresource and CSS times, not just CSS time.
-TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
+TEST_P(CssFilterSubresourceTest, SubResourceDepends) {
+  // These tests rely on the guts of the old expiration machinery.
+  CSS_XFAIL_ASYNC();
+
   const char kInput[] = "div { background-image: url(a.png); }"
                         "span { background-image: url(b.png); }";
 
@@ -224,11 +376,14 @@ TEST_F(CssFilterSubresourceTest, SubResourceDepends) {
 
 // Test to make sure we don't cache for long if the rewrite was based
 // on not-yet-loaded resources.
-TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
-  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher(SetupWaitFetcher());
+TEST_P(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
+  // These tests rely on the guts of the old expiration machinery.
+  CSS_XFAIL_ASYNC();
+
+  SetupWaitFetcher();
 
   // Disable atime simulation so that the clock doesn't move on us.
-  file_system_.set_atime_enabled(false);
+  file_system()->set_atime_enabled(false);
 
   const char kInput[] = "div { background-image: url(a.png); }"
                         "span { background-image: url(b.png); }";
@@ -242,7 +397,7 @@ TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
                              kExpectNoChange | kExpectSuccess);
 
   // Get the CSS to load (resources are still unavailable).
-  wait_fetcher->CallCallbacks();
+  CallFetcherCallbacks();
   ValidateRewriteExternalCss(
       "wip", kInput, kOutput, kNoOtherContexts | kNoClearFetcher |
                               kExpectChange | kExpectSuccess);
@@ -252,8 +407,14 @@ TEST_F(CssFilterSubresourceTest, SubResourceDependsNotYetLoaded) {
   ValidateExpirationTime("wip", kOutput, Timer::kSecondMs);
 
   // Make sure the subresource callbacks fire for leak cleanliness
-  wait_fetcher->CallCallbacks();
+  CallFetcherCallbacks();
 }
+
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
+INSTANTIATE_TEST_CASE_P(CssFilterSubresourceTestInstance,
+                        CssFilterSubresourceTest,
+                        ::testing::Bool());
+
 
 }  // namespace
 

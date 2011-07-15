@@ -23,6 +23,7 @@
 #include <set>
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/wildcard_group.h"
@@ -40,6 +41,7 @@ class RewriteOptions {
     kCombineCss,
     kCombineHeads,
     kCombineJavascript,
+    kConvertJpegToWebp,
     kElideAttributes,
     kExtendCache,
     kInlineCss,
@@ -216,6 +218,12 @@ class RewriteOptions {
   }
   bool enabled() const { return enabled_.value(); }
 
+  void set_botdetect_enabled(bool x) {
+    modified_ = true;
+    botdetect_enabled_.set(x);
+  }
+  bool botdetect_enabled() const { return botdetect_enabled_.value(); }
+
   void set_combine_across_paths(bool x) {
     modified_ = true;
     combine_across_paths_.set(x);
@@ -239,6 +247,12 @@ class RewriteOptions {
     always_rewrite_css_.set(x);
   }
   bool always_rewrite_css() const { return always_rewrite_css_.value(); }
+
+  void set_respect_vary(bool x) {
+    modified_ = true;
+    respect_vary_.set(x);
+  }
+  bool respect_vary() const { return respect_vary_.value(); }
 
   // Merge together two source RewriteOptions to populate this.  The order
   // is significant: the second will override the first.  One semantic
@@ -264,6 +278,9 @@ class RewriteOptions {
 
   DomainLawyer* domain_lawyer() { return &domain_lawyer_; }
   const DomainLawyer* domain_lawyer() const { return &domain_lawyer_; }
+
+  FileLoadPolicy* file_load_policy() { return &file_load_policy_; }
+  const FileLoadPolicy* file_load_policy() const { return &file_load_policy_; }
 
   // Determines, based on the sequence of Allow/Disallow calls above, whether
   // a url is allowed.
@@ -359,21 +376,24 @@ class RewriteOptions {
   Option<RewriteLevel> level_;
   Option<int64> css_inline_max_bytes_;
   Option<int64> image_inline_max_bytes_;
-  Option<int64> image_max_rewrites_at_once_;
   Option<int64> js_inline_max_bytes_;
   Option<int64> css_outline_min_bytes_;
   Option<int64> js_outline_min_bytes_;
   Option<GoogleString> beacon_url_;
+  Option<int> image_max_rewrites_at_once_;
   Option<int> max_url_segment_size_;  // for http://a/b/c.d, use strlen("c.d")
   Option<int> max_url_size_;          // but this is strlen("http://a/b/c.d")
   Option<bool> enabled_;
+  Option<bool> botdetect_enabled_;
   Option<bool> combine_across_paths_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
   Option<bool> lowercase_html_names_;
   Option<bool> always_rewrite_css_;  // For tests/debugging.
+  Option<bool> respect_vary_;
   // Be sure to update Merge() if a new field is added.
 
   DomainLawyer domain_lawyer_;
+  FileLoadPolicy file_load_policy_;
 
   WildcardGroup allow_resources_;
   WildcardGroup retain_comments_;

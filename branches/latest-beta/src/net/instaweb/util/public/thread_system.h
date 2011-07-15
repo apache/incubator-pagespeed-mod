@@ -65,9 +65,14 @@ class ThreadSystem {
   // See also CondvarCapableMutex::NewCondvar.
   virtual CondvarCapableMutex* NewMutex() = 0;
 
+  // Creates an appropriate ThreadSystem for the platform.
+  static ThreadSystem* CreateThreadSystem();
+
  private:
   friend class Thread;
+  friend class MockThreadSystem;
   virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags) = 0;
+
   DISALLOW_COPY_AND_ASSIGN(ThreadSystem);
 };
 

@@ -18,7 +18,6 @@
 
 #include "net/instaweb/util/public/query_params.h"
 
-#include <vector>
 #include "base/logging.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -27,7 +26,7 @@ namespace net_instaweb {
 
 void QueryParams::Parse(const StringPiece& text) {
   CHECK_EQ(0, size());
-  std::vector<StringPiece> components;
+  StringPieceVector components;
   SplitStringPieceToVector(text, "&", &components, true);
   for (int i = 0, n = components.size(); i < n; ++i) {
     StringPiece::size_type pos = components[i].find('=');

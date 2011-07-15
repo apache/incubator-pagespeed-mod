@@ -19,10 +19,12 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "net/instaweb/util/public/basictypes.h"
+
 #include "base/scoped_ptr.h"
 #include "net/instaweb/apache/shared_mem_lifecycle.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_owner.h"
 
 struct apr_pool_t;
 struct server_rec;
@@ -33,6 +35,7 @@ class AbstractSharedMem;
 class SerfUrlAsyncFetcher;
 class SharedMemLockManager;
 class SharedMemStatistics;
+class SlowWorker;
 class SyncFetcherAdapter;
 class UrlPollableAsyncFetcher;
 
@@ -44,7 +47,6 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   virtual ~ApacheRewriteDriverFactory();
 
   virtual Hasher* NewHasher();
-  virtual AbstractMutex* NewMutex();
 
   // Returns the fetcher that will be used by the filters to load any
   // resources they need. This either matches the resource manager's
@@ -63,9 +65,6 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   void set_file_cache_clean_size_kb(int64 x) { file_cache_clean_size_kb_ = x; }
   void set_fetcher_time_out_ms(int64 x) { fetcher_time_out_ms_ = x; }
   bool set_file_cache_path(const StringPiece& x);
-
-  // Returns true if the call to set_file_cache_path created the directory.
-  bool file_cache_path_created() const { return file_cache_path_created_; }
 
   void set_fetcher_proxy(const StringPiece& x) {
     x.CopyToString(&fetcher_proxy_);
@@ -117,9 +116,6 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   void RootInit();
   void ChildInit();
 
-  // Relinquish all static data
-  static void Terminate();
-
  protected:
   virtual UrlFetcher* DefaultUrlFetcher();
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
@@ -132,9 +128,7 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   virtual Timer* DefaultTimer();
   virtual CacheInterface* DefaultCacheInterface();
   virtual NamedLockManager* DefaultLockManager();
-  virtual AbstractMutex* cache_mutex() { return cache_mutex_.get(); }
-  virtual AbstractMutex* rewrite_drivers_mutex() {
-    return rewrite_drivers_mutex_.get(); }
+  virtual ThreadSystem* DefaultThreadSystem();
 
   // Disable the Resource Manager's filesystem since we have a
   // write-through http_cache.
@@ -154,12 +148,13 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
  private:
   apr_pool_t* pool_;
   server_rec* server_rec_;
-  scoped_ptr<AbstractMutex> cache_mutex_;
-  scoped_ptr<AbstractMutex> rewrite_drivers_mutex_;
   SyncFetcherAdapter* serf_url_fetcher_;
   SerfUrlAsyncFetcher* serf_url_async_fetcher_;
   SharedMemStatistics* shared_mem_statistics_;
   scoped_ptr<AbstractSharedMem> shared_mem_runtime_;
+
+  static RefCountedOwner<SlowWorker>::Family slow_worker_family_;
+  RefCountedOwner<SlowWorker> slow_worker_;
 
   // TODO(jmarantz): These options could be consolidated in a protobuf or
   // some other struct, which would keep them distinct from the rest of the
@@ -172,7 +167,6 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   int64 fetcher_time_out_ms_;
   int64 slurp_flush_limit_;
   std::string file_cache_path_;
-  bool file_cache_path_created_;
   std::string fetcher_proxy_;
   std::string version_;
   bool statistics_enabled_;

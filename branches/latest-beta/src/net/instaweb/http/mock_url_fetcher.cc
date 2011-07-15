@@ -20,11 +20,13 @@
 
 #include <map>
 #include <utility>                      // for pair
+#include "base/logging.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -98,6 +100,12 @@ bool MockUrlFetcher::StreamingFetchUrl(const GoogleString& url,
       } else {
         // Otherwise serve a normal 200 OK response.
         response_headers->CopyFrom(response->header());
+        if (update_date_headers_) {
+          CHECK(timer_ != NULL);
+          // Update Date headers.
+          response_headers->SetDate(timer_->NowMs());
+          response_headers->ComputeCaching();
+        }
         response_writer->Write(response->body(), message_handler);
       }
       ret = true;

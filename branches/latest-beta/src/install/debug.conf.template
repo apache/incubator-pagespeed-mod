@@ -39,19 +39,40 @@
 ModPagespeedEnableFilters add_instrumentation
 
 # Enable htaccess
-<Directory "@@APACHE_DOC_ROOT@@" >
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/" >
     AllowOverride All
+</Directory>
+
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/" >
+    AllowOverride All
+    # Some versions of mod_rewrite will refuse to do any work if
+    # symlink handling is off.
+    Options +SymLinksIfOwnerMatch
 </Directory>
 
 # This is needed for the server-side includes test at the end of
 # system_test.sh.  See mod_pagespeed_test/ssi/.htaccess as well.
+<IfModule !include_module>
+  LoadModule include_module @@APACHE_MODULES@@/mod_include.so
+</IfModule>
 AddType text/html .shtml
 AddOutputFilter INCLUDES .shtml
+
+# For the mod_rewrite test in system_test.sh
+<IfModule !rewrite_module>
+  LoadModule rewrite_module  @@APACHE_MODULES@@/mod_rewrite.so
+</IfModule>
 
 # For regression test of connection failing.
 ModPagespeedDomain www.google.co.ca:8085
 
+# Test LoadFromFile mapping by mapping one dir to another.
+ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/load_from_file/web_dir/" "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/load_from_file/file_dir/"
+
 #SPELING # Enable mod_speling to ensure that we don't regress Issue 194
+#SPELING <IfModule !speling_module>
+#SPELING   LoadModule speling_module  @@APACHE_MODULES@@/mod_speling.so
+#SPELING </IfModule>
 #SPELING CheckSpelling on
 
 #STRESS # These lines are only needed for the stress test.

@@ -26,11 +26,11 @@
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
-        'util/content_type.cc',
         'util/file_message_handler.cc',
         'util/google_message_handler.cc',
         'util/google_url.cc',
         'util/message_handler.cc',
+        'util/query_params.cc',
         'util/string_convert.cc',
         'util/string_util.cc',
         'util/string_writer.cc',
@@ -59,6 +59,7 @@
       'type': '<(library)',
       'dependencies': [
         'instaweb_util_core',
+        'http_core',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
@@ -91,6 +92,27 @@
       ],
     },
     {
+      'target_name': 'http_core',
+      'type': '<(library)',
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        'instaweb_core.gyp:instaweb_util_core',
+      ],
+      'sources': [
+        'http/content_type.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+    },
+    {
       'target_name': 'instaweb_rewriter_html',
       'type': '<(library)',
       'dependencies': [
@@ -101,6 +123,7 @@
       'sources': [
         'rewriter/collapse_whitespace_filter.cc',
         'rewriter/elide_attributes_filter.cc',
+        'rewriter/file_load_policy.cc',
         'rewriter/html_attribute_quote_removal.cc',
         'rewriter/remove_comments_filter.cc',
         'rewriter/rewrite_options.cc',

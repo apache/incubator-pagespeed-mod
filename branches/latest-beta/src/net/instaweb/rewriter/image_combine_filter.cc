@@ -23,6 +23,7 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -37,7 +38,6 @@
 #include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -402,8 +402,9 @@ class Library : public spriter::ImageLibraryInterface {
   // the resource, meaning that resource must not be destroyed before the next
   // call to Clear().
   bool Register(Resource* resource) {
+    bool prefer_webp = false;  // Not working with jpg/webp at all.
     net_instaweb::Image* image = net_instaweb::NewImage(
-        resource->contents(), resource->url(), tmp_dir_, handler_);
+        resource->contents(), resource->url(), tmp_dir_, prefer_webp, handler_);
     if (image->EnsureLoaded()) {
       Register(resource->url(), image);
       return true;
@@ -442,10 +443,9 @@ using spriter_binding::SpriteFuture;
 class ImageCombineFilter::Combiner
     : public ResourceCombinerTemplate<SpriteFuture*> {
  public:
-  Combiner(RewriteDriver* driver, const StringPiece& filter_prefix,
-           const StringPiece& extension, ImageCombineFilter* filter)
-      : ResourceCombinerTemplate<SpriteFuture*>(driver, filter_prefix,
-                                                extension, filter),
+  Combiner(RewriteDriver* driver, const StringPiece& extension,
+           ImageCombineFilter* filter)
+      : ResourceCombinerTemplate<SpriteFuture*>(driver, extension, filter),
         library_(NULL,
                  driver->resource_manager()->filename_prefix(),
                  driver->message_handler()),
@@ -641,8 +641,7 @@ class ImageCombineFilter::Combiner
 ImageCombineFilter::ImageCombineFilter(RewriteDriver* driver,
                                    const char* filter_prefix)
     : RewriteFilter(driver, filter_prefix) {
-  combiner_.reset(new Combiner(driver, filter_prefix,
-                               kContentTypePng.file_extension() + 1,
+  combiner_.reset(new Combiner(driver, kContentTypePng.file_extension() + 1,
                                this));
 }
 

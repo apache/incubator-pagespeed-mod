@@ -16,13 +16,11 @@
 
 // Author: mdsteele@google.com (Matthew D. Steele)
 
-#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 
@@ -30,8 +28,17 @@ namespace net_instaweb {
 
 namespace {
 
-class JsInlineFilterTest : public ResourceManagerTestBase {
+class JsInlineFilterTest : public ResourceManagerTestBase,
+                           public ::testing::WithParamInterface<bool> {
+ public:
+  JsInlineFilterTest() : filters_added_(false) {}
+
  protected:
+  virtual void SetUp() {
+    ResourceManagerTestBase::SetUp();
+    SetAsynchronousRewrites(GetParam());
+  }
+
   void TestInlineJavascript(const GoogleString& html_url,
                             const GoogleString& js_url,
                             const GoogleString& js_original_inline_body,
@@ -70,7 +77,10 @@ class JsInlineFilterTest : public ResourceManagerTestBase {
                                    const GoogleString& js_outline_body,
                                    const GoogleString& js_expected_inline_body,
                                    bool expect_inline) {
-    AddFilter(RewriteOptions::kInlineJavascript);
+    if (!filters_added_) {
+      AddFilter(RewriteOptions::kInlineJavascript);
+      filters_added_ = true;
+    }
 
     // Specify the input and expected output.
     if (!doctype.empty()) {
@@ -91,16 +101,18 @@ class JsInlineFilterTest : public ResourceManagerTestBase {
 
     // Put original Javascript file into our fetcher.
     ResponseHeaders default_js_header;
-    resource_manager_->SetDefaultHeaders(&kContentTypeJavascript,
-                                         &default_js_header);
-    mock_url_fetcher_.SetResponse(js_url, default_js_header, js_outline_body);
+    SetDefaultLongCacheHeaders(&kContentTypeJavascript, &default_js_header);
+    SetFetchResponse(js_url, default_js_header, js_outline_body);
 
     // Rewrite the HTML page.
     ValidateExpectedUrl(html_url, html_input, expected_output);
   }
+
+ private:
+  bool filters_added_;
 };
 
-TEST_F(JsInlineFilterTest, DoInlineJavascriptSimple) {
+TEST_P(JsInlineFilterTest, DoInlineJavascriptSimple) {
   // Simple case:
   TestInlineJavascript("http://www.example.com/index.html",
                        "http://www.example.com/script.js",
@@ -109,7 +121,7 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptSimple) {
                        true);
 }
 
-TEST_F(JsInlineFilterTest, DoInlineJavascriptWhitespace) {
+TEST_P(JsInlineFilterTest, DoInlineJavascriptWhitespace) {
   // Whitespace between <script> and </script>:
   TestInlineJavascript("http://www.example.com/index2.html",
                        "http://www.example.com/script2.js",
@@ -118,7 +130,7 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptWhitespace) {
                        true);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
+TEST_P(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
   // Different domains:
   TestInlineJavascript("http://www.example.net/index.html",
                        "http://scripts.example.org/script.js",
@@ -127,7 +139,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
                        false);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineJavascriptInlineContents) {
+TEST_P(JsInlineFilterTest, DoNotInlineJavascriptInlineContents) {
   // Inline contents:
   TestInlineJavascript("http://www.example.com/index.html",
                        "http://www.example.com/script.js",
@@ -136,7 +148,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptInlineContents) {
                        false);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineJavascriptTooBig) {
+TEST_P(JsInlineFilterTest, DoNotInlineJavascriptTooBig) {
   // Javascript too long:
   const int64 length = 2 * RewriteOptions::kDefaultJsInlineMaxBytes;
   TestInlineJavascript("http://www.example.com/index.html",
@@ -147,7 +159,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptTooBig) {
                        false);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag) {
+TEST_P(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag) {
   // External script contains "</script>":
   TestInlineJavascript("http://www.example.com/index.html",
                        "http://www.example.com/script.js",
@@ -156,7 +168,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag) {
                        false);
 }
 
-TEST_F(JsInlineFilterTest, DoInlineJavascriptXhtml) {
+TEST_P(JsInlineFilterTest, DoInlineJavascriptXhtml) {
   // Simple case:
   TestInlineJavascriptXhtml("http://www.example.com/index.html",
                             "http://www.example.com/script.js",
@@ -164,13 +176,38 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptXhtml) {
                             true);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineJavascriptXhtmlWithCdataEnd) {
+TEST_P(JsInlineFilterTest, DoNotInlineJavascriptXhtmlWithCdataEnd) {
   // External script contains "]]>":
   TestInlineJavascriptXhtml("http://www.example.com/index.html",
                             "http://www.example.com/script.js",
                             "function end(x) { return ']]>'; }\n",
                             false);
 }
+
+TEST_P(JsInlineFilterTest, CachedRewrite) {
+  // Make sure we work fine when result is cached.
+  const char kPageUrl[] = "http://www.example.com/index.html";
+  const char kJsUrl[] = "http://www.example.com/script.js";
+  const char kJs[] = "function id(x) { return x; }\n";
+  const char kNothingInsideScript[] = "";
+  TestInlineJavascript(kPageUrl, kJsUrl, kNothingInsideScript, kJs, true);
+  TestInlineJavascript(kPageUrl, kJsUrl, kNothingInsideScript, kJs, true);
+}
+
+TEST_P(JsInlineFilterTest, InlineJs404) {
+  // Test to make sure that a missing input is handled well.
+  SetFetchResponse404("404.js");
+  AddFilter(RewriteOptions::kInlineJavascript);
+  ValidateNoChanges("404", "<script src='404.js'></script>");
+
+  // Second time, to make sure caching doesn't break it.
+  ValidateNoChanges("404", "<script src='404.js'></script>");
+}
+
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
+INSTANTIATE_TEST_CASE_P(JsInlineFilterTestInstance,
+                        JsInlineFilterTest,
+                        ::testing::Bool());
 
 }  // namespace
 

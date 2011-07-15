@@ -19,19 +19,15 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 
-#include <set>
-#include <vector>
-#include "net/instaweb/util/public/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/null_statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class AbstractMutex;
 class CacheInterface;
 class CacheUrlAsyncFetcher;
 class CacheUrlFetcher;
@@ -44,7 +40,9 @@ class MessageHandler;
 class NamedLockManager;
 class ResourceManager;
 class RewriteDriver;
+class RewriteOptions;
 class Statistics;
+class ThreadSystem;
 class Timer;
 class UrlAsyncFetcher;
 class UrlFetcher;
@@ -80,9 +78,6 @@ class RewriteDriverFactory {
   void set_slurp_read_only(bool read_only);
   void set_slurp_print_urls(bool read_only);
 
-  // Determines whether Slurping is enabled.
-  bool slurping_enabled() const { return !slurp_directory_.empty(); }
-
   // Setting HTTP caching on causes both the fetcher and the async
   // fecher to return cached versions.
   void set_force_caching(bool u) { force_caching_ = u; }
@@ -103,11 +98,10 @@ class RewriteDriverFactory {
 
   bool set_filename_prefix(StringPiece p);
 
-  // Returns whether the last call to set_filename_prefix made the directory
-  // itself.
-  bool filename_prefix_created() const { return filename_prefix_created_; }
+  // Determines whether Slurping is enabled.
+  bool slurping_enabled() const { return !slurp_directory_.empty(); }
 
-  RewriteOptions* options() { return &options_; }
+  RewriteOptions* options();
   MessageHandler* html_parse_message_handler();
   MessageHandler* message_handler();
   FileSystem* file_system();
@@ -128,27 +122,24 @@ class RewriteDriverFactory {
   ResourceManager* ComputeResourceManager();
 
   // Generates a new mutex, hasher.
-  virtual AbstractMutex* NewMutex() = 0;
   virtual Hasher* NewHasher() = 0;
 
-  // Generates a new managed RewriteDriver using the RewriteOptions
-  // managed by this class.  Each RewriteDriver is not thread-safe,
-  // but you can generate a RewriteDriver* for each thread.  The
-  // returned drivers are deleted by the factory; they do not need to
-  // be deleted by the allocator.
+  // See doc in resource_manager.cc.
   RewriteDriver* NewRewriteDriver();
 
-  // Releases a rewrite driver back into the pool.  These are free-listed
-  // because they are not cheap to construct.
-  void ReleaseRewriteDriver(RewriteDriver* rewrite_driver);
+  // Provides an optional hook for adding rewrite passes that are
+  // specific to an implementation of RewriteDriverFactory.
+  virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
 
-  // Generates a custom RewriteDriver using the passed-in options.  This
-  // driver is *not* managed by the factory: you must delete it after
-  // you are done with it.
-  RewriteDriver* NewCustomRewriteDriver(const RewriteOptions& options);
+  ThreadSystem* thread_system();
+
+  // Returns the set of directories that we (our our subclasses) have created
+  // thus far.
+  const StringSet& created_directories() const {
+    return created_directories_;
+  }
 
  protected:
-  virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
   bool FetchersComputed() const;
 
   // Implementors of RewriteDriverFactory must supply default definitions
@@ -160,18 +151,17 @@ class RewriteDriverFactory {
   virtual MessageHandler* DefaultMessageHandler() = 0;
   virtual FileSystem* DefaultFileSystem() = 0;
   virtual Timer* DefaultTimer() = 0;
-  virtual CacheInterface* DefaultCacheInterface() = 0;
+  virtual ThreadSystem* DefaultThreadSystem() = 0;
 
-  // Overridable statistics (default is NullStatistics)
-  virtual Statistics* statistics() { return &null_statistics_; }
+    // Note: Returned CacheInterface should be thread-safe.
+  virtual CacheInterface* DefaultCacheInterface() = 0;
 
   // They may also supply a custom lock manager. The default implementation
   // will use the file system.
   virtual NamedLockManager* DefaultLockManager();
 
-  // Implementors of RewriteDriverFactory must supply two mutexes.
-  virtual AbstractMutex* cache_mutex() = 0;
-  virtual AbstractMutex* rewrite_drivers_mutex() = 0;
+  // Overridable statistics (default is NullStatistics)
+  virtual Statistics* statistics() { return &null_statistics_; }
 
   // Clean up all the resources. When shutdown Apache, and destroy the process
   // sub-pool.  The RewriteDriverFactory owns some elements that were created
@@ -194,6 +184,9 @@ class RewriteDriverFactory {
   // filename_prefix()
   virtual StringPiece LockFilePrefix();
 
+  // Registers the directory as having been created by us.
+  void AddCreatedDirectory(const GoogleString& dir);
+
  private:
   void SetupSlurpDirectories();
 
@@ -207,28 +200,23 @@ class RewriteDriverFactory {
   scoped_ptr<Hasher> hasher_;
   scoped_ptr<FilenameEncoder> filename_encoder_;
   scoped_ptr<Timer> timer_;
+
   HtmlParse* html_parse_;
 
   GoogleString filename_prefix_;
-  bool filename_prefix_created_;
   GoogleString slurp_directory_;
-  RewriteOptions options_;
   bool force_caching_;
   bool slurp_read_only_;
   bool slurp_print_urls_;
 
   scoped_ptr<ResourceManager> resource_manager_;
 
-  // RewriteDrivers that were previously allocated, but have
-  // been released with ReleaseRewriteDriver, and are ready
-  // for re-use with NewRewriteDriver.
-  std::vector<RewriteDriver*> available_rewrite_drivers_;
-
-  // RewriteDrivers that are currently in use.  This is retained
-  // as a sanity check to make sure our system is coherent,
-  // and to facilitate complete cleanup if a Shutdown occurs
-  // while a request is in flight.
-  std::set<RewriteDriver*> active_rewrite_drivers_;
+  // Prior to computing the resource manager, which requires some options
+  // to be set, we need a place to write the options.  These will be
+  // permanently transferred to the ResourceManager when it is created.
+  // This two-phase creation is needed to deal a variety of order-of-startup
+  // issues across tests, Apache, and internal Google infrastructure.
+  scoped_ptr<RewriteOptions> temp_options_;
 
   // Caching support
   scoped_ptr<HTTPCache> http_cache_;
@@ -242,8 +230,12 @@ class RewriteDriverFactory {
   // Manage locks for output resources.
   scoped_ptr<NamedLockManager> lock_manager_;
 
+  scoped_ptr<ThreadSystem> thread_system_;
+
   // Default statistics implementation, which can be overridden by children.
   NullStatistics null_statistics_;
+
+  StringSet created_directories_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverFactory);
 };

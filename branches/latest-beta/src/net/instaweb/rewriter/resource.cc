@@ -19,17 +19,20 @@
 
 #include "net/instaweb/rewriter/public/resource.h"
 
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 class MessageHandler;
-class ResourceManager;
 class SharedString;
 
 namespace {
@@ -46,10 +49,35 @@ Resource::Resource(ResourceManager* resource_manager, const ContentType* type)
 Resource::~Resource() {
 }
 
+bool Resource::IsValidAndCacheable() {
+  // TODO(sligocki): This checks that the result is valid (200 OK) and that
+  // it is not expired or Cache-Control: no-cache, should we also call
+  // Naomi's function which would also check if it was cacheable because of
+  // Vary: headers, etc.  Should we just merge these functions?
+  return ((response_headers_.status_code() == HttpStatus::kOK) &&
+          !resource_manager_->http_cache()->IsAlreadyExpired(
+              response_headers_));
+}
+
+void Resource::AddInputInfoToPartition(int index, OutputPartition* partition) {
+  InputInfo* input = partition->add_input();
+  input->set_index(index);
+  // FillInPartitionInputInfo can be specialized based on resource type.
+  FillInPartitionInputInfo(input);
+}
+
+// Default version.
+void Resource::FillInPartitionInputInfo(InputInfo* input) {
+  CHECK(loaded());
+  input->set_type(InputInfo::CACHED);
+  input->set_last_modified_time_ms(response_headers_.last_modified_time_ms());
+  input->set_expiration_time_ms(response_headers_.CacheExpirationTimeMs());
+}
+
 int64 Resource::CacheExpirationTimeMs() const {
   int64 input_expire_time_ms = kDefaultExpireTimeMs;
-  if (meta_data_.IsCacheable()) {
-    input_expire_time_ms = meta_data_.CacheExpirationTimeMs();
+  if (response_headers_.IsCacheable()) {
+    input_expire_time_ms = response_headers_.CacheExpirationTimeMs();
   }
   return input_expire_time_ms;
 }
@@ -63,9 +91,9 @@ void Resource::DetermineContentType() {
   // Try to determine the content type from the URL extension, or
   // the response headers.
   StringStarVector content_types;
-  ResponseHeaders* headers = metadata();
+  ResponseHeaders* headers = response_headers();
   const ContentType* content_type = NULL;
-  if (headers->Lookup("Content-type", &content_types)) {
+  if (headers->Lookup(HttpAttributes::kContentType, &content_types)) {
     for (int i = 0, n = content_types.size(); (i < n) && (content_type == NULL);
          ++i) {
       if (content_types[i] != NULL) {
@@ -98,11 +126,7 @@ Resource::AsyncCallback::~AsyncCallback() {
 
 bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
   SharedString* contents_and_headers = value->share();
-  return value_.Link(contents_and_headers, &meta_data_, handler);
-}
-
-bool Resource::IsCacheable() const {
-  return true;
+  return value_.Link(contents_and_headers, &response_headers_, handler);
 }
 
 void Resource::Freshen(MessageHandler* handler) {

@@ -2,14 +2,23 @@
 # Copyright 2010 Google Inc. All Rights Reserved.
 # Author: abliss@google.com (Adam Bliss)
 #
-# Usage: ./system_test.sh HOSTNAME
 # Tests a mod_pagespeed installation by fetching and verifying all the examples.
 # Exits with status 0 if all tests pass.  Exits 1 immediately if any test fails.
+# Expects APACHE_DEBUG_PAGESPEED_CONF to point to our config file,
+# APACHE_LOG to the log file
 
-if [ $# != 1 ]; then
-  echo Usage: ./system_test.sh HOSTNAME
+if [ $# -lt 1 -o $# -gt 2 ]; then
+  echo Usage: ./system_test.sh HOSTNAME [PROXY_HOST]
   exit 2
 fi;
+
+if [ -z $APACHE_DEBUG_PAGESPEED_CONF ]; then
+  APACHE_DEBUG_PAGESPEED_CONF=/usr/local/apache2/conf/pagespeed.conf
+fi
+
+if [ -z $APACHE_LOG ]; then
+  APACHE_LOG=/usr/local/apache2/logs/error_log
+fi
 
 # If the user has specified an alternate WGET as an environment variable, then
 # use that, otherwise use the one in the path.
@@ -19,8 +28,6 @@ else
   echo WGET = $WGET
 fi
 
-WGET="$WGET --no-proxy"
-
 $WGET --version | head -1 | grep 1.12 >/dev/null
 if [ $? != 0 ]; then
   echo You have the wrong version of wget.  1.12 is required.
@@ -28,14 +35,22 @@ if [ $? != 0 ]; then
 fi
 
 HOSTNAME=$1
-PORT=${HOSTNAME/*:/};
+PORT=${HOSTNAME/*:/}
 if [ $PORT = $HOSTNAME ]; then
   PORT=80
-fi;
+fi
 EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
 TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
+# We load explicitly from localhost because of Apache config requirements.
+# Note: This only works if $HOSTNAME is a synonym for localhost.
 STATISTICS_URL=http://localhost:$PORT/mod_pagespeed_statistics
 BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/bad.pagespeed.cf.hash.css
+
+# Setup wget proxy information
+export http_proxy=$2
+export https_proxy=$2
+export ftp_proxy=$2
+export no_proxy=""
 
 # Version timestamped with nanoseconds, making it extremely unlikely to hit.
 BAD_RND_RESOURCE_URL="http://$HOSTNAME/mod_pagespeed/bad`date +%N`.\
@@ -71,6 +86,9 @@ rm -rf $OUTDIR
 # $OUTDIR/$FILE and nuke $OUTDIR when we're done.
 # TODO(abliss): some of these will fail on windows where wget escapes saved
 # filenames differently.
+# TODO(morlovich): This isn't actually true, since we never pass in -r,
+#                  so this fetch isn't recursive. Clean this up.
+
 
 WGET_OUTPUT=$OUTDIR/wget_output.txt
 WGET_DUMP="$WGET -q -O - --save-headers"
@@ -92,18 +110,24 @@ function check() {
 # COMMAND outputs RESULT, in which case we return 0, or until 10 seconds have
 # passed, in which case we return 1.
 function fetch_until() {
-  URL=$1
+  # Should not user URL as PARAM here, it rewrites value of URL for
+  # the rest tests.
+  REQUESTURL=$1
   COMMAND=$2
   RESULT=$3
+  USERAGENT=$4
 
   TIMEOUT=10
   START=`date +%s`
   STOP=$((START+$TIMEOUT))
-
-  echo "     " Fetching $URL until '`'$COMMAND'`' = $RESULT
+  WGET_HERE="$WGET -q"
+  if [[ -n "$USERAGENT" ]]; then
+    WGET_HERE="$WGET -q -U $USERAGENT"
+  fi
+  echo "     " Fetching $REQUESTURL until '`'$COMMAND'`' = $RESULT
   while test -t; do
-    if [ `$WGET -q -O - $URL 2>&1 | $COMMAND` = $RESULT ]; then
-      /bin/echo "."
+    if [ `$WGET_HERE -O - $REQUESTURL 2>&1 | $COMMAND` = $RESULT ]; then
+      /bin/echo ".";
       return;
     fi;
     if [ `date +%s` -gt $STOP ]; then
@@ -151,6 +175,7 @@ function test_resource_ext_corruption() {
 # General system tests
 
 echo TEST: mod_pagespeed is running in Apache and writes the expected header.
+echo $WGET_DUMP $EXAMPLE_ROOT/combine_css.html
 HTML_HEADERS=$($WGET_DUMP $EXAMPLE_ROOT/combine_css.html)
 
 echo Checking for X-Mod-Pagespeed header
@@ -179,8 +204,7 @@ check [ $? != 0 ]
 
 # Determine whether statistics are enabled or not.  If not, don't test them,
 # but do an additional regression test that tries harder to get a cache miss.
-grep "# ModPagespeedStatistics off" /usr/local/apache2/conf/pagespeed.conf \
-   >/dev/null
+grep "# ModPagespeedStatistics off" $APACHE_DEBUG_PAGESPEED_CONF > /dev/null
 if [ $? = 0 ]; then
   echo TEST: 404s are served and properly recorded.
   NUM_404=$($WGET_DUMP $STATISTICS_URL | grep resource_404_count | cut -d: -f2)
@@ -198,8 +222,8 @@ fi
 echo TEST: directory is mapped to index.html.
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
-check "$WGET_PREREQ $EXAMPLE_ROOT"
-check "$WGET_PREREQ $EXAMPLE_ROOT/index.html"
+check "$WGET -q $EXAMPLE_ROOT" -O $OUTDIR/mod_pagespeed_example
+check "$WGET -q $EXAMPLE_ROOT/index.html" -O $OUTDIR/index.html
 check diff $OUTDIR/index.html $OUTDIR/mod_pagespeed_example
 
 echo TEST: compression is enabled for HTML.
@@ -353,7 +377,7 @@ check [ `grep -c "'" $FETCHED` = 0 ]                    # no apostrophes
 
 test_filter trim_urls makes urls relative
 check $WGET_PREREQ $URL
-grep "http:" $FETCHED                     # scheme, should not find
+grep "mod_pagespeed_example" $FETCHED     # base dir, shouldn't find
 check [ $? != 0 ]
 check [ `stat -c %s $FETCHED` -lt 153 ]   # down from 157
 
@@ -364,6 +388,7 @@ check [ $? != 0 ]
 check [ `stat -c %s $FETCHED` -lt 680 ]   # down from 689
 
 test_filter rewrite_images inlines, compresses, and resizes.
+URL=$EXAMPLE_ROOT"/rewrite_images.html?ModPagespeedFilters=rewrite_images"
 fetch_until $URL 'grep -c image/png' 1    # inlined
 check $WGET_PREREQ $URL
 check [ `stat -c %s $OUTDIR/xBikeCrashIcn*` -lt 25000 ]      # re-encoded
@@ -486,12 +511,80 @@ check \
 
 echo TEST: Connection refused handling
 echo $WGET_DUMP $TEST_ROOT/connection_refused.html
+ERR_BEFORE=`cat $APACHE_LOG | grep "Serf status 111" | wc -l`
+ERR_LIMIT=`expr $ERR_BEFORE + 1`
 check $WGET_DUMP $TEST_ROOT/connection_refused.html > /dev/null
-ERRS=`cat /usr/local/apache2/logs/error_log | grep "Serf status 111" | wc -l`
+ERRS=`cat $APACHE_LOG | grep "Serf status 111" | wc -l`
 sleep 1
-# Check that we have one error or less --- might not have flushed the log yet..
-# (luckily we nearly certainly do when spewing dozens of errors)
-check [ `expr $ERRS` -le 1 ];
+# Check that we have one additional error or less --- might not have flushed
+# the log yet; (luckily we nearly certainly do when spewing dozens of errors)
+check [ `expr $ERRS` -le $ERR_LIMIT ];
+
+echo "Test: ModPagespeedLoadFromFile"
+URL=$TEST_ROOT/load_from_file/index.html?ModPagespeedFilters=inline_css
+echo $WGET_DUMP $URL
+$WGET_DUMP $URL | grep blue
+check [ $? = 0 ]
+
+# Helper to test directive ModPagespeedForBots
+# By default directive ModPagespeedForBots is on and image rewriting is disabled
+# for bots while other filters such as inline_css still work.
+function CheckBots() {
+  ON=$1
+  COMPARE=$2
+  BOT=$3
+  FILTER="?ModPagespeedFilters=inline_css,rewrite_images"
+  PARAM="&ModPagespeedDisableForBots=$ON";
+  FILE="bot_test.html"$FILTER
+  # By default ModPagespeedDisableForBots is true, no need to set it in url.
+  # If the test wants it to be off, set it in url.
+  if [[ $ON != "default" ]]; then
+    FILE=$FILE$PARAM
+  fi
+  FETCHED=$OURDIR/$FILE
+  URL=$TEST_ROOT/$FILE
+  # Filters such as inline_css work no matter if ModPagespeedDisable is on
+  # Fetch until CSS is inlined, so that we know rewriting succeeded.
+  if [[ -n $BOT ]]; then
+    fetch_until $URL 'grep -c style' 2 $BOT;
+  else
+    fetch_until $URL 'grep -c style' 2;
+  fi
+  # Check if the images are rewritten
+  rm -f $OUTDIR/*png*
+  rm -f $OUTDIR/*jpg*
+  if [[ -n $BOT ]]; then
+    check `$WGET_PREREQ -U $BOT $URL`;
+  else
+    check `$WGET_PREREQ $URL`;
+  fi
+  check [ `stat -c %s $OUTDIR/*BikeCrashIcn*` $COMPARE 25000 ] # recoded or not
+  check [ `stat -c %s $OUTDIR/*Puzzle*`  $COMPARE 24126  ] # resized or not
+}
+
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots=off"
+CheckBots 'off' '-lt' 'Googlebot/2.1'
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots=on"
+CheckBots 'on' '-gt' 'Googlebot/2.1'
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots is default"
+CheckBots 'default' '-gt' 'Googlebot/2.1'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots=off"
+CheckBots 'off' '-lt'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots=on"
+CheckBots 'on' '-lt'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots is default"
+CheckBots 'default' '-lt'
+
+echo TEST: respect vary user-agent
+URL=$TEST_ROOT/vary/index.html?ModPagespeedFilters=inline_css
+echo $WGET_DUMP $URL
+$WGET_DUMP $URL | grep -q "<style>"
+check [ $? != 0 ]
+
+# Error path for fetch of outlined resources that are not in cache leaked
+# at one point of development.
+echo TEST: regression test for RewriteDriver leak
+$WGET -O /dev/null -o /dev/null $TEST_ROOT/_.pagespeed.jo.3tPymVdi9b.js
 
 # Cleanup
 rm -rf $OUTDIR

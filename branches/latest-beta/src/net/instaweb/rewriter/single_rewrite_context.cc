@@ -18,15 +18,12 @@
 
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 
-#include <cstddef>
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 
 namespace net_instaweb {
@@ -34,75 +31,48 @@ namespace net_instaweb {
 class RewriteDriver;
 
 SingleRewriteContext::SingleRewriteContext(RewriteDriver* driver,
+                                           RewriteContext* parent,
                                            ResourceContext* resource_context)
-    : RewriteContext(driver, resource_context) {
+    : RewriteContext(driver, parent, resource_context) {
 }
 
 SingleRewriteContext::~SingleRewriteContext() {
 }
 
-void SingleRewriteContext::Render(const OutputPartition& partition,
-                                  const OutputResourcePtr& output_resource) {
-  // We CHECK num_slots because there's no way we should be creating
-  // a SingleRewriteContext with more than one slot.
-  CHECK_EQ(1, num_slots());
-
-  // However, we soft-fail on corrupt data read from the cache.
-  if ((partition.input_size() == 1) && (partition.input(0) == 0)) {
-    ResourceSlotPtr resource_slot(slot(0));
-    ResourcePtr resource(output_resource);
-    resource_slot->SetResource(resource);
-    RenderSlotOnDetach(resource_slot);
-  } else {
-    // TODO(jmarantz): bump a failure-due-to-corrupt-cache statistic
-  }
-}
-
-bool SingleRewriteContext::PartitionAndRewrite(OutputPartitions* partitions,
-                                               OutputResourceVector* outputs) {
+bool SingleRewriteContext::Partition(OutputPartitions* partitions,
+                                     OutputResourceVector* outputs) {
   bool ret = false;
   if (num_slots() == 1) {
+    ret = true;
     ResourcePtr resource(slot(0)->resource());
-    OutputResourcePtr output_resource(
-        resource_manager()->CreateOutputResourceFromResource(
-            options(), id(), encoder(), resource_context(), resource, kind()));
-    if (output_resource.get() != NULL) {
-      OutputPartition partition;
-      if (Rewrite(&partition, output_resource)) {
-        partition.add_input(0);
-        *partitions->add_partition() = partition;
+    if (resource->IsValidAndCacheable()) {
+      OutputResourcePtr output_resource(
+          Manager()->CreateOutputResourceFromResource(
+              Options(), id(), encoder(), resource_context(),
+              resource, kind(), true /* async flow */));
+      if (output_resource.get() != NULL) {
+        OutputPartition* partition = partitions->add_partition();
+        resource->AddInputInfoToPartition(0, partition);
+        output_resource->set_cached_result(partition->mutable_result());
         outputs->push_back(output_resource);
-        ret = true;
       }
     }
   }
   return ret;
 }
 
-bool SingleRewriteContext::Rewrite(OutputPartition* partition,
+void SingleRewriteContext::Rewrite(int partition_index,
+                                   OutputPartition* partition,
                                    const OutputResourcePtr& output_resource) {
-  RewriteSingleResourceFilter::RewriteResult result =
-      RewriteSingleResourceFilter::kRewriteFailed;
+  CHECK_EQ(0, partition_index);
   ResourcePtr resource(slot(0)->resource());
-  if ((resource.get() != NULL) && resource->loaded() &&
-      resource->ContentsValid()) {
-    OutputResourceKind kind = kRewrittenResource;
-    if (ComputeOnTheFly()) {
-      kind = kOnTheFlyResource;
-    }
+  CHECK(resource.get() != NULL);
+  CHECK(resource->loaded());
+  CHECK(resource->ContentsValid());
+  if (output_resource.get() != NULL) {
     output_resource->set_cached_result(partition->mutable_result());
-    result = RewriteSingle(resource, output_resource);
   }
-
-  if (result == RewriteSingleResourceFilter::kRewriteOk) {
-    return true;
-  } else if (result == RewriteSingleResourceFilter::kRewriteFailed) {
-    partition->mutable_result()->set_optimizable(false);
-    // TODO(jmarantz): currently this optimizable=false bit is tossed
-    // because we don't add the partition to the OutputPartitions unless
-    // it passed.  Test & change this.
-  }
-  return false;
+  RewriteSingle(resource, output_resource);
 }
 
 }  // namespace net_instaweb

@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/http.pb.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_multi_map.h"
@@ -83,7 +84,7 @@ template<class Proto> void Headers<Proto>::PopulateMap() const {
   if (map_.get() == NULL) {
     map_.reset(new StringMultiMapInsensitive);
     for (int i = 0, n = NumAttributes(); i < n; ++i) {
-      map_->Add(Name(i), Value(i));
+      AddToMap(Name(i), Value(i));
     }
   }
 }
@@ -99,25 +100,99 @@ template<class Proto> bool Headers<Proto>::Lookup(
   return map_->Lookup(name, values);
 }
 
-template<class Proto> void Headers<Proto>::Add(
-    const StringPiece& name, const StringPiece& value) {
-  // TODO(jmarantz): Parse comma-separated values.  bmcquade sez:
-  // you probably want to normalize these by splitting on commas and
-  // adding a separate k,v pair for each comma-separated value. then
-  // it becomes very easy to do things like search for individual
-  // Content-Type tokens. Otherwise the client has to assume that
-  // every single value could be comma-separated and they have to
-  // parse it as such.  the list of header names that are not safe to
-  // comma-split is at
+template<class Proto> bool Headers<Proto>::IsCommaSeparatedField(
+    const StringPiece& name) const {
+  // TODO(nforman): Make this a complete list.  The list of header names
+  // that are not safe to comma-split is at
   // http://src.chromium.org/viewvc/chrome/trunk/src/net/http/http_util.cc
   // (search for IsNonCoalescingHeader)
+  if (StringCaseEqual(name, HttpAttributes::kVary) ||
+      StringCaseEqual(name, HttpAttributes::kContentEncoding)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
+template<class Proto> void Headers<Proto>::Add(
+    const StringPiece& name, const StringPiece& value) {
   NameValue* name_value = proto_->add_header();
   name_value->set_name(name.data(), name.size());
   name_value->set_value(value.data(), value.size());
+  AddToMap(name, value);
+}
+
+template<class Proto> void Headers<Proto>::AddToMap(
+    const StringPiece& name, const StringPiece& value) const {
   if (map_.get() != NULL) {
-    map_->Add(name, value);
+    if (IsCommaSeparatedField(name)) {
+      StringPieceVector split;
+      SplitStringPieceToVector(value, ",", &split, true);
+      for (int i = 0, n = split.size(); i < n; ++i) {
+        StringPiece val = split[i];
+        TrimWhitespace(&val);
+        map_->Add(name, val);
+      }
+    } else {
+      map_->Add(name, value);
+    }
   }
+}
+
+
+// Remove works in a perverted manner.
+// First comb through the values, from back to front, looking for the last
+// instance of 'value'.
+// Then remove all the values for name.
+// Then add back in the ones that were not the 'value'.
+// The string manipulation makes this horrendous, but hopefully no one has
+// listed a header with 100 (or more) values.
+template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
+                                                  const StringPiece& value) {
+  PopulateMap();
+  StringStarVector values;
+  bool found = map_->Lookup(name, &values);
+  if (found) {
+    int val_index = -1;
+    for (int i = values.size() - 1; i >= 0; --i) {
+      if (values[i] != NULL) {
+        if (StringCaseEqual(*values[i], value)) {
+          val_index = i;
+          break;
+        }
+      }
+    }
+    if (val_index != -1) {
+      StringVector new_vals;
+      bool concat = IsCommaSeparatedField(name);
+      GoogleString combined;
+      const char kSeparator[] = ", ";
+      for (int i = 0, n = values.size(); i < n; ++i) {
+        if (values[i] != NULL) {
+          StringPiece val(*values[i]);
+          if (i != val_index && !val.empty()) {
+            if (concat) {
+              StrAppend(&combined, val, kSeparator);
+            } else {
+              new_vals.push_back(val.as_string());
+            }
+          }
+        }
+      }
+      RemoveAll(name);
+      if (concat) {
+        combined.erase(combined.length() - STATIC_STRLEN(kSeparator),
+                       STATIC_STRLEN(kSeparator));
+        Add(name, StringPiece(combined.data(), combined.size()));
+      } else {
+        for (int i = 0, n = new_vals.size(); i < n; ++i) {
+          Add(name, new_vals[i]);
+        }
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 template<class Proto> bool Headers<Proto>::RemoveAll(const StringPiece& name) {

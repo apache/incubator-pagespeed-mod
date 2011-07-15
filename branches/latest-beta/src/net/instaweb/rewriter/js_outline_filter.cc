@@ -21,6 +21,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
@@ -29,7 +30,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -147,10 +147,11 @@ void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
     // Create script file from content.
     MessageHandler* handler = driver_->message_handler();
     // Create outline resource at the document location, not base URL location
+    bool use_async_flow = false;
     OutputResourcePtr resource(
         driver_->CreateOutputResourceWithPath(
             driver_->google_url().AllExceptLeaf(), kFilterId, "_",
-            &kContentTypeJavascript, kOutlinedResource));
+            &kContentTypeJavascript, kOutlinedResource, use_async_flow));
     if (resource.get() != NULL &&
         WriteResource(content, resource.get(), handler)) {
       HtmlElement* outline_element = driver_->CloneElement(inline_element);

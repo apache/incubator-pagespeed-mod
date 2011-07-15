@@ -19,27 +19,37 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 
+#include <vector>
+
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/blocking_behavior.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"        // for StringPiece
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
+
 class AbstractLock;
 class CachedResult;
+class MessageHandler;
 class OutputPartition;
 class OutputPartitions;
 class ResourceContext;
+class ResponseHeaders;
 class RewriteDriver;
+class RewriteOptions;
 class SharedString;
 class Statistics;
+class Writer;
+struct ContentType;
 
 // A RewriteContext is all the contextual information required to
 // perform one or more Rewrites.  Member data in the ResourceContext
@@ -60,114 +70,211 @@ class Statistics;
 // and those can inherit from SingleRewriteContext which is simpler
 // to implement.
 //
-// TODO(jmarantz): rigorously analyze system for thread safety inserting
-// mutexes, etc.
+// TODO(jmarantz): add support for controlling TTL on failures.
+//
+// A RewriteContext does almost all its work in the RewriteThread, by
+// adding Functions to a worker-thread owned by the ResourceManager.
+// Thus, within a server, there can be at most one Rewrite consuming
+// CPU time (e.g. optimizing images).  However, multiple Rewrites can
+// be in-progres, waiting for HTTP fetches and cache lookups.
+//
+// However, top-level RewriteContexts may be initialized from the HTML
+// thread.  In particular, from this thread they can be constructed,
+// and AddSlot() and Initiate() can be called.  Once Initiate is
+// called, the RewiteContext runs purely in the RewriteThread, until
+// it completes.  At that time it calls
+// RewriteDriver::RewriteComplete.  Once complete, the RewriteDriver
+// can call RewriteContext::Propagate() and finally delete the object.
+//
+// RewriteContexts can also be nested, in which case they are constructed,
+// slotted, and Initated all within the RewriteThread.  However, they
+// are Propagated and destructed by their parent, which is initiated by the
+// RewriteDriver.
 class RewriteContext {
  public:
-  // Transfers ownership of resource_context, which must be NULL or
+  // Takes ownership of resource_context, which must be NULL or
   // allocated with 'new'.
-  RewriteContext(RewriteDriver* driver,
+  RewriteContext(RewriteDriver* driver,   // exactly one of driver & parent
+                 RewriteContext* parent,  // is non-null
                  ResourceContext* resource_context);
   virtual ~RewriteContext();
 
   // Static initializer for statistics variables.
   static void Initialize(Statistics* statistics);
 
-  // If the rewrite_driver (really the request context) is detached
-  // prior to the completion of the rewrite, the rewrite still
-  // continues.  But we must detach it from the driver.  At this
-  // point we also render the rewrite if it has been completed.
-  void RenderAndDetach();
-
-  // Random access to slots.
+  // Random access to slots.  This is not thread-safe.  Prior to
+  // Initialize(), these can be called by the constructing thread.
+  // After Initiate(), these should only be called by the Rewrite
+  // thread.
   int num_slots() const { return slots_.size(); }
   ResourceSlotPtr slot(int index) const { return slots_[index]; }
 
-  // Resource slots must be added to a Rewrite before Start() can
+  // Random access to outputs.  These should only be accessed by
+  // the RewriteThread.
+  int num_outputs() const { return outputs_.size(); }
+  OutputResourcePtr output(int i) const { return outputs_[i]; }
+
+  // These are generally accessed in the Rewrite thread,
+  // but may also be accessed in ::Render.
+  int num_output_partitions() const;
+  const OutputPartition* output_partition(int i) const;
+  OutputPartition* output_partition(int i);
+
+  // Returns true if this context is chained to some predecessors, and
+  // must therefore be started by a predecessor and not RewriteDriver.
+  bool chained() const { return chained_ != 0; }
+
+  // Resource slots must be added to a Rewrite before Initiate() can
   // be called.  Starting the rewrite sets in motion a sequence
   // of async cache-lookups &/or fetches.
   void AddSlot(const ResourceSlotPtr& slot);
 
-  // Starts a resource rewrite.
-  void Start();
+  // Remove the last slot from the context's slot list. This
+  // context must be the last one attached to the slot.
+  void RemoveLastSlot();
 
-  // Callback helper functions.  These are not intended to be called
-  // by the client; but are public: to avoid 'friend' declarations
-  // for the time being.
-  void OutputCacheDone(CacheInterface::KeyState state, SharedString* value);
-  void ResourceFetchDone(bool success, const ResourcePtr& resource,
-                         int slot_index);
+  // Starts a resource rewrite.  Once Inititated, the Rewrite object
+  // should only be accessed from the Rewrite thread, until it
+  // Completes, at which point top-level Contexts will call
+  // RewriteComplete on their driver, and nested Contexts will call
+  // NestedRewriteComplete on their parent.  Nested rewrites will be
+  // Started directly from their parent context, and Initiate will not
+  // be called.
+  void Initiate();
 
   // Fetch the specified output resource by reconstructing it from
   // its inputs, sending output into response_writer, writing
   // headers to response_headers, and calling callback->Done(bool success)
   // when complete.
-  bool Fetch(RewriteDriver* driver,
-             const OutputResourcePtr& output_resource,
+  //
+  // True is returned if an asynchronous fetch got queued up.
+  // If false, Done() will not be called.
+  bool Fetch(const OutputResourcePtr& output_resource,
              Writer* response_writer,
              ResponseHeaders* response_headers,
              MessageHandler* message_handler,
              UrlAsyncFetcher::Callback* callback);
 
+  // Runs after all Rewrites have been completed, and all nested
+  // RewriteContexts have completed and harvested.
+  //
+  // For top-level Rewrites, this must be called from the HTML thread.
+  // For nested Rewrites it runs from the Rewrite thread.
+  //
+  // If render_slots is true, then all the slots owned by this context
+  // will have Render() called on them.  For top-level Rewrites, this
+  // should only be done if the rewrite completes before the rewrite
+  // deadline expires.  After that, the HTML elements referred to by
+  // the slots have already been flushed to the network.  For nested
+  // Rewrites it's done unconditionally.
+  //
+  // Rewriting and propagation continue even after this deadline, so
+  // that we may cache the rewritten results, allowing the deadline to
+  // be easier-to-hit next time the same resources need to be
+  // rewritten.
+  //
+  // And in all cases, the successors Rewrites are queued up in the
+  // Rewrite thread once any nested propagation is complete.  And, in
+  // particular, each slot must be updated with any rewritten
+  // resources, before the successors can be run, independent of
+  // whether the slots can be rendered into HTML.
+  void Propagate(bool render_slots);
+
  protected:
   // The following methods are provided for the benefit of subclasses.
 
-  const RewriteOptions* options() { return &options_; }
-  ResourceManager* resource_manager() { return resource_manager_; }
+  // Finds the ResourceManager associated with this context.  Note that
+  // this method might have to climb up the parent-tree, but it's typically
+  // not a deep tree.  Same with Driver() and Options().
+  ResourceManager* Manager();
+  const RewriteOptions* Options();
+  RewriteDriver* Driver();
   const ResourceContext* resource_context() { return resource_context_.get(); }
 
-  // Establishes that a slot has been rewritten.  So when RenderAndDetach
+  // Check that an OutputPartition is valid, specifically, that all the
+  // inputs are still valid/non-expired.
+  bool OutputPartitionIsValid(const OutputPartition& partition);
+
+  // Establishes that a slot has been rewritten.  So when Propagate()
   // is called, the resource update that has been written to this slot can
   // be propagated to the DOM.
-  void RenderSlotOnDetach(const ResourceSlotPtr& slot) {
-    render_slots_.push_back(slot);
-  }
+  void RenderPartitionOnDetach(int partition_index);
 
+  // Called by subclasses when an individual rewrite partition is
+  // done.  Note that RewriteDone may directly 'delete this' so no
+  // further references to 'this' should follow a call to RewriteDone.
+  void RewriteDone(RewriteSingleResourceFilter::RewriteResult result,
+                   int partition_index);
 
-  // The next set of methods must be implemented by subclasses:
+  // Adds a new nested RewriteContext.  This RewriteContext will not
+  // be considered complete until all nested contexts have completed.
+  void AddNestedContext(RewriteContext* context);
 
-  // Takes a completed rewrite partition and performs the document mutations
-  // needed to render the rewrite.
+  // Called on the parent from a nested Rewrite when it is complete.
+  // Note that we don't track rewrite success/failure here.  We only
+  // care whether the nested rewrites are complete.  In fact we don't
+  // even track which particular nested rewrite is done.
+  void NestedRewriteDone();
+
+  // Called on the parent to initiate all nested tasks.  This is so
+  // that they can all be added before any of them are started.
+  void StartNestedTasks();
+
+  // Deconstructs a URL by name and creates an output resource that
+  // corresponds to it.
+  bool CreateOutputResourceForCachedOutput(const StringPiece& url,
+                                           const ContentType* content_type,
+                                           OutputResourcePtr* output_resource);
+
+  // Partitions the input resources into one or more outputs.  Return
+  // 'true' if the partitioning could complete (whether a rewrite was
+  // found or not), false if the attempt was abandoned and no
+  // conclusion can be drawn.
   //
-  // A Resource object is provided that can be used to set into appropriate
-  // slot(s).  Note that this is conceptutally an output resource but is
-  // not guaranteed to be of type OutputResource; for rendering purposes
-  // we primarily need a URL.
-  //
-  // It is the responsibility of RewriteContext, not its subclasses, to
-  // verify the validity of the output resource, with respect to domain
-  // legality, cache freshness, etc.
-  //
-  // TODO(jmarantz): verify domain lawyering, cache freshness, etc.
-  virtual void Render(const OutputPartition& partition,
-                      const OutputResourcePtr& output_resource) = 0;
+  // Note that if partitioner finds that the resources are not
+  // rewritable, it will still return true; it will simply have
+  // an empty inputs-array in OutputPartitions and leave
+  // 'outputs' unmodified.  'false' is only returned if the subclass
+  // skipped the rewrite attempt due to a lock conflict.
+  virtual bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs) = 0;
 
-  // Partitions the input resources into one or more outputs, writing
-  // the end results into the http cache.  Return 'true' if the partitioning
-  // could complete (whether a rewrite was found or not), false if the attempt
-  // was abandoned and no conclusion can be drawn.
-  virtual bool PartitionAndRewrite(OutputPartitions* partitions,
-                                   OutputResourceVector* outputs) = 0;
+  // Takes a completed rewrite partition and rewrites it.  When
+  // complete calls RewriteDone with
+  // RewriteSingleResourceFilter::kRewriteOk if successful.  Note that
+  // a value of RewriteSingleResourceFilter::kTooBusy means that an
+  // HTML rewrite will skip this resource, but we should not cache it
+  // as "do not optimize".
+  //
+  // During this phase, any nested contexts that are needed to complete
+  // the Rewrite process can be instantiated.
+  //
+  // TODO(jmarantz): check for resource completion from a different
+  // thread (while we were waiting for resource fetches) when Rewrite
+  // gets called.
+  virtual void Rewrite(int partition_index,
+                       OutputPartition* partition,
+                       const OutputResourcePtr& output) = 0;
 
-  // Rewrites the specified partition, returning true of successful.
-  virtual bool Rewrite(OutputPartition* partition,
-                       const OutputResourcePtr& output_resource) = 0;
+  // Once any nested rewrites have completed, the results of these
+  // can be incorporated into the rewritten data.  For contexts that
+  // do not require any nested RewriteContexts, it is OK to skip
+  // overriding this method -- the empty default implementation is fine.
+  virtual void Harvest();
+
+  // Performs rendering activities that span multiple HTML slots.  For
+  // example, in a filter that combines N slots to 1, N-1 of the HTML
+  // elements might need to be removed.  That can be performed in
+  // Render().  This method is optional; the base-class implementation
+  // is empty.
+  //
+  // Note that unlike Harvest(), this method runs in the HTML thread (for
+  // top-level rewrites), and only runs if the rewrite completes prior to
+  // the rewrite-deadline.
+  virtual void Render();
 
   // This final set of protected methods can be optionally overridden
   // by subclasses.
-
-  // If this method returns true, the data output of this filter will not be
-  // cached, and will instead be recomputed on the fly every time it is needed.
-  // (However, the transformed URL and similar metadata in CachedResult will be
-  //  kept in cache).
-  //
-  // The default implementation returns 'false'.
-  //
-  // A subclass will change this to return 'true' if the rewrite that it makes
-  // is extremely quick, and so there is not much benefit to caching it as
-  // an output.  CacheExtender is an obvious case, since it doesn't change the
-  // bytes of the resource.
-  virtual bool ComputeOnTheFly() const;
 
   // All RewriteContexts define how they encode URLs and other
   // associated information needed for a rewrite into a URL.
@@ -176,6 +283,13 @@ class RewriteContext {
   //
   // TODO(jmarantz): remove the encoder from RewriteFilter.
   virtual const UrlSegmentEncoder* encoder() const;
+
+  // Returns the cache key that should be used to identify the input &
+  // settings for the rewrites we're representing. The default implementation
+  // just passes in the URLs through the encoder.
+  //
+  // (Filter ID will be incorporated separately)
+  virtual GoogleString CacheKey() const;
 
   // Returrns the filter ID.
   virtual const char* id() const = 0;
@@ -190,7 +304,32 @@ class RewriteContext {
   // that way too (though we don't at the moment).
   virtual OutputResourceKind kind() const = 0;
 
+  // Accessors for the nested rewrites.
+  int num_nested() const { return nested_.size(); }
+  RewriteContext* nested(int i) const { return nested_[i]; }
+
  private:
+  class OutputCacheCallback;
+  friend class OutputCacheCallback;
+  class ResourceFetchCallback;
+  friend class ResourceFetchCallback;
+
+  // Callback helper functions.
+  void Start();
+  void StartFetch();
+  void OutputCacheDone(CacheInterface::KeyState state, SharedString value);
+  void ResourceFetchDone(bool success, ResourcePtr resource, int slot_index);
+
+  // After a Rewrite is complete, writes the metadata for the rewrite
+  // operation to the cache, and runs any further rewites that are
+  // dependent on this one.
+  //
+  // If there are pending nested rewrites then this call has no
+  // effect.  Once all the nested rewrites have been accounted for via
+  // NestedRewriteDone() then Finalize can queue up its render and
+  // enable successor rewrites to proceed.
+  void Finalize();
+
   // Initiates an asynchronous fetch for the resources associated with
   // each slot, calling ResourceFetchDone() when complete.
   //
@@ -203,10 +342,10 @@ class RewriteContext {
   // the same rewrite.
   void FetchInputs(BlockingBehavior block);
 
-  // Deconstructs a URL by name and creates an output resource that
-  // corresponds to it.
-  bool CreateOutputResourceForCachedOutput(const StringPiece& url,
-                                           OutputResourcePtr* output_resource);
+  // Generally a RewriteContext is waiting for one or more
+  // asynchronous events to take place.  Activate is called
+  // to run some action to help us advance to the next state.
+  void Activate();
 
   // With all resources loaded, the rewrite can now be done, writing:
   //    The metadata into the cache
@@ -214,46 +353,39 @@ class RewriteContext {
   //    if the driver has not been detached,
   //      the url+data->rewritten_resource is written into the rewrite
   //      driver's map, for each of the URLs.
-  void FinishRewrite();
+  void StartRewrite();
   void FinishFetch();
-
-  // Collects all rewritten results and queues them for rendering into
-  // the DOM.
-  //
-  // TODO(jmarantz): This method should be made thread-safe so it can
-  // be called from a worker thread once callbacks are done or rewrites
-  // are complete.
-  void RenderPartitions(const OutputPartitions& partitions,
-                        const OutputResourceVector& outputs);
 
   // Returns 'true' if the resources are not expired.  Freshens resources
   // proactively to avoid expiration in the near future.
   bool FreshenAndCheckExpiration(const CachedResult& group);
 
+  // Determines whether the Context is in a state where it's ready to
+  // rewrite.  This requires:
+  //    - no preceding RewriteContexts in progress
+  //    - no outstanding cache lookups
+  //    - no outstanding fetches
+  //    - rewriting not already complete.
+  bool ReadyToRewrite() const;
+
+  // Activate any Rewrites that come after this one, for serializability
+  // of access to common slots.
+  void RunSuccessors();
+
+  // Writes out the partition-table into the metadata cache.  This method
+  // may call 'delete this' so it should be the last call at its call-site.
+  //
+  // It will *not* call 'delete this' if there is a live RewriteDriver,
+  // waiting for a convenient point to render the rewrites into HTML.
+  void WritePartition();
+
   // To perform a rewrite, we need to have data for all of its input slots.
   ResourceSlotVector slots_;
 
-  // The slots that have been rewritten, and thus should be rendered
-  // back into the DOM, are added back into this vector.
-  ResourceSlotVector render_slots_;
-
-  // A driver must be supplied to initiate a RewriteContext.  However, the
-  // driver may not stay around until the rewrite is complete, so we also
-  // keep track of the resource manager.  The driver_ field will be NULLed
-  // on Detach, which might happen in a different thread from various
-  // callbacks that wake up on the context.  Thus we must protect it with a
-  // mutex.
-  RewriteDriver* driver_;
-
-  // The resource_manager_ is basically thread-safe.  and does not go
-  // away until the process is shut down.  It's worth thinking about,
-  // however, what happens as the process is shut down.  Likely we'll
-  // have to track all outstanding rewrites in the resource manager as
-  // well and dissociate.
-  //
-  // TODO(jmarantz): define 'thread-safe' usage above more preciesely.
-  // TODO(jmarantz): define and test shut-down flow.
-  ResourceManager* resource_manager_;
+  // Not all of the slots require rendering from this RewriteContext.  If an
+  // optimization was deemed non-beneficial then we skip rendering the slot.
+  // So keep the slots requiring rendering in a bitvector.
+  std::vector<bool> render_slots_;
 
   // It's feasible that callbacks for different resources will be delivered
   // on different threads, thus we must protect these counters with a mutex
@@ -266,13 +398,11 @@ class RewriteContext {
   // would require a new cancellation interface from both CacheInterface and
   // UrlAsyncFetcher.
 
-  // The rewrite_options_ are duplicated from the RewriteDriver, so that
-  // rewrites can continue even if the deadline expires and the RewriteDriver
-  // is released.
-  RewriteOptions options_;
-
   bool started_;
+  scoped_ptr<OutputPartitions> partitions_;
+  OutputResourceVector outputs_;
   int outstanding_fetches_;
+  int outstanding_rewrites_;
   scoped_ptr<ResourceContext> resource_context_;
   GoogleString partition_key_;
 
@@ -287,6 +417,66 @@ class RewriteContext {
   // FetchContext so they can be used once the inputs are available.
   class FetchContext;
   scoped_ptr<FetchContext> fetch_;
+
+  // Track the RewriteContexts that must be run after this one because they
+  // share a slot.
+  std::vector<RewriteContext*> successors_;
+
+  // Track the number of nested contexts that must be completed before
+  // this one can be marked complete.  Nested contexts are typically
+  // added during the Rewrite() phase.
+  int num_pending_nested_;
+  std::vector<RewriteContext*> nested_;
+
+  // If this context is nested, the parent is the context that 'owns' it.
+  RewriteContext* parent_;
+
+  // If this context was initiated from a RewriteDriver, either due to
+  // a Resource Fetch or an HTML Rewrite, then we keep track of the
+  // RewriteDriver, and notify it when the RewriteContext is complete.
+  // That way it can stay around and 'own' all the resources associated
+  // with all the resources it spawns, directly or indirectly.
+  //
+  // Nested RewriteContexts have a null driver_ but can always get to a
+  // driver by walking up the parent tree, which we generally expect
+  // to be very shallow.
+  RewriteDriver* driver_;
+
+  // Track the number of ResourceContexts that must be run before this one.
+  int num_predecessors_;
+
+  // If true, this context's execution must follow some other context's
+  // completion (which may have occurred already).
+  bool chained_;
+
+  // TODO(jmarantz): Refactor to replace a bunch bool member variables with
+  // an explicit state_ member variable, with a set of possibilties that
+  // look something like this:
+  //
+  // enum State {
+  //   kCluster,     // Inputs are being clustered into RewriteContexts.
+  //   kLookup,      // Looking up partitions & rewritten URLs in the cache.
+  //                 //   - If successsful, skip to Render.
+  //   kFetch,       // Waiting for URL fetches to complete.
+  //   kPartition,   // Fetches complete; ready to partition into
+  //                 // OutputResources.
+  //   kRewrite,     // Partitioning complete, ready to Rewrite.
+  //   kHarvest,     // Nested RewriteContexts complete, ready to harvest
+  //                 // results.
+  //   kRender,      // Ready to render the rewrites into the DOM.
+  //   kComplete     // Ready to delete.
+  // };
+
+  // True if there is a pending lookup to the metadata cache.
+  bool cache_lookup_active_;
+
+  // True if all the rewriting is done for this context.
+  bool rewrite_done_;
+
+  // True if it's valid to write the partition table to the metadata cache.
+  // We would *not* want to do that if one of the Rewrites completed
+  // with status kTooBusy.
+  bool ok_to_write_output_partitions_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);
 };

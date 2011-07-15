@@ -29,13 +29,13 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/url_partnership.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -57,9 +57,8 @@ class RequestHeaders;
 struct ContentType;
 
 ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
-                                   const StringPiece& filter_prefix,
                                    const StringPiece& extension,
-                                   CommonFilter* filter)
+                                   RewriteFilter* filter)
     : resource_manager_(driver->resource_manager()),
       rewrite_driver_(driver),
       partnership_(driver->options()),
@@ -72,14 +71,13 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
       // Another option too is to just instantiate a ResourceNamer and a
       // hasher put in the correct ID and EXT and leave the name blank and
       // take size of that.
-      url_overhead_(filter_prefix.size() + ResourceNamer::kOverhead +
+      url_overhead_(filter->id().size() + ResourceNamer::kOverhead +
                     extension.size()),
       filter_(filter) {
   // This CHECK is here because RewriteDriver is constructed with its
   // resource_manager_ == NULL.
   // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
   CHECK(resource_manager_ != NULL);
-  filter_prefix.CopyToString(&filter_prefix_);
 }
 
 ResourceCombiner::~ResourceCombiner() {
@@ -88,14 +86,6 @@ ResourceCombiner::~ResourceCombiner() {
 
 TimedBool ResourceCombiner::AddResource(const StringPiece& url,
                                         MessageHandler* handler) {
-  // Assert the sanity of three parallel vectors.
-  CHECK_EQ(num_urls(), static_cast<int>(resources_.size()));
-  CHECK_EQ(num_urls(), static_cast<int>(multipart_encoder_urls_.size()));
-  if (num_urls() == 0) {
-    // Make sure to initialize the base URL.
-    Reset();
-  }
-
   // See if we have the source loaded, or start loading it
   // TODO(morlovich) this may not always be desirable.
   //    we want to do this if we can't combine due to URL limits,
@@ -125,6 +115,21 @@ TimedBool ResourceCombiner::AddResource(const StringPiece& url,
     return ret;
   }
 
+  return AddResourceNoFetch(resource, handler);
+}
+
+TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
+                                               MessageHandler* handler) {
+  TimedBool ret = {0, false};
+
+  // Assert the sanity of three parallel vectors.
+  CHECK_EQ(num_urls(), static_cast<int>(resources_.size()));
+  CHECK_EQ(num_urls(), static_cast<int>(multipart_encoder_urls_.size()));
+  if (num_urls() == 0) {
+    // Make sure to initialize the base URL.
+    Reset();
+  }
+
   // From here on out, the answer will not change until the resource itself
   // does.
   ret.expiration_ms = resource->CacheExpirationTimeMs();
@@ -137,7 +142,7 @@ TimedBool ResourceCombiner::AddResource(const StringPiece& url,
   }
 
   // Now manage the URL and policy.
-  bool added = partnership_.AddUrl(url, handler);
+  bool added = partnership_.AddUrl(resource->url(), handler);
 
   if (added) {
     int index = num_urls() - 1;
@@ -248,8 +253,8 @@ OutputResourcePtr ResourceCombiner::Combine(const ContentType& content_type,
   // not committed to the combination, because the 'write' can fail.
   // TODO(jmaessen, jmarantz): encode based on partnership
   combination.reset(rewrite_driver_->CreateOutputResourceWithPath(
-      ResolvedBase(), filter_prefix_, url_safe_id, &content_type,
-      kRewrittenResource));
+      ResolvedBase(), filter_->id(), url_safe_id, &content_type,
+      kRewrittenResource, filter_->HasAsyncFlow()));
   if (combination.get() != NULL) {
     if (combination->cached_result() != NULL &&
         combination->cached_result()->optimizable()) {
@@ -380,11 +385,11 @@ class AggregateCombiner {
             combination_->IsWritten() &&
             ((writer_ == NULL) ||
              writer_->Write(combination_->contents(), message_handler_)));
-      // Above code fills in combination_->metadata(); now propagate to
+      // Above code fills in combination_->response_headers(); now propagate to
       // response_headers_.
     }
     if (ok) {
-      response_headers_->CopyFrom(*combination_->metadata());
+      response_headers_->CopyFrom(*combination_->response_headers());
     } else if (emit_done_) {
       // we can only safely touch response_headers_ if we can emit
       // Done() safely.

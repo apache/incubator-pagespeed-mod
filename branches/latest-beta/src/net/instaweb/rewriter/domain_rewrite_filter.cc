@@ -17,8 +17,8 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
-
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
@@ -54,11 +54,17 @@ void DomainRewriteFilter::Initialize(Statistics* statistics) {
 }
 
 void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
+  // Disable domain_rewrite for img is ModPagespeedDisableForBots is on
+  // and the user-agent is a bot.
+  if (element->keyword() == HtmlName::kImg &&
+      driver_->ShouldNotRewriteImages()) {
+    return;
+  }
   HtmlElement::Attribute* attr = tag_scanner_.ScanElement(element);
   if (attr != NULL) {
     StringPiece val(attr->value());
     GoogleString rewritten_val;
-    if (Rewrite(val, &rewritten_val)) {
+    if (Rewrite(val, driver_->base_url(), &rewritten_val)) {
       attr->SetValue(rewritten_val);
       rewrite_count_->Add(1);
     }
@@ -67,12 +73,13 @@ void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
 
 // Resolve the url we want to rewrite, and then shard as appropriate.
 bool DomainRewriteFilter::Rewrite(const StringPiece& url_to_rewrite,
+                                  const GoogleUrl& base_url,
                                   GoogleString* rewritten_url) {
   if (url_to_rewrite.empty() || !BaseUrlIsValid()) {
     return false;
   }
 
-  GoogleUrl orig_url(driver_->base_url(), url_to_rewrite);
+  GoogleUrl orig_url(base_url, url_to_rewrite);
   StringPiece orig_spec = orig_url.Spec();
   const RewriteOptions* options = driver_->options();
   if (!orig_url.is_valid() || !orig_url.is_standard() ||
@@ -100,7 +107,7 @@ bool DomainRewriteFilter::Rewrite(const StringPiece& url_to_rewrite,
   const DomainLawyer* lawyer = options->domain_lawyer();
   GoogleString mapped_domain_name;
   GoogleUrl resolved_request;
-  if (!lawyer->MapRequestToDomain(driver_->base_url(), url_to_rewrite,
+  if (!lawyer->MapRequestToDomain(base_url, url_to_rewrite,
                                   &mapped_domain_name, &resolved_request,
                                   driver_->message_handler())) {
     return false;
@@ -112,7 +119,7 @@ bool DomainRewriteFilter::Rewrite(const StringPiece& url_to_rewrite,
   uint32 int_hash = HashString<CasePreserve, uint32>(
       rewritten_url->data(), rewritten_url->size());
   if (lawyer->ShardDomain(domain, int_hash, &shard)) {
-    *rewritten_url = StrCat(shard, resolved_request.Path().substr(1));
+    *rewritten_url = StrCat(shard, resolved_request.PathAndLeaf().substr(1));
   }
 
   // Return true if really changed the url with this rewrite.

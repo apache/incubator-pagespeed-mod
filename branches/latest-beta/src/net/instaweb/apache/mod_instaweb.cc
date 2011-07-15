@@ -30,13 +30,14 @@
 #include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/instaweb_handler.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/version.h"
 #include "net/instaweb/public/global_constants.h"
+#include "net/instaweb/rewriter/public/mem_clean_up.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/query_params.h"
@@ -76,6 +77,7 @@ namespace {
 const char* kModPagespeed = "ModPagespeed";
 const char* kModPagespeedAllow = "ModPagespeedAllow";
 const char* kModPagespeedBeaconUrl = "ModPagespeedBeaconUrl";
+const char* kModPagespeedDisableForBots = "ModPagespeedDisableForBots";
 const char* kModPagespeedCombineAcrossPaths = "ModPagespeedCombineAcrossPaths";
 const char* kModPagespeedCssInlineMaxBytes = "ModPagespeedCssInlineMaxBytes";
 const char* kModPagespeedCssOutlineMinBytes = "ModPagespeedCssOutlineMinBytes";
@@ -108,6 +110,7 @@ const char* kModPagespeedJsOutlineMinBytes = "ModPagespeedJsOutlineMinBytes";
 const char* kModPagespeedLRUCacheByteLimit = "ModPagespeedLRUCacheByteLimit";
 const char* kModPagespeedLRUCacheKbPerProcess =
     "ModPagespeedLRUCacheKbPerProcess";
+const char* kModPagespeedLoadFromFile = "ModPagespeedLoadFromFile";
 const char* kModPagespeedLogRewriteTiming = "ModPagespeedLogRewriteTiming";
 const char* kModPagespeedLowercaseHtmlNames = "ModPagespeedLowercaseHtmlNames";
 const char* kModPagespeedMapOriginDomain = "ModPagespeedMapOriginDomain";
@@ -124,6 +127,7 @@ const char* kModPagespeedSlurpReadOnly = "ModPagespeedSlurpReadOnly";
 const char* kModPagespeedStatistics = "ModPagespeedStatistics";
 const char* kModPagespeedTestProxy = "ModPagespeedTestProxy";
 const char* kModPagespeedUrlPrefix = "ModPagespeedUrlPrefix";
+const char* kModPagespeedRespectVary = "ModPagespeedRespectVary";
 
 // TODO(jmarantz): determine the version-number from SVN at build time.
 const char kModPagespeedVersion[] = MOD_PAGESPEED_VERSION_STRING "-"
@@ -238,6 +242,16 @@ bool ScanQueryParamsForRewriterOptions(RewriteDriverFactory* factory,
                          "(should be on or off)", name, value->c_str());
         ret = false;
       }
+    } else if (strcmp(name, kModPagespeedDisableForBots) == 0) {
+      bool is_on = (value->compare("on") == 0);
+      if (is_on || (value->compare("off") == 0)) {
+        options->set_botdetect_enabled(is_on);
+        ++option_count;
+      } else {
+        handler->Message(kWarning, "Invalid value for %s: %s "
+                         "(should be on or off)", name, value->c_str());
+        ret = false;
+      }
     } else if (strcmp(name, kModPagespeedFilters) == 0) {
       // When using ModPagespeedFilters query param, only the
       // specified filters should be enabled.
@@ -291,7 +305,6 @@ class ApacheProcessContext {
     STLDeleteElements(&factories_);
     STLDeleteElements(&configs_);
     statistics_.reset(NULL);
-    ApacheRewriteDriverFactory::Terminate();
     log_message_handler::ShutDown();
   }
 
@@ -395,6 +408,9 @@ class ApacheProcessContext {
   // to actual config parse + startup without ~ApacheProcessContext being
   // called.
   bool all_factories_cleared_;
+
+  // Process-scoped static variable cleanups, mainly for valgrind.
+  MemCleanUp mem_cleanup_;
 };
 ApacheProcessContext apache_process_context;
 
@@ -688,14 +704,37 @@ void pagespeed_child_init(apr_pool_t* pool, server_rec* server) {
   }
 }
 
-// Gives permissions to given directory to the UID/GID Apache will morph to
-void give_apache_user_permissions(ApacheRewriteDriverFactory* factory,
-                                  const StringPiece& path) {
-  if (chown(path.as_string().c_str(), unixd_config.user_id,
+void give_dir_apache_user_permissions(ApacheRewriteDriverFactory* factory,
+                                      const GoogleString& path) {
+  // (Apache will not switch from current euid if it's not root --- see
+  //  http://httpd.apache.org/docs/2.2/mod/mpm_common.html#user).
+  if (geteuid() != 0) {
+    return;
+  }
+
+  // .user_id, .group_id default to -1 if they haven't been parsed yet.
+  if ((unixd_config.user_id == 0) ||
+      (unixd_config.user_id == static_cast<uid_t>(-1)) ||
+      (unixd_config.group_id == 0) ||
+      (unixd_config.group_id == static_cast<gid_t>(-1))) {
+    return;
+  }
+
+  if (chown(path.c_str(), unixd_config.user_id,
             unixd_config.group_id) != 0) {
     factory->message_handler()->Message(
         kError, "Unable to set proper ownership of %s (%s)",
-        path.as_string().c_str(), strerror(errno));
+        path.c_str(), strerror(errno));
+  }
+}
+
+// If we are running as root, hands over the ownership of data directories
+// we made to the eventual Apache uid/gid.
+void give_apache_user_permissions(ApacheRewriteDriverFactory* factory) {
+  const StringSet& created_dirs = factory->created_directories();
+  for (StringSet::iterator i = created_dirs.begin();
+       i != created_dirs.end(); ++i) {
+    give_dir_apache_user_permissions(factory, *i);
   }
 }
 
@@ -732,21 +771,6 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
         factory->message_handler()->Message(kError, "%s", buf.c_str());
         return HTTP_INTERNAL_SERVER_ERROR;
       }
-
-      // If we are running as root, hand over the ownership of data directories
-      // we made to the eventual Apache uid/gid.
-      // (Apache will not switch from current euid otherwise --- see
-      //  http://httpd.apache.org/docs/2.2/mod/mpm_common.html#user).
-      if (geteuid() == 0 &&
-          ((unixd_config.user_id != 0) || (unixd_config.group_id != 0))) {
-        if (factory->filename_prefix_created()) {
-          give_apache_user_permissions(factory, factory->filename_prefix());
-        }
-
-        if (factory->file_cache_path_created()) {
-          give_apache_user_permissions(factory, factory->file_cache_path());
-        }
-      }
     }
 
     // See if we need a statistics object. We may need that even when
@@ -754,6 +778,15 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
     if (factory->statistics_enabled() && (statistics == NULL)) {
       statistics = apache_process_context.InitStatistics(factory);
     }
+
+    // chown any directories we created. We may have to do it here in
+    // post_config since we may not have our user/group yet during parse
+    // (example: Fedora 11).
+    //
+    // We also have to do it during the parse, however, since if we're started
+    // to /just/ check the config with -t (as opposed to doing it as a
+    // preliminary for a proper startup) we won't get a post_config!
+    give_apache_user_permissions(factory);
   }
   // Next we do the instance-independent static initialization, once we have
   // established whether *any* of the servers have stats enabled.
@@ -948,6 +981,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     options->Allow(arg);
   } else if (StringCaseEqual(directive, kModPagespeedBeaconUrl)) {
     options->set_beacon_url(arg);
+  } else if (StringCaseEqual(directive, kModPagespeedDisableForBots)) {
+    ret = ParseBoolOption(options, cmd,
+                          &RewriteOptions::set_botdetect_enabled, arg);
   } else if (StringCaseEqual(directive, kModPagespeedCombineAcrossPaths)) {
     ret = ParseBoolOption(options, cmd,
                           &RewriteOptions::set_combine_across_paths, arg);
@@ -980,7 +1016,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
         cmd, &ApacheRewriteDriverFactory::set_file_cache_clean_interval_ms,
         arg);
   } else if (StringCaseEqual(directive, kModPagespeedFileCachePath)) {
-    if (!factory->set_file_cache_path(arg)) {
+    if (factory->set_file_cache_path(arg)) {
+      give_apache_user_permissions(factory);
+    } else {
       ret = apr_pstrcat(cmd->pool, "Directory ", arg,
                         " does not exist and can't be created.", NULL);
     }
@@ -991,7 +1029,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     ret = ParseBoolOption(static_cast<RewriteDriverFactory*>(factory),
         cmd, &ApacheRewriteDriverFactory::set_force_caching, arg);
   } else if (StringCaseEqual(directive, kModPagespeedGeneratedFilePrefix)) {
-    if (!factory->set_filename_prefix(arg)) {
+    if (factory->set_filename_prefix(arg)) {
+      give_apache_user_permissions(factory);
+    } else {
       ret = apr_pstrcat(cmd->pool, "Directory ", arg,
                         " does not exist and can't be created.", NULL);
     }
@@ -1033,6 +1073,9 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     // TODO(sligocki): Convert to ParseInt64Option for consistency?
     ret = ParseIntOption(options,
         cmd, &RewriteOptions::set_max_url_segment_size, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedRespectVary)) {
+    ret = ParseBoolOption(options, cmd,
+                          &RewriteOptions::set_respect_vary, arg);
   } else if (StringCaseEqual(directive, kModPagespeedNumShards)) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
   } else if (StringCaseEqual(directive, kModPagespeedRetainComment)) {
@@ -1079,7 +1122,11 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
   RewriteOptions* options = CmdOptions(cmd, data);
   const char* directive = cmd->directive->directive;
   const char* ret = NULL;
-  if (StringCaseEqual(directive, kModPagespeedMapRewriteDomain)) {
+  if (StringCaseEqual(directive, kModPagespeedLoadFromFile)) {
+    // TODO(sligocki): Only allow relative file paths below DocumentRoot.
+    // TODO(sligocki): Perhaps merge with ModPagespeedMapOriginDomain.
+    options->file_load_policy()->Associate(arg1, arg2);
+  } else if (StringCaseEqual(directive, kModPagespeedMapRewriteDomain)) {
     options->domain_lawyer()->AddRewriteDomainMapping(
         arg1, arg2, factory->message_handler());
   } else if (StringCaseEqual(directive, kModPagespeedMapOriginDomain)) {
@@ -1137,6 +1184,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "wildcard_spec for urls"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedBeaconUrl,
         "URL for beacon callback injected by add_instrumentation."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedDisableForBots,
+        "Disable mod_pagespeed for bots."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCombineAcrossPaths,
         "Allow combining resources from different paths"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssInlineMaxBytes,
@@ -1170,6 +1219,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Base level of rewriting (PassThrough, CoreFilters)"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedStatistics,
         "Whether to collect cross-process statistics."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRespectVary,
+        "Whether to respect the Vary header."),
 
   // All one parameter options that can only be specified at the server level.
   // (Not in <Directory> blocks.)
@@ -1215,6 +1266,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_OPTION(kModPagespeedUrlPrefix, "Set the url prefix"),
 
   // All two parameter options that are allowed in <Directory> blocks.
+  APACHE_CONFIG_DIR_OPTION2(kModPagespeedLoadFromFile,
+        "url_prefix filename_prefix"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
         "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,

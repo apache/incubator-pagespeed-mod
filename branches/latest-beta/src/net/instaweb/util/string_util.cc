@@ -33,7 +33,7 @@ void SplitStringPieceToVector(const StringPiece& sp, const char* separator,
   size_t prev_pos = 0;
   size_t pos = 0;
   StringPiece sep(separator);
-  while ((pos = sp.find(sep, pos)) != StringPiece::npos) {
+  while ((pos = sp.find_first_of(sep, pos)) != StringPiece::npos) {
     if (!omit_empty_strings || (pos > prev_pos)) {
       components->push_back(sp.substr(prev_pos, pos - prev_pos));
     }
@@ -178,6 +178,19 @@ void ParseShellLikeString(const StringPiece& input,
 bool HasPrefixString(const StringPiece& str, const StringPiece& prefix) {
   return ((str.size() >= prefix.size()) &&
           (str.substr(0, prefix.size()) == prefix));
+}
+
+// In-place StringPiece whitespace trimming.  This mutates the StringPiece.
+void TrimWhitespace(StringPiece* str) {
+  while (str->size() && isspace(str->data()[0])) {
+    str->remove_prefix(1);
+  }
+
+  int size = str->size();
+  while (size && isspace(str->data()[size - 1])) {
+    str->remove_suffix(1);
+    size = str->size();
+  }
 }
 
 // ----------------------------------------------------------------------

@@ -23,6 +23,7 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -37,7 +38,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_writer.h"
 #include "net/instaweb/util/public/filename_encoder.h"
@@ -85,11 +85,13 @@ OutputResource::OutputResource(ResourceManager* resource_manager,
     : Resource(resource_manager, type),
       output_file_(NULL),
       writing_complete_(false),
+      locked_(false),
       cached_result_owned_(false),
       cached_result_(NULL),
       resolved_base_(resolved_base.data(), resolved_base.size()),
       rewrite_options_(options),
-      kind_(kind) {
+      kind_(kind),
+      written_using_rewrite_context_flow_(false) {
   full_name_.CopyFrom(full_name);
   if (type == NULL) {
     GoogleString ext_with_dot = StrCat(".", full_name.ext());
@@ -134,7 +136,8 @@ OutputResource::OutputWriter* OutputResource::BeginWrite(
     if (success) {
       GoogleString header;
       StringWriter string_writer(&header);
-      meta_data_.WriteAsHttp(&string_writer, handler);  // Serialize header.
+      // Serialize headers.
+      response_headers_.WriteAsHttp(&string_writer, handler);
       // It does not make sense to have the headers in the hash.
       // call output_file_->Write directly, rather than going through
       // OutputWriter.
@@ -155,7 +158,7 @@ OutputResource::OutputWriter* OutputResource::BeginWrite(
 
 bool OutputResource::EndWrite(OutputWriter* writer, MessageHandler* handler) {
   CHECK(!writing_complete_);
-  value_.SetHeaders(&meta_data_);
+  value_.SetHeaders(&response_headers_);
   Hasher* hasher = resource_manager_->hasher();
   full_name_.set_hash(hasher->Hash(contents()));
   writing_complete_ = true;
@@ -184,6 +187,7 @@ bool OutputResource::EndWrite(OutputWriter* writer, MessageHandler* handler) {
     // We've created the data, never need to lock again.
     creation_lock_->Unlock();
     creation_lock_.reset(NULL);
+    locked_ = false;
   }
   return ret;
 }
@@ -232,6 +236,7 @@ GoogleString OutputResource::url() const {
   GoogleString encoded(full_name_.Encode());
   if (rewrite_options_ != NULL) {
     StringPiece hash = full_name_.hash();
+    DCHECK(!hash.empty());
     uint32 int_hash = HashString<CasePreserve, uint32>(
         hash.data(), hash.size());
     const DomainLawyer* lawyer = rewrite_options_->domain_lawyer();
@@ -243,7 +248,7 @@ GoogleString OutputResource::url() const {
       // make them all fit together.  Note that we could have used
       // string's substr method but that would have made another temp
       // copy, which seems like a waste.
-      shard_path = StrCat(shard, gurl.Path().substr(1));
+      shard_path = StrCat(shard, gurl.PathAndLeaf().substr(1));
     }
   }
   if (shard_path.empty()) {
@@ -271,16 +276,16 @@ bool OutputResource::Load(MessageHandler* handler) {
       int nread = 0, num_consumed = 0;
       // TODO(jmarantz): this logic is duplicated in util/wget_url_fetcher.cc,
       // consider a refactor to merge it.
-      meta_data_.Clear();
+      response_headers_.Clear();
       value_.Clear();
 
       // TODO(jmarantz): convert to binary headers
-      ResponseHeadersParser parser(&meta_data_);
+      ResponseHeadersParser parser(&response_headers_);
       while (!parser.headers_complete() &&
              ((nread = file->Read(buf, sizeof(buf), handler)) != 0)) {
         num_consumed = parser.ParseChunk(StringPiece(buf, nread), handler);
       }
-      value_.SetHeaders(&meta_data_);
+      value_.SetHeaders(&response_headers_);
       writing_complete_ = value_.Write(
           StringPiece(buf + num_consumed, nread - num_consumed),
           handler);
@@ -306,7 +311,11 @@ void OutputResource::SetType(const ContentType* content_type) {
 }
 
 bool OutputResource::LockForCreation(BlockingBehavior block) {
-  return resource_manager_->LockForCreation(name_key(), block, &creation_lock_);
+  if (!locked_ &&
+      resource_manager_->LockForCreation(name_key(), block, &creation_lock_)) {
+    locked_ = true;
+  }
+  return locked_;
 }
 
 void OutputResource::SaveCachedResult(const GoogleString& name_key,
@@ -338,6 +347,9 @@ void OutputResource::SaveCachedResult(const GoogleString& name_key,
 
 void OutputResource::FetchCachedResult(const GoogleString& name_key,
                                        MessageHandler* handler) {
+  if (written_using_rewrite_context_flow_) {
+    return;
+  }
   bool ok = false;
   CacheInterface* cache = resource_manager_->metadata_cache();
   clear_cached_result();
@@ -378,6 +390,25 @@ void OutputResource::FetchCachedResult(const GoogleString& name_key,
   if (!ok) {
     clear_cached_result();
   }
+}
+
+CachedResult* OutputResource::EnsureCachedResultCreated() {
+  if (cached_result_ == NULL) {
+    clear_cached_result();
+    cached_result_ = new CachedResult();
+    cached_result_owned_ = true;
+  } else {
+    DCHECK(!cached_result_->frozen()) << "Cannot mutate frozen cached result";
+  }
+  return cached_result_;
+}
+
+void OutputResource::clear_cached_result() {
+  if (cached_result_owned_) {
+    delete cached_result_;
+    cached_result_owned_ = false;
+  }
+  cached_result_ = NULL;
 }
 
 }  // namespace net_instaweb

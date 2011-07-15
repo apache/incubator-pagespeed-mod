@@ -63,6 +63,18 @@ template<class Proto> class Headers {
   // Adds a new header, even if a header with the 'name' exists already.
   virtual void Add(const StringPiece& name, const StringPiece& value);
 
+  // Remove headers by name and value. Return true if anything was removed.
+  // Note: If the original headers were:
+  // attr: val1
+  // attr: val2
+  // attr: val3
+  // and you Remove(attr, val2), your new headers will be:
+  // attr: val1, val3 (if attr is a comma-separated field)
+  // and -
+  // attr: val1
+  // attr: val3 (otherwise).
+  virtual bool Remove(const StringPiece& name, const StringPiece& value);
+
   // Remove all headers by name.  Return true if anything was removed.
   virtual bool RemoveAll(const StringPiece& name);
 
@@ -89,7 +101,7 @@ template<class Proto> class Headers {
   virtual bool WriteAsHttp(Writer* writer, MessageHandler* handler) const;
 
  protected:
-  void PopulateMap() const;  // the 'const' is a lie -- it mutates map_.
+  void PopulateMap() const;  // const is a lie, mutates map_.
 
   // We have two represenations for the name/value pairs.  The
   // HttpResponseHeader protobuf contains a simple string-pair vector, but
@@ -100,6 +112,18 @@ template<class Proto> class Headers {
   scoped_ptr<Proto> proto_;
 
  private:
+  bool IsCommaSeparatedField(const StringPiece& name) const;
+
+  // If name is a comma-separated field (above), then split value at commas,
+  // and add name, val for each of the comma-separated values
+  // (removing whitespace and commas).
+  // Otherwise, add the name, value pair to the map_.
+  // const is a lie
+  // NOTE: the map will contain the comma-split values, but the protobuf
+  // will contain the original pairs including comma-separated values.
+  void AddToMap(const StringPiece& name, const StringPiece& value) const;
+
+
   DISALLOW_COPY_AND_ASSIGN(Headers);
 };
 

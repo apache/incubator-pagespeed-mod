@@ -18,19 +18,31 @@
 
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 
+#include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/data_url.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
+
+// data: URLs never expire. So we only check that it was decoded correctly.
+bool DataUrlInputResource::IsValidAndCacheable() {
+  return response_headers_.status_code() == HttpStatus::kOK;
+}
+
+void DataUrlInputResource::FillInPartitionInputInfo(InputInfo* input) {
+  input->set_type(InputInfo::ALWAYS_VALID);
+}
 
 bool DataUrlInputResource::Load(MessageHandler* message_handler) {
   if (DecodeDataUrlContent(encoding_, encoded_contents_,
                            &decoded_contents_) &&
       value_.Write(decoded_contents_, message_handler)) {
-    resource_manager_->SetDefaultHeaders(type_, &meta_data_);
-    value_.SetHeaders(&meta_data_);
+    // TODO(sligocki): Should we be doing this?
+    resource_manager_->SetDefaultLongCacheHeaders(type_, &response_headers_);
+    value_.SetHeaders(&response_headers_);
   }
   return loaded();
 }

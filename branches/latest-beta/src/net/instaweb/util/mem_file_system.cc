@@ -102,15 +102,35 @@ class MemOutputFile : public FileSystem::OutputFile {
   DISALLOW_COPY_AND_ASSIGN(MemOutputFile);
 };
 
+MemFileSystem::MemFileSystem(MockTimer* timer)
+    : enabled_(true),
+      timer_(timer),
+      temp_file_index_(0),
+      atime_enabled_(true),
+      advance_time_on_update_(false) {
+  ClearStats();
+}
+
 MemFileSystem::~MemFileSystem() {
 }
 
 void MemFileSystem::UpdateAtime(const StringPiece& path) {
   if (atime_enabled_) {
-    int64 now_us = timer_.NowUs();
+    int64 now_us = timer_->NowUs();
     int64 now_s = now_us / Timer::kSecondUs;
-    timer_.advance_us(Timer::kSecondUs);
+    if (advance_time_on_update_) {
+      timer_->AdvanceUs(Timer::kSecondUs);
+    }
     atime_map_[path.as_string()] = now_s;
+  }
+}
+
+void MemFileSystem::UpdateMtime(const StringPiece& path) {
+  // TODO(sligocki): Rename this to account for broader use.
+  if (atime_enabled_) {
+    int64 now_us = timer_->NowUs();
+    int64 now_s = now_us / Timer::kSecondUs;
+    mtime_map_[path.as_string()] = now_s;
   }
 }
 
@@ -134,11 +154,13 @@ bool MemFileSystem::MakeDir(const char* path, MessageHandler* handler) {
   EnsureEndsInSlash(&path_string);
   string_map_[path_string] = "";
   UpdateAtime(path_string);
+  UpdateMtime(path_string);
   return true;
 }
 
 FileSystem::InputFile* MemFileSystem::OpenInputFile(
     const char* filename, MessageHandler* message_handler) {
+  ++num_input_file_opens_;
   if (!enabled_) {
     return NULL;
   }
@@ -157,6 +179,8 @@ FileSystem::InputFile* MemFileSystem::OpenInputFile(
 FileSystem::OutputFile* MemFileSystem::OpenOutputFileHelper(
     const char* filename, MessageHandler* message_handler) {
   UpdateAtime(filename);
+  UpdateMtime(filename);
+  ++num_output_file_opens_;
   return new MemOutputFile(filename, &(string_map_[filename]));
 }
 
@@ -164,6 +188,8 @@ FileSystem::OutputFile* MemFileSystem::OpenTempFileHelper(
     const StringPiece& prefix, MessageHandler* message_handler) {
   GoogleString filename = StringPrintf("tmpfile%d", temp_file_index_++);
   UpdateAtime(filename);
+  UpdateMtime(filename);
+  ++num_temp_file_opens_;
   return new MemOutputFile(filename, &string_map_[filename]);
 }
 
@@ -227,8 +253,14 @@ bool MemFileSystem::ListContents(const StringPiece& dir, StringVector* files,
 }
 
 bool MemFileSystem::Atime(const StringPiece& path, int64* timestamp_sec,
-                            MessageHandler* handler) {
+                          MessageHandler* handler) {
   *timestamp_sec = atime_map_[path.as_string()];
+  return true;
+}
+
+bool MemFileSystem::Mtime(const StringPiece& path, int64* timestamp_sec,
+                          MessageHandler* handler) {
+  *timestamp_sec = mtime_map_[path.as_string()];
   return true;
 }
 
@@ -250,7 +282,7 @@ BoolOrError MemFileSystem::TryLock(const StringPiece& lock_name,
   if (lock_map_.count(lock_name.as_string()) != 0) {
     return BoolOrError(false);
   } else {
-    lock_map_[lock_name.as_string()] = timer_.NowMs();
+    lock_map_[lock_name.as_string()] = timer_->NowMs();
     return BoolOrError(true);
   }
 }
@@ -261,12 +293,12 @@ BoolOrError MemFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
   // As above, not actually threadsafe (and quick-and-dirty rather than
   // efficient; efficiency requires map::find).
   GoogleString name = lock_name.as_string();
-  int64 now = timer_.NowMs();
+  int64 now = timer_->NowMs();
   if (lock_map_.count(name) != 0 &&
       now <= lock_map_[name] + timeout_ms) {
     return BoolOrError(false);
   } else {
-    lock_map_[name] = timer_.NowMs();
+    lock_map_[name] = timer_->NowMs();
     return BoolOrError(true);
   }
 }

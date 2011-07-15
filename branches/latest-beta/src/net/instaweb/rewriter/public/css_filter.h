@@ -21,10 +21,17 @@
 
 #include <vector>
 
-#include "net/instaweb/rewriter/public/css_image_rewriter.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/public/css_resource_slot.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
+#include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -36,15 +43,15 @@ class Stylesheet;
 
 namespace net_instaweb {
 
+class CssImageRewriter;
+class CssImageRewriterAsync;
 class CacheExtender;
-class GoogleUrl;
 class HtmlCharactersNode;
-class HtmlElement;
 class ImageCombineFilter;
 class ImageRewriteFilter;
 class MessageHandler;
-class OutputResource;
-class Resource;
+class OutputPartitions;
+class RewriteContext;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -61,12 +68,15 @@ class Variable;
 // It does not consider style= attributes on arbitrary elements.
 class CssFilter : public RewriteSingleResourceFilter {
  public:
+  class Context;
+
   CssFilter(RewriteDriver* driver, const StringPiece& filter_prefix,
             // TODO(sligocki): Temporary pattern until we figure out a better
             // way to do this without passing all filters around everywhere.
             CacheExtender* cache_extender,
             ImageRewriteFilter* image_rewriter,
             ImageCombineFilter* image_combiner);
+  virtual ~CssFilter();
 
   static void Initialize(Statistics* statistics);
   static void Terminate();
@@ -88,11 +98,29 @@ class CssFilter : public RewriteSingleResourceFilter {
   static const char kMinifiedBytesSaved[];
   static const char kParseFailures[];
 
+ protected:
+  virtual bool HasAsyncFlow() const;
+  virtual RewriteContext* MakeRewriteContext();
+
  private:
-  TimedBool RewriteCssText(const StringPiece& in_text, GoogleString* out_text,
+  friend class Context;
+  Context* MakeContext();
+
+  TimedBool RewriteCssText(Context* context,
                            const GoogleUrl& css_gurl,
+                           const StringPiece& in_text,
+                           GoogleString* out_text,
                            MessageHandler* handler);
   bool RewriteExternalCss(const StringPiece& in_url, GoogleString* out_url);
+
+  // Tries to write out a (potentially edited) stylesheet out to out_text,
+  // and returns whether we should consider the result as an improvement.
+  bool SerializeCss(int64 in_text_size,
+                    const Css::Stylesheet* stylesheet,
+                    const GoogleUrl& css_gurl,
+                    bool previously_optimized,
+                    GoogleString* out_text,
+                    MessageHandler* handler);
 
   virtual RewriteResult RewriteLoadedResource(
       const ResourcePtr& input_resource,
@@ -110,7 +138,12 @@ class CssFilter : public RewriteSingleResourceFilter {
   HtmlElement* style_element_;  // The element we are in.
   HtmlCharactersNode* style_char_node_;  // The single character node in style.
 
-  CssImageRewriter image_rewriter_;
+  scoped_ptr<CssImageRewriter> image_rewriter_;
+
+  // Filters we delegate to.
+  CacheExtender* cache_extender_;
+  ImageRewriteFilter* image_rewrite_filter_;
+  ImageCombineFilter* image_combiner_;
 
   // Statistics
   Variable* num_files_minified_;
@@ -118,6 +151,70 @@ class CssFilter : public RewriteSingleResourceFilter {
   Variable* num_parse_failures_;
 
   DISALLOW_COPY_AND_ASSIGN(CssFilter);
+};
+
+// Context used by CssFilter under async flow.
+class CssFilter::Context : public SingleRewriteContext {
+ public:
+  Context(CssFilter* filter, RewriteDriver* driver,
+          CacheExtender* cache_extender,
+          ImageRewriteFilter* image_rewriter,
+          ImageCombineFilter* image_combiner);
+  virtual ~Context();
+
+  // Starts the asynchronous rewrite process for inline CSS inside
+  // given style_element, with text in text.
+  // Takes over the ownership of 'this'.
+  void StartInlineRewrite(HtmlElement* style_element, HtmlCharactersNode* text);
+
+  // Starts the asynchronous rewrite process for external CSS reference to
+  // by attribute 'src' of 'link'.
+  // Takes over the ownership of 'this'
+  void StartExternalRewrite(HtmlElement* link, HtmlElement::Attribute* src);
+
+  // Starts nested rewrite jobs for any images contained in the CSS.
+  void RewriteImages(int64 in_text_size, Css::Stylesheet* stylesheet);
+
+  // Registers a context that was started on our behalf.
+  void RegisterNested(RewriteContext* nested);
+
+  CssResourceSlotFactory* slot_factory() { return &slot_factory_; }
+
+ protected:
+  virtual void Render();
+  virtual void Harvest();
+  virtual bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs);
+  virtual void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output);
+  virtual const char* id() const { return filter_->id().c_str(); }
+  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
+  virtual GoogleString CacheKey() const;
+
+ private:
+  CssFilter* filter_;
+  RewriteDriver* driver_;
+  scoped_ptr<CssImageRewriterAsync> image_rewriter_;
+  CssResourceSlotFactory slot_factory_;
+
+  // If this is true, the image_rewriter_ has asked us to start nested rewrites.
+  bool have_nested_rewrites_;
+
+  // Style element containing inline CSS, or NULL if we're rewriting external
+  // stuff.
+  HtmlElement* rewrite_inline_element_;
+
+  // Node with inline CSS to rewrite, or NULL if we're rewriting external stuff.
+  HtmlCharactersNode* rewrite_inline_char_node_;
+
+  // Information needed for nested rewrites or finishing up serialization.
+  int64 in_text_size_;
+  scoped_ptr<Css::Stylesheet> stylesheet_;
+  GoogleUrl css_base_gurl_;
+  ResourcePtr input_resource_;
+  OutputResourcePtr output_resource_;
+
+  DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
 }  // namespace net_instaweb

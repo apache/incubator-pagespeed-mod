@@ -1,4 +1,4 @@
-// Copyright 2010 Google Inc. All Rights Reserved.
+// Copyright 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,33 +11,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Author: jmarantz@google.com (Joshua Marantz)
 
-#ifndef NET_INSTAWEB_UTIL_PUBLIC_USER_AGENT_H_
-#define NET_INSTAWEB_UTIL_PUBLIC_USER_AGENT_H_
-
-#include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/scheduler.h"
+#include "net/instaweb/util/public/basictypes.h"        // for int64
+#include "net/instaweb/util/public/condvar.h"
 
 namespace net_instaweb {
 
-class UserAgent {
- public:
-  UserAgent();
-  void set_user_agent(const char* user_agent);
+Scheduler::Scheduler(ThreadSystem* thread_system)
+    : thread_system_(thread_system),
+      mutex_(thread_system->NewMutex()),
+      condvar_(mutex_->NewCondvar()) {
+}
 
-  bool IsIe() const;
-  bool IsIe6() const;
-  bool IsIe7() const;
-  bool IsIe6or7() const {
-    return IsIe6() || IsIe7();
-  };
+Scheduler::~Scheduler() {
+}
 
- private:
-  GoogleString user_agent_;
-
-  DISALLOW_COPY_AND_ASSIGN(UserAgent);
-};
+void Scheduler::TimedWait(int64 timeout_ms) {
+  return condvar_->TimedWait(timeout_ms);
+}
 
 }  // namespace net_instaweb
-
-#endif  // NET_INSTAWEB_UTIL_PUBLIC_USER_AGENT_H_

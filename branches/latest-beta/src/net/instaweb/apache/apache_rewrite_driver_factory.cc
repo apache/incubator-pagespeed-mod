@@ -17,6 +17,7 @@
 #include "apr_pools.h"
 
 #include "net/instaweb/apache/apache_message_handler.h"
+#include "net/instaweb/apache/apache_thread_system.h"
 #include "net/instaweb/apache/apr_file_system.h"
 #include "net/instaweb/apache/apr_mutex.h"
 #include "net/instaweb/apache/apr_timer.h"
@@ -33,12 +34,15 @@
 #include "net/instaweb/util/public/pthread_shared_mem.h"
 #include "net/instaweb/util/public/shared_mem_lock_manager.h"
 #include "net/instaweb/util/public/shared_mem_statistics.h"
+#include "net/instaweb/util/public/slow_worker.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/write_through_cache.h"
 
 namespace net_instaweb {
 
 SharedMemOwnerMap* ApacheRewriteDriverFactory::lock_manager_owners_ = NULL;
+RefCountedOwner<SlowWorker>::Family
+    ApacheRewriteDriverFactory::slow_worker_family_;
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
@@ -47,13 +51,13 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
       serf_url_async_fetcher_(NULL),
       shared_mem_statistics_(NULL),
       shared_mem_runtime_(new PthreadSharedMem()),
+      slow_worker_(&slow_worker_family_),
       lru_cache_kb_per_process_(0),
       lru_cache_byte_limit_(0),
       file_cache_clean_interval_ms_(Timer::kHourMs),
       file_cache_clean_size_kb_(100 * 1024),  // 100 megabytes
       fetcher_time_out_ms_(5 * Timer::kSecondMs),
       slurp_flush_limit_(0),
-      file_cache_path_created_(false),
       version_(version.data(), version.size()),
       statistics_enabled_(true),
       statistics_frozen_(false),
@@ -67,14 +71,20 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
           "lock manager",
           &lock_manager_owners_) {
   apr_pool_create(&pool_, NULL);
-  cache_mutex_.reset(NewMutex());
-  rewrite_drivers_mutex_.reset(NewMutex());
 
   // In Apache, we default to using the "core filters".
   options()->SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
 }
 
 ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
+  // Finish up any background tasks and stop accepting new ones. This ensures
+  // that as soon as the first ApacheRewriteDriverFactory is shutdown we
+  // no longer have to worry about outstanding jobs in the slow_worker_ trying
+  // to access FileCache and similar objects we're about to blow away.
+  if (!is_root_process_) {
+    slow_worker_.Get()->ShutDown();
+  }
+
   // We free all the resources before destroying the pool, because some of the
   // resource uses the sub-pool and will need that pool to be around to
   // clean up properly.
@@ -113,21 +123,23 @@ bool ApacheRewriteDriverFactory::set_file_cache_path(const StringPiece& p) {
   p.CopyToString(&file_cache_path_);
   if (file_system()->IsDir(file_cache_path_.c_str(),
                            message_handler()).is_true()) {
-    file_cache_path_created_ = false;
     return true;
   }
-
-  file_cache_path_created_ =
-      file_system()->RecursivelyMakeDir(file_cache_path_, message_handler());
-  return file_cache_path_created_;
+  bool ok =
+    file_system()->RecursivelyMakeDir(file_cache_path_, message_handler());
+  if (ok) {
+    AddCreatedDirectory(file_cache_path_);
+  }
+  return ok;
 }
 
+// Note: DefaultCacheInterface should return a thread-safe cache object.
 CacheInterface* ApacheRewriteDriverFactory::DefaultCacheInterface() {
   FileCache::CachePolicy* policy = new FileCache::CachePolicy(
       timer(), file_cache_clean_interval_ms_, file_cache_clean_size_kb_);
   CacheInterface* cache = new FileCache(
-      file_cache_path_, file_system(), filename_encoder(), policy,
-      message_handler());
+      file_cache_path_, file_system(), slow_worker_.Get(), filename_encoder(),
+      policy, message_handler());
   if (lru_cache_kb_per_process_ != 0) {
     LRUCache* lru_cache = new LRUCache(lru_cache_kb_per_process_ * 1024);
 
@@ -135,7 +147,8 @@ CacheInterface* ApacheRewriteDriverFactory::DefaultCacheInterface() {
     // is naturally thread-safe because it's got no writable member variables.
     // And surrounding that slower-running class with a mutex would likely
     // cause contention.
-    ThreadsafeCache* ts_cache = new ThreadsafeCache(lru_cache, cache_mutex());
+    ThreadsafeCache* ts_cache =
+        new ThreadsafeCache(lru_cache, thread_system()->NewMutex());
     WriteThroughCache* write_through_cache =
         new WriteThroughCache(ts_cache, cache);
     // By default, WriteThroughCache does not limit the size of entries going
@@ -165,7 +178,8 @@ UrlFetcher* ApacheRewriteDriverFactory::DefaultUrlFetcher() {
   if (serf_url_fetcher_ == NULL) {
     DefaultAsyncUrlFetcher();  // Create async fetcher if necessary.
     serf_url_fetcher_ = new SyncFetcherAdapter(
-        timer(), fetcher_time_out_ms_, serf_url_async_fetcher_);
+        timer(), fetcher_time_out_ms_, serf_url_async_fetcher_,
+        thread_system());
   }
   return serf_url_fetcher_;
 }
@@ -184,8 +198,8 @@ HtmlParse* ApacheRewriteDriverFactory::DefaultHtmlParse() {
   return new HtmlParse(html_parse_message_handler());
 }
 
-AbstractMutex* ApacheRewriteDriverFactory::NewMutex() {
-  return new AprMutex(pool_);
+ThreadSystem* ApacheRewriteDriverFactory::DefaultThreadSystem() {
+  return new ApacheThreadSystem;
 }
 
 void ApacheRewriteDriverFactory::SetStatistics(SharedMemStatistics* x) {
@@ -209,6 +223,13 @@ void ApacheRewriteDriverFactory::RootInit() {
 
 void ApacheRewriteDriverFactory::ChildInit() {
   is_root_process_ = false;
+  if (!slow_worker_.Attach()) {
+    slow_worker_.Initialize(new SlowWorker(thread_system()));
+    if (!slow_worker_.Get()->Start()) {
+      message_handler()->Message(
+          kError, "Unable to start background work thread.");
+    }
+  }
   if (shared_mem_statistics_ != NULL) {
     shared_mem_statistics_->InitVariables(false, message_handler());
   }
@@ -223,8 +244,6 @@ void ApacheRewriteDriverFactory::ShutDown() {
         fetcher_time_out_ms_, message_handler(),
         SerfUrlAsyncFetcher::kThreadedAndMainline);
   }
-  cache_mutex_.reset(NULL);
-  rewrite_drivers_mutex_.reset(NULL);
   if (is_root_process_) {
     if (owns_statistics_ && (shared_mem_statistics_ != NULL)) {
       shared_mem_statistics_->GlobalCleanup(message_handler());
@@ -232,10 +251,6 @@ void ApacheRewriteDriverFactory::ShutDown() {
     shared_mem_lock_manager_lifecycler_.GlobalCleanup(message_handler());
   }
   RewriteDriverFactory::ShutDown();
-}
-
-void ApacheRewriteDriverFactory::Terminate() {
-  google::ShutDownCommandLineFlags();
 }
 
 }  // namespace net_instaweb

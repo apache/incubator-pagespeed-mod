@@ -18,6 +18,7 @@
 
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
+#include "base/logging.h"               // for CHECK, etc
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
@@ -27,24 +28,28 @@
 #include "net/instaweb/rewriter/public/image_tag_scanner.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
+#include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/statistics_work_bound.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/user_agent.h"
 #include "net/instaweb/util/public/work_bound.h"
 
 namespace net_instaweb {
+class RewriteContext;
 class UrlSegmentEncoder;
+struct ContentType;
 
 namespace {
 
@@ -63,6 +68,7 @@ const double kMaxAreaRatio = 1.0;
 const char kImageRewrites[] = "image_rewrites";
 const char kImageRewriteSavedBytes[] = "image_rewrite_saved_bytes";
 const char kImageInline[] = "image_inline";
+const char kImageWebpRewrites[] = "image_webp_rewrites";
 
 // name for statistic used to bound rewriting work.
 const char kImageOngoingRewrites[] = "image_ongoing_rewrites";
@@ -73,13 +79,69 @@ const char kDataUrlKey[] = "ImageRewriteFilter_DataUrl";
 
 }  // namespace
 
+class ImageRewriteFilter::Context : public SingleRewriteContext {
+ public:
+  Context(ImageRewriteFilter* filter, RewriteDriver* driver,
+          RewriteContext* parent, ResourceContext* resource_context)
+      : SingleRewriteContext(driver, parent, resource_context),
+        filter_(filter),
+        driver_(driver) {}
+  virtual ~Context() {}
+
+  virtual void Render();
+  virtual void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output);
+  virtual const char* id() const { return filter_->id().c_str(); }
+  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  virtual const UrlSegmentEncoder* encoder() const;
+
+ private:
+  ImageRewriteFilter* filter_;
+  RewriteDriver* driver_;
+  DISALLOW_COPY_AND_ASSIGN(Context);
+};
+
+void ImageRewriteFilter::Context::RewriteSingle(
+    const ResourcePtr& input_resource,
+    const OutputResourcePtr& output_resource) {
+  RewriteDone(
+      filter_->RewriteLoadedResource(input_resource, output_resource), 0);
+}
+
+void ImageRewriteFilter::Context::Render() {
+  if (num_output_partitions() != 1) {
+    // Partition failed since one of the inputs was unavailable; nothing to do.
+    return;
+  }
+
+  CHECK_EQ(1, num_slots());
+  CHECK(output_partition(0)->has_result());
+
+  // We use automatic rendering for CSS, as we merely write out the improved
+  // URL, and manual for HTML, as we have to consider whether to inline, and
+  // may also add in width and height attributes.
+  if (slot(0)->disable_rendering()) {
+    HtmlResourceSlot* html_slot = static_cast<HtmlResourceSlot*>(slot(0).get());
+    filter_->FinishRewriteImageUrl(&output_partition(0)->result(),
+                                   html_slot->element(),
+                                   html_slot->attribute());
+  } else {
+    filter_->rewrite_count_->Add(1);
+  }
+}
+
+const UrlSegmentEncoder* ImageRewriteFilter::Context::encoder() const {
+  return filter_->encoder();
+}
+
 ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver,
                                        StringPiece path_prefix)
     : RewriteSingleResourceFilter(driver, path_prefix),
       image_filter_(new ImageTagScanner(driver)),
       rewrite_count_(NULL),
       inline_count_(NULL),
-      rewrite_saved_bytes_(NULL) {
+      rewrite_saved_bytes_(NULL),
+      webp_count_(NULL) {
   Statistics* stats = resource_manager_->statistics();
   Variable* ongoing_rewrites = NULL;
   if (stats != NULL) {
@@ -88,41 +150,44 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver,
         kImageRewriteSavedBytes);
     inline_count_ = stats->GetVariable(kImageInline);
     ongoing_rewrites = stats->GetVariable(kImageOngoingRewrites);
+    webp_count_ = stats->GetVariable(kImageWebpRewrites);
   }
   work_bound_.reset(
       new StatisticsWorkBound(ongoing_rewrites,
                               driver->options()->image_max_rewrites_at_once()));
 }
 
+ImageRewriteFilter::~ImageRewriteFilter() {}
+
 void ImageRewriteFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kImageInline);
   statistics->AddVariable(kImageRewriteSavedBytes);
   statistics->AddVariable(kImageRewrites);
   statistics->AddVariable(kImageOngoingRewrites);
+  statistics->AddVariable(kImageWebpRewrites);
 }
 
 RewriteSingleResourceFilter::RewriteResult
 ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
                                           const OutputResourcePtr& result) {
   MessageHandler* message_handler = driver_->message_handler();
-  GoogleString url;
-  ImageDim page_dim;
-  if (!encoder_.DecodeUrlAndDimensions(result->name(), &page_dim, &url,
-                                       message_handler)) {
+  StringVector urls;
+  ResourceContext context;
+  if (!encoder_.Decode(result->name(), &urls, &context, message_handler)) {
     return kRewriteFailed;
   }
   scoped_ptr<Image> image(
       NewImage(input_resource->contents(), input_resource->url(),
-               resource_manager_->filename_prefix(), message_handler));
+               resource_manager_->filename_prefix(),
+               context.attempt_webp(), message_handler));
   if (image->image_type() == Image::IMAGE_UNKNOWN) {
     message_handler->Error(result->name().as_string().c_str(), 0,
                            "Unrecognized image content type.");
     return kRewriteFailed;
   }
-  ImageDim image_dim, post_resize_dim;
+  ImageDim image_dim;
   image->Dimensions(&image_dim);
-  post_resize_dim = image_dim;
-  const RewriteOptions* options = driver_->options();
+
   // Don't rewrite beacons
   if (!ImageUrlEncoder::HasValidDimensions(image_dim) ||
       (image_dim.width() <= 1 && image_dim.height() <= 1)) {
@@ -133,8 +198,10 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
   if (work_bound_->TryToWork()) {
     rewrite_result = kRewriteFailed;
     bool resized = false;
-
+    const RewriteOptions* options = driver_->options();
     // Begin by resizing the image if necessary
+    const ImageDim& page_dim = context.image_tag_dims();
+    const ImageDim* post_resize_dim = &image_dim;
     if (options->Enabled(RewriteOptions::kResizeImages) &&
         ImageUrlEncoder::HasValidDimensions(page_dim) &&
         ImageUrlEncoder::HasValidDimensions(image_dim)) {
@@ -145,7 +212,7 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
       if (page_area < image_area * kMaxAreaRatio) {
         const char* message;  // Informational message for logging only.
         if (image->ResizeTo(page_dim)) {
-          post_resize_dim = page_dim;
+          post_resize_dim = &page_dim;
           message = "Resized";
           resized = true;
         } else {
@@ -161,10 +228,10 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
     // Cache image dimensions, including any resizing we did.
     // This happens regardless of whether we rewrite the image contents.
     CachedResult* cached = result->EnsureCachedResultCreated();
-    if (ImageUrlEncoder::HasValidDimensions(post_resize_dim)) {
+    if (ImageUrlEncoder::HasValidDimensions(*post_resize_dim)) {
       ImageDim* dims = cached->mutable_image_file_dims();
-      dims->set_width(post_resize_dim.width());
-      dims->set_height(post_resize_dim.height());
+      dims->set_width(post_resize_dim->width());
+      dims->set_height(post_resize_dim->height());
     }
 
     // We will consider whether to inline the image regardless of whether we
@@ -184,7 +251,7 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
       if (options->Enabled(RewriteOptions::kInlineImages) &&
           CanInline(image_inline_max_bytes, image->Contents(),
                     result->type(), &inlined_url)) {
-        cached->set_image_inlined_uri(inlined_url);
+        cached->set_inlined_data(inlined_url);
       }
 
       int64 origin_expire_time_ms = input_resource->CacheExpirationTimeMs();
@@ -221,7 +288,7 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
         options->Enabled(RewriteOptions::kInlineImages) &&
         CanInline(image_inline_max_bytes, input_resource->contents(),
                   input_resource->type(), &inlined_url)) {
-      cached->set_image_inlined_uri(inlined_url);
+      cached->set_inlined_data(inlined_url);
     }
     work_bound_->WorkComplete();
   } else {
@@ -246,31 +313,15 @@ const ContentType* ImageRewriteFilter::ImageToContentType(
   if (image != NULL) {
     // Even if we know the content type from the extension coming
     // in, the content-type can change as a result of compression,
-    // e.g. gif to png, or anything to vp8.
-    switch (image->image_type()) {
-      case Image::IMAGE_JPEG:
-        content_type = &kContentTypeJpeg;
-        break;
-      case Image::IMAGE_PNG:
-        content_type = &kContentTypePng;
-        break;
-      case Image::IMAGE_GIF:
-        content_type = &kContentTypeGif;
-        break;
-      default:
-        driver_->InfoHere(
-            "Cannot detect content type of image url `%s`",
-            origin_url.c_str());
-        break;
-    }
+    // e.g. gif to png, or jpeg to webp.
+    return image->content_type();
   }
   return content_type;
 }
 
-void ImageRewriteFilter::RewriteImageUrl(HtmlElement* element,
-                                         HtmlElement::Attribute* src) {
-  ResourceContext resource_context;
-  ImageDim* page_dim = resource_context.mutable_image_tag_dims();
+void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
+                                              HtmlElement::Attribute* src) {
+  scoped_ptr<ResourceContext> resource_context(new ResourceContext);
   int width, height;
   const RewriteOptions* options = driver_->options();
 
@@ -278,19 +329,56 @@ void ImageRewriteFilter::RewriteImageUrl(HtmlElement* element,
       element->IntAttributeValue(HtmlName::kWidth, &width) &&
       element->IntAttributeValue(HtmlName::kHeight, &height)) {
     // Specific image size is called for.  Rewrite to that size.
+    ImageDim* page_dim = resource_context->mutable_image_tag_dims();
     page_dim->set_width(width);
     page_dim->set_height(height);
   }
-
-  scoped_ptr<CachedResult> cached(RewriteWithCaching(src->value(),
-                                                     &resource_context));
-  if (cached.get() == NULL) {
-    return;
+  StringPiece url(src->value());
+  if (options->Enabled(RewriteOptions::kConvertJpegToWebp) &&
+      driver_->UserAgentSupportsWebp() &&
+      !url.ends_with(".png") && !url.ends_with(".gif")) {
+    // Note that we guess content type based on extension above.  This avoids
+    // the common case where we rewrite a .png twice, once for webp capable
+    // browsers and once for non-webp browsers, even though neither rewrite uses
+    // webp code paths at all.  We only consider webp as a candidate image
+    // format if we might have a jpg.
+    // TODO(jmaessen): if we instead set up the ResourceContext mapping
+    // explicitly from within the filter, we can imagine doing so after we know
+    // the content type of the image.  But that involves throwing away quite a
+    // bit of the plumbing that is otherwise provided for us by
+    // SingleRewriteContext.
+    resource_context->set_attempt_webp(true);
   }
 
+  if (HasAsyncFlow()) {
+    ResourcePtr input_resource = CreateInputResource(src->value());
+    if (input_resource.get() != NULL) {
+      Context* context = new Context(this, driver_, NULL /*not nested */,
+                                     resource_context.release());
+      ResourceSlotPtr slot(driver_->GetSlot(input_resource, element, src));
+      // Disable default slot rendering as it won't know to use a data: URL.
+      slot->set_disable_rendering(true);
+      context->AddSlot(slot);
+      driver_->InitiateRewrite(context);
+    }
+  } else {
+    scoped_ptr<CachedResult> cached(RewriteWithCaching(src->value(),
+                                                       resource_context.get()));
+    if (cached.get() != NULL) {
+      FinishRewriteImageUrl(cached.get(), element, src);
+    }
+  }
+}
+
+void ImageRewriteFilter::FinishRewriteImageUrl(
+    const CachedResult* cached, HtmlElement* element,
+    HtmlElement::Attribute* src) {
+  const RewriteOptions* options = driver_->options();
+
   // See if we have a data URL, and if so use it if the browser can handle it
-  if (!driver_->user_agent().IsIe6or7() && cached->has_image_inlined_uri()) {
-    src->SetValue(cached->image_inlined_uri());
+  if (cached->has_inlined_data() &&
+      driver_->UserAgentSupportsImageInlining()) {
+    src->SetValue(cached->inlined_data());
     // Delete dimensions, as they ought to be redundant given inline image data.
     element->DeleteAttribute(HtmlName::kWidth);
     element->DeleteAttribute(HtmlName::kHeight);
@@ -326,7 +414,8 @@ bool ImageRewriteFilter::CanInline(
     int image_inline_max_bytes, const StringPiece& contents,
     const ContentType* content_type, GoogleString* data_url) {
   bool ok = false;
-  if (content_type != NULL && contents.size() <= image_inline_max_bytes) {
+  if (content_type != NULL &&
+      static_cast<int>(contents.size()) <= image_inline_max_bytes) {
     DataUrl(*content_type, BASE64, contents, data_url);
     ok = true;
   }
@@ -334,16 +423,38 @@ bool ImageRewriteFilter::CanInline(
 }
 
 void ImageRewriteFilter::EndElementImpl(HtmlElement* element) {
+  // Don't rewrite if ModPagespeedDisableForBots is on
+  // and the user-agent is a bot.
+  if (driver_->ShouldNotRewriteImages()) {
+    return;
+  }
   if (!driver_->HasChildrenInFlushWindow(element)) {
     HtmlElement::Attribute *src = image_filter_->ParseImageElement(element);
     if (src != NULL) {
-      RewriteImageUrl(element, src);
+      BeginRewriteImageUrl(element, src);
     }
   }
 }
 
 const UrlSegmentEncoder* ImageRewriteFilter::encoder() const {
   return &encoder_;
+}
+
+bool ImageRewriteFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
+}
+
+RewriteContext* ImageRewriteFilter::MakeRewriteContext() {
+  return new Context(this, driver_, NULL /*not nested */,
+                     new ResourceContext());
+}
+
+RewriteContext* ImageRewriteFilter::MakeNestedContext(
+    RewriteContext* parent, const ResourceSlotPtr& slot) {
+  Context* context = new Context(this, NULL /* driver*/, parent,
+                                 new ResourceContext);
+  context->AddSlot(slot);
+  return context;
 }
 
 }  // namespace net_instaweb

@@ -38,10 +38,13 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+struct ContentType;
+class InputInfo;
 class MessageHandler;
+class OutputPartition;
 class Resource;
 class ResourceManager;
-struct ContentType;
 
 typedef RefCountedPtr<Resource> ResourcePtr;
 typedef std::vector<ResourcePtr> ResourceVector;
@@ -52,11 +55,25 @@ class Resource : public RefCounted<Resource> {
 
   // Common methods across all deriviations
   ResourceManager* resource_manager() const { return resource_manager_; }
-  bool loaded() const { return meta_data_.status_code() != 0; }
+
+  // Answers question: Are we allowed to rewrite the contents now?
+  //
+  // Checks if the contents are loaded and valid and also if the resource is
+  // up-to-date and cacheable enought to be rewritten by us right now.
+  virtual bool IsValidAndCacheable();
+
+  // TODO(sligocki): Do we need these or can we just use IsValidAndCacheable
+  // everywhere?
+  bool loaded() const { return response_headers_.status_code() != 0; }
   // TODO(sligocki): Change name to HttpStatusOk?
   bool ContentsValid() const {
-    return (meta_data_.status_code() == HttpStatus::kOK);
+    return (response_headers_.status_code() == HttpStatus::kOK);
   }
+
+  // Adds a new InputInfo object representing this resource to OutputPartition,
+  // assigning the index supplied.
+  void AddInputInfoToPartition(int index, OutputPartition* partition);
+
   int64 CacheExpirationTimeMs() const;
   StringPiece contents() const {
     StringPiece val;
@@ -64,11 +81,15 @@ class Resource : public RefCounted<Resource> {
     CHECK(got_contents) << "Resource contents read before loading";
     return val;
   }
-  ResponseHeaders* metadata() { return &meta_data_; }
-  const ResponseHeaders* metadata() const { return &meta_data_; }
+  ResponseHeaders* response_headers() { return &response_headers_; }
+  const ResponseHeaders* response_headers() const { return &response_headers_; }
   const ContentType* type() const { return type_; }
   virtual void SetType(const ContentType* type);
-  virtual bool IsCacheable() const;
+
+  // This function is a mis-nomer, it only says whether or not this type of
+  // resource is cacheable, not whether this actual resource is cacheable.
+  // TODO(sligocki): Rename or get rid of this.
+  virtual bool IsCacheable() const { return true; }
 
   // Gets the absolute URL of the resource
   virtual GoogleString url() const = 0;
@@ -87,6 +108,10 @@ class Resource : public RefCounted<Resource> {
 
     const ResourcePtr& resource() { return resource_; }
 
+    // Override this to return true if this callback is safe to invoke from
+    // thread other than the main html parse/http request serving thread.
+    virtual bool EnableThreaded() const { return false; }
+
    private:
     ResourcePtr resource_;
   };
@@ -94,7 +119,7 @@ class Resource : public RefCounted<Resource> {
   // Links in the HTTP contents and header from a fetched value.
   // The contents are linked by sharing.  The HTTPValue also
   // contains a serialization of the headers, and this routine
-  // parses them into meta_data_ and return whether that was
+  // parses them into response_headers_ and return whether that was
   // successful.
   bool Link(HTTPValue* source, MessageHandler* handler);
 
@@ -109,6 +134,13 @@ class Resource : public RefCounted<Resource> {
   friend class RewriteDriver;  // for ReadIfCachedWithStatus
   friend class UrlReadAsyncFetchCallback;
   friend class ResourceManagerHttpCallback;
+
+  // Set OutputPartition's input info used for expiration validation.
+  //
+  // Default one sets resource type as CACHED and sets an expiration timestamp.
+  // If a derived class has a different criterion for validity, override
+  // this method.
+  virtual void FillInPartitionInputInfo(InputInfo* input);
 
   // Load the resource asynchronously, storing ResponseHeaders and
   // contents in cache.  Returns true, if the resource is already
@@ -125,7 +157,7 @@ class Resource : public RefCounted<Resource> {
 
   const ContentType* type_;
   HTTPValue value_;  // contains contents and meta-data
-  ResponseHeaders meta_data_;
+  ResponseHeaders response_headers_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Resource);

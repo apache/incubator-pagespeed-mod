@@ -19,21 +19,28 @@
 // Unit-test the javascript filter
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
+const char kXhtmlHeader[] =
+    "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" "
+    "\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">";
+
 const char kHtmlFormat[] =
     "<script type='text/javascript' src='%s'></script>\n";
+
+const char kCdataWrapper[] = "//<![CDATA[\n%s\n//]]>";
+
+const char kInlineJs[] =
+    "<script type='text/javascript'>%s</script>\n";
 
 const char kJsData[] =
     "alert     (    'hello, world!'    ) "
@@ -48,10 +55,12 @@ const char kRewrittenJsName[] = "hello.js";
 
 namespace net_instaweb {
 
-class JavascriptFilterTest : public ResourceManagerTestBase {
+class JavascriptFilterTest : public ResourceManagerTestBase,
+                             public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
+    SetAsynchronousRewrites(GetParam());
     AddFilter(RewriteOptions::kRewriteJavascript);
     ResourceNamer namer;
     namer.set_id(kFilterId);
@@ -91,24 +100,14 @@ class JavascriptFilterTest : public ResourceManagerTestBase {
   GoogleString expected_rewritten_path_;
 };
 
-TEST_F(JavascriptFilterTest, DoRewrite) {
+TEST_P(JavascriptFilterTest, DoRewrite) {
   InitTest(100);
   ValidateExpected("do_rewrite",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
 }
 
-// Temporarily test one path using the async model.
-// TODO(jmarantz): remove this method and convert everything to async.
-TEST_F(JavascriptFilterTest, DoAsyncRewrite) {
-  rewrite_driver_.SetAsynchronousRewrites(true);
-  InitTest(100);
-  ValidateExpected("do_rewrite",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(expected_rewritten_path_.c_str()));
-}
-
-TEST_F(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
+TEST_P(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
   InitTest(100000000);  // cached for a long time to begin with
   // But we will rewrite because we can make the data smaller.
   ValidateExpected("rewrite_despite_being_cached_properly",
@@ -116,26 +115,23 @@ TEST_F(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
                    GenerateHtml(expected_rewritten_path_.c_str()));
 }
 
-TEST_F(JavascriptFilterTest, NoRewriteOriginUncacheable) {
+TEST_P(JavascriptFilterTest, NoRewriteOriginUncacheable) {
   InitTest(0);  // origin not cacheable
   ValidateExpected("no_extend_origin_not_cacheable",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 }
 
-TEST_F(JavascriptFilterTest, ServeFiles) {
+TEST_P(JavascriptFilterTest, ServeFiles) {
   TestServeFiles(&kContentTypeJavascript, kFilterId, "js",
                  kOrigJsName, kJsData,
                  kRewrittenJsName, kJsMinData);
 
   // Finally, serve from a completely separate server.
-  ServeResourceFromManyContexts(expected_rewritten_path_,
-                                RewriteOptions::kRewriteJavascript,
-                                &mock_hasher_,
-                                kJsMinData);
+  ServeResourceFromManyContexts(expected_rewritten_path_, kJsMinData);
 }
 
-TEST_F(JavascriptFilterTest, InvalidInputMimetype) {
+TEST_P(JavascriptFilterTest, InvalidInputMimetype) {
   // Make sure we can rewrite properly even when input has corrupt mimetype.
   ContentType not_java_script = kContentTypeJavascript;
   not_java_script.mime_type_ = "text/semicolon-inserted";
@@ -147,13 +143,57 @@ TEST_F(JavascriptFilterTest, InvalidInputMimetype) {
                        kTestDomain, kNotJsFile, ".pagespeed.jm.0.js").c_str()));
 }
 
+TEST_P(JavascriptFilterTest, RewriteJs404) {
+  // Test to make sure that a missing input is handled well.
+  SetFetchResponse404("404.js");
+  ValidateNoChanges("404", "<script src='404.js'></script>");
+
+  // Second time, to make sure caching doesn't break it.
+  ValidateNoChanges("404", "<script src='404.js'></script>");
+}
+
 // Make sure bad requests do not corrupt our extension.
-TEST_F(JavascriptFilterTest, NoExtensionCorruption) {
+TEST_P(JavascriptFilterTest, NoExtensionCorruption) {
   TestCorruptUrl("%22", false);
 }
 
-TEST_F(JavascriptFilterTest, NoQueryCorruption) {
+TEST_P(JavascriptFilterTest, NoQueryCorruption) {
   TestCorruptUrl("?query", true);
 }
+
+TEST_P(JavascriptFilterTest, InlineJavascript) {
+  // Test minification of a simple inline script
+  InitTest(100);
+  ValidateExpected("inline javascript",
+                   StringPrintf(kInlineJs, kJsData),
+                   StringPrintf(kInlineJs, kJsMinData));
+}
+
+TEST_P(JavascriptFilterTest, CdataJavascript) {
+  // Test minification of a simple inline script in html (NOT xhtml) where the
+  // script is wrapped in a commented-out CDATA.
+  InitTest(100);
+  ValidateExpected(
+      "cdata non-xhtml javascript",
+      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
+      StringPrintf(kInlineJs, kJsMinData));
+}
+
+TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
+  // Test minification of a simple inline script in xhtml
+  // where it must be wrapped in CDATA.
+  InitTest(100);
+  const GoogleString xhtml_script_format =
+      StrCat(kXhtmlHeader, StringPrintf(kInlineJs, kCdataWrapper));
+  ValidateExpected("xhtml inline javascript",
+                   StringPrintf(xhtml_script_format.c_str(), kJsData),
+                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
+}
+
+// We runs the test with GetParam() both true and false, in order to
+// test both the traditional and async flows.
+INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance,
+                        JavascriptFilterTest,
+                        ::testing::Bool());
 
 }  // namespace net_instaweb

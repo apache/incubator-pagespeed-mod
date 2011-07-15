@@ -18,8 +18,8 @@
 //
 // A collection of content-types and their attributes.
 
-#ifndef NET_INSTAWEB_UTIL_PUBLIC_CONTENT_TYPE_H_
-#define NET_INSTAWEB_UTIL_PUBLIC_CONTENT_TYPE_H_
+#ifndef NET_INSTAWEB_HTTP_PUBLIC_CONTENT_TYPE_H_
+#define NET_INSTAWEB_HTTP_PUBLIC_CONTENT_TYPE_H_
 
 #include "net/instaweb/util/public/string_util.h"
 
@@ -38,6 +38,7 @@ struct ContentType {
     kPng,
     kGif,
     kJpeg,
+    kWebp,
   };
 
   const char* mime_type() const { return mime_type_; }
@@ -74,6 +75,7 @@ extern const ContentType& kContentTypeXml;
 extern const ContentType& kContentTypePng;
 extern const ContentType& kContentTypeGif;
 extern const ContentType& kContentTypeJpeg;
+extern const ContentType& kContentTypeWebp;
 
 // Given a name (file or url), see if it has the canonical extension
 // corresponding to a particular content type.
@@ -82,4 +84,4 @@ const ContentType* MimeTypeToContentType(const StringPiece& mime_type);
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_UTIL_PUBLIC_CONTENT_TYPE_H_
+#endif  // NET_INSTAWEB_HTTP_PUBLIC_CONTENT_TYPE_H_

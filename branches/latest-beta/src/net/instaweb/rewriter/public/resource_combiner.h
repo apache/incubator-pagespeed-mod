@@ -32,13 +32,14 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-class CommonFilter;
+
 class ContentType;
 class MessageHandler;
 class OutputResource;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
+class RewriteFilter;
 class Writer;
 
 // A boolean with an expiration date.
@@ -69,9 +70,8 @@ class ResourceCombiner {
 
   // Note: extension should not include the leading dot here.
   ResourceCombiner(RewriteDriver* rewrite_driver,
-                   const StringPiece& path_prefix,
                    const StringPiece& extension,
-                   CommonFilter* filter);
+                   RewriteFilter* filter);
 
   virtual ~ResourceCombiner();
 
@@ -98,6 +98,11 @@ class ResourceCombiner {
 
   // Base common to all URLs. Always has a trailing slash.
   GoogleString ResolvedBase() const { return partnership_.ResolvedBase(); }
+
+  // TODO(jmarantz): remove AddResource and rename this once async flow
+  // is live.
+  TimedBool AddResourceNoFetch(const ResourcePtr& resource,
+                               MessageHandler* handler);
 
  protected:
   // Tries to add a resource with given source URL to the current partnership.
@@ -169,8 +174,7 @@ class ResourceCombiner {
   int accumulated_leaf_size_;
   GoogleString resolved_base_;
   const int url_overhead_;
-  GoogleString filter_prefix_;
-  CommonFilter *filter_;
+  RewriteFilter* filter_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCombiner);
 };

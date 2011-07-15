@@ -25,14 +25,13 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/cache_test_base.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/thread.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "net/instaweb/util/public/pthread_thread_system.h"
 
 namespace {
 const int kMaxSize = 100;
@@ -68,7 +67,8 @@ class CacheSpammer : public ThreadSystem::Thread {
       *inserts[j] = StringPrintf(value_pattern_, j);
     }
 
-    for (int i = 0; i < kNumIters; ++i) {
+    int iter_limit = RunningOnValgrind() ? kNumIters / 100 : kNumIters;
+    for (int i = 0; i < iter_limit; ++i) {
       for (int j = 0; j < kNumInserts; ++j) {
         cache_->Put(StringPrintf(name_pattern, j), &inserts[j]);
       }
@@ -111,8 +111,8 @@ class ThreadsafeCacheTest : public testing::Test {
  protected:
   ThreadsafeCacheTest()
       : lru_cache_(new LRUCache(kMaxSize)),
-        mutex_(thread_runtime_.NewMutex()),
-        threadsafe_cache_(lru_cache_, mutex_.get()) {
+        thread_runtime_(ThreadSystem::CreateThreadSystem()),
+        threadsafe_cache_(lru_cache_, thread_runtime_->NewMutex()) {
   }
 
   void TestHelper(bool expecting_evictions, bool do_deletes,
@@ -122,7 +122,7 @@ class ThreadsafeCacheTest : public testing::Test {
     // First, create all the threads.
     for (int i = 0; i < kNumThreads; ++i) {
       spammers[i] = new CacheSpammer(
-          &thread_runtime_, ThreadSystem::kJoinable,
+          thread_runtime_.get(), ThreadSystem::kJoinable,
           &threadsafe_cache_,  // &lru_cache_ will make this fail.
           expecting_evictions, do_deletes, value_pattern, i);
     }
@@ -141,8 +141,7 @@ class ThreadsafeCacheTest : public testing::Test {
   }
 
   LRUCache* lru_cache_;
-  PthreadThreadSystem thread_runtime_;
-  scoped_ptr<AbstractMutex> mutex_;
+  scoped_ptr<ThreadSystem> thread_runtime_;
   ThreadsafeCache threadsafe_cache_;
 
  private:

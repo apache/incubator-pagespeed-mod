@@ -19,17 +19,21 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
 
+#include <deque>
 #include <set>
 #include <vector>
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 
 namespace net_instaweb {
 
+class HtmlParse;
 class HtmlResourceSlot;
 class ResourceSlot;
+class RewriteContext;
 
 typedef RefCountedPtr<ResourceSlot> ResourceSlotPtr;
 typedef RefCountedPtr<HtmlResourceSlot> HtmlResourceSlotPtr;
@@ -39,9 +43,15 @@ typedef std::vector<ResourceSlotPtr> ResourceSlotVector;
 // rewritten.  Types of slots include HTML element attributes and CSS
 // background URLs.  In principle they could also include JS ajax
 // requests, although this is NYI.
+//
+// TODO(jmarantz): make this class thread-safe.
 class ResourceSlot : public RefCounted<ResourceSlot> {
  public:
-  explicit ResourceSlot(const ResourcePtr& resource) : resource_(resource) {
+  explicit ResourceSlot(const ResourcePtr& resource)
+      : resource_(resource),
+        disable_rendering_(false),
+        should_delete_element_(false),
+        was_optimized_(false) {
   }
 
   ResourcePtr resource() const { return resource_; }
@@ -61,9 +71,41 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // worker writes.
   void SetResource(const ResourcePtr& resource);
 
+  // If disable_rendering is true, this slot will do nothing on rendering,
+  // neither changing the URL or deleting any elements. This is intended for
+  // use of filters which do the entire work in the Context.
+  void set_disable_rendering(bool x) { disable_rendering_ = x; }
+  bool disable_rendering() const { return disable_rendering_; }
+
+  // Determines whether rendering the slot deletes the HTML Element.
+  // For example, in the CSS combine filter we want the Render to
+  // rewrite the first <link href>, but delete all the other <link>s.
+  void set_should_delete_element(bool x) { should_delete_element_ = x; }
+  bool should_delete_element() const { return should_delete_element_; }
+
+  // Returns true if any of the contexts touching this slot optimized it
+  // successfully. This in particular includes the case where a
+  // call to RewriteContext::Rewrite() on a partition containing this
+  // slot returned kRewriteOk.
+  bool was_optimized() const { return was_optimized_; }
+
+  // Marks the slot as having been optimized.
+  void set_was_optimized() { was_optimized_ = true; }
+
   // Render is not thread-safe.  This must be called from the thread that
   // owns the DOM or CSS file.
   virtual void Render() = 0;
+
+  // Return the last context to have been added to this slot.  Returns NULL
+  // if no context has been added to the slot so far.
+  RewriteContext* LastContext() const;
+
+  // Adds a new context to this slot.
+  void AddContext(RewriteContext* context) { contexts_.push_back(context); }
+
+  // Detaches a context from the slot.  This must be the first or last context
+  // that was added.
+  void DetachContext(RewriteContext* context);
 
  protected:
   virtual ~ResourceSlot();
@@ -71,6 +113,13 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 
  private:
   ResourcePtr resource_;
+  bool disable_rendering_;
+  bool should_delete_element_;
+  bool was_optimized_;
+
+  // We track the RewriteContexts that are atempting to rewrite this
+  // slot, to help us build a dependency graph between ResourceContexts.
+  std::deque<RewriteContext*> contexts_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceSlot);
 };
@@ -83,10 +132,11 @@ class FetchResourceSlot : public ResourceSlot {
       : ResourceSlot(resource) {
   }
 
+  virtual void Render();
+
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
   virtual ~FetchResourceSlot();
-  virtual void Render();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FetchResourceSlot);
@@ -96,23 +146,27 @@ class HtmlResourceSlot : public ResourceSlot {
  public:
   HtmlResourceSlot(const ResourcePtr& resource,
                    HtmlElement* element,
-                   HtmlElement::Attribute* attribute)
+                   HtmlElement::Attribute* attribute,
+                   HtmlParse* html_parse)
       : ResourceSlot(resource),
         element_(element),
-        attribute_(attribute) {
+        attribute_(attribute),
+        html_parse_(html_parse) {
   }
 
   HtmlElement* element() { return element_; }
   HtmlElement::Attribute* attribute() { return attribute_; }
 
+  virtual void Render();
+
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
   virtual ~HtmlResourceSlot();
-  virtual void Render();
 
  private:
   HtmlElement* element_;
   HtmlElement::Attribute* attribute_;
+  HtmlParse* html_parse_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlResourceSlot);
 };

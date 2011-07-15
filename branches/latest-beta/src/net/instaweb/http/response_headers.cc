@@ -30,6 +30,7 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"  // for Timer
 #include "net/instaweb/util/public/writer.h"
 #include "pagespeed/core/resource_util.h"
 
@@ -58,7 +59,8 @@ void ResponseHeaders::Clear() {
   proto_->set_cacheable(false);
   proto_->set_proxy_cacheable(false);   // accurate only if !cache_fields_dirty_
   proto_->clear_expiration_time_ms();
-  proto_->clear_timestamp_ms();
+  proto_->clear_fetch_time_ms();
+  proto_->clear_last_modified_time_ms();
   proto_->clear_status_code();
   proto_->clear_reason_phrase();
   proto_->clear_header();
@@ -69,21 +71,6 @@ int ResponseHeaders::status_code() const {
   return proto_->status_code();
 }
 
-const char* ResponseHeaders::reason_phrase() const {
-  return proto_->has_reason_phrase()
-      ? proto_->reason_phrase().c_str()
-      : "(null)";
-}
-
-int64 ResponseHeaders::timestamp_ms() const {
-  DCHECK(!cache_fields_dirty_) << "Call ComputeCaching() before timestamp_ms()";
-  return proto_->timestamp_ms();
-}
-
-bool ResponseHeaders::has_timestamp_ms() const {
-  return proto_->has_timestamp_ms();
-}
-
 void ResponseHeaders::set_status_code(int code) {
   proto_->set_status_code(code);
 }
@@ -92,13 +79,44 @@ bool ResponseHeaders::has_status_code() const {
   return proto_->has_status_code();
 }
 
+const char* ResponseHeaders::reason_phrase() const {
+  return proto_->has_reason_phrase()
+      ? proto_->reason_phrase().c_str()
+      : "(null)";
+}
+
 void ResponseHeaders::set_reason_phrase(const StringPiece& reason_phrase) {
   proto_->set_reason_phrase(reason_phrase.data(), reason_phrase.size());
+}
+
+int64 ResponseHeaders::last_modified_time_ms() const {
+  DCHECK(!cache_fields_dirty_)
+      << "Call ComputeCaching() before last_modified_time_ms()";
+  return proto_->last_modified_time_ms();
+}
+
+int64 ResponseHeaders::fetch_time_ms() const {
+  DCHECK(!cache_fields_dirty_)
+      << "Call ComputeCaching() before fetch_time_ms()";
+  return proto_->fetch_time_ms();
+}
+
+bool ResponseHeaders::has_fetch_time_ms() const {
+  return proto_->has_fetch_time_ms();
 }
 
 void ResponseHeaders::Add(const StringPiece& name, const StringPiece& value) {
   Headers<HttpResponseHeaders>::Add(name, value);
   cache_fields_dirty_ = true;
+}
+
+bool ResponseHeaders::Remove(const StringPiece& name,
+                             const StringPiece& value) {
+  if (Headers<HttpResponseHeaders>::Remove(name, value)) {
+    cache_fields_dirty_ = true;
+    return true;
+  }
+  return false;
 }
 
 bool ResponseHeaders::RemoveAll(const StringPiece& name) {
@@ -176,17 +194,42 @@ int64 ResponseHeaders::CacheExpirationTimeMs() const {
   return proto_->expiration_time_ms();
 }
 
-void ResponseHeaders::SetDate(int64 date_ms) {
+void ResponseHeaders::SetDateAndCaching(int64 date_ms, int64 ttl_ms) {
+  SetDate(date_ms);
+  // Note: We set both Expires and Cache-Control headers so that legacy
+  // HTTP/1.0 browsers and proxies correctly cache these resources.
+  SetTimeHeader(HttpAttributes::kExpires, date_ms + ttl_ms);
+  Replace(HttpAttributes::kCacheControl,
+          StrCat("max-age=", Integer64ToString(ttl_ms / Timer::kSecondMs)));
+}
+
+void ResponseHeaders::SetTimeHeader(const StringPiece& header, int64 time_ms) {
   GoogleString time_string;
-  if (ConvertTimeToString(date_ms, &time_string)) {
-    Replace(HttpAttributes::kDate, time_string);
+  if (ConvertTimeToString(time_ms, &time_string)) {
+    Replace(header, time_string);
   }
 }
 
-void ResponseHeaders::SetLastModified(int64 last_modified_ms) {
-  GoogleString time_string;
-  if (ConvertTimeToString(last_modified_ms, &time_string)) {
-    Replace(HttpAttributes::kLastModified, time_string);
+bool ResponseHeaders::VaryCacheable() {
+  // Recompute whether or not we can cache the resource with these headers.
+  if (cache_fields_dirty_) {
+    ComputeCaching();
+  }
+  if (IsCacheable()) {
+    StringStarVector values;
+    Lookup(HttpAttributes::kVary, &values);
+    bool vary_uncacheable = false;
+    for (int i = 0, n = values.size(); i < n; ++i) {
+      StringPiece val(*values[i]);
+      if (!val.empty() &&
+          !StringCaseEqual(HttpAttributes::kAcceptEncoding, val)) {
+        vary_uncacheable = true;
+        break;
+      }
+    }
+    return !vary_uncacheable;
+  } else {
+    return false;
   }
 }
 
@@ -200,9 +243,9 @@ void ResponseHeaders::ComputeCaching() {
   StringStarVector values;
   int64 date;
   // Compute the timestamp if we can find it
-  if (Lookup("Date", &values) && (values.size() == 1) &&
+  if (Lookup(HttpAttributes::kDate, &values) && (values.size() == 1) &&
       ConvertStringToTime(*(values[0]), &date)) {
-    proto_->set_timestamp_ms(date);
+      proto_->set_fetch_time_ms(date);
   }
 
   // TODO(jmarantz): Should we consider as cacheable a resource
@@ -229,11 +272,11 @@ void ResponseHeaders::ComputeCaching() {
   int64 freshness_lifetime_ms;
   bool explicit_cacheable =
       pagespeed::resource_util::GetFreshnessLifetimeMillis(
-          resource, &freshness_lifetime_ms) && has_timestamp_ms();
+          resource, &freshness_lifetime_ms) && has_fetch_time_ms();
+
   proto_->set_cacheable(!explicit_no_cache &&
                        (explicit_cacheable || likely_static) &&
-                       status_cacheable);
-
+                        status_cacheable);
   if (proto_->cacheable()) {
     // TODO(jmarantz): check "Age" resource and use that to reduce
     // the expiration_time_ms_.  This is, says, bmcquade@google.com,
@@ -245,8 +288,8 @@ void ResponseHeaders::ComputeCaching() {
       // other heuristic value from the PageSpeed libraries.
       freshness_lifetime_ms = kImplicitCacheTtlMs;
     }
-    proto_->set_expiration_time_ms(proto_->timestamp_ms() +
-                                  freshness_lifetime_ms);
+    proto_->set_expiration_time_ms(proto_->fetch_time_ms() +
+                                   freshness_lifetime_ms);
 
     // Assume it's proxy cacheable.  Then iterate over all the headers
     // with key HttpAttributes::kCacheControl, and all the comma-separated
@@ -292,10 +335,33 @@ bool ResponseHeaders::ParseTime(const char* time_str, int64* time_ms) {
   return pagespeed::resource_util::ParseTimeValuedHeader(time_str, time_ms);
 }
 
+// Content-coding values are case-insensitive:
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html
+// See Section 3.5
 bool ResponseHeaders::IsGzipped() const {
   StringStarVector v;
-  return (Lookup(HttpAttributes::kContentEncoding, &v) && (v.size() == 1) &&
-          (v[0] != NULL) && (v[0]->compare(HttpAttributes::kGzip) == 0));
+  bool found = Lookup(HttpAttributes::kContentEncoding, &v);
+  if (found) {
+    for (int i = 0, n = v.size(); i < n; ++i) {
+      if ((v[i] != NULL) && StringCaseEqual(*v[i], HttpAttributes::kGzip)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool ResponseHeaders::WasGzippedLast() const {
+  StringStarVector v;
+  bool found = Lookup(HttpAttributes::kContentEncoding, &v);
+  if (found) {
+    int index = v.size() - 1;
+    if ((index > -1) && (v[index] != NULL) &&
+        StringCaseEqual(*v[index], HttpAttributes::kGzip)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool ResponseHeaders::ParseDateHeader(
@@ -313,6 +379,21 @@ void ResponseHeaders::UpdateDateHeader(const StringPiece& attr, int64 date_ms) {
   }
 }
 
+// TODO(sligocki): Unite this with parsing code in ResponseHeadersParser.
+void ResponseHeaders::ParseFirstLine(const StringPiece& first_line) {
+  int major_version, minor_version, status;
+  // We reserve enough to avoid buffer overflow on sscanf command.
+  GoogleString reason_phrase(first_line.size(), '\0');
+  char* reason_phrase_cstr = &reason_phrase[0];
+  if (4 == sscanf(first_line.as_string().c_str(), "HTTP/%d.%d %d %s",
+                  &major_version, &minor_version, &status,
+                  reason_phrase_cstr)) {
+    set_first_line(major_version, minor_version, status, reason_phrase_cstr);
+  } else {
+    LOG(WARNING) << "Could not parse first line: " << first_line;
+  }
+}
+
 namespace {
 
 const char* BoolToString(bool b) {
@@ -326,10 +407,12 @@ void ResponseHeaders::DebugPrint() const {
   fprintf(stderr, "cache_fields_dirty_ = %s\n",
           BoolToString(cache_fields_dirty_));
   if (!cache_fields_dirty_) {
-    fprintf(stderr, "expiration_time_ms_ = %ld\n",
-            static_cast<long>(proto_->expiration_time_ms()));  // NOLINT
-    fprintf(stderr, "timestamp_ms_ = %ld\n",
-            static_cast<long>(proto_->timestamp_ms()));        // NOLINT
+    fprintf(stderr, "expiration_time_ms_ = %s\n",
+            Integer64ToString(proto_->expiration_time_ms()).c_str());
+    fprintf(stderr, "last_modified_time_ms_ = %s\n",
+            Integer64ToString(last_modified_time_ms()).c_str());
+    fprintf(stderr, "fetch_time_ms_ = %s\n",
+            Integer64ToString(proto_->fetch_time_ms()).c_str());
     fprintf(stderr, "cacheable_ = %s\n", BoolToString(proto_->cacheable()));
     fprintf(stderr, "proxy_cacheable_ = %s\n",
             BoolToString(proto_->proxy_cacheable()));

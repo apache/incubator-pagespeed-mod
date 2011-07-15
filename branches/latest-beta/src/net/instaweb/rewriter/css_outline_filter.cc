@@ -29,7 +29,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -150,16 +150,17 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
       MessageHandler* handler = driver_->message_handler();
       // Create outline resource at the document location,
       // not base URL location.
+      bool use_async_flow = false;
       OutputResourcePtr output_resource(
           driver_->CreateOutputResourceWithPath(
               driver_->google_url().AllExceptLeaf(), kFilterId, "_",
-              &kContentTypeCss, kOutlinedResource));
+              &kContentTypeCss, kOutlinedResource, use_async_flow));
 
       if (output_resource.get() != NULL) {
         // Absolutify URLs in content.
         GoogleString absolute_content;
         StringWriter absolute_writer(&absolute_content);
-        StringPiece base_dir = base_url().Spec();      // base url has no leaf.
+        StringPiece base_dir = base_url().AllExceptLeaf();
         bool content_valid = true;
         if (base_dir != output_resource->resolved_base()) {
           // TODO(sligocki): Use CssParser instead of CssTagScanner hack.

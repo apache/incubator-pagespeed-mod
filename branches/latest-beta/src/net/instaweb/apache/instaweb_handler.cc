@@ -30,6 +30,7 @@
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_message_handler.h"
@@ -108,7 +109,6 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
                         request_rec* request,
                         const GoogleString& url) {
   RewriteDriver* rewrite_driver = factory->NewRewriteDriver();
-
   RequestHeaders request_headers;
   ResponseHeaders response_headers;
   int n = arraysize(RewriteDriver::kPassThroughRequestAttributes);
@@ -125,7 +125,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
   StringWriter writer(&output);
   MessageHandler* message_handler = factory->message_handler();
   SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
-      &response_headers, &writer);
+      factory->thread_system(), &response_headers, &writer);
   bool handled = rewrite_driver->FetchResource(
       url, request_headers, callback->response_headers(), callback->writer(),
       callback);
@@ -135,20 +135,27 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
     if (!callback->done()) {
       UrlPollableAsyncFetcher* sub_resource_fetcher =
           factory->SubResourceFetcher();
+      bool sub_resource_fetch_done = (sub_resource_fetcher == NULL);
       int64 max_ms = factory->fetcher_time_out_ms();
       for (int64 start_ms = timer.NowMs(), now_ms = start_ms;
            !callback->done() && now_ms - start_ms < max_ms;
            now_ms = timer.NowMs()) {
         int64 remaining_ms = max_ms - (now_ms - start_ms);
-        sub_resource_fetcher->Poll(remaining_ms);
+
+        if (sub_resource_fetch_done) {
+          rewrite_driver->BoundedWaitForCompletion(remaining_ms);
+        } else {
+          sub_resource_fetch_done =
+            (sub_resource_fetcher->Poll(remaining_ms) == 0);
+        }
       }
 
       if (!callback->done()) {
         message_handler->Message(kError, "Timeout on url %s", url.c_str());
       }
     }
-    response_headers.SetDate(timer.NowMs());
     if (callback->success()) {
+      response_headers.SetDate(timer.NowMs());
       message_handler->Message(kInfo, "Fetch succeeded for %s, status=%d",
                               url.c_str(), response_headers.status_code());
       send_out_headers_and_body(request, response_headers, output);
@@ -162,7 +169,7 @@ bool handle_as_resource(ApacheRewriteDriverFactory* factory,
     callback->Done(false);
   }
   callback->Release();
-  factory->ReleaseRewriteDriver(rewrite_driver);
+  rewrite_driver->Cleanup();
   return handled;
 }
 
@@ -236,14 +243,9 @@ apr_status_t instaweb_handler(request_rec* request) {
     ret = OK;
 
   } else if (strcmp(request->handler, kBeaconHandler) == 0) {
-    RewriteDriver* driver = factory->NewRewriteDriver();
-    AddInstrumentationFilter* aif = driver->add_instrumentation_filter();
-    if (aif != NULL) {
-      aif->HandleBeacon(request->unparsed_uri);
-    }
-    factory->ReleaseRewriteDriver(driver);
+    ResourceManager* resource_manager = factory->ComputeResourceManager();
+    resource_manager->HandleBeacon(request->unparsed_uri);
     ret = HTTP_NO_CONTENT;
-
   } else if (url != NULL) {
     // Only handle GET request
     if (request->method_number != M_GET) {
@@ -330,14 +332,14 @@ apr_status_t save_url_hook(request_rec *request) {
   } else {
     ApacheRewriteDriverFactory* factory =
         InstawebContext::Factory(request->server);
-    RewriteDriver* rewrite_driver = factory->NewRewriteDriver();
+    ResourceManager* resource_manager = factory->ComputeResourceManager();
+    RewriteDriver* rewrite_driver = resource_manager->decoding_driver();
     RewriteFilter* filter;
     OutputResourcePtr output_resource(
         rewrite_driver->DecodeOutputResource(url, &filter));
     if (output_resource.get() != NULL) {
       bypass_mod_rewrite = true;
     }
-    factory->ReleaseRewriteDriver(rewrite_driver);
   }
 
   if (bypass_mod_rewrite) {

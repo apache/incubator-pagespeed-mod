@@ -33,7 +33,7 @@ namespace {
 class CssFilterTest : public CssRewriteTestBase {
 };
 
-TEST_F(CssFilterTest, SimpleRewriteCssTest) {
+TEST_P(CssFilterTest, SimpleRewriteCssTest) {
   GoogleString input_style =
       ".background_blue { background-color: #f00; }\n"
       ".foreground_yellow { color: yellow; }\n";
@@ -44,10 +44,19 @@ TEST_F(CssFilterTest, SimpleRewriteCssTest) {
   ValidateRewrite("rewrite_css", input_style, output_style);
 }
 
-TEST_F(CssFilterTest, UrlTooLong) {
+TEST_P(CssFilterTest, RewriteCss404) {
+  // Test to make sure that a missing input is handled well.
+  SetFetchResponse404("404.css");
+  ValidateNoChanges("404", "<link rel=stylesheet href='404.css'>");
+
+  // Second time, to make sure caching doesn't break it.
+  ValidateNoChanges("404", "<link rel=stylesheet href='404.css'>");
+}
+
+TEST_P(CssFilterTest, UrlTooLong) {
   // Make the filename maximum size, so we cannot rewrite it.
   // -4 because .css will be appended.
-  GoogleString filename(options_.max_url_segment_size() - 4, 'z');
+  GoogleString filename(options()->max_url_segment_size() - 4, 'z');
   // If filename wasn't too long, this would be rewritten (like in
   // SimpleRewriteCssTest).
   GoogleString input_style =
@@ -58,7 +67,7 @@ TEST_F(CssFilterTest, UrlTooLong) {
 }
 
 // Make sure we can deal with 0 character nodes between open and close of style.
-TEST_F(CssFilterTest, RewriteEmptyCssTest) {
+TEST_P(CssFilterTest, RewriteEmptyCssTest) {
   ValidateRewriteInlineCss("rewrite_empty_css-inline", "", "",
                            kExpectChange | kExpectSuccess | kNoStatCheck);
   // Note: We must check stats ourselves because, for technical reasons,
@@ -75,14 +84,14 @@ TEST_F(CssFilterTest, RewriteEmptyCssTest) {
 
 // Make sure we do not recompute external CSS when re-processing an already
 // handled page.
-TEST_F(CssFilterTest, RewriteRepeated) {
+TEST_P(CssFilterTest, RewriteRepeated) {
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectChange | kExpectSuccess);
-  int inserts_before = lru_cache_->num_inserts();
+  int inserts_before = lru_cache()->num_inserts();
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectChange | kExpectSuccess | kNoStatCheck);
-  int inserts_after = lru_cache_->num_inserts();
-  EXPECT_EQ(0, lru_cache_->num_identical_reinserts());
+  int inserts_after = lru_cache()->num_inserts();
+  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
   EXPECT_EQ(inserts_before, inserts_after);
   // We expect num_files_minified_ to be reset to 0 by
   // ValidateRewriteExternalCss and left there since we should not re-minimize.
@@ -91,7 +100,7 @@ TEST_F(CssFilterTest, RewriteRepeated) {
 
 // Make sure we do not reparse external CSS when we know it already has
 // a parse error.
-TEST_F(CssFilterTest, RewriteRepeatedParseError) {
+TEST_P(CssFilterTest, RewriteRepeatedParseError) {
   const char kInvalidCss[] = "@media }}";
   // Note: It is important that these both have the same id so that the
   // generated CSS file names are identical.
@@ -109,7 +118,7 @@ TEST_F(CssFilterTest, RewriteRepeatedParseError) {
 
 // Make sure we don't change CSS with errors. Note: We can move these tests
 // to expected rewrites if we find safe ways to edit them.
-TEST_F(CssFilterTest, NoRewriteParseError) {
+TEST_P(CssFilterTest, NoRewriteParseError) {
   ValidateFailParse("non_unicode_charset",
                     "a { font-family: \"\xCB\xCE\xCC\xE5\"; }");
   // From http://www.baidu.com/
@@ -120,15 +129,15 @@ TEST_F(CssFilterTest, NoRewriteParseError) {
 }
 
 // Make sure bad requests do not corrupt our extension.
-TEST_F(CssFilterTest, NoExtensionCorruption) {
+TEST_P(CssFilterTest, NoExtensionCorruption) {
   TestCorruptUrl("%22", false);
 }
 
-TEST_F(CssFilterTest, NoQueryCorruption) {
+TEST_P(CssFilterTest, NoQueryCorruption) {
   TestCorruptUrl("?query", true);
 }
 
-TEST_F(CssFilterTest, RewriteVariousCss) {
+TEST_P(CssFilterTest, RewriteVariousCss) {
   // TODO(sligocki): Get these tests to pass with setlocale.
   // EXPECT_TRUE(setlocale(LC_ALL, "tr_TR.utf8"));
   // Distilled examples.
@@ -209,7 +218,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
 
 // Things we could be optimizing.
 // This test will fail when we start optimizing these thing.
-TEST_F(CssFilterTest, ToOptimize) {
+TEST_P(CssFilterTest, ToOptimize) {
   const char* examples[][2] = {
     // Noticed from YUI minification.
     { "td { line-height: 0.8em; }",
@@ -230,7 +239,7 @@ TEST_F(CssFilterTest, ToOptimize) {
 }
 
 // Test more complicated CSS.
-TEST_F(CssFilterTest, ComplexCssTest) {
+TEST_P(CssFilterTest, ComplexCssTest) {
   // Real-world examples. Picked out of Wikipedia's CSS.
   const char* examples[][2] = {
     { "#userlogin, #userloginForm {\n"
@@ -445,16 +454,16 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 // Most tests are run with set_always_rewrite_css(true),
 // but all production use has set_always_rewrite_css(false).
 // This test makes sure that setting to false still does what we intend.
-TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
+TEST_P(CssFilterTest, NoAlwaysRewriteCss) {
   // When we force always_rewrite_css, we can expand some statements.
   // Note: when this example is fixed in the minifier, this test will break :/
-  options_.set_always_rewrite_css(true);
+  options()->set_always_rewrite_css(true);
   ValidateRewrite("expanding_example",
                   "@import url(http://www.example.com)",
                   "@import url(http://www.example.com) ;");
   // With it set false, we do not expand CSS (as long as we didn't do anything
   // else, like rewrite sub-resources.
-  options_.set_always_rewrite_css(false);
+  options()->set_always_rewrite_css(false);
   ValidateRewrite("non_expanding_example",
                   "@import url(http://www.example.com)",
                   "@import url(http://www.example.com)",
@@ -463,16 +472,16 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   // actually expands the statement is not considered an error.)
 
   // When we force always_rewrite_css, we allow rewriting something to nothing.
-  options_.set_always_rewrite_css(true);
+  options()->set_always_rewrite_css(true);
   ValidateRewrite("contracting_example",     "  ", "");
   // With it set false, we do not allow something to be minified to nothing.
   // Note: We may allow this in the future if contents are all whitespace.
-  options_.set_always_rewrite_css(false);
+  options()->set_always_rewrite_css(false);
   ValidateRewrite("non_contracting_example", "  ", "  ",
                   kExpectNoChange | kExpectFailure);
 }
 
-TEST_F(CssFilterTest, NoQuirksModeForXhtml) {
+TEST_P(CssFilterTest, NoQuirksModeForXhtml) {
   const char quirky_css[]     = "body {color:DECAFB}";
   const char normalized_css[] = "body{color:#decafb}";
   const char no_quirks_css[]  = "body{color:DECAFB}";
@@ -491,6 +500,11 @@ TEST_F(CssFilterTest, NoQuirksModeForXhtml) {
   // which we don't know if we are recieving a Fetch request and don't have
   // the resource. This could cause issues :/
 }
+
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
+INSTANTIATE_TEST_CASE_P(CssFilterTestInstance,
+                        CssFilterTest,
+                        ::testing::Bool());
 
 }  // namespace
 

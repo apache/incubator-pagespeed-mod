@@ -48,6 +48,9 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // Add a new header.
   virtual void Add(const StringPiece& name, const StringPiece& value);
 
+  // Remove headers by name and value.
+  virtual bool Remove(const StringPiece& name, const StringPiece& value);
+
   // Remove all headers by name.
   virtual bool RemoveAll(const StringPiece& name);
 
@@ -84,19 +87,28 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   bool IsCacheable() const;
   bool IsProxyCacheable() const;
   int64 CacheExpirationTimeMs() const;
-  void SetDate(int64 date_ms);
-  void SetLastModified(int64 last_modified_ms);
+
+  // Sets Date, Cache-Control and Expires headers appropriately.
+  void SetDateAndCaching(int64 date_ms, int64 ttl_ms);
+  // Set a time-based header, converting ms since epoch to a string.
+  void SetTimeHeader(const StringPiece& header, int64 time_ms);
+  void SetDate(int64 date_ms) { SetTimeHeader(HttpAttributes::kDate, date_ms); }
+  void SetLastModified(int64 last_modified_ms) {
+    SetTimeHeader(HttpAttributes::kLastModified, last_modified_ms);
+  }
 
   // TODO(jmarantz): consider an alternative representation
   bool headers_complete() const { return has_status_code(); }
 
   int status_code() const;
   bool has_status_code() const;
-  int64 timestamp_ms() const;
-  bool has_timestamp_ms() const;
   void set_status_code(const int code);
   const char* reason_phrase() const;
   void set_reason_phrase(const StringPiece& reason_phrase);
+
+  int64 last_modified_time_ms() const;
+  int64 fetch_time_ms() const;  // Timestamp from Date header.
+  bool has_fetch_time_ms() const;
 
   GoogleString ToString() const;
 
@@ -116,6 +128,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
 
   // Determines whether a response header is marked as gzipped.
   bool IsGzipped() const;
+  bool WasGzippedLast() const;
 
   // Parses a date header such as HttpAttributes::kDate or
   // HttpAttributes::kExpires, returning the timestamp as
@@ -126,10 +139,9 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // since 1970.
   void UpdateDateHeader(const StringPiece& attr, int64 date_ms);
 
+  void ParseFirstLine(const StringPiece& first_line);
   // Set whole first line.
-  void set_first_line(int major_version,
-                      int minor_version,
-                      int status_code,
+  void set_first_line(int major_version, int minor_version, int status_code,
                       const StringPiece& reason_phrase) {
     set_major_version(major_version);
     set_minor_version(minor_version);
@@ -137,9 +149,12 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
     set_reason_phrase(reason_phrase);
   }
 
+  // Returns whether or not we can cache these headers if we take into
+  // account the Vary: headers.
+  bool VaryCacheable();
+
  private:
   friend class ResponseHeadersTest;
-
   bool cache_fields_dirty_;
 
   DISALLOW_COPY_AND_ASSIGN(ResponseHeaders);

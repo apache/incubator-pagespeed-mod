@@ -16,7 +16,11 @@
   'variables': {
     'instaweb_root': '../..',
     'protoc_out_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/instaweb',
-    'protoc_executable': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+    'protoc_executable':
+        '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+    # Setting chromium_code to 1 turns on extra warnings. Also, if the compiler
+    # is whitelisted in our common.gypi, those warnings will get treated as
+    # errors.
     'chromium_code': 1,
   },
   'targets': [
@@ -190,6 +194,7 @@
         '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
       ],
       'sources': [
+        'genfiles/http/bot_checker.cc',
         'http/cache_url_async_fetcher.cc',
         'http/cache_url_fetcher.cc',
         'http/dummy_url_fetcher.cc',
@@ -206,12 +211,14 @@
         'http/url_async_fetcher.cc',
         'http/url_fetcher.cc',
         'http/url_pollable_async_fetcher.cc',
+        'http/user_agent_matcher.cc',
         'http/wait_url_async_fetcher.cc',
         'http/wget_url_fetcher.cc',
         'util/abstract_mutex.cc',
         'util/abstract_shared_mem.cc',
         'util/cache_interface.cc',
         'util/chunking_writer.cc',
+        'util/circular_buffer.cc',
         'util/condvar.cc',
         'util/data_url.cc',
         'util/debug.cc',
@@ -220,23 +227,26 @@
         'util/file_system_lock_manager.cc',
         'util/file_writer.cc',
         'util/filename_encoder.cc',
+        'util/function.cc',
         'util/gzip_inflater.cc',
         'util/hasher.cc',
         'util/lru_cache.cc',
         'util/md5_hasher.cc',
         'util/mock_hasher.cc',
         'util/mock_message_handler.cc',
-        'util/mock_timer.cc',
         'util/named_lock_manager.cc',
         'util/null_message_handler.cc',
         'util/null_statistics.cc',
         'util/null_writer.cc',
-        'util/query_params.cc',
+        'util/queued_worker.cc',
         'util/ref_counted.cc',
         'util/rolling_hash.cc',
+        'util/shared_circular_buffer.cc',
         'util/shared_mem_lock_manager.cc',
         'util/simple_stats.cc',
+        'util/scheduler.cc',
         'util/shared_mem_statistics.cc',
+        'util/slow_worker.cc',
 #        'util/split_writer.cc',                Not currently needed
         'util/statistics.cc',
         'util/statistics_work_bound.cc',
@@ -249,7 +259,7 @@
         'util/url_escaper.cc',
         'util/url_multipart_encoder.cc',
         'util/url_segment_encoder.cc',
-        'util/user_agent.cc',
+        'util/worker.cc',
         'util/work_bound.cc',
         'util/write_through_cache.cc',
       ],
@@ -316,9 +326,9 @@
       'target_name': 'instaweb_http',
       'type': '<(library)',
       'dependencies': [
-        'instaweb_core.gyp:instaweb_util_core',
-        'instaweb_http_pb',
         '<(DEPTH)/base/base.gyp:base',
+        'instaweb_core.gyp:http_core',
+        'instaweb_http_pb',
         '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
       ],
       'sources': [
@@ -393,18 +403,6 @@
       ],
     },
     {
-      'variables': {
-        # OpenCV has compile warnings in gcc 4.1 in a header file so turn off
-        # strict checking.
-        #
-        # TODO(jmarantz): disable the specific warning rather than
-        # turning off all warnings, and also scope this down to a
-        # minimal wrapper around the offending header file.
-        #
-        # TODO(jmarantz): figure out how to test for this failure in
-        # checkin tests, as it passes in gcc 4.2 and fails in gcc 4.1.
-        'chromium_code': 0,
-      },
       'target_name': 'instaweb_rewriter_image',
       'type': '<(library)',
       'dependencies': [
@@ -413,6 +411,7 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/third_party/libpagespeed/src/pagespeed/image_compression/image_compression.gyp:pagespeed_jpeg_optimizer',
         '<(DEPTH)/third_party/libpagespeed/src/pagespeed/image_compression/image_compression.gyp:pagespeed_png_optimizer',
+        '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp',
         '<(DEPTH)/third_party/opencv/opencv.gyp:highgui',
       ],
       'sources': [
@@ -420,6 +419,7 @@
         'rewriter/image_rewrite_filter.cc',
         'rewriter/image_tag_scanner.cc',
         'rewriter/image_url_encoder.cc',
+        'rewriter/webp_optimizer.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -460,18 +460,6 @@
       },
     },
     {
-      'variables': {
-        # OpenCV has compile warnings in gcc 4.1 in a header file so turn off
-        # strict checking.
-        #
-        # TODO(jmarantz): disable the specific warning rather than
-        # turning off all warnings, and also scope this down to a
-        # minimal wrapper around the offending header file.
-        #
-        # TODO(jmarantz): figure out how to test for this failure in
-        # checkin tests, as it passes in gcc 4.2 and fails in gcc 4.1.
-        'chromium_code': 0,
-      },
       'target_name': 'instaweb_rewriter_css',
       'type': '<(library)',
       'dependencies': [
@@ -484,7 +472,9 @@
       'sources': [
         'rewriter/css_filter.cc',
         'rewriter/css_image_rewriter.cc',
+        'rewriter/css_image_rewriter_async.cc',
         'rewriter/css_minify.cc',
+        'rewriter/css_resource_slot.cc',
         'rewriter/image_combine_filter.cc',
       ],
       'include_dirs': [
@@ -525,9 +515,11 @@
         'rewriter/css_outline_filter.cc',
         'rewriter/css_tag_scanner.cc',
         'rewriter/data_url_input_resource.cc',
+        'rewriter/div_structure_filter.cc',
         'rewriter/domain_rewrite_filter.cc',
         'rewriter/file_input_resource.cc',
         'rewriter/google_analytics_filter.cc',
+        'rewriter/inline_rewrite_context.cc',
         'rewriter/js_combine_filter.cc',
         'rewriter/js_inline_filter.cc',
         'rewriter/js_outline_filter.cc',
@@ -618,6 +610,29 @@
       'all_dependent_settings': {
         'hard_dependency': 1,
       }
+    },
+    {
+      'target_name': 'automatic_util',
+      'type': '<(library)',
+      'dependencies': [
+        '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
+        'instaweb_util',
+       ],
+      'sources': [
+        'rewriter/rewrite_gflags.cc',
+        'util/google_timer.cc',
+      ],
+    },
+    {
+      'target_name': 'mem_clean_up',
+      'type': '<(library)',
+      'dependencies': [
+        '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
+        'instaweb_rewriter',
+       ],
+      'sources': [
+        'rewriter/mem_clean_up.cc',
+      ],
     },
   ],
 }

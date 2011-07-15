@@ -19,8 +19,8 @@
 #include <map>
 #include <set>
 #include <utility>
-#include <vector>
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
@@ -105,18 +105,20 @@ RewriteOptions::RewriteOptions()
       level_(kPassThrough),
       css_inline_max_bytes_(kDefaultCssInlineMaxBytes),
       image_inline_max_bytes_(kDefaultImageInlineMaxBytes),
-      image_max_rewrites_at_once_(kDefaultImageMaxRewritesAtOnce),
       js_inline_max_bytes_(kDefaultJsInlineMaxBytes),
       css_outline_min_bytes_(kDefaultCssInlineMaxBytes),
       js_outline_min_bytes_(kDefaultJsInlineMaxBytes),
       beacon_url_(kDefaultBeaconUrl),
+      image_max_rewrites_at_once_(kDefaultImageMaxRewritesAtOnce),
       max_url_segment_size_(kDefaultMaxUrlSegmentSize),
       max_url_size_(kMaxUrlSize),
       enabled_(true),
+      botdetect_enabled_(true),
       combine_across_paths_(true),
       log_rewrite_timing_(false),
       lowercase_html_names_(false),
-      always_rewrite_css_(false) {
+      always_rewrite_css_(false),
+      respect_vary_(false) {
   // TODO(jmarantz): If we instantiate many RewriteOptions, this should become a
   // public static method called once at startup.
   SetUp();
@@ -132,6 +134,7 @@ void RewriteOptions::SetUp() {
   name_filter_map_["combine_css"] = kCombineCss;
   name_filter_map_["combine_javascript"] = kCombineJavascript;
   name_filter_map_["combine_heads"] = kCombineHeads;
+  name_filter_map_["convert_jpeg_to_webp"] = kConvertJpegToWebp;
   name_filter_map_["elide_attributes"] = kElideAttributes;
   name_filter_map_["extend_cache"] = kExtendCache;
   name_filter_map_["inline_css"] = kInlineCss;
@@ -158,6 +161,8 @@ void RewriteOptions::SetUp() {
 
   // Create filter sets for compound filter flags
   // (right now this is just rewrite_images)
+  // TODO(jmaessen): add kConvertJpegToWebp here when it becomes part of
+  // rewrite_images.
   name_filter_set_map_["rewrite_images"].insert(kInlineImages);
   name_filter_set_map_["rewrite_images"].insert(kInsertImageDimensions);
   name_filter_set_map_["rewrite_images"].insert(kRecompressImages);
@@ -167,6 +172,8 @@ void RewriteOptions::SetUp() {
   level_filter_set_map_[kPassThrough];
 
   // Core filter level includes the "core" filter set.
+  // TODO(jmaessen): add kConvertJpegToWebp here when it becomes part of
+  // rewrite_images.
   level_filter_set_map_[kCoreFilters].insert(kAddHead);
   level_filter_set_map_[kCoreFilters].insert(kCombineCss);
   level_filter_set_map_[kCoreFilters].insert(kExtendCache);
@@ -185,6 +192,7 @@ void RewriteOptions::SetUp() {
       level_filter_set_map_[kCoreFilters];
   // ... and add possibly unsafe filters.
   // TODO(jmarantz): Migrate these over to CoreFilters.
+  level_filter_set_map_[kTestingCoreFilters].insert(kConvertJpegToWebp);
   level_filter_set_map_[kTestingCoreFilters].insert(kMakeGoogleAnalyticsAsync);
   level_filter_set_map_[kTestingCoreFilters].insert(kRewriteDomains);
 
@@ -229,7 +237,7 @@ void RewriteOptions::DisableFilter(Filter filter) {
 
 bool RewriteOptions::AddCommaSeparatedListToFilterSet(
     const StringPiece& filters, MessageHandler* handler, FilterSet* set) {
-  std::vector<StringPiece> names;
+  StringPieceVector names;
   SplitStringPieceToVector(filters, ",", &names, true);
   bool ret = true;
   for (int i = 0, n = names.size(); i < n; ++i) {
@@ -244,8 +252,8 @@ bool RewriteOptions::AddCommaSeparatedListToFilterSet(
       } else {
         const FilterSet& new_flags = s->second;
         // Insert all new_flags into set.
-        for (FilterSet::iterator j = new_flags.begin(), m = new_flags.end();
-             j != m; ++j) {
+        FilterSet::const_iterator end = new_flags.end();
+        for (FilterSet::const_iterator j = new_flags.begin(); j != end; ++j) {
           std::pair<FilterSet::iterator, bool> inserted = set->insert(*j);
           modified_ |= inserted.second;
         }
@@ -299,6 +307,8 @@ void RewriteOptions::Merge(const RewriteOptions& first,
   // TODO(jmarantz): Use a virtual base class for Option so we can put
   // this in a loop.  Or something.
   enabled_.Merge(first.enabled_, second.enabled_);
+  botdetect_enabled_.Merge(first.botdetect_enabled_,
+                           second.botdetect_enabled_);
   combine_across_paths_.Merge(first.combine_across_paths_,
                               second.combine_across_paths_);
   level_.Merge(first.level_, second.level_);
@@ -326,11 +336,15 @@ void RewriteOptions::Merge(const RewriteOptions& first,
                               second.lowercase_html_names_);
   always_rewrite_css_.Merge(first.always_rewrite_css_,
                             second.always_rewrite_css_);
-
+  respect_vary_.Merge(first.respect_vary_,
+                      second.respect_vary_);
   // Note that the domain-lawyer merge works one-at-a-time, which is easier
   // to unit test.  So we have to call it twice.
   domain_lawyer_.Merge(first.domain_lawyer_);
   domain_lawyer_.Merge(second.domain_lawyer_);
+
+  file_load_policy_.Merge(first.file_load_policy_);
+  file_load_policy_.Merge(second.file_load_policy_);
 
   allow_resources_.CopyFrom(first.allow_resources_);
   allow_resources_.AppendFrom(second.allow_resources_);

@@ -19,12 +19,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 
-#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -32,11 +32,11 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
 class MessageHandler;
-class OutputResource;
 class RequestHeaders;
-class Resource;
 class ResponseHeaders;
+class RewriteContext;
 class RewriteDriver;
 class Writer;
 
@@ -76,13 +76,9 @@ class SimpleTextFilter : public RewriteFilter {
 
   class Context : public SingleRewriteContext {
    public:
-    Context(const RewriterPtr& rewriter,
-            RewriteDriver* driver)
-        : SingleRewriteContext(driver, NULL),
-          rewriter_(rewriter) {
-    }
+    Context(const RewriterPtr& rewriter, RewriteDriver* driver);
     virtual ~Context();
-    virtual RewriteSingleResourceFilter::RewriteResult RewriteSingle(
+    virtual void RewriteSingle(
         const ResourcePtr& input, const OutputResourcePtr& output);
 
    protected:
@@ -108,9 +104,15 @@ class SimpleTextFilter : public RewriteFilter {
                      MessageHandler* message_handler,
                      UrlAsyncFetcher::Callback* callback);
 
+  virtual RewriteContext* MakeRewriteContext();
+
  protected:
   virtual GoogleString id() const { return rewriter_->id(); }
   virtual const char* Name() const { return rewriter_->name(); }
+  virtual bool HasAsyncFlow() const;
+  virtual bool ComputeOnTheFly() const {
+    return rewriter_->kind() == kOnTheFlyResource;
+  }
 
  private:
   RewriterPtr rewriter_;

@@ -24,14 +24,17 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -40,15 +43,15 @@
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+class RewriteContext;
 class Statistics;
-
 JavascriptFilter::JavascriptFilter(RewriteDriver* driver,
                                    const StringPiece& path_prefix)
     : RewriteSingleResourceFilter(driver, path_prefix),
@@ -67,16 +70,14 @@ void JavascriptFilter::Initialize(Statistics* statistics) {
 class JavascriptRewriteContext : public SingleRewriteContext {
  public:
   JavascriptRewriteContext(RewriteDriver* driver,
-                           const ResourceSlotPtr& slot,
                            JavascriptRewriteConfig* config)
-      : SingleRewriteContext(driver, NULL),
+      : SingleRewriteContext(driver, NULL, NULL),
         config_(config) {
-    AddSlot(slot);
   }
 
-  RewriteSingleResourceFilter::RewriteResult RewriteSingle(
+  RewriteSingleResourceFilter::RewriteResult RewriteJavascript(
       const ResourcePtr& input, const OutputResourcePtr& output) {
-    MessageHandler* message_handler = resource_manager()->message_handler();
+    MessageHandler* message_handler = Manager()->message_handler();
     StringPiece script = input->contents();
     JavascriptCodeBlock code_block(script, config_, input->url(),
                                    message_handler);
@@ -100,11 +101,26 @@ class JavascriptRewriteContext : public SingleRewriteContext {
       message_handler->Message(kInfo, "Script %s didn't shrink",
                                input->url().c_str());
     }
-
-    return ok ? RewriteSingleResourceFilter::kRewriteOk :
-        RewriteSingleResourceFilter::kRewriteFailed;
+    return ok ? RewriteSingleResourceFilter::kRewriteOk
+      : RewriteSingleResourceFilter::kRewriteFailed;
   }
 
+ protected:
+  // Implements the asynchronous interface required by SingleRewriteContext.
+  //
+  // TODO(jmarantz): this should be done as a SimpleTextFilter, but that would
+  // require cutting the umbilical chord with RewriteSingleResourceFilter,
+  // because we can't inherite from both that and SimpleTextFilter.
+  virtual void RewriteSingle(
+      const ResourcePtr& input, const OutputResourcePtr& output) {
+    RewriteDone(RewriteJavascript(input, output), 0);
+  }
+
+  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+
+  virtual const char* id() const { return RewriteDriver::kJavascriptMinId; }
+
+ private:
   // Take script_out, which is derived from the script at script_url,
   // and write it to script_dest.
   // Returns true on success, reports failures itself.
@@ -112,11 +128,11 @@ class JavascriptRewriteContext : public SingleRewriteContext {
       const Resource* script_resource,
       const StringPiece& script_out, OutputResource* script_dest) {
     bool ok = false;
-    ResourceManager* rm = resource_manager();
-    MessageHandler* message_handler = rm->message_handler();
+    ResourceManager* resource_manager = Manager();
+    MessageHandler* message_handler = resource_manager->message_handler();
     int64 origin_expire_time_ms = script_resource->CacheExpirationTimeMs();
-    if (rm->Write(HttpStatus::kOK, script_out, script_dest,
-                  origin_expire_time_ms, message_handler)) {
+    if (resource_manager->Write(HttpStatus::kOK, script_out, script_dest,
+                                origin_expire_time_ms, message_handler)) {
       ok = true;
       message_handler->Message(kInfo, "Rewrite script %s to %s",
                                script_resource->url().c_str(),
@@ -125,12 +141,6 @@ class JavascriptRewriteContext : public SingleRewriteContext {
     return ok;
   }
 
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
-
- protected:
-  virtual const char* id() const { return RewriteDriver::kJavascriptMinId; }
-
- private:
   JavascriptRewriteConfig* config_;
 };
 
@@ -198,8 +208,19 @@ void JavascriptFilter::RewriteInlineScript() {
     if (code_block.ProfitableToRewrite()) {
       // Now replace all CharactersNodes with a single CharactersNode containing
       // the minified script.
-      HtmlCharactersNode* new_script = driver_->NewCharactersNode(
-          buffer_[0]->parent(), code_block.Rewritten());
+      HtmlCharactersNode* new_script =
+          driver_->NewCharactersNode(buffer_[0]->parent(), "");
+      if (driver_->doctype().IsXhtml() &&
+          script.find("<![CDATA[") != StringPiece::npos) {
+        // Minifier strips leading and trailing CDATA comments from scripts.
+        // Restore them if necessary and safe according to the original script.
+        new_script->Append("//<![CDATA[\n");
+        new_script->Append(code_block.Rewritten());
+        new_script->Append("\n//]]>");
+      } else {
+        new_script->Append(code_block.Rewritten());
+      }
+
       driver_->ReplaceNode(buffer_[0], new_script);
       for (int i = 1; i < buffer_size; i++) {
         driver_->DeleteElement(buffer_[i]);
@@ -217,7 +238,8 @@ void JavascriptFilter::RewriteExternalScript() {
       ResourceSlotPtr slot(
           driver_->GetSlot(resource, script_in_progress_, script_src_));
       JavascriptRewriteContext* jrc = new JavascriptRewriteContext(
-          driver_, slot, &config_);
+          driver_, &config_);
+      jrc->AddSlot(slot);
       driver_->InitiateRewrite(jrc);
     }
     return;
@@ -310,9 +332,16 @@ JavascriptFilter::RewriteLoadedResource(
     const OutputResourcePtr& output_resource) {
   // Temporary code so that we can share the rewriting implementation beteween
   // the old blocking rewrite model and the new async model.
-  ResourceSlotPtr dummy_slot;
-  JavascriptRewriteContext jrc(driver_, dummy_slot, &config_);
-  return jrc.RewriteSingle(script_input, output_resource);
+  JavascriptRewriteContext jrc(driver_, &config_);
+  return jrc.RewriteJavascript(script_input, output_resource);
+}
+
+bool JavascriptFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
+}
+
+RewriteContext* JavascriptFilter::MakeRewriteContext() {
+  return new JavascriptRewriteContext(driver_, &config_);
 }
 
 }  // namespace net_instaweb

@@ -19,6 +19,8 @@
 // Unit-test the string-splitter.
 
 #include "net/instaweb/util/public/google_url.h"
+
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -38,6 +40,25 @@ class GoogleUrlTest : public testing::Test {
   : gurl_(kUrl),
     gurl_with_port_(kUrlWithPort)
   {}
+
+  void TestCopyAndAddQueryParamCase(const char* before, const char* after) {
+    GoogleUrl before_url(before);
+    StringPiece before_url_original(before_url.UncheckedSpec());
+    scoped_ptr<GoogleUrl> after_url(before_url.CopyAndAddQueryParam("r", "s"));
+    EXPECT_EQ(after_url->UncheckedSpec(), after);
+    EXPECT_TRUE(after_url->is_valid());
+    EXPECT_EQ(before_url_original, before_url.UncheckedSpec());
+  }
+
+  void TestAllExceptQueryCase(const char* before, const char* after) {
+    GoogleUrl before_url(before);
+    EXPECT_EQ(before_url.AllExceptQuery(), GoogleString(after));
+  }
+
+  void TestAllAfterQueryCase(const char* before, const char* after) {
+    GoogleUrl before_url(before);
+    EXPECT_EQ(before_url.AllAfterQuery(), GoogleString(after));
+  }
 
   GoogleUrl gurl_;
   GoogleUrl gurl_with_port_;
@@ -70,7 +91,7 @@ TEST_F(GoogleUrlTest, TestSpec) {
   EXPECT_EQ(GoogleString("d.ext"), gurl_.LeafSansQuery());
   EXPECT_EQ(GoogleString("http://a.com"), gurl_.Origin());
   EXPECT_EQ(GoogleString("/b/c/d.ext?f=g/h"), gurl_.PathAndLeaf());
-  EXPECT_EQ(GoogleString("/b/c/d.ext"), gurl_.Path());
+  EXPECT_EQ(GoogleString("/b/c/d.ext"), gurl_.PathSansQuery());
 }
 
 
@@ -85,8 +106,66 @@ TEST_F(GoogleUrlTest, TestSpecWithPort) {
             gurl_with_port_.Origin());
   EXPECT_EQ(GoogleString("/b/c/d.ext?f=g/h"),
             gurl_with_port_.PathAndLeaf());
-  EXPECT_EQ(GoogleString("/b/c/d.ext"), gurl_.Path());
+  EXPECT_EQ(GoogleString("/b/c/d.ext"), gurl_.PathSansQuery());
   EXPECT_EQ(GoogleString("/b/c/"), gurl_.PathSansLeaf());
+}
+
+TEST_F(GoogleUrlTest, TestCopyAndAddQueryParam) {
+  TestCopyAndAddQueryParamCase("http://a.com/b/c/d.ext",
+                               "http://a.com/b/c/d.ext?r=s");
+
+  TestCopyAndAddQueryParamCase("http://a.com/b/c/d.ext?p=q",
+                               "http://a.com/b/c/d.ext?p=q&r=s");
+
+  TestCopyAndAddQueryParamCase("http://a.com",
+                               "http://a.com/?r=s");
+
+  TestCopyAndAddQueryParamCase("http://a.com?p=q",
+                               "http://a.com/?p=q&r=s");
+
+  TestCopyAndAddQueryParamCase("http://a.com/b/c/d.ext?p=q#ref",
+                               "http://a.com/b/c/d.ext?p=q&r=s#ref");
+}
+
+TEST_F(GoogleUrlTest, TestAllExceptQuery) {
+  TestAllExceptQueryCase("http://a.com/b/c/d.ext",
+                         "http://a.com/b/c/d.ext");
+
+  TestAllExceptQueryCase("http://a.com/b/c/d.ext?p=p&q=q",
+                         "http://a.com/b/c/d.ext");
+
+  TestAllExceptQueryCase("http://a.com?p=p&q=q",
+                         "http://a.com/");
+
+  TestAllExceptQueryCase("invalid_url_string",
+                         "");
+}
+
+TEST_F(GoogleUrlTest, TestAllAfterQuery) {
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext",
+                        "");
+
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q",
+                        "");
+
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q#ref",
+                        "#ref");
+
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q#ref1#ref2",
+                        "#ref1#ref2");
+
+  TestAllAfterQueryCase("http://a.com#ref",
+                        "#ref");
+
+  TestAllAfterQueryCase("invalid_url_string",
+                         "");
+}
+
+TEST_F(GoogleUrlTest, TestTrivialAllExceptLeaf) {
+  GoogleUrl queryless("http://a.com/b/c/d.ext");
+  EXPECT_EQ(GoogleString("http://a.com/b/c/"), queryless.AllExceptLeaf());
+  GoogleUrl queryful("http://a.com/b/c/d.ext?p=p&q=q");
+  EXPECT_EQ(GoogleString("http://a.com/b/c/"), queryful.AllExceptLeaf());
 }
 
 TEST_F(GoogleUrlTest, TestTrivialLeafSansQuery) {
@@ -101,7 +180,7 @@ TEST_F(GoogleUrlTest, ResolveRelative) {
   ASSERT_TRUE(resolved.is_valid());
   EXPECT_EQ(GoogleString("http://www.google.com/test.html"),
             resolved.Spec());
-  EXPECT_EQ(GoogleString("/test.html"), resolved.Path());
+  EXPECT_EQ(GoogleString("/test.html"), resolved.PathSansQuery());
 }
 
 TEST_F(GoogleUrlTest, ResolveAbsolute) {
@@ -111,7 +190,7 @@ TEST_F(GoogleUrlTest, ResolveAbsolute) {
   ASSERT_TRUE(resolved.is_valid());
   EXPECT_EQ(GoogleString("http://www.google.com/"),
             resolved.Spec());
-  EXPECT_EQ(GoogleString("/"), resolved.Path());
+  EXPECT_EQ(GoogleString("/"), resolved.PathSansQuery());
 }
 
 TEST_F(GoogleUrlTest, TestReset) {

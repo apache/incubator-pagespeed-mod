@@ -3,6 +3,12 @@
     # can set this to "off".
     ModPagespeed on
 
+    # By default, mod_pagespeed disables image optimization and cache
+    # extension of images when serving traffic to web crawlers, known as
+    # "bots".  To enable rewritting images for bots, set this variable to
+    # "off".
+    # ModPagespeedDisableForBots on
+
     # Direct Apache to send all HTML output to the mod_pagespeed
     # output handler.
     AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER text/html
@@ -109,6 +115,10 @@
     #
     # ModPagespeedEnableFilters add_instrumentation
 
+    # Uncomment the following line so that ModPagespeed will not cache or
+    # rewrite resources with Vary: in the header, e.g. Vary: User-Agent.
+    # ModPagespeedRespectVary on
+
     # This handles the client-side instrumentation callbacks which are injected
     # by the add_instrumentation filter.
     # You can use a different location by adding the ModPagespeedBeaconUrl
@@ -132,6 +142,7 @@
         # if the Apache server is protected by a reverse proxy that will
         # filter URLs in some fashion.
         Allow from localhost
+        Allow from 127.0.0.1
         SetHandler mod_pagespeed_statistics
     </Location>
 </IfModule>

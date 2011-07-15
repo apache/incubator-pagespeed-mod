@@ -16,7 +16,6 @@
 
 #include "net/instaweb/http/public/request_headers.h"
 
-#include <vector>
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/http.pb.h"  // for HttpRequestHeaders
@@ -117,7 +116,7 @@ bool RequestHeaders::AcceptsGzip() const {
   StringStarVector v;
   if (Lookup(HttpAttributes::kAcceptEncoding, &v)) {
     for (int i = 0, nv = v.size(); i < nv; ++i) {
-      std::vector<StringPiece> encodings;
+      StringPieceVector encodings;
       SplitStringPieceToVector(*(v[i]), ",", &encodings, true);
       for (int j = 0, nencodings = encodings.size(); j < nencodings; ++j) {
         if (StringCaseEqual(encodings[j], HttpAttributes::kGzip)) {

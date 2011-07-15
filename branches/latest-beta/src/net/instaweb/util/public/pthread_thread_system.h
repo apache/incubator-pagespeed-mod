@@ -33,7 +33,14 @@ class PthreadThreadSystem : public ThreadSystem {
 
   virtual CondvarCapableMutex* NewMutex();
 
+ protected:
+  // This hook will get invoked by the implementation in the context of a
+  // thread before invoking its Run() method.
+  virtual void BeforeThreadRunHook();
+
  private:
+  friend class PthreadThreadImpl;
+
   virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
 
   DISALLOW_COPY_AND_ASSIGN(PthreadThreadSystem);

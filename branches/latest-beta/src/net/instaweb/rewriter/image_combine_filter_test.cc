@@ -16,18 +16,13 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
-#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -48,7 +43,7 @@ class CssImageCombineTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options_.EnableFilter(RewriteOptions::kSpriteImages);
+    options()->EnableFilter(RewriteOptions::kSpriteImages);
     CssRewriteTestBase::SetUp();
     AddFileToMockFetcher(StrCat(kTestDomain, kBikePngFile), kBikePngFile,
                          kContentTypePng, 100);
@@ -56,14 +51,12 @@ class CssImageCombineTest : public CssRewriteTestBase {
                          kContentTypePng, 100);
     AddFileToMockFetcher(StrCat(kTestDomain, kPuzzleJpgFile), kPuzzleJpgFile,
                          kContentTypeJpeg, 100);
-    // We want a real hasher here so that subresources get separate locks.
-    resource_manager_->set_hasher(&md5_hasher_);
   }
   void TestSpriting(const char* bikePosition, const char* expectedPosition,
                     bool should_sprite) {
     const GoogleString sprite_string = StrCat(kTestDomain, kCuppaPngFile, "+",
                                               kBikePngFile,
-                                              ".pagespeed.is.Y-XqNDe-in.png");
+                                              ".pagespeed.is.0.png");
     const char* sprite = sprite_string.c_str();
     // The JPEG will not be included in the sprite because we only handle PNGs.
     const char* html = "<head><style>"
@@ -98,7 +91,8 @@ class CssImageCombineTest : public CssRewriteTestBase {
   }
 };
 
-TEST_F(CssImageCombineTest, SpritesImages) {
+TEST_P(CssImageCombineTest, SpritesImages) {
+  CSS_XFAIL_ASYNC();
   TestSpriting("0px 0px", "0px -70px", true);
   TestSpriting("left top", "0px -70px", true);
   TestSpriting("top 10px", "10px -70px", true);
@@ -106,7 +100,8 @@ TEST_F(CssImageCombineTest, SpritesImages) {
   TestSpriting("center top", "unused", false);
 }
 
-TEST_F(CssImageCombineTest, SpritesMultiple) {
+TEST_P(CssImageCombineTest, SpritesMultiple) {
+  CSS_XFAIL_ASYNC();
   const char* html = "<head><style>"
       "#div1{background:url(%s) 0px 0px;width:10px;height:10px}"
       "#div2{background:url(%s) 0px %dpx;width:%dpx;height:10px}"
@@ -123,7 +118,7 @@ TEST_F(CssImageCombineTest, SpritesMultiple) {
   before = StringPrintf(html, kBikePngFile, kBikePngFile, 0, 10,
                         kCuppaPngFile, 0);
   sprite = StrCat(kTestDomain, kBikePngFile, "+", kCuppaPngFile,
-                  ".pagespeed.is.n7ABi40xon.png").c_str();
+                  ".pagespeed.is.0.png").c_str();
   after = StringPrintf(html, sprite.c_str(),
                        sprite.c_str(), 0, 10, sprite.c_str(), -100);
   ValidateExpected("sprite_2_bikes_1_cuppa", before, after);
@@ -137,15 +132,15 @@ TEST_F(CssImageCombineTest, SpritesMultiple) {
   ValidateExpected("sprite_first_and_third", before, after);
 }
 
-TEST_F(CssImageCombineTest, NoCrashUnknownType) {
+TEST_P(CssImageCombineTest, NoCrashUnknownType) {
   // Make sure we don't crash trying to sprite an image with an unknown mimetype
 
   ResponseHeaders response_headers;
-  resource_manager_->SetDefaultHeaders(&kContentTypePng, &response_headers);
+  SetDefaultLongCacheHeaders(&kContentTypePng, &response_headers);
   response_headers.Replace(HttpAttributes::kContentType, "image/x-bewq");
   response_headers.ComputeCaching();
-  mock_url_fetcher_.SetResponse(StrCat(kTestDomain, "bar.bewq"),
-                                response_headers, "unused payload");
+  SetFetchResponse(StrCat(kTestDomain, "bar.bewq"),
+                   response_headers, "unused payload");
   InitResponseHeaders("foo.png", kContentTypePng, "unused payload", 100);
 
   const GoogleString before =
@@ -158,8 +153,10 @@ TEST_F(CssImageCombineTest, NoCrashUnknownType) {
   ParseUrl(kTestDomain, before);
 }
 
-TEST_F(CssImageCombineTest, SpritesImagesExternal) {
-  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher(SetupWaitFetcher());
+TEST_P(CssImageCombineTest, SpritesImagesExternal) {
+  CSS_XFAIL_ASYNC();
+
+  SetupWaitFetcher();
 
   const GoogleString beforeCss = StrCat(" "  // extra whitespace allows rewrite
       "#div1{background-image:url(", kCuppaPngFile, ");"
@@ -175,7 +172,7 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
       kExpectNoChange | kExpectSuccess);
 
   // Get the CSS to load (resources are still unavailable).
-  wait_fetcher->CallCallbacks();
+  CallFetcherCallbacks();
 
   // On the second run, we will rewrite the CSS but not sprite.
   const GoogleString rewrittenCss = StrCat(
@@ -188,14 +185,14 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
       kExpectChange | kExpectSuccess);
 
   // Allow the images to load
-  wait_fetcher->CallCallbacks();
+  CallFetcherCallbacks();
   // The inability to rewrite this image will be remembered for 1 second.
-  mock_timer()->advance_ms(3 * Timer::kSecondMs);
+  mock_timer()->AdvanceMs(3 * Timer::kSecondMs);
 
   // On the third run, we get spriting.
   const GoogleString sprite = StrCat(kTestDomain, kCuppaPngFile, "+",
                                      kBikePngFile,
-                                     ".pagespeed.is.Y-XqNDe-in.png");
+                                     ".pagespeed.is.0.png");
   const GoogleString spriteCss = StrCat(
       "#div1{background-image:url(", sprite, ");"
       "width:10px;height:10px;"
@@ -206,6 +203,11 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
       "wip", beforeCss, spriteCss, kNoOtherContexts | kNoClearFetcher |
       kExpectChange | kExpectSuccess);
 }
+
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
+INSTANTIATE_TEST_CASE_P(CssImageCombineTestInstance,
+                        CssImageCombineTest,
+                        ::testing::Bool());
 
 }  // namespace
 

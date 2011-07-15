@@ -21,7 +21,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -45,8 +44,8 @@ class DomainRewriteFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
-    options_.Disallow("*dont_shard*");
-    DomainLawyer* lawyer = options_.domain_lawyer();
+    options()->Disallow("*dont_shard*");
+    DomainLawyer* lawyer = options()->domain_lawyer();
     lawyer->AddRewriteDomainMapping(kTo1Domain, kFrom1Domain,
                                     &message_handler_);
     lawyer->AddRewriteDomainMapping(kTo2Domain, kFrom2Domain,
@@ -54,7 +53,7 @@ class DomainRewriteFilterTest : public ResourceManagerTestBase {
     lawyer->AddShard(kTo2Domain, StrCat(kTo2ADomain, ",", kTo2BDomain),
                      &message_handler_);
     AddFilter(RewriteOptions::kRewriteDomains);
-    domain_rewrites_ = statistics_->GetVariable("domain_rewrites");
+    domain_rewrites_ = statistics()->GetVariable("domain_rewrites");
     prev_num_rewrites_ = 0;
   }
 
@@ -100,8 +99,12 @@ TEST_F(DomainRewriteFilterTest, DontTouch) {
 TEST_F(DomainRewriteFilterTest, MappedAndSharded) {
   ExpectChange("rewrite", StrCat(kFrom1Domain, "absolute.css"),
                StrCat(kTo1Domain, "absolute.css"));
+  ExpectChange("rewrite", StrCat(kFrom1Domain, "absolute.css?p1=v1"),
+               StrCat(kTo1Domain, "absolute.css?p1=v1"));
   ExpectChange("shard0", StrCat(kFrom2Domain, "0.css"),
                StrCat(kTo2ADomain, "0.css"));
+  ExpectChange("shard0", StrCat(kFrom2Domain, "0.css?p1=v1&amp;p2=v2"),
+               StrCat(kTo2BDomain, "0.css?p1=v1&amp;p2=v2"));
 }
 
 TEST_F(DomainRewriteFilterTest, DontTouchIfAlreadyRewritten) {

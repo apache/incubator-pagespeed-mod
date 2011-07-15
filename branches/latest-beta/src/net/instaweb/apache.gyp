@@ -37,6 +37,7 @@
         '<(instaweb_root)/instaweb.gyp:instaweb_spriter',
         '<(instaweb_root)/instaweb.gyp:instaweb_util',
         '<(instaweb_root)/instaweb.gyp:instaweb_util_pthread',
+        '<(instaweb_root)/instaweb.gyp:mem_clean_up',
       ],
       'include_dirs': [
         '<(DEPTH)',
@@ -45,6 +46,7 @@
         'apache/apache_message_handler.cc',
         'apache/apache_rewrite_driver_factory.cc',
         'apache/apache_slurp.cc',
+        'apache/apache_thread_system.cc',
         'apache/apr_condvar.cc',
         'apache/apr_file_system.cc',
         'apache/apr_mutex.cc',

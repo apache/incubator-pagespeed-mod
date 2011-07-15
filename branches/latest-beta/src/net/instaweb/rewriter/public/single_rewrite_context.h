@@ -20,15 +20,14 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_SINGLE_REWRITE_CONTEXT_H_
 
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
-#include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
+
 class OutputPartition;
 class OutputPartitions;
-class OutputResource;
 class ResourceContext;
 class RewriteDriver;
 
@@ -40,21 +39,20 @@ class SingleRewriteContext : public RewriteContext {
  public:
   // Transfers ownership of resource_context, which must be NULL or
   // allocated with 'new'.
-  SingleRewriteContext(RewriteDriver* driver,
+  SingleRewriteContext(RewriteDriver* driver, RewriteContext* parent,
                        ResourceContext* resource_context);
   virtual ~SingleRewriteContext();
 
  protected:
   // Subclasses of SingleRewriteContext must override this:
-  virtual RewriteSingleResourceFilter::RewriteResult RewriteSingle(
-      const ResourcePtr& input, const OutputResourcePtr& output) = 0;
+  virtual void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) = 0;
 
   // SingleRewriteContext takes care of these methods from RewriteContext:
-  virtual void Render(const OutputPartition& partition,
-                      const OutputResourcePtr& output_resource);
-  virtual bool PartitionAndRewrite(OutputPartitions* partitions,
-                                   OutputResourceVector* outputs);
-  virtual bool Rewrite(OutputPartition* partition,
+  virtual bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs);
+  virtual void Rewrite(int partition_index,
+                       OutputPartition* partition,
                        const OutputResourcePtr& output);
 
   DISALLOW_COPY_AND_ASSIGN(SingleRewriteContext);

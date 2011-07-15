@@ -19,16 +19,20 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class DomainRewriteFilter;
 class HtmlElement;
-class OutputResource;
-class Resource;
 class ResponseHeaders;
+class RewriteContext;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -53,13 +57,27 @@ class CacheExtender : public RewriteSingleResourceFilter {
 
   virtual const char* Name() const { return "CacheExtender"; }
 
+  void set_domain_rewriter(DomainRewriteFilter* domain_rewriter) {
+    domain_rewriter_ = domain_rewriter;
+  }
+
+  // Creates a nested rewrite for given parent and slot, and returns it.
+  // The result is not registered with the parent.
+  RewriteContext* MakeNestedContext(RewriteContext* parent,
+                                    const ResourceSlotPtr& slot);
+
  protected:
-  virtual bool ComputeOnTheFly() const;
   virtual RewriteResult RewriteLoadedResource(
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource);
+  virtual bool ComputeOnTheFly() const;
+  virtual bool HasAsyncFlow() const;
+  virtual RewriteContext* MakeRewriteContext();
 
  private:
+  class Context;
+  friend class Context;
+
   bool IsRewrittenResource(const StringPiece& url) const;
   bool ShouldRewriteResource(
       const ResponseHeaders* headers, int64 now_ms,
@@ -68,6 +86,7 @@ class CacheExtender : public RewriteSingleResourceFilter {
   ResourceTagScanner tag_scanner_;
   Variable* extension_count_;
   Variable* not_cacheable_count_;
+  DomainRewriteFilter* domain_rewriter_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheExtender);
 };

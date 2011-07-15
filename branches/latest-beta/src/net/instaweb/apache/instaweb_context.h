@@ -20,8 +20,8 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/util/public/content_type.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_writer.h"
 
@@ -63,6 +63,8 @@ class InstawebContext {
   void Finish() {
     if (content_detection_state_ == kHtml) {
       rewrite_driver_->FinishParse();
+    } else {
+      rewrite_driver_->Cleanup();
     }
   }
   bool empty() const { return output_.empty(); }
@@ -93,11 +95,9 @@ class InstawebContext {
   net_instaweb::RewriteDriver* rewrite_driver_;
   net_instaweb::StringWriter string_writer_;
   scoped_ptr<GzipInflater> inflater_;
-  scoped_ptr<RewriteDriver> custom_rewriter_;
   GoogleString buffer_;
   ContentDetectionState content_detection_state_;
   GoogleString absolute_url_;
-  RewriteOptions rewrite_options_;
 
   DISALLOW_COPY_AND_ASSIGN(InstawebContext);
 };

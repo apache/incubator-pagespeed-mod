@@ -16,9 +16,17 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
+#include <vector>
+
+#include "base/logging.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
-#include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
@@ -26,7 +34,9 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/mem_clean_up.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
@@ -34,28 +44,35 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
 
-class Hasher;
-struct ContentType;
+class MessageHandler;
+class Scheduler;
 
 const char ResourceManagerTestBase::kTestData[] =
     "/net/instaweb/rewriter/testdata/";
@@ -64,9 +81,19 @@ const char ResourceManagerTestBase::kXhtmlDtd[] =
     "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">";
 SimpleStats* ResourceManagerTestBase::statistics_;
 
-
 ResourceManagerTestBase::ResourceManagerTestBase()
     : mock_url_async_fetcher_(&mock_url_fetcher_),
+      counting_url_async_fetcher_(&mock_url_async_fetcher_),
+      wait_for_fetches_(false),
+      thread_system_(ThreadSystem::CreateThreadSystem()),
+      // TODO(sligocki): Get this working with a non-0 start time.
+      // 0 has the unfortunate property that 0 / 1000 = 0 which could make
+      // tests pass erroniously.
+      //start_time_ms_(MockTimer::kApr_5_2010_ms),
+      start_time_ms_(0),
+      timer_(start_time_ms_),
+      file_system_(&timer_),
+      other_file_system_(&timer_),
       file_prefix_(StrCat(GTestTempDir(), "/")),
       url_prefix_(URL_PREFIX),
 
@@ -76,13 +103,10 @@ ResourceManagerTestBase::ResourceManagerTestBase()
       // standalone.
       lock_manager_(&file_system_, file_prefix_, file_system_.timer(),
                     &message_handler_),
-      // TODO(sligocki): Why can't I init it here ...
-      // resource_manager_(new ResourceManager(
-      //    file_prefix_, &file_system_,
-      //    &filename_encoder_, &mock_url_async_fetcher_, &mock_hasher_,
-      //    &http_cache_)),
+      factory_(NULL),  // Not using the Factory in tests for now.
+      options_(new RewriteOptions),
       rewrite_driver_(&message_handler_, &file_system_,
-                      &mock_url_async_fetcher_, options_),
+                      &counting_url_async_fetcher_),
 
       other_lru_cache_(new LRUCache(kCacheSize)),
       other_http_cache_(other_lru_cache_, other_file_system_.timer(),
@@ -90,15 +114,28 @@ ResourceManagerTestBase::ResourceManagerTestBase()
       other_lock_manager_(
           &other_file_system_, file_prefix_,
           other_file_system_.timer(), &message_handler_),
+
       other_resource_manager_(
-          file_prefix_, &other_file_system_,
-          &filename_encoder_, &mock_url_async_fetcher_, &mock_hasher_,
+          file_prefix_, &other_file_system_, &filename_encoder_,
+          &counting_url_async_fetcher_, &mock_hasher_,
           &other_http_cache_, other_lru_cache_, &other_lock_manager_,
-          &message_handler_, statistics_),
+          &message_handler_, statistics_, thread_system_.get(), NULL),
+      other_options_(new RewriteOptions),
       other_rewrite_driver_(&message_handler_, &other_file_system_,
-                            &mock_url_async_fetcher_, other_options_) {
-  // rewrite_driver_.SetResourceManager(resource_manager_);
-  other_rewrite_driver_.SetResourceManager(&other_resource_manager_);
+                            &counting_url_async_fetcher_),
+      wait_url_async_fetcher_(&mock_url_fetcher_, thread_system_->NewMutex()) {
+  rewrite_driver_.set_custom_options(options_);
+  other_rewrite_driver_.set_custom_options(other_options_);
+  SetupDriver(&other_resource_manager_, &other_rewrite_driver_);
+
+  // TODO(jmarantz): Lots of tests send multiple HTML files through the
+  // same RewriteDriver.  Once this is changed then we can allow the
+  // RewriteDrivers to be self-managed.
+  rewrite_driver_.set_externally_managed(true);
+  other_rewrite_driver_.set_externally_managed(true);
+}
+
+ResourceManagerTestBase::~ResourceManagerTestBase() {
 }
 
 void ResourceManagerTestBase::SetUpTestCase() {
@@ -116,27 +153,30 @@ void ResourceManagerTestBase::SetUp() {
   HtmlParseTestBaseNoAlloc::SetUp();
   // TODO(sligocki): Init this in constructor.
   resource_manager_ = new ResourceManager(
-      file_prefix_, &file_system_,
-      &filename_encoder_, &mock_url_async_fetcher_, &mock_hasher_,
+      file_prefix_, &file_system_, &filename_encoder_,
+      &counting_url_async_fetcher_, &mock_hasher_,
       &http_cache_, lru_cache_, &lock_manager_,
-      &message_handler_, statistics_);
-  rewrite_driver_.SetResourceManager(resource_manager_);
+      &message_handler_, statistics_, thread_system_.get(), factory_);
+  SetupDriver(resource_manager_, &rewrite_driver_);
 }
 
 void ResourceManagerTestBase::TearDown() {
+  rewrite_driver()->WaitForCompletion();
+  other_rewrite_driver()->WaitForCompletion();
+  other_resource_manager_.ShutDownWorker();
   delete resource_manager_;
   HtmlParseTestBaseNoAlloc::TearDown();
 }
 
 // Add a single rewrite filter to rewrite_driver_.
 void ResourceManagerTestBase::AddFilter(RewriteOptions::Filter filter) {
-  options_.EnableFilter(filter);
+  options_->EnableFilter(filter);
   rewrite_driver_.AddFilters();
 }
 
 // Add a single rewrite filter to other_rewrite_driver_.
 void ResourceManagerTestBase::AddOtherFilter(RewriteOptions::Filter filter) {
-  other_options_.EnableFilter(filter);
+  other_options_->EnableFilter(filter);
   other_rewrite_driver_.AddFilters();
 }
 
@@ -152,6 +192,11 @@ void ResourceManagerTestBase::AddOtherRewriteFilter(RewriteFilter* filter) {
 
 void ResourceManagerTestBase::SetBaseUrlForFetch(const StringPiece& url) {
   rewrite_driver_.SetBaseUrlForFetch(url);
+}
+
+void ResourceManagerTestBase::SetAsynchronousRewrites(bool async) {
+  rewrite_driver_.SetAsynchronousRewrites(async);
+  other_rewrite_driver_.SetAsynchronousRewrites(async);
 }
 
 void ResourceManagerTestBase::DeleteFileIfExists(const GoogleString& filename) {
@@ -170,23 +215,21 @@ ResourcePtr ResourceManagerTestBase::CreateResource(const StringPiece& base,
 
 void ResourceManagerTestBase::AppendDefaultHeaders(
     const ContentType& content_type,
-    ResourceManager* resource_manager,
     GoogleString* text) {
   ResponseHeaders header;
   int64 time = mock_timer()->NowUs();
   // Reset mock timer so synthetic headers match original.
-  mock_timer()->set_time_us(0);
-  resource_manager->SetDefaultHeaders(&content_type, &header);
-  // Then set it back
-  mock_timer()->set_time_us(time);
+  mock_timer()->SetTimeUs(start_time_ms_);
+  resource_manager_->SetDefaultLongCacheHeaders(&content_type, &header);
+  // Then set it back.  Note that no alarms should fire at this point
+  // because alarms work on absolute time.
+  mock_timer()->SetTimeUs(time);
   StringWriter writer(text);
   header.WriteAsHttp(&writer, &message_handler_);
 }
 
 void ResourceManagerTestBase::ServeResourceFromManyContexts(
     const GoogleString& resource_url,
-    RewriteOptions::Filter filter,
-    Hasher* hasher,
     const StringPiece& expected_content) {
   // TODO(sligocki): Serve the resource under several contexts. For example:
   //   1) With output-resource cached,
@@ -194,7 +237,7 @@ void ResourceManagerTestBase::ServeResourceFromManyContexts(
   //   3) With output-resource unavailable, but input-resource cached,
   //   4) With output-resource unavailable and input-resource not cached,
   //      but still fetchable,
-  ServeResourceFromNewContext(resource_url, filter, hasher, expected_content);
+  ServeResourceFromNewContext(resource_url, expected_content);
   //   5) With nothing available (failure).
 }
 
@@ -202,14 +245,12 @@ void ResourceManagerTestBase::ServeResourceFromManyContexts(
 // been constructed.
 void ResourceManagerTestBase::ServeResourceFromNewContext(
     const GoogleString& resource_url,
-    RewriteOptions::Filter /*filter*/,  // TODO(sligocki): remove
-    Hasher* hasher,
     const StringPiece& expected_content) {
 
   // New objects for the new server.
   SimpleStats stats;
   ResourceManager::Initialize(&stats);
-  MemFileSystem other_file_system;
+  MemFileSystem other_file_system(mock_timer());
   // other_lru_cache is owned by other_http_cache_.
   LRUCache* other_lru_cache(new LRUCache(kCacheSize));
   MockTimer* other_mock_timer = other_file_system.timer();
@@ -217,24 +258,23 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
   DomainLawyer other_domain_lawyer;
   FileSystemLockManager other_lock_manager(
       &other_file_system, file_prefix_, other_mock_timer, &message_handler_);
-  WaitUrlAsyncFetcher wait_url_async_fetcher(&mock_url_fetcher_);
-  ResourceManager other_resource_manager(
-      file_prefix_, &other_file_system,
-      &filename_encoder_, &wait_url_async_fetcher, hasher,
+  WaitUrlAsyncFetcher wait_url_async_fetcher(&mock_url_fetcher_,
+                                             thread_system_->NewMutex());
+  ResourceManager new_resource_manager(
+      file_prefix_, &other_file_system, &filename_encoder_,
+      &wait_url_async_fetcher, hasher(),
       &other_http_cache, other_lru_cache, &other_lock_manager,
-      &message_handler_, &stats);
+      &message_handler_, &stats, thread_system_.get(), factory_);
 
-  RewriteDriver other_rewrite_driver(&message_handler_, &other_file_system,
-                                     &wait_url_async_fetcher, options_);
-  other_rewrite_driver.SetResourceManager(&other_resource_manager);
-  other_rewrite_driver.AddFilters();
-
-  Variable* cached_resource_fetches =
-      stats.GetVariable(RewriteDriver::kResourceFetchesCached);
-  Variable* succeeded_filter_resource_fetches =
-      stats.GetVariable(RewriteDriver::kResourceFetchConstructSuccesses);
-  Variable* failed_filter_resource_fetches =
-      stats.GetVariable(RewriteDriver::kResourceFetchConstructFailures);
+  RewriteDriver new_rewrite_driver(&message_handler_, &other_file_system,
+                                   &wait_url_async_fetcher);
+  RewriteOptions* options = new RewriteOptions;
+  options->CopyFrom(*options_);
+  new_rewrite_driver.set_custom_options(options);
+  SetupDriver(&new_resource_manager, &new_rewrite_driver);
+  new_rewrite_driver.SetAsynchronousRewrites(
+      rewrite_driver_.asynchronous_rewrites());
+  new_rewrite_driver.AddFilters();
 
   RequestHeaders request_headers;
   // TODO(sligocki): We should set default request headers.
@@ -247,7 +287,7 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
   EXPECT_EQ(CacheInterface::kNotFound, other_http_cache.Query(resource_url));
 
   // Initiate fetch.
-  EXPECT_EQ(true, other_rewrite_driver.FetchResource(
+  EXPECT_EQ(true, new_rewrite_driver.FetchResource(
       resource_url, request_headers, &response_headers, &response_writer,
       &callback));
 
@@ -256,14 +296,29 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
   EXPECT_EQ("", response_contents);
 
   // After we call the callback, it should be correct.
-  wait_url_async_fetcher.CallCallbacks();
+  CallFetcherCallbacksForDriver(&wait_url_async_fetcher, &new_rewrite_driver);
   EXPECT_EQ(true, callback.done());
-  EXPECT_EQ(expected_content, response_contents);
+  EXPECT_STREQ(expected_content, response_contents);
 
   // Check that stats say we took the construct resource path.
-  EXPECT_EQ(0, cached_resource_fetches->Get());
-  EXPECT_EQ(1, succeeded_filter_resource_fetches->Get());
-  EXPECT_EQ(0, failed_filter_resource_fetches->Get());
+  EXPECT_EQ(0, new_resource_manager.cached_resource_fetches()->Get());
+  EXPECT_EQ(1, new_resource_manager.succeeded_filter_resource_fetches()->Get());
+  EXPECT_EQ(0, new_resource_manager.failed_filter_resource_fetches()->Get());
+
+  // Make sure to shut the new worker down before we hit ~RewriteDriver for
+  // new_rewrite_driver.
+  new_resource_manager.ShutDownWorker();
+}
+
+GoogleString ResourceManagerTestBase::AbsolutifyUrl(
+    const StringPiece& resource_name) {
+  GoogleString name;
+  if (resource_name.starts_with("http://")) {
+    resource_name.CopyToString(&name);
+  } else {
+    name = StrCat(kTestDomain, resource_name);
+  }
+  return name;
 }
 
 // Initializes a resource for mock fetching.
@@ -272,19 +327,23 @@ void ResourceManagerTestBase::InitResponseHeaders(
     const ContentType& content_type,
     const StringPiece& content,
     int64 ttl_sec) {
-  GoogleString name;
-  if (resource_name.starts_with("http://")) {
-    resource_name.CopyToString(&name);
-  } else {
-    name = StrCat(kTestDomain, resource_name);
-  }
+  GoogleString name = AbsolutifyUrl(resource_name);
   ResponseHeaders response_headers;
-  resource_manager_->SetDefaultHeaders(&content_type, &response_headers);
-  response_headers.RemoveAll(HttpAttributes::kCacheControl);
-  response_headers.Add(HttpAttributes::kCacheControl,
-                       StrCat("public, max-age=", Integer64ToString(ttl_sec)));
+  SetDefaultLongCacheHeaders(&content_type, &response_headers);
+  response_headers.Replace(HttpAttributes::kCacheControl,
+                           StrCat("public, max-age=",
+                                  Integer64ToString(ttl_sec)));
   response_headers.ComputeCaching();
-  mock_url_fetcher_.SetResponse(name, response_headers, content);
+  SetFetchResponse(name, response_headers, content);
+}
+
+void ResourceManagerTestBase::SetFetchResponse404(
+    const StringPiece& resource_name) {
+  GoogleString name = AbsolutifyUrl(resource_name);
+  ResponseHeaders response_headers;
+  SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers);
+  response_headers.SetStatusAndReason(HttpStatus::kNotFound);
+  SetFetchResponse(name, response_headers, StringPiece());
 }
 
 void ResourceManagerTestBase::AddFileToMockFetcher(
@@ -325,8 +384,14 @@ bool ResourceManagerTestBase::ServeResourceUrl(
   MockCallback callback;
   bool fetched = rewrite_driver_.FetchResource(
       url, request_headers, &response_headers, &writer, &callback);
-  // The callback should be called if and only if FetchResource
-  // returns true.
+
+  // We call WaitForCompletion when testing the serving of rewritten
+  // resources, because that's how the server will work.  It will
+  // complete the Rewrite independent of how long it takes.
+  rewrite_driver_.WaitForCompletion();
+  rewrite_driver_.Clear();
+
+  // The callback should be called if and only if FetchResource returns true.
   EXPECT_EQ(fetched, callback.done());
   return fetched && callback.success();
 }
@@ -351,7 +416,7 @@ void ResourceManagerTestBase::TestServeFiles(
   // from the cache or the disk.  Start with the cache.
   file_system_.Disable();
   ResponseHeaders headers;
-  resource_manager_->SetDefaultHeaders(content_type, &headers);
+  resource_manager_->SetDefaultLongCacheHeaders(content_type, &headers);
   http_cache_.Put(expected_rewritten_path, &headers, rewritten_content,
                   &message_handler_);
   EXPECT_EQ(0U, lru_cache_->num_hits());
@@ -365,27 +430,22 @@ void ResourceManagerTestBase::TestServeFiles(
   file_system_.Enable();
   lru_cache_->Clear();
 
-  // Getting the filename is kind of a drag, isn't it.  But someone's
-  // gotta do it.
-  GoogleString filename;
-  FilenameEncoder* encoder = resource_manager_->filename_encoder();
-  encoder->Encode(resource_manager_->filename_prefix(),
-                  expected_rewritten_path, &filename);
-  GoogleString data = StrCat(headers.ToString(), rewritten_content);
-  EXPECT_TRUE(file_system_.WriteFile(filename.c_str(), data,
-                                     &message_handler_));
-
+  WriteOutputResourceFile(expected_rewritten_path, content_type,
+                          rewritten_content);
   EXPECT_TRUE(ServeResource(kTestDomain, filter_id,
                             rewritten_name, rewritten_ext, &content));
   EXPECT_EQ(rewritten_content, content);
 
   // After serving from the disk, we should have seeded our cache.  Check it.
-  EXPECT_EQ(CacheInterface::kAvailable, http_cache_.Query(
-      expected_rewritten_path));
+  RewriteFilter* filter = rewrite_driver_.FindFilter(filter_id);
+  if (!filter->ComputeOnTheFly()) {
+    EXPECT_EQ(CacheInterface::kAvailable, http_cache_.Query(
+        expected_rewritten_path));
+  }
 
   // Finally, nuke the file, nuke the cache, get it via a fetch.
   file_system_.Disable();
-  EXPECT_TRUE(file_system_.RemoveFile(filename.c_str(), &message_handler_));
+  RemoveOutputResourceFile(expected_rewritten_path);
   lru_cache_->Clear();
   InitResponseHeaders(orig_name, *content_type, orig_content,
                       100 /* ttl in seconds */);
@@ -394,11 +454,35 @@ void ResourceManagerTestBase::TestServeFiles(
   EXPECT_EQ(rewritten_content, content);
 
   // Now we expect both the file and the cache entry to be there.
-  EXPECT_EQ(CacheInterface::kAvailable, http_cache_.Query(
-      expected_rewritten_path));
+  if (!filter->ComputeOnTheFly()) {
+    EXPECT_EQ(CacheInterface::kAvailable, http_cache_.Query(
+        expected_rewritten_path));
+  }
   file_system_.Enable();
-  EXPECT_TRUE(file_system_.Exists(filename.c_str(), &message_handler_)
-              .is_true());
+  EXPECT_TRUE(file_system_.Exists(OutputResourceFilename(
+    expected_rewritten_path).c_str(), &message_handler_).is_true());
+}
+
+GoogleString ResourceManagerTestBase::OutputResourceFilename(const StringPiece& url) {
+  GoogleString filename;
+  FilenameEncoder* encoder = resource_manager_->filename_encoder();
+  encoder->Encode(resource_manager_->filename_prefix(), url, &filename);
+  return filename;
+}
+
+void ResourceManagerTestBase::WriteOutputResourceFile(
+    const StringPiece& url, const ContentType* content_type,
+    const StringPiece& rewritten_content) {
+  ResponseHeaders headers;
+  resource_manager_->SetDefaultLongCacheHeaders(content_type, &headers);
+  GoogleString data = StrCat(headers.ToString(), rewritten_content);
+  EXPECT_TRUE(file_system_.WriteFile(OutputResourceFilename(url).c_str(), data,
+                                     &message_handler_));
+}
+
+void ResourceManagerTestBase::RemoveOutputResourceFile(const StringPiece& url) {
+  EXPECT_TRUE(file_system_.RemoveFile(
+      OutputResourceFilename(url).c_str(), &message_handler_));
 }
 
 // Just check if we can fetch a resource successfully, ignore response.
@@ -407,26 +491,186 @@ bool ResourceManagerTestBase::TryFetchResource(const StringPiece& url) {
   return ServeResourceUrl(url, &contents);
 }
 
+
+ResourceManagerTestBase::CssLink::CssLink(
+    const StringPiece& url, const StringPiece& content,
+    const StringPiece& media, bool supply_mock)
+    : url_(url.data(), url.size()),
+      content_(content.data(), content.size()),
+      media_(media.data(), media.size()),
+      supply_mock_(supply_mock) {
+}
+
+ResourceManagerTestBase::CssLink::Vector::~Vector() {
+  STLDeleteElements(this);
+}
+
+void ResourceManagerTestBase::CssLink::Vector::Add(
+    const StringPiece& url, const StringPiece& content,
+    const StringPiece& media, bool supply_mock) {
+  push_back(new CssLink(url, content, media, supply_mock));
+}
+
+bool ResourceManagerTestBase::CssLink::DecomposeCombinedUrl(
+    GoogleString* base, StringVector* segments, MessageHandler* handler) {
+  GoogleUrl gurl(url_);
+  bool ret = false;
+  if (gurl.is_valid()) {
+    gurl.AllExceptLeaf().CopyToString(base);
+    ResourceNamer namer;
+    if (namer.Decode(gurl.LeafWithQuery()) &&
+        (namer.id() == RewriteDriver::kCssCombinerId)) {
+      UrlMultipartEncoder multipart_encoder;
+      GoogleString segment;
+      ret = multipart_encoder.Decode(namer.name(), segments, NULL, handler);
+    }
+  }
+  return ret;
+}
+
+namespace {
+
+// Helper class to collect CSS hrefs.
+class CssCollector : public EmptyHtmlFilter {
+ public:
+  CssCollector(HtmlParse* html_parse,
+               ResourceManagerTestBase::CssLink::Vector* css_links)
+      : css_links_(css_links),
+        css_tag_scanner_(html_parse) {
+  }
+
+  virtual void EndElement(HtmlElement* element) {
+    HtmlElement::Attribute* href;
+    const char* media;
+    if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
+      // TODO(jmarantz): collect content of the CSS files, before and
+      // after combination, so we can diff.
+      const char* content = "";
+      css_links_->Add(href->value(), content, media, false);
+    }
+  }
+
+  virtual const char* Name() const { return "CssCollector"; }
+
+ private:
+  ResourceManagerTestBase::CssLink::Vector* css_links_;
+  CssTagScanner css_tag_scanner_;
+
+  DISALLOW_COPY_AND_ASSIGN(CssCollector);
+};
+
+}  // namespace
+
+// Collects just the hrefs from CSS links into a string vector.
+void ResourceManagerTestBase::CollectCssLinks(
+    const StringPiece& id, const StringPiece& html, StringVector* css_links) {
+  CssLink::Vector v;
+  CollectCssLinks(id, html, &v);
+  for (int i = 0, n = v.size(); i < n; ++i) {
+    css_links->push_back(v[i]->url_);
+  }
+}
+
+// Collects all information about CSS links into a CssLink::Vector.
+void ResourceManagerTestBase::CollectCssLinks(
+    const StringPiece& id, const StringPiece& html,
+    CssLink::Vector* css_links) {
+  HtmlParse html_parse(&message_handler_);
+  CssCollector collector(&html_parse, css_links);
+  html_parse.AddFilter(&collector);
+  GoogleString dummy_url = StrCat("http://collect.css.links/", id, ".html");
+  html_parse.StartParse(dummy_url);
+  html_parse.ParseText(html.data(), html.size());
+  html_parse.FinishParse();
+}
+
+
 GoogleString ResourceManagerTestBase::Encode(
     const StringPiece& path, const StringPiece& id, const StringPiece& hash,
     const StringPiece& name, const StringPiece& ext) {
   ResourceNamer namer;
   namer.set_id(id);
   namer.set_hash(hash);
-  namer.set_name(name);
+
+  // We only want to encode the last path-segment of 'name'.
+  // Note that this block of code could be avoided if all call-sites
+  // put subdirectory info in the 'path' argument, but it turns out
+  // to be a lot more convenient for tests if we allow relative paths
+  // in the 'name' argument for this method, so the one-time effort of
+  // teasing out the leaf and encoding that saves a whole lot of clutter
+  // in, at least, CacheExtenderTest.
+  StringPieceVector path_vector;
+  SplitStringPieceToVector(name, "/", &path_vector, false);
+  UrlSegmentEncoder encoder;
+  GoogleString encoded_name;
+  StringVector v;
+  CHECK_LT(0U, path_vector.size());
+  v.push_back(path_vector[path_vector.size() - 1].as_string());
+  encoder.Encode(v, NULL, &encoded_name);
+
+  // Now reconstruct the path.
+  GoogleString pathname;
+  for (int i = 0, n = path_vector.size() - 1; i < n; ++i) {
+    path_vector[i].AppendToString(&pathname);
+    pathname += "/";
+  }
+  pathname += encoded_name;
+
+  namer.set_name(pathname);
   namer.set_ext(ext);
   return StrCat(path, namer.Encode());
 }
 
-// Overrides the async fetcher on the primary context to be a
-// wait fetcher which permits delaying callback invocation, and returns a
-// pointer to the new fetcher.
-WaitUrlAsyncFetcher* ResourceManagerTestBase::SetupWaitFetcher() {
-  WaitUrlAsyncFetcher* delayer =
-      new WaitUrlAsyncFetcher(&mock_url_fetcher_);
-  rewrite_driver_.set_async_fetcher(delayer);
-  resource_manager_->set_url_async_fetcher(delayer);
-  return delayer;
+void ResourceManagerTestBase::SetupWaitFetcher() {
+  counting_url_async_fetcher_.set_fetcher(&wait_url_async_fetcher_);
+  wait_for_fetches_ = true;
 }
+
+// Note that we do not override ParseUrl() here, as we used to.  We
+// previously did this to have a point to inject a call to
+// WaitForCompletion, but this is not necessary.  Now, only the
+// passage of sufficient mock-time to accomodate all delays guarantees
+// that a Rewrite is completed before the expiration of the mocked TimedWait
+// call from rewrite_driver.  We rely on WakeupOnIdle to release us from the
+// condition-variable-wait.
+
+void ResourceManagerTestBase::CallFetcherCallbacksForDriver(
+      WaitUrlAsyncFetcher* fetcher,
+      RewriteDriver* driver) {
+  bool pass_through_mode = fetcher->SetPassThroughMode(true);
+
+  // TODO(jmarantz): parameterize whether this is to be used for
+  // simulating delayed fetches for a ResourceFetch, in which case
+  // we'll want WaitForCompletion, or whether this is to be used for
+  // simulation of Rewrites, in which case we can do a TimedWait
+  // according to the needs of the simulation.
+  driver->WaitForCompletion();
+  fetcher->SetPassThroughMode(pass_through_mode);
+  driver->Clear();
+}
+
+void ResourceManagerTestBase::CallFetcherCallbacks() {
+  CallFetcherCallbacksForDriver(&wait_url_async_fetcher_, &rewrite_driver_);
+}
+
+void ResourceManagerTestBase::SetupDriver(ResourceManager* rm,
+                                          RewriteDriver* rd) {
+  Scheduler* scheduler = new MockScheduler(
+      rm->thread_system(), rm->rewrite_worker(), &timer_);
+  rd->SetResourceManagerAndScheduler(rm, scheduler);
+}
+
+// Logging at the INFO level slows down tests, adds to the noise, and
+// adds considerably to the speed variability.
+class ResourceManagerProcessContext {
+ public:
+  ResourceManagerProcessContext() {
+    logging::SetMinLogLevel(logging::LOG_WARNING);
+  }
+
+ private:
+  MemCleanUp mem_clean_up_;
+};
+ResourceManagerProcessContext resource_manager_process_context;
 
 }  // namespace net_instaweb

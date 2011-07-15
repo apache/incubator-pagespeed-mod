@@ -18,13 +18,16 @@
 
 #include "net/instaweb/rewriter/public/resource_slot.h"
 
-#include <cstddef>
+#include <deque>
 
+#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 
 namespace net_instaweb {
+class RewriteContext;
 
 ResourceSlot::~ResourceSlot() {
 }
@@ -33,21 +36,46 @@ void ResourceSlot::SetResource(const ResourcePtr& resource) {
   resource_ = ResourcePtr(resource);
 }
 
+RewriteContext* ResourceSlot::LastContext() const {
+  if (contexts_.empty()) {
+    return NULL;
+  }
+  return contexts_.back();
+}
+
+void ResourceSlot::DetachContext(RewriteContext* context) {
+  if (contexts_.front() == context) {
+    contexts_.pop_front();
+  } else if (contexts_.back() == context) {
+    contexts_.pop_back();
+  } else {
+    DCHECK(false) << "Can only detach first or last context";
+  }
+}
+
 FetchResourceSlot::~FetchResourceSlot() {
 }
 
 void FetchResourceSlot::Render() {
-  DCHECK(false) << "FetchResourceSLot::Render should never be called";
+  DCHECK(false) << "FetchResourceSlot::Render should never be called";
 }
 
 HtmlResourceSlot::~HtmlResourceSlot() {
 }
 
 void HtmlResourceSlot::Render() {
-  if (attribute_ != NULL) {
-    attribute_->SetValue(resource()->url());
-    // Note, for inserting image-dimensions, we will likely have
-    // to subclass or augment HtmlResourceSlot.
+  if (disable_rendering()) {
+    return;  // nothing done here.
+  } else if (should_delete_element()) {
+    DCHECK(element_ != NULL);
+    html_parse_->DeleteElement(element_);
+  } else {
+    DCHECK(attribute_ != NULL);
+    if (attribute_ != NULL) {
+      attribute_->SetValue(resource()->url());
+      // Note, for inserting image-dimensions, we will likely have
+      // to subclass or augment HtmlResourceSlot.
+    }
   }
 }
 

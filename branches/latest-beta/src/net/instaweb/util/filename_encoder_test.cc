@@ -18,7 +18,6 @@
 
 #include "net/instaweb/util/public/filename_encoder.h"
 
-#include <vector>
 #include <cstddef>
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -46,7 +45,7 @@ class FilenameEncoderTest : public ::testing::Test {
 
  protected:
   void CheckSegmentLength(const StringPiece& escaped_word) {
-    std::vector<StringPiece> components;
+    StringPieceVector components;
     SplitStringPieceToVector(escaped_word, "/", &components, false);
     for (size_t i = 0; i < components.size(); ++i) {
       EXPECT_GE(kMaxLen, components[i].size());

@@ -18,31 +18,50 @@
 
 #include "net/instaweb/rewriter/public/resource_manager.h"
 
+#include <cstddef>                     // for size_t
+#include <set>
+#include <vector>
+#include "base/logging.h"               // for operator<<, etc
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/data_url_input_resource.h"
-#include "net/instaweb/rewriter/public/file_input_resource.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/url_input_resource.h"
-#include "net/instaweb/rewriter/public/url_partnership.h"
-#include "net/instaweb/util/public/content_type.h"
-#include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
+#include "net/instaweb/rewriter/public/blocking_behavior.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/url_partnership.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"        // for int64
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
+#include "net/instaweb/util/public/queued_worker.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"          // for STLDeleteElements
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "net/instaweb/util/public/url_escaper.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
+
+class CacheInterface;
+class FileSystem;
+class FilenameEncoder;
+class Hasher;
+class UrlAsyncFetcher;
 
 namespace {
 
@@ -56,9 +75,21 @@ static const char kCachedOutputHits[] = "rewrite_cached_output_hits";
 static const char kCachedOutputMisses[] = "rewrite_cached_output_misses";
 const char kInstawebResource404Count[] = "resource_404_count";
 const char kInstawebSlurp404Count[] = "slurp_404_count";
+const char kResourceFetchesCached[] = "resource_fetches_cached";
+const char kResourceFetchConstructSuccesses[] =
+    "resource_fetch_construct_successes";
+const char kResourceFetchConstructFailures[] =
+    "resource_fetch_construct_failures";
+
+// Variables for the beacon to increment.  These are currently handled in
+// mod_pagespeed_handler on apache.  The average load time in milliseconds is
+// total_page_load_ms / page_load_count.  Note that these are not updated
+// together atomically, so you might get a slightly bogus value.
+const char kTotalPageLoadMs[] = "total_page_load_ms";
+const char kPageLoadCount[] = "page_load_count";
+
 
 const int64 kGeneratedMaxAgeMs = Timer::kYearMs;
-const int64 kGeneratedMaxAgeSec = Timer::kYearMs / Timer::kSecondMs;
 const int64 kRefreshExpirePercent = 75;
 
 }  // namespace
@@ -100,13 +131,16 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
                                  CacheInterface* metadata_cache,
                                  NamedLockManager* lock_manager,
                                  MessageHandler* handler,
-                                 Statistics* statistics)
+                                 Statistics* statistics,
+                                 ThreadSystem* thread_system,
+                                 RewriteDriverFactory* factory)
     : file_prefix_(file_prefix.data(), file_prefix.size()),
       resource_id_(0),
       file_system_(file_system),
       filename_encoder_(filename_encoder),
       url_async_fetcher_(url_async_fetcher),
       hasher_(hasher),
+      lock_hasher_(20),
       statistics_(statistics),
       resource_url_domain_rejections_(
           statistics_->GetVariable(kResourceUrlDomainRejections)),
@@ -116,17 +150,35 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
       cached_output_misses_(statistics->GetVariable(kCachedOutputMisses)),
       resource_404_count_(statistics->GetVariable(kInstawebResource404Count)),
       slurp_404_count_(statistics->GetVariable(kInstawebSlurp404Count)),
+      total_page_load_ms_(statistics->GetVariable(kTotalPageLoadMs)),
+      page_load_count_(statistics->GetVariable(kPageLoadCount)),
+      cached_resource_fetches_(statistics->GetVariable(kResourceFetchesCached)),
+      succeeded_filter_resource_fetches_(
+          statistics->GetVariable(kResourceFetchConstructSuccesses)),
+      failed_filter_resource_fetches_(
+          statistics->GetVariable(kResourceFetchConstructFailures)),
       http_cache_(http_cache),
       metadata_cache_(metadata_cache),
       relative_path_(false),
       store_outputs_in_file_system_(true),
       lock_manager_(lock_manager),
-      max_age_string_(StringPrintf("max-age=%d",
-                                   static_cast<int>(kGeneratedMaxAgeSec))),
-      message_handler_(handler) {
+      message_handler_(handler),
+      thread_system_(thread_system),
+      factory_(factory),
+      rewrite_drivers_mutex_(thread_system->NewMutex()),
+      decoding_driver_(NewUnmanagedRewriteDriver()) {
+  rewrite_worker_.reset(new QueuedWorker(thread_system_));
+  rewrite_worker_->Start();
 }
 
 ResourceManager::~ResourceManager() {
+  // stop job traffic before deleting any rewrite drivers.
+  rewrite_worker_->ShutDown();
+
+  // We scan for "leaked_rewrite_drivers" in apache/install/tests.mk.
+  DCHECK(active_rewrite_drivers_.empty()) << "leaked_rewrite_drivers";
+  STLDeleteElements(&active_rewrite_drivers_);
+  STLDeleteElements(&available_rewrite_drivers_);
 }
 
 void ResourceManager::Initialize(Statistics* statistics) {
@@ -137,28 +189,30 @@ void ResourceManager::Initialize(Statistics* statistics) {
     statistics->AddVariable(kCachedOutputMisses);
     statistics->AddVariable(kInstawebResource404Count);
     statistics->AddVariable(kInstawebSlurp404Count);
+    statistics->AddVariable(kTotalPageLoadMs);
+    statistics->AddVariable(kPageLoadCount);
+    statistics->AddVariable(kResourceFetchesCached);
+    statistics->AddVariable(kResourceFetchConstructSuccesses);
+    statistics->AddVariable(kResourceFetchConstructFailures);
     HTTPCache::Initialize(statistics);
     RewriteDriver::Initialize(statistics);
   }
 }
 
 // TODO(jmarantz): consider moving this method to ResponseHeaders
-void ResourceManager::SetDefaultHeaders(const ContentType* content_type,
-                                        ResponseHeaders* header) const {
+void ResourceManager::SetDefaultLongCacheHeaders(
+    const ContentType* content_type, ResponseHeaders* header) const {
   header->set_major_version(1);
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
+
   header->RemoveAll(HttpAttributes::kContentType);
   if (content_type != NULL) {
     header->Add(HttpAttributes::kContentType, content_type->mime_type());
   }
+
   int64 now_ms = http_cache_->timer()->NowMs();
-  header->Replace(HttpAttributes::kCacheControl, max_age_string_);
-  GoogleString expires_string;
-  header->RemoveAll(HttpAttributes::kExpires);
-  if (ConvertTimeToString(now_ms + kGeneratedMaxAgeMs, &expires_string)) {
-    header->Add(HttpAttributes::kExpires, expires_string);
-  }
+  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs);
 
   // While PageSpeed claims the "Vary" header is needed to avoid proxy cache
   // issues for clients where some accept gzipped content and some don't, it
@@ -175,9 +229,6 @@ void ResourceManager::SetDefaultHeaders(const ContentType* content_type,
 
   // TODO(jmarantz): add date/last-modified headers by default.
   StringStarVector v;
-  if (!header->Lookup(HttpAttributes::kDate, &v)) {
-    header->SetDate(now_ms);
-  }
   if (!header->Lookup(HttpAttributes::kLastModified, &v)) {
     header->SetLastModified(now_ms);
   }
@@ -208,8 +259,8 @@ bool ResourceManager::Write(HttpStatus::Code status_code,
                             OutputResource* output,
                             int64 origin_expire_time_ms,
                             MessageHandler* handler) {
-  ResponseHeaders* meta_data = output->metadata();
-  SetDefaultHeaders(output->type(), meta_data);
+  ResponseHeaders* meta_data = output->response_headers();
+  SetDefaultLongCacheHeaders(output->type(), meta_data);
   meta_data->SetStatusAndReason(status_code);
 
   // The URL for any resource we will write includes the hash of contents,
@@ -267,6 +318,13 @@ void ResourceManager::WriteUnoptimizable(OutputResource* output,
 // TODO(morlovich) We should consider caching based on the input hash, too,
 // so we don't end redoing work when input resources don't change but have
 // short expiration.
+//
+// TODO(jmarantz): It would be nicer for all the cache-related
+// twiddling for the new methodology (including both
+// set_optimizable(true) and set_optimizable(false)) was in
+// RewriteContext, perhaps right next to the Put; and if
+// CacheComputedResourceMapping was not called if
+// written_using_rewrite_context_flow at all.
 void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     int64 origin_expire_time_ms, MessageHandler* handler) {
   GoogleString name_key = StrCat(kCacheKeyResourceNamePrefix,
@@ -276,7 +334,9 @@ void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
     cached->set_url(output->url());
   }
   cached->set_origin_expiration_time_ms(origin_expire_time_ms);
-  output->SaveCachedResult(name_key, handler);
+  if (!output->written_using_rewrite_context_flow()) {
+    output->SaveCachedResult(name_key, handler);
+  }
 }
 
 bool ResourceManager::IsImminentlyExpiring(int64 start_date_ms,
@@ -309,8 +369,8 @@ bool ResourceManager::IsImminentlyExpiring(int64 start_date_ms,
 void ResourceManager::RefreshIfImminentlyExpiring(
     Resource* resource, MessageHandler* handler) const {
   if (!http_cache_->force_caching() && resource->IsCacheable()) {
-    const ResponseHeaders* headers = resource->metadata();
-    int64 start_date_ms = headers->timestamp_ms();
+    const ResponseHeaders* headers = resource->response_headers();
+    int64 start_date_ms = headers->fetch_time_ms();
     int64 expire_ms = headers->CacheExpirationTimeMs();
     if (IsImminentlyExpiring(start_date_ms, expire_ms)) {
       resource->Freshen(handler);
@@ -327,7 +387,8 @@ void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
   switch (find_result) {
     case HTTPCache::kFound:
       resource->Link(http_value(), handler);
-      resource->metadata()->CopyFrom(*response_headers());
+      resource->response_headers()->CopyFrom(*response_headers());
+      resource->DetermineContentType();
       resource_manager_->RefreshIfImminentlyExpiring(resource.get(), handler);
       resource_callback_->Done(true);
       break;
@@ -352,6 +413,11 @@ void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
   delete this;
 }
 
+// TODO(sligocki): Move into Resource? This would allow us to treat
+// file- and URL-based resources differently as far as cacheability, etc.
+// Specifically, we are now making a cache request for file-based resources
+// which will always fail, for FileInputResources, we should just Load them.
+// TODO(morlovich): Should this load non-cacheable + non-loaded resources?
 void ResourceManager::ReadAsync(Resource::AsyncCallback* callback) {
   // If the resource is not already loaded, and this type of resource (e.g.
   // URL vs File vs Data) is cacheable, then try to load it.
@@ -375,7 +441,8 @@ OutputResourcePtr ResourceManager::CreateOutputResourceFromResource(
     const UrlSegmentEncoder* encoder,
     const ResourceContext* data,
     const ResourcePtr& input_resource,
-    OutputResourceKind kind) {
+    OutputResourceKind kind,
+    bool use_async_flow) {
   OutputResourcePtr result;
   if (input_resource.get() != NULL) {
     // TODO(jmarantz): It would be more efficient to pass in the base
@@ -390,7 +457,7 @@ OutputResourcePtr ResourceManager::CreateOutputResourceFromResource(
       encoder->Encode(v, data, &name);
       result.reset(CreateOutputResourceWithPath(
           options, mapped_gurl->AllExceptLeaf(),
-          filter_id, name, input_resource->type(), kind));
+          filter_id, name, input_resource->type(), kind, use_async_flow));
     }
   }
   return result;
@@ -402,7 +469,8 @@ OutputResourcePtr ResourceManager::CreateOutputResourceWithPath(
     const StringPiece& filter_id,
     const StringPiece& name,
     const ContentType* content_type,
-    OutputResourceKind kind) {
+    OutputResourceKind kind,
+    bool use_async_flow) {
   ResourceNamer full_name;
   full_name.set_id(filter_id);
   full_name.set_name(name);
@@ -417,13 +485,15 @@ OutputResourcePtr ResourceManager::CreateOutputResourceWithPath(
   int url_size = path.size() + leaf_size;
   if ((leaf_size <= options->max_url_segment_size()) &&
       (url_size <= options->max_url_size())) {
-    resource.reset(new OutputResource(
-        this, path, full_name, content_type, options, kind));
+    OutputResource* output_resource = new OutputResource(
+        this, path, full_name, content_type, options, kind);
+    output_resource->set_written_using_rewrite_context_flow(use_async_flow);
+    resource.reset(output_resource);
 
     // Determine whether this output resource is still valid by looking
     // up by hash in the http cache.  Note that this cache entry will
     // expire when any of the origin resources expire.
-    if (kind != kOutlinedResource) {
+      if ((kind != kOutlinedResource) && !use_async_flow) {
       GoogleString name_key = StrCat(
           ResourceManager::kCacheKeyResourceNamePrefix, resource->name_key());
       resource->FetchCachedResult(name_key, message_handler_);
@@ -441,7 +511,7 @@ bool ResourceManager::LockForCreation(const GoogleString& name,
 
   bool result = true;
   if (creation_lock->get() == NULL) {
-    GoogleString lock_name = StrCat(hasher_->Hash(name), kLockSuffix);
+    GoogleString lock_name = StrCat(lock_hasher_.Hash(name), kLockSuffix);
     creation_lock->reset(lock_manager_->CreateNamedLock(lock_name));
   }
   switch (block) {
@@ -461,6 +531,93 @@ bool ResourceManager::LockForCreation(const GoogleString& name,
       break;
   }
   return result;
+}
+
+bool ResourceManager::HandleBeacon(const StringPiece& unparsed_url) {
+  if ((total_page_load_ms_ == NULL) || (page_load_count_ == NULL)) {
+    return false;
+  }
+  GoogleString url = unparsed_url.as_string();
+  // TODO(abliss): proper query parsing
+  size_t index = url.find(AddInstrumentationFilter::kLoadTag);
+  if (index == GoogleString::npos) {
+    return false;
+  }
+  url = url.substr(index + strlen(AddInstrumentationFilter::kLoadTag));
+  int value = 0;
+  if (!StringToInt(url, &value)) {
+    return false;
+  }
+  total_page_load_ms_->Add(value);
+  page_load_count_->Add(1);
+  return true;
+}
+
+// TODO(jmaessen): Note that we *could* re-structure the
+// rewrite_driver freelist code as follows: Keep a
+// std::vector<RewriteDriver*> of all rewrite drivers.  Have each
+// driver hold its index in the vector (as a number or iterator).
+// Keep index of first in use.  To free, swap with first in use,
+// adjusting indexes, and increment first in use.  To allocate,
+// decrement first in use and return that driver.  If first in use was
+// 0, allocate a fresh driver and push it.
+//
+// The benefit of Jan's idea is that we could avoid the overhead
+// of keeping the RewriteDrivers in a std::set, which has log n
+// insert/remove behavior, and instead get constant time and less
+// memory overhead.
+
+RewriteDriver* ResourceManager::NewCustomRewriteDriver(
+    RewriteOptions* options) {
+  RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver();
+  rewrite_driver->set_custom_options(options);
+  rewrite_driver->AddFilters();
+  return rewrite_driver;
+}
+
+RewriteDriver* ResourceManager::NewUnmanagedRewriteDriver() {
+  RewriteDriver* rewrite_driver = new RewriteDriver(
+      message_handler_, file_system_, url_async_fetcher_);
+  Scheduler* scheduler = new Scheduler(thread_system_);
+  rewrite_driver->SetResourceManagerAndScheduler(this, scheduler);
+  if (factory_ != NULL) {
+    factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
+  }
+  return rewrite_driver;
+}
+
+RewriteDriver* ResourceManager::NewRewriteDriver() {
+  ScopedMutex lock(rewrite_drivers_mutex_.get());
+  RewriteDriver* rewrite_driver = NULL;
+  if (!available_rewrite_drivers_.empty()) {
+    rewrite_driver = available_rewrite_drivers_.back();
+    available_rewrite_drivers_.pop_back();
+  } else {
+    rewrite_driver = NewUnmanagedRewriteDriver();
+    rewrite_driver->AddFilters();
+  }
+  active_rewrite_drivers_.insert(rewrite_driver);
+  return rewrite_driver;
+}
+
+void ResourceManager::ReleaseRewriteDriver(
+    RewriteDriver* rewrite_driver) {
+  ScopedMutex lock(rewrite_drivers_mutex_.get());
+  int count = active_rewrite_drivers_.erase(rewrite_driver);
+  if (count != 1) {
+    LOG(ERROR) << "ReleaseRewriteDriver called with driver not in active set.";
+  } else {
+    available_rewrite_drivers_.push_back(rewrite_driver);
+    rewrite_driver->Clear();
+  }
+}
+
+void ResourceManager::ShutDownWorker() {
+  rewrite_worker_->ShutDown();
+}
+
+void ResourceManager::AddRewriteTask(Function* task) {
+  rewrite_worker_->RunInWorkThread(task);
 }
 
 }  // namespace net_instaweb

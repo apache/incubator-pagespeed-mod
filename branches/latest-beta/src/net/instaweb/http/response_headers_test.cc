@@ -29,6 +29,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/timer.h"  // for Timer
 
 namespace net_instaweb {
 
@@ -203,7 +204,7 @@ TEST_F(ResponseHeadersTest, TestCachingPublic) {
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
   EXPECT_EQ(300 * 1000,
             response_headers_.CacheExpirationTimeMs() -
-            response_headers_.timestamp_ms());
+            response_headers_.fetch_time_ms());
 }
 
 // Private caching
@@ -215,7 +216,7 @@ TEST_F(ResponseHeadersTest, TestCachingPrivate) {
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
   EXPECT_EQ(10 * 1000,
             response_headers_.CacheExpirationTimeMs() -
-            response_headers_.timestamp_ms());
+            response_headers_.fetch_time_ms());
 }
 
 // Default caching (when in doubt, it's public)
@@ -227,7 +228,7 @@ TEST_F(ResponseHeadersTest, TestCachingDefault) {
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
   EXPECT_EQ(100 * 1000,
             response_headers_.CacheExpirationTimeMs() -
-            response_headers_.timestamp_ms());
+            response_headers_.fetch_time_ms());
 }
 
 // Test that we don't erroneously cache a 204.
@@ -359,4 +360,94 @@ TEST_F(ResponseHeadersTest, TestUpdateFrom) {
   EXPECT_EQ(expected_merged_header_string, actual_merged_header_string);
 }
 
+TEST_F(ResponseHeadersTest, TestCachingVaryStar) {
+  ParseHeaders("HTTP/1.0 200 OK\r\n"
+               "Date: Mon, 05 Apr 2010 18:49:46 GMT\r\n"
+               "Cache-control: public, max-age=300\r\n"
+               "Vary: *\r\n\r\n\r\n");
+  EXPECT_FALSE(response_headers_.IsCacheable());
+}
+
+TEST_F(ResponseHeadersTest, TestSetDateAndCaching) {
+  response_headers_.SetDateAndCaching(MockTimer::kApr_5_2010_ms,
+                                      6 * Timer::kMinuteMs);
+  const char expected_headers[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "\r\n";
+  EXPECT_EQ(expected_headers, response_headers_.ToString());
+}
+
+TEST_F(ResponseHeadersTest, TestReserializingCommaValues) {
+  const char comma_headers[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "Vary: Accept-Encoding, User-Agent\r\n"
+      "\r\n";
+  response_headers_.Clear();
+  ParseHeaders(comma_headers);
+  StringStarVector values;
+  response_headers_.Lookup(HttpAttributes::kVary, &values);
+  EXPECT_EQ(2, values.size());
+  EXPECT_EQ(comma_headers, response_headers_.ToString());
+}
+
+TEST_F(ResponseHeadersTest, TestGzipped) {
+  const char comma_headers[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "Content-Encoding: deflate, gzip\r\n"
+      "\r\n";
+  response_headers_.Clear();
+  ParseHeaders(comma_headers);
+  StringStarVector values;
+  response_headers_.Lookup(HttpAttributes::kContentEncoding, &values);
+  EXPECT_EQ(2, values.size());
+  EXPECT_TRUE(response_headers_.IsGzipped());
+  EXPECT_TRUE(response_headers_.WasGzippedLast());
+}
+
+TEST_F(ResponseHeadersTest, TestGzippedNotLast) {
+  const char comma_headers[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "Content-Encoding: gzip, deflate\r\n"
+      "\r\n";
+  response_headers_.Clear();
+  ParseHeaders(comma_headers);
+  StringStarVector values;
+  response_headers_.Lookup(HttpAttributes::kContentEncoding, &values);
+  EXPECT_EQ(2, values.size());
+  EXPECT_TRUE(response_headers_.IsGzipped());
+  EXPECT_FALSE(response_headers_.WasGzippedLast());
+}
+
+TEST_F(ResponseHeadersTest, TestRemove) {
+  const char headers[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "Content-Encoding: chunked, deflate, chunked, gzip\r\n"
+      "\r\n";
+  const char headers_removed[] =
+      "HTTP/1.0 0 (null)\r\n"
+      "Date: Mon, 05 Apr 2010 18:51:26 GMT\r\n"
+      "Expires: Mon, 05 Apr 2010 18:57:26 GMT\r\n"
+      "Cache-Control: max-age=360\r\n"
+      "Content-Encoding: chunked, deflate, gzip\r\n"
+      "\r\n";
+  response_headers_.Clear();
+  ParseHeaders(headers);
+  response_headers_.Remove(HttpAttributes::kContentEncoding, "chunked");
+  EXPECT_EQ(headers_removed, response_headers_.ToString());
+}
 }  // namespace net_instaweb

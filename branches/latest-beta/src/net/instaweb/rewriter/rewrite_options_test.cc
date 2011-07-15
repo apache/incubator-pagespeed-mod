@@ -18,7 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 
-#include <cstddef>
 #include <set>
 
 #include "net/instaweb/util/public/gtest.h"
@@ -63,6 +62,15 @@ class RewriteOptionsTest : public ::testing::Test {
 
   RewriteOptions options_;
 };
+
+TEST_F(RewriteOptionsTest, BotDetectEnabledByDefault) {
+  ASSERT_TRUE(options_.botdetect_enabled());
+}
+
+TEST_F(RewriteOptionsTest, BotDetectEnable) {
+  options_.set_botdetect_enabled(true);
+  ASSERT_TRUE(options_.botdetect_enabled());
+}
 
 TEST_F(RewriteOptionsTest, NoneEnabledByDefault) {
   ASSERT_TRUE(NoneEnabled());
@@ -135,6 +143,8 @@ TEST_F(RewriteOptionsTest, CommaSeparatedList) {
 
 TEST_F(RewriteOptionsTest, CompoundFlag) {
   FilterSet s;
+  // TODO(jmaessen): add kConvertJpegToWebp here when it becomes part of
+  // rewrite_images.
   s.insert(RewriteOptions::kInlineImages);
   s.insert(RewriteOptions::kInsertImageDimensions);
   s.insert(RewriteOptions::kRecompressImages);
