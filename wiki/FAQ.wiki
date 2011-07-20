@@ -108,6 +108,8 @@ This way mod_pagespeed can continue to operate on the other elements of the web 
 
 Note: This option was added in mod_pagespeed 0.9.11.1-271
 
+One idea is for mod_pagespeed to blacklist certain files by default that have been known to introspect their own URLs.  This is tracked in http://code.google.com/p/modpagespeed/issues/detail?id=268.
+
 = What's with all these 'serf' errors in my logs? Error status=670003 (Temporary failure in name resolution) =
 
 This can happen when the DNS cannot be accessed accurately from the server. Thus sub-resources cannot be fetched and rewritten correctly.
