@@ -3,12 +3,6 @@
     # can set this to "off".
     ModPagespeed on
 
-    # By default, mod_pagespeed disables image optimization and cache
-    # extension of images when serving traffic to web crawlers, known as
-    # "bots".  To enable rewritting images for bots, set this variable to
-    # "off".
-    # ModPagespeedDisableForBots on
-
     # Direct Apache to send all HTML output to the mod_pagespeed
     # output handler.
     AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER text/html
@@ -104,6 +98,17 @@
     # (e.g. CSS files) across paths
     #
     # ModPagespeedCombineAcrossPaths off
+
+    # Explicitly tell mod_pagespeed to load some resources from disk.
+    # This will speed up load time and update frequency.
+    #
+    # This should only be used for static resources which do not need
+    # specific headers set or other processing by Apache.
+    #
+    # Both URL and filesystem path should specify directories and
+    # filesystem path must be absolute (for now).
+    #
+    # ModPagespeedLoadFromFile "http://example.com/static/" "/var/www/static/"
 
 
     # Enables server-side instrumentation and statistics.  If this rewriter is
