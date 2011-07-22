@@ -93,7 +93,8 @@ class JavascriptRewriteContext : public SingleRewriteContext {
       // Give the script a nice mimetype and extension.
       // (There is no harm in doing this, they're ignored anyway).
       output->SetType(&kContentTypeJavascript);
-      ok = WriteExternalScriptTo(input, code_block.Rewritten(), output);
+      ok = WriteExternalScriptTo(input.get(), code_block.Rewritten(),
+                                 output.get());
     } else {
       // Rewriting happened but wasn't useful; as we return false base class
       // will remember this for later so we don't attempt to rewrite twice.
@@ -124,15 +125,13 @@ class JavascriptRewriteContext : public SingleRewriteContext {
   // and write it to script_dest.
   // Returns true on success, reports failures itself.
   bool WriteExternalScriptTo(
-      const ResourcePtr script_resource,
-      const StringPiece& script_out, const OutputResourcePtr& script_dest) {
+      const Resource* script_resource,
+      const StringPiece& script_out, OutputResource* script_dest) {
     bool ok = false;
     ResourceManager* resource_manager = Manager();
     MessageHandler* message_handler = resource_manager->message_handler();
     int64 origin_expire_time_ms = script_resource->CacheExpirationTimeMs();
-    resource_manager->MergeNonCachingResponseHeaders(
-        script_resource, script_dest);
-    if (resource_manager->Write(HttpStatus::kOK, script_out, script_dest.get(),
+    if (resource_manager->Write(HttpStatus::kOK, script_out, script_dest,
                                 origin_expire_time_ms, message_handler)) {
       ok = true;
       message_handler->Message(kInfo, "Rewrite script %s to %s",
@@ -265,8 +264,8 @@ void JavascriptFilter::RewriteExternalScript() {
     for (size_t j = 0; allSpaces && j < contents.size(); ++j) {
       char c = contents[j];
       if (!isspace(c) && c != 0) {
-        driver_->InfoHere("Retaining contents of script tag;"
-                          " probably data for external script.");
+        driver_->WarningHere("Retaining contents of script tag"
+                             " even though script is external.");
         allSpaces = false;
       }
     }

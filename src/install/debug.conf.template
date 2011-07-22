@@ -68,12 +68,6 @@ AddOutputFilter INCLUDES .shtml
   LoadModule headers_module  @@APACHE_MODULES@@/mod_headers.so
 </IfModule>
 
-# Helps tests that extra headers supplied by the apache conf
-# survive single-resource rewrites
-#
-# http://code.google.com/p/modpagespeed/issues/detail?id=324
-Header append 'X-Extra-Header' '1'
-
 # For regression test of connection failing.
 ModPagespeedDomain www.google.co.ca:8085
 
@@ -135,12 +129,6 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/load_from_
 #COVERAGE       Allow from localhost
 #COVERAGE       SetHandler mod_pagespeed_statistics
 #COVERAGE   </Location>
-#COVERAGE    ModPagespeedMessageBufferSize 100000
-#COVERAGE    <Location /mod_pagespeed_message>
-#COVERAGE        Allow from localhost
-#COVERAGE        Allow from 127.0.0.1
-#COVERAGE        SetHandler mod_pagespeed_message
-#COVERAGE    </Location>
 #COVERAGE </VirtualHost>
 #COVERAGE
 #COVERAGE <VirtualHost *:8081>
@@ -152,12 +140,7 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/load_from_
 #COVERAGE
 #COVERAGE   # ModPagespeedSlurpDirectory ...
 #COVERAGE   # ModPagespeedSlurpReadOnly on
-#COVERAGE   
-#COVERAGE   <Location /mod_pagespeed_message>
-#COVERAGE        Allow from localhost
-#COVERAGE        Allow from 127.0.0.1
-#COVERAGE        SetHandler mod_pagespeed_message
-#COVERAGE   </Location>
+#COVERAGE
 #COVERAGE </VirtualHost>
 
 

@@ -539,12 +539,7 @@ void RewriteContext::NestedRewriteDone() {
   --num_pending_nested_;
   if (num_pending_nested_ == 0) {
     DCHECK(!rewrite_done_);
-    // TODO(nforman): We are exploiting the propoerties of our worker
-    // queue here in order top defer the call to Harvest() and thereby
-    // avoid pre-mature deletion of our context.  Fix this so that the
-    // queue scheduling doesn't matter.
-    Manager()->AddRewriteTask(new MemberFunction0<RewriteContext>(
-        &RewriteContext::Harvest, this));
+    Harvest();
   }
 }
 
