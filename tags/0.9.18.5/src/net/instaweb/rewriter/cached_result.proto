@@ -1,0 +1,178 @@
+// Copyright 2011 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Author: abliss@google.com (Adam Bliss)
+
+// Protobuf to encapsulate custom metadata about a resource (not including real
+// HTTP Headers).
+
+syntax = "proto2";
+
+import "net/instaweb/spriter/public/image_spriter.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+package net_instaweb;
+
+message ImageDim {
+  optional int32 width = 1 [ default = -1 ];
+  optional int32 height = 2 [ default = -1 ];
+};
+
+message CachedResult {
+  // Tags 1-7 are for internal use by output_resource.
+
+  // When this is false we have previously processed the URL and
+  // have marked down that we cannot do anything with it
+  // (by calling ResourceManager::WriteUnoptimizable).
+  optional bool optimizable = 1 [ default = true ];
+
+  // The cached URL of this result. If this CachedResult was actually
+  // fetched from the cache and is not a new one produced by
+  // EnsureCachedResultCreated this will be valid if and only if
+  // optimizable is true.
+  optional string url = 2;
+
+  // When the input used to produce this expires, in ms since the epoch.
+  optional int64 origin_expiration_time_ms = 3 [ default = 0 ];
+
+  // The auto_expire bit is used when writing out this entry to cache
+  // to determine the TTL. If auto_expire is true (the default) this entry
+  // will be marked to get automatically expunged when
+  // origin_expiration_time_ms() is reached; this means it can be safely
+  // used without any checking. If set_auto_expire(false) is called before
+  // write, the cache entry will be given TTL of at least a year
+  // or until origin_expiration_time_ms, whichever is longer
+  // (origin_expiration_time_ms() will still be stored properly).
+  // In that case, the user is responsible for ensuring that the cached
+  // result is still valid, for example by combination of checking against
+  // origin_expiration_time_ms() and verifying that the input contents
+  // have not changed.
+  optional bool auto_expire = 4 [ default = true ];
+
+  // Changes to custom metadata by clients done after we are written to
+  // cache are lost, and it's extremely easy to get it wrong. To catch
+  // mistakes like that, we mark a CachedResult as 'frozen' upon save,
+  // and DCHECK any modifications.
+  optional bool frozen = 5 [ default = false ];
+
+  // If the URL is optimizable, this will contain the hash of the encoded
+  // resource.
+  optional string hash = 6;
+
+  // If the URL is optimizable, this will contain the extension for the
+  // encoded resource, not including the leading "."
+  optional string extension = 7;
+
+  // Tags 8+ are for use by individual filters.
+
+  // The timestamp of the input resource.
+  // Used by rewrite_single_resource_filter.
+  optional int64 input_fetch_time_ms = 8;
+
+  // Cache format key version.
+  // Used by rewrite_single_resource_filter.
+  optional int32 cache_version = 9;
+
+  // The hash of the input resource.
+  // Used by rewrite_single_resource_filter.
+  optional string input_hash = 10;
+
+  // Dimensions of an image file, in pixels.  Used by
+  // image_rewrite_filter.  Note that these dimensions are not
+  // necessarily the same as the properties of the img tag,
+  // represented by ResourceContext below.
+  optional ImageDim image_file_dims = 11;
+
+  // Filters that produce inlined data --- either due to inlining an external
+  // resource or rewriting one that's already inline --- use this field to
+  // cache either their input or the output.
+  //
+  // The input is cached in filters that have very cheap rewrites, and
+  // vary the output based on things like the base URL. Output is cached
+  // when the rewrite is expensive, with different base URLs being instead
+  // incorporated into the key.
+  //
+  // In case of images, this is the base64-encoded data: URI; in other cases
+  // it's the raw data.
+  optional string inlined_data = 12;
+
+  // The result of a spriting operation, containing x/y coordinates for each
+  // subimage in the sprite.
+  // Used by image_combine_filter.
+  optional spriter.SpriterResult spriter_result = 13;
+}
+
+// Info about the input resource that was used to create this CachedResult.
+message InputInfo {
+  // The inputs names are not kept in the protobufs, only the indices.
+  // The intended usage is the input names will be used to construct
+  // the key to a cache entry, and the cache value will be an
+  // encoded OutputPartitions.
+  required int32 index = 1;
+
+  // This type affects how we check that OutputPartitions are up-to-date.
+  enum Type {
+    // Cached resources are valid until the expiration_time_ms.
+    CACHED = 1;
+    // File based resources are valid as long as the file has not changed.
+    // We stat the file and compare it's mtime to last_modified_time_ms
+    // to decide if the file has changed or not.
+    FILE_BASED = 2;
+    // E.g. data: URL resources never expire or change.
+    ALWAYS_VALID = 3;
+  }
+  required Type type = 2;
+  // An identifying timestamp which can be used to decide if a resource has
+  // been updated or not. For web-based resources, we use Last-Modified headers.
+  // For file-based resources, we use mtime.
+  optional int64 last_modified_time_ms = 3;
+  optional int64 expiration_time_ms = 4;
+}
+
+// Maps an output to a set of inputs.  This protobuf is the Value in a map,
+// where the Key is a sequence of input urls.  The CachedResult tells us
+// about the URL we will be using in lieu of the inputs.  The input array
+// tells us which inputs are used to construct this output; it must be
+// interpreted using the URL-sequence that was used to form the Key.
+//
+// Consider combine_css (slightly more capable than it is today) over
+// the links:
+//    <link media="print"  href="p0.css"/>
+//    <link media="screen" href="p1.css"/>
+//    <link media="print"  href="p2.css"/>
+//    <link media="screen" href="p3.css"/>
+// Combining these would result in two partitions.
+//    partition0 = {result="p0+p2.css", input={0,2}}
+//    partition1 = {result="p1+p3.css", input={1,3}}
+// Thus the CSS combiner can, as the result of one cache lookup, get
+// back enough information to perform the HTML element substitutions.
+message OutputPartition {
+  optional CachedResult result = 1;
+  // Info about the input resources needed to create this CachedResult.
+  repeated InputInfo input = 2;
+}
+
+// Contains the mapping of input URLs to output URLs.  In the general
+// case, multiple inputs may map to multiple outputs.
+message OutputPartitions {
+  repeated OutputPartition partition = 1;
+}
+
+// Encapsulates all the data needed to rewrite a resource.  Any filter needing
+// additional information should add it as optional fields here.
+message ResourceContext {
+  optional ImageDim image_tag_dims = 1;
+  optional bool attempt_webp = 2 [ default = false ];
+}
