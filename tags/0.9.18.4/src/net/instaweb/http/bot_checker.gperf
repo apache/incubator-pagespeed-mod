@@ -1,0 +1,109 @@
+%{
+// bot_checker.cc is automatically generated from bot_checker.gperf.
+// Author: fangfei@google.com
+
+#include "net/instaweb/http/public/bot_checker.h"
+#include "net/instaweb/util/public/string_util.h"
+
+namespace net_instaweb {
+%}
+%compare-strncmp
+%define class-name RobotDetect
+%define lookup-function-name Lookup
+%global-table
+%includes
+%language=C++
+%readonly-tables
+
+%%
+### These names are either application names or domain names of BOTs.
+### This is not a complete list of BOTs names -- just the ones we want
+### to scan for now.
+### The script to get the following names is generate_bots_list.sh.
+about.ask.com
+AITCSRobot
+AlkalineBOT
+AraybOt
+ArchitextSpider
+ASpider
+BackRub
+Baiduspider
+BaySpider
+bbot
+bingbot
+bitlybot
+borg-bot
+BoxSeaBot
+BSpider
+Checkbot
+Confuzzledbot
+CoolBot
+CydralSpider
+dienstspider
+DIIbot
+dlw3robot
+DNAbot
+DragonBot
+EIT-Link-Verifier-Robot
+ESISmartSpider
+Fish-Search-Robot
+gammaSpider
+Gigabot
+Googlebot
+Googlebot-Image
+iajaBot
+InfoSpiders
+JBot
+Jobot
+JoeBot
+JubiiRobot
+KO_Yappo_Robot
+Lycos
+MOMspider
+MSNBOT
+NDSpider
+OntoSpider
+PortalBSpider
+psbot
+RixBot
+Robot
+Roverbot
+SimBot
+Solbot
+Spider
+SpiderBot
+spiderline
+tarspider
+TechBOT
+uptimebot
+vcbot
+Verticrawlbot
+void-bot
+VWbot_K
+w@pSpider
+wired-digital-newsbot
+Yahoo!
+YandexBot
+YodaoBot
+%%
+
+// TODO:(fangfei) check other cases
+bool BotChecker::Lookup(const StringPiece& user_agent) {
+  // check whether the whole string is in database
+  if (RobotDetect::Lookup(user_agent.data(), user_agent.size()) != NULL) {
+    return true;
+  }
+  // get the application_name/domain_name/email
+  const char separator[] = " /,;+";
+  StringPieceVector names;
+  SplitStringPieceToVector(user_agent, separator, &names, true);
+  for (int i = 0, n = names.size(); i < n; ++i) {
+    if (RobotDetect::Lookup(names[i].data(),
+                            names[i].size()) != NULL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace net_instaweb
