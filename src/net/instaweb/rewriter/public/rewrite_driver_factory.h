@@ -139,13 +139,6 @@ class RewriteDriverFactory {
     return created_directories_;
   }
 
-  bool async_rewrites() { return async_rewrites_; }
-
-  // Sets the resource manager into async_rewrite mode.  This can be
-  // called before or after ComputeResourceManager, but will only
-  // affect RewriteDrivers that are created after the call is made.
-  void SetAsyncRewrites(bool x);
-
  protected:
   bool FetchersComputed() const;
 
@@ -182,13 +175,9 @@ class RewriteDriverFactory {
   // Called before creating the url fetchers.
   virtual void FetcherSetupHooks();
 
-  // Override this to return true if you do want the resource manager
-  // to write resources to the filesystem.
-  //
-  // TODO(sligocki): Do we ever want that? Or is it a relic from a
-  // forgotten time? I think we never want to write OutputResources
-  // written to disk automatically any more.
-  virtual bool ShouldWriteResourcesToFileSystem() { return false; }
+  // Override this to return false if you don't want the resource
+  // manager to write resources to the filesystem.
+  virtual bool ShouldWriteResourcesToFileSystem() { return true; }
 
   // Override this if you want to change what directory locks go into
   // when using the default filesystem-based lock manager. The default is
@@ -219,7 +208,6 @@ class RewriteDriverFactory {
   bool force_caching_;
   bool slurp_read_only_;
   bool slurp_print_urls_;
-  bool async_rewrites_;
 
   scoped_ptr<ResourceManager> resource_manager_;
 

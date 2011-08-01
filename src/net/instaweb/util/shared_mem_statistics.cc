@@ -105,10 +105,6 @@ SharedMemVariable* SharedMemStatistics::NewVariable(const StringPiece& name,
   }
 }
 
-NullStatisticsHistogram* SharedMemStatistics::NewHistogram() {
-  return new NullStatisticsHistogram();
-}
-
 bool SharedMemStatistics::InitMutexes(size_t per_var,
                                       MessageHandler* message_handler) {
   for (size_t i = 0; i < variables_.size(); ++i) {
@@ -121,11 +117,6 @@ bool SharedMemStatistics::InitMutexes(size_t per_var,
     }
   }
   return true;
-}
-
-FakeTimedVariable* SharedMemStatistics::NewTimedVariable(
-    const StringPiece& name, int index) {
-  return new FakeTimedVariable(NewVariable(name, index));
 }
 
 void SharedMemStatistics::InitVariables(bool parent,

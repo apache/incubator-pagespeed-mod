@@ -26,7 +26,6 @@
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
-        'util/atom.cc',
         'util/file_message_handler.cc',
         'util/google_message_handler.cc',
         'util/google_url.cc',

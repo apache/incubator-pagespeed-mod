@@ -2,16 +2,23 @@
 # Copyright 2010 Google Inc. All Rights Reserved.
 # Author: abliss@google.com (Adam Bliss)
 #
-# Generic system test, which should work on any implementation of
-# Page Speed Automatic (not just the Apache module).
+# Tests a mod_pagespeed installation by fetching and verifying all the examples.
 # Exits with status 0 if all tests pass.  Exits 1 immediately if any test fails.
+# Expects APACHE_DEBUG_PAGESPEED_CONF to point to our config file,
+# APACHE_LOG to the log file
 
 if [ $# -lt 1 -o $# -gt 2 ]; then
-  # Note: HOSTNAME should generally be localhost:PORT. Specifically, by default
-  # /mod_pagespeed_statistics is only accessible when accessed as localhost.
   echo Usage: ./system_test.sh HOSTNAME [PROXY_HOST]
   exit 2
 fi;
+
+if [ -z $APACHE_DEBUG_PAGESPEED_CONF ]; then
+  APACHE_DEBUG_PAGESPEED_CONF=/usr/local/apache2/conf/pagespeed.conf
+fi
+
+if [ -z $APACHE_LOG ]; then
+  APACHE_LOG=/usr/local/apache2/logs/error_log
+fi
 
 # If the user has specified an alternate WGET as an environment variable, then
 # use that, otherwise use the one in the path.
@@ -27,15 +34,17 @@ if [ $? != 0 ]; then
   exit 1
 fi
 
-# Use a Chrome User-Agent, so that we get real responses (including compression)
-WGET="$WGET --user-agent=\"Mozilla/5.0 (X11; U; Linux x86_64; en-US) AppleWebKit/534.0 (KHTML, like Gecko) Chrome/6.0.408.1 Safari/534.0\""
-
 HOSTNAME=$1
+PORT=${HOSTNAME/*:/}
+if [ $PORT = $HOSTNAME ]; then
+  PORT=80
+fi
 EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
 TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
-STATISTICS_URL=http://$HOSTNAME/mod_pagespeed_statistics
+# We load explicitly from localhost because of Apache config requirements.
+# Note: This only works if $HOSTNAME is a synonym for localhost.
+STATISTICS_URL=http://localhost:$PORT/mod_pagespeed_statistics
 BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/bad.pagespeed.cf.hash.css
-MESSAGE_URL=http://$HOSTNAME/mod_pagespeed_message
 
 # Setup wget proxy information
 export http_proxy=$2
@@ -46,9 +55,6 @@ export no_proxy=""
 # Version timestamped with nanoseconds, making it extremely unlikely to hit.
 BAD_RND_RESOURCE_URL="http://$HOSTNAME/mod_pagespeed/bad`date +%N`.\
 pagespeed.cf.hash.css"
-
-combine_css_filename=\
-styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
 
 OUTDIR=/tmp/mod_pagespeed_test.$USER/fetched_directory
 rm -rf $OUTDIR
@@ -168,7 +174,7 @@ function test_resource_ext_corruption() {
 
 # General system tests
 
-echo TEST: Page Speed Automatic is running and writes the expected header.
+echo TEST: mod_pagespeed is running in Apache and writes the expected header.
 echo $WGET_DUMP $EXAMPLE_ROOT/combine_css.html
 HTML_HEADERS=$($WGET_DUMP $EXAMPLE_ROOT/combine_css.html)
 
@@ -188,7 +194,7 @@ echo Checking for absence of Last-Modified
 echo $HTML_HEADERS | grep -qi 'Last-Modified'
 check [ $? != 0 ]
 
-echo Checking for presence of Cache-Control: max-age=0, no-cache, no-store
+echo Checking for presence of Cache-control: no-cache
 echo $HTML_HEADERS | grep -qi 'Cache-Control: max-age=0, no-cache, no-store'
 check [ $? = 0 ]
 
@@ -196,10 +202,27 @@ echo Checking for absense of Expires
 echo $HTML_HEADERS | grep -qi 'Expires'
 check [ $? != 0 ]
 
+# Determine whether statistics are enabled or not.  If not, don't test them,
+# but do an additional regression test that tries harder to get a cache miss.
+grep "# ModPagespeedStatistics off" $APACHE_DEBUG_PAGESPEED_CONF > /dev/null
+if [ $? = 0 ]; then
+  echo TEST: 404s are served and properly recorded.
+  NUM_404=$($WGET_DUMP $STATISTICS_URL | grep resource_404_count | cut -d: -f2)
+  NUM_404=$(($NUM_404+1))
+  check "$WGET -O /dev/null $BAD_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
+  check "$WGET_DUMP $STATISTICS_URL | grep -q 'resource_404_count: $NUM_404'"
+else
+  echo TEST: 404s are served.  Statistics are disabled so not checking them.
+  check "$WGET -O /dev/null $BAD_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
+
+  echo TEST: 404s properly on uncached invalid resource.
+  check "$WGET -O /dev/null $BAD_RND_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
+fi
+
 echo TEST: directory is mapped to index.html.
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
-check "$WGET -q $EXAMPLE_ROOT/" -O $OUTDIR/mod_pagespeed_example
+check "$WGET -q $EXAMPLE_ROOT" -O $OUTDIR/mod_pagespeed_example
 check "$WGET -q $EXAMPLE_ROOT/index.html" -O $OUTDIR/index.html
 check diff $OUTDIR/index.html $OUTDIR/mod_pagespeed_example
 
@@ -209,6 +232,19 @@ check "$WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
 
 
 # Individual filter tests, in alphabetical order
+
+test_filter add_instrumentation adds 2 script tags
+check $WGET_PREREQ $URL
+check [ `cat $FETCHED | sed 's/>/>\n/g' | grep -c '<script'` = 2 ]
+check $WGET_PREREQ http://$HOSTNAME/mod_pagespeed_beacon?ets=load:13
+check grep -q '"204 No Content"' $WGET_OUTPUT
+
+echo "TEST: We don't add_instrumentation if URL params tell us not to"
+FILE=add_instrumentation.html?ModPagespeedFilters=
+URL=$EXAMPLE_ROOT/$FILE
+FETCHED=$OUTDIR/$FILE
+check $WGET_PREREQ $URL
+check [ `cat $FETCHED | sed 's/>/>\n/g' | grep -c '<script'` = 0 ]
 
 # http://code.google.com/p/modpagespeed/issues/detail?id=170
 echo "TEST: Make sure 404s aren't rewritten"
@@ -223,23 +259,23 @@ test_filter collapse_whitespace removes whitespace, but not from pre tags.
 check $WGET_PREREQ $URL
 check [ `egrep -c '^ +<' $FETCHED` = 1 ]
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#test_filter combine_css combines 4 CSS files into 1.
-#fetch_until $URL 'grep -c text/css' 1
-#check $WGET_PREREQ $URL
-#test_resource_ext_corruption $URL\
-#  $combine_css_filename
+combine_css_filename=\
+styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc.xo4He3_gYf.css
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#echo TEST: combine_css without hash field should 404
-#$WGET_PREREQ $EXAMPLE_ROOT/styles/yellow.css+blue.css.pagespeed.cc..css
-#check grep '"404 Not Found"' $WGET_OUTPUT
+test_filter combine_css combines 4 CSS files into 1.
+fetch_until $URL 'grep -c text/css' 1
+check $WGET_PREREQ $URL
+test_resource_ext_corruption $URL\
+  $combine_css_filename
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
+echo TEST: combine_css without hash field should 404
+$WGET_PREREQ $EXAMPLE_ROOT/styles/yellow.css+blue.css.pagespeed.cc..css
+check grep '"404 Not Found"' $WGET_OUTPUT
+
 # Note: this large URL can only be processed by Apache if
 # ap_hook_map_to_storage is called to bypass the default
 # handler that maps URLs to filenames.
-#echo TEST: Fetch large css_combine URL
+echo TEST: Fetch large css_combine URL
 LARGE_URL="$EXAMPLE_ROOT/styles/yellow.css+blue.css+big.css+\
 bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
 big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
@@ -251,12 +287,12 @@ big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
 big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
 big.css+bold.css+yellow.css+blue.css+big.css+\
 bold.css.pagespeed.cc.46IlzLf_NK.css"
-#$WGET --save-headers -q -O - $LARGE_URL | head -1 | grep "HTTP/1.1 200 OK"
-#check [ $? = 0 ];
-#LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
-#check [ $? = 0 ]
-#echo Checking that response body is at least 900 lines -- it should be 954
-#check [ $LARGE_URL_LINE_COUNT -gt 900 ]
+$WGET --save-headers -q -O - $LARGE_URL | head -1 | grep "HTTP/1.1 200 OK"
+check [ $? = 0 ];
+LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
+check [ $? = 0 ]
+echo Checking that response body is at least 900 lines -- it should be 954
+check [ $LARGE_URL_LINE_COUNT -gt 900 ]
 
 test_filter combine_javascript combines 2 JS files into 1.
 fetch_until $URL 'grep -c src=' 1
@@ -274,30 +310,24 @@ grep "type=" $FETCHED       # default, should not find
 check [ $? != 0 ]
 
 test_filter extend_cache rewrites an image tag.
-fetch_until $URL 'grep -c src.*/Puzzle.jpg.pagespeed.ce.*.jpg' 1
+fetch_until $URL 'grep -c src.*91_WewrLtP' 1
 check $WGET_PREREQ $URL
 echo about to test resource ext corruption...
-# TODO(sligocki): This does not work in rewrite_proxy_server
-# because of hash mismatch. Do we want to enforce hash consistency between
-# rewrite_proxy_server and mod_pagespeed?
-#test_resource_ext_corruption $URL images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
+test_resource_ext_corruption $URL images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#echo TEST: Attempt to fetch cache-extended image without hash should 404
-#$WGET_PREREQ $EXAMPLE_ROOT/images/Puzzle.jpg.pagespeed.ce..jpg
-#check grep '"404 Not Found"' $WGET_OUTPUT
+echo TEST: Attempt to fetch cache-extended image without hash should 404
+$WGET_PREREQ $EXAMPLE_ROOT/images/Puzzle.jpg.pagespeed.ce..jpg
+check grep '"404 Not Found"' $WGET_OUTPUT
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#echo TEST: Cache-extended image should respond 304 to an If-Modified-Since.
-#URL=$EXAMPLE_ROOT/images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
-#DATE=`date -R`
-#$WGET_PREREQ --header "If-Modified-Since: $DATE" $URL
-#check grep '"304 Not Modified"' $WGET_OUTPUT
+echo TEST: Cache-extended image should respond 304 to an If-Modified-Since.
+URL=$EXAMPLE_ROOT/images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
+DATE=`date -R`
+$WGET_PREREQ --header "If-Modified-Since: $DATE" $URL
+check grep '"304 Not Modified"' $WGET_OUTPUT
 
 echo TEST: Legacy format URLs should still work.
 URL=$EXAMPLE_ROOT/images/ce.0123456789abcdef0123456789abcdef.Puzzle,j.jpg
-# TODO(sligocki): Do we want to test that we respond as HTTP/1.1?
-check "$WGET_DUMP $URL | grep -qe 'HTTP/1\.. 200 OK'"
+check "$WGET_DUMP $URL | grep -q 'HTTP/1.1 200 OK'"
 
 test_filter move_css_to_head does what it says on the tin.
 check $WGET_PREREQ $URL
@@ -319,28 +349,26 @@ check $WGET_PREREQ $URL
 check egrep -q "'<script.*large.*src='" $FETCHED       # outlined
 check egrep -q "'<script.*small.*var hello'" $FETCHED  # not outlined
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#echo TEST: compression is enabled for rewritten JS.
-#echo JS_URL=\$\(egrep -o http://.*.pagespeed.*.js $FETCHED\)
-#JS_URL=$(egrep -o http://.*.pagespeed.*.js $FETCHED)
-#JS_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
-#  $JS_URL 2>&1)
-#echo $JS_HEADERS | grep -qi 'Content-Encoding: gzip'
-#check [ $? = 0 ]
-#echo $JS_HEADERS | grep -qi 'Vary: Accept-Encoding'
-#check [ $? = 0 ]
-#echo $JS_HEADERS | grep -qi 'Etag: W/0'
-#check [ $? = 0 ]
-#echo $JS_HEADERS | grep -qi 'Last-Modified:'
-#check [ $? = 0 ]
+echo TEST: compression is enabled for rewritten JS.
+echo JS_URL=\$\(egrep -o http://.*.pagespeed.*.js $FETCHED\)
+JS_URL=$(egrep -o http://.*.pagespeed.*.js $FETCHED)
+JS_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
+  $JS_URL 2>&1)
+echo $JS_HEADERS | grep -qi 'Content-Encoding: gzip'
+check [ $? = 0 ]
+echo $JS_HEADERS | grep -qi 'Vary: Accept-Encoding'
+check [ $? = 0 ]
+echo $JS_HEADERS | grep -qi 'Etag: W/0'
+check [ $? = 0 ]
+echo $JS_HEADERS | grep -qi 'Last-Modified:'
+check [ $? = 0 ]
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#test_filter remove_comments removes comments but not IE directives.
-#check $WGET_PREREQ $URL
-#grep "removed" $FETCHED                # comment, should not find
-#check [ $? != 0 ]
-#check grep -q preserved $FETCHED       # preserves IE directives
-#check grep -q retained $FETCHED        # RetainComment directive
+test_filter remove_comments removes comments but not IE directives.
+check $WGET_PREREQ $URL
+grep "removed" $FETCHED                # comment, should not find
+check [ $? != 0 ]
+check grep -q preserved $FETCHED       # preserves IE directives
+check grep -q retained $FETCHED        # RetainComment directive
 
 test_filter remove_quotes does what it says on the tin.
 check $WGET_PREREQ $URL
@@ -359,23 +387,20 @@ grep "comment" $FETCHED                   # comment, should not find
 check [ $? != 0 ]
 check [ `stat -c %s $FETCHED` -lt 680 ]   # down from 689
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#test_filter rewrite_images inlines, compresses, and resizes.
+test_filter rewrite_images inlines, compresses, and resizes.
 URL=$EXAMPLE_ROOT"/rewrite_images.html?ModPagespeedFilters=rewrite_images"
-#fetch_until $URL 'grep -c image/png' 1      # inlined
-#fetch_until $URL 'grep -c .pagespeed.ic' 2  # other 2 images optimized
-#check $WGET_PREREQ $URL
-#check [ `stat -c %s $OUTDIR/xBikeCrashIcn*` -lt 25000 ]      # re-encoded
-#check [ `stat -c %s $OUTDIR/*256x192*Puzzle*`  -lt 24126  ]  # resized
+fetch_until $URL 'grep -c image/png' 1    # inlined
+check $WGET_PREREQ $URL
+check [ `stat -c %s $OUTDIR/xBikeCrashIcn*` -lt 25000 ]      # re-encoded
+check [ `stat -c %s $OUTDIR/*256x192*Puzzle*`  -lt 24126  ]  # resized
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
 IMG_URL=$(egrep -o http://.*.pagespeed.*.jpg $FETCHED | head -n1)
-#echo TEST: headers for rewritten image "$IMG_URL"
-#IMG_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
-#  $IMG_URL 2>&1)
+echo TEST: headers for rewritten image "$IMG_URL"
+IMG_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
+  $IMG_URL 2>&1)
 # Make sure we have some valid headers.
-#echo \"$IMG_HEADERS\" | grep -qi 'Content-Type: image/jpeg'
-#check [ $? = 0 ]
+echo \"$IMG_HEADERS\" | grep -qi 'Content-Type: image/jpeg'
+check [ $? = 0 ]
 
 # Make sure the response was not gzipped.
 echo TEST: Images are not gzipped
@@ -387,37 +412,26 @@ echo TEST: Vary is not set for images
 echo "$IMG_HEADERS" | grep -qi 'Vary: Accept-Encoding'
 check [ $? != 0 ]
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
 # Make sure there is an etag
-#echo TEST: Etags is present
-#echo "$IMG_HEADERS" | grep -qi 'Etag: W/0'
-#check [ $? = 0 ]
+echo TEST: Etags is present
+echo "$IMG_HEADERS" | grep -qi 'Etag: W/0'
+check [ $? = 0 ]
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-# Make sure an extra header is propagated from input resource to output
-# resource.  X-Extra-Header is added in debug.conf.template.
-#echo TEST: Extra header is present
-#echo "$IMG_HEADERS" | grep -qi 'X-Extra-Header'
-#check [ $? = 0 ]
-
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
 # Make sure there is a last-modified tag
-#echo TEST: Last-modified is present
-#echo "$IMG_HEADERS" | grep -qi 'Last-Modified'
-#check [ $? = 0 ]
+echo TEST: Last-modified is present
+echo "$IMG_HEADERS" | grep -qi 'Last-Modified'
+check [ $? = 0 ]
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#IMG_URL=${IMG_URL/Puzzle/BadName}
-#echo TEST: rewrite_images fails broken image $IMG_URL
-#$WGET_PREREQ $IMG_URL;  # fails
-#check grep '"404 Not Found"' $WGET_OUTPUT
+IMG_URL=${IMG_URL/Puzzle/BadName}
+echo TEST: rewrite_images fails broken image $IMG_URL
+$WGET_PREREQ $IMG_URL;  # fails
+check grep '"404 Not Found"' $WGET_OUTPUT
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
 # [google] b/3328110
-#echo "TEST: rewrite_images doesn't 500 on unoptomizable image"
-#IMG_URL=$EXAMPLE_ROOT/images/xOptPuzzle.jpg.pagespeed.ic.Zi7KMNYwzD.jpg
-#$WGET_PREREQ $IMG_URL
-#check grep '"HTTP/1.1 200 OK"' $WGET_OUTPUT
+echo "TEST: rewrite_images doesn't 500 on unoptomizable image"
+IMG_URL=$EXAMPLE_ROOT/images/xOptPuzzle.jpg.pagespeed.ic.Zi7KMNYwzD.jpg
+$WGET_PREREQ $IMG_URL
+check grep '"HTTP/1.1 200 OK"' $WGET_OUTPUT
 
 # These have to run after image_rewrite tests. Otherwise it causes some images
 # to be loaded into memory before they should be.
@@ -435,49 +449,138 @@ FETCHED=$OUTDIR/$FILE
 fetch_until $URL 'grep -c .pagespeed.ic.' 1  # image rewritten
 check $WGET_PREREQ $URL
 
-# This test is only valid for async.
-# TODO(nforman): Uncomment this test when async is turned on.
-# test_filter inline_css,rewrite_css,sprite_images sprites images in CSS
-# FILE=sprite_images.html?ModPagespeedFilters=$FILTER_NAME
-# URL=$EXAMPLE_ROOT/$FILE
-# FETCHED=$OUTDIR/$FILE
-# echo $WGET_DUMP $URL
-# fetch_until $URL 'grep -c ic.pagespeed.is' 1
+test_filter rewrite_css,sprite_images sprites images in CSS
+FILE=sprite_images.html?ModPagespeedFilters=$FILTER_NAME
+URL=$EXAMPLE_ROOT/$FILE
+FETCHED=$OUTDIR/$FILE
+# Warning: tricky code ahead!  The html contains a reference to an external CSS
+# which contains references to images.  On the first fetch nothing will be
+# rewritten since the CSS file isn't cached.  On a subsequent fetch, the CSS
+# will be rewritten; however the images weren't fetched until this point, so
+# they won't be sprited.  On a *subsequent* fetch, the CSS will be rewritten a
+# *second* time to include a reference to the sprited image (which we want to
+# fetch).  Checking this using fetch_until requires some deft plumbing.  We
+# *could* just use a recursive wget for this, but for a bug in wget's css
+# parser: https://savannah.gnu.org/bugs/?32940 .
 
-# # This test is only valid for async.
-# test_filter rewrite_css,sprite_images sprites images in CSS
-# FILE=sprite_images.html?ModPagespeedFilters=$FILTER_NAME
-# URL=$EXAMPLE_ROOT/$FILE
-# FETCHED=$OUTDIR/$FILE
-# echo $WGET_DUMP $URL
-# fetch_until $URL 'grep -c css.pagespeed.cf' 1
-# echo $WGET_DUMP $URL
-# $WGET_DUMP $URL > $OUTDIR/sprite_output
-# CSS=`grep stylesheet $OUTDIR/sprite_output | cut -d\" -f 6`
-# echo css is $CSS
-# $WGET_DUMP $CSS > $OUTDIR/sprite_css_output
-# cat $OUTDIR/sprite_css_output
-# echo ""
-# check [ `grep -c "ic.pagespeed.is" $OUTDIR/sprite_css_output` -gt 0 ]
-
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#test_filter rewrite_javascript removes comments and saves a bunch of bytes.
-#fetch_until $URL 'grep -c src.*1o978_K0_L' 2   # external scripts rewritten
+function check_for_sprite() {
+  # First, find the <link rel="stylesheet"> tag; extract its href; fetch that.
+  grep stylesheet | cut -d\" -f 6 | xargs wget -q -O - |
+  # Now find the parameter of the first url() in the stylesheet.
+  cut -d\( -f 2 | cut -d\) -f 1 |
+  # This url should include BikeCrash (not just Cuppa), and be fetchable.
+  grep BikeCrashIcn | xargs wget -S -O /dev/null 2>&1 |
+  grep -c '200 OK'
+}
+fetch_until $URL check_for_sprite 1
+# We can't do this here because of the wget bug mentioned above.
 #check $WGET_PREREQ $URL
-#grep -R "removed" $OUTDIR                 # comments, should not find any
-#check [ $? != 0 ]
-#check [ `stat -c %s $FETCHED` -lt 1560 ]  # net savings
-#check grep -q preserved $FETCHED          # preserves certain comments
-# rewritten JS is cache-extended
-#check grep -qi "'Cache-control: max-age=31536000'" $WGET_OUTPUT
-#check grep -qi "'Expires:'" $WGET_OUTPUT
 
-# TODO(sligocki): Fix in rewrite_proxy_server and re-enable.  // [google]
-#echo TEST: respect vary user-agent
-#URL=$TEST_ROOT/vary/index.html?ModPagespeedFilters=inline_css
-#echo $WGET_DUMP $URL
-#$WGET_DUMP $URL | grep -q "<style>"
-#check [ $? != 0 ]
+test_filter rewrite_javascript removes comments and saves a bunch of bytes.
+fetch_until $URL 'grep -c src.*1o978_K0_L' 2   # external scripts rewritten
+check $WGET_PREREQ $URL
+grep -R "removed" $OUTDIR                 # comments, should not find any
+check [ $? != 0 ]
+check [ `stat -c %s $FETCHED` -lt 1560 ]  # net savings
+check grep -q preserved $FETCHED          # preserves certain comments
+# rewritten JS is cache-extended
+check grep -qi "'Cache-control: max-age=31536000'" $WGET_OUTPUT
+check grep -qi "'Expires:'" $WGET_OUTPUT
+
+echo TEST: ModPagespeedShardDomain directive in .htaccess file
+rm -rf $OUTDIR
+mkdir $OUTDIR
+echo $WGET_DUMP $TEST_ROOT/shard/shard.html
+check $WGET_DUMP $TEST_ROOT/shard/shard.html \
+  > $OUTDIR/shard.out.html
+check [ `grep -ce href=\"http://shard1 $OUTDIR/shard.out.html` = 2 ];
+check [ `grep -ce href=\"http://shard2 $OUTDIR/shard.out.html` = 2 ];
+
+echo TEST: server-side includes
+rm -rf $OUTDIR
+mkdir $OUTDIR
+echo $WGET_DUMP $TEST_ROOT/ssi/ssi.shtml?ModPagespeedFilters=combine_css
+check $WGET_DUMP $TEST_ROOT/ssi/ssi.shtml?ModPagespeedFilters=combine_css \
+  > $OUTDIR/ssi.out.html
+check [ `grep -ce $combine_css_filename $OUTDIR/ssi.out.html` = 1 ];
+
+echo TEST: mod_rewrite
+echo $WGET_DUMP $TEST_ROOT/redirect/php/
+check $WGET_DUMP $TEST_ROOT/redirect/php/ > $OUTDIR/redirect_php.html
+check \
+  [ `grep -ce "href=\"/mod_pagespeed_test/" $OUTDIR/redirect_php.html` = 2 ];
+
+echo TEST: Connection refused handling
+echo $WGET_DUMP $TEST_ROOT/connection_refused.html
+ERR_BEFORE=`cat $APACHE_LOG | grep "Serf status 111" | wc -l`
+ERR_LIMIT=`expr $ERR_BEFORE + 1`
+check $WGET_DUMP $TEST_ROOT/connection_refused.html > /dev/null
+ERRS=`cat $APACHE_LOG | grep "Serf status 111" | wc -l`
+sleep 1
+# Check that we have one additional error or less --- might not have flushed
+# the log yet; (luckily we nearly certainly do when spewing dozens of errors)
+check [ `expr $ERRS` -le $ERR_LIMIT ];
+
+echo "Test: ModPagespeedLoadFromFile"
+URL=$TEST_ROOT/load_from_file/index.html?ModPagespeedFilters=inline_css
+echo $WGET_DUMP $URL
+$WGET_DUMP $URL | grep blue
+check [ $? = 0 ]
+
+# Helper to test directive ModPagespeedForBots
+# By default directive ModPagespeedForBots is off; otherwise image rewriting is
+# disabled for bots while other filters such as inline_css still work.
+function CheckBots() {
+  ON=$1
+  COMPARE=$2
+  BOT=$3
+  FILTER="?ModPagespeedFilters=inline_css,rewrite_images"
+  PARAM="&ModPagespeedDisableForBots=$ON";
+  FILE="bot_test.html"$FILTER
+  # By default ModPagespeedDisableForBots is false, no need to set it in url.
+  # If the test wants to set it explicitly, set it in url.
+  if [[ $ON != "default" ]]; then
+    FILE=$FILE$PARAM
+  fi
+  FETCHED=$OURDIR/$FILE
+  URL=$TEST_ROOT/$FILE
+  # Filters such as inline_css work no matter if ModPagespeedDisable is on
+  # Fetch until CSS is inlined, so that we know rewriting succeeded.
+  if [[ -n $BOT ]]; then
+    fetch_until $URL 'grep -c style' 2 $BOT;
+  else
+    fetch_until $URL 'grep -c style' 2;
+  fi
+  # Check if the images are rewritten
+  rm -f $OUTDIR/*png*
+  rm -f $OUTDIR/*jpg*
+  if [[ -n $BOT ]]; then
+    check `$WGET_PREREQ -U $BOT $URL`;
+  else
+    check `$WGET_PREREQ $URL`;
+  fi
+  check [ `stat -c %s $OUTDIR/*BikeCrashIcn*` $COMPARE 25000 ] # recoded or not
+  check [ `stat -c %s $OUTDIR/*Puzzle*`  $COMPARE 24126  ] # resized or not
+}
+
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots=off"
+CheckBots 'off' '-lt' 'Googlebot/2.1'
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots=on"
+CheckBots 'on' '-gt' 'Googlebot/2.1'
+echo "Test: UserAgent is a bot; ModPagespeedDisableForBots is default"
+CheckBots 'default' '-lt' 'Googlebot/2.1'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots=off"
+CheckBots 'off' '-lt'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots=on"
+CheckBots 'on' '-lt'
+echo "Test: UserAgent is not a bot, ModPagespeedDisableForBots is default"
+CheckBots 'default' '-lt'
+
+echo TEST: respect vary user-agent
+URL=$TEST_ROOT/vary/index.html?ModPagespeedFilters=inline_css
+echo $WGET_DUMP $URL
+$WGET_DUMP $URL | grep -q "<style>"
+check [ $? != 0 ]
 
 # Error path for fetch of outlined resources that are not in cache leaked
 # at one point of development.

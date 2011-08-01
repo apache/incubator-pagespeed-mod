@@ -33,13 +33,4 @@ SimpleStatsVariable* SimpleStats::NewVariable(
   return new SimpleStatsVariable;
 }
 
-NullStatisticsHistogram* SimpleStats::NewHistogram() {
-  return new NullStatisticsHistogram;
-}
-
-FakeTimedVariable* SimpleStats::NewTimedVariable(
-    const StringPiece& name, int index) {
-  return new FakeTimedVariable(NewVariable(name, index));
-}
-
 }  // namespace net_instaweb

@@ -42,6 +42,8 @@ class SharedMemLockManagerTestBase : public testing::Test {
   void TestSteal();
 
  private:
+  typedef SharedMemTestEnv::MethodCallback<SharedMemLockManagerTestBase>
+      MethodCallback;
   bool CreateChild(TestMethod method);
 
   SharedMemLockManager* CreateLockManager();

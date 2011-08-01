@@ -617,7 +617,6 @@ TEST_F(ResourceManagerTest, TestVaryOption) {
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &no_cache);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kAcceptEncoding);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kUserAgent);
-  no_cache.ComputeCaching();
   SetFetchResponse("http://example.com/", no_cache, kContents);
 
   ResourcePtr resource(CreateResource("http://example.com/", "/"));
@@ -626,7 +625,6 @@ TEST_F(ResourceManagerTest, TestVaryOption) {
   VerifyContentsCallback callback(resource, kContents);
   rewrite_driver()->ReadAsync(&callback, message_handler());
   callback.AssertCalled();
-  EXPECT_FALSE(resource->IsValidAndCacheable());
 
   HTTPValue valueOut;
   ResponseHeaders headersOut;
@@ -935,18 +933,5 @@ TEST_F(ResourceManagerShardedTest, TestNamed) {
   EXPECT_EQ("http://shard0.com/dir/orig.js.pagespeed.jm.0.js",
             output_resource->url());
 }
-
-TEST_F(ResourceManagerTest, TestMergeNonCachingResponseHeaders) {
-  ResponseHeaders input, output;
-  input.Add("X-Extra-Header", "Extra Value");  // should be copied to output
-  input.Add(HttpAttributes::kCacheControl, "max-age=300");  // should not be
-  resource_manager()->MergeNonCachingResponseHeaders(input, &output);
-  StringStarVector v;
-  EXPECT_FALSE(output.Lookup(HttpAttributes::kCacheControl, &v));
-  ASSERT_TRUE(output.Lookup("X-Extra-Header", &v));
-  ASSERT_EQ(1, v.size());
-  EXPECT_EQ("Extra Value", *v[0]);
-}
-
 
 }  // namespace net_instaweb
