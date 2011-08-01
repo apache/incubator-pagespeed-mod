@@ -48,7 +48,6 @@ void FileInputResource::FillInPartitionInputInfo(InputInfo* input) {
   CHECK(loaded());
   input->set_type(InputInfo::FILE_BASED);
   input->set_last_modified_time_ms(last_modified_time_sec_ * Timer::kSecondMs);
-  input->set_filename(filename_);
 }
 
 // TODO(sligocki): Is this reasonable? People might want custom headers.
@@ -56,8 +55,7 @@ void FileInputResource::FillInPartitionInputInfo(InputInfo* input) {
 // For example, Content-Type is set solely by file extension and will not
 // be set if the extension is unknown :/
 //
-// Date, Last-Modified and Cache-Control headers are set to support an
-// implicit 5 min cache lifetime (for sync flow).
+// We also set no Date, Last-Modified, Cache-Control, etc. headers.
 void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
                                           ResponseHeaders* header,
                                           MessageHandler* handler) {
@@ -71,13 +69,6 @@ void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
   } else {
     header->Add(HttpAttributes::kContentType, content_type->mime_type());
   }
-  // Note(sligocki): We are setting these to get FileInputResources
-  // automatically cached for 5 minutes on the sync pathway. We could
-  // probably remove it once we kill the sync pathway.
-  header->SetDateAndCaching(resource_manager_->timer()->NowMs(),
-                            ResponseHeaders::kImplicitCacheTtlMs);
-  header->SetLastModified(last_modified_time_sec_ * Timer::kSecondMs);
-  header->ComputeCaching();
 }
 
 // Note: We do not save this resource to the HttpCache, so it will be

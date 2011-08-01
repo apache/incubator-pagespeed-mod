@@ -109,7 +109,6 @@ CssFilter::Context::Context(CssFilter* filter, RewriteDriver* driver,
       rewrite_inline_element_(NULL),
       rewrite_inline_char_node_(NULL),
       in_text_size_(-1) {
-  css_base_gurl_.Reset(filter_->base_url());
 }
 
 CssFilter::Context::~Context() {
@@ -120,7 +119,7 @@ void CssFilter::Context::Render() {
     return;
   }
 
-  const CachedResult& result = *output_partition(0);
+  const CachedResult& result = output_partition(0)->result();
   if (rewrite_inline_char_node_ != NULL && result.optimizable()) {
     HtmlCharactersNode* new_style_char_node =
         driver_->NewCharactersNode(rewrite_inline_element_,
@@ -133,8 +132,10 @@ void CssFilter::Context::StartInlineRewrite(HtmlElement* style_element,
                                             HtmlCharactersNode* text) {
   // To handle nested rewrites of inline CSS, we internally handle it
   // as a rewrite of a data: URL.
+  css_base_gurl_.Reset(driver_->base_url());
   rewrite_inline_element_ = style_element;
   rewrite_inline_char_node_ = text;
+
   GoogleString data_url;
   // TODO(morlovich): This does a lot of useless conversions and
   // copying. Get rid of them.
@@ -163,6 +164,7 @@ void CssFilter::Context::RewriteSingle(
     const OutputResourcePtr& output_resource) {
   input_resource_ = input_resource;
   output_resource_ = output_resource;
+
   TimedBool result = filter_->RewriteCssText(
       this, css_base_gurl_, input_resource->contents(),
       NULL /* out_text --- not written in RewriteCssText in async case */,
@@ -216,14 +218,11 @@ void CssFilter::Context::Harvest() {
       // TODO(morlovich): Incorporate time from nested rewrites.
       int64 expire_ms = input_resource_->CacheExpirationTimeMs();
       output_resource_->SetType(&kContentTypeCss);
-      ResourceManager* manager = Manager();
-      manager->MergeNonCachingResponseHeaders(input_resource_,
-                                              output_resource_);
-      ok = manager->Write(HttpStatus::kOK, out_text,
-                          output_resource_.get(),
-                          expire_ms, Driver()->message_handler());
+      ok = Manager()->Write(HttpStatus::kOK, out_text,
+                            output_resource_.get(),
+                            expire_ms, Driver()->message_handler());
     } else {
-      output_partition(0)->set_inlined_data(out_text);
+      output_partition(0)->mutable_result()->set_inlined_data(out_text);
     }
   }
 
@@ -241,7 +240,7 @@ bool CssFilter::Context::Partition(OutputPartitions* partitions,
   } else {
     // In case where we're rewriting inline CSS, we don't want an output
     // resource but still want a non-trivial partition.
-    CachedResult* partition = partitions->add_partition();
+    OutputPartition* partition = partitions->add_partition();
     slot(0)->resource()->AddInputInfoToPartition(0, partition);
     outputs->push_back(OutputResourcePtr(NULL));
     return true;
@@ -291,7 +290,7 @@ CssFilter::CssFilter(RewriteDriver* driver, const StringPiece& path_prefix,
     : RewriteSingleResourceFilter(driver, path_prefix),
       in_style_element_(false),
       image_rewriter_(new CssImageRewriter(driver, cache_extender,
-                                           image_rewriter)),
+                                           image_rewriter, image_combiner)),
       cache_extender_(cache_extender),
       image_rewrite_filter_(image_rewriter),
       image_combiner_(image_combiner),
@@ -605,8 +604,6 @@ RewriteSingleResourceFilter::RewriteResult CssFilter::RewriteLoadedResource(
         int64 expire_ms = std::min(result.expiration_ms,
                                    input_resource->CacheExpirationTimeMs());
         output_resource->SetType(&kContentTypeCss);
-        resource_manager_->MergeNonCachingResponseHeaders(input_resource,
-                                                          output_resource);
         if (resource_manager_->Write(HttpStatus::kOK,
                                      out_contents,
                                      output_resource.get(),

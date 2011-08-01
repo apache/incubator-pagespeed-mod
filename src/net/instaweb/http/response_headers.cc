@@ -211,6 +211,10 @@ void ResponseHeaders::SetTimeHeader(const StringPiece& header, int64 time_ms) {
 }
 
 bool ResponseHeaders::VaryCacheable() {
+  // Recompute whether or not we can cache the resource with these headers.
+  if (cache_fields_dirty_) {
+    ComputeCaching();
+  }
   if (IsCacheable()) {
     StringStarVector values;
     Lookup(HttpAttributes::kVary, &values);
@@ -239,9 +243,8 @@ void ResponseHeaders::ComputeCaching() {
   StringStarVector values;
   int64 date;
   // Compute the timestamp if we can find it
-  bool has_date = Lookup(HttpAttributes::kDate, &values) &&
-      (values.size() == 1) && ConvertStringToTime(*(values[0]), &date);
-  if (has_date) {
+  if (Lookup(HttpAttributes::kDate, &values) && (values.size() == 1) &&
+      ConvertStringToTime(*(values[0]), &date)) {
       proto_->set_fetch_time_ms(date);
   }
 
@@ -271,9 +274,8 @@ void ResponseHeaders::ComputeCaching() {
       pagespeed::resource_util::GetFreshnessLifetimeMillis(
           resource, &freshness_lifetime_ms) && has_fetch_time_ms();
 
-  proto_->set_cacheable(has_date &&
-                        !explicit_no_cache &&
-                        (explicit_cacheable || likely_static) &&
+  proto_->set_cacheable(!explicit_no_cache &&
+                       (explicit_cacheable || likely_static) &&
                         status_cacheable);
   if (proto_->cacheable()) {
     // TODO(jmarantz): check "Age" resource and use that to reduce

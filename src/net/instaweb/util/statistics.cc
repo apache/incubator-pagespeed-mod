@@ -23,9 +23,6 @@ namespace net_instaweb {
 Variable::~Variable() {
 }
 
-Histogram::~Histogram() {
-}
-
 Statistics::~Statistics() {
 }
 

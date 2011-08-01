@@ -19,8 +19,9 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "net/instaweb/rewriter/public/css_filter.h"
+#include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -28,7 +29,7 @@
 namespace Css {
 
 class Declarations;
-class Values;
+class Value;
 
 }  // namespace Css
 
@@ -39,7 +40,6 @@ class HtmlElement;
 class MessageHandler;
 class RequestHeaders;
 class ResponseHeaders;
-class RewriteContext;
 class RewriteDriver;
 class Statistics;
 class Writer;
@@ -74,32 +74,22 @@ class ImageCombineFilter : public RewriteFilter {
   // until you call Realize() or Reset().  declarations is where we will add the
   // new width and height values; url_value must point to the URL value to be
   // replaced. Will not actually change anything until you call Realize().
-  // This will succeed even in cases when it turns out (later) the image
-  // can not be sprited.
-  bool AddCssBackgroundContext(const GoogleUrl& original_url,
-                               Css::Values* values,
-                               int value_index,
-                               CssFilter::Context* parent,
-                               Css::Declarations* decls,
-                               MessageHandler* handler);
+  TimedBool AddCssBackground(const GoogleUrl& original_url,
+                             Css::Declarations* declarations,
+                             Css::Value* url_value,
+                             MessageHandler* handler);
 
-  // Create the combination with the current combiner.
-  OutputResourcePtr MakeOutput();
+  // Visit all CSS background images that have been added, replacing their urls
+  // with the url of the sprite, and adding CSS declarations to position them
+  // correctly.  Returns true if anything was changed.
+  bool DoCombine(MessageHandler* handler);
 
   void Reset();
-  void Reset(CssFilter::Context* context);
-  virtual RewriteContext* MakeRewriteContext();
-  virtual bool HasAsyncFlow() const;
 
  private:
   class Combiner;
-  class Context;
 
-  Context* context_;
-  Context* MakeContext();
-  Context* MakeNestedContext(RewriteContext* parent);
-  bool GetDeclarationDimensions(Css::Declarations* declarations,
-                                int* width, int* height);
+  scoped_ptr<Combiner> combiner_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageCombineFilter);
 };

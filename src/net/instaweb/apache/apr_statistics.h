@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "net/instaweb/util/public/null_statistics.h"
 #include "net/instaweb/util/public/statistics_template.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "apr_shm.h"
@@ -83,11 +82,12 @@ class AprVariable : public Variable {
   int64* value_ptr_;
 };
 
-class AprStatistics : public StatisticsTemplate<AprVariable,
-                                                NullStatisticsHistogram> {
+class AprStatistics : public StatisticsTemplate<AprVariable> {
  public:
   AprStatistics(const StringPiece& filename_prefix);
   virtual ~AprStatistics();
+
+  virtual AprVariable* NewVariable(const StringPiece& name, int index);
 
   // Allocate shared memory segments and mutices for all variables.  This must
   // be called with parent=true from the post_config hook, and with parent=false
@@ -102,11 +102,6 @@ class AprStatistics : public StatisticsTemplate<AprVariable,
   void Clear();
 
   bool frozen() const { return frozen_; }
-
- protected:
-  virtual AprVariable* NewVariable(const StringPiece& name, int index);
-  virtual NullStatisticsHistogram* NewHistogram();
-
  private:
   bool frozen_;
   bool is_child_;

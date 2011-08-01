@@ -50,7 +50,6 @@ namespace {
 // you will also need to change:
 //
 // apache/install/system_test.sh
-// apache/install/apache_system_test.sh
 //
 // Plus a few constants in _test.cc files.
 

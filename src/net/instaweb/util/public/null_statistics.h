@@ -27,31 +27,6 @@
 
 namespace net_instaweb {
 
-class MessageHandler;
-class Writer;
-
-class NullStatisticsHistogram : public Histogram {
- public:
-  NullStatisticsHistogram() {}
-  virtual ~NullStatisticsHistogram();
-  virtual double Average() { return 0.0; }
-  virtual double Percentile(const double perc) { return 0.0; }
-  virtual double StandardDeviation() { return 0.0; }
-  virtual double Count() { return 0.0; }
-  virtual double Maximum() { return 0.0; }
-  virtual double Minimum() { return 0.0; }
-
-  virtual void Add(const double value) { }
-  virtual void Clear() { }
-  virtual bool Empty() { return true; }
-  virtual void RenderHeader(Writer* writer, MessageHandler* handler) { }
-  virtual void Render(const StringPiece& title, Writer* writer,
-                      MessageHandler* handler) { }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(NullStatisticsHistogram);
-};
-
 class NullStatisticsVariable : public Variable {
  public:
   NullStatisticsVariable() {}
@@ -65,8 +40,7 @@ class NullStatisticsVariable : public Variable {
 };
 
 // Simple name/value pair statistics implementation.
-class NullStatistics : public StatisticsTemplate<NullStatisticsVariable,
-                                                 NullStatisticsHistogram> {
+class NullStatistics : public StatisticsTemplate<NullStatisticsVariable> {
  public:
   static const int kNotFound;
 
@@ -76,9 +50,7 @@ class NullStatistics : public StatisticsTemplate<NullStatisticsVariable,
  protected:
   virtual NullStatisticsVariable* NewVariable(const StringPiece& name,
                                               int index);
-  virtual NullStatisticsHistogram* NewHistogram();
 
- private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);
 };
 

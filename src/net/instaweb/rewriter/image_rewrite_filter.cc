@@ -115,12 +115,13 @@ void ImageRewriteFilter::Context::Render() {
   }
 
   CHECK_EQ(1, num_slots());
+  CHECK(output_partition(0)->has_result());
 
   // We use automatic rendering for CSS, as we merely write out the improved
   // URL, and manual for HTML, as we have to consider whether to inline, and
   // may also add in width and height attributes.
   if (!has_parent()) {
-    const CachedResult* result = output_partition(0);
+    const CachedResult* result = &output_partition(0)->result();
     HtmlResourceSlot* html_slot = static_cast<HtmlResourceSlot*>(slot(0).get());
     bool rewrote_url = filter_->FinishRewriteImageUrl(
         result, html_slot->element(), html_slot->attribute());
@@ -259,7 +260,6 @@ ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
       }
 
       int64 origin_expire_time_ms = input_resource->CacheExpirationTimeMs();
-      resource_manager_->MergeNonCachingResponseHeaders(input_resource, result);
       if (resource_manager_->Write(
               HttpStatus::kOK, image->Contents(), result.get(),
               origin_expire_time_ms, message_handler)) {

@@ -39,8 +39,8 @@ namespace net_instaweb {
 
 class AbstractLock;
 class CachedResult;
-class InputInfo;
 class MessageHandler;
+class OutputPartition;
 class OutputPartitions;
 class ResourceContext;
 class ResponseHeaders;
@@ -117,8 +117,8 @@ class RewriteContext {
   // These are generally accessed in the Rewrite thread,
   // but may also be accessed in ::Render.
   int num_output_partitions() const;
-  const CachedResult* output_partition(int i) const;
-  CachedResult* output_partition(int i);
+  const OutputPartition* output_partition(int i) const;
+  OutputPartition* output_partition(int i);
 
   // Returns true if this context is chained to some predecessors, and
   // must therefore be started by a predecessor and not RewriteDriver.
@@ -191,20 +191,9 @@ class RewriteContext {
   RewriteDriver* Driver();
   const ResourceContext* resource_context() { return resource_context_.get(); }
 
-  // Check that an CachedResult is valid, specifically, that all the
+  // Check that an OutputPartition is valid, specifically, that all the
   // inputs are still valid/non-expired.
-  bool IsCachedResultValid(const CachedResult& partition);
-
-  // Checks whether all the entries in the given partition tables' other
-  // dependency table are valid.
-  bool IsOtherDependencyValid(const OutputPartitions* partitions);
-
-  // Checks whether the given input is still unchanged.
-  bool IsInputValid(const InputInfo& input_info);
-
-  // Add a dummy other_dependency that will force the rewrite's OutputPartitions
-  // to be rechecked after a modest TTL.
-  void AddRecheckDependency();
+  bool OutputPartitionIsValid(const OutputPartition& partition);
 
   // Establishes that a slot has been rewritten.  So when Propagate()
   // is called, the resource update that has been written to this slot can
@@ -223,9 +212,9 @@ class RewriteContext {
 
   // Called on the parent from a nested Rewrite when it is complete.
   // Note that we don't track rewrite success/failure here.  We only
-  // care whether the nested rewrites are complete, and whether there
-  // are any dependencies.
-  void NestedRewriteDone(const RewriteContext* context);
+  // care whether the nested rewrites are complete.  In fact we don't
+  // even track which particular nested rewrite is done.
+  void NestedRewriteDone();
 
   // Called on the parent to initiate all nested tasks.  This is so
   // that they can all be added before any of them are started.
@@ -264,7 +253,7 @@ class RewriteContext {
   // thread (while we were waiting for resource fetches) when Rewrite
   // gets called.
   virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
+                       OutputPartition* partition,
                        const OutputResourcePtr& output) = 0;
 
   // Once any nested rewrites have completed, the results of these
@@ -325,14 +314,11 @@ class RewriteContext {
  private:
   class OutputCacheCallback;
   friend class OutputCacheCallback;
-  class ResourceCallbackUtils;
   class ResourceFetchCallback;
-  class ResourceReconstructCallback;
-  friend class ResourceCallbackUtils;
+  friend class ResourceFetchCallback;
 
   // Callback helper functions.
   void Start();
-  void SetPartitionKey();
   void StartFetch();
   void OutputCacheDone(CacheInterface::KeyState state, SharedString value);
   void ResourceFetchDone(bool success, ResourcePtr resource, int slot_index);

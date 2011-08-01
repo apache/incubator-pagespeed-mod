@@ -412,23 +412,6 @@ TEST_P(CacheExtenderTest, MadeOnTheFly) {
   EXPECT_EQ(1, resource_manager()->succeeded_filter_resource_fetches()->Get());
 }
 
-// http://code.google.com/p/modpagespeed/issues/detail?id=324
-TEST_P(CacheExtenderTest, RetainExtraHeaders) {
-  GoogleString url = StrCat(kTestDomain, "retain.css");
-  InitResponseHeaders(url, kContentTypeCss, kCssData, 300);
-  TestRetainExtraHeaders("retain.css", "retain.css", "ce", "css");
-}
-
-TEST_P(CacheExtenderTest, TrimUrlInteraction) {
-  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  InitTest(kMediumTtlSec);
-
-  GoogleString a_ext = Encode("", "ce", "0", kCssFile, "css");
-  ValidateExpected("ce_then_trim",
-                   StringPrintf(kCssFormat, kCssFile),
-                   StringPrintf(kCssFormat, a_ext.c_str()));
-}
-
 // We test with asynchronous_rewrites() == GetParam() as both true and false.
 INSTANTIATE_TEST_CASE_P(CacheExtenderTestInstance,
                         CacheExtenderTest,
