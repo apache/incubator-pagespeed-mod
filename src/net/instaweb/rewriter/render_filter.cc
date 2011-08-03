@@ -29,9 +29,12 @@ RenderFilter::~RenderFilter() {
 }
 
 void RenderFilter::Flush() {
-  if (driver_->asynchronous_rewrites()) {
-    driver_->Render();
-  }
+  // TODO(jmarantz): Call some method supplied by the environment to allow
+  // rewrites to finish.  E.g. in apache we could call SerfUrlAsyncFetcher.
+  // Dependening on the caching implementation, this method could add
+  // constrained delays to allow fetches to complete so that cached rewrites
+  // can be rendered.
+  driver_->Render();
 }
 
 }  // namespace net_instaweb

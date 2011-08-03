@@ -22,7 +22,6 @@
 #include <cstdlib>
 #include <vector>
 
-#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/pthread_shared_mem.h"
 #include "net/instaweb/util/public/shared_circular_buffer_test_base.h"
@@ -52,7 +51,7 @@ class PthreadSharedMemEnvBase : public SharedMemTestEnv {
 
 class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  virtual bool CreateChild(Callback* callback) {
     pthread_t thread;
     if (pthread_create(&thread, NULL, InvokeCallback, callback) != 0) {
       return false;
@@ -79,7 +78,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
  private:
   static void* InvokeCallback(void* raw_callback_ptr) {
-    Function* callback = static_cast<Function*>(raw_callback_ptr);
+    Callback* callback = static_cast<Callback*>(raw_callback_ptr);
     callback->Run();
     delete callback;
     return NULL;  // Used to denote success
@@ -90,7 +89,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
 class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  virtual bool CreateChild(Callback* callback) {
     pid_t ret = fork();
     if (ret == -1) {
       // Failure

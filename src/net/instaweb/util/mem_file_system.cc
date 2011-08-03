@@ -260,7 +260,6 @@ bool MemFileSystem::Atime(const StringPiece& path, int64* timestamp_sec,
 
 bool MemFileSystem::Mtime(const StringPiece& path, int64* timestamp_sec,
                           MessageHandler* handler) {
-  ++num_input_file_stats_;
   *timestamp_sec = mtime_map_[path.as_string()];
   return true;
 }

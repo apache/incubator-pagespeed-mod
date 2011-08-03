@@ -47,6 +47,9 @@ class SharedCircularBufferTestBase : public testing::Test {
   void TestCircular();
 
  private:
+  typedef SharedMemTestEnv::MethodCallback<SharedCircularBufferTestBase>
+      MethodCallback;
+
   // Helper functions.
   void TestCreateChild();
   void TestAddChild();

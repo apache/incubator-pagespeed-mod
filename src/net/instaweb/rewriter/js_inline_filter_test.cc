@@ -20,7 +20,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -209,47 +208,6 @@ TEST_P(JsInlineFilterTest, CachedRewrite) {
   TestInlineJavascript(kPageUrl, kJsUrl, kNothingInsideScript, kJs, true);
 }
 
-TEST_P(JsInlineFilterTest, CachedWithSuccesors) {
-  // Regression test: in async case, at one point we had a problem with
-  // slot rendering of a following cache extender trying to manipulate
-  // the source attribute which the inliner deleted while using
-  // cached filter results.
-  options()->EnableFilter(RewriteOptions::kInlineJavascript);
-  options()->EnableFilter(RewriteOptions::kExtendCache);
-  rewrite_driver()->AddFilters();
-
-  const char kJsUrl[] = "script.js";
-  const char kJs[] = "function id(x) { return x; }\n";
-
-  InitResponseHeaders(kJsUrl, kContentTypeJavascript, kJs, 3000);
-
-  GoogleString html_input = StrCat("<script src=\"", kJsUrl, "\"></script>");
-  GoogleString html_output= StrCat("<script>", kJs, "</script>");
-
-  ValidateExpected("inline_with_succ", html_input, html_output);
-  ValidateExpected("inline_with_succ", html_input, html_output);
-}
-
-TEST_P(JsInlineFilterTest, CachedWithPredecessors) {
-  // Regression test for crash: trying to inline after combining would crash.
-  // (Current state is not to inline after combining due to the
-  //  <script> element with src= being new).
-  options()->EnableFilter(RewriteOptions::kInlineJavascript);
-  options()->EnableFilter(RewriteOptions::kCombineJavascript);
-  rewrite_driver()->AddFilters();
-
-  const char kJsUrl[] = "script.js";
-  const char kJs[] = "function id(x) { return x; }\n";
-
-  InitResponseHeaders(kJsUrl, kContentTypeJavascript, kJs, 3000);
-
-  GoogleString html_input = StrCat("<script src=\"", kJsUrl, "\"></script>",
-                                   "<script src=\"", kJsUrl, "\"></script>");
-
-  Parse("inline_with_pred", html_input);
-  Parse("inline_with_pred", html_input);
-}
-
 TEST_P(JsInlineFilterTest, InlineJs404) {
   // Test to make sure that a missing input is handled well.
   SetFetchResponse404("404.js");
@@ -275,23 +233,6 @@ TEST_P(JsInlineFilterTest, InlineMinimizeInteraction) {
       "var answer = 42; // const is non-standard",  // out-of-line body
       "",  // No inline body out,
       false);  // Not inlining
-}
-
-TEST_P(JsInlineFilterTest, FlushSplittingScriptTag) {
-  options()->EnableFilter(RewriteOptions::kInlineJavascript);
-  SetupWriter();
-  rewrite_driver()->AddFilters();
-
-  const char kJsUrl[] = "http://www.example.com/script.js";
-  const char kJs[] = "function id(x) { return x; }\n";
-  InitResponseHeaders(kJsUrl, kContentTypeJavascript, kJs, 3000);
-
-  html_parse()->StartParse("http://www.example.com");
-  html_parse()->ParseText("<div><script src=\"script.js\"> ");
-  html_parse()->Flush();
-  html_parse()->ParseText("</script> </div>");
-  html_parse()->FinishParse();
-  EXPECT_EQ("<div><script src=\"script.js\"> </script> </div>", output_buffer_);
 }
 
 // We test with asynchronous_rewrites() == GetParam() as both true and false.

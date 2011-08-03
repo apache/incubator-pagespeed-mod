@@ -131,11 +131,6 @@ class GoogleUrl {
     return gurl_.IntPort();
   }
 
-  // Returns the effective port number, which is dependent on the scheme.
-  int EffectiveIntPort() const {
-    return gurl_.EffectiveIntPort();
-  }
-
   // Returns validity of stored url.
   bool is_valid() const {
     return gurl_.is_valid();

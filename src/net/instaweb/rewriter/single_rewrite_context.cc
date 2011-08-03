@@ -51,9 +51,9 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
               Options(), id(), encoder(), resource_context(),
               resource, kind(), true /* async flow */));
       if (output_resource.get() != NULL) {
-        CachedResult* partition = partitions->add_partition();
+        OutputPartition* partition = partitions->add_partition();
         resource->AddInputInfoToPartition(0, partition);
-        output_resource->set_cached_result(partition);
+        output_resource->set_cached_result(partition->mutable_result());
         outputs->push_back(output_resource);
       }
     }
@@ -62,7 +62,7 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
 }
 
 void SingleRewriteContext::Rewrite(int partition_index,
-                                   CachedResult* partition,
+                                   OutputPartition* partition,
                                    const OutputResourcePtr& output_resource) {
   CHECK_EQ(0, partition_index);
   ResourcePtr resource(slot(0)->resource());
@@ -70,7 +70,7 @@ void SingleRewriteContext::Rewrite(int partition_index,
   CHECK(resource->loaded());
   CHECK(resource->ContentsValid());
   if (output_resource.get() != NULL) {
-    output_resource->set_cached_result(partition);
+    output_resource->set_cached_result(partition->mutable_result());
   }
   RewriteSingle(resource, output_resource);
 }

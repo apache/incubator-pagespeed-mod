@@ -23,15 +23,6 @@ namespace net_instaweb {
 Variable::~Variable() {
 }
 
-Histogram::~Histogram() {
-}
-
-TimedVariable::~TimedVariable() {
-}
-
-FakeTimedVariable::~FakeTimedVariable() {
-}
-
 Statistics::~Statistics() {
 }
 
