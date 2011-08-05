@@ -237,6 +237,7 @@ ResourceManager* RewriteDriverFactory::ComputeResourceManager() {
     }
     resource_manager_->set_store_outputs_in_file_system(
         ShouldWriteResourcesToFileSystem());
+    ResourceManagerCreatedHook();
   }
   return resource_manager_.get();
 }
@@ -314,6 +315,9 @@ void RewriteDriverFactory::SetupSlurpDirectories() {
 }
 
 void RewriteDriverFactory::FetcherSetupHooks() {
+}
+
+void RewriteDriverFactory::ResourceManagerCreatedHook() {
 }
 
 StringPiece RewriteDriverFactory::LockFilePrefix() {
