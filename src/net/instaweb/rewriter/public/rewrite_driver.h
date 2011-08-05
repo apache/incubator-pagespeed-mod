@@ -36,7 +36,6 @@
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/printf_format.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -92,9 +91,6 @@ class RewriteDriver : public HtmlParse {
   // Need explicit destructors to allow destruction of scoped_ptr-controlled
   // instances without propagating the include files.
   virtual ~RewriteDriver();
-
-  // Returns a fresh instance using the same options we do.
-  RewriteDriver* Clone();
 
   // Clears the current request cache of resources and base URL.  The
   // filter-chain is left intact so that a new request can be issued.
@@ -256,12 +252,6 @@ class RewriteDriver : public HtmlParse {
   // completed.
   virtual void FinishParse();
 
-  // Report error message with description of context's location
-  // (such as filenames and line numbers). context may be NULL, in which case
-  // the current parse position will be used.
-  void InfoAt(RewriteContext* context,
-              const char* msg, ...) INSTAWEB_PRINTF_FORMAT(3, 4);
-
   // See comments in resource_manager.h
   OutputResourcePtr CreateOutputResourceFromResource(
       const StringPiece& filter_prefix,
@@ -404,21 +394,6 @@ class RewriteDriver : public HtmlParse {
   // at runtime.
   void set_rewrite_deadline_ms(int x) { rewrite_deadline_ms_ = x; }
 
-  // Tries to register the given rewrite context as working on
-  // its partition key. If this context is the first one to try to handle it,
-  // returns NULL. Otherwise returns the previous such context.
-  //
-  // Must only be called from rewrite thread.
-  RewriteContext* RegisterForPartitionKey(const GoogleString& partition_key,
-                                          RewriteContext* candidate);
-
-  // Must be called after all other rewrites that are currently relying on this
-  // one have had their RepeatedSuccess or RepeatedFailure methods called.
-  //
-  // Must only be called from rewrite thread.
-  void DeregisterForPartitionKey(
-      const GoogleString& partition_key, RewriteContext* candidate);
-
  private:
   friend class ResourceManagerTestBase;
   friend class ResourceManagerTest;
@@ -426,10 +401,6 @@ class RewriteDriver : public HtmlParse {
   typedef std::map<GoogleString, RewriteFilter*> StringFilterMap;
   typedef void (RewriteDriver::*SetStringMethod)(const StringPiece& value);
   typedef void (RewriteDriver::*SetInt64Method)(int64 value);
-
-  // Implementation of the main loop of BoundedWaitForCompletion; assumes
-  // that the lock is held (and that asynchronous_rewrites_ is true)
-  void BoundedWaitForCompletionImpl(int64 timeout_ms);
 
   // Determines whether this RewriteDriver was built with custom options
   bool has_custom_options() const { return (custom_options_.get() != NULL); }
@@ -579,11 +550,6 @@ class RewriteDriver : public HtmlParse {
   // Maps encoded URLs to output URLs
   typedef std::map<GoogleString, ResourcePtr> ResourceMap;
   ResourceMap resource_map_;
-
-  // Maps rewrite context partition keys to the context responsible for
-  // rewriting them, in case a URL occurs more than once.
-  typedef std::map<GoogleString, RewriteContext*> PrimaryRewriteContextMap;
-  PrimaryRewriteContextMap primary_rewrite_context_map_;
 
   HtmlResourceSlotSet slots_;
 

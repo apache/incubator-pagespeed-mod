@@ -15,7 +15,6 @@
 // Author: fangfei@google.com (Fangfei Zhou)
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/shared_circular_buffer.h"
@@ -28,7 +27,6 @@ namespace net_instaweb {
 namespace {
 const int kBufferSize = 10;
 const char kPrefix[] = "/prefix/";
-const char kPostfix[] = "postfix";
 const char kString[] = "012";
 }  // namespace
 
@@ -39,23 +37,20 @@ SharedCircularBufferTestBase::SharedCircularBufferTestBase(
 }
 
 bool SharedCircularBufferTestBase::CreateChild(TestMethod method) {
-  Function* callback =
-      new MemberFunction0<SharedCircularBufferTestBase>(method, this);
+  MethodCallback* callback = new MethodCallback(this, method);
   return test_env_->CreateChild(callback);
 }
 
 SharedCircularBuffer* SharedCircularBufferTestBase::ChildInit() {
   SharedCircularBuffer* buff =
-      new SharedCircularBuffer(shmem_runtime_.get(), kBufferSize, kPrefix,
-                               kPostfix);
+      new SharedCircularBuffer(kBufferSize, shmem_runtime_.get(), kPrefix);
   buff->InitSegment(false, &handler_);
   return buff;
 }
 
 SharedCircularBuffer* SharedCircularBufferTestBase::ParentInit() {
   SharedCircularBuffer* buff =
-      new SharedCircularBuffer(shmem_runtime_.get(), kBufferSize, kPrefix,
-                               kPostfix);
+      new SharedCircularBuffer(kBufferSize, shmem_runtime_.get(), kPrefix);
   buff->InitSegment(true, &handler_);
   return buff;
 }

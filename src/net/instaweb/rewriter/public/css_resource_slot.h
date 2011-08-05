@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/string.h"
 
 namespace Css { class Values; }
 
@@ -43,7 +42,6 @@ class GoogleUrl;
 class CssResourceSlot : public ResourceSlot {
  public:
   virtual void Render();
-  virtual GoogleString LocationString();
 
   Css::Values* values() const { return values_; }
   size_t value_index() const { return value_index_; }
@@ -52,18 +50,18 @@ class CssResourceSlot : public ResourceSlot {
   void EnableTrim(const GoogleUrl& base_url);
 
  protected:
+  REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
+  virtual ~CssResourceSlot();
+
+ private:
+  friend class CssResourceSlotFactory;
+
   CssResourceSlot(const ResourcePtr& resource, Css::Values* values,
                   size_t value_index)
       : ResourceSlot(resource),
         values_(values),
         value_index_(value_index) {
   }
-
-  REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
-  virtual ~CssResourceSlot();
-
- private:
-  friend class CssResourceSlotFactory;
 
   Css::Values* values_;
   size_t value_index_;
@@ -85,7 +83,6 @@ class CssResourceSlotFactory {
   // not modified while this exists.
   CssResourceSlotPtr GetSlot(const ResourcePtr& resource,
                              Css::Values* values, size_t value_index);
-  CssResourceSlotPtr UniquifySlot(CssResourceSlotPtr slot);
 
  private:
   class SlotComparator {

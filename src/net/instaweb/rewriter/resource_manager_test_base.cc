@@ -302,10 +302,7 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
 
   // Check that stats say we took the construct resource path.
   EXPECT_EQ(0, new_resource_manager.cached_resource_fetches()->Get());
-  // We should construct at least one resource, and maybe more if the
-  // output resource was produced by multiple filters (e.g. JS minimize
-  // then combine).
-  EXPECT_LE(1, new_resource_manager.succeeded_filter_resource_fetches()->Get());
+  EXPECT_EQ(1, new_resource_manager.succeeded_filter_resource_fetches()->Get());
   EXPECT_EQ(0, new_resource_manager.failed_filter_resource_fetches()->Get());
 
   // Make sure to shut the new worker down before we hit ~RewriteDriver for
@@ -375,24 +372,18 @@ bool ResourceManagerTestBase::ServeResource(
     const StringPiece& name, const StringPiece& ext,
     GoogleString* content) {
   GoogleString url = Encode(path, filter_id, "0", name, ext);
-  ResponseHeaders response;
-  return ServeResourceUrl(url, content, &response);
+  return ServeResourceUrl(url, content);
 }
 
 bool ResourceManagerTestBase::ServeResourceUrl(
     const StringPiece& url, GoogleString* content) {
-  ResponseHeaders response;
-  return ServeResourceUrl(url, content, &response);
-}
-
-bool ResourceManagerTestBase::ServeResourceUrl(
-    const StringPiece& url, GoogleString* content, ResponseHeaders* response) {
   content->clear();
   RequestHeaders request_headers;
+  ResponseHeaders response_headers;
   StringWriter writer(content);
   MockCallback callback;
   bool fetched = rewrite_driver_.FetchResource(
-      url, request_headers, response, &writer, &callback);
+      url, request_headers, &response_headers, &writer, &callback);
 
   // We call WaitForCompletion when testing the serving of rewritten
   // resources, because that's how the server will work.  It will
@@ -497,8 +488,7 @@ void ResourceManagerTestBase::RemoveOutputResourceFile(const StringPiece& url) {
 // Just check if we can fetch a resource successfully, ignore response.
 bool ResourceManagerTestBase::TryFetchResource(const StringPiece& url) {
   GoogleString contents;
-  ResponseHeaders response;
-  return ServeResourceUrl(url, &contents, &response);
+  return ServeResourceUrl(url, &contents);
 }
 
 
@@ -668,31 +658,6 @@ void ResourceManagerTestBase::SetupDriver(ResourceManager* rm,
   Scheduler* scheduler = new MockScheduler(
       rm->thread_system(), rm->rewrite_worker(), &timer_);
   rd->SetResourceManagerAndScheduler(rm, scheduler);
-}
-
-void ResourceManagerTestBase::TestRetainExtraHeaders(
-    const StringPiece& name,
-    const StringPiece& encoded_name,
-    const StringPiece& filter_id,
-    const StringPiece& ext) {
-  GoogleString url = AbsolutifyUrl(name);
-  AddToResponse(url, "extra", "attribute");
-  GoogleString content;
-  ResponseHeaders response;
-  GoogleString rewritten_url = Encode(kTestDomain, filter_id, "0",
-                                      encoded_name, ext);
-  ASSERT_TRUE(ServeResourceUrl(rewritten_url, &content, &response));
-  StringStarVector v;
-  ASSERT_TRUE(response.Lookup("extra", &v));
-  ASSERT_EQ(1U, v.size());
-  EXPECT_STREQ("attribute", *v[0]);
-}
-
-void ResourceManagerTestBase::ClearStats() {
-  statistics_->Clear();
-  lru_cache()->ClearStats();
-  counting_url_async_fetcher()->Clear();
-  file_system()->ClearStats();
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

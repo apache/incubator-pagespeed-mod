@@ -188,7 +188,7 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual bool Partition(OutputPartitions* partitions,
                          OutputResourceVector* outputs) {
     MessageHandler* handler = Driver()->message_handler();
-    CachedResult* partition = NULL;
+    OutputPartition* partition = NULL;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
 
     // For each slot, try to add its resource to the current partition.
@@ -225,7 +225,7 @@ class JsCombineFilter::Context : public RewriteContext {
 
   // Actually write the new resource.
   virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
+                       OutputPartition* partition,
                        const OutputResourcePtr& output) {
     RewriteSingleResourceFilter::RewriteResult result =
         RewriteSingleResourceFilter::kRewriteOk;
@@ -248,7 +248,7 @@ class JsCombineFilter::Context : public RewriteContext {
   // original script for that tag.
   virtual void Render() {
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
-      CachedResult* partition = output_partition(p);
+      OutputPartition* partition = output_partition(p);
       int partition_size = partition->input_size();
       if (partition_size > 1) {
         // Make sure we can edit every element here.
@@ -296,14 +296,17 @@ class JsCombineFilter::Context : public RewriteContext {
   // the context (and the combiner) so we start with a fresh slate
   // for any new slots.
   void FinalizePartition(OutputPartitions* partitions,
-                         CachedResult* partition,
+                         OutputPartition* partition,
                          OutputResourceVector* outputs) {
     if (partition != NULL) {
       OutputResourcePtr combination_output(combiner_.MakeOutput());
       if (combination_output.get() == NULL) {
         partitions->mutable_partition()->RemoveLast();
       } else {
-        combination_output->UpdateCachedResultPreservingInputInfo(partition);
+        CachedResult* partition_result = partition->mutable_result();
+        const CachedResult* combination_result =
+            combination_output->cached_result();
+        *partition_result = *combination_result;
         outputs->push_back(combination_output);
       }
       Reset();
@@ -312,7 +315,7 @@ class JsCombineFilter::Context : public RewriteContext {
 
   // Create an element for the combination of all the elements in the
   // partition. Insert it before first one.
-  void MakeCombinedElement(CachedResult* partition) {
+  void MakeCombinedElement(OutputPartition* partition) {
     int first_index = partition->input(0).index();
     HtmlResourceSlot* first_slot =
         static_cast<HtmlResourceSlot*>(slot(first_index).get());
@@ -322,7 +325,7 @@ class JsCombineFilter::Context : public RewriteContext {
     Driver()->InsertElementBeforeElement(first_slot->element(),
                                          combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
-                           partition->url());
+                           partition->result().url());
   }
 
   // Make a script element with eval(<variable name>), and replace

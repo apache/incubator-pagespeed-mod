@@ -79,14 +79,11 @@ const char kStylesheet[] = "stylesheet";
 // to write out an output URL, so it has a no-op Render().
 class InlineCssSlot : public ResourceSlot {
  public:
-  InlineCssSlot(const ResourcePtr& resource, const GoogleString& location)
-      : ResourceSlot(resource), location_(location) {}
+  explicit InlineCssSlot(const ResourcePtr& resource)
+      : ResourceSlot(resource) {}
   virtual ~InlineCssSlot() {}
   virtual void Render() {}
-  virtual GoogleString LocationString() { return location_; }
-
  private:
-  GoogleString location_;
   DISALLOW_COPY_AND_ASSIGN(InlineCssSlot);
 };
 
@@ -112,7 +109,6 @@ CssFilter::Context::Context(CssFilter* filter, RewriteDriver* driver,
       rewrite_inline_element_(NULL),
       rewrite_inline_char_node_(NULL),
       in_text_size_(-1) {
-  css_base_gurl_.Reset(filter_->base_url());
 }
 
 CssFilter::Context::~Context() {
@@ -123,7 +119,7 @@ void CssFilter::Context::Render() {
     return;
   }
 
-  const CachedResult& result = *output_partition(0);
+  const CachedResult& result = output_partition(0)->result();
   if (rewrite_inline_char_node_ != NULL && result.optimizable()) {
     HtmlCharactersNode* new_style_char_node =
         driver_->NewCharactersNode(rewrite_inline_element_,
@@ -136,14 +132,16 @@ void CssFilter::Context::StartInlineRewrite(HtmlElement* style_element,
                                             HtmlCharactersNode* text) {
   // To handle nested rewrites of inline CSS, we internally handle it
   // as a rewrite of a data: URL.
+  css_base_gurl_.Reset(driver_->base_url());
   rewrite_inline_element_ = style_element;
   rewrite_inline_char_node_ = text;
+
   GoogleString data_url;
   // TODO(morlovich): This does a lot of useless conversions and
   // copying. Get rid of them.
   DataUrl(kContentTypeCss, PLAIN, text->contents(), &data_url);
   ResourcePtr input_resource(DataUrlInputResource::Make(data_url, Manager()));
-  ResourceSlotPtr slot(new InlineCssSlot(input_resource, Driver()->UrlLine()));
+  ResourceSlotPtr slot(new InlineCssSlot(input_resource));
   AddSlot(slot);
   driver_->InitiateRewrite(this);
 }
@@ -166,6 +164,7 @@ void CssFilter::Context::RewriteSingle(
     const OutputResourcePtr& output_resource) {
   input_resource_ = input_resource;
   output_resource_ = output_resource;
+
   TimedBool result = filter_->RewriteCssText(
       this, css_base_gurl_, input_resource->contents(),
       NULL /* out_text --- not written in RewriteCssText in async case */,
@@ -212,21 +211,18 @@ void CssFilter::Context::Harvest() {
   }
 
   bool ok = filter_->SerializeCss(
-      this, in_text_size_, stylesheet_.get(), css_base_gurl_,
+      in_text_size_, stylesheet_.get(), css_base_gurl_,
       previously_optimized, &out_text, driver_->message_handler());
   if (ok) {
     if (rewrite_inline_char_node_ == NULL) {
       // TODO(morlovich): Incorporate time from nested rewrites.
       int64 expire_ms = input_resource_->CacheExpirationTimeMs();
       output_resource_->SetType(&kContentTypeCss);
-      ResourceManager* manager = Manager();
-      manager->MergeNonCachingResponseHeaders(input_resource_,
-                                              output_resource_);
-      ok = manager->Write(HttpStatus::kOK, out_text,
-                          output_resource_.get(),
-                          expire_ms, Driver()->message_handler());
+      ok = Manager()->Write(HttpStatus::kOK, out_text,
+                            output_resource_.get(),
+                            expire_ms, Driver()->message_handler());
     } else {
-      output_partition(0)->set_inlined_data(out_text);
+      output_partition(0)->mutable_result()->set_inlined_data(out_text);
     }
   }
 
@@ -244,7 +240,7 @@ bool CssFilter::Context::Partition(OutputPartitions* partitions,
   } else {
     // In case where we're rewriting inline CSS, we don't want an output
     // resource but still want a non-trivial partition.
-    CachedResult* partition = partitions->add_partition();
+    OutputPartition* partition = partitions->add_partition();
     slot(0)->resource()->AddInputInfoToPartition(0, partition);
     outputs->push_back(OutputResourcePtr(NULL));
     return true;
@@ -294,7 +290,7 @@ CssFilter::CssFilter(RewriteDriver* driver, const StringPiece& path_prefix,
     : RewriteSingleResourceFilter(driver, path_prefix),
       in_style_element_(false),
       image_rewriter_(new CssImageRewriter(driver, cache_extender,
-                                           image_rewriter)),
+                                           image_rewriter, image_combiner)),
       cache_extender_(cache_extender),
       image_rewrite_filter_(image_rewriter),
       image_combiner_(image_combiner),
@@ -444,7 +440,7 @@ TimedBool CssFilter::RewriteCssText(Context* context,
   if (stylesheet.get() == NULL ||
       parser.errors_seen_mask() != Css::Parser::kNoError) {
     ret.value = false;
-    driver_->InfoAt(context, "CSS parsing error in %s", css_gurl.spec_c_str());
+    driver_->InfoHere("CSS parsing error in %s", css_gurl.spec_c_str());
     num_parse_failures_->Add(1);
   } else {
     // Edit stylesheet.
@@ -459,17 +455,14 @@ TimedBool CssFilter::RewriteCssText(Context* context,
       TimedBool result = image_rewriter_->RewriteCssImages(
                              css_gurl, stylesheet.get(), handler);
       ret.expiration_ms = result.expiration_ms;
-      RewriteContext* no_rewrite_context = NULL;
-      ret.value = SerializeCss(no_rewrite_context, in_text_size,
-                               stylesheet.get(), css_gurl,
+      ret.value = SerializeCss(in_text_size, stylesheet.get(), css_gurl,
                                result.value, out_text, handler);
     }
   }
   return ret;
 }
 
-bool CssFilter::SerializeCss(RewriteContext* context,
-                             int64 in_text_size,
+bool CssFilter::SerializeCss(int64 in_text_size,
                              const Css::Stylesheet* stylesheet,
                              const GoogleUrl& css_gurl,
                              bool previously_optimized,
@@ -489,25 +482,24 @@ bool CssFilter::SerializeCss(RewriteContext* context,
     // Don't rewrite if we didn't edit it or make it any smaller.
     if (!previously_optimized && bytes_saved <= 0) {
       ret = false;
-      driver_->InfoAt(context, "CSS parser increased size of CSS file %s by %s "
-                      "bytes.", css_gurl.spec_c_str(),
-                      Integer64ToString(-bytes_saved).c_str());
+      driver_->InfoHere("CSS parser increased size of CSS file %s by %s "
+                        "bytes.", css_gurl.spec_c_str(),
+                        Integer64ToString(-bytes_saved).c_str());
     }
     // Don't rewrite if we blanked the CSS file! (This is a parse error)
     // TODO(sligocki): Don't error if in_text is all whitespace.
     if (out_text_size == 0 && in_text_size != 0) {
       ret = false;
-      driver_->InfoAt(context, "CSS parsing error in %s",
-                      css_gurl.spec_c_str());
+      driver_->InfoHere("CSS parsing error in %s", css_gurl.spec_c_str());
       num_parse_failures_->Add(1);
     }
   }
 
   // Statistics
   if (ret) {
-    driver_->InfoAt(context, "Successfully rewrote CSS file %s saving %s "
-                    "bytes.", css_gurl.spec_c_str(),
-                    Integer64ToString(bytes_saved).c_str());
+    driver_->InfoHere("Successfully rewrote CSS file %s saving %s "
+                      "bytes.", css_gurl.spec_c_str(),
+                      Integer64ToString(bytes_saved).c_str());
     num_files_minified_->Add(1);
     minified_bytes_saved_->Add(bytes_saved);
   }
@@ -612,8 +604,6 @@ RewriteSingleResourceFilter::RewriteResult CssFilter::RewriteLoadedResource(
         int64 expire_ms = std::min(result.expiration_ms,
                                    input_resource->CacheExpirationTimeMs());
         output_resource->SetType(&kContentTypeCss);
-        resource_manager_->MergeNonCachingResponseHeaders(input_resource,
-                                                          output_resource);
         if (resource_manager_->Write(HttpStatus::kOK,
                                      out_contents,
                                      output_resource.get(),

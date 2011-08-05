@@ -20,6 +20,7 @@
 
 #include <cctype>
 #include <cstddef>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
@@ -49,36 +50,6 @@
 
 namespace net_instaweb {
 
-namespace {
-
-void CleanupWhitespaceScriptBody(
-    RewriteDriver* driver, RewriteContext* context,
-    const JavascriptFilter::HtmlCharNodeVector& nodes) {
-  // Finally, note that the script might contain body data.
-  // We erase this if it is just whitespace; otherwise we leave it alone.
-  // The script body is ignored by all browsers we know of.
-  // However, various sources have encouraged using the body of an
-  // external script element to store a post-load callback.
-  // As this technique is preferable to storing callbacks in, say, html
-  // comments, we support it for now.
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    const GoogleString& contents = nodes[i]->contents();
-    for (size_t j = 0; j < contents.size(); ++j) {
-      char c = contents[j];
-      if (!isspace(c) && c != 0) {
-        driver->InfoAt(context, "Retaining contents of script tag;"
-                       " probably data for external script.");
-        return;
-      }
-    }
-  }
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    driver->DeleteElement(nodes[i]);
-  }
-}
-
-}  // namespace
-
 class RewriteContext;
 class Statistics;
 JavascriptFilter::JavascriptFilter(RewriteDriver* driver,
@@ -96,13 +67,12 @@ void JavascriptFilter::Initialize(Statistics* statistics) {
   JavascriptRewriteConfig::Initialize(statistics);
 }
 
-class JavascriptFilter::Context : public SingleRewriteContext {
+class JavascriptRewriteContext : public SingleRewriteContext {
  public:
-  Context(RewriteDriver* driver, JavascriptRewriteConfig* config,
-          const HtmlCharNodeVector& inline_text)
+  JavascriptRewriteContext(RewriteDriver* driver,
+                           JavascriptRewriteConfig* config)
       : SingleRewriteContext(driver, NULL, NULL),
-        config_(config),
-        inline_text_(inline_text) {
+        config_(config) {
   }
 
   RewriteSingleResourceFilter::RewriteResult RewriteJavascript(
@@ -123,7 +93,8 @@ class JavascriptFilter::Context : public SingleRewriteContext {
       // Give the script a nice mimetype and extension.
       // (There is no harm in doing this, they're ignored anyway).
       output->SetType(&kContentTypeJavascript);
-      ok = WriteExternalScriptTo(input, code_block.Rewritten(), output);
+      ok = WriteExternalScriptTo(input.get(), code_block.Rewritten(),
+                                 output.get());
     } else {
       // Rewriting happened but wasn't useful; as we return false base class
       // will remember this for later so we don't attempt to rewrite twice.
@@ -145,10 +116,6 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     RewriteDone(RewriteJavascript(input, output), 0);
   }
 
-  virtual void Render() {
-    CleanupWhitespaceScriptBody(Driver(), this, inline_text_);
-  }
-
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
   virtual const char* id() const { return RewriteDriver::kJavascriptMinId; }
@@ -158,15 +125,13 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   // and write it to script_dest.
   // Returns true on success, reports failures itself.
   bool WriteExternalScriptTo(
-      const ResourcePtr script_resource,
-      const StringPiece& script_out, const OutputResourcePtr& script_dest) {
+      const Resource* script_resource,
+      const StringPiece& script_out, OutputResource* script_dest) {
     bool ok = false;
     ResourceManager* resource_manager = Manager();
     MessageHandler* message_handler = resource_manager->message_handler();
     int64 origin_expire_time_ms = script_resource->CacheExpirationTimeMs();
-    resource_manager->MergeNonCachingResponseHeaders(
-        script_resource, script_dest);
-    if (resource_manager->Write(HttpStatus::kOK, script_out, script_dest.get(),
+    if (resource_manager->Write(HttpStatus::kOK, script_out, script_dest,
                                 origin_expire_time_ms, message_handler)) {
       ok = true;
       message_handler->Message(kInfo, "Rewrite script %s to %s",
@@ -177,10 +142,6 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   }
 
   JavascriptRewriteConfig* config_;
-
-  // The vector is copied; the nodes are owned by parser and hence
-  // should only be used in Render().
-  HtmlCharNodeVector inline_text_;
 };
 
 void JavascriptFilter::StartElementImpl(HtmlElement* element) {
@@ -276,7 +237,8 @@ void JavascriptFilter::RewriteExternalScript() {
     if (resource.get() != NULL) {
       ResourceSlotPtr slot(
           driver_->GetSlot(resource, script_in_progress_, script_src_));
-      Context* jrc = new Context(driver_, &config_, buffer_);
+      JavascriptRewriteContext* jrc = new JavascriptRewriteContext(
+          driver_, &config_);
       jrc->AddSlot(slot);
       driver_->InitiateRewrite(jrc);
     }
@@ -289,7 +251,28 @@ void JavascriptFilter::RewriteExternalScript() {
     script_src_->SetValue(rewrite_info->url());
   }
 
-  CleanupWhitespaceScriptBody(driver_, NULL, buffer_);
+  // Finally, note that the script might contain body data.
+  // We erase this if it is just whitespace; otherwise we leave it alone.
+  // The script body is ignored by all browsers we know of.
+  // However, various sources have encouraged using the body of an
+  // external script element to store a post-load callback.
+  // As this technique is preferable to storing callbacks in, say, html
+  // comments, we support it for now.
+  bool allSpaces = true;
+  for (size_t i = 0; allSpaces && i < buffer_.size(); ++i) {
+    const GoogleString& contents = buffer_[i]->contents();
+    for (size_t j = 0; allSpaces && j < contents.size(); ++j) {
+      char c = contents[j];
+      if (!isspace(c) && c != 0) {
+        driver_->WarningHere("Retaining contents of script tag"
+                             " even though script is external.");
+        allSpaces = false;
+      }
+    }
+  }
+  for (size_t i = 0; allSpaces && i < buffer_.size(); ++i) {
+    driver_->DeleteElement(buffer_[i]);
+  }
 }
 
 // Reset state at end of script.
@@ -349,7 +332,7 @@ JavascriptFilter::RewriteLoadedResource(
     const OutputResourcePtr& output_resource) {
   // Temporary code so that we can share the rewriting implementation beteween
   // the old blocking rewrite model and the new async model.
-  Context jrc(driver_, &config_, buffer_);
+  JavascriptRewriteContext jrc(driver_, &config_);
   return jrc.RewriteJavascript(script_input, output_resource);
 }
 
@@ -358,7 +341,7 @@ bool JavascriptFilter::HasAsyncFlow() const {
 }
 
 RewriteContext* JavascriptFilter::MakeRewriteContext() {
-  return new Context(driver_, &config_, HtmlCharNodeVector());
+  return new JavascriptRewriteContext(driver_, &config_);
 }
 
 }  // namespace net_instaweb

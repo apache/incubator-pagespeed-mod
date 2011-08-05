@@ -18,11 +18,10 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
-#include <cstdarg>
-#include <map>
-#include <set>
 #include <utility>  // for std::pair
 #include <vector>
+#include <map>
+#include <set>
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
@@ -161,25 +160,11 @@ RewriteDriver::~RewriteDriver() {
   Clear();
 }
 
-RewriteDriver* RewriteDriver::Clone() {
-  RewriteDriver* result;
-  if (has_custom_options()) {
-    RewriteOptions* options_copy = new RewriteOptions();
-    options_copy->CopyFrom(*options());
-    result = resource_manager_->NewCustomRewriteDriver(options_copy);
-  } else {
-    result = resource_manager_->NewRewriteDriver();
-  }
-  result->SetAsynchronousRewrites(asynchronous_rewrites_);
-  return result;
-}
-
 void RewriteDriver::Clear() {
   cleanup_on_fetch_complete_ = false;
   base_url_.Clear();
   DCHECK(!base_url_.is_valid());
   resource_map_.clear();
-  DCHECK(primary_rewrite_context_map_.empty());
   DCHECK(initiated_rewrites_.empty());
   DCHECK(detached_rewrites_.empty());
   DCHECK(rewrites_.empty());
@@ -202,35 +187,31 @@ void RewriteDriver::BoundedWaitForCompletion(int64 timeout_ms) {
   if (asynchronous_rewrites_) {
     ScopedMutex lock(rewrite_mutex());
     waiting_for_completion_ = true;
-    BoundedWaitForCompletionImpl(timeout_ms);
-    waiting_for_completion_ = false;
-  }
-}
+    while (!RewritesComplete()) {
+      if (fetch_queued_) {
+        message_handler()->Message(kInfo, "waiting for fetch completion");
+      } else {
+        message_handler()->Message(
+            kInfo, "waiting for %d rewrites to complete",
+            static_cast<int>(pending_rewrites_ + detached_rewrites_.size()));
+      }
+      int64 start_ms = resource_manager_->timer()->NowMs();
+      scheduler_->TimedWait(timeout_ms > 0 ? timeout_ms : kTestTimeoutMs);
+      int64 end_ms = resource_manager_->timer()->NowMs();
 
-void RewriteDriver::BoundedWaitForCompletionImpl(int64 timeout_ms) {
-  while (!RewritesComplete()) {
-    if (fetch_queued_) {
-      message_handler()->Message(kInfo, "waiting for fetch completion");
-    } else {
-      message_handler()->Message(
-          kInfo, "waiting for %d rewrites to complete",
-          static_cast<int>(pending_rewrites_ + detached_rewrites_.size()));
-    }
-    int64 start_ms = resource_manager_->timer()->NowMs();
-    scheduler_->TimedWait(timeout_ms > 0 ? timeout_ms : kTestTimeoutMs);
-    int64 end_ms = resource_manager_->timer()->NowMs();
+      // TODO(jmarantz): Eliminate these LOG(INFO) and/or convert them
+      // into message_handler()->Message(kInfo...).
+      LOG(INFO) << "timed wait complete";
 
-    // TODO(jmarantz): Eliminate these LOG(INFO) and/or convert them
-    // into message_handler()->Message(kInfo...).
-    // LOG(INFO) << "timed wait complete";
-
-    if (timeout_ms > 0) {
-      timeout_ms -= (end_ms - start_ms);
-      if (timeout_ms <= 0) {
-        // Remaining became <=0 => timed out, rather than unbounded.
-        return;
+      if (timeout_ms > 0) {
+        timeout_ms -= (end_ms - start_ms);
+        if (timeout_ms <= 0) {
+          // Remaining became <=0 => timed out, rather than unbounded.
+          return;
+        }
       }
     }
+    waiting_for_completion_ = false;
   }
 }
 
@@ -280,9 +261,7 @@ void RewriteDriver::Render() {
                 << " rewrites complete by the time Render was called";
     } else {
       LOG(INFO) << "waiting for " << pending_rewrites_ << " rewrites";
-      BoundedWaitForCompletionImpl(
-          resource_manager_->block_until_completion_in_render() ?
-              -1 : rewrite_deadline_ms_);
+      scheduler_->TimedWait(rewrite_deadline_ms_);
       completed_rewrites = num_rewrites - pending_rewrites_;
       LOG(INFO) << "found " << completed_rewrites << " completed rewrites";
     }
@@ -534,9 +513,6 @@ void RewriteDriver::AddFilters() {
     // Extend the cache lifetime of resources.
     EnableRewriteFilter(kCacheExtenderId);
   }
-
-  AddOwnedFilter(new RenderFilter(this));
-
   if (rewrite_options->domain_lawyer()->can_rewrite_domains() &&
       rewrite_options->Enabled(RewriteOptions::kRewriteDomains)) {
     // Rewrite mapped domains and shard any resources not otherwise rewritten.
@@ -574,6 +550,10 @@ void RewriteDriver::AddFilters() {
   }
   if (rewrite_options->Enabled(RewriteOptions::kSpriteImages)) {
     EnableRewriteFilter(kImageCombineId);
+  }
+
+  if (asynchronous_rewrites_) {
+    AddOwnedFilter(new RenderFilter(this));
   }
 
   // NOTE(abliss): Adding a new filter?  Does it export any statistics?  If it
@@ -615,6 +595,13 @@ void RewriteDriver::RegisterRewriteFilter(RewriteFilter* filter) {
 void RewriteDriver::SetAsynchronousRewrites(bool async_rewrites) {
   if (async_rewrites != asynchronous_rewrites_) {
     asynchronous_rewrites_ = async_rewrites;
+    if (filters_added_) {
+      if (asynchronous_rewrites_) {
+        AddOwnedFilter(new RenderFilter(this));
+      } else {
+        LOG(DFATAL) << "Cannot disable async behavior after filters are added";
+      }
+    }
   }
 }
 
@@ -1122,32 +1109,6 @@ void RewriteDriver::DeleteRewriteContext(RewriteContext* rewrite_context) {
   }
 }
 
-RewriteContext* RewriteDriver::RegisterForPartitionKey(
-    const GoogleString& partition_key, RewriteContext* candidate) {
-  std::pair<PrimaryRewriteContextMap::iterator, bool> insert_result =
-      primary_rewrite_context_map_.insert(
-          std::make_pair(partition_key, candidate));
-  if (insert_result.second) {
-    // Our value is new, so just return NULL.
-    return NULL;
-  } else {
-    // Insert failed, return the old value.
-    return insert_result.first->second;
-  }
-}
-
-void RewriteDriver::DeregisterForPartitionKey(const GoogleString& partition_key,
-                                              RewriteContext* rewrite_context) {
-  // If the context being deleted is the primary for some cache key,
-  // deregister it.
-  PrimaryRewriteContextMap::iterator i =
-      primary_rewrite_context_map_.find(partition_key);
-  if ((i != primary_rewrite_context_map_.end()) &&
-      (i->second == rewrite_context)) {
-    primary_rewrite_context_map_.erase(i);
-  }
-}
-
 void RewriteDriver::Recycle() {
   if (has_custom_options()) {
     delete this;
@@ -1181,26 +1142,6 @@ void RewriteDriver::Cleanup() {
 void RewriteDriver::FinishParse() {
   HtmlParse::FinishParse();
   Cleanup();
-}
-
-void RewriteDriver::InfoAt(RewriteContext* context, const char* msg, ...) {
-  va_list args;
-  va_start(args, msg);
-
-  if ((context == NULL) || (context->num_slots() == 0)) {
-    InfoHereV(msg, args);
-  } else {
-    GoogleString new_msg;
-    for (int c = 0; c < context->num_slots(); ++c) {
-      StrAppend(&new_msg, context->slot(c)->LocationString(),
-                ((c == context->num_slots() - 1) ? ": " : " "));
-    }
-
-    new_msg.append(msg);
-    message_handler()->MessageV(kInfo, new_msg.c_str(), args);
-  }
-
-  va_end(args);
 }
 
 void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
