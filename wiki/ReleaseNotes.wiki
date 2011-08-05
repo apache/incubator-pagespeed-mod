@@ -1,5 +1,22 @@
 <wiki:toc max_depth="3" />
 
+===mod_pagespeed release 0.9.18.6===
+was released on Aug 4, 2011.  It fixes the following issues:
+||Issue 103 || Pay attention to Vary headers for caching of sub-responses||
+||Issue 143 || Switch resizing algorithm to CV_INTER_AREA||
+||Issue 215 || Statistics failing with "cannot lock mutex: Invalid argument "||
+||Issue 229 || Inline images sent to browsers that don't support inline images||
+||Issue 241 || Respect Vary headers for resources||
+||Issue 247 || HtmlElement::AttributeValue returns NULL ambiguity||
+||Issue 265 || Serf unittest failure outside USA because of redirect||
+||Issue 300 || Recurrence of 285 under X-Mod-Pagespeed:0.9.17.7-716||
+||Issue 301 || Add WebP support for image compression||
+||Issue 306 || combine_css emits "<link ...>" without the proper "/" before the ">" with doctype XHTML||
+||Issue 309 || Preserve CDATA tags on scripts in XHTML||
+||Issue 311 || rewrite_domains cuts off dynamic parts of image URLs||
+||Issue 314 || Some user agents don't understand protocol-relative urls in some circumstances||
+||Issue 316 || Don't include image-in-page dimensions when resizing is off||
+
 ===mod_pagespeed release 0.9.17.6===
  was released on May 16, 2011. It fixes the following issues:
 
