@@ -46,7 +46,8 @@ RefCountedOwner<SlowWorker>::Family
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
-    : server_rec_(server),
+    : RewriteDriverFactory(new ApacheThreadSystem),
+      server_rec_(server),
       serf_url_fetcher_(NULL),
       serf_url_async_fetcher_(NULL),
       shared_mem_statistics_(NULL),
@@ -100,7 +101,10 @@ SharedMemLockManager* ApacheRewriteDriverFactory::CreateSharedMemLockManager() {
 }
 
 FileSystem* ApacheRewriteDriverFactory::DefaultFileSystem() {
-  return new AprFileSystem(pool_);
+  // Pass in NULL for the pool.  We do not want the file-system to
+  // be auto-destructed based on the factory's pool: we want to follow
+  // C++ destruction semantics.
+  return new AprFileSystem(NULL);
 }
 
 Hasher* ApacheRewriteDriverFactory::NewHasher() {
@@ -196,10 +200,6 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::DefaultAsyncUrlFetcher() {
 
 HtmlParse* ApacheRewriteDriverFactory::DefaultHtmlParse() {
   return new HtmlParse(html_parse_message_handler());
-}
-
-ThreadSystem* ApacheRewriteDriverFactory::DefaultThreadSystem() {
-  return new ApacheThreadSystem;
 }
 
 void ApacheRewriteDriverFactory::SetStatistics(SharedMemStatistics* x) {

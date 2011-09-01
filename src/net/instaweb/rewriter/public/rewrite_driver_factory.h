@@ -28,6 +28,7 @@
 
 namespace net_instaweb {
 
+class AbstractMutex;
 class CacheInterface;
 class CacheUrlAsyncFetcher;
 class CacheUrlFetcher;
@@ -50,7 +51,12 @@ class UrlFetcher;
 // A base RewriteDriverFactory.
 class RewriteDriverFactory {
  public:
+  // Takes ownership of thread_system.
+  explicit RewriteDriverFactory(ThreadSystem* thread_system);
+
+  // Initializes thread_system_ using ThreadSystem::ComputeThreadSystem().
   RewriteDriverFactory();
+
   virtual ~RewriteDriverFactory();
 
   // The RewriteDriveFactory will create objects of default type through the
@@ -131,7 +137,7 @@ class RewriteDriverFactory {
   // specific to an implementation of RewriteDriverFactory.
   virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
 
-  ThreadSystem* thread_system();
+  ThreadSystem* thread_system() { return thread_system_.get(); }
 
   // Returns the set of directories that we (our our subclasses) have created
   // thus far.
@@ -151,7 +157,6 @@ class RewriteDriverFactory {
   virtual MessageHandler* DefaultMessageHandler() = 0;
   virtual FileSystem* DefaultFileSystem() = 0;
   virtual Timer* DefaultTimer() = 0;
-  virtual ThreadSystem* DefaultThreadSystem() = 0;
 
     // Note: Returned CacheInterface should be thread-safe.
   virtual CacheInterface* DefaultCacheInterface() = 0;
@@ -192,6 +197,7 @@ class RewriteDriverFactory {
 
  private:
   void SetupSlurpDirectories();
+  void Init();
 
   scoped_ptr<MessageHandler> html_parse_message_handler_;
   scoped_ptr<MessageHandler> message_handler_;
@@ -204,15 +210,15 @@ class RewriteDriverFactory {
   scoped_ptr<FilenameEncoder> filename_encoder_;
   scoped_ptr<Timer> timer_;
 
-  HtmlParse* html_parse_;
-
   GoogleString filename_prefix_;
   GoogleString slurp_directory_;
   bool force_caching_;
   bool slurp_read_only_;
   bool slurp_print_urls_;
 
+  // protected by resource_manager_mutex_;
   scoped_ptr<ResourceManager> resource_manager_;
+  scoped_ptr<AbstractMutex> resource_manager_mutex_;
 
   // Prior to computing the resource manager, which requires some options
   // to be set, we need a place to write the options.  These will be
