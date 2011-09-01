@@ -318,13 +318,6 @@ bool OutputResource::LockForCreation(BlockingBehavior block) {
   return locked_;
 }
 
-void OutputResource::DropCreationLock() {
-  if (locked_) {
-    creation_lock_.reset();
-    locked_ = false;
-  }
-}
-
 void OutputResource::SaveCachedResult(const GoogleString& name_key,
                                       MessageHandler* handler) {
   CacheInterface* cache = resource_manager_->metadata_cache();
@@ -408,15 +401,6 @@ CachedResult* OutputResource::EnsureCachedResultCreated() {
     DCHECK(!cached_result_->frozen()) << "Cannot mutate frozen cached result";
   }
   return cached_result_;
-}
-
-void OutputResource::UpdateCachedResultPreservingInputInfo(
-    CachedResult* to_update) const {
-  // TODO(sligocki): Fix this so that the *cached_result() does have inputs set.
-  protobuf::RepeatedPtrField<InputInfo> temp;
-  temp.Swap(to_update->mutable_input());
-  *to_update = *cached_result();
-  temp.Swap(to_update->mutable_input());
 }
 
 void OutputResource::clear_cached_result() {

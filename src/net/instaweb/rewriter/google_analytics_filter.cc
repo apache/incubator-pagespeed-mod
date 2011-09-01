@@ -203,8 +203,6 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
                        stats->GetVariable(kRewrittenCount))
     { }
 
-GoogleAnalyticsFilter::~GoogleAnalyticsFilter() {}
-
 void GoogleAnalyticsFilter::Initialize(Statistics* statistics) {
   if (statistics != NULL) {
     statistics->AddVariable(kPageLoadCount);

@@ -63,8 +63,6 @@ AddInstrumentationFilter::AddInstrumentationFilter(
   beacon_url.CopyToString(&beacon_url_);
 }
 
-AddInstrumentationFilter::~AddInstrumentationFilter() {}
-
 void AddInstrumentationFilter::StartDocument() {
   found_head_ = false;
 }

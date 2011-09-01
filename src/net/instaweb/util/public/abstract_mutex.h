@@ -29,9 +29,6 @@ class AbstractMutex {
   virtual ~AbstractMutex();
   virtual void Lock() = 0;
   virtual void Unlock() = 0;
-  // Optionally checks that lock is held (for invariant checking purposes).
-  // Default implementation does no checking.
-  virtual void DCheckLocked();
 };
 
 // Helper class for lexically scoped mutexing.

@@ -49,7 +49,6 @@ struct HttpAttributes {
   static const char kReferer[];  // sic
   static const char kServer[];
   static const char kSetCookie[];
-  static const char kSetCookie2[];
   static const char kTransferEncoding[];
   static const char kUserAgent[];
   static const char kVary[];
@@ -109,7 +108,7 @@ enum Code {
   // Instaweb-specific response codes: these are intentionally chosen to be
   // outside the normal HTTP range, but we consider these response codes
   // to be 'cacheable' in our own cache.
-  kRememberFetchFailedOrNotCacheableStatusCode = 10001,
+  kRememberNotFoundStatusCode = 10001,
 };
 
 // Transform a status code into the equivalent reason phrase.

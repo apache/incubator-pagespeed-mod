@@ -29,6 +29,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 class MessageHandler;
@@ -36,7 +37,7 @@ class SharedString;
 
 namespace {
 
-const int64 kNotCacheable = 0;
+const int64 kDefaultExpireTimeMs = 5 * Timer::kMinuteMs;
 
 }  // namespace
 
@@ -48,13 +49,17 @@ Resource::Resource(ResourceManager* resource_manager, const ContentType* type)
 Resource::~Resource() {
 }
 
-bool Resource::IsValidAndCacheable() const {
+bool Resource::IsValidAndCacheable() {
+  // TODO(sligocki): This checks that the result is valid (200 OK) and that
+  // it is not expired or Cache-Control: no-cache, should we also call
+  // Naomi's function which would also check if it was cacheable because of
+  // Vary: headers, etc.  Should we just merge these functions?
   return ((response_headers_.status_code() == HttpStatus::kOK) &&
           !resource_manager_->http_cache()->IsAlreadyExpired(
               response_headers_));
 }
 
-void Resource::AddInputInfoToPartition(int index, CachedResult* partition) {
+void Resource::AddInputInfoToPartition(int index, OutputPartition* partition) {
   InputInfo* input = partition->add_input();
   input->set_index(index);
   // FillInPartitionInputInfo can be specialized based on resource type.
@@ -67,11 +72,10 @@ void Resource::FillInPartitionInputInfo(InputInfo* input) {
   input->set_type(InputInfo::CACHED);
   input->set_last_modified_time_ms(response_headers_.last_modified_time_ms());
   input->set_expiration_time_ms(response_headers_.CacheExpirationTimeMs());
-  input->set_fetch_time_ms(response_headers_.fetch_time_ms());
 }
 
 int64 Resource::CacheExpirationTimeMs() const {
-  int64 input_expire_time_ms = kNotCacheable;
+  int64 input_expire_time_ms = kDefaultExpireTimeMs;
   if (response_headers_.IsCacheable()) {
     input_expire_time_ms = response_headers_.CacheExpirationTimeMs();
   }
@@ -86,7 +90,7 @@ void Resource::SetType(const ContentType* type) {
 void Resource::DetermineContentType() {
   // Try to determine the content type from the URL extension, or
   // the response headers.
-  ConstStringStarVector content_types;
+  StringStarVector content_types;
   ResponseHeaders* headers = response_headers();
   const ContentType* content_type = NULL;
   if (headers->Lookup(HttpAttributes::kContentType, &content_types)) {

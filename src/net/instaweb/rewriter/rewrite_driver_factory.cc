@@ -20,6 +20,8 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/cache_url_async_fetcher.h"
+#include "net/instaweb/http/public/cache_url_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
@@ -60,7 +62,6 @@ void RewriteDriverFactory::Init() {
   force_caching_ = false;
   slurp_read_only_ = false;
   slurp_print_urls_ = false;
-  async_rewrites_ = true;
   http_cache_backend_ = NULL;
   resource_manager_mutex_.reset(thread_system_->NewMutex());
 }
@@ -226,14 +227,6 @@ HTTPCache* RewriteDriverFactory::http_cache() {
   return http_cache_.get();
 }
 
-void RewriteDriverFactory::SetAsyncRewrites(bool x) {
-  async_rewrites_ = x;
-  ScopedMutex lock(resource_manager_mutex_.get());
-  if (resource_manager_.get() != NULL) {
-    resource_manager_->set_async_rewrites(async_rewrites_);
-  }
-}
-
 ResourceManager* RewriteDriverFactory::ComputeResourceManager() {
   ScopedMutex lock(resource_manager_mutex_.get());
   if (resource_manager_ == NULL) {
@@ -256,7 +249,6 @@ ResourceManager* RewriteDriverFactory::ComputeResourceManager() {
         ShouldWriteResourcesToFileSystem());
     ResourceManagerCreatedHook();
   }
-  resource_manager_->set_async_rewrites(async_rewrites_);
   return resource_manager_.get();
 }
 
@@ -346,7 +338,7 @@ void RewriteDriverFactory::ShutDown() {
   // Stop the worker thread first, as it may have outstanding requests
   // that touch various things we're about to blow up.
   if (resource_manager_.get() != NULL) {
-    resource_manager_->ShutDownWorkers();
+    resource_manager_->ShutDownWorker();
   }
 
   // Avoid double-destructing the url fetchers if they were not overridden
@@ -366,6 +358,8 @@ void RewriteDriverFactory::ShutDown() {
   // Do not reset the timer, file_system, hasher, encoder,
   // html_parse_message_handler, or cache.  Those are deleted when
   // the factory is deleted.
+  cache_fetcher_.reset(NULL);
+  cache_async_fetcher_.reset(NULL);
 }
 
 // Return a writable RewriteOptions.  If the ResourceManager has

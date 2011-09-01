@@ -28,7 +28,10 @@
 
 namespace net_instaweb {
 
+class AbstractMutex;
 class CacheInterface;
+class CacheUrlAsyncFetcher;
+class CacheUrlFetcher;
 class FileSystem;
 class FilenameEncoder;
 class Hasher;
@@ -124,7 +127,7 @@ class RewriteDriverFactory {
   virtual UrlAsyncFetcher* ComputeUrlAsyncFetcher();
   ResourceManager* ComputeResourceManager();
 
-  // Generates a new hasher.
+  // Generates a new mutex, hasher.
   virtual Hasher* NewHasher() = 0;
 
   // See doc in resource_manager.cc.
@@ -141,13 +144,6 @@ class RewriteDriverFactory {
   const StringSet& created_directories() const {
     return created_directories_;
   }
-
-  bool async_rewrites() { return async_rewrites_; }
-
-  // Sets the resource manager into async_rewrite mode.  This can be
-  // called before or after ComputeResourceManager, but will only
-  // affect RewriteDrivers that are created after the call is made.
-  void SetAsyncRewrites(bool x);
 
  protected:
   bool FetchersComputed() const;
@@ -187,13 +183,9 @@ class RewriteDriverFactory {
   // Called after creating the resource manager in ComputeResourceManager.
   virtual void ResourceManagerCreatedHook();
 
-  // Override this to return true if you do want the resource manager
-  // to write resources to the filesystem.
-  //
-  // TODO(sligocki): Do we ever want that? Or is it a relic from a
-  // forgotten time? I think we never want to write OutputResources
-  // written to disk automatically any more.
-  virtual bool ShouldWriteResourcesToFileSystem() { return false; }
+  // Override this to return false if you don't want the resource
+  // manager to write resources to the filesystem.
+  virtual bool ShouldWriteResourcesToFileSystem() { return true; }
 
   // Override this if you want to change what directory locks go into
   // when using the default filesystem-based lock manager. The default is
@@ -202,11 +194,6 @@ class RewriteDriverFactory {
 
   // Registers the directory as having been created by us.
   void AddCreatedDirectory(const GoogleString& dir);
-
-  bool http_cache_created() const { return http_cache_.get() != NULL; }
-  bool resource_manager_created() const {
-    return resource_manager_.get() != NULL;
-  }
 
  private:
   void SetupSlurpDirectories();
@@ -228,7 +215,6 @@ class RewriteDriverFactory {
   bool force_caching_;
   bool slurp_read_only_;
   bool slurp_print_urls_;
-  bool async_rewrites_;
 
   // protected by resource_manager_mutex_;
   scoped_ptr<ResourceManager> resource_manager_;
@@ -244,6 +230,8 @@ class RewriteDriverFactory {
   // Caching support
   scoped_ptr<HTTPCache> http_cache_;
   CacheInterface* http_cache_backend_;  // Pointer owned by http_cache_
+  scoped_ptr<CacheUrlFetcher> cache_fetcher_;
+  scoped_ptr<CacheUrlAsyncFetcher> cache_async_fetcher_;
 
   // Keep track of authorized domains, sharding, and mappings.
   DomainLawyer domain_lawyer_;

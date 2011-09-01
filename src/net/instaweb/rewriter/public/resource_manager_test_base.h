@@ -32,7 +32,7 @@
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"  // needed for upcast
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
@@ -54,7 +54,6 @@ namespace net_instaweb {
 class AbstractMutex;
 class Hasher;
 class LRUCache;
-class MockTimeCache;
 class MessageHandler;
 class ResponseHeaders;
 class RewriteDriverFactory;
@@ -74,7 +73,7 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   static const char kXhtmlDtd[];    // DOCTYPE string for claming XHTML
 
   ResourceManagerTestBase();
-  virtual ~ResourceManagerTestBase();
+  ~ResourceManagerTestBase();
 
   virtual void SetUp();
   virtual void TearDown();
@@ -127,7 +126,7 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   // This definition is required by HtmlParseTestBase which defines this as
   // pure abstract, so that the test subclass can define how it instantiates
   // HtmlParse.
-  virtual RewriteDriver* html_parse() { return rewrite_driver_; }
+  virtual RewriteDriver* html_parse() { return &rewrite_driver_; }
 
   // Initializes a resource for mock fetching.
   void InitResponseHeaders(const StringPiece& resource_name,
@@ -146,16 +145,11 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
                      const StringPiece& name, const StringPiece& ext,
                      GoogleString* content);
 
-  bool ServeResourceUrl(const StringPiece& url, GoogleString* content,
-                        ResponseHeaders* response);
   bool ServeResourceUrl(const StringPiece& url, GoogleString* content);
 
   // Just check if we can fetch a resource successfully, ignore response.
   bool TryFetchResource(const StringPiece& url);
 
-  GoogleString CssLinkHref(const StringPiece& url) {
-    return StrCat("<link rel=stylesheet href=", url, ">");
-  }
 
   // Representation for a CSS <link> tag.
   class CssLink {
@@ -248,12 +242,6 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
     mock_url_fetcher_.SetResponse(url, response_header, response_body);
   }
 
-  void AddToResponse(const StringPiece& url,
-                     const StringPiece& name,
-                     const StringPiece& value) {
-    mock_url_fetcher_.AddToResponse(url, name, value);
-  }
-
   void SetFetchResponse404(const StringPiece& url);
 
   void SetFetchFailOnUnexpected(bool fail) {
@@ -264,8 +252,6 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
     mock_url_fetcher_.set_update_date_headers(true);
   }
   void ClearFetcherResponses() { mock_url_fetcher_.Clear(); }
-
-  virtual void ClearStats();
 
   void EncodeFilename(const StringPiece& url, GoogleString* filename) {
     filename_encoder_.Encode(file_prefix_, url, filename);
@@ -282,12 +268,8 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   // TODO(jmarantz): These abstractions are not satisfactory long-term
   // where we want to have driver-lifetime in tests be reflective of
   // how servers work.  But for now we use these accessors.
-  //
-  // Note that the *rewrite_driver() methods are not valid during
-  // construction, so any test classes that need to use them must
-  // do so from SetUp() methods.
-  RewriteDriver* rewrite_driver() { return rewrite_driver_; }
-  RewriteDriver* other_rewrite_driver() { return other_rewrite_driver_; }
+  RewriteDriver* rewrite_driver() { return &rewrite_driver_; }
+  RewriteDriver* other_rewrite_driver() { return &other_rewrite_driver_; }
 
   bool ReadFile(const char* filename, GoogleString* contents) {
     return file_system_.ReadFile(filename, contents, &message_handler_);
@@ -305,35 +287,18 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
     mock_hasher_.set_hash_value(value);
   }
 
-  void SetCacheDelayUs(int64 delay_us);
-
   // Connects a RewriteDriver to ResourceManager, establishing a MockScheduler
   // to advance time.
   void SetupDriver(ResourceManager* rm, RewriteDriver* rd);
-
-  // Converts a potentially relative URL off kTestDomain to absolute if needed.
-  GoogleString AbsolutifyUrl(const StringPiece& in);
-
-  // Tests that non-caching-related response-header attributes are propagated
-  // to output resources.
-  //
-  // 'name' is the original name of the resource.
-  // 'encoded_name' is the result of encoding the resource with the relevant
-  // filter.
-  //
-  // TODO(jmarantz): the 'encoded_name' arg could be removed if the filter_id
-  // is used to lookup the relevant filter in the RewriteDriver, to find
-  // its UrlSegmentEncoder*.
-  void TestRetainExtraHeaders(const StringPiece& name,
-                              const StringPiece& encoded_name,
-                              const StringPiece& filter_id,
-                              const StringPiece& ext);
 
  private:
   // Calls callbacks on given wait fetcher, making sure to properly synchronize
   // with async rewrite flows given driver.
   void CallFetcherCallbacksForDriver(WaitUrlAsyncFetcher* fetcher,
                                      RewriteDriver* driver);
+
+  // Converts a potentially relative URL off kTestDomain to absolute if needed.
+  GoogleString AbsolutifyUrl(const StringPiece& in);
 
   MockUrlFetcher mock_url_fetcher_;
   FakeUrlAsyncFetcher mock_url_async_fetcher_;
@@ -359,11 +324,9 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   GoogleString file_prefix_;
   GoogleString url_prefix_;
 
-  LRUCache* lru_cache_;  // Owned by mock_time_cache_
-  MockTimeCache* mock_time_cache_;  // Owned by http_cache_
+  LRUCache* lru_cache_;  // Owned by http_cache_
   HTTPCache http_cache_;
   FileSystemLockManager lock_manager_;
-  // TODO(sligocki): Why are statistics_ static!
   static SimpleStats* statistics_;
   RewriteDriverFactory* factory_;
   ResourceManager* resource_manager_;  // TODO(sligocki): Make not a pointer.
@@ -371,7 +334,7 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   // TODO(jmarantz): the 'options_' and 'other_options_' variables should
   // be changed from references to pointers, in a follow-up CL.
   RewriteOptions* options_;  // owned by rewrite_driver_.
-  RewriteDriver* rewrite_driver_;
+  RewriteDriver rewrite_driver_;
 
   // Server B runs other_rewrite_driver_ and will get a request for
   // resources that server A has rewritten, but server B has not heard
@@ -382,7 +345,7 @@ class ResourceManagerTestBase : public HtmlParseTestBaseNoAlloc {
   FileSystemLockManager other_lock_manager_;
   ResourceManager other_resource_manager_;
   RewriteOptions* other_options_;  // owned by other_rewrite_driver_.
-  RewriteDriver* other_rewrite_driver_;
+  RewriteDriver other_rewrite_driver_;
   WaitUrlAsyncFetcher wait_url_async_fetcher_;
 };
 

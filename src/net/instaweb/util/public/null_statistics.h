@@ -40,9 +40,7 @@ class NullStatisticsVariable : public Variable {
 };
 
 // Simple name/value pair statistics implementation.
-class NullStatistics : public StatisticsTemplate<NullStatisticsVariable,
-                                                 FakeHistogram,
-                                                 FakeTimedVariable> {
+class NullStatistics : public StatisticsTemplate<NullStatisticsVariable> {
  public:
   static const int kNotFound;
 
@@ -53,7 +51,6 @@ class NullStatistics : public StatisticsTemplate<NullStatisticsVariable,
   virtual NullStatisticsVariable* NewVariable(const StringPiece& name,
                                               int index);
 
- private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);
 };
 

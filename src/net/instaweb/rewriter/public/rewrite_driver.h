@@ -36,8 +36,6 @@
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/printf_format.h"
-#include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -52,7 +50,6 @@ class AddInstrumentationFilter;
 class CommonFilter;
 class DomainRewriteFilter;
 class FileSystem;
-class Function;
 class HtmlFilter;
 class HtmlWriterFilter;
 class MessageHandler;
@@ -94,9 +91,6 @@ class RewriteDriver : public HtmlParse {
   // Need explicit destructors to allow destruction of scoped_ptr-controlled
   // instances without propagating the include files.
   virtual ~RewriteDriver();
-
-  // Returns a fresh instance using the same options we do.
-  RewriteDriver* Clone();
 
   // Clears the current request cache of resources and base URL.  The
   // filter-chain is left intact so that a new request can be issued.
@@ -157,23 +151,14 @@ class RewriteDriver : public HtmlParse {
   // in RewriteOptions, via AddFilter(HtmlFilter* filter) (below).
   void AddFilters();
 
-  // Adds a filter to the post-render chain, taking ownership.
-  void AddOwnedPostRenderFilter(HtmlFilter* filter);
+  // Add any HtmlFilter to the HtmlParse chain and take ownership of the filter.
+  void AddOwnedFilter(HtmlFilter* filter);
 
-  // Adds a filter to the pre-render chain, taking ownership.
-  void AddOwnedPreRenderFilter(HtmlFilter* filter);
-
-  // Add a RewriteFilter to the pre-render chain and take ownership of
-  // the filter.  This differs from AddOwnedPreRenderFilter in that
-  // it adds the filter's ID into a dispatch table for serving
-  // rewritten resources.  E.g. if your filter->id == "xy" and
-  // FetchResource("NAME.pagespeed.xy.HASH.EXT"...)  is called, then
-  // RewriteDriver will dispatch to filter->Fetch().
-  //
-  // This is used when the filter being added is not part of the
-  // core set built into RewriteDriver and RewriteOptions, such
-  // as platform-specific or server-specific filters, or filters
-  // invented for unit-testing the framework.
+  // Add a RewriteFilter to the HtmlParse chain and take ownership of the
+  // filter.  This differs from AddOwnedFilter in that it adds the filter's ID
+  // into a dispatch table for serving rewritten resources.  E.g. if your
+  // filter->id == "xy" and FetchResource("NAME.pagespeed.xy.HASH.EXT"...)
+  // is called, then RewriteDriver will dispatch to filter->Fetch().
   void AddRewriteFilter(RewriteFilter* filter);
 
   // Controls how HTML output is written.  Be sure to call this last, after
@@ -249,9 +234,6 @@ class RewriteDriver : public HtmlParse {
     custom_options_.reset(options);
   }
 
-  // Determines whether this RewriteDriver was built with custom options.
-  bool has_custom_options() const { return (custom_options_.get() != NULL); }
-
   // Return the options used for this RewriteDriver.
   const RewriteOptions* options() const {
     return (has_custom_options() ? custom_options_.get()
@@ -269,12 +251,6 @@ class RewriteDriver : public HtmlParse {
   // its not externally managed, and if all RewriteContexts have been
   // completed.
   virtual void FinishParse();
-
-  // Report error message with description of context's location
-  // (such as filenames and line numbers). context may be NULL, in which case
-  // the current parse position will be used.
-  void InfoAt(RewriteContext* context,
-              const char* msg, ...) INSTAWEB_PRINTF_FORMAT(3, 4);
 
   // See comments in resource_manager.h
   OutputResourcePtr CreateOutputResourceFromResource(
@@ -366,11 +342,6 @@ class RewriteDriver : public HtmlParse {
   // to delete itself or return it back to a free pool in the ResourceManager.
   void RewriteComplete(RewriteContext* rewrite_context);
 
-  // Provides a mechanism for a RewriteContext to notify a
-  // RewriteDriver that a certain number of rewrites have been discovered
-  // to need to take the slow path.
-  void ReportSlowRewrites(int num);
-
   // If there are not outstanding references to this RewriteDriver,
   // delete it or recycle it to a free pool in the ResourceManager.
   // If this is a fetch, calling this also signals to the system that you
@@ -414,7 +385,7 @@ class RewriteDriver : public HtmlParse {
   // Wait the specified number of milliseconds for in-progress renders
   // to complete.  This is intended for testing in simulated time, where
   // the Rewrites don't complete in time for the deadline.
-  void BlockingTimedWait(int wait_time_ms);
+  void TimedWait(int wait_time_ms);
 
   // Explicitly sets the number of milliseconds to wait for Rewrites
   // to complete while HTML parsing, overriding a default value which
@@ -422,60 +393,6 @@ class RewriteDriver : public HtmlParse {
   // release, or whether it's been detected as running on valgrind
   // at runtime.
   void set_rewrite_deadline_ms(int x) { rewrite_deadline_ms_ = x; }
-
-  // Tries to register the given rewrite context as working on
-  // its partition key. If this context is the first one to try to handle it,
-  // returns NULL. Otherwise returns the previous such context.
-  //
-  // Must only be called from rewrite thread.
-  RewriteContext* RegisterForPartitionKey(const GoogleString& partition_key,
-                                          RewriteContext* candidate);
-
-  // Must be called after all other rewrites that are currently relying on this
-  // one have had their RepeatedSuccess or RepeatedFailure methods called.
-  //
-  // Must only be called from rewrite thread.
-  void DeregisterForPartitionKey(
-      const GoogleString& partition_key, RewriteContext* candidate);
-
-  // Indicates that a Flush through the HTML parser chain should happen
-  // soon, e.g. once the network pauses its incoming byte stream.
-  void RequestFlush() { flush_requested_ = true; }
-
-  // Executes an Flush() if RequestFlush() was called, e.g. from the
-  // Listener Filter (see set_event_listener below).  Consider an HTML
-  // parse driven by a UrlAsyncFetcher.  When the UrlAsyncFetcher
-  // temporarily runs out of bytes to read, it calls
-  // response_writer->Flush().  When that happens, we may want to
-  // consider flushing the outstanding HTML events through the system
-  // so that the browser can start fetching subresources and
-  // rendering.  The event_listener (see set_event_listener below)
-  // helps determine whether enough "interesting" events have passed
-  // in the current flush window so that we should take this incoming
-  // network pause as an opportunity.
-  void ExecuteFlushIfRequested();
-
-  // Overrides HtmlParse::Flush so that it can happen in two phases:
-  //    1. Pre-render chain runs, resulting in async rewrite activity
-  //    2. async rewrite activity ends, calling callback, and post-render
-  //       filters run.
-  // This API is used for unit-tests & Apache (which lacks a useful event
-  // model) and results in blocking behavior.
-  //
-  // FlushAsync is prefered for event-driven servers.
-  virtual void Flush();
-
-  // Initiates an asynchronous Flush.  done->Run() will be called when
-  // the flush is complete.  Further calls to ParseText should be
-  // deferred until the callback is called.
-  void FlushAsync(Function* done);
-
-  // Queues up a task to run on the Rewrite thread.
-  void AddRewriteTask(Function* task);
-
-  QueuedWorkerPool::Sequence* rewrite_worker() { return rewrite_worker_; }
-
-  void set_scheduler(Scheduler* scheduler) { scheduler_.reset(scheduler); }
 
  private:
   friend class ResourceManagerTestBase;
@@ -485,18 +402,12 @@ class RewriteDriver : public HtmlParse {
   typedef void (RewriteDriver::*SetStringMethod)(const StringPiece& value);
   typedef void (RewriteDriver::*SetInt64Method)(int64 value);
 
-  enum WaitMode {
-    kWaitForCompletion,   // wait for everything to complete (upto deadline)
-    kWaitForCachedRender  // wait for at least cached rewrites to complete,
-                          // and anything else that finishes within deadline.
-  };
+  // Determines whether this RewriteDriver was built with custom options
+  bool has_custom_options() const { return (custom_options_.get() != NULL); }
 
-  // Implementation of the main loop of BoundedWaitForCompletion; assumes
-  // that the lock is held (and that asynchronous_rewrites_ is true)
-  void BoundedWaitForCompletionImpl(WaitMode wait_mode, int64 timeout_ms);
-
-  // Termination predicate for above; assumes locks held.
-  bool IsDone(WaitMode wait_mode, bool deadline_reached);
+  // Determines what to do with a completed RewriteDrive, either deleting it
+  // or releasing it into the ResourceManager's free list.
+  void Recycle();
 
   // Must be called with rewrites_mutex_ held.
   bool RewritesComplete() const;
@@ -525,23 +436,17 @@ class RewriteDriver : public HtmlParse {
   void AddCommonFilter(CommonFilter* filter);
 
   // Registers RewriteFilter in the map, but does not put it in the
-  // html parse filter chain.  This allows it to serve resource
+  // html parse filter filter chain.  This allows it to serve resource
   // requests.
   void RegisterRewriteFilter(RewriteFilter* filter);
 
-  // Adds an already-owned rewrite filter to the pre-render chain.  This
-  // is used for filters that are unconditionally created for handling of
-  // resources, but their presence in the html-rewrite chain is conditional
-  // on options.
+  // Adds a pre-added rewrite filter to the html parse chain.
   void EnableRewriteFilter(const char* id);
 
   // Internal low-level helper for resource creation.
   // Use only when permission checking has been done explicitly on the
   // caller side.
   ResourcePtr CreateInputResourceUnchecked(const GoogleUrl& gurl);
-
-  void AddPreRenderFilters();
-  void AddPostRenderFilters();
 
   // Only the first base-tag is significant for a document -- any subsequent
   // ones are ignored.  There should be no URLs referenced prior to the base
@@ -582,14 +487,9 @@ class RewriteDriver : public HtmlParse {
   // it only makes sense to examine this from the Rewrite thread.
   bool waiting_for_completion_;  // protected by rewrite_mutex()
 
-  // Likewise for Render() (except when that's emulating WaitForCompletion)
-  bool waiting_for_render_;  //  protected by rewrite_mutex()
-
   // If this is true, this RewriteDriver should Cleanup() itself when it
   // finishes handling the current fetch.
   bool cleanup_on_fetch_complete_;
-
-  bool flush_requested_;
 
   // Tracks the number of RewriteContexts that have been completed,
   // but not yet deleted.  Once RewriteComplete has been called,
@@ -633,9 +533,6 @@ class RewriteDriver : public HtmlParse {
   // separate for programming convenience.
   int pending_rewrites_;                  // protected by rewrite_mutex()
 
-  // Rewrites that may possibly be satisfied from metadata cache alone.
-  int possibly_quick_rewrites_;           // protected by rewrite_mutex()
-
   // These objects are provided on construction or later, and are
   // owned by the caller.
   FileSystem* file_system_;
@@ -646,17 +543,13 @@ class RewriteDriver : public HtmlParse {
   AddInstrumentationFilter* add_instrumentation_filter_;
   scoped_ptr<HtmlWriterFilter> html_writer_filter_;
   UserAgentMatcher user_agent_matcher_;
+  std::vector<HtmlFilter*> filters_;
   ScanFilter scan_filter_;
   scoped_ptr<DomainRewriteFilter> domain_rewriter_;
 
-  // Maps encoded URLs to output URLs.
+  // Maps encoded URLs to output URLs
   typedef std::map<GoogleString, ResourcePtr> ResourceMap;
   ResourceMap resource_map_;
-
-  // Maps rewrite context partition keys to the context responsible for
-  // rewriting them, in case a URL occurs more than once.
-  typedef std::map<GoogleString, RewriteContext*> PrimaryRewriteContextMap;
-  PrimaryRewriteContextMap primary_rewrite_context_map_;
 
   HtmlResourceSlotSet slots_;
 
@@ -664,16 +557,6 @@ class RewriteDriver : public HtmlParse {
 
   // The default resource encoder
   UrlSegmentEncoder default_encoder_;
-
-  // The chain of filters called prior to waiting for Rewrites to complete.
-  FilterVector pre_render_filters_;
-
-  // A container of filters to delete when RewriteDriver is deleted.  This
-  // can include pre_render_filters as well as those added to the post-render
-  // chain owned by HtmlParse.
-  FilterVector filters_to_delete_;
-
-  QueuedWorkerPool::Sequence* rewrite_worker_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };

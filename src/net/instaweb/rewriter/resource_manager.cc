@@ -18,7 +18,6 @@
 
 #include "net/instaweb/rewriter/public/resource_manager.h"
 
-#include <algorithm>                   // for std::binary_search
 #include <cstddef>                     // for size_t
 #include <set>
 #include <vector>
@@ -45,7 +44,7 @@
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/queued_worker.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -55,7 +54,6 @@
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "net/instaweb/util/public/waveform.h"
 
 namespace net_instaweb {
 
@@ -82,7 +80,6 @@ const char kResourceFetchConstructSuccesses[] =
     "resource_fetch_construct_successes";
 const char kResourceFetchConstructFailures[] =
     "resource_fetch_construct_failures";
-const char kNumFlushes[] = "num_flushes";
 
 // Variables for the beacon to increment.  These are currently handled in
 // mod_pagespeed_handler on apache.  The average load time in milliseconds is
@@ -91,43 +88,11 @@ const char kNumFlushes[] = "num_flushes";
 const char kTotalPageLoadMs[] = "total_page_load_ms";
 const char kPageLoadCount[] = "page_load_count";
 
+
 const int64 kGeneratedMaxAgeMs = Timer::kYearMs;
 const int64 kRefreshExpirePercent = 75;
 
-// TODO(jmarantz): allow setting the kMaxQueuedWorkers via set_ method so that
-// command-line- or pagespeed.conf-based experiments can be run to see what a
-// good value is.
-const int kMaxRewriteWorkers = 1;
-const int kMaxHtmlWorkers = 2;
-
-// Attributes that should not be automatically copied from inputs to outputs
-const char* kExcludedAttributes[] = {
-  HttpAttributes::kCacheControl,
-  HttpAttributes::kContentEncoding,
-  HttpAttributes::kContentLength,
-  HttpAttributes::kContentType,
-  HttpAttributes::kDate,
-  HttpAttributes::kEtag,
-  HttpAttributes::kExpires,
-  HttpAttributes::kLastModified,
-  // Rewritten resources are publicly cached, so we should avoid cookies
-  // which are generally meant for private data.
-  HttpAttributes::kSetCookie,
-  HttpAttributes::kSetCookie2,
-  HttpAttributes::kTransferEncoding,
-  HttpAttributes::kVary
-};
-
-bool IsExcludedAttribute(const char* attribute) {
-  const char** end = kExcludedAttributes + arraysize(kExcludedAttributes);
-  return std::binary_search(kExcludedAttributes, end, attribute,
-                            CharStarCompareInsensitive());
-}
-
 }  // namespace
-
-// Statistics group names.
-const char ResourceManager::kStatisticsGroup[] = "Statistics";
 
 // Our HTTP cache mostly stores full URLs, including the http: prefix,
 // mapping them into the URL contents and HTTP headers.  However, we
@@ -170,6 +135,7 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
                                  ThreadSystem* thread_system,
                                  RewriteDriverFactory* factory)
     : file_prefix_(file_prefix.data(), file_prefix.size()),
+      resource_id_(0),
       file_system_(file_system),
       filename_encoder_(filename_encoder),
       url_async_fetcher_(url_async_fetcher),
@@ -191,48 +157,28 @@ ResourceManager::ResourceManager(const StringPiece& file_prefix,
           statistics->GetVariable(kResourceFetchConstructSuccesses)),
       failed_filter_resource_fetches_(
           statistics->GetVariable(kResourceFetchConstructFailures)),
-      num_flushes_(statistics->GetVariable(kNumFlushes)),
       http_cache_(http_cache),
       metadata_cache_(metadata_cache),
       relative_path_(false),
       store_outputs_in_file_system_(true),
-      block_until_completion_in_render_(false),
-      async_rewrites_(true),
       lock_manager_(lock_manager),
       message_handler_(handler),
       thread_system_(thread_system),
-      trying_to_cleanup_rewrite_drivers_(false),
       factory_(factory),
       rewrite_drivers_mutex_(thread_system->NewMutex()),
-      html_workers_(new QueuedWorkerPool(kMaxHtmlWorkers, thread_system)),
-      rewrite_workers_(
-          new QueuedWorkerPool(kMaxRewriteWorkers, thread_system)) {
-  // TODO(morlovich): Have RewriteDriverFactory help with setting up thread
-  // pools so we can share them among multiple vhosts under Apache.
-
-  // TODO(jmarantz): hook up waveform to rewrite worker pool.
-  rewrite_thread_queue_depth_.reset(new Waveform(thread_system, timer(), 200));
-  rewrite_workers_->set_queue_size_stat(rewrite_thread_queue_depth_.get());
-  html_workers_->set_queue_size_stat(rewrite_thread_queue_depth_.get());
-  decoding_driver_.reset(NewUnmanagedRewriteDriver());
-
-  // Make sure the excluded-attributes are in abc order so binary_search works.
-  // Make sure to use the same comparator that we pass to the binary_search.
-  for (int i = 1, n = arraysize(kExcludedAttributes); i < n; ++i) {
-    DCHECK(CharStarCompareInsensitive()(kExcludedAttributes[i - 1],
-                                        kExcludedAttributes[i]));
-  }
+      decoding_driver_(NewUnmanagedRewriteDriver()) {
+  rewrite_worker_.reset(new QueuedWorker(thread_system_));
+  rewrite_worker_->Start();
 }
 
 ResourceManager::~ResourceManager() {
   // stop job traffic before deleting any rewrite drivers.
-  ShutDownWorkers();
+  rewrite_worker_->ShutDown();
 
   // We scan for "leaked_rewrite_drivers" in apache/install/tests.mk.
   DCHECK(active_rewrite_drivers_.empty()) << "leaked_rewrite_drivers";
   STLDeleteElements(&active_rewrite_drivers_);
   STLDeleteElements(&available_rewrite_drivers_);
-  decoding_driver_.reset(NULL);
 }
 
 void ResourceManager::Initialize(Statistics* statistics) {
@@ -248,7 +194,6 @@ void ResourceManager::Initialize(Statistics* statistics) {
     statistics->AddVariable(kResourceFetchesCached);
     statistics->AddVariable(kResourceFetchConstructSuccesses);
     statistics->AddVariable(kResourceFetchConstructFailures);
-    statistics->AddVariable(kNumFlushes);
     HTTPCache::Initialize(statistics);
     RewriteDriver::Initialize(statistics);
   }
@@ -282,8 +227,8 @@ void ResourceManager::SetDefaultLongCacheHeaders(
   // the ETag.
   header->Replace(HttpAttributes::kEtag, kResourceEtagValue);
 
-  // TODO(jmarantz): Replace last-modified headers by default?
-  ConstStringStarVector v;
+  // TODO(jmarantz): add date/last-modified headers by default.
+  StringStarVector v;
   if (!header->Lookup(HttpAttributes::kLastModified, &v)) {
     header->SetLastModified(now_ms);
   }
@@ -295,17 +240,6 @@ void ResourceManager::SetDefaultLongCacheHeaders(
   // time.
 
   header->ComputeCaching();
-}
-
-void ResourceManager::MergeNonCachingResponseHeaders(
-    const ResponseHeaders& input_headers,
-    ResponseHeaders* output_headers) {
-  for (int i = 0, n = input_headers.NumAttributes(); i < n; ++i) {
-    const GoogleString& name = input_headers.Name(i);
-    if (!IsExcludedAttribute(name.c_str())) {
-      output_headers->Add(name, input_headers.Value(i));
-    }
-  }
 }
 
 // TODO(jmarantz): consider moving this method to ResponseHeaders
@@ -405,11 +339,6 @@ void ResourceManager::CacheComputedResourceMapping(OutputResource* output,
   }
 }
 
-bool ResourceManager::IsPagespeedResource(const GoogleUrl& url) {
-  ResourceNamer namer;
-  return (url.is_valid() && namer.Decode(url.LeafSansQuery()));
-}
-
 bool ResourceManager::IsImminentlyExpiring(int64 start_date_ms,
                                            int64 expire_ms) const {
   // Consider a resource with 5 minute expiration time (the default
@@ -463,7 +392,7 @@ void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
       resource_manager_->RefreshIfImminentlyExpiring(resource.get(), handler);
       resource_callback_->Done(true);
       break;
-    case HTTPCache::kRecentFetchFailedOrNotCacheable:
+    case HTTPCache::kRecentFetchFailedDoNotRefetch:
       // TODO(jmarantz): in this path, should we try to fetch again
       // sooner than 5 minutes?  The issue is that in this path we are
       // serving for the user, not for a rewrite.  This could get
@@ -641,10 +570,6 @@ bool ResourceManager::HandleBeacon(const StringPiece& unparsed_url) {
 RewriteDriver* ResourceManager::NewCustomRewriteDriver(
     RewriteOptions* options) {
   RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver();
-  {
-    ScopedMutex lock(rewrite_drivers_mutex_.get());
-    active_rewrite_drivers_.insert(rewrite_driver);
-  }
   rewrite_driver->set_custom_options(options);
   rewrite_driver->AddFilters();
   return rewrite_driver;
@@ -653,8 +578,7 @@ RewriteDriver* ResourceManager::NewCustomRewriteDriver(
 RewriteDriver* ResourceManager::NewUnmanagedRewriteDriver() {
   RewriteDriver* rewrite_driver = new RewriteDriver(
       message_handler_, file_system_, url_async_fetcher_);
-  rewrite_driver->SetAsynchronousRewrites(async_rewrites_);
-  Scheduler* scheduler = new Scheduler(thread_system_, timer());
+  Scheduler* scheduler = new Scheduler(thread_system_);
   rewrite_driver->SetResourceManagerAndScheduler(this, scheduler);
   if (factory_ != NULL) {
     factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
@@ -668,7 +592,6 @@ RewriteDriver* ResourceManager::NewRewriteDriver() {
   if (!available_rewrite_drivers_.empty()) {
     rewrite_driver = available_rewrite_drivers_.back();
     available_rewrite_drivers_.pop_back();
-    rewrite_driver->SetAsynchronousRewrites(async_rewrites_);
   } else {
     rewrite_driver = NewUnmanagedRewriteDriver();
     rewrite_driver->AddFilters();
@@ -677,78 +600,24 @@ RewriteDriver* ResourceManager::NewRewriteDriver() {
   return rewrite_driver;
 }
 
-void ResourceManager::ReleaseRewriteDriver(RewriteDriver* rewrite_driver) {
+void ResourceManager::ReleaseRewriteDriver(
+    RewriteDriver* rewrite_driver) {
   ScopedMutex lock(rewrite_drivers_mutex_.get());
-  ReleaseRewriteDriverImpl(rewrite_driver);
-}
-
-void ResourceManager::ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver) {
-  if (trying_to_cleanup_rewrite_drivers_) {
-    deferred_release_rewrite_drivers_.insert(rewrite_driver);
-    return;
-  }
-
   int count = active_rewrite_drivers_.erase(rewrite_driver);
   if (count != 1) {
     LOG(ERROR) << "ReleaseRewriteDriver called with driver not in active set.";
-    DCHECK(false);
   } else {
-    if (rewrite_driver->has_custom_options()) {
-      delete rewrite_driver;
-    } else {
-      available_rewrite_drivers_.push_back(rewrite_driver);
-      rewrite_driver->Clear();
-    }
+    available_rewrite_drivers_.push_back(rewrite_driver);
+    rewrite_driver->Clear();
   }
 }
 
-void ResourceManager::ShutDownWorkers() {
-  // Try to get any outstanding rewrites to complete, one-by-one.
+void ResourceManager::ShutDownWorker() {
+  rewrite_worker_->ShutDown();
+}
 
-  {
-    ScopedMutex lock(rewrite_drivers_mutex_.get());
-    // Prevent any rewrite completions from directly deleting drivers or
-    // affecting active_rewrite_drivers_. We can now release the lock so
-    // that the rewrites can call ReleaseRewriteDriver. Note that this is
-    // making an assumption that we're not allocating new rewrite drivers
-    // during the shutdown.
-    trying_to_cleanup_rewrite_drivers_ = true;
-  }
-
-  if (!active_rewrite_drivers_.empty()) {
-    message_handler_->Message(kInfo, "%d rewrite(s) still ongoing at exit",
-                              static_cast<int>(active_rewrite_drivers_.size()));
-  }
-
-  for (RewriteDriverSet::iterator i = active_rewrite_drivers_.begin();
-       i != active_rewrite_drivers_.end(); ++i) {
-    // Warning: the driver may already have been mostly cleaned up except for
-    // not getting into ReleaseRewriteDriver before our lock acquisition at
-    // the start of this function; this code is relying on redundant
-    // BoundedWaitForCompletion and Cleanup being safe when
-    // trying_to_cleanup_rewrite_drivers_ is true.
-    // ResourceManagerTest.ShutDownAssumptions() exists to cover this scenario.
-    RewriteDriver* active = *i;
-    active->BoundedWaitForCompletion(Timer::kSecondMs);
-    active->Cleanup();
-  }
-
-  // Shut down the worker threads first, to quiesce the system while
-  // leaving the QueuedWorkerPool & QueuedWorkerPool::Sequence objects
-  // live.  The QueuedWorkerPools will be deleted when the ResourceManager
-  // is destructed.
-  rewrite_workers_->ShutDown();
-  html_workers_->ShutDown();
-
-  ScopedMutex lock(rewrite_drivers_mutex_.get());
-
-  // Actually release anything that got deferred above.
-  trying_to_cleanup_rewrite_drivers_ = false;
-  for (RewriteDriverSet::iterator i = deferred_release_rewrite_drivers_.begin();
-       i != deferred_release_rewrite_drivers_.end(); ++i) {
-    ReleaseRewriteDriverImpl(*i);
-  }
-  deferred_release_rewrite_drivers_.clear();
+void ResourceManager::AddRewriteTask(Function* task) {
+  rewrite_worker_->RunInWorkThread(task);
 }
 
 }  // namespace net_instaweb

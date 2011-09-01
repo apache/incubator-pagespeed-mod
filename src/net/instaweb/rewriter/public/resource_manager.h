@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -46,11 +45,11 @@ class CacheInterface;
 class ContentType;
 class FileSystem;
 class FilenameEncoder;
-class GoogleUrl;
+class Function;
 class Hasher;
 class MessageHandler;
 class NamedLockManager;
-class QueuedWorkerPool;
+class QueuedWorker;
 class ResourceContext;
 class ResponseHeaders;
 class RewriteDriver;
@@ -61,7 +60,6 @@ class Timer;
 class UrlAsyncFetcher;
 class UrlSegmentEncoder;
 class Variable;
-class Waveform;
 
 typedef RefCountedPtr<OutputResource> OutputResourcePtr;
 typedef std::vector<OutputResourcePtr> OutputResourceVector;
@@ -76,9 +74,6 @@ class ResourceManager {
   // of mod_headers.
   static const char kResourceEtagValue[];
   static const char kCacheKeyResourceNamePrefix[];
-
-  // Default statistics group name.
-  static const char kStatisticsGroup[];
 
   ResourceManager(const StringPiece& file_prefix,
                   FileSystem* file_system,
@@ -139,9 +134,6 @@ class ResourceManager {
                                     int64 origin_expire_time_ms,
                                     MessageHandler* handler);
 
-  // Is this URL a ref to a Pagespeed resource?
-  bool IsPagespeedResource(const GoogleUrl& url);
-
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched.
   bool IsImminentlyExpiring(int64 start_date_ms, int64 expire_ms) const;
@@ -167,20 +159,6 @@ class ResourceManager {
     store_outputs_in_file_system_ = store;
   }
 
-  // Whether or not HTML rendering should block until all normally
-  // asynchronous processing finishes.
-  // This is meant for file rewriting and testing, not for use within a server.
-  bool block_until_completion_in_render() const {
-    return block_until_completion_in_render_;
-  }
-
-  void set_block_until_completion_in_render(bool x) {
-    block_until_completion_in_render_ = x;
-  }
-
-  bool async_rewrites() { return async_rewrites_; }
-  void set_async_rewrites(bool x) { async_rewrites_ = x; }
-
   void RefreshIfImminentlyExpiring(Resource* resource,
                                    MessageHandler* handler) const;
 
@@ -204,10 +182,6 @@ class ResourceManager {
   }
   Variable* failed_filter_resource_fetches() {
     return failed_filter_resource_fetches_;
-  }
-  Variable* num_flushes() { return num_flushes_; }
-  Waveform* rewrite_thread_queue_depth() {
-    return rewrite_thread_queue_depth_.get();
   }
 
   MessageHandler* message_handler() const { return message_handler_; }
@@ -315,8 +289,14 @@ class ResourceManager {
   // activites on it have completed, including HTML Parsing
   // (FinishParse) and all pending Rewrites.
   //
-  // TODO(jmarantz): this cannot recycle RewriteDrivers with custom
-  // rewrite options, which is a potential performance issue for Apache
+  // This can only be used with RewriteDrivers created with default
+  // options.  RewiteDrivers with custom options cannot be recycled
+  // and must be deleted.
+  //
+  // RewriteDrivers with custom options should not call this function on
+  // themselves.
+  //
+  // TODO(jmarantz): this is a potential performance issue for Apache
   // installations that set custom options in .htaccess files, where
   // essentially every RewriteDriver will be a custom driver.  To
   // resolve this we need to make a comparator for RewriteOptions
@@ -324,67 +304,20 @@ class ResourceManager {
   // keep free-lists for each unique option-set.
   void ReleaseRewriteDriver(RewriteDriver* rewrite_driver);
 
+  // Queues up a task to run on the Rewrite thread.
+  void AddRewriteTask(Function* task);
+
   ThreadSystem* thread_system() { return thread_system_; }
 
-  // Calling this method will stop results of rewrites being cached in the
-  // metadata cache. This is meant for the shutdown sequence.
-  void set_metadata_cache_readonly() {
-    metadata_cache_readonly_.set_value(true);
-  }
-
-  bool metadata_cache_readonly() const {
-    return metadata_cache_readonly_.value();
-  }
-
-  // Waits for all currently running jobs to complete, and stops accepting
-  // new jobs in the workers.  This is meant for use when shutting down
+  // Waits for the currently running job to complete, and stops accepting
+  // new jobs in the worker. This is meant for use when shutting down
   // processing, so that jobs running in background do not access objects
   // that are about to be deleted.
-  void ShutDownWorkers();
+  void ShutDownWorker();
 
-  // Take any headers that are not caching-related, and not otherwise
-  // filled in by SetDefaultLongCacheHeaders or SetContentType, but
-  // *were* set on the input resource, and copy them to the output
-  // resource.  This allows user headers to be preserved.  This must
-  // be called as needed by individual filters, prior to Write().
-  //
-  // Note that this API is only usable for single-input rewriters.
-  // Combiners will need to execute some kind of merge, union, or
-  // intersection policy, if we wish to preserve origin response
-  // headers.
-  //
-  // Note: this does not call ComputeCaching() on the output headers,
-  // so that method must be called prior to invoking any caching predicates
-  // on the output's ResponseHeader.  In theory we shouldn't mark the
-  // caching bits dirty because we are only adding headers that will
-  // not affect caching, but at the moment the dirty-bit is set independent
-  // of that.
-  //
-  // TODO(jmarantz): avoid setting caching_dirty bit in ResponseHeaders when
-  // the header is not caching-related.
-  void MergeNonCachingResponseHeaders(const ResourcePtr& input,
-                                      const OutputResourcePtr& output) {
-    MergeNonCachingResponseHeaders(*input->response_headers(),
-                                   output->response_headers());
-  }
-
-  // Entry-point with the same functionality, exposed for easier testing.
-  void MergeNonCachingResponseHeaders(const ResponseHeaders& input_headers,
-                                      ResponseHeaders* output_headers);
-
-  // Pool of worker-threads that can be used to handle html-parsing.
-  QueuedWorkerPool* html_workers() { return html_workers_.get(); }
-
-  // Pool of worker-threads that can be used to handle resource rewriting.
-  QueuedWorkerPool* rewrite_workers() { return rewrite_workers_.get(); }
+  QueuedWorker* rewrite_worker() { return rewrite_worker_.get(); }
 
  private:
-  friend class ResourceManagerTest;
-  typedef std::set<RewriteDriver*> RewriteDriverSet;
-
-  // Must be called with rewrite_drivers_mutex_ held.
-  void ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver);
-
   GoogleString file_prefix_;
   int resource_id_;  // Sequential ids for temporary Resource filenames.
   FileSystem* file_system_;
@@ -417,16 +350,12 @@ class ResourceManager {
   Variable* cached_resource_fetches_;
   Variable* succeeded_filter_resource_fetches_;
   Variable* failed_filter_resource_fetches_;
-  Variable* num_flushes_;
-  scoped_ptr<Waveform> rewrite_thread_queue_depth_;
 
   HTTPCache* http_cache_;
   CacheInterface* metadata_cache_;
 
   bool relative_path_;
   bool store_outputs_in_file_system_;
-  bool block_until_completion_in_render_;
-  bool async_rewrites_;
 
   NamedLockManager* lock_manager_;
   MessageHandler* message_handler_;
@@ -435,25 +364,13 @@ class ResourceManager {
   // RewriteDrivers that were previously allocated, but have
   // been released with ReleaseRewriteDriver, and are ready
   // for re-use with NewRewriteDriver.
-  // Protected by rewrite_drivers_mutex_.
   std::vector<RewriteDriver*> available_rewrite_drivers_;
 
   // RewriteDrivers that are currently in use.  This is retained
   // as a sanity check to make sure our system is coherent,
   // and to facilitate complete cleanup if a Shutdown occurs
   // while a request is in flight.
-  // Protected by rewrite_drivers_mutex_.
-  RewriteDriverSet active_rewrite_drivers_;
-
-  // If this value is true ReleaseRewriteDriver will just insert its
-  // argument into deferred_release_rewrite_drivers_ rather
-  // than try to delete or recycle it. This is used for shutdown
-  // so that the main thread does not have to worry about rewrite threads
-  // deleting RewriteDrivers or altering active_rewrite_drivers_.
-  //
-  // Protected by rewrite_drivers_mutex_.
-  bool trying_to_cleanup_rewrite_drivers_;
-  RewriteDriverSet deferred_release_rewrite_drivers_;
+  std::set<RewriteDriver*> active_rewrite_drivers_;
 
   // If set, a RewriteDriverFactory provides a mechanism to add
   // platform-specific filters to a RewriteDriver.
@@ -475,10 +392,7 @@ class ResourceManager {
   // configuration must be done by .htaccess.
   scoped_ptr<RewriteDriver> decoding_driver_;
 
-  scoped_ptr<QueuedWorkerPool> html_workers_;
-  scoped_ptr<QueuedWorkerPool> rewrite_workers_;
-
-  AtomicBool metadata_cache_readonly_;
+  scoped_ptr<QueuedWorker> rewrite_worker_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceManager);
 };

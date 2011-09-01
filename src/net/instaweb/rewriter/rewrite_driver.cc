@@ -18,15 +18,15 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
-#include <cstdarg>
-#include <map>
-#include <set>
 #include <utility>  // for std::pair
 #include <vector>
+#include <map>
+#include <set>
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/bot_checker.h"
@@ -42,19 +42,18 @@
 #include "net/instaweb/rewriter/public/blocking_behavior.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
+#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/css_combine_filter.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
-#include "net/instaweb/rewriter/public/div_structure_filter.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/elide_attributes_filter.h"
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
-#include "net/instaweb/rewriter/public/flush_html_filter.h"
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
 #include "net/instaweb/rewriter/public/html_attribute_quote_removal.h"
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
@@ -66,6 +65,7 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/remove_comments_filter.h"
+#include "net/instaweb/rewriter/public/render_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -80,7 +80,6 @@
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
-#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -124,24 +123,20 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
     : HtmlParse(message_handler),
       base_was_set_(false),
       refs_before_base_(false),
-      asynchronous_rewrites_(true),
+      asynchronous_rewrites_(false),
       filters_added_(false),
       externally_managed_(false),
       fetch_queued_(false),
       waiting_for_completion_(false),
-      waiting_for_render_(false),
       cleanup_on_fetch_complete_(false),
-      flush_requested_(false),
       rewrites_to_delete_(0),
       pending_rewrites_(0),
-      possibly_quick_rewrites_(0),
       file_system_(file_system),
       url_async_fetcher_(url_async_fetcher),
       resource_manager_(NULL),
       add_instrumentation_filter_(NULL),
       scan_filter_(this),
-      domain_rewriter_(NULL),
-      rewrite_worker_(NULL) {
+      domain_rewriter_(NULL) {
 
   // Set up default values for the amount of time an HTML rewrite will wait for
   // Rewrites to complete, based on whether compiled for debug or running on
@@ -157,43 +152,24 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
 #endif
   }
   // The Scan filter always goes first so it can find base-tags.
-  pre_render_filters_.push_back(&scan_filter_);
+  HtmlParse::AddFilter(&scan_filter_);
 }
 
 RewriteDriver::~RewriteDriver() {
-  if (rewrite_worker_ != NULL) {
-    resource_manager_->rewrite_workers()->FreeSequence(rewrite_worker_);
-  }
-  STLDeleteElements(&filters_to_delete_);
+  STLDeleteElements(&filters_);
   Clear();
 }
 
-RewriteDriver* RewriteDriver::Clone() {
-  RewriteDriver* result;
-  if (has_custom_options()) {
-    RewriteOptions* options_copy = new RewriteOptions();
-    options_copy->CopyFrom(*options());
-    result = resource_manager_->NewCustomRewriteDriver(options_copy);
-  } else {
-    result = resource_manager_->NewRewriteDriver();
-  }
-  result->SetAsynchronousRewrites(asynchronous_rewrites_);
-  return result;
-}
-
 void RewriteDriver::Clear() {
-  DCHECK(!flush_requested_);
   cleanup_on_fetch_complete_ = false;
   base_url_.Clear();
   DCHECK(!base_url_.is_valid());
   resource_map_.clear();
-  DCHECK(primary_rewrite_context_map_.empty());
   DCHECK(initiated_rewrites_.empty());
   DCHECK(detached_rewrites_.empty());
   DCHECK(rewrites_.empty());
   DCHECK_EQ(0, rewrites_to_delete_);
   DCHECK_EQ(0, pending_rewrites_);
-  DCHECK_EQ(0, possibly_quick_rewrites_);
   DCHECK(!fetch_queued_);
 }
 
@@ -210,98 +186,41 @@ void RewriteDriver::WaitForCompletion() {
 void RewriteDriver::BoundedWaitForCompletion(int64 timeout_ms) {
   if (asynchronous_rewrites_) {
     ScopedMutex lock(rewrite_mutex());
-    BoundedWaitForCompletionImpl(kWaitForCompletion, timeout_ms);
-  }
-}
-
-void RewriteDriver::BoundedWaitForCompletionImpl(WaitMode wait_mode,
-                                                 int64 timeout_ms) {
-  if (wait_mode == kWaitForCompletion) {
     waiting_for_completion_ = true;
-  } else {
-    waiting_for_render_ = true;
-  }
+    while (!RewritesComplete()) {
+      if (fetch_queued_) {
+        message_handler()->Message(kInfo, "waiting for fetch completion");
+      } else {
+        message_handler()->Message(
+            kInfo, "waiting for %d rewrites to complete",
+            static_cast<int>(pending_rewrites_ + detached_rewrites_.size()));
+      }
+      int64 start_ms = resource_manager_->timer()->NowMs();
+      scheduler_->TimedWait(timeout_ms > 0 ? timeout_ms : kTestTimeoutMs);
+      int64 end_ms = resource_manager_->timer()->NowMs();
 
-  bool deadline_reached = false;
-  while (!IsDone(wait_mode, deadline_reached)) {
-    // At this point there are pending_rewrites_ we may still render and
-    // detached_rewrites_.size() rewrites which are going on in background.
-    int64 start_ms = resource_manager_->timer()->NowMs();
-    scheduler_->BlockingTimedWait(timeout_ms > 0 ? timeout_ms : kTestTimeoutMs);
-    int64 end_ms = resource_manager_->timer()->NowMs();
+      // TODO(jmarantz): Eliminate these LOG(INFO) and/or convert them
+      // into message_handler()->Message(kInfo...).
+      LOG(INFO) << "timed wait complete";
 
-    if (timeout_ms > 0) {
-      timeout_ms -= (end_ms - start_ms);
-      if (timeout_ms <= 0) {
-        // Remaining became <=0 => timed out, rather than unbounded.
-        deadline_reached = true;
+      if (timeout_ms > 0) {
+        timeout_ms -= (end_ms - start_ms);
+        if (timeout_ms <= 0) {
+          // Remaining became <=0 => timed out, rather than unbounded.
+          return;
+        }
       }
     }
-  }
-
-  waiting_for_completion_ = false;
-  waiting_for_render_ = false;
-}
-
-bool RewriteDriver::IsDone(WaitMode wait_mode, bool deadline_reached) {
-  // Before deadline, we're happy only if we're 100% done.
-  if (!deadline_reached) {
-    return RewritesComplete();
-  } else {
-    // When we've reached the deadline, if we're Render()'ing
-    // we also give the jobs we can serve from cache a chance to finish
-    // (so they always render).
-    // We do not have to worry about possibly_quick_rewrites_ not being
-    // incremented yet as jobs are only initiated from the HTML parse thread.
-    if (wait_mode == kWaitForCachedRender) {
-      return (possibly_quick_rewrites_ == 0);
-    } else {
-      return true;
-    }
+    waiting_for_completion_ = false;
   }
 }
 
-void RewriteDriver::BlockingTimedWait(int wait_time_ms) {
+void RewriteDriver::TimedWait(int wait_time_ms) {
   ScopedMutex lock(rewrite_mutex());
-  scheduler_->BlockingTimedWait(wait_time_ms);
+  scheduler_->TimedWait(wait_time_ms);
 }
 
-namespace {
-
-// TODO(jmarantz): replace with real blocking callback once  RunAsync
-// actually runs asynchronously, following new scheduler support.
-class WaitFunction : public Function {
- public:
-  WaitFunction() : done_(false) {}
-  virtual void Run() { done_ = true; }
-  bool done() const { return done_; }
- private:
-  bool done_;
-};
-
-}  // namespace
-
-// TODO(jmarantz): add callback version of this.
-void RewriteDriver::ExecuteFlushIfRequested() {
-  if (flush_requested_) {
-    Flush();
-  }
-}
-
-void RewriteDriver::Flush() {
-  WaitFunction wait;
-  wait.set_delete_after_callback(false);
-  FlushAsync(&wait);
-  CHECK(wait.done());  // Once FlushAsync is really async we will block here.
-  flush_requested_ = false;
-}
-
-void RewriteDriver::FlushAsync(Function* callback) {
-  for (int i = 0, n = pre_render_filters_.size(); i < n; ++i) {
-    HtmlFilter* filter = pre_render_filters_[i];
-    ApplyFilter(filter);
-  }
-
+void RewriteDriver::Render() {
   // Note that no actual resource Rewriting can occur until this point
   // is reached, where we initiate all the RewriteContexts.
   DCHECK(initiated_rewrites_.empty());
@@ -327,8 +246,6 @@ void RewriteDriver::FlushAsync(Function* callback) {
     for (int i = 0; i < num_rewrites; ++i) {
       RewriteContext* rewrite_context = rewrites_[i];
       if (!rewrite_context->chained()) {
-        // TODO(jmarantz): Eliminate these LOG(INFO) and/or convert them
-        // into message_handler()->Message(kInfo...).
         LOG(INFO) << "Initiating rewrite: " << rewrite_context;
         rewrite_context->Initiate();
       }
@@ -338,13 +255,16 @@ void RewriteDriver::FlushAsync(Function* callback) {
   {
     ScopedMutex lock(rewrite_mutex());
     DCHECK(!fetch_queued_);
-    if (resource_manager_->block_until_completion_in_render()) {
-      BoundedWaitForCompletionImpl(kWaitForCompletion, -1);
-    } else {
-      BoundedWaitForCompletionImpl(kWaitForCachedRender, rewrite_deadline_ms_);
-    }
-    DCHECK_EQ(0, possibly_quick_rewrites_);
     int completed_rewrites = num_rewrites - pending_rewrites_;
+    if (pending_rewrites_ == 0) {
+      LOG(INFO) << "All " << completed_rewrites
+                << " rewrites complete by the time Render was called";
+    } else {
+      LOG(INFO) << "waiting for " << pending_rewrites_ << " rewrites";
+      scheduler_->TimedWait(rewrite_deadline_ms_);
+      completed_rewrites = num_rewrites - pending_rewrites_;
+      LOG(INFO) << "found " << completed_rewrites << " completed rewrites";
+    }
 
     // If the output cache lookup came as a HIT in after the deadline, that
     // means that (a) we can't use the result and (b) we don't need
@@ -376,9 +296,6 @@ void RewriteDriver::FlushAsync(Function* callback) {
 
     slots_.clear();
   }
-
-  HtmlParse::Flush();
-  callback->CallRun();
 }
 
 const char* RewriteDriver::kPassThroughRequestAttributes[3] = {
@@ -412,7 +329,6 @@ void RewriteDriver::SetResourceManagerAndScheduler(
   resource_manager_ = resource_manager;
   scheduler_.reset(scheduler);
   set_timer(resource_manager->timer());
-  rewrite_worker_ = resource_manager_->rewrite_workers()->NewSequence();
 
   DCHECK(resource_filter_map_.empty());
 
@@ -490,11 +406,6 @@ void RewriteDriver::AddFilters() {
   CHECK(!filters_added_);
   filters_added_ = true;
 
-  AddPreRenderFilters();
-  AddPostRenderFilters();
-}
-
-void RewriteDriver::AddPreRenderFilters() {
   // This function defines the order that filters are run.  We document
   // in pagespeed.conf.template that the order specified in the conf
   // file does not matter, but we give the filters there in the order
@@ -507,15 +418,6 @@ void RewriteDriver::AddPreRenderFilters() {
   // Now process boolean options, which may include propagating non-boolean
   // and boolean parameter settings to filters.
   const RewriteOptions* rewrite_options = options();
-
-  if (rewrite_options->Enabled(RewriteOptions::kFlushHtml)) {
-    // Note that this does not get hooked into the normal html-parse
-    // filter-chain as it gets run immediately after every call to
-    // ParseText, possibly inducing the system to trigger a Flush
-    // based on the content it sees.
-    set_event_listener(new FlushHtmlFilter(this));
-  }
-
   if (rewrite_options->Enabled(RewriteOptions::kAddHead) ||
       rewrite_options->Enabled(RewriteOptions::kCombineHeads) ||
       rewrite_options->Enabled(RewriteOptions::kMoveCssToHead) ||
@@ -523,31 +425,31 @@ void RewriteDriver::AddPreRenderFilters() {
       rewrite_options->Enabled(RewriteOptions::kAddInstrumentation)) {
     // Adds a filter that adds a 'head' section to html documents if
     // none found prior to the body.
-    AddOwnedPreRenderFilter(new AddHeadFilter(
+    AddOwnedFilter(new AddHeadFilter(
         this, rewrite_options->Enabled(RewriteOptions::kCombineHeads)));
   }
   if (rewrite_options->Enabled(RewriteOptions::kStripScripts)) {
     // Experimental filter that blindly strips all scripts from a page.
-    AddOwnedPreRenderFilter(new StripScriptsFilter(this));
+    AddOwnedFilter(new StripScriptsFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kOutlineCss)) {
     // Cut out inlined styles and make them into external resources.
     // This can only be called once and requires a resource_manager to be set.
     CHECK(resource_manager_ != NULL);
     CssOutlineFilter* css_outline_filter = new CssOutlineFilter(this);
-    AddOwnedPreRenderFilter(css_outline_filter);
+    AddOwnedFilter(css_outline_filter);
   }
   if (rewrite_options->Enabled(RewriteOptions::kOutlineJavascript)) {
     // Cut out inlined scripts and make them into external resources.
     // This can only be called once and requires a resource_manager to be set.
     CHECK(resource_manager_ != NULL);
     JsOutlineFilter* js_outline_filter = new JsOutlineFilter(this);
-    AddOwnedPreRenderFilter(js_outline_filter);
+    AddOwnedFilter(js_outline_filter);
   }
   if (rewrite_options->Enabled(RewriteOptions::kMoveCssToHead)) {
     // It's good to move CSS links to the head prior to running CSS combine,
     // which only combines CSS links that are already in the head.
-    AddOwnedPreRenderFilter(new CssMoveToHeadFilter(this, statistics()));
+    AddOwnedFilter(new CssMoveToHeadFilter(this, statistics()));
   }
   if (rewrite_options->Enabled(RewriteOptions::kCombineCss)) {
     // Combine external CSS resources after we've outlined them.
@@ -562,7 +464,7 @@ void RewriteDriver::AddPreRenderFilters() {
     // Converts sync loads of Google Analytics javascript to async loads.
     // This needs to be listed before rewrite_javascript because it injects
     // javascript that has comments and extra whitespace.
-    AddOwnedPreRenderFilter(new GoogleAnalyticsFilter(this, statistics()));
+    AddOwnedFilter(new GoogleAnalyticsFilter(this, statistics()));
   }
   if (rewrite_options->Enabled(RewriteOptions::kRewriteJavascript)) {
     // Rewrite (minify etc.) JavaScript code to reduce time to first
@@ -579,13 +481,13 @@ void RewriteDriver::AddPreRenderFilters() {
     // Inline small CSS files.  Give CssCombineFilter and CSS minification a
     // chance to run before we decide what counts as "small".
     CHECK(resource_manager_ != NULL);
-    AddOwnedPreRenderFilter(new CssInlineFilter(this));
+    AddOwnedFilter(new CssInlineFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kInlineJavascript)) {
     // Inline small Javascript files.  Give JS minification a chance to run
     // before we decide what counts as "small".
     CHECK(resource_manager_ != NULL);
-    AddOwnedPreRenderFilter(new JsInlineFilter(this));
+    AddOwnedFilter(new JsInlineFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kConvertJpegToWebp) ||
       rewrite_options->Enabled(RewriteOptions::kInlineImages) ||
@@ -595,30 +497,22 @@ void RewriteDriver::AddPreRenderFilters() {
     EnableRewriteFilter(kImageCompressionId);
   }
   if (rewrite_options->Enabled(RewriteOptions::kRemoveComments)) {
-    AddOwnedPreRenderFilter(new RemoveCommentsFilter(this, rewrite_options));
+    AddOwnedFilter(new RemoveCommentsFilter(this, rewrite_options));
   }
   if (rewrite_options->Enabled(RewriteOptions::kCollapseWhitespace)) {
     // Remove excess whitespace in HTML
-    AddOwnedPreRenderFilter(new CollapseWhitespaceFilter(this));
+    AddOwnedFilter(new CollapseWhitespaceFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kElideAttributes)) {
     // Remove HTML element attribute values where
     // http://www.w3.org/TR/html4/loose.dtd says that the name is all
     // that's necessary
-    AddOwnedPreRenderFilter(new ElideAttributesFilter(this));
+    AddOwnedFilter(new ElideAttributesFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kExtendCache)) {
     // Extend the cache lifetime of resources.
     EnableRewriteFilter(kCacheExtenderId);
   }
-
-  if (rewrite_options->Enabled(RewriteOptions::kSpriteImages)) {
-    EnableRewriteFilter(kImageCombineId);
-  }
-}
-
-void RewriteDriver::AddPostRenderFilters() {
-  const RewriteOptions* rewrite_options = options();
   if (rewrite_options->domain_lawyer()->can_rewrite_domains() &&
       rewrite_options->Enabled(RewriteOptions::kRewriteDomains)) {
     // Rewrite mapped domains and shard any resources not otherwise rewritten.
@@ -636,30 +530,30 @@ void RewriteDriver::AddPostRenderFilters() {
     // specified or not.
     HtmlParse::AddFilter(domain_rewriter_.get());
   }
-  if (rewrite_options->Enabled(RewriteOptions::kDivStructure)) {
-    // Adds a query parameter to each link roughly designating its position on
-    // the page to be used in target, referer counting, which is then to be
-    // used to augment prefetch/prerender optimizations.  Should happen before
-    // RemoveQuotes.
-    AddOwnedPostRenderFilter(new DivStructureFilter());
-  }
   if (rewrite_options->Enabled(RewriteOptions::kLeftTrimUrls)) {
     // Trim extraneous prefixes from urls in attribute values.
     // Happens before RemoveQuotes but after everything else.  Note:
     // we Must left trim urls BEFORE quote removal.
-    AddOwnedPostRenderFilter(new UrlLeftTrimFilter(this, statistics()));
+    AddOwnedFilter(new UrlLeftTrimFilter(this, statistics()));
   }
   if (rewrite_options->Enabled(RewriteOptions::kRemoveQuotes)) {
     // Remove extraneous quotes from html attributes.  Does this save
     // enough bytes to be worth it after compression?  If we do it
     // everywhere it seems to give a small savings.
-    AddOwnedPostRenderFilter(new HtmlAttributeQuoteRemoval(this));
+    AddOwnedFilter(new HtmlAttributeQuoteRemoval(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kAddInstrumentation)) {
     // Inject javascript to instrument loading-time.
     add_instrumentation_filter_ = new AddInstrumentationFilter(
         this, rewrite_options->beacon_url());
-    AddOwnedPostRenderFilter(add_instrumentation_filter_);
+    AddOwnedFilter(add_instrumentation_filter_);
+  }
+  if (rewrite_options->Enabled(RewriteOptions::kSpriteImages)) {
+    EnableRewriteFilter(kImageCombineId);
+  }
+
+  if (asynchronous_rewrites_) {
+    AddOwnedFilter(new RenderFilter(this));
   }
 
   // NOTE(abliss): Adding a new filter?  Does it export any statistics?  If it
@@ -667,17 +561,16 @@ void RewriteDriver::AddPostRenderFilters() {
   // Initialize() function above or it will break under Apache!
 }
 
-void RewriteDriver::AddOwnedPreRenderFilter(HtmlFilter* filter) {
-  filters_to_delete_.push_back(filter);
-  pre_render_filters_.push_back(filter);
-}
-
-void RewriteDriver::AddOwnedPostRenderFilter(HtmlFilter* filter) {
-  filters_to_delete_.push_back(filter);
+void RewriteDriver::AddOwnedFilter(HtmlFilter* filter) {
+  filters_.push_back(filter);
   HtmlParse::AddFilter(filter);
 }
 
-// This is used exclusively in tests.
+void RewriteDriver::AddCommonFilter(CommonFilter* filter) {
+  filters_.push_back(filter);
+  HtmlParse::AddFilter(filter);
+}
+
 void RewriteDriver::AddRewriteFilter(RewriteFilter* filter) {
   RegisterRewriteFilter(filter);
   EnableRewriteFilter(filter->id().c_str());
@@ -686,7 +579,7 @@ void RewriteDriver::AddRewriteFilter(RewriteFilter* filter) {
 void RewriteDriver::EnableRewriteFilter(const char* id) {
   RewriteFilter* filter = resource_filter_map_[id];
   CHECK(filter);
-  pre_render_filters_.push_back(filter);
+  HtmlParse::AddFilter(filter);
 }
 
 void RewriteDriver::RegisterRewriteFilter(RewriteFilter* filter) {
@@ -696,12 +589,19 @@ void RewriteDriver::RegisterRewriteFilter(RewriteFilter* filter) {
   //
   // TODO(sligocki): It'd be nice to get this into the constructor.
   resource_filter_map_[filter->id()] = filter;
-  filters_to_delete_.push_back(filter);
+  filters_.push_back(filter);
 }
 
 void RewriteDriver::SetAsynchronousRewrites(bool async_rewrites) {
   if (async_rewrites != asynchronous_rewrites_) {
     asynchronous_rewrites_ = async_rewrites;
+    if (filters_added_) {
+      if (asynchronous_rewrites_) {
+        AddOwnedFilter(new RenderFilter(this));
+      } else {
+        LOG(DFATAL) << "Cannot disable async behavior after filters are added";
+      }
+    }
   }
 }
 
@@ -970,7 +870,7 @@ bool RewriteDriver::FetchOutputResource(
   // return a 304 Not Modified, since any representation of the resource
   // that's in the browser's cache must be correct.
   bool queued = false;
-  ConstStringStarVector values;
+  StringStarVector values;
   if (request_headers.Lookup(HttpAttributes::kIfModifiedSince, &values)) {
     response_headers->SetStatusAndReason(HttpStatus::kNotModified);
     callback->Done(true);
@@ -1082,7 +982,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
       message_handler()->Message(kWarning, "Badly formatted data url '%s'",
                                  url_string.as_string().c_str());
     }
-  } else if (url.SchemeIs("http") || url.SchemeIs("https")) {
+  } else if (url.SchemeIs("http")) {
     // Note: type may be NULL if url has an unexpected or malformed extension.
     const ContentType* type = NameExtensionToContentType(url_string);
     GoogleString filename;
@@ -1095,7 +995,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
     }
   } else {
     // Note: Valid user-content can leave us here.
-    // Specifically, any URLs with scheme other than data: or http: or https:.
+    // Specifically, any URLs with scheme other than data: or http:, say https:.
     // TODO(sligocki): Is this true? Or will such URLs not make it this far?
     message_handler()->Message(kWarning, "Unsupported scheme '%s' for url '%s'",
                                url.Scheme().as_string().c_str(),
@@ -1167,13 +1067,6 @@ void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context) {
     attached = true;
 
     --pending_rewrites_;
-    if (!rewrite_context->slow()) {
-      --possibly_quick_rewrites_;
-      if ((possibly_quick_rewrites_ == 0) && waiting_for_render_) {
-        signal = true;
-      }
-    }
-
     if (pending_rewrites_ == 0) {
       signal = true;
     }
@@ -1196,15 +1089,6 @@ void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context) {
   }
 }
 
-void RewriteDriver::ReportSlowRewrites(int num) {
-  ScopedMutex lock(rewrite_mutex());
-  possibly_quick_rewrites_ -= num;
-  CHECK_LE(0, possibly_quick_rewrites_);
-  if ((possibly_quick_rewrites_ == 0) && waiting_for_render_) {
-    scheduler_->Signal();
-  }
-}
-
 void RewriteDriver::DeleteRewriteContext(RewriteContext* rewrite_context) {
   bool ready_to_recycle = false;
   {
@@ -1221,33 +1105,16 @@ void RewriteDriver::DeleteRewriteContext(RewriteContext* rewrite_context) {
     }
   }
   if (ready_to_recycle) {
-    resource_manager_->ReleaseRewriteDriver(this);
+    Recycle();
   }
 }
 
-RewriteContext* RewriteDriver::RegisterForPartitionKey(
-    const GoogleString& partition_key, RewriteContext* candidate) {
-  std::pair<PrimaryRewriteContextMap::iterator, bool> insert_result =
-      primary_rewrite_context_map_.insert(
-          std::make_pair(partition_key, candidate));
-  if (insert_result.second) {
-    // Our value is new, so just return NULL.
-    return NULL;
+void RewriteDriver::Recycle() {
+  if (has_custom_options()) {
+    delete this;
   } else {
-    // Insert failed, return the old value.
-    return insert_result.first->second;
-  }
-}
-
-void RewriteDriver::DeregisterForPartitionKey(const GoogleString& partition_key,
-                                              RewriteContext* rewrite_context) {
-  // If the context being deleted is the primary for some cache key,
-  // deregister it.
-  PrimaryRewriteContextMap::iterator i =
-      primary_rewrite_context_map_.find(partition_key);
-  if ((i != primary_rewrite_context_map_.end()) &&
-      (i->second == rewrite_context)) {
-    primary_rewrite_context_map_.erase(i);
+    Clear();
+    resource_manager_->ReleaseRewriteDriver(this);
   }
 }
 
@@ -1267,7 +1134,7 @@ void RewriteDriver::Cleanup() {
       }
     }
     if (done) {
-      resource_manager_->ReleaseRewriteDriver(this);
+      Recycle();
     }
   }
 }
@@ -1275,25 +1142,6 @@ void RewriteDriver::Cleanup() {
 void RewriteDriver::FinishParse() {
   HtmlParse::FinishParse();
   Cleanup();
-}
-
-void RewriteDriver::InfoAt(RewriteContext* context, const char* msg, ...) {
-  va_list args;
-  va_start(args, msg);
-
-  if ((context == NULL) || (context->num_slots() == 0)) {
-    InfoHereV(msg, args);
-  } else {
-    GoogleString new_msg;
-    for (int c = 0; c < context->num_slots(); ++c) {
-      StrAppend(&new_msg, context->slot(c)->LocationString(),
-                ((c == context->num_slots() - 1) ? ": " : " "));
-    }
-    StringAppendV(&new_msg, msg, args);
-    message_handler()->Message(kInfo, "%s", new_msg.c_str());
-  }
-
-  va_end(args);
 }
 
 void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
@@ -1380,7 +1228,6 @@ HtmlResourceSlotPtr RewriteDriver::GetSlot(
 void RewriteDriver::InitiateRewrite(RewriteContext* rewrite_context) {
   rewrites_.push_back(rewrite_context);
   ++pending_rewrites_;
-  ++possibly_quick_rewrites_;
 }
 
 void RewriteDriver::InitiateFetch(RewriteContext* rewrite_context) {
@@ -1395,10 +1242,6 @@ void RewriteDriver::InitiateFetch(RewriteContext* rewrite_context) {
 
 bool RewriteDriver::ShouldNotRewriteImages() const {
   return (options()->botdetect_enabled() && BotChecker::Lookup(user_agent_));
-}
-
-void RewriteDriver::AddRewriteTask(Function* task) {
-  rewrite_worker_->Add(task);
 }
 
 }  // namespace net_instaweb

@@ -52,8 +52,6 @@ HtmlAttributeQuoteRemoval::HtmlAttributeQuoteRemoval(HtmlParse* html_parse)
   }
 }
 
-HtmlAttributeQuoteRemoval::~HtmlAttributeQuoteRemoval() {}
-
 bool HtmlAttributeQuoteRemoval::NeedsQuotes(const char *val) {
   bool needs_quotes = false;
   int i = 0;

@@ -69,16 +69,9 @@ class OutputResource : public Resource {
   // Attempt to obtain a named lock for the resource.  Return true if we do so.
   // If the resource is expensive to create, this lock should be held during
   // its creation to avoid multiple rewrites happening at once.
-  // The lock will be unlocked on destruction, DropCreationLock, or EndWrite
-  // (called from ResourceManager::Write)
+  // The lock will be unlocked on destruction or EndWrite (called from
+  // ResourceManager::Write)
   bool LockForCreation(BlockingBehavior block);
-
-  // Drops the lock created by above, if any.
-  void DropCreationLock();
-
-  // Update the passed in CachedResult from the CachedResult in this
-  // OutputResource.
-  void UpdateCachedResultPreservingInputInfo(CachedResult* to_update) const;
 
   // The NameKey describes the source url and rewriter used, without hash and
   // content type information.  This is used to find previously-computed filter
@@ -255,7 +248,7 @@ class OutputResource : public Resource {
   ResourceNamer full_name_;
 
   // Lock guarding resource creation.  Lazily initialized by LockForCreation,
-  // unlocked on destruction, DropCreationLock or EndWrite.
+  // unlocked on destruction or EndWrite.
   scoped_ptr<AbstractLock> creation_lock_;
 
   // rewrite_options_ is NULL when we are creating an output resource on

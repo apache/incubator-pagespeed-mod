@@ -42,9 +42,7 @@ class SimpleStatsVariable : public Variable {
 };
 
 // Simple name/value pair statistics implementation.
-class SimpleStats : public StatisticsTemplate<SimpleStatsVariable,
-                                              FakeHistogram,
-                                              FakeTimedVariable> {
+class SimpleStats : public StatisticsTemplate<SimpleStatsVariable> {
  public:
   static const int kNotFound;
 
@@ -54,7 +52,6 @@ class SimpleStats : public StatisticsTemplate<SimpleStatsVariable,
  protected:
   virtual SimpleStatsVariable* NewVariable(const StringPiece& name, int index);
 
- private:
   DISALLOW_COPY_AND_ASSIGN(SimpleStats);
 };
 

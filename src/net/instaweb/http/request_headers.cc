@@ -67,7 +67,6 @@ void RequestHeaders::set_method(Method method) {
     case kDelete:      proto_->set_method(HttpRequestHeaders::DELETE);  break;
     case kTrace:       proto_->set_method(HttpRequestHeaders::TRACE);   break;
     case kConnect:     proto_->set_method(HttpRequestHeaders::CONNECT); break;
-    case kError:       proto_->set_method(HttpRequestHeaders::INVALID); break;
   }
 }
 
@@ -81,7 +80,6 @@ RequestHeaders::Method RequestHeaders::method() const {
     case HttpRequestHeaders::DELETE:      return kDelete;
     case HttpRequestHeaders::TRACE:       return kTrace;
     case HttpRequestHeaders::CONNECT:     return kConnect;
-    case HttpRequestHeaders::INVALID:     return kError;
   }
   DCHECK(false) << "Invalid method";
   return kGet;
@@ -97,7 +95,6 @@ const char* RequestHeaders::method_string() const {
     case HttpRequestHeaders::DELETE:      return "DELETE";
     case HttpRequestHeaders::TRACE:       return "TRACE";
     case HttpRequestHeaders::CONNECT:     return "CONNECT";
-    case HttpRequestHeaders::INVALID:     return "ERROR";
   }
   DCHECK(false) << "Invalid method";
   return NULL;
@@ -116,7 +113,7 @@ bool RequestHeaders::WriteAsHttp(
 }
 
 bool RequestHeaders::AcceptsGzip() const {
-  ConstStringStarVector v;
+  StringStarVector v;
   if (Lookup(HttpAttributes::kAcceptEncoding, &v)) {
     for (int i = 0, nv = v.size(); i < nv; ++i) {
       StringPieceVector encodings;

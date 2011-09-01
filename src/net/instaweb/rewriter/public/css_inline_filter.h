@@ -36,7 +36,6 @@ class RewriteDriver;
 class CssInlineFilter : public CommonFilter {
  public:
   explicit CssInlineFilter(RewriteDriver* driver);
-  virtual ~CssInlineFilter();
 
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}

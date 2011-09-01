@@ -25,7 +25,6 @@
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class RewriteContext;
@@ -61,10 +60,6 @@ void FetchResourceSlot::Render() {
   DCHECK(false) << "FetchResourceSlot::Render should never be called";
 }
 
-GoogleString FetchResourceSlot::LocationString() {
-  return StrCat("Fetch of ", resource()->url());
-}
-
 HtmlResourceSlot::~HtmlResourceSlot() {
 }
 
@@ -72,10 +67,8 @@ void HtmlResourceSlot::Render() {
   if (disable_rendering()) {
     return;  // nothing done here.
   } else if (should_delete_element()) {
-    if (element_ != NULL) {
-      html_parse_->DeleteElement(element_);
-      element_ = NULL;
-    }
+    DCHECK(element_ != NULL);
+    html_parse_->DeleteElement(element_);
   } else {
     DCHECK(attribute_ != NULL);
     if (attribute_ != NULL) {
@@ -83,16 +76,6 @@ void HtmlResourceSlot::Render() {
       // Note, for inserting image-dimensions, we will likely have
       // to subclass or augment HtmlResourceSlot.
     }
-  }
-}
-
-GoogleString HtmlResourceSlot::LocationString() {
-  if (begin_line_number_ == end_line_number_) {
-    return StrCat(html_parse_->id(), ":", IntegerToString(begin_line_number_));
-  } else {
-    return StrCat(html_parse_->id(), ":",
-                  IntegerToString(begin_line_number_),
-                  "-", IntegerToString(end_line_number_));
   }
 }
 

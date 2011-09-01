@@ -34,7 +34,6 @@ class HtmlParse;
 class ElideAttributesFilter : public EmptyHtmlFilter {
  public:
   explicit ElideAttributesFilter(HtmlParse* html_parse);
-  virtual ~ElideAttributesFilter();
 
   virtual void StartElement(HtmlElement* element);
   virtual const char* Name() const { return "ElideAttributes"; }

@@ -107,8 +107,7 @@ MemFileSystem::MemFileSystem(MockTimer* timer)
       timer_(timer),
       temp_file_index_(0),
       atime_enabled_(true),
-      advance_time_on_update_(false),
-      num_failed_locks_(0) {
+      advance_time_on_update_(false) {
   ClearStats();
 }
 
@@ -261,7 +260,6 @@ bool MemFileSystem::Atime(const StringPiece& path, int64* timestamp_sec,
 
 bool MemFileSystem::Mtime(const StringPiece& path, int64* timestamp_sec,
                           MessageHandler* handler) {
-  ++num_input_file_stats_;
   *timestamp_sec = mtime_map_[path.as_string()];
   return true;
 }
@@ -282,7 +280,6 @@ BoolOrError MemFileSystem::TryLock(const StringPiece& lock_name,
                                    MessageHandler* handler) {
   // Not actually threadsafe!  This is just for tests.
   if (lock_map_.count(lock_name.as_string()) != 0) {
-    ++num_failed_locks_;
     return BoolOrError(false);
   } else {
     lock_map_[lock_name.as_string()] = timer_->NowMs();
@@ -299,7 +296,6 @@ BoolOrError MemFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
   int64 now = timer_->NowMs();
   if (lock_map_.count(name) != 0 &&
       now <= lock_map_[name] + timeout_ms) {
-    ++num_failed_locks_;
     return BoolOrError(false);
   } else {
     lock_map_[name] = timer_->NowMs();

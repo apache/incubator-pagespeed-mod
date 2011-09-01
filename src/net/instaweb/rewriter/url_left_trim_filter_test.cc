@@ -19,9 +19,9 @@
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
@@ -31,55 +31,45 @@ namespace net_instaweb {
 
 class UrlLeftTrimFilterTest : public ResourceManagerTestBase {
  protected:
-  virtual void SetUp() {
-    ResourceManagerTestBase::SetUp();
-    left_trim_filter_.reset(new UrlLeftTrimFilter(rewrite_driver(),
-                                                  statistics()));
-    rewrite_driver()->AddFilter(left_trim_filter_.get());
+  UrlLeftTrimFilterTest()
+      : left_trim_filter_(rewrite_driver(), statistics()),
+        base_url_(NULL) {
+    rewrite_driver()->AddFilter(&left_trim_filter_);
   }
 
-  // Must set base url to "http://www.example.com/dir/*something*"
-  // before running these.
-  void TestAnchors(const StringPiece& base_url) {
-    SetFilterBaseUrl(base_url);
-    OneTrim(true, "http://www.example.com/dir/?var=val#anchor",
-            "/dir/?var=val#anchor");
-    OneTrim(true, "http://www.example.com/dir/#anchor", "/dir/#anchor");
-    OneTrim(true, "http://www.example.com/dir/foo.html", "foo.html");
-    OneTrim(true, "http://www.example.com/dir/abc/f?g=h", "abc/f?g=h");
-    OneTrim(true, "http://www.example.com/dir/f?g=h#anchor",
-            "f?g=h#anchor");
-    OneTrim(true, "http://www.example.com/dir/index.html#",
-            "index.html#");
-    OneTrim(true, "http://www.example.com/dir/index.html?f=g#bottom",
-            "index.html?f=g#bottom");
-    OneTrim(true, "http://www.example.com/dir/index.html?f=g#bottom",
-            "index.html?f=g#bottom");
-    OneTrim(false, "#top", "");
+  ~UrlLeftTrimFilterTest() {
+    delete base_url_;
   }
 
   void OneTrim(bool changed,
                const StringPiece& init, const StringPiece& expected) {
     StringPiece url(init);
     GoogleString trimmed;
-    CHECK(base_url_.get() != NULL);
-    EXPECT_EQ(changed, left_trim_filter_->Trim(
-        *base_url_.get(), url, &trimmed,
+    CHECK(base_url_ != NULL);
+    EXPECT_EQ(changed, left_trim_filter_.Trim(
+        *base_url_, url, &trimmed,
         rewrite_driver()->message_handler()));
     if (changed) {
-      EXPECT_STREQ(expected, trimmed);
+      EXPECT_EQ(expected, trimmed) <<
+          "\nExpected: " << expected <<
+          "\nSaw     : " << trimmed;
     }
   }
 
   void SetFilterBaseUrl(const StringPiece& base_url) {
-    base_url_.reset(new GoogleUrl(base_url));
+    if (base_url_ != NULL) {
+      delete base_url_;
+    }
+    base_url_ = new GoogleUrl(base_url);
   }
 
   virtual bool AddBody() const { return false; }
 
  private:
-  scoped_ptr<UrlLeftTrimFilter> left_trim_filter_;
-  scoped_ptr<GoogleUrl> base_url_;
+  UrlLeftTrimFilter left_trim_filter_;
+  GoogleUrl *base_url_;
+
+  DISALLOW_COPY_AND_ASSIGN(UrlLeftTrimFilterTest);
 };
 
 static const char kBase[] = "http://foo.bar/baz/";
@@ -317,15 +307,6 @@ static const char kRelativeBaseRewritten[] =
 
 TEST_F(UrlLeftTrimFilterTest, RelativeBase) {
   ValidateExpected("wiki", kRelativeBase, kRelativeBaseRewritten);
-}
-
-
-TEST_F(UrlLeftTrimFilterTest, Anchors) {
-  TestAnchors("http://www.example.com/dir/?var=val");
-  TestAnchors("http://www.example.com/dir/index.html");
-  TestAnchors("http://www.example.com/dir/index.html#top");
-  TestAnchors("http://www.example.com/dir/index.html?f=g");
-  TestAnchors("http://www.example.com/dir/index.html?f=g&y=z#bottom");
 }
 
 }  // namespace net_instaweb

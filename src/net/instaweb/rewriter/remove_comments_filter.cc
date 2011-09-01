@@ -24,8 +24,6 @@
 
 namespace net_instaweb {
 
-RemoveCommentsFilter::~RemoveCommentsFilter() {}
-
 void RemoveCommentsFilter::Comment(HtmlCommentNode* comment) {
   if ((rewrite_options_ == NULL) ||
       !rewrite_options_->IsRetainedComment(comment->contents())) {

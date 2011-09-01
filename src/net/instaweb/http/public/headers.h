@@ -55,11 +55,7 @@ template<class Proto> class Headers {
   // around this problem by moving the Map to an explicit separate class that
   // can be instantiated to assist with Lookups and Remove.  But that should
   // be done in a separate CL from the one I'm typing into now.
-  bool Lookup(const StringPiece& name, ConstStringStarVector* values) const;
-
-  // Looks up a single attribute value.  Returns NULL if the attribute is
-  // not found, or if more than one attribute is found.
-  const char* Lookup1(const StringPiece& name) const;
+  bool Lookup(const StringPiece& name, StringStarVector* values) const;
 
   // Likewise, NumAttributeNames is const but not thread-safe.
   int NumAttributeNames() const;

@@ -58,11 +58,6 @@ void CssResourceSlot::Render() {
   }
 }
 
-GoogleString CssResourceSlot::LocationString() {
-  // TODO(morlovich): Improve quality of this diagnostic.
-  return "Inside CSS";
-}
-
 void CssResourceSlot::EnableTrim(const GoogleUrl& base_url) {
   trim_base_.reset(new GoogleUrl);
   trim_base_->Reset(base_url);
@@ -82,11 +77,6 @@ CssResourceSlotPtr CssResourceSlotFactory::GetSlot(
   CssResourceSlot* slot_obj =
       new CssResourceSlot(resource, values, value_index);
   CssResourceSlotPtr slot(slot_obj);
-  return UniquifySlot(slot);
-}
-
-CssResourceSlotPtr CssResourceSlotFactory::UniquifySlot(
-    CssResourceSlotPtr slot) {
   std::pair<SlotSet::iterator, bool> iter_found = slots_.insert(slot);
   if (!iter_found.second) {
     // The slot was already in the set.  Release the one we just

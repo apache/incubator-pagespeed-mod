@@ -40,7 +40,6 @@ class Variable;
 class DomainRewriteFilter : public CommonFilter {
  public:
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  ~DomainRewriteFilter();
   static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element);

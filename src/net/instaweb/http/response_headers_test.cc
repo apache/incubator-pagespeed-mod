@@ -43,7 +43,7 @@ class ResponseHeadersTest : public testing::Test {
     EXPECT_EQ(0, response_headers.minor_version());
     EXPECT_EQ(GoogleString("OK"),
               GoogleString(response_headers.reason_phrase()));
-    ConstStringStarVector values;
+    StringStarVector values;
     EXPECT_TRUE(response_headers.Lookup("X-Google-Experiment", &values));
     EXPECT_EQ(GoogleString("23729,24249,24253"), *(values[0]));
     EXPECT_TRUE(response_headers.Lookup(HttpAttributes::kSetCookie, &values));
@@ -194,29 +194,6 @@ TEST_F(ResponseHeadersTest, TestCachingNeedDate) {
   EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
 }
 
-// Make sure we deal correctly when we have no Date or Cache-Control headers.
-TEST_F(ResponseHeadersTest, TestNoHeaders) {
-  ParseHeaders("HTTP/1.0 200 OK\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsCacheable());
-  EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
-}
-
-// Corner case, bug noticed when we have Content-Type, but no Date header.
-TEST_F(ResponseHeadersTest, TestNoContentTypeNoDate) {
-  ParseHeaders("HTTP/1.0 200 OK\r\n"
-               "Content-Type: text/css\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsCacheable());
-  EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
-}
-
-TEST_F(ResponseHeadersTest, TestNoContentTypeCacheNoDate) {
-  ParseHeaders("HTTP/1.0 200 OK\r\n"
-               "Content-Type: text/css\r\n"
-               "Cache-Control: max-age=301\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsCacheable());
-  EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
-}
-
 TEST_F(ResponseHeadersTest, TestCachingPublic) {
   // In this test we'll leave the explicit "public" flag in to make sure
   // we can parse it.
@@ -316,7 +293,7 @@ TEST_F(ResponseHeadersTest, TestSetDate) {
   response_headers_.SetStatusAndReason(HttpStatus::kOK);
   response_headers_.SetDate(MockTimer::kApr_5_2010_ms);
   response_headers_.Add(HttpAttributes::kCacheControl, "max-age=100");
-  ConstStringStarVector date;
+  StringStarVector date;
   ASSERT_TRUE(response_headers_.Lookup("Date", &date));
   EXPECT_EQ(1, date.size());
   response_headers_.ComputeCaching();
@@ -367,11 +344,11 @@ TEST_F(ResponseHeadersTest, TestUpdateFrom) {
   old_headers.UpdateFrom(new_headers);
 
   // Make sure in memory map is updated.
-  ConstStringStarVector date_strings;
+  StringStarVector date_strings;
   EXPECT_TRUE(old_headers.Lookup("Date", &date_strings));
   EXPECT_EQ(1, date_strings.size());
   EXPECT_EQ("Fri, 22 Apr 2011 19:49:59 GMT", *date_strings[0]);
-  ConstStringStarVector set_cookie_strings;
+  StringStarVector set_cookie_strings;
   EXPECT_TRUE(old_headers.Lookup("Set-Cookie", &set_cookie_strings));
   EXPECT_EQ(8, old_headers.NumAttributeNames());
 
@@ -413,7 +390,7 @@ TEST_F(ResponseHeadersTest, TestReserializingCommaValues) {
       "\r\n";
   response_headers_.Clear();
   ParseHeaders(comma_headers);
-  ConstStringStarVector values;
+  StringStarVector values;
   response_headers_.Lookup(HttpAttributes::kVary, &values);
   EXPECT_EQ(2, values.size());
   EXPECT_EQ(comma_headers, response_headers_.ToString());
@@ -429,7 +406,7 @@ TEST_F(ResponseHeadersTest, TestGzipped) {
       "\r\n";
   response_headers_.Clear();
   ParseHeaders(comma_headers);
-  ConstStringStarVector values;
+  StringStarVector values;
   response_headers_.Lookup(HttpAttributes::kContentEncoding, &values);
   EXPECT_EQ(2, values.size());
   EXPECT_TRUE(response_headers_.IsGzipped());
@@ -446,7 +423,7 @@ TEST_F(ResponseHeadersTest, TestGzippedNotLast) {
       "\r\n";
   response_headers_.Clear();
   ParseHeaders(comma_headers);
-  ConstStringStarVector values;
+  StringStarVector values;
   response_headers_.Lookup(HttpAttributes::kContentEncoding, &values);
   EXPECT_EQ(2, values.size());
   EXPECT_TRUE(response_headers_.IsGzipped());
@@ -473,23 +450,4 @@ TEST_F(ResponseHeadersTest, TestRemove) {
   response_headers_.Remove(HttpAttributes::kContentEncoding, "chunked");
   EXPECT_EQ(headers_removed, response_headers_.ToString());
 }
-
-TEST_F(ResponseHeadersTest, TestParseFirstLineOk) {
-  response_headers_.ParseFirstLine("HTTP/1.0 200 OK");
-  EXPECT_EQ(1, response_headers_.major_version());
-  EXPECT_EQ(0, response_headers_.minor_version());
-  EXPECT_EQ(200, response_headers_.status_code());
-  EXPECT_EQ(GoogleString("OK"),
-            GoogleString(response_headers_.reason_phrase()));
-}
-
-TEST_F(ResponseHeadersTest, TestParseFirstLinePermanentRedirect) {
-  response_headers_.ParseFirstLine("HTTP/1.1 301 Moved Permanently");
-  EXPECT_EQ(1, response_headers_.major_version());
-  EXPECT_EQ(1, response_headers_.minor_version());
-  EXPECT_EQ(301, response_headers_.status_code());
-  EXPECT_EQ(GoogleString("Moved Permanently"),
-            GoogleString(response_headers_.reason_phrase()));
-}
-
 }  // namespace net_instaweb

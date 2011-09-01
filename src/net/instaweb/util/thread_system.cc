@@ -18,7 +18,6 @@
 
 #include "net/instaweb/util/public/thread_system.h"
 
-#include "net/instaweb/util/public/checking_thread_system.h"
 #include "net/instaweb/util/public/pthread_thread_system.h"
 
 namespace net_instaweb {
@@ -33,12 +32,7 @@ ThreadSystem::ThreadImpl::~ThreadImpl() {
 }
 
 ThreadSystem* ThreadSystem::CreateThreadSystem() {
-  ThreadSystem* impl = new PthreadThreadSystem;
-#ifdef NDEBUG
-  return impl;
-#else
-  return new CheckingThreadSystem(impl);
-#endif
+  return new PthreadThreadSystem;
 }
 
 }  // namespace net_instaweb

@@ -446,13 +446,6 @@ class ResourceManagerTest : public ResourceManagerTestBase {
     return StrCat("http://", host, "/dir/123/", escaped_abs,
                   ".pagespeed.jm.0.js");
   }
-
-  // Accessor for ResourceManager field; also cleans up
-  // deferred_release_rewrite_drivers_.
-  void EnableRewriteDriverCleanupMode(bool s) {
-    resource_manager()->trying_to_cleanup_rewrite_drivers_ = s;
-    resource_manager()->deferred_release_rewrite_drivers_.clear();
-  }
 };
 
 TEST_F(ResourceManagerTest, TestNamed) {
@@ -585,7 +578,7 @@ TEST_F(ResourceManagerTest, TestRemember404) {
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
+  EXPECT_EQ(HTTPCache::kRecentFetchFailedDoNotRefetch,
             http_cache()->Find("http://example.com/404", &value_out,
                                &headers_out, message_handler()));
 }
@@ -610,7 +603,7 @@ TEST_F(ResourceManagerTest, TestNonCacheable) {
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
+  EXPECT_EQ(HTTPCache::kRecentFetchFailedDoNotRefetch,
             http_cache()->Find("http://example.com/", &value_out, &headers_out,
                                message_handler()));
 }
@@ -624,7 +617,6 @@ TEST_F(ResourceManagerTest, TestVaryOption) {
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &no_cache);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kAcceptEncoding);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kUserAgent);
-  no_cache.ComputeCaching();
   SetFetchResponse("http://example.com/", no_cache, kContents);
 
   ResourcePtr resource(CreateResource("http://example.com/", "/"));
@@ -633,11 +625,10 @@ TEST_F(ResourceManagerTest, TestVaryOption) {
   VerifyContentsCallback callback(resource, kContents);
   rewrite_driver()->ReadAsync(&callback, message_handler());
   callback.AssertCalled();
-  EXPECT_FALSE(resource->IsValidAndCacheable());
 
   HTTPValue valueOut;
   ResponseHeaders headersOut;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
+  EXPECT_EQ(HTTPCache::kRecentFetchFailedDoNotRefetch,
             http_cache()->Find("http://example.com/", &valueOut, &headersOut,
                                message_handler()));
 }
@@ -941,35 +932,6 @@ TEST_F(ResourceManagerShardedTest, TestNamed) {
   // also be covered in a system test.
   EXPECT_EQ("http://shard0.com/dir/orig.js.pagespeed.jm.0.js",
             output_resource->url());
-}
-
-TEST_F(ResourceManagerTest, TestMergeNonCachingResponseHeaders) {
-  ResponseHeaders input, output;
-  input.Add("X-Extra-Header", "Extra Value");  // should be copied to output
-  input.Add(HttpAttributes::kCacheControl, "max-age=300");  // should not be
-  resource_manager()->MergeNonCachingResponseHeaders(input, &output);
-  ConstStringStarVector v;
-  EXPECT_FALSE(output.Lookup(HttpAttributes::kCacheControl, &v));
-  ASSERT_TRUE(output.Lookup("X-Extra-Header", &v));
-  ASSERT_EQ(1, v.size());
-  EXPECT_EQ("Extra Value", *v[0]);
-}
-
-TEST_F(ResourceManagerTest, ShutDownAssumptions) {
-  // The code in ResourceManager::ShutDownWorkers assumes that some potential
-  // interleaving of operations are safe. Since they are pretty unlikely
-  // in practice, this test exercises them.
-  RewriteDriver* driver = resource_manager()->NewRewriteDriver();
-  EnableRewriteDriverCleanupMode(true);
-  driver->WaitForCompletion();
-  driver->WaitForCompletion();
-  driver->Cleanup();
-  driver->Cleanup();
-  driver->WaitForCompletion();
-
-  EnableRewriteDriverCleanupMode(false);
-  // Should actually clean it up this time.
-  driver->Cleanup();
 }
 
 }  // namespace net_instaweb

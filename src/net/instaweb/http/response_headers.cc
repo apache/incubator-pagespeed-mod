@@ -210,9 +210,13 @@ void ResponseHeaders::SetTimeHeader(const StringPiece& header, int64 time_ms) {
   }
 }
 
-bool ResponseHeaders::VaryCacheable() const {
+bool ResponseHeaders::VaryCacheable() {
+  // Recompute whether or not we can cache the resource with these headers.
+  if (cache_fields_dirty_) {
+    ComputeCaching();
+  }
   if (IsCacheable()) {
-    ConstStringStarVector values;
+    StringStarVector values;
     Lookup(HttpAttributes::kVary, &values);
     bool vary_uncacheable = false;
     for (int i = 0, n = values.size(); i < n; ++i) {
@@ -236,12 +240,12 @@ void ResponseHeaders::ComputeCaching() {
   }
   resource.SetResponseStatusCode(proto_->status_code());
 
-  ConstStringStarVector values;
+  StringStarVector values;
   int64 date;
-  bool has_date = ParseDateHeader(HttpAttributes::kDate, &date);
   // Compute the timestamp if we can find it
-  if (has_date) {
-    proto_->set_fetch_time_ms(date);
+  if (Lookup(HttpAttributes::kDate, &values) && (values.size() == 1) &&
+      ConvertStringToTime(*(values[0]), &date)) {
+      proto_->set_fetch_time_ms(date);
   }
 
   // TODO(jmarantz): Should we consider as cacheable a resource
@@ -263,17 +267,15 @@ void ResponseHeaders::ComputeCaching() {
   // that fact that a fetch failed for a resource, and we don't want
   // to try again until some time has passed.
   bool status_cacheable =
-      ((status_code() ==
-        HttpStatus::kRememberFetchFailedOrNotCacheableStatusCode) ||
+      ((status_code() == HttpStatus::kRememberNotFoundStatusCode) ||
        pagespeed::resource_util::IsCacheableResourceStatusCode(status_code()));
   int64 freshness_lifetime_ms;
   bool explicit_cacheable =
       pagespeed::resource_util::GetFreshnessLifetimeMillis(
           resource, &freshness_lifetime_ms) && has_fetch_time_ms();
 
-  proto_->set_cacheable(has_date &&
-                        !explicit_no_cache &&
-                        (explicit_cacheable || likely_static) &&
+  proto_->set_cacheable(!explicit_no_cache &&
+                       (explicit_cacheable || likely_static) &&
                         status_cacheable);
   if (proto_->cacheable()) {
     // TODO(jmarantz): check "Age" resource and use that to reduce
@@ -337,7 +339,7 @@ bool ResponseHeaders::ParseTime(const char* time_str, int64* time_ms) {
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html
 // See Section 3.5
 bool ResponseHeaders::IsGzipped() const {
-  ConstStringStarVector v;
+  StringStarVector v;
   bool found = Lookup(HttpAttributes::kContentEncoding, &v);
   if (found) {
     for (int i = 0, n = v.size(); i < n; ++i) {
@@ -350,7 +352,7 @@ bool ResponseHeaders::IsGzipped() const {
 }
 
 bool ResponseHeaders::WasGzippedLast() const {
-  ConstStringStarVector v;
+  StringStarVector v;
   bool found = Lookup(HttpAttributes::kContentEncoding, &v);
   if (found) {
     int index = v.size() - 1;
@@ -364,8 +366,9 @@ bool ResponseHeaders::WasGzippedLast() const {
 
 bool ResponseHeaders::ParseDateHeader(
     const StringPiece& attr, int64* date_ms) const {
-  const char* date_string = Lookup1(attr);
-  return (date_string != NULL) && ConvertStringToTime(date_string, date_ms);
+  StringStarVector values;
+  return (Lookup(attr, &values) && (values.size() == 1) &&
+          (values[0] != NULL) && ConvertStringToTime(*(values[0]), date_ms));
 }
 
 void ResponseHeaders::UpdateDateHeader(const StringPiece& attr, int64 date_ms) {
@@ -382,7 +385,7 @@ void ResponseHeaders::ParseFirstLine(const StringPiece& first_line) {
   // We reserve enough to avoid buffer overflow on sscanf command.
   GoogleString reason_phrase(first_line.size(), '\0');
   char* reason_phrase_cstr = &reason_phrase[0];
-  if (4 == sscanf(first_line.as_string().c_str(), "HTTP/%d.%d %d %[^\n\t]s",
+  if (4 == sscanf(first_line.as_string().c_str(), "HTTP/%d.%d %d %s",
                   &major_version, &minor_version, &status,
                   reason_phrase_cstr)) {
     set_first_line(major_version, minor_version, status, reason_phrase_cstr);
@@ -414,11 +417,6 @@ void ResponseHeaders::DebugPrint() const {
     fprintf(stderr, "proxy_cacheable_ = %s\n",
             BoolToString(proto_->proxy_cacheable()));
   }
-}
-
-bool ResponseHeaders::FindContentLength(int64* content_length) {
-  const char* val = Lookup1(HttpAttributes::kContentLength);
-  return (val != NULL) && StringToInt64(val, content_length);
 }
 
 }  // namespace net_instaweb

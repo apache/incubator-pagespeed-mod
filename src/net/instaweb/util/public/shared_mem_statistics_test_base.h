@@ -23,7 +23,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/shared_mem_test_base.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class SharedMemStatistics;
@@ -40,22 +39,19 @@ class SharedMemStatisticsTestBase : public testing::Test {
   void TestSet();
   void TestClear();
   void TestAdd();
-  void TestHistogram();
-  void TestHistogramRender();
-  void TestTimedVariableEmulation();
 
  private:
+  typedef SharedMemTestEnv::MethodCallback<SharedMemStatisticsTestBase>
+      MethodCallback;
+
   void TestCreateChild();
   void TestSetChild();
   void TestClearChild();
 
   // Adds 10x +1 to variable 1, and 10x +2 to variable 2.
   void TestAddChild();
+
   bool AddVars(SharedMemStatistics* stats);
-  bool AddHistograms(SharedMemStatistics* stats);
-  // Helper function for TestHistogramRender().
-  // Check if string html contains the pattern.
-  bool Contains(const StringPiece& html, const StringPiece& pattern);
 
   SharedMemStatistics* ChildInit();
   SharedMemStatistics* ParentInit();
@@ -93,21 +89,8 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestAdd) {
   SharedMemStatisticsTestBase::TestAdd();
 }
 
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogram) {
-  SharedMemStatisticsTestBase::TestHistogram();
-}
-
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogramRender) {
-  SharedMemStatisticsTestBase::TestHistogramRender();
-}
-
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
-  SharedMemStatisticsTestBase::TestTimedVariableEmulation();
-}
-
 REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
-                           TestSet, TestClear, TestAdd, TestHistogram,
-                           TestHistogramRender, TestTimedVariableEmulation);
+                           TestSet, TestClear, TestAdd);
 
 }  // namespace net_instaweb
 

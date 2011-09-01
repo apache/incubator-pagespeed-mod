@@ -16,11 +16,9 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 
-#include <algorithm>
 #include <map>
 #include <set>
 #include <utility>
-
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -61,7 +59,6 @@ const int64 RewriteOptions::kDefaultImageInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultJsInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
 const int64 RewriteOptions::kDefaultJsOutlineMinBytes = 3000;
-const int64 RewriteOptions::kDefaultCacheInvalidationTimestamp = -1;
 
 // Limit on concurrent ongoing image rewrites.
 // TODO(jmaessen): Determine a sane default for this value.
@@ -121,8 +118,7 @@ RewriteOptions::RewriteOptions()
       log_rewrite_timing_(false),
       lowercase_html_names_(false),
       always_rewrite_css_(false),
-      respect_vary_(false),
-      cache_invalidation_timestamp_(kDefaultCacheInvalidationTimestamp) {
+      respect_vary_(false) {
   // TODO(jmarantz): If we instantiate many RewriteOptions, this should become a
   // public static method called once at startup.
   SetUp();
@@ -139,10 +135,8 @@ void RewriteOptions::SetUp() {
   name_filter_map_["combine_javascript"] = kCombineJavascript;
   name_filter_map_["combine_heads"] = kCombineHeads;
   name_filter_map_["convert_jpeg_to_webp"] = kConvertJpegToWebp;
-  name_filter_map_["div_structure"] = kDivStructure;
   name_filter_map_["elide_attributes"] = kElideAttributes;
   name_filter_map_["extend_cache"] = kExtendCache;
-  name_filter_map_["flush_html"] = kFlushHtml;
   name_filter_map_["inline_css"] = kInlineCss;
   name_filter_map_["inline_images"] = kInlineImages;
   name_filter_map_["inline_javascript"] = kInlineJavascript;
@@ -199,7 +193,6 @@ void RewriteOptions::SetUp() {
   // ... and add possibly unsafe filters.
   // TODO(jmarantz): Migrate these over to CoreFilters.
   level_filter_set_map_[kTestingCoreFilters].insert(kConvertJpegToWebp);
-  level_filter_set_map_[kTestingCoreFilters].insert(kFlushHtml);
   level_filter_set_map_[kTestingCoreFilters].insert(kMakeGoogleAnalyticsAsync);
   level_filter_set_map_[kTestingCoreFilters].insert(kRewriteDomains);
 
@@ -345,19 +338,6 @@ void RewriteOptions::Merge(const RewriteOptions& first,
                             second.always_rewrite_css_);
   respect_vary_.Merge(first.respect_vary_,
                       second.respect_vary_);
-
-  // Pick the larger of the two cache invalidation timestamps. Following
-  // calculation assumes the default value of cache invalidation timestamp
-  // to be -1.
-  if (first.cache_invalidation_timestamp_.value() !=
-      RewriteOptions::kDefaultCacheInvalidationTimestamp ||
-      second.cache_invalidation_timestamp_.value() !=
-          RewriteOptions::kDefaultCacheInvalidationTimestamp) {
-    cache_invalidation_timestamp_.set(
-        std::max(first.cache_invalidation_timestamp_.value(),
-                 second.cache_invalidation_timestamp_.value()));
-  }
-
   // Note that the domain-lawyer merge works one-at-a-time, which is easier
   // to unit test.  So we have to call it twice.
   domain_lawyer_.Merge(first.domain_lawyer_);
