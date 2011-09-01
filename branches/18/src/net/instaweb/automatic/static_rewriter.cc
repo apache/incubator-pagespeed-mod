@@ -80,9 +80,6 @@ class FileRewriter : public net_instaweb::RewriteDriverFactory {
   virtual net_instaweb::AbstractMutex* rewrite_drivers_mutex() {
     return &rewrite_drivers_mutex_;
   }
-  virtual net_instaweb::ThreadSystem* DefaultThreadSystem() {
-    return new net_instaweb::PthreadThreadSystem;
-  }
   virtual net_instaweb::Statistics* statistics() {
     return &simple_stats_;
   }
