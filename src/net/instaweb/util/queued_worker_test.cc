@@ -39,29 +39,24 @@ class QueuedWorkerTest: public WorkerTestBase {
   DISALLOW_COPY_AND_ASSIGN(QueuedWorkerTest);
 };
 
-// A closure that enqueues a new version of itself 'count' times, and
-// finally schedules the running of the sync-point.
+// A closure that enqueues a new version of itself 'count' times.
 class ChainedTask : public Function {
  public:
-  ChainedTask(int* count, QueuedWorker* worker, WorkerTestBase::SyncPoint* sync)
+  ChainedTask(int* count, QueuedWorker* worker)
       : count_(count),
-        worker_(worker),
-        sync_(sync) {
+        worker_(worker) {
   }
 
   virtual void Run() {
     --*count_;
     if (*count_ > 0) {
-      worker_->RunInWorkThread(new ChainedTask(count_, worker_, sync_));
-    } else {
-      worker_->RunInWorkThread(new WorkerTestBase::NotifyRunFunction(sync_));
+      worker_->RunInWorkThread(new ChainedTask(count_, worker_));
     }
   }
 
  private:
   int* count_;
   QueuedWorker* worker_;
-  WorkerTestBase::SyncPoint* sync_;
 
   DISALLOW_COPY_AND_ASSIGN(ChainedTask);
 };
@@ -85,11 +80,12 @@ TEST_F(QueuedWorkerTest, BasicOperation) {
 TEST_F(QueuedWorkerTest, ChainedTasks) {
   // The ChainedTask closure ensures that there is always a task
   // queued until we've executed all 11 tasks in the chain, at which
-  // point the 'notify' function fires and we can complete the test.
+  // point the 'idle' callback fires and we can complete the test.
   int count = 11;
   SyncPoint sync(thread_runtime_.get());
+  worker_->set_idle_callback(new NotifyRunFunction(&sync));
   ASSERT_TRUE(worker_->Start());
-  worker_->RunInWorkThread(new ChainedTask(&count, worker_.get(), &sync));
+  worker_->RunInWorkThread(new ChainedTask(&count, worker_.get()));
   sync.Wait();
   EXPECT_EQ(0, count);
 }

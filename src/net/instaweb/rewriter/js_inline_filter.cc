@@ -93,6 +93,7 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
     CHECK(attr != NULL);
     const char* src = attr->value();
     DCHECK(src != NULL);
+    should_inline_ = false;
 
     // TODO(morlovich): Consider async/defer here; it may not be a good
     // idea to inline async scripts in particular.
@@ -113,7 +114,6 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
       }
     }
   }
-  should_inline_ = false;
 }
 
 bool JsInlineFilter::ShouldInline(const StringPiece& contents) const {
@@ -162,11 +162,9 @@ void JsInlineFilter::RenderInline(
 
 void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
   if (should_inline_) {
-    HtmlElement* script_element = characters->parent();
-    DCHECK(script_element != NULL);
-    DCHECK_EQ(HtmlName::kScript, script_element->keyword());
-    if (driver_->IsRewritable(script_element) &&
-        OnlyWhitespace(characters->contents())) {
+    DCHECK(characters->parent() != NULL);
+    DCHECK(characters->parent()->keyword() == HtmlName::kScript);
+    if (OnlyWhitespace(characters->contents())) {
       // If it's just whitespace inside the script tag, it's (probably) safe to
       // just remove it.
       driver_->DeleteElement(characters);

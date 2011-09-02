@@ -24,7 +24,6 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/pool.h"
 #include "net/instaweb/util/public/pool_element.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_pollable_async_fetcher.h"
 
@@ -34,6 +33,7 @@ struct apr_thread_mutex_t;
 
 namespace net_instaweb {
 
+class AprMutex;
 class Statistics;
 class SerfFetch;
 class SerfThreadedFetcher;
@@ -49,26 +49,14 @@ struct SerfStats {
   static const char kSerfFetchTimeoutCount[];
 };
 
-// TODO(sligocki): Serf does not seem to act appropriately in IPv6
-// environments, fix and test this.
-// Specifically:
-//   (1) It does not attempt to fall-back to IPv4 if IPv6 connection fails;
-//   (2) It may not correctly signal failure, which causes the incoming
-//       connection to hang.
 class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
  public:
   SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
-                      ThreadSystem* thread_system,
                       Statistics* statistics, Timer* timer, int64 timeout_ms);
   SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent, const char* proxy);
   virtual ~SerfUrlAsyncFetcher();
-
-  // Stops all active fetches and prevents further fetches from starting
-  // (they will instead quickly call back to ->Done(false).
-  virtual void ShutDown();
-
   static void Initialize(Statistics* statistics);
-  virtual bool StreamingFetch(const GoogleString& url,
+  virtual bool StreamingFetch(const std::string& url,
                               const RequestHeaders& request_headers,
                               ResponseHeaders* response_headers,
                               Writer* fetched_content_writer,
@@ -95,27 +83,12 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
 
   void PrintActiveFetches(MessageHandler* handler) const;
   virtual int64 timeout_ms() { return timeout_ms_; }
-  ThreadSystem* thread_system() { return thread_system_; }
-
-  // By default, the Serf fetcher will call
-  // UrlAsyncFetcher::Callback::EnableThreaded() to determine whether
-  // a particular URL fetch should be executed in the fetcher thread.
-  //
-  // Setting this variable causes the fetches to be threaded independent
-  // of the value of UrlAsyncFetcher::Callback::EnableThreaded().
-  void set_force_threaded(bool x) { force_threaded_ = x; }
 
  protected:
   typedef Pool<SerfFetch> SerfFetchPool;
 
   void Init(apr_pool_t* parent_pool, const char* proxy);
   bool SetupProxy(const char* proxy);
-
-  // Start a SerfFetch. Takes ownership of fetch and makes sure callback is
-  // called even if fetch fails to start.
-  //
-  // mutex_ must be held before calling StartFetch.
-  bool StartFetch(SerfFetch* fetch);
 
   // AnyPendingFetches is accurate only at the time of call; this is
   // used conservatively during shutdown.  It counts fetches that have been
@@ -125,9 +98,7 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   // ApproximateNumActiveFetches can under- or over-count and is used only for
   // error reporting.
   int ApproximateNumActiveFetches();
-
   void CancelActiveFetches();
-  void CancelActiveFetchesMutexHeld();
   bool WaitForActiveFetchesHelper(int64 max_ms,
                                   MessageHandler* message_handler);
 
@@ -136,16 +107,11 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   // Must be called with mutex_ held.
   void CleanupFetchesWithErrors();
 
-  // These must be accessed with mutex_ held.
-  bool shutdown() const { return shutdown_; }
-  void set_shutdown(bool s) { shutdown_ = s; }
-
   apr_pool_t* pool_;
-  ThreadSystem* thread_system_;
   Timer* timer_;
 
   // mutex_ protects serf_context_ and active_fetches_.
-  ThreadSystem::CondvarCapableMutex* mutex_;
+  AprMutex* mutex_;
   serf_context_t* serf_context_;
   SerfFetchPool active_fetches_;
 
@@ -164,8 +130,6 @@ class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   Variable* cancel_count_;
   Variable* timeout_count_;
   const int64 timeout_ms_;
-  bool force_threaded_;
-  bool shutdown_;
 
   DISALLOW_COPY_AND_ASSIGN(SerfUrlAsyncFetcher);
 };

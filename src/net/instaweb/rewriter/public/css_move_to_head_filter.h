@@ -32,7 +32,6 @@ class Variable;
 class CssMoveToHeadFilter : public EmptyHtmlFilter {
  public:
   CssMoveToHeadFilter(HtmlParse* html_parse, Statistics* statistics);
-  virtual ~CssMoveToHeadFilter();
 
   static void Initialize(Statistics* statistics);
   virtual void StartDocument();

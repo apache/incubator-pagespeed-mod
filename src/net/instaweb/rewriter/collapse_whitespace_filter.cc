@@ -54,8 +54,6 @@ CollapseWhitespaceFilter::CollapseWhitespaceFilter(HtmlParse* html_parse)
   }
 }
 
-CollapseWhitespaceFilter::~CollapseWhitespaceFilter() {}
-
 void CollapseWhitespaceFilter::StartDocument() {
   keyword_stack_.clear();
 }

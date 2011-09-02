@@ -34,8 +34,8 @@
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/simple_stats.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/serf/src/serf.h"
 
 namespace net_instaweb {
 
@@ -47,16 +47,9 @@ const int kWaitTimeoutMs = 5 * 1000;
 const int kTimerAdvanceMs = 10;
 const int kFetcherTimeoutMs = 5 * 1000;
 
-const int kModpagespeedSite = 0;  // TODO(matterbury): These should be an enum?
-const int kGoogleFavicon = 1;
-const int kGoogleLogo = 2;
-const int kSteveSoudersCgi = 3;
-const int kModpagespeedBeacon = 4;
-const int kHttpsGoogleFavicon = 5;
-
 class SerfTestCallback : public UrlAsyncFetcher::Callback {
  public:
-  explicit SerfTestCallback(AbstractMutex* mutex, const GoogleString& url)
+  explicit SerfTestCallback(AprMutex* mutex, const std::string& url)
       : done_(false),
         mutex_(mutex),
         url_(url),
@@ -81,35 +74,12 @@ class SerfTestCallback : public UrlAsyncFetcher::Callback {
   bool success() const { return success_; }
  private:
   bool done_;
-  AbstractMutex* mutex_;
-  GoogleString url_;
+  AprMutex* mutex_;
+  std::string url_;
   bool enable_threaded_;
   bool success_;
 
   DISALLOW_COPY_AND_ASSIGN(SerfTestCallback);
-};
-
-class CheckedWriter : public Writer {
- public:
-  // Takes ownership of writer passed in.
-  CheckedWriter(Writer* writer)
-      : writer_(writer),
-        first_(true) {
-  }
-
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
-    first_ = false;
-    return writer_->Write(str, handler);
-  }
-
-  virtual bool Flush(MessageHandler* handler) {
-    CHECK(!first_) << "Flush called before Write()";
-    return writer_->Flush(handler);
-  }
-
- private:
-  scoped_ptr<Writer> writer_;
-  bool first_;
 };
 
 }  // namespace
@@ -128,19 +98,16 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     apr_pool_create(&pool_, NULL);
     timer_.reset(new MockTimer(MockTimer::kApr_5_2010_ms));
     SerfUrlAsyncFetcher::Initialize(&statistics_);
-    thread_system_.reset(ThreadSystem::CreateThreadSystem());
     serf_url_async_fetcher_.reset(
-        new SerfUrlAsyncFetcher(kProxy, pool_, thread_system_.get(),
-                                &statistics_, timer_.get(), kFetcherTimeoutMs));
-    mutex_.reset(thread_system_->NewMutex());
+        new SerfUrlAsyncFetcher(kProxy, pool_, &statistics_,
+                                timer_.get(), kFetcherTimeoutMs));
+    mutex_ = new AprMutex(pool_);
     AddTestUrl("http://www.modpagespeed.com/", "<!doctype html>");
     AddTestUrl("http://www.google.com/favicon.ico",
-               GoogleString("\000\000\001\000", 4));
+               std::string("\000\000\001\000", 4));
     AddTestUrl("http://www.google.com/intl/en_ALL/images/logo.gif", "GIF");
     AddTestUrl("http://stevesouders.com/bin/resource.cgi?type=js&sleep=10",
                "var");
-    AddTestUrl("http://modpagespeed.com/mod_pagespeed_beacon", "");
-    AddTestUrl("https://www.google.com/favicon.ico", GoogleString());
     prev_done_count = 0;
   }
 
@@ -153,22 +120,23 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     STLDeleteElements(&contents_);
     STLDeleteElements(&writers_);
     STLDeleteElements(&callbacks_);
+    delete mutex_;
     apr_pool_destroy(pool_);
   }
 
-  void AddTestUrl(const GoogleString& url,
-                  const GoogleString& content_start) {
+  void AddTestUrl(const std::string& url,
+                  const std::string& content_start) {
     urls_.push_back(url);
     content_starts_.push_back(content_start);
     request_headers_.push_back(new RequestHeaders);
     response_headers_.push_back(new ResponseHeaders);
-    contents_.push_back(new GoogleString);
-    writers_.push_back(new CheckedWriter(new StringWriter(contents_.back())));
-    callbacks_.push_back(new SerfTestCallback(mutex_.get(), url));
+    contents_.push_back(new std::string);
+    writers_.push_back(new StringWriter(contents_.back()));
+    callbacks_.push_back(new SerfTestCallback(mutex_, url));
   }
 
-  void StartFetches(size_t first, size_t last, bool enable_threaded) {
-    for (size_t idx = first; idx <= last; ++idx) {
+  void StartFetches(size_t begin, size_t end, bool enable_threaded) {
+    for (size_t idx = begin; idx < end; ++idx) {
       SerfTestCallback* callback = callbacks_[idx];
       callback->set_enable_threaded(enable_threaded);
       serf_url_async_fetcher_->StreamingFetch(
@@ -182,9 +150,9 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
         ->Get();
   }
 
-  int CountCompletedFetches(size_t first, size_t last) {
+  int CountCompletedFetches(size_t begin, size_t end) {
     int completed = 0;
-    for (size_t idx = first; idx <= last; ++idx) {
+    for (size_t idx = begin; idx < end; ++idx) {
       if (callbacks_[idx]->IsDone()) {
         ++completed;
       }
@@ -192,17 +160,11 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     return completed;
   }
 
-  void ValidateFetches(size_t first, size_t last) {
-    for (size_t idx = first; idx <= last; ++idx) {
+  void ValidateFetches(size_t begin, size_t end) {
+    for (size_t idx = begin; idx < end; ++idx) {
       ASSERT_TRUE(callbacks_[idx]->IsDone());
-      if (content_starts_[idx].empty()) {
-        EXPECT_TRUE(contents_[idx]->empty());
-        EXPECT_EQ(HttpStatus::kNoContent,
-                  response_headers_[idx]->status_code());
-      } else {
-        EXPECT_LT(static_cast<size_t>(0), contents_[idx]->size());
-        EXPECT_EQ(HttpStatus::kOK, response_headers_[idx]->status_code());
-      }
+      EXPECT_LT(static_cast<size_t>(0), contents_[idx]->size());
+      EXPECT_EQ(200, response_headers_[idx]->status_code());
       EXPECT_EQ(content_starts_[idx],
                 contents_[idx]->substr(0, content_starts_[idx].size()));
     }
@@ -213,7 +175,7 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     usleep(1);
   }
 
-  int WaitTillDone(size_t first, size_t last, int64 delay_ms) {
+  int WaitTillDone(size_t begin, size_t end, int64 delay_ms) {
     AprTimer timer;
     bool done = false;
     int64 now_ms = timer.NowMs();
@@ -227,35 +189,35 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
       YieldToThread();
       serf_url_async_fetcher_->Poll(to_wait_ms);
       done_count = 0;
-      for (size_t idx = first; idx <= last; ++idx) {
+      for (size_t idx = begin; idx < end; ++idx) {
         if (callbacks_[idx]->IsDone()) {
           ++done_count;
         }
       }
       if (done_count != prev_done_count) {
         prev_done_count = done_count;
-        done = (done_count == (last - first + 1));
+        done = (done_count == (end - begin));
       }
       now_ms = timer.NowMs();
     }
     return done_count;
   }
 
-  int TestFetch(size_t first, size_t last) {
-    StartFetches(first, last, false);
+  int TestFetch(size_t begin, size_t end) {
+    StartFetches(begin, end, false);
     timer_->AdvanceMs(kTimerAdvanceMs);
-    int done = WaitTillDone(first, last, kMaxMs);
-    ValidateFetches(first, last);
-    return (done == (last - first + 1));
+    int done = WaitTillDone(begin, end, kMaxMs);
+    ValidateFetches(begin, end);
+    return (done == (end - begin));
   }
 
   apr_pool_t* pool_;
-  std::vector<GoogleString> urls_;
-  std::vector<GoogleString> content_starts_;
+  std::vector<std::string> urls_;
+  std::vector<std::string> content_starts_;
   std::vector<RequestHeaders*> request_headers_;
   std::vector<ResponseHeaders*> response_headers_;
-  std::vector<GoogleString*> contents_;
-  std::vector<Writer*> writers_;
+  std::vector<std::string*> contents_;
+  std::vector<StringWriter*> writers_;
   std::vector<SerfTestCallback*> callbacks_;
   // The fetcher to be tested.
   scoped_ptr<SerfUrlAsyncFetcher> serf_url_async_fetcher_;
@@ -263,16 +225,15 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
   SimpleStats statistics_;  // TODO(jmarantz): make this thread-safe
   GoogleMessageHandler message_handler_;
   size_t prev_done_count;
-  scoped_ptr<AbstractMutex> mutex_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  AprMutex* mutex_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SerfUrlAsyncFetcherTest);
 };
 
 TEST_F(SerfUrlAsyncFetcherTest, FetchOneURL) {
-  EXPECT_TRUE(TestFetch(kModpagespeedSite, kModpagespeedSite));
-  EXPECT_FALSE(response_headers_[kModpagespeedSite]->IsGzipped());
+  EXPECT_TRUE(TestFetch(0, 1));
+  EXPECT_FALSE(response_headers_[0]->IsGzipped());
   int request_count =
       statistics_.GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
   EXPECT_EQ(1, request_count);
@@ -287,30 +248,29 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURL) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
-  request_headers_[kModpagespeedSite]->Add(HttpAttributes::kAcceptEncoding,
-                                           HttpAttributes::kGzip);
-  StartFetches(kModpagespeedSite, kModpagespeedSite, false);
+  request_headers_[0]->Add(HttpAttributes::kAcceptEncoding,
+                           HttpAttributes::kGzip);
+  StartFetches(0, 1, false);
   EXPECT_EQ(1, ActiveFetches());
-  ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite, kMaxMs));
-  ASSERT_TRUE(callbacks_[kModpagespeedSite]->IsDone());
-  EXPECT_LT(static_cast<size_t>(0), contents_[kModpagespeedSite]->size());
-  EXPECT_EQ(200, response_headers_[kModpagespeedSite]->status_code());
-  ASSERT_TRUE(response_headers_[kModpagespeedSite]->IsGzipped());
+  ASSERT_EQ(1, WaitTillDone(0, 1, kMaxMs));
+  ASSERT_TRUE(callbacks_[0]->IsDone());
+  EXPECT_LT(static_cast<size_t>(0), contents_[0]->size());
+  EXPECT_EQ(200, response_headers_[0]->status_code());
+  ASSERT_TRUE(response_headers_[0]->IsGzipped());
 
   GzipInflater inflater(GzipInflater::kGzip);
   ASSERT_TRUE(inflater.Init());
-  ASSERT_TRUE(inflater.SetInput(contents_[kModpagespeedSite]->data(),
-                                contents_[kModpagespeedSite]->size()));
+  ASSERT_TRUE(inflater.SetInput(contents_[0]->data(), contents_[0]->size()));
   ASSERT_TRUE(inflater.HasUnconsumedInput());
-  int size = content_starts_[kModpagespeedSite].size();
+  int size = content_starts_[0].size();
   scoped_array<char> buf(new char[size]);
   ASSERT_EQ(size, inflater.InflateBytes(buf.get(), size));
-  EXPECT_EQ(content_starts_[kModpagespeedSite], GoogleString(buf.get(), size));
+  EXPECT_EQ(content_starts_[0], GoogleString(buf.get(), size));
   EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
-  EXPECT_TRUE(TestFetch(kGoogleFavicon, kGoogleLogo));
+  EXPECT_TRUE(TestFetch(1, 3));
   int request_count =
       statistics_.GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
   EXPECT_EQ(2, request_count);
@@ -326,21 +286,21 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestCancelThreeThreaded) {
-  StartFetches(kModpagespeedSite, kGoogleLogo, true);
+  StartFetches(0, 3, true);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestCancelOneThreadedTwoSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, true);
-  StartFetches(kGoogleFavicon, kGoogleLogo, false);
+  StartFetches(0, 1, true);
+  StartFetches(1, 3, false);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestCancelTwoThreadedOneSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, false),
-  StartFetches(kGoogleFavicon, kGoogleLogo, true);
+  StartFetches(0, 1, false),
+  StartFetches(1, 3, true);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitThreeThreaded) {
-  StartFetches(kModpagespeedSite, kGoogleLogo, true);
+  StartFetches(0, 3, true);
   serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedOnly);
@@ -348,11 +308,11 @@ TEST_F(SerfUrlAsyncFetcherTest, TestWaitThreeThreaded) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, true);
+  StartFetches(0, 1, true);
   serf_url_async_fetcher_->WaitForActiveFetches(
       10 /* milliseconds */, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedOnly);
-  StartFetches(kGoogleFavicon, kGoogleLogo, true);
+  StartFetches(1, 3, true);
 
   // In this test case, we are not going to call the explicit threaded
   // wait function, WaitForActiveFetches.  We have initiated async
@@ -365,11 +325,9 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   const int kPollsPerSecond = 1000000 / kPollTimeUs;
   const int kMaxIters = kMaxSeconds * kPollsPerSecond;
   int completed = 0;
-  for (int i = kModpagespeedSite;
-       (completed <= kGoogleLogo) && (i < kMaxIters);
-       ++i) {
+  for (int i = 0; (completed < 3) && (i < kMaxIters); ++i) {
     usleep(kPollTimeUs);
-    completed = CountCompletedFetches(kModpagespeedSite, kGoogleLogo);
+    completed = CountCompletedFetches(0, 3);
   }
 
   // TODO(jmarantz): I have seen this test fail; then pass when it was
@@ -385,13 +343,13 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   // to do.  Maybe a little more than 5 seconds is now needed to complete 3
   // async fetches.
   ASSERT_EQ(3, completed) << "Async fetches times out before completing";
-  ValidateFetches(kModpagespeedSite, kGoogleLogo);
+  ValidateFetches(0, 3);
   EXPECT_EQ(0, ActiveFetches());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitOneThreadedTwoSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, true);
-  StartFetches(kGoogleFavicon, kGoogleLogo, false);
+  StartFetches(0, 1, true);
+  StartFetches(1, 3, false);
   serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedAndMainline);
@@ -399,8 +357,8 @@ TEST_F(SerfUrlAsyncFetcherTest, TestWaitOneThreadedTwoSync) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitTwoThreadedOneSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, false),
-  StartFetches(kGoogleFavicon, kGoogleLogo, true);
+  StartFetches(0, 1, false),
+  StartFetches(1, 3, true);
   serf_url_async_fetcher_->WaitForActiveFetches(
       kWaitTimeoutMs, &message_handler_,
       SerfUrlAsyncFetcher::kThreadedAndMainline);
@@ -408,60 +366,42 @@ TEST_F(SerfUrlAsyncFetcherTest, TestWaitTwoThreadedOneSync) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreaded) {
-  StartFetches(kModpagespeedSite, kGoogleLogo, true);
+  StartFetches(0, 3, true);
   int done = 0;
-  done = WaitTillDone(kModpagespeedSite, kGoogleLogo, kMaxMs);
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
-  ValidateFetches(kModpagespeedSite, kGoogleLogo);
+  ValidateFetches(0, 3);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestOneThreadedTwoSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, true);
-  StartFetches(kGoogleFavicon, kGoogleLogo, false);
+  StartFetches(0, 1, true);
+  StartFetches(1, 3, false);
   int done = 0;
-  done = WaitTillDone(kModpagespeedSite, kGoogleLogo, kMaxMs);
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
-  ValidateFetches(kModpagespeedSite, kGoogleLogo);
+  ValidateFetches(0, 3);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestTwoThreadedOneSync) {
-  StartFetches(kModpagespeedSite, kModpagespeedSite, false);
-  StartFetches(kGoogleFavicon, kGoogleLogo, true);
+  StartFetches(0, 1, false);
+  StartFetches(1, 3, true);
   int done = 0;
-  done = WaitTillDone(kModpagespeedSite, kGoogleLogo, kMaxMs);
+  done = WaitTillDone(0, 3, kMaxMs);
   EXPECT_EQ(3, done);
-  ValidateFetches(kModpagespeedSite, kGoogleLogo);
+  ValidateFetches(0, 3);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestTimeout) {
-  StartFetches(kSteveSoudersCgi, kSteveSoudersCgi, false);
+  StartFetches(3, 4, false);
   int timeouts =
       statistics_.GetVariable(SerfStats::kSerfFetchTimeoutCount)->Get();
-  ASSERT_EQ(0, WaitTillDone(kSteveSoudersCgi, kSteveSoudersCgi,
-                            kThreadedPollMs));
+  ASSERT_EQ(0, WaitTillDone(3, 4, kThreadedPollMs));
   timer_->AdvanceMs(2 * kFetcherTimeoutMs);
-  ASSERT_EQ(1, WaitTillDone(kSteveSoudersCgi, kSteveSoudersCgi,
-                            kThreadedPollMs));
-  ASSERT_TRUE(callbacks_[kSteveSoudersCgi]->IsDone());
-  EXPECT_FALSE(callbacks_[kSteveSoudersCgi]->success());
+  ASSERT_EQ(1, WaitTillDone(3, 4, kThreadedPollMs));
+  ASSERT_TRUE(callbacks_[3]->IsDone());
+  EXPECT_FALSE(callbacks_[3]->success());
   EXPECT_EQ(timeouts + 1,
             statistics_.GetVariable(SerfStats::kSerfFetchTimeoutCount)->Get());
-}
-
-TEST_F(SerfUrlAsyncFetcherTest, Test204) {
-  TestFetch(kModpagespeedBeacon, kModpagespeedBeacon);
-  EXPECT_EQ(HttpStatus::kNoContent,
-            response_headers_[kModpagespeedBeacon]->status_code());
-}
-
-TEST_F(SerfUrlAsyncFetcherTest, TestHttpsFails) {
-  StartFetches(kHttpsGoogleFavicon, kHttpsGoogleFavicon, false);
-  timer_->AdvanceMs(kTimerAdvanceMs);
-  ASSERT_EQ(WaitTillDone(kHttpsGoogleFavicon, kHttpsGoogleFavicon, kMaxMs), 1);
-  ASSERT_TRUE(callbacks_[kHttpsGoogleFavicon]->IsDone());
-  ASSERT_TRUE(content_starts_[kHttpsGoogleFavicon].empty());
-  EXPECT_TRUE(contents_[kHttpsGoogleFavicon]->empty());
-  EXPECT_EQ(0, response_headers_[kHttpsGoogleFavicon]->status_code());
 }
 
 }  // namespace net_instaweb

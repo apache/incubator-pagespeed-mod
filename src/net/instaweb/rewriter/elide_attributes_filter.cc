@@ -228,8 +228,6 @@ ElideAttributesFilter::ElideAttributesFilter(HtmlParse* html_parse)
   }
 }
 
-ElideAttributesFilter::~ElideAttributesFilter() {}
-
 void ElideAttributesFilter::StartElement(HtmlElement* element) {
   const DocType& doctype = html_parse_->doctype();
 

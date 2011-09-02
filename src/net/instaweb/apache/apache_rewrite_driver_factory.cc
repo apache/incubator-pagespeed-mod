@@ -15,7 +15,6 @@
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 
 #include "apr_pools.h"
-#include "httpd.h"
 
 #include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apache_thread_system.h"
@@ -28,13 +27,8 @@
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#ifndef NDEBUG
-#include "net/instaweb/util/public/checking_thread_system.h"
-#endif
 #include "net/instaweb/util/public/file_cache.h"
 #include "net/instaweb/util/public/gflags.h"
-#include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/hashed_referer_statistics.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/pthread_shared_mem.h"
@@ -43,60 +37,22 @@
 #include "net/instaweb/util/public/slow_worker.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/write_through_cache.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-namespace {
-
-const size_t kRefererStatisticsNumberOfPages = 1024;
-const size_t kRefererStatisticsAverageUrlLength = 64;
-
-}  // namespace
 
 SharedMemOwnerMap* ApacheRewriteDriverFactory::lock_manager_owners_ = NULL;
 RefCountedOwner<SlowWorker>::Family
     ApacheRewriteDriverFactory::slow_worker_family_;
 
-bool ApacheRewriteDriverFactory::ParseRefererStatisticsOutputLevel(
-    const StringPiece& in, RefererStatisticsOutputLevel* out) {
-  bool ret = false;
-  if (in != NULL) {
-    if (StringCaseEqual(in, "Fast")) {
-      *out = kFast;
-       ret = true;
-    } else if (StringCaseEqual(in, "Simple")) {
-      *out = kSimple;
-       ret = true;
-    } else if (StringCaseEqual(in, "Organized")) {
-      *out = kOrganized;
-       ret = true;
-    }
-  }
-  return ret;
-}
-
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
-    : RewriteDriverFactory(
-#ifdef NDEBUG
-        new ApacheThreadSystem
-#else
-        new CheckingThreadSystem(new ApacheThreadSystem)
-#endif
-                           ),
+    : RewriteDriverFactory(new ApacheThreadSystem),
       server_rec_(server),
       serf_url_fetcher_(NULL),
       serf_url_async_fetcher_(NULL),
       shared_mem_statistics_(NULL),
       shared_mem_runtime_(new PthreadSharedMem()),
-      shared_circular_buffer_(NULL),
       slow_worker_(&slow_worker_family_),
-      collect_referer_statistics_(false),
-      hash_referer_statistics_(false),
-      referer_statistics_output_level_(kOrganized),
-      message_buffer_size_(100000),  // 100k bytes
       lru_cache_kb_per_process_(0),
       lru_cache_byte_limit_(0),
       file_cache_clean_interval_ms_(Timer::kHourMs),
@@ -109,15 +65,7 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
       owns_statistics_(false),
       test_proxy_(false),
       is_root_process_(true),
-      shared_mem_referer_statistics_(NULL),
       use_shared_mem_locking_(false),
-      hostname_identifier_(StrCat(server->server_hostname,
-                                  ":",
-                                  IntegerToString(server->port))),
-      apache_message_handler_(new ApacheMessageHandler(
-          server_rec_, version_, timer())),
-      apache_html_parse_message_handler_(new ApacheMessageHandler(
-          server_rec_, version_, timer())),
       shared_mem_lock_manager_lifecycler_(
           this,
           &ApacheRewriteDriverFactory::CreateSharedMemLockManager,
@@ -127,11 +75,6 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
 
   // In Apache, we default to using the "core filters".
   options()->SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  // Make sure the ownership of apache_message_handler_ and
-  // apache_html_parse_message_handler_ is given to scoped pointer.
-  // Otherwise may result in leak error in test.
-  message_handler();
-  html_parse_message_handler();
 }
 
 ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
@@ -173,11 +116,11 @@ Timer* ApacheRewriteDriverFactory::DefaultTimer() {
 }
 
 MessageHandler* ApacheRewriteDriverFactory::DefaultHtmlParseMessageHandler() {
-  return apache_html_parse_message_handler_;
+  return new ApacheMessageHandler(server_rec_, version_);
 }
 
 MessageHandler* ApacheRewriteDriverFactory::DefaultMessageHandler() {
-  return apache_message_handler_;
+  return new ApacheMessageHandler(server_rec_, version_);
 }
 
 bool ApacheRewriteDriverFactory::set_file_cache_path(const StringPiece& p) {
@@ -248,7 +191,7 @@ UrlFetcher* ApacheRewriteDriverFactory::DefaultUrlFetcher() {
 UrlAsyncFetcher* ApacheRewriteDriverFactory::DefaultAsyncUrlFetcher() {
   if (serf_url_async_fetcher_ == NULL) {
     serf_url_async_fetcher_ = new SerfUrlAsyncFetcher(
-        fetcher_proxy_.c_str(), pool_, thread_system(), statistics(), timer(),
+        fetcher_proxy_.c_str(), pool_, statistics(), timer(),
         fetcher_time_out_ms_);
   }
   return serf_url_async_fetcher_;
@@ -272,66 +215,7 @@ Statistics* ApacheRewriteDriverFactory::statistics() {
   return shared_mem_statistics_;
 }
 
-void ApacheRewriteDriverFactory::SharedCircularBufferInit(bool is_root) {
-  // Set buffer size to 0 means turning it off
-  if (shared_mem_runtime() != NULL && message_buffer_size_ != 0) {
-    shared_circular_buffer_.reset(new SharedCircularBuffer(
-        shared_mem_runtime(),
-        message_buffer_size_,
-        filename_prefix().as_string(),
-        hostname_identifier()));
-    shared_circular_buffer_->InitSegment(is_root, message_handler());
-    apache_message_handler_->set_buffer(shared_circular_buffer_.get());
-    apache_html_parse_message_handler_->set_buffer(
-        shared_circular_buffer_.get());
-  }
-}
-
-void ApacheRewriteDriverFactory::SharedMemRefererStatisticsInit(bool is_root) {
-  if (shared_mem_runtime_ != NULL && collect_referer_statistics_) {
-    if (hash_referer_statistics_) {
-      // By making the hashes equal roughly to half the expected url length,
-      // entries corresponding to referrals in the
-      // shared_mem_referer_statistics_ map will be roughly the expected size
-      //   The size of the hash might be capped, so we check for this and cap
-      // expected average url length if necessary.
-      //
-      // hostname_identifier() is passed in as a suffix so that the shared
-      // memory segments for different v-hosts have unique identifiers, keeping
-      // the statistics separate.
-      Hasher* hasher =
-          new MD5Hasher(kRefererStatisticsAverageUrlLength / 2);
-      size_t referer_statistics_average_expected_url_length_ =
-          2 * hasher->HashSizeInChars();
-      shared_mem_referer_statistics_.reset(new HashedRefererStatistics(
-          kRefererStatisticsNumberOfPages,
-          referer_statistics_average_expected_url_length_,
-          shared_mem_runtime(),
-          filename_prefix().as_string(),
-          hostname_identifier(),
-          hasher));
-    } else {
-      shared_mem_referer_statistics_.reset(new SharedMemRefererStatistics(
-          kRefererStatisticsNumberOfPages,
-          kRefererStatisticsAverageUrlLength,
-          shared_mem_runtime(),
-          filename_prefix().as_string(),
-          hostname_identifier()));
-    }
-    if (!shared_mem_referer_statistics_->InitSegment(is_root,
-                                                     message_handler())) {
-      shared_mem_referer_statistics_.reset(NULL);
-    }
-  }
-}
-
-void ApacheRewriteDriverFactory::ParentOrChildInit() {
-  SharedCircularBufferInit(is_root_process_);
-  SharedMemRefererStatisticsInit(is_root_process_);
-}
-
 void ApacheRewriteDriverFactory::RootInit() {
-  ParentOrChildInit();
   if (use_shared_mem_locking_) {
     shared_mem_lock_manager_lifecycler_.RootInit();
   }
@@ -339,16 +223,11 @@ void ApacheRewriteDriverFactory::RootInit() {
 
 void ApacheRewriteDriverFactory::ChildInit() {
   is_root_process_ = false;
-  ParentOrChildInit();
-  // Reinitialize pid for child process.
-  apache_message_handler_->SetPidString(static_cast<int64>(getpid()));
-  apache_html_parse_message_handler_->SetPidString(
-      static_cast<int64>(getpid()));
   if (!slow_worker_.Attach()) {
     slow_worker_.Initialize(new SlowWorker(thread_system()));
   }
   if (shared_mem_statistics_ != NULL) {
-    shared_mem_statistics_->Init(false, message_handler());
+    shared_mem_statistics_->InitVariables(false, message_handler());
   }
   if (use_shared_mem_locking_) {
     shared_mem_lock_manager_lifecycler_.ChildInit();
@@ -366,68 +245,17 @@ void ApacheRewriteDriverFactory::ResourceManagerCreatedHook() {
   }
 }
 
-void ApacheRewriteDriverFactory::DumpRefererStatistics(Writer* writer) {
-  // Note: Referer statistics are only displayed for within the same v-host
-  MessageHandler* handler = message_handler();
-  if (shared_mem_referer_statistics_ == NULL) {
-    writer->Write("mod_pagespeed referer statistics either had an error or "
-                  "are not enabled.", handler);
-  } else {
-    switch (referer_statistics_output_level_) {
-      case kFast:
-        shared_mem_referer_statistics_->DumpFast(writer, handler);
-        break;
-      case kSimple:
-        shared_mem_referer_statistics_->DumpSimple(writer, handler);
-        break;
-      case kOrganized:
-        shared_mem_referer_statistics_->DumpOrganized(writer, handler);
-        break;
-    }
-  }
-}
-
 void ApacheRewriteDriverFactory::ShutDown() {
-  // Make sure we stop cache writes before turning off the fetcher, so any
-  // requests it cancels will not result in RememberFetchFailedOrNotCacheable
-  // entries getting written out to disk cache.
-  //
-  // Note that we have to be careful not to try creating it now, since it
-  // may involve access to worker initialization.
-  if (http_cache_created()) {
-    http_cache()->SetReadOnly();
-  }
-
-  // Similarly stop metadata cache writes.
-  if (resource_manager_created()) {
-    ComputeResourceManager()->set_metadata_cache_readonly();
-  }
-
-  // Next, we shutdown the fetcher before killing the workers in
-  // RewriteDriverFactory::ShutDown; this is so any rewrite jobs in progress
-  // can quickly wrap up.
   if (serf_url_async_fetcher_ != NULL) {
-    serf_url_async_fetcher_->ShutDown();
+    serf_url_async_fetcher_->WaitForActiveFetches(
+        fetcher_time_out_ms_, message_handler(),
+        SerfUrlAsyncFetcher::kThreadedAndMainline);
   }
-
   if (is_root_process_) {
-    // Cleanup statistics.
-    // TODO(morlovich): This looks dangerous with async.
     if (owns_statistics_ && (shared_mem_statistics_ != NULL)) {
       shared_mem_statistics_->GlobalCleanup(message_handler());
     }
     shared_mem_lock_manager_lifecycler_.GlobalCleanup(message_handler());
-    // Cleanup SharedCircularBuffer.
-    // Use GoogleMessageHandler instead of ApacheMessageHandler.
-    // As we are cleaning SharedCircularBuffer, we do not want to write to its
-    // buffer and passing ApacheMessageHandler here may cause infinite loop.
-    GoogleMessageHandler handler;
-    if (shared_circular_buffer_ != NULL) {
-        shared_circular_buffer_->GlobalCleanup(&handler);
-      // Reset SharedCircularBuffer to NULL as precaution.
-        apache_message_handler_->set_buffer(NULL);
-        apache_html_parse_message_handler_->set_buffer(NULL);
-    }
   }
   RewriteDriverFactory::ShutDown();
 }

@@ -25,15 +25,20 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/condvar.h"
 #include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/thread.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "net/instaweb/util/public/waveform.h"
 
 namespace net_instaweb {
+
+void Worker::RunIdleCallback() {
+  if (idle_callback_.get() != NULL) {
+    idle_callback_->Run();
+  }
+}
 
 // The actual thread that does the work.
 class Worker::WorkThread : public ThreadSystem::Thread {
@@ -46,41 +51,46 @@ class Worker::WorkThread : public ThreadSystem::Thread {
       current_task_(NULL),
       exit_(false),
       started_(false) {
-    quit_requested_.set_value(false);
   }
 
-  // If worker thread exit is requested, returns NULL.  Returns next
-  // pending task, also setting it in current_task_ otherwise.  Takes
-  // care of synchronization, including waiting for next state change.
-  Function* GetNextTask() {
+  // If worker thread exit is requested, returns false.
+  // Returns true and fetches next task into current_task_ otherwise.
+  // Takes care of synchronization, including waiting for next state change.
+  bool WaitForNextTask() {
     ScopedMutex lock(mutex_.get());
 
+    bool was_running = (current_task_ != NULL);
+
     // Clean any task we were running last iteration
+    delete current_task_;
     current_task_ = NULL;
 
     while (!exit_ && tasks_.empty()) {
+      if (was_running) {
+        was_running = false;
+        owner_->RunIdleCallback();
+      }
       state_change_->Wait();
     }
 
     // Handle exit.
     if (exit_) {
-      return NULL;
+      if (was_running && tasks_.empty()) {
+        owner_->RunIdleCallback();
+      }
+      return false;
     }
 
     // Get task.
     current_task_ = tasks_.front();
     tasks_.pop_front();
-    owner_->UpdateQueueSizeStat(-1);
-
-    return current_task_;
+    return true;
   }
 
   virtual void Run() {
-    Function* task;
-    while ((task = GetNextTask()) != NULL) {
+    while (WaitForNextTask()) {
       // Run tasks (not holding the lock, so new tasks can be added).
-      task->set_quit_requested_pointer(&quit_requested_);
-      task->CallRun();
+      current_task_->Run();
     }
   }
 
@@ -94,19 +104,13 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
       exit_ = true;
       if (current_task_ != NULL) {
-        quit_requested_.set_value(true);
+        current_task_->set_quit_requested(true);
       }
       state_change_->Signal();
     }
 
     Join();
-    int delta = tasks_.size();
-    owner_->UpdateQueueSizeStat(-delta);
-    while (!tasks_.empty()) {
-      Function* closure = tasks_.front();
-      tasks_.pop_front();
-      closure->CallCancel();
-    }
+    STLDeleteElements(&tasks_);
     started_ = false;  // Reject further jobs on explicit shutdown.
   }
 
@@ -124,14 +128,13 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
   bool QueueIfPermitted(Function* closure) {
     if (!started_) {
-      closure->CallCancel();
+      delete closure;
       return true;
     }
 
     ScopedMutex lock(mutex_.get());
     if (owner_->IsPermitted(closure)) {
       tasks_.push_back(closure);
-      owner_->UpdateQueueSizeStat(1);
       if (current_task_ == NULL) {  // wake the thread up if it's idle.
         state_change_->Signal();
       }
@@ -165,14 +168,11 @@ class Worker::WorkThread : public ThreadSystem::Thread {
   std::deque<Function*> tasks_;  // things waiting to be run.
   bool exit_;
   bool started_;
-  AtomicBool quit_requested_;
 
   DISALLOW_COPY_AND_ASSIGN(WorkThread);
 };
 
-Worker::Worker(ThreadSystem* runtime)
-    : thread_(new WorkThread(this, runtime)),
-      queue_size_(NULL) {
+Worker::Worker(ThreadSystem* runtime) : thread_(new WorkThread(this, runtime)) {
 }
 
 Worker::~Worker() {
@@ -202,12 +202,5 @@ int Worker::NumJobs() {
 void Worker::ShutDown() {
   thread_->ShutDown();
 }
-
-void Worker::UpdateQueueSizeStat(int value) {
-  if (queue_size_ != NULL) {
-    queue_size_->AddDelta(value);
-  }
-}
-
 
 }  // namespace net_instaweb

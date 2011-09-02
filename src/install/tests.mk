@@ -23,7 +23,7 @@
 # Want |& support; and /bin/sh doesn't provide it at least on Ubuntu 11.04
 SHELL=/bin/bash
 
-# Make conf + log file locations accessible to apache_system_test.sh
+# Make conf + log file locations accessible to system_test.sh
 export APACHE_DEBUG_PAGESPEED_CONF
 export APACHE_LOG
 
@@ -33,7 +33,6 @@ apache_system_tests :
 	$(MAKE) apache_debug_rewrite_test
 	$(MAKE) apache_debug_proxy_test
 	$(MAKE) apache_debug_slurp_test
-	$(MAKE) apache_debug_serf_empty_header_test
 	$(MAKE) apache_debug_speling_test
 	$(MAKE) apache_debug_vhost_only_test
 	$(MAKE) apache_debug_global_off_test
@@ -62,10 +61,8 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	rm -rf $(PAGESPEED_ROOT)/cache
 	$(APACHE_CTRL_BIN) start
 	$(INSTALL_DATA_DIR)/system_test.sh $(APACHE_SERVER)
-	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER)
 	@echo '***' System-test with warm cache
 	$(INSTALL_DATA_DIR)/system_test.sh $(APACHE_SERVER)
-	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER)
 	@echo '***' System-test With statistics off
 	mv $(APACHE_DEBUG_PAGESPEED_CONF) $(APACHE_DEBUG_PAGESPEED_CONF).save
 	sed -e "s/# ModPagespeedStatistics off/ModPagespeedStatistics off/" \
@@ -75,7 +72,6 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	-$(APACHE_CTRL_BIN) restart
 	sleep 2
 	$(INSTALL_DATA_DIR)/system_test.sh $(APACHE_SERVER)
-	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER)
 	mv $(APACHE_DEBUG_PAGESPEED_CONF).save $(APACHE_DEBUG_PAGESPEED_CONF)
 	grep ModPagespeedStatistics $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) apache_debug_stop
@@ -84,7 +80,7 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 apache_debug_rewrite_test : rewrite_test_prepare apache_install_conf apache_debug_restart
 	sleep 2
 	$(WGET) -q -O - --save-headers $(EXAMPLE_IMAGE) \
-	  | head -13 | grep "Content-Type: image/jpeg"
+	  | head -12 | grep "Content-Type: image/jpeg"
 	$(WGET) -q -O - $(APACHE_SERVER)/mod_pagespeed_statistics \
 	  | grep cache_hits
 	$(WGET) -q -O - $(APACHE_SERVER)/shortcut.html \
@@ -118,19 +114,6 @@ apache_debug_vhost_only_test:
 	$(MAKE) apache_debug_restart
 	$(WGET) -O /dev/null --save-headers $(EXAMPLE) 2>&1 \
 	  | head | grep "HTTP request sent, awaiting response... 200 OK"
-
-# Regression test for serf fetching something with an empty header.
-# We use a slurp-serving server to produce that.
-EMPTY_HEADER_URL=http://www.modpagespeed.com/empty_header.html
-apache_debug_serf_empty_header_test:
-	$(MAKE) apache_install_conf \
-	  OPT_COVERAGE_TRACE_TEST=COVERAGE_TRACE_TEST=1 \
-	  OPT_STRESS_TEST=STRESS_TEST=1 \
-	  SLURP_DIR=$(PWD)/$(INSTALL_DATA_DIR)/mod_pagespeed_test/slurp
-	$(MAKE) apache_debug_restart
-	# Make sure we can fetch a URL with empty header correctly..
-	$(WGET_PROXY) $(EMPTY_HEADER_URL) > /dev/null
-
 
 # Test to make sure we don't crash due to uninitialized statistics if we
 # are off by default but turned on in some place.

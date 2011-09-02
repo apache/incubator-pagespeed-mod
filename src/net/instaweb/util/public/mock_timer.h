@@ -55,9 +55,7 @@ class MockTimer : public Timer {
     // alarms, the order in which the Alarm was added.
     int Compare(const Alarm* that) const;
 
-    Function* closure() { return closure_; }
-    void CallRun();
-    void CallCancel();
+    Function* closure() { return closure_.get(); }
 
    private:
     friend class MockTimer;
@@ -70,7 +68,7 @@ class MockTimer : public Timer {
 
     int index_;
     int64 wakeup_time_us_;
-    Function* closure_;
+    scoped_ptr<Function> closure_;
 
     DISALLOW_COPY_AND_ASSIGN(Alarm);
   };

@@ -28,9 +28,7 @@
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -47,15 +45,9 @@ namespace net_instaweb {
 
 class RewriteFilter;
 
-class RewriteDriverTest : public ResourceManagerTestBase,
-                          public ::testing::WithParamInterface<bool> {
+class RewriteDriverTest : public ResourceManagerTestBase {
  protected:
   RewriteDriverTest() {}
-
-  virtual void SetUp() {
-    ResourceManagerTestBase::SetUp();
-    SetAsynchronousRewrites(GetParam());
-  }
 
   bool CanDecodeUrl(const StringPiece& url) {
     RewriteFilter* filter;
@@ -82,7 +74,7 @@ class RewriteDriverTest : public ResourceManagerTestBase,
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverTest);
 };
 
-TEST_P(RewriteDriverTest, NoChanges) {
+TEST_F(RewriteDriverTest, NoChanges) {
   ValidateNoChanges("no_changes",
                     "<head><script src=\"foo.js\"></script></head>"
                     "<body><form method=\"post\">"
@@ -90,7 +82,7 @@ TEST_P(RewriteDriverTest, NoChanges) {
                     "</form></body>");
 }
 
-TEST_P(RewriteDriverTest, TestLegacyUrl) {
+TEST_F(RewriteDriverTest, TestLegacyUrl) {
   rewrite_driver()->AddFilters();
   EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.0.orig"))
       << "not enough dots";
@@ -107,7 +99,7 @@ TEST_P(RewriteDriverTest, TestLegacyUrl) {
       << "invalid extension";
 }
 
-TEST_P(RewriteDriverTest, TestInferContentType) {
+TEST_F(RewriteDriverTest, TestInferContentType) {
   rewrite_driver()->AddFilters();
   SetBaseUrlForFetch("http://example.com/dir/123/index.html");
   EXPECT_TRUE(DecodeContentType("http://example.com/z.pagespeed.jm.0.unknown")
@@ -124,7 +116,7 @@ TEST_P(RewriteDriverTest, TestInferContentType) {
             DecodeContentType("http://example.com/dir/xy.pagespeed.ic.0.gif"));
 }
 
-TEST_P(RewriteDriverTest, TestModernUrl) {
+TEST_F(RewriteDriverTest, TestModernUrl) {
   rewrite_driver()->AddFilters();
 
   // Sanity-check on a valid one
@@ -150,7 +142,7 @@ TEST_P(RewriteDriverTest, TestModernUrl) {
 
 // Test to make sure we do not put in extra things into the cache.
 // This is using the CSS rewriter, which caches the output.
-TEST_P(RewriteDriverTest, TestCacheUse) {
+TEST_F(RewriteDriverTest, TestCacheUse) {
   AddFilter(RewriteOptions::kRewriteCss);
 
   const char kCss[] = "* { display: none; }";
@@ -164,14 +156,12 @@ TEST_P(RewriteDriverTest, TestCacheUse) {
   // Cold load.
   EXPECT_TRUE(TryFetchResource(cssMinifiedUrl));
 
-  // We should have 2 or 3 things inserted, depending on the mode:
+  // We should have 3 things inserted:
   // 1) the source data
   // 2) the result
-  // 3) the rname entry for the result --- if sync; in async case
-  // we do not write out this mapping on resource reconstruction.
+  // 3) the rname entry for the result
   int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(rewrite_driver()->asynchronous_rewrites() ? 2 : 3,
-            cold_num_inserts);
+  EXPECT_EQ(3, cold_num_inserts);
 
   // Warm load. This one should not change the number of inserts at all
   EXPECT_TRUE(TryFetchResource(cssMinifiedUrl));
@@ -180,8 +170,7 @@ TEST_P(RewriteDriverTest, TestCacheUse) {
 }
 
 // Similar to the above, but with cache-extender which reconstructs on the fly.
-TEST_P(RewriteDriverTest, TestCacheUseOnTheFly) {
-  bool async = rewrite_driver()->asynchronous_rewrites();
+TEST_F(RewriteDriverTest, TestCacheUseOnTheFly) {
   AddFilter(RewriteOptions::kExtendCache);
 
   const char kCss[] = "* { display: none; }";
@@ -194,21 +183,20 @@ TEST_P(RewriteDriverTest, TestCacheUseOnTheFly) {
   // Cold load.
   EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
 
-  // We should have 1 or 2 things inserted:
+  // We should have 2 things inserted:
   // 1) the source data
-  // 2) the rname entry for the result (only in sync)
+  // 2) the rname entry for the result
   int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(async ? 1 : 2, cold_num_inserts);
+  EXPECT_EQ(2, cold_num_inserts);
 
-  // Warm load. In sync, this one re-inserts in the rname entry,
-  // without changing it.
+  // Warm load. This one re-inserts in the rname entry, without changing it.
   EXPECT_TRUE(TryFetchResource(cacheExtendedUrl));
   EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(async ? 0 : 1, lru_cache()->num_identical_reinserts());
+  EXPECT_EQ(1, lru_cache()->num_identical_reinserts());
 }
 
 
-TEST_P(RewriteDriverTest, BaseTags) {
+TEST_F(RewriteDriverTest, BaseTags) {
   // Starting the parse, the base-tag will be derived from the html url.
   ASSERT_TRUE(rewrite_driver()->StartParse("http://example.com/index.html"));
   rewrite_driver()->Flush();
@@ -240,7 +228,7 @@ TEST_P(RewriteDriverTest, BaseTags) {
   EXPECT_EQ("http://new.example.com/subdir/", BaseUrlSpec());
 }
 
-TEST_P(RewriteDriverTest, RelativeBaseTag) {
+TEST_F(RewriteDriverTest, RelativeBaseTag) {
   // Starting the parse, the base-tag will be derived from the html url.
   ASSERT_TRUE(rewrite_driver()->StartParse("http://example.com/index.html"));
   rewrite_driver()->ParseText("<base href='subdir/'>");
@@ -249,7 +237,7 @@ TEST_P(RewriteDriverTest, RelativeBaseTag) {
   EXPECT_EQ("http://example.com/subdir/", BaseUrlSpec());
 }
 
-TEST_P(RewriteDriverTest, InvalidBaseTag) {
+TEST_F(RewriteDriverTest, InvalidBaseTag) {
   // Encountering an invalid base tag should be ignored (except info message).
   ASSERT_TRUE(rewrite_driver()->StartParse("slwly://example.com/index.html"));
   rewrite_driver()->ParseText("<base href='subdir_not_allowed_on_slwly/'>");
@@ -264,7 +252,7 @@ TEST_P(RewriteDriverTest, InvalidBaseTag) {
   EXPECT_EQ("http://example.com/absolute/", BaseUrlSpec());
 }
 
-TEST_P(RewriteDriverTest, CreateOutputResourceTooLong) {
+TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
   const ContentType* content_types[] = { NULL, &kContentTypeJpeg};
   const OutputResourceKind resource_kinds[] = {
     kRewrittenResource,
@@ -313,7 +301,7 @@ TEST_P(RewriteDriverTest, CreateOutputResourceTooLong) {
   }
 }
 
-TEST_P(RewriteDriverTest, MultipleDomains) {
+TEST_F(RewriteDriverTest, MultipleDomains) {
   // Make sure we authorize domains for resources properly. This is a regression
   // test for where loading things from a domain would prevent loads from an
   // another domain from the same RewriteDriver.
@@ -336,7 +324,7 @@ TEST_P(RewriteDriverTest, MultipleDomains) {
 
 // Test caching behavior for normal UrlInputResources.
 // This is the base case that LoadResourcesFromFiles below contrasts with.
-TEST_P(RewriteDriverTest, LoadResourcesFromTheWeb) {
+TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   const char kStaticUrlPrefix[] = "http://www.example.com/";
   const char kResourceName[ ]= "foo.css";
   GoogleString resource_url = StrCat(kStaticUrlPrefix, kResourceName);
@@ -388,7 +376,7 @@ TEST_P(RewriteDriverTest, LoadResourcesFromTheWeb) {
 // Test that we successfully load specified resources from files and that
 // file resources have the appropriate properties, such as being loaded from
 // file every time they are fetched (not being cached).
-TEST_P(RewriteDriverTest, LoadResourcesFromFiles) {
+TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   const char kStaticUrlPrefix[] = "http://www.example.com/static/";
   const char kStaticFilenamePrefix[] = "/htmlcontent/static/";
   const char kResourceName[ ]= "foo.css";
@@ -428,47 +416,11 @@ TEST_P(RewriteDriverTest, LoadResourcesFromFiles) {
   EXPECT_EQ(kResourceContents2, resource2->contents());
 }
 
-TEST_P(RewriteDriverTest, ResolveAnchorUrl) {
+TEST_F(RewriteDriverTest, ResolveAnchorUrl) {
   ASSERT_TRUE(rewrite_driver()->StartParse("http://example.com/index.html"));
   GoogleUrl resolved(rewrite_driver()->base_url(), "#anchor");
   EXPECT_EQ("http://example.com/index.html#anchor", resolved.Spec());
   rewrite_driver()->FinishParse();
 }
-
-namespace {
-
-// A rewrite context that's not actually capable of rewriting -- we just need
-// one to pass in to InfoAt in test below.
-class MockRewriteContext : public SingleRewriteContext {
- public:
-  explicit MockRewriteContext(RewriteDriver* driver) :
-      SingleRewriteContext(driver, NULL, NULL) {}
-
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output) {}
-  virtual const char* id() const { return "mock"; }
-  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
-};
-
-}  // namespace
-
-TEST_P(RewriteDriverTest, DiagnosticsWithPercent) {
-  // Regression test for crash in InfoAt where location has %stuff in it.
-  // (make sure it actually shows up first, though).
-  int prev_log_level = logging::GetMinLogLevel();
-  logging::SetMinLogLevel(logging::LOG_INFO);
-  MockRewriteContext context(rewrite_driver());
-  ResourcePtr resource(rewrite_driver()->CreateInputResourceAbsoluteUnchecked(
-      "http://www.example.com/%s%s%s%d%f"));
-  ResourceSlotPtr slot(new FetchResourceSlot(resource));
-  context.AddSlot(slot);
-  rewrite_driver()->InfoAt(&context, "Just a test");
-  logging::SetMinLogLevel(prev_log_level);
-}
-
-// We test with asynchronous_rewrites() == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(RewriteDriverTestInstance,
-                        RewriteDriverTest,
-                        ::testing::Bool());
 
 }  // namespace net_instaweb

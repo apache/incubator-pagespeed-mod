@@ -48,8 +48,6 @@ class Variable;
 class UrlLeftTrimFilter : public CommonFilter {
  public:
   UrlLeftTrimFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  virtual ~UrlLeftTrimFilter();
-
   static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element);

@@ -182,20 +182,6 @@ TEST_P(CacheExtenderTest, ExtendIfSharded) {
                        "http://shard0.com/c.js.pagespeed.ce.0.js"));
 }
 
-TEST_P(CacheExtenderTest, ExtendIfOriginMappedHttps) {
-  InitTest(kShortTtlSec);
-  EXPECT_TRUE(options()->domain_lawyer()->AddOriginDomainMapping(
-      kTestDomain, "https://cdn.com", &message_handler_));
-  ValidateExpected("extend_if_origin_mapped",
-                   GenerateHtml("https://cdn.com/sub/a.css?v=1",
-                                "https://cdn.com/b.jpg",
-                                "https://cdn.com/c.js"),
-                   GenerateHtml(
-                       "https://cdn.com/sub/a.css,qv=1.pagespeed.ce.0.css",
-                       "https://cdn.com/b.jpg.pagespeed.ce.0.jpg",
-                       "https://cdn.com/c.js.pagespeed.ce.0.js"));
-}
-
 TEST_P(CacheExtenderTest, ExtendIfRewritten) {
   InitTest(kLongTtlSec);  // cached for a long time to begin with
 
@@ -353,16 +339,6 @@ TEST_P(CacheExtenderTest, ServeFilesWithRewriteDomainsEnabled) {
   EXPECT_EQ(CssData("http://new.com/sub/"), content);
 }
 
-TEST_P(CacheExtenderTest, ServeFilesWithRewriteDomainAndPathEnabled) {
-  GoogleString content;
-  DomainLawyer* lawyer = options()->domain_lawyer();
-  lawyer->AddRewriteDomainMapping("http://new.com/test/", kTestDomain,
-                                  &message_handler_);
-  InitTest(kShortTtlSec);
-  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, kCssFile, "css", &content));
-  EXPECT_EQ(CssData("http://new.com/test/sub/"), content);
-}
-
 TEST_P(CacheExtenderTest, ServeFilesWithShard) {
   GoogleString content;
   DomainLawyer* lawyer = options()->domain_lawyer();
@@ -434,23 +410,6 @@ TEST_P(CacheExtenderTest, MadeOnTheFly) {
   EXPECT_TRUE(ServeResourceUrl(b_ext, &out));
   EXPECT_EQ(0, resource_manager()->cached_resource_fetches()->Get());
   EXPECT_EQ(1, resource_manager()->succeeded_filter_resource_fetches()->Get());
-}
-
-// http://code.google.com/p/modpagespeed/issues/detail?id=324
-TEST_P(CacheExtenderTest, RetainExtraHeaders) {
-  GoogleString url = StrCat(kTestDomain, "retain.css");
-  InitResponseHeaders(url, kContentTypeCss, kCssData, 300);
-  TestRetainExtraHeaders("retain.css", "retain.css", "ce", "css");
-}
-
-TEST_P(CacheExtenderTest, TrimUrlInteraction) {
-  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  InitTest(kMediumTtlSec);
-
-  GoogleString a_ext = Encode("", "ce", "0", kCssFile, "css");
-  ValidateExpected("ce_then_trim",
-                   StringPrintf(kCssFormat, kCssFile),
-                   StringPrintf(kCssFormat, a_ext.c_str()));
 }
 
 // We test with asynchronous_rewrites() == GetParam() as both true and false.

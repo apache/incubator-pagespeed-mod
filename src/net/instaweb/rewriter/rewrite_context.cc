@@ -26,23 +26,23 @@
 
 #include <cstddef>                     // for size_t
 #include <algorithm>
-#include <utility>                      // for pair
 #include <vector>
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/blocking_behavior.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -51,7 +51,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/null_writer.h"
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -63,8 +62,6 @@
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
-
-class RewriteFilter;
 
 const char kRewriteContextLockPrefix[] = "rc:";
 
@@ -82,9 +79,11 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
   explicit OutputCacheCallback(RewriteContext* rc) : rewrite_context_(rc) {}
   virtual ~OutputCacheCallback() {}
   virtual void Done(CacheInterface::KeyState state) {
-    RewriteDriver* rewrite_driver = rewrite_context_->Driver();
-    rewrite_driver->AddRewriteTask(MakeFunction(
-        rewrite_context_, &RewriteContext::OutputCacheDone, state, *value()));
+    ResourceManager* resource_manager = rewrite_context_->Manager();
+    resource_manager->AddRewriteTask(
+        new MemberFunction2<RewriteContext, CacheInterface::KeyState,
+            SharedString>(&RewriteContext::OutputCacheDone, rewrite_context_,
+                          state, *value()));
     delete this;
   }
 
@@ -92,93 +91,30 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
   RewriteContext* rewrite_context_;
 };
 
-// Common code for invoking RewriteContext::ResourceFetchDone for use
-// in ResourceFetchCallback and ResourceReconstructCallback.
-class RewriteContext::ResourceCallbackUtils {
+class RewriteContext::ResourceFetchCallback : public Resource::AsyncCallback {
  public:
-  ResourceCallbackUtils(RewriteContext* rc, const ResourcePtr& resource,
+  ResourceFetchCallback(RewriteContext* rc, const ResourcePtr& resource,
                         int slot_index)
-      : resource_(resource),
+      : Resource::AsyncCallback(resource),
         rewrite_context_(rc),
         slot_index_(slot_index) {
   }
-
-  void Done(bool success) {
-    RewriteDriver* rewrite_driver = rewrite_context_->Driver();
-    rewrite_driver->AddRewriteTask(
-        new MemberFunction3<RewriteContext, bool, ResourcePtr, int>(
-            &RewriteContext::ResourceFetchDone, rewrite_context_,
-            success, resource_, slot_index_));
-  }
-
- private:
-  ResourcePtr resource_;
-  RewriteContext* rewrite_context_;
-  int slot_index_;
-};
-
-// Callback when reading a resource from the network.
-class RewriteContext::ResourceFetchCallback : public Resource::AsyncCallback {
- public:
-  ResourceFetchCallback(RewriteContext* rc, const ResourcePtr& r,
-                        int slot_index)
-      : Resource::AsyncCallback(r),
-        delegate_(rc, r, slot_index) {
-  }
-
   virtual ~ResourceFetchCallback() {}
   virtual void Done(bool success) {
-    delegate_.Done(success);
+    ResourceManager* resource_manager = rewrite_context_->Manager();
+    ResourcePtr r(resource());
+    resource_manager->AddRewriteTask(
+        new MemberFunction3<RewriteContext, bool, ResourcePtr, int>(
+            &RewriteContext::ResourceFetchDone, rewrite_context_,
+            success, r, slot_index_));
     delete this;
   }
 
   virtual bool EnableThreaded() const { return true; }
 
  private:
-  ResourceCallbackUtils delegate_;
-};
-
-// Callback used when we need to reconstruct a resource we made to satisfy
-// a fetch (due to rewrites being nested inside each other).
-class RewriteContext::ResourceReconstructCallback :
-    public UrlAsyncFetcher::Callback {
- public:
-  // Takes ownership of the driver (e.g. will call Cleanup)
-  ResourceReconstructCallback(RewriteDriver* driver, RewriteContext* rc,
-                              const OutputResourcePtr& resource, int slot_index)
-      : driver_(driver),
-        delegate_(rc, ResourcePtr(resource), slot_index),
-        resource_(resource) {
-  }
-
-  virtual ~ResourceReconstructCallback() {
-  }
-
-  virtual void Done(bool success) {
-    // Make sure to release the lock here, as in case of nested reconstructions
-    // that fail it would otherwise only get released on ~OutputResource, which
-    // in turn will only happen once the top-level is done, which may take a
-    // while.
-    resource_->DropCreationLock();
-
-    delegate_.Done(success);
-    driver_->Cleanup();
-    delete this;
-  }
-
-  const RequestHeaders& request_headers() const { return request_headers_; }
-  ResponseHeaders* response_headers() { return &response_headers_; }
-  Writer* writer() { return &writer_; }
-
- private:
-  RewriteDriver* driver_;
-  ResourceCallbackUtils delegate_;
-  OutputResourcePtr resource_;
-
-  // We ignore the output here as it's also put into the resource itself.
-  NullWriter writer_;
-  ResponseHeaders response_headers_;
-  RequestHeaders request_headers_;
+  RewriteContext* rewrite_context_;
+  int slot_index_;
 };
 
 // This class encodes a few data members used for responding to
@@ -255,10 +191,9 @@ RewriteContext::RewriteContext(RewriteDriver* driver,
     driver_(driver),
     num_predecessors_(0),
     chained_(false),
+    cache_lookup_active_(false),
     rewrite_done_(false),
-    ok_to_write_output_partitions_(true),
-    was_too_busy_(false),
-    slow_(false) {
+    ok_to_write_output_partitions_(true) {
   partitions_.reset(new OutputPartitions);
 }
 
@@ -273,11 +208,11 @@ int RewriteContext::num_output_partitions() const {
   return partitions_->partition_size();
 }
 
-const CachedResult* RewriteContext::output_partition(int i) const {
+const OutputPartition* RewriteContext::output_partition(int i) const {
   return &partitions_->partition(i);
 }
 
-CachedResult* RewriteContext::output_partition(int i) {
+OutputPartition* RewriteContext::output_partition(int i) {
   return partitions_->mutable_partition(i);
 }
 
@@ -322,8 +257,7 @@ void RewriteContext::RemoveLastSlot() {
 
 void RewriteContext::Initiate() {
   CHECK(!started_);
-  DCHECK(num_predecessors_ == 0);
-  Driver()->AddRewriteTask(new MemberFunction0<RewriteContext>(
+  Manager()->AddRewriteTask(new MemberFunction0<RewriteContext>(
       &RewriteContext::Start, this));
 }
 
@@ -333,134 +267,107 @@ void RewriteContext::Initiate() {
 // to complete before starting this one.
 void RewriteContext::Start() {
   DCHECK(!started_);
-  DCHECK(num_predecessors_ == 0);
-  started_ = true;
+  if (num_predecessors_ == 0) {
+    started_ = true;
 
-  // The best-case scenario for a Rewrite is that we have already done
-  // it, and just need to look up in our metadata cache what the final
-  // rewritten URL is.  In the simplest scenario, we are doing a
-  // simple URL substitution.  In a more complex example, we have M
-  // css files that get reduced to N combinations.  The
-  // OutputPartitions held in the cache tells us that, and we don't
-  // need to get any data about the resources that need to be
-  // rewritten.  But in either case, we only need one cache lookup.
-  //
-  // Note that the output_key_name is not necessarily the same as the
-  // name of the output.
-  // Write partition to metadata cache.
-  CacheInterface* metadata_cache = Manager()->metadata_cache();
-  SetPartitionKey();
+    // The best-case scenario for a Rewrite is that we have already done
+    // it, and just need to look up in our metadata cache what the final
+    // rewritten URL is.  In the simplest scenario, we are doing a
+    // simple URL substitution.  In a more complex example, we have M
+    // css files that get reduced to N combinations.  The
+    // OutputPartitions held in the cache tells us that, and we don't
+    // need to get any data about the resources that need to be
+    // rewritten.  But in either case, we only need one cache lookup.
+    //
+    // Note that the output_key_name is not necessarily the same as the
+    // name of the output.
+    // Write partition to metadata cache.
+    partition_key_ = CacheKey();
+    StrAppend(&partition_key_, ":", id());
+    CacheInterface* metadata_cache = Manager()->metadata_cache();
 
-  // See if some other handler already had to do an identical rewrite.
-  RewriteContext* previous_handler =
-      Driver()->RegisterForPartitionKey(partition_key_, this);
-  if (previous_handler == NULL) {
     // When the cache lookup is finished, OutputCacheDone will be called.
+    cache_lookup_active_ = true;
     metadata_cache->Get(partition_key_, new OutputCacheCallback(this));
-  } else {
-    if (previous_handler->slow()) {
-      MarkSlow();
-    }
-    previous_handler->repeated_.push_back(this);
   }
-}
-
-void RewriteContext::SetPartitionKey() {
-  partition_key_ = CacheKey();
-  StrAppend(&partition_key_, ":", id());
 }
 
 // Check if this mapping from input to output URLs is still valid.
-bool RewriteContext::IsCachedResultValid(const CachedResult& partition) {
-  for (int j = 0, m = partition.input_size(); j < m; ++j) {
-    if (!IsInputValid(partition.input(j))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool RewriteContext::IsOtherDependencyValid(
-    const OutputPartitions* partitions) {
-  for (int j = 0, m = partitions->other_dependency_size(); j < m; ++j) {
-    if (!IsInputValid(partitions->other_dependency(j))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void RewriteContext::AddRecheckDependency() {
-  int64 now_ms = Manager()->timer()->NowMs();
-  InputInfo* force_recheck = partitions_->add_other_dependency();
-  force_recheck->set_type(InputInfo::CACHED);
-  force_recheck->set_expiration_time_ms(
-      now_ms + ResponseHeaders::kImplicitCacheTtlMs);
-}
-
-bool RewriteContext::IsInputValid(const InputInfo& input_info) {
-  switch (input_info.type()) {
-    case InputInfo::CACHED: {
-      // It is invalid if cacheable inputs have expired or ...
-      DCHECK(input_info.has_expiration_time_ms());
-      if (!input_info.has_expiration_time_ms()) {
-        return false;
+bool RewriteContext::OutputPartitionIsValid(const OutputPartition& partition) {
+  bool partition_is_valid = true;
+  for (int j = 0, m = partition.input_size();
+       (j < m) && partition_is_valid; ++j) {
+    const InputInfo& input_info = partition.input(j);
+    switch (input_info.type()) {
+      case InputInfo::CACHED: {
+        // It is invalid if cacheable inputs have expired or ...
+        CHECK(input_info.has_expiration_time_ms());
+        int64 now_ms = Manager()->timer()->NowMs();
+        if (now_ms > input_info.expiration_time_ms()) {
+          partition_is_valid = false;
+        }
+        break;
       }
-      int64 now_ms = Manager()->timer()->NowMs();
-      return (now_ms <= input_info.expiration_time_ms());
-      break;
-    }
-    case InputInfo::FILE_BASED: {
-      // ... if file-based inputs have changed.
-      DCHECK(input_info.has_last_modified_time_ms() &&
-             input_info.has_filename());
-      if (!input_info.has_last_modified_time_ms() ||
-          !input_info.has_filename()) {
-        return false;
+      case InputInfo::FILE_BASED: {
+        // ... if file-based inputs have changed.
+        GoogleString url = slot(input_info.index())->resource()->url();
+        GoogleUrl gurl(url);
+        GoogleString filename;
+        if (Options()->file_load_policy()->ShouldLoadFromFile(
+                gurl, &filename)) {
+          int64 mtime_sec;
+          Manager()->file_system()->Mtime(filename, &mtime_sec,
+                                          Manager()->message_handler());
+          CHECK(input_info.has_last_modified_time_ms());
+          if (mtime_sec * Timer::kSecondMs !=
+              input_info.last_modified_time_ms()) {
+            partition_is_valid = false;
+          }
+        } else {
+          LOG(DFATAL) << "Input resource incorrectly marked File-based: "
+                      << url;
+          partition_is_valid = false;
+        }
+        break;
       }
-      int64 mtime_sec;
-      Manager()->file_system()->Mtime(input_info.filename(), &mtime_sec,
-                                      Manager()->message_handler());
-      return (mtime_sec * Timer::kSecondMs ==
-                input_info.last_modified_time_ms());
-      break;
+      case InputInfo::ALWAYS_VALID:
+        break;
     }
-    case InputInfo::ALWAYS_VALID:
-      return true;
   }
-
-  DCHECK(false) << "Corrupt InputInfo object !?";
-  return false;
+  return partition_is_valid;
 }
 
 void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
                                      SharedString value) {
   DCHECK_LE(0, outstanding_fetches_);
   DCHECK_EQ(static_cast<size_t>(0), outputs_.size());
+  cache_lookup_active_ = false;
   if (state == CacheInterface::kAvailable) {
     // We've got a hit on the output metadata; the contents should
     // be a protobuf.  Try to parse it.
     const GoogleString* val_str = value.get();
     ArrayInputStream input(val_str->data(), val_str->size());
-    if (partitions_->ParseFromZeroCopyStream(&input) &&
-        IsOtherDependencyValid(partitions_.get())) {
+    if (partitions_->ParseFromZeroCopyStream(&input)) {
       for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
-        const CachedResult& partition = partitions_->partition(i);
+        const OutputPartition& partition = partitions_->partition(i);
+        const CachedResult& cached_result = partition.result();
         OutputResourcePtr output_resource;
         const ContentType* content_type = NameExtensionToContentType(
-            StrCat(".", partition.extension()));
+            StrCat(".", cached_result.extension()));
 
-        if (!IsCachedResultValid(partition)) {
+        // TODO(sligocki): Move this into FreshenAndCheckExpiration or delete
+        // that (currently empty) method.
+        if (!OutputPartitionIsValid(partition)) {
           // If a single output resource is invalid, we update them all.
           state = CacheInterface::kNotFound;
           outputs_.clear();
           break;
         }
 
-        if (partition.optimizable() &&
+        if (cached_result.optimizable() &&
             CreateOutputResourceForCachedOutput(
-                partition.url(), content_type, &output_resource)) {
-          Freshen(partition);
+                cached_result.url(), content_type, &output_resource) &&
+            FreshenAndCheckExpiration(cached_result)) {
           outputs_.push_back(output_resource);
           RenderPartitionOnDetach(i);
         } else {
@@ -478,43 +385,13 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
   // If the cache gave a miss, or yielded unparsable data, then acquire a lock
   // and start fetching the input resources.
   if (state == CacheInterface::kAvailable) {
-    OutputCacheHit();
+    rewrite_done_ = true;
+    ok_to_write_output_partitions_ = false;  // partitions were read succesfully
+    Finalize();
   } else {
-    MarkSlow();
     partitions_->Clear();
     FetchInputs(kNeverBlock);
   }
-}
-
-void RewriteContext::OutputCacheHit() {
-  rewrite_done_ = true;
-  ok_to_write_output_partitions_ = false;  // partitions were read successfully
-  Finalize();
-}
-
-void RewriteContext::RepeatedSuccess(const RewriteContext* primary) {
-  CHECK(outputs_.empty());
-  CHECK_EQ(num_slots(), primary->num_slots());
-  // Copy over partition tables, outputs, and render_slot_ (as well as
-  // was_optimized) information --- everything we can set in normal
-  // OutputCacheDone.
-  partitions_->CopyFrom(*primary->partitions_.get());
-  for (int i = 0, n = primary->outputs_.size(); i < n; ++i) {
-    outputs_.push_back(primary->outputs_[i]);
-  }
-  for (int i = 0, n = primary->num_slots(); i < n; ++i) {
-    slot(i)->set_was_optimized(primary->slot(i)->was_optimized());
-    render_slots_[i] = primary->render_slots_[i];
-  }
-  OutputCacheHit();
-}
-
-void RewriteContext::RepeatedFailure() {
-  CHECK(outputs_.empty());
-  CHECK_EQ(0, num_output_partitions());
-  rewrite_done_ = true;
-  ok_to_write_output_partitions_ = false;
-  WritePartition();
 }
 
 void RewriteContext::FetchInputs(BlockingBehavior block) {
@@ -538,42 +415,12 @@ void RewriteContext::FetchInputs(BlockingBehavior block) {
       ResourcePtr resource(slot->resource());
       if (!(resource->loaded() && resource->ContentsValid())) {
         ++outstanding_fetches_;
+        Manager()->ReadAsync(new ResourceFetchCallback(this, resource, i));
 
-        // In case of fetches, we may need to handle rewrites nested inside
-        // each other; so we want to pass them on to other rewrite tasks
-        // rather than try to fetch them over HTTP.
-        bool handled_internally = false;
-        if (fetch_.get() != NULL) {
-          GoogleUrl resource_gurl(resource->url());
-          if (Manager()->IsPagespeedResource(resource_gurl)) {
-            RewriteDriver* nested_driver = Driver()->Clone();
-            RewriteFilter* filter = NULL;
-            // We grab the filter now (and not just call DecodeOutputResource
-            // instead of IsPagespeedResource) so we get a filter that's bound
-            // to the new RewriteDriver.
-            OutputResourcePtr output_resource =
-                nested_driver->DecodeOutputResource(resource->url(), &filter);
-            if (output_resource.get() != NULL) {
-              handled_internally = true;
-              slot->SetResource(ResourcePtr(output_resource));
-              ResourceReconstructCallback* callback =
-                  new ResourceReconstructCallback(
-                      nested_driver, this, output_resource, i);
-              nested_driver->FetchOutputResource(
-                  output_resource, filter,
-                  callback->request_headers(),
-                  callback->response_headers(),
-                  callback->writer(),
-                  callback);
-            } else {
-              Manager()->ReleaseRewriteDriver(nested_driver);
-            }
-          }
-        }
-
-        if (!handled_internally) {
-          Manager()->ReadAsync(new ResourceFetchCallback(this, resource, i));
-        }
+        // TODO(jmarantz): as currently coded this will not work with Apache,
+        // as we don't do these async fetches using the threaded fetcher.
+        // Those details need to be sorted before we test async rewrites
+        // with Apache.
       }
     }
 
@@ -602,16 +449,19 @@ void RewriteContext::ResourceFetchDone(
 }
 
 bool RewriteContext::ReadyToRewrite() const {
-  DCHECK(!rewrite_done_);
-  bool ready = ((outstanding_fetches_ == 0) && (num_predecessors_ == 0));
+  bool ready = ((outstanding_fetches_ == 0) && (num_predecessors_ == 0) &&
+                !cache_lookup_active_ && !rewrite_done_);
   return ready;
 }
 
 void RewriteContext::Activate() {
   if (ReadyToRewrite()) {
     if (fetch_.get() == NULL) {
-      DCHECK(started_);
-      StartRewrite();
+      if (started_) {
+        StartRewrite();
+      } else {
+        Start();
+      }
     } else {
       FinishFetch();
     }
@@ -619,7 +469,6 @@ void RewriteContext::Activate() {
 }
 
 void RewriteContext::StartRewrite() {
-  CHECK(has_parent() || slow_) << "slow_ not set on a rewriting job?";
   if (!Partition(partitions_.get(), &outputs_)) {
     partitions_->clear_partition();
     outputs_.clear();
@@ -630,17 +479,12 @@ void RewriteContext::StartRewrite() {
     // The partitioning succeeded, but yielded zero rewrites.  Write out the
     // empty partition table and let any successor Rewrites run.
     rewrite_done_ = true;
-
-    // TODO(morlovich): The filters really should be doing this themselves,
-    // since there may be partial failures in cases of multiple inputs which
-    // we do not see here.
-    AddRecheckDependency();
     WritePartition();
   } else {
     // We will let the Rewrites complete prior to writing the
     // OutputPartitions, which contain not just the partition table
     // but the content-hashes for the rewritten content.  So we must
-    // rewrite before calling WritePartition.
+    // rewrite before calling WritePartitions.
     CHECK_EQ(outstanding_rewrites_, static_cast<int>(outputs_.size()));
     for (int i = 0, n = outstanding_rewrites_; i < n; ++i) {
       Rewrite(i, partitions_->mutable_partition(i), outputs_[i]);
@@ -649,24 +493,8 @@ void RewriteContext::StartRewrite() {
 }
 
 void RewriteContext::WritePartition() {
-  DCHECK(fetch_.get() == NULL);
-
-  bool partition_ok = (partitions_->partition_size() != 0);
-  // Tells each of the repeated rewrites of the same thing if we have a valid
-  // result or not.
-  for (int c = 0, n = repeated_.size(); c < n; ++c) {
-    if (partition_ok) {
-      repeated_[c]->RepeatedSuccess(this);
-    } else {
-      repeated_[c]->RepeatedFailure();
-    }
-  }
-  Driver()->DeregisterForPartitionKey(partition_key_, this);
-
-  ResourceManager* manager = Manager();
-  if (ok_to_write_output_partitions_ &&
-      !manager->metadata_cache_readonly()) {
-    CacheInterface* metadata_cache = manager->metadata_cache();
+  if (ok_to_write_output_partitions_) {
+    CacheInterface* metadata_cache = Manager()->metadata_cache();
     SharedString buf;
     {
       StringOutputStream sstream(buf.get());
@@ -682,7 +510,7 @@ void RewriteContext::WritePartition() {
   if (parent_ != NULL) {
     DCHECK(driver_ == NULL);
     Propagate(true);
-    parent_->NestedRewriteDone(this);
+    parent_->NestedRewriteDone();
   } else {
     // The RewriteDriver is waiting for this to complete.  Defer to the
     // RewriteDriver to schedule the Rendering of this context on the main
@@ -700,39 +528,13 @@ void RewriteContext::AddNestedContext(RewriteContext* context) {
 
 void RewriteContext::StartNestedTasks() {
   for (int i = 0, n = nested_.size(); i < n; ++i) {
-    if (!nested_[i]->chained()) {
-      nested_[i]->Start();
-      DCHECK_EQ(n, static_cast<int>(nested_.size()))
-          << "Cannot add new nested tasks once the nested tasks have started";
-    }
+    nested_[i]->Start();
+    DCHECK_EQ(n, static_cast<int>(nested_.size()))
+        << "Cannot add new nested tasks once the nested tasks have started";
   }
 }
 
-void RewriteContext::NestedRewriteDone(const RewriteContext* context) {
-  // Record any external dependencies we have.
-  // TODO(morlovich): Eliminate duplicates?
-  for (int p = 0; p < context->num_output_partitions(); ++p) {
-    const CachedResult* nested_result = context->output_partition(p);
-    for (int i = 0; i < nested_result->input_size(); ++i) {
-      InputInfo* dep = partitions_->add_other_dependency();
-      dep->CopyFrom(nested_result->input(i));
-      // The input index here is with respect to the nested context's inputs,
-      // so would not be interpretable at top-level, and we don't use it for
-      // other_dependency entries anyway, so be both defensive and frugal
-      // and don't write it out.
-      dep->clear_index();
-    }
-  }
-
-  for (int p = 0; p < context->partitions_->other_dependency_size(); ++p) {
-    InputInfo* dep = partitions_->add_other_dependency();
-    dep->CopyFrom(context->partitions_->other_dependency(p));
-  }
-
-  if (context->was_too_busy_) {
-    MarkTooBusy();
-  }
-
+void RewriteContext::NestedRewriteDone() {
   DCHECK_LT(0, num_pending_nested_);
   --num_pending_nested_;
   if (num_pending_nested_ == 0) {
@@ -745,12 +547,21 @@ void RewriteContext::RewriteDone(
     RewriteSingleResourceFilter::RewriteResult result,
     int partition_index) {
   if (result == RewriteSingleResourceFilter::kTooBusy) {
-    MarkTooBusy();
+    ok_to_write_output_partitions_ = false;
   } else {
-    CachedResult* partition =
+    OutputPartition* partition =
         partitions_->mutable_partition(partition_index);
     bool optimizable = (result == RewriteSingleResourceFilter::kRewriteOk);
-    partition->set_optimizable(optimizable);
+    partition->mutable_result()->set_optimizable(optimizable);
+    if (!optimizable) {
+      // TODO(sligocki): We are indescriminantly setting a 5min cache lifetime
+      // for all failed rewrites. We should use the input resource's cache
+      // lifetime instead. Or better yet, do conditional fetches of input
+      // resources and only invalidate mapping if inputs change.
+      int64 now_ms = Manager()->timer()->NowMs();
+      partition->mutable_result()->set_origin_expiration_time_ms(
+          now_ms + ResponseHeaders::kImplicitCacheTtlMs);
+    }
     if (optimizable && (fetch_.get() == NULL)) {
       // TODO(morlovich): currently in async mode, we tie rendering of slot
       // to the optimizable bit, making it impossible to do per-slot mutation
@@ -782,7 +593,7 @@ void RewriteContext::Propagate(bool render_slots) {
     }
     CHECK_EQ(num_output_partitions(), static_cast<int>(outputs_.size()));
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
-      CachedResult* partition = output_partition(p);
+      OutputPartition* partition = output_partition(p);
       for (int i = 0, n = partition->input_size(); i < n; ++i) {
         int slot_index = partition->input(i).index();
         if (render_slots_[slot_index]) {
@@ -795,8 +606,8 @@ void RewriteContext::Propagate(bool render_slots) {
       }
     }
   }
-
-  RunSuccessors();
+  Manager()->AddRewriteTask(new MemberFunction0<RewriteContext>(
+      &RewriteContext::RunSuccessors, this));
 }
 
 void RewriteContext::Finalize() {
@@ -811,10 +622,10 @@ void RewriteContext::Finalize() {
 }
 
 void RewriteContext::RenderPartitionOnDetach(int rewrite_index) {
-  CachedResult* partition = output_partition(rewrite_index);
+  OutputPartition* partition = output_partition(rewrite_index);
   for (int i = 0; i < partition->input_size(); ++i) {
     int slot_index = partition->input(i).index();
-    slot(slot_index)->set_was_optimized(true);
+    slot(slot_index)->set_was_optimized();
     render_slots_[slot_index] = true;
   }
 }
@@ -833,16 +644,14 @@ void RewriteContext::RunSuccessors() {
   successors_.clear();
   if (driver_ != NULL) {
     DCHECK(rewrite_done_ && (num_pending_nested_ == 0));
-    Driver()->AddRewriteTask(
-        new MemberFunction1<RewriteDriver, RewriteContext*>(
-            &RewriteDriver::DeleteRewriteContext, driver_, this));
+    driver_->DeleteRewriteContext(this);
   }
 }
 
 void RewriteContext::FinishFetch() {
   // Make a fake partition that has all the inputs, since we are
   // performing the rewrite for only one output resource.
-  CachedResult* partition = partitions_->add_partition();
+  OutputPartition* partition = partitions_->add_partition();
   bool ok_to_rewrite = true;
   for (int i = 0, n = slots_.size(); i < n; ++i) {
     ResourcePtr resource(slot(i)->resource());
@@ -862,52 +671,6 @@ void RewriteContext::FinishFetch() {
   }
 }
 
-void RewriteContext::MarkSlow() {
-  if (has_parent()) {
-    return;
-  }
-
-  ContextSet to_detach;
-  CollectDependentTopLevel(&to_detach);
-
-  int num_new_slow = 0;
-  for (ContextSet::iterator i = to_detach.begin();
-        i != to_detach.end(); ++i) {
-    RewriteContext* c = *i;
-    if (!c->slow_) {
-      c->slow_ = true;
-      ++num_new_slow;
-    }
-  }
-
-  Driver()->ReportSlowRewrites(num_new_slow);
-}
-
-void RewriteContext::MarkTooBusy() {
-  ok_to_write_output_partitions_ = false;
-  was_too_busy_ = true;
-}
-
-void RewriteContext::CollectDependentTopLevel(ContextSet* contexts) {
-  std::pair<ContextSet::iterator, bool> insert_result = contexts->insert(this);
-  if (!insert_result.second) {
-    // We were already there.
-    return;
-  }
-
-  for (int c = 0, n = successors_.size(); c < n; ++c) {
-    if (!successors_[c]->has_parent()) {
-      successors_[c]->CollectDependentTopLevel(contexts);
-    }
-  }
-
-  for (int c = 0, n = repeated_.size(); c < n; ++c) {
-    if (!repeated_[c]->has_parent()) {
-      repeated_[c]->CollectDependentTopLevel(contexts);
-    }
-  }
-}
-
 bool RewriteContext::CreateOutputResourceForCachedOutput(
     const StringPiece& url, const ContentType* content_type,
     OutputResourcePtr* output_resource) {
@@ -924,24 +687,9 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
   return ret;
 }
 
-void RewriteContext::Freshen(const CachedResult& partition) {
-  // TODO(morlovich): This isn't quite enough as this doesn't cause us to
-  // update the expiration in the partition tables; it merely makes it
-  // essentially prefetch things in the cache for the future, which might
-  // help the rewrite get in by the deadline.
-  for (int i = 0, m = partition.input_size(); i < m; ++i) {
-    const InputInfo& input_info = partition.input(i);
-    if ((input_info.type() == InputInfo::CACHED) &&
-        input_info.has_expiration_time_ms() &&
-        input_info.has_fetch_time_ms() &&
-        input_info.has_index()) {
-      if (Manager()->IsImminentlyExpiring(input_info.fetch_time_ms(),
-                                          input_info.expiration_time_ms())) {
-        ResourcePtr resource(slots_[input_info.index()]->resource());
-        resource->Freshen(Manager()->message_handler());
-      }
-    }
-  }
+bool RewriteContext::FreshenAndCheckExpiration(const CachedResult& group) {
+  // TODO(jmarantz): implement.
+  return true;
 }
 
 const UrlSegmentEncoder* RewriteContext::encoder() const {
@@ -987,11 +735,10 @@ bool RewriteContext::Fetch(
       ResourceSlotPtr slot(new FetchResourceSlot(resource));
       AddSlot(slot);
     }
-    SetPartitionKey();
     fetch_.reset(
         new FetchContext(this, response_writer, response_headers, callback,
                          output_resource, message_handler));
-    Driver()->AddRewriteTask(new MemberFunction0<RewriteContext>(
+    Manager()->AddRewriteTask(new MemberFunction0<RewriteContext>(
         &RewriteContext::StartFetch, this));
     ret = true;
   }

@@ -27,6 +27,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/stl_util.h"
 
 namespace net_instaweb {
 
@@ -39,12 +40,7 @@ MockTimer::MockTimer(int64 time_ms)
 }
 
 MockTimer::~MockTimer() {
-  while (!alarms_.empty()) {
-    AlarmOrderedSet::iterator p = alarms_.begin();
-    Alarm* alarm = *p;
-    alarms_.erase(p);
-    alarm->CallCancel();
-  }
+  STLDeleteElements(&alarms_);
 }
 
 MockTimer::Alarm::Alarm(int64 wakeup_time_us, Function* closure)
@@ -54,8 +50,6 @@ MockTimer::Alarm::Alarm(int64 wakeup_time_us, Function* closure)
 }
 
 MockTimer::Alarm::~Alarm() {
-  DCHECK(closure_ == NULL)
-      << "Must call CallRun or CallCancel before deleting Alarm";
 }
 
 int MockTimer::Alarm::Compare(const Alarm* that) const {
@@ -77,18 +71,6 @@ void MockTimer::Alarm::SetIndex(int index) {
   index_ = index;
 }
 
-void MockTimer::Alarm::CallRun() {
-  closure_->CallRun();
-  closure_ = NULL;
-  delete this;
-}
-
-void MockTimer::Alarm::CallCancel() {
-  closure_->CallCancel();
-  closure_ = NULL;
-  delete this;
-}
-
 MockTimer::Alarm* MockTimer::AddAlarm(int64 wakeup_time_us, Function* closure) {
   bool call_now = false;
   Alarm* alarm = new Alarm(wakeup_time_us, closure);
@@ -105,7 +87,8 @@ MockTimer::Alarm* MockTimer::AddAlarm(int64 wakeup_time_us, Function* closure) {
     // Release lock before running potentially the Alarm.
   }
   if (call_now) {
-    alarm->CallRun();
+    alarm->closure()->Run();
+    delete alarm;
     alarm = NULL;
   }
   return alarm;
@@ -115,7 +98,7 @@ void MockTimer::CancelAlarm(Alarm* alarm) {
   ScopedMutex lock(mutex_.get());
   int erased = alarms_.erase(alarm);
   if (erased == 1) {
-    alarm->CallCancel();
+    delete alarm;
   } else {
     LOG(DFATAL) << "Canceled alarm not found";
   }
@@ -132,7 +115,8 @@ void MockTimer::SetTimeUs(int64 time_us) {
       alarms_.erase(p);
       time_us_ = alarm->wakeup_time_us();
       mutex_->Unlock();
-      alarm->CallRun();
+      alarm->closure()->Run();
+      delete alarm;
       mutex_->Lock();
     }
   }

@@ -18,17 +18,18 @@
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/time_util.h"
-#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
+
+class Writer;
 
 const int64 UrlAsyncFetcher::kUnspecifiedTimeout = 0;
 
@@ -38,168 +39,10 @@ UrlAsyncFetcher::~UrlAsyncFetcher() {
 UrlAsyncFetcher::Callback::~Callback() {
 }
 
-AsyncFetch::~AsyncFetch() {
-}
-
 bool UrlAsyncFetcher::Callback::EnableThreaded() const {
   // Most fetcher callbacks are not prepared to be called from a different
   // thread.
   return false;
-}
-
-namespace {
-
-class WriterCallbackFetch : public AsyncFetch {
- public:
-  WriterCallbackFetch(Writer* writer, UrlAsyncFetcher::Callback* callback)
-      : writer_(writer), callback_(callback) {}
-  virtual ~WriterCallbackFetch() {}
-
-  virtual void HeadersComplete() {}
-
-  virtual bool Write(const StringPiece& content, MessageHandler* handler) {
-    return writer_->Write(content, handler);
-  }
-
-  virtual bool Flush(MessageHandler* handler) {
-    return writer_->Flush(handler);
-  }
-
-  virtual void Done(bool success) {
-    callback_->Done(success);
-    delete this;
-  }
-
- private:
-  Writer* writer_;
-  UrlAsyncFetcher::Callback* callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(WriterCallbackFetch);
-};
-
-}  // namespace
-
-// Default implementation of StreamingFetch uses Fetch.
-bool UrlAsyncFetcher::StreamingFetch(const GoogleString& url,
-                                     const RequestHeaders& request_headers,
-                                     ResponseHeaders* response_headers,
-                                     Writer* response_writer,
-                                     MessageHandler* message_handler,
-                                     Callback* callback) {
-  WriterCallbackFetch* fetch =
-      new WriterCallbackFetch(response_writer, callback);
-  return Fetch(url, request_headers, response_headers, message_handler, fetch);
-}
-
-namespace {
-
-// Thin interface classes to allow FixupAsyncFetch to be used as both
-// a Writer and a Callback.
-class AsyncFetchWriter : public Writer {
- public:
-  AsyncFetchWriter(AsyncFetch* fetch) : fetch_(fetch) {}
-  virtual ~AsyncFetchWriter() {}
-
-  virtual bool Write(const StringPiece& content, MessageHandler* handler) {
-    return fetch_->Write(content, handler);
-  }
-
-  virtual bool Flush(MessageHandler* handler) {
-    return fetch_->Flush(handler);
-  }
-
- private:
-  AsyncFetch* fetch_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncFetchWriter);
-};
-
-class AsyncFetchCallback : public UrlAsyncFetcher::Callback {
- public:
-  AsyncFetchCallback(AsyncFetch* fetch) : fetch_(fetch) {}
-  virtual ~AsyncFetchCallback() {}
-
-  virtual void Done(bool status) { fetch_->Done(status); }
-
- private:
-  AsyncFetch* fetch_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncFetchCallback);
-};
-
-// An AsyncFetch that automatically calls HeadersComplete the first time that
-// Write, Flush or Done are called.
-//
-// Used to implement StreamingAsyncFetch using StreamingFetch.
-class FixupAsyncFetch : public AsyncFetch {
- public:
-  FixupAsyncFetch(AsyncFetch* base_fetch)
-      : base_fetch_(base_fetch),
-        writer_interface_(new AsyncFetchWriter(this)),
-        callback_interface_(new AsyncFetchCallback(this)),
-        headers_complete_(false) {}
-  virtual ~FixupAsyncFetch() {}
-
-  // Interfaces to let this be used with old StreamingFetch interface.
-  Writer* writer_interface() { return writer_interface_.get(); }
-  UrlAsyncFetcher::Callback* callback_interface() {
-    return callback_interface_.get();
-  }
-
-  virtual void HeadersComplete() {
-    DCHECK(!headers_complete_);
-    base_fetch_->HeadersComplete();
-    headers_complete_ = true;
-  }
-
-  virtual bool Write(const StringPiece& content, MessageHandler* handler) {
-    if (!headers_complete_) {
-      HeadersComplete();
-    }
-    return base_fetch_->Write(content, handler);
-  }
-
-  virtual bool Flush(MessageHandler* handler) {
-    if (!headers_complete_) {
-      HeadersComplete();
-    }
-    return base_fetch_->Flush(handler);
-  }
-
-  virtual void Done(bool success) {
-    if (!headers_complete_) {
-      HeadersComplete();
-    }
-    base_fetch_->Done(success);
-    delete this;
-  }
-
- private:
-  AsyncFetch* base_fetch_;
-
-  scoped_ptr<Writer> writer_interface_;
-  scoped_ptr<UrlAsyncFetcher::Callback> callback_interface_;
-
-  bool headers_complete_;
-
-  DISALLOW_COPY_AND_ASSIGN(FixupAsyncFetch);
-};
-
-}  // namespace
-
-// Default implementation of Fetch uses StreamingFetch.
-bool UrlAsyncFetcher::Fetch(const GoogleString& url,
-                            const RequestHeaders& request_headers,
-                            ResponseHeaders* response_headers,
-                            MessageHandler* message_handler,
-                            AsyncFetch* fetch) {
-  // Fixup fetch provides a Writer* and Callback* interface and runs
-  // HeadersComplete when appropriate (before all other AsyncFetch calls).
-  FixupAsyncFetch* fixup_fetch = new FixupAsyncFetch(fetch);
-  return StreamingFetch(url, request_headers, response_headers,
-                        fixup_fetch->writer_interface(),
-                        message_handler,
-                        fixup_fetch->callback_interface());
 }
 
 namespace {

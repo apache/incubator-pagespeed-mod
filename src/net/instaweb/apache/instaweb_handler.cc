@@ -24,7 +24,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/apache/apache_slurp.h"
-#include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/instaweb_context.h"
@@ -35,7 +34,6 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
@@ -50,8 +48,6 @@ namespace net_instaweb {
 namespace {
 
 const char kStatisticsHandler[] = "mod_pagespeed_statistics";
-const char kRefererStatisticsHandler[] = "mod_pagespeed_referer_statistics";
-const char kMessageHandler[] = "mod_pagespeed_message";
 const char kBeaconHandler[] = "mod_pagespeed_beacon";
 const char kResourceUrlNote[] = "mod_pagespeed_resource";
 const char kResourceUrlNo[] = "<NO>";
@@ -194,22 +190,6 @@ void send_out_headers_and_body(
   ap_rwrite(output.c_str(), output.size(), request);
 }
 
-// Write response headers and send out headers and output.
-void write_handler_response(const StringPiece& output, request_rec* request) {
-  ResponseHeaders response_headers;
-  response_headers.SetStatusAndReason(HttpStatus::kOK);
-  response_headers.set_major_version(1);
-  response_headers.set_minor_version(1);
-  response_headers.Add(HttpAttributes::kContentType, "text/html");
-  AprTimer timer;
-  int64 now_ms = timer.NowMs();
-  response_headers.SetDate(now_ms);
-  response_headers.SetLastModified(now_ms);
-  response_headers.Add(HttpAttributes::kCacheControl,
-                       HttpAttributes::kNoCache);
-  send_out_headers_and_body(request, response_headers, output.as_string());
-}
-
 const char* get_instaweb_resource_url(request_rec* request) {
   const char* resource = apr_table_get(request->notes, kResourceUrlNote);
 
@@ -230,28 +210,6 @@ const char* get_instaweb_resource_url(request_rec* request) {
   return url;
 }
 
-void log_resource_referral(request_rec* request,
-                           ApacheRewriteDriverFactory* factory) {
-  // If all the pieces are in place, we log this request as a resource referral
-  // for future prerender decision-making purposes
-  SharedMemRefererStatistics* referer_stats =
-      factory->shared_mem_referer_statistics();
-  if (referer_stats != NULL) {
-    const char* original_url = apr_table_get(request->notes,
-                                             kPagespeedOriginalUrl);
-    if (original_url != NULL) {
-      const char* referer = apr_table_get(request->headers_in,
-                                          HttpAttributes::kReferer);
-      if (referer != NULL) {
-        GoogleUrl referer_url(referer);
-        GoogleUrl resource_url(original_url);
-        referer_stats->LogResourceRequestWithReferer(resource_url,
-                                                     referer_url);
-      }
-    }
-  }
-}
-
 }  // namespace
 
 apr_status_t instaweb_handler(request_rec* request) {
@@ -259,45 +217,29 @@ apr_status_t instaweb_handler(request_rec* request) {
   const char* url = get_instaweb_resource_url(request);
   ApacheRewriteDriverFactory* factory =
       InstawebContext::Factory(request->server);
-  log_resource_referral(request, factory);
+
   if (strcmp(request->handler, kStatisticsHandler) == 0) {
     GoogleString output;
+    ResponseHeaders response_headers;
     StringWriter writer(&output);
     Statistics* statistics = factory->statistics();
     if (statistics != NULL) {
-      // Write <pre></pre> for Dump to keep good format.
-      writer.Write("<pre>", factory->message_handler());
       statistics->Dump(&writer, factory->message_handler());
-      writer.Write("</pre>", factory->message_handler());
-      statistics->RenderHistograms(&writer, factory->message_handler());
     } else {
       writer.Write("mod_pagespeed statistics is not enabled\n",
                    factory->message_handler());
     }
-    write_handler_response(output, request);
-    ret = OK;
-
-  } else if (strcmp(request->handler, kRefererStatisticsHandler) == 0) {
-    GoogleString output;
-    StringWriter writer(&output);
-    factory->DumpRefererStatistics(&writer);
-    write_handler_response(output, request);
-    ret = OK;
-
-  } else if (strcmp(request->handler, kMessageHandler) == 0) {
-    // Request for page /mod_pagespeed_message.
-    GoogleString output;
-    StringWriter writer(&output);
-    ApacheMessageHandler* handler = factory->apache_message_handler();
-    // Write <pre></pre> for Dump to keep good format.
-    writer.Write("<pre>", factory->message_handler());
-    if (!handler->Dump(&writer)) {
-      writer.Write("Writing to mod_pagespeed_message failed. \n"
-                   "Please check if it's enabled in pagespeed.conf.\n",
-                   factory->message_handler());
-    }
-    writer.Write("</pre>", factory->message_handler());
-    write_handler_response(output, request);
+    response_headers.SetStatusAndReason(HttpStatus::kOK);
+    response_headers.set_major_version(1);
+    response_headers.set_minor_version(1);
+    response_headers.Add(HttpAttributes::kContentType, "text/plain");
+    AprTimer timer;
+    int64 now_ms = timer.NowMs();
+    response_headers.SetDate(now_ms);
+    response_headers.SetLastModified(now_ms);
+    response_headers.Add(HttpAttributes::kCacheControl,
+                         HttpAttributes::kNoCache);
+    send_out_headers_and_body(request, response_headers, output);
     ret = OK;
 
   } else if (strcmp(request->handler, kBeaconHandler) == 0) {
@@ -385,9 +327,7 @@ apr_status_t save_url_hook(request_rec *request) {
   // Note: we must compare against the parsed URL because unparsed_url has
   // ?ets=load:xx at the end for kBeaconHandler.
   if (parsed_url.ends_with(kStatisticsHandler) ||
-      parsed_url.ends_with(kBeaconHandler) ||
-      parsed_url.ends_with(kMessageHandler) ||
-      parsed_url.ends_with(kRefererStatisticsHandler)) {
+      parsed_url.ends_with(kBeaconHandler)) {
     bypass_mod_rewrite = true;
   } else {
     ApacheRewriteDriverFactory* factory =

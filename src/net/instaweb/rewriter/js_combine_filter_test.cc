@@ -170,7 +170,7 @@ class JsCombineFilterTest : public ResourceManagerTestBase,
   }
 
   void PrepareToCollectScriptsInto(ScriptInfoVector* output) {
-    rewrite_driver()->AddOwnedPostRenderFilter(new ScriptCollector(output));
+    rewrite_driver()->AddOwnedFilter(new ScriptCollector(output));
   }
 
   // Makes sure that the script looks like a combination.
@@ -253,9 +253,13 @@ class JsCombineFilterTest : public ResourceManagerTestBase,
                (minified ? kMinifiedEscapedJs2 : kEscapedJs2), ";\n")),
                  combination_src);
 
-    // We currently cannot reconstruct nested rewrites in sync flow
-    // without doing a loopback fetch to ourselves.
-    if (!minified || rewrite_driver()->asynchronous_rewrites()) {
+    // TODO(jmarantz): The delayed_fetcher test infrastructure doesn't
+    // quite work for chained rewrites yet.  In fact, it doesn't work
+    // optimally in production either, as we wind up doing loopback
+    // fetches for our own generated resources.  This should be fixed
+    // by decoding the URLs prior to fetching and handling them locally
+    // if they are pagespeed-generated URLs.
+    if (!minified) {
       ServeResourceFromManyContexts(scripts[0].url, combination_src);
     }
   }
@@ -290,14 +294,6 @@ TEST_P(JsFilterAndCombineFilterTest, MinifyCombineJs) {
 TEST_P(JsFilterAndCombineFilterTest, MinifyShardCombineJs) {
   DomainLawyer* lawyer = options()->domain_lawyer();
   ASSERT_TRUE(lawyer->AddShard(kTestDomain, "a.com,b.com", &message_handler_));
-
-  // Make sure the shards have the resources, too.
-  SimulateJsResourceOnDomain("http://a.com/", kJsUrl1, kJsText1);
-  SimulateJsResourceOnDomain("http://a.com/", kJsUrl2, kJsText2);
-
-  SimulateJsResourceOnDomain("http://b.com/", kJsUrl1, kJsText1);
-  SimulateJsResourceOnDomain("http://b.com/", kJsUrl2, kJsText2);
-
   TestCombineJs("a.js,Mjm.FUEwDOA7jh.js+b.js,Mjm.Y1kknPfzVs.js", "FA3Pqioukh",
                 "S$0tgbTH0O", "ose8Vzgyj9", true, "http://b.com/");
 }

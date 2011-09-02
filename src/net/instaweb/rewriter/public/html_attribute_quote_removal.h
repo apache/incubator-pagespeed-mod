@@ -42,7 +42,6 @@ class HtmlParse;
 class HtmlAttributeQuoteRemoval : public EmptyHtmlFilter {
  public:
   explicit HtmlAttributeQuoteRemoval(HtmlParse* html_parse);
-  virtual ~HtmlAttributeQuoteRemoval();
   // Given context in object, does attribute value val require quotes?
   bool NeedsQuotes(const char *val);
   virtual void StartElement(HtmlElement* element);

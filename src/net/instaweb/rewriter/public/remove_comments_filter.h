@@ -43,8 +43,6 @@ class RemoveCommentsFilter : public EmptyHtmlFilter {
         rewrite_options_(options) {
   }
 
-  virtual ~RemoveCommentsFilter();
-
   virtual void Comment(HtmlCommentNode* comment);
   virtual const char* Name() const { return "RemoveComments"; }
 

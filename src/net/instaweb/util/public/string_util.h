@@ -47,8 +47,7 @@ typedef std::map<GoogleString, GoogleString> StringStringMap;
 typedef std::set<GoogleString> StringSet;
 typedef std::vector<GoogleString> StringVector;
 typedef std::vector<StringPiece> StringPieceVector;
-typedef std::vector<const GoogleString*> ConstStringStarVector;
-typedef std::vector<GoogleString*> StringStarVector;
+typedef std::vector<const GoogleString*> StringStarVector;
 typedef std::vector<const char*> CharStarVector;
 
 inline GoogleString IntegerToString(int i) {
@@ -97,8 +96,7 @@ GoogleString StrCat(const StringPiece& a, const StringPiece& b,
                     const StringPiece& h = EmptyString::kEmptyString);
 
 void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b = EmptyString::kEmptyString,
+               const StringPiece& a, const StringPiece& b,
                const StringPiece& c = EmptyString::kEmptyString,
                const StringPiece& d = EmptyString::kEmptyString,
                const StringPiece& e = EmptyString::kEmptyString,
@@ -224,12 +222,6 @@ inline void EnsureEndsInSlash(GoogleString* dir) {
 // Parse it into a vector:  ["a", "b", "c d", "e", "f g"]
 void ParseShellLikeString(const StringPiece& input,
                           std::vector<GoogleString>* output);
-
-// Counts the number of times that substring appears in text
-// Note: for a substring that can overlap itself, it counts not necessarily
-// disjoint occurrences of the substring.
-// For example: "aaa" appears in "aaaaa" 3 times, not once
-int CountSubstring(const StringPiece& text, const StringPiece& substring);
 
 }  // namespace net_instaweb
 

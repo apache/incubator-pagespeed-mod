@@ -140,7 +140,7 @@ TEST_F(HTTPCacheTest, PutGet) {
   ASSERT_TRUE(meta_data_out.headers_complete());
   StringPiece contents;
   ASSERT_TRUE(value.ExtractContents(&contents));
-  ConstStringStarVector values;
+  StringStarVector values;
   ASSERT_TRUE(meta_data_out.Lookup("name", &values));
   ASSERT_EQ(static_cast<size_t>(1), values.size());
   EXPECT_EQ(GoogleString("value"), *(values[0]));
@@ -159,11 +159,11 @@ TEST_F(HTTPCacheTest, PutGet) {
 
 // Verifies that the cache will 'remember' that a fetch should not be
 // cached for 5 minutes.
-TEST_F(HTTPCacheTest, RememberFetchFailedOrNotCacheable) {
+TEST_F(HTTPCacheTest, RememberNotCacheable) {
   ResponseHeaders meta_data_out;
-  http_cache_.RememberFetchFailedOrNotCacheable("mykey", &message_handler_);
+  http_cache_.RememberNotCacheable("mykey", &message_handler_);
   HTTPValue value;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
+  EXPECT_EQ(HTTPCache::kRecentFetchFailedDoNotRefetch,
             Find("mykey", &value, &meta_data_out, &message_handler_));
 
   // Now advance time 301 seconds; the cache should allow us to try fetching
@@ -171,20 +171,6 @@ TEST_F(HTTPCacheTest, RememberFetchFailedOrNotCacheable) {
   mock_timer_.AdvanceMs(301 * 1000);
   EXPECT_EQ(HTTPCache::kNotFound,
             Find("mykey", &value, &meta_data_out, &message_handler_));
-}
-
-// Make sure we don't remember 'non-cacheable' once we've put it into r/o mode.
-// (but do before)
-TEST_F(HTTPCacheTest, ReadOnly) {
-  http_cache_.RememberFetchFailedOrNotCacheable("mykey", &message_handler_);
-  http_cache_.SetReadOnly();
-  http_cache_.RememberFetchFailedOrNotCacheable("mykey2", &message_handler_);
-  ResponseHeaders meta_data_out;
-  HTTPValue value_out;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
-            Find("mykey", &value_out, &meta_data_out, &message_handler_));
-  EXPECT_EQ(HTTPCache::kNotFound,
-            Find("mykey2", &value_out, &meta_data_out, &message_handler_));
 }
 
 TEST_F(HTTPCacheTest, Uncacheable) {

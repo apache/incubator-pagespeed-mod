@@ -22,13 +22,10 @@
 #include <cstdlib>
 #include <vector>
 
-#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/pthread_shared_mem.h"
 #include "net/instaweb/util/public/shared_circular_buffer_test_base.h"
-#include "net/instaweb/util/public/shared_dynamic_string_map_test_base.h"
 #include "net/instaweb/util/public/shared_mem_lock_manager_test_base.h"
-#include "net/instaweb/util/public/shared_mem_referer_statistics_test_base.h"
 #include "net/instaweb/util/public/shared_mem_statistics_test_base.h"
 #include "net/instaweb/util/public/shared_mem_test_base.h"
 
@@ -54,7 +51,7 @@ class PthreadSharedMemEnvBase : public SharedMemTestEnv {
 
 class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  virtual bool CreateChild(Callback* callback) {
     pthread_t thread;
     if (pthread_create(&thread, NULL, InvokeCallback, callback) != 0) {
       return false;
@@ -81,8 +78,9 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
  private:
   static void* InvokeCallback(void* raw_callback_ptr) {
-    Function* callback = static_cast<Function*>(raw_callback_ptr);
-    callback->CallRun();
+    Callback* callback = static_cast<Callback*>(raw_callback_ptr);
+    callback->Run();
+    delete callback;
     return NULL;  // Used to denote success
   }
 
@@ -91,20 +89,21 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
 class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  virtual bool CreateChild(Callback* callback) {
     pid_t ret = fork();
     if (ret == -1) {
       // Failure
-      callback->CallCancel();
+      delete callback;
       return false;
     } else if (ret == 0) {
       // Child.
-      callback->CallRun();
+      callback->Run();
+      delete callback;
       std::exit(0);
     } else {
       // Parent.
       child_processes_.push_back(ret);
-      callback->CallCancel();
+      delete callback;
       return true;
     }
   }
@@ -127,32 +126,21 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
   std::vector<pid_t> child_processes_;
 };
 
-
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedDynamicStringMapTestTemplate,
+INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemTestTemplate,
                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemLockManagerTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc,
-                              SharedMemRefererStatisticsTestTemplate,
-                              PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemStatisticsTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemTestTemplate,
+INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedCircularBufferTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedDynamicStringMapTestTemplate,
+INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemTestTemplate,
                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemLockManagerTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread,
-                              SharedMemRefererStatisticsTestTemplate,
-                              PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemStatisticsTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemTestTemplate,
+INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedCircularBufferTestTemplate,
                               PthreadSharedMemThreadEnv);
 
 }  // namespace

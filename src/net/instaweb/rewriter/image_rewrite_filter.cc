@@ -70,15 +70,14 @@ const char kImageRewriteSavedBytes[] = "image_rewrite_saved_bytes";
 const char kImageInline[] = "image_inline";
 const char kImageWebpRewrites[] = "image_webp_rewrites";
 
-}  // namespace
-
 // name for statistic used to bound rewriting work.
-const char ImageRewriteFilter::kImageOngoingRewrites[] =
-    "image_ongoing_rewrites";
+const char kImageOngoingRewrites[] = "image_ongoing_rewrites";
 
-// Number of image rewrites we dropped lately due to work bound.
-const char ImageRewriteFilter::kImageRewritesDroppedDueToLoad[] =
-    "image_rewrites_dropped_due_to_load";
+const char kWidthKey[]  = "ImageRewriteFilter_W";
+const char kHeightKey[] = "ImageRewriteFilter_H";
+const char kDataUrlKey[] = "ImageRewriteFilter_DataUrl";
+
+}  // namespace
 
 class ImageRewriteFilter::Context : public SingleRewriteContext {
  public:
@@ -106,8 +105,7 @@ void ImageRewriteFilter::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
   RewriteDone(
-      filter_->RewriteLoadedResourceImpl(this, input_resource, output_resource),
-      0);
+      filter_->RewriteLoadedResource(input_resource, output_resource), 0);
 }
 
 void ImageRewriteFilter::Context::Render() {
@@ -117,12 +115,13 @@ void ImageRewriteFilter::Context::Render() {
   }
 
   CHECK_EQ(1, num_slots());
+  CHECK(output_partition(0)->has_result());
 
   // We use automatic rendering for CSS, as we merely write out the improved
   // URL, and manual for HTML, as we have to consider whether to inline, and
   // may also add in width and height attributes.
   if (!has_parent()) {
-    const CachedResult* result = output_partition(0);
+    const CachedResult* result = &output_partition(0)->result();
     HtmlResourceSlot* html_slot = static_cast<HtmlResourceSlot*>(slot(0).get());
     bool rewrote_url = filter_->FinishRewriteImageUrl(
         result, html_slot->element(), html_slot->attribute());
@@ -157,8 +156,6 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver,
     inline_count_ = stats->GetVariable(kImageInline);
     ongoing_rewrites = stats->GetVariable(kImageOngoingRewrites);
     webp_count_ = stats->GetVariable(kImageWebpRewrites);
-    image_rewrites_dropped_ =
-        stats->GetTimedVariable(kImageRewritesDroppedDueToLoad);
   }
   work_bound_.reset(
       new StatisticsWorkBound(ongoing_rewrites,
@@ -173,21 +170,11 @@ void ImageRewriteFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kImageRewrites);
   statistics->AddVariable(kImageOngoingRewrites);
   statistics->AddVariable(kImageWebpRewrites);
-  statistics->AddTimedVariable(kImageRewritesDroppedDueToLoad,
-                               ResourceManager::kStatisticsGroup);
 }
 
 RewriteSingleResourceFilter::RewriteResult
 ImageRewriteFilter::RewriteLoadedResource(const ResourcePtr& input_resource,
                                           const OutputResourcePtr& result) {
-  return RewriteLoadedResourceImpl(NULL /* no rewrite_context*/,
-                                   input_resource, result);
-}
-
-RewriteSingleResourceFilter::RewriteResult
-ImageRewriteFilter::RewriteLoadedResourceImpl(
-      RewriteContext* rewrite_context, const ResourcePtr& input_resource,
-      const OutputResourcePtr& result) {
   MessageHandler* message_handler = driver_->message_handler();
   StringVector urls;
   ResourceContext context;
@@ -236,10 +223,10 @@ ImageRewriteFilter::RewriteLoadedResourceImpl(
         } else {
           message = "Couldn't resize";
         }
-        driver_->InfoAt(rewrite_context, "%s image `%s' from %dx%d to %dx%d",
-                        message, input_resource->url().c_str(),
-                        image_dim.width(), image_dim.height(),
-                        page_dim.width(), page_dim.height());
+        driver_->InfoHere("%s image `%s' from %dx%d to %dx%d", message,
+                          input_resource->url().c_str(),
+                          image_dim.width(), image_dim.height(),
+                          page_dim.width(), page_dim.height());
       }
     }
 
@@ -273,12 +260,10 @@ ImageRewriteFilter::RewriteLoadedResourceImpl(
       }
 
       int64 origin_expire_time_ms = input_resource->CacheExpirationTimeMs();
-      resource_manager_->MergeNonCachingResponseHeaders(input_resource, result);
       if (resource_manager_->Write(
               HttpStatus::kOK, image->Contents(), result.get(),
               origin_expire_time_ms, message_handler)) {
-        driver_->InfoAt(
-            rewrite_context,
+        driver_->InfoHere(
             "Shrinking image `%s' (%u bytes) to `%s' (%u bytes)",
             input_resource->url().c_str(),
             static_cast<unsigned>(image->input_size()),
@@ -312,7 +297,6 @@ ImageRewriteFilter::RewriteLoadedResourceImpl(
     }
     work_bound_->WorkComplete();
   } else {
-    image_rewrites_dropped_->IncBy(1);
     message_handler->Message(kInfo, "%s: Too busy to rewrite image.",
                              input_resource->url().c_str());
   }

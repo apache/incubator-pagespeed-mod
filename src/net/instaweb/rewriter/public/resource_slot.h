@@ -27,7 +27,6 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -91,7 +90,7 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   bool was_optimized() const { return was_optimized_; }
 
   // Marks the slot as having been optimized.
-  void set_was_optimized(bool x) { was_optimized_ = x; }
+  void set_was_optimized() { was_optimized_ = true; }
 
   // Render is not thread-safe.  This must be called from the thread that
   // owns the DOM or CSS file.
@@ -107,10 +106,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // Detaches a context from the slot.  This must be the first or last context
   // that was added.
   void DetachContext(RewriteContext* context);
-
-  // Returns a human-readable description of where this slot occurs, for use
-  // in log messages.
-  virtual GoogleString LocationString() = 0;
 
  protected:
   virtual ~ResourceSlot();
@@ -138,7 +133,6 @@ class FetchResourceSlot : public ResourceSlot {
   }
 
   virtual void Render();
-  virtual GoogleString LocationString();
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
@@ -157,16 +151,13 @@ class HtmlResourceSlot : public ResourceSlot {
       : ResourceSlot(resource),
         element_(element),
         attribute_(attribute),
-        html_parse_(html_parse),
-        begin_line_number_(element->begin_line_number()),
-        end_line_number_(element->end_line_number()) {
+        html_parse_(html_parse) {
   }
 
   HtmlElement* element() { return element_; }
   HtmlElement::Attribute* attribute() { return attribute_; }
 
   virtual void Render();
-  virtual GoogleString LocationString();
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
@@ -176,9 +167,6 @@ class HtmlResourceSlot : public ResourceSlot {
   HtmlElement* element_;
   HtmlElement::Attribute* attribute_;
   HtmlParse* html_parse_;
-
-  int begin_line_number_;
-  int end_line_number_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlResourceSlot);
 };

@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 
-#include <set>
 #include <vector>
 
 #include "base/scoped_ptr.h"
@@ -40,8 +39,8 @@ namespace net_instaweb {
 
 class AbstractLock;
 class CachedResult;
-class InputInfo;
 class MessageHandler;
+class OutputPartition;
 class OutputPartitions;
 class ResourceContext;
 class ResponseHeaders;
@@ -118,8 +117,8 @@ class RewriteContext {
   // These are generally accessed in the Rewrite thread,
   // but may also be accessed in ::Render.
   int num_output_partitions() const;
-  const CachedResult* output_partition(int i) const;
-  CachedResult* output_partition(int i);
+  const OutputPartition* output_partition(int i) const;
+  OutputPartition* output_partition(int i);
 
   // Returns true if this context is chained to some predecessors, and
   // must therefore be started by a predecessor and not RewriteDriver.
@@ -141,9 +140,6 @@ class RewriteContext {
   // NestedRewriteComplete on their parent.  Nested rewrites will be
   // Started directly from their parent context, and Initiate will not
   // be called.
-  //
-  // Precondition: this rewrite isn't anyone's successor (e.g. chain() == false)
-  //               and has not been started before.
   void Initiate();
 
   // Fetch the specified output resource by reconstructing it from
@@ -184,10 +180,6 @@ class RewriteContext {
   // whether the slots can be rendered into HTML.
   void Propagate(bool render_slots);
 
-  // If true, we have determined that this job can't be rendered just
-  // from metadata cache (including all prerequisites).
-  bool slow() const { return slow_; }
-
  protected:
   // The following methods are provided for the benefit of subclasses.
 
@@ -199,20 +191,9 @@ class RewriteContext {
   RewriteDriver* Driver();
   const ResourceContext* resource_context() { return resource_context_.get(); }
 
-  // Check that an CachedResult is valid, specifically, that all the
+  // Check that an OutputPartition is valid, specifically, that all the
   // inputs are still valid/non-expired.
-  bool IsCachedResultValid(const CachedResult& partition);
-
-  // Checks whether all the entries in the given partition tables' other
-  // dependency table are valid.
-  bool IsOtherDependencyValid(const OutputPartitions* partitions);
-
-  // Checks whether the given input is still unchanged.
-  bool IsInputValid(const InputInfo& input_info);
-
-  // Add a dummy other_dependency that will force the rewrite's OutputPartitions
-  // to be rechecked after a modest TTL.
-  void AddRecheckDependency();
+  bool OutputPartitionIsValid(const OutputPartition& partition);
 
   // Establishes that a slot has been rewritten.  So when Propagate()
   // is called, the resource update that has been written to this slot can
@@ -231,9 +212,9 @@ class RewriteContext {
 
   // Called on the parent from a nested Rewrite when it is complete.
   // Note that we don't track rewrite success/failure here.  We only
-  // care whether the nested rewrites are complete, and whether there
-  // are any dependencies.
-  void NestedRewriteDone(const RewriteContext* context);
+  // care whether the nested rewrites are complete.  In fact we don't
+  // even track which particular nested rewrite is done.
+  void NestedRewriteDone();
 
   // Called on the parent to initiate all nested tasks.  This is so
   // that they can all be added before any of them are started.
@@ -272,7 +253,7 @@ class RewriteContext {
   // thread (while we were waiting for resource fetches) when Rewrite
   // gets called.
   virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
+                       OutputPartition* partition,
                        const OutputResourcePtr& output) = 0;
 
   // Once any nested rewrites have completed, the results of these
@@ -333,27 +314,14 @@ class RewriteContext {
  private:
   class OutputCacheCallback;
   friend class OutputCacheCallback;
-  class ResourceCallbackUtils;
   class ResourceFetchCallback;
-  class ResourceReconstructCallback;
-  friend class ResourceCallbackUtils;
-
-  typedef std::set<RewriteContext*> ContextSet;
+  friend class ResourceFetchCallback;
 
   // Callback helper functions.
   void Start();
-  void SetPartitionKey();
   void StartFetch();
   void OutputCacheDone(CacheInterface::KeyState state, SharedString value);
-  void OutputCacheHit();
   void ResourceFetchDone(bool success, ResourcePtr resource, int slot_index);
-
-  // When a RewriteContext 'B' discovers that it's doing the exact same rewrite
-  // as a previous RewriteContext 'A', B adds itself to A->repeated_, and
-  // suspends its work, expecting 'A' to call B->RepeatedSuccess(A) or
-  // B->RepeatedFailure() to give it the result of the rewrite.
-  void RepeatedSuccess(const RewriteContext* primary);
-  void RepeatedFailure();
 
   // After a Rewrite is complete, writes the metadata for the rewrite
   // operation to the cache, and runs any further rewites that are
@@ -391,8 +359,9 @@ class RewriteContext {
   void StartRewrite();
   void FinishFetch();
 
-  // Freshens resources proactively to avoid expiration in the near future.
-  void Freshen(const CachedResult& group);
+  // Returns 'true' if the resources are not expired.  Freshens resources
+  // proactively to avoid expiration in the near future.
+  bool FreshenAndCheckExpiration(const CachedResult& group);
 
   // Determines whether the Context is in a state where it's ready to
   // rewrite.  This requires:
@@ -412,19 +381,6 @@ class RewriteContext {
   // It will *not* call 'delete this' if there is a live RewriteDriver,
   // waiting for a convenient point to render the rewrites into HTML.
   void WritePartition();
-
-  // Marks this job and any dependents slow as appropriate, notifying the
-  // RewriteDriver of any changes.
-  void MarkSlow();
-
-  // Notes that we dropped parts of this rewrite due to system load, so we
-  // should not cache it.
-  void MarkTooBusy();
-
-  // Collect all non-nested contexts that depend on this one (including
-  // itself). Note that this might exclude some repeated jobs that haven't
-  // gotten far enough to realize that yet.
-  void CollectDependentTopLevel(ContextSet* contexts);
 
   // To perform a rewrite, we need to have data for all of its input slots.
   ResourceSlotVector slots_;
@@ -468,11 +424,6 @@ class RewriteContext {
   // Track the RewriteContexts that must be run after this one because they
   // share a slot.
   std::vector<RewriteContext*> successors_;
-
-  // Other places on the page (or CSS) that should be rewritten the same
-  // way 'this' is (e.g. because they refer to the same URL, filter and
-  // settings).
-  std::vector<RewriteContext*> repeated_;
 
   // Track the number of nested contexts that must be completed before
   // this one can be marked complete.  Nested contexts are typically
@@ -519,23 +470,16 @@ class RewriteContext {
   //   kComplete     // Ready to delete.
   // };
 
+  // True if there is a pending lookup to the metadata cache.
+  bool cache_lookup_active_;
+
   // True if all the rewriting is done for this context.
   bool rewrite_done_;
 
   // True if it's valid to write the partition table to the metadata cache.
   // We would *not* want to do that if one of the Rewrites completed
-  // with status kTooBusy or if we've just read these very partitions from
-  // the metadata cache.
+  // with status kTooBusy.
   bool ok_to_write_output_partitions_;
-
-  // True if the rewrite was incomplete due to heavy load; if this is true
-  // ok_to_write_output_partitions_ must be false.
-  bool was_too_busy_;
-
-  // We mark a job as "slow" when we cannot render it entirely from the
-  // metadata cache (including rendering its predecessors). We only do this
-  // for top-level jobs.
-  bool slow_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);
 };

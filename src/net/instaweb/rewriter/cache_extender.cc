@@ -101,8 +101,6 @@ CacheExtender::CacheExtender(RewriteDriver* driver, const char* filter_prefix)
   }
 }
 
-CacheExtender::~CacheExtender() {}
-
 void CacheExtender::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCacheExtensions);
   statistics->AddVariable(kNotCacheable);
@@ -259,9 +257,8 @@ RewriteSingleResourceFilter::RewriteResult CacheExtender::RewriteLoadedResource(
       contents = absolutified;
     }
   }
-
-  resource_manager_->MergeNonCachingResponseHeaders(
-      input_resource, output_resource);
+  // TODO(sligocki): Should we preserve the response headers from the
+  // original resource?
   if (resource_manager_->Write(
           HttpStatus::kOK, contents, output_resource.get(),
           headers->CacheExpirationTimeMs(), message_handler)) {

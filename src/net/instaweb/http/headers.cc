@@ -95,18 +95,9 @@ template<class Proto> int Headers<Proto>::NumAttributeNames() const {
 }
 
 template<class Proto> bool Headers<Proto>::Lookup(
-    const StringPiece& name, ConstStringStarVector* values) const {
+    const StringPiece& name, StringStarVector* values) const {
   PopulateMap();
   return map_->Lookup(name, values);
-}
-
-template<class Proto> const char* Headers<Proto>::Lookup1(
-    const StringPiece& name) const {
-  ConstStringStarVector v;
-  if (Lookup(name, &v) && (v.size() == 1)) {
-    return v[0]->c_str();
-  }
-  return NULL;
 }
 
 template<class Proto> bool Headers<Proto>::IsCommaSeparatedField(
@@ -159,7 +150,7 @@ template<class Proto> void Headers<Proto>::AddToMap(
 template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
                                                   const StringPiece& value) {
   PopulateMap();
-  ConstStringStarVector values;
+  StringStarVector values;
   bool found = map_->Lookup(name, &values);
   if (found) {
     int val_index = -1;
@@ -209,7 +200,7 @@ template<class Proto> bool Headers<Proto>::RemoveAll(const StringPiece& name) {
   // we copy the data into the map and do the remove there, then
   // reconstruct the protobuf.
   PopulateMap();
-  ConstStringStarVector values;
+  StringStarVector values;
   bool removed = map_->Lookup(name, &values);
   if (removed) {
     proto_->clear_header();

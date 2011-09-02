@@ -100,7 +100,6 @@ class HtmlName {
     kMethod,
     kMultiple,
     kMuted,
-    kName,
     kNohref,
     kNoresize,
     kNoscript,

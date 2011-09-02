@@ -38,7 +38,6 @@ class ImageTagScanner;
 class RewriteContext;
 class RewriteDriver;
 class Statistics;
-class TimedVariable;
 class UrlSegmentEncoder;
 class Variable;
 class WorkBound;
@@ -68,13 +67,6 @@ class ImageRewriteFilter : public RewriteSingleResourceFilter {
   RewriteContext* MakeNestedContext(RewriteContext* parent,
                                     const ResourceSlotPtr& slot);
 
-  // name for statistic used to bound rewriting work.
-  static const char kImageOngoingRewrites[];
-
-  // TimedVariable denoting image rewrites we dropped due to
-  // load (too many concurrent rewrites)
-  static const char kImageRewritesDroppedDueToLoad[];
-
  protected:
   // Interface to RewriteSingleResourceFilter
   virtual RewriteResult RewriteLoadedResource(const ResourcePtr& input_resource,
@@ -95,11 +87,6 @@ class ImageRewriteFilter : public RewriteSingleResourceFilter {
                                         Image* image);
   void BeginRewriteImageUrl(HtmlElement* element, HtmlElement::Attribute* src);
 
-  RewriteResult RewriteLoadedResourceImpl(RewriteContext* context,
-                                          const ResourcePtr& input_resource,
-                                          const OutputResourcePtr& result);
-
-
   // Returns true if it rewrote the URL.
   bool FinishRewriteImageUrl(const CachedResult* cached, HtmlElement* element,
                              HtmlElement::Attribute* src);
@@ -110,7 +97,6 @@ class ImageRewriteFilter : public RewriteSingleResourceFilter {
   Variable* inline_count_;
   Variable* rewrite_saved_bytes_;
   Variable* webp_count_;
-  TimedVariable* image_rewrites_dropped_;
   ImageUrlEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageRewriteFilter);

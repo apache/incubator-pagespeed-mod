@@ -115,8 +115,7 @@ class CssFilter : public RewriteSingleResourceFilter {
 
   // Tries to write out a (potentially edited) stylesheet out to out_text,
   // and returns whether we should consider the result as an improvement.
-  bool SerializeCss(RewriteContext* context,
-                    int64 in_text_size,
+  bool SerializeCss(int64 in_text_size,
                     const Css::Stylesheet* stylesheet,
                     const GoogleUrl& css_gurl,
                     bool previously_optimized,
@@ -189,7 +188,7 @@ class CssFilter::Context : public SingleRewriteContext {
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output);
   virtual const char* id() const { return filter_->id().c_str(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
   virtual GoogleString CacheKey() const;
 
  private:

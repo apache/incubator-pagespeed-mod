@@ -58,10 +58,6 @@ class WorkerTestBase::CountFunction : public Function {
     ++*variable_;
   }
 
-  virtual void Cancel() {
-    *variable_ -= 100;
-  }
-
  private:
   int* variable_;
   DISALLOW_COPY_AND_ASSIGN(CountFunction);

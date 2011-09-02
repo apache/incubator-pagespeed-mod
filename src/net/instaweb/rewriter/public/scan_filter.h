@@ -40,7 +40,6 @@ class ScanFilter : public EmptyHtmlFilter {
 
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
-  virtual void Flush();
 
   virtual const char* Name() const { return "Scan"; }
 

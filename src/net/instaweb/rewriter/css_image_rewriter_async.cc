@@ -28,8 +28,10 @@
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -102,17 +104,17 @@ void CssImageRewriterAsync::RewriteImage(
 }
 
 void CssImageRewriterAsync::RewriteCssImages(
-    const GoogleUrl& base_url, const StringPiece& contents,
-    Css::Stylesheet* stylesheet, MessageHandler* handler) {
-  const RewriteOptions* options = driver_->options();
-  bool spriting_ok = options->Enabled(RewriteOptions::kSpriteImages);
+    const GoogleUrl& base_url, Css::Stylesheet* stylesheet,
+    MessageHandler* handler) {
+  image_combiner_->Reset();
+  // bool spriting_ok =
+  //     driver_->options()->Enabled(RewriteOptions::kSpriteImages);
+  // Disabled until ported.
+  bool spriting_ok = false;
 
   if (RewritesEnabled()) {
     handler->Message(kInfo, "Starting to rewrite images in CSS in %s",
                      base_url.spec_c_str());
-    if (spriting_ok) {
-      image_combiner_->Reset(context_, base_url, contents);
-    }
     Css::Rulesets& rulesets = stylesheet->mutable_rulesets();
     for (Css::Rulesets::iterator ruleset_iter = rulesets.begin();
          ruleset_iter != rulesets.end(); ++ruleset_iter) {
@@ -151,18 +153,27 @@ void CssImageRewriterAsync::RewriteCssImages(
                   handler->Message(kInfo, "Invalid URL %s", rel_url.c_str());
                   continue;
                 }
-                if (!options->IsAllowed(original_url.Spec())) {
+                if (!driver_->options()->IsAllowed(original_url.Spec())) {
                   handler->Message(kInfo, "Disallowed URL %s", rel_url.c_str());
                   continue;
                 }
                 handler->Message(kInfo, "Found image URL %s", rel_url.c_str());
+                TimedBool result = {kint64max, false};
                 if (spriting_ok) {
-                  image_combiner_->AddCssBackgroundContext(
-                      original_url, values, value_index, context_,
-                      &decls, handler);
+                  result = image_combiner_->AddCssBackground(
+                      original_url, &decls, value, handler);
                 }
-                RewriteImage(base_url, original_url, values,
-                             value_index, handler);
+                if (result.value) {
+                  // TODO(abliss): sharing between spriting and other rewrites.
+                  // For now we assume that spriting subsumes all other rewrites
+                  // -- i.e. cache extending and recompressing.  This is
+                  // particularly bad news if there's exactly one image in the
+                  // CSS, since we'll assume it's going to be sprited, but it
+                  // won't be.
+                } else {
+                  RewriteImage(base_url, original_url, values,
+                               value_index, handler);
+                }
               }
             }
             break;
@@ -184,6 +195,9 @@ void CssImageRewriterAsync::RewriteCssImages(
     handler->Message(kInfo, "Image rewriting and cache extension not enabled, "
                      "so not rewriting images in CSS in %s",
                      base_url.spec_c_str());
+  }
+  if (spriting_ok) {
+    image_combiner_->DoCombine(handler);
   }
 }
 

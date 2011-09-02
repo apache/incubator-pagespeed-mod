@@ -86,9 +86,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void ComputeCaching();
   bool IsCacheable() const;
   bool IsProxyCacheable() const;
-  // Note(sligocki): I think CacheExpirationTimeMs will return 0 if !IsCacheable
-  // TODO(sligocki): Look through callsites and make sure this is being
-  // interpretted correctly.
   int64 CacheExpirationTimeMs() const;
 
   // Sets Date, Cache-Control and Expires headers appropriately.
@@ -154,11 +151,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
 
   // Returns whether or not we can cache these headers if we take into
   // account the Vary: headers.
-  bool VaryCacheable() const;
-
-  // Finds Content-Length in the response headers, returning true and putting
-  // it in *content_length if successful.
-  bool FindContentLength(int64* content_length);
+  bool VaryCacheable();
 
  private:
   friend class ResponseHeadersTest;
