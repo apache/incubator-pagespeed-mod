@@ -167,6 +167,18 @@ To do either of those would cost us a lot of development time that we'd prefer t
 
 The benefit of gclient, besides beyond done, is that it lets us control explicitly which library versions we link in of a large number of direct & transitive dependencies, helping us create a consistent experience for our source-code builds.  If we had to ask our source-code installers to configure&&make multiple dependent libraries there would likely be a lot of version-incompatibilities.
 
+= Why is my Google Analytics data being inflated by "Serf"? =
+
+If you track page views by using a tracking image, you will need to explicitly tell mod_pagespeed not to try to fetch that image. For example if your tracking image is
+{{{
+<img src="/ga.php?utmac=...">
+}}}
+you should add
+{{{
+ModPagespeedDisallow */ga.php*
+}}}
+to your {{{pagespeed.conf}}} file.
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
