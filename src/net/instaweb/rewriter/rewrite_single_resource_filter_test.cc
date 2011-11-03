@@ -176,6 +176,7 @@ class TestRewriter : public RewriteSingleResourceFilter {
 
     virtual void Encode(const StringVector& urls, const ResourceContext* data,
                         GoogleString* rewritten_url) const {
+      CHECK(data == NULL);
       CHECK_EQ(1, urls.size());
       *rewritten_url = kTestEncoderUrlExtra;
       UrlEscaper::EncodeToUrlSegment(urls[0], rewritten_url);
@@ -262,8 +263,13 @@ class RewriteSingleResourceFilterTest
   // input filename
   GoogleString OutputName(const StringPiece& in_domain,
                           const StringPiece& in_name) {
-    return Encode(in_domain, kTestFilterPrefix, hasher()->Hash(""),
-                  in_name, "txt");
+    if (filter_->create_custom_encoder()) {
+      return Encode(in_domain, kTestFilterPrefix, hasher()->Hash(""),
+                    StrCat(kTestEncoderUrlExtra, in_name), "txt");
+    } else {
+      return Encode(in_domain, kTestFilterPrefix, hasher()->Hash(""),
+                    in_name, "txt");
+    }
   }
 
   // Serves from relative URL

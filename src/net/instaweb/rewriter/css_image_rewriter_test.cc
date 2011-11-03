@@ -27,6 +27,7 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
@@ -304,7 +305,7 @@ TEST_P(CssImageRewriterTest, InlinePaths) {
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode("dir/", "ce", "0", "foo.png", "png"),
+      Encode("", "ce", "0", "dir/foo.png", "png"),
       ")}");
   ValidateRewriteInlineCss("nosubdir",
                            kCssBefore, kCssAfter,
@@ -334,13 +335,13 @@ TEST_P(CssImageRewriterTest, RewriteCached) {
   GoogleString kBaseDomain;
   // If using the TestUrlNamer, the rewritten URL won't be relative so
   // set things up so that we check for the correct URL below.
-  if (factory()->use_test_url_namer()) {
+  if (TestRewriteDriverFactory::UsingTestUrlNamer()) {
     kBaseDomain = kTestDomain;
   }
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode(StrCat(kBaseDomain, "dir/"), "ce", "0", "foo.png", "png"),
+      Encode(kBaseDomain, "ce", "0", "dir/foo.png", "png"),
       ")}");
   ValidateRewriteInlineCss("nosubdir",
                            kCssBefore, kCssAfter,
@@ -390,7 +391,7 @@ TEST_P(CssImageRewriterTest, RecompressImages) {
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode(kTestDomain, "ic", "0", "foo.png", "png"),
+      Encode(kTestDomain, "ic", "0", "xfoo.png", "png"),
       ")}");
 
   ValidateRewriteExternalCss("recompress_css_images", kCss, kCssAfter,
@@ -500,7 +501,7 @@ TEST_P(CssImageRewriterTest, RecompressImagesInStyleAttributes) {
   const GoogleString div_after = StrCat(
       "<div style=\""
       "background-image:url(",
-      Encode(kTestDomain, "ic", "0", "foo.png", "png"),
+      Encode(kTestDomain, "ic", "0", "xfoo.png", "png"),
       ")"
       "\"/>");
 

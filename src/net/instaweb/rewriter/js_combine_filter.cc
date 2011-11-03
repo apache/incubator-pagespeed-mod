@@ -283,7 +283,7 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
   virtual const UrlSegmentEncoder* encoder() const {
-    return filter_->encoder();
+    return &encoder_;
   }
   virtual const char* id() const {
     return filter_->id().c_str();

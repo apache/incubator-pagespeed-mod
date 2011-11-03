@@ -32,8 +32,6 @@ namespace net_instaweb {
 namespace {
 
 const char kCssFile[] = "assets/styles.css";
-const char kCssTail[] = "styles.css";
-const char kCssSubdir[] = "assets/";
 const char kCssData[] = ".blue {color: blue; src: url(dummy.png);}";
 
 class CssInlineImportToLinkFilterTest : public ResourceManagerTestBase {
@@ -183,8 +181,7 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertThenCacheExtend) {
   ValidateExpected("script_to_link_then_cache_extend",
                    StrCat("<style>@import url(", kCssFile, ");</style>"),
                    StrCat("<link rel=\"stylesheet\" href=\"",
-                          Encode(StrCat(kTestDomain, kCssSubdir), "ce", "0",
-                                 kCssTail, "css"),
+                          Encode(kTestDomain, "ce", "0", kCssFile, "css"),
                           "\">"));
 }
 

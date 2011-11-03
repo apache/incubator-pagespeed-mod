@@ -57,8 +57,6 @@ const char kHtmlFormat[] =
 // Instead we must ensure that the content-type is discovered from the
 // input resource response headers.
 const char kCssFile[]       = "sub/a.css?v=1";
-const char kCssTail[]       = "a.css?v=1";
-const char kCssSubdir[]     = "sub/";
 const char kCssDataFormat[] = ".blue {color: blue; src: url(%sembedded.png);}";
 const char kFilterId[]      = "ce";
 const char kImageData[]     = "Not really JPEG but irrelevant for this test";
@@ -71,10 +69,7 @@ const int kLongTtlSec       = 100000000;
 class CacheExtenderTest : public ResourceManagerTestBase,
                           public ::testing::WithParamInterface<bool> {
  protected:
-  CacheExtenderTest()
-      : kCssData(CssData("")),
-        kCssPath(StrCat(kTestDomain, kCssSubdir)) {
-  }
+  CacheExtenderTest() : kCssData(CssData("")) {}
 
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
@@ -98,7 +93,7 @@ class CacheExtenderTest : public ResourceManagerTestBase,
   // Helper to test for how we handle trailing junk in URLs
   void TestCorruptUrl(const char* junk, bool should_fetch_ok) {
     InitTest(kShortTtlSec);
-    GoogleString a_ext = Encode(kCssPath, "ce", "0", kCssTail, "css");
+    GoogleString a_ext = Encode(kTestDomain, "ce", "0", kCssFile, "css");
     GoogleString b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
     GoogleString c_ext = Encode(kTestDomain, "ce", "0", "c.js", "js");
 
@@ -119,7 +114,6 @@ class CacheExtenderTest : public ResourceManagerTestBase,
   }
 
   const GoogleString kCssData;
-  const GoogleString kCssPath;
 };
 
 TEST_P(CacheExtenderTest, DoExtend) {
@@ -128,7 +122,7 @@ TEST_P(CacheExtenderTest, DoExtend) {
     ValidateExpected(
         "do_extend",
         GenerateHtml(kCssFile, "b.jpg", "c.js"),
-        GenerateHtml(Encode(kCssPath, "ce", "0", kCssTail, "css"),
+        GenerateHtml(Encode(kTestDomain, "ce", "0", kCssFile, "css"),
                      Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
                      Encode(kTestDomain, "ce", "0", "c.js", "js")));
   }
@@ -184,8 +178,7 @@ TEST_P(CacheExtenderTest, ExtendIfSharded) {
   ValidateExpected("extend_if_sharded",
                    GenerateHtml(kCssFile, "b.jpg", "c.js"),
                    GenerateHtml(
-                       Encode(StrCat("http://shard0.com/", kCssSubdir),
-                              "ce", "0", kCssTail, "css"),
+                       Encode("http://shard0.com/", "ce", "0", kCssFile, "css"),
                        Encode("http://shard0.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("http://shard0.com/", "ce", "0", "c.js", "js")));
 }
@@ -199,8 +192,7 @@ TEST_P(CacheExtenderTest, ExtendIfOriginMappedHttps) {
                                 "https://cdn.com/b.jpg",
                                 "https://cdn.com/c.js"),
                    GenerateHtml(
-                       Encode("https://cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
+                       Encode("https://cdn.com/", "ce", "0", kCssFile, "css"),
                        Encode("https://cdn.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("https://cdn.com/", "ce", "0", "c.js", "js")));
 }
@@ -213,8 +205,7 @@ TEST_P(CacheExtenderTest, ExtendIfRewritten) {
   ValidateExpected("extend_if_rewritten",
                    GenerateHtml(kCssFile, "b.jpg", "c.js"),
                    GenerateHtml(
-                       Encode("http://cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
+                       Encode("http://cdn.com/", "ce", "0", kCssFile, "css"),
                        Encode("http://cdn.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("http://cdn.com/", "ce", "0", "c.js", "js")));
 }
@@ -233,8 +224,7 @@ TEST_P(CacheExtenderTest, ExtendIfShardedAndRewritten) {
   ValidateExpected("extend_if_sharded_and_rewritten",
                    GenerateHtml(kCssFile, "b.jpg", "c.js"),
                    GenerateHtml(
-                       Encode("http://shard0.com/sub/", "ce", "0", kCssTail,
-                              "css"),
+                       Encode("http://shard0.com/", "ce", "0", kCssFile, "css"),
                        Encode("http://shard0.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("http://shard0.com/", "ce", "0", "c.js", "js")));
 }
@@ -256,8 +246,7 @@ TEST_P(CacheExtenderTest, ExtendIfShardedToHttps) {
                                 "https://test.com/b.jpg",
                                 "https://test.com/c.js"),
                    GenerateHtml(
-                       Encode("https://shard0.com/sub/", "ce", "0", kCssTail,
-                              "css"),
+                       Encode("https://shard0.com/", "ce", "0", kCssFile,"css"),
                        Encode("https://shard0.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("https://shard0.com/", "ce", "0", "c.js", "js")));
 }
@@ -279,7 +268,7 @@ TEST_P(CacheExtenderTest, ServeFiles) {
   // the served CSS file, we have to serve it from test.com and not from
   // cdn.com which TestUrlNamer does when it's being used.
   ASSERT_TRUE(ServeResourceUrl(
-      Encode(kCssPath, kFilterId, "0", kCssTail, "css"), &content));
+      Encode(kTestDomain, kFilterId, "0", kCssFile, "css"), &content));
   EXPECT_EQ(kCssData, content);  // no absolutification
   ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, "b.jpg", "jpg", &content));
   EXPECT_EQ(GoogleString(kImageData), content);
@@ -301,8 +290,7 @@ TEST_P(CacheExtenderTest, ConsistentHashWithRewrite) {
 
   // First do the HTML rewrite.
   GoogleString hash = hasher()->Hash(kCssData);
-  GoogleString extended_css = Encode(StrCat(kNewDomain, kCssSubdir), "ce", hash,
-                                     kCssTail, "css");
+  GoogleString extended_css = Encode(kNewDomain, "ce", hash, kCssFile, "css");
   ValidateExpected("consistent_hash",
                    StringPrintf(kCssFormat, kCssFile),
                    StringPrintf(kCssFormat, extended_css.c_str()));
@@ -351,8 +339,8 @@ TEST_P(CacheExtenderTest, ConsistentHashWithShard) {
 
   // First do the HTML rewrite.
   const char kHash[] = "MnXHB3ChUY";
-  GoogleString extended_css = Encode("http://shard2.com/sub/", "ce", kHash,
-                                     kCssTail, "css");
+  GoogleString extended_css = Encode("http://shard2.com/", "ce", kHash,
+                                     kCssFile, "css");
   ValidateExpected("consistent_hash",
                    StringPrintf(kCssFormat, kCssFile),
                    StringPrintf(kCssFormat, extended_css.c_str()));
@@ -387,7 +375,7 @@ TEST_P(CacheExtenderTest, ServeFilesWithRewriteDomainsEnabled) {
   DomainLawyer* lawyer = options()->domain_lawyer();
   lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
   InitTest(kShortTtlSec);
-  ASSERT_TRUE(ServeResource(kCssPath, kFilterId, kCssTail, "css", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, kCssFile, "css", &content));
   EXPECT_EQ(CssData("http://new.com/sub/"), content);
 }
 
@@ -397,7 +385,7 @@ TEST_P(CacheExtenderTest, ServeFilesWithRewriteDomainAndPathEnabled) {
   lawyer->AddRewriteDomainMapping("http://new.com/test/", kTestDomain,
                                   &message_handler_);
   InitTest(kShortTtlSec);
-  ASSERT_TRUE(ServeResource(kCssPath, kFilterId, kCssTail, "css", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, kCssFile, "css", &content));
   EXPECT_EQ(CssData("http://new.com/test/sub/"), content);
 }
 
@@ -407,7 +395,7 @@ TEST_P(CacheExtenderTest, ServeFilesWithShard) {
   lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
   lawyer->AddShard(kNewDomain, "shard1.com,shard2.com", &message_handler_);
   InitTest(kShortTtlSec);
-  ASSERT_TRUE(ServeResource(kCssPath, kFilterId, kCssTail, "css", &content));
+  ASSERT_TRUE(ServeResource(kTestDomain, kFilterId, kCssFile, "css", &content));
   EXPECT_EQ(CssData("http://shard1.com/sub/"), content);
 }
 
@@ -417,7 +405,7 @@ TEST_P(CacheExtenderTest, ServeFilesFromDelayedFetch) {
   // the served CSS file, we have to serve it from test.com and not from
   // cdn.com which TestUrlNamer does when it's being used.
   ServeResourceFromManyContexts(
-      EncodeNormal(kCssPath, "ce", "0", kCssTail, "css"), kCssData);
+      EncodeNormal(kTestDomain, "ce", "0", kCssFile, "css"), kCssData);
   ServeResourceFromManyContexts(Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
                                 kImageData);
   ServeResourceFromManyContexts(Encode(kTestDomain, "ce", "0", "c.js", "js"),
@@ -496,7 +484,7 @@ TEST_P(CacheExtenderTest, TrimUrlInteraction) {
   // trimming logic can work and give us a relative URL result as expected.
   TestUrlNamer::UseNormalEncoding(true);
 
-  GoogleString a_ext = Encode(kCssSubdir, "ce", "0", kCssTail, "css");
+  GoogleString a_ext = Encode("", "ce", "0", kCssFile, "css");
   ValidateExpected("ce_then_trim",
                    StringPrintf(kCssFormat, kCssFile),
                    StringPrintf(kCssFormat, a_ext.c_str()));

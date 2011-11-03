@@ -47,20 +47,15 @@ GoogleString CSSEscapeString(const StringPiece& src, bool in_url) {
   const char* src_end = src.data() + src.size();
   int used = 0;
 
+  // TODO(jmarantz): yian@google.com says: "The spec really says
+  // nothing about constructs like \r, \n, and \t. The current
+  // newline/tab case handling is wrong. We should use \D \A and \9
+  // instead. This should be fixed."
   for (const char* p = src.data(); p < src_end; p++) {
     switch (*p) {
-      // Note: CSS does not use standard \n, \r and \t escapes.
-      // Generic hex escapes are used instead.
-      // See: http://www.w3.org/TR/CSS2/syndata.html#strings
-      //
-      // Note: Hex escapes in CSS must end in space.
-      // See: http://www.w3.org/TR/CSS2/syndata.html#characters
-      case '\n':
-        dest[used++] = '\\'; dest[used++] = 'A'; dest[used++] = ' '; break;
-      case '\r':
-        dest[used++] = '\\'; dest[used++] = 'D'; dest[used++] = ' '; break;
-      case '\t':
-        dest[used++] = '\\'; dest[used++] = '9'; dest[used++] = ' '; break;
+      case '\n': dest[used++] = '\\'; dest[used++] = 'n';  break;
+      case '\r': dest[used++] = '\\'; dest[used++] = 'r';  break;
+      case '\t': dest[used++] = '\\'; dest[used++] = 't';  break;
       case ',':
         if (in_url) {
           dest[used++] = *p;
