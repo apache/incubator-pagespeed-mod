@@ -84,8 +84,7 @@ void CssImageRewriterAsync::RewriteImage(
   CssResourceSlotPtr slot(
       context_->slot_factory()->GetSlot(resource, values, value_index));
 
-  if (options->Enabled(RewriteOptions::kRecompressImages) ||
-      options->Enabled(RewriteOptions::kInlineImagesInCss)) {
+  if (options->Enabled(RewriteOptions::kRecompressImages)) {
     context_->RegisterNested(
         image_rewriter_->MakeNestedContext(context_, ResourceSlotPtr(slot)));
   }

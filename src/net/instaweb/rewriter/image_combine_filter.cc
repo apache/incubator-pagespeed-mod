@@ -59,6 +59,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_escaper.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
 #include "webutil/css/parser.h"
@@ -812,9 +813,7 @@ class ImageCombineFilter::Context : public RewriteContext {
     return true;
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
-    return filter_->encoder();
-  }
+  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
   virtual const char* id() const { return filter_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
@@ -1106,6 +1105,7 @@ class ImageCombineFilter::Context : public RewriteContext {
 
   Library library_;
   ImageCombineFilter* filter_;
+  UrlMultipartEncoder encoder_;
   GoogleString key_prefix_;
 };
 

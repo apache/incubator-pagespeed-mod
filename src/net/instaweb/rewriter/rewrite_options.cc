@@ -29,6 +29,7 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/wildcard_group.h"
 
 namespace {
@@ -44,7 +45,7 @@ namespace {
 //
 // This version number should be incremented if any default-values are changed,
 // either in the add_option() call or via options->set_default.
-const int kOptionsVersion = 6;
+const int kOptionsVersion = 5;
 
 }  // namespace
 
@@ -80,7 +81,7 @@ const int64 RewriteOptions::kDefaultJsInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
 const int64 RewriteOptions::kDefaultJsOutlineMinBytes = 3000;
 
-const int64 RewriteOptions::kDefaultMaxHtmlCacheTimeMs = 0;
+const int64 RewriteOptions::kDefaultMaxHtmlCacheTimeMs = 5 * Timer::kMinuteMs;
 const int64 RewriteOptions::kDefaultMinResourceCacheTimeToRewriteMs = 0;
 
 const int64 RewriteOptions::kDefaultCacheInvalidationTimestamp = -1;
@@ -142,7 +143,6 @@ const RewriteOptions::Filter kTestFilterSet[] = {
 // Note: These filters should not be included even if the level is "All".
 const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kDivStructure,
-  RewriteOptions::kInlineImagesInCss,  // TODO(jmaessen): Make it safe
   RewriteOptions::kStripScripts,
 };
 
@@ -178,7 +178,6 @@ const char * RewriteOptions::FilterName(
     case kExtendCache:                     return "Extend Cache";
     case kInlineCss:                       return "Inline Css";
     case kInlineImages:                    return "Inline Images";
-    case kInlineImagesInCss:               return "Inline Images in Css";
     case kInlineImportToLink:              return "Inline @import to Link";
     case kInlineJavascript:                return "Inline Javascript";
     case kInsertImageDimensions:           return "Insert Image Dimensions";

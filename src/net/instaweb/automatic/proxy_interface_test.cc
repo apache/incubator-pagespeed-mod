@@ -31,8 +31,8 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -44,6 +44,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/worker_test_base.h"
@@ -221,30 +222,6 @@ class ProxyInterfaceTest : public ResourceManagerTestBase {
     return options_success.first;
   }
 
-  // Serve a trivial HTML page with initial Cache-Control header set to
-  // input_cache_control and return the Cache-Control header after running
-  // through ProxyInterface.
-  //
-  // A unique id must be set to assure different websites are requested.
-  // id is put in a URL, so it probably shouldn't have spaces and other
-  // special chars.
-  GoogleString RewriteHtmlCacheHeader(const StringPiece& id,
-                                      const StringPiece& input_cache_control) {
-    GoogleString url = StrCat("http://www.example.com/", id, ".html");
-    ResponseHeaders input_headers;
-    DefaultResponseHeaders(kContentTypeHtml, 100, &input_headers);
-    input_headers.Replace(HttpAttributes::kCacheControl, input_cache_control);
-    SetFetchResponse(url, input_headers, "");
-
-    GoogleString body;
-    ResponseHeaders output_headers;
-    FetchFromProxy(url, true, &body, &output_headers);
-    ConstStringStarVector values;
-    output_headers.Lookup(HttpAttributes::kCacheControl, &values);
-    return JoinStringStar(values, ", ");
-  }
-
-
   scoped_ptr<ProxyInterface> proxy_interface_;
   int64 start_time_ms_;
   GoogleString start_time_string_;
@@ -302,7 +279,6 @@ TEST_F(ProxyInterfaceTest, SetCookieNotCached) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // The next response that is served from cache does not have any Set-Cookie
   // headers.
@@ -312,7 +288,7 @@ TEST_F(ProxyInterfaceTest, SetCookieNotCached) {
   EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie));
   EXPECT_EQ(kContent, text2);
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
@@ -331,7 +307,6 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // The next response that is served from cache does not have any Set-Cookie
   // headers.
@@ -341,7 +316,7 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie2));
   EXPECT_EQ(kContent, text2);
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
@@ -367,7 +342,6 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // Fetch again from cache. It has the same caching headers.
   text.clear();
@@ -381,7 +355,7 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
@@ -405,7 +379,6 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // Fetch again. Not found in cache.
   text.clear();
@@ -416,51 +389,7 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(1, lru_cache()->num_misses());
-}
-
-TEST_F(ProxyInterfaceTest, EtagsAddedWhenAbsent) {
-  ResponseHeaders headers;
-  const char kContent[] = "A very compelling article";
-  SetDefaultLongCacheHeaders(&kContentTypeText, &headers);
-  headers.RemoveAll(HttpAttributes::kEtag);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.txt"), headers, kContent);
-
-  // The first response served by the fetcher has no Etag in the response.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("text.txt", true, &text, &response_headers);
-  EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
-  EXPECT_EQ(NULL, response_headers.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ(kContent, text);
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
-
-  // An Etag is added before writing to cache. The next response is served from
-  // cache and has an Etag.
-  GoogleString text2;
-  ResponseHeaders response_headers2;
-  FetchFromProxy("text.txt", true, &text2, &response_headers2);
-  EXPECT_EQ(HttpStatus::kOK, response_headers2.status_code());
-  EXPECT_STREQ("W/PSA-0", response_headers2.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ(kContent, text2);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  ClearStats();
-
-  // The Etag matches and a 304 is served out.
-  GoogleString text3;
-  ResponseHeaders response_headers3;
-  RequestHeaders request_headers;
-  request_headers.Add(HttpAttributes::kIfNoneMatch, "W/PSA-0");
-  FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
-  EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ("", text3);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, EtagMatching) {
@@ -480,7 +409,6 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // The next response is served from cache.
   GoogleString text2;
@@ -490,8 +418,7 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_STREQ("etag", response_headers2.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text2);
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  ClearStats();
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
   // The Etag matches and a 304 is served out.
   GoogleString text3;
@@ -502,9 +429,8 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
   EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ("", text3);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  ClearStats();
+  EXPECT_EQ(2, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
   // The Etag doesn't match and the full response is returned.
   GoogleString text4;
@@ -514,8 +440,8 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kOK, response_headers4.status_code());
   EXPECT_STREQ("etag", response_headers4.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text4);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(3, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
@@ -536,7 +462,6 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_EQ(kContent, text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  ClearStats();
 
   // The next response is served from cache.
   GoogleString text2;
@@ -547,8 +472,7 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
                response_headers2.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ(kContent, text2);
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  ClearStats();
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
   // The last modified timestamp matches and a 304 is served out.
   GoogleString text3;
@@ -559,9 +483,8 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
   EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ("", text3);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  ClearStats();
+  EXPECT_EQ(2, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
   // The last modified timestamp doesn't match and the full response is
   // returned.
@@ -574,8 +497,8 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_STREQ(start_time_string_,
                response_headers4.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ(kContent, text4);
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(3, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, EatCookiesOnReconstructFailure) {
@@ -992,28 +915,6 @@ TEST_F(ProxyInterfaceTest, RepairMismappedResource) {
   FetchFromProxy(
       StrCat("http://", ProxyUrlNamer::kProxyHost, "/test.com/evil.com/foo.js"),
       false, &text, &headers);
-}
-
-// Test that we serve "Cache-Control: no-store" only when original page did.
-TEST_F(ProxyInterfaceTest, NoStore) {
-  RewriteOptions* options = resource_manager()->global_options();
-  options->ClearSignatureForTesting();
-  options->set_max_html_cache_time_ms(0);
-  resource_manager()->ComputeSignature(options);
-
-  // Most headers get converted to "no-cache, max-age=0".
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("empty", ""));
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("private", "private, max-age=100"));
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("no-cache", "no-cache"));
-
-  // Headers with "no-store", preserve that header as well.
-  EXPECT_STREQ("max-age=0, no-cache, no-store",
-               RewriteHtmlCacheHeader("no-store", "no-cache, no-store"));
-  EXPECT_STREQ("max-age=0, no-cache, no-store",
-               RewriteHtmlCacheHeader("no-store2", "no-store, max-age=300"));
 }
 
 }  // namespace

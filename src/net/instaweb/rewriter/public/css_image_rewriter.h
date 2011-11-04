@@ -64,7 +64,6 @@ class CssImageRewriter {
   bool RewritesEnabled() const;
 
   // Statistics names.
-  static const char kImageInlines[];
   static const char kImageRewrites[];
   static const char kCacheExtends[];
   static const char kNoRewrite[];
@@ -90,7 +89,6 @@ class CssImageRewriter {
   ImageRewriteFilter* image_rewriter_;
 
   // Statistics
-  Variable* image_inlines_;
   Variable* image_rewrites_;
   Variable* cache_extends_;
   Variable* no_rewrite_;

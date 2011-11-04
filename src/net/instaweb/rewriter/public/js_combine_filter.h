@@ -32,7 +32,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_multipart_encoder.h"
 
 namespace net_instaweb {
 class HtmlCharactersNode;
@@ -43,7 +42,6 @@ class ResponseHeaders;
 class RewriteDriver;
 class RewriteContext;
 class Statistics;
-class UrlSegmentEncoder;
 class Writer;
 
 // Implements combining of multiple external JS files into one via the
@@ -77,7 +75,6 @@ class JsCombineFilter : public RewriteFilter {
   // Registers the provided statistics variable names with 'statistics'.
   static void Initialize(Statistics* statistics);
 
- protected:
   // RewriteFilter overrides --- HTML parsing event handlers.
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
@@ -88,7 +85,6 @@ class JsCombineFilter : public RewriteFilter {
   virtual const char* Name() const { return "JsCombine"; }
   virtual bool HasAsyncFlow() const;
   virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
 
   // RewriteFilter override --- callback for reconstructing resource on demand.
   virtual bool Fetch(const OutputResourcePtr& resource,
@@ -125,7 +121,6 @@ class JsCombineFilter : public RewriteFilter {
   // current outermost <script> not with JavaScript we are inside, or NULL
   HtmlElement* current_js_script_;  // owned by the html parser.
   scoped_ptr<Context> context_;
-  UrlMultipartEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombineFilter);
 };

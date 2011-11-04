@@ -256,15 +256,7 @@ void ProxyFetch::HeadersComplete() {
           response_headers_->HasValue(
               HttpAttributes::kCacheControl, "must-revalidate")) {
         ttl_ms = 0;
-        cache_control_suffix = ", no-cache";
-        // We don't want to add no-store unless we have to.
-        // TODO(sligocki): Stop special-casing no-store, just preserve all
-        // Cache-Control identifiers except for restricting max-age and
-        // private/no-cache level.
-        if (response_headers_->HasValue(
-                HttpAttributes::kCacheControl, "no-store")) {
-          cache_control_suffix += ", no-store";
-        }
+        cache_control_suffix = ", no-cache, no-store";
       } else {
         ttl_ms = std::min(options->max_html_cache_time_ms(),
                           response_headers_->cache_ttl_ms());
