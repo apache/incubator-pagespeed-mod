@@ -36,12 +36,12 @@ You will need to add the depot_tools to your path. i.e. in bash:
 Either latest stable version:
 {{{
   gclient config http://modpagespeed.googlecode.com/svn/branches/latest-beta/src
-  gclient sync --force     # this will download all source code
+  gclient sync --force --jobs=1   # this will download all source code
 }}}
 or the bleeding edge version
 {{{
   gclient config http://modpagespeed.googlecode.com/svn/trunk/src
-  gclient sync --force     # this will download all source code
+  gclient sync --force --jobs=1  # this will download all source code
 }}}
 
 == Running unit tests ==
@@ -117,7 +117,7 @@ To update to the latest version, first configure to the latest tag, eg:
 }}}
 Then sync your client:
 {{{
-  gclient sync --force
+  gclient sync --force --jobs=1
 }}}
 
 Now you can re-build and install using the instructions above.
