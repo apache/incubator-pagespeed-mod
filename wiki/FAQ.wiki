@@ -179,6 +179,12 @@ ModPagespeedDisallow */ga.php*
 }}}
 to your {{{pagespeed.conf}}} file.
 
+= mod_pagespeed does not rewrite pages produced from mod_php =
+
+mod_pagespeed only rewrites pages specifically marked as "Content-Type: text/html" (and a few other HTML types). If you dynamically generate your pages from mod_php, you set PHP to set this header correctly.
+
+You should be able to do this with the setContentType (http://php.net/manual/en/function.httpresponse-setcontenttype.php) or header (http://php.net/manual/en/function.header.php).
+
 ----
 
 Thanks to contributors on mod-pagespeed-discuss@googlegroups.com
