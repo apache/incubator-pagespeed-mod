@@ -7,6 +7,8 @@ We require Apache (>= 2.2), g++ (>= 4.1), Python (>= 2.6), subversion, and make.
   * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++ make devscripts fakeroot python`
   * On CentOS: `sudo yum install httpd subversion gcc-c++ make rpm-build python`
 
+If you are building trunk, you may also need to install gperf.
+
 To build on CentOS 5.4, you must install Python 2.6.  You don't need to replace the system-provided Python 2.4 -- you just need to have "which python" point to python 2.6.  For example:
 
 {{{
@@ -15,6 +17,7 @@ sudo rpm -ivh epel-release-5-4.noarch.rpm
 cd ~/bin  (or somewhere in your path)
 ln -s /usr/bin/python26 python
 }}}
+
 
 == Chromium depot tools ==
 We require the Chromium 'depot_tools', which are used to build multiple open-source projects with dependencies on other open-source projects.
