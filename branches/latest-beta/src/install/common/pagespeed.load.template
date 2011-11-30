@@ -1,6 +1,0 @@
-LoadModule pagespeed_module @@APACHE_MODULEDIR@@/mod_pagespeed.so
-
-# Only attempt to load mod_deflate if it hasn't been loaded already.
-<IfModule !mod_deflate.c>
-@@COMMENT_OUT_DEFLATE@@ LoadModule deflate_module @@APACHE_MODULEDIR@@/mod_deflate.so
-</IfModule>
