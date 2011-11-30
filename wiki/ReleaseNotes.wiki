@@ -1,5 +1,14 @@
 <wiki:toc max_depth="3" />
 
+===mod_pagespeed release 0.10.19.3===
+was released on Nov 29, 2011.  It fixes the following issues:
+||Issue 249 || Rewrite CSS in style tags||
+||Issue 295 || Incorrectly resolved relative urls in rewritten CSS||
+||Issue 303 || Trim URLs in CSS that were absolutified||
+||Issue 324 || Non-caching-related headers are stripped from resources||
+||Issue 338 || combine_css needs to strip BOM markers before combining||
+||Issue 344 || combine_javascript not combining javascript when names became too long||
+
 ===mod_pagespeed release 0.9.18.6===
 was released on Aug 4, 2011.  It fixes the following issues:
 ||Issue 103 || Pay attention to Vary headers for caching of sub-responses||
