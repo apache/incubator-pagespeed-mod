@@ -21,12 +21,10 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
@@ -34,8 +32,8 @@
 
 namespace net_instaweb {
 class CachedResult;
-class CssResourceSlot;
 class ContentType;
+class Image;
 class ImageTagScanner;
 class ResourceContext;
 class RewriteContext;
@@ -51,33 +49,25 @@ class WorkBound;
 //     rewritten urls, when in general those urls will be in a different domain.
 class ImageRewriteFilter : public RewriteSingleResourceFilter {
  public:
-  explicit ImageRewriteFilter(RewriteDriver* driver);
+  ImageRewriteFilter(RewriteDriver* driver,
+                     StringPiece path_prefix);
   virtual ~ImageRewriteFilter();
   static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "ImageRewrite"; }
-  virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
 
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
-  static bool TryInline(
-      int64 image_inline_max_bytes, const CachedResult* cached_result,
-      GoogleString* data_url);
+  static bool CanInline(
+      int image_inline_max_bytes, const StringPiece& contents,
+      const ContentType* content_type, GoogleString* data_url);
 
-  // Creates a nested rewrite for an image inside a CSS file with the given
-  // parent and slot, and returns it. The result is not registered with the
-  // parent.
-  RewriteContext* MakeNestedRewriteContextForCss(
-      int64 css_image_inline_max_bytes,
-      RewriteContext* parent,
-      const ResourceSlotPtr& slot);
-
-  // Creates a nested rewrite for the given parent and slot and returns it. The
-  // result is not registered with the parent.
-  virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
-                                                   const ResourceSlotPtr& slot);
+  // Creates a nested rewrite for given parent and slot, and returns it.
+  // The result is not registered with the parent.
+  RewriteContext* MakeNestedContext(RewriteContext* parent,
+                                    const ResourceSlotPtr& slot);
 
   // name for statistic used to bound rewriting work.
   static const char kImageOngoingRewrites[];
@@ -110,20 +100,11 @@ class ImageRewriteFilter : public RewriteSingleResourceFilter {
                                           const ResourcePtr& input_resource,
                                           const OutputResourcePtr& result);
 
-  // Returns true if it rewrote (ie inlined) the URL.
-  bool FinishRewriteCssImageUrl(
-      int64 css_image_inline_max_bytes,
-      const CachedResult* cached, CssResourceSlot* slot);
 
   // Returns true if it rewrote the URL.
   bool FinishRewriteImageUrl(
       const CachedResult* cached, const ResourceContext* resource_context,
       HtmlElement* element, HtmlElement::Attribute* src);
-
-  // Save image contents in cached if the image is inlinable.
-  void SaveIfInlinable(const StringPiece& contents,
-                       const Image::Type image_type,
-                       CachedResult* cached);
 
   // Populates width and height with the attributes specified in the
   // image tag (including in an inline style attribute).

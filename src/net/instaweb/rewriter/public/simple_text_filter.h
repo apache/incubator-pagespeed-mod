@@ -24,7 +24,6 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -77,8 +76,7 @@ class SimpleTextFilter : public RewriteFilter {
 
   class Context : public SingleRewriteContext {
    public:
-    Context(const RewriterPtr& rewriter, RewriteDriver* driver,
-            RewriteContext* parent);
+    Context(const RewriterPtr& rewriter, RewriteDriver* driver);
     virtual ~Context();
     virtual void RewriteSingle(
         const ResourcePtr& input, const OutputResourcePtr& output);
@@ -108,11 +106,8 @@ class SimpleTextFilter : public RewriteFilter {
 
   virtual RewriteContext* MakeRewriteContext();
 
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
-
  protected:
-  virtual const char* id() const { return rewriter_->id(); }
+  virtual GoogleString id() const { return rewriter_->id(); }
   virtual const char* Name() const { return rewriter_->name(); }
   virtual bool HasAsyncFlow() const;
   virtual bool ComputeOnTheFly() const {

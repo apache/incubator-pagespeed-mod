@@ -26,7 +26,6 @@
 #include <set>
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/automatic/public/html_detector.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
@@ -144,17 +143,10 @@ class ProxyFetch : public AsyncFetch {
              ProxyFetchFactory* factory);
   virtual ~ProxyFetch();
 
-  const RewriteOptions* Options();
-
-  // Once we have decided this is HTML, begin parsing and set headers.
-  void SetupForHtml();
-
-  // Adds a pagespeed header to response_headers_ if enabled.
-  void AddPagespeedHeader();
-
   // Sets up driver_, registering the writer and start parsing url.
   // Returns whether we started parsing successfully or not.
   bool StartParse();
+  const RewriteOptions* Options();
 
   // Start the fetch which includes preparing the request.
   void StartFetch();
@@ -203,20 +195,19 @@ class ProxyFetch : public AsyncFetch {
   Timer* timer_;
   UrlAsyncFetcher::Callback* callback_;
 
-  // Should we pass through contents (because it's not HTML or PSA disabled)?
   bool pass_through_;
-
-  // Does page claim to be "Content-Type: text/html"? (It may be lying)
-  bool claims_html_;
-
-  // Has a call to StartParse succeeded? We'll only do this if we actually
-  // decide it is HTML.
   bool started_parse_;
-
-  HtmlDetector html_detector_;
 
   // Statistics
   int64 start_time_us_;
+
+  // If we're given custom options, we store them here until
+  // we hand them over to the rewrite driver.
+  scoped_ptr<RewriteOptions> custom_options_;
+
+  // Similarly if we have a UA string in RequestHeaders, we'll store it here.
+  // (If not, this will be null).
+  scoped_ptr<GoogleString> request_user_agent_;
 
   // ProxyFetch is responsible for getting RewriteDrivers from the pool and
   // putting them back.

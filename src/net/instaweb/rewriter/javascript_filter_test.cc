@@ -211,7 +211,7 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
 TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   GoogleString url = StrCat(kTestDomain, kOrigJsName);
   InitResponseHeaders(url, kContentTypeJavascript, kJsData, 300);
-  TestRetainExtraHeaders(kOrigJsName, "jm", "js");
+  TestRetainExtraHeaders(kOrigJsName, kOrigJsName, "jm", "js");
 }
 
 // http://code.google.com/p/modpagespeed/issues/detail?id=327 -- we were
@@ -219,13 +219,6 @@ TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
 TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   GoogleString input = StringPrintf(kInlineJs, "/http:\\/\\/[^/]+\\//");
   ValidateNoChanges("backslash_in_regexp", input);
-}
-
-TEST_P(JavascriptFilterTest, WeirdSrcCrash) {
-  // These used to crash due to bugs in the lexer breaking invariants some
-  // filters relied on.
-  ValidateNoChanges("weird_attr", "<script src=foo<bar>Content");
-  ValidateNoChanges("weird_tag", "<script<foo>");
 }
 
 // We runs the test with GetParam() both true and false, in order to

@@ -119,11 +119,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
     SetTimeHeader(HttpAttributes::kLastModified, last_modified_ms);
   }
 
-  // Sets the cache-control max-age to the specified value leaving the remaining
-  // Cache-Control attributes the same. This also updates the Expires header
-  // appropriately. Note that all existing max-age values are removed.
-  void SetCacheControlMaxAge(int64 ttl_ms);
-
   // Removes cookie headers, and returns true if any changes were made.
   bool Sanitize();
 
@@ -164,9 +159,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // Get ContentType. NULL if none set or it isn't in our predefined set of
   // known content types.
   const ContentType* DetermineContentType() const;
-
-  // Get the charset. Empty string if none set in a Content-Type header.
-  GoogleString DetermineCharset() const;
 
   // Parses a date header such as HttpAttributes::kDate or
   // HttpAttributes::kExpires, returning the timestamp as

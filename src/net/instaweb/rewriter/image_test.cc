@@ -15,7 +15,6 @@
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/util/public/base64_util.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
@@ -31,7 +30,6 @@ const char kIronChef[] = "IronChef2.gif";
 const char kCradle[] = "CradleAnimation.gif";
 const char kPuzzle[] = "Puzzle.jpg";
 const char kLarge[] = "Large.png";
-const char kScenery[] = "Scenery.webp";
 
 }  // namespace
 
@@ -120,14 +118,11 @@ class ImageTest : public testing::Test {
     }
 
     // Construct data url, then decode it and check for match.
-    CachedResult cached;
     GoogleString data_url;
-    EXPECT_NE(Image::IMAGE_UNKNOWN, image->image_type());
-    StringPiece image_contents = image->Contents();
-    cached.set_inlined_data(image_contents.data(), image_contents.size());
-    cached.set_inlined_image_type(static_cast<int>(image->image_type()));
-    EXPECT_TRUE(ImageRewriteFilter::TryInline(
-        image->output_size() + 1, &cached, &data_url));
+    EXPECT_FALSE(NULL == image->content_type());
+    EXPECT_TRUE(ImageRewriteFilter::CanInline(
+        image->output_size(), image->Contents(), image->content_type(),
+        &data_url));
     GoogleString data_header("data:");
     data_header.append(image->content_type()->mime_type());
     data_header.append(";base64,");
@@ -195,24 +190,6 @@ TEST_F(ImageTest, EmptyImageUnidentified) {
   CheckInvalid("Empty string", "", Image::IMAGE_UNKNOWN, Image::IMAGE_UNKNOWN);
 }
 
-TEST_F(ImageTest, InputWebpTest) {
-  CheckImageFromFile(
-      kScenery, Image::IMAGE_WEBP, Image::IMAGE_WEBP,
-      20,  // Min bytes to bother checking file type at all.
-      30,
-      550, 368,
-      30320, false);
-}
-
-// FYI: Takes ~20000 ms to run under Valgrind.
-TEST_F(ImageTest, WebpLowResTest) {
-  GoogleString contents;
-  ImagePtr image(ReadImageFromFile(Image::IMAGE_WEBP, kScenery, &contents));
-  int filesize = 30320;
-  image->SetTransformToLowRes();
-  EXPECT_GT(filesize, image->output_size());
-}
-
 TEST_F(ImageTest, PngTest) {
   CheckImageFromFile(
       kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_PNG,
@@ -249,7 +226,6 @@ TEST_F(ImageTest, JpegTest) {
       241260, true);
 }
 
-// FYI: Takes ~70000 ms to run under Valgrind.
 TEST_F(ImageTest, WebpTest) {
   CheckImageFromFile(
       kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_WEBP,
@@ -394,11 +370,6 @@ TEST_F(ImageTest, BlankSecondWebp) {
 // stack. kLarge is a 10000x10000 image, so it will try to allocate > 100MB
 // on the stack, which should overflow the stack and SEGV.
 TEST_F(ImageTest, OpencvStackOverflow) {
-  // This test takes ~90000 ms on Valgrind and need not be run there.
-  if (RunningOnValgrind()) {
-    return;
-  }
-
   GoogleString buf;
   ImagePtr image(ReadImageFromFile(Image::IMAGE_JPEG, kLarge, &buf));
 

@@ -86,11 +86,14 @@ GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
     const StringPiece& filter_id,
     const ContentType& content_type) {
   GoogleUrl original_gurl(original_url);
-  DCHECK(original_gurl.is_valid());
-  return EncodeWithBase(original_gurl.Origin(),
-                        original_gurl.AllExceptLeaf(), filter_id,
-                        hasher()->Hash(expected_contents),
-                        original_gurl.LeafWithQuery(),
+  StringPiece path_and_leaf(original_gurl.PathAndLeaf());
+  GoogleString origin = original_gurl.Origin().as_string();
+  // EncodeWithBase needs the origin to end with a slash and the path to
+  // not start with one.
+  EnsureEndsInSlash(&origin);
+  path_and_leaf.remove_prefix(1);
+  return EncodeWithBase(origin, origin, filter_id,
+                        hasher()->Hash(expected_contents), path_and_leaf,
                         content_type.file_extension() + 1);  // +1 to skip '.'
 }
 
@@ -98,7 +101,7 @@ GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
 void CssRewriteTestBase::GetNamerForCss(const StringPiece& id,
                                         const GoogleString& expected_css_output,
                                         ResourceNamer* namer) {
-  namer->set_id(RewriteOptions::kCssFilterId);
+  namer->set_id(RewriteDriver::kCssFilterId);
   namer->set_hash(hasher()->Hash(expected_css_output));
   namer->set_ext("css");
   namer->set_name(StrCat(id, ".css"));

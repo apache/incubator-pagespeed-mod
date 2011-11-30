@@ -30,6 +30,7 @@
 #include "net/instaweb/rewriter/public/image_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
@@ -37,6 +38,7 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -395,14 +397,6 @@ TEST_P(ImageRewriteTest, ResizeStyleTest) {
                       kUnparsableDims, kUnparsableDims, false, false);
 }
 
-TEST_P(ImageRewriteTest, NullResizeTest) {
-  // Make sure we don't crash on a value-less style attribute.
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg,
-                    " style", " style", false, false);
-}
-
 TEST_P(ImageRewriteTest, InlineTest) {
   // Make sure we resize and inline images, but don't optimize them in place.
   options()->set_image_inline_max_bytes(10000);
@@ -505,22 +499,22 @@ TEST_P(ImageRewriteTest, RespectsBaseUrl) {
   GoogleUrl new_png_gurl(new_png_url);
   EXPECT_TRUE(new_png_gurl.is_valid());
   GoogleUrl encoded_png_gurl(EncodeWithBase("http://other_domain.test/",
-                                            "http://other_domain.test/foo/bar/",
-                                            "x", "0", "a.png", "x"));
+                                            "http://other_domain.test/",
+                                            "x", "0", "foo/bar/a.png", "x"));
   EXPECT_EQ(encoded_png_gurl.AllExceptLeaf(), new_png_gurl.AllExceptLeaf());
 
   GoogleUrl new_jpeg_gurl(new_jpeg_url);
   EXPECT_TRUE(new_jpeg_gurl.is_valid());
   GoogleUrl encoded_jpeg_gurl(EncodeWithBase("http://other_domain.test/",
-                                             "http://other_domain.test/baz/",
-                                             "x", "0", "b.jpeg", "x"));
+                                             "http://other_domain.test/",
+                                             "x", "0", "baz/b.jpeg", "x"));
   EXPECT_EQ(encoded_jpeg_gurl.AllExceptLeaf(), new_jpeg_gurl.AllExceptLeaf());
 
   GoogleUrl new_gif_gurl(new_gif_url);
   EXPECT_TRUE(new_gif_gurl.is_valid());
   GoogleUrl encoded_gif_gurl(EncodeWithBase("http://other_domain.test/",
-                                            "http://other_domain.test/foo/",
-                                            "x", "0", "c.gif", "x"));
+                                            "http://other_domain.test/",
+                                            "x", "0", "foo/c.gif", "x"));
   EXPECT_EQ(encoded_gif_gurl.AllExceptLeaf(), new_gif_gurl.AllExceptLeaf());
 }
 
@@ -529,14 +523,15 @@ TEST_P(ImageRewriteTest, FetchInvalid) {
   // calling Done(false).
   AddFilter(RewriteOptions::kRecompressImages);
   GoogleString out;
-
-  // We are trying to test with an invalid encoding. By construction,
-  // Encode cannot make an invalid encoding.  However we can make one
-  // using a PlaceHolder string and then mutating it.
-  const char kPlaceholder[] = "PlaceHolder";
   GoogleString encoded_url = Encode("http://www.example.com/", "ic",
-                                    "ABCDEFGHIJ", kPlaceholder, "jpg");
-  GlobalReplaceSubstring(kPlaceholder, "70x53x,", &encoded_url);
+                                    "ABCDEFGHIJ", "70x53x,", "jpg");
+  // The comma at the end is encoded into two commas, which needs to be undone
+  // because otherwise we end up trying to fetch "http://www.example.com/,"
+  // [note the comma at the end] instead of the full URL. I spent an hour
+  // looking into why but couldn't work it out and in the end decided to just
+  // force the URL to be exactly what it was previously.
+  // TODO(matterbury):  Find out why and fix it if it's actually a problem.
+  GlobalReplaceSubstring("70x53x,,", "70x53x,", &encoded_url);
   EXPECT_FALSE(ServeResourceUrl(encoded_url, &out));
 }
 
@@ -578,7 +573,7 @@ TEST_P(ImageRewriteTest, RewriteCacheExtendInteraction) {
   // There was a bug in async mode where rewriting failing would prevent
   // cache extension from working as well.
   options()->EnableFilter(RewriteOptions::kRecompressImages);
-  options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+  options()->EnableFilter(RewriteOptions::kExtendCache);
   rewrite_driver()->AddFilters();
 
   // Provide a non-image file, so image rewrite fails (but cache extension
@@ -599,7 +594,9 @@ TEST_P(ImageRewriteTest, RetainExtraHeaders) {
   // Store image contents into fetcher.
   AddFileToMockFetcher(StrCat(kTestDomain, kPuzzleJpgFile), kPuzzleJpgFile,
                        kContentTypeJpeg, 100);
-  TestRetainExtraHeaders(kPuzzleJpgFile, "ic", "jpg");
+  TestRetainExtraHeaders(kPuzzleJpgFile,
+                         StrCat("x", kPuzzleJpgFile),
+                         "ic", "jpg");
 }
 
 TEST_P(ImageRewriteTest, NestedConcurrentRewritesLimit) {
@@ -626,7 +623,8 @@ TEST_P(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   InitResponseHeaders(kCssFile,  kContentTypeCss, in_css, 100);
 
   GoogleString out_css_url = Encode(kTestDomain, "cf", "0", kCssFile, "css");
-  GoogleString out_png_url = Encode(kTestDomain, "ic", "0", kPngFile, "png");
+  GoogleString out_png_url = Encode(kTestDomain, "ic", "0",
+                                    StrCat("x", kPngFile), "png");
 
   // Set the current # of rewrites very high, so we stop doing more
   // due to "load".

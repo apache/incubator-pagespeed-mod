@@ -28,7 +28,6 @@
 
 namespace net_instaweb {
 
-class Hasher;
 class HTTPValue;
 class MessageHandler;
 class ResponseHeaders;
@@ -42,10 +41,10 @@ class WriteThroughHTTPCache : public HTTPCache {
 
   // Takes ownership of both caches passed in.
   WriteThroughHTTPCache(CacheInterface* cache1, CacheInterface* cache2,
-                        Timer* timer, Hasher* hasher, Statistics* statistics)
-      : HTTPCache(NULL, timer, hasher, statistics),
-        cache1_(new HTTPCache(cache1, timer, hasher, statistics)),
-        cache2_(new HTTPCache(cache2, timer, hasher, statistics)),
+                        Timer* timer, Statistics* statistics)
+      : HTTPCache(NULL, timer, statistics),
+        cache1_(new HTTPCache(cache1, timer, statistics)),
+        cache2_(new HTTPCache(cache2, timer, statistics)),
         cache1_size_limit_(kUnlimited) { }
   virtual ~WriteThroughHTTPCache();
 
@@ -69,10 +68,6 @@ class WriteThroughHTTPCache : public HTTPCache {
   void set_cache1_limit(size_t limit) { cache1_size_limit_ = limit; }
 
   virtual void set_force_caching(bool force);
-
-  virtual void set_remember_not_cacheable_ttl_seconds(int64 value);
-
-  virtual void set_remember_fetch_failed_ttl_seconds(int64 value);
 
   virtual void RememberNotCacheable(const GoogleString& key,
                                     MessageHandler * handler);

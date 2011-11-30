@@ -42,7 +42,6 @@ class MockScheduler;
 class MockTimer;
 class MockUrlFetcher;
 class RewriteDriver;
-class RewriteOptions;
 class Scheduler;
 class Timer;
 class UrlAsyncFetcher;
@@ -77,11 +76,8 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   void CallFetcherCallbacksForDriver(RewriteDriver* driver);
   MockMessageHandler* mock_message_handler() { return mock_message_handler_; }
   MockScheduler* mock_scheduler() { return mock_scheduler_; }
-  bool use_test_url_namer() const { return use_test_url_namer_; }
-  void SetUseTestUrlNamer(bool x);
 
-  // Note that this disables ajax rewriting by default.
-  virtual RewriteOptions* NewRewriteOptions();
+  static bool UsingTestUrlNamer();
 
  protected:
   virtual Hasher* NewHasher();
@@ -111,7 +107,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   SimpleStats simple_stats_;
   MockMessageHandler* mock_message_handler_;
   MockMessageHandler* mock_html_message_handler_;
-  bool use_test_url_namer_;
 };
 
 }  // namespace net_instaweb

@@ -24,7 +24,6 @@
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 
@@ -47,11 +46,10 @@ class CssCombineFilter : public RewriteFilter {
   // rather than specific to css_combine_filter or even css.
   static const char kUtf8Bom[];
 
-  explicit CssCombineFilter(RewriteDriver* rewrite_driver);
+  CssCombineFilter(RewriteDriver* rewrite_driver, const char* path_prefix);
   virtual ~CssCombineFilter();
 
   static void Initialize(Statistics* statistics);
-
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
@@ -70,7 +68,6 @@ class CssCombineFilter : public RewriteFilter {
 
   virtual bool HasAsyncFlow() const;
   virtual RewriteContext* MakeRewriteContext();
-  virtual const char* id() const { return RewriteOptions::kCssCombinerId; }
 
  private:
   class Context;

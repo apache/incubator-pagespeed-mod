@@ -18,9 +18,6 @@
     'protoc_out_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/instaweb',
     'protoc_executable':
         '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
-    'data2c_out_dir': '<(SHARED_INTERMEDIATE_DIR)/data2c_out/instaweb',
-    'data2c_exe': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)instaweb_data2c' +
-                  '<(EXECUTABLE_SUFFIX)',
     # Setting chromium_code to 1 turns on extra warnings. Also, if the compiler
     # is whitelisted in our common.gypi, those warnings will get treated as
     # errors.
@@ -28,59 +25,54 @@
   },
   'targets': [
     {
-      'target_name': 'instaweb_data2c',
-      'type': 'executable',
+      'target_name': 'instaweb_spriter_genproto',
+      'type': 'none',
       'sources': [
-         'js/data_to_c.cc',
-       ],
-      'dependencies': [
-        'instaweb_util',
-        '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
-        '<(DEPTH)/base/base.gyp:base',
+        'spriter/public/image_spriter.proto',
       ],
-      'include_dirs': [
-        '<(instaweb_root)',
-        '<(DEPTH)',
+      'rules': [
+        {
+            'rule_name': 'genproto',
+            'extension': 'proto',
+            'inputs': [
+                '<(protoc_executable)',
+                ],
+            'message': 'Generating C++ code from <(RULE_INPUT_PATH)',
+
+          'outputs': [
+            '<(protoc_out_dir)/net/instaweb/spriter/public/<(RULE_INPUT_ROOT).pb.h',
+            '<(protoc_out_dir)/net/instaweb/spriter/public/<(RULE_INPUT_ROOT).pb.cc',
+          ],
+          'action': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+            '--proto_path=<(instaweb_root)',
+            '<(instaweb_root)/net/instaweb/spriter/public/<(RULE_INPUT_NAME)',
+            '--cpp_out=<(protoc_out_dir)',
+          ],
+        },
       ],
-    },
-    {
-      'target_name': 'instaweb_js_defer_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter/',
-        'var_name': 'js_defer',
-      },
-      'sources': [
-        'rewriter/js_defer.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
-      'target_name': 'instaweb_lazyload_images_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter/',
-        'var_name': 'lazyload_images',
-      },
-      'sources': [
-        'rewriter/lazyload_images.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
     },
     {
       'target_name': 'instaweb_spriter_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'net/instaweb/spriter/public/',
-      },
+      'type': '<(library)',
+      'hard_dependency': 1,
+      'dependencies': [
+        'instaweb_spriter_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+       ],
       'sources': [
-        'spriter/public/image_spriter.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/image_spriter.pb.cc',
+        '<(protoc_out_dir)/net/instaweb/spriter/public/image_spriter.pb.cc',
       ],
-      'includes': [
-        'protoc.gypi',
+      'include_dirs': [
+        '<(protoc_out_dir)',
       ],
+      'export_dependent_settings': [
+        'instaweb_spriter_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'all_dependent_settings': {
+        'hard_dependency': 1,
+      },
     },
     {
       'target_name': 'instaweb_spriter',
@@ -93,17 +85,60 @@
           'spriter/libpng_image_library.cc',
           'spriter/image_library_interface.cc',
           'spriter/image_spriter.cc',
+          'spriter/public/image_spriter.proto',
       ],
       'include_dirs': [
         '<(instaweb_root)',
         '<(DEPTH)',
+        '<(protoc_out_dir)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
           '<(instaweb_root)',
           '<(DEPTH)',
+          '<(protoc_out_dir)',
         ],
       },
+    },
+    {
+      'target_name': 'instaweb_rewriter_genproto',
+      'type': 'none',
+      'sources': [
+        'rewriter/cached_result.proto',
+      ],
+      'rules': [
+        {
+            'rule_name': 'genproto',
+            'extension': 'proto',
+            'inputs': [
+                '<(protoc_executable)',
+                ],
+          'outputs': [
+            '<(protoc_out_dir)/net/instaweb/rewriter/<(RULE_INPUT_ROOT).pb.h',
+            '<(protoc_out_dir)/net/instaweb/rewriter/<(RULE_INPUT_ROOT).pb.cc',
+          ],
+          'action': [
+            '<(protoc_executable)',
+            '--proto_path=<(instaweb_root)',
+            '<(instaweb_root)/net/instaweb/rewriter/<(RULE_INPUT_NAME)',
+            '--cpp_out=<(protoc_out_dir)',
+          ],
+          'message': 'Generating C++ code from <(RULE_INPUT_PATH)',
+        },
+      ],
+      'dependencies': [
+        'instaweb_spriter_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
+      ],
+      'all_dependent_settings': {
+        'include_dirs': [
+          '<(protoc_out_dir)',
+        ]
+      },
+      'export_dependent_settings': [
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
     },
     {
       'target_name': 'instaweb_spriter_test',
@@ -112,7 +147,7 @@
         'instaweb_spriter',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/testing/gmock.gyp:gmock',
-        'instaweb_spriter_pb',
+        'instaweb_spriter_genproto',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
@@ -127,31 +162,22 @@
     },
     {
       'target_name': 'instaweb_rewriter_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'net/instaweb/rewriter/',
-      },
-      'sources': [
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/cached_result.pb.cc',
-        'rewriter/cached_result.proto',
-      ],
+      'type': '<(library)',
+      'hard_dependency': 1,
       'dependencies': [
-        'instaweb_spriter_pb',
-      ],
-      'includes': [
-        'protoc.gypi',
-      ],
-    },
-    {
-      'target_name': 'instaweb_http_gperf',
-      'variables': {
-        'instaweb_gperf_subdir': 'net/instaweb/http/',
-      },
+        'instaweb_rewriter_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+       ],
       'sources': [
-        'http/bot_checker.gperf',
+        '<(protoc_out_dir)/net/instaweb/rewriter/cached_result.pb.cc',
       ],
-      'includes': [
-        'gperf.gypi',
-      ]
+      'export_dependent_settings': [
+        'instaweb_rewriter_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'all_dependent_settings': {
+        'hard_dependency': 1,
+      },
     },
     {
       # TODO: break this up into sub-libs (mocks, real, etc)
@@ -160,7 +186,6 @@
       'dependencies': [
         'instaweb_core.gyp:instaweb_util_core',
         'instaweb_http',
-        'instaweb_http_gperf',
         '<(instaweb_root)/third_party/base64/base64.gyp:base64',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
         '<(DEPTH)/base/base.gyp:base',
@@ -170,6 +195,7 @@
       ],
       'sources': [
         # TODO(sligocki): Move http/ files to instaweb_http.
+        'genfiles/http/bot_checker.cc',
         'http/cache_url_async_fetcher.cc',
         'http/dummy_url_fetcher.cc',
         'http/fake_url_async_fetcher.cc',
@@ -376,6 +402,7 @@
       ],
       'include_dirs': [
         '<(instaweb_root)',
+        '<(protoc_out_dir)',
         '<(DEPTH)',
       ],
       'direct_dependent_settings': {
@@ -409,6 +436,7 @@
       ],
       'include_dirs': [
         '<(instaweb_root)',
+        '<(protoc_out_dir)',
         '<(DEPTH)',
       ],
       'direct_dependent_settings': {
@@ -434,6 +462,7 @@
       ],
       'include_dirs': [
         '<(instaweb_root)',
+        '<(protoc_out_dir)',
         '<(DEPTH)',
       ],
       'direct_dependent_settings': {
@@ -460,49 +489,14 @@
         'rewriter/css_inline_import_to_link_filter.cc',
         'rewriter/css_minify.cc',
         'rewriter/css_resource_slot.cc',
-        'rewriter/css_url_encoder.cc',
         'rewriter/css_util.cc',
         'rewriter/image_combine_filter.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
+        '<(protoc_out_dir)',
         '<(DEPTH)',
         '<(DEPTH)/third_party/css_parser/src',
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '<(instaweb_root)',
-          '<(DEPTH)',
-        ],
-      },
-    },
-    {
-      'target_name': 'instaweb_javascript_gperf',
-      'variables': {
-        'instaweb_gperf_subdir': 'net/instaweb/js/',
-      },
-      'sources': [
-        'js/js_keywords.gperf',
-      ],
-      'includes': [
-        'gperf.gypi',
-      ]
-    },
-    {
-      'target_name': 'instaweb_javascript',
-      'type': '<(library)',
-      'dependencies': [
-        'instaweb_util',
-        'instaweb_javascript_gperf',
-        '<(DEPTH)/base/base.gyp:base',
-      ],
-      'sources': [
-        'js/js_lexer.cc',
-      ],
-      'include_dirs': [
-        '<(instaweb_root)',
-        '<(DEPTH)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -515,11 +509,9 @@
       'target_name': 'instaweb_rewriter',
       'type': '<(library)',
       'dependencies': [
+        'instaweb_rewriter_base',
         'instaweb_core.gyp:instaweb_rewriter_html',
         'instaweb_http',
-        'instaweb_js_defer_data2c',
-        'instaweb_lazyload_images_data2c',
-        'instaweb_rewriter_base',
         'instaweb_rewriter_css',
         'instaweb_rewriter_image',
         'instaweb_rewriter_javascript',
@@ -530,7 +522,6 @@
       'sources': [
         'rewriter/add_head_filter.cc',
         'rewriter/add_instrumentation_filter.cc',
-        'rewriter/ajax_rewrite_context.cc',
         'rewriter/cache_extender.cc',
         'rewriter/common_filter.cc',
         'rewriter/css_combine_filter.cc',
@@ -539,7 +530,6 @@
         'rewriter/css_outline_filter.cc',
         'rewriter/css_tag_scanner.cc',
         'rewriter/data_url_input_resource.cc',
-        'rewriter/delay_images_filter.cc',
         'rewriter/div_structure_filter.cc',
         'rewriter/domain_rewrite_filter.cc',
         'rewriter/file_input_resource.cc',
@@ -548,11 +538,8 @@
         'rewriter/inline_rewrite_context.cc',
         'rewriter/image_rewrite_filter.cc',
         'rewriter/js_combine_filter.cc',
-        'rewriter/js_defer_filter.cc',
-        'rewriter/js_disable_filter.cc',
         'rewriter/js_inline_filter.cc',
         'rewriter/js_outline_filter.cc',
-        'rewriter/lazyload_images_filter.cc',
         'rewriter/meta_tag_filter.cc',
         'rewriter/resource_combiner.cc',
         'rewriter/resource_slot.cc',
@@ -575,6 +562,7 @@
       ],
       'include_dirs': [
         '<(instaweb_root)',
+        '<(protoc_out_dir)',
         '<(DEPTH)',
       ],
       'direct_dependent_settings': {
@@ -585,17 +573,62 @@
       },
     },
     {
-      'target_name': 'instaweb_http_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'net/instaweb/http/',
-      },
+      'target_name': 'instaweb_http_genproto',
+      'type': 'none',
       'sources': [
         'http/http.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/http.pb.cc',
       ],
-      'includes': [
-        'protoc.gypi',
+      'rules': [
+        {
+            'rule_name': 'genproto',
+            'extension': 'proto',
+            'inputs': [
+                '<(protoc_executable)',
+                ],
+          'outputs': [
+            '<(protoc_out_dir)/net/instaweb/http/<(RULE_INPUT_ROOT).pb.h',
+            '<(protoc_out_dir)/net/instaweb/http/<(RULE_INPUT_ROOT).pb.cc',
+          ],
+          'action': [
+            '<(protoc_executable)',
+            '--proto_path=<(instaweb_root)',
+            '<(instaweb_root)/net/instaweb/http/<(RULE_INPUT_NAME)',
+            '--cpp_out=<(protoc_out_dir)',
+          ],
+          'message': 'Generating C++ code from <(RULE_INPUT_PATH)',
+        },
       ],
+      'dependencies': [
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(protoc_out_dir)',
+        ]
+      },
+      'export_dependent_settings': [
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+    },
+    {
+      'target_name': 'instaweb_http_pb',
+      'type': '<(library)',
+      'hard_dependency': 1,
+      'dependencies': [
+        'instaweb_http_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+       ],
+      'sources': [
+        '<(protoc_out_dir)/net/instaweb/http/http.pb.cc',
+      ],
+      'export_dependent_settings': [
+        'instaweb_http_genproto',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'all_dependent_settings': {
+        'hard_dependency': 1,
+      }
     },
     {
       'target_name': 'instaweb_automatic',
@@ -607,7 +640,6 @@
         '<(DEPTH)/base/base.gyp:base',
       ],
       'sources': [
-        'automatic/html_detector.cc',
         'automatic/proxy_fetch.cc',
         'automatic/proxy_interface.cc',
         'automatic/resource_fetch.cc',
@@ -632,7 +664,6 @@
       'dependencies': [
         '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
         'instaweb_rewriter',
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
        ],
       'sources': [
         'rewriter/mem_clean_up.cc',

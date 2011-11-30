@@ -150,8 +150,7 @@ bool handle_as_resource(ApacheResourceManager* manager,
         int64 remaining_ms = max_ms - (now_ms - start_ms);
 
         if (sub_resource_fetch_done) {
-          rewrite_driver->BoundedWaitFor(
-              RewriteDriver::kWaitForCompletion, remaining_ms);
+          rewrite_driver->BoundedWaitForCompletion(remaining_ms);
         } else {
           sub_resource_fetch_done =
             (sub_resource_fetcher->Poll(remaining_ms) == 0);

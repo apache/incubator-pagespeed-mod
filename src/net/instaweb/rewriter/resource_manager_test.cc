@@ -21,6 +21,7 @@
 #include "net/instaweb/rewriter/public/resource_manager.h"
 
 #include <cstddef>                     // for size_t
+#include <cstdlib>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
@@ -184,7 +185,7 @@ class ResourceManagerTest : public ResourceManagerTestBase {
 
   // Tests for the lifecycle and various flows of a named output resource.
   void TestNamed() {
-    const char* filter_prefix = RewriteOptions::kCssFilterId;
+    const char* filter_prefix = RewriteDriver::kCssFilterId;
     const char* name = "name";
     const char* contents = "contents";
     // origin_expire_time_ms should be considerably longer than the various
@@ -333,16 +334,12 @@ class ResourceManagerTest : public ResourceManagerTestBase {
     cached->set_inlined_data(kResourceUrl);
   }
 
-  // Note: std::abs isn't portably applicable to 64-bits, due to the
-  // usual 'long long isn't C++' shenanigans.
-  static int64 Abs64(int64 v) {
-    return v >= 0 ? v : -v;
-  }
-
   // Expiration times are not entirely precise as some cache headers
   // have a 1 second resolution, so this permits such a difference.
   void VerifyWithinSecond(int64 time_a_ms, int64 time_b_ms) {
-    EXPECT_GE(Timer::kSecondMs, Abs64(time_a_ms - time_b_ms));
+    // Note: need to pass in 1 * since otherwise we get a link failure
+    // due to conversion of compile-time constant to const reference
+    EXPECT_GE(1 * Timer::kSecondMs, std::abs(time_a_ms - time_b_ms));
   }
 
   void VerifyValidCachedResult(const char* subtest_name, bool test_meta_data,
@@ -487,13 +484,13 @@ TEST_F(ResourceManagerTest, TestNamed) {
 }
 
 TEST_F(ResourceManagerTest, TestOutputInputUrl) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            RewriteOptions::kJavascriptMinId,
-                            "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            RewriteDriver::kJavascriptMinId,
+                            "0", "dir/123/orig", "js");
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -505,7 +502,7 @@ TEST_F(ResourceManagerTest, TestOutputInputUrlEvil) {
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -520,7 +517,7 @@ TEST_F(ResourceManagerTest, TestOutputInputUrlBusy) {
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -559,7 +556,7 @@ TEST_F(ResourceManagerTest, TestMapRewriteAndOrigin) {
   bool use_async_flow = false;
   OutputResourcePtr output(
       rewrite_driver()->CreateOutputResourceFromResource(
-          RewriteOptions::kCacheExtenderId, rewrite_driver()->default_encoder(),
+          RewriteDriver::kCacheExtenderId, rewrite_driver()->default_encoder(),
           NULL, input, kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output.get() != NULL);
 
@@ -574,8 +571,8 @@ TEST_F(ResourceManagerTest, TestMapRewriteAndOrigin) {
 
 // DecodeOutputResource should drop query
 TEST_F(ResourceManagerTest, TestOutputResourceFetchQuery) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            "jm", "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            "jm", "0", "dir/123/orig", "js");
   RewriteFilter* dummy;
   GoogleUrl gurl(StrCat(url, "?query"));
   OutputResourcePtr output_resource(
@@ -729,7 +726,7 @@ TEST_F(ResourceManagerTest, TestOnTheFly) {
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
-          kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+          kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
           kOnTheFlyResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_EQ(NULL, output_resource->cached_result());
@@ -750,7 +747,7 @@ TEST_F(ResourceManagerTest, TestOnTheFly) {
 
   // Now try fetching again. Should hit in cache for rname.
   output_resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+      kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
       kOnTheFlyResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_TRUE(output_resource->cached_result() != NULL);
@@ -785,7 +782,7 @@ TEST_F(ResourceManagerTest, TestNotGenerated) {
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
-          kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+          kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
           kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_EQ(NULL, output_resource->cached_result());
@@ -805,7 +802,7 @@ TEST_F(ResourceManagerTest, TestNotGenerated) {
 
   // Now try fetching again. Should hit in cache
   output_resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+      kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
       kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_TRUE(output_resource->cached_result() != NULL);
@@ -964,8 +961,8 @@ class ResourceManagerShardedTest : public ResourceManagerTest {
 };
 
 TEST_F(ResourceManagerShardedTest, TestNamed) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            "jm", "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            "jm", "0", "dir/123/orig", "js");
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
@@ -983,7 +980,7 @@ TEST_F(ResourceManagerShardedTest, TestNamed) {
   // hasher for the content hash.  Note that the sharding sensitivity
   // to the hash value is tested in DomainLawyerTest.Shard, and will
   // also be covered in a system test.
-  EXPECT_EQ(Encode("http://shard0.com/dir/", "jm", "0", "orig.js", "js"),
+  EXPECT_EQ(Encode("http://shard0.com/", "jm", "0", "dir/orig.js", "js"),
             output_resource->url());
 }
 
@@ -1005,11 +1002,11 @@ TEST_F(ResourceManagerTest, ShutDownAssumptions) {
   // in practice, this test exercises them.
   RewriteDriver* driver = resource_manager()->NewRewriteDriver();
   EnableRewriteDriverCleanupMode(true);
-  driver->WaitForShutDown();
-  driver->WaitForShutDown();
+  driver->WaitForCompletion();
+  driver->WaitForCompletion();
   driver->Cleanup();
   driver->Cleanup();
-  driver->WaitForShutDown();
+  driver->WaitForCompletion();
 
   EnableRewriteDriverCleanupMode(false);
   // Should actually clean it up this time.
@@ -1017,8 +1014,8 @@ TEST_F(ResourceManagerTest, ShutDownAssumptions) {
 }
 
 TEST_F(ResourceManagerTest, IsPagespeedResource) {
-  GoogleUrl rewritten(Encode("http://shard0.com/dir/", "jm", "0",
-                             "orig.js", "js"));
+  GoogleUrl rewritten(Encode("http://shard0.com/", "jm", "0",
+                             "dir/orig.js", "js"));
   EXPECT_TRUE(resource_manager()->IsPagespeedResource(rewritten));
 
   GoogleUrl normal("http://jqueryui.com/jquery-1.6.2.js");
@@ -1199,8 +1196,7 @@ class ResourceManagerTestThreadedCache : public ResourceManagerTest {
             mock_scheduler(),
             new ThreadsafeCache(cache_backend_, threads_->NewMutex()),
             new QueuedWorkerPool(2, threads_.get()))),
-        http_cache_(new HTTPCache(cache_.get(), mock_timer(), hasher(),
-                                  statistics())) {
+        http_cache_(new HTTPCache(cache_.get(), mock_timer(), statistics())) {
   }
 
   virtual void SetUp() {
@@ -1283,7 +1279,7 @@ TEST_F(ResourceManagerTestThreadedCache, RepeatedFetches) {
     GoogleString combination(
       StrCat("<script src=\"",
              Encode(kTestDomain, "jc", "0",
-                    MultiUrl(minified_a_leaf,  minified_a_leaf), "js"),
+                    StrCat(minified_a_leaf, "+", minified_a_leaf), "js"),
              "\"></script>"));
     const char kEval[] = "<script>eval(mod_pagespeed_0);</script>";
     ValidateExpected(

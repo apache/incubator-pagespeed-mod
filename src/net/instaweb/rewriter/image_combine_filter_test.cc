@@ -66,7 +66,7 @@ class CssImageCombineTest : public CssRewriteTestBase {
                     bool should_sprite) {
     const GoogleString sprite_string =
         Encode(kTestDomain, "is", "0",
-               MultiUrl(kCuppaPngFile, kBikePngFile), "png");
+               StrCat(kCuppaPngFile, "+", kBikePngFile), "png");
     const char* sprite = sprite_string.c_str();
     // The JPEG will not be included in the sprite because we only handle PNGs.
     const char* html = "<head><style>"
@@ -155,7 +155,7 @@ TEST_P(CssImageCombineTest, SpritesMultiple) {
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kCuppaPngFile, 0);
   sprite = Encode(kTestDomain, "is", "0",
-                  MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
+                  StrCat(kBikePngFile, "+", kCuppaPngFile), "png").c_str();
   after = StringPrintf(kHtmlTemplate3Divs, sprite.c_str(),
                        sprite.c_str(), 0, 10, sprite.c_str(), -100);
   ValidateExpected("sprite_2_bikes_1_cuppa", before, after);
@@ -231,7 +231,7 @@ TEST_P(CssImageCombineTest, SpritesImagesExternal) {
   // On the second run, we get spriting.
   const GoogleString sprite =
       Encode(kTestDomain, "is", "0",
-             MultiUrl(kCuppaPngFile, kBikePngFile), "png");
+             StrCat(kCuppaPngFile, "+", kBikePngFile), "png");
   const GoogleString spriteCss = StrCat(
       "#div1{background-image:url(", sprite, ");"
       "width:10px;height:10px;"
@@ -272,8 +272,8 @@ TEST_P(CssImageCombineTest, SpritesOkAfter404) {
   EXPECT_NE(GoogleString::npos,
             output_buffer_.find(
                 Encode("", "is", "0",
-                       MultiUrl(kBikePngFile, kCuppaPngFile,
-                                "bike2.png", "bike3.png"),
+                       StrCat(kBikePngFile, "+", kCuppaPngFile,
+                              "+bike2.png+bike3.png"),
                        "png")));
 }
 
@@ -304,9 +304,9 @@ TEST_P(CssImageCombineTest, SpritesMultiSite) {
   GoogleString test_cup = StrCat(kTestDomain, kCuppaPngFile);
   GoogleString alt_cup = StrCat(kAltDomain, kCuppaPngFile);
   GoogleString test_sprite = Encode(
-      kTestDomain, "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png");
+      kTestDomain, "is", "0", StrCat(kBikePngFile, "+", kCuppaPngFile), "png");
   GoogleString alt_sprite = Encode(
-      kAltDomain, "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png");
+      kAltDomain, "is", "0", StrCat(kBikePngFile, "+", kCuppaPngFile), "png");
 
   GoogleString before = StringPrintf(kHtmlTemplate,
                                      test_bike.c_str(), "",
@@ -346,13 +346,12 @@ TEST_P(CssImageCombineTest, ServeFiles) {
   CSS_XFAIL_SYNC();
   GoogleString sprite_str =
       Encode(kTestDomain, "is", "0",
-             MultiUrl(kCuppaPngFile, kBikePngFile), "png");
+             StrCat(kCuppaPngFile, "+", kBikePngFile), "png");
   GoogleString output;
   EXPECT_EQ(true, ServeResourceUrl(sprite_str, &output));
   ServeResourceFromManyContexts(sprite_str, output);
 }
 
-// FYI: Takes ~10000 ms to run under Valgrind.
 TEST_P(CssImageCombineTest, CombineManyFiles) {
   CSS_XFAIL_SYNC();
   // Prepare an HTML fragment with too many image files to combine,
@@ -373,13 +372,16 @@ TEST_P(CssImageCombineTest, CombineManyFiles) {
   StringVector combinations;
   int image_index = 0;
   while (image_index < kNumImages) {
-    StringVector combo;
+    GoogleString combo;
     int end_index = std::min(image_index + kImagesInCombination, kNumImages);
     while (image_index < end_index) {
-      combo.push_back(StringPrintf("%.02d%s", image_index, kBikePngFile));
+      combo.append(StringPrintf("%.02d%s", image_index, kBikePngFile));
+      combo.append("+");
       ++image_index;
     }
-    combinations.push_back(Encode(kTestDomain, "is", "0", combo, "png"));
+    combo.resize(combo.size() - 1);
+    combo = Encode(kTestDomain, "is", "0", combo, "png");
+    combinations.push_back(combo);
   }
 
   image_index = 0;
@@ -412,7 +414,7 @@ TEST_P(CssImageCombineTest, SpritesBrokenUp) {
   GoogleString abs_puzzle = AbsolutifyUrl(kPuzzleJpgFile);
   const GoogleString sprite_string =
       Encode(kTestDomain, "is", "0",
-             MultiUrl(kBikePngFile, kCuppaPngFile), "png");
+             StrCat(kBikePngFile, "+", kCuppaPngFile), "png");
   const char* sprite = sprite_string.c_str();
 
   after = StringPrintf(kHtmlTemplate3Divs, sprite, abs_puzzle.c_str(), 0, 10,
@@ -431,7 +433,7 @@ TEST_P(CssImageCombineTest, SpritesGifsWithPngs) {
 
   const GoogleString sprite_string =
       Encode(kTestDomain, "is", "0",
-             MultiUrl(kBikePngFile, kChefGifFile, kCuppaPngFile),
+             StrCat(kBikePngFile, "+", kChefGifFile, "+", kCuppaPngFile),
              "png");
   const char* sprite = sprite_string.c_str();
 
@@ -443,37 +445,6 @@ TEST_P(CssImageCombineTest, SpritesGifsWithPngs) {
   ValidateExpected("sprite_with_gif", before, after);
 }
 
-TEST_P(CssImageCombineTest, SpriteWrongMime) {
-  CSS_XFAIL_SYNC();
-  // Make sure that a server messing up the content-type doesn't prevent
-  // spriting.
-  GoogleString wrong_bike = StrCat(kTestDomain, "w", kBikePngFile);
-  GoogleString wrong_cuppa = StrCat(kTestDomain, "w", kCuppaPngFile);
-
-  AddFileToMockFetcher(wrong_bike, kBikePngFile, kContentTypeJpeg, 100);
-  AddFileToMockFetcher(wrong_cuppa, kCuppaPngFile,
-                       kContentTypeJpeg, 100);
-
-  const GoogleString sprite_string =
-      Encode(kTestDomain, "is", "0",
-             MultiUrl(StrCat("w", kBikePngFile),
-                      StrCat("w", kCuppaPngFile),
-                      kCuppaPngFile),
-             "png");
-  const char* sprite = sprite_string.c_str();
-
-  GoogleString before, after;
-  before = StringPrintf(kHtmlTemplate3Divs, wrong_bike.c_str(),
-                        wrong_cuppa.c_str(), 0, 10, kCuppaPngFile, 0);
-
-  // The BikePng is 100px tall, the cuppa is 70px tall, so we
-  // expect the cuppa to be offset by -100, and the right-path cuppa to be
-  // offset by -170.
-  after = StringPrintf(kHtmlTemplate3Divs, sprite, sprite, -100, 10,
-                       sprite, -170);
-  ValidateExpected("wrong_mime", before, after);
-}
-
 // We test with asynchronous_rewrites() == GetParam() as both true and false.
 INSTANTIATE_TEST_CASE_P(CssImageCombineTestInstance,
                         CssImageCombineTest,
@@ -483,7 +454,7 @@ class CssImageMultiFilterTest : public CssImageCombineTest {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    options()->EnableFilter(RewriteOptions::kExtendCache);
     CssImageCombineTest::SetUp();
   }
 };
@@ -504,7 +475,7 @@ TEST_P(CssImageMultiFilterTest, SpritesAndNonSprites) {
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kCuppaPngFile, 0);
   sprite = Encode(kTestDomain, "is", "0",
-                  MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
+                  StrCat(kBikePngFile, "+", kCuppaPngFile), "png").c_str();
   after = StringPrintf(kHtmlTemplate3Divs, sprite.c_str(),
                        sprite.c_str(), 0, 10, sprite.c_str(), -100);
   ValidateExpected("sprite_2_bikes_1_cuppa", before, after);

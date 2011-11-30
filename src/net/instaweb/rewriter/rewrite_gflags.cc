@@ -51,24 +51,10 @@ DEFINE_int64(js_outline_min_bytes,
 DEFINE_int64(image_inline_max_bytes,
              net_instaweb::RewriteOptions::kDefaultImageInlineMaxBytes,
              "Number of bytes below which images will be inlined.");
-DEFINE_int64(css_image_inline_max_bytes,
-             net_instaweb::RewriteOptions::kDefaultCssImageInlineMaxBytes,
-             "Number of bytes below which images in CSS will be inlined.");
 DEFINE_int32(image_jpeg_recompress_quality,
              net_instaweb::RewriteOptions::kDefaultImageJpegRecompressQuality,
              "Quality parameter to use while recompressing the jpeg images."
              "This should be in range [0,100], 100 refers to best quality.");
-DEFINE_int32(
-    image_limit_optimized_percent,
-    net_instaweb::RewriteOptions::kDefaultImageLimitOptimizedPercent,
-    "Optimized images will be used only if they are less than this percent "
-    "size of the original image size.  100 retains any smaller image.");
-DEFINE_int32(
-    image_limit_resize_area_percent,
-    net_instaweb::RewriteOptions::kDefaultImageLimitResizeAreaPercent,
-    "Only attempt to shrink an image on the server if its area is less than "
-    "this percent of the original image area.  100 always shrinks the image "
-    "if its dimensions are smaller.");
 DEFINE_int64(js_inline_max_bytes,
              net_instaweb::RewriteOptions::kDefaultJsInlineMaxBytes,
              "Number of bytes below which javascript will be inlined.");
@@ -78,8 +64,6 @@ DEFINE_int64(css_inline_max_bytes,
 DEFINE_int32(image_max_rewrites_at_once,
              net_instaweb::RewriteOptions::kDefaultImageMaxRewritesAtOnce,
              "Maximum number of images that will be rewritten simultaneously.");
-DEFINE_bool(ajax_rewriting_enabled, false, "Boolean to indicate whether ajax "
-            "rewriting is enabled.");
 DEFINE_bool(log_rewrite_timing, false, "Log time taken by rewrite filters.");
 
 DEFINE_int64(max_html_cache_time_ms,
@@ -166,9 +150,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("image_inline_max_bytes")) {
     options->set_image_inline_max_bytes(FLAGS_image_inline_max_bytes);
   }
-  if (WasExplicitlySet("css_image_inline_max_bytes")) {
-    options->set_css_image_inline_max_bytes(FLAGS_css_image_inline_max_bytes);
-  }
   if (WasExplicitlySet("css_inline_max_bytes")) {
     options->set_css_inline_max_bytes(FLAGS_css_inline_max_bytes);
   }
@@ -179,7 +160,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_image_max_rewrites_at_once(
         FLAGS_image_max_rewrites_at_once);
   }
-
   if (WasExplicitlySet("log_rewrite_timing")) {
     options->set_log_rewrite_timing(FLAGS_log_rewrite_timing);
   }
@@ -200,21 +180,19 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_image_jpeg_recompress_quality(
         FLAGS_image_jpeg_recompress_quality);
   }
-  if (WasExplicitlySet("image_limit_optimized_percent")) {
-    options->set_image_limit_optimized_percent(
-        FLAGS_image_limit_optimized_percent);
+  RewriteOptions::RewriteLevel rewrite_level;
+  if (options->ParseRewriteLevel(FLAGS_rewrite_level, &rewrite_level)) {
+    options->SetRewriteLevel(rewrite_level);
+  } else {
+    LOG(ERROR) << "Invalid --rewrite_level: " << FLAGS_rewrite_level;
+    ret = false;
   }
-  if (WasExplicitlySet("image_limit_resize_area_percent")) {
-    options->set_image_limit_resize_area_percent(
-        FLAGS_image_limit_resize_area_percent);
-  }
-
-  // TODO(nikhilmadan): Check if this is explicitly set. Since this has been
-  // disabled by default because of potential conflicts with Apache, we are
-  // forcing this to be set in the default options.
-  options->set_ajax_rewriting_enabled(FLAGS_ajax_rewriting_enabled);
 
   MessageHandler* handler = factory->message_handler();
+  if (!options->EnableFiltersByCommaSeparatedList(FLAGS_rewriters, handler)) {
+    LOG(ERROR) << "Invalid filters-list: " << FLAGS_rewriters;
+    ret = false;
+  }
 
   StringPieceVector domains;
   SplitStringPieceToVector(FLAGS_domains, ",", &domains, true);
@@ -276,7 +254,7 @@ bool RewriteGflags::SetRewriters(const char* rewriters_flag_name,
 
   if (!options->EnableFiltersByCommaSeparatedList(rewriters_value, handler)) {
     LOG(ERROR) << "Invalid --" << rewriters_flag_name
-               << ": " << rewriters_value;
+               << rewriters_flag_name << ": " << rewriters_value;
     ret = false;
   }
   return ret;

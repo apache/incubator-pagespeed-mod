@@ -287,7 +287,7 @@ class CssCombineFilter::Context : public RewriteContext {
   virtual const UrlSegmentEncoder* encoder() const {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
+  virtual const char* id() const { return filter_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
  private:
@@ -324,8 +324,9 @@ class CssCombineFilter::Context : public RewriteContext {
 //
 // TODO(jmaessen): The addition of 1 below avoids the leading ".";
 // make this convention consistent and fix all code.
-CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
+CssCombineFilter::CssCombineFilter(RewriteDriver* driver,
+                                   const char* filter_prefix)
+    : RewriteFilter(driver, filter_prefix),
       css_tag_scanner_(driver_) {
 }
 

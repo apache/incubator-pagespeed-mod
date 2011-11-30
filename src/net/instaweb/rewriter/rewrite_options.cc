@@ -29,41 +29,27 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/wildcard_group.h"
 
 namespace {
 
 // This version index serves as global signature key.  Much of the
-// data emitted in signatures is based on the option ordering, which
-// can change as we add new options.  So every time there is a
-// binary-incompatible change to the option ordering, we bump this
+// data emitted in signatures is based on the current enum layout,
+// which can change as we add new filters, etc.  So every time there
+// is a binary-incompatible change to the enumer level, we bump this
 // version.
-//
-// Note: we now use a two-letter code for identifying enabled filters, so
-// there is no need bump the option version when changing the filter enum.
 //
 // Updating this value will have the indirect effect of flushing the metadata
 // cache.
 //
 // This version number should be incremented if any default-values are changed,
 // either in the add_option() call or via options->set_default.
-const int kOptionsVersion = 11;
+const int kOptionsVersion = 5;
 
 }  // namespace
 
 namespace net_instaweb {
-
-// RewriteFilter prefixes
-const char RewriteOptions::kAjaxRewriteId[] = "aj";
-const char RewriteOptions::kCssCombinerId[] = "cc";
-const char RewriteOptions::kCssFilterId[] = "cf";
-const char RewriteOptions::kCssInlineId[] = "ci";
-const char RewriteOptions::kCacheExtenderId[] = "ce";
-const char RewriteOptions::kImageCombineId[] = "is";
-const char RewriteOptions::kImageCompressionId[] = "ic";
-const char RewriteOptions::kJavascriptCombinerId[] = "jc";
-const char RewriteOptions::kJavascriptMinId[] = "jm";
-const char RewriteOptions::kJavascriptInlineId[] = "ji";
 
 // TODO(jmarantz): consider merging this threshold with the image-inlining
 // threshold, which is currently defaulting at 2000, so we have a single
@@ -90,15 +76,12 @@ const char RewriteOptions::kJavascriptInlineId[] = "ji";
 //
 // jmaessen: For the moment, there's a separate threshold for image inline.
 const int64 RewriteOptions::kDefaultCssInlineMaxBytes = 2048;
-// TODO(jmaessen): Adjust these thresholds in a subsequent CL
-// (Will require re-golding tests.)
 const int64 RewriteOptions::kDefaultImageInlineMaxBytes = 2048;
-const int64 RewriteOptions::kDefaultCssImageInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultJsInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
 const int64 RewriteOptions::kDefaultJsOutlineMinBytes = 3000;
 
-const int64 RewriteOptions::kDefaultMaxHtmlCacheTimeMs = 0;
+const int64 RewriteOptions::kDefaultMaxHtmlCacheTimeMs = 5 * Timer::kMinuteMs;
 const int64 RewriteOptions::kDefaultMinResourceCacheTimeToRewriteMs = 0;
 
 const int64 RewriteOptions::kDefaultCacheInvalidationTimestamp = -1;
@@ -115,16 +98,6 @@ const int RewriteOptions::kMaxUrlSize = 2083;
 // Jpeg quality that needs to be used while recompressing. If set to -1, we
 // use source image quality parameters, and is lossless.
 const int RewriteOptions::kDefaultImageJpegRecompressQuality = -1;
-
-// Percentage savings in order to retain rewritten images; these default
-// to 100% so that we always attempt to resize downsized images, and
-// unconditionally retain images if they save any bytes at all.
-const int RewriteOptions::kDefaultImageLimitOptimizedPercent = 100;
-const int RewriteOptions::kDefaultImageLimitResizeAreaPercent = 100;
-
-// WebP quality that needs to be used while recompressing. If set to -1, we
-// use source image quality parameters.
-const int RewriteOptions::kDefaultImageWebpRecompressQuality = -1;
 
 // See http://code.google.com/p/modpagespeed/issues/detail?id=9.  By
 // default, Apache evidently limits each URL path segment (between /)
@@ -145,10 +118,7 @@ const RewriteOptions::Filter kCoreFilterSet[] = {
   RewriteOptions::kAddHead,
   RewriteOptions::kCombineCss,
   RewriteOptions::kConvertMetaTags,
-  RewriteOptions::kExtendCacheCss,
-  RewriteOptions::kExtendCacheImages,
-  RewriteOptions::kExtendCacheScripts,
-  RewriteOptions::kHtmlWriterFilter,
+  RewriteOptions::kExtendCache,
   RewriteOptions::kInlineCss,
   RewriteOptions::kInlineImages,
   RewriteOptions::kInlineImportToLink,
@@ -168,16 +138,11 @@ const RewriteOptions::Filter kTestFilterSet[] = {
   RewriteOptions::kConvertJpegToWebp,
   RewriteOptions::kMakeGoogleAnalyticsAsync,
   RewriteOptions::kRewriteDomains,
-  RewriteOptions::kSpriteImages,
 };
 
 // Note: These filters should not be included even if the level is "All".
 const RewriteOptions::Filter kDangerousFilterSet[] = {
-  RewriteOptions::kDeferJavascript,
-  RewriteOptions::kDisableJavascript,
   RewriteOptions::kDivStructure,
-  RewriteOptions::kExplicitCloseTags,
-  RewriteOptions::kLazyloadImages,
   RewriteOptions::kStripScripts,
 };
 
@@ -197,7 +162,8 @@ bool IsInSet(const RewriteOptions::Filter* filters, int num,
 
 }  // namespace
 
-const char* RewriteOptions::FilterName(Filter filter) {
+const char * RewriteOptions::FilterName(
+    const RewriteOptions::Filter filter) const {
   switch (filter) {
     case kAddHead:                         return "Add Head";
     case kAddInstrumentation:              return "Add Instrumentation";
@@ -207,23 +173,14 @@ const char* RewriteOptions::FilterName(Filter filter) {
     case kCombineJavascript:               return "Combine Javascript";
     case kConvertJpegToWebp:               return "Convert Jpeg To Webp";
     case kConvertMetaTags:                 return "Convert Meta Tags";
-    case kDeferJavascript:                 return "Defer Javascript";
-    case kDelayImages:                     return "Delay Images";
-    case kDisableJavascript:
-        return "Disables scripts by placing them inside noscript tags";
     case kDivStructure:                    return "Div Structure";
     case kElideAttributes:                 return "Elide Attributes";
-    case kExplicitCloseTags:               return "Explicit Close Tags";
-    case kExtendCacheCss:                  return "Cache Extend Css";
-    case kExtendCacheImages:               return "Cache Extend Images";
-    case kExtendCacheScripts:              return "Cache Extend Scripts";
-    case kHtmlWriterFilter:                return "Flushes html";
+    case kExtendCache:                     return "Extend Cache";
     case kInlineCss:                       return "Inline Css";
     case kInlineImages:                    return "Inline Images";
     case kInlineImportToLink:              return "Inline @import to Link";
     case kInlineJavascript:                return "Inline Javascript";
     case kInsertImageDimensions:           return "Insert Image Dimensions";
-    case kLazyloadImages:                  return "Lazyload Images";
     case kLeftTrimUrls:                    return "Left Trim Urls";
     case kMakeGoogleAnalyticsAsync:        return "Make Google Analytics Async";
     case kMoveCssToHead:                   return "Move Css To Head";
@@ -244,56 +201,6 @@ const char* RewriteOptions::FilterName(Filter filter) {
     case kEndOfFilters:                    return "End of Filters";
   }
   return "Unknown Filter";
-}
-
-const char* RewriteOptions::FilterId(Filter filter) {
-  switch (filter) {
-    case kAddHead:                         return "ah";
-    case kAddInstrumentation:              return "ai";
-    case kCollapseWhitespace:              return "cw";
-    case kCombineCss:                      return kCssCombinerId;
-    case kCombineHeads:                    return "ch";
-    case kCombineJavascript:               return kJavascriptCombinerId;
-    case kConvertJpegToWebp:               return "jw";
-    case kConvertMetaTags:                 return "mc";
-    case kDeferJavascript:                 return "dj";
-    case kDelayImages:                     return "di";
-    case kDisableJavascript:               return "jd";
-    case kDivStructure:                    return "ds";
-    case kElideAttributes:                 return "ea";
-    case kExplicitCloseTags:               return "xc";
-    case kExtendCacheCss:                  return "ec";
-    case kExtendCacheImages:               return "ei";
-    case kExtendCacheScripts:              return "es";
-    case kHtmlWriterFilter:                return "hw";
-    case kInlineCss:                       return kCssInlineId;
-    case kInlineImages:                    return "ii";
-    case kInlineImportToLink:              return "il";
-    case kInlineJavascript:                return kJavascriptInlineId;
-    case kInsertImageDimensions:           return "id";
-    case kLazyloadImages:                  return "ll";
-    case kLeftTrimUrls:                    return "tu";
-    case kMakeGoogleAnalyticsAsync:        return "ga";
-    case kMoveCssToHead:                   return "cm";
-    case kOutlineCss:                      return "co";
-    case kOutlineJavascript:               return "jo";
-    case kRecompressImages:                return "ir";
-    case kRemoveComments:                  return "rc";
-    case kRemoveQuotes:                    return "rq";
-    case kResizeImages:                    return "ri";
-    case kRewriteCss:                      return kCssFilterId;
-    case kRewriteDomains:                  return "rd";
-    case kRewriteJavascript:               return kJavascriptMinId;
-    case kRewriteStyleAttributes:          return "cs";
-    case kRewriteStyleAttributesWithUrl:   return "cu";
-    case kSpriteImages:                    return kImageCombineId;
-    case kStripScripts:                    return "ss";
-    case kEndOfFilters:
-      LOG(DFATAL) << "EndOfFilters passed as code: " << filter;
-      return "EF";
-  }
-  LOG(DFATAL) << "Unknown filter code: " << filter;
-  return "UF";
 }
 
 bool RewriteOptions::ParseRewriteLevel(
@@ -319,69 +226,42 @@ bool RewriteOptions::ParseRewriteLevel(
 
 RewriteOptions::RewriteOptions()
     : modified_(false),
-      frozen_(false),
-      options_uniqueness_checked_(false) {
+      frozen_(false) {
   // Sanity-checks -- will be active only when compiled for debug.
 #ifndef NDEBUG
   CheckFilterSetOrdering(kCoreFilterSet, arraysize(kCoreFilterSet));
   CheckFilterSetOrdering(kTestFilterSet, arraysize(kTestFilterSet));
   CheckFilterSetOrdering(kDangerousFilterSet, arraysize(kDangerousFilterSet));
-
-  // Ensure that all filters have unique IDs.
-  StringSet id_set;
-  for (int i = 0; i < static_cast<int>(kEndOfFilters); ++i) {
-    Filter filter = static_cast<Filter>(i);
-    const char* id = FilterId(filter);
-    std::pair<StringSet::iterator, bool> insertion = id_set.insert(id);
-    DCHECK(insertion.second) << "Duplicate RewriteOption filter id: " << id;
-  }
-
-  // We can't check options uniqueness until additional extra
-  // options are added by subclasses.  We could do this in the
-  // destructor I suppose, but we defer it till ComputeSignature.
 #endif
 
   // TODO(jmarantz): consider adding these on demand so that the cost of
   // initializing an empty RewriteOptions object is closer to zero.
-  add_option(kPassThrough, &level_, "l");
-  add_option(kDefaultCssInlineMaxBytes, &css_inline_max_bytes_, "ci");
-  add_option(kDefaultImageInlineMaxBytes, &image_inline_max_bytes_, "ii");
-  add_option(kDefaultCssImageInlineMaxBytes, &css_image_inline_max_bytes_,
-             "cii");
-  add_option(kDefaultJsInlineMaxBytes, &js_inline_max_bytes_, "ji");
-  add_option(kDefaultCssOutlineMinBytes, &css_outline_min_bytes_, "co");
-  add_option(kDefaultJsOutlineMinBytes, &js_outline_min_bytes_, "jo");
-  add_option(kDefaultMaxHtmlCacheTimeMs, &max_html_cache_time_ms_, "hc");
+  add_option(kPassThrough, &level_);
+  add_option(kDefaultCssInlineMaxBytes, &css_inline_max_bytes_);
+  add_option(kDefaultImageInlineMaxBytes, &image_inline_max_bytes_);
+  add_option(kDefaultJsInlineMaxBytes, &js_inline_max_bytes_);
+  add_option(kDefaultCssOutlineMinBytes, &css_outline_min_bytes_);
+  add_option(kDefaultJsOutlineMinBytes, &js_outline_min_bytes_);
+  add_option(kDefaultMaxHtmlCacheTimeMs, &max_html_cache_time_ms_);
   add_option(kDefaultMinResourceCacheTimeToRewriteMs,
-             &min_resource_cache_time_to_rewrite_ms_, "rc");
+             &min_resource_cache_time_to_rewrite_ms_);
   add_option(kDefaultCacheInvalidationTimestamp,
-             &cache_invalidation_timestamp_, "it");
-  add_option(kDefaultIdleFlushTimeMs, &idle_flush_time_ms_, "if");
-  add_option(kDefaultImageMaxRewritesAtOnce, &image_max_rewrites_at_once_,
-             "im");
-  add_option(kDefaultMaxUrlSegmentSize, &max_url_segment_size_, "uss");
-  add_option(kMaxUrlSize, &max_url_size_, "us");
-  add_option(true, &enabled_, "e");
-  add_option(false, &ajax_rewriting_enabled_, "ar");
-  add_option(false, &botdetect_enabled_, "be");
-  add_option(true, &combine_across_paths_, "cp");
-  add_option(false, &log_rewrite_timing_, "lr");
-  add_option(false, &lowercase_html_names_, "lh");
-  add_option(false, &always_rewrite_css_, "arc");
-  add_option(false, &respect_vary_, "rv");
-  add_option(false, &flush_html_, "fh");
-  add_option(kDefaultBeaconUrl, &beacon_url_, "bu");
+             &cache_invalidation_timestamp_);
+  add_option(kDefaultIdleFlushTimeMs, &idle_flush_time_ms_);
+  add_option(kDefaultImageMaxRewritesAtOnce, &image_max_rewrites_at_once_);
+  add_option(kDefaultMaxUrlSegmentSize, &max_url_segment_size_);
+  add_option(kMaxUrlSize, &max_url_size_);
+  add_option(true, &enabled_);
+  add_option(false, &botdetect_enabled_);
+  add_option(true, &combine_across_paths_);
+  add_option(false, &log_rewrite_timing_);
+  add_option(false, &lowercase_html_names_);
+  add_option(false, &always_rewrite_css_);
+  add_option(false, &respect_vary_);
+  add_option(false, &flush_html_);
+  add_option(kDefaultBeaconUrl, &beacon_url_);
   add_option(kDefaultImageJpegRecompressQuality,
-             &image_jpeg_recompress_quality_, "iq");
-  add_option(kDefaultImageLimitOptimizedPercent,
-             &image_limit_optimized_percent_, "ip");
-  add_option(kDefaultImageLimitResizeAreaPercent,
-             &image_limit_resize_area_percent_, "ia");
-  add_option(kDefaultImageWebpRecompressQuality,
-             &image_webp_recompress_quality_, "iw");
-
-  // Enable HtmlWriterFilter by default.
-  EnableFilter(kHtmlWriterFilter);
+             &image_jpeg_recompress_quality_);
 }
 
 RewriteOptions::~RewriteOptions() {
@@ -394,16 +274,10 @@ RewriteOptions::OptionBase::~OptionBase() {
 void RewriteOptions::DisallowTroublesomeResources() {
   // http://code.google.com/p/modpagespeed/issues/detail?id=38
   Disallow("*js_tinyMCE*");  // js_tinyMCE.js
-  // Official tinyMCE URLs: tiny_mce.js, tiny_mce_src.js, tiny_mce_gzip.php, ...
+  // Official timeMCE URLs: tiny_mce.js, tiny_mce_src.js, tiny_mce_gzip.php, ...
   Disallow("*tiny_mce*");
   // I've also seen tinymce.js
   Disallow("*tinymce*");
-
-  // http://code.google.com/p/modpagespeed/issues/detail?id=352
-  Disallow("*scriptaculous.js*");
-
-  // Breaks some sites.
-  Disallow("*connect.facebook.net/*");
 
   // http://code.google.com/p/modpagespeed/issues/detail?id=207
   // jquery-ui-1.8.2.custom.min.js, jquery-1.4.4.min.js, jquery.fancybox-...
@@ -454,24 +328,6 @@ void RewriteOptions::EnableFilter(Filter filter) {
   modified_ |= inserted.second;
 }
 
-void RewriteOptions::ForceEnableFilter(Filter filter) {
-  DCHECK(!frozen_);
-
-  // insert into set of enabled filters.
-  std::pair<FilterSet::iterator, bool> inserted =
-      enabled_filters_.insert(filter);
-  modified_ |= inserted.second;
-
-  // remove from set of disabled filters.
-  modified_ |= disabled_filters_.erase(filter);
-}
-
-void RewriteOptions::EnableExtendCacheFilters() {
-  EnableFilter(kExtendCacheCss);
-  EnableFilter(kExtendCacheImages);
-  EnableFilter(kExtendCacheScripts);
-}
-
 void RewriteOptions::DisableFilter(Filter filter) {
   DCHECK(!frozen_);
   std::pair<FilterSet::iterator, bool> inserted =
@@ -513,10 +369,6 @@ bool RewriteOptions::AddCommaSeparatedListToFilterSet(
         set->insert(kInsertImageDimensions);
         set->insert(kRecompressImages);
         set->insert(kResizeImages);
-      } else if (option == "extend_cache") {
-        set->insert(kExtendCacheCss);
-        set->insert(kExtendCacheImages);
-        set->insert(kExtendCacheScripts);
       } else {
         handler->Message(kWarning, "Invalid filter name: %s",
                          option.as_string().c_str());
@@ -555,37 +407,6 @@ bool RewriteOptions::Enabled(Filter filter) const {
       break;
   }
   return enabled_filters_.find(filter) != enabled_filters_.end();
-}
-
-int64 RewriteOptions::ImageInlineMaxBytes() const {
-  if (Enabled(kInlineImages)) {
-    return image_inline_max_bytes_.value();
-  } else {
-    return 0;
-  }
-}
-
-void RewriteOptions::set_image_inline_max_bytes(int64 x) {
-  set_option(x, &image_inline_max_bytes_);
-  if (!css_image_inline_max_bytes_.was_set() &&
-      x > css_image_inline_max_bytes_.value()) {
-    // Make sure css_image_inline_max_bytes is at least image_inline_max_bytes
-    // if it has not been explicitly configured.
-    css_image_inline_max_bytes_.set(x);
-  }
-}
-
-int64 RewriteOptions::CssImageInlineMaxBytes() const {
-  if (Enabled(kInlineImages)) {
-    return css_image_inline_max_bytes_.value();
-  } else {
-    return 0;
-  }
-}
-
-int64 RewriteOptions::MaxImageInlineMaxBytes() const {
-  return std::max(ImageInlineMaxBytes(),
-                  CssImageInlineMaxBytes());
 }
 
 void RewriteOptions::Merge(const RewriteOptions& first,
@@ -694,24 +515,10 @@ void RewriteOptions::ComputeSignature(const Hasher* hasher) {
   if (frozen_) {
     return;
   }
-
-#ifndef NDEBUG
-  if (!options_uniqueness_checked_) {
-    options_uniqueness_checked_ = true;
-    StringSet id_set;
-    for (int i = 0, n = all_options_.size(); i < n; ++i) {
-      const char* id = all_options_[i]->id();
-      std::pair<StringSet::iterator, bool> insertion = id_set.insert(id);
-      DCHECK(insertion.second) << "Duplicate RewriteOption option id: " << id;
-    }
-  }
-#endif
-
   signature_ = IntegerToString(kOptionsVersion);
   for (int i = kFirstFilter; i != kEndOfFilters; ++i) {
-    Filter filter = static_cast<Filter>(i);
-    if (Enabled(filter)) {
-      StrAppend(&signature_, "_", FilterId(filter));
+    if (Enabled(static_cast<Filter>(i))) {
+      StrAppend(&signature_, "_", IntegerToString(static_cast<int>(i)));
     }
   }
   signature_ += "O";
@@ -720,7 +527,8 @@ void RewriteOptions::ComputeSignature(const Hasher* hasher) {
     // with values overridden from the default.
     OptionBase* option = all_options_[i];
     if (option->was_set()) {
-      StrAppend(&signature_, option->id(), ":", option->Signature(hasher), "_");
+      StrAppend(&signature_, IntegerToString(i), ":",
+                option->Signature(hasher), "_");
     }
   }
   StrAppend(&signature_, domain_lawyer_.Signature(), "_");
@@ -747,9 +555,9 @@ GoogleString RewriteOptions::ToString() const {
   StrAppend(&output, "Version: ", IntegerToString(kOptionsVersion), "\n\n");
   output += "Filters\n";
   for (int i = kFirstFilter; i != kEndOfFilters; ++i) {
-    Filter filter = static_cast<Filter>(i);
-    if (Enabled(filter)) {
-      StrAppend(&output, FilterId(filter), "\t", FilterName(filter), "\n");
+    if (Enabled(static_cast<Filter>(i))) {
+      StrAppend(&output, IntegerToString(i), "\t",
+                FilterName(static_cast<Filter>(i)), "\n");
     }
   }
   output += "\nOptions\n";
@@ -757,7 +565,7 @@ GoogleString RewriteOptions::ToString() const {
     // Only including options with values overridden from the default.
     OptionBase* option = all_options_[i];
     if (option->was_set()) {
-      StrAppend(&output, "  ", option->id(), "\t", option->ToString(), "\n");
+      StrAppend(&output, IntegerToString(i), "\t", option->ToString(), "\n");
     }
   }
   // TODO(mmohabey): Incorporate ToString() from the domain_lawyer,

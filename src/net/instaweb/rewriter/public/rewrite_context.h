@@ -38,7 +38,6 @@
 namespace net_instaweb {
 
 class CachedResult;
-class GoogleUrl;
 class InputInfo;
 class MessageHandler;
 class NamedLock;
@@ -188,12 +187,8 @@ class RewriteContext {
   // from metadata cache (including all prerequisites).
   bool slow() const { return slow_; }
 
-  // Returns true if this is a nested rewriter.
-  bool has_parent() const { return parent_ != NULL; }
-
  protected:
   typedef std::vector<InputInfo*> InputInfoStarVector;
-  typedef std::vector<GoogleUrl*> GoogleUrlStarVector;
 
   // The following methods are provided for the benefit of subclasses.
 
@@ -285,32 +280,8 @@ class RewriteContext {
   // an empty inputs-array in OutputPartitions and leave
   // 'outputs' unmodified.  'false' is only returned if the subclass
   // skipped the rewrite attempt due to a lock conflict.
-  //
-  // You must override one of Partition() or PartitionAsync(). Partition()
-  // is normally fine unless you need to do computations that can take a
-  // noticeable amount of time, since there are some scenarios under which
-  // page output may end up being held up for a partitioning step. If you
-  // do need to do something computationally expensive in partitioning steps,
-  // override PartitionAsync() instead.
   virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-
-  // As above, but you report the result asynchronously by calling
-  // PartitionDone(), which must be done from the main rewrite
-  // sequence. One of Partition or PartitionAsync() must be overridden in
-  // the subclass. The default implementation is implemented in terms of
-  // Partition().
-  virtual void PartitionAsync(OutputPartitions* partitions,
-                              OutputResourceVector* outputs);
-
-  // Call this from the main rewrite sequence to report results of
-  // PartitionAsync. If the client is not in the main rewrite sequence,
-  // use CrossThreadPartitionDone() instead.
-  void PartitionDone(bool result);
-
-  // Helper for queuing invocation of PartitionDone to run in the
-  // main rewrite sequence.
-  void CrossThreadPartitionDone(bool result);
+                         OutputResourceVector* outputs) = 0;
 
   // Takes a completed rewrite partition and rewrites it.  When
   // complete calls RewriteDone with
@@ -386,56 +357,12 @@ class RewriteContext {
   // calling of base version until that is complete.
   virtual void StartFetchReconstruction();
 
-  // Makes the rest of a fetch run in background, not producing
-  // a result or invoking callbacks. Will arrange for appropriate
-  // memory management with the rewrite driver itself; but the caller
-  // is responsible for delivering results itself and invoking the
-  // callback.
-  void DetachFetch();
-
-  // Decodes the output resource to find the resources to be fetched. The
-  // default behavior decodes the output resource name into multiple paths and
-  // absolutifies them with respect to the output resource base. Returns true if
-  // the decoding is successful and false otherwise.
-  virtual bool DecodeFetchUrls(const OutputResourcePtr& output_resource,
-                               MessageHandler* message_handler,
-                               GoogleUrlStarVector* url_vector);
-
-  // Fixes the headers resulting from a fetch fallback. This is called when a
-  // fetch fallback is found in cache. The default implementation strips cookies
-  // and sets the cache ttl to ResponseHeaders::kImplicitCacheTtlMs.
-  virtual void FixFetchFallbackHeaders(ResponseHeaders* headers);
-
-  // Attempts to fetch a given URL from HTTP cache, and serves it
-  // (with shortened HTTP headers) if available. If not, fallback to normal
-  // full reconstruction path. Note that the hash can be an empty string if the
-  // url is not rewritten.
-  virtual void FetchTryFallback(const GoogleString& url,
-                                const StringPiece& hash);
-
   // Accessors for the nested rewrites.
   int num_nested() const { return nested_.size(); }
   RewriteContext* nested(int i) const { return nested_[i]; }
 
-  OutputPartitions* partitions() { return partitions_.get(); }
-
-  void set_notify_driver_on_fetch_done(bool value) {
-    notify_driver_on_fetch_done_ = value;
-  }
-
-  // Note that the following must only be called in the fetch flow.
-
-  // The writer for the fetch.
-  Writer* fetch_writer();
-
-  // The response headers for the fetch.
-  ResponseHeaders* fetch_response_headers();
-
-  // The callback for the fetch.
-  UrlAsyncFetcher::Callback* fetch_callback();
-
-  // The message handler for the fetch.
-  MessageHandler* fetch_message_handler();
+  // Returns true if this is a nested rewriter.
+  bool has_parent() const { return parent_ != NULL; }
 
  private:
   class OutputCacheCallback;
@@ -564,14 +491,15 @@ class RewriteContext {
   // Callback for metadata lookup on fetch path.
   void FetchCacheDone(CacheInterface::KeyState state, SharedString value);
 
+  // Attempts to fetch a given URL from HTTP cache, and serves it
+  // (with shortened HTTP headers) if available. If not, fallback to normal
+  // full reconstruction path.
+  void FetchTryFallback(const GoogleString& url);
+
   // Callback for HTTP lookup on fetch path where the metadata cache suggests
   // we should try either serving a different path or the original.
   void FetchFallbackCacheDone(HTTPCache::FindResult result,
                               HTTPCache::Callback* data);
-
-  // Callback once the fetch is done. This calls Driver()->FetchComplete() if
-  // notify_driver_on_fetch_done is true.
-  void FetchCallbackDone(bool success);
 
   // To perform a rewrite, we need to have data for all of its input slots.
   ResourceSlotVector slots_;
@@ -686,10 +614,6 @@ class RewriteContext {
 
   // Starts at true, set to false if any content-change checks failed.
   bool revalidate_ok_;
-
-  // Boolean to indicate that the context should call driver()->FetchComplete()
-  // once fetch is done.
-  bool notify_driver_on_fetch_done_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);
 };

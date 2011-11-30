@@ -70,9 +70,4 @@ RewriteContext* RewriteFilter::MakeRewriteContext() {
   return NULL;
 }
 
-RewriteContext* RewriteFilter::MakeNestedRewriteContext(
-    RewriteContext* parent, const ResourceSlotPtr& slot) {
-  return NULL;
-}
-
 }  // namespace net_instaweb

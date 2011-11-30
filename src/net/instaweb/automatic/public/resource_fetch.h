@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -53,8 +52,7 @@ class ResourceFetch : public AsyncFetch {
                     RewriteOptions* custom_options,
                     ResponseHeaders* response_headers,
                     Writer* response_writer,
-                    UrlAsyncFetcher::Callback* callback,
-                    const GoogleString& version);
+                    UrlAsyncFetcher::Callback* callback);
 
   // Public interface from AsyncFetch.
   virtual void HeadersComplete();
@@ -71,8 +69,7 @@ class ResourceFetch : public AsyncFetch {
                          RewriteDriver* driver,
                          UrlAsyncFetcher* fetcher,
                          Timer* timer,
-                         UrlAsyncFetcher::Callback* callback,
-                         const GoogleString& version);
+                         UrlAsyncFetcher::Callback* callback);
   virtual ~ResourceFetch();
 
   GoogleUrl resource_url_;
@@ -84,7 +81,6 @@ class ResourceFetch : public AsyncFetch {
   RewriteDriver* driver_;
   Timer* timer_;
   UrlAsyncFetcher::Callback* callback_;
-  const GoogleString& version_;
 
   int64 start_time_us_;
   int redirect_count_;

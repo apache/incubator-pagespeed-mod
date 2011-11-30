@@ -25,25 +25,26 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
 class RequestHeaders;
 class ResponseHeaders;
+class RewriteContext;
 class Writer;
 
 SimpleTextFilter::Rewriter::~Rewriter() {
 }
 
 SimpleTextFilter::SimpleTextFilter(Rewriter* rewriter, RewriteDriver* driver)
-    : RewriteFilter(driver),
+    : RewriteFilter(driver, rewriter->id()),
       rewriter_(rewriter) {
 }
 
@@ -51,9 +52,8 @@ SimpleTextFilter::~SimpleTextFilter() {
 }
 
 SimpleTextFilter::Context::Context(const RewriterPtr& rewriter,
-                                   RewriteDriver* driver,
-                                   RewriteContext* parent)
-    : SingleRewriteContext(driver, parent, NULL),
+                                   RewriteDriver* driver)
+    : SingleRewriteContext(driver, NULL, NULL),
       rewriter_(rewriter) {
 }
 
@@ -86,7 +86,7 @@ void SimpleTextFilter::StartElementImpl(HtmlElement* element) {
       ResourceSlotPtr slot(driver_->GetSlot(resource, element, attr));
 
       // This 'new' is paired with a delete in RewriteContext::FinishFetch()
-      Context* context = new Context(rewriter_, driver_, NULL);
+      Context* context = new Context(rewriter_, driver_);
       context->AddSlot(slot);
       driver_->InitiateRewrite(context);
     }
@@ -104,14 +104,7 @@ bool SimpleTextFilter::Fetch(const OutputResourcePtr& output_resource,
 }
 
 RewriteContext* SimpleTextFilter::MakeRewriteContext() {
-  return new Context(rewriter_, driver_, NULL);
-}
-
-RewriteContext* SimpleTextFilter::MakeNestedRewriteContext(
-    RewriteContext* parent, const ResourceSlotPtr& slot) {
-  RewriteContext* context = new Context(rewriter_, NULL, parent);
-  context->AddSlot(slot);
-  return context;
+  return new Context(rewriter_, driver_);
 }
 
 bool SimpleTextFilter::HasAsyncFlow() const {

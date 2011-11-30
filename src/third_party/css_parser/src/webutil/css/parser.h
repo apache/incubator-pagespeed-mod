@@ -152,12 +152,13 @@ class Parser {
   bool quirks_mode() const { return quirks_mode_; }
   void set_quirks_mode(bool quirks_mode) { quirks_mode_ = quirks_mode; }
 
-  // In preservation mode (default off) we attempt to parse and store as much
-  // info as possible from the stylesheet. We avoid value validation and allow
-  // all parseable values. In addition for some constructs that cannot be
-  // parsed, we store verbatim bytes which can be re-serialized back out.
-  bool preservation_mode() const { return preservation_mode_; }
-  void set_preservation_mode(bool x) { preservation_mode_ = x; }
+  // Whether we allow all values to be stored in declarations.
+  //
+  // If false (the default), we will strip all values that we don't recognize
+  // or don't think belong in a declaration.
+  // If true, we will remember all values referenced in declarations.
+  bool allow_all_values() const { return allow_all_values_; }
+  void set_allow_all_values(bool x) { allow_all_values_ = x; }
 
   // This is a bitmask of errors seen during the parse.  This is decidedly
   // incomplete --- there are definitely many errors that are not reported here.
@@ -174,11 +175,7 @@ class Parser {
   static const uint64 kSkippedTokenError = 1ULL << 9; // 512
   static const uint64 kCharsetError     = 1ULL << 10; // 1024
   static const uint64 kBlockError       = 1ULL << 11; // 2048
-  static const uint64 kNumberError      = 1ULL << 12; // 4096
   uint64 errors_seen_mask() const { return errors_seen_mask_; }
-  uint64 unparseable_sections_seen_mask() const {
-    return unparseable_sections_seen_mask_;
-  }
 
   friend class ParserTest;  // we need to unit test private Parse functions.
 
@@ -491,7 +488,6 @@ class Parser {
   int CurrentOffset() const { return in_ - begin_; }
 
   static const int kErrorContext;
-
   // Error type should be one of the static const k*Error's above.
   void ReportParsingError(uint64 error_type, const StringPiece& message);
 
@@ -500,17 +496,8 @@ class Parser {
   const char *end_;    // The end of the document to parse.
 
   bool quirks_mode_;  // Whether we are in quirks mode.
-  // In preservation mode, we attempt to save all information from the
-  // stylesheet (including unparseable constructs such as proprietary CSS
-  // and CSS hacks) so that they can be re-serialized precisely.
-  bool preservation_mode_;
-  // errors_seen_mask_ is non-zero iff we failed to parse part of the CSS
-  // and could not recover and so we have lost information.
+  bool allow_all_values_;  // If false, strip all values we don't recognize.
   uint64 errors_seen_mask_;
-  // Only set in preservation_mode_. unparseable_sections_seen_mask_ is non-zero
-  // iff we failed to parse a section of CSS, but saved the text verbatim or
-  // in some other way preserved the information from the original document.
-  uint64 unparseable_sections_seen_mask_;
 
   FRIEND_TEST(ParserTest, color);
   FRIEND_TEST(ParserTest, url);
@@ -547,29 +534,18 @@ class Parser {
 class Declaration {
  public:
   // constructor.  We take ownership of v.
-  Declaration(Property p, Values* v, bool important)
-      : property_(p), values_(v), important_(important) {}
+  Declaration(Property p, Values* v, bool important) :
+      property_(p), values_(v), important_(important) { }
   // constructor with a single Value. We make a copy of the value.
   Declaration(Property p, const Value& v, bool important)
       : property_(p), values_(new Values), important_(important) {
     values_->push_back(new Value(v));
   }
-  // Constructor for dummy declaration used to pass through unparseable
-  // declaration text.
-  explicit Declaration(const StringPiece& text_in_original_buffer)
-      : property_(Property::UNPARSEABLE), important_(false),
-        text_in_original_buffer_(text_in_original_buffer) {}
 
   // accessors
   Property property() const { return property_; }
   const Values* values() const { return values_.get(); }
   bool IsImportant() const { return important_; }
-
-  // Note: This is only valid as long as original buffer is.
-  // Note: May be invalid UTF8.
-  StringPiece text_in_original_buffer() const {
-    return text_in_original_buffer_;
-  }
 
   // convenience accessors
   Property::Prop prop() const { return property_.prop(); }
@@ -583,18 +559,10 @@ class Declaration {
   void set_important(bool important) { important_ = important; }
 
   string ToString() const;
-
  private:
   Property property_;
   scoped_ptr<Values> values_;
   bool important_;  // Whether !important is declared on this declaration.
-
-  // Verbatim bytes parsed for the declaration. Currently this is only stored
-  // for unparseable declarations (stored with property_ == UNPARSEABLE).
-  // Points into CSS buffer (so it is only valid as long as that buffer is).
-  // TODO(sligocki): We may want to store verbatim text for all declarations
-  // to preserve the details of the original text.
-  StringPiece text_in_original_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(Declaration);
 };
@@ -637,7 +605,6 @@ class Ruleset {
   const Declaration& declaration(int i) const { return *declarations_->at(i); }
 
   Selectors& mutable_selectors() { return *selectors_; }
-  std::vector<UnicodeText>& mutable_media() { return media_; }
   Declarations& mutable_declarations() { return *declarations_; }
 
   // set_media copies input media.

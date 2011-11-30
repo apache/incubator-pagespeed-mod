@@ -25,7 +25,6 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
@@ -55,7 +54,6 @@ class CommonFilter;
 class DomainRewriteFilter;
 class FileSystem;
 class Function;
-class HtmlEvent;
 class HtmlFilter;
 class HtmlWriterFilter;
 class MessageHandler;
@@ -65,7 +63,6 @@ class ResourceNamer;
 class ResponseHeaders;
 class RewriteContext;
 class RewriteFilter;
-class ScopedMutex;
 class Statistics;
 class UrlLeftTrimFilter;
 class Writer;
@@ -85,22 +82,13 @@ class RewriteDriver : public HtmlParse {
     kSuccess
   };
 
-  // Mode for BoundedWaitForCompletion
-  enum WaitMode {
-    kNoWait, // Used internally. Do not pass in.
-    kWaitForCompletion,   // wait for everything to complete (up to deadline)
-    kWaitForCachedRender, // wait for at least cached rewrites to complete,
-                          // and anything else that finishes within deadline.
-    kWaitForShutDown      // Makes sure that all work, including any that's
-                          // being done in background, finishes.
-  };
-
-  // Lazily-initialized boolean value
-  enum LazyBool {
-    kNotSet = -1,
-    kFalse = 0,
-    kTrue = 1
-  };
+  static const char kCssCombinerId[];
+  static const char kCssFilterId[];
+  static const char kCacheExtenderId[];
+  static const char kImageCombineId[];
+  static const char kImageCompressionId[];
+  static const char kJavascriptCombinerId[];
+  static const char kJavascriptMinId[];
 
   // A list of HTTP request headers.  These are the headers which
   // should be passed through from the client request into the
@@ -150,20 +138,12 @@ class RewriteDriver : public HtmlParse {
   //   supporting-relcanonical-http-headers.html
   bool ShouldNotRewriteImages() const;
 
-  // Returns true if we may cache extend Css, Images or Scripts respectively.
-  bool MayCacheExtendCss() const;
-  bool MayCacheExtendImages() const;
-  bool MayCacheExtendScripts() const;
-
   void RememberResource(const StringPiece& url, const ResourcePtr& resource);
   const GoogleString& user_agent() const {
     return user_agent_;
   }
-  void set_user_agent(const StringPiece& user_agent_string) {
+  inline void set_user_agent(const StringPiece& user_agent_string) {
     user_agent_string.CopyToString(&user_agent_);
-    user_agent_is_bot_ = kNotSet;
-    user_agent_supports_image_inlining_ = kNotSet;
-    user_agent_supports_webp_ = kNotSet;
   }
 
   // Return a pointer to the response headers that filters can update
@@ -182,8 +162,12 @@ class RewriteDriver : public HtmlParse {
   const UserAgentMatcher& user_agent_matcher() const {
     return user_agent_matcher_;
   }
-  bool UserAgentSupportsImageInlining() const;
-  bool UserAgentSupportsWebp() const;
+  bool UserAgentSupportsImageInlining() const {
+    return user_agent_matcher_.SupportsImageInlining(user_agent_);
+  }
+  bool UserAgentSupportsWebp() const {
+    return user_agent_matcher_.SupportsWebp(user_agent_);
+  }
 
   // Adds the filters from the options, specified by name in enabled_filters.
   // This must be called explicitly after object construction to provide an
@@ -219,10 +203,6 @@ class RewriteDriver : public HtmlParse {
   // install filters in any order and the writer will always be last.
   void SetWriter(Writer* writer);
 
-  Writer* writer() const {
-    return writer_;
-  }
-
   // Initiates an async fetch for a rewritten resource with the specified name.
   // If resource matches the pattern of what the driver is authorized to serve,
   // then true is returned and the caller must listen on the callback for the
@@ -252,12 +232,6 @@ class RewriteDriver : public HtmlParse {
                      Writer* writer,
                      UrlAsyncFetcher::Callback* callback);
 
-  // Same as above, but accepts an AsyncFetch instead of a writer and callback.
-  bool FetchResource(const StringPiece& url,
-                     const RequestHeaders& request_headers,
-                     ResponseHeaders* response_headers,
-                     AsyncFetch* fetch);
-
   // See FetchResource.  There are two differences:
   //   1. It takes an OutputResource instead of a URL.
   //   2. It returns whether a fetch was queued or not.  This is safe
@@ -278,7 +252,7 @@ class RewriteDriver : public HtmlParse {
   // ourselves).
   // TODO(jmaessen): add url hash & check thereof.
   OutputResourcePtr DecodeOutputResource(const GoogleUrl& url,
-                                         RewriteFilter** filter) const;
+                                         RewriteFilter** filter);
 
   // As above, but does not actually create a resource object,
   // and instead outputs the decoded information into the various out
@@ -286,11 +260,10 @@ class RewriteDriver : public HtmlParse {
   bool DecodeOutputResourceName(const GoogleUrl& url,
                                 ResourceNamer* name_out,
                                 OutputResourceKind* kind_out,
-                                RewriteFilter** filter_out) const;
+                                RewriteFilter** filter_out);
 
   FileSystem* file_system() { return file_system_; }
   void set_async_fetcher(UrlAsyncFetcher* f) { url_async_fetcher_ = f; }
-  UrlAsyncFetcher* async_fetcher() { return url_async_fetcher_; }
 
   ResourceManager* resource_manager() const { return resource_manager_; }
   Statistics* statistics() const;
@@ -328,32 +301,6 @@ class RewriteDriver : public HtmlParse {
   // As above, but asynchronous. Note that the RewriteDriver may already be
   // deleted at the point the callback is invoked.
   void FinishParseAsync(Function* callback);
-
-  // Prevent the EndElementEvent for element from flushing.  If it has already
-  // flushed, this has no effect.  Should only be called from an event listener.
-  // Useful for giving an active filter time to complete an RPC that provides
-  // data to append to element.
-  void InhibitEndElement(const HtmlElement* element);
-
-  // Permits the EndElementEvent for element to flush.  If it was not previously
-  // prevented from doing so by InhibitEndElement, this has no effect.  Should
-  // only be called from an active filter, in coordination with an event
-  // listener that called InhibitEndElement.  If we are currently flushing,
-  // another flush will be scheduled as soon as this one finishes.  If we are
-  // not, another flush will be scheduled immediately.
-  void UninhibitEndElement(const HtmlElement* element);
-
-  // Like UninhibitEndElement, but will not schedule a flush.  Returns 1 if
-  // element was previously inhibited, and 0 otherwise.
-  int UninhibitEndElementFlushless(const HtmlElement* element);
-
-  // Returns true if the EndElementEvent for element is inhibited from flushing.
-  bool EndElementIsInhibited(const HtmlElement* element);
-
-  // Will return true if the EndElementEvent of element is inhibited from
-  // flushing, and that event determined the size of the current flush.  Will
-  // return false if a flush is not currently in progress.
-  bool EndElementIsStoppingFlush(const HtmlElement* element);
 
   // Report error message with description of context's location
   // (such as filenames and line numbers). context may be NULL, in which case
@@ -522,21 +469,11 @@ class RewriteDriver : public HtmlParse {
   void Cleanup();
 
   // Wait for outstanding Rewrite to complete.  Once the rewrites are
-  // complete they can be rendered.
+  // complete they can be rendered or deleted.
   void WaitForCompletion();
 
-  // Wait for outstanding rewrite to complete, including any background
-  // work that may be ongoing even after results were reported.
-  //
-  // Note: while this guarantees that the result of the computation is
-  // known, the thread that performed it may still be running for a
-  // little bit and accessing the driver.
-  void WaitForShutDown();
-
-  // As above, but with a time bound, and taking a mode parameter to decide
-  // between WaitForCompletion or WaitForShutDown behavior.
-  // If timeout_ms <= 0, no time bound will be used.
-  void BoundedWaitFor(WaitMode mode, int64 timeout_ms);
+  // As above, but with a time bound. Non-positive values of timeout disable it.
+  void BoundedWaitForCompletion(int64 timeout_ms);
 
   // Renders any completed rewrites back into the DOM.
   void Render();
@@ -554,18 +491,8 @@ class RewriteDriver : public HtmlParse {
   // more like servers.
   void set_externally_managed(bool x) { externally_managed_ = x; }
 
-  // Called by RewriteContext to let RewriteDriver know it will be continuing
-  // on the fetch in background, and so it should defer doing full cleanup
-  // sequences until DetachedFetchComplete() is called.
-  void DetachFetch();
-
-  // Called by RewriteContext when a detached async fetch is complete, allowing
-  // the RewriteDriver to be recycled if FetchComplete() got invoked as well.
-  void DetachedFetchComplete();
-
-  // Cleans up the driver and any fetch rewrite contexts, unless the fetch
-  // rewrite got detached by a call to DetachFetch(), in which case a call to
-  // DetachedFetchComplete() must also be performed.
+  // Called by RewriteContext when an async fetch is complete, allowing
+  // the RewriteDriver to be recycled.
   void FetchComplete();
 
   // Deletes the specified RewriteContext.  If this is the last RewriteContext
@@ -581,7 +508,6 @@ class RewriteDriver : public HtmlParse {
   // release, or whether it's been detected as running on valgrind
   // at runtime.
   void set_rewrite_deadline_ms(int x) { rewrite_deadline_ms_ = x; }
-  int rewrite_deadline_ms() { return rewrite_deadline_ms_; }
 
   // Tries to register the given rewrite context as working on
   // its partition key. If this context is the first one to try to handle it,
@@ -590,10 +516,6 @@ class RewriteDriver : public HtmlParse {
   // Must only be called from rewrite thread.
   RewriteContext* RegisterForPartitionKey(const GoogleString& partition_key,
                                           RewriteContext* candidate);
-
-  // Sets whether panel filter is still in progress and hence rewrite driver
-  // shouldn't be deleted.
-  void SetPanelFilterIncomplete(bool panel_filter_incomplete);
 
   // Must be called after all other rewrites that are currently relying on this
   // one have had their RepeatedSuccess or RepeatedFailure methods called.
@@ -673,17 +595,6 @@ class RewriteDriver : public HtmlParse {
                                      Writer* writer,
                                      MessageHandler* handler);
 
-  // Determines if an URL relative to the given input_base needs to be
-  // absolutified given that it will end up under output_base:
-  // - If we are proxying and input_base isn't proxy encoded, then yes.
-  // - If we aren't proxying and input_base != output_base, then yes.
-  // - If we aren't proxying and the domain lawyer will shard or rewrite
-  //   input_base, then yes.
-  // If not NULL also set *proxy_mode to whether proxy mode is active or not.
-  bool ShouldAbsolutifyUrl(const GoogleUrl& input_base,
-                           const GoogleUrl& output_base,
-                           bool* proxy_mode) const;
-
  private:
   friend class ResourceManagerTestBase;
   friend class ResourceManagerTest;
@@ -692,11 +603,11 @@ class RewriteDriver : public HtmlParse {
   typedef void (RewriteDriver::*SetStringMethod)(const StringPiece& value);
   typedef void (RewriteDriver::*SetInt64Method)(int64 value);
 
-  // Backend for both FetchComplete() and DetachedFetchComplete().
-  // If 'signal' is true will wake up those waiting for completion on the
-  // scheduler. It assumes that rewrite_mutex() will be held via
-  // the lock parameter; and releases it when done.
-  void FetchCompleteImpl(bool signal, ScopedMutex* lock);
+  enum WaitMode {
+    kWaitForCompletion,   // wait for everything to complete (upto deadline)
+    kWaitForCachedRender  // wait for at least cached rewrites to complete,
+                          // and anything else that finishes within deadline.
+  };
 
   // Checks whether outstanding rewrites are completed in a satisfactory
   // fashion with respect to given wait_mode and timeout, and invokes
@@ -729,12 +640,6 @@ class RewriteDriver : public HtmlParse {
 
   // Must be called with rewrites_mutex_ held.
   bool RewritesComplete() const;
-
-  // Returns true if there is a trailing background portion of a detached
-  // rewrite for a fetch going on, even if a preliminary answer has
-  // already been given.
-  // Must be called with rewrites_mutex_ held.
-  bool HaveBackgroundFetchRewrite() const;
 
   // Sets the base GURL in response to a base-tag being parsed.  This
   // should only be called by ScanFilter.
@@ -782,12 +687,6 @@ class RewriteDriver : public HtmlParse {
   void AddPreRenderFilters();
   void AddPostRenderFilters();
 
-  // After removing an inhibition, finish the parse if necessary.
-  void UninhibitFlushDone(Function* user_callback);
-
-  // Move anything on queue_ after the first inhibited event to deferred_queue_.
-  void SplitQueueIfNecessary();
-
   // Only the first base-tag is significant for a document -- any subsequent
   // ones are ignored.  There should be no URLs referenced prior to the base
   // tag, if one exists.  See
@@ -818,48 +717,23 @@ class RewriteDriver : public HtmlParse {
   // has called FetchComplete().
   bool fetch_queued_;            // protected by rewrite_mutex()
 
-  // Indicates that a RewriteContext handling a fetch has elected to
-  // return early with unoptimized results and continue rewriting in the
-  // background. In this case, the driver (and the context) will not
-  // be released until DetachedFetchComplete() has been called.
-  bool fetch_detached_;     // protected by rewrite_mutex()
-
-  // For detached fetches, two things have to finish before we can clean them
-  // up: the path that answers quickly, and the background path that finishes
-  // up the rewrite and writes into the cache. We need to keep track of them
-  // carefully since it's not impossible that the "slow" background path
-  // might just finish before the "fast" main path in weird thread schedules.
-  // Protected by rewrite_mutex()
-  bool detached_fetch_main_path_complete_;
-  bool detached_fetch_detached_path_complete_;
-
   // Indicates that the rewrite driver is currently parsing the HTML,
   // and thus should not be recycled under FinishParse() is called.
   bool parsing_;  // protected by rewrite_mutex()
 
-  // If not kNoWait, indicates that WaitForCompletion or similar method
-  // have been called, and an another thread is waiting for us to notify it of
-  // everything having been finished in a given mode.
-  WaitMode waiting_; // protected by rewrite_mutex()
+  // Indicates that WaitForCompletion() has been called in the HTML thread,
+  // and we are now blocked on a condition variable in that function.  Thus
+  // it only makes sense to examine this from the Rewrite thread.
+  bool waiting_for_completion_;  // protected by rewrite_mutex()
+
+  // Likewise for Render() (except when that's emulating WaitForCompletion)
+  bool waiting_for_render_;  //  protected by rewrite_mutex()
 
   // If this is true, this RewriteDriver should Cleanup() itself when it
   // finishes handling the current fetch.
   bool cleanup_on_fetch_complete_;
 
   bool flush_requested_;
-
-  // Whether panel filter has still not completed and the rewrite driver
-  // should be kept alive.
-  bool panel_filter_incomplete_;
-
-  scoped_ptr<AbstractMutex> inhibits_mutex_;
-  typedef std::set <const HtmlElement*> ConstHtmlElementSet;
-  ConstHtmlElementSet end_elements_inhibited_;  // protected by inhibits_mutex_
-  HtmlEventList deferred_queue_;                // protected by inhibits_mutex_
-  Function* finish_parse_on_hold_;              // protected by inhibits_mutex_
-  HtmlEvent* inhibiting_event_;                 // protected by inhibits_mutex_
-  bool flush_in_progress_;                      // protected by inhibits_mutex_
-  bool uninhibit_reflush_requested_;            // protected by inhibits_mutex_
 
   // Tracks the number of RewriteContexts that have been completed,
   // but not yet deleted.  Once RewriteComplete has been called,
@@ -880,11 +754,6 @@ class RewriteDriver : public HtmlParse {
   GoogleUrl decoded_base_url_;
 
   GoogleString user_agent_;
-  // Properties of the user_agent_ that are computed once and cached.
-  mutable LazyBool user_agent_is_bot_;
-  mutable LazyBool user_agent_supports_image_inlining_;
-  mutable LazyBool user_agent_supports_webp_;
-
   StringFilterMap resource_filter_map_;
 
   ResponseHeaders* response_headers_;
@@ -963,8 +832,6 @@ class RewriteDriver : public HtmlParse {
   QueuedWorkerPool::Sequence* html_worker_;
   QueuedWorkerPool::Sequence* rewrite_worker_;
   QueuedWorkerPool::Sequence* low_priority_rewrite_worker_;
-
-  Writer* writer_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };

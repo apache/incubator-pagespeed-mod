@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/image_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -78,7 +77,7 @@ class CacheExtender::Context : public SingleRewriteContext {
   virtual void Render();
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output);
-  virtual const char* id() const { return extender_->id(); }
+  virtual const char* id() const { return extender_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
 
  private:
@@ -87,8 +86,8 @@ class CacheExtender::Context : public SingleRewriteContext {
   DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
-CacheExtender::CacheExtender(RewriteDriver* driver)
-    : RewriteSingleResourceFilter(driver),
+CacheExtender::CacheExtender(RewriteDriver* driver, const char* filter_prefix)
+    : RewriteSingleResourceFilter(driver, filter_prefix),
       tag_scanner_(driver_),
       extension_count_(NULL),
       not_cacheable_count_(NULL) {
@@ -129,34 +128,11 @@ bool CacheExtender::ShouldRewriteResource(
 void CacheExtender::StartElementImpl(HtmlElement* element) {
   // Disable extend_cache for img if ModPagespeedDisableForBots is on
   // and the user-agent is a bot.
-  HtmlName::Keyword keyword = element->keyword();
-  bool may_rewrite = false;
-  switch (keyword) {
-    case HtmlName::kLink: {
-      may_rewrite = driver_->MayCacheExtendCss();
-      break;
-    }
-    case HtmlName::kImg:
-    case HtmlName::kInput: {
-      may_rewrite = driver_->MayCacheExtendImages();
-      break;
-    }
-    case HtmlName::kScript: {
-      may_rewrite = driver_->MayCacheExtendScripts();
-      break;
-    }
-    default:
-      break;
-  }
-  if (!may_rewrite) {
+  if (element->keyword() == HtmlName::kImg &&
+      driver_->ShouldNotRewriteImages()) {
     return;
   }
-
   HtmlElement::Attribute* href = tag_scanner_.ScanElement(element);
-  if (href == NULL) {
-    ImageTagScanner image_scanner(driver_);
-    href = image_scanner.ParseImageElement(element);
-  }
 
   // TODO(jmarantz): We ought to be able to domain-shard even if the
   // resources are non-cacheable or privately cacheable.

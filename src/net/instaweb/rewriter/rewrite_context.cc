@@ -56,7 +56,6 @@
 #include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/null_writer.h"
 #include "net/instaweb/util/public/proto_util.h"
-#include "net/instaweb/util/public/queued_alarm.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
@@ -269,68 +268,15 @@ class RewriteContext::FetchContext {
         callback_(callback),
         output_resource_(output_resource),
         handler_(handler),
-        deadline_alarm_(NULL),
-        success_(false),
-        detached_(false) {
-  }
-
-  void SetupDeadlineAlarm() {
-    // No point in doing this for on-the-fly resources.
-    if (rewrite_context_->kind() == kOnTheFlyResource) {
-      return;
-    }
-
-    // Can't do this if a subclass forced us to be detached already.
-    if (detached_) {
-      return;
-    }
-    RewriteDriver* driver = rewrite_context_->Driver();
-    Timer* timer = rewrite_context_->Manager()->timer();
-
-    // Startup an alarm which will cause us to return unrewritten content
-    // rather than hold up the fetch too long on firing. We use a longer
-    // deadline here than for rendering because we are being asked for the
-    // rewritten version, so the tradeoff is shifted a bit more towards
-    // rewriting.
-    deadline_alarm_ =
-        new QueuedAlarm(
-            driver->scheduler(), driver->rewrite_worker(),
-            timer->NowUs() + 2 * driver->rewrite_deadline_ms() * Timer::kMsUs,
-            MakeFunction(this, &FetchContext::HandleDeadline));
-  }
-
-  // Must be invoked from main rewrite thread.
-  void CancelDeadlineAlarm() {
-    if (deadline_alarm_ != NULL) {
-      deadline_alarm_->CancelAlarm();
-      deadline_alarm_ = NULL;
-    }
-  }
-
-  // Fired by QueuedAlarm in main rewrite thread.
-  void HandleDeadline() {
-    deadline_alarm_ = NULL;  // avoid dangling reference.
-    rewrite_context_->DetachFetch();
-    ResourcePtr input(rewrite_context_->slot(0)->resource());
-    FetchFallbackDoneImpl(input->contents(), input->response_headers());
+        success_(false) {
   }
 
   // Note that the callback is called from the RewriteThread.
   void FetchDone() {
-    CancelDeadlineAlarm();
-
-    // Cache our results.
-    DCHECK_EQ(1, rewrite_context_->num_output_partitions());
-    rewrite_context_->WritePartition();
-
-    // If we're running in background, that's basically all we will do.
-    if (detached_) {
-      rewrite_context_->Driver()->DetachedFetchComplete();
-      return;
-    }
-
     GoogleString output;
     bool ok = false;
+    DCHECK_EQ(1, rewrite_context_->num_output_partitions());
+    rewrite_context_->WritePartition();
     if (success_) {
       if (output_resource_->hash() == requested_hash_) {
         response_headers_->CopyFrom(*(output_resource_->response_headers()));
@@ -338,8 +284,8 @@ class RewriteContext::FetchContext {
       } else {
         // Our rewrite produced a different hash than what was requested;
         // we better not give it an ultra-long TTL.
-        FetchFallbackDone(output_resource_->contents(),
-                          output_resource_->response_headers());
+        FetchFallbackDone(output_resource_->response_headers(),
+                          output_resource_->contents());
         return;
       }
     } else {
@@ -368,33 +314,28 @@ class RewriteContext::FetchContext {
       }
     }
 
-    rewrite_context_->FetchCallbackDone(ok);
+    callback_->Done(ok);
   }
 
   // This is used in case we used a metadata cache to find an alternative URL
   // to serve --- either a version with a different hash, or that we should
   // serve the original. In this case, we serve it out, but with shorter headers
   // than usual.
-  void FetchFallbackDone(const StringPiece& contents,
-                         ResponseHeaders* headers) {
-    CancelDeadlineAlarm();
-    if (detached_) {
-      rewrite_context_->Driver()->DetachedFetchComplete();
-      return;
-    }
-
-    FetchFallbackDoneImpl(contents, headers);
-  }
-
-  // Backend for FetchFallbackCacheDone, but can be also invoked
-  // for main rewrite when background rewrite is detached.
-  void FetchFallbackDoneImpl(const StringPiece& contents,
-                             ResponseHeaders* headers) {
-    rewrite_context_->FixFetchFallbackHeaders(headers);
-
+  void FetchFallbackDone(ResponseHeaders* headers,
+                         const StringPiece& contents) {
     response_headers_->CopyFrom(*headers);
+    response_headers_->Sanitize();
+
+    // Shorten cache length, and prevent proxies caching this, as it's under
+    // the "wrong" URL.
+    const int64 kMaxWrongHashTtlMs = ResponseHeaders::kImplicitCacheTtlMs;
+    response_headers_->SetDateAndCaching(
+        headers->date_ms(),
+        std::min(headers->cache_ttl_ms(), kMaxWrongHashTtlMs),
+        ", private");
+    response_headers_->ComputeCaching();
     bool ok = writer_->Write(contents, handler_);
-    rewrite_context_->FetchCallbackDone(ok);
+    callback_->Done(ok);
   }
 
   void set_requested_hash(const StringPiece& hash) {
@@ -411,10 +352,7 @@ class RewriteContext::FetchContext {
   OutputResourcePtr output_resource_;
   MessageHandler* handler_;
   GoogleString requested_hash_;  // hash we were requested as. May be empty.
-  QueuedAlarm* deadline_alarm_;
-
   bool success_;
-  bool detached_;
 };
 
 // Helper for running filter's Rewrite method in low-priority rewrite thread,
@@ -458,8 +396,7 @@ RewriteContext::RewriteContext(RewriteDriver* driver,
     ok_to_write_output_partitions_(true),
     was_too_busy_(false),
     slow_(false),
-    revalidate_ok_(true),
-    notify_driver_on_fetch_done_(false) {
+    revalidate_ok_(true) {
   partitions_.reset(new OutputPartitions);
 }
 
@@ -936,11 +873,7 @@ void RewriteContext::Activate() {
 
 void RewriteContext::StartRewriteForHtml() {
   CHECK(has_parent() || slow_) << "slow_ not set on a rewriting job?";
-  PartitionAsync(partitions_.get(), &outputs_);
-}
-
-void RewriteContext::PartitionDone(bool result) {
-  if (!result) {
+  if (!Partition(partitions_.get(), &outputs_)) {
     partitions_->clear_partition();
     outputs_.clear();
   }
@@ -964,18 +897,16 @@ void RewriteContext::PartitionDone(bool result) {
     // rewrite before calling WritePartition.
 
     // Note that we run the actual rewrites in the "low priority" thread except
-    // if we're serving an attached fetch, since we do not want to fail it due
-    // to load shedding. Of course, we're only inside this method for a fetch
-    // if it's a nested rewrite for one, since its top-level will be
-    // handled by StartRewriteForFetch().
-    bool is_fetch = ((parent_ != NULL) && (parent_->fetch_.get() != NULL));
-    bool is_detached_fetch = is_fetch && parent_->fetch_->detached_;
+    // if we're serving a fetch, since we do not want to fail it due to
+    // load shedding.
+    bool is_fetch = (fetch_.get() != NULL) ||
+                    ((parent_ != NULL) && (parent_->fetch_.get() != NULL));
 
     CHECK_EQ(outstanding_rewrites_, static_cast<int>(outputs_.size()));
     for (int i = 0, n = outstanding_rewrites_; i < n; ++i) {
       InvokeRewriteFunction* invoke_rewrite =
           new InvokeRewriteFunction(this, i);
-      if (is_fetch && !is_detached_fetch) {
+      if (is_fetch) {
         Driver()->AddRewriteTask(invoke_rewrite);
       } else {
         Driver()->AddLowPriorityRewriteTask(invoke_rewrite);
@@ -1237,13 +1168,6 @@ void RewriteContext::StartRewriteForFetch() {
   output->set_cached_result(partition);
   ++outstanding_rewrites_;
   if (ok_to_rewrite) {
-    // We do not use a deadline for combining filters since we can't
-    // just substitute in an input as a fallback, we have to wait for
-    // them to actually make the combination.
-    if (num_slots() == 1) {
-      fetch_->SetupDeadlineAlarm();
-    }
-
     Rewrite(0, partition, output);
   } else {
     partition->clear_input();
@@ -1322,23 +1246,6 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
   return ret;
 }
 
-bool RewriteContext::Partition(OutputPartitions* partitions,
-                               OutputResourceVector* outputs) {
-  LOG(FATAL) << "RewriteContext subclasses must reimplement one of "
-                "PartitionAsync or Partition";
-  return false;
-}
-
-void RewriteContext::PartitionAsync(OutputPartitions* partitions,
-                                    OutputResourceVector* outputs) {
-  PartitionDone(Partition(partitions, outputs));
-}
-
-void RewriteContext::CrossThreadPartitionDone(bool result) {
-  Driver()->AddRewriteTask(
-      MakeFunction(this, &RewriteContext::PartitionDone, result));
-}
-
 void RewriteContext::Freshen(const CachedResult& partition) {
   // TODO(morlovich): This isn't quite enough as this doesn't cause us to
   // update the expiration in the partition tables; it merely makes it
@@ -1397,23 +1304,6 @@ GoogleString RewriteContext::CacheKey() const {
   return key;
 }
 
-bool RewriteContext::DecodeFetchUrls(
-    const OutputResourcePtr& output_resource,
-    MessageHandler* message_handler,
-    GoogleUrlStarVector* url_vector) {
-  GoogleUrl base(output_resource->decoded_base());
-  StringVector urls;
-  if (encoder()->Decode(output_resource->name(), &urls, resource_context_.get(),
-                        message_handler)) {
-    for (int i = 0, n = urls.size(); i < n; ++i) {
-      GoogleUrl* url = new GoogleUrl(base, urls[i]);
-      url_vector->push_back(url);
-    }
-    return true;
-  }
-  return false;
-}
-
 bool RewriteContext::Fetch(
     const OutputResourcePtr& output_resource,
     Writer* response_writer,
@@ -1422,31 +1312,25 @@ bool RewriteContext::Fetch(
     UrlAsyncFetcher::Callback* callback) {
   // Decode the URLs required to execute the rewrite.
   bool ret = false;
+  StringVector urls;
+  GoogleUrl base(output_resource->decoded_base());
   RewriteDriver* driver = Driver();
   driver->InitiateFetch(this);
-  GoogleUrlStarVector url_vector;
-  if (DecodeFetchUrls(output_resource, message_handler, &url_vector)) {
-    bool is_valid = true;
-    for (int i = 0, n = url_vector.size(); i < n; ++i) {
-      GoogleUrl* url = url_vector[i];
-      if (!url->is_valid()) {
-        is_valid = false;
-        break;
+  if (encoder()->Decode(output_resource->name(), &urls, resource_context_.get(),
+                        message_handler)) {
+    for (int i = 0, n = urls.size(); i < n; ++i) {
+      GoogleUrl url(base, urls[i]);
+      if (!url.is_valid()) {
+        return false;
       }
-      ResourcePtr resource(driver->CreateInputResource(*url));
+      ResourcePtr resource(driver->CreateInputResource(url));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
-         is_valid = false;
-         break;
+        return false;
       }
       ResourceSlotPtr slot(new FetchResourceSlot(resource));
       AddSlot(slot);
     }
-    STLDeleteContainerPointers(url_vector.begin(), url_vector.end());
-    if (!is_valid) {
-      return false;
-    }
-
     SetPartitionKey();
     fetch_.reset(
         new FetchContext(this, response_writer, response_headers, callback,
@@ -1484,14 +1368,14 @@ void RewriteContext::FetchCacheDone(
       if (fetch_->requested_hash_ != output_resource->hash()) {
         // Try to do a cache look up on the proper hash; if it's available,
         // we can serve it.
-        FetchTryFallback(output_resource->url(), output_resource->hash());
+        FetchTryFallback(output_resource->url());
         return;
       }
     } else if (num_slots() == 1) {
       // The result is not optimizable, and there is only one input.
       // Try serving the original. (For simplicity, we will do an another
       // rewrite attempt if it's not in the cache).
-      FetchTryFallback(slot(0)->resource()->url(), "");
+      FetchTryFallback(slot(0)->resource()->url());
       return;
     }
   }
@@ -1500,8 +1384,7 @@ void RewriteContext::FetchCacheDone(
   StartFetchReconstruction();
 }
 
-void RewriteContext::FetchTryFallback(const GoogleString& url,
-                                      const StringPiece& hash) {
+void RewriteContext::FetchTryFallback(const GoogleString& url) {
   Manager()->http_cache()->Find(
       url,
       Manager()->message_handler(),
@@ -1518,18 +1401,9 @@ void RewriteContext::FetchFallbackCacheDone(HTTPCache::FindResult result,
       data->http_value()->ExtractContents(&contents) &&
       (data->response_headers()->status_code() == HttpStatus::kOK)) {
     // We want to serve the found result, with short cache lifetime.
-    fetch_->FetchFallbackDone(contents, data->response_headers());
+    fetch_->FetchFallbackDone(data->response_headers(), contents);
   } else {
     StartFetchReconstruction();
-  }
-}
-
-void RewriteContext::FetchCallbackDone(bool success) {
-  RewriteDriver* notify_driver =
-      notify_driver_on_fetch_done_ ? Driver() : NULL;
-  fetch_callback()->Done(success);
-  if (notify_driver != NULL) {
-    notify_driver->FetchComplete();
   }
 }
 
@@ -1558,12 +1432,6 @@ void RewriteContext::StartFetchReconstruction() {
                    &RewriteContext::FetchInputs));
 }
 
-void RewriteContext::DetachFetch() {
-  CHECK(fetch_.get() != NULL);
-  fetch_->detached_ = true;
-  Driver()->DetachFetch();
-}
-
 RewriteDriver* RewriteContext::Driver() const {
   const RewriteContext* rc;
   for (rc = this; rc->driver_ == NULL; rc = rc->parent_) {
@@ -1578,40 +1446,6 @@ ResourceManager* RewriteContext::Manager() const {
 
 const RewriteOptions* RewriteContext::Options() {
   return Driver()->options();
-}
-
-void RewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
-  if (headers->Sanitize()) {
-    headers->ComputeCaching();
-  }
-
-  // Shorten cache length, and prevent proxies caching this, as it's under
-  // the "wrong" URL.
-  headers->SetDateAndCaching(
-      headers->date_ms(),
-      std::min(headers->cache_ttl_ms(), ResponseHeaders::kImplicitCacheTtlMs),
-      ",private");
-  headers->ComputeCaching();
-}
-
-Writer* RewriteContext::fetch_writer() {
-  DCHECK(fetch_.get() != NULL);
-  return fetch_->writer_;
-}
-
-ResponseHeaders* RewriteContext::fetch_response_headers() {
-  DCHECK(fetch_.get() != NULL);
-  return fetch_->response_headers_;
-}
-
-UrlAsyncFetcher::Callback* RewriteContext::fetch_callback() {
-  DCHECK(fetch_.get() != NULL);
-  return fetch_->callback_;
-}
-
-MessageHandler* RewriteContext::fetch_message_handler() {
-  DCHECK(fetch_.get() != NULL);
-  return fetch_->handler_;
 }
 
 }  // namespace net_instaweb

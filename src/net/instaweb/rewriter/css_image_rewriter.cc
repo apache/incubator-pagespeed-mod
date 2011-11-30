@@ -48,7 +48,6 @@
 namespace net_instaweb {
 
 // Statistics names.
-const char CssImageRewriter::kImageInlines[] = "css_image_inlines";
 const char CssImageRewriter::kImageRewrites[] = "css_image_rewrites";
 const char CssImageRewriter::kCacheExtends[] = "css_image_cache_extends";
 const char CssImageRewriter::kNoRewrite[] = "css_image_no_rewrite";
@@ -61,13 +60,11 @@ CssImageRewriter::CssImageRewriter(RewriteDriver* driver,
       // images found in HTML.
       cache_extender_(cache_extender),
       image_rewriter_(image_rewriter),
-      image_inlines_(NULL),
       image_rewrites_(NULL),
       cache_extends_(NULL),
       no_rewrite_(NULL) {
   Statistics* stats = driver_->resource_manager()->statistics();
   if (stats != NULL) {
-    image_inlines_ = stats->GetVariable(kImageInlines);
     image_rewrites_ = stats->GetVariable(kImageRewrites);
     // TODO(sligocki): Should this be shared with CacheExtender or kept
     // separately? I think it's useful to know how many images were optimized
@@ -81,7 +78,6 @@ CssImageRewriter::CssImageRewriter(RewriteDriver* driver,
 CssImageRewriter::~CssImageRewriter() {}
 
 void CssImageRewriter::Initialize(Statistics* statistics) {
-  statistics->AddVariable(kImageInlines);
   statistics->AddVariable(kImageRewrites);
   statistics->AddVariable(kCacheExtends);
   statistics->AddVariable(kNoRewrite);
@@ -89,14 +85,15 @@ void CssImageRewriter::Initialize(Statistics* statistics) {
 
 bool CssImageRewriter::RewritesEnabled() const {
   const RewriteOptions* options = driver_->options();
+  // TODO(jmaessen): Enable webp conversion and image inlining in
+  // css files.  These are user-agent sensitive.
   return (options->Enabled(RewriteOptions::kRecompressImages) ||
           options->Enabled(RewriteOptions::kLeftTrimUrls) ||
-          options->Enabled(RewriteOptions::kExtendCacheImages) ||
+          options->Enabled(RewriteOptions::kExtendCache) ||
           options->Enabled(RewriteOptions::kSpriteImages));
 }
 
 TimedBool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
-                                            const GoogleUrl& trim_url,
                                             const StringPiece& old_rel_url,
                                             GoogleString* new_url,
                                             MessageHandler* handler) {
@@ -105,32 +102,24 @@ TimedBool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
   GoogleUrl resource_url(base_url, old_rel_url);
   ResourcePtr input_resource(driver_->CreateInputResource(resource_url));
   const RewriteOptions* options = driver_->options();
-  bool trim = options->trim_urls_in_css() &&
-      options->Enabled(RewriteOptions::kLeftTrimUrls);
   if (input_resource.get() != NULL) {
     scoped_ptr<CachedResult> rewrite_info;
     // Try image rewriting.
-    if (options->Enabled(RewriteOptions::kRecompressImages) ||
-        options->Enabled(RewriteOptions::kInlineImages)) {
+    if (options->Enabled(RewriteOptions::kRecompressImages)) {
       handler->Message(kInfo, "Attempting to rewrite image %s",
                        old_rel_url_str.c_str());
       ResourceContext dim;
       rewrite_info.reset(image_rewriter_->RewriteExternalResource(
           input_resource, &dim));
       ret.expiration_ms = ExpirationTimeMs(rewrite_info.get());
-      if (rewrite_info.get() != NULL) {
-        // Note: we used to inline here, but as this code path is dead in actual
-        // usage jmaessen stripped it out during subsequent inlining fixes
-        if (rewrite_info->optimizable() &&
-            options->Enabled(RewriteOptions::kRecompressImages)) {
-          image_rewrites_->Add(1);
-          *new_url = rewrite_info->url();
-          ret.value = true;
-        }
+      if (rewrite_info.get() != NULL && rewrite_info->optimizable()) {
+        image_rewrites_->Add(1);
+        *new_url = rewrite_info->url();
+        ret.value = true;
       }
     }
     // Try cache extending.
-    if (!ret.value && options->Enabled(RewriteOptions::kExtendCacheImages)) {
+    if (!ret.value && options->Enabled(RewriteOptions::kExtendCache)) {
       handler->Message(kInfo, "Attempting to cache extend image %s",
                        old_rel_url_str.c_str());
       rewrite_info.reset(
@@ -147,7 +136,8 @@ TimedBool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
   }
 
   // Try trimming the URL.
-  if (trim) {
+  if (options->trim_urls_in_css() &&
+      options->Enabled(RewriteOptions::kLeftTrimUrls)) {
     StringPiece url_to_trim;
     if (ret.value) {
       url_to_trim = *new_url;
@@ -155,7 +145,7 @@ TimedBool CssImageRewriter::RewriteImageUrl(const GoogleUrl& base_url,
       url_to_trim = old_rel_url;
     }
     GoogleString trimmed_url;
-    if (UrlLeftTrimFilter::Trim(trim_url, url_to_trim,
+    if (UrlLeftTrimFilter::Trim(base_url, url_to_trim,
                                 &trimmed_url, handler)) {
       *new_url = trimmed_url;
       ret.value = true;
@@ -187,7 +177,6 @@ int64 CssImageRewriter::ExpirationTimeMs(CachedResult* cached_result) {
 }
 
 TimedBool CssImageRewriter::RewriteCssImages(const GoogleUrl& base_url,
-                                             const GoogleUrl& trim_url,
                                              Css::Stylesheet* stylesheet,
                                              MessageHandler* handler) {
   bool edited = false;
@@ -233,7 +222,7 @@ TimedBool CssImageRewriter::RewriteCssImages(const GoogleUrl& base_url,
                 TimedBool result = {kint64max, false};
                 expire_at_ms = std::min(expire_at_ms, result.expiration_ms);
                 GoogleString new_url;
-                result = RewriteImageUrl(base_url, trim_url, rel_url, &new_url,
+                result = RewriteImageUrl(base_url, rel_url, &new_url,
                                          handler);
                 expire_at_ms = std::min(expire_at_ms, result.expiration_ms);
                 if (result.value) {

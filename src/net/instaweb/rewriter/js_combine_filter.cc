@@ -36,7 +36,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -284,10 +283,14 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
   virtual const UrlSegmentEncoder* encoder() const {
-    return filter_->encoder();
+    return &encoder_;
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  virtual const char* id() const {
+    return filter_->id().c_str();
+  }
+  virtual OutputResourceKind kind() const {
+    return kRewrittenResource;
+  }
 
  private:
   // If we can combine, put the result into outputs and then reset
@@ -412,20 +415,42 @@ bool JsCombineFilter::JsCombiner::WritePiece(
     const Resource* input, OutputResource* combination, Writer* writer,
     MessageHandler* handler) {
   // We write out code of each script into a variable.
-  writer->Write(StrCat("var ", filter_->VarName(input->url()), " = "),
+  writer->Write(StrCat("var ", filter_->VarName(input->url()), " = \""),
                 handler);
 
+  // We escape backslash, double-quote, CR and LF while forming a string
+  // from the code. This is /almost/ completely right: U+2028 and U+2029 are
+  // line terminators as well (ECMA 262-5 --- 7.3, 7.8.4), so should really be
+  // escaped, too, but we don't have the encoding here.
   StringPiece original = input->contents();
   GoogleString escaped;
-  JavascriptCodeBlock::ToJsStringLiteral(original, &escaped);
+  for (size_t c = 0; c < original.length(); ++c) {
+    switch (original[c]) {
+      case '\\':
+        escaped += "\\\\";
+        break;
+      case '"':
+        escaped += "\\\"";
+        break;
+      case '\r':
+        escaped += "\\r";
+        break;
+      case '\n':
+        escaped += "\\n";
+        break;
+      default:
+        escaped += original[c];
+    }
+  }
 
   writer->Write(escaped, handler);
-  writer->Write(";\n", handler);
+  writer->Write("\";\n", handler);
   return true;
 }
 
-JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
+JsCombineFilter::JsCombineFilter(RewriteDriver* driver,
+                                 const StringPiece& filter_id)
+    : RewriteFilter(driver, filter_id),
       script_scanner_(driver),
       script_depth_(0),
       current_js_script_(NULL),

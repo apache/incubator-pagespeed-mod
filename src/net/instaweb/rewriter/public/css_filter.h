@@ -24,14 +24,10 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
-#include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -55,10 +51,9 @@ class ImageCombineFilter;
 class ImageRewriteFilter;
 class MessageHandler;
 class OutputPartitions;
-class ResourceContext;
 class RewriteContext;
+class RewriteDriver;
 class Statistics;
-class UrlSegmentEncoder;
 class Variable;
 
 // Find and parse all CSS in the page and apply transformations including:
@@ -75,7 +70,7 @@ class CssFilter : public RewriteSingleResourceFilter {
  public:
   class Context;
 
-  CssFilter(RewriteDriver* driver,
+  CssFilter(RewriteDriver* driver, const StringPiece& filter_prefix,
             // TODO(sligocki): Temporary pattern until we figure out a better
             // way to do this without passing all filters around everywhere.
             CacheExtender* cache_extender,
@@ -97,7 +92,6 @@ class CssFilter : public RewriteSingleResourceFilter {
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual const char* Name() const { return "CssFilter"; }
-  virtual const char* id() const { return RewriteOptions::kCssFilterId; }
   virtual int FilterCacheFormatVersion() const;
 
   static const char kFilesMinified[];
@@ -107,18 +101,13 @@ class CssFilter : public RewriteSingleResourceFilter {
  protected:
   virtual bool HasAsyncFlow() const;
   virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const;
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
 
  private:
   friend class Context;
-  Context* MakeContext(RewriteDriver* driver,
-                       RewriteContext* parent);
+  Context* MakeContext();
 
   TimedBool RewriteCssText(Context* context,
-                           const GoogleUrl& css_base_gurl,
-                           const GoogleUrl& css_trim_gurl,
+                           const GoogleUrl& css_gurl,
                            const StringPiece& in_text,
                            bool text_is_declarations,
                            GoogleString* out_text,
@@ -130,8 +119,7 @@ class CssFilter : public RewriteSingleResourceFilter {
   bool SerializeCss(RewriteContext* context,
                     int64 in_text_size,
                     const Css::Stylesheet* stylesheet,
-                    const GoogleUrl& css_base_gurl,
-                    const GoogleUrl& css_trim_gurl,
+                    const GoogleUrl& css_gurl,
                     bool previously_optimized,
                     bool stylesheet_is_declarations,
                     GoogleString* out_text,
@@ -164,7 +152,6 @@ class CssFilter : public RewriteSingleResourceFilter {
   Variable* num_files_minified_;
   Variable* minified_bytes_saved_;
   Variable* num_parse_failures_;
-  CssUrlEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(CssFilter);
 };
@@ -173,11 +160,9 @@ class CssFilter : public RewriteSingleResourceFilter {
 class CssFilter::Context : public SingleRewriteContext {
  public:
   Context(CssFilter* filter, RewriteDriver* driver,
-          RewriteContext* parent,
           CacheExtender* cache_extender,
           ImageRewriteFilter* image_rewriter,
-          ImageCombineFilter* image_combiner,
-          ResourceContext* context);
+          ImageCombineFilter* image_combiner);
   virtual ~Context();
 
   // Starts the asynchronous rewrite process for inline CSS inside
@@ -209,10 +194,9 @@ class CssFilter::Context : public SingleRewriteContext {
                          OutputResourceVector* outputs);
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
+  virtual const char* id() const { return filter_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
   virtual GoogleString CacheKey() const;
-  virtual const UrlSegmentEncoder* encoder() const;
 
  private:
   // Used by the asynchronous rewrite callbacks (RewriteSingle + Harvest) to
@@ -220,19 +204,6 @@ class CssFilter::Context : public SingleRewriteContext {
   // since an attribute comprises only declarations, unlike a stlyesheet.
   bool IsInlineAttribute() const {
     return (rewrite_inline_attribute_ != NULL);
-  }
-
-  // Determine the appropriate image inlining threshold based upon whether we're
-  // in an html file (<style> tag or style= attribute) or in an external css
-  // file.
-  int64 ImageInlineMaxBytes() const {
-    if (rewrite_inline_element_ != NULL) {
-      // We're in an html context.
-      return driver_->options()->ImageInlineMaxBytes();
-    } else {
-      // We're in a standalone CSS file.
-      return driver_->options()->CssImageInlineMaxBytes();
-    }
   }
 
   CssFilter* filter_;
@@ -260,7 +231,6 @@ class CssFilter::Context : public SingleRewriteContext {
   int64 in_text_size_;
   scoped_ptr<Css::Stylesheet> stylesheet_;
   GoogleUrl css_base_gurl_;
-  GoogleUrl css_trim_gurl_;
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 

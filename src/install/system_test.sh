@@ -212,7 +212,6 @@ function test_resource_ext_corruption() {
 # directive ModPagespeedForBots is off; otherwise image rewriting is
 # disabled for bots while other filters such as inline_css still work.
 function CheckBots() {
-  WGET_ARGS=""
   ON=$1
   COMPARE=$2
   USER_AGENT=$3
@@ -261,6 +260,8 @@ function CheckBots() {
 # use a statistics 'rewrite_cached_output_missed_deadline' to determine
 # whether the system is settled yet.
 function CheckBotTest() {
+  WGET_ARGS=""
+
   echo "$1: UserAgent is a bot; ModPagespeedDisableForBots=off"
   CheckBots 'off' '-lt' 'Googlebot/2.1' "$1"
   echo "$1: UserAgent is a bot; ModPagespeedDisableForBots=on"
@@ -281,7 +282,7 @@ echo TEST: Page Speed Automatic is running and writes the expected header.
 echo $WGET_DUMP $EXAMPLE_ROOT/combine_css.html
 
 # Due to the extreme pickiness of our metadata cache, and the negative
-# checks done in bot-testing (checking for the absence of image rewrites)
+# checks done in bot-testing (checking for the absense of image rewrites)
 # we need to warm the metadata cache with a dry run.  Here we do all the
 # bot tests, but we don't expect the outputs to be correct yet.  We will
 # need to perform new image compressions for every option-change.
@@ -326,11 +327,11 @@ grep -qi 'Cache-Control: max-age=0, no-cache' $HTTP_FILE
 check [ $? = 0 ]
 
 # TODO(sligocki): We should have Expires headers in HTML just like resources.
-#echo Checking for absence of Expires
+#echo Checking for absense of Expires
 #grep -qi 'Expires' $HTTP_FILE
 #check [ $? != 0 ]
 
-echo Checking for absence of X-Frame-Options: SAMEORIGIN
+echo Checking for absense of X-Frame-Options: SAMEORIGIN
 grep -i "X-Frame-Options" $HTTP_FILE
 check [ $? != 0 ]
 
@@ -360,8 +361,6 @@ $WGET_DUMP $EXAMPLE_ROOT/combine_css.html?ModPagespeed=off \
   | egrep 'X-Mod-Pagespeed|X-Page-Speed'
 check [ $? != 0 ]
 
-echo TEST: We behave sanely on whitespace served as HTML
-check "$WGET_DUMP $TEST_ROOT/whitespace.html | grep -qe 'HTTP/1\.. 200 OK'"
 
 # Individual filter tests, in alphabetical order
 
@@ -444,8 +443,7 @@ check [ $? != 0 ]
 grep "type=" $FETCHED       # default, should not find
 check [ $? != 0 ]
 
-test_filter extend_cache_images rewrites an image tag.
-URL=$EXAMPLE_ROOT/extend_cache.html?ModPagespeedFilters=extend_cache_images
+test_filter extend_cache rewrites an image tag.
 fetch_until $URL 'grep -c src.*/Puzzle.jpg.pagespeed.ce.*.jpg' 1
 check run_wget_with_args $URL
 echo about to test resource ext corruption...
@@ -480,8 +478,6 @@ check grep "'<script src=\".*normal\.js\.pagespeed\..*\.js\">'" $FETCHED
 check grep "'<script src=\"js_tinyMCE\.js\"></script>'" $FETCHED
 check grep "'<script src=\"tiny_mce\.js\"></script>'" $FETCHED
 check grep "'<script src=\"tinymce\.js\"></script>'" $FETCHED
-check grep "'<script src=\"scriptaculous\.js?load=effects,builder\"></script>'" $FETCHED
-check grep "'<script src=\"http://connect\.facebook\.net/en_US/all\.js\"></script>'" $FETCHED
 check grep "'<script src=\".*jquery.*\.js\.pagespeed\..*\.js\">'" $FETCHED
 check grep "'<script src=\".*ckeditor\.js\.pagespeed\..*\.js\">'" $FETCHED
 check grep "'<script src=\".*swfobject\.js\.pagespeed\..*\.js\">'" $FETCHED
@@ -609,7 +605,7 @@ check run_wget_with_args $URL
 
 # Rewrite images in styles.
 test_filter rewrite_images,rewrite_style_attributes_with_url optimizes images in style
-FILE=rewrite_style_attributes.html
+FILE=rewrite_css_image_inline_style.html
 URL=$EXAMPLE_ROOT/$FILE
 FETCHED=$OUTDIR/$FILE
 fetch_until $URL 'grep -c .pagespeed.ic.' 1  # image cache extended
@@ -619,7 +615,7 @@ test_filter rewrite_css,rewrite_images rewrites images in CSS
 FILE=rewrite_css_images.html?ModPagespeedFilters=$FILTER_NAME
 URL=$EXAMPLE_ROOT/$FILE
 FETCHED=$OUTDIR/$FILE
-fetch_until $URL 'grep -c url.data:image/png;base64,' 1  # image inlined
+fetch_until $URL 'grep -c .pagespeed.ic.' 1  # image rewritten
 check run_wget_with_args $URL
 
 # This test is only valid for async.

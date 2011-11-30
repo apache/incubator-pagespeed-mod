@@ -26,20 +26,17 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -60,7 +57,7 @@ class CssImageRewriterTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    options()->EnableFilter(RewriteOptions::kExtendCache);
     CssRewriteTestBase::SetUp();
   }
 };
@@ -139,7 +136,7 @@ TEST_P(CssImageRewriterTest, CacheExtendsImagesEmbeddedSpace) {
 
 TEST_P(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
   options()->ClearSignatureForTesting();
-  options()->DisableFilter(RewriteOptions::kExtendCacheImages);
+  options()->DisableFilter(RewriteOptions::kExtendCache);
   resource_manager()->ComputeSignature(options());
 
   static const char css_before[] =
@@ -267,41 +264,7 @@ TEST_P(CssImageRewriterTest, CacheExtendsImages) {
                              kNoOtherContexts | kNoClearFetcher);
 }
 
-// See TrimsImageUrls below: change one, change them both!
 TEST_P(CssImageRewriterTest, TrimsImageUrls) {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  resource_manager()->ComputeSignature(options());
-  InitResponseHeaders("foo.png", kContentTypePng, kImageData, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(foo.png);\n"
-      "}\n";
-
-  const GoogleString kCssAfter = StrCat(
-      "body{background-image:url(",
-      Encode("", "ce", "0", "foo.png", "png"),
-      ")}");
-
-  ValidateRewriteExternalCss("trims_css_urls", kCss, kCssAfter,
-                              kExpectChange | kExpectSuccess |
-                              kNoOtherContexts | kNoClearFetcher);
-}
-
-class CssImageRewriterTestUrlNamer : public CssImageRewriterTest {
- public:
-  CssImageRewriterTestUrlNamer() {
-    SetUseTestUrlNamer(true);
-  }
-};
-
-// See TrimsImageUrls above: change one, change them both!
-TEST_P(CssImageRewriterTestUrlNamer, TrimsImageUrls) {
-  // Check that we really are using TestUrlNamer and not UrlNamer.
-  EXPECT_NE(Encode(kTestDomain, "ce", "0", "foo.png", "png"),
-            EncodeNormal(kTestDomain, "ce", "0", "foo.png", "png"));
-
-  // A verbatim copy of the test above but using TestUrlNamer.
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
   resource_manager()->ComputeSignature(options());
@@ -342,7 +305,7 @@ TEST_P(CssImageRewriterTest, InlinePaths) {
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode("dir/", "ce", "0", "foo.png", "png"),
+      Encode("", "ce", "0", "dir/foo.png", "png"),
       ")}");
   ValidateRewriteInlineCss("nosubdir",
                            kCssBefore, kCssAfter,
@@ -372,13 +335,13 @@ TEST_P(CssImageRewriterTest, RewriteCached) {
   GoogleString kBaseDomain;
   // If using the TestUrlNamer, the rewritten URL won't be relative so
   // set things up so that we check for the correct URL below.
-  if (factory()->use_test_url_namer()) {
+  if (TestRewriteDriverFactory::UsingTestUrlNamer()) {
     kBaseDomain = kTestDomain;
   }
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode(StrCat(kBaseDomain, "dir/"), "ce", "0", "foo.png", "png"),
+      Encode(kBaseDomain, "ce", "0", "dir/foo.png", "png"),
       ")}");
   ValidateRewriteInlineCss("nosubdir",
                            kCssBefore, kCssAfter,
@@ -428,95 +391,12 @@ TEST_P(CssImageRewriterTest, RecompressImages) {
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode(kTestDomain, "ic", "0", "foo.png", "png"),
+      Encode(kTestDomain, "ic", "0", "xfoo.png", "png"),
       ")}");
 
   ValidateRewriteExternalCss("recompress_css_images", kCss, kCssAfter,
                               kExpectChange | kExpectSuccess |
                               kNoOtherContexts | kNoClearFetcher);
-}
-
-TEST_P(CssImageRewriterTest, InlineImages) {
-  // Make sure we can inline images in any kind of CSS.
-  CSS_XFAIL_SYNC();
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->set_image_inline_max_bytes(2000);
-  options()->set_css_image_inline_max_bytes(2000);
-  EXPECT_EQ(2000, options()->ImageInlineMaxBytes());
-  EXPECT_EQ(2000, options()->CssImageInlineMaxBytes());
-  resource_manager()->ComputeSignature(options());
-  // Here Cuppa.png is 1763 bytes, so should be inlined.
-  AddFileToMockFetcher(StrCat(kTestDomain, "Cuppa.png"), kCuppaPngFile,
-                       kContentTypePng, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(Cuppa.png);\n"
-      "}\n";
-
-  // Read original image file and create data url for comparison purposes.
-  GoogleString contents;
-  StdioFileSystem stdio_file_system;
-  GoogleString filename = StrCat(GTestSrcDir(), kTestData, kCuppaPngFile);
-  ASSERT_TRUE(stdio_file_system.ReadFile(
-      filename.c_str(), &contents, message_handler()));
-  GoogleString data_url;
-  DataUrl(kContentTypePng, BASE64, contents, &data_url);
-
-  GoogleString kCssAfter = StrCat("body{background-image:url(", data_url, ")}");
-
-  // Here we skip the stat check because we are *increasing* the size of the CSS
-  // (which causes the check to fail).  That eliminates a resource fetch, so it
-  // should normally be a net win in practice.
-  ValidateRewrite("inline_css_images", kCss, kCssAfter,
-                  kExpectChange | kExpectSuccess |
-                  kNoClearFetcher | kNoStatCheck);
-}
-
-TEST_P(CssImageRewriterTest, InlineImageOnlyInOutlineCss) {
-  // Make sure that we use image_inline_max_bytes to determine image inlining in
-  // inline css (css that occurs in an html file), but that we use
-  // css_image_inline_max_bytes for standalone css.
-  CSS_XFAIL_SYNC();
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  // Do inline in CSS file but not in inline CSS.
-  options()->set_image_inline_max_bytes(0);
-  options()->set_css_image_inline_max_bytes(2000);
-  EXPECT_EQ(0, options()->ImageInlineMaxBytes());  // This is disabled...
-  ASSERT_EQ(2000, options()->CssImageInlineMaxBytes());  // But this is enabled.
-  resource_manager()->ComputeSignature(options());
-  // Here Cuppa.png is 1763 bytes, so should be inlined.
-  AddFileToMockFetcher(StrCat(kTestDomain, "Cuppa.png"), kCuppaPngFile,
-                       kContentTypePng, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(Cuppa.png);\n"
-      "}\n";
-
-  // Read original image file and create data url for comparison purposes.
-  GoogleString contents;
-  StdioFileSystem stdio_file_system;
-  GoogleString filename = StrCat(GTestSrcDir(), kTestData, kCuppaPngFile);
-  ASSERT_TRUE(stdio_file_system.ReadFile(
-      filename.c_str(), &contents, message_handler()));
-  GoogleString data_url;
-  DataUrl(kContentTypePng, BASE64, contents, &data_url);
-
-  GoogleString kCssInlineAfter =
-      StrCat("body{background-image:url(",
-             Encode(kTestDomain, "ce", "0", "Cuppa.png", "png"),
-             ")}");
-  GoogleString kCssExternalAfter =
-      StrCat("body{background-image:url(", data_url, ")}");
-
-  ValidateRewriteInlineCss(
-      "no_inline_in_inline", kCss, kCssInlineAfter,
-      kExpectChange | kExpectSuccess | kNoClearFetcher);
-  // Again skip the stat check because we are *increasing* the size of the CSS
-  ValidateRewriteExternalCss(
-      "inline_in_outline", kCss, kCssExternalAfter,
-      kExpectChange | kExpectSuccess | kNoClearFetcher | kNoStatCheck);
 }
 
 TEST_P(CssImageRewriterTest, UseCorrectBaseUrl) {
@@ -529,7 +409,7 @@ TEST_P(CssImageRewriterTest, UseCorrectBaseUrl) {
 
   // Construct URL for rewritten image.
   GoogleString expected_image_url = ExpectedRewrittenUrl(
-      image_url, kImageData, RewriteOptions::kCacheExtenderId,
+      image_url, kImageData, RewriteDriver::kCacheExtenderId,
       kContentTypePng);
 
   GoogleString css_after = StrCat(
@@ -537,7 +417,7 @@ TEST_P(CssImageRewriterTest, UseCorrectBaseUrl) {
 
   // Construct URL for rewritten CSS.
   GoogleString expected_css_url = ExpectedRewrittenUrl(
-      css_url, css_after, RewriteOptions::kCssFilterId, kContentTypeCss);
+      css_url, css_after, RewriteDriver::kCssFilterId, kContentTypeCss);
 
   static const char html_before[] =
       "<head>\n"
@@ -586,7 +466,7 @@ TEST_P(CssImageRewriterTest, CacheExtendsImagesInStyleAttributes) {
   ValidateExpected("cache_extend_images",
                    "<div style=\""
                    "  background: url(baz.png);\n"
-                   "  list-style: url(&quot;foo.png&quot;);\n"
+                   "  list-style: url('foo.png');\n"
                    "\"/>",
                    StrCat(
                    "<div style=\""
@@ -621,12 +501,12 @@ TEST_P(CssImageRewriterTest, RecompressImagesInStyleAttributes) {
   const GoogleString div_after = StrCat(
       "<div style=\""
       "background-image:url(",
-      Encode(kTestDomain, "ic", "0", "foo.png", "png"),
+      Encode(kTestDomain, "ic", "0", "xfoo.png", "png"),
       ")"
       "\"/>");
 
   scoped_ptr<RewriteOptions> default_options(factory()->NewRewriteOptions());
-  default_options.get()->DisableFilter(RewriteOptions::kExtendCacheImages);
+  default_options.get()->DisableFilter(RewriteOptions::kExtendCache);
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                        kContentTypePng, 100);
 
@@ -658,10 +538,6 @@ INSTANTIATE_TEST_CASE_P(CssImageRewriterTestInstance,
                         CssImageRewriterTest,
                         ::testing::Bool());
 
-INSTANTIATE_TEST_CASE_P(CssImageRewriterTestUrlNamerInstance,
-                        CssImageRewriterTestUrlNamer,
-                        ::testing::Bool());
-
 // Note that these values of "10" and "20" are very tight.  This is a
 // feature.  It serves as an early warning system because extra cache
 // lookups will induce time-advancement from
@@ -676,10 +552,11 @@ static const int kExpireBPngSec = 20;
 // These tests are to make sure our TTL considers that of subresources.
 class CssFilterSubresourceTest : public CssRewriteTestBase {
  public:
+
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    options()->EnableFilter(RewriteOptions::kExtendCache);
     options()->EnableFilter(RewriteOptions::kRecompressImages);
     CssRewriteTestBase::SetUp();
 
@@ -697,8 +574,7 @@ class CssFilterSubresourceTest : public CssRewriteTestBase {
     bool use_async_flow = false;
     OutputResourcePtr output_resource(
         rewrite_driver()->CreateOutputResourceWithPath(
-            kTestDomain, RewriteOptions::kCssFilterId,
-            EncodeCssName(StrCat(id, ".css"), false, true),
+            kTestDomain, RewriteDriver::kCssFilterId, StrCat(id, ".css"),
             &kContentTypeCss, kRewrittenResource, use_async_flow));
     ASSERT_TRUE(output_resource.get() != NULL);
     // output_resource's hash will not be set unless its cached_result could
@@ -712,7 +588,7 @@ class CssFilterSubresourceTest : public CssRewriteTestBase {
 
   GoogleString ExpectedUrlForPng(const StringPiece& name,
                                  const GoogleString& expected_output) {
-    return Encode(kTestDomain, RewriteOptions::kCacheExtenderId,
+    return Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
                   hasher()->Hash(expected_output),
                   name, "png");
   }

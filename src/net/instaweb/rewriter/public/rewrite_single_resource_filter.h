@@ -46,8 +46,9 @@ class Writer;
 // CachedResult (which may be NULL) to get rewrite results.
 class RewriteSingleResourceFilter : public RewriteFilter {
  public:
-  explicit RewriteSingleResourceFilter(RewriteDriver* driver)
-      : RewriteFilter(driver) {
+  explicit RewriteSingleResourceFilter(
+      RewriteDriver* driver, StringPiece filter_prefix)
+      : RewriteFilter(driver, filter_prefix) {
   }
   virtual ~RewriteSingleResourceFilter();
 

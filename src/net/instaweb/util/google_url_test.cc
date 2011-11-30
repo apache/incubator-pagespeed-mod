@@ -168,17 +168,6 @@ TEST_F(GoogleUrlTest, TestTrivialAllExceptLeaf) {
   EXPECT_EQ(GoogleString("http://a.com/b/c/"), queryful.AllExceptLeaf());
 }
 
-TEST_F(GoogleUrlTest, TestAllExceptLeafIsIdempotent) {
-  // In various places the code takes either a full URL or the URL's
-  // AllExceptLeaf and depends on the fact that calling AllExceptLeaf on either
-  // gives you the same thing. This test is catch any breakage to that.
-  GoogleUrl queryless("http://a.com/b/c/d.ext");
-  StringPiece all_except_leaf(queryless.AllExceptLeaf());
-  GoogleUrl all_except_leaf_url(all_except_leaf);
-  EXPECT_TRUE(all_except_leaf_url.is_valid());
-  EXPECT_EQ(all_except_leaf, all_except_leaf_url.AllExceptLeaf());
-}
-
 TEST_F(GoogleUrlTest, TestTrivialLeafSansQuery) {
   GoogleUrl queryless("http://a.com/b/c/d.ext");
   EXPECT_EQ(GoogleString("d.ext"), queryless.LeafSansQuery());
@@ -233,16 +222,6 @@ TEST_F(GoogleUrlTest, TestPort) {
   EXPECT_EQ(80, GoogleUrl("http://example.com").EffectiveIntPort());
   EXPECT_EQ(-1, GoogleUrl("https://example.com").IntPort());
   EXPECT_EQ(443, GoogleUrl("https://example.com").EffectiveIntPort());
-}
-
-TEST_F(GoogleUrlTest, TestExtraSlash) {
-  GoogleUrl base("http://www.example.com");
-  GoogleUrl example_extra_slash(
-      base, "http://www.example.com//extra_slash/index.html");
-  GoogleUrl a_extra_slash(base, "http://a.com//extra_slash/index.html");
-  EXPECT_STREQ("http://www.example.com/extra_slash/index.html",
-               example_extra_slash.Spec());
-  EXPECT_STREQ("http://a.com/extra_slash/index.html", a_extra_slash.Spec());
 }
 
 }  // namespace net_instaweb

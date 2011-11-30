@@ -81,8 +81,9 @@ void CleanupWhitespaceScriptBody(
 
 class RewriteContext;
 class Statistics;
-JavascriptFilter::JavascriptFilter(RewriteDriver* driver)
-    : RewriteSingleResourceFilter(driver),
+JavascriptFilter::JavascriptFilter(RewriteDriver* driver,
+                                   const StringPiece& path_prefix)
+    : RewriteSingleResourceFilter(driver, path_prefix),
       script_in_progress_(NULL),
       script_src_(NULL),
       some_missing_scripts_(false),
@@ -97,10 +98,9 @@ void JavascriptFilter::Initialize(Statistics* statistics) {
 
 class JavascriptFilter::Context : public SingleRewriteContext {
  public:
-  Context(RewriteDriver* driver, RewriteContext* parent,
-          JavascriptRewriteConfig* config,
+  Context(RewriteDriver* driver, JavascriptRewriteConfig* config,
           const HtmlCharNodeVector& inline_text)
-      : SingleRewriteContext(driver, parent, NULL),
+      : SingleRewriteContext(driver, NULL, NULL),
         config_(config),
         inline_text_(inline_text) {
   }
@@ -151,7 +151,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
 
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
-  virtual const char* id() const { return RewriteOptions::kJavascriptMinId; }
+  virtual const char* id() const { return RewriteDriver::kJavascriptMinId; }
 
  private:
   // Take script_out, which is derived from the script at script_url,
@@ -276,7 +276,7 @@ void JavascriptFilter::RewriteExternalScript() {
     if (resource.get() != NULL) {
       ResourceSlotPtr slot(
           driver_->GetSlot(resource, script_in_progress_, script_src_));
-      Context* jrc = new Context(driver_, NULL, &config_, buffer_);
+      Context* jrc = new Context(driver_, &config_, buffer_);
       jrc->AddSlot(slot);
       driver_->InitiateRewrite(jrc);
     }
@@ -349,7 +349,7 @@ JavascriptFilter::RewriteLoadedResource(
     const OutputResourcePtr& output_resource) {
   // Temporary code so that we can share the rewriting implementation beteween
   // the old blocking rewrite model and the new async model.
-  Context jrc(driver_, NULL, &config_, buffer_);
+  Context jrc(driver_, &config_, buffer_);
   return jrc.RewriteJavascript(script_input, output_resource);
 }
 
@@ -358,15 +358,7 @@ bool JavascriptFilter::HasAsyncFlow() const {
 }
 
 RewriteContext* JavascriptFilter::MakeRewriteContext() {
-  return new Context(driver_, NULL, &config_, HtmlCharNodeVector());
-}
-
-RewriteContext* JavascriptFilter::MakeNestedRewriteContext(
-    RewriteContext* parent, const ResourceSlotPtr& slot) {
-  Context* context = new Context(NULL /* driver*/, parent, &config_,
-                                 HtmlCharNodeVector());
-  context->AddSlot(slot);
-  return context;
+  return new Context(driver_, &config_, HtmlCharNodeVector());
 }
 
 }  // namespace net_instaweb

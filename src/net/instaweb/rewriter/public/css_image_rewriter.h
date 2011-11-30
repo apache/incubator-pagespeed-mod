@@ -51,16 +51,12 @@ class CssImageRewriter {
   static void Initialize(Statistics* statistics);
 
   // Attempts to rewrite all images in stylesheet. If successful, it mutates
-  // stylesheet to point to new images. base_url is the base of the original
-  // CSS and is used to convert relative URLs to their absolute form for
-  // fetching; trim_url is the base of the rewritten CSS and is used to
-  // convert absolute URLs in the resulting CSS to their relative form.
+  // stylesheet to point to new images.
   //
   // Returns whether or not it made any changes.  The expiry of the answer is
   // the minimum of the expiries of all subresources in the stylesheet, or
   // kint64max if there are none)
   TimedBool RewriteCssImages(const GoogleUrl& base_url,
-                             const GoogleUrl& trim_url,
                              Css::Stylesheet* stylesheet,
                              MessageHandler* handler);
 
@@ -68,14 +64,12 @@ class CssImageRewriter {
   bool RewritesEnabled() const;
 
   // Statistics names.
-  static const char kImageInlines[];
   static const char kImageRewrites[];
   static const char kCacheExtends[];
   static const char kNoRewrite[];
 
  private:
   TimedBool RewriteImageUrl(const GoogleUrl& base_url,
-                            const GoogleUrl& trim_url,
                             const StringPiece& old_rel_url,
                             GoogleString* new_url,
                             MessageHandler* handler);
@@ -95,7 +89,6 @@ class CssImageRewriter {
   ImageRewriteFilter* image_rewriter_;
 
   // Statistics
-  Variable* image_inlines_;
   Variable* image_rewrites_;
   Variable* cache_extends_;
   Variable* no_rewrite_;

@@ -109,24 +109,13 @@ void StrAppend(GoogleString* target,
                const StringPiece& g = EmptyString::kEmptyString,
                const StringPiece& h = EmptyString::kEmptyString);
 
-// Split sp into pieces that are separated by any character in the given string
-// of separators, and push those pieces in order onto components.
-void SplitStringPieceToVector(const StringPiece& sp,
-                              const StringPiece& separators,
+void SplitStringPieceToVector(const StringPiece& sp, const char* separator,
                               StringPieceVector* components,
                               bool omit_empty_strings);
-
-// Splits string 'full' using substr by searching it incrementally from
-// left. Empty tokens are removed from the final result.
-void SplitStringUsingSubstr(const GoogleString& full,
-                            const GoogleString& substr,
-                            StringVector* result);
 
 void BackslashEscape(const StringPiece& src,
                      const StringPiece& to_escape,
                      GoogleString* dest);
-
-GoogleString CEscape(const StringPiece& src);
 
 // TODO(jmarantz): Eliminate these definitions of HasPrefixString,
 // UpperString, and LowerString, and re-add dependency on protobufs
@@ -146,11 +135,6 @@ int GlobalReplaceSubstring(const StringPiece& substring,
                            const StringPiece& replacement,
                            GoogleString* s);
 
-// Output a string which is the combination of all values in vector, separated
-// by delim. Does not ignore empty strings in vector. So:
-// JoinStringStar({"foo", "", "bar"}, ", ") == "foo, , bar". (Pseudocode)
-GoogleString JoinStringStar(const ConstStringStarVector& vector,
-                            const StringPiece& delim);
 
 // See also: ./src/third_party/css_parser/src/strings/ascii_ctype.h
 // We probably don't want our core string header file to have a
@@ -206,11 +190,6 @@ bool StringCaseStartsWith(const StringPiece& str, const StringPiece& prefix);
 // Return true iff str ends with suffix, ignoring case.
 bool StringCaseEndsWith(const StringPiece& str, const StringPiece& suffix);
 
-// Return true if str is equal to the concatenation of first and second. Note
-// that this respects case.
-bool StringEqualConcat(const StringPiece& str, const StringPiece& first,
-                       const StringPiece& second);
-
 struct CharStarCompareInsensitive {
   bool operator()(const char* s1, const char* s2) const {
     return (StringCaseCompare(s1, s2) < 0);
@@ -261,12 +240,6 @@ int CountSubstring(const StringPiece& text, const StringPiece& substring);
 // Returns true if the string contains a character that is not legal
 // in an http header.
 bool HasIllicitTokenCharacter(const StringPiece& str);
-
-// Appends new empty string to a StringVector and returns a pointer to it.
-inline GoogleString* StringVectorAdd(StringVector* v) {
-  v->push_back(GoogleString());
-  return &v->back();
-}
 
 }  // namespace net_instaweb
 

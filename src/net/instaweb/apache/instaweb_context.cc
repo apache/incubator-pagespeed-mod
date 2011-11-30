@@ -51,8 +51,8 @@ InstawebContext::InstawebContext(request_rec* request,
       resource_manager_(manager),
       string_writer_(&output_),
       inflater_(NULL),
+      content_detection_state_(kStart),
       absolute_url_(absolute_url),
-      started_parse_(false),
       sent_headers_(false),
       populated_headers_(false) {
   if (use_custom_options) {
@@ -134,17 +134,13 @@ void InstawebContext::Rewrite(const char* input, int size) {
 }
 
 void InstawebContext::Flush() {
-  if (html_detector_.already_decided() && started_parse_) {
+  if (content_detection_state_ == kHtml) {
     rewrite_driver_->Flush();
   }
 }
 
 void InstawebContext::Finish() {
-  if (!html_detector_.already_decided()) {
-    // We couldn't determine whether this is HTML or not till the very end,
-    // so serve it unmodified.
-    html_detector_.ReleaseBuffered(&output_);
-  } else if (started_parse_) {
+  if (content_detection_state_ == kHtml) {
     rewrite_driver_->FinishParse();
   } else {
     rewrite_driver_->Cleanup();
@@ -158,39 +154,75 @@ void InstawebContext::PopulateHeaders(request_rec* request) {
   }
 }
 
+namespace {
+
+// http://en.wikipedia.org/wiki/Byte_order_mark
+//
+// The byte-order marker sequence will typically appear at the beginning of
+// an HTML or XML file.  We probably should be order-sensitive but for now
+// we will just treat all such characters as allowable characters preceding
+// the HTML.  Note the use of unsigned char here to avoid sign-extending when
+// comparing to the int constants.
+inline bool IsByteOrderMarkerCharacter(unsigned char c) {
+  return ((c == 0xef) || (c == 0xbb) || (c == 0xbf));
+}
+
+}  // namespace
+
 void InstawebContext::ProcessBytes(const char* input, int size) {
   CHECK_LT(0, size);
-
-  if (!html_detector_.already_decided()) {
-    if (html_detector_.ConsiderInput(StringPiece(input, size))) {
-      if (html_detector_.probable_html()) {
-        // Note that we use started_parse_ and not probable_html()
-        // in all other spots as an error fallback.
-        started_parse_ = rewrite_driver_->StartParseWithType(absolute_url_,
-                                                             content_type_);
+  // Try to figure out whether this looks like HTML or not, if we haven't
+  // figured it out already.  We just scan past whitespace for '<'.
+  for (int i = 0; (content_detection_state_ == kStart) && (i < size); ++i) {
+    char c = input[i];
+    if (c == '<') {
+      bool started = rewrite_driver_->StartParseWithType(
+          absolute_url_, content_type_);
+      if (started) {
+        content_detection_state_ = kHtml;
+      } else {
+        // This is a convenient lie.  The text might be HTML but the
+        // URL is invalid, so we will fail to resolve any relative URLs.
+        // What we really want is to take mod_pagespeed out of the filter
+        // chain, and this construct allows that.
+        content_detection_state_ = kNotHtml;
       }
-
-      // If we buffered up any bytes in previous calls, make sure to
-      // release them.
-      GoogleString buffer;
-      html_detector_.ReleaseBuffered(&buffer);
-      if (!buffer.empty()) {
-        // Recurse on initial buffer of whitespace before processing
-        // this call's input below.
-        ProcessBytes(buffer.data(), buffer.size());
-      }
+    } else if (!isspace(c) && !IsByteOrderMarkerCharacter(c)) {
+      // TODO(jmarantz): figure out whether it's possible to remove our
+      // filter from the chain entirely.
+      //
+      // TODO(jmarantz): look for 'gzip' data.  We do not expect to see
+      // this if the Content-Encoding header is set upstream of mod_pagespeed,
+      // but we have heard evidence from the field that WordPress plugins and
+      // possibly other modules send compressed data through without that
+      // header.
+      content_detection_state_ = kNotHtml;
     }
   }
 
-  // Either as effect of above or initially at entry.
-  if (html_detector_.already_decided()) {
-    if (started_parse_) {
+  switch (content_detection_state_) {
+    case kStart:
+      // Handle the corner where the first buffer of text contains
+      // only whitespace, which we will retain for the next call.
+      buffer_.append(input, size);
+      break;
+
+    case kHtml:
+      // Looks like HTML: send it through the HTML rewriter.
+      if (!buffer_.empty()) {
+        rewrite_driver_->ParseText(buffer_);
+        buffer_.clear();
+      }
       rewrite_driver_->ParseText(input, size);
-    } else {
+      break;
+
+    case kNotHtml:
       // Looks like something that's not HTML.  Send it directly to the
       // output buffer.
+      output_.append(buffer_.data(), buffer_.size());
+      buffer_.clear();
       output_.append(input, size);
-    }
+      break;
   }
 }
 

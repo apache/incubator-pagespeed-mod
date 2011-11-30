@@ -20,8 +20,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_MINIFY_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
@@ -38,11 +36,8 @@ class Value;
 class FunctionParameters;
 }
 
-class UnicodeText;
-
 namespace net_instaweb {
 
-class GoogleUrl;
 class MessageHandler;
 class Writer;
 
@@ -53,37 +48,16 @@ class CssMinify {
                          Writer* writer,
                          MessageHandler* handler);
 
-  // Write minified Stylesheet absolutifying all relative URLs to base_url.
-  static bool Stylesheet(const Css::Stylesheet& stylesheet,
-                         const GoogleUrl& base_url,
-                         Writer* writer,
-                         MessageHandler* handler);
-
   // Write minified Declarations (style attribute contents).
   static bool Declarations(const Css::Declarations& declarations,
                            Writer* writer,
                            MessageHandler* handler);
 
-  // Absolutify all relative URLs in the stylesheet's imports using the given
-  // base URL. The Import structures are modified in-situ. Returns true if any
-  // URLs were absolutified, false if not.
-  static bool AbsolutifyImports(Css::Stylesheet* stylesheet,
-                                const GoogleUrl& base);
-
-  // Escape [() \t\r\n\\'"].  Also escape , for non-URLs.  Escaping , in
-  // URLs causes IE8 to interpret the backslash as a forward slash.
-  static GoogleString EscapeString(const StringPiece& src, bool in_url);
-
  private:
-  CssMinify(const GoogleUrl& base_url, Writer* writer, MessageHandler* handler);
   CssMinify(Writer* writer, MessageHandler* handler);
   ~CssMinify();
 
   void Write(const StringPiece& str);
-
-  // Write the given URL absolutifying it iff base_url_ is not empty otherwise
-  // write it exactly as it is.
-  void WriteURL(const UnicodeText& url);
 
   template<typename Container>
   void JoinMinify(const Container& container, const StringPiece& sep);
@@ -98,6 +72,7 @@ class CssMinify {
   void Minify(const Css::Stylesheet& stylesheet);
   void Minify(const Css::Charsets& charsets);
   void Minify(const Css::Import& import);
+  void Minify(const Css::Ruleset& ruleset);
   void Minify(const Css::Selector& selector);
   void Minify(const Css::SimpleSelectors& sselectors, bool isfirst = false);
   void Minify(const Css::SimpleSelector& sselector);
@@ -105,19 +80,6 @@ class CssMinify {
   void Minify(const Css::Value& value);
   void Minify(const Css::FunctionParameters& parameters);
 
-  // Specializations for Ruleset to handle common @media rules.
-  // Start followed by Ignoring followed by End gives the same result as the
-  // Ruleset version of Minify above.
-
-  // Emits the ruleset's selectors and declarations without wrapping them in
-  // an @media rule.
-  void MinifyRulesetIgnoringMedia(const Css::Ruleset& ruleset);
-  // Emits the start of the @media rule iff required (non-empty media set).
-  void MinifyRulesetMediaStart(const Css::Ruleset& ruleset);
-  // Emits the end of the @media rule iff required (non-empty media set).
-  void MinifyRulesetMediaEnd(const Css::Ruleset& ruleset);
-
-  const GoogleUrl base_url_;
   Writer* writer_;
   MessageHandler* handler_;
   bool ok_;
