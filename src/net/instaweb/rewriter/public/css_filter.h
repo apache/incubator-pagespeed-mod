@@ -196,7 +196,7 @@ class CssFilter::Context : public SingleRewriteContext {
                              const OutputResourcePtr& output);
   virtual const char* id() const { return filter_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
-  virtual GoogleString CacheKey() const;
+  virtual GoogleString CacheKeySuffix() const;
 
  private:
   // Used by the asynchronous rewrite callbacks (RewriteSingle + Harvest) to
