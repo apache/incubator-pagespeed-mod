@@ -48,7 +48,7 @@ class WriteThroughHTTPCache : public HTTPCache {
         cache1_size_limit_(kUnlimited) { }
   virtual ~WriteThroughHTTPCache();
 
-  void SetReadOnly();
+  virtual void SetIgnoreFailurePuts();
 
   virtual void Find(const GoogleString& key, MessageHandler* handler,
                     Callback* callback);
