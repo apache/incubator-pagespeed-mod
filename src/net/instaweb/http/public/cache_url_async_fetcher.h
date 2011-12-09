@@ -53,6 +53,8 @@ class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
   }
   virtual ~CacheUrlAsyncFetcher();
 
+  virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
+
   virtual bool Fetch(const GoogleString& url,
                      const RequestHeaders& request_headers,
                      ResponseHeaders* response_headers,
