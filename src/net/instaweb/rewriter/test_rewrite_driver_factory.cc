@@ -17,7 +17,6 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include <cstdlib>                     // for getenv
-#include <vector>
 
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 
@@ -30,7 +29,6 @@
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/lru_cache.h"
@@ -49,7 +47,6 @@ namespace net_instaweb {
 class CacheInterface;
 class FileSystem;
 class Hasher;
-class HtmlFilter;
 class MessageHandler;
 class RequestHeaders;
 class ResponseHeaders;
@@ -113,8 +110,6 @@ TestRewriteDriverFactory::TestRewriteDriverFactory(
     mock_message_handler_(NULL),
     mock_html_message_handler_(NULL) {
   set_filename_prefix(StrCat(temp_dir, "/"));
-  use_test_url_namer_ = (getenv(kUrlNamerScheme) != NULL &&
-                         strcmp(getenv(kUrlNamerScheme), "test") == 0);
 }
 
 TestRewriteDriverFactory::~TestRewriteDriverFactory() {
@@ -184,6 +179,11 @@ Hasher* TestRewriteDriverFactory::NewHasher() {
   return mock_hasher_;
 }
 
+bool TestRewriteDriverFactory::UsingTestUrlNamer() {
+  return (getenv(kUrlNamerScheme) != NULL &&
+          strcmp(getenv(kUrlNamerScheme), "test") == 0);
+}
+
 MessageHandler* TestRewriteDriverFactory::DefaultMessageHandler() {
   DCHECK(mock_message_handler_ == NULL);
   mock_message_handler_ = new MockMessageHandler;
@@ -197,14 +197,9 @@ MessageHandler* TestRewriteDriverFactory::DefaultHtmlParseMessageHandler() {
 }
 
 UrlNamer* TestRewriteDriverFactory::DefaultUrlNamer() {
-  return (use_test_url_namer_
+  return (UsingTestUrlNamer()
           ? new TestUrlNamer()
           : RewriteDriverFactory::DefaultUrlNamer());
-}
-
-void TestRewriteDriverFactory::SetUseTestUrlNamer(bool x) {
-  use_test_url_namer_ = x;
-  set_url_namer(DefaultUrlNamer());
 }
 
 Scheduler* TestRewriteDriverFactory::CreateScheduler() {
@@ -212,23 +207,6 @@ Scheduler* TestRewriteDriverFactory::CreateScheduler() {
   timer();  // make sure mock_timer_ is created.
   mock_scheduler_ = new MockScheduler(thread_system(), mock_timer_);
   return mock_scheduler_;
-}
-
-RewriteOptions* TestRewriteDriverFactory::NewRewriteOptions() {
-  RewriteOptions* options = RewriteDriverFactory::NewRewriteOptions();
-  options->set_ajax_rewriting_enabled(false);
-  return options;
-}
-
-void TestRewriteDriverFactory::AddPlatformSpecificRewritePasses(
-    RewriteDriver* driver) {
-  for (std::size_t i = 0; i < callback_vector_.size(); i++) {
-    HtmlFilter* filter = callback_vector_[i]->Done(driver);
-    driver->AddOwnedPostRenderFilter(filter);
-  }
-}
-
-TestRewriteDriverFactory::CreateFilterCallback::~CreateFilterCallback() {
 }
 
 }  // namespace net_instaweb

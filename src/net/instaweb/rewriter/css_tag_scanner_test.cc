@@ -111,22 +111,6 @@ TEST_F(CssTagScannerTest, TestFull) {
   // TODO(jmarantz): test removal of 'rel' and 'href' attributes
 }
 
-TEST_F(CssTagScannerTest, RelCaseInsensitive) {
-  // The rel attribute is case-insensitive.
-  HtmlParse html_parse(&message_handler_);
-  HtmlElement* link = html_parse.NewElement(NULL, HtmlName::kLink);
-  const char kUrl[] = "http://www.myhost.com/static/mycss.css";
-  html_parse.AddAttribute(link, HtmlName::kRel, "StyleSheet");
-  html_parse.AddAttribute(link, HtmlName::kHref, kUrl);
-  HtmlElement::Attribute* href = NULL;
-  const char* media = NULL;
-  CssTagScanner scanner(&html_parse);
-
-  EXPECT_TRUE(scanner.ParseCssElement(link, &href, &media));
-  EXPECT_EQ("", GoogleString(media));
-  EXPECT_EQ(kUrl, GoogleString(href->value()));
-}
-
 TEST_F(CssTagScannerTest, TestHasImport) {
   // Should work.
   EXPECT_TRUE(CssTagScanner::HasImport("@import", &message_handler_));
@@ -220,11 +204,6 @@ TEST_F(RewriteDomainTransformerTest, RelativeSQuote) {
                Transform("a url('subdir/image.png') b"));
 }
 
-TEST_F(RewriteDomainTransformerTest, EscapeSQuote) {
-  EXPECT_STREQ("a url('http://old-base.com/subdir/imag\\'e.png') b",
-               Transform("a url('subdir/imag\\'e.png') b"));
-}
-
 // Testcase for Issue 60.
 TEST_F(RewriteDomainTransformerTest, RelativeSQuoteSpaced) {
   EXPECT_STREQ("a url('http://old-base.com/subdir/image.png') b",
@@ -236,88 +215,12 @@ TEST_F(RewriteDomainTransformerTest, RelativeDQuote) {
                Transform("a url(\"subdir/image.png\") b"));
 }
 
-TEST_F(RewriteDomainTransformerTest, EscapeDQuote) {
-  EXPECT_STREQ("a url(\"http://old-base.com/subdir/%22image.png\") b",
-               Transform("a url(\"subdir/\\\"image.png\") b"));
-}
-
 TEST_F(RewriteDomainTransformerTest, 2Relative1Abs) {
   const char input[] = "a url(s/1.png) b url(2.png) c url(http://a/3.png) d";
   const char expected[] = "a url(http://old-base.com/s/1.png) b "
       "url(http://old-base.com/2.png) c url(http://a/3.png) d";
   EXPECT_STREQ(expected, Transform(input));
 }
-
-TEST_F(RewriteDomainTransformerTest, StringLineCont) {
-  // Make sure we understand escaping of new lines inside string --
-  // url('foo\                           (ignore this, avoids -Werror=comment)
-  // bar') stuff
-  //  is interpretted the same as
-  // url('foobar') stuff
-  EXPECT_STREQ("url('http://old-base.com/foobar') stuff",
-               Transform("url('foo\\\nbar') stuff"));
-}
-
-TEST_F(RewriteDomainTransformerTest, StringUnterminated) {
-  // Properly extend URLs that occur in unclosed string literals;
-  // but don't alter the quote mismatch. Notice that the
-  // quote didn't get escaped.
-  EXPECT_STREQ("@import 'http://old-base.com/foo\n\"bar stuff",
-               Transform("@import 'foo\n\"bar stuff"));
-}
-
-TEST_F(RewriteDomainTransformerTest, StringMultineTerminated) {
-  // Multiline string, but terminated.
-  // TODO(morlovich): GoogleUrl seems to eat the \n.
-  EXPECT_STREQ("@import 'http://old-base.com/foobar' stuff",
-               Transform("@import 'foo\nbar' stuff"));
-}
-
-TEST_F(RewriteDomainTransformerTest, UrlProperClose) {
-  // Note: the \) in the output is due to some unneeded escaping done;
-  // it'd be fine if it were missing.
-  EXPECT_STREQ("url('http://old-base.com/foo\\).bar')",
-               Transform("url('foo).bar')"));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportUrl) {
-  EXPECT_STREQ(
-      "a @import url(http://old-base.com/style.css) div { display: block; }",
-      Transform("a @import url(style.css) div { display: block; }"));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportUrlQuote) {
-  EXPECT_STREQ(
-      "a @import url('http://old-base.com/style.css') div { display: block; }",
-      Transform("a @import url('style.css') div { display: block; }"));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportUrlQuoteNoCloseParen) {
-  // Despite what CSS2.1 specifies, in practice browsers don't seem to
-  // recover consistently from an unclosed url(; so we don't either.
-  const char kInput[] = "a @import url('style.css' div { display: block; }";
-  EXPECT_STREQ(kInput, Transform(kInput));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportSQuote) {
-  EXPECT_STREQ(
-      "a @import 'http://old-base.com/style.css' div { display: block; }",
-      Transform("a @import 'style.css' div { display: block; }"));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportDQuote) {
-  EXPECT_STREQ(
-      "a @import \"http://old-base.com/style.css\" div { display: block; }",
-      Transform("a @import \t \"style.css\" div { display: block; }"));
-}
-
-TEST_F(RewriteDomainTransformerTest, ImportSQuoteDQuote) {
-  EXPECT_STREQ(
-      "a @import 'http://old-base.com/style.css'\"screen\";",
-      Transform("a @import 'style.css'\"screen\";"));
-}
-
-
 
 }  // namespace
 

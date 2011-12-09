@@ -46,26 +46,16 @@ class RewriteOptions {
     kCombineCss,
     kCombineHeads,
     kCombineJavascript,
-    kConvertJpegToProgressive,
     kConvertJpegToWebp,
     kConvertMetaTags,
-    kConvertPngToJpeg,
-    kDeferJavascript,
-    kDelayImages,
-    kDisableJavascript,
     kDivStructure,
     kElideAttributes,
-    kExplicitCloseTags,
-    kExtendCacheCss,
-    kExtendCacheImages,
-    kExtendCacheScripts,
-    kHtmlWriterFilter,
+    kExtendCache,
     kInlineCss,
     kInlineImages,
     kInlineImportToLink,
     kInlineJavascript,
     kInsertImageDimensions,
-    kLazyloadImages,
     kLeftTrimUrls,
     kMakeGoogleAnalyticsAsync,
     kMoveCssToHead,
@@ -84,25 +74,8 @@ class RewriteOptions {
     kStripScripts,
     kEndOfFilters
   };
-
-  static const char kAjaxRewriteId[];
-  static const char kCssCombinerId[];
-  static const char kCssFilterId[];
-  static const char kCssInlineId[];
-  static const char kCacheExtenderId[];
-  static const char kImageCombineId[];
-  static const char kImageCompressionId[];
-  static const char kJavascriptCombinerId[];
-  static const char kJavascriptInlineId[];
-  static const char kJavascriptMinId[];
-
-  // Return the appropriate human-readable filter name for the given filter,
-  // e.g. "CombineCss".
-  static const char* FilterName(Filter filter);
-
-  // Returns a two-letter id code for this filter, used for for encoding
-  // URLs.
-  static const char* FilterId(Filter filter);
+  // Return the appropriate human-readable filter name for the given filter
+  const char* FilterName(const Filter filter) const;
 
   // Used for enumerating over all entries in the Filter enum.
   static const Filter kFirstFilter = kAddHead;
@@ -136,20 +109,15 @@ class RewriteOptions {
 
   static const int64 kDefaultCssInlineMaxBytes;
   static const int64 kDefaultImageInlineMaxBytes;
-  static const int64 kDefaultCssImageInlineMaxBytes;
   static const int64 kDefaultJsInlineMaxBytes;
   static const int64 kDefaultCssOutlineMinBytes;
   static const int64 kDefaultJsOutlineMinBytes;
-  static const int64 kDefaultProgressiveJpegMinBytes;
   static const int64 kDefaultMaxHtmlCacheTimeMs;
   static const int64 kDefaultMinResourceCacheTimeToRewriteMs;
   static const int64 kDefaultCacheInvalidationTimestamp;
   static const int64 kDefaultIdleFlushTimeMs;
   static const GoogleString kDefaultBeaconUrl;
   static const int kDefaultImageJpegRecompressQuality;
-  static const int kDefaultImageLimitOptimizedPercent;
-  static const int kDefaultImageLimitResizeAreaPercent;
-  static const int kDefaultImageWebpRecompressQuality;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
@@ -202,18 +170,10 @@ class RewriteOptions {
   // Which implies that all filters not listed should be disabled.
   void DisableAllFiltersNotExplicitlyEnabled();
 
-  // Adds the filter to the list of enabled filters. However, if the filter
-  // is also present in the list of disabled filters, that takes precedence.
   void EnableFilter(Filter filter);
-  // Guarantees that a filter would be enabled even if it is present in the list
-  // of disabled filters by removing it from disabled filter list.
-  void ForceEnableFilter(Filter filter);
   void DisableFilter(Filter filter);
   void EnableFilters(const FilterSet& filter_set);
   void DisableFilters(const FilterSet& filter_set);
-
-  // Enables all three extend_cache filters.
-  void EnableExtendCacheFilters();
 
   bool Enabled(Filter filter) const;
 
@@ -228,24 +188,12 @@ class RewriteOptions {
   void set_js_outline_min_bytes(int64 x) {
     set_option(x, &js_outline_min_bytes_);
   }
-
-  int64 progressive_jpeg_min_bytes() const {
-    return progressive_jpeg_min_bytes_.value();
+  int64 image_inline_max_bytes() const {
+    return image_inline_max_bytes_.value();
   }
-  void set_progressive_jpeg_min_bytes(int64 x) {
-    set_option(x, &progressive_jpeg_min_bytes_);
+  void set_image_inline_max_bytes(int64 x) {
+    set_option(x, &image_inline_max_bytes_);
   }
-
-  // Retrieve the image inlining threshold, but return 0 if it's disabled.
-  int64 ImageInlineMaxBytes() const;
-  void set_image_inline_max_bytes(int64 x);
-  // Retrieve the css image inlining threshold, but return 0 if it's disabled.
-  int64 CssImageInlineMaxBytes() const;
-  void set_css_image_inline_max_bytes(int64 x) {
-    set_option(x, &css_image_inline_max_bytes_);
-  }
-  // The larger of ImageInlineMaxBytes and CssImageInlineMaxBytes.
-  int64 MaxImageInlineMaxBytes() const;
   int64 css_inline_max_bytes() const { return css_inline_max_bytes_.value(); }
   void set_css_inline_max_bytes(int64 x) {
     set_option(x, &css_inline_max_bytes_);
@@ -309,14 +257,6 @@ class RewriteOptions {
   }
   bool enabled() const { return enabled_.value(); }
 
-  void set_ajax_rewriting_enabled(bool x) {
-    set_option(x, &ajax_rewriting_enabled_);
-  }
-
-  bool ajax_rewriting_enabled() const {
-    return ajax_rewriting_enabled_.value();
-  }
-
   void set_botdetect_enabled(bool x) {
     set_option(x, &botdetect_enabled_);
   }
@@ -365,33 +305,13 @@ class RewriteOptions {
     set_option(x, &image_jpeg_recompress_quality_);
   }
 
-  int image_limit_optimized_percent() const {
-    return image_limit_optimized_percent_.value();
-  }
-  void set_image_limit_optimized_percent(int x) {
-    set_option(x, &image_limit_optimized_percent_);
-  }
-  int image_limit_resize_area_percent() const {
-    return image_limit_resize_area_percent_.value();
-  }
-  void set_image_limit_resize_area_percent(int x) {
-    set_option(x, &image_limit_resize_area_percent_);
-  }
-
-  int image_webp_recompress_quality() const {
-    return image_webp_recompress_quality_.value();
-  }
-  void set_image_webp_recompress_quality(int x) {
-    set_option(x, &image_webp_recompress_quality_);
-  }
-
   // Merge together two source RewriteOptions to populate this.  The order
   // is significant: the second will override the first.  One semantic
   // subject to interpretation is when a core-filter is disabled in the
   // first set and not in the second.  In this case, my judgement is that
   // the 'disable' from the first should override the core-set membership
   // in the second, but not an 'enable' in the second.
-  virtual void Merge(const RewriteOptions& first, const RewriteOptions& second);
+  void Merge(const RewriteOptions& first, const RewriteOptions& second);
 
   // Registers a wildcard pattern for to be allowed, potentially overriding
   // previous Disallow wildcards.
@@ -409,8 +329,7 @@ class RewriteOptions {
 
   // Blacklist of javascript files that don't like their names changed.
   // This should be called for root options to set defaults.
-  // TODO(sligocki): Rename to allow for more general initialization.
-  virtual void DisallowTroublesomeResources();
+  void DisallowTroublesomeResources();
 
   DomainLawyer* domain_lawyer() { return &domain_lawyer_; }
   const DomainLawyer* domain_lawyer() const { return &domain_lawyer_; }
@@ -473,27 +392,14 @@ class RewriteOptions {
   // Name of the actual type of this instance as a poor man's RTTI.
   virtual const char* class_name() const;
 
-  // Returns true if generation low res images is required.
-  bool NeedLowResImages() const {
-    return Enabled(kDelayImages);
-  }
-
  protected:
   class OptionBase {
    public:
-    OptionBase() : id_(NULL) {}
     virtual ~OptionBase();
     virtual void Merge(const OptionBase* one, const OptionBase* two) = 0;
     virtual bool was_set() const = 0;
     virtual GoogleString Signature(const Hasher* hasher) const = 0;
     virtual GoogleString ToString() const = 0;
-    void set_id(const char* id) { id_ = id; }
-    const char* id() {
-      DCHECK(id_);
-      return id_;
-    }
-   private:
-    const char* id_;
   };
 
   // Helper class to represent an Option, whose value is held in some class T.
@@ -562,9 +468,8 @@ class RewriteOptions {
   // want to use a compile-time constant (e.g. Timer::kHourMs) which
   // does not have a linkable address.
   template<class T, class U>  // U must be assignable to T.
-  void add_option(U default_value, Option<T>* option, const char* id) {
+  void add_option(U default_value, Option<T>* option) {
     option->set_default(default_value);
-    option->set_id(id);
     all_options_.push_back(option);
   }
 
@@ -632,11 +537,9 @@ class RewriteOptions {
 
   Option<int64> css_inline_max_bytes_;
   Option<int64> image_inline_max_bytes_;
-  Option<int64> css_image_inline_max_bytes_;
   Option<int64> js_inline_max_bytes_;
   Option<int64> css_outline_min_bytes_;
   Option<int64> js_outline_min_bytes_;
-  Option<int64> progressive_jpeg_min_bytes_;
   // The max Cache-Control TTL for HTML.
   Option<int64> max_html_cache_time_ms_;
   // Resources with Cache-Control TTL less than this will not be rewritten.
@@ -647,19 +550,11 @@ class RewriteOptions {
   // Options related to jpeg compression.
   Option<int> image_jpeg_recompress_quality_;
 
-  // Options governing when to retain optimized images vs keep original
-  Option<int> image_limit_optimized_percent_;
-  Option<int> image_limit_resize_area_percent_;
-
-  // Options related to webp compression.
-  Option<int> image_webp_recompress_quality_;
-
   Option<int> image_max_rewrites_at_once_;
   Option<int> max_url_segment_size_;  // for http://a/b/c.d, use strlen("c.d")
   Option<int> max_url_size_;          // but this is strlen("http://a/b/c.d")
 
   Option<bool> enabled_;
-  Option<bool> ajax_rewriting_enabled_;  // Should ajax rewriting be enabled?
   Option<bool> botdetect_enabled_;
   Option<bool> combine_across_paths_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
@@ -675,14 +570,6 @@ class RewriteOptions {
   // Compare.
 
   std::vector<OptionBase*> all_options_;
-
-  // When compiled for debug, we lazily check whether the all the Option<>
-  // member variables in all_options have unique IDs.
-  //
-  // Note that we include this member-variable in the structrue even under
-  // optimization as otherwise it might be very bad news indeed if someone
-  // mixed debug/opt object files in an executable.
-  bool options_uniqueness_checked_;
 
   DomainLawyer domain_lawyer_;
   FileLoadPolicy file_load_policy_;

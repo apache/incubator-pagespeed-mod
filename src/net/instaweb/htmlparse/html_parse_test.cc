@@ -22,16 +22,14 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/html_testing_peer.h"
-#include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/htmlparse/public/explicit_close_tag.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
@@ -42,33 +40,6 @@ namespace net_instaweb {
 
 class HtmlParseTest : public HtmlParseTestBase {
  protected:
-  // Returns the contents wrapped in a Div.
-  GoogleString Div(const StringPiece& text) {
-    return StrCat("<div>", text, "</div>");
-  }
-
-  // For tag-pairs that auto-close, we expect the appearance
-  // of tag2 to automatically close tag1.
-  void ExpectAutoClose(const char* tag1, const char* tag2) {
-    GoogleString test_case = StrCat("auto_close_", tag1, "_", tag2);
-    ValidateExpected(
-        test_case,
-        Div(StrCat("<", tag1, ">x<", tag2, ">y")),
-        Div(StrCat("<", tag1, ">x</", tag1, "><",
-                   StrCat(tag2, ">y</", tag2, ">"))));
-  }
-
-  // For 2 tags that do not have a specified auto-close relationship,
-  // we expect the appearance of tag2 to nest inside tag1.
-  void ExpectNoAutoClose(const char* tag1, const char* tag2) {
-    GoogleString test_case = StrCat("no_auto_close_", tag1, "_", tag2);
-    ValidateExpected(
-        test_case,
-        Div(StrCat("<", tag1, ">x<", tag2, ">y")),
-        Div(StrCat("<", tag1, ">x<", tag2, ">y</",
-                   StrCat(tag2, "></", tag1, ">"))));
-  }
-
   virtual bool AddBody() const { return true; }
 };
 
@@ -102,16 +73,10 @@ TEST_F(HtmlParseTest, CorrectTaggify) {
   // Don't turn <2 -> <2>
   ValidateNoChanges("no_taggify_digit", "<p>1<2</p>");
   ValidateNoChanges("no_taggify_unicode", "<p>☃<☕</p>");
+  ValidateExpected("taggify_letter", "<p>x<y</p>", "<p>x<y></p>");
 
-  // Under HTML5 rules (and recent Chrome and FF practice), something like
-  // <foo<bar> actually makes an element named <foo<bar>.
-  // (See 13.2.4.10 Tag name state). We don't entirely identify it reliably
-  // if a / is also present, but we don't damage it, either, which is
-  // good enough for our purpose.
-  ValidateNoChanges("letter", "<p>x<y</p>");
-
-  ValidateNoChanges("taggify_letter+digit", "<p>x1<y2</p>");
-  ValidateNoChanges("taggify_letter+unicode", "<p>x☃<y☕</p>");
+  ValidateExpected("taggify_letter+digit", "<p>x1<y2</p>", "<p>x1<y2></p>");
+  ValidateExpected("taggify_letter+unicode", "<p>x☃<y☕</p>", "<p>x☃<y☕></p>");
 
   ValidateNoChanges("no_taggify_digit+letter", "<p>1x<2y</p>");
   ValidateNoChanges("no_taggify_unicode+letter", "<p>☃x<☕y</p>");
@@ -252,224 +217,58 @@ TEST_F(HtmlParseTest, ImplicitExplicitClose) {
 }
 
 TEST_F(HtmlParseTest, OpenBracketAfterQuote) {
-  // Note: even though it looks like two input elements, in practice
-  // it's parsed as one.
+  // '<' after '"' in attr value
   const char input[] =
       "<input type=\"text\" name=\"username\""
       "<input type=\"password\" name=\"password\"/>";
   const char expected[] =
-      "<input type=\"text\" name=\"username\""
-      " <input type=\"password\" name=\"password\"/>";
-      // Extra space 'between' attributes'
+      "<input type=\"text\" name=\"username\">"  // note added '>'
+      "<input type=\"password\" name=\"password\"/>";
   ValidateExpected("open_bracket_after_quote", input, expected);
 }
 
 TEST_F(HtmlParseTest, OpenBracketUnquoted) {
-  // '<' after unquoted attr value.
-  // This is just a malformed attribute name, not a start of a new tag.
+  // '<' after after unquoted attr value
   const char input[] =
       "<input type=\"text\" name=username"
       "<input type=\"password\" name=\"password\"/>";
-  ValidateNoChanges("open_bracket_unquoted", input);
+  const char expected[] =
+      "<input type=\"text\" name=username>"  // note added '>'
+      "<input type=\"password\" name=\"password\"/>";
+  ValidateExpected("open_bracket_unquoted", input, expected);
 }
 
 TEST_F(HtmlParseTest, OpenBracketAfterEquals) {
-  // '<' after equals sign. This is actually an attribute value,
-  // not a start of a new tag.
+  // '<' after after unquoted attr value
   const char input[] =
       "<input type=\"text\" name="
       "<input type=\"password\" name=\"password\"/>";
-  ValidateNoChanges("open_brack_after_equals", input);
+  const char expected[] =
+      "<input type=\"text\" name=>"  // note added '>'
+      "<input type=\"password\" name=\"password\"/>";
+  ValidateExpected("open_brack_after_equals", input, expected);
 }
 
 TEST_F(HtmlParseTest, OpenBracketAfterName) {
-  // '<' after after attr name.
+  // '<' after after unquoted attr value
   const char input[] =
       "<input type=\"text\" name"
       "<input type=\"password\" name=\"password\"/>";
-  ValidateNoChanges("open_brack_after_name", input);
+  const char expected[] =
+      "<input type=\"text\" name>"  // note added '>'
+      "<input type=\"password\" name=\"password\"/>";
+  ValidateExpected("open_brack_after_name", input, expected);
 }
 
 TEST_F(HtmlParseTest, OpenBracketAfterSpace) {
-  // '<' after after unquoted attr value. Here name<input is an attribute
-  // name.
+  // '<' after after unquoted attr value
   const char input[] =
       "<input type=\"text\" "
       "<input type=\"password\" name=\"password\"/>";
-  ValidateNoChanges("open_brack_after_name", input);
-}
-
-TEST_F(HtmlParseTest, AutoClose) {
-  ExplicitCloseTag close_tags;
-  html_parse_.AddFilter(&close_tags);
-
-  // Cover the simple cases.  E.g. dd is closed by tr, but not dd.
-  ExpectNoAutoClose("dd", "tr");
-  ExpectAutoClose("dd", "dd");
-
-  ExpectAutoClose("dt", "dd");
-  ExpectAutoClose("dt", "dt");
-  ExpectNoAutoClose("dt", "rp");
-
-  ExpectAutoClose("li", "li");
-  ExpectNoAutoClose("li", "dt");
-
-  ExpectAutoClose("optgroup", "optgroup");
-  ExpectNoAutoClose("optgroup", "rp");
-
-  ExpectAutoClose("option", "optgroup");
-  ExpectAutoClose("option", "option");
-  ExpectNoAutoClose("option", "rp");
-
-  // <p> has an outrageous number of tags that auto-close it.
-  ExpectNoAutoClose("p", "tr");  // tr is not listed in the auto-closers for p.
-  ExpectAutoClose("p", "address");  // first closer of 28.
-  ExpectAutoClose("p", "h2");       // middle closer of 28.
-  ExpectAutoClose("p", "ul");       // last closer of 28.
-
-  // Cover the remainder of the cases.
-  ExpectAutoClose("rp", "rt");
-  ExpectAutoClose("rp", "rp");
-  ExpectNoAutoClose("rp", "dd");
-
-  ExpectAutoClose("rt", "rt");
-  ExpectAutoClose("rt", "rp");
-  ExpectNoAutoClose("rt", "dd");
-
-  ExpectAutoClose("tbody", "tbody");
-  ExpectAutoClose("tbody", "tfoot");
-  ExpectNoAutoClose("tbody", "dd");
-
-  ExpectAutoClose("td", "td");
-  ExpectAutoClose("td", "th");
-  ExpectNoAutoClose("td", "rt");
-
-  ExpectAutoClose("tfoot", "tbody");
-  ExpectNoAutoClose("tfoot", "dd");
-
-  ExpectAutoClose("th", "td");
-  ExpectAutoClose("th", "th");
-  ExpectNoAutoClose("th", "rt");
-
-  ExpectAutoClose("thead", "tbody");
-  ExpectAutoClose("thead", "tfoot");
-  ExpectNoAutoClose("thead", "dd");
-
-  ExpectAutoClose("tr", "tr");
-  ExpectNoAutoClose("tr", "td");
-
-  // http://www.w3.org/TR/html5/the-end.html#misnested-tags:-b-i-b-i
-
-
-  // TODO(jmarantz): add more tests related to formatting keywords.
-}
-
-namespace {
-
-class AnnotatingHtmlFilter : public EmptyHtmlFilter {
- public:
-  AnnotatingHtmlFilter() {}
-  virtual ~AnnotatingHtmlFilter() {}
-
-  virtual void StartElement(HtmlElement* element) {
-    StrAppend(&buffer_, " +", element->name_str());
-  }
-  virtual void EndElement(HtmlElement* element) {
-    StrAppend(&buffer_, " -", element->name_str());
-    switch (element->close_style()) {
-      case HtmlElement::AUTO_CLOSE:      buffer_ += "(a)"; break;
-      case HtmlElement::IMPLICIT_CLOSE:  buffer_ += "(i)"; break;
-      case HtmlElement::EXPLICIT_CLOSE:  buffer_ += "(e)"; break;
-      case HtmlElement::BRIEF_CLOSE:     buffer_ += "(b)"; break;
-      case HtmlElement::UNCLOSED:        buffer_ += "(u)"; break;
-    }
-  }
-  virtual void Characters(HtmlCharactersNode* characters) {
-    StrAppend(&buffer_, " '", characters->contents(), "'");
-  }
-  virtual const char* Name() const { return "AnnotatingHtmlFilter"; }
-
-  GoogleString buffer() const { return buffer_; }
-  void Clear() { buffer_.clear(); }
-
- private:
-  GoogleString buffer_;
-};
-
-}  // namespace
-
-TEST_F(HtmlParseTestNoBody, UnbalancedMarkup) {
-  AnnotatingHtmlFilter annotation;
-  html_parse_.AddFilter(&annotation);
-
-  // The second 'tr' closes the first one, and our HtmlWriter will not
-  // implicitly close 'tr' because IsImplicitlyClosedTag is false, so
-  // the markup is changed to add the missing tr.
-  ValidateNoChanges("unbalanced_markup",
-                    "<font><tr><i><font></i></font><tr></font>");
-
-  // We use this (hopefully) self-explanatory annotation format to indicate
-  // what's going on in the parse.
-  EXPECT_EQ(" +html '\n' +font -font(a) +tr +i +font -font(u) -i(e) '</font>'"
-            " -tr(a) +tr '</font>\n' -tr(u) -html(e)",
-            annotation.buffer());
-}
-
-TEST_F(HtmlParseTestNoBody, StrayCloseTr) {
-  AnnotatingHtmlFilter annotation;
-  html_parse_.AddFilter(&annotation);
-  ValidateNoChanges("stray_tr",
-                    "<table><tr><table></tr></table></tr></table>");
-
-  // We use this (hopefully) self-explanatory annotation format to indicate
-  // what's going on in the parse.
-  EXPECT_EQ(" +html '\n' +table +tr +table '</tr>' -table(e) -tr(e) -table(e) "
-            "'\n' -html(e)",
-            annotation.buffer());
-}
-
-TEST_F(HtmlParseTestNoBody, IClosedByOpenTr) {
-  AnnotatingHtmlFilter annotation;
-  html_parse_.AddFilter(&annotation);
-  ValidateNoChanges("unclosed_i_tag", "<tr><i>a<tr>b");
-  EXPECT_EQ(" +html '\n' +tr +i 'a' -i(a) -tr(a) +tr 'b\n' -tr(u) -html(e)",
-            annotation.buffer());
-
-  // TODO(jmarantz): morlovich points out that this is nowhere near
-  // how a browser will handle this stuff... For a nighmarish testcase, try:
-  //     data:text/html,<table><tr><td><i>a<tr>b
-  //
-  // The 'a' gets rendered in italics *after* the b.
-  //
-  // See also:
-  // http://www.whatwg.org/specs/web-apps/current-work/multipage/
-  // the-end.html#unexpected-markup-in-tables
-  //
-  // But note that these 2 are the same and do what I expect:
-  //
-  // data:text/html,<table><tr><td><i>a</td></tr></table>b
-  // data:text/html,<table><tr><td><i>a</table>b
-  //
-  // the 'a' is italicized but the 'b' is not.  If I omit the 'td'
-  // then the 'b' gets italicized.  This implies I suppose that 'i' is
-  // closed by td but is not closed by tr or table.  And it is indeed
-  // closed by the *implicit* closing of td.
-
-  // http://www.w3.org/TR/html5/the-end.html#misnested-tags:-b-i-b-i
-}
-
-TEST_F(HtmlParseTestNoBody, INotClosedByOpenTable) {
-  AnnotatingHtmlFilter annotation;
-  html_parse_.AddFilter(&annotation);
-  ValidateNoChanges("explicit_close_tr", "<i>a<table><tr></tr></table>b");
-  EXPECT_EQ(
-      " +html '\n' +i 'a' +table +tr -tr(e) -table(e) 'b\n' -i(u) -html(e)",
-      annotation.buffer());
-  annotation.Clear();
-  ValidateNoChanges("implicit_close_tr", "<i>a<table><tr></table>b");
-  EXPECT_EQ(
-      " +html '\n' +i 'a' +table +tr -tr(u) -table(e) 'b\n' -i(u) -html(e)",
-      annotation.buffer());
+  const char expected[] =
+      "<input type=\"text\">"  // note added '>'
+      "<input type=\"password\" name=\"password\"/>";
+  ValidateExpected("open_brack_after_name", input, expected);
 }
 
 TEST_F(HtmlParseTest, MakeName) {

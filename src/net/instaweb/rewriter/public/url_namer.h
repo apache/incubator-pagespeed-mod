@@ -74,7 +74,7 @@ class UrlNamer {
   // Determines whether the provided request URL is authorized given the
   // RewriteOptions.
   //
-  // The default implementation uses the domain lawyer in the options.
+  // The default implementation always return 'true'.
   virtual bool IsAuthorized(const GoogleUrl& request_url,
                             const RewriteOptions& options) const;
 
@@ -90,11 +90,6 @@ class UrlNamer {
                               RequestHeaders* request_headers,
                               bool* success,
                               Function* func, MessageHandler* handler);
-
-  // Configure custom options.
-  virtual void ConfigureCustomOptions(const GoogleUrl& request_url,
-                                      const RequestHeaders& request_headers,
-                                      RewriteOptions* options);
 
   // Determines whether the naming policy incorporates proxying resources
   // using a central proxy domain.

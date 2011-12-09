@@ -275,35 +275,7 @@ TEST_F(ResponseHeadersTest, TestCachingDefault) {
             response_headers_.date_ms());
 }
 
-// By default, cache permanent redirects.
-TEST_F(ResponseHeadersTest, TestCachingDefaultPermRedirect) {
-  ParseHeaders(StrCat("HTTP/1.1 301 Moved Permanently\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "\r\n"));
-  EXPECT_TRUE(response_headers_.IsCacheable());
-}
-
-// Even when explicitly set, don't cache temporary redirects.
-TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect302) {
-  ParseHeaders(StrCat("HTTP/1.1 302 Found\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: max-age=300\r\n"
-                      "\r\n"));
-  EXPECT_FALSE(response_headers_.IsCacheable());
-}
-
-TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect307) {
-  ParseHeaders(StrCat("HTTP/1.1 307 Temporary Redirect\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: max-age=300\r\n"
-                      "\r\n"));
-  EXPECT_FALSE(response_headers_.IsCacheable());
-}
-
-// Test that we don't erroneously cache a 204 even though it is marked
-// explicitly as cacheable. Note: We could cache this, but many status codes
-// are only cacheable depending on precise input headers, to be cautious, we
-// blacklist everything other than 200.
+// Test that we don't erroneously cache a 204.
 TEST_F(ResponseHeadersTest, TestCachingInvalidStatus) {
   ParseHeaders(StrCat("HTTP/1.0 204 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
@@ -312,9 +284,6 @@ TEST_F(ResponseHeadersTest, TestCachingInvalidStatus) {
 }
 
 // Test that we don't erroneously cache a 304.
-// Note: Even though it claims to be publicly cacheable, that cacheability only
-// applies to the response based on the precise request headers or it applies
-// to the original 200 response.
 TEST_F(ResponseHeadersTest, TestCachingNotModified) {
   ParseHeaders(StrCat("HTTP/1.0 304 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
@@ -784,23 +753,6 @@ TEST_F(ResponseHeadersTest, TestRemove) {
   EXPECT_EQ(headers_removed, response_headers_.ToString());
 }
 
-TEST_F(ResponseHeadersTest, TestRemoveConcat) {
-  const GoogleString headers = StrCat(
-      "HTTP/1.0 0 (null)\r\n"
-      "Date: ", start_time_string_, "\r\n"
-      "Content-Encoding: gzip\r\n"
-      "\r\n");
-  const GoogleString headers_removed = StrCat(
-      "HTTP/1.0 0 (null)\r\n"
-      "Date: ", start_time_string_, "\r\n"
-      "\r\n");
-  response_headers_.Clear();
-  ParseHeaders(headers);
-  EXPECT_TRUE(response_headers_.Remove(HttpAttributes::kContentEncoding,
-                                       "gzip"));
-  EXPECT_EQ(headers_removed, response_headers_.ToString());
-}
-
 TEST_F(ResponseHeadersTest, TestParseFirstLineOk) {
   response_headers_.ParseFirstLine("HTTP/1.0 200 OK");
   EXPECT_EQ(1, response_headers_.major_version());
@@ -847,41 +799,6 @@ TEST_F(ResponseHeadersTest, DetermineContentTypeWithCharset) {
   response_headers_.Clear();
   ParseHeaders(headers);
   EXPECT_EQ(&kContentTypeHtml, response_headers_.DetermineContentType());
-}
-
-TEST_F(ResponseHeadersTest, DetermineCharset) {
-  static const char headers_no_charset[] =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: image/png\r\n"
-      "Content-Type: image/png\r\n"
-      "Content-Type: image/png\r\n"
-      "\r\n";
-  response_headers_.Clear();
-  ParseHeaders(headers_no_charset);
-  EXPECT_TRUE(response_headers_.DetermineCharset().empty());
-
-  static const char headers_with_charset[] =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: image/png\r\n"
-      "Content-Type: image/png; charset=utf-8\r\n"
-      "Content-Type: image/png\r\n"
-      "\r\n";
-  response_headers_.Clear();
-  ParseHeaders(headers_with_charset);
-  EXPECT_EQ("utf-8", response_headers_.DetermineCharset());
-
-  // We take the first charset specified.
-  static const char multiple_headers_with_charset[] =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: image/png\r\n"
-      "Content-Type: image/png; charset=iso-8859-1\r\n"
-      "Content-Type: image/png\r\n"
-      "Content-Type: image/png; charset=utf-8\r\n"
-      "Content-Type: image/png\r\n"
-      "\r\n";
-  response_headers_.Clear();
-  ParseHeaders(multiple_headers_with_charset);
-  EXPECT_EQ("iso-8859-1", response_headers_.DetermineCharset());
 }
 
 TEST_F(ResponseHeadersTest, FixupMissingDate) {
@@ -1001,47 +918,5 @@ TEST_F(ResponseHeadersTest, MissingDateRemoveExpires) {
   EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
 }
 
-TEST_F(ResponseHeadersTest, TestSetCacheControlMaxAge) {
-  response_headers_.SetStatusAndReason(HttpStatus::kOK);
-  response_headers_.SetDate(MockTimer::kApr_5_2010_ms);
-  response_headers_.Add(HttpAttributes::kCacheControl, "max-age=0, no-cache");
-  response_headers_.ComputeCaching();
-
-  response_headers_.SetCacheControlMaxAge(300000);
-
-  const GoogleString expected_headers = StrCat(
-      "HTTP/1.0 200 OK\r\n"
-      "Date: ", start_time_string_, "\r\n"
-      "Expires: ", start_time_plus_5_minutes_string_, "\r\n"
-      "Cache-Control: max-age=300,no-cache\r\n"
-      "\r\n");
-  EXPECT_EQ(expected_headers, response_headers_.ToString());
-
-  response_headers_.RemoveAll(HttpAttributes::kCacheControl);
-  response_headers_.ComputeCaching();
-
-  response_headers_.SetCacheControlMaxAge(360000);
-  GoogleString expected_headers2 = StrCat(
-      "HTTP/1.0 200 OK\r\n"
-      "Date: ", start_time_string_, "\r\n"
-      "Expires: ", start_time_plus_6_minutes_string_, "\r\n"
-      "Cache-Control: max-age=360\r\n"
-      "\r\n");
-  EXPECT_EQ(expected_headers2, response_headers_.ToString());
-
-  response_headers_.RemoveAll(HttpAttributes::kCacheControl);
-  response_headers_.Add(HttpAttributes::kCacheControl,
-                        "max-age=10,private,no-cache,max-age=20,max-age=30");
-  response_headers_.ComputeCaching();
-
-  response_headers_.SetCacheControlMaxAge(360000);
-  GoogleString expected_headers3 = StrCat(
-      "HTTP/1.0 200 OK\r\n"
-      "Date: ", start_time_string_, "\r\n"
-      "Expires: ", start_time_plus_6_minutes_string_, "\r\n"
-      "Cache-Control: max-age=360,private,no-cache\r\n"
-      "\r\n");
-  EXPECT_EQ(expected_headers3, response_headers_.ToString());
-}
 
 }  // namespace net_instaweb

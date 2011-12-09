@@ -71,7 +71,7 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
       // Another option too is to just instantiate a ResourceNamer and a
       // hasher put in the correct ID and EXT and leave the name blank and
       // take size of that.
-      url_overhead_(strlen(filter->id()) + ResourceNamer::kOverhead +
+      url_overhead_(filter->id().size() + ResourceNamer::kOverhead +
                     extension.size()),
       filter_(filter) {
   // This CHECK is here because RewriteDriver is constructed with its
@@ -254,7 +254,7 @@ OutputResourcePtr ResourceCombiner::Combine(const ContentType& content_type,
   // TODO(jmaessen, jmarantz): encode based on partnership
   combination.reset(rewrite_driver_->CreateOutputResourceWithUnmappedPath(
       ResolvedBase(), filter_->id(), url_safe_id, &content_type,
-      kRewrittenResource, true /*async*/));
+      kRewrittenResource, filter_->HasAsyncFlow()));
   if (combination.get() != NULL) {
     if (combination->cached_result() != NULL &&
         combination->cached_result()->optimizable()) {

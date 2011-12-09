@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 
-#include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -31,7 +30,6 @@
 
 namespace net_instaweb {
 
-class Hasher;
 class MessageHandler;
 class Statistics;
 class Timer;
@@ -48,12 +46,8 @@ class HTTPCache {
   static const char kCacheExpirations[];
   static const char kCacheInserts[];
 
-  // The prefix to be added to Etags.
-  static const char kEtagPrefix[];
-
   // Does not take ownership of any inputs.
-  HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
-            Statistics* stats);
+  HTTPCache(CacheInterface* cache, Timer* timer, Statistics* stats);
   virtual ~HTTPCache();
 
   // When a lookup is done in the HTTP Cache, it returns one of these values.
@@ -65,17 +59,8 @@ class HTTPCache {
     kRecentFetchFailedOrNotCacheable,
   };
 
-  // Class to handle an asynchronous cache lookup response.
-  //
-  // TODO(jmarantz): consider inheriting from AsyncFetch with an implementation
-  // of Write/Flush/HeadersComplete -- we'd have to make Done take true/false so
-  // this would impact callers.
   class Callback {
    public:
-    Callback()
-        : response_headers_(NULL),
-          owns_response_headers_(false) {
-    }
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
     // A method that allows client Callbacks to apply invalidation checks.  We
@@ -89,34 +74,12 @@ class HTTPCache {
     // implementation you probably want to use.
     virtual bool IsCacheValid(const ResponseHeaders& headers) = 0;
 
-    // TODO(jmarantz): specify the dataflow between http_value and
-    // response_headers.
     HTTPValue* http_value() { return &http_value_; }
-    ResponseHeaders* response_headers() {
-      if (response_headers_ == NULL) {
-        response_headers_ = new ResponseHeaders;
-        owns_response_headers_ = true;
-      }
-      return response_headers_;
-    }
-    const ResponseHeaders* response_headers() const {
-      return const_cast<Callback*>(this)->response_headers();
-    }
-    void set_response_headers(ResponseHeaders* headers) {
-      DCHECK(!owns_response_headers_);
-      if (owns_response_headers_) {
-        delete response_headers_;
-      }
-      response_headers_ = headers;
-      owns_response_headers_ = false;
-    }
+    ResponseHeaders* response_headers() { return &response_headers_; }
 
    private:
     HTTPValue http_value_;
-    ResponseHeaders* response_headers_;
-    bool owns_response_headers_;
-
-    DISALLOW_COPY_AND_ASSIGN(Callback);
+    ResponseHeaders response_headers_;
   };
 
   // Makes the cache ignore put requests that do not record successes.
@@ -194,8 +157,7 @@ class HTTPCache {
     return remember_not_cacheable_ttl_seconds_;
   }
 
-  virtual void set_remember_not_cacheable_ttl_seconds(int64 value) {
-    DCHECK(value >= 0);
+  void set_remember_not_cacheable_ttl_seconds(int64 value) {
     if (value >= 0) {
       remember_not_cacheable_ttl_seconds_ = value;
     }
@@ -205,8 +167,7 @@ class HTTPCache {
     return remember_fetch_failed_ttl_seconds_;
   }
 
-  virtual void set_remember_fetch_failed_ttl_seconds(int64 value) {
-    DCHECK(value >= 0);
+  void set_remember_fetch_failed_ttl_seconds(int64 value) {
     if (value >= 0) {
       remember_fetch_failed_ttl_seconds_ = value;
     }
@@ -235,7 +196,6 @@ class HTTPCache {
 
   CacheInterface* cache_;  // Owned by the caller.
   Timer* timer_;
-  Hasher* hasher_;
   bool force_caching_;
   Variable* cache_time_us_;
   Variable* cache_hits_;

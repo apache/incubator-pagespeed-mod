@@ -21,7 +21,6 @@
 
 #include <cstddef>
 
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -46,36 +45,14 @@ class Image {
   // disrupting any of its clients.
 
   enum Type {
-    // Update kImageTypeStart if you add something before this.
     IMAGE_UNKNOWN = 0,
     IMAGE_JPEG,
     IMAGE_PNG,
     IMAGE_GIF,
-    IMAGE_WEBP,  // Update kImageTypeEnd if you add something after this.
-  };
-
-  struct CompressionOptions {
-    CompressionOptions()
-        : webp_preferred(false),
-          webp_quality(RewriteOptions::kDefaultImageWebpRecompressQuality),
-          jpeg_quality(RewriteOptions::kDefaultImageJpegRecompressQuality),
-          progressive_jpeg(false),
-          convert_png_to_jpeg(false) {}
-    bool webp_preferred;
-    int webp_quality;
-    int jpeg_quality;
-    bool progressive_jpeg;
-    bool convert_png_to_jpeg;
+    IMAGE_WEBP,
   };
 
   virtual ~Image();
-
-  // static method to convert Type to mime type.
-  static const ContentType* TypeToContentType(Type t);
-
-  // Used for checking valid ImageType enum integer.
-  static const Type kImageTypeStart = IMAGE_UNKNOWN;
-  static const Type kImageTypeEnd = IMAGE_WEBP;
 
   // Stores the image dimensions in natural_dim (on success, sets
   // natural_dim->{width, height} and
@@ -115,22 +92,9 @@ class Image {
   // fails.  Otherwise the image contents and type can change.
   virtual bool ResizeTo(const ImageDim& new_dim) = 0;
 
-  // Set the quality of the output image for a particular image type.
-  // Currently, quality for only jpegs & webps is supported.
-  // Jpeg quality varies from 1 to 100 where 1 is minimum and 100 is maximum.
-  // WebP quality varies from 1 to 100 where 1 is minimum and 100 is maximum.
-  virtual void SetQuality(Type image_type, int quality) = 0;
-
-  // Enable the transformation to low res image. If low res image is enabled,
-  // all jpeg images are transformed to low quality jpeg images and all webp
-  // images to low quality webp images, if possible.
-  virtual void SetTransformToLowRes() = 0;
-
   // Returns image-appropriate content type, or NULL if no content type is
   // known.  Result is a top-level const pointer and should not be deleted etc.
-  const ContentType* content_type() {
-    return TypeToContentType(image_type());
-  }
+  const ContentType* content_type();
 
   // Returns the best known image contents.  If image type is not understood,
   // then Contents() will have NULL data().
@@ -177,7 +141,8 @@ class Image {
 Image* NewImage(const StringPiece& original_contents,
                 const GoogleString& url,
                 const StringPiece& file_prefix,
-                Image::CompressionOptions* options,
+                bool webp_preferred,
+                int jpeg_quality,
                 MessageHandler* handler);
 
 // Creates a blank image of the given dimensions and type.

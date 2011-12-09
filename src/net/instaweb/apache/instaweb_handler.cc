@@ -116,24 +116,26 @@ bool handle_as_resource(ApacheResourceManager* manager,
   ApacheRewriteDriverFactory* factory = manager->apache_factory();
   ApacheConfig* config = manager->config();
   RewriteDriver* rewrite_driver = manager->NewRewriteDriver();
+  RequestHeaders request_headers;
+  ResponseHeaders response_headers;
   int n = arraysize(RewriteDriver::kPassThroughRequestAttributes);
-  GoogleString output;  // TODO(jmarantz): quit buffering resource output
-  StringWriter writer(&output);
-  SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
-      factory->thread_system(), &writer);
-
-  RequestHeaders* request_headers = callback->request_headers();
   for (int i = 0; i < n; ++i) {
     const char* value = apr_table_get(
         request->headers_in,
         RewriteDriver::kPassThroughRequestAttributes[i]);
     if (value != NULL) {
-      request_headers->Add(RewriteDriver::kPassThroughRequestAttributes[i],
-                           value);
+      request_headers.Add(RewriteDriver::kPassThroughRequestAttributes[i],
+                          value);
     }
   }
+  GoogleString output;  // TODO(jmarantz): quit buffering resource output
+  StringWriter writer(&output);
   MessageHandler* message_handler = manager->message_handler();
-  bool handled = rewrite_driver->FetchResource(url, callback);
+  SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
+      factory->thread_system(), &response_headers, &writer);
+  bool handled = rewrite_driver->FetchResource(
+      url, request_headers, callback->response_headers(), callback->writer(),
+      callback);
   if (handled) {
     AprTimer timer;
     message_handler->Message(kInfo, "Fetching resource %s...", url.c_str());
@@ -148,8 +150,7 @@ bool handle_as_resource(ApacheResourceManager* manager,
         int64 remaining_ms = max_ms - (now_ms - start_ms);
 
         if (sub_resource_fetch_done) {
-          rewrite_driver->BoundedWaitFor(
-              RewriteDriver::kWaitForCompletion, remaining_ms);
+          rewrite_driver->BoundedWaitForCompletion(remaining_ms);
         } else {
           sub_resource_fetch_done =
             (sub_resource_fetcher->Poll(remaining_ms) == 0);
@@ -160,24 +161,14 @@ bool handle_as_resource(ApacheResourceManager* manager,
         message_handler->Message(kError, "Timeout on url %s", url.c_str());
       }
     }
-
-    bool ok = false;
-    if (callback->done()) {
-      ResponseHeaders* response_headers = callback->response_headers();
-      if (callback->success()) {
-        response_headers->SetDate(timer.NowMs());
-        message_handler->Message(kInfo, "Fetch succeeded for %s, status=%d",
-                                 url.c_str(), response_headers->status_code());
-        send_out_headers_and_body(request, *response_headers, output);
-        ok = true;
-      } else {
-        message_handler->Message(kError, "Fetch failed for %s, status=%d",
-                                 url.c_str(), response_headers->status_code());
-      }
+    if (callback->success()) {
+      response_headers.SetDate(timer.NowMs());
+      message_handler->Message(kInfo, "Fetch succeeded for %s, status=%d",
+                              url.c_str(), response_headers.status_code());
+      send_out_headers_and_body(request, response_headers, output);
     } else {
-      message_handler->Message(kError, "Fetch timed out for %s", url.c_str());
-    }
-    if (!ok) {
+      message_handler->Message(kError, "Fetch failed for %s, status=%d",
+                              url.c_str(), response_headers.status_code());
       RewriteStats* stats = rewrite_driver->resource_manager()->rewrite_stats();
       stats->resource_404_count()->Add(1);
       instaweb_default_handler(url, request);

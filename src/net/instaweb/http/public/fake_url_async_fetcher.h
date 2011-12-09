@@ -44,12 +44,9 @@ class Writer;
 class FakeUrlAsyncFetcher : public UrlPollableAsyncFetcher {
  public:
   explicit FakeUrlAsyncFetcher(UrlFetcher* url_fetcher)
-      : url_fetcher_(url_fetcher),
-        fetcher_supports_https_(true) {
+      : url_fetcher_(url_fetcher) {
   }
   virtual ~FakeUrlAsyncFetcher();
-
-  virtual bool SupportsHttps() const { return fetcher_supports_https_; }
 
   virtual bool StreamingFetch(const GoogleString& url,
                               const RequestHeaders& request_headers,
@@ -67,11 +64,8 @@ class FakeUrlAsyncFetcher : public UrlPollableAsyncFetcher {
   // any outstanding fetches.
   virtual int Poll(int64 max_wait_ms) { return 0; }
 
-  void set_fetcher_supports_https(bool val) { fetcher_supports_https_ = val; }
-
  private:
   UrlFetcher* url_fetcher_;
-  bool fetcher_supports_https_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeUrlAsyncFetcher);
 };

@@ -68,6 +68,7 @@ void RewriteDriverFactory::Init() {
   force_caching_ = false;
   slurp_read_only_ = false;
   slurp_print_urls_ = false;
+  async_rewrites_ = true;
   SetStatistics(&null_statistics_);
   resource_manager_mutex_.reset(thread_system_->NewMutex());
   worker_pools_.assign(kNumWorkerPools, NULL);
@@ -310,9 +311,14 @@ HTTPCache* RewriteDriverFactory::http_cache() {
 
 HTTPCache* RewriteDriverFactory::ComputeHTTPCache() {
   HTTPCache* http_cache = new HTTPCache(
-      cache_backend_.get(), timer(), hasher(), statistics());
+      cache_backend_.get(), timer(), statistics());
   http_cache->set_force_caching(force_caching_);
   return http_cache;
+}
+
+void RewriteDriverFactory::SetAsyncRewrites(bool x) {
+  async_rewrites_ = x;
+  DCHECK(resource_managers_.empty());
 }
 
 ResourceManager* RewriteDriverFactory::CreateResourceManager() {
@@ -355,6 +361,7 @@ void RewriteDriverFactory::InitResourceManager(
   resource_manager->set_message_handler(message_handler());
   resource_manager->set_store_outputs_in_file_system(
       ShouldWriteResourcesToFileSystem());
+  resource_manager->set_async_rewrites(async_rewrites_);
   resource_manager->InitWorkersAndDecodingDriver();
   resource_managers_.insert(resource_manager);
 }

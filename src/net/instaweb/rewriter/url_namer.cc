@@ -72,9 +72,7 @@ bool UrlNamer::Decode(const GoogleUrl& request_url,
 
 bool UrlNamer::IsAuthorized(const GoogleUrl& request_url,
                             const RewriteOptions& options) const {
-  GoogleUrl invalid_request;
-  const DomainLawyer* lawyer = options.domain_lawyer();
-  return lawyer->IsDomainAuthorized(invalid_request, request_url);
+  return true;
 }
 
 void UrlNamer::DecodeOptions(const GoogleUrl& request_url,
@@ -104,11 +102,6 @@ void UrlNamer::PrepareRequest(const RewriteOptions* rewrite_options,
     }
   }
   func->CallRun();
-}
-
-void UrlNamer::ConfigureCustomOptions(const GoogleUrl& request_url,
-                                      const RequestHeaders& request_headers,
-                                      RewriteOptions* options) {
 }
 
 UrlNamer::Callback::~Callback() {

@@ -16,8 +16,7 @@
 //         lsong@google.com (Libo Song)
 
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
-
-#include "base/logging.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -76,18 +75,20 @@ class ProtectedWriter : public Writer {
 }  // namespace
 
 SyncFetcherAdapterCallback::SyncFetcherAdapterCallback(
-    ThreadSystem* thread_system, Writer* writer)
+    ThreadSystem* thread_system,  ResponseHeaders* response_headers,
+    Writer* writer)
     : mutex_(thread_system->NewMutex()),
       done_(false),
       success_(false),
       released_(false),
+      response_headers_(response_headers),
       writer_(new ProtectedWriter(this, writer)) {
 }
 
 SyncFetcherAdapterCallback::~SyncFetcherAdapterCallback() {
 }
 
-void SyncFetcherAdapterCallback::HandleDone(bool success) {
+void SyncFetcherAdapterCallback::Done(bool success) {
   mutex_->Lock();
   done_ = true;
   success_ = success;
@@ -95,13 +96,13 @@ void SyncFetcherAdapterCallback::HandleDone(bool success) {
     mutex_->Unlock();
     delete this;
   } else {
+    response_headers_->CopyFrom(response_headers_buffer_);
     mutex_->Unlock();
   }
 }
 
 void SyncFetcherAdapterCallback::Release() {
   mutex_->Lock();
-  DCHECK(!released_);
   released_ = true;
   if (done_) {
     mutex_->Unlock();

@@ -39,14 +39,9 @@ static string CSSEscapeString(const StringPiece& src) {
 
   for (const char* p = src.data(); p < src_end; p++) {
     switch (*p) {
-      // Note: CSS does not use standard \n, \r and \t escapes.
-      // Generic hex escapes are used instead.
-      case '\n':
-        dest[used++] = '\\'; dest[used++] = 'A'; dest[used++] = ' '; break;
-      case '\r':
-        dest[used++] = '\\'; dest[used++] = 'D'; dest[used++] = ' '; break;
-      case '\t':
-        dest[used++] = '\\'; dest[used++] = '9'; dest[used++] = ' '; break;
+      case '\n': dest[used++] = '\\'; dest[used++] = 'n';  break;
+      case '\r': dest[used++] = '\\'; dest[used++] = 'r';  break;
+      case '\t': dest[used++] = '\\'; dest[used++] = 't';  break;
       case '\"': case '\'': case '\\': case ',': case '(': case ')':
           dest[used++] = '\\';
           dest[used++] = *p;
@@ -225,23 +220,12 @@ string Selector::ToString() const {
 }
 
 string Selectors::ToString() const {
-  if (is_dummy()) {
-    string result = "/* Unparsed selectors: */ ";
-    bytes_in_original_buffer().AppendToString(&result);
-    return result;
-  } else {
-    return JoinElementStrings(*this, ", ");
-  }
+  return JoinElementStrings(*this, ", ");
 }
 
 string Declaration::ToString() const {
   string result = prop_text() + ": ";
   switch (prop()) {
-    case Property::UNPARSEABLE:
-      result = "/* Unparsed declaration: */ ";
-      bytes_in_original_buffer().AppendToString(&result);
-      return result;
-      break;
     case Property::FONT_FAMILY:
       result += JoinElementStrings(*values(), ",");
       break;

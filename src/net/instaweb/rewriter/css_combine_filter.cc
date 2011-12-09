@@ -30,6 +30,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -54,6 +55,8 @@
 namespace net_instaweb {
 
 class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class HtmlIEDirectiveNode;
 class UrlSegmentEncoder;
 
@@ -140,13 +143,18 @@ class CssCombineFilter::Context : public RewriteContext {
   CssCombiner* combiner() { return &combiner_; }
 
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
-    bool ret = false;
-    ResourcePtr resource(filter_->CreateInputResource(href->value()));
-    if (resource.get() != NULL) {
-      ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
-      AddSlot(slot);
-      elements_.push_back(element);
-      ret = true;
+    bool ret = true;
+    if (filter_->HasAsyncFlow()) {
+      ResourcePtr resource(filter_->CreateInputResource(href->value()));
+      if (resource.get() != NULL) {
+        ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
+        AddSlot(slot);
+        elements_.push_back(element);
+      } else {
+        ret = false;
+      }
+    } else {
+      AddToCombiner(element, href);
     }
     return ret;
   }
@@ -279,7 +287,7 @@ class CssCombineFilter::Context : public RewriteContext {
   virtual const UrlSegmentEncoder* encoder() const {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
+  virtual const char* id() const { return filter_->id().c_str(); }
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
  private:
@@ -316,8 +324,9 @@ class CssCombineFilter::Context : public RewriteContext {
 //
 // TODO(jmaessen): The addition of 1 below avoids the leading ".";
 // make this convention consistent and fix all code.
-CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
+CssCombineFilter::CssCombineFilter(RewriteDriver* driver,
+                                   const char* filter_prefix)
+    : RewriteFilter(driver, filter_prefix),
       css_tag_scanner_(driver_) {
 }
 
@@ -368,9 +377,13 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void CssCombineFilter::NextCombination() {
-  if (!context_->empty()) {
-    driver_->InitiateRewrite(context_.release());
-    context_.reset(MakeContext());
+  if (driver_->asynchronous_rewrites()) {
+    if (!context_->empty()) {
+      driver_->InitiateRewrite(context_.release());
+      context_.reset(MakeContext());
+    }
+  } else {
+    combiner()->TryCombineAccumulated();
   }
   context_->Reset();
 }
@@ -479,8 +492,24 @@ bool CssCombineFilter::CssCombiner::WritePiece(
   return ret;
 }
 
+bool CssCombineFilter::Fetch(const OutputResourcePtr& resource,
+                             Writer* writer,
+                             const RequestHeaders& request_header,
+                             ResponseHeaders* response_headers,
+                             MessageHandler* message_handler,
+                             UrlAsyncFetcher::Callback* callback) {
+  DCHECK(!driver_->asynchronous_rewrites());
+  context_.reset(MakeContext());
+  return combiner()->Fetch(resource, writer, request_header, response_headers,
+                           message_handler, callback);
+}
+
 CssCombineFilter::CssCombiner* CssCombineFilter::combiner() {
   return context_->combiner();
+}
+
+bool CssCombineFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
 }
 
 CssCombineFilter::Context* CssCombineFilter::MakeContext() {

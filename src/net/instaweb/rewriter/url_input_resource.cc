@@ -21,10 +21,10 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -75,7 +75,7 @@ UrlInputResource::~UrlInputResource() {
 }
 
 // Shared fetch callback, used by both Load and LoadAndCallback
-class UrlResourceFetchCallback : public AsyncFetch {
+class UrlResourceFetchCallback : public UrlAsyncFetcher::Callback {
  public:
   UrlResourceFetchCallback(ResourceManager* resource_manager,
                            const RewriteOptions* rewrite_options) :
@@ -131,7 +131,7 @@ class UrlResourceFetchCallback : public AsyncFetch {
 
     fetcher_ = fetcher;
 
-    url_namer->PrepareRequest(rewrite_options_, &fetch_url_, request_headers(),
+    url_namer->PrepareRequest(rewrite_options_, &fetch_url_, &request_headers_,
         &success_,
         MakeFunction(this, &UrlResourceFetchCallback::StartFetchInternal),
         message_handler_);
@@ -141,7 +141,7 @@ class UrlResourceFetchCallback : public AsyncFetch {
   bool AddToCache(bool success) {
     ResponseHeaders* headers = response_headers();
     headers->FixDateHeaders(http_cache()->timer()->NowMs());
-    if (success && !headers->IsErrorStatus()) {
+    if (success) {
       if (IsValidAndCacheableImpl(http_cache(), resource_cutoff_ms_,
                                   respect_vary_, headers)) {
         HTTPValue* value = http_value();
@@ -162,10 +162,12 @@ class UrlResourceFetchCallback : public AsyncFetch {
       return;
     }
     // TODO(sligocki): Allow ConditionalFetch here
-    fetcher_->Fetch(fetch_url_, message_handler_, this);
+    fetcher_->StreamingFetch(
+        fetch_url_, request_headers_, response_headers(), http_value(),
+        message_handler_, this);
   }
 
-  virtual void HandleDone(bool success) {
+  virtual void Done(bool success) {
     VLOG(2) << response_headers()->ToString();
     bool cached = AddToCache(success);
     success = cached;
@@ -180,20 +182,12 @@ class UrlResourceFetchCallback : public AsyncFetch {
     delete this;
   }
 
-  virtual void HandleHeadersComplete() {}
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
-    return http_value()->Write(content, handler);
-  }
-  virtual bool HandleFlush(MessageHandler* handler) {
-    return true;
-  }
-
   // The two derived classes differ in how they provide the
   // fields below.  The Async callback gets them from the resource,
   // which must be live at the time it is called.  The ReadIfCached
   // cannot rely on the resource still being alive when the callback
   // is called, so it must keep them locally in the class.
+  virtual ResponseHeaders* response_headers() = 0;
   virtual HTTPValue* http_value() = 0;
   virtual GoogleString url() const = 0;
   virtual HTTPCache* http_cache() = 0;
@@ -202,10 +196,6 @@ class UrlResourceFetchCallback : public AsyncFetch {
   // resource regardless, return false.
   // TODO(abliss): unit test this
   virtual bool should_yield() = 0;
-
-  // Indicate that it's OK for the callback to be executed on a different
-  // thread, as it only populates the cache, which is thread-safe.
-  virtual bool EnableThreaded() const { return true; }
 
  protected:
   virtual void DoneInternal(bool success) {
@@ -218,6 +208,7 @@ class UrlResourceFetchCallback : public AsyncFetch {
  private:
   // TODO(jmarantz): consider request_headers.  E.g. will we ever
   // get different resources depending on user-agent?
+  RequestHeaders request_headers_;
   bool success_;
   UrlAsyncFetcher* fetcher_;
   GoogleString fetch_url_;
@@ -243,6 +234,11 @@ class UrlReadIfCachedCallback : public UrlResourceFetchCallback {
         http_cache_(http_cache) {
   }
 
+  // Indicate that it's OK for the callback to be executed on a different
+  // thread, as it only populates the cache, which is thread-safe.
+  virtual bool EnableThreaded() const { return true; }
+
+  virtual ResponseHeaders* response_headers() { return &response_headers_; }
   virtual HTTPValue* http_value() { return &http_value_; }
   virtual GoogleString url() const { return url_; }
   virtual HTTPCache* http_cache() { return http_cache_; }
@@ -252,6 +248,7 @@ class UrlReadIfCachedCallback : public UrlResourceFetchCallback {
   GoogleString url_;
   HTTPCache* http_cache_;
   HTTPValue http_value_;
+  ResponseHeaders response_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(UrlReadIfCachedCallback);
 };
@@ -307,7 +304,6 @@ class UrlReadAsyncFetchCallback : public UrlResourceFetchCallback {
                                  resource->rewrite_options()),
         resource_(resource),
         callback_(callback) {
-    set_response_headers(&resource_->response_headers_);
   }
 
   virtual void DoneInternal(bool success) {
@@ -331,6 +327,9 @@ class UrlReadAsyncFetchCallback : public UrlResourceFetchCallback {
 
   virtual bool EnableThreaded() const { return callback_->EnableThreaded(); }
 
+  virtual ResponseHeaders* response_headers() {
+    return &resource_->response_headers_;
+  }
   virtual HTTPValue* http_value() { return &resource_->value_; }
   virtual GoogleString url() const { return resource_->url(); }
   virtual HTTPCache* http_cache() {

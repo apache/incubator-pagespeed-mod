@@ -85,7 +85,6 @@ const char* kModPagespeedBeaconUrl = "ModPagespeedBeaconUrl";
 const char* kModPagespeedCollectRefererStatistics =
     "ModPagespeedCollectRefererStatistics";
 const char* kModPagespeedCombineAcrossPaths = "ModPagespeedCombineAcrossPaths";
-const char* kModPagespeedCssInlineMaxBytes = "ModPagespeedCssInlineMaxBytes";
 const char* kModPagespeedCssOutlineMinBytes = "ModPagespeedCssOutlineMinBytes";
 const char* kModPagespeedDisableFilters = "ModPagespeedDisableFilters";
 const char* kModPagespeedDisallow = "ModPagespeedDisallow";
@@ -112,14 +111,8 @@ const char* kModPagespeedImageInlineMaxBytes =
     "ModPagespeedImageInlineMaxBytes";
 const char* kModPagespeedImageMaxRewritesAtOnce =
     "ModPagespeedImageMaxRewritesAtOnce";
-const char* kModPagespeedCssImageInlineMaxBytes =
-    "ModPagespeedCssImageInlineMaxBytes";
 const char* kModPagespeedJpegRecompressQuality =
     "ModPagespeedJpegRecompressionQuality";
-const char* kModPagespeedImageLimitOptimizedPercent =
-    "ModPagespeedImageLimitOptimizedPercent";
-const char* kModPagespeedImageLimitResizeAreaPercent =
-    "ModPagespeedImageLimitResizeAreaPercent";
 const char* kModPagespeedJsInlineMaxBytes = "ModPagespeedJsInlineMaxBytes";
 const char* kModPagespeedJsOutlineMinBytes = "ModPagespeedJsOutlineMinBytes";
 const char* kModPagespeedLRUCacheByteLimit = "ModPagespeedLRUCacheByteLimit";
@@ -896,7 +889,8 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
   } else if (StringCaseEqual(directive, kModPagespeedCombineAcrossPaths)) {
     ret = ParseBoolOption(options, cmd,
                           &RewriteOptions::set_combine_across_paths, arg);
-  } else if (StringCaseEqual(directive, kModPagespeedCssInlineMaxBytes)) {
+  } else if (StringCaseEqual(directive,
+                             RewriteQuery::kModPagespeedCssInlineMaxBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_css_inline_max_bytes, arg);
   } else if (StringCaseEqual(directive, kModPagespeedCssOutlineMinBytes)) {
@@ -966,27 +960,12 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     // TODO(sligocki): Convert to ParseInt64Option for consistency?
     ret = ParseIntOption(options,
         cmd, &RewriteOptions::set_image_max_rewrites_at_once, arg);
-  } else if (StringCaseEqual(directive, kModPagespeedCssImageInlineMaxBytes)) {
-    ret = ParseInt64Option(options,
-        cmd, &RewriteOptions::set_css_image_inline_max_bytes, arg);
   } else if (StringCaseEqual(directive,
                              kModPagespeedJpegRecompressQuality)) {
     ret = ParseIntBoundedOption(
         options,
         cmd, &RewriteOptions::set_image_jpeg_recompress_quality, arg,
         -1, 100);
-  } else if (StringCaseEqual(directive,
-                             kModPagespeedImageLimitOptimizedPercent)) {
-    ret = ParseIntBoundedOption(
-        options,
-        cmd, &RewriteOptions::set_image_limit_optimized_percent, arg,
-        0, 100);
-  } else if (StringCaseEqual(directive,
-                             kModPagespeedImageLimitResizeAreaPercent)) {
-    ret = ParseIntBoundedOption(
-        options,
-        cmd, &RewriteOptions::set_image_limit_resize_area_percent, arg,
-        0, 100);
   } else if (StringCaseEqual(directive, kModPagespeedJsInlineMaxBytes)) {
     ret = ParseInt64Option(options,
         cmd, &RewriteOptions::set_js_inline_max_bytes, arg);
@@ -1138,7 +1117,7 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Track page, resource, and div location referrals for prefetching."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCombineAcrossPaths,
         "Allow combining resources from different paths"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssInlineMaxBytes,
+  APACHE_CONFIG_DIR_OPTION(RewriteQuery::kModPagespeedCssInlineMaxBytes,
         "Number of bytes below which stylesheets will be inlined."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssOutlineMinBytes,
         "Number of bytes above which inline CSS resources will be outlined."),

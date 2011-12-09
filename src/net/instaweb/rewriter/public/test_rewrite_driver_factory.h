@@ -33,7 +33,6 @@ class CountingUrlAsyncFetcher;
 class FakeUrlAsyncFetcher;
 class FileSystem;
 class Hasher;
-class HtmlFilter;
 class LRUCache;
 class MemFileSystem;
 class MessageHandler;
@@ -43,7 +42,6 @@ class MockScheduler;
 class MockTimer;
 class MockUrlFetcher;
 class RewriteDriver;
-class RewriteOptions;
 class Scheduler;
 class Timer;
 class UrlAsyncFetcher;
@@ -66,9 +64,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   MockTimer* mock_timer() { return mock_timer_; }
   MockHasher* mock_hasher() { return mock_hasher_; }
   MemFileSystem* mem_file_system() { return mem_file_system_; }
-  FakeUrlAsyncFetcher* mock_url_async_fetcher() {
-    return mock_url_async_fetcher_.get();
-  }
   WaitUrlAsyncFetcher* wait_url_async_fetcher() {
     return wait_url_async_fetcher_.get();
   }
@@ -81,29 +76,8 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   void CallFetcherCallbacksForDriver(RewriteDriver* driver);
   MockMessageHandler* mock_message_handler() { return mock_message_handler_; }
   MockScheduler* mock_scheduler() { return mock_scheduler_; }
-  bool use_test_url_namer() const { return use_test_url_namer_; }
-  void SetUseTestUrlNamer(bool x);
 
-  class CreateFilterCallback {
-   public:
-    CreateFilterCallback() {}
-    virtual ~CreateFilterCallback();
-    virtual HtmlFilter* Done(RewriteDriver* driver) = 0;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(CreateFilterCallback);
-  };
-
-  void AddCreateFilterCallback(CreateFilterCallback* callback) {
-    callback_vector_.push_back(callback);
-  }
-
-  void ClearFilterCallbackVector() {
-    callback_vector_.clear();
-  }
-
-  // Note that this disables ajax rewriting by default.
-  virtual RewriteOptions* NewRewriteOptions();
+  static bool UsingTestUrlNamer();
 
  protected:
   virtual Hasher* NewHasher();
@@ -117,7 +91,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   virtual UrlNamer* DefaultUrlNamer();
   virtual bool ShouldWriteResourcesToFileSystem() { return true; }
   virtual Scheduler* CreateScheduler();
-  virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
 
  private:
   MockTimer* mock_timer_;  // owned by base class timer_.
@@ -134,8 +107,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   SimpleStats simple_stats_;
   MockMessageHandler* mock_message_handler_;
   MockMessageHandler* mock_html_message_handler_;
-  bool use_test_url_namer_;
-  std::vector<CreateFilterCallback*> callback_vector_;
 };
 
 }  // namespace net_instaweb

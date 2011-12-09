@@ -34,6 +34,11 @@ namespace net_instaweb {
 class ResourceNamer;
 struct ContentType;
 
+// Macro for tests involving nested async rewrite paths that haven't been
+// ported yet.
+#define CSS_XFAIL_ASYNC() if (SkipAndWarnIfAsync()) { return; }
+#define CSS_XFAIL_SYNC() if (SkipAndWarnIfSync()) { return; }
+
 class CssRewriteTestBase : public ResourceManagerTestBase,
                            public ::testing::WithParamInterface<bool> {
  protected:
@@ -47,6 +52,7 @@ class CssRewriteTestBase : public ResourceManagerTestBase,
 
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
+    SetAsynchronousRewrites(GetParam());
     options()->set_always_rewrite_css(true);
     AddFilter(RewriteOptions::kRewriteCss);
   }
@@ -121,6 +127,12 @@ class CssRewriteTestBase : public ResourceManagerTestBase,
 
   // Helper to test for how we handle trailing junk
   void TestCorruptUrl(const char* junk, bool should_fetch_ok);
+
+  // Helper for CSS_XFAIL_ASYNC above. Returns true & logs if it async mode
+  // is on.
+  // SkipIfSync() does the oposite.
+  bool SkipAndWarnIfAsync();
+  bool SkipAndWarnIfSync();
 
   Variable* num_files_minified_;
   Variable* minified_bytes_saved_;

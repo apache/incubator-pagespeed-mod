@@ -21,7 +21,6 @@
 
 #include <cstddef>
 
-#include "base/logging.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -71,7 +70,6 @@ class JavascriptRewriteConfig {
       total_blocks_->Add(1);
     }
   }
-
  private:
   bool minify_;
   bool redirect_;
@@ -114,24 +112,10 @@ class JavascriptCodeBlock {
     return output_code_;
   }
 
-  // Returns the rewritten contents as a mutable GoogleString* suitable for
-  // swap().  This should only be used if ProfitableToRewrite() holds.
-  GoogleString* RewrittenString() {
-    RewriteIfNecessary();
-    DCHECK(rewritten_code_.size() < original_code_.size());
-    return &rewritten_code_;
-  }
-
   // Is the current block a JS library that can be redirected to Google?
   // If so, return the info necessary to do so.  Otherwise returns a
   // block for which .recognized() is false.
   const JavascriptLibraryId ComputeJavascriptLibrary();
-
-  // Converts a regular string to what can be used in Javascript directly. Note
-  // that output also contains starting and ending quotes, to facilitate
-  // embedding.
-  static void ToJsStringLiteral(const StringPiece& original,
-                                GoogleString* escaped);
 
  private:
   void RewriteIfNecessary() {

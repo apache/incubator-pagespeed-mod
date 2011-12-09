@@ -37,7 +37,6 @@ const char kHtmlFormat[] =
     "<script type='text/javascript' src='%s'></script>\n";
 
 const char kCdataWrapper[] = "//<![CDATA[\n%s\n//]]>";
-const char kCdataAltWrapper[] = "//<![CDATA[\r%s\r//]]>";
 
 const char kInlineJs[] =
     "<script type='text/javascript'>%s</script>\n";
@@ -60,6 +59,7 @@ class JavascriptFilterTest : public ResourceManagerTestBase,
  protected:
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
+    SetAsynchronousRewrites(GetParam());
     AddFilter(RewriteOptions::kRewriteJavascript);
     expected_rewritten_path_ = Encode(kTestDomain, kFilterId, "0",
                                       kRewrittenJsName, "js");
@@ -194,10 +194,6 @@ TEST_P(JavascriptFilterTest, CdataJavascript) {
       "cdata non-xhtml javascript",
       StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
       StringPrintf(kInlineJs, kJsMinData));
-  ValidateExpected(
-      "cdata non-xhtml javascript",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, kJsMinData));
 }
 
 TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
@@ -209,18 +205,13 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
   ValidateExpected("xhtml inline javascript",
                    StringPrintf(xhtml_script_format.c_str(), kJsData),
                    StringPrintf(xhtml_script_format.c_str(), kJsMinData));
-  const GoogleString xhtml_script_alt_format =
-      StrCat(kXhtmlHeader, StringPrintf(kInlineJs, kCdataAltWrapper));
-  ValidateExpected("xhtml inline javascript",
-                   StringPrintf(xhtml_script_alt_format.c_str(), kJsData),
-                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
 }
 
 // http://code.google.com/p/modpagespeed/issues/detail?id=324
 TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   GoogleString url = StrCat(kTestDomain, kOrigJsName);
   InitResponseHeaders(url, kContentTypeJavascript, kJsData, 300);
-  TestRetainExtraHeaders(kOrigJsName, "jm", "js");
+  TestRetainExtraHeaders(kOrigJsName, kOrigJsName, "jm", "js");
 }
 
 // http://code.google.com/p/modpagespeed/issues/detail?id=327 -- we were
@@ -230,13 +221,8 @@ TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   ValidateNoChanges("backslash_in_regexp", input);
 }
 
-TEST_P(JavascriptFilterTest, WeirdSrcCrash) {
-  // These used to crash due to bugs in the lexer breaking invariants some
-  // filters relied on.
-  ValidateNoChanges("weird_attr", "<script src=foo<bar>Content");
-  ValidateNoChanges("weird_tag", "<script<foo>");
-}
-
+// We runs the test with GetParam() both true and false, in order to
+// test both the traditional and async flows.
 INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance,
                         JavascriptFilterTest,
                         ::testing::Bool());

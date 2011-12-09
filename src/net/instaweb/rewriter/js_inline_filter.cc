@@ -27,6 +27,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -47,7 +48,13 @@ class JsInlineFilter::Context : public InlineRewriteContext {
     filter_->RenderInline(resource, text, element);
   }
 
-  virtual const char* id() const { return RewriteOptions::kJavascriptInlineId; }
+  virtual const char* id() const {
+    // Unlike filters with output resources, which use their ID as part of URLs
+    // they make, we are not constrained to 2 characters, so we make our
+    // name (used for our cache key) nice and long so at not to worry about
+    // someone else using it.
+    return "js_inline";
+  }
 
  private:
   JsInlineFilter* filter_;
@@ -87,12 +94,24 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
     const char* src = attr->value();
     DCHECK(src != NULL);
 
-    // Initiate() transfers ownership of ctx to RewriteDriver, or deletes
-    // it on failure.
     // TODO(morlovich): Consider async/defer here; it may not be a good
     // idea to inline async scripts in particular.
-    Context* ctx = new Context(this, element, attr);
-    ctx->Initiate();
+
+    if (HasAsyncFlow()) {
+      (new Context(this, element, attr))->Initiate();
+    } else {
+      ResourcePtr resource(CreateInputResourceAndReadIfCached(src));
+      // TODO(jmaessen): Is the domain lawyer policy the appropriate one here?
+      // Or do we still have to check for strict domain equivalence?
+      // If so, add an inline-in-page policy to domainlawyer in some form,
+      // as we make a similar policy decision in css_inline_filter.
+      if ((resource.get() != NULL) && resource->ContentsValid()) {
+        StringPiece contents = resource->contents();
+        if (ShouldInline(contents)) {
+          RenderInline(resource, contents, element);
+        }
+      }
+    }
   }
   should_inline_ = false;
 }
@@ -159,6 +178,10 @@ void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
       should_inline_ = false;
     }
   }
+}
+
+bool JsInlineFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
 }
 
 }  // namespace net_instaweb

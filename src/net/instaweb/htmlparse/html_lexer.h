@@ -32,8 +32,6 @@
 
 namespace net_instaweb {
 
-class HtmlParse;
-
 // Constructs a re-entrant HTML lexer.  This lexer minimally parses tags,
 // attributes, and comments.  It is intended to parse the Wild West of the
 // Web.  It's designed to be tolerant of syntactic transgressions, merely
@@ -108,13 +106,7 @@ class HtmlLexer {
   inline void EvalLiteralTag(char c);
   inline void EvalDirective(char c);
 
-  // Makes an element based on token_, which will be parsed as the tag
-  // name.
   void MakeElement();
-
-  // Makes an element from the passed-in tag name.
-  void MakeElement(const HtmlName& name);
-
   void MakeAttribute(bool has_value);
   void FinishAttribute(char c, bool has_value, bool brief_close);
 
@@ -214,9 +206,6 @@ class HtmlLexer {
   int tag_start_line_;      // line at which we last transitioned to TAG state
   GoogleString id_;
   GoogleString literal_close_;  // specific tag go close, e.g </script>
-
-  typedef std::map<GoogleString, int> TagBag;
-  TagBag missing_close_tag_bag_;
 
   ContentType content_type_;
   DocType doctype_;

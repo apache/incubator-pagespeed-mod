@@ -25,20 +25,24 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class HtmlCharactersNode;
 class HtmlIEDirectiveNode;
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteDriver;
 class RewriteContext;
 class Statistics;
-class UrlSegmentEncoder;
+class Writer;
 
 // Implements combining of multiple external JS files into one via the
 // following transformation:
@@ -65,16 +69,12 @@ class JsCombineFilter : public RewriteFilter {
 
   // rewrite_driver is the context owning us, and filter_id is the ID we
   // are registered under.
-  explicit JsCombineFilter(RewriteDriver* rewrite_driver);
+  JsCombineFilter(RewriteDriver* rewrite_driver, const StringPiece& filter_id);
   virtual ~JsCombineFilter();
 
   // Registers the provided statistics variable names with 'statistics'.
   static void Initialize(Statistics* statistics);
-  virtual const char* id() const {
-    return RewriteOptions::kJavascriptCombinerId;
-  }
 
- protected:
   // RewriteFilter overrides --- HTML parsing event handlers.
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
@@ -83,8 +83,16 @@ class JsCombineFilter : public RewriteFilter {
   virtual void Flush();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "JsCombine"; }
+  virtual bool HasAsyncFlow() const;
   virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
+
+  // RewriteFilter override --- callback for reconstructing resource on demand.
+  virtual bool Fetch(const OutputResourcePtr& resource,
+                     Writer* writer,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
+                     MessageHandler* message_handler,
+                     UrlAsyncFetcher::Callback* callback);
 
  private:
   class JsCombiner;
@@ -113,7 +121,6 @@ class JsCombineFilter : public RewriteFilter {
   // current outermost <script> not with JavaScript we are inside, or NULL
   HtmlElement* current_js_script_;  // owned by the html parser.
   scoped_ptr<Context> context_;
-  UrlMultipartEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombineFilter);
 };

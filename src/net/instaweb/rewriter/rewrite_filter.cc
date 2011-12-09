@@ -62,12 +62,11 @@ bool RewriteFilter::ComputeOnTheFly() const {
   return false;
 }
 
-RewriteContext* RewriteFilter::MakeRewriteContext() {
-  return NULL;
+bool RewriteFilter::HasAsyncFlow() const {
+  return false;
 }
 
-RewriteContext* RewriteFilter::MakeNestedRewriteContext(
-    RewriteContext* parent, const ResourceSlotPtr& slot) {
+RewriteContext* RewriteFilter::MakeRewriteContext() {
   return NULL;
 }
 

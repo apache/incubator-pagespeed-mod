@@ -55,12 +55,6 @@ class RewriteQueryTest : public ::testing::Test {
     return options_.get();
   }
 
-  void CheckExtendCache(RewriteOptions* options, bool x) {
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheCss));
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheImages));
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheScripts));
-  }
-
   GoogleMessageHandler handler_;
   scoped_ptr<RewriteOptions> options_;
 };
@@ -85,7 +79,7 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersQuery) {
   RewriteOptions* options = ParseAndScan("ModPagespeed=on", "");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options, true);
+  EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -96,7 +90,7 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersHeaders) {
   RewriteOptions* options = ParseAndScan("", "ModPagespeed;on");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options, true);
+  EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -109,7 +103,7 @@ TEST_F(RewriteQueryTest, SetFiltersQuery) {
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRemoveQuotes));
-  CheckExtendCache(options, false);
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -122,7 +116,7 @@ TEST_F(RewriteQueryTest, SetFiltersHeaders) {
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRemoveQuotes));
-  CheckExtendCache(options, false);
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -186,20 +180,6 @@ TEST_F(RewriteQueryTest, Bots) {
   options = ParseAndScan("ModPagespeedDisableForBots=off", "");
   ASSERT_TRUE(options != NULL);
   EXPECT_FALSE(options->botdetect_enabled());
-}
-
-TEST_F(RewriteQueryTest, MultipleInt64Params) {
-  RewriteOptions* options = ParseAndScan("ModPagespeedCssInlineMaxBytes=3"
-                                         "&ModPagespeedImageInlineMaxBytes=5"
-                                         "&ModPagespeedCssImageInlineMaxBytes=7"
-                                         "&ModPagespeedJsInlineMaxBytes=11",
-                                         "");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->enabled());
-  EXPECT_EQ(3, options->css_inline_max_bytes());
-  EXPECT_EQ(5, options->ImageInlineMaxBytes());
-  EXPECT_EQ(7, options->CssImageInlineMaxBytes());
-  EXPECT_EQ(11, options->js_inline_max_bytes());
 }
 
 }  // namespace net_instaweb

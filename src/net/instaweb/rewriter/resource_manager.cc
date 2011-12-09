@@ -142,6 +142,7 @@ ResourceManager::ResourceManager(RewriteDriverFactory* factory)
       relative_path_(false),
       store_outputs_in_file_system_(true),
       block_until_completion_in_render_(false),
+      async_rewrites_(true),
       lock_manager_(NULL),
       message_handler_(NULL),
       trying_to_cleanup_rewrite_drivers_(false),
@@ -549,16 +550,17 @@ RewriteDriver* ResourceManager::NewCustomRewriteDriver(
   }
   rewrite_driver->set_custom_options(options);
   rewrite_driver->AddFilters();
-  if (factory_ != NULL) {
-    factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
-  }
   return rewrite_driver;
 }
 
 RewriteDriver* ResourceManager::NewUnmanagedRewriteDriver() {
   RewriteDriver* rewrite_driver = new RewriteDriver(
       message_handler_, file_system_, url_async_fetcher_);
+  rewrite_driver->SetAsynchronousRewrites(async_rewrites_);
   rewrite_driver->SetResourceManager(this);
+  if (factory_ != NULL) {
+    factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
+  }
   return rewrite_driver;
 }
 
@@ -568,12 +570,10 @@ RewriteDriver* ResourceManager::NewRewriteDriver() {
   if (!available_rewrite_drivers_.empty()) {
     rewrite_driver = available_rewrite_drivers_.back();
     available_rewrite_drivers_.pop_back();
+    rewrite_driver->SetAsynchronousRewrites(async_rewrites_);
   } else {
     rewrite_driver = NewUnmanagedRewriteDriver();
     rewrite_driver->AddFilters();
-    if (factory_ != NULL) {
-      factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
-    }
   }
   active_rewrite_drivers_.insert(rewrite_driver);
   return rewrite_driver;
@@ -630,7 +630,7 @@ void ResourceManager::ShutDownDrivers() {
     // trying_to_cleanup_rewrite_drivers_ is true.
     // ResourceManagerTest.ShutDownAssumptions() exists to cover this scenario.
     RewriteDriver* active = *i;
-    active->BoundedWaitFor(RewriteDriver::kWaitForShutDown, Timer::kSecondMs);
+    active->BoundedWaitForCompletion(Timer::kSecondMs);
     active->Cleanup();  // Note: only cleans up if the rewrites are complete.
     // TODO(jmarantz): rename RewriteDriver::Cleanup to CleanupIfDone.
   }

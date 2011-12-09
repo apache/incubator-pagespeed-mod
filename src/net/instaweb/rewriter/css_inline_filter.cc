@@ -54,7 +54,13 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     filter_->RenderInline(resource, base_url_, text, element);
   }
 
-  virtual const char* id() const { return RewriteOptions::kCssInlineId; }
+  virtual const char* id() const {
+    // Unlike filters with output resources, which use their ID as part of URLs
+    // they make, we are not constrained to 2 characters, so we make our
+    // name (used for our cache key) nice and long so at not to worry about
+    // someone else using it.
+    return "css_inline";
+  }
 
  private:
   CssInlineFilter* filter_;
@@ -94,10 +100,25 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
       return;  // We obviously can't inline if the URL isn't there.
     }
 
-    // Initiate() transfers posession of ctx to RewriteDriver or deletes
-    // it on failure.
-    Context* ctx = new Context(this, base_url(), element, attr);
-    ctx->Initiate();
+    if (HasAsyncFlow()) {
+      (new Context(this, base_url(), element, attr))->Initiate();
+    } else {
+      // Make sure we're not moving across domains -- CSS can potentially
+      // contain Javascript expressions.
+      // TODO(jmaessen): Is the domain lawyer policy the appropriate one here?
+      // Or do we still have to check for strict domain equivalence?
+      // If so, add an inline-in-page policy to domainlawyer in some form,
+      // as we make a similar policy decision in js_inline_filter.
+      ResourcePtr resource(CreateInputResourceAndReadIfCached(attr->value()));
+      if ((resource.get() == NULL) || !resource->ContentsValid()) {
+        return;
+      }
+
+      StringPiece contents = resource->contents();
+      if (ShouldInline(contents)) {
+        RenderInline(resource, base_url(), contents, element);
+      }
+    }
   }
 }
 
@@ -151,6 +172,10 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
         style_element,
         driver_->NewCharactersNode(element, rewritten_contents));
   }
+}
+
+bool CssInlineFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
 }
 
 }  // namespace net_instaweb

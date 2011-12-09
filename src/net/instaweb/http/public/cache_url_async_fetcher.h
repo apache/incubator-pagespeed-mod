@@ -25,10 +25,11 @@
 
 namespace net_instaweb {
 
-class AsyncFetch;
 class Histogram;
 class HTTPCache;
 class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 
 // Composes an asynchronous URL fetcher with an http cache, to
 // generate an asynchronous caching URL fetcher.
@@ -55,6 +56,8 @@ class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
   virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
 
   virtual bool Fetch(const GoogleString& url,
+                     const RequestHeaders& request_headers,
+                     ResponseHeaders* response_headers,
                      MessageHandler* message_handler,
                      AsyncFetch* base_fetch);
 

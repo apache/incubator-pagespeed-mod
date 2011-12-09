@@ -53,8 +53,6 @@ const uint64 Parser::kRulesetError;
 const uint64 Parser::kSkippedTokenError;
 const uint64 Parser::kCharsetError;
 const uint64 Parser::kBlockError;
-const uint64 Parser::kNumberError;
-const uint64 Parser::kImportError;
 
 
 // Using isascii with signed chars is unfortunately undefined.
@@ -77,9 +75,8 @@ Parser::Parser(const char* utf8text, const char* textend)
       in_(begin_),
       end_(textend),
       quirks_mode_(true),
-      preservation_mode_(false),
-      errors_seen_mask_(kNoError),
-      unparseable_sections_seen_mask_(kNoError) {
+      allow_all_values_(false),
+      errors_seen_mask_(kNoError) {
 }
 
 Parser::Parser(const char* utf8text)
@@ -87,9 +84,8 @@ Parser::Parser(const char* utf8text)
       in_(begin_),
       end_(utf8text + strlen(utf8text)),
       quirks_mode_(true),
-      preservation_mode_(false),
-      errors_seen_mask_(kNoError),
-      unparseable_sections_seen_mask_(kNoError) {
+      allow_all_values_(false),
+      errors_seen_mask_(kNoError) {
 }
 
 Parser::Parser(StringPiece s)
@@ -97,9 +93,8 @@ Parser::Parser(StringPiece s)
       in_(begin_),
       end_(s.end()),
       quirks_mode_(true),
-      preservation_mode_(false),
-      errors_seen_mask_(kNoError),
-      unparseable_sections_seen_mask_(kNoError) {
+      allow_all_values_(false),
+      errors_seen_mask_(kNoError) {
 }
 
 const int Parser::kErrorContext = 20;
@@ -288,7 +283,6 @@ UnicodeText Parser::ParseIdent(const StringPiece& allowed_chars) {
 // \abcdef => codepoint 0xabcdef.  also consumes whitespace afterwards.
 // \(UTF8-encoded unicode character) => codepoint for that character
 char32 Parser::ParseEscape() {
-  Tracer trace(__func__, &in_);
   SkipSpace();
   DCHECK_LT(in_, end_);
   DCHECK_EQ(*in_, '\\');
@@ -410,8 +404,6 @@ Value* Parser::ParseNumber() {
   }
   double num = 0;
   if (in_ == begin || !ParseDouble(begin, in_ - begin, &num)) {
-    ReportParsingError(kNumberError, StringPrintf(
-        "Failed to parse number %s", string(begin, in_ - begin).c_str()));
     return NULL;
   }
   if (*in_ == '%') {
@@ -529,11 +521,6 @@ FunctionParameters* Parser::ParseFunction() {
         separator = FunctionParameters::COMMA_SEPARATED;
         in_++;
         break;
-      case ' ':
-        // The only purpose of spaces between identifiers is as a separator.
-        // Note: separator defaults to SPACE_SEPARATED.
-        in_++;
-        break;
       default: {
         // TODO(sligocki): Should we parse Opacity=80 as a single value?
         const StringPiece allowed_chars("=");
@@ -541,11 +528,6 @@ FunctionParameters* Parser::ParseFunction() {
         if (!val.get()) {
           ReportParsingError(kFunctionError,
                              "Cannot parse parameter in function");
-          return NULL;
-        }
-        if (!Done() && *in_ != ' ' && *in_ != ',' && *in_ != ')') {
-          ReportParsingError(kFunctionError, StringPrintf(
-              "Function parameter contains unexpected char '%c'", *in_));
           return NULL;
         }
         params->AddSepValue(separator, val.release());
@@ -781,10 +763,7 @@ Value* Parser::ParseAny(const StringPiece& allowed_chars) {
     }
   }
   // Deadlock prevention: always make progress even if nothing can be parsed.
-  if (toret == NULL && in_ == oldin) {
-    ReportParsingError(kValueError, "Ignoring chars in value.");
-    ++in_;
-  }
+  if (toret == NULL && in_ == oldin) ++in_;
   return toret;
 }
 
@@ -1319,10 +1298,6 @@ Declarations* Parser::ParseRawDeclarations() {
 
   Declarations* declarations = new Declarations();
   while (in_ < end_) {
-    // decl_start is saved so that we may pass through verbatim text
-    // in case declaration could not be parsed correctly.
-    const char* decl_start = in_;
-    const uint64 start_errors_seen_mask = errors_seen_mask_;
     bool ignore_this_decl = false;
     switch (*in_) {
       case ';':
@@ -1387,9 +1362,10 @@ Declarations* Parser::ParseRawDeclarations() {
         }
 
         if (vals == NULL) {
-          ReportParsingError(kDeclarationError, StringPrintf(
-              "Failed to parse values for property %s",
-              prop.prop_text().c_str()));
+          ReportParsingError(kDeclarationError,
+                             StringPrintf(
+                                 "Failed to parse values for property %s",
+                                 prop.prop_text().c_str()));
           ignore_this_decl = true;
           break;
         }
@@ -1417,19 +1393,6 @@ Declarations* Parser::ParseRawDeclarations() {
           in_++;
           SkipSpace();
         }
-      }
-      if (preservation_mode_) {
-        // Add pseudo-declaration of verbatim text because we failed to parse
-        // this declaration correctly. This is saved so that it can be
-        // serialized back out in case it was actually meaningful even though
-        // we could not understand it.
-        StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
-        declarations->push_back(new Declaration(bytes_in_original_buffer));
-        // All errors that occurred sinse we started this declaration are
-        // demoted to unparseable sections now that we've saved the dummy
-        // element.
-        unparseable_sections_seen_mask_ |= errors_seen_mask_;
-        errors_seen_mask_ = start_errors_seen_mask;
       }
     }
   }
@@ -1750,41 +1713,20 @@ Ruleset* Parser::ParseRuleset() {
   // closing }. Then discard the whole ruleset if necessary. This allows the
   // parser to make progress anyway.
   bool success = true;
-  const char* start_pos = in_;
-  const uint64 start_errors_seen_mask = errors_seen_mask_;
 
   scoped_ptr<Ruleset> ruleset(new Ruleset());
   scoped_ptr<Selectors> selectors(ParseSelectors());
 
-  if (Done()) {
-    ReportParsingError(kSelectorError,
-                       "Selectors without declarations at end of doc.");
+  if (Done())
     return NULL;
-  }
-
-  // In preservation_mode_ we want to use verbatim text whenever we got a
-  // parsing error during selector parsing, so clear the partial parse here.
-  if (preservation_mode_ && (start_errors_seen_mask != errors_seen_mask_)) {
-    selectors.reset(NULL);
-  }
 
   if (selectors.get() == NULL) {
+    // http://www.w3.org/TR/CSS21/syndata.html#rule-sets
+    // When a user agent can't parse the selector (i.e., it is not
+    // valid CSS 2.1), it must ignore the declaration block as
+    // well.
+    success = false;
     ReportParsingError(kSelectorError, "Failed to parse selector");
-    if (preservation_mode_) {
-      selectors.reset(new Selectors(StringPiece(start_pos, in_ - start_pos)));
-      ruleset->set_selectors(selectors.release());
-      // All errors that occurred sinse we started this declaration are
-      // demoted to unparseable sections now that we've saved the dummy
-      // element.
-      unparseable_sections_seen_mask_ |= errors_seen_mask_;
-      errors_seen_mask_ = start_errors_seen_mask;
-    } else {
-      // http://www.w3.org/TR/CSS21/syndata.html#rule-sets
-      // When a user agent can't parse the selector (i.e., it is not
-      // valid CSS 2.1), it must ignore the declaration block as
-      // well.
-      success = false;
-    }
   } else {
     ruleset->set_selectors(selectors.release());
   }
@@ -1869,12 +1811,8 @@ void Parser::ParseAtrule(Stylesheet* stylesheet) {
   if (ident.utf8_length() == 6 &&
       memcasecmp(ident.utf8_data(), "import", 6) == 0) {
     scoped_ptr<Import> import(ParseImport());
-    if (import.get() && stylesheet) {
+    if (import.get() && stylesheet)
       stylesheet->mutable_imports().push_back(import.release());
-    } else {
-      ReportParsingError(kImportError, "Failed to parse import");
-      SkipPastDelimiter(';');
-    }
 
   // @charset string ;
   } else if (ident.utf8_length() == 7 &&

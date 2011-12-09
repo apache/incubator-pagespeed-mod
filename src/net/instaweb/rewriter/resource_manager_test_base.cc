@@ -25,15 +25,13 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/mem_clean_up.h"
@@ -84,7 +82,6 @@ ResourceManagerTestBase::ResourceManagerTestBase()
                                             &mock_url_fetcher_)),
       other_factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                                   &mock_url_fetcher_)),
-      use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()) {
   Init();
@@ -95,7 +92,6 @@ ResourceManagerTestBase::ResourceManagerTestBase(
     TestRewriteDriverFactory* other_factory)
     : factory_(factory),
       other_factory_(other_factory),
-      use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()) {
   Init();
@@ -121,19 +117,11 @@ void ResourceManagerTestBase::SetUp() {
 }
 
 void ResourceManagerTestBase::TearDown() {
-  if (use_managed_rewrite_drivers_) {
-    factory_->ShutDown();
-  } else {
-    rewrite_driver_->WaitForShutDown();
-
-    // We need to make sure we shutdown the threads here before
-    // deleting the driver, as the last task on the rewriter's job
-    // queue may still be wrapping up some cleanups and notifications.
-    factory_->ShutDown();
-    rewrite_driver_->Clear();
-    delete rewrite_driver_;
-  }
-  other_rewrite_driver_->WaitForShutDown();
+  rewrite_driver_->WaitForCompletion();
+  factory_->ShutDown();
+  rewrite_driver_->Clear();
+  delete rewrite_driver_;
+  other_rewrite_driver_->WaitForCompletion();
   other_factory_->ShutDown();
   other_rewrite_driver_->Clear();
   delete other_rewrite_driver_;
@@ -154,16 +142,21 @@ void ResourceManagerTestBase::AddOtherFilter(RewriteOptions::Filter filter) {
 
 void ResourceManagerTestBase::AddRewriteFilter(RewriteFilter* filter) {
   rewrite_driver_->RegisterRewriteFilter(filter);
-  rewrite_driver_->EnableRewriteFilter(filter->id());
+  rewrite_driver_->EnableRewriteFilter(filter->id().c_str());
 }
 
 void ResourceManagerTestBase::AddOtherRewriteFilter(RewriteFilter* filter) {
   other_rewrite_driver_->RegisterRewriteFilter(filter);
-  other_rewrite_driver_->EnableRewriteFilter(filter->id());
+  other_rewrite_driver_->EnableRewriteFilter(filter->id().c_str());
 }
 
 void ResourceManagerTestBase::SetBaseUrlForFetch(const StringPiece& url) {
   rewrite_driver_->SetBaseUrlForFetch(url);
+}
+
+void ResourceManagerTestBase::SetAsynchronousRewrites(bool async) {
+  rewrite_driver_->SetAsynchronousRewrites(async);
+  other_rewrite_driver_->SetAsynchronousRewrites(async);
 }
 
 void ResourceManagerTestBase::DeleteFileIfExists(const GoogleString& filename) {
@@ -220,7 +213,6 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
   // New objects for the new server.
   SimpleStats stats;
   TestRewriteDriverFactory new_factory(GTestTempDir(), &mock_url_fetcher_);
-  new_factory.SetUseTestUrlNamer(factory_->use_test_url_namer());
   new_factory.SetStatistics(&statistics_);
   ResourceManager* new_resource_manager = new_factory.CreateResourceManager();
   if (new_rms_url_namer != NULL) {
@@ -232,9 +224,15 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
   RewriteDriver* new_rewrite_driver = MakeDriver(new_resource_manager,
                                                  new_options);
   new_factory.SetupWaitFetcher();
+  new_rewrite_driver->SetAsynchronousRewrites(
+      rewrite_driver_->asynchronous_rewrites());
 
+  RequestHeaders request_headers;
   // TODO(sligocki): We should set default request headers.
-  ExpectStringAsyncFetch response_contents(true);
+  ResponseHeaders response_headers;
+  GoogleString response_contents;
+  StringWriter response_writer(&response_contents);
+  ExpectCallback callback(true);
 
   // Check that we don't already have it in cache.
   EXPECT_EQ(CacheInterface::kNotFound,
@@ -242,16 +240,17 @@ void ResourceManagerTestBase::ServeResourceFromNewContext(
 
   // Initiate fetch.
   EXPECT_EQ(true, new_rewrite_driver->FetchResource(
-      resource_url, &response_contents));
+      resource_url, request_headers, &response_headers, &response_writer,
+      &callback));
 
   // Content should not be set until we call the callback.
-  EXPECT_FALSE(response_contents.done());
-  EXPECT_EQ("", response_contents.buffer());
+  EXPECT_FALSE(callback.done());
+  EXPECT_EQ("", response_contents);
 
   // After we call the callback, it should be correct.
   new_factory.CallFetcherCallbacksForDriver(new_rewrite_driver);
-  EXPECT_EQ(true, response_contents.done());
-  EXPECT_STREQ(expected_content, response_contents.buffer());
+  EXPECT_EQ(true, callback.done());
+  EXPECT_STREQ(expected_content, response_contents);
 
   // Check that stats say we took the construct resource path.
   RewriteStats* new_stats = new_factory.rewrite_stats();
@@ -357,18 +356,21 @@ bool ResourceManagerTestBase::ServeResourceUrl(
 bool ResourceManagerTestBase::ServeResourceUrl(
     const StringPiece& url, GoogleString* content, ResponseHeaders* response) {
   content->clear();
-  StringAsyncFetch async_fetch(content);
-  async_fetch.set_response_headers(response);
-  bool fetched = rewrite_driver_->FetchResource(url, &async_fetch);
+  RequestHeaders request_headers;
+  StringWriter writer(content);
+  MockCallback callback;
+  bool fetched = rewrite_driver_->FetchResource(
+      url, request_headers, response, &writer, &callback);
 
-  // Make sure we let the rewrite complete, and also wait for the driver to be
-  // idle so we can reuse it safely.
-  rewrite_driver_->WaitForShutDown();
+  // We call WaitForCompletion when testing the serving of rewritten
+  // resources, because that's how the server will work.  It will
+  // complete the Rewrite independent of how long it takes.
+  rewrite_driver_->WaitForCompletion();
   rewrite_driver_->Clear();
 
   // The callback should be called if and only if FetchResource returns true.
-  EXPECT_EQ(fetched, async_fetch.done());
-  return fetched && async_fetch.success();
+  EXPECT_EQ(fetched, callback.done());
+  return fetched && callback.success();
 }
 
 void ResourceManagerTestBase::TestServeFiles(
@@ -493,7 +495,7 @@ bool ResourceManagerTestBase::CssLink::DecomposeCombinedUrl(
     gurl.AllExceptLeaf().CopyToString(base);
     ResourceNamer namer;
     if (namer.Decode(gurl.LeafWithQuery()) &&
-        (namer.id() == RewriteOptions::kCssCombinerId)) {
+        (namer.id() == RewriteDriver::kCssCombinerId)) {
       UrlMultipartEncoder multipart_encoder;
       GoogleString segment;
       ret = multipart_encoder.Decode(namer.name(), segments, NULL, handler);
@@ -560,12 +562,9 @@ void ResourceManagerTestBase::CollectCssLinks(
 
 void ResourceManagerTestBase::EncodePathAndLeaf(const StringPiece& id,
                                                 const StringPiece& hash,
-                                                const StringVector& name_vector,
+                                                const StringPiece& name,
                                                 const StringPiece& ext,
                                                 ResourceNamer* namer) {
-  namer->set_id(id);
-  namer->set_hash(hash);
-
   // We only want to encode the last path-segment of 'name'.
   // Note that this block of code could be avoided if all call-sites
   // put subdirectory info in the 'path' argument, but it turns out
@@ -573,88 +572,63 @@ void ResourceManagerTestBase::EncodePathAndLeaf(const StringPiece& id,
   // in the 'name' argument for this method, so the one-time effort of
   // teasing out the leaf and encoding that saves a whole lot of clutter
   // in, at least, CacheExtenderTest.
-  //
-  // Note that this can only be done for 1-element name_vectors.
-  for (int i = 0, n = name_vector.size(); i < n; ++i) {
-    const GoogleString& name = name_vector[i];
-    CHECK(name.find('/') == GoogleString::npos) << "No slashes should be "
-        "found in " << name << " but we found at least one.  "
-        "Put it in the path";
-  }
+  namer->set_id(id);
+  namer->set_hash(hash);
 
-  ResourceContext context;
-  const UrlSegmentEncoder* encoder = FindEncoder(id);
+  StringPieceVector path_vector;
+  SplitStringPieceToVector(name, "/", &path_vector, false);
+  UrlSegmentEncoder encoder;
   GoogleString encoded_name;
-  encoder->Encode(name_vector, &context, &encoded_name);
-  namer->set_name(encoded_name);
-  namer->set_ext(ext);
-}
+  StringVector v;
+  CHECK_LT(0U, path_vector.size());
+  v.push_back(path_vector[path_vector.size() - 1].as_string());
+  encoder.Encode(v, NULL, &encoded_name);
 
-const UrlSegmentEncoder* ResourceManagerTestBase::FindEncoder(
-    const StringPiece& id) const {
-  RewriteFilter* filter = rewrite_driver_->FindFilter(id);
-  ResourceContext context;
-  return (filter == NULL) ? &default_encoder_ : filter->encoder();
+  // Now reconstruct the path.
+  GoogleString pathname;
+  for (int i = 0, n = path_vector.size() - 1; i < n; ++i) {
+    path_vector[i].AppendToString(&pathname);
+    pathname += "/";
+  }
+  pathname += encoded_name;
+
+  namer->set_name(pathname);
+  namer->set_ext(ext);
 }
 
 GoogleString ResourceManagerTestBase::Encode(const StringPiece& path,
                                              const StringPiece& id,
                                              const StringPiece& hash,
-                                             const StringVector& name_vector,
+                                             const StringPiece& name,
                                              const StringPiece& ext) {
-  return EncodeWithBase(kTestDomain, path, id, hash, name_vector, ext);
+  return EncodeWithBase(kTestDomain, path, id, hash, name, ext);
 }
 
-GoogleString ResourceManagerTestBase::EncodeNormal(
-    const StringPiece& path,
-    const StringPiece& id,
-    const StringPiece& hash,
-    const StringVector& name_vector,
-    const StringPiece& ext) {
+GoogleString ResourceManagerTestBase::EncodeNormal(const StringPiece& path,
+                                                   const StringPiece& id,
+                                                   const StringPiece& hash,
+                                                   const StringPiece& name,
+                                                   const StringPiece& ext) {
   ResourceNamer namer;
-  EncodePathAndLeaf(id, hash, name_vector, ext, &namer);
+  EncodePathAndLeaf(id, hash, name, ext, &namer);
   return StrCat(path, namer.Encode());
 }
 
-GoogleString ResourceManagerTestBase::EncodeWithBase(
-    const StringPiece& base,
-    const StringPiece& path,
-    const StringPiece& id,
-    const StringPiece& hash,
-    const StringVector& name_vector,
-    const StringPiece& ext) {
-  if (factory()->use_test_url_namer() &&
-      !TestUrlNamer::UseNormalEncoding() &&
+GoogleString ResourceManagerTestBase::EncodeWithBase(const StringPiece& base,
+                                                     const StringPiece& path,
+                                                     const StringPiece& id,
+                                                     const StringPiece& hash,
+                                                     const StringPiece& name,
+                                                     const StringPiece& ext) {
+  if (TestRewriteDriverFactory::UsingTestUrlNamer() &&
       !options()->domain_lawyer()->can_rewrite_domains() &&
       !path.empty()) {
     ResourceNamer namer;
-    EncodePathAndLeaf(id, hash, name_vector, ext, &namer);
-    GoogleUrl path_gurl(path);
-    if (path_gurl.is_valid()) {
-      return TestUrlNamer::EncodeUrl(base, path_gurl.Origin(),
-                                     path_gurl.PathSansLeaf(), namer);
-    } else {
-      return TestUrlNamer::EncodeUrl(base, "", path, namer);
-    }
+    EncodePathAndLeaf(id, hash, name, ext, &namer);
+    return TestUrlNamer::EncodeUrl(base, path, "/", namer);
   }
 
-  return EncodeNormal(path, id, hash, name_vector, ext);
-}
-
-// Helper function which instantiates an encoder, collects the
-// required arguments and calls the virtual Encode().
-GoogleString ResourceManagerTestBase::EncodeCssName(const StringPiece& name,
-                                                    bool supports_webp,
-                                                    bool can_inline) {
-  CssUrlEncoder encoder;
-  ResourceContext resource_context;
-  resource_context.set_inline_images(can_inline);
-  resource_context.set_attempt_webp(supports_webp);
-  StringVector urls;
-  GoogleString encoded_url;
-  name.CopyToString(StringVectorAdd(&urls));
-  encoder.Encode(urls, &resource_context, &encoded_url);
-  return encoded_url;
+  return EncodeNormal(path, id, hash, name, ext);
 }
 
 void ResourceManagerTestBase::SetupWaitFetcher() {
@@ -665,11 +639,6 @@ void ResourceManagerTestBase::CallFetcherCallbacks() {
   factory_->CallFetcherCallbacksForDriver(rewrite_driver_);
 }
 
-void ResourceManagerTestBase::SetUseManagedRewriteDrivers(
-    bool use_managed_rewrite_drivers) {
-  use_managed_rewrite_drivers_ = use_managed_rewrite_drivers;
-}
-
 RewriteDriver* ResourceManagerTestBase::MakeDriver(
     ResourceManager* resource_manager, RewriteOptions* options) {
   // We use unmanaged drivers rather than NewCustomDriver here so
@@ -678,23 +647,19 @@ RewriteDriver* ResourceManagerTestBase::MakeDriver(
   //
   // TODO(jmarantz): change call-sites to make this use a more
   // standard flow.
-  RewriteDriver* rd;
-  if (!use_managed_rewrite_drivers_) {
-    rd = resource_manager->NewUnmanagedRewriteDriver();
-    rd->set_externally_managed(true);
-    rd->set_custom_options(options);
-  } else {
-    rd = resource_manager->NewCustomRewriteDriver(options);
-  }
+  RewriteDriver* rd = resource_manager->NewUnmanagedRewriteDriver();
+  rd->set_custom_options(options);
   // As we are using mock time, we need to set a consistent deadline here,
   // as otherwise when running under Valgrind some tests will finish
   // with different HTML headers than expected.
   rd->set_rewrite_deadline_ms(20);
+  rd->set_externally_managed(true);
   return rd;
 }
 
 void ResourceManagerTestBase::TestRetainExtraHeaders(
     const StringPiece& name,
+    const StringPiece& encoded_name,
     const StringPiece& filter_id,
     const StringPiece& ext) {
   GoogleString url = AbsolutifyUrl(name);
@@ -706,8 +671,8 @@ void ResourceManagerTestBase::TestRetainExtraHeaders(
 
   GoogleString content;
   ResponseHeaders response;
-
-  GoogleString rewritten_url = Encode(kTestDomain, filter_id, "0", name, ext);
+  GoogleString rewritten_url = Encode(kTestDomain, filter_id, "0",
+                                      encoded_name, ext);
   ASSERT_TRUE(ServeResourceUrl(rewritten_url, &content, &response));
 
   // Extra non-blacklisted header is preserved.
@@ -737,13 +702,6 @@ void ResourceManagerTestBase::ClearStats() {
 
 void ResourceManagerTestBase::SetCacheDelayUs(int64 delay_us) {
   factory_->mock_time_cache()->set_delay_us(delay_us);
-}
-
-void ResourceManagerTestBase::SetUseTestUrlNamer(bool use_test_url_namer) {
-  factory_->SetUseTestUrlNamer(use_test_url_namer);
-  resource_manager_->set_url_namer(factory_->url_namer());
-  other_factory_->SetUseTestUrlNamer(use_test_url_namer);
-  other_resource_manager_->set_url_namer(other_factory_->url_namer());
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

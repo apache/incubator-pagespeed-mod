@@ -212,8 +212,8 @@ CachedResult* RewriteSingleResourceFilter::RewriteExternalResource(
   }
   OutputResourcePtr output_resource(
       driver_->CreateOutputResourceFromResource(
-          id(), encoder(), data, input_resource, kind,
-          true /* async - rip out parameter */));
+          filter_prefix_, encoder(), data, input_resource, kind,
+          HasAsyncFlow()));
   if (output_resource.get() == NULL) {
     return NULL;
   }

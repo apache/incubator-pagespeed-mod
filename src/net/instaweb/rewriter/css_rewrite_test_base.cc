@@ -22,6 +22,7 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -85,11 +86,14 @@ GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
     const StringPiece& filter_id,
     const ContentType& content_type) {
   GoogleUrl original_gurl(original_url);
-  DCHECK(original_gurl.is_valid());
-  return EncodeWithBase(original_gurl.Origin(),
-                        original_gurl.AllExceptLeaf(), filter_id,
-                        hasher()->Hash(expected_contents),
-                        original_gurl.LeafWithQuery(),
+  StringPiece path_and_leaf(original_gurl.PathAndLeaf());
+  GoogleString origin = original_gurl.Origin().as_string();
+  // EncodeWithBase needs the origin to end with a slash and the path to
+  // not start with one.
+  EnsureEndsInSlash(&origin);
+  path_and_leaf.remove_prefix(1);
+  return EncodeWithBase(origin, origin, filter_id,
+                        hasher()->Hash(expected_contents), path_and_leaf,
                         content_type.file_extension() + 1);  // +1 to skip '.'
 }
 
@@ -97,7 +101,7 @@ GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
 void CssRewriteTestBase::GetNamerForCss(const StringPiece& id,
                                         const GoogleString& expected_css_output,
                                         ResourceNamer* namer) {
-  namer->set_id(RewriteOptions::kCssFilterId);
+  namer->set_id(RewriteDriver::kCssFilterId);
   namer->set_hash(hasher()->Hash(expected_css_output));
   namer->set_ext("css");
   namer->set_name(StrCat(id, ".css"));
@@ -217,6 +221,22 @@ void CssRewriteTestBase::TestCorruptUrl(const char* junk,
   ValidateRewriteExternalCss(
       "rep", kInput, kOutput,
       kExpectChange | kExpectSuccess | kNoClearFetcher | kNoStatCheck);
+}
+
+bool CssRewriteTestBase::SkipAndWarnIfAsync() {
+  if (rewrite_driver()->asynchronous_rewrites()) {
+    LOG(ERROR) << "Skipping test in async mode!";
+    return true;
+  }
+  return false;
+}
+
+bool CssRewriteTestBase::SkipAndWarnIfSync() {
+  if (!rewrite_driver()->asynchronous_rewrites()) {
+    LOG(ERROR) << "Skipping test in sync mode!";
+    return true;
+  }
+  return false;
 }
 
 }  // namespace net_instaweb

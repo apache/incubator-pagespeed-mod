@@ -23,21 +23,16 @@
 #include <cstddef>
 
 #include "base/scoped_ptr.h"            // for scoped_ptr
-#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -46,16 +41,16 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/worker_test_base.h"
 
 namespace net_instaweb {
 
-class HtmlFilter;
 class MessageHandler;
 
 namespace {
@@ -63,24 +58,23 @@ namespace {
 const char kCssContent[] = "* { display: none; }";
 const char kMinimizedCssContent[] = "*{display:none}";
 
-// Like ExpectStringAsyncFetch but for asynchronous invocation -- it lets
+// Like ExpectCallback but for asynchronous invocation -- it lets
 // one specify a WorkerTestBase::SyncPoint to help block until completion.
-class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
+class AsyncExpectCallback : public ExpectCallback {
  public:
-  AsyncExpectStringAsyncFetch(bool expect_success,
-                              WorkerTestBase::SyncPoint* notify)
-      : ExpectStringAsyncFetch(expect_success), notify_(notify) {}
+  AsyncExpectCallback(bool expect_success, WorkerTestBase::SyncPoint* notify)
+      : ExpectCallback(expect_success), notify_(notify) {}
 
-  virtual ~AsyncExpectStringAsyncFetch() {}
+  virtual ~AsyncExpectCallback() {}
 
-  virtual void HandleDone(bool success) {
-    ExpectStringAsyncFetch::HandleDone(success);
+  virtual void Done(bool success) {
+    ExpectCallback::Done(success);
     notify_->Notify();
   }
 
  private:
   WorkerTestBase::SyncPoint* notify_;
-  DISALLOW_COPY_AND_ASSIGN(AsyncExpectStringAsyncFetch);
+  DISALLOW_COPY_AND_ASSIGN(AsyncExpectCallback);
 };
 
 // This class creates a proxy URL naming rule that encodes an "owner" domain
@@ -138,28 +132,6 @@ class ProxyUrlNamer : public UrlNamer {
 
 const char ProxyUrlNamer::kProxyHost[] = "proxy_host.com";
 
-// Mock filter which gets passed to the new rewrite driver created in
-// proxy_fetch. We need this to ascertain that start_time_ms is set correctly.
-class MockFilter : public EmptyHtmlFilter {
- public:
-  MockFilter(RewriteDriver* driver, int64* request_start_time_ms)
-      : driver_(driver),
-        request_start_time_ms_(request_start_time_ms) {
-  }
-
-  virtual void StartDocument() {
-    *request_start_time_ms_ = driver_->start_time_ms();
-  }
-
-  virtual const char* Name() const { return "MockFilter"; }
-
- private:
-  RewriteDriver* driver_;
-  int64* request_start_time_ms_;
-};
-
-class FilterCallback;
-
 // TODO(morlovich): This currently relies on ResourceManagerTestBase to help
 // setup fetchers; and also indirectly to prevent any rewrites from timing out
 // (as it runs the tests with real scheduler but mock timer). It would probably
@@ -168,9 +140,7 @@ class ProxyInterfaceTest : public ResourceManagerTestBase {
  protected:
   static const int kHtmlCacheTimeSec = 5000;
 
-  ProxyInterfaceTest()
-      : max_age_300_("max-age=300"),
-        request_start_time_ms_(-1) {
+  ProxyInterfaceTest() : max_age_300_("max-age=300") {
     ConvertTimeToString(MockTimer::kApr_5_2010_ms, &start_time_string_);
     ConvertTimeToString(MockTimer::kApr_5_2010_ms + 5 * Timer::kMinuteMs,
                         &start_time_plus_300s_string_);
@@ -184,8 +154,6 @@ class ProxyInterfaceTest : public ResourceManagerTestBase {
     options->ClearSignatureForTesting();
     options->EnableFilter(RewriteOptions::kRewriteCss);
     options->set_max_html_cache_time_ms(kHtmlCacheTimeSec * Timer::kSecondMs);
-    options->set_ajax_rewriting_enabled(true);
-    options->Disallow("*blacklist*");
     resource_manager()->ComputeSignature(options);
     ResourceManagerTestBase::SetUp();
     ProxyInterface::Initialize(statistics());
@@ -216,19 +184,18 @@ class ProxyInterfaceTest : public ResourceManagerTestBase {
                       bool expect_success,
                       GoogleString* string_out,
                       ResponseHeaders* headers_out) {
+    StringWriter writer(string_out);
     WorkerTestBase::SyncPoint sync(resource_manager()->thread_system());
-    AsyncExpectStringAsyncFetch callback(expect_success, &sync);
-    callback.set_response_headers(headers_out);
-    callback.request_headers()->CopyFrom(request_headers);
-    bool already_done = proxy_interface_->Fetch(AbsolutifyUrl(url),
-                                                message_handler(), &callback);
+    AsyncExpectCallback callback(expect_success, &sync);
+    bool already_done =
+        proxy_interface_->StreamingFetch(
+            AbsolutifyUrl(url), request_headers, headers_out, &writer,
+            message_handler(), &callback);
     if (already_done) {
       EXPECT_TRUE(callback.done());
     } else {
       sync.Wait();
     }
-    mock_scheduler()->AwaitQuiescence();
-    *string_out = callback.buffer();
   }
 
   void CheckHeaders(const ResponseHeaders& headers,
@@ -255,65 +222,15 @@ class ProxyInterfaceTest : public ResourceManagerTestBase {
     return options_success.first;
   }
 
-  // Serve a trivial HTML page with initial Cache-Control header set to
-  // input_cache_control and return the Cache-Control header after running
-  // through ProxyInterface.
-  //
-  // A unique id must be set to assure different websites are requested.
-  // id is put in a URL, so it probably shouldn't have spaces and other
-  // special chars.
-  GoogleString RewriteHtmlCacheHeader(const StringPiece& id,
-                                      const StringPiece& input_cache_control) {
-    GoogleString url = StrCat("http://www.example.com/", id, ".html");
-    ResponseHeaders input_headers;
-    DefaultResponseHeaders(kContentTypeHtml, 100, &input_headers);
-    input_headers.Replace(HttpAttributes::kCacheControl, input_cache_control);
-    SetFetchResponse(url, input_headers, "<body>Foo</body>");
-
-    GoogleString body;
-    ResponseHeaders output_headers;
-    FetchFromProxy(url, true, &body, &output_headers);
-    ConstStringStarVector values;
-    output_headers.Lookup(HttpAttributes::kCacheControl, &values);
-    return JoinStringStar(values, ", ");
-  }
-
-  void CheckExtendCache(RewriteOptions* options, bool x) {
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheCss));
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheImages));
-    EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheScripts));
-  }
-
   scoped_ptr<ProxyInterface> proxy_interface_;
   int64 start_time_ms_;
   GoogleString start_time_string_;
   GoogleString start_time_plus_300s_string_;
   GoogleString old_time_string_;
   const GoogleString max_age_300_;
-  int64 request_start_time_ms_;
 
  private:
-  friend class FilterCallback;
-
   DISALLOW_COPY_AND_ASSIGN(ProxyInterfaceTest);
-};
-
-class FilterCallback : public TestRewriteDriverFactory::CreateFilterCallback {
- public:
-  FilterCallback(ProxyInterfaceTest* proxy_interface)
-      : proxy_interface_(proxy_interface) {
-  }
-
-  virtual HtmlFilter* Done(RewriteDriver* driver) {
-    return new MockFilter(driver, &proxy_interface_->request_start_time_ms_);
-  }
-
-  virtual ~FilterCallback() {}
-
- private:
-  ProxyInterfaceTest* proxy_interface_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilterCallback);
 };
 
 TEST_F(ProxyInterfaceTest, FetchFailure) {
@@ -332,36 +249,6 @@ TEST_F(ProxyInterfaceTest, PassThrough404) {
   FetchFromProxy("404", true, &text, &headers);
   ASSERT_TRUE(headers.has_status_code());
   EXPECT_EQ(HttpStatus::kNotFound, headers.status_code());
-}
-
-TEST_F(ProxyInterfaceTest, RequestStartTimeHeader) {
-  GoogleString url = "http://www.example.com/";
-  GoogleString text;
-  RequestHeaders request_headers;
-  ResponseHeaders headers;
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  mock_url_fetcher_.SetResponse("http://www.example.com/", headers,
-                                "<html></html>");
-  // We need custom options so that NewCustomRewriteDriver gets created.
-  // This is needed so that AddPlatformSpecificRewritePasses gets called.
-  scoped_ptr<RewriteOptions> custom_options(factory()->NewRewriteOptions());
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  resource_manager()->set_url_namer(&url_namer);
-
-  FilterCallback callback(this);
-  factory_->AddCreateFilterCallback(&callback);
-
-  // Request start time header not set.
-  FetchFromProxy(url, request_headers, true, &text, &headers);
-  EXPECT_EQ(0, request_start_time_ms_);
-
-  // Request start time header set.
-  request_headers.Add(kRequestStartTimeHeader,
-                       Integer64ToString(10));
-  FetchFromProxy(url, request_headers, true, &text, &headers);
-  EXPECT_EQ(10, request_start_time_ms_);
 }
 
 TEST_F(ProxyInterfaceTest, PassThroughResource) {
@@ -390,13 +277,9 @@ TEST_F(ProxyInterfaceTest, SetCookieNotCached) {
   FetchFromProxy("text.txt", true, &text, &response_headers);
   EXPECT_STREQ("cookie", response_headers.Lookup1(HttpAttributes::kSetCookie));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // The next response that is served from cache does not have any Set-Cookie
   // headers.
   GoogleString text2;
@@ -404,11 +287,8 @@ TEST_F(ProxyInterfaceTest, SetCookieNotCached) {
   FetchFromProxy("text.txt", true, &text2, &response_headers2);
   EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie));
   EXPECT_EQ(kContent, text2);
-  // The HTTP response is found but the ajax metadata is not found.
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
 }
 
 TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
@@ -425,13 +305,9 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   FetchFromProxy("text.txt", true, &text, &response_headers);
   EXPECT_STREQ("cookie", response_headers.Lookup1(HttpAttributes::kSetCookie2));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // The next response that is served from cache does not have any Set-Cookie
   // headers.
   GoogleString text2;
@@ -439,11 +315,8 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   FetchFromProxy("text.txt", true, &text2, &response_headers2);
   EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie2));
   EXPECT_EQ(kContent, text2);
-  // The HTTP response is found but the ajax metadata is not found.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
@@ -460,7 +333,6 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
   GoogleString text;
   ResponseHeaders response_headers;
   FetchFromProxy("text.css", true, &text, &response_headers);
-
   EXPECT_STREQ(max_age_300_,
                response_headers.Lookup1(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_300s_string_,
@@ -468,18 +340,13 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata, one for the HTTP response and one by the css
-  // filter which looks up metadata while rewriting. None are found.
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // Fetch again from cache. It has the same caching headers.
   text.clear();
   response_headers.Clear();
   FetchFromProxy("text.css", true, &text, &response_headers);
-
   EXPECT_STREQ(max_age_300_,
                response_headers.Lookup1(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_300s_string_,
@@ -487,10 +354,8 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
-  // One hit for ajax metadata and one for the HTTP response.
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 }
 
 TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
@@ -512,13 +377,9 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // Fetch again. Not found in cache.
   text.clear();
   response_headers.Clear();
@@ -527,66 +388,8 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
-}
-
-TEST_F(ProxyInterfaceTest, EtagsAddedWhenAbsent) {
-  ResponseHeaders headers;
-  const char kContent[] = "A very compelling article";
-  SetDefaultLongCacheHeaders(&kContentTypeText, &headers);
-  headers.RemoveAll(HttpAttributes::kEtag);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.txt"), headers, kContent);
-
-  // The first response served by the fetcher has no Etag in the response.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("text.txt", true, &text, &response_headers);
-  EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
-  EXPECT_EQ(NULL, response_headers.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
   EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  ClearStats();
-
-  // An Etag is added before writing to cache. The next response is served from
-  // cache and has an Etag.
-  GoogleString text2;
-  ResponseHeaders response_headers2;
-  FetchFromProxy("text.txt", true, &text2, &response_headers2);
-  EXPECT_EQ(HttpStatus::kOK, response_headers2.status_code());
-  EXPECT_STREQ("W/PSA-0", response_headers2.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ(kContent, text2);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  ClearStats();
-
-  // The Etag matches and a 304 is served out.
-  GoogleString text3;
-  ResponseHeaders response_headers3;
-  RequestHeaders request_headers;
-  request_headers.Add(HttpAttributes::kIfNoneMatch, "W/PSA-0");
-  FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
-  EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ("", text3);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
 }
 
 TEST_F(ProxyInterfaceTest, EtagMatching) {
@@ -604,14 +407,9 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
   EXPECT_STREQ("etag", response_headers.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // The next response is served from cache.
   GoogleString text2;
   ResponseHeaders response_headers2;
@@ -619,13 +417,8 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kOK, response_headers2.status_code());
   EXPECT_STREQ("etag", response_headers2.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text2);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  ClearStats();
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
   // The Etag matches and a 304 is served out.
   GoogleString text3;
@@ -636,14 +429,9 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
   EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ("", text3);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
+  EXPECT_EQ(2, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
 
-  ClearStats();
   // The Etag doesn't match and the full response is returned.
   GoogleString text4;
   ResponseHeaders response_headers4;
@@ -652,12 +440,8 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   EXPECT_EQ(HttpStatus::kOK, response_headers4.status_code());
   EXPECT_STREQ("etag", response_headers4.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text4);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
+  EXPECT_EQ(3, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
 }
 
 TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
@@ -676,14 +460,9 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata and one for the HTTP response. Neither are
-  // found.
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // The next response is served from cache.
   GoogleString text2;
   ResponseHeaders response_headers2;
@@ -692,14 +471,9 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_STREQ(start_time_string_,
                response_headers2.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ(kContent, text2);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(1, lru_cache()->num_misses());
 
-  ClearStats();
   // The last modified timestamp matches and a 304 is served out.
   GoogleString text3;
   ResponseHeaders response_headers3;
@@ -709,14 +483,9 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
   EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ("", text3);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.
+  EXPECT_EQ(2, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
 
-  ClearStats();
   // The last modified timestamp doesn't match and the full response is
   // returned.
   GoogleString text4;
@@ -728,128 +497,8 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   EXPECT_STREQ(start_time_string_,
                response_headers4.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ(kContent, text4);
-  // One lookup for ajax metadata and one for the HTTP response. The metadata is
-  // not found but the HTTP response is found.`
+  EXPECT_EQ(3, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-}
-
-TEST_F(ProxyInterfaceTest, AjaxRewritingForCss) {
-  ResponseHeaders headers;
-  mock_timer()->SetTimeUs(MockTimer::kApr_5_2010_ms * Timer::kMsUs);
-  headers.Add(HttpAttributes::kContentType, kContentTypeCss.mime_type());
-  headers.SetDate(MockTimer::kApr_5_2010_ms);
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.css"), headers, kCssContent);
-
-  // The first response served by the fetcher and is not rewritten. An ajax
-  // rewrite is triggered.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("text.css", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kCssContent, text);
-  // One lookup for ajax metadata, one for the HTTP response and one by the css
-  // filter which looks up metadata while rewriting. None are found.
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, lru_cache()->num_hits());
-
-  ClearStats();
-  // The rewrite is complete and the optimized version is served.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.css", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kMinimizedCssContent, text);
-  // One hit for ajax metadata and one for the rewritten HTTP response.
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-}
-
-TEST_F(ProxyInterfaceTest, AjaxRewritingDisabledByGlobalDisable) {
-  RewriteOptions* options = resource_manager()->global_options();
-  options->ClearSignatureForTesting();
-  options->set_enabled(false);
-  resource_manager()->ComputeSignature(options);
-
-  InitResponseHeaders("a.css", kContentTypeCss, kCssContent,
-                      kHtmlCacheTimeSec * 2);
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("a.css", true, &text, &response_headers);
-  // First fetch will not get rewritten no matter what.
-  EXPECT_STREQ(kCssContent, text);
-
-  // Second fetch would get minified if ajax rewriting were on; but
-  // it got disabled by the global toggle.
-  text.clear();
-  FetchFromProxy("a.css", true, &text, &response_headers);
-  EXPECT_STREQ(kCssContent, text);
-}
-
-TEST_F(ProxyInterfaceTest, AjaxRewritingSkippedIfBlacklisted) {
-  ResponseHeaders headers;
-  mock_timer()->SetTimeUs(MockTimer::kApr_5_2010_ms * Timer::kMsUs);
-  headers.Add(HttpAttributes::kContentType, kContentTypeCss.mime_type());
-  headers.SetDate(MockTimer::kApr_5_2010_ms);
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("blacklist.css"), headers, kCssContent);
-
-  // The first response is served by the fetcher. Since the url is blacklisted,
-  // no ajax rewriting happens.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("blacklist.css", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kCssContent, text);
-  // Since no ajax rewriting happens, there is only a single cache lookup for
-  // the resource.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, lru_cache()->num_hits());
-
-  ClearStats();
-  // The same thing happens on the second request.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("blacklist.css", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kCssContent, text);
-  // The resource is found in cache this time.
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
 }
 
 TEST_F(ProxyInterfaceTest, EatCookiesOnReconstructFailure) {
@@ -902,36 +551,6 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
   EXPECT_EQ(kMinimizedCssContent, text);
 }
 
-TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtml) {
-  // Blacklisted URL should not be rewritten.
-  InitResponseHeaders("blacklist.html", kContentTypeHtml,
-                      CssLinkHref("a.css"), kHtmlCacheTimeSec * 2),
-  InitResponseHeaders("a.css", kContentTypeCss, kCssContent,
-                      kHtmlCacheTimeSec * 2);
-
-  GoogleString text;
-  ResponseHeaders headers;
-  FetchFromProxy("blacklist.html", true, &text, &headers);
-  CheckHeaders(headers, kContentTypeHtml);
-  EXPECT_EQ(CssLinkHref("a.css"), text);
-}
-
-TEST_F(ProxyInterfaceTest, DontRewriteMislabeledAsHtml) {
-  // Make sure we don't rewrite things that claim to be HTML, but aren't.
-  GoogleString text;
-  ResponseHeaders headers;
-
-  InitResponseHeaders("page.js", kContentTypeHtml,
-                      StrCat("//", CssLinkHref("a.css")),
-                      kHtmlCacheTimeSec * 2);
-  InitResponseHeaders("a.css", kContentTypeCss, kCssContent,
-                      kHtmlCacheTimeSec * 2);
-
-  FetchFromProxy("page.js", true, &text, &headers);
-  CheckHeaders(headers, kContentTypeHtml);
-  EXPECT_EQ(StrCat("//", CssLinkHref("a.css")), text);
-}
-
 TEST_F(ProxyInterfaceTest, ReconstructResource) {
   GoogleString text;
   ResponseHeaders headers;
@@ -965,23 +584,19 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // By default, cache extension is off in the default options.
   resource_manager()->global_options()->SetDefaultRewriteLevel(
       RewriteOptions::kPassThrough);
-  ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheCss));
-  ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheImages));
-  ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheScripts));
+  ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCache));
   ASSERT_EQ(RewriteOptions::kPassThrough, options()->level());
 
   // Because cache-extension was turned off, the image in the CSS file
   // will not be changed.
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", true, &text, &headers);
+  FetchFromProxy("embedded.css.pagespeed.cf.0.css", true, &text, &headers);
   EXPECT_EQ(orig_css, text);
 
   // Now turn on cache-extension for custom options.  Invalidate cache entries
   // up to and including the current timestamp and advance by 1ms, otherwise
   // the previously stored embedded.css.pagespeed.cf.0.css will get re-used.
   scoped_ptr<RewriteOptions> custom_options(factory()->NewRewriteOptions());
-  custom_options->EnableFilter(RewriteOptions::kExtendCacheCss);
-  custom_options->EnableFilter(RewriteOptions::kExtendCacheImages);
-  custom_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
+  custom_options->EnableFilter(RewriteOptions::kExtendCache);
   custom_options->set_cache_invalidation_timestamp(mock_timer()->NowMs());
   mock_timer()->AdvanceUs(Timer::kMsUs);
 
@@ -997,7 +612,7 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // Now when we fetch the options, we'll find the image in the CSS
   // cache-extended.
   text.clear();
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", true, &text, &headers);
+  FetchFromProxy("embedded.css.pagespeed.cf.0.css", true, &text, &headers);
   EXPECT_EQ(StringPrintf(kCssWithEmbeddedImage,
                          kExtendedBackgroundImage.c_str()),
             text);
@@ -1019,7 +634,7 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithNoUrlNamerOptions) {
       request_headers, NULL));
   ASSERT_TRUE(options.get() != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), true);
+  EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineJavascript));
 
@@ -1028,7 +643,7 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithNoUrlNamerOptions) {
       "http://example.com/?ModPagespeedFilters=extend_cache",
       request_headers, NULL));
   ASSERT_TRUE(options.get() != NULL);
-  CheckExtendCache(options.get(), true);
+  EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineJavascript));
 
@@ -1060,7 +675,7 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
   // options as domain options provided as argument.
   ASSERT_TRUE(options.get() != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), false);
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineJavascript));
 
@@ -1070,7 +685,7 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
       request_headers, &namer_options));
   ASSERT_TRUE(options.get() != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), true);
+  EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineJavascript));
 
@@ -1083,7 +698,7 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
       request_headers, &namer_options));
   ASSERT_TRUE(options.get() != NULL);
   EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), false);
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCache));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineJavascript));
 
@@ -1300,28 +915,6 @@ TEST_F(ProxyInterfaceTest, RepairMismappedResource) {
   FetchFromProxy(
       StrCat("http://", ProxyUrlNamer::kProxyHost, "/test.com/evil.com/foo.js"),
       false, &text, &headers);
-}
-
-// Test that we serve "Cache-Control: no-store" only when original page did.
-TEST_F(ProxyInterfaceTest, NoStore) {
-  RewriteOptions* options = resource_manager()->global_options();
-  options->ClearSignatureForTesting();
-  options->set_max_html_cache_time_ms(0);
-  resource_manager()->ComputeSignature(options);
-
-  // Most headers get converted to "no-cache, max-age=0".
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("empty", ""));
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("private", "private, max-age=100"));
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("no-cache", "no-cache"));
-
-  // Headers with "no-store", preserve that header as well.
-  EXPECT_STREQ("max-age=0, no-cache, no-store",
-               RewriteHtmlCacheHeader("no-store", "no-cache, no-store"));
-  EXPECT_STREQ("max-age=0, no-cache, no-store",
-               RewriteHtmlCacheHeader("no-store2", "no-store, max-age=300"));
 }
 
 }  // namespace

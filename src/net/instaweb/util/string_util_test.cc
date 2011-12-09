@@ -297,16 +297,6 @@ TEST(StringCaseTest, TestStringCaseEndsWith) {
   EXPECT_FALSE(StringCaseEndsWith("zzz", "zzzz"));
 }
 
-TEST(StringCaseTest, TestStringEqualConcat) {
-  EXPECT_TRUE(StringEqualConcat("foobar", "foobar", ""));
-  EXPECT_TRUE(StringEqualConcat("foobar", "fooba", "r"));
-  EXPECT_TRUE(StringEqualConcat("foobar", "", "foobar"));
-  EXPECT_TRUE(StringEqualConcat("fOobAr", "fO", "obAr"));
-  EXPECT_FALSE(StringEqualConcat("fOobAr", "fo", "obAr"));
-  EXPECT_FALSE(StringEqualConcat("foobar", "FO", "OBAR"));
-  EXPECT_FALSE(StringEqualConcat("foobar", "foo", "obar"));
-}
-
 TEST(StringCaseTest, Locale) {
   // This will fail if the locale is available and StringCaseEqual is
   // built using strcasecmp.  Note that the locale will generally be
@@ -387,73 +377,6 @@ TEST(BasicUtilsTest, CountSubstringTest) {
   StringPiece abab("abab");
   EXPECT_EQ(4, CountSubstring(text3, ab));
   EXPECT_EQ(3, CountSubstring(text3, abab));
-}
-
-TEST(BasicUtilsTest, JoinStringStar) {
-  const GoogleString foo = "foo";
-  const GoogleString bar = "bar";
-  const GoogleString empty = "";
-  const GoogleString symbols = "# , #";
-
-  ConstStringStarVector nothing, single, foobar, barfoobar, blah;
-  EXPECT_STREQ("", JoinStringStar(nothing, ""));
-  EXPECT_STREQ("", JoinStringStar(nothing, ", "));
-
-  single.push_back(&foo);
-  EXPECT_STREQ("foo", JoinStringStar(single, ""));
-  EXPECT_STREQ("foo", JoinStringStar(single, ", "));
-
-  foobar.push_back(&foo);
-  foobar.push_back(&bar);
-  EXPECT_STREQ("foobar", JoinStringStar(foobar, ""));
-  EXPECT_STREQ("foo, bar", JoinStringStar(foobar, ", "));
-
-  barfoobar.push_back(&bar);
-  barfoobar.push_back(&foo);
-  barfoobar.push_back(&bar);
-  EXPECT_STREQ("barfoobar", JoinStringStar(barfoobar, ""));
-  EXPECT_STREQ("bar##foo##bar", JoinStringStar(barfoobar, "##"));
-
-  blah.push_back(&bar);
-  blah.push_back(&empty);
-  blah.push_back(&symbols);
-  blah.push_back(&empty);
-  EXPECT_STREQ("bar# , #", JoinStringStar(blah, ""));
-  EXPECT_STREQ("bar, , # , #, ", JoinStringStar(blah, ", "));
-}
-
-TEST(BasicUtilsTest, CEscape) {
-  EXPECT_EQ("Hello,\\n\\tWorld.\\n", CEscape("Hello,\n\tWorld.\n"));
-
-  char not_ascii_1 = 30;
-  char not_ascii_2 = 200;
-  EXPECT_EQ("abc\\036\\310",
-            CEscape(GoogleString("abc") + not_ascii_1 + not_ascii_2));
-}
-
-TEST(BasicUtilsTest, SplitStringUsingSubstr1) {
-  StringVector components;
-  SplitStringUsingSubstr("word1abword2abword3", "ab", &components);
-  EXPECT_EQ(3, components.size());
-  EXPECT_EQ("word1", components[0]);
-  EXPECT_EQ("word2", components[1]);
-  EXPECT_EQ("word3", components[2]);
-}
-
-TEST(BasicUtilsTest, SplitStringUsingSubstr2) {
-  StringVector components;
-  SplitStringUsingSubstr("word1ababword3", "ab", &components);
-  EXPECT_EQ(2, components.size());
-  EXPECT_EQ("word1", components[0]);
-  EXPECT_EQ("word3", components[1]);
-}
-
-TEST(BasicUtilsTest, SplitStringUsingSubstr3) {
-  StringVector components;
-  SplitStringUsingSubstr("abaaac", "aa", &components);
-  EXPECT_EQ(2, components.size());
-  EXPECT_EQ("ab", components[0]);
-  EXPECT_EQ("ac", components[1]);
 }
 
 }  // namespace

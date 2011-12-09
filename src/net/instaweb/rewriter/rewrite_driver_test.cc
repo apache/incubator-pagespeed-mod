@@ -18,14 +18,8 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
-#include "net/instaweb/htmlparse/html_event.h"
-#include "net/instaweb/htmlparse/html_testing_peer.h"
-#include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
@@ -38,15 +32,13 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -62,6 +54,7 @@ class RewriteDriverTest : public ResourceManagerTestBase,
 
   virtual void SetUp() {
     ResourceManagerTestBase::SetUp();
+    SetAsynchronousRewrites(GetParam());
   }
 
   bool CanDecodeUrl(const StringPiece& url) {
@@ -129,13 +122,13 @@ TEST_P(RewriteDriverTest, TestInferContentType) {
                 Encode("http://example.com/", "cf", "0", "orig", "css")));
   EXPECT_EQ(&kContentTypeJpeg,
             DecodeContentType(
-                Encode("http://example.com/", "ic", "0", "orig", "jpg")));
+                Encode("http://example.com/", "ic", "0", "xorig", "jpg")));
   EXPECT_EQ(&kContentTypePng,
             DecodeContentType(
                 Encode("http://example.com/", "ce", "0", "orig", "png")));
   EXPECT_EQ(&kContentTypeGif,
             DecodeContentType(
-                Encode("http://example.com/dir/", "ic", "0", "xy", "gif")));
+                Encode("http://example.com/", "ic", "0", "dir/xy", "gif")));
 }
 
 TEST_P(RewriteDriverTest, TestModernUrl) {
@@ -175,7 +168,7 @@ TEST_P(RewriteDriverTest, TestCacheUse) {
   InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
 
   GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
+      Encode(kTestDomain, RewriteDriver::kCssFilterId,
              hasher()->Hash(kMinCss), "a.css", "css");
 
   // Cold load.
@@ -196,6 +189,7 @@ TEST_P(RewriteDriverTest, TestCacheUse) {
 
 // Extension of above with cache invalidation.
 TEST_P(RewriteDriverTest, TestCacheUseWithInvalidation) {
+  bool async = rewrite_driver()->asynchronous_rewrites();
   resource_manager()->set_store_outputs_in_file_system(false);
   AddFilter(RewriteOptions::kRewriteCss);
 
@@ -204,7 +198,7 @@ TEST_P(RewriteDriverTest, TestCacheUseWithInvalidation) {
   InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
 
   GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
+      Encode(kTestDomain, RewriteDriver::kCssFilterId,
              hasher()->Hash(kMinCss), "a.css", "css");
 
   // Cold load.
@@ -230,23 +224,32 @@ TEST_P(RewriteDriverTest, TestCacheUseWithInvalidation) {
   options()->set_cache_invalidation_timestamp(now_ms);
   options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
-  // We expect: identical input a new rname entry (its version # changed),
-  // and the output which may not may not auto-advance due to MockTimer
-  // black magic.
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
+  if (async) {
+    // We expect: identical input a new rname entry (its version # changed),
+    // and the output which may not may not auto-advance due to MockTimer
+    // black magic.
+    EXPECT_EQ(1, lru_cache()->num_inserts());
+    EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
+  } else {
+    // We expect: input, output, rname, to be all re-inserted without
+    // changes (as the legacy codepath doesn't understand option timestamps) ---
+    // except the date header on the revised result may auto-advance a bit
+    // due to mock timer/scheduler blocking on named lock acquisition.
+    EXPECT_EQ(3, lru_cache()->num_inserts() +
+                 lru_cache()->num_identical_reinserts());
+  }
 }
 
 // Similar to TestCacheUse, but with cache-extender which reconstructs on the
 // fly.
 TEST_P(RewriteDriverTest, TestCacheUseOnTheFly) {
-  AddFilter(RewriteOptions::kExtendCacheCss);
+  AddFilter(RewriteOptions::kExtendCache);
 
   const char kCss[] = "* { display: none; }";
   InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
 
   GoogleString cache_extended_url =
-      Encode(kTestDomain, RewriteOptions::kCacheExtenderId,
+      Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
              hasher()->Hash(kCss), "a.css", "css");
 
   // Cold load.
@@ -266,14 +269,15 @@ TEST_P(RewriteDriverTest, TestCacheUseOnTheFly) {
 
 // Extension of above with cache invalidation.
 TEST_P(RewriteDriverTest, TestCacheUseOnTheFlyWithInvalidation) {
+  bool async = rewrite_driver()->asynchronous_rewrites();
   resource_manager()->set_store_outputs_in_file_system(false);
-  AddFilter(RewriteOptions::kExtendCacheCss);
+  AddFilter(RewriteOptions::kExtendCache);
 
   const char kCss[] = "* { display: none; }";
   InitResponseHeaders("a.css", kContentTypeCss, kCss, 100);
 
   GoogleString cache_extended_url =
-      Encode(kTestDomain, RewriteOptions::kCacheExtenderId,
+      Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
              hasher()->Hash(kCss), "a.css", "css");
 
   // Cold load.
@@ -298,9 +302,15 @@ TEST_P(RewriteDriverTest, TestCacheUseOnTheFlyWithInvalidation) {
   options()->set_cache_invalidation_timestamp(now_ms);
   options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(cache_extended_url));
-  // We expect: input re-insert, new metadata key
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(1, lru_cache()->num_identical_reinserts());
+  if (async) {
+    // We expect: input re-insert, new metadata key
+    EXPECT_EQ(1, lru_cache()->num_inserts());
+    EXPECT_EQ(1, lru_cache()->num_identical_reinserts());
+  } else {
+    // We expect: input, rname re-inserted without changes.
+    EXPECT_EQ(0, lru_cache()->num_inserts());
+    EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
+  }
 }
 
 TEST_P(RewriteDriverTest, BaseTags) {
@@ -385,24 +395,25 @@ TEST_P(RewriteDriverTest, CreateOutputResourceTooLong) {
   OutputResourcePtr resource;
   for (int t = 0; t < arraysize(content_types); ++t) {
     for (int k = 0; k < arraysize(resource_kinds); ++k) {
-      bool use_async_flow = true;
-      // Short name should always succeed at creating new resource.
-      resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-          short_path, dummy_filter_id, short_name,
-          content_types[t], resource_kinds[k], use_async_flow));
-      EXPECT_TRUE(NULL != resource.get());
+      for (int use_async_flow = 0; use_async_flow < 2; ++use_async_flow) {
+        // Short name should always succeed at creating new resource.
+        resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
+            short_path, dummy_filter_id, short_name,
+            content_types[t], resource_kinds[k], use_async_flow != 0));
+        EXPECT_TRUE(NULL != resource.get());
 
-      // Long leaf-name should always fail at creating new resource.
-      resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-          short_path, dummy_filter_id, long_name,
-          content_types[t], resource_kinds[k], use_async_flow));
-      EXPECT_TRUE(NULL == resource.get());
+        // Long leaf-name should always fail at creating new resource.
+        resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
+            short_path, dummy_filter_id, long_name,
+            content_types[t], resource_kinds[k], use_async_flow != 0));
+        EXPECT_TRUE(NULL == resource.get());
 
-      // Long total URL length should always fail at creating new resource.
-      resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-          long_path, dummy_filter_id, short_name,
-          content_types[t], resource_kinds[k], use_async_flow));
-      EXPECT_TRUE(NULL == resource.get());
+        // Long total URL length should always fail at creating new resource.
+        resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
+            long_path, dummy_filter_id, short_name,
+            content_types[t], resource_kinds[k], use_async_flow != 0));
+        EXPECT_TRUE(NULL == resource.get());
+      }
     }
   }
 }
@@ -419,11 +430,10 @@ TEST_P(RewriteDriverTest, MultipleDomains) {
   InitResponseHeaders(StrCat(kTestDomain, "a.css"), kContentTypeCss, kCss, 100);
   InitResponseHeaders(StrCat(kAltDomain, "b.css"), kContentTypeCss, kCss, 100);
 
-  GoogleString rewritten1 = Encode(kTestDomain,
-                                   RewriteOptions::kCacheExtenderId,
+  GoogleString rewritten1 = Encode(kTestDomain, RewriteDriver::kCacheExtenderId,
                                    hasher()->Hash(kCss), "a.css", "css");
 
-  GoogleString rewritten2 = Encode(kAltDomain, RewriteOptions::kCacheExtenderId,
+  GoogleString rewritten2 = Encode(kAltDomain, RewriteDriver::kCacheExtenderId,
                                    hasher()->Hash(kCss), "b.css", "css");
 
   EXPECT_TRUE(TryFetchResource(rewritten1));
@@ -569,141 +579,9 @@ TEST_P(RewriteDriverTest, DiagnosticsWithPercent) {
   logging::SetMinLogLevel(prev_log_level);
 }
 
-// Tests that we reject https URLs quickly.
-TEST_P(RewriteDriverTest, RejectHttpsQuickly) {
-  // Need to expressly authorize https even though we don't support it.
-  options()->domain_lawyer()->AddDomain("https://*/", message_handler());
-  AddFilter(RewriteOptions::kRewriteJavascript);
-
-  // When we don't support https then we fail quickly and cleanly.
-  factory()->mock_url_async_fetcher()->set_fetcher_supports_https(false);
-  ValidateNoChanges("reject_https_quickly",
-                    "<script src='https://example.com/a.js'></script>");
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-
-  // When we do support https the fetcher fails to find the resource.
-  factory()->mock_url_async_fetcher()->set_fetcher_supports_https(true);
-  SetFetchResponse404("https://example.com/a.js");
-  ValidateNoChanges("reject_https_quickly",
-                    "<script src='https://example.com/a.js'></script>");
-  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, counting_url_async_fetcher()->failure_count());
-}
-
+// We test with asynchronous_rewrites() == GetParam() as both true and false.
 INSTANTIATE_TEST_CASE_P(RewriteDriverTestInstance,
                         RewriteDriverTest,
-                        ::testing::Bool());
-
-class RewriteDriverInhibitTest : public RewriteDriverTest {
- protected:
-  RewriteDriverInhibitTest() {}
-
-  void SetUpDocument() {
-    SetupWriter();
-    ASSERT_TRUE(rewrite_driver()->StartParse("http://example.com/index.html"));
-
-    // Set up a document: <html><body><p></p></body></html>.
-    html_ = rewrite_driver()->NewElement(NULL, HtmlName::kHtml);
-    body_ = rewrite_driver()->NewElement(html_, HtmlName::kBody);
-    par_ = rewrite_driver()->NewElement(body_, HtmlName::kP);
-    par_->set_close_style(HtmlElement::EXPLICIT_CLOSE);
-    HtmlCharactersNode* start = rewrite_driver()->NewCharactersNode(NULL, "");
-    HtmlTestingPeer::AddEvent(rewrite_driver(),
-                              new HtmlCharactersEvent(start, -1));
-    rewrite_driver()->InsertElementAfterElement(start, html_);
-    rewrite_driver()->AppendChild(html_, body_);
-    rewrite_driver()->AppendChild(body_, par_);
-  }
-
-  // Uninhibits the EndEvent for element, and waits for the necessary flush
-  // to complete.
-  void UninhibitEndElementAndWait(HtmlElement* element) {
-    rewrite_driver()->UninhibitEndElementFlushless(element);
-    ASSERT_TRUE(!rewrite_driver()->EndElementIsInhibited(element));
-    rewrite_driver()->Flush();
-  }
-
-  // A callback for FinishParseAsync.
-  void ParseFinished() {
-  }
-
-  HtmlElement* html_;
-  HtmlElement* body_;
-  HtmlElement* par_;
-
-  DISALLOW_COPY_AND_ASSIGN(RewriteDriverInhibitTest);
-};
-
-// Tests that we stop the flush immediately before the EndElementEvent for an
-// inhibited element, and resume it when that element is uninhibited.
-TEST_P(RewriteDriverInhibitTest, InhibitEndElement) {
-  SetUpDocument();
-
-  // Inhibit </body>.
-  rewrite_driver()->InhibitEndElement(body_);
-  ASSERT_TRUE(rewrite_driver()->EndElementIsInhibited(body_));
-
-  // Verify that we do not flush </body> or beyond, even on a second flush.
-  rewrite_driver()->Flush();
-  EXPECT_EQ("<html><body><p></p>", output_buffer_);
-  rewrite_driver()->Flush();
-  EXPECT_EQ("<html><body><p></p>", output_buffer_);
-
-  // Verify that we flush the entire document once </body> is uninhibited.
-  UninhibitEndElementAndWait(body_);
-  EXPECT_EQ("<html><body><p></p></body></html>", output_buffer_);
-}
-
-// Tests that we can inhibit and uninhibit the flush in multiple places.
-TEST_P(RewriteDriverInhibitTest, MultipleInhibitEndElement) {
-  SetUpDocument();
-
-  // Inhibit </body> and </html>.
-  rewrite_driver()->InhibitEndElement(body_);
-  ASSERT_TRUE(rewrite_driver()->EndElementIsInhibited(body_));
-  rewrite_driver()->InhibitEndElement(html_);
-  ASSERT_TRUE(rewrite_driver()->EndElementIsInhibited(html_));
-
-  // Verify that we will not flush </body> or beyond.
-  rewrite_driver()->Flush();
-  EXPECT_EQ("<html><body><p></p>", output_buffer_);
-
-  // Uninhibit </body> and verify that we flush it.
-  UninhibitEndElementAndWait(body_);
-  EXPECT_EQ("<html><body><p></p></body>", output_buffer_);
-
-  // Verify that we will flush the entire document once </html> is uninhibited.
-  UninhibitEndElementAndWait(html_);
-  EXPECT_EQ("<html><body><p></p></body></html>", output_buffer_);
-}
-
-// Tests that FinishParseAsync respects inhibits.
-TEST_P(RewriteDriverInhibitTest, InhibitWithFinishParse) {
-  SetUpDocument();
-
-  // Inhibit </body>.
-  rewrite_driver()->InhibitEndElement(body_);
-  ASSERT_TRUE(rewrite_driver()->EndElementIsInhibited(body_));
-
-  // Start finishing the parse.
-  SchedulerBlockingFunction wait(rewrite_driver()->scheduler());
-  rewrite_driver()->FinishParseAsync(&wait);
-
-  // Busy wait until the resulting async flush completes.
-  mock_scheduler()->AwaitQuiescence();
-  EXPECT_EQ("<html><body><p></p>", output_buffer_);
-
-  // Uninhibit </body> and wait for FinishParseAsync to call back.
-  rewrite_driver()->UninhibitEndElement(body_);
-  ASSERT_TRUE(!rewrite_driver()->EndElementIsInhibited(body_));
-  wait.Block();
-
-  // Verify that we flush the entire document once </body> is uninhibited.
-  EXPECT_EQ("<html><body><p></p></body></html>", output_buffer_);
-}
-
-INSTANTIATE_TEST_CASE_P(RewriteDriverInhibitTestInstance,
-                        RewriteDriverInhibitTest,
                         ::testing::Bool());
 
 }  // namespace net_instaweb

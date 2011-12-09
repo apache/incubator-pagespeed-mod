@@ -172,12 +172,6 @@ HtmlElement* HtmlParse::NewElement(HtmlElement* parent, const HtmlName& name) {
   HtmlElement* element =
       new (&nodes_) HtmlElement(parent, name, queue_.end(), queue_.end());
   element->set_sequence(sequence_++);
-  if (IsOptionallyClosedTag(name.keyword())) {
-    // When we programmatically insert HTML nodes we should default to
-    // including an explicit close-tag if they are optionally closed
-    // such as <html>, <body>, and <p>.
-    element->set_close_style(HtmlElement::EXPLICIT_CLOSE);
-  }
   return element;
 }
 
@@ -416,35 +410,6 @@ void HtmlParse::ClearEvents() {
   queue_.clear();
   need_sanity_check_ = false;
   need_coalesce_characters_ = false;
-}
-
-size_t HtmlParse::GetEventQueueSize() {
-  return queue_.size();
-}
-
-void HtmlParse::AppendEventsToQueue(HtmlEventList* extra_events) {
-  queue_.splice(queue_.end(), *extra_events);
-}
-
-HtmlEvent* HtmlParse::SplitQueueOnFirstEventInSet(
-    const ConstHtmlEventSet& event_set,
-    HtmlEventList* tail) {
-  for (HtmlEventListIterator it = queue_.begin(); it != queue_.end(); ++it) {
-    if (event_set.find(*it) != event_set.end()) {
-      tail->splice(tail->end(), queue_, it, queue_.end());
-      return *it;
-    }
-  }
-  return NULL;
-}
-
-HtmlEvent* HtmlParse::GetEndElementEvent(const HtmlElement* element) {
-  DCHECK (element != NULL);
-  if (element->end() == queue_.end()) {
-    return NULL;
-  } else {
-    return *(element->end());
-  }
 }
 
 void HtmlParse::InsertElementBeforeElement(const HtmlNode* existing_node,
@@ -749,10 +714,6 @@ void HtmlParse::DebugPrintQueue() {
 
 bool HtmlParse::IsImplicitlyClosedTag(HtmlName::Keyword keyword) const {
   return lexer_->IsImplicitlyClosedTag(keyword);
-}
-
-bool HtmlParse::IsOptionallyClosedTag(HtmlName::Keyword keyword) const {
-  return lexer_->IsOptionallyClosedTag(keyword);
 }
 
 bool HtmlParse::TagAllowsBriefTermination(HtmlName::Keyword keyword) const {

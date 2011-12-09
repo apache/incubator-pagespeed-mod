@@ -20,9 +20,10 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_COMBINE_FILTER_H_
 
 #include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 
@@ -30,10 +31,14 @@ namespace net_instaweb {
 
 class HtmlElement;
 class HtmlIEDirectiveNode;
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteContext;
 class RewriteDriver;
 class Statistics;
 class UrlSegmentEncoder;
+class Writer;
 
 class CssCombineFilter : public RewriteFilter {
  public:
@@ -41,23 +46,28 @@ class CssCombineFilter : public RewriteFilter {
   // rather than specific to css_combine_filter or even css.
   static const char kUtf8Bom[];
 
-  explicit CssCombineFilter(RewriteDriver* rewrite_driver);
+  CssCombineFilter(RewriteDriver* rewrite_driver, const char* path_prefix);
   virtual ~CssCombineFilter();
 
   static void Initialize(Statistics* statistics);
-
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual void Flush();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "CssCombine"; }
+  virtual bool Fetch(const OutputResourcePtr& resource,
+                     Writer* writer,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
+                     MessageHandler* message_handler,
+                     UrlAsyncFetcher::Callback* callback);
   virtual const UrlSegmentEncoder* encoder() const {
     return &multipart_encoder_;
   }
 
+  virtual bool HasAsyncFlow() const;
   virtual RewriteContext* MakeRewriteContext();
-  virtual const char* id() const { return RewriteOptions::kCssCombinerId; }
 
  private:
   class Context;

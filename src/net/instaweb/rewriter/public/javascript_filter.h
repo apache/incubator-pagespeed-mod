@@ -19,15 +19,17 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 
+#include <vector>
+
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_single_resource_filter.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -60,7 +62,10 @@ class Statistics;
  */
 class JavascriptFilter : public RewriteSingleResourceFilter {
  public:
-  explicit JavascriptFilter(RewriteDriver* rewrite_driver);
+  typedef std::vector<HtmlCharactersNode*> HtmlCharNodeVector;
+
+  JavascriptFilter(RewriteDriver* rewrite_driver,
+                   const StringPiece& path_prefix);
   virtual ~JavascriptFilter();
   static void Initialize(Statistics* statistics);
 
@@ -78,7 +83,7 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
   }
 
   virtual const char* Name() const { return "Javascript"; }
-  virtual const char* id() const { return RewriteOptions::kJavascriptMinId; }
+
   virtual RewriteContext* MakeRewriteContext();
 
  protected:
@@ -86,17 +91,16 @@ class JavascriptFilter : public RewriteSingleResourceFilter {
   virtual RewriteResult RewriteLoadedResource(
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource);
-
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
+  virtual bool HasAsyncFlow() const;
 
  private:
   class Context;
   inline void CompleteScriptInProgress();
   inline void RewriteInlineScript();
   inline void RewriteExternalScript();
+  const StringPiece FlattenBuffer(GoogleString* script_buffer);
 
-  HtmlCharactersNode* body_node_;
+  HtmlCharNodeVector buffer_;
   HtmlElement* script_in_progress_;
   HtmlElement::Attribute* script_src_;
   // some_missing_scripts indicates that we stopped processing a script and

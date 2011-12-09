@@ -16,15 +16,13 @@
 
 // Author: nforman@google.com (Naomi Forman)
 
-#include "net/instaweb/rewriter/public/css_util.h"
-
+#include <cstddef>
 #include <vector>
 
 #include "base/scoped_ptr.h"
+#include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
-#include "util/utf8/public/unicodetext.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/property.h"
 #include "webutil/css/value.h"
@@ -101,84 +99,11 @@ StyleExtractor::~StyleExtractor() {}
 // there is no style, return NULL.
 Css::Declarations* StyleExtractor::GetDeclsFromElement(HtmlElement* element) {
   HtmlElement::Attribute* style = element->FindAttribute(HtmlName::kStyle);
-  if ((style != NULL) && (style->value() != NULL)) {
+  if (style != NULL) {
     Css::Parser parser(style->value());
     return parser.ParseDeclarations();
   }
   return NULL;
-}
-
-void VectorizeMediaAttribute(const StringPiece& input_media,
-                             StringVector* output_vector) {
-  // Split on commas, trim whitespace from each element found, delete empties.
-  // Note that we hand trim because SplitStringPieceToVector() trims elements
-  // of zero length but not those comprising one or more whitespace chars.
-  StringPieceVector media_vector;
-  SplitStringPieceToVector(input_media, ",", &media_vector, false);
-  std::vector<StringPiece>::iterator it;
-  for (it = media_vector.begin(); it != media_vector.end(); ++it) {
-    TrimWhitespace(&(*it));
-    if (StringCaseEqual(*it, kAllMedia)) {
-      // Special case: an element of value 'all'.
-      output_vector->clear();
-      break;
-    } else if (!it->empty()) {
-      it->CopyToString(StringVectorAdd(output_vector));
-    }
-  }
-
-  return;
-}
-
-GoogleString StringifyMediaVector(const StringVector& input_media) {
-  // Special case: inverse of the special rule in the vectorize function.
-  if (input_media.empty()) {
-    return kAllMedia;
-  }
-  // Hmm, we don't seem to have a useful 'join' function handy.
-  GoogleString result(input_media[0]);
-  for (int i = 1, n = input_media.size(); i < n; ++i) {
-    StrAppend(&result, ",", input_media[i]);
-  }
-  return result;
-}
-
-void ConvertUnicodeVectorToStringVector(
-    const std::vector<UnicodeText>& in_vector,
-    StringVector* out_vector) {
-  std::vector<UnicodeText>::const_iterator iter;
-  for (iter = in_vector.begin(); iter != in_vector.end(); ++iter) {
-    StringPiece element(iter->utf8_data(), iter->utf8_length());
-    TrimWhitespace(&element);
-    if (!element.empty()) {
-      element.CopyToString(StringVectorAdd(out_vector));
-    }
-  }
-}
-
-void ConvertStringVectorToUnicodeVector(
-    const StringVector& in_vector,
-    std::vector<UnicodeText>* out_vector) {
-  std::vector<GoogleString>::const_iterator iter;
-  for (iter = in_vector.begin(); iter != in_vector.end(); ++iter) {
-    StringPiece element(*iter);
-    TrimWhitespace(&element);
-    if (!element.empty()) {
-      UnicodeText unicode_element;
-      unicode_element.CopyUTF8(element.data(), element.length());
-      out_vector->push_back(unicode_element);
-    }
-  }
-}
-
-void ClearVectorIfContainsMediaAll(StringVector* media) {
-  StringVector::const_iterator iter;
-  for (iter = media->begin(); iter != media->end(); ++iter) {
-    if (StringCaseEqual(*iter, kAllMedia)) {
-      media->clear();
-      break;
-    }
-  }
 }
 
 }  // css_util

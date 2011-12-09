@@ -53,24 +53,16 @@ class CssImageRewriterAsync {
   static void Initialize(Statistics* statistics);
 
   // Attempts to rewrite all images in stylesheet, starting nested rewrites.
-  // If successful, it mutates stylesheet to point to new images. base_url
-  // is the base of the original CSS and is used to convert relative URLs to
-  // their absolute form for fetching; trim_url is the base of the rewritten
-  // CSS and is used to convert absolute URLs in the resulting CSS to their
-  // relative form.
-  void RewriteCssImages(int64 image_inline_max_bytes,
-                        const GoogleUrl& base_url,
-                        const GoogleUrl& trim_url,
+  void RewriteCssImages(const GoogleUrl& base_url,
                         const StringPiece& contents,
                         Css::Stylesheet* stylesheet,
                         MessageHandler* handler);
 
   // Are any rewrites enabled?
-  bool RewritesEnabled(int64 image_inline_max_bytes) const;
+  bool RewritesEnabled() const;
 
  private:
-  void RewriteImage(int64 image_inline_max_bytes,
-                    const GoogleUrl& trim_url,
+  void RewriteImage(const GoogleUrl& base_url,
                     const GoogleUrl& original_url,
                     Css::Values* values, size_t value_index,
                     MessageHandler* handler);

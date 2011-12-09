@@ -28,8 +28,10 @@
 #include <cstdio>
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner_template.h"
@@ -47,7 +49,7 @@
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
@@ -55,7 +57,6 @@ namespace net_instaweb {
 class HtmlElement;
 class MessageHandler;
 class OutputResource;
-class UrlSegmentEncoder;
 
 namespace {
 
@@ -105,7 +106,7 @@ class TestCombineFilter : public RewriteFilter {
   };
 
   explicit TestCombineFilter(RewriteDriver* driver)
-      : RewriteFilter(driver),
+      : RewriteFilter(driver, kTestCombinerId),
         combiner_(driver, this) {
   }
 
@@ -116,7 +117,6 @@ class TestCombineFilter : public RewriteFilter {
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual const char* Name() const { return "TestCombine"; }
-  virtual const char* id() const { return kTestCombinerId; }
   virtual bool Fetch(const OutputResourcePtr& resource,
                      Writer* writer,
                      const RequestHeaders& request_header,
@@ -127,11 +127,8 @@ class TestCombineFilter : public RewriteFilter {
                            message_handler, callback);
   }
   TestCombineFilter::TestCombiner* combiner() { return &combiner_; }
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
-
  private:
   TestCombineFilter::TestCombiner combiner_;
-  UrlMultipartEncoder encoder_;
 };
 
 // Test fixture.
@@ -180,8 +177,12 @@ class ResourceCombinerTest : public ResourceManagerTestBase {
 
     // TODO(morlovich): This is basically copy-paste from ServeResourceUrl.
     content->clear();
-    StringAsyncFetch callback(content);
-    bool fetched = rewrite_driver()->FetchResource(url, &callback);
+    RequestHeaders request_headers;
+    ResponseHeaders response_headers;
+    StringWriter writer(content);
+    MockCallback callback;
+    bool fetched = rewrite_driver()->FetchResource(
+        url, request_headers, &response_headers, &writer, &callback);
 
     if (!fetched) {
       return false;
@@ -540,6 +541,131 @@ TEST_F(ResourceCombinerTest, TestMaxUrlOverflow2) {
   VerifyResource(0, kPathPiece, e1);
   VerifyResource(1, kTestPiece1, e2);
   VerifyLengthLimits();
+}
+
+TEST_F(ResourceCombinerTest, TestFetch) {
+  // Test if we can reconstruct from pieces.
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+piece2.tcc+piece3.tcc", "txt");
+
+  GoogleString out;
+  EXPECT_TRUE(FetchResource(url, &out, kFetchNormal));
+  EXPECT_EQ("piece1|piec2|pie3|", out);
+}
+
+TEST_F(ResourceCombinerTest, TestFetchAsync) {
+  // Test if we can reconstruct from pieces, with callback happening async
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+piece2.tcc+piece3.tcc", "txt");
+  GoogleString out;
+  EXPECT_TRUE(FetchResource(url, &out, kFetchAsync));
+  EXPECT_EQ("piece1|piec2|pie3|", out);
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFail) {
+  // Test if we can handle failure properly
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+nopiece.tcc+piece2.tcc", "txt");
+
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchNormal));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFail2) {
+  SetFetchFailOnUnexpected(false);
+  // This is slightly different from above, as we get a complete
+  // fetch failure rather than a 404.
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+weird.tcc+piece2.tcc", "txt");
+
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchNormal));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFailAsync) {
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+nopiece.tcc+piece2.tcc", "txt");
+
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchAsync));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFailAsync2) {
+  SetFetchFailOnUnexpected(false);
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+weird.tcc+piece2.tcc", "txt");
+
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchAsync));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFailSevere) {
+  // Test the case where we can't even create resources (wrong protocol).
+  // Since the TestUrlNamer can only encode protocols http and https,
+  // force normal encoding here to allow the test to pass.
+  GoogleString url = EncodeNormal("slwy://example.com/", kTestCombinerId, "0",
+                                  "piece1.tcc+nopiece.tcc+piece2.tcc", "txt");
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchNormal));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchFailSevereAsync) {
+  // Since the TestUrlNamer can only encode protocols http and https,
+  // force normal encoding here to allow the test to pass.
+  GoogleString url = EncodeNormal("slwy://example.com/", kTestCombinerId, "0",
+                                  "piece1.tcc+nopiece.tcc+piece2.tcc", "txt");
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchAsync));
+}
+
+TEST_F(ResourceCombinerTest, TestFetchNonsense) {
+  // Make sure we handle URL decoding failing OK
+  GoogleString url = StrCat(kTestDomain, "piece1.tcc+nopiece.tcc,.pagespeeed.",
+                            kTestCombinerId, ".0.txt");
+  GoogleString out;
+  EXPECT_FALSE(FetchResource(url, &out, kFetchAsync));
+}
+
+TEST_F(ResourceCombinerTest, TestContinuingFetchWhenFastFailed) {
+  // We may quickly detect that a piece isn't fetchable (with fetch failure
+  // cached) after we have already initiated a fetch for an another resource.
+  // In that case, we need to be careful to make sure we don't try to write
+  // the headers anyway, as their lifetime can't be guaranteed if ::Fetch
+  // returned false.
+  SetupWaitFetcher();
+
+  // Seed our cache with the fact that nopiece.tcc isn't there.
+  ResourcePtr missing(
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(
+          StrCat(kTestDomain, "nopiece.tcc")));
+  ASSERT_TRUE(missing.get() != NULL);
+  EXPECT_FALSE(rewrite_driver()->ReadIfCached(missing));
+  CallFetcherCallbacks();
+
+  // Now try to fetch a combination with 3 pieces.
+  // The first one will start loading, on the second, nopiece.tcc,
+  // we will quickly notice failure, and on third one we will
+  // notice we've failed already.
+  GoogleString url = Encode(kTestDomain, kTestCombinerId, "0",
+                            "piece1.tcc+nopiece.tcc+piece2.tcc", "txt");
+  GoogleString content;
+  RequestHeaders request_headers;
+  ResponseHeaders response_headers;
+  StringWriter writer(&content);
+  MockCallback callback;
+  bool called = rewrite_driver()->FetchResource(url, request_headers,
+                                                &response_headers, &writer,
+                                                &callback);
+  EXPECT_TRUE(called);  // RewriteDriver took care of it after filter failure.
+  rewrite_driver()->WaitForCompletion();
+  EXPECT_TRUE(callback.done());
+  EXPECT_FALSE(callback.success());
+  EXPECT_FALSE(response_headers.headers_complete());
+
+  // Now finish loading of the initialized piece1.tcc fetch...
+  CallFetcherCallbacks();
+  EXPECT_FALSE(response_headers.headers_complete())
+      << "Writing to headers which might be dead. Can cause crashes!";
 }
 
 }  // namespace

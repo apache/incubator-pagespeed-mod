@@ -20,10 +20,10 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
 #include "net/instaweb/rewriter/public/resource_manager.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -33,8 +33,12 @@
 
 namespace net_instaweb {
 
+class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteContext;
 class RewriteDriver;
+class Writer;
 
 // Generic hyper-simple rewriter class, which retains zero state
 // across different rewrites; just transforming text to other text,
@@ -72,8 +76,7 @@ class SimpleTextFilter : public RewriteFilter {
 
   class Context : public SingleRewriteContext {
    public:
-    Context(const RewriterPtr& rewriter, RewriteDriver* driver,
-            RewriteContext* parent);
+    Context(const RewriterPtr& rewriter, RewriteDriver* driver);
     virtual ~Context();
     virtual void RewriteSingle(
         const ResourcePtr& input, const OutputResourcePtr& output);
@@ -94,14 +97,19 @@ class SimpleTextFilter : public RewriteFilter {
   virtual void StartDocumentImpl() {}
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual void StartElementImpl(HtmlElement* element);
+  virtual bool Fetch(const OutputResourcePtr& output_resource,
+                     Writer* response_writer,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
+                     MessageHandler* message_handler,
+                     UrlAsyncFetcher::Callback* callback);
 
   virtual RewriteContext* MakeRewriteContext();
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
 
  protected:
-  virtual const char* id() const { return rewriter_->id(); }
+  virtual GoogleString id() const { return rewriter_->id(); }
   virtual const char* Name() const { return rewriter_->name(); }
+  virtual bool HasAsyncFlow() const;
   virtual bool ComputeOnTheFly() const {
     return rewriter_->kind() == kOnTheFlyResource;
   }

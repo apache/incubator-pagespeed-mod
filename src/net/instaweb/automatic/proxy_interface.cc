@@ -22,10 +22,10 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/automatic/public/resource_fetch.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
@@ -36,6 +36,7 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
@@ -53,28 +54,37 @@ class ProxyInterfaceUrlNamerCallback : public UrlNamer::Callback {
  public:
   ProxyInterfaceUrlNamerCallback(bool is_resource_fetch,
                                  GoogleUrl* request_url,
-                                 AsyncFetch* async_fetch,
-                                 ProxyInterface* proxy_interface,
-                                 MessageHandler* handler)
+                                 RequestHeaders* request_headers,
+                                 ResponseHeaders* response_headers,
+                                 Writer* response_writer,
+                                 MessageHandler* handler,
+                                 UrlAsyncFetcher::Callback* callback,
+                                 ProxyInterface* proxy_interface)
       : is_resource_fetch_(is_resource_fetch),
         request_url_(request_url),
-        async_fetch_(async_fetch),
+        request_headers_(request_headers),
+        response_headers_(response_headers),
+        response_writer_(response_writer),
         handler_(handler),
+        callback_(callback),
         proxy_interface_(proxy_interface) {
   }
   virtual ~ProxyInterfaceUrlNamerCallback() {}
   virtual void Done(RewriteOptions* rewrite_options) {
     proxy_interface_->ProxyRequestCallback(
-        is_resource_fetch_, request_url_, async_fetch_, rewrite_options,
-        handler_);
+        is_resource_fetch_, request_url_, request_headers_, response_headers_,
+        response_writer_, handler_, callback_, rewrite_options);
     delete this;
   }
 
  private:
   bool is_resource_fetch_;
   GoogleUrl* request_url_;
-  AsyncFetch* async_fetch_;
+  RequestHeaders* request_headers_;
+  ResponseHeaders* response_headers_;
+  Writer* response_writer_;
   MessageHandler* handler_;
+  UrlAsyncFetcher::Callback* callback_;
   ProxyInterface* proxy_interface_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyInterfaceUrlNamerCallback);
@@ -156,39 +166,42 @@ bool ProxyInterface::UrlAndPortMatchThisServer(const GoogleUrl& url) {
   return ret;
 }
 
-bool ProxyInterface::Fetch(const GoogleString& requested_url_string,
-                           MessageHandler* handler,
-                           AsyncFetch* async_fetch) {
+bool ProxyInterface::StreamingFetch(const GoogleString& requested_url_string,
+                                    const RequestHeaders& request_headers,
+                                    ResponseHeaders* response_headers,
+                                    Writer* response_writer,
+                                    MessageHandler* handler,
+                                    Callback* callback) {
   const GoogleUrl requested_url(requested_url_string);
-  bool is_get = (async_fetch->request_headers()->method() ==
-                 RequestHeaders::kGet);
+  const bool is_get = request_headers.method() == RequestHeaders::kGet;
 
   bool done = false;
 
   all_requests_->IncBy(1);
   if (!(requested_url.is_valid() && IsWellFormedUrl(requested_url))) {
     LOG(ERROR) << "Bad URL, failing request: " << requested_url_string;
-    async_fetch->response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
-    async_fetch->Done(false);
+    response_headers->SetStatusAndReason(HttpStatus::kNotFound);
+    callback->Done(false);
     done = true;
   } else {
+    LOG(INFO) << "Proxying URL: " << requested_url.Spec();
+
     // Try to handle this as a .pagespeed. resource.
     if (resource_manager_->IsPagespeedResource(requested_url) && is_get) {
       pagespeed_requests_->IncBy(1);
-      ProxyRequest(true, requested_url, async_fetch, handler);
-      LOG(INFO) << "Serving URL as pagespeed resource: "
-                << requested_url.Spec();
+      ProxyRequest(true, requested_url, request_headers,
+                   response_headers, response_writer, handler, callback);
+      LOG(INFO) << "Serving URL as pagespeed resource";
     } else if (UrlAndPortMatchThisServer(requested_url)) {
       // Just respond with a 404 for now.
-      async_fetch->response_headers()->SetStatusAndReason(
-          HttpStatus::kNotFound);
-      LOG(INFO) << "Returning 404 for URL: " << requested_url.Spec();
-      async_fetch->Done(false);
+      response_headers->SetStatusAndReason(HttpStatus::kNotFound);
+      callback->Done(false);
       done = true;
     } else {
       // Otherwise we proxy it (rewriting if it is HTML).
-      LOG(INFO) << "Proxying URL normally: " << requested_url.Spec();
-      ProxyRequest(false, requested_url, async_fetch, handler);
+      LOG(INFO) << "Proxying URL normally";
+      ProxyRequest(false, requested_url, request_headers,
+                   response_headers, response_writer, handler, callback);
     }
   }
 
@@ -211,8 +224,8 @@ ProxyInterface::OptionsBoolPair ProxyInterface::GetCustomOptions(
   QueryParams params;
   params.Parse(request_url.Query());
   scoped_ptr<RewriteOptions> query_options(resource_manager_->NewOptions());
-  switch (RewriteQuery::Scan(params, request_headers,
-                             query_options.get(), handler)) {
+  switch (RewriteQuery::Scan(params, request_headers, query_options.get(),
+                             handler)) {
     case RewriteQuery::kInvalid:
       return OptionsBoolPair(static_cast<RewriteOptions*>(NULL), false);
       break;
@@ -228,66 +241,75 @@ ProxyInterface::OptionsBoolPair ProxyInterface::GetCustomOptions(
       break;
     }
   }
-
-  // Add custom options based on the request.
-  resource_manager_->url_namer()->ConfigureCustomOptions(
-      request_url, request_headers, custom_options.get());
   return OptionsBoolPair(custom_options.release(), true);
 }
 
 void ProxyInterface::ProxyRequest(bool is_resource_fetch,
                                   const GoogleUrl& request_url,
-                                  AsyncFetch* async_fetch,
-                                  MessageHandler* handler) {
+                                  const RequestHeaders& request_headers,
+                                  ResponseHeaders* response_headers,
+                                  Writer* response_writer,
+                                  MessageHandler* handler,
+                                  Callback* callback) {
   GoogleUrl* url = new GoogleUrl;
   url->Reset(request_url);
+  RequestHeaders* headers = new RequestHeaders;
+  headers->CopyFrom(request_headers);
 
   ProxyInterfaceUrlNamerCallback* proxy_interface_url_namer_callback =
-      new ProxyInterfaceUrlNamerCallback(is_resource_fetch, url, async_fetch,
-                                         this, handler);
+      new ProxyInterfaceUrlNamerCallback(is_resource_fetch, url, headers,
+                                         response_headers, response_writer,
+                                         handler, callback, this);
   resource_manager_->url_namer()->DecodeOptions(
-      request_url, *async_fetch->request_headers(),
-      proxy_interface_url_namer_callback, handler);
+      request_url, request_headers, proxy_interface_url_namer_callback,
+      handler);
 }
 
 void ProxyInterface::ProxyRequestCallback(bool is_resource_fetch,
                                           GoogleUrl* request_url,
-                                          AsyncFetch* async_fetch,
-                                          RewriteOptions* domain_options,
-                                          MessageHandler* handler) {
+                                          RequestHeaders* request_headers,
+                                          ResponseHeaders* response_headers,
+                                          Writer* response_writer,
+                                          MessageHandler* handler,
+                                          Callback* callback,
+                                          RewriteOptions* domain_options) {
   OptionsBoolPair custom_options_success = GetCustomOptions(
-      *request_url, *async_fetch->request_headers(), domain_options, handler);
+      *request_url, *request_headers, domain_options, handler);
   if (!custom_options_success.second) {
-    async_fetch->response_headers()->SetStatusAndReason(
-        HttpStatus::kMethodNotAllowed);
-    async_fetch->Write("Invalid PageSpeed query-params/request headers",
-                       handler);
-    async_fetch->Done(false);
+    response_writer->Write("Invalid PageSpeed query-params/request headers",
+                           handler);
+    response_headers->SetStatusAndReason(HttpStatus::kMethodNotAllowed);
+    callback->Done(false);
+  }
+
+  RequestHeaders custom_headers;
+  custom_headers.CopyFrom(*request_headers);
+
+  // Update request_headers.
+  // We deal with encodings. So strip the users Accept-Encoding headers.
+  custom_headers.RemoveAll(HttpAttributes::kAcceptEncoding);
+  // Note: We preserve the User-Agent and Cookies so that the origin servers
+  // send us the correct HTML. We will need to consider this for caching HTML.
+
+  // Start fetch and rewrite.  If GetCustomOptions found options for us,
+  // the RewriteDriver created by StartNewProxyFetch will take ownership.
+  if (custom_options_success.first != NULL) {
+    resource_manager_->ComputeSignature(custom_options_success.first);
+  }
+
+  if (is_resource_fetch) {
+    ResourceFetch::Start(resource_manager_,
+                         *request_url, *request_headers,
+                         custom_options_success.first,
+                         response_headers, response_writer, callback);
   } else {
-    // Update request_headers.
-    // We deal with encodings. So strip the users Accept-Encoding headers.
-    async_fetch->request_headers()->RemoveAll(HttpAttributes::kAcceptEncoding);
-    // Note: We preserve the User-Agent and Cookies so that the origin servers
-    // send us the correct HTML. We will need to consider this for caching HTML.
-
-    // Start fetch and rewrite.  If GetCustomOptions found options for us,
-    // the RewriteDriver created by StartNewProxyFetch will take ownership.
-    if (custom_options_success.first != NULL) {
-      resource_manager_->ComputeSignature(custom_options_success.first);
-    }
-
-    if (is_resource_fetch) {
-      ResourceFetch::Start(resource_manager_,
-                           *request_url, async_fetch,
-                           custom_options_success.first,
-                           proxy_fetch_factory_->server_version());
-    } else {
-      proxy_fetch_factory_->StartNewProxyFetch(
-          request_url->Spec().as_string(), async_fetch,
-          custom_options_success.first);
-    }
+    proxy_fetch_factory_->StartNewProxyFetch(
+        request_url->Spec().as_string(), custom_headers,
+        custom_options_success.first, response_headers, response_writer,
+        callback);
   }
   delete request_url;
+  delete request_headers;
 }
 
 }  // namespace net_instaweb

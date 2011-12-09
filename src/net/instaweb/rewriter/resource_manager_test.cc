@@ -21,16 +21,18 @@
 #include "net/instaweb/rewriter/public/resource_manager.h"
 
 #include <cstddef>                     // for size_t
+#include <cstdlib>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
@@ -59,12 +61,14 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/null_writer.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
@@ -84,6 +88,7 @@ const size_t kUrlPrefixLength = STATIC_STRLEN(kUrlPrefix);
 namespace net_instaweb {
 
 class SharedString;
+class Writer;
 
 class VerifyContentsCallback : public Resource::AsyncCallback {
  public:
@@ -119,35 +124,39 @@ class ResourceManagerTest : public ResourceManagerTestBase {
   // non-existence and potentially doing locking, too.
   // Note: resource must have hash set.
   bool FetchExtantOutputResourceHelper(const OutputResourcePtr& resource,
-                                       StringAsyncFetch* async_fetch) {
-    async_fetch->set_response_headers(resource->response_headers());
+                                       Writer* writer) {
+    MockCallback callback;
     RewriteFilter* null_filter = NULL;  // We want to test the cache only.
-    EXPECT_TRUE(rewrite_driver()->FetchOutputResource(resource, null_filter,
-                                                      async_fetch));
+    RequestHeaders request;
+    EXPECT_TRUE(rewrite_driver()->FetchOutputResource(
+        resource, null_filter, request, resource->response_headers(), writer,
+        &callback));
     rewrite_driver()->WaitForCompletion();
-    EXPECT_TRUE(async_fetch->done());
-    return async_fetch->success();
+    EXPECT_TRUE(callback.done());
+    return callback.success();
   }
 
   GoogleString GetOutputResourceWithoutLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch fetch;
-    EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
+    GoogleString contents;
+    StringWriter writer(&contents);
+    EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &writer));
     EXPECT_FALSE(resource->has_lock());
-    return fetch.buffer();
+    return contents;
   }
 
   GoogleString GetOutputResourceWithLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch fetch;
-    EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
+    GoogleString contents;
+    StringWriter writer(&contents);
+    EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &writer));
     EXPECT_TRUE(resource->has_lock());
-    return fetch.buffer();
+    return contents;
   }
 
   // Returns whether there was an existing copy of data for the resource.
   // If not, makes sure the resource is wrapped.
   bool TryFetchExtantOutputResourceOrLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch dummy_fetch;
-    return FetchExtantOutputResourceHelper(resource, &dummy_fetch);
+    NullWriter null_writer;
+    return FetchExtantOutputResourceHelper(resource, &null_writer);
   }
 
   // Asserts that the given url starts with an appropriate prefix;
@@ -178,7 +187,7 @@ class ResourceManagerTest : public ResourceManagerTestBase {
 
   // Tests for the lifecycle and various flows of a named output resource.
   void TestNamed() {
-    const char* filter_prefix = RewriteOptions::kCssFilterId;
+    const char* filter_prefix = RewriteDriver::kCssFilterId;
     const char* name = "name";
     const char* contents = "contents";
     // origin_expire_time_ms should be considerably longer than the various
@@ -327,16 +336,12 @@ class ResourceManagerTest : public ResourceManagerTestBase {
     cached->set_inlined_data(kResourceUrl);
   }
 
-  // Note: std::abs isn't portably applicable to 64-bits, due to the
-  // usual 'long long isn't C++' shenanigans.
-  static int64 Abs64(int64 v) {
-    return v >= 0 ? v : -v;
-  }
-
   // Expiration times are not entirely precise as some cache headers
   // have a 1 second resolution, so this permits such a difference.
   void VerifyWithinSecond(int64 time_a_ms, int64 time_b_ms) {
-    EXPECT_GE(Timer::kSecondMs, Abs64(time_a_ms - time_b_ms));
+    // Note: need to pass in 1 * since otherwise we get a link failure
+    // due to conversion of compile-time constant to const reference
+    EXPECT_GE(1 * Timer::kSecondMs, std::abs(time_a_ms - time_b_ms));
   }
 
   void VerifyValidCachedResult(const char* subtest_name, bool test_meta_data,
@@ -481,13 +486,13 @@ TEST_F(ResourceManagerTest, TestNamed) {
 }
 
 TEST_F(ResourceManagerTest, TestOutputInputUrl) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            RewriteOptions::kJavascriptMinId,
-                            "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            RewriteDriver::kJavascriptMinId,
+                            "0", "dir/123/orig", "js");
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -499,7 +504,7 @@ TEST_F(ResourceManagerTest, TestOutputInputUrlEvil) {
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -514,7 +519,7 @@ TEST_F(ResourceManagerTest, TestOutputInputUrlBusy) {
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
   ASSERT_TRUE(output_resource.get());
   RewriteFilter* filter = rewrite_driver()->FindFilter(
-      RewriteOptions::kJavascriptMinId);
+      RewriteDriver::kJavascriptMinId);
   ASSERT_TRUE(filter != NULL);
   ResourcePtr input_resource(
       filter->CreateInputResourceFromOutputResource(output_resource.get()));
@@ -553,7 +558,7 @@ TEST_F(ResourceManagerTest, TestMapRewriteAndOrigin) {
   bool use_async_flow = false;
   OutputResourcePtr output(
       rewrite_driver()->CreateOutputResourceFromResource(
-          RewriteOptions::kCacheExtenderId, rewrite_driver()->default_encoder(),
+          RewriteDriver::kCacheExtenderId, rewrite_driver()->default_encoder(),
           NULL, input, kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output.get() != NULL);
 
@@ -568,8 +573,8 @@ TEST_F(ResourceManagerTest, TestMapRewriteAndOrigin) {
 
 // DecodeOutputResource should drop query
 TEST_F(ResourceManagerTest, TestOutputResourceFetchQuery) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            "jm", "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            "jm", "0", "dir/123/orig", "js");
   RewriteFilter* dummy;
   GoogleUrl gurl(StrCat(url, "?query"));
   OutputResourcePtr output_resource(
@@ -596,10 +601,7 @@ TEST_F(ResourceManagerTest, TestInputResourceQuery) {
 }
 
 TEST_F(ResourceManagerTest, TestRemember404) {
-  // Make sure our resources remember that a page 404'd, but not too long.
-  http_cache()->set_remember_not_cacheable_ttl_seconds(10000);
-  http_cache()->set_remember_fetch_failed_ttl_seconds(100);
-
+  // Make sure our resources remember that a page 404'd
   ResponseHeaders not_found;
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &not_found);
   not_found.SetStatusAndReason(HttpStatus::kNotFound);
@@ -612,11 +614,6 @@ TEST_F(ResourceManagerTest, TestRemember404) {
   HTTPValue value_out;
   ResponseHeaders headers_out;
   EXPECT_EQ(HTTPCache::kRecentFetchFailedOrNotCacheable,
-            http_cache()->Find("http://example.com/404", &value_out,
-                               &headers_out, message_handler()));
-  mock_timer()->AdvanceMs(150 * Timer::kSecondMs);
-
-  EXPECT_EQ(HTTPCache::kNotFound,
             http_cache()->Find("http://example.com/404", &value_out,
                                &headers_out, message_handler()));
 }
@@ -731,7 +728,7 @@ TEST_F(ResourceManagerTest, TestOnTheFly) {
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
-          kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+          kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
           kOnTheFlyResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_EQ(NULL, output_resource->cached_result());
@@ -752,7 +749,7 @@ TEST_F(ResourceManagerTest, TestOnTheFly) {
 
   // Now try fetching again. Should hit in cache for rname.
   output_resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+      kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
       kOnTheFlyResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_TRUE(output_resource->cached_result() != NULL);
@@ -787,7 +784,7 @@ TEST_F(ResourceManagerTest, TestNotGenerated) {
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
-          kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+          kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
           kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_EQ(NULL, output_resource->cached_result());
@@ -807,7 +804,7 @@ TEST_F(ResourceManagerTest, TestNotGenerated) {
 
   // Now try fetching again. Should hit in cache
   output_resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      kUrlPrefix, RewriteOptions::kCssFilterId, "_", &kContentTypeCss,
+      kUrlPrefix, RewriteDriver::kCssFilterId, "_", &kContentTypeCss,
       kRewrittenResource, use_async_flow));
   ASSERT_TRUE(output_resource.get() != NULL);
   EXPECT_TRUE(output_resource->cached_result() != NULL);
@@ -966,8 +963,8 @@ class ResourceManagerShardedTest : public ResourceManagerTest {
 };
 
 TEST_F(ResourceManagerShardedTest, TestNamed) {
-  GoogleString url = Encode("http://example.com/dir/123/",
-                            "jm", "0", "orig", "js");
+  GoogleString url = Encode("http://example.com/",
+                            "jm", "0", "dir/123/orig", "js");
   bool use_async_flow = false;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceWithPath(
@@ -985,7 +982,7 @@ TEST_F(ResourceManagerShardedTest, TestNamed) {
   // hasher for the content hash.  Note that the sharding sensitivity
   // to the hash value is tested in DomainLawyerTest.Shard, and will
   // also be covered in a system test.
-  EXPECT_EQ(Encode("http://shard0.com/dir/", "jm", "0", "orig.js", "js"),
+  EXPECT_EQ(Encode("http://shard0.com/", "jm", "0", "dir/orig.js", "js"),
             output_resource->url());
 }
 
@@ -1007,11 +1004,11 @@ TEST_F(ResourceManagerTest, ShutDownAssumptions) {
   // in practice, this test exercises them.
   RewriteDriver* driver = resource_manager()->NewRewriteDriver();
   EnableRewriteDriverCleanupMode(true);
-  driver->WaitForShutDown();
-  driver->WaitForShutDown();
+  driver->WaitForCompletion();
+  driver->WaitForCompletion();
   driver->Cleanup();
   driver->Cleanup();
-  driver->WaitForShutDown();
+  driver->WaitForCompletion();
 
   EnableRewriteDriverCleanupMode(false);
   // Should actually clean it up this time.
@@ -1019,8 +1016,8 @@ TEST_F(ResourceManagerTest, ShutDownAssumptions) {
 }
 
 TEST_F(ResourceManagerTest, IsPagespeedResource) {
-  GoogleUrl rewritten(Encode("http://shard0.com/dir/", "jm", "0",
-                             "orig.js", "js"));
+  GoogleUrl rewritten(Encode("http://shard0.com/", "jm", "0",
+                             "dir/orig.js", "js"));
   EXPECT_TRUE(resource_manager()->IsPagespeedResource(rewritten));
 
   GoogleUrl normal("http://jqueryui.com/jquery-1.6.2.js");
@@ -1201,8 +1198,7 @@ class ResourceManagerTestThreadedCache : public ResourceManagerTest {
             mock_scheduler(),
             new ThreadsafeCache(cache_backend_, threads_->NewMutex()),
             new QueuedWorkerPool(2, threads_.get()))),
-        http_cache_(new HTTPCache(cache_.get(), mock_timer(), hasher(),
-                                  statistics())) {
+        http_cache_(new HTTPCache(cache_.get(), mock_timer(), statistics())) {
   }
 
   virtual void SetUp() {
@@ -1290,7 +1286,7 @@ TEST_F(ResourceManagerTestThreadedCache, RepeatedFetches) {
     GoogleString combination(
       StrCat("<script src=\"",
              Encode(kTestDomain, "jc", "0",
-                    MultiUrl(minified_a_leaf,  minified_a_leaf), "js"),
+                    StrCat(minified_a_leaf, "+", minified_a_leaf), "js"),
              "\"></script>"));
     const char kEval[] = "<script>eval(mod_pagespeed_0);</script>";
     ValidateExpected(

@@ -26,8 +26,8 @@
 #include <set>
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/automatic/public/html_detector.h"
-#include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
@@ -38,14 +38,15 @@ namespace net_instaweb {
 class AbstractMutex;
 class CacheUrlAsyncFetcher;
 class MessageHandler;
-class ProxyFetch;
 class QueuedAlarm;
 class ResourceManager;
 class ResponseHeaders;
 class RewriteDriver;
 class RewriteOptions;
 class Timer;
-class UrlAsyncFetcher;
+class Writer;
+
+class ProxyFetch;
 
 // Factory for creating and starting ProxyFetches. Must outlive all
 // ProxyFetches it creates.
@@ -58,8 +59,11 @@ class ProxyFetchFactory {
   //
   // Takes ownership of custom_options.
   void StartNewProxyFetch(const GoogleString& url,
-                          AsyncFetch* async_fetch,
-                          RewriteOptions* custom_options);
+                          const RequestHeaders& request_headers,
+                          RewriteOptions* custom_options,
+                          ResponseHeaders* response_headers,
+                          Writer* base_writer,
+                          UrlAsyncFetcher::Callback* callback);
 
   void set_server_version(const StringPiece& server_version) {
     server_version.CopyToString(&server_version_);
@@ -119,37 +123,30 @@ class ProxyFetchFactory {
 // offload them to a worker-thread.  This implementation bundles together
 // multiple Writes, and depending on the timing, may move Flushes to
 // follow Writes and collapse multiple Flushes into one.
-class ProxyFetch : public SharedAsyncFetch {
- protected:
-  // protected interface from AsyncFetch.
-  virtual void HandleHeadersComplete();
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleDone(bool success);
+class ProxyFetch : public AsyncFetch {
+ public:
+  // Public interface from AsyncFetch.
+  virtual void HeadersComplete();
+  virtual bool Write(const StringPiece& content, MessageHandler* handler);
+  virtual bool Flush(MessageHandler* handler);
+  virtual void Done(bool success);
   virtual bool IsCachedResultValid(const ResponseHeaders& headers);
 
  private:
   friend class ProxyFetchFactory;
 
-  ProxyFetch(const GoogleString& url,
-             AsyncFetch* async_fetch,
+  ProxyFetch(const GoogleString& url, const RequestHeaders& request_headers,
              RewriteOptions* custom_options,
-             ResourceManager* manager,
-             Timer* timer,
+             ResponseHeaders* response_headers,
+             Writer* base_writer, ResourceManager* manager,
+             Timer* timer, UrlAsyncFetcher::Callback* callback,
              ProxyFetchFactory* factory);
   virtual ~ProxyFetch();
-
-  const RewriteOptions* Options();
-
-  // Once we have decided this is HTML, begin parsing and set headers.
-  void SetupForHtml();
-
-  // Adds a pagespeed header to response_headers if enabled.
-  void AddPagespeedHeader();
 
   // Sets up driver_, registering the writer and start parsing url.
   // Returns whether we started parsing successfully or not.
   bool StartParse();
+  const RewriteOptions* Options();
 
   // Start the fetch which includes preparing the request.
   void StartFetch();
@@ -191,26 +188,26 @@ class ProxyFetch : public SharedAsyncFetch {
   void HandleIdleAlarm();
 
   GoogleString url_;
+  RequestHeaders request_headers_;
+  ResponseHeaders* response_headers_;
+  Writer* base_writer_;
   ResourceManager* resource_manager_;
   Timer* timer_;
+  UrlAsyncFetcher::Callback* callback_;
 
-  // Should we pass through contents (because it's not HTML or PSA disabled)?
   bool pass_through_;
-
-  // Does page claim to be "Content-Type: text/html"? (It may be lying)
-  bool claims_html_;
-
-  // Has a call to StartParse succeeded? We'll only do this if we actually
-  // decide it is HTML.
   bool started_parse_;
-
-  // Tracks whether Done() has been called.
-  bool done_called_;
-
-  HtmlDetector html_detector_;
 
   // Statistics
   int64 start_time_us_;
+
+  // If we're given custom options, we store them here until
+  // we hand them over to the rewrite driver.
+  scoped_ptr<RewriteOptions> custom_options_;
+
+  // Similarly if we have a UA string in RequestHeaders, we'll store it here.
+  // (If not, this will be null).
+  scoped_ptr<GoogleString> request_user_agent_;
 
   // ProxyFetch is responsible for getting RewriteDrivers from the pool and
   // putting them back.

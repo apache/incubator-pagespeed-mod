@@ -62,19 +62,16 @@ CssImageRewriterAsync::CssImageRewriterAsync(CssFilter::Context* context,
 
 CssImageRewriterAsync::~CssImageRewriterAsync() {}
 
-bool CssImageRewriterAsync::RewritesEnabled(
-    int64 image_inline_max_bytes) const {
+bool CssImageRewriterAsync::RewritesEnabled() const {
   const RewriteOptions* options = driver_->options();
-  return (image_inline_max_bytes > 0 ||
-          options->Enabled(RewriteOptions::kRecompressImages) ||
+  return (options->Enabled(RewriteOptions::kRecompressImages) ||
           options->Enabled(RewriteOptions::kLeftTrimUrls) ||
-          options->Enabled(RewriteOptions::kExtendCacheImages) ||
+          options->Enabled(RewriteOptions::kExtendCache) ||
           options->Enabled(RewriteOptions::kSpriteImages));
 }
 
 void CssImageRewriterAsync::RewriteImage(
-    int64 image_inline_max_bytes,
-    const GoogleUrl& trim_url,
+    const GoogleUrl& base_url,
     const GoogleUrl& original_url,
     Css::Values* values, size_t value_index,
     MessageHandler* handler) {
@@ -87,14 +84,12 @@ void CssImageRewriterAsync::RewriteImage(
   CssResourceSlotPtr slot(
       context_->slot_factory()->GetSlot(resource, values, value_index));
 
-  if (options->Enabled(RewriteOptions::kRecompressImages) ||
-      image_inline_max_bytes > 0) {
+  if (options->Enabled(RewriteOptions::kRecompressImages)) {
     context_->RegisterNested(
-        image_rewriter_->MakeNestedRewriteContextForCss(image_inline_max_bytes,
-            context_, ResourceSlotPtr(slot)));
+        image_rewriter_->MakeNestedContext(context_, ResourceSlotPtr(slot)));
   }
 
-  if (driver_->MayCacheExtendImages()) {
+  if (options->Enabled(RewriteOptions::kExtendCache)) {
     context_->RegisterNested(
         cache_extender_->MakeNestedContext(context_, ResourceSlotPtr(slot)));
   }
@@ -104,20 +99,17 @@ void CssImageRewriterAsync::RewriteImage(
   if (options->trim_urls_in_css() &&
       options->Enabled(RewriteOptions::kLeftTrimUrls)) {
     // TODO(sligocki): Make sure this is the correct (final) URL of the CSS.
-    slot->EnableTrim(trim_url);
+    slot->EnableTrim(base_url);
   }
 }
 
-void CssImageRewriterAsync::RewriteCssImages(int64 image_inline_max_bytes,
-                                             const GoogleUrl& base_url,
-                                             const GoogleUrl& trim_url,
-                                             const StringPiece& contents,
-                                             Css::Stylesheet* stylesheet,
-                                             MessageHandler* handler) {
+void CssImageRewriterAsync::RewriteCssImages(
+    const GoogleUrl& base_url, const StringPiece& contents,
+    Css::Stylesheet* stylesheet, MessageHandler* handler) {
   const RewriteOptions* options = driver_->options();
   bool spriting_ok = options->Enabled(RewriteOptions::kSpriteImages);
 
-  if (RewritesEnabled(image_inline_max_bytes)) {
+  if (RewritesEnabled()) {
     handler->Message(kInfo, "Starting to rewrite images in CSS in %s",
                      base_url.spec_c_str());
     if (spriting_ok) {
@@ -171,8 +163,8 @@ void CssImageRewriterAsync::RewriteCssImages(int64 image_inline_max_bytes,
                       original_url, values, value_index, context_,
                       &decls, handler);
                 }
-                RewriteImage(image_inline_max_bytes, trim_url, original_url,
-                             values, value_index, handler);
+                RewriteImage(base_url, original_url, values,
+                             value_index, handler);
               }
             }
             break;

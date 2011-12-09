@@ -19,25 +19,68 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+class MessageHandler;
 class OutputResource;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteContext;
 class RewriteDriver;
 class UrlSegmentEncoder;
+class Writer;
 
 class RewriteFilter : public CommonFilter {
  public:
-  explicit RewriteFilter(RewriteDriver* driver)
-      : CommonFilter(driver) {
+  explicit RewriteFilter(RewriteDriver* driver, StringPiece filter_prefix)
+      : CommonFilter(driver),
+        filter_prefix_(filter_prefix.data(), filter_prefix.size()) {
   }
   virtual ~RewriteFilter();
 
-  virtual const char* id() const = 0;
+  // Fetches a resource written using the filter.  Filters that
+  // encode all the data (URLs, meta-data) needed to reconstruct
+  // a rewritten resource in a URL component, this method is the
+  // mechanism for the filter to serve the rewritten resource.
+  //
+  // The flow is that a RewriteFilter is instantiated with
+  // a path prefix, e.g. a two letter abbreviation of the
+  // filter, like "ce" for CacheExtender.  When it rewrites a
+  // resource, it replaces the href with a url constructed as
+  //   HOST://PATH/ENCODED_NAME.pagespeed.FILTER_ID.HASH.EXT
+  // Most ENCODED_NAMEs are just the original URL with a few
+  // characters, notably '?' and '&' esacped.  For "ic" (ImageRewriterFilter)
+  // the encoding includes the original image URL, plus the pixel-dimensions
+  // to which the image was resized.  For combine_css it includes
+  // all the original URLs separated by '+'.
+  //
+  // This method should return whether it will invoke the callback,
+  // with false indicating that it detected a failure immediately,
+  // and will not invoke the callback to report it. See also
+  // RewriteDriver::FetchResource documentation, which has the same
+  // return value protocol.
+  //
+  // If the method does return false it should also be careful to not access
+  // response_writer or response_headers from callbacks for any
+  // requests it has initiated itself.
+  //
+  // This is *not* called in async mode, and the override will be
+  // eliminated once async mode is the only option.
+  virtual bool Fetch(const OutputResourcePtr& output_resource,
+                     Writer* response_writer,
+                     const RequestHeaders& request_header,
+                     ResponseHeaders* response_headers,
+                     MessageHandler* message_handler,
+                     UrlAsyncFetcher::Callback* callback) = 0;
+
+  const GoogleString& id() const { return filter_prefix_; }
 
   // Create an input resource by decoding output_resource using the
   // filter's. Assures legality by explicitly permission-checking the result.
@@ -58,17 +101,22 @@ class RewriteFilter : public CommonFilter {
   // The default implementation returns false.
   virtual bool ComputeOnTheFly() const;
 
-  // Generates a RewriteContext appropriate for this filter.
-  // Default implementation returns NULL.  This must be overridden by
-  // filters.  This is used to implement Fetch.
+  // Determines whether this filter supports the asynchronous writing flow,
+  // and the RewriteDriver is in async mode.
+  //
+  // TODO(jmarnatz): remove this method once all filters use the async
+  // writing flow.
+  virtual bool HasAsyncFlow() const;
+
+  // Generates a RewriteContext appropriate for this filter.  This will only
+  // be called if in asynchronous mode, for filters that support asynchrous
+  // mode.  Default implementation return NULL.  This must be overridden by
+  // filters when they add async support.  This is used to implement Fetch.
   virtual RewriteContext* MakeRewriteContext();
 
-  // Generates a nested RewriteContext appropriate for this filter.
-  // Default implementation returns NULL.
-  // This is used to implement ajax rewriting.
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
-
+ protected:
+  GoogleString filter_prefix_;  // Prefix that should be used in front of all
+                                // rewritten URLs
  private:
   DISALLOW_COPY_AND_ASSIGN(RewriteFilter);
 };

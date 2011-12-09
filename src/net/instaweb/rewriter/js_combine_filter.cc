@@ -34,8 +34,8 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -60,6 +60,8 @@
 namespace net_instaweb {
 
 class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
 class UrlSegmentEncoder;
 
 const char JsCombineFilter::kJsFileCountReduction[] = "js_file_count_reduction";
@@ -159,8 +161,12 @@ class JsCombineFilter::Context : public RewriteContext {
   // from the combination.  Remove the corresponding slot as well,
   // because we are no longer handling the resource associated with it.
   void RemoveLastElement() {
-    RemoveLastSlot();
-    elements_.resize(elements_.size() - 1);
+    if (filter_->HasAsyncFlow()) {
+      RemoveLastSlot();
+      elements_.resize(elements_.size() - 1);
+    } else {
+      combiner_.RemoveLastElement();
+    }
   }
 
   bool HasElementLast(HtmlElement* element) {
@@ -277,10 +283,14 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
   virtual const UrlSegmentEncoder* encoder() const {
-    return filter_->encoder();
+    return &encoder_;
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  virtual const char* id() const {
+    return filter_->id().c_str();
+  }
+  virtual OutputResourceKind kind() const {
+    return kRewrittenResource;
+  }
 
  private:
   // If we can combine, put the result into outputs and then reset
@@ -405,20 +415,42 @@ bool JsCombineFilter::JsCombiner::WritePiece(
     const Resource* input, OutputResource* combination, Writer* writer,
     MessageHandler* handler) {
   // We write out code of each script into a variable.
-  writer->Write(StrCat("var ", filter_->VarName(input->url()), " = "),
+  writer->Write(StrCat("var ", filter_->VarName(input->url()), " = \""),
                 handler);
 
+  // We escape backslash, double-quote, CR and LF while forming a string
+  // from the code. This is /almost/ completely right: U+2028 and U+2029 are
+  // line terminators as well (ECMA 262-5 --- 7.3, 7.8.4), so should really be
+  // escaped, too, but we don't have the encoding here.
   StringPiece original = input->contents();
   GoogleString escaped;
-  JavascriptCodeBlock::ToJsStringLiteral(original, &escaped);
+  for (size_t c = 0; c < original.length(); ++c) {
+    switch (original[c]) {
+      case '\\':
+        escaped += "\\\\";
+        break;
+      case '"':
+        escaped += "\\\"";
+        break;
+      case '\r':
+        escaped += "\\r";
+        break;
+      case '\n':
+        escaped += "\\n";
+        break;
+      default:
+        escaped += original[c];
+    }
+  }
 
   writer->Write(escaped, handler);
-  writer->Write(";\n", handler);
+  writer->Write("\";\n", handler);
   return true;
 }
 
-JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
+JsCombineFilter::JsCombineFilter(RewriteDriver* driver,
+                                 const StringPiece& filter_id)
+    : RewriteFilter(driver, filter_id),
       script_scanner_(driver),
       script_depth_(0),
       current_js_script_(NULL),
@@ -543,11 +575,34 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
   }
 
   // Now we see if policy permits us merging this element with previous ones.
-  context_->AddElement(element, src);
+  if (HasAsyncFlow()) {
+    context_->AddElement(element, src);
+  } else {
+    StringPiece url = src->value();
+    MessageHandler* handler = driver_->message_handler();
+    if (!combiner()->AddElement(element, url, handler).value) {
+      // No -> try to flush what we have thus far.
+      // Note: this flush is important in part because it ensure that all
+      // scripts within combination have the same hostname, so we can safely
+      // name variables excluding the hostname, without worrying about
+      // foo.com/a.js and bar.com/a.js colliding.
+      NextCombination();
+
+      // ... and try to start a new combination
+      combiner()->AddElement(element, url, handler);
+    }
+  }
 }
 
 bool JsCombineFilter::IsCurrentScriptInCombination() const {
-  return context_->HasElementLast(current_js_script_);
+  if (HasAsyncFlow()) {
+    return context_->HasElementLast(current_js_script_);
+  } else {
+    int included_urls = combiner()->num_urls();
+    return (current_js_script_ != NULL) &&
+        (included_urls >= 1) &&
+        (combiner()->element(included_urls - 1) == current_js_script_);
+  }
 }
 
 GoogleString JsCombineFilter::VarName(const GoogleString& url) const {
@@ -564,6 +619,21 @@ GoogleString JsCombineFilter::VarName(const GoogleString& url) const {
   }
 
   return StrCat("mod_pagespeed_", url_hash);
+}
+
+bool JsCombineFilter::Fetch(const OutputResourcePtr& resource,
+                            Writer* writer,
+                            const RequestHeaders& request_header,
+                            ResponseHeaders* response_headers,
+                            MessageHandler* message_handler,
+                            UrlAsyncFetcher::Callback* callback) {
+  DCHECK(!HasAsyncFlow());
+  return combiner()->Fetch(resource, writer, request_header, response_headers,
+                          message_handler, callback);
+}
+
+bool JsCombineFilter::HasAsyncFlow() const {
+  return driver_->asynchronous_rewrites();
 }
 
 JsCombineFilter::Context* JsCombineFilter::MakeContext() {
@@ -583,9 +653,13 @@ JsCombineFilter::JsCombiner* JsCombineFilter::combiner() const {
 // In sync flow, just write out what we have so far, and then
 // reset the context.
 void JsCombineFilter::NextCombination() {
-  if (!context_->empty()) {
-    driver_->InitiateRewrite(context_.release());
-    context_.reset(MakeContext());
+  if (HasAsyncFlow()) {
+    if (!context_->empty()) {
+      driver_->InitiateRewrite(context_.release());
+      context_.reset(MakeContext());
+    }
+  } else {
+    combiner()->TryCombineAccumulated();
   }
   context_->Reset();
 }

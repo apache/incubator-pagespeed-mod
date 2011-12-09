@@ -21,9 +21,7 @@
 
 #include <cstdarg>
 #include <cstddef>
-#include <set>
 #include <vector>
-
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
@@ -41,8 +39,6 @@ namespace net_instaweb {
 class DocType;
 class MessageHandler;
 class Timer;
-
-typedef std::set <const HtmlEvent*> ConstHtmlEventSet;
 
 // TODO(jmarantz): rename HtmlParse to HtmlContext.  The actual
 // parsing occurs in HtmlLexer, and this class is dominated by methods
@@ -243,14 +239,8 @@ class HtmlParse {
   // Implementation helper with detailed knowledge of html parsing libraries
   friend class HtmlLexer;
 
-  // Determines whether a tag should be terminated in HTML, e.g. <meta ..>.
-  // We do not expect to see a close-tag for meta and should never insert one.
+  // Determines whether a tag should be terminated in HTML.
   bool IsImplicitlyClosedTag(HtmlName::Keyword keyword) const;
-
-  // An optionally closed tag ranges from <p>, which is typically not closed,
-  // but we infer the closing from context.  Also consider <html>, which usually
-  // is closed but not always.  E.g. www.google.com does not close its html tag.
-  bool IsOptionallyClosedTag(HtmlName::Keyword keyword) const;
 
   // Determines whether a tag allows brief termination in HTML, e.g. <tag/>
   bool TagAllowsBriefTermination(HtmlName::Keyword keyword) const;
@@ -334,21 +324,6 @@ class HtmlParse {
   // Split up to permit asynchronous versions.
   void BeginFinishParse();
   void EndFinishParse();
-
-  // Returns the number of events on the event queue.
-  size_t GetEventQueueSize();
-
-  // Move the entire contents of extra_events onto the end of the event queue.
-  void AppendEventsToQueue(HtmlEventList* extra_events);
-
-  // Move the entire event queue after the first event in event_set to the end
-  // of tail.  Return that event, or NULL if there was none.
-  HtmlEvent* SplitQueueOnFirstEventInSet(const ConstHtmlEventSet& event_set,
-                                         HtmlEventList* tail);
-
-  // Return the EndElementEvent for this element, or NULL if it doesn't exist
-  // yet.
-  HtmlEvent* GetEndElementEvent(const HtmlElement* element);
 
  private:
   void ApplyFilterHelper(HtmlFilter* filter);
