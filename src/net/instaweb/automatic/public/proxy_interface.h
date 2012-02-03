@@ -49,7 +49,6 @@ class AsyncFetch;
 class GoogleUrl;
 class Layout;
 class MessageHandler;
-class ProxyFetchPropertyCallback;
 class ProxyFetchFactory;
 class RequestHeaders;
 class ResourceManager;
@@ -98,7 +97,6 @@ class ProxyInterface : public UrlAsyncFetcher {
                             GoogleUrl* request_url,
                             AsyncFetch* async_fetch,
                             RewriteOptions* domain_options,
-                            ProxyFetchPropertyCallback* property_callback,
                             MessageHandler* handler);
 
  private:

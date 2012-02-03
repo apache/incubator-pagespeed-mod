@@ -54,7 +54,6 @@ EOF
 
 HOSTNAME=$1
 EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
-REWRITTEN_TEST_ROOT=$TEST_ROOT
 TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
 STATISTICS_URL=http://$HOSTNAME/mod_pagespeed_statistics
 BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/W.bad.pagespeed.cf.hash.css
@@ -63,9 +62,8 @@ MESSAGE_URL=http://$HOSTNAME/mod_pagespeed_message
 HTTPS_HOST=$2
 HTTPS_EXAMPLE_ROOT=https://$HTTPS_HOST/mod_pagespeed_example
 
-# These are the root URLs for rewritten resources; by default, no change.
+# This is the root of the URL of rewritten resources; by default, no change.
 REWRITTEN_ROOT=${REWRITTEN_ROOT:-$EXAMPLE_ROOT}
-REWRITTEN_TEST_ROOT=${REWRITTEN_TEST_ROOT:-$TEST_ROOT}
 
 # Setup wget proxy information
 export http_proxy=$3
@@ -732,7 +730,7 @@ echo Test that we can rewrite resources that are served with
 echo Cache-Control: no-cache with on-the-fly filters.  Tests that the
 echo no-cache header is preserved.
 test_filter extend_cache with no-cache js origin
-URL="$REWRITTEN_TEST_ROOT/no_cache/hello.js.pagespeed.ce.0.js"
+URL="$REWRITTEN_ROOT/../mod_pagespeed_test/no_cache/hello.js.pagespeed.ce.0.js"
 echo run_wget_with_args $URL
 run_wget_with_args $URL
 cat $WGET_OUTPUT
@@ -743,7 +741,7 @@ check grep -c "no-cache" $WGET_OUTPUT
 echo Test that we can rewrite Cache-Control: no-cache resources with
 echo non-on-the-fly filters.
 test_filter rewrite_javascript with no-cache js origin
-URL="$REWRITTEN_TEST_ROOT/no_cache/hello.js.pagespeed.jm.0.js"
+URL="$REWRITTEN_ROOT/../mod_pagespeed_test/no_cache/hello.js.pagespeed.jm.0.js"
 echo run_wget_with_args $URL
 run_wget_with_args $URL
 check grep -c "Hello\'" $OUTDIR/hello.js.pagespeed.jm.0.js

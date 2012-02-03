@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/logging.h"
 #include "net/instaweb/util/property_cache.pb.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -78,8 +77,7 @@ class PropertyPage::CallbackCollector {
     {
       ScopedMutex lock(mutex_.get());
       success_ |= success;  // Declare victory a if *any* lookups completed.
-      --pending_;
-      done = (pending_ == 0);
+      done = (--pending_ == 0);
     }
     if (done) {
       page_->CallDone(success_);

@@ -14,8 +14,8 @@
 //
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_MEM_CLEAN_UP_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_MEM_CLEAN_UP_H_
 
 namespace net_instaweb {
 
@@ -27,12 +27,12 @@ namespace net_instaweb {
 // time in their flow.  There is no statically constructed object declared
 // in mem_clean_up.cc, although this class can be instantiated statically
 // if that's the best mechanism in the environment.
-class ProcessContext {
+class MemCleanUp {
  public:
-  ProcessContext();
-  ~ProcessContext();
+  MemCleanUp();
+  ~MemCleanUp();
 };
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
+#endif  // NET_INSTAWEB_REWRITER_PUBLIC_MEM_CLEAN_UP_H_

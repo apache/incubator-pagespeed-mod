@@ -38,7 +38,7 @@
         '<(instaweb_root)/instaweb.gyp:instaweb_spriter',
         '<(instaweb_root)/instaweb.gyp:instaweb_util',
         '<(instaweb_root)/instaweb.gyp:instaweb_util_pthread',
-        '<(instaweb_root)/instaweb.gyp:process_context',
+        '<(instaweb_root)/instaweb.gyp:mem_clean_up',
       ],
       'include_dirs': [
         '<(DEPTH)',

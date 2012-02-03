@@ -167,11 +167,10 @@ class JsonFetch : public StringAsyncFetch {
 
 }  // namespace
 
-class BlinkFlow::JsonFindCallback : public OptionsAwareHTTPCacheCallback {
+class BlinkFlow::JsonFindCallback : public HTTPCache::Callback {
  public:
   explicit JsonFindCallback(BlinkFlow* blink_fetch)
-      : OptionsAwareHTTPCacheCallback(blink_fetch->options_),
-        blink_fetch_(blink_fetch) {}
+      : blink_fetch_(blink_fetch) {}
 
   virtual ~JsonFindCallback() {}
 
@@ -187,6 +186,10 @@ class BlinkFlow::JsonFindCallback : public OptionsAwareHTTPCacheCallback {
       blink_fetch_->JsonCacheHit(contents, *response_headers());
     }
     delete this;
+  }
+
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return true;
   }
 
  private:
@@ -420,8 +423,7 @@ void BlinkFlow::TriggerProxyFetch(bool json_found) {
     fetch = new AsyncFetchWithHeadersInhibited(base_fetch_);
   }
 
-  // TODO(jmarantz): pass-through the property-cache callback rather than NULL.
-  factory_->StartNewProxyFetch(url_, fetch, options_, NULL);
+  factory_->StartNewProxyFetch(url_, fetch, options_);
   delete this;
 }
 
