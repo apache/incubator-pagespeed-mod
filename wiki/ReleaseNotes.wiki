@@ -1,6 +1,7 @@
 <wiki:toc max_depth="3" />
 
 ===mod_pagespeed release 0.10.19.5===
+was released on Dec 12, 2011. It fixes the following issues:
 ||Issue 355 || DoS under Debian/apache2-mpm-itk||
 ||Issue 357 || ModPagespeedLoadFromFile should strip query params.||
 ||Issue 360 || meta-tag charset breaks opera.||
