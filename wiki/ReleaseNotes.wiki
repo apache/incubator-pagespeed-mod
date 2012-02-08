@@ -1,5 +1,23 @@
 <wiki:toc max_depth="3" />
 
+===mod_pagespeed release 0.10.21.2===
+was released on Feb 8, 2012. It fixes the following issues:
+||Issue 48 || Support for CSS @import||
+||Issue 108 || Parse CSS3 and common proprietary syntaxes||
+||Issue 186 || Wysiwyg 2.2 and CKEditor 3.5 on Drupal + mod_pagespeed breaks||
+||Issue 196 || InlineCss not parsing @import "url" statements||
+||Issue 214 || insert_image_dimensions can break an image's aspect ratio||
+||Issue 332 || LoadFromFile should convert %20 to space in URLs||
+||Issue 338 || combine_css needs to strip BOM markers before combining||
+||Issue 340 || terminate called after throwing an instance of 'std::length_error'||
+||Issue 352 || Lightbox2 + mod_pagespeed not working||
+||Issue 354 || CSS filter ignores external CSS links with rel='Stylesheet' instead of rel='stylesheet'||
+||Issue 355 || DoS under Debian/apache2-mpm-itk||
+||Issue 356 || Sites with HTTPS users and no HTTPS mod_pagespeed configuration get log spew||
+||Issue 367 || mod_pagespeed strips custom HTML headers||
+||Issue 368 || Relative URL not handled properly in inlined css||
+||Issue 372 || meta refresh tags within NOSCRIPT tags get converted to HTTP headers even when javascript is enabled||
+
 ===mod_pagespeed release 0.10.19.5===
 was released on Dec 12, 2011. It fixes the following issues:
 ||Issue 355 || DoS under Debian/apache2-mpm-itk||
