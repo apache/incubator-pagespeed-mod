@@ -3,11 +3,9 @@
 == Prerequisites ==
 The build has been tested on Ubuntu Hardy/Lucid and CentOS 5.4. It should work elsewhere; if you try it somewhere new, please leave a comment with your success or failure.
 
-We require Apache (>= 2.2), g++ (>= 4.1), Python (>= 2.6), subversion, and make.
-  * On Debian/Ubuntu: `sudo apt-get install apache2 subversion g++ make devscripts fakeroot python`
-  * On CentOS: `sudo yum install httpd subversion gcc-c++ make rpm-build python`
-
-If you are building trunk, you may also need to install gperf.
+We require Apache (>= 2.2), g++ (>= 4.1), Python (>= 2.6), subversion, gperf, and make.
+  * On Debian/Ubuntu: `sudo apt-get install apache2 g++ python subversion gperf make devscripts fakeroot`
+  * On CentOS: `sudo yum install httpd gcc-c++ python subversion gperf make rpm-build`
 
 To build on CentOS 5.4, you must install Python 2.6.  You don't need to replace the system-provided Python 2.4 -- you just need to have "which python" point to python 2.6.  For example:
 
