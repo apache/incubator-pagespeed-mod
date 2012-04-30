@@ -138,3 +138,6 @@ The resulting package file will be in the `out/Release` directory.
 
 == Monitoring a mod_pagespeed installation ==
 You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable additional hosts in `pagespeed.conf`.
+
+== mod_pagespeed on other systems ==
+Gentoo: http://en.gentoo-wiki.com/wiki/Apache2_mod_pagespeed (thanks to nikola.derikonjic)
