@@ -53,7 +53,7 @@ or the bleeding edge version
   ./out/Release/pagespeed_automatic_test
 }}}
 
-You may get an error with TestAtime like:
+You may get an error with Test Atime like:
 {{{
   net/instaweb/util/file_system_test.cc:246: Failure
   Expected: (atime1) < (atime2), actual: 1335969574 vs 1335969574
@@ -62,10 +62,10 @@ You may get an error with TestAtime like:
   [  FAILED  ] AprFileSystemTest.TestAtime (3004 ms)
 }}}
 This happens when your file system is mounted with the noatime
-option.  ModPagespeed will still work, but it's cache will act as
+option.  Modpagespeed will still work, but it's cache will act as
 LRI (least recently inserted) instead of LRU (least recently used).
 This means the cache will be less effective, as it won't have
-statistics on what items are most accessed.  ModPagespeed will work
+statistics on what items are most accessed.  Modpagespeed will work
 best if you turn off 'noatime' in /etc/fstab.
 
 If you get any other errors while running tests, report a bug or send us an email at mod-pagespeed-discuss@googlegroups.com.
