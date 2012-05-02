@@ -62,10 +62,10 @@ You may get an error with Test Atime like:
   [  FAILED  ] AprFileSystemTest.TestAtime (3004 ms)
 }}}
 This happens when your file system is mounted with the noatime
-option.  Modpagespeed will still work, but it's cache will act as
+option.  mod_pagespeed will still work, but it's cache will act as
 LRI (least recently inserted) instead of LRU (least recently used).
 This means the cache will be less effective, as it won't have
-statistics on what items are most accessed.  Modpagespeed will work
+statistics on what items are most accessed.  mod_pagespeed will work
 best if you turn off 'noatime' in `/etc/fstab`.
 
 If you get any other errors while running tests, report a bug or send us an email at mod-pagespeed-discuss@googlegroups.com.
