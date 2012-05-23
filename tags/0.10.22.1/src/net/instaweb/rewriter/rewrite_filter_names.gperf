@@ -1,0 +1,95 @@
+%{
+// rewrite_filter_names.cc is automatically generated from
+// rewrite_filter_names.gperf.
+// Author: jmarantz@google.com
+
+#include "base/basictypes.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/string_util.h"
+
+namespace net_instaweb {
+%}
+%compare-strncmp
+%define class-name FilterMapper
+%define lookup-function-name Lookup
+%define word-array-name kHtmlNameTable
+%global-table
+%ignore-case
+%includes
+%language=C++
+%readonly-tables
+%struct-type
+
+struct FilterMap {
+  const char* name;
+  net_instaweb::RewriteOptions::Filter filter;
+};
+%%
+# IMPORTANT: Do not add any internal filters (that would blow up if triggered
+# from e.g. query params!) here.
+"add_base_tag",                      RewriteOptions::kAddBaseTag
+"add_head",                          RewriteOptions::kAddHead
+"add_instrumentation",               RewriteOptions::kAddInstrumentation
+"collapse_whitespace",               RewriteOptions::kCollapseWhitespace
+"combine_css",                       RewriteOptions::kCombineCss
+"combine_javascript",                RewriteOptions::kCombineJavascript
+"combine_heads",                     RewriteOptions::kCombineHeads
+"convert_jpeg_to_progressive",       RewriteOptions::kConvertJpegToProgressive
+"convert_jpeg_to_webp",              RewriteOptions::kConvertJpegToWebp
+"convert_meta_tags",                 RewriteOptions::kConvertMetaTags
+"convert_png_to_jpeg",               RewriteOptions::kConvertPngToJpeg
+"debug",                             RewriteOptions::kDebug
+"defer_javascript",                  RewriteOptions::kDeferJavascript
+"detect_reflow_with_defer_js",       RewriteOptions::kDetectReflowWithDeferJavascript
+"deterministic_js",                  RewriteOptions::kDeterministicJs
+"disable_javascript",                RewriteOptions::kDisableJavascript
+"div_structure",                     RewriteOptions::kDivStructure
+"elide_attributes",                  RewriteOptions::kElideAttributes
+"explicit_close_tags",               RewriteOptions::kExplicitCloseTags
+"extend_cache_css",                  RewriteOptions::kExtendCacheCss
+"extend_cache_images",               RewriteOptions::kExtendCacheImages
+"extend_cache_scripts",              RewriteOptions::kExtendCacheScripts
+"flatten_css_imports",               RewriteOptions::kFlattenCssImports
+"inline_css",                        RewriteOptions::kInlineCss
+"inline_images",                     RewriteOptions::kInlineImages
+"inline_import_to_link",             RewriteOptions::kInlineImportToLink
+"inline_javascript",                 RewriteOptions::kInlineJavascript
+"inline_preview_images",             RewriteOptions::kDelayImages
+"insert_ga",                         RewriteOptions::kInsertGA
+"insert_img_dimensions",             RewriteOptions::kInsertImageDimensions
+"insert_image_dimensions",           RewriteOptions::kInsertImageDimensions
+"lazyload_images",                   RewriteOptions::kLazyloadImages
+"local_storage_cache",               RewriteOptions::kLocalStorageCache
+"left_trim_urls",                    RewriteOptions::kLeftTrimUrls
+"make_google_analytics_async",       RewriteOptions::kMakeGoogleAnalyticsAsync
+"move_css_above_scripts",            RewriteOptions::kMoveCssAboveScripts
+"move_css_to_head",                  RewriteOptions::kMoveCssToHead
+"outline_css",                       RewriteOptions::kOutlineCss
+"outline_javascript",                RewriteOptions::kOutlineJavascript
+"prioritize_visible_content",        RewriteOptions::kPrioritizeVisibleContent
+"recompress_images",                 RewriteOptions::kRecompressImages
+"remove_comments",                   RewriteOptions::kRemoveComments
+"remove_quotes",                     RewriteOptions::kRemoveQuotes
+"resize_images",                     RewriteOptions::kResizeImages
+"resize_mobile_images",              RewriteOptions::kResizeMobileImages
+"rewrite_css",                       RewriteOptions::kRewriteCss
+"rewrite_domains",                   RewriteOptions::kRewriteDomains
+"rewrite_javascript",                RewriteOptions::kRewriteJavascript
+"rewrite_style_attributes",          RewriteOptions::kRewriteStyleAttributes
+"rewrite_style_attributes_with_url", RewriteOptions::kRewriteStyleAttributesWithUrl
+"sprite_images",                     RewriteOptions::kSpriteImages
+"strip_scripts",                     RewriteOptions::kStripScripts
+"trim_urls",                         RewriteOptions::kLeftTrimUrls
+%%
+
+RewriteOptions::Filter RewriteOptions::LookupFilter(
+    const StringPiece& filter_name) {
+  const FilterMap* entry = FilterMapper::Lookup(
+      filter_name.data(), filter_name.size());
+  if (entry != NULL) {
+    return entry->filter;
+  }
+  return RewriteOptions::kEndOfFilters;
+}
+
+}  // namespace net_instaweb
