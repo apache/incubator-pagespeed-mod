@@ -75,6 +75,10 @@ ModPagespeedEnableFilters add_instrumentation
     # the right header.
     Header set Cache-control "max-age=600"
     Header append 'Content-Encoding' 'gzip'
+
+    # This is needed to allow tests to pass in Apache 2.4.
+    # It doesn't harm 2.2.
+    Header set 'Content-Type' 'text/javascript'
 </Directory>
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/no_cache/" >
@@ -122,6 +126,8 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/load_from_
 # this here cause it's a hassle; we just depend on the unit-tests for that.
 ModPagespeedListOutstandingUrlsOnError on
 
+ModPagespeedAvoidRenamingIntrospectiveJavascript off
+
 #SPELING # Enable mod_speling to ensure that we don't regress Issue 194
 #SPELING <IfModule !speling_module>
 #SPELING   LoadModule speling_module  @@APACHE_MODULES@@/mod_speling.so
@@ -136,6 +142,11 @@ ModPagespeedListOutstandingUrlsOnError on
 #STRESS   Options +ExecCGI
 #STRESS </Directory>
 #STRESS AddHandler cgi-script .cgi
+#STRESS <IfVersion >= 2.4.2>
+#STRESS   <IfModule !slotmem_shm_module> 
+#STRESS     LoadModule slotmem_shm_module @@APACHE_MODULES@@/mod_slotmem_shm.so
+#STRESS   </IfModule>
+#STRESS </IfVersion>
 
 #REWRITE # These lines are only needed for the mod_rewrite test, where
 #REWRITE # we are just trying to prove that we remove mod_rewrite from

@@ -45,6 +45,7 @@ APACHE_DOC_ROOT = /var/www
 #APACHE_DOMAIN = localhost:8080  # For test-server.
 APACHE_DOMAIN = localhost
 APACHE_HTTPS_DOMAIN = localhost
+APACHE_SECONDARY_PORT = 8084
 
 APACHE_CONTROL_PROGRAM = /etc/init.d/apache2
 APACHE_START = $(APACHE_CONTROL_PROGRAM) start

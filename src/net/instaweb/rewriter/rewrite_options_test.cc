@@ -556,9 +556,24 @@ void RewriteOptionsTest::TestSetOptionFromName(bool test_log_variant) {
   TestNameSet(RewriteOptions::kOptionOk,
               test_log_variant,
               "BeaconUrl",
-              "example",
+              "http://www.example.com/beacon",
               &handler);
-  EXPECT_EQ("example", options_.beacon_url());
+  EXPECT_EQ("http://www.example.com/beacon", options_.beacon_url().http);
+  EXPECT_EQ("https://www.example.com/beacon", options_.beacon_url().https);
+  TestNameSet(RewriteOptions::kOptionOk,
+              test_log_variant,
+              "BeaconUrl",
+              "http://www.example.com/beacon2 https://www.example.com/beacon3",
+              &handler);
+  EXPECT_EQ("http://www.example.com/beacon2", options_.beacon_url().http);
+  EXPECT_EQ("https://www.example.com/beacon3", options_.beacon_url().https);
+  TestNameSet(RewriteOptions::kOptionOk,
+              test_log_variant,
+              "BeaconUrl",
+              "/pagespeed_beacon?",
+              &handler);
+  EXPECT_EQ("/pagespeed_beacon?", options_.beacon_url().http);
+  EXPECT_EQ("/pagespeed_beacon?", options_.beacon_url().https);
 
   RewriteOptions::RewriteLevel old_level = options_.level();
   TestNameSet(RewriteOptions::kOptionValueInvalid,
@@ -957,11 +972,11 @@ TEST_F(RewriteOptionsTest, FuriousPrintTest) {
                                       &handler));
   options_.SetFuriousState(-7);
   // This should be the core filters.
-  EXPECT_EQ("ah,cc,mc,ec,ei,es,hw,ci,ii,il,ji,tu,ir,ri,cf,jm,cu,"
+  EXPECT_EQ("ah,cc,mc,ec,ei,es,hw,ci,ii,il,ji,ir,ri,cf,jm,cu,"
             "css:2048,im:2048,js:2048;", options_.ToExperimentDebugString());
   EXPECT_EQ("", options_.ToExperimentString());
   options_.SetFuriousState(1);
-  EXPECT_EQ("Experiment: 1; ah,ai,cc,mc,ec,ei,es,hw,ci,ii,il,ji,ig,tu,ir,ri,cf,"
+  EXPECT_EQ("Experiment: 1; ah,ai,cc,mc,ec,ei,es,hw,ci,ii,il,ji,ig,ir,ri,cf,"
             "jm,cu,css:2048,im:2048,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 1", options_.ToExperimentString());
