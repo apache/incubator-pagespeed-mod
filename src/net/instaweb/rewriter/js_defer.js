@@ -282,13 +282,9 @@ pagespeed.DeferJs.prototype.createIdVars = function() {
       var idStr = elems[i].getAttribute('id');
       if (idStr && idStr.search(/[-:.]/) == -1 &&
           idStr.search(/^[0-9]/) == -1) {
-        try {
-          if (window[idStr] && window[idStr].tagName) {
-            idVarsString += 'var ' + idStr +
-                '=document.getElementById("' + idStr + '");';
-          }
-        } catch (err) {
-          this.log('Exception while evaluating.', err);
+        if (window[idStr] && window[idStr].tagName) {
+          idVarsString += 'var ' + idStr +
+              '=document.getElementById("' + idStr + '");';
         }
       }
     }
