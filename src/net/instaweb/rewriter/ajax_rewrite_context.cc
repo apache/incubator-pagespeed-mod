@@ -270,7 +270,7 @@ RewriteFilter* AjaxRewriteContext::GetRewriteFilter(
       options->Enabled(RewriteOptions::kRewriteJavascript)) {
     return driver_->FindFilter(RewriteOptions::kJavascriptMinId);
   }
-  if (type.IsImage() && options->ImageOptimizationEnabled() &&
+  if (type.IsImage() && options->Enabled(RewriteOptions::kRecompressImages) &&
       !driver_->ShouldNotRewriteImages()) {
     // TODO(nikhilmadan): This converts one image format to another. We
     // shouldn't do inter-conversion since we can't change the file extension.

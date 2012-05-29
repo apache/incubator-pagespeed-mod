@@ -499,12 +499,9 @@ class Library : public spriter::ImageLibraryInterface {
         spriter::ImageLibraryInterface::Canvas(lib),
         lib_(lib) {
       DCHECK(lib != NULL);
-      net_instaweb::Image::CompressionOptions* options =
-          new net_instaweb::Image::CompressionOptions();
-      options->recompress_png = true;
-      image_.reset(BlankImageWithOptions(width, height,
-                                         net_instaweb::Image::IMAGE_PNG,
-                                         tmp_dir, handler, options));
+      image_.reset(net_instaweb::BlankImage(width, height,
+                                            net_instaweb::Image::IMAGE_PNG,
+                                            tmp_dir, handler));
     }
 
     virtual ~Canvas() { }

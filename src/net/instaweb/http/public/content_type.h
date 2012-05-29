@@ -41,7 +41,6 @@ struct ContentType {
     kJpeg,
     kSwf,
     kWebp,
-    kHtc,  // HTML Component. See http://en.wikipedia.org/wiki/HTML_Components
   };
 
   // Returns the maximum extension length of any resource types our filters
@@ -85,7 +84,6 @@ extern const ContentType& kContentTypeJavascript;
 extern const ContentType& kContentTypeCss;
 extern const ContentType& kContentTypeText;
 extern const ContentType& kContentTypeXml;
-extern const ContentType& kContentTypeHtc;
 // Images:
 extern const ContentType& kContentTypePng;
 extern const ContentType& kContentTypeGif;

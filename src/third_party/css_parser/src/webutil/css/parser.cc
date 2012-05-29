@@ -32,7 +32,6 @@
 #include "third_party/utf/utf.h"
 #include "util/gtl/stl_util-inl.h"
 #include "util/utf8/public/unicodetext.h"
-#include "util/utf8/public/unilib.h"
 #include "webutil/css/string.h"
 #include "webutil/css/string_util.h"
 #include "webutil/css/util.h"
@@ -296,7 +295,7 @@ UnicodeText Parser::ParseIdent(const StringPiece& allowed_chars) {
           return s;
         }
       } else {  // Encoding error.  Be a little forgiving.
-        ReportParsingError(kUtf8Error, "UTF8 parsing error in identifier");
+        ReportParsingError(kUtf8Error, "UTF8 parsing error");
         in_++;
       }
     } else if (*in_ == '\\') {
@@ -319,8 +318,6 @@ char32 Parser::ParseEscape() {
   in_++;
   if (Done()) return static_cast<char32>('\\');
 
-  char32 codepoint = 0;
-
   int dehexed = DeHex(*in_);
   if (dehexed == -1) {
     Rune rune;
@@ -331,8 +328,9 @@ char32 Parser::ParseEscape() {
       ReportParsingError(kUtf8Error, "UTF8 parsing error");
       in_++;
     }
-    codepoint = rune;
+    return rune;
   } else {
+    char32 codepoint = 0;
     for (int count = 0; count < 6 && in_ < end_; count++) {
       dehexed = DeHex(*in_);
       if (dehexed == -1)
@@ -344,20 +342,8 @@ char32 Parser::ParseEscape() {
       in_ += 2;
     else if (IsSpace(*in_))
       in_++;
+    return codepoint;
   }
-
-  if (!UniLib::IsInterchangeValid(codepoint)) {
-    // From http://www.w3.org/TR/CSS2/syndata.html#escaped-characters:
-    //   It is undefined in CSS 2.1 what happens if a style sheet does
-    //   contain a character with Unicode codepoint zero.
-    // We replace them (and all other improper escapes with a space
-    // and log an error.
-    ReportParsingError(kUtf8Error, StringPrintf(
-        "Invalid CSS-escaped Unicode value: 0x%lX",
-        static_cast<unsigned long int>(codepoint)));
-    codepoint = ' ';
-  }
-  return codepoint;
 }
 
 // Starts at delim.
@@ -394,7 +380,7 @@ UnicodeText Parser::ParseString() {
             s.push_back(rune);
             in_ += len;
           } else {
-            ReportParsingError(kUtf8Error, "UTF8 parsing error in string");
+            ReportParsingError(kUtf8Error, "UTF8 parsing error");
             in_++;
           }
         } else {
@@ -682,7 +668,7 @@ Value* Parser::ParseUrl() {
           s.push_back(rune);
           in_ += len;
         } else {
-          ReportParsingError(kUtf8Error, "UTF8 parsing error in URL");
+          ReportParsingError(kUtf8Error, "UTF8 parsing error");
           in_++;
         }
       } else {
@@ -1413,45 +1399,27 @@ Declarations* Parser::ParseRawDeclarations() {
         DCHECK_EQ(':', *in_);
         in_++;
 
-        scoped_ptr<Values> vals;
+        Values* vals;
         switch (prop.prop()) {
           // TODO(sligocki): stop special-casing.
           case Property::FONT:
-            vals.reset(ParseFont());
+            vals = ParseFont();
             break;
           case Property::FONT_FAMILY:
-            vals.reset(new Values());
-            if (!ParseFontFamily(vals.get()) || vals->empty()) {
-              vals.reset(NULL);
+            vals = new Values();
+            if (!ParseFontFamily(vals) || vals->empty()) {
+              delete vals;
+              vals = NULL;
             }
             break;
           default:
-            vals.reset(ParseValues(prop.prop()));
+            vals = ParseValues(prop.prop());
             break;
         }
 
-        if (vals.get() == NULL) {
+        if (vals == NULL) {
           ReportParsingError(kDeclarationError, StringPrintf(
               "Failed to parse values for property %s",
-              prop.prop_text().c_str()));
-          ignore_this_decl = true;
-          break;
-        }
-
-        // If an error has occurred while parsing vals, some content may have
-        // been lost (invalid Unicode chars, etc.). Thus, in preservation-mode
-        // we just want to drop this malformed declaration and pass it through
-        // verbatim below.
-        //
-        // Note: This will not preserve values if an error occurred which was
-        // already in start_errors_seen_mask. But the goal of preservation
-        // mode is to have errors_seen_mask_ held at 0, because any higher
-        // than that and we cannot trust the output to be fully preserved.
-        // So, we are not worried about failing to preserve values when
-        // errors_seen_mask_ is already non-0.
-        if (preservation_mode_ && errors_seen_mask_ != start_errors_seen_mask) {
-          ReportParsingError(kDeclarationError, StringPrintf(
-              "Error while parsing values for property %s",
               prop.prop_text().c_str()));
           ignore_this_decl = true;
           break;
@@ -1466,8 +1434,7 @@ Declarations* Parser::ParseRawDeclarations() {
               !memcasecmp(ident.utf8_data(), "important", 9))
             important = true;
         }
-        declarations->push_back(
-            new Declaration(prop, vals.release(), important));
+        declarations->push_back(new Declaration(prop, vals, important));
       }
     }
     SkipSpace();

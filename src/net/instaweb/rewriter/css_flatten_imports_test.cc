@@ -171,10 +171,12 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
     // Phew! Load them both. bar-then-foo.css should use cached data.
     ValidateRewriteExternalCss("flatten_then_cache_extend_nested1",
                                top1_before, top1_after,
-                               kExpectSuccess | kNoClearFetcher);
+                               kExpectSuccess |
+                               kNoOtherContexts | kNoClearFetcher);
     ValidateRewriteExternalCss("flatten_then_cache_extend_nested2",
                                top2_before, top2_after,
-                               kExpectSuccess | kNoClearFetcher);
+                               kExpectSuccess |
+                               kNoOtherContexts | kNoClearFetcher);
   }
 
   // General routine to test charset handling. The header_charset argument
@@ -265,7 +267,6 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
     if (should_succeed) {
       const GoogleString css_out = StrCat(kPrintCss, kScreenCss, kStylesCss);
 
-      // TODO(sligocki): Why do we need kNoOtherContexts here?
       ValidateRewriteExternalCss("flatten_nested_media",
                                  css_in, css_out,
                                  kExpectSuccess | kNoOtherContexts |
@@ -340,16 +341,20 @@ TEST_F(CssFlattenImportsTest, FlattenNoop) {
       ".background_red{background-color:red}"
       ".foreground_yellow{color:#ff0}";
 
-  ValidateRewriteExternalCss("flatten_noop", contents, contents,
-                             kExpectSuccess | kNoClearFetcher);
+  ValidateRewriteExternalCss("flatten_noop",
+                             contents, contents,
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssFlattenImportsTest, Flatten404) {
   const char css_in[] =
       "@import url(http://test.com/404.css) ;";
 
-  ValidateRewriteExternalCss("flatten_404", css_in, css_in,
-                             kExpectSuccess | kNoClearFetcher);
+  ValidateRewriteExternalCss("flatten_404",
+                             css_in, css_in,
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssFlattenImportsTest, FlattenInvalidCSS) {
@@ -402,7 +407,8 @@ TEST_F(CssFlattenImportsTest, FlattenSimple) {
                              css_in, css_out,
                              kExpectSuccess | kNoClearFetcher);
   // Check things work when data is already cached.
-  ValidateRewriteExternalCss("flatten_simple_repeat", css_in, css_out,
+  ValidateRewriteExternalCss("flatten_simple_repeat",
+                             css_in, css_out,
                              kExpectSuccess | kNoOtherContexts);
 }
 
@@ -413,13 +419,12 @@ TEST_F(CssFlattenImportsTest, FlattenEmpty) {
 
   SetResponseWithDefaultHeaders(kFilename, kContentTypeCss, css_out, 100);
 
-  ValidateRewriteExternalCss("flatten_empty", css_in, css_out,
+  ValidateRewriteExternalCss("flatten_empty",
+                             css_in, css_out,
                              kExpectSuccess | kNoClearFetcher);
   // Check things work when data is already cached.
-  // We do not specify kNoClearFetcher, so the fetcher is cleared. Thus,
-  // content must be pulled from the cache. kNoOtherContexts because
-  // other contexts won't have this value cached.
-  ValidateRewriteExternalCss("flatten_empty_repeat", css_in, css_out,
+  ValidateRewriteExternalCss("flatten_empty_repeat",
+                             css_in, css_out,
                              kExpectSuccess | kNoOtherContexts);
 }
 
@@ -471,7 +476,8 @@ TEST_F(CssFlattenImportsTest, FlattenNested) {
 
   ValidateRewriteExternalCss("flatten_nested",
                              css_in, kFlattenedTopCssContents,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssFlattenImportsTest, FlattenFromCacheDirectly) {
@@ -499,10 +505,6 @@ TEST_F(CssFlattenImportsTest, FlattenFromCacheDirectly) {
   // messed up because we don't do any actual rewriting in that instance:
   // num_blocks_rewritten_->Get() == 0 instead of 1
   // total_bytes_saved_->Get() == 0 instead of negative something.
-  //
-  // We do not specify kNoClearFetcher, so the fetcher is cleared. Thus,
-  // content must be pulled from the cache. kNoOtherContexts because
-  // other contexts won't have this value cached.
   ValidateRewriteExternalCss("flatten_from_cache_directly",
                              css_in, kFlattenedTopCssContents,
                              kExpectSuccess | kNoStatCheck | kNoOtherContexts);
@@ -517,14 +519,11 @@ TEST_F(CssFlattenImportsTest, FlattenFromCacheDirectly) {
   num_elements = lru_cache()->num_elements();
 
   // Access one of the cached ones directly.
-  //
-  // We do not specify kNoClearFetcher, so the fetcher is cleared. Thus,
-  // content must be pulled from the cache. kNoOtherContexts because
-  // other contexts won't have this value cached.
   css_in = StrCat("@import url(http://test.com/", kTwoLevelsDownFile1, ") ;");
   ValidateRewriteExternalCss("flatten_from_cache_directly_repeat",
                              css_in, kTwoLevelsDownContents1,
-                             kExpectSuccess | kNoOtherContexts);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 
   // The sequence in this case, for the new external link (_repeat on the end):
   // MISS   for the external link's partition key.
@@ -569,7 +568,8 @@ TEST_F(CssFlattenImportsTest, FlattenFromCacheIndirectly) {
   SetResponseWithDefaultHeaders(filename, kContentTypeCss, contents, 100);
   ValidateRewriteExternalCss("flatten_from_cache_indirectly_repeat",
                              css_in, kFlattenedOneLevelDownContents1,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 
   // The sequence in this case, for the new external link (_repeat on the end):
   // MISS   for the external link's partition key.
@@ -613,12 +613,14 @@ TEST_F(CssFlattenImportsTest, CacheExtendsAfterFlattening) {
 
   ValidateRewriteExternalCss("flatten_then_cache_extend",
                              css_before, css_after,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 
   // Test when everything is already cached.
   ValidateRewriteExternalCss("flatten_then_cache_extend_repeat",
                              css_before, css_after,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssFlattenImportsTest, CacheExtendsAfterFlatteningNestedAbsoluteUrls) {
@@ -642,7 +644,7 @@ TEST_F(CssFlattenImportsTest, FlattenRecursion) {
   ValidateRewriteExternalCss("flatten_recursive",
                              css_in, css_in,
                              kExpectSuccess |
-                             kNoClearFetcher);
+                             kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssFlattenImportsTest, FlattenSimpleMedia) {
@@ -657,13 +659,13 @@ TEST_F(CssFlattenImportsTest, FlattenSimpleMedia) {
 
   SetResponseWithDefaultHeaders(kFilename, kContentTypeCss, css_out, 100);
 
-  ValidateRewriteExternalCss("flatten_simple_media", css_in, css_out,
-                             kExpectSuccess | kNoClearFetcher);
+  ValidateRewriteExternalCss("flatten_simple_media",
+                             css_in, css_out,
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
   // Check things work when data is already cached.
-  // We do not specify kNoClearFetcher, so the fetcher is cleared. Thus,
-  // content must be pulled from the cache. kNoOtherContexts because
-  // other contexts won't have this value cached.
-  ValidateRewriteExternalCss("flatten_simple_media_repeat", css_in, css_out,
+  ValidateRewriteExternalCss("flatten_simple_media_repeat",
+                             css_in, css_out,
                              kExpectSuccess | kNoOtherContexts);
 }
 
@@ -726,8 +728,10 @@ TEST_F(CssFlattenImportsTest, FlattenNestedMedia) {
              "}"),
       kStylesCss);
 
-  ValidateRewriteExternalCss("flatten_nested_media", css_in, css_out,
-                             kExpectSuccess | kNoClearFetcher);
+  ValidateRewriteExternalCss("flatten_nested_media",
+                             css_in, css_out,
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
   // Check things work when data is already cached.
   ValidateRewriteExternalCss("flatten_nested_media_repeat",
                              css_in, css_out,
@@ -756,7 +760,8 @@ TEST_F(CssFlattenImportsTest, FlattenCacheDependsOnMedia) {
       StrCat("@import url(http://test.com/", kFilename, ") screen ;");
   ValidateRewriteExternalCss("flatten_mixed_media_screen",
                              screen_in, css_screen,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
   // The sequence is:
   // MISS   for the external link's partition key.
   // MISS   for the external link's URL.
@@ -784,7 +789,7 @@ TEST_F(CssFlattenImportsTest, FlattenCacheDependsOnMedia) {
   ValidateRewriteExternalCss("flatten_mixed_media_print",
                              print_in, css_print,
                              kExpectSuccess |
-                             kNoClearFetcher);
+                             kNoOtherContexts | kNoClearFetcher);
 
   // The sequence in this case, for the new external link (_repeat on the end):
   // MISS   for the external link's partition key.
@@ -812,7 +817,8 @@ TEST_F(CssFlattenImportsTest, FlattenCacheDependsOnMedia) {
   // key which has the correct data for screen.
   ValidateRewriteExternalCss("flatten_mixed_media_screen_repeat",
                              screen_in, css_screen,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
   // The sequence is:
   // MISS   for the external link's partition key.
   // MISS   for the external link's URL.
@@ -832,7 +838,8 @@ TEST_F(CssFlattenImportsTest, FlattenCacheDependsOnMedia) {
   // Ditto for re-fetching print.
   ValidateRewriteExternalCss("flatten_mixed_media_print_repeat",
                              print_in, css_print,
-                             kExpectSuccess | kNoClearFetcher);
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher);
   // The sequence is:
   // MISS   for the external link's partition key.
   // MISS   for the external link's URL.
@@ -871,10 +878,11 @@ TEST_F(CssFlattenImportsTest, FlattenFailsIfLinkHasWrongCharset) {
   const char css_in[] =
       "@import url(http://test.com/styles.css) ;";
 
-  // TODO(sligocki): Why does this need kNoOtherContexts?
-  ValidateRewriteExternalCss("flatten_link_charset", css_in, css_in,
-                             kExpectSuccess | kNoOtherContexts |
-                             kNoClearFetcher | kLinkCharsetIsUTF8);
+  ValidateRewriteExternalCss("flatten_link_charset",
+                             css_in, css_in,
+                             kExpectSuccess |
+                             kNoOtherContexts | kNoClearFetcher |
+                             kLinkCharsetIsUTF8);
 }
 
 TEST_F(CssFlattenImportsTest, FlattenRespectsMetaTagCharset) {
