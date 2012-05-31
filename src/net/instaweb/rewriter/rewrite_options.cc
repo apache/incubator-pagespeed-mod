@@ -180,7 +180,6 @@ namespace {
 const RewriteOptions::Filter kCoreFilterSet[] = {
   RewriteOptions::kAddHead,
   RewriteOptions::kCombineCss,
-  RewriteOptions::kConvertGifToPng,
   RewriteOptions::kConvertMetaTags,
   RewriteOptions::kExtendCacheCss,
   RewriteOptions::kExtendCacheImages,
@@ -190,9 +189,7 @@ const RewriteOptions::Filter kCoreFilterSet[] = {
   RewriteOptions::kInlineImages,
   RewriteOptions::kInlineImportToLink,
   RewriteOptions::kInlineJavascript,
-  RewriteOptions::kRecompressJpeg,
-  RewriteOptions::kRecompressPng,
-  RewriteOptions::kRecompressWebp,
+  RewriteOptions::kRecompressImages,
   RewriteOptions::kResizeImages,
   RewriteOptions::kRewriteCss,
   RewriteOptions::kRewriteJavascript,
@@ -214,7 +211,6 @@ const RewriteOptions::Filter kTestFilterSet[] = {
 // Note: These filters should not be included even if the level is "All".
 const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kComputePanelJson,  // internal, enabled conditionally
-  RewriteOptions::kDeferIframe,
   RewriteOptions::kDeferJavascript,
   RewriteOptions::kDetectReflowWithDeferJavascript,
   RewriteOptions::kDeterministicJs,   // used for measurement
@@ -254,13 +250,11 @@ const char* RewriteOptions::FilterName(Filter filter) {
     case kCombineHeads:                    return "Combine Heads";
     case kCombineJavascript:               return "Combine Javascript";
     case kComputePanelJson:                return "Computes panel json";
-    case kConvertGifToPng:                 return "Convert Gif to Png";
     case kConvertJpegToProgressive:        return "Convert Jpeg to Progressive";
     case kConvertJpegToWebp:               return "Convert Jpeg To Webp";
     case kConvertMetaTags:                 return "Convert Meta Tags";
     case kConvertPngToJpeg:                return "Convert Png to Jpeg";
     case kDebug:                           return "Debug";
-    case kDeferIframe:                     return "Defer Iframe";
     case kDeferJavascript:                 return "Defer Javascript";
     case kDelayImages:                     return "Delay Images";
     case kDetectReflowWithDeferJavascript:
@@ -291,9 +285,7 @@ const char* RewriteOptions::FilterName(Filter filter) {
     case kOutlineCss:                      return "Outline Css";
     case kOutlineJavascript:               return "Outline Javascript";
     case kPrioritizeVisibleContent:        return "Prioritize Visible Content";
-    case kRecompressJpeg:                  return "Recompress Jpeg";
-    case kRecompressPng:                   return "Recompress Png";
-    case kRecompressWebp:                  return "Recompress Webp";
+    case kRecompressImages:                return "Recompress Images";
     case kRemoveComments:                  return "Remove Comments";
     case kRemoveQuotes:                    return "Remove Quotes";
     case kResizeImages:                    return "Resize Images";
@@ -324,13 +316,11 @@ const char* RewriteOptions::FilterId(Filter filter) {
     case kCombineHeads:                    return "ch";
     case kCombineJavascript:               return kJavascriptCombinerId;
     case kComputePanelJson:                return "bp";
-    case kConvertGifToPng:                 return "gp";
     case kConvertJpegToProgressive:        return "jp";
     case kConvertJpegToWebp:               return "jw";
     case kConvertMetaTags:                 return "mc";
     case kConvertPngToJpeg:                return "pj";
     case kDebug:                           return "db";
-    case kDeferIframe:                     return "df";
     case kDeferJavascript:                 return "dj";
     case kDelayImages:                     return "di";
     case kDetectReflowWithDeferJavascript: return "dr";
@@ -359,9 +349,7 @@ const char* RewriteOptions::FilterId(Filter filter) {
     case kOutlineCss:                      return "co";
     case kOutlineJavascript:               return "jo";
     case kPrioritizeVisibleContent:        return "pv";
-    case kRecompressJpeg:                  return "rj";
-    case kRecompressPng:                   return "rp";
-    case kRecompressWebp:                  return "rw";
+    case kRecompressImages:                return "ir";
     case kRemoveComments:                  return "rc";
     case kRemoveQuotes:                    return "rq";
     case kResizeImages:                    return "ri";
@@ -423,15 +411,6 @@ bool RewriteOptions::ParseBeaconUrl(const StringPiece& in, BeaconUrl* out) {
     urls[0].CopyToString(&out->https);
   }
   return true;
-}
-
-bool RewriteOptions::ImageOptimizationEnabled() const {
-  return (this->Enabled(RewriteOptions::kRecompressJpeg) ||
-          this->Enabled(RewriteOptions::kRecompressPng) ||
-          this->Enabled(RewriteOptions::kRecompressWebp) ||
-          this->Enabled(RewriteOptions::kConvertGifToPng) ||
-          this->Enabled(RewriteOptions::kConvertPngToJpeg) ||
-          this->Enabled(RewriteOptions::kConvertJpegToWebp));
 }
 
 RewriteOptions::RewriteOptions()
@@ -571,11 +550,6 @@ RewriteOptions::RewriteOptions()
   add_option(kDefaultBlinkDesktopUserAgentValue,
              &blink_desktop_user_agent_, "bdua",
              kBlinkDesktopUserAgent);
-  add_option(false, &passthrough_blink_for_last_invalid_response_code_, "ptbi",
-             kPassthroughBlinkForInvalidResponseCode);
-  add_option(false, &reject_blacklisted_, "rbl", kRejectBlacklisted);
-  add_option(HttpStatus::kForbidden, &reject_blacklisted_status_code_,
-             "rbls", kRejectBlacklistedStatusCode);
   // Sort all_options_ on enum.
   SortOptions();
   // Do not call add_option with OptionEnum fourth argument after this.
@@ -839,17 +813,9 @@ bool RewriteOptions::AddByNameToFilterSet(
     // here will be invokable by outside people, so they better not crash
     // if that happens!
     if (option == "rewrite_images") {
-      set->insert(kConvertGifToPng);
       set->insert(kInlineImages);
-      set->insert(kRecompressJpeg);
-      set->insert(kRecompressPng);
-      set->insert(kRecompressWebp);
+      set->insert(kRecompressImages);
       set->insert(kResizeImages);
-    } else if (option == "recompress_images") {
-      set->insert(kConvertGifToPng);
-      set->insert(kRecompressJpeg);
-      set->insert(kRecompressPng);
-      set->insert(kRecompressWebp);
     } else if (option == "extend_cache") {
       set->insert(kExtendCacheCss);
       set->insert(kExtendCacheImages);
@@ -1047,16 +1013,13 @@ void RewriteOptions::MutexedOptionInt64MergeWithMax::Merge(
   // This option must be a MutexedOptionInt64 everywhere, so this cast is safe.
   const MutexedOptionInt64MergeWithMax* src =
       static_cast<const MutexedOptionInt64MergeWithMax*>(src_base);
-  bool src_was_set;
+
   int64 src_value;
   {
-    ThreadSystem::ScopedReader read_lock(src->mutex());
-    src_was_set = src->was_set();
+    ThreadSystem::ScopedReader lock(src->mutex());
     src_value = src->value();
   }
-  // We don't grab a writer lock because at merge time this is
-  // only accessible to the current thread.
-  if (src_was_set && (!was_set() || src_value > value())) {
+  if (src->was_set() && (!was_set() || (src_value > value()))) {
     set(src_value);
   }
 }
@@ -1461,8 +1424,7 @@ bool RewriteOptions::UpdateCacheInvalidationTimestampMs(int64 timestamp_ms,
   if (cache_invalidation_timestamp_.value() < timestamp_ms) {
     bool recompute_signature = frozen_;
     frozen_ = false;
-    cache_invalidation_timestamp_.checked_set(timestamp_ms);
-    Modify();
+    set_option(timestamp_ms, &cache_invalidation_timestamp_);
     if (recompute_signature) {
       signature_.clear();
       ComputeSignature(hasher);

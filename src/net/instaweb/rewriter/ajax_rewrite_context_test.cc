@@ -193,7 +193,7 @@ class AjaxRewriteContextTest : public ResourceManagerTestBase {
     rewrite_driver()->AddFilters();
 
     options()->ClearSignatureForTesting();
-    AddRecompressImageFilters();
+    options()->EnableFilter(RewriteOptions::kRecompressImages);
     options()->EnableFilter(RewriteOptions::kRewriteJavascript);
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     options()->set_ajax_rewriting_enabled(true);

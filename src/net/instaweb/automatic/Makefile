@@ -45,8 +45,6 @@ BASE_LIBS = \
   net/instaweb/libautomatic_util.a \
   net/instaweb/libhttp_core.a \
   net/instaweb/libinstaweb_clientstate_pb.a \
-  net/instaweb/libinstaweb_defer_iframe_data2c.a \
-  net/instaweb/libinstaweb_defer_iframe_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_data2c.a \
   net/instaweb/libinstaweb_delay_images_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_inline_data2c.a \
@@ -111,9 +109,7 @@ BASE_LIBS = \
   third_party/libpagespeed/src/third_party/optipng/libopngreduc.a \
   third_party/libpng/libpng.a \
   third_party/libwebp/libwebp_dec.a \
-  third_party/libwebp/libwebp_dsp.a \
   third_party/libwebp/libwebp_enc.a \
-  third_party/libwebp/libwebp_utils.a \
   third_party/opencv/libhighgui.a \
   third_party/opencv/libopencv_imgproc.a \
   third_party/opencv/libopencv_core.a \

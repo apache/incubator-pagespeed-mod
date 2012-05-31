@@ -57,7 +57,6 @@
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
-#include "net/instaweb/rewriter/public/defer_iframe_filter.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
 #include "net/instaweb/rewriter/public/detect_reflow_js_defer_filter.h"
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
@@ -821,12 +820,13 @@ void RewriteDriver::AddPreRenderFilters() {
     CHECK(resource_manager_ != NULL);
     AppendOwnedPreRenderFilter(new JsInlineFilter(this));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kConvertJpegToProgressive) ||
+  if (rewrite_options->Enabled(RewriteOptions::kConvertJpegToWebp) ||
+      rewrite_options->Enabled(RewriteOptions::kConvertJpegToProgressive) ||
       rewrite_options->NeedLowResImages() ||
       rewrite_options->Enabled(RewriteOptions::kInlineImages) ||
       rewrite_options->Enabled(RewriteOptions::kInsertImageDimensions) ||
-      rewrite_options->Enabled(RewriteOptions::kResizeImages) ||
-      rewrite_options->ImageOptimizationEnabled()) {
+      rewrite_options->Enabled(RewriteOptions::kRecompressImages) ||
+      rewrite_options->Enabled(RewriteOptions::kResizeImages)) {
     EnableRewriteFilter(RewriteOptions::kImageCompressionId);
   }
   if (rewrite_options->Enabled(RewriteOptions::kRemoveComments)) {
@@ -890,13 +890,7 @@ void RewriteDriver::AddPostRenderFilters() {
     AddUnownedPostRenderFilter(url_trim_filter_.get());
   }
   if (rewrite_options->Enabled(RewriteOptions::kDeferJavascript)) {
-    // Defers javascript download and execution to post onload. This filter
-    // should be applied before JsDisableFilter and JsDeferFilter.
-    if (rewrite_options->Enabled(RewriteOptions::kDeferIframe)) {
-      // kDeferIframe filter should never be turned on when either defer_js
-      // or disable_js is enabled.
-      AddOwnedPostRenderFilter(new DeferIframeFilter(this));
-    }
+    // Defers javascript download and execution to post onload.
     AddOwnedPostRenderFilter(new JsDisableFilter(this));
     AddOwnedPostRenderFilter(new JsDeferDisabledFilter(this));
     if (rewrite_options->Enabled(
@@ -924,11 +918,6 @@ void RewriteDriver::AddPostRenderFilters() {
     AddOwnedPostRenderFilter(new MetaTagFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kDisableJavascript)) {
-    if (rewrite_options->Enabled(RewriteOptions::kDeferIframe)) {
-      // kDeferIframe filter should never be turned on when either defer_js
-      // or disable_js is enabled.
-      AddOwnedPostRenderFilter(new DeferIframeFilter(this));
-    }
     AddOwnedPostRenderFilter(new JsDisableFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kDelayImages)) {
@@ -1716,22 +1705,6 @@ void RewriteDriver::WriteClientStateIntoPropertyCache() {
   if (client_state_.get() != NULL) {
     client_state_->WriteBackToPropertyCache();
   }
-}
-
-void RewriteDriver::UpdatePropertyValueInDomCohort(StringPiece property_name,
-                                                   StringPiece property_value) {
-  PropertyCache* pcache = resource_manager_->page_property_cache();
-  if (pcache == NULL) {
-    LOG(DFATAL) << "Property cache is not available.";
-    return;
-  }
-  const PropertyCache::Cohort* dom = pcache->GetCohort(kDomCohort);
-  if (dom == NULL) {
-    LOG(DFATAL) << "dom cohort is not available.";
-    return;
-  }
-  PropertyValue* value = property_page()->GetProperty(dom, property_name);
-  pcache->UpdateValue(property_value, value);
 }
 
 void RewriteDriver::Cleanup() {

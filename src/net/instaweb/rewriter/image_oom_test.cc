@@ -67,11 +67,9 @@ TEST_F(ImageOomTest, BlankImage) {
     return;
   }
 
-  Image::CompressionOptions* options = new Image::CompressionOptions();
-  options->recompress_png = true;
   // Make sure creating gigantic image fails cleanly.
-  ImagePtr giant(BlankImageWithOptions(10000, 10000, Image::IMAGE_PNG,
-                                       GTestTempDir(), &handler_, options));
+  ImagePtr giant(
+      BlankImage(10000, 10000, Image::IMAGE_PNG, GTestTempDir(), &handler_));
   EXPECT_FALSE(giant->EnsureLoaded(true));
 }
 

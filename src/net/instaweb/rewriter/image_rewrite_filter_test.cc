@@ -97,7 +97,8 @@ class ImageRewriteTest : public ResourceManagerTestBase {
   void RewriteImage(const GoogleString& tag_string,
                     const ContentType& content_type) {
     options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-    AddRecompressImageFilters();
+    options()->EnableFilter(RewriteOptions::kRecompressImages);
+    options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
     options()->set_image_inline_max_bytes(2000);
     rewrite_driver()->AddFilters();
 
@@ -251,10 +252,7 @@ class ImageRewriteTest : public ResourceManagerTestBase {
     AddFileToMockFetcher(StrCat(kTestDomain, "c.gif"), kChefGifFile,
                          kContentTypeGif, 100);
 
-    options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-    options()->EnableFilter(RewriteOptions::kRecompressPng);
-    options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-    rewrite_driver()->AddFilters();
+    AddFilter(RewriteOptions::kRecompressImages);
 
     StringVector img_srcs;
     ImageCollector image_collect(rewrite_driver(), &img_srcs);
@@ -399,6 +397,7 @@ TEST_F(ImageRewriteTest, AddDimTest) {
 TEST_F(ImageRewriteTest, PngToJpeg) {
   // Make sure we convert png to jpeg if we requested that.
   // We lower compression quality to ensure the jpeg is smaller.
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
@@ -414,6 +413,7 @@ TEST_F(ImageRewriteTest, PngToWebp) {
   }
   // Make sure we convert png to webp if user agent permits.
   // We lower compression quality to ensure the webp is smaller.
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
@@ -691,28 +691,18 @@ TEST_F(ImageRewriteTest, NullResizeTest) {
                     " style", " style", false, false);
 }
 
-TEST_F(ImageRewriteTest, InlineTestWithoutOptimize) {
-  // Make sure we don't resize, if we don't optimize.
+TEST_F(ImageRewriteTest, InlineTest) {
+  // Make sure we resize and inline images, but don't optimize them in place.
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   rewrite_driver()->AddFilters();
   const char kChefDims[] = " width=\"192\" height=\"256\"";
+  const char kResizedDims[] = " width=48 height=64";
   // Without resize, it's not optimizable.
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", kChefDims, false, false);
-}
-
-TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
-  options()->set_image_inline_max_bytes(10000);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // Without resize, it's not optimizable.
   // With resize, the image shrinks quite a bit, and we can inline it
   // given the 10K threshold explicitly set above.  This also strips the
   // size information, which is now embedded in the image itself anyway.
@@ -740,7 +730,6 @@ TEST_F(ImageRewriteTest, InlineNoResize) {
   // Make sure we inline an image if it meets the inlining threshold but can't
   // be resized.  Make sure we retain sizing information when this happens.
   options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   rewrite_driver()->AddFilters();
   const char kOrigDims[] = " width=65 height=70";
@@ -796,10 +785,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
       StringPrintf(html_format, "bar/a.png", "/baz/b.jpeg", "c.gif");
 
   // Rewrite
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kRecompressImages);
   ParseUrl(html_url, html_input);
 
   // Check for image files in the rewritten page.
@@ -846,7 +832,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
 TEST_F(ImageRewriteTest, FetchInvalid) {
   // Make sure that fetching invalid URLs cleanly reports a problem by
   // calling Done(false).
-  AddFilter(RewriteOptions::kRecompressJpeg);
+  AddFilter(RewriteOptions::kRecompressImages);
   GoogleString out;
 
   // We are trying to test with an invalid encoding. By construction,
@@ -862,7 +848,7 @@ TEST_F(ImageRewriteTest, FetchInvalid) {
 TEST_F(ImageRewriteTest, Rewrite404) {
   // Make sure we don't fail when rewriting with invalid input.
   SetFetchResponse404("404.jpg");
-  AddFilter(RewriteOptions::kRecompressJpeg);
+  AddFilter(RewriteOptions::kRecompressImages);
   ValidateNoChanges("404", "<img src='404.jpg'>");
 
   // Try again to exercise cached case.
@@ -882,7 +868,7 @@ TEST_F(ImageRewriteTest, NoWrongExtCorruption) {
 }
 
 TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   rewrite_driver()->AddFilters();
   AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
@@ -900,7 +886,7 @@ TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
 TEST_F(ImageRewriteTest, RewriteCacheExtendInteraction) {
   // There was a bug in async mode where rewriting failing would prevent
   // cache extension from working as well.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kExtendCacheImages);
   rewrite_driver()->AddFilters();
 
@@ -916,7 +902,7 @@ TEST_F(ImageRewriteTest, RewriteCacheExtendInteraction) {
 
 // http://code.google.com/p/modpagespeed/issues/detail?id=324
 TEST_F(ImageRewriteTest, RetainExtraHeaders) {
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   rewrite_driver()->AddFilters();
 
   // Store image contents into fetcher.
@@ -929,7 +915,7 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   // Make sure we're limiting # of concurrent rewrites properly even when we're
   // nested inside another filter, and that we do not cache that outcome
   // improperly.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_max_rewrites_at_once(1);
   options()->set_always_rewrite_css(true);
@@ -977,43 +963,6 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   // This time, however, CSS should be altered (and the drop count still be 1).
   EXPECT_EQ(expected_out_css, out_css);
   EXPECT_EQ(1, drops->Get(TimedVariable::START));
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestWithResizeWithOptimize) {
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // With resize and optimization. Translating gif to png.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    kResizedDims, kResizedDims, true, false);
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestResizeEnableGifToPngDisabled) {
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  const char kResizedDims[] = " width=48 height=64";
-  // Not traslating gifs to pngs.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kResizedDims, kResizedDims, false, false);
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestWithoutResizeWithOptimize) {
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  // Without resize and with optimization
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    "", "", true, false);
-}
-
-// TODO(poojatandon): Add a test where .gif file size increases on optimization.
-
-TEST_F(ImageRewriteTest, GifToPngTestWithoutResizeWithoutOptimize) {
-  // Without resize and without optimization
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
 }
 
 }  // namespace
