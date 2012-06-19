@@ -88,11 +88,13 @@ When mod_pagespeed first reads your reousrce file, it uses the origin TTL to fig
 
 We recommend an origin TTL of 10 minutes, which provides reasonable responsiveness when you update a file.  If you try to make it much smaller, then your server will need to refresh it more frequently.  This adds server load and reduces optimization.
 
-We are working on a better solution to this problem rather than forcing you to flush your server cache while you are developing.  See http://code.google.com/p/modpagespeed/issues/detail?id=133 .
+To see changes to your files more quickly while developing, flush the cache on your server(s) as described below.
 
 = How do I clear the cache on my server? ==
 
-Usually this should only be necessary if a new version of mod_pagespeed is installed, and the cache has invalid data from a previous version.  To clear the cache with minimal server downtime, type:
+As of 0.10.22.3, you can easily flush the cache on a running server.  See [https://developers.google.com/speed/docs/mod_pagespeed/system#flush_cache].
+
+We strongly recommend you upgrade to the latest version.  However, if you can't do the upgrade for some reason, you can still flush the cache with minimal server downtime:
 
 {{{
   sudo /etc/init.d/apachectl stop
