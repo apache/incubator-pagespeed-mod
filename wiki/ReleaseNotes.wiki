@@ -1,5 +1,47 @@
 <wiki:toc max_depth="3" />
 
+===mod_pagespeed release 0.10.22.4===
+was released on Jun 1, 2012. It fixes the following issues:
+|| Issue 133 || Provide easier mechanism to flush server cache ||
+|| Issue 152 || Add support and testing for Worker MPM || 
+|| Issue 253 || combine_css should scan for syntax errors to avoid combining broken files ||
+|| Issue 289 || Problem Compiling ModPagespeed on Arch Linux || 
+|| Issue 321 || Hide or obfuscate X-Mod-Pagespeed header || 
+|| Issue 334 || mod_pagespeed uses too many threads -- in proportion to the number of vhosts ||
+|| Issue 349 || Serf internal error 20014 in sporadic bursts ||
+|| Issue 375 || fails to compile on linux kernel 3.0+ || 
+|| Issue 380 || Mod PageSpeed 0.10.21.2-1381 fails to retrieve combined objects with error, "Invalid escaped URL segment" ||
+|| Issue 386 || Deadline exceeded for rewrite ||
+|| Issue 393 || Mod Pagespeed breaks JqueryMobile ajax request || 
+|| Issue 405 || ModPagespeedLoadFromFile doesn't set the Content-Type correctly when query params exist ||
+|| Issue 409 || add_instrumentation filter breaks JS execution || 
+|| Issue 417 || Javascript injected into page by mod_pagespeed is not minified || 
+|| Issue 425 ||  HTML URL attributes with multi-byte characters may be misinterpreted || 
+|| Issue 427 || compress stylesheet url fails to decode when optimized by pagespeed ||
+|| Issue 428 || ModPagespeedDomainRewriteHyperlinks should not work with Domain Sharding ||
+|| Issue 442 || lazyload_images triggers a JavaScript error on Internet Explorer 8 || 
+|| Issue 444 || Relative URLs are not absolutified in unparseable CSS || 
+|| Issue 445 || CSS rewriters don't handle a CSS file having a BOM ||
+|| Issue 446 || Handle BOMs in JS better when combining ||
+
+This release adds some new pagespeed.conf options:
+  * ModPagespeedAvoidRenamingIntrospectiveJavascript
+  * ModPagespeedDomainRewriteHyperlinks
+  * ModPagespeedXHeaderValue
+  * ModPagespeedCacheFlushPollIntervalSec
+  * ModPagespeedCacheFlushFilename
+  * ModPagespeedReportUnloadTime
+  * ModPagespeedListOutstandingUrlsOnError
+  * ModPagespeedNumExpensiveRewriteThreads
+  * ModPagespeedNumRewriteThreads
+  * ModPagespeedAnalyticsID
+
+This release includes the following miscellanea:
+  * The handling of HTML escapes in element attributes has been made more robust.
+  * We are removing “trim_urls” from the Core set to better support Ajax loading of HTML from a different path (Issue 393).
+  * Improved memory efficiency during HTML parsing and rewriting of large documents.
+  * Many improvements to quality and performance of the rewriting engine.
+
 ===mod_pagespeed release 0.10.21.2===
 was released on Feb 8, 2012. It fixes the following issues:
 ||Issue 48 || Support for CSS @import||
