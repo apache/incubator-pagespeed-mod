@@ -163,6 +163,8 @@ or
 
 The resulting package file will be in the `out/Release` directory.
 
+Note: These packages will only work if you installed Apache using RPM or DEB packages as well. Notably, if you installed Apache using cPanel, these packages will not work. Instead you must follow the normal instructions "Installing mod_pagespeed".
+
 == Monitoring a mod_pagespeed installation ==
 You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable additional hosts in `pagespeed.conf`.
 
