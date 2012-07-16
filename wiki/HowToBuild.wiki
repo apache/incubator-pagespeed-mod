@@ -163,7 +163,7 @@ or
 
 The resulting package file will be in the `out/Release` directory.
 
-Note: These packages will only work if you installed Apache using RPM or DEB packages as well. Notably, if you installed Apache using cPanel, these packages will not work. Instead you must follow the normal instructions "Installing mod_pagespeed".
+Note: These packages will only work if you installed Apache using RPM or DEB packages as well. Notably, if you installed Apache using cPanel, these packages will not work. Instead you must follow the normal instructions "Installing mod_pagespeed". See also: [http://code.google.com/p/modpagespeed/wiki/FAQ#I_installed_Apache_2.2_using_cPanel,_and_can't_get_mod_page FAQ: I installed Apache 2.2 using cPanel, and can't get mod_pagespeed to work when I install from the .deb or .rpm].
 
 == Monitoring a mod_pagespeed installation ==
 You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable additional hosts in `pagespeed.conf`.
