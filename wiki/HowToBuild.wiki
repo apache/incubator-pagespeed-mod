@@ -168,5 +168,17 @@ Note: These packages will only work if you installed Apache using RPM or DEB pac
 == Monitoring a mod_pagespeed installation ==
 You can view a simple set of real-time variables by visiting `http://localhost/mod_pagespeed_statistics`.  By default, this page is only viewable from localhost; you can enable additional hosts in `pagespeed.conf`.
 
+== Testing CSS Files ==
+mod_pagespeed's CSS parser cannot parse certain CSS3 and proprietary CSS syntax (See issue 108). In certain situations this will cause mod_pagespeed to be unable to minify a CSS file and rewrite its subresources (although fallback_rewrite_css_urls helps). If you want to know what specifically is causing mod_pagespeed to fail to rewrite your CSS, you can compile and run a stand-alone CSS parser.
+
+In the same directory that you ran the other {{{make}}} commands above ({{{~/mod_pagespeed/src}}} in the example), run:
+
+{{{
+  make BUILDTYPE=Release css_minify_main
+  ./out/Release/css_minify_main FILENAME.css > /dev/null
+}}}
+
+This will print the parsing errors encountered to stderr. {{{css_minify_main}}} also prints the minified CSS to stdout, but for finding parsing errors, we can ignore that.
+
 == mod_pagespeed on other systems ==
 Gentoo: http://en.gentoo-wiki.com/wiki/Apache2_mod_pagespeed (thanks to nikola.derikonjic)
