@@ -1,5 +1,7 @@
 <wiki:toc max_depth="3" />
 
+*Warning: this documentation is moving from the wiki to the developers site.  If you make any changes please let jefftk know.*
+
 ===mod_pagespeed release 0.10.22.4===
 was released on Jun 1, 2012. It fixes the following issues:
 || Issue 133 || Provide easier mechanism to flush server cache ||
