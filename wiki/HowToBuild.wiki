@@ -1,6 +1,6 @@
-*Warning: this documentation is moving from the wiki to the developers site.  If you make any changes please let jefftk know.*
-
 #summary How to build mod_pagespeed from source
+
+*Warning: this documentation is moving from the wiki to the developers site.  If you make any changes please let jefftk know.*
 
 == Prerequisites ==
 The build has been tested on Ubuntu Hardy/Lucid and CentOS 5.4. It should work elsewhere; if you try it somewhere new, please leave a comment with your success or failure.
