@@ -1,3 +1,5 @@
+*Warning: this documentation is moving from the wiki to the developers site.  If you make any changes please let jefftk know.*
+
 #summary How to build mod_pagespeed from source
 
 == Prerequisites ==
