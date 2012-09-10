@@ -4,6 +4,8 @@ If you're having trouble with `mod_pagespeed`, we'd love to hear about it on [ht
 
 Please do not post new questions to this page; if you do they will be deleted and moved to the mailing list.  But if you spot a recurring theme on the mailing list, feel free to post the question *and answer* below on this page.
 
+*Warning: this documentation is moving from the wiki to the developers site. If you make any changes please let jefftk know.*
+
 <wiki:toc max_depth="1" />
 
 = When will you support my favorite OS/http server/protocol/ice cream flavor? =
