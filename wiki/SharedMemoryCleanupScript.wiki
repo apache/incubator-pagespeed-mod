@@ -1,4 +1,6 @@
 #labels Deprecated
+This script should no longer be needed with recent versions of mod_pagespeed.
+
 {{{
 #!/bin/sh
 
