@@ -1,5 +1,7 @@
 #summary What you need to do to port mod_pagespeed to another server/system
 
+*Warning: this documentation is moving from the wiki to the developers site. If you make any changes please let jefftk know.*
+
 Do you want to port mod_pagespeed to another server or integrate it in another system? Great! We developed mod_pagespeed to be modular and almost completely independent from Apache.  The only Apache-specific code is in the net/instaweb/apache directory.
 
 If you look into our [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc source], our main code is in [http://code.google.com/p/modpagespeed/source/browse/#svn%2Ftrunk%2Fsrc%2Fnet%2Finstaweb net/instaweb/]:
