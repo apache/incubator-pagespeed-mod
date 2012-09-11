@@ -1,2 +1,2 @@
-* [http://code.google.com/p/modpagespeed/source/browse Browse]
-* [http://code.google.com/p/modpagespeed/source/list Changes]
+ * [http://code.google.com/p/modpagespeed/source/browse Browse]
+ * [http://code.google.com/p/modpagespeed/source/list Changes]
