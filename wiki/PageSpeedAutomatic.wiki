@@ -1,5 +1,7 @@
 #summary The HTML optimization technology used in mod_pagespeed
 
+*warning: this page is obsolete, superseded by https://developers.google.com/speed/pagespeed/psol *
+
 = Introduction =
 
 mod_pagespeed is an Apache HTTPD module that rewrites web pages according to best practices to improve latency and reduce bandwidth.  Most of the underlying technology is not dependent on Apache or HTTPD, but is designed to be applicable to any Web Server, or to use in another custom application such as a static web-site rewriter.  This technology is called Page Speed Automatic.
