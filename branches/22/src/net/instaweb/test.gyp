@@ -261,6 +261,7 @@
       ],
       'sources': [
         'apache/apr_file_system_test.cc',
+        'apache/loopback_route_fetcher_test.cc',
         'apache/speed_test.cc',
         'apache/serf_url_async_fetcher_test.cc',
         'util/mem_debug.cc',

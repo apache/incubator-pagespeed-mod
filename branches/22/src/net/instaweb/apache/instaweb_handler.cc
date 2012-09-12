@@ -137,6 +137,8 @@ bool handle_as_resource(ApacheResourceManager* manager,
 
   rewrite_driver->set_using_spdy(
       mod_spdy_get_spdy_version(request->connection) != 0);
+  manager->apache_factory()->ApplyLoopbackFetchRouting(
+      manager, rewrite_driver, request);
 
   MessageHandler* message_handler = manager->message_handler();
   bool handled = rewrite_driver->FetchResource(url, callback);

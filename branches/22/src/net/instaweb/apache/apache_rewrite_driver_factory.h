@@ -33,6 +33,7 @@
 
 struct apr_pool_t;
 struct server_rec;
+struct request_rec;
 
 namespace net_instaweb {
 
@@ -169,7 +170,13 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // platform-independent statistics.
   static void Initialize(Statistics* statistics);
 
-protected:
+  // Sets a session fetcher on the driver that routes requests directly to this
+  // very server when they are not configured to be external.
+  void ApplyLoopbackFetchRouting(ApacheResourceManager* manager,
+                                 RewriteDriver* driver,
+                                 request_rec* req);
+
+ protected:
   virtual UrlFetcher* DefaultUrlFetcher();
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
 
