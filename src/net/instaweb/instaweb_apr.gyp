@@ -47,6 +47,7 @@
         'apache/apache_thread_system.cc',
         'apache/apr_file_system.cc',
         'apache/apr_timer.cc',
+        'apache/loopback_route_fetcher.cc',
         'apache/serf_url_async_fetcher.cc',
       ],
       'export_dependent_settings': [

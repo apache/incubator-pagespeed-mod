@@ -30,6 +30,7 @@
 #include "net/instaweb/apache/apache_thread_system.h"
 #include "net/instaweb/apache/apr_file_system.h"
 #include "net/instaweb/apache/apr_timer.h"
+#include "net/instaweb/apache/loopback_route_fetcher.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
@@ -568,6 +569,18 @@ RewriteOptions* ApacheRewriteDriverFactory::NewRewriteOptions() {
 
 RewriteOptions* ApacheRewriteDriverFactory::NewRewriteOptionsForQuery() {
   return new ApacheConfig("query");
+}
+
+void ApacheRewriteDriverFactory::ApplyLoopbackFetchRouting(
+    ApacheResourceManager* manager, RewriteDriver* driver, request_rec* req) {
+  if (!manager->config()->slurping_enabled() &&
+      !manager->config()->test_proxy()) {
+    // Note the port here is our port, not from the request, since
+    // LoopbackRouteFetcher may decide we should be talking to ourselves.
+    driver->SetSessionFetcher(new LoopbackRouteFetcher(
+        driver->options(), req->connection->local_addr->port,
+        driver->async_fetcher()));
+  }
 }
 
 }  // namespace net_instaweb

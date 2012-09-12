@@ -905,8 +905,8 @@ check grep -q "'pagespeed.inlineCss(.http://.*/styles/yellow.css.);'" $FETCHED
 check grep -q "'pagespeed.inlineImg(.http://.*/images/Cuppa.png.," \
               ".alt=A cup of joe.," \
               ".alt=A cup of joe.," \
-              ".alt=A cup of joe.s ..joe...," \
-              ".alt=A cup of joe.s ..joe...);'" $FETCHED
+              ".alt=A cup of joe.*s ..joe...," \
+              ".alt=A cup of joe.*s ..joe...);'" $FETCHED
 
 # Cleanup
 rm -rf $OUTDIR

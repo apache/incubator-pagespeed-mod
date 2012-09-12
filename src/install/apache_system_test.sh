@@ -203,6 +203,13 @@ if [ $? = 0 ]; then
   NUM_404=$(($NUM_404+1))
   check "$WGET -O /dev/null $BAD_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
   check "$WGET_DUMP $STATISTICS_URL | grep -q 'resource_404_count: $NUM_404'"
+
+  # Non-local access to statistics fails.
+  MACHINE_NAME=$(hostname)
+  ALT_STAT_URL=$(echo $STATISTICS_URL | sed s#localhost#$MACHINE_NAME#)
+
+  wget $ALT_STAT_URL
+  check [ $? = 8 ]
 else
   echo TEST: 404s are served.  Statistics are disabled so not checking them.
   check "$WGET -O /dev/null $BAD_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
@@ -210,6 +217,7 @@ else
   echo TEST: 404s properly on uncached invalid resource.
   check "$WGET -O /dev/null $BAD_RND_RESOURCE_URL 2>&1| grep -q '404 Not Found'"
 fi
+
 
 # Test /mod_pagespeed_message exists.
 echo TEST: Check if /mod_pagespeed_message page exists.

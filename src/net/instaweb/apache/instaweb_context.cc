@@ -83,6 +83,9 @@ InstawebContext::InstawebContext(request_rec* request,
   } else {
     rewrite_driver_ = resource_manager_->NewRewriteDriver();
   }
+  // Setup fetcher that directs most fetches to localhost.
+  resource_manager_->apache_factory()->ApplyLoopbackFetchRouting(
+      manager, rewrite_driver_, request);
 
   ComputeContentEncoding(request);
   apr_pool_cleanup_register(request->pool, this, Cleanup,
