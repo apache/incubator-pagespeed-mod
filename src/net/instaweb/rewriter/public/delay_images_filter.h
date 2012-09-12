@@ -72,12 +72,14 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DELAY_IMAGES_FILTER_H_
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class HtmlElement;
+class ImageTagScanner;
 class RewriteDriver;
 class StaticJavascriptManager;
 class Statistics;
@@ -85,8 +87,8 @@ class Statistics;
 class DelayImagesFilter : public EmptyHtmlFilter {
  public:
   static const char kDelayImagesSuffix[];
+
   static const char kDelayImagesInlineSuffix[];
-  static const char kOnloadFunction[];
 
   explicit DelayImagesFilter(RewriteDriver* driver);
   virtual ~DelayImagesFilter();
@@ -97,7 +99,7 @@ class DelayImagesFilter : public EmptyHtmlFilter {
 
   virtual const char* Name() const { return "DelayImages"; }
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   static void Terminate();
 
  private:
@@ -111,6 +113,7 @@ class DelayImagesFilter : public EmptyHtmlFilter {
 
   RewriteDriver* driver_;
   StaticJavascriptManager* static_js_manager_;
+  scoped_ptr<const ImageTagScanner> tag_scanner_;
 
   // pagespeed_low_res_src will be added to the low_res_data_map_ until
   // low_res_inserted is false. As soon as low_res_map_inserted_ is true, there
@@ -124,9 +127,6 @@ class DelayImagesFilter : public EmptyHtmlFilter {
   // end of body tag.
   bool insert_low_res_images_inplace_;
 
-  // is_experimental_enabled_ is set to true if
-  // enable_inline_preview_images_experimental is true.
-  bool is_experimental_enabled_;
   DISALLOW_COPY_AND_ASSIGN(DelayImagesFilter);
 };
 

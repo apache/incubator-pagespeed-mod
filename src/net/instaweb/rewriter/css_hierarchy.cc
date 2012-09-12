@@ -24,7 +24,6 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -32,7 +31,6 @@
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/stl_util.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
@@ -44,13 +42,10 @@ namespace net_instaweb {
 // Representation of a CSS with all the information required for import
 // flattening, image rewriting, and minifying.
 
-CssHierarchy::CssHierarchy(CssFilter* filter)
-    : filter_(filter),
-      parent_(NULL),
-      is_xhtml_(false),
+CssHierarchy::CssHierarchy()
+    : parent_(NULL),
       flattening_succeeded_(true),
       unparseable_detected_(false),
-      flattened_result_limit_(0),
       message_handler_(NULL) {
 }
 
@@ -63,7 +58,6 @@ void CssHierarchy::InitializeRoot(const GoogleUrl& css_base_url,
                                   const StringPiece input_contents,
                                   bool is_xhtml,
                                   bool has_unparseables,
-                                  int64 flattened_result_limit,
                                   Css::Stylesheet* stylesheet,
                                   MessageHandler* message_handler) {
   css_base_url_.Reset(css_base_url);
@@ -72,7 +66,6 @@ void CssHierarchy::InitializeRoot(const GoogleUrl& css_base_url,
   stylesheet_.reset(stylesheet);
   is_xhtml_ = is_xhtml;
   unparseable_detected_ = has_unparseables;
-  flattened_result_limit_ = flattened_result_limit;
   message_handler_ = message_handler;
 }
 
@@ -84,7 +77,6 @@ void CssHierarchy::InitializeNested(const CssHierarchy& parent,
   // These are invariant and propagate from our parent.
   css_trim_url_.Reset(parent.css_trim_url());
   is_xhtml_ = parent.is_xhtml_;
-  flattened_result_limit_ = parent.flattened_result_limit_;
   message_handler_ = parent.message_handler_;
 }
 
@@ -103,7 +95,7 @@ void CssHierarchy::ResizeChildren(int n) {
     // Increase the number of elements, default construct each new one.
     children_.resize(n);
     for (; i < n; ++i) {
-      children_[i] = new CssHierarchy(filter_);
+      children_[i] = new CssHierarchy();
     }
   } else if (i > n) {
     // Decrease the number of elements, deleting each discarded one.
@@ -125,17 +117,18 @@ bool CssHierarchy::IsRecursive() const {
   return false;
 }
 
-bool CssHierarchy::DetermineImportMedia(const StringVector& containing_media,
-                                        const StringVector& import_media) {
+bool CssHierarchy::DetermineImportMedia(
+    const StringVector& containing_media,
+    const std::vector<UnicodeText>& import_media_in) {
   bool result = true;
-  if (import_media.empty()) {
+  if (import_media_in.empty()) {
     // Common case: no media specified on the @import so the caller can just
     // use the containing media.
     media_ = containing_media;
   } else {
     // Media were specified for the @import so we need to determine the
     // minimum subset required relative to the containing media.
-    media_ = import_media;
+    css_util::ConvertUnicodeVectorToStringVector(import_media_in, &media_);
     css_util::ClearVectorIfContainsMediaAll(&media_);
     std::sort(media_.begin(), media_.end());
     css_util::EliminateElementsNotIn(&media_, containing_media);
@@ -146,15 +139,19 @@ bool CssHierarchy::DetermineImportMedia(const StringVector& containing_media,
   return result;
 }
 
-bool CssHierarchy::DetermineRulesetMedia(StringVector* ruleset_media) {
+bool CssHierarchy::DetermineRulesetMedia(
+    const std::vector<UnicodeText>& ruleset_media_in,
+    StringVector* ruleset_media_out) {
   // Return true if the ruleset has to be written, false if not. It doesn't
   // have to be written if its applicable media are reduced to nothing.
   bool result = true;
-  css_util::ClearVectorIfContainsMediaAll(ruleset_media);
-  std::sort(ruleset_media->begin(), ruleset_media->end());
+  css_util::ConvertUnicodeVectorToStringVector(ruleset_media_in,
+                                               ruleset_media_out);
+  css_util::ClearVectorIfContainsMediaAll(ruleset_media_out);
+  std::sort(ruleset_media_out->begin(), ruleset_media_out->end());
   if (!media_.empty()) {
-    css_util::EliminateElementsNotIn(ruleset_media, media_);
-    if (ruleset_media->empty()) {
+    css_util::EliminateElementsNotIn(ruleset_media_out, media_);
+    if (ruleset_media_out->empty()) {
       result = false;
     }
   }
@@ -210,26 +207,14 @@ bool CssHierarchy::Parse() {
            iter != rulesets.end(); ) {
         Css::Ruleset* ruleset = *iter;
         StringVector ruleset_media;
-        // We currently do not allow flattening of any CSS files with @media
-        // that have complex CSS3-version media queries. Only plain media
-        // types (like "screen", "print" and "all") are allowed.
-        if (css_util::ConvertMediaQueriesToStringVector(
-                ruleset->media_queries(), &ruleset_media)) {
-          if (DetermineRulesetMedia(&ruleset_media)) {
-            css_util::ConvertStringVectorToMediaQueries(
-                ruleset_media, &ruleset->mutable_media_queries());
-            ++iter;
-          } else {
-            iter = rulesets.erase(iter);
-            delete ruleset;
-          }
+        if (DetermineRulesetMedia(ruleset->media(), &ruleset_media)) {
+          ruleset->mutable_media().clear();
+          css_util::ConvertStringVectorToUnicodeVector(
+              ruleset_media, &ruleset->mutable_media());
+          ++iter;
         } else {
-          // ruleset->media_queries() contained complex media queries.
-          filter_->num_flatten_imports_complex_queries_->Add(1);
-          // Claim parse failed if we get complex media queries.
-          // TODO(sligocki): set_flattening_succeeded(false) instead.
-          result = false;
-          break;
+          iter = rulesets.erase(iter);
+          delete ruleset;
         }
       }
       stylesheet_.reset(stylesheet);
@@ -245,38 +230,17 @@ bool CssHierarchy::ExpandChildren() {
   for (int i = 0, n = imports.size(); i < n; ++i) {
     const Css::Import* import = imports[i];
     CssHierarchy* child = children_[i];
-    GoogleString url(import->link().utf8_data(), import->link().utf8_length());
+    GoogleString url(import->link.utf8_data(), import->link.utf8_length());
     const GoogleUrl import_url(css_base_url_, url);
     if (!import_url.is_valid()) {
-      if (filter_ != NULL) {
-        filter_->num_flatten_imports_invalid_url_->Add(1);
-      }
       message_handler_->Message(kInfo, "Invalid import URL %s", url.c_str());
       child->set_flattening_succeeded(false);
-    } else {
-      // We currently do not allow flattening of any @import statements with
-      // complex CSS3-version media queries. Only plain media types (like
-      // "screen", "print" and "all") are allowed.
-      StringVector media_types;
-      if (css_util::ConvertMediaQueriesToStringVector(import->media_queries(),
-                                                      &media_types)) {
-        if (child->DetermineImportMedia(media_, media_types)) {
-          child->InitializeNested(*this, import_url);
-          if (child->IsRecursive()) {
-            if (filter_ != NULL) {
-              filter_->num_flatten_imports_recursion_->Add(1);
-            }
-            child->set_flattening_succeeded(false);
-          } else {
-            result = true;
-          }
-        }
-      } else {
-        // import->media_queries() contained complex media queries.
-        if (filter_ != NULL) {
-          filter_->num_flatten_imports_complex_queries_->Add(1);
-        }
+    } else if (child->DetermineImportMedia(media_, import->media)) {
+      child->InitializeNested(*this, import_url);
+      if (child->IsRecursive()) {
         child->set_flattening_succeeded(false);
+      } else {
+        result = true;
       }
     }
   }
@@ -338,49 +302,17 @@ void CssHierarchy::RollUpContents() {
       StrAppend(&minified_contents_, children_[i]->minified_contents());
     }
 
-    // @charset and @import rules are discarded by flattening, but save them
-    // until we know that the regeneration and limit check both went ok so we
-    // restore the stylesheet back to its original state if not.
-    Css::Charsets saved_charsets;
-    Css::Imports saved_imports;
-    stylesheet_->mutable_charsets().swap(saved_charsets);
-    stylesheet_->mutable_imports().swap(saved_imports);
+    // @charset and @import rules are discarded by flattening.
+    stylesheet_->mutable_charsets().clear();
+    STLDeleteElements(&stylesheet_->mutable_imports());
 
-    // If we can't regenerate the stylesheet, or we have a result limit and the
-    // flattened result is at or over that limit, flattening hasn't succeeded.
     StringWriter writer(&minified_contents_);
-    bool minified_ok = CssMinify::Stylesheet(*stylesheet_.get(), &writer,
-                                             message_handler_);
-    if (!minified_ok) {
-      if (filter_ != NULL) {
-        filter_->num_flatten_imports_minify_failed_->Add(1);
-      }
+    if (!CssMinify::Stylesheet(*stylesheet_.get(), &writer, message_handler_)) {
       flattening_succeeded_ = false;
-    } else if (flattened_result_limit_ > 0) {
-      int64 flattened_result_size = minified_contents_.size();
-      if (flattened_result_size >= flattened_result_limit_) {
-        if (filter_ != NULL) {
-          filter_->num_flatten_imports_limit_exceeded_->Add(1);
-        }
-        flattening_succeeded_ = false;
-      }
-    }
-    if (!flattening_succeeded_) {
       STLDeleteElements(&children_);   // our children are useless now
-      // Revert the stylesheet back to how it was.
-      stylesheet_->mutable_charsets().swap(saved_charsets);
-      stylesheet_->mutable_imports().swap(saved_imports);
-      // If minification succeeded but flattening failed, it can only be
-      // because we exceeded the flattening limit, in which case we must fall
-      // back to the minified form of the original unflattened stylesheet.
-      minified_contents_.clear();
-      if (!minified_ok || !CssMinify::Stylesheet(*stylesheet_.get(), &writer,
-                                                 message_handler_)) {
-        // If we can't minify just use our contents, albeit not minified.
-        input_contents_.CopyToString(&minified_contents_);
-      }
+      // If we can't minify just use our contents, albeit not minified.
+      input_contents_.CopyToString(&minified_contents_);
     }
-    STLDeleteElements(&saved_imports);  // no-op if empty (was swapped back).
   }
 }
 
@@ -397,8 +329,7 @@ bool CssHierarchy::RollUpStylesheets() {
       // If the contents were loaded from cache it's possible for them to be
       // unable to be flattened. If we can parse them and they have @charset
       // or @import rules then they must have failed to flatten when they
-      // were first cached because we expressly remove these below. The earlier
-      // failure has already been added to the statistics so don't do so here.
+      // were first cached because we expressly remove these below.
       if (!stylesheet_->charsets().empty() || !stylesheet_->imports().empty()) {
         flattening_succeeded_ = false;
       }

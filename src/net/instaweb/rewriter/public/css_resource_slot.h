@@ -53,8 +53,9 @@ class CssResourceSlot : public ResourceSlot {
   // Enables trimming of URLs versus a given base.
   void EnableTrim(const GoogleUrl& base_url);
 
-  virtual void DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  // Update the resource slot's url, without doing
+  // any absolutification or trimming.
+  void UpdateUrlInCss(const StringPiece& url);
 
  protected:
   CssResourceSlot(const ResourcePtr& resource, Css::Values* values,

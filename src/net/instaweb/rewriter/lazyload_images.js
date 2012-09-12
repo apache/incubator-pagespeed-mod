@@ -208,27 +208,13 @@ pagespeed.LazyloadImages.prototype.loadIfVisible = function(element) {
         // Only replace the src if the old value is the one we set. It is
         // possible that a script has already changed it, in which case, we
         // should not try to modify it.
-        // Remove the element from the DOM and and add it back in, since simply
-        // setting the src doesn't seem to always work in chrome.
-        var parent_node = element.parentNode;
-        var next_sibling = element.nextSibling;
-        parent_node.removeChild(element);
-
-        element.removeAttribute('pagespeed_lazy_src');
-        element.removeAttribute('onload');
         element.src = data_src;
-        // If there was a next sibling, insert element before it. Otherwise, use
-        // appendChild which inserts element as the last child of parent_node.
-        if (next_sibling) {
-          parent_node.insertBefore(element, next_sibling);
-        } else {
-          parent_node.appendChild(element);
-        }
+        element.removeAttribute('pagespeed_lazy_src');
       } else {
         context.deferred_.push(element);
       }
     }
-  }, 0);
+  }, 100);
 };
 
 pagespeed.LazyloadImages.prototype['loadIfVisible'] =
@@ -304,9 +290,6 @@ pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
       temp.force_load_ = loadAfterOnload;
       temp.loadVisible_();
     }, 200);
-  }
-  if (blankImageSrc.indexOf('data') != 0) {
-    new Image().src = blankImageSrc;
   }
   pagespeed.addHandler(window, 'load', lazy_onload);
   if (!loadAfterOnload) {

@@ -19,8 +19,8 @@
 #include "net/instaweb/rewriter/public/detect_reflow_js_defer_filter.h"
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -28,11 +28,10 @@
 
 namespace net_instaweb {
 
-class DetectReflowJsDeferFilterTest : public RewriteTestBase {
+class DetectReflowJsDeferFilterTest : public ResourceManagerTestBase {
  protected:
-  // TODO(matterbury): Delete this method as it should be redundant.
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
   }
 
   void InitDetectReflowJsDeferFilter() {

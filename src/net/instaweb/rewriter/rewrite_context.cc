@@ -39,13 +39,12 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -436,7 +435,9 @@ class RewriteContext::FetchContext {
     handler_->Message(
         kInfo, "Deadline exceeded for rewrite of resource %s with %s.",
         input->url().c_str(), rewrite_context_->id());
-    FetchFallbackDoneImpl(input->contents(), input->response_headers());
+    bool absolutify_contents = true;
+    FetchFallbackDoneImpl(input->contents(), input->response_headers(),
+                          absolutify_contents);
   }
 
   // Note that the callback is called from the RewriteThread.
@@ -524,21 +525,29 @@ class RewriteContext::FetchContext {
       return;
     }
 
-    FetchFallbackDoneImpl(contents, headers);
+    bool absolutify_contents = false;
+    FetchFallbackDoneImpl(contents, headers, absolutify_contents);
   }
 
   // Backend for FetchFallbackCacheDone, but can be also invoked
   // for main rewrite when background rewrite is detached.
   void FetchFallbackDoneImpl(const StringPiece& contents,
-                             const ResponseHeaders* headers) {
+                             const ResponseHeaders* headers,
+                             bool absolutify_contents) {
     async_fetch_->response_headers()->CopyFrom(*headers);
     rewrite_context_->FixFetchFallbackHeaders(async_fetch_->response_headers());
     // Use the most conservative Cache-Control considering all inputs.
     ApplyInputCacheControl(async_fetch_->response_headers());
     async_fetch_->HeadersComplete();
 
-    bool ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
-                                                   handler_);
+    bool ok;
+    if (absolutify_contents) {
+      ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
+                                                handler_);
+    } else {
+      ok = async_fetch_->Write(contents, handler_);
+    }
+
     rewrite_context_->FetchCallbackDone(ok);
   }
 
@@ -833,7 +842,7 @@ void RewriteContext::SetPartitionKey() {
     url = HashSplit(hasher, url);
   }
 
-  partition_key_ = StrCat(ServerContext::kCacheKeyResourceNamePrefix,
+  partition_key_ = StrCat(ResourceManager::kCacheKeyResourceNamePrefix,
                           id(), "_", signature, "/",
                           url, "@", suffix);
 }
@@ -1260,7 +1269,7 @@ void RewriteContext::PartitionDone(bool result) {
 }
 
 void RewriteContext::WritePartition() {
-  ServerContext* manager = Manager();
+  ResourceManager* manager = Manager();
   if (ok_to_write_output_partitions_ &&
       !manager->metadata_cache_readonly()) {
     CacheInterface* metadata_cache = manager->metadata_cache();
@@ -1742,16 +1751,6 @@ bool RewriteContext::Fetch(
         is_valid = false;
         break;
       }
-
-      if (!Manager()->url_namer()->ProxyMode() &&
-          !driver->MatchesBaseUrl(*url)) {
-        // Reject absolute url references unless we're proxying.
-        is_valid = false;
-        message_handler->Message(kError, "Rejected absolute url reference %s",
-                                 url->spec_c_str());
-        break;
-      }
-
       ResourcePtr resource(driver->CreateInputResource(*url));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
@@ -1907,11 +1906,11 @@ RewriteDriver* RewriteContext::Driver() const {
   return rc->driver_;
 }
 
-ServerContext* RewriteContext::Manager() const {
-  return Driver()->server_context();
+ResourceManager* RewriteContext::Manager() const {
+  return Driver()->resource_manager();
 }
 
-const RewriteOptions* RewriteContext::Options() const {
+const RewriteOptions* RewriteContext::Options() {
   return Driver()->options();
 }
 

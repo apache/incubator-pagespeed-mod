@@ -23,6 +23,7 @@
 #include <cstdarg>
 #include <cstddef>  // for size_t
 #include <cstdio>
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/html_event.h"
@@ -30,13 +31,11 @@
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-class HtmlCommentNode;
-class HtmlIEDirectiveNode;
 
 namespace {
 
@@ -641,9 +640,8 @@ void HtmlLexer::EmitTagBriefClose() {
 }
 
 HtmlElement* HtmlLexer::Parent() const {
-  if (element_stack_.empty()) {
-    return NULL;
-  }
+  html_parse_->message_handler()->Check(!element_stack_.empty(),
+                                        "element_stack_.empty()");
   return element_stack_.back();
 }
 

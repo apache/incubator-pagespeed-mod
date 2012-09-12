@@ -19,15 +19,13 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 
-#include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/util/public/string.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 
 namespace net_instaweb {
 
 class HtmlElement;
 class RewriteDriver;
-class RewriteOptions;
-class StaticJavascriptManager;
 class Statistics;
 
 // Filter to lazyload images by replacing the src with a pagespeed_lazy_src
@@ -71,48 +69,27 @@ class Statistics;
 //    src="kBlankImageSrc" />
 //  </body>
 //
-class LazyloadImagesFilter : public CommonFilter {
+class LazyloadImagesFilter : public EmptyHtmlFilter {
  public:
   static const char* kImageLazyloadCode;
   static const char* kBlankImageSrc;
   static const char* kImageOnloadCode;
   static const char* kLoadAllImages;
-  static const char* kIsLazyloadScriptInsertedPropertyName;
 
   explicit LazyloadImagesFilter(RewriteDriver* driver);
   virtual ~LazyloadImagesFilter();
 
+  virtual void StartDocument();
+  virtual void StartElement(HtmlElement* element);
+  virtual void EndElement(HtmlElement* element);
+
   virtual const char* Name() const { return "Lazyload Images"; }
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   static void Terminate();
 
-  // Lazyload filter will be no op for the request if ShouldApply returns false.
-  static bool ShouldApply(RewriteDriver* driver);
-  static GoogleString GetLazyloadJsSnippet(
-      const RewriteOptions* options,
-      StaticJavascriptManager* static_js_manager);
-
- protected:
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-
  private:
-  // Clears all state associated with the filter.
-  void Clear();
-
-  static GoogleString GetBlankImageSrc(const RewriteOptions* options);
-
-  // Inserts the lazyload JS code before the given element.
-  void InsertLazyloadJsCode(HtmlElement* element);
-
-  // The initial image url to be used.
-  GoogleString blank_image_url_;
-  // If non-NULL, we skip rewriting till we reach
-  // LazyloadImagesFilter::EndElement(skip_rewrite_).
-  HtmlElement* skip_rewrite_;
+  RewriteDriver* driver_;
   // Indicates if the main javascript has been inserted into the page.
   bool main_script_inserted_;
   // Indicates whether we should abort rewriting the page.

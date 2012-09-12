@@ -33,14 +33,13 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -52,13 +51,12 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
-#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
-
 
 namespace net_instaweb {
 
 class MessageHandler;
+class UrlSegmentEncoder;
 
 const char JsCombineFilter::kJsFileCountReduction[] = "js_file_count_reduction";
 
@@ -68,9 +66,8 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   JsCombiner(JsCombineFilter* filter, RewriteDriver* driver)
       : ResourceCombiner(driver, kContentTypeJavascript.file_extension() + 1,
                          filter),
-        filter_(filter),
-        combined_js_size_(0) {
-    Statistics* stats = server_context_->statistics();
+        filter_(filter) {
+    Statistics* stats = resource_manager_->statistics();
     js_file_count_reduction_ = stats->GetVariable(kJsFileCountReduction);
   }
 
@@ -110,26 +107,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     return true;
   }
 
-  virtual bool ContentSizeTooBig() const {
-    int64 combined_js_max_size =
-        rewrite_driver_->options()->max_combined_js_bytes();
-
-    if (combined_js_max_size >= 0 &&
-        combined_js_size_ > combined_js_max_size) {
-      return true;
-    }
-    return false;
-  }
-
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
-    combined_js_size_ += resource->contents().size();
-  }
-
-  virtual void Clear() {
-    ResourceCombiner::Clear();
-    combined_js_size_ = 0;
-  }
-
   // This eventually calls WritePiece().
   bool Write(const ResourceVector& in, const OutputResourcePtr& out) {
     return WriteCombination(in, out, rewrite_driver_->message_handler());
@@ -143,10 +120,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // Stats.
   void AddFileCountReduction(int files) {
     js_file_count_reduction_->Add(files);
-    if (files >= 1 && rewrite_driver_->log_record() != NULL) {
-      rewrite_driver_->log_record()->LogAppliedRewriter(
-          RewriteOptions::FilterId(RewriteOptions::kCombineJavascript));
-    }
   }
 
   // Set the attribute charset of the resource being combined. This is the
@@ -165,7 +138,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
                           MessageHandler* handler);
 
   JsCombineFilter* filter_;
-  int64 combined_js_size_;
   Variable* js_file_count_reduction_;
   // The charset from the resource's element, set by our owning Context's
   // Partition() method each time it checks if a resource can be added to the
@@ -178,7 +150,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 
   DISALLOW_COPY_AND_ASSIGN(JsCombiner);
 };
-
 
 class JsCombineFilter::Context : public RewriteContext {
  public:
@@ -396,6 +367,7 @@ class JsCombineFilter::Context : public RewriteContext {
   JsCombineFilter::JsCombiner combiner_;
   JsCombineFilter* filter_;
   bool fresh_combination_;
+  UrlMultipartEncoder encoder_;
   // Each of the elements for the resources being combined are added to this
   // vector, but those elements will be free'd after the end of the document,
   // though this context might survive past that (as it's an asynchronous
@@ -432,7 +404,7 @@ JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
 JsCombineFilter::~JsCombineFilter() {
 }
 
-void JsCombineFilter::InitStats(Statistics* statistics) {
+void JsCombineFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kJsFileCountReduction);
 }
 
@@ -555,7 +527,7 @@ GoogleString JsCombineFilter::VarName(const GoogleString& url) const {
   // This is safe since we never include URLs from different hosts in a single
   // combination.
   GoogleString url_hash = JavascriptCodeBlock::JsUrlHash(url,
-    server_context_->hasher());
+    resource_manager_->hasher());
 
   return StrCat("mod_pagespeed_", url_hash);
 }

@@ -433,56 +433,6 @@ TEST_F(DomainLawyerTest, RewriteHttpsToHttps) {
   EXPECT_EQ("https://localhost:8443/", mapped_domain_name);
 }
 
-TEST_F(DomainLawyerTest, AddTwoProtocolRewriteDomainMapping) {
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolRewriteDomainMapping(
-      "www.nytimes.com", "ref.nytimes.com", &message_handler_));
-  EXPECT_TRUE(domain_lawyer_.can_rewrite_domains());
-  GoogleString mapped_domain;
-  GoogleUrl containing_page_http("http://www.nytimes.com/index.html");
-  GoogleUrl containing_page_https("https://www.nytimes.com/index.html");
-  // http page asks for http stylesheet.
-  ASSERT_TRUE(MapRequest(
-      containing_page_http,
-      "http://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
-  EXPECT_EQ("http://www.nytimes.com/", mapped_domain);
-  // http page asks for an https stylesheet.  Should still re-map.
-  ASSERT_TRUE(MapRequest(
-      containing_page_http,
-      "https://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
-  EXPECT_EQ("https://www.nytimes.com/", mapped_domain);
-  // https page asks for an https stylesheet.
-  ASSERT_TRUE(MapRequest(
-      containing_page_https,
-      "https://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
-  EXPECT_EQ("https://www.nytimes.com/", mapped_domain);
-  // https page asks for an http stylesheet.  It shouldn't be doing that, but we
-  // preserve the bad behavior so the user realizes something fishy could
-  // happen.
-  ASSERT_TRUE(MapRequest(
-      containing_page_https,
-      "http://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
-  EXPECT_EQ("http://www.nytimes.com/", mapped_domain);
-}
-
-TEST_F(DomainLawyerTest, FindDomainsRewrittenTo) {
-  // No mapping.
-  ConstStringStarVector from_domains;
-  GoogleUrl gurl("http://www1.example.com/");
-  domain_lawyer_.FindDomainsRewrittenTo(gurl, &from_domains);
-  EXPECT_EQ(0, from_domains.size());
-
-  // Add mapping.
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolRewriteDomainMapping(
-      "www1.example.com", "www.example.com", &message_handler_));
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolRewriteDomainMapping(
-      "www1.example.com", "xyz.example.com", &message_handler_));
-
-  domain_lawyer_.FindDomainsRewrittenTo(gurl, &from_domains);
-  ASSERT_EQ(2, from_domains.size());
-  EXPECT_EQ("http://www.example.com/", *(from_domains[0]));
-  EXPECT_EQ("http://xyz.example.com/", *(from_domains[1]));
-}
-
 TEST_F(DomainLawyerTest, AddDomainRedundantly) {
   ASSERT_TRUE(domain_lawyer_.AddDomain("www.nytimes.com", &message_handler_));
   ASSERT_FALSE(domain_lawyer_.AddDomain("www.nytimes.com", &message_handler_));
@@ -1066,6 +1016,55 @@ TEST_F(DomainLawyerTest, ToStringTest) {
       "http://shard/ Auth RewriteDomain:http://domain1/\n"
       "http://shard2/ Auth RewriteDomain:http://domain1/\n",
       second_lawyer.ToString());
+}
+
+TEST_F(DomainLawyerTest, IsOriginKnownTest) {
+  DomainLawyer lawyer;
+  lawyer.AddDomain("a.com", &message_handler_);
+  lawyer.AddDomain("a.com:42", &message_handler_);
+  lawyer.AddDomain("https://a.com:43", &message_handler_);
+  lawyer.AddRewriteDomainMapping("b.com", "c.com", &message_handler_);
+  lawyer.AddOriginDomainMapping("e.com", "d.com", &message_handler_);
+  lawyer.AddShard("f.com", "s1.f.com,s2.f.com", &message_handler_);
+
+  GoogleUrl z_com("http://z.com");
+  EXPECT_FALSE(lawyer.IsOriginKnown(z_com));
+
+  GoogleUrl a_com("http://a.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(a_com));
+
+  GoogleUrl a_com_42("http://a.com:42/sardine");
+  EXPECT_TRUE(lawyer.IsOriginKnown(a_com_42));
+
+  GoogleUrl a_com_43("http://a.com:43/bass");
+  EXPECT_FALSE(lawyer.IsOriginKnown(a_com_43));
+
+  GoogleUrl s_a_com_43("https://a.com:43/bass");
+  EXPECT_TRUE(lawyer.IsOriginKnown(s_a_com_43));
+
+  GoogleUrl s_a_com_44("https://a.com:44/bass");
+  EXPECT_FALSE(lawyer.IsOriginKnown(s_a_com_44));
+
+  GoogleUrl b_com("http://b.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(b_com));
+
+  GoogleUrl c_com("http://c.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(c_com));
+
+  GoogleUrl d_com("http://d.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(d_com));
+
+  GoogleUrl e_com("http://e.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(e_com));
+
+  GoogleUrl f_com("http://f.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(f_com));
+
+  GoogleUrl s1_f_com("http://s1.f.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(s1_f_com));
+
+  GoogleUrl s2_f_com("http://s2.f.com");
+  EXPECT_TRUE(lawyer.IsOriginKnown(s2_f_com));
 }
 
 }  // namespace net_instaweb

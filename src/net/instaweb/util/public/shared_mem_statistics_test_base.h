@@ -21,13 +21,10 @@
 #include "net/instaweb/util/public/abstract_shared_mem.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/shared_mem_statistics.h"
 #include "net/instaweb/util/public/shared_mem_test_base.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 class SharedMemStatisticsTestBase : public testing::Test {
@@ -35,18 +32,10 @@ class SharedMemStatisticsTestBase : public testing::Test {
   typedef void (SharedMemStatisticsTestBase::*TestMethod)();
 
   explicit SharedMemStatisticsTestBase(SharedMemTestEnv* test_env);
-  SharedMemStatisticsTestBase() : testing::Test() {}
 
   virtual void SetUp();
   virtual void TearDown();
-  GoogleString CreateHistogramDataResponse(
-      const GoogleString & histogram_name, bool is_long_response);
-  GoogleString CreateVariableDataResponse(
-      bool has_unused_variable, bool first);
-  GoogleString CreateFakeLogfile(GoogleString* var_data,
-                                 GoogleString* hist_data,
-                                 std::set<GoogleString>* var_titles,
-                                 std::set<GoogleString>* hist_titles);
+
   bool CreateChild(TestMethod method);
 
   void TestCreate();
@@ -55,20 +44,12 @@ class SharedMemStatisticsTestBase : public testing::Test {
   void TestAdd();
   void TestHistogram();
   void TestHistogramRender();
-  void TestHistogramNoExtraClear();
-  void TestHistogramExtremeBuckets();
   void TestTimedVariableEmulation();
-  void TestConsoleStatisticsLogger();
-
-  MockMessageHandler handler_;
-  scoped_ptr<MemFileSystem> file_system_;
-  scoped_ptr<SharedMemStatistics> stats_;  // (the parent process version)
 
  private:
   void TestCreateChild();
   void TestSetChild();
   void TestClearChild();
-  void TestHistogramNoExtraClearChild();
 
   // Adds 10x +1 to variable 1, and 10x +2 to variable 2.
   void TestAddChild();
@@ -83,8 +64,8 @@ class SharedMemStatisticsTestBase : public testing::Test {
 
   scoped_ptr<SharedMemTestEnv> test_env_;
   scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<MockTimer> timer_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  scoped_ptr<SharedMemStatistics> stats_;  // (the parent process version)
+  MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatisticsTestBase);
 };
@@ -123,27 +104,13 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogramRender) {
   SharedMemStatisticsTestBase::TestHistogramRender();
 }
 
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogramExtremeBuckets) {
-  SharedMemStatisticsTestBase::TestHistogramExtremeBuckets();
-}
-
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogramNoExtraClear) {
-  SharedMemStatisticsTestBase::TestHistogramNoExtraClear();
-}
-
 TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
   SharedMemStatisticsTestBase::TestTimedVariableEmulation();
 }
 
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestConsoleStatisticsLogger) {
-  SharedMemStatisticsTestBase::TestConsoleStatisticsLogger();
-}
 REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
                            TestSet, TestClear, TestAdd, TestHistogram,
-                           TestHistogramRender, TestHistogramNoExtraClear,
-                           TestHistogramExtremeBuckets,
-                           TestTimedVariableEmulation,
-                           TestConsoleStatisticsLogger);
+                           TestHistogramRender, TestTimedVariableEmulation);
 
 }  // namespace net_instaweb
 

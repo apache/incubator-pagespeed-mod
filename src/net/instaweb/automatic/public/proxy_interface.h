@@ -16,13 +16,20 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 //
+// NOTE: This interface is actively under development and may be
+// changed extensively. Contact us at mod-pagespeed-discuss@googlegroups.com
+// if you are interested in using it.
+//
 // Simple interface for running Page Speed Automatic as a proxy.
 //
 // When implementing a Page Speed Automatic proxy, simply construct a
-// ProxyInterface at start up time and call Fetch for every
-// requested resource. Fetch decides how to deal with requests
+// ProxyInterface at start up time and call StreamingFetch for every
+// requested resource. StreamingFetch decides how to deal with requests
 // (pagespeed resources will be computed, HTML pages will be proxied
 // and rewritten, and other resources will just be proxied).
+//
+// Page Speed Automatic currently does not deal with some requests
+// such as POSTs.
 
 #ifndef NET_INSTAWEB_AUTOMATIC_PUBLIC_PROXY_INTERFACE_H_
 #define NET_INSTAWEB_AUTOMATIC_PUBLIC_PROXY_INTERFACE_H_
@@ -43,7 +50,7 @@ class MessageHandler;
 class ProxyFetchPropertyCallbackCollector;
 class ProxyFetchFactory;
 class RequestHeaders;
-class ServerContext;
+class ResourceManager;
 class RewriteOptions;
 class Statistics;
 class TimedVariable;
@@ -55,11 +62,11 @@ class ProxyInterface : public UrlAsyncFetcher {
   typedef std::pair<RewriteOptions*, bool> OptionsBoolPair;
 
   ProxyInterface(const StringPiece& hostname, int port,
-                 ServerContext* manager, Statistics* stats);
+                 ResourceManager* manager, Statistics* stats);
   virtual ~ProxyInterface();
 
   // Initializes statistics variables associated with this class.
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   // All requests use this interface. We decide internally whether the
   // request is a pagespeed resource, HTML page to be rewritten or another
@@ -89,6 +96,8 @@ class ProxyInterface : public UrlAsyncFetcher {
                                    RewriteOptions* query_options,
                                    MessageHandler* handler);
 
+  void set_server_version(const StringPiece& server_version);
+
   // Callback function passed to UrlNamer to finish handling requests once we
   // have rewrite_options for requests that are being proxied.
   void ProxyRequestCallback(
@@ -99,13 +108,10 @@ class ProxyInterface : public UrlAsyncFetcher {
       RewriteOptions* query_options,
       MessageHandler* handler);
 
-  // Is this url_string well-formed enough to proxy through?
-  bool IsWellFormedUrl(const GoogleUrl& url);
-
   static const char kBlinkRequestCount[];
   static const char kBlinkCriticalLineRequestCount[];
-  static const char kXmlHttpRequest[];
 
+ protected:
   // Initiates the PropertyCache look up.
   virtual ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
       bool is_resource_fetch,
@@ -124,18 +130,15 @@ class ProxyInterface : public UrlAsyncFetcher {
                     AsyncFetch* async_fetch,
                     MessageHandler* handler);
 
+  // Is this url_string well-formed enough to proxy through?
+  bool IsWellFormedUrl(const GoogleUrl& url);
+
   // If the URL and port are for this server, don't proxy those (to avoid
   // infinite fetching loops). This might be the favicon or something...
   bool UrlAndPortMatchThisServer(const GoogleUrl& url);
 
-  // Returns true if current request is XmlHttp request (i.e. ajax request).
-  // XmlHttp request is checked based on the request headers. This mechanism is
-  // not reliable because sometimes this header is not set even for XmlHttp
-  // requests.
-  bool IsXmlHttpRequest(RequestHeaders* headers) const;
-
   // References to unowned objects.
-  ServerContext* server_context_;     // thread-safe
+  ResourceManager* resource_manager_;     // thread-safe
   UrlAsyncFetcher* fetcher_;              // thread-safe
   Timer* timer_;                          // thread-safe
   MessageHandler* handler_;               // thread-safe

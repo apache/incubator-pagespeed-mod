@@ -20,19 +20,20 @@
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/interface_mod_spdy.h"
-#include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/rewriter/public/furious_matcher.h"
-#include "net/instaweb/util/public/condvar.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
-#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/shared_mem_referer_statistics.h"
 #include "net/instaweb/util/stack_buffer.h"
 #include "apr_strings.h"
 #include "http_config.h"
 #include "http_core.h"
+
+extern "C" {
+extern module AP_MODULE_DECLARE_DATA pagespeed_module;
+}
 
 namespace net_instaweb {
 
@@ -41,36 +42,6 @@ class ApacheResourceManager;
 // Number of times to go down the request->prev chain looking for an
 // absolute url.
 const int kRequestChainLimit = 5;
-
-PropertyCallback::PropertyCallback(RewriteDriver* driver,
-                                   ThreadSystem* thread_system,
-                                   const StringPiece& key) :
-  PropertyPage(thread_system->NewMutex(), key),
-  driver_(driver),
-  done_(false),
-  mutex_(thread_system->NewMutex()),
-  condvar_(mutex_->NewCondvar()) {
-}
-
-void PropertyCallback::Done(bool success) {
-  ScopedMutex lock(mutex_.get());
-  driver_->set_property_page(this);
-  done_ = true;
-  condvar_->Signal();
-}
-
-void PropertyCallback::BlockUntilDone() {
-  int iters = 0;
-  ScopedMutex lock(mutex_.get());
-  while (!done_) {
-    condvar_->TimedWait(Timer::kSecondMs);
-    if (!done_) {
-      driver_->message_handler()->Message(
-          kError, "Waiting for property cache fetch to complete. "
-          "Elapsed time: %ds", ++iters);
-    }
-  }
-}
 
 InstawebContext::InstawebContext(request_rec* request,
                                  RequestHeaders* request_headers,
@@ -81,7 +52,7 @@ InstawebContext::InstawebContext(request_rec* request,
                                  const RewriteOptions& options)
     : content_encoding_(kNone),
       content_type_(content_type),
-      server_context_(manager),
+      resource_manager_(manager),
       string_writer_(&output_),
       inflater_(NULL),
       absolute_url_(absolute_url),
@@ -107,25 +78,14 @@ InstawebContext::InstawebContext(request_rec* request,
     if (custom_options->running_furious()) {
       SetFuriousStateAndCookie(request, custom_options);
     }
-    server_context_->ComputeSignature(custom_options);
-    rewrite_driver_ = server_context_->NewCustomRewriteDriver(custom_options);
+    resource_manager_->ComputeSignature(custom_options);
+    rewrite_driver_ = resource_manager_->NewCustomRewriteDriver(custom_options);
   } else {
-    rewrite_driver_ = server_context_->NewRewriteDriver();
+    rewrite_driver_ = resource_manager_->NewRewriteDriver();
   }
-
-
-  // Begin the property cache lookup. This should be as early as possible since
-  // it may be asynchronous (in the case of memcached).
-  // TODO(jud): It would be ideal to move this even earlier. As early as, say,
-  // save_url_hook. However, there is no request specific context to save the
-  // result in at that point.
-  PropertyCallback* property_callback(InitiatePropertyCacheLookup());
-
-  // Insert proxy fetcher to add custom fetch headers if there are any such
-  // headers to add.
-  server_context_->apache_factory()->ApplyAddHeaders(rewrite_driver_);
-
-  rewrite_driver_->EnableBlockingRewrite(request_headers);
+  // Setup fetcher that directs most fetches to localhost.
+  resource_manager_->apache_factory()->ApplyLoopbackFetchRouting(
+      manager, rewrite_driver_, request);
 
   ComputeContentEncoding(request);
   apr_pool_cleanup_register(request->pool, this, Cleanup,
@@ -146,7 +106,7 @@ InstawebContext::InstawebContext(request_rec* request,
   }
 
   SharedMemRefererStatistics* referer_stats =
-      server_context_->apache_factory()->shared_mem_referer_statistics();
+      resource_manager_->apache_factory()->shared_mem_referer_statistics();
   if (referer_stats != NULL && !absolute_url_.empty()) {
     GoogleUrl target_url(absolute_url_);
     const char* referer = apr_table_get(request->headers_in,
@@ -174,11 +134,6 @@ InstawebContext::InstawebContext(request_rec* request,
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
   rewrite_driver_->SetWriter(&string_writer_);
-
-  // Wait until property cache lookup is complete
-  if (property_callback != NULL) {
-    property_callback->BlockUntilDone();
-  }
 }
 
 InstawebContext::~InstawebContext() {
@@ -297,17 +252,6 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
   }
 }
 
-PropertyCallback* InstawebContext::InitiatePropertyCacheLookup() {
-  PropertyCallback* property_callback = NULL;
-  if (server_context_->page_property_cache()->enabled()) {
-    property_callback = new PropertyCallback(rewrite_driver_,
-                                             server_context_->thread_system(),
-                                             absolute_url_);
-    server_context_->page_property_cache()->Read(property_callback);
-  }
-  return property_callback;
-}
-
 ApacheResourceManager* InstawebContext::ManagerFromServerRec(
     server_rec* server) {
   return static_cast<ApacheResourceManager*>
@@ -322,7 +266,7 @@ ApacheResourceManager* InstawebContext::ManagerFromServerRec(
 // there was a previous request in this chain, and use its url as the
 // original.
 const char* InstawebContext::MakeRequestUrl(request_rec* request) {
-  const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
+  const char *url = apr_table_get(request->notes, kPagespeedOriginalUrl);
 
   // Go down the prev chain to see if there this request was a rewrite
   // from another one.  We want to store the uri the user passed in,
@@ -368,28 +312,28 @@ const char* InstawebContext::MakeRequestUrl(request_rec* request) {
       url = ap_construct_url(request->pool, request->unparsed_uri, request);
     }
   }
-  // Note: apr_table_setn does not take ownership of url, it is owned by
-  // the Apache pool.
   apr_table_setn(request->notes, kPagespeedOriginalUrl, url);
   return url;
 }
 
 void InstawebContext::SetFuriousStateAndCookie(request_rec* request,
                                                RewriteOptions* options) {
+  int furious_value;
   // If we didn't get a valid (i.e. currently-running experiment) value from
   // the cookie, determine which experiment this request should end up in
   // and set the cookie accordingly.
-  bool need_cookie = server_context_->furious_matcher()->
-      ClassifyIntoExperiment(*request_headers_, options);
-  if (need_cookie) {
+  if (!furious::GetFuriousCookieState(*request_headers_, &furious_value)) {
     ResponseHeaders resp_headers;
     AprTimer timer;
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
-    int furious_value = options->furious_id();
-    server_context_->furious_matcher()->StoreExperimentData(
-        furious_value, url, timer.NowMs(), &resp_headers);
-    AddResponseHeadersToRequest(resp_headers, request);
+    furious_value = furious::DetermineFuriousState(options);
+    if (furious_value != furious::kFuriousNotSet) {
+      furious::SetFuriousCookie(&resp_headers, furious_value, url,
+                                timer.NowMs());
+      AddResponseHeadersToRequest(resp_headers, request);
+    }
   }
+  options->SetFuriousState(furious_value);
 }
 
 }  // namespace net_instaweb

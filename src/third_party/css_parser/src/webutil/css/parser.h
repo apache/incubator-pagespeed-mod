@@ -26,7 +26,6 @@
 #include "strings/stringpiece.h"
 #include "testing/production_stub/public/gunit_prod.h"
 #include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
 #include "webutil/css/property.h"  // while these CSS includes can be
 #include "webutil/css/selector.h"  // forward-declared, who is really
 #include "webutil/css/string.h"
@@ -36,9 +35,9 @@
 namespace Css {
 
 // These are defined below Parser.
+struct Import;
 class Declaration;
 class Declarations;
-class Import;
 class Stylesheet;
 class Ruleset;
 
@@ -141,12 +140,6 @@ class Parser {
   // mod_pagespeed's conversion to a link of this inside a style element.
   Import* ParseAsSingleImport();
 
-  // Extract the leading @charset from the document. The return value is
-  // valid iff it is not empty -and- errors_seen_mask() is zero. Added so
-  // that mod_pagespeed can determine the charset of a CSS file without
-  // duplicating a ton of our code.
-  UnicodeText ExtractCharset();
-
   // current position in the parse.
   const char* getpos() const { return in_; }
 
@@ -203,6 +196,8 @@ class Parser {
   //       ErrorNumber(kDeclarationError) == 1, etc.
   static int ErrorNumber(uint64 error_flag);
 
+  friend class ParserTest;  // we need to unit test private Parse functions.
+
  private:
   //
   // Syntactic methods
@@ -221,14 +216,6 @@ class Parser {
   // consumed if found. Be smart enough not to stop at character delim in
   // comments.  Returns whether delim is actually seen.
   bool SkipPastDelimiter(char delim);
-
-  // Like SkipPastDelimiter, except it does not return after having skipped over
-  // unmatched parentheses ()[]{} and quoted strings.
-  // For example, if in_ = "foo(a, b), 1, bar"
-  //   SkipPastDelimeter(',') will result in in_ = " b), 1, bar".
-  //   SkipPastDelimiterWithMatching(',') will result in in_ = " 1, bar".
-  // Returns true if it found delim before end of file.
-  bool SkipPastDelimiterWithMatching(char delim);
 
   // Skip until next "any" token (value which can be parsed by ParseAny).
   //
@@ -300,10 +287,6 @@ class Parser {
   //
   // So, if the escape sequence is a hex escape and the character following
   // the last hex digit is a space, then ParseEscape() consumes it.
-  //
-  // Only interchange valid Unicode characters will be returned.
-  // all other characters will be replaced with space (" ") and
-  // a kUtf8Error will be recorded in errors_seen_mask_.
   char32 ParseEscape();  // return the codepoint for the current escape \12a76f
 
   // Starting at delim, ParseString<char delim>() consumes the string,
@@ -505,14 +488,10 @@ class Parser {
   // Miscellaneous
   //
 
-  // Starting at whitespace or the first media query, ParseMediaQueries
-  // parses a media query list and returns it. Never returns NULL. Returns
-  // all MediaQueries it can successfully parse.
-  MediaQueries* ParseMediaQueries();
-
-  // Starting at whitespace or the start of a media query, parses and returns
-  // the entire query. Returns NULL if the media query is empty.
-  MediaQuery* ParseMediaQuery();
+  // Starting at whitespace or the first medium, ParseMediumList
+  // parses a medium list separated by commas and whitespace, stopping
+  // at (without consuming) ; or {.  It adds each medium to the back of media.
+  void ParseMediumList(std::vector<UnicodeText>* media);
 
   // ParseImport starts just after @import and consumes the import
   // declaration, including the closing ;.  It returns a Import*
@@ -530,9 +509,6 @@ class Parser {
   // Consumes the @-rule, including the closing ';' or '}'.  Does not
   // consume trailing whitespace.
   void ParseAtRule(Stylesheet* stylesheet);  // parse @ rules.
-
-  // Parse the charset after an @charset rule.
-  UnicodeText ParseCharset();
 
   // Skip until the end of the at-rule. Used for at-rules that we do not
   // recognize.
@@ -577,12 +553,12 @@ class Parser {
   // Vector of all errors { error_type_number, location, message }.
   std::vector<ErrorInfo> errors_seen_;
 
-  friend class ParserTest;  // we need to unit test private Parse functions.
   FRIEND_TEST(ParserTest, color);
   FRIEND_TEST(ParserTest, url);
   FRIEND_TEST(ParserTest, rect);
   FRIEND_TEST(ParserTest, background);
   FRIEND_TEST(ParserTest, font_family);
+  friend void ParseFontFamily(Parser* parser);
   FRIEND_TEST(ParserTest, ParseBlock);
   FRIEND_TEST(ParserTest, font);
   FRIEND_TEST(ParserTest, values);
@@ -599,9 +575,6 @@ class Parser {
   FRIEND_TEST(ParserTest, percentage_colors);
   FRIEND_TEST(ParserTest, ValueError);
   FRIEND_TEST(ParserTest, SkippedTokenError);
-  friend void ParseFontFamily(Parser* parser);
-  friend class MediaAppliesToScreenTest;
-
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };
 
@@ -688,132 +661,41 @@ class Declarations : public std::vector<Declaration*> {
   DISALLOW_COPY_AND_ASSIGN(Declarations);
 };
 
-// Unparsed sections of CSS file. For example, unexpected @-rules cannnot be
-// parsed, so we simply collect the verbatim bytes from start to finish and
-// store them in an UnparsedRegion so that they can be re-emitted in
-// preservation mode.
-class UnparsedRegion {
- public:
-  explicit UnparsedRegion(const StringPiece& bytes_in_original_buffer)
-      : bytes_in_original_buffer_(bytes_in_original_buffer.data(),
-                                  bytes_in_original_buffer.size()) {}
-
-  StringPiece bytes_in_original_buffer() const {
-    return bytes_in_original_buffer_;
-  }
-
-  void set_bytes_in_original_buffer(const StringPiece& bytes) {
-    bytes.CopyToString(&bytes_in_original_buffer_);
-  }
-
-  string ToString() const;
-
- private:
-  string bytes_in_original_buffer_;
-
-  DISALLOW_COPY_AND_ASSIGN(UnparsedRegion);
-};
-
 // A ruleset consists of a list of selectors followed by a declaration block.
 // It can also optionally include a list of medium description.
-//
-// Unparsed regions between Rulesets can also be stored here in preservation
-// mode. For example, at-rules can be interspersed with Rulesets, for those
-// that we don't parse, they are stored in dummy Rulesets.
 class Ruleset {
  public:
-  // TODO(sligocki): Allow other parsed at-rules, like @font-family.
-  enum Type { RULESET, UNPARSED_REGION, };
-
-  Ruleset() : type_(RULESET), media_queries_(new MediaQueries),
-              selectors_(new Selectors),
-              declarations_(new Declarations) { }
-  // Takes ownership of selectors, media_queries and declarations.
-  Ruleset(Selectors* selectors, MediaQueries* media_queries,
+  Ruleset() : selectors_(new Selectors), declarations_(new Declarations) { }
+  // Takes ownership of selectors and declarations.
+  Ruleset(Selectors* selectors, const std::vector<UnicodeText>& media,
           Declarations* declarations)
-      : type_(RULESET), media_queries_(media_queries), selectors_(selectors),
-        declarations_(declarations) { }
-  // Dummy Ruleset. Used for unparsed statements, for example unknown at-rules.
-  explicit Ruleset(UnparsedRegion* unparsed_region)
-      : type_(UNPARSED_REGION), media_queries_(new MediaQueries),
-        unparsed_region_(unparsed_region) { }
+      : selectors_(selectors), media_(media), declarations_(declarations) { }
   ~Ruleset() { }
 
-  // Is this actually a Ruleset or some sort of at-rule? For historical reasons
-  // at-rules are also stored as Rulesets.
-  Type type() const { return type_; }
+  const Selectors& selectors() const { return *selectors_; }
+  const Selector& selector(int i) const { return *selectors_->at(i); }
+  const std::vector<UnicodeText>& media() const { return media_; }
+  const UnicodeText& medium(int i) const { return media_.at(i); }
+  const Declarations& declarations() const { return *declarations_; }
+  const Declaration& declaration(int i) const { return *declarations_->at(i); }
 
-  // All type()s can have media_queries.
-  const MediaQueries& media_queries() const { return *media_queries_; }
-  const MediaQuery& media_query(int i) const { return *media_queries_->at(i); }
-  MediaQueries& mutable_media_queries() { return *media_queries_; }
-  // Takes ownership of parameter.
-  void set_media_queries(MediaQueries* media_queries) {
-    media_queries_.reset(media_queries);
-  }
+  Selectors& mutable_selectors() { return *selectors_; }
+  std::vector<UnicodeText>& mutable_media() { return media_; }
+  Declarations& mutable_declarations() { return *declarations_; }
 
-  // NOTE: Only call these getters if you know that type() == RULESET.
-  // type() always == RULESET if Css::Parser::preservation_mode() is false,
-  // so getters should all be valid if preservation mode is off (default).
-  const Selectors& selectors() const {
-    CHECK_EQ(RULESET, type());
-    return *selectors_;
+  // set_media copies input media.
+  void set_media(const std::vector<UnicodeText>& media) {
+    media_.assign(media.begin(), media.end());
   }
-  const Selector& selector(int i) const {
-    CHECK_EQ(RULESET, type());
-    return *selectors_->at(i);
-  }
-  const Declarations& declarations() const {
-    CHECK_EQ(RULESET, type());
-    return *declarations_;
-  }
-  const Declaration& declaration(int i) const {
-    CHECK_EQ(RULESET, type());
-    return *declarations_->at(i);
-  }
-
-  Selectors& mutable_selectors() {
-    CHECK_EQ(RULESET, type());
-    return *selectors_;
-  }
-  Declarations& mutable_declarations() {
-    CHECK_EQ(RULESET, type());
-    return *declarations_;
-  }
-
   // set_selectors and _declarations take ownership of parameters.
-  void set_selectors(Selectors* selectors) {
-    CHECK_EQ(RULESET, type());
-    selectors_.reset(selectors);
-  }
-  void set_declarations(Declarations* decls) {
-    CHECK_EQ(RULESET, type());
-    declarations_.reset(decls);
-  }
-
-  // If type() == UNPARSED_REGION, this is the link to that region.
-  const UnparsedRegion* unparsed_region() const {
-    CHECK_EQ(UNPARSED_REGION, type());
-    return unparsed_region_.get();
-  }
-  UnparsedRegion* mutable_unparsed_region() {
-    CHECK_EQ(UNPARSED_REGION, type());
-    return unparsed_region_.get();
-  }
+  void set_selectors(Selectors* selectors) { selectors_.reset(selectors); }
+  void set_declarations(Declarations* decls) { declarations_.reset(decls); }
 
   string ToString() const;
  private:
-  Type type_;
-
-  // All types have media_queries_.
-  scoped_ptr<MediaQueries> media_queries_;
-
-  // Only defined for type_ == RULESET.
   scoped_ptr<Selectors> selectors_;
+  std::vector<UnicodeText> media_;
   scoped_ptr<Declarations> declarations_;
-
-  // Only defined for type_ == UNPARSED_REGION.
-  scoped_ptr<UnparsedRegion> unparsed_region_;
 
   DISALLOW_COPY_AND_ASSIGN(Ruleset);
 };
@@ -831,27 +713,11 @@ class Charsets : public std::vector<UnicodeText> {
   string ToString() const;
 };
 
-class Import {
- public:
-  Import() {}
-  ~Import() {}
-
-  const MediaQueries& media_queries() const { return *media_queries_; }
-  const UnicodeText& link() const { return link_; }
-
-  // Takes ownership of media_queries.
-  void set_media_queries(MediaQueries* media_queries) {
-    media_queries_.reset(media_queries);
-  }
-  void set_link(const UnicodeText& link) { link_ = link; }
+struct Import {
+  std::vector<UnicodeText> media;
+  UnicodeText link;
 
   string ToString() const;
-
- private:
-  scoped_ptr<MediaQueries> media_queries_;
-  UnicodeText link_;
-
-  DISALLOW_COPY_AND_ASSIGN(Import);
 };
 
 class Imports : public std::vector<Css::Import*> {
@@ -887,10 +753,6 @@ class Stylesheet {
   StylesheetType type_;
   Charsets charsets_;
   Imports imports_;
-  // Note: CSS spec specifies that a stylesheet is a list of statements each
-  // of which is either a ruleset or at-rule. Since we want to support the
-  // legacy rulesets() interface and most at-rules are not parsed, at-rules
-  // are currently being stored as dummy rulesets.
   Rulesets rulesets_;
 
   DISALLOW_COPY_AND_ASSIGN(Stylesheet);

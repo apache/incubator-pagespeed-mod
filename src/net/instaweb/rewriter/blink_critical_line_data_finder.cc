@@ -30,16 +30,13 @@ BlinkCriticalLineDataFinder::~BlinkCriticalLineDataFinder() {
 
 BlinkCriticalLineData*
 BlinkCriticalLineDataFinder::ExtractBlinkCriticalLineData(
-    int64 cache_time_ms, PropertyPage* page, int64 now_ms, bool diff_enabled) {
+    PropertyPage* page, const RewriteOptions* options) {
   return NULL;
   // Default interface returns NULL and derived classes can override.
 }
 
 void BlinkCriticalLineDataFinder::ComputeBlinkCriticalLineData(
-    const GoogleString& computed_hash,
-    const GoogleString& computed_hash_smart_diff,
-    const StringPiece html_content,
-    const ResponseHeaders* response_headers,
+    const StringPiece html_content, const ResponseHeaders* response_headers,
     RewriteDriver* driver) {
   // Default interface is empty and derived classes can override.
 }

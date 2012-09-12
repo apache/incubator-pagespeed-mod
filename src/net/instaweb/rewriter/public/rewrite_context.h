@@ -26,7 +26,7 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
@@ -198,8 +198,6 @@ class RewriteContext {
   // If called with true, forces a rewrite and re-generates the output.
   void set_force_rewrite(bool x) { force_rewrite_ = x; }
 
-  const ResourceContext* resource_context() { return resource_context_.get(); }
-
  protected:
   typedef std::vector<InputInfo*> InputInfoStarVector;
   typedef std::vector<GoogleUrl*> GoogleUrlStarVector;
@@ -209,9 +207,10 @@ class RewriteContext {
   // Finds the ResourceManager associated with this context.  Note that
   // this method might have to climb up the parent-tree, but it's typically
   // not a deep tree.  Same with Driver() and Options().
-  ServerContext* Manager() const;
-  const RewriteOptions* Options() const;
+  ResourceManager* Manager() const;
+  const RewriteOptions* Options();
   RewriteDriver* Driver() const;
+  const ResourceContext* resource_context() { return resource_context_.get(); }
 
   // Check that an CachedResult is valid, specifically, that all the
   // inputs are still valid/non-expired.
@@ -349,9 +348,7 @@ class RewriteContext {
   //
   // Note that unlike Harvest(), this method runs in the HTML thread (for
   // top-level rewrites), and only runs if the rewrite completes prior to
-  // the rewrite-deadline.  If the rewrite does make it by the deadline,
-  // RewriteContext::Render() will be invoked regardless of whether any slots
-  // were actually optimized successfully.
+  // the rewrite-deadline.
   virtual void Render();
 
   // This final set of protected methods can be optionally overridden
@@ -369,7 +366,7 @@ class RewriteContext {
   // metadata cache key.  The default implementation returns "".
   virtual GoogleString CacheKeySuffix() const;
 
-  // Returns the filter ID.
+  // Returrns the filter ID.
   virtual const char* id() const = 0;
 
   // Rewrites come in three flavors, as described in output_resource_kind.h,

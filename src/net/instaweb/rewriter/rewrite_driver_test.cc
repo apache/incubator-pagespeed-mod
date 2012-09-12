@@ -35,8 +35,8 @@
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
@@ -60,13 +60,12 @@ namespace net_instaweb {
 
 class RewriteFilter;
 
-class RewriteDriverTest : public RewriteTestBase {
+class RewriteDriverTest : public ResourceManagerTestBase {
  protected:
   RewriteDriverTest() {}
 
-  // TODO(matterbury): Delete this method as it should be redundant.
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
   }
 
   bool CanDecodeUrl(const StringPiece& url) {
@@ -302,210 +301,6 @@ TEST_F(RewriteDriverTest, TestCacheUseWithInvalidation) {
   // black magic.
   EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
-}
-
-TEST_F(RewriteDriverTest, TestCacheUseWithUrlPatternAllInvalidation) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  const char kCss[] = "* { display: none; }";
-  const char kMinCss[] = "*{display:none}";
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-
-  GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
-             hasher()->Hash(kMinCss), "a.css", "css");
-
-  // Cold load.
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-
-  // We should have 3 things inserted:
-  // 1) the source data
-  // 2) the result
-  // 3) the rname entry for the result.
-  int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(3, cold_num_inserts);
-
-  // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-
-  ClearStats();
-  int64 now_ms = mock_timer()->NowMs();
-  options()->ClearSignatureForTesting();
-  // Set cache invalidation (to now) for all URLs with "a.css" and also
-  // invalidate all metadata (the last 'false' argument below).
-  options()->AddUrlCacheInvalidationEntry("*a.css*", now_ms, false);
-  options()->ComputeSignature(hasher());
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  // We expect: identical input, a new rewrite entry (its version # changed),
-  // and the output which may not may not auto-advance due to MockTimer black
-  // magic.
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
-}
-
-TEST_F(RewriteDriverTest, TestCacheUseWithUrlPatternOnlyInvalidation) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  const char kCss[] = "* { display: none; }";
-  const char kMinCss[] = "*{display:none}";
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-
-  GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
-             hasher()->Hash(kMinCss), "a.css", "css");
-
-  // Cold load.
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-
-  // We should have 3 things inserted:
-  // 1) the source data
-  // 2) the result
-  // 3) the rname entry for the result.
-  int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(3, cold_num_inserts);
-
-  // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-
-  ClearStats();
-  int64 now_ms = mock_timer()->NowMs();
-  options()->ClearSignatureForTesting();
-  // Set cache invalidation (to now) for all URLs with "a.css". Does not
-  // invalidate any metadata (the last 'true' argument below).
-  options()->AddUrlCacheInvalidationEntry("*a.css*", now_ms, true);
-  options()->ComputeSignature(hasher());
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  // The output rewritten URL is invalidated, the input is also invalidated, and
-  // fetched again.  The rewrite entry does not change, and gets reinserted.
-  // Thus, we have identical input, rname entry, and the output.
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(3, lru_cache()->num_identical_reinserts());
-}
-
-TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlAllInvalidation) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  const char kCss[] = "* { display: none; }";
-  const char kMinCss[] = "*{display:none}";
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-
-  GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
-             hasher()->Hash(kMinCss), "a.css", "css");
-
-  // Cold load.
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-
-  // We should have 3 things inserted:
-  // 1) the source data
-  // 2) the result
-  // 3) the rname entry for the result.
-  int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(3, cold_num_inserts);
-
-  // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-
-  ClearStats();
-  int64 now_ms = mock_timer()->NowMs();
-  options()->ClearSignatureForTesting();
-  // Set a URL cache invalidation entry for output URL.  Original input URL is
-  // not affected.  Also invalidate all metadata (the last 'false' argument
-  // below).
-  options()->AddUrlCacheInvalidationEntry(css_minified_url, now_ms, false);
-  options()->ComputeSignature(hasher());
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  // We expect:  a new rewrite entry (its version # changed), and identical
-  // output.
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(1, lru_cache()->num_identical_reinserts());
-}
-
-TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlOnlyInvalidation) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  const char kCss[] = "* { display: none; }";
-  const char kMinCss[] = "*{display:none}";
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-
-  GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
-             hasher()->Hash(kMinCss), "a.css", "css");
-
-  // Cold load.
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-
-  // We should have 3 things inserted:
-  // 1) the source data
-  // 2) the result
-  // 3) the rname entry for the result.
-  int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(3, cold_num_inserts);
-
-  // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-
-  ClearStats();
-  int64 now_ms = mock_timer()->NowMs();
-  options()->ClearSignatureForTesting();
-  // Set cache invalidation (to now) for output URL.  Original input URL is not
-  // affected.  Does not invalidate any metadata (the last 'true' argument
-  // below).
-  options()->AddUrlCacheInvalidationEntry(css_minified_url, now_ms, true);
-  options()->ComputeSignature(hasher());
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  // We expect:  identical rewrite entry and output.
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
-}
-
-TEST_F(RewriteDriverTest, TestCacheUseWithOriginalUrlInvalidation) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  const char kCss[] = "* { display: none; }";
-  const char kMinCss[] = "*{display:none}";
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-
-  GoogleString css_minified_url =
-      Encode(kTestDomain, RewriteOptions::kCssFilterId,
-             hasher()->Hash(kMinCss), "a.css", "css");
-
-  // Cold load.
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-
-  // We should have 3 things inserted:
-  // 1) the source data
-  // 2) the result
-  // 3) the rname entry for the result.
-  int cold_num_inserts = lru_cache()->num_inserts();
-  EXPECT_EQ(3, cold_num_inserts);
-
-  // Warm load. This one should not change the number of inserts at all
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(cold_num_inserts, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-
-  ClearStats();
-  int64 now_ms = mock_timer()->NowMs();
-  options()->ClearSignatureForTesting();
-  // Set cache invalidation (to now) for input URL.  Rewritten output URL is not
-  // affected.  So there will be no cache inserts or reinserts.
-  // Note:  Whether we invalidate all metadata (the last argument below) is
-  // immaterial in this test.
-  options()->AddUrlCacheInvalidationEntry("http://test.com/a.css", now_ms,
-                                          false);
-  options()->ComputeSignature(hasher());
-  EXPECT_TRUE(TryFetchResource(css_minified_url));
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 }
 
 // Similar to TestCacheUse, but with cache-extender which reconstructs on the

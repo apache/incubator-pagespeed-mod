@@ -83,18 +83,12 @@ bool HtmlAttributeQuoteRemoval::NeedsQuotes(const char *val) {
 }
 
 void HtmlAttributeQuoteRemoval::StartElement(HtmlElement* element) {
-  // TODO(jmarantz): switch to using mimetype.  To do that we need to have
-  // access to the RewriteDriver* to get the response-headers, and so this
-  // is not compatible with PageSpeed Insights that uses this filter for
-  // HTML minification.
   if (html_parse_->doctype().IsXhtml()) {
     return;  // XHTML doctypes require quotes, so don't remove any.
   }
   int rewritten = 0;
-  HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
-    HtmlElement::Attribute& attr = *i;
+  for (int i = 0; i < element->attribute_size(); ++i) {
+    HtmlElement::Attribute& attr = element->attribute(i);
     if (attr.quote_style() != HtmlElement::NO_QUOTE &&
         !NeedsQuotes(attr.escaped_value())) {
       attr.set_quote_style(HtmlElement::NO_QUOTE);

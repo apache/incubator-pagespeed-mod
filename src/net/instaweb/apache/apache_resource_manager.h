@@ -18,7 +18,7 @@
 #define NET_INSTAWEB_APACHE_APACHE_RESOURCE_MANAGER_H_
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 
 struct apr_pool_t;
 struct server_rec;
@@ -28,13 +28,12 @@ namespace net_instaweb {
 class ApacheConfig;
 class ApacheMessageHandler;
 class ApacheRewriteDriverFactory;
-class Histogram;
 class HTTPCache;
 class RewriteStats;
 class SharedMemStatistics;
 class Statistics;
 class ThreadSystem;
-class UrlAsyncFetcherStats;
+class UrlPollableAsyncFetcher;
 class Variable;
 
 // Creates an Apache-specific ResourceManager.  This differs from base class
@@ -43,7 +42,7 @@ class Variable;
 //    - default RewriteOptions.
 // Additionally, there are startup semantics for apache's prefork model
 // that require a phased initialization.
-class ApacheResourceManager : public ServerContext {
+class ApacheResourceManager : public ResourceManager {
  public:
   ApacheResourceManager(ApacheRewriteDriverFactory* factory,
                         server_rec* server,
@@ -51,17 +50,17 @@ class ApacheResourceManager : public ServerContext {
   virtual ~ApacheResourceManager();
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
+  void SetStatistics(SharedMemStatistics* x);
   ApacheRewriteDriverFactory* apache_factory() { return apache_factory_; }
   ApacheConfig* config();
   bool InitFileCachePath();
 
-  // Initialize this ResourceManager to have its own statistics domain.
-  // Must be called after global_statistics has been created and had
-  // ::Initialize called on it.
-  void CreateLocalStatistics(Statistics* global_statistics);
-
   // Should be called after the child process is forked.
   void ChildInit();
+
+  UrlPollableAsyncFetcher* subresource_fetcher() {
+    return subresource_fetcher_;
+  }
 
   bool initialized() const { return initialized_; }
 
@@ -84,10 +83,7 @@ class ApacheResourceManager : public ServerContext {
   // restart.
   void PollFilesystemForCacheFlush();
 
-  // Accumulate in a histogram the amount of time spent rewriting HTML.
-  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
-
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   void set_cache_flush_poll_interval_sec(int num_seconds) {
     cache_flush_poll_interval_sec_ = num_seconds;
@@ -110,17 +106,14 @@ class ApacheResourceManager : public ServerContext {
 
   bool initialized_;
 
-  // Non-NULL if we have per-vhost stats.
-  scoped_ptr<Statistics> split_statistics_;
-
-  // May be NULL. Owned by *split_statistics_.
-  SharedMemStatistics* local_statistics_;
-
-  // These are non-NULL if we have per-vhost stats.
-  scoped_ptr<RewriteStats> local_rewrite_stats_;
-  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
-
-  Histogram* html_rewrite_time_us_histogram_;
+  // A pollable fetcher provides a Poll() to wait for outstanding
+  // fetches to complete.  This is used in
+  // instaweb_handler.cc:handle_as_resource() to block the apache
+  // request thread until the requested resource has been delivered.
+  //
+  // TODO(jmarantz): use the scheduler & condition variables to
+  // accomplish this instead.
+  UrlPollableAsyncFetcher* subresource_fetcher_;
 
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first

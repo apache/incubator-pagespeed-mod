@@ -89,7 +89,7 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
         body1_("b1"),
         body2_("b2"),
         ttl_ms_(Timer::kHourMs) {
-    RateControllingUrlAsyncFetcher::InitStats(&stats_);
+    RateControllingUrlAsyncFetcher::Initialize(&stats_);
     thread_system_.reset(ThreadSystem::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &mock_fetcher_, thread_system_->NewMutex()));
@@ -170,8 +170,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   // We need 3 calls to WaitUrlAsyncFetcher::CallCallbacks since the queued
@@ -185,8 +183,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body1_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -235,8 +231,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   wait_fetcher_->CallCallbacks();
@@ -247,8 +241,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
     EXPECT_TRUE(fetch->success());
     EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
     EXPECT_STREQ(body1_, fetch->content());
-    EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                     HttpAttributes::kXPsaLoadShed));
   }
 
   // The next 4 are queued up.
@@ -267,8 +259,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body1_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -328,15 +318,11 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
   for (int i = 104; i < 110; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   // We need 3 calls to WaitUrlAsyncFetcher::CallCallbacks since the queued
@@ -350,8 +336,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(j % 2 == 0 ? body1_ : body2_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -364,8 +348,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body3_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -379,8 +361,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   EXPECT_TRUE(fetch->success());
   EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
   EXPECT_STREQ(body3_, fetch->content());
-  EXPECT_FALSE(
-      fetch->response_headers()->Has(HttpAttributes::kXPsaLoadShed));
 
   EXPECT_EQ(10, stats_.GetTimedVariable(
       RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(

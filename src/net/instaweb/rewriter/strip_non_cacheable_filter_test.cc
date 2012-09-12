@@ -18,8 +18,8 @@
 
 #include "net/instaweb/rewriter/public/strip_non_cacheable_filter.h"
 
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
@@ -35,28 +35,19 @@ const char kRequestUrl[] = "http://www.test.com";
 const char kHtmlInput[] =
     "<html>"
     "<body>"
-    "<noscript>This should not get removed</noscript>"
+    "<noscript>This should get removed</noscript>"
     "<div id=\"header\"> This is the header </div>"
     "<div id=\"container\" class>"
       "<h2 id=\"beforeItems\"> This is before Items </h2>"
-      "<div class=\"Item\">"
+      "<div class=\"item\">"
          "<img src=\"image1\">"
          "<img src=\"image2\">"
       "</div>"
-      "<div class=\"item lots of classes here for testing\">"
+      "<div class=\"item\">"
          "<img src=\"image3\">"
           "<div class=\"item\">"
              "<img src=\"image4\">"
           "</div>"
-      "</div>"
-      "<div class=\"itema itemb others are ok\">"
-        "<img src=\"image5\">"
-      "</div>"
-      "<div class=\"itemb before itema\">"
-        "<img src=\"image6\">"
-      "</div>"
-      "<div class=\"itemb only\">"
-        "<img src=\"image7\">"
       "</div>"
     "</body></html>";
 
@@ -72,7 +63,7 @@ const char kPsaHeadScriptNodesEnd[] =
 }  // namespace
 
 
-class StripNonCacheableFilterTest : public RewriteTestBase {
+class StripNonCacheableFilterTest : public ResourceManagerTestBase {
  public:
   StripNonCacheableFilterTest() {}
 
@@ -82,13 +73,10 @@ class StripNonCacheableFilterTest : public RewriteTestBase {
     delete options_;
     options_ = new RewriteOptions();
     options_->EnableFilter(RewriteOptions::kStripNonCacheable);
-
-    options_->AddBlinkCacheableFamily(
-        "/", RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-        "class= \"item \" , id\t =beforeItems \t , class=\"itema itemb\"");
-
+    options_->set_prioritize_visible_content_non_cacheable_elements(
+        "/:class=item,id=beforeItems");
     SetUseManagedRewriteDrivers(true);
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
   }
 
   virtual bool AddHtmlTags() const { return false; }
@@ -98,19 +86,16 @@ class StripNonCacheableFilterTest : public RewriteTestBase {
     GoogleString psa_head_script_nodes = StrCat(
         kPsaHeadScriptNodesStart, blink_js, kPsaHeadScriptNodesEnd);
     return StrCat(
-        "<html><body>",
-        "<noscript>This should not get removed</noscript>"
+        "<html><head>",
+        psa_head_script_nodes,
+        "</head><body>",
+        BlinkUtil::kStartBodyMarker,
         "<div id=\"header\"> This is the header </div>"
         "<div id=\"container\" class>"
         "<!--GooglePanel begin panel-id-1.0--><!--GooglePanel end panel-id-1.0-->"
         "<!--GooglePanel begin panel-id-0.0--><!--GooglePanel end panel-id-0.0-->"
         "<!--GooglePanel begin panel-id-0.1-->"
         "<!--GooglePanel end panel-id-0.1-->"
-        "<!--GooglePanel begin panel-id-2.0-->"
-        "<!--GooglePanel end panel-id-2.0-->"
-        "<!--GooglePanel begin panel-id-2.1-->"
-        "<!--GooglePanel end panel-id-2.1-->"
-        "<div class=\"itemb only\"><img src=\"image7\"></div>"
         "</body></html>");
   }
 

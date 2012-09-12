@@ -23,9 +23,8 @@
 
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/wget_url_fetcher.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_gflags.h"
@@ -38,7 +37,6 @@
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
 
 namespace net_instaweb {
@@ -57,7 +55,7 @@ FileRewriter::FileRewriter(const net_instaweb::RewriteGflags* gflags,
                            bool echo_errors_to_stdout)
     : gflags_(gflags),
       echo_errors_to_stdout_(echo_errors_to_stdout) {
-  net_instaweb::RewriteDriverFactory::InitStats(&simple_stats_);
+  net_instaweb::RewriteDriverFactory::Initialize(&simple_stats_);
   SetStatistics(&simple_stats_);
 }
 
@@ -95,14 +93,9 @@ Timer* FileRewriter::DefaultTimer() {
   return new GoogleTimer;
 }
 
-void FileRewriter::SetupCaches(ServerContext* resource_manager) {
+CacheInterface* FileRewriter::DefaultCacheInterface() {
   LRUCache* lru_cache = new LRUCache(gflags_->lru_cache_size_bytes());
-  CacheInterface* cache = new ThreadsafeCache(lru_cache,
-                                              thread_system()->NewMutex());
-  HTTPCache* http_cache = new HTTPCache(cache, timer(), hasher(), statistics());
-  resource_manager->set_http_cache(http_cache);
-  resource_manager->set_metadata_cache(cache);
-  resource_manager->MakePropertyCaches(cache);
+  return new ThreadsafeCache(lru_cache, thread_system()->NewMutex());
 }
 
 Statistics* FileRewriter::statistics() {
@@ -112,18 +105,18 @@ Statistics* FileRewriter::statistics() {
 StaticRewriter::StaticRewriter(int* argc, char*** argv)
     : gflags_((*argv)[0], argc, argv),
       file_rewriter_(&gflags_, true),
-      server_context_(file_rewriter_.CreateServerContext()) {
+      resource_manager_(file_rewriter_.CreateResourceManager()) {
   if (!gflags_.SetOptions(&file_rewriter_,
-                          server_context_->global_options())) {
+                          resource_manager_->global_options())) {
     exit(1);
   }
 }
 
 StaticRewriter::StaticRewriter()
     : file_rewriter_(&gflags_, false),
-      server_context_(file_rewriter_.CreateServerContext()) {
+      resource_manager_(file_rewriter_.CreateResourceManager()) {
   if (!gflags_.SetOptions(&file_rewriter_,
-                          server_context_->global_options())) {
+                          resource_manager_->global_options())) {
     exit(1);
   }
 }
@@ -136,7 +129,7 @@ bool StaticRewriter::ParseText(const StringPiece& url,
                                const StringPiece& text,
                                const StringPiece& output_dir,
                                Writer* writer) {
-  RewriteDriver* driver = server_context_->NewRewriteDriver();
+  RewriteDriver* driver = resource_manager_->NewRewriteDriver();
 
   // For this simple file transformation utility we always want to perform
   // any optimizations we can, so we wait until everything is done rather
@@ -147,7 +140,7 @@ bool StaticRewriter::ParseText(const StringPiece& url,
   driver->SetWriter(writer);
   if (!driver->StartParseId(url, id, kContentTypeHtml)) {
     fprintf(stderr, "StartParseId failed on url %s\n", url.as_string().c_str());
-    server_context_->ReleaseRewriteDriver(driver);
+    resource_manager_->ReleaseRewriteDriver(driver);
     return false;
   }
 

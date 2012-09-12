@@ -28,7 +28,6 @@
 namespace net_instaweb {
 
 class HttpResponseHeaders;
-class RequestHeaders;
 class MessageHandler;
 class Writer;
 
@@ -80,10 +79,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // so that we don't expose the base UpdateFrom (and to avoid "hiding" errors).
   virtual void UpdateFrom(const Headers<HttpResponseHeaders>& other);
 
-  // Initializes the response headers with the one in proto, clearing the
-  // existing fields.
-  void UpdateFromProto(const HttpResponseHeaders& proto);
-
   // Serialize HTTP response header to a binary stream.
   virtual bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
 
@@ -101,19 +96,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // accessors before ComputeCaching is called.
   void ComputeCaching();
   bool IsCacheable() const;
-
-  // Returns true if these response headers indicate the response is cacheable
-  // if it was fetched w/o special authorization headers.
-  //
-  // Generally you want to use IsProxyCacheableGivenRequest() instead which will
-  // also take the request headers into account, unless you know the request
-  // was synthesized with known headers which do not include authorization.
   bool IsProxyCacheable() const;
-
-  // Returns true if these response header indicate the response is cacheable
-  // if it was fetched with given 'request_headers'.
-  bool IsProxyCacheableGivenRequest(const RequestHeaders& req_headers) const;
-
   // Note(sligocki): I think CacheExpirationTimeMs will return 0 if !IsCacheable
   // TODO(sligocki): Look through callsites and make sure this is being
   // interpretted correctly.
@@ -141,16 +124,8 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // appropriately. Note that all existing max-age values are removed.
   void SetCacheControlMaxAge(int64 ttl_ms);
 
-  // Sets the original content length header, used to relay information on
-  // the original size of optimized resources.
-  void SetOriginalContentLength(int64 content_length);
-
   // Removes cookie headers, and returns true if any changes were made.
   bool Sanitize();
-
-  // Copies the HttpResponseHeaders proto from the response headers to the given
-  // input after removing the Set-Cookie fields.
-  void GetSanitizedProto(HttpResponseHeaders* proto) const;
 
   // TODO(jmarantz): consider an alternative representation
   bool headers_complete() const { return has_status_code(); }
@@ -245,34 +220,15 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   }
 
   // Returns whether or not we can cache these headers if we take into
-  // account the Vary: headers. Note that we consider Vary: Cookie as cacheable
-  // if request_has_cookie is false.
-  bool VaryCacheable(bool request_has_cookie) const;
+  // account the Vary: headers.
+  bool VaryCacheable() const;
 
   // Finds Content-Length in the response headers, returning true and putting
   // it in *content_length if successful.
-  bool FindContentLength(int64* content_length) const;
-
-  // Force cache the response with the given TTL even if it is private. Note
-  // that this does not change any of the headers. The values of cache_ttl_ms,
-  // IsCacheable and IsProxyCacheable are updated once ComputeCaching() is
-  // called.
-  // Note that for responses which were originally cacheable, the effective
-  // cache TTL is the maximum of the original TTL and ttl_ms.
-  // For responses which were originally uncacheable, the new cache TTL is
-  // ttl_ms.
-  void ForceCaching(int64 ttl_ms);
-
-  // Update the caching headers if the response has force cached.
-  bool UpdateCacheHeadersIfForceCached();
-
-  // Returns estimated size in bytes of these headers (if transferred over
-  // HTTP, not SPDY or other protocols). This is an estimate because it may not
-  // properly account for things like spacing around : or whether multiple
-  // headers were on a single or multiple lines.
-  int64 SizeEstimate() const;
+  bool FindContentLength(int64* content_length);
 
  private:
+
   // Parse the original and fresh content types, and add a new header based
   // on the two of them, giving preference to the original.
   // e.g. if the original specified charset=UTF-8 and the new one specified
@@ -286,12 +242,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // The number of milliseconds of cache TTL we assign to resources that are
   // likely cacheable and have no explicit cache ttl or expiration date.
   int64 implicit_cache_ttl_ms_;
-
-  // The number of milliseconds of cache TTL for which we should cache the
-  // response even if it was originally uncacheable.
-  int64 force_cache_ttl_ms_;
-  // Indicates if the response was force cached.
-  bool force_cached_;
 
   DISALLOW_COPY_AND_ASSIGN(ResponseHeaders);
 };

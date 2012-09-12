@@ -20,8 +20,9 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
@@ -47,13 +48,10 @@ class Variable;
 // RenameUrlFilter or ProxyUrlFilter.
 class CacheExtender : public RewriteFilter {
  public:
-  static const char kCacheExtensions[];
-  static const char kNotCacheable[];
-
   explicit CacheExtender(RewriteDriver* driver);
   virtual ~CacheExtender();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element);
@@ -82,6 +80,7 @@ class CacheExtender : public RewriteFilter {
       const ResponseHeaders* headers, int64 now_ms,
       const ResourcePtr& input_resource, const StringPiece& url) const;
 
+  ResourceTagScanner tag_scanner_;
   Variable* extension_count_;
   Variable* not_cacheable_count_;
 

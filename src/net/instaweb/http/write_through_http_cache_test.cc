@@ -32,9 +32,9 @@
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace {
 // Set the cache size large enough so nothing gets evicted during this test.
@@ -64,8 +64,7 @@ class FakeHttpCacheCallback : public HTTPCache::Callback {
     called_ = true;
     result_ = result;
   }
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
     bool result = first_call_cache_valid_ ?
         first_cache_valid_ : second_cache_valid_;
     first_call_cache_valid_ = false;
@@ -102,7 +101,7 @@ class WriteThroughHTTPCacheTest : public testing::Test {
         cache1_(kMaxSize), cache2_(kMaxSize),
         key_("mykey"), content_("content"), header_name_("name"),
         header_value_("value") {
-    HTTPCache::InitStats(&simple_stats_);
+    HTTPCache::Initialize(&simple_stats_);
     http_cache_.reset(new WriteThroughHTTPCache(
         &cache1_, &cache2_, &mock_timer_, &mock_hasher_, &simple_stats_));
   }
@@ -384,28 +383,13 @@ TEST_F(WriteThroughHTTPCacheTest, RememberFetchFailedOrNotCacheable) {
             Find(key_, &value, &headers_out, &message_handler_));
 }
 
-TEST_F(WriteThroughHTTPCacheTest, RememberFetchDropped) {
-  ClearStats();
-  ResponseHeaders headers_out;
-  http_cache_->RememberFetchDropped(key_, &message_handler_);
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            Find(key_, &value, &headers_out, &message_handler_));
-
-  // Now advance time 11 seconds; the cache should allow us to try fetching
-  // again.
-  mock_timer_.AdvanceMs(11 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kNotFound,
-            Find(key_, &value, &headers_out, &message_handler_));
-}
-
 // Make sure we don't remember 'non-cacheable' once we've put it into
 // SetIgnoreFailurePuts() mode (but do before)
 TEST_F(WriteThroughHTTPCacheTest, SetIgnoreFailurePuts) {
   ClearStats();
-  http_cache_->RememberNotCacheable(key_, false, &message_handler_);
+  http_cache_->RememberNotCacheable(key_, &message_handler_);
   http_cache_->SetIgnoreFailurePuts();
-  http_cache_->RememberNotCacheable("mykey2", false, &message_handler_);
+  http_cache_->RememberNotCacheable("mykey2", &message_handler_);
   ResponseHeaders headers_out;
   HTTPValue value_out;
   EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,

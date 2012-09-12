@@ -43,9 +43,6 @@ class FileSystemTest : public testing::Test {
   void CheckRead(const GoogleString& filename,
                  const GoogleString& expected_contents);
 
-  void CheckInputFileRead(const GoogleString& filename,
-                          const GoogleString& expected_contents);
-
   // Delete (at least) the named file or directory and everything
   // underneath it.  The test is permitted to delete more things (up
   // to and including the entire file system).
@@ -68,13 +65,11 @@ class FileSystemTest : public testing::Test {
   // AprFileSystemTest, StdioFileSystemTest, MemFileSystemTest.
   void TestWriteRead();
   void TestTemp();
-  void TestAppend();
   void TestRename();
   void TestRemove();
   void TestExists();
   void TestCreateFileInDir();
   void TestMakeDir();
-  void TestRemoveDir();
   void TestIsDir();
   void TestRecursivelyMakeDir();
   void TestRecursivelyMakeDir_NoPermission();
@@ -82,7 +77,7 @@ class FileSystemTest : public testing::Test {
   void TestListContents();
   void TestAtime();
   void TestMtime();
-  void TestDirInfo();
+  void TestSize();
   void TestLock();
   void TestLockTimeout();
 

@@ -73,11 +73,23 @@ static string JoinElementStrings(const Container& c, const char* delim) {
   return result;
 }
 
+static string JoinMediaStrings(const std::vector<UnicodeText>& media,
+                               const char* delim) {
+  std::vector<string> vals;
+  vals.reserve(media.size());
+  for (std::vector<UnicodeText>::const_iterator
+       it = media.begin(); it != media.end(); ++it)
+    vals.push_back(CSSEscapeString(*it));
+  string result;
+  JoinStrings(vals, delim, &result);
+  return result;
+}
+
 static string StylesheetTypeString(Stylesheet::StylesheetType type) {
   switch (type) {
-    case Stylesheet::AUTHOR: return string("AUTHOR");
-    case Stylesheet::USER:   return string("USER");
-    case Stylesheet::SYSTEM: return string("SYSTEM");
+    CONSIDER_IN_CLASS(Stylesheet, AUTHOR);
+    CONSIDER_IN_CLASS(Stylesheet, USER);
+    CONSIDER_IN_CLASS(Stylesheet, SYSTEM);
     default:
       LOG(FATAL) << "Invalid type";
   }
@@ -267,61 +279,13 @@ string Declarations::ToString() const {
   return JoinElementStrings(*this, "; ");
 }
 
-string UnparsedRegion::ToString() const {
-  string result = "/* Unparsed region: */ ";
-  bytes_in_original_buffer().AppendToString(&result);
-  return result;
-}
-
-string MediaExpression::ToString() const {
-  string result = "(";
-  result += CSSEscapeString(name());
-  if (has_value()) {
-    result += ": ";
-    result += CSSEscapeString(value());
-  }
-  result += ")";
-  return result;
-}
-
-string MediaQuery::ToString() const {
-  string result;
-  switch (qualifier()) {
-    case Css::MediaQuery::ONLY:
-      result += "only ";
-      break;
-    case Css::MediaQuery::NOT:
-      result += "not ";
-      break;
-    case Css::MediaQuery::NO_QUALIFIER:
-      break;
-  }
-
-  result += CSSEscapeString(media_type());
-  if (!media_type().empty() && !expressions().empty()) {
-    result += " and ";
-  }
-  result += JoinElementStrings(expressions(), " and ");
-  return result;
-}
-
-string MediaQueries::ToString() const {
-  return JoinElementStrings(*this, ", ");
-}
-
 string Ruleset::ToString() const {
   string result;
-  if (!media_queries().empty())
-    result += StringPrintf("@media %s { ", media_queries().ToString().c_str());
-  switch (type()) {
-    case RULESET:
-      result += selectors().ToString() + " {" + declarations().ToString() + "}";
-      break;
-    case UNPARSED_REGION:
-      result = unparsed_region()->ToString();
-      break;
-  }
-  if (!media_queries().empty())
+  if (!media().empty())
+    result += StringPrintf("@media %s { ",
+                           JoinMediaStrings(media(), ",").c_str());
+  result += selectors().ToString() + " {" + declarations().ToString() + "}";
+  if (!media().empty())
     result += " }";
   return result;
 }
@@ -336,8 +300,8 @@ string Charsets::ToString() const {
 
 string Import::ToString() const {
   return StringPrintf("@import url(\"%s\") %s;",
-                      CSSEscapeString(link()).c_str(),
-                      media_queries().ToString().c_str());
+                      CSSEscapeString(link).c_str(),
+                      JoinMediaStrings(media, ",").c_str());
 }
 
 string Stylesheet::ToString() const {

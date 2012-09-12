@@ -21,10 +21,10 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
@@ -33,14 +33,11 @@ AsyncFetch::~AsyncFetch() {
   if (owns_response_headers_) {
     delete response_headers_;
   }
-  if (owns_extra_response_headers_) {
-    delete extra_response_headers_;
-  }
   if (owns_request_headers_) {
     delete request_headers_;
   }
-  if (owns_log_record_) {
-    delete log_record_;
+  if (owns_timing_info_) {
+    delete timing_info_;
   }
 }
 
@@ -133,76 +130,45 @@ void AsyncFetch::set_response_headers(ResponseHeaders* headers) {
   owns_response_headers_ = false;
 }
 
-ResponseHeaders* AsyncFetch::extra_response_headers() {
-  if (extra_response_headers_ == NULL) {
-    extra_response_headers_ = new ResponseHeaders;
-    owns_extra_response_headers_ = true;
+void AsyncFetch::set_timing_info(TimingInfo* timing_info) {
+  DCHECK(!owns_timing_info_);
+  if (owns_timing_info_) {
+    delete timing_info_;
   }
-  return extra_response_headers_;
+  timing_info_ = timing_info;
+  owns_timing_info_ = false;
 }
 
-void AsyncFetch::set_extra_response_headers(ResponseHeaders* headers) {
-  DCHECK(!owns_extra_response_headers_);
-  if (owns_extra_response_headers_) {
-    delete extra_response_headers_;
+TimingInfo* AsyncFetch::timing_info() {
+  if (timing_info_ == NULL) {
+    timing_info_ = new TimingInfo;
+    owns_timing_info_ = true;
   }
-  extra_response_headers_ = headers;
-  owns_extra_response_headers_ = false;
+  return timing_info_;
 }
 
-LoggingInfo* AsyncFetch::logging_info() {
-  return log_record()->logging_info();
-}
 
-LogRecord* AsyncFetch::log_record() {
-  if (log_record_ == NULL) {
-    log_record_ = new LogRecord();
-    owns_log_record_ = true;
-  }
-  return log_record_;
-}
-
-void AsyncFetch::set_log_record(LogRecord* log_record) {
-  DCHECK(!owns_log_record_);
-  if (owns_log_record_) {
-    delete log_record_;
-  }
-  log_record_ = log_record;
-  owns_log_record_ = false;
-}
-
-void AsyncFetch::set_owned_log_record(LogRecord* log_record) {
-  if (owns_log_record_) {
-    delete log_record_;
-  }
-  log_record_ = log_record;
-  owns_log_record_ = true;
-}
-
-GoogleString AsyncFetch::LoggingString() {
-  GoogleString logging_info_str;
-  if (logging_info() != NULL) {
-    if (logging_info()->has_timing_info()) {
-      const TimingInfo timing_info = logging_info()->timing_info();
-      if (timing_info.has_cache1_ms()) {
-        StrAppend(&logging_info_str, "c1:",
-                  Integer64ToString(timing_info.cache1_ms()), ";");
-      }
-      if (timing_info.has_cache2_ms()) {
-        StrAppend(&logging_info_str, "c2:",
-                  Integer64ToString(timing_info.cache2_ms()), ";");
-      }
-      if (timing_info.has_header_fetch_ms()) {
-        StrAppend(&logging_info_str, "hf:",
-                  Integer64ToString(timing_info.header_fetch_ms()), ";");
-      }
-      if (timing_info.has_fetch_ms()) {
-        StrAppend(&logging_info_str, "f:",
-                  Integer64ToString(timing_info.fetch_ms()), ";");
-      }
+GoogleString AsyncFetch::TimingString() const {
+  GoogleString timing_info_str;
+  if (timing_info_ != NULL) {
+    if (timing_info_->has_cache1_ms()) {
+      StrAppend(&timing_info_str, "c1:",
+                Integer64ToString(timing_info_->cache1_ms()), ";");
+    }
+    if (timing_info_->has_cache2_ms()) {
+      StrAppend(&timing_info_str, "c2:",
+                Integer64ToString(timing_info_->cache2_ms()), ";");
+    }
+    if (timing_info_->has_header_fetch_ms()) {
+      StrAppend(&timing_info_str, "hf:",
+                Integer64ToString(timing_info_->header_fetch_ms()), ";");
+    }
+    if (timing_info_->has_fetch_ms()) {
+      StrAppend(&timing_info_str, "f:",
+                Integer64ToString(timing_info_->fetch_ms()), ";");
     }
   }
-  return logging_info_str;
+  return timing_info_str;
 }
 
 StringAsyncFetch::~StringAsyncFetch() {
@@ -223,9 +189,8 @@ AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {
 SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
     : base_fetch_(base_fetch) {
   set_response_headers(base_fetch->response_headers());
-  set_extra_response_headers(base_fetch->extra_response_headers());
   set_request_headers(base_fetch->request_headers());
-  set_log_record(base_fetch->log_record());
+  set_timing_info(base_fetch->timing_info());
 }
 
 SharedAsyncFetch::~SharedAsyncFetch() {
@@ -300,8 +265,7 @@ ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
     : SharedAsyncFetch(base_fetch),
       handler_(handler),
       serving_cached_value_(false),
-      added_conditional_headers_to_request_(false),
-      num_conditional_refreshes_(NULL) {
+      added_conditional_headers_to_request_(false) {
   if (cached_value != NULL && !cached_value->Empty()) {
     // Only do our own conditional fetch if the original request wasn't
     // conditional.

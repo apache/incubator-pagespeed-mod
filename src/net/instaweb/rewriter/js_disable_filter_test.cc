@@ -20,7 +20,7 @@
 
 #include "base/scoped_ptr.h"
 
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string.h"
@@ -38,17 +38,15 @@ const char kUnrelatedTags[] =
     "<h1>Hello 1</h1>"
     "<div id=\"middleFooter\"><h3>Hello 3</h3></div>"
     "</div>";
-const char kXUACompatibleMetaTag[] =
-    "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">";
 
 }  // namespace
 
 
-class JsDisableFilterTest : public RewriteTestBase {
+class JsDisableFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
     options_->EnableFilter(RewriteOptions::kDisableJavascript);
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     filter_.reset(new JsDisableFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(filter_.get());
   }
@@ -75,13 +73,13 @@ TEST_F(JsDisableFilterTest, DisablesScript) {
       "</script></head>"
       "<body>",
       kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"blah1\" random=\"true\" type=\"text/psajs\""
+      "<script random=\"true\" orig_src=\"blah1\" type=\"text/psajs\""
       " orig_index=\"0\">hi1</script>",
       kUnrelatedTags,
       "<img src=\"abc.jpg\" onload=\"pagespeed.deferJs.addOnloadListeners(this,"
       " function() {foo1();foo2();});\">"
-      "<script pagespeed_orig_src=\"blah2\" random=\"false\""
-      " type=\"text/psajs\" orig_index=\"1\">hi2</script>"
+      "<script random=\"false\" orig_src=\"blah2\" type=\"text/psajs\""
+      " orig_index=\"1\">hi2</script>"
       "</body>");
 
   ValidateExpectedUrl("http://example.com/", input_html, expected);
@@ -111,11 +109,11 @@ TEST_F(JsDisableFilterTest, DisablesScriptWithExperimental) {
       "</script></head>"
       "<body>",
       kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"blah1\" random=\"true\" type=\"text/psajs\""
+      "<script random=\"true\" orig_src=\"blah1\" type=\"text/psajs\""
       " orig_index=\"0\">hi1</script>",
       kUnrelatedTags,
-      "<script pagespeed_orig_src=\"blah2\" random=\"false\""
-      " type=\"text/psajs\" orig_index=\"1\">hi2</script>"
+      "<script random=\"false\" orig_src=\"blah2\" type=\"text/psajs\""
+      " orig_index=\"1\">hi2</script>"
       "</body>");
 
   ValidateExpectedUrl("http://example.com/", input_html, expected);
@@ -129,11 +127,11 @@ TEST_F(JsDisableFilterTest, DisablesScriptWithQueryParam) {
       "<script src=\"y?a=b&amp;c=d\" random=\"false\">hi2</script>");
   const GoogleString expected = StrCat(
       kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"x?a=b&amp;c=d\" random=\"true\""
-      " type=\"text/psajs\" orig_index=\"0\">hi1</script>",
+      "<script random=\"true\" orig_src=\"x?a=b&amp;c=d\" type=\"text/psajs\""
+      " orig_index=\"0\">hi1</script>",
       kUnrelatedTags,
-      "<script pagespeed_orig_src=\"y?a=b&amp;c=d\" random=\"false\""
-      " type=\"text/psajs\" orig_index=\"1\">hi2</script>");
+      "<script random=\"false\" orig_src=\"y?a=b&amp;c=d\" type=\"text/psajs\""
+      " orig_index=\"1\">hi2</script>");
 
   ValidateExpectedUrl("http://example.com/", input_html, expected);
 }
@@ -146,11 +144,11 @@ TEST_F(JsDisableFilterTest, DisablesScriptWithUnescapedQueryParam) {
       "<script src=\"y?a=b&c=d\" random=\"false\">hi2</script>");
   const GoogleString expected = StrCat(
       kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"x?a=b&c=d\" random=\"true\""
-      " type=\"text/psajs\" orig_index=\"0\">hi1</script>",
+      "<script random=\"true\" orig_src=\"x?a=b&amp;c=d\" type=\"text/psajs\""
+      " orig_index=\"0\">hi1</script>",
       kUnrelatedTags,
-      "<script pagespeed_orig_src=\"y?a=b&c=d\" random=\"false\""
-      " type=\"text/psajs\" orig_index=\"1\">hi2</script>");
+      "<script random=\"false\" orig_src=\"y?a=b&amp;c=d\" type=\"text/psajs\""
+      " orig_index=\"1\">hi2</script>");
 
   ValidateExpectedUrl("http://example.com/", input_html, expected);
 }
@@ -163,82 +161,13 @@ TEST_F(JsDisableFilterTest, DisablesScriptWithNullSrc) {
       "<script src random=\"false\">hi2</script>");
   const GoogleString expected = StrCat(
       kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src random=\"true\" type=\"text/psajs\""
-      " orig_index=\"0\">hi1</script>",
-      kUnrelatedTags,
-      "<script pagespeed_orig_src random=\"false\" type=\"text/psajs\""
-      " orig_index=\"1\">hi2</script>");
-
-  ValidateExpected("http://example.com/", input_html, expected);
-}
-
-TEST_F(JsDisableFilterTest, DisablesScriptOnlyFromFirstSrc) {
-  options()->set_enable_defer_js_experimental(true);
-  options_->EnableFilter(RewriteOptions::kDeferJavascript);
-  const GoogleString input_html = StrCat(
-      kUnrelatedNoscriptTags,
-      "<script random=\"true\">hi1</script>",
-      kUnrelatedTags,
-      "<script random=\"false\">hi2</script>"
-      "<script src=\"1.js?a#12296;=en\"></script>");
-  const GoogleString expected = StrCat(
-      kUnrelatedNoscriptTags,
-      "<script random=\"true\">hi1</script>",
-      kUnrelatedTags,
-      "<script random=\"false\">hi2</script>"
-      "<script pagespeed_orig_src=\"1.js?a#12296;=en\" type=\"text/psajs\""
-      " orig_index=\"0\"></script>");
-
-  ValidateExpected("http://example.com/", input_html, expected);
-}
-
-
-TEST_F(JsDisableFilterTest, AddsMetaTagForIE) {
-  rewrite_driver()->set_user_agent("Mozilla/5.0 ( MSIE 9.0; Trident/5.0)");
-  options()->set_override_ie_document_mode(true);
-  const GoogleString input_html = StrCat(
-      "<body>",
-      kUnrelatedNoscriptTags,
-      "<script src=\"blah1\" random=\"true\">hi1</script>",
-      kUnrelatedTags,
-      "</body>");
-  const GoogleString expected = StrCat(
-      StrCat("<head><script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-      JsDisableFilter::kDisableJsExperimental,
+      "<script src random=\"true\" type=\"text/psajs\" orig_index=\"0\">hi1"
       "</script>",
-      kXUACompatibleMetaTag,
-      "</head>"
-      "<body>"),
-      StrCat(kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"blah1\" random=\"true\" type=\"text/psajs\""
-      " orig_index=\"0\">hi1</script>",
-      kUnrelatedTags),
-      "</body>");
-
-  ValidateExpectedUrl("http://example.com/", input_html, expected);
-}
-
-TEST_F(JsDisableFilterTest, NoMetaTagForIE) {
-  rewrite_driver()->set_user_agent("Mozilla/5.0 ( MSIE 9.0; Trident/5.0)");
-  const GoogleString input_html = StrCat(
-      "<body>",
-      kUnrelatedNoscriptTags,
-      "<script src=\"blah1\" random=\"true\">hi1</script>",
       kUnrelatedTags,
-      "</body>");
-  const GoogleString expected = StrCat(
-      StrCat("<head><script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-      JsDisableFilter::kDisableJsExperimental,
-      "</script>"
-      "</head>"
-      "<body>"),
-      StrCat(kUnrelatedNoscriptTags,
-      "<script pagespeed_orig_src=\"blah1\" random=\"true\" type=\"text/psajs\""
-      " orig_index=\"0\">hi1</script>",
-      kUnrelatedTags),
-      "</body>");
+      "<script src random=\"false\" type=\"text/psajs\" orig_index=\"1\">hi2"
+      "</script>");
 
-  ValidateExpectedUrl("http://example.com/", input_html, expected);
+  ValidateExpected("http://example.com/", input_html, expected);
 }
 
 }  // namespace net_instaweb

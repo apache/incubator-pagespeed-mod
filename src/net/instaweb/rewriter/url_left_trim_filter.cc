@@ -22,7 +22,6 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -43,13 +42,15 @@ namespace net_instaweb {
 UrlLeftTrimFilter::UrlLeftTrimFilter(RewriteDriver* rewrite_driver,
                                      Statistics *stats)
     : CommonFilter(rewrite_driver),
+      tag_scanner_(rewrite_driver),
       trim_count_(stats->GetVariable(kUrlTrims)),
       trim_saved_bytes_(stats->GetVariable(kUrlTrimSavedBytes)) {
+  tag_scanner_.set_find_a_tags(true);
 }
 
 UrlLeftTrimFilter::~UrlLeftTrimFilter() {}
 
-void UrlLeftTrimFilter::InitStats(Statistics* statistics) {
+void UrlLeftTrimFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kUrlTrims);
   statistics->AddVariable(kUrlTrimSavedBytes);
 }
@@ -58,10 +59,8 @@ void UrlLeftTrimFilter::InitStats(Statistics* statistics) {
 void UrlLeftTrimFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() != HtmlName::kBase &&
       BaseUrlIsValid()) {
-    semantic_type::Category category;
-    HtmlElement::Attribute* href = resource_tag_scanner::ScanElement(
-        element, driver_, &category);
-    TrimAttribute(href);
+    bool is_hyperlink;
+    TrimAttribute(tag_scanner_.ScanElement(element, &is_hyperlink));
   }
 }
 

@@ -19,7 +19,6 @@
   'type': 'loadable_module',
   'dependencies': [
     'instaweb_apr.gyp:instaweb_apr',
-    'instaweb.gyp:instaweb_console',
     '<(DEPTH)/base/base.gyp:base',
     '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
     '<(DEPTH)/build/build_util.gyp:mod_pagespeed_version_header',
@@ -40,7 +39,7 @@
     'apache/instaweb_handler.cc',
     'apache/interface_mod_spdy.cc',
     'apache/log_message_handler.cc',
-    'apache/mod_instaweb.cc',
     'util/mem_debug.cc',
+    'apache/mod_instaweb.cc',
   ],
 }

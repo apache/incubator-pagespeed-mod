@@ -21,15 +21,15 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
+
+class CacheInterface;
 
 namespace {
 
@@ -71,9 +71,8 @@ class FallbackCacheCallback: public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
-    return client_callback_->IsCacheValid(key, headers);
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return client_callback_->IsCacheValid(headers);
   }
 
   virtual bool IsFresh(const ResponseHeaders& headers) {
@@ -81,12 +80,11 @@ class FallbackCacheCallback: public HTTPCache::Callback {
   }
 
   virtual void SetTimingMs(int64 timing_value_ms) {
-    client_callback_->logging_info()->mutable_timing_info()->set_cache2_ms(
-        timing_value_ms);
+    client_callback_->timing_info()->set_cache2_ms(timing_value_ms);
   }
 
-  virtual LoggingInfo* logging_info() {
-    return client_callback_->logging_info();
+  virtual TimingInfo* timing_info() {
+    return client_callback_->timing_info();
   }
 
  private:
@@ -130,9 +128,8 @@ class Cache1Callback: public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
-    return client_callback_->IsCacheValid(key, headers);
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return client_callback_->IsCacheValid(headers);
   }
 
   virtual bool IsFresh(const ResponseHeaders& headers) {
@@ -140,12 +137,11 @@ class Cache1Callback: public HTTPCache::Callback {
   }
 
   virtual void SetTimingMs(int64 timing_value_ms) {
-    client_callback_->logging_info()->mutable_timing_info()->set_cache1_ms(
-          timing_value_ms);
+    client_callback_->timing_info()->set_cache1_ms(timing_value_ms);
   }
 
-  virtual LoggingInfo* logging_info() {
-    return client_callback_->logging_info();
+  virtual TimingInfo* timing_info() {
+    return client_callback_->timing_info();
   }
 
  private:
@@ -237,13 +233,6 @@ void WriteThroughHTTPCache::set_remember_fetch_failed_ttl_seconds(
   cache2_->set_remember_fetch_failed_ttl_seconds(value);
 }
 
-void WriteThroughHTTPCache::set_remember_fetch_dropped_ttl_seconds(
-    int64 value) {
-  HTTPCache::set_remember_fetch_dropped_ttl_seconds(value);
-  cache1_->set_remember_fetch_dropped_ttl_seconds(value);
-  cache2_->set_remember_fetch_dropped_ttl_seconds(value);
-}
-
 void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
     int64 value) {
   HTTPCache::set_max_cacheable_response_content_length(value);
@@ -253,10 +242,9 @@ void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
 
 void WriteThroughHTTPCache::RememberNotCacheable(
     const GoogleString& key,
-    bool is_200_status_code,
     MessageHandler* handler) {
-  cache1_->RememberNotCacheable(key, is_200_status_code, handler);
-  cache2_->RememberNotCacheable(key, is_200_status_code, handler);
+  cache1_->RememberNotCacheable(key, handler);
+  cache2_->RememberNotCacheable(key, handler);
 }
 
 void WriteThroughHTTPCache::RememberFetchFailed(
@@ -264,12 +252,6 @@ void WriteThroughHTTPCache::RememberFetchFailed(
     MessageHandler* handler) {
   cache1_->RememberFetchFailed(key, handler);
   cache2_->RememberFetchFailed(key, handler);
-}
-
-void WriteThroughHTTPCache::RememberFetchDropped(const GoogleString& key,
-                                                 MessageHandler * handler) {
-  cache1_->RememberFetchDropped(key, handler);
-  cache2_->RememberFetchDropped(key, handler);
 }
 
 }  // namespace net_instaweb

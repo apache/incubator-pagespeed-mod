@@ -44,7 +44,7 @@ struct ContentType;
 class InputInfo;
 class MessageHandler;
 class Resource;
-class ServerContext;
+class ResourceManager;
 class RewriteOptions;
 
 typedef RefCountedPtr<Resource> ResourcePtr;
@@ -64,10 +64,10 @@ class Resource : public RefCounted<Resource> {
     kReportFailureIfNotCacheable,
   };
 
-  Resource(ServerContext* resource_manager, const ContentType* type);
+  Resource(ResourceManager* resource_manager, const ContentType* type);
 
   // Common methods across all deriviations
-  ServerContext* resource_manager() const { return server_context_; }
+  ResourceManager* resource_manager() const { return resource_manager_; }
 
   // Answers question: Are we allowed to rewrite the contents now?
   //
@@ -209,7 +209,7 @@ class Resource : public RefCounted<Resource> {
  protected:
   virtual ~Resource();
   REFCOUNT_FRIEND_DECLARATION(Resource);
-  friend class ServerContext;
+  friend class ResourceManager;
   friend class RewriteDriver;  // for ReadIfCachedWithStatus
   friend class UrlReadAsyncFetchCallback;
   friend class ResourceManagerHttpCallback;
@@ -227,7 +227,7 @@ class Resource : public RefCounted<Resource> {
                                AsyncCallback* callback,
                                MessageHandler* message_handler);
 
-  ServerContext* server_context_;
+  ResourceManager* resource_manager_;
 
   const ContentType* type_;
   GoogleString charset_;

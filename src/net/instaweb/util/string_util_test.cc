@@ -259,17 +259,6 @@ TEST_F(SplitStringTest, TestSplitMultiSeparator) {
   ASSERT_EQ("d,", components[3]);
 }
 
-TEST_F(SplitStringTest, TestPieceAfterEquals) {
-  GoogleString piece("Test=1");
-  ASSERT_EQ(PieceAfterEquals(piece), "1");
-  GoogleString piece2("TestingWithNoEquals");
-  ASSERT_EQ(PieceAfterEquals(piece2), "");
-  GoogleString piece3("    TestingWithSpace =     45     ");
-  ASSERT_EQ(PieceAfterEquals(piece3), "45");
-  GoogleString piece4("Test1=1;Test2=2");
-  ASSERT_EQ(PieceAfterEquals(piece4), "1;Test2=2");
-}
-
 TEST(StringCaseTest, TestStringCaseEqual) {
   EXPECT_FALSE(StringCaseEqual("foobar", "fobar"));
   EXPECT_TRUE(StringCaseEqual("foobar", "foobar"));
@@ -483,22 +472,6 @@ TEST(BasicUtilsTest, SplitStringUsingSubstr3) {
 TEST(BasicUtilsTest, StringPieceFindWithNull) {
   StringPiece null_piece(NULL, 0);
   EXPECT_EQ(StringPiece::npos, null_piece.find("not found"));
-}
-
-class TrimQuoteTest : public testing::Test {
- protected:
-  static void CheckTrimQuote(StringPiece in, StringPiece expected_out) {
-    TrimQuote(&in);
-    EXPECT_EQ(expected_out, in);
-  }
-};
-
-TEST_F(TrimQuoteTest, TrimQuoteTestAll) {
-  CheckTrimQuote(" \"one\"", "one");
-  CheckTrimQuote(" \'one \"  ", "one");
-  CheckTrimQuote(" \"one \'", "one");
-  CheckTrimQuote(" \'one\'", "one");
-  CheckTrimQuote("\"one two\"", "one two");
 }
 
 }  // namespace

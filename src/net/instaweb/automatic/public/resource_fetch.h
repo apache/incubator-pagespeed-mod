@@ -26,57 +26,27 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
-class ServerContext;
+class ResourceManager;
 class RewriteDriver;
 class RewriteOptions;
-class SyncFetcherAdapterCallback;
 class Timer;
 
 // Manages a single fetch of a pagespeed rewritten resource.
 // Fetch is initialized by calling ResourceFetch::Start()
 //
-// TODO(sligocki): Rename to PagespeedResourceFetch or something else ...
+// TODO(sligocki): Rename to ProxyResourceFetch or something else ...
 class ResourceFetch : public SharedAsyncFetch {
  public:
-  // Start an async fetch for pagespeed resource. Response will be streamed
-  // to async_fetch.
-  //
-  // If custom_options it not NULL, takes ownership of it and and can mutate it.
-  static void Start(const GoogleUrl& url,
+  static void Start(ResourceManager* resource_manager,
+                    const GoogleUrl& url,
+                    AsyncFetch* async_fetch,
                     RewriteOptions* custom_options,
-                    // This is intentionally not set in RewriteOptions because
-                    // it is not so much an option as request-specific info
-                    // similar to User-Agent (also not an option).
-                    bool using_spdy,
-                    ServerContext* resource_manager,
-                    AsyncFetch* async_fetch);
-
-  // Fetch a pagespeed resource in a blocking fashion. Response will be
-  // streamed back to async_fetch, but this function will not return until
-  // fetch has completed.
-  //
-  // You'll probably want to use GetDriver to construct the driver passed in
-  // to this method, in order to properly apply experiment info encoded into
-  // the URL into settings.
-  //
-  // Returns true iff the fetch succeeded and thus response headers and
-  // contents were sent to async_fetch.
-  static bool BlockingFetch(const GoogleUrl& url,
-                            ServerContext* resource_manager,
-                            RewriteDriver* driver,
-                            SyncFetcherAdapterCallback* async_fetch);
-
-  // Creates a rewrite_driver suitable for passing to BlockingFetch
-  // (or StartWithDriver) incorporating any experiment settings.
-  // If custom_options it not NULL, takes ownership of it and and can mutate it.
-  static RewriteDriver* GetDriver(const GoogleUrl& url,
-                                  RewriteOptions* custom_options,
-                                  bool using_spdy,
-                                  ServerContext* resource_manager);
+                    const GoogleString& version);
 
  protected:
   // Protected interface from AsyncFetch.
@@ -84,27 +54,19 @@ class ResourceFetch : public SharedAsyncFetch {
   virtual void HandleDone(bool success);
 
  private:
-  ResourceFetch(const GoogleUrl& url, RewriteDriver* driver, Timer* timer,
-                MessageHandler* handler, AsyncFetch* async_fetch);
+  explicit ResourceFetch(const GoogleUrl& url,
+                         AsyncFetch* async_fetch,
+                         MessageHandler* handler,
+                         RewriteDriver* driver,
+                         Timer* timer,
+                         const GoogleString& version);
   virtual ~ResourceFetch();
 
-  // Same as Start(), but takes the RewriteDriver to use.
-  static void StartWithDriver(const GoogleUrl& url,
-                              ServerContext* manager,
-                              RewriteDriver* driver,
-                              AsyncFetch* async_fetch);
-
-  // If we're running an experiment and the url specifies an experiment spec,
-  // set custom_options to use that experiment spec.  If custom_options is NULL
-  // one will be allocated and the caller takes ownership of it.
-  static void ApplyFuriousOptions(const ServerContext* manager,
-                                  const GoogleUrl& url,
-                                  RewriteOptions** custom_options);
-
   GoogleUrl resource_url_;
+  MessageHandler* message_handler_;
   RewriteDriver* driver_;
   Timer* timer_;
-  MessageHandler* message_handler_;
+  const GoogleString& version_;
 
   int64 start_time_us_;
   int redirect_count_;

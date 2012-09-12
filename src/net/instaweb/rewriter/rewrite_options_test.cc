@@ -20,21 +20,20 @@
 
 #include <set>
 
-#include "net/instaweb/rewriter/public/furious_util.h"
-#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
-#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 
-namespace net_instaweb {
+namespace {
 
-class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
+using net_instaweb::MessageHandler;
+using net_instaweb::NullMessageHandler;
+using net_instaweb::RewriteOptions;
+
+class RewriteOptionsTest : public ::testing::Test {
  protected:
   typedef std::set<RewriteOptions::Filter> FilterSet;
-
   bool NoneEnabled() {
     FilterSet s;
     return OnlyEnabled(s);
@@ -94,8 +93,22 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
   void TestSetOptionFromName(bool test_log_variant);
 
   RewriteOptions options_;
-  MockHasher hasher_;
+  net_instaweb::MockHasher hasher_;
 };
+
+TEST_F(RewriteOptionsTest, BotDetectEnabledByDefault) {
+  ASSERT_FALSE(options_.botdetect_enabled());
+}
+
+TEST_F(RewriteOptionsTest, BotDetectEnable) {
+  options_.set_botdetect_enabled(true);
+  ASSERT_TRUE(options_.botdetect_enabled());
+}
+
+TEST_F(RewriteOptionsTest, BotDetectDisable) {
+  options_.set_botdetect_enabled(false);
+  ASSERT_FALSE(options_.botdetect_enabled());
+}
 
 TEST_F(RewriteOptionsTest, DefaultEnabledFilters) {
   ASSERT_TRUE(OnlyEnabled(RewriteOptions::kHtmlWriterFilter));
@@ -183,37 +196,11 @@ TEST_F(RewriteOptionsTest, CompoundFlag) {
   FilterSet s;
   // TODO(jmaessen): add kConvertJpegToWebp here when it becomes part of
   // rewrite_images.
-  s.insert(RewriteOptions::kConvertGifToPng);
   s.insert(RewriteOptions::kInlineImages);
-  s.insert(RewriteOptions::kJpegSubsampling);
-  s.insert(RewriteOptions::kRecompressJpeg);
-  s.insert(RewriteOptions::kRecompressPng);
-  s.insert(RewriteOptions::kRecompressWebp);
+  s.insert(RewriteOptions::kRecompressImages);
   s.insert(RewriteOptions::kResizeImages);
-  s.insert(RewriteOptions::kStripImageMetaData);
-  s.insert(RewriteOptions::kStripImageColorProfile);
   s.insert(RewriteOptions::kHtmlWriterFilter);  // enabled by default
   const char* kList = "rewrite_images";
-  NullMessageHandler handler;
-  ASSERT_TRUE(
-      options_.EnableFiltersByCommaSeparatedList(kList, &handler));
-  ASSERT_TRUE(OnlyEnabled(s));
-  ASSERT_TRUE(
-      options_.DisableFiltersByCommaSeparatedList(kList, &handler));
-  ASSERT_TRUE(OnlyEnabled(RewriteOptions::kHtmlWriterFilter));  // default
-}
-
-TEST_F(RewriteOptionsTest, CompoundFlagRecompressImages) {
-  FilterSet s;
-  s.insert(RewriteOptions::kConvertGifToPng);
-  s.insert(RewriteOptions::kJpegSubsampling);
-  s.insert(RewriteOptions::kRecompressJpeg);
-  s.insert(RewriteOptions::kRecompressPng);
-  s.insert(RewriteOptions::kRecompressWebp);
-  s.insert(RewriteOptions::kStripImageMetaData);
-  s.insert(RewriteOptions::kStripImageColorProfile);
-  s.insert(RewriteOptions::kHtmlWriterFilter);  // enabled by default
-  const char* kList = "recompress_images";
   NullMessageHandler handler;
   ASSERT_TRUE(
       options_.EnableFiltersByCommaSeparatedList(kList, &handler));
@@ -542,17 +529,6 @@ TEST_F(RewriteOptionsTest, SetDefaultRewriteLevel) {
 void RewriteOptionsTest::TestSetOptionFromName(bool test_log_variant) {
   NullMessageHandler handler;
 
-  // TODO(sriharis):  Add tests for all Options here, like in
-  // LookupOptionEnumTest.
-
-  TestNameSet(RewriteOptions::kOptionOk,
-              test_log_variant,
-              "FetcherTimeOutMs",
-              "1024",
-              &handler);
-  // Default for this is 5 * Timer::kSecondMs.
-  EXPECT_EQ(1024, options_.blocking_fetch_timeout_ms());
-
   TestNameSet(RewriteOptions::kOptionOk,
               test_log_variant,
               "CssInlineMaxBytes",
@@ -635,7 +611,14 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // kEndOfOptions explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
-  EXPECT_EQ(104, RewriteOptions::kEndOfOptions);
+  RewriteOptions::Initialize();
+  EXPECT_EQ(76, RewriteOptions::kEndOfOptions);
+  EXPECT_EQ(StringPiece("AboveTheFoldCacheTime"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kPrioritizeVisibleContentCacheTime));
+  EXPECT_EQ(StringPiece("AboveTheFoldNonCacheableElements"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kPrioritizeVisibleContentNonCacheableElements));
   EXPECT_EQ(StringPiece("AjaxRewritingEnabled"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kAjaxRewritingEnabled));
@@ -645,33 +628,18 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("AnalyticsID"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kAnalyticsID));
-  EXPECT_EQ(StringPiece("AvoidRenamingIntrospectiveJavascript"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kAvoidRenamingIntrospectiveJavascript));
   EXPECT_EQ(StringPiece("BeaconUrl"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kBeaconUrl));
-  EXPECT_EQ(StringPiece("BlinkMaxHtmlSizeRewritable"),
+  EXPECT_EQ(StringPiece("BotdetectEnabled"),
             RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kBlinkMaxHtmlSizeRewritable));
-  EXPECT_EQ(StringPiece("CacheSmallImagesUnrewritten"),
-            RewriteOptions::LookupOptionEnum(
-                  RewriteOptions::kCacheSmallImagesUnrewritten));
+                RewriteOptions::kBotdetectEnabled));
   EXPECT_EQ(StringPiece("CombineAcrossPaths"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kCombineAcrossPaths));
-  EXPECT_EQ(StringPiece("ClientDomainRewrite"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kClientDomainRewrite));
   EXPECT_EQ(StringPiece("CriticalImagesCacheExpirationTimeMs"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kCriticalImagesCacheExpirationTimeMs));
-  EXPECT_EQ(StringPiece("CriticalLineConfig"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kCriticalLineConfig));
-  EXPECT_EQ(StringPiece("CssFlattenMaxBytes"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kCssFlattenMaxBytes));
   EXPECT_EQ(StringPiece("CssImageInlineMaxBytes"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kCssImageInlineMaxBytes));
@@ -684,36 +652,15 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("DefaultCacheHtml"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kDefaultCacheHtml));
-  EXPECT_EQ(StringPiece("DomainRewriteHyperlinks"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kDomainRewriteHyperlinks));
-  EXPECT_EQ(StringPiece("DomainShardCount"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kDomainShardCount));
   EXPECT_EQ(StringPiece("EnableBlinkCriticalLine"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kEnableBlinkCriticalLine));
   EXPECT_EQ(StringPiece("EnableBlinkForMobileDevices"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kEnableBlinkForMobileDevices));
-  EXPECT_EQ(StringPiece("EnableBlinkHtmlChangeDetection"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kEnableBlinkHtmlChangeDetection));
-  EXPECT_EQ(StringPiece("EnableBlinkHtmlChangeDetectionLogging"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kEnableBlinkHtmlChangeDetectionLogging));
   EXPECT_EQ(StringPiece("EnableDeferJsExperimental"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kEnableDeferJsExperimental));
-  EXPECT_EQ(StringPiece("EnableFlushSubresourcesExperimental"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kEnableFlushSubresourcesExperimental));
-  EXPECT_EQ(StringPiece("EnableRewriting"),
-            RewriteOptions::LookupOptionEnum(
-                  RewriteOptions::kEnabled));
-  EXPECT_EQ(StringPiece("FlushBufferLimitBytes"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kFlushBufferLimitBytes));
   EXPECT_EQ(StringPiece("FlushHtml"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kFlushHtml));
@@ -735,9 +682,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("ImageMaxRewritesAtOnce"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kImageMaxRewritesAtOnce));
-  EXPECT_EQ(StringPiece("ImageResolutionLimitBytes"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kImageResolutionLimitBytes));
   EXPECT_EQ(StringPiece("ImageRetainColorProfile"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kImageRetainColorProfile));
@@ -765,9 +709,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("LazyloadImagesAfterOnload"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kLazyloadImagesAfterOnload));
-  EXPECT_EQ(StringPiece("InlineOnlyCriticalImages"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kInlineOnlyCriticalImages));
   EXPECT_EQ(StringPiece("LogRewriteTiming"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kLogRewriteTiming));
@@ -777,9 +718,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("MaxHtmlCacheTimeMs"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kMaxHtmlCacheTimeMs));
-  EXPECT_EQ(StringPiece("MaxImageBytesForWebpInCss"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kMaxImageBytesForWebpInCss));
   EXPECT_EQ(StringPiece("MaxImageSizeLowResolutionBytes"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kMaxImageSizeLowResolutionBytes));
@@ -801,21 +739,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("ModifyCachingHeaders"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kModifyCachingHeaders));
-  EXPECT_EQ(StringPiece("OverrideCachingTtlMs"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kOverrideCachingTtlMs));
-  EXPECT_EQ(StringPiece("OverrideIeDocumentMode"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kOverrideIeDocumentMode));
   EXPECT_EQ(StringPiece("ProgressiveJpegMinBytes"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kProgressiveJpegMinBytes));
-  EXPECT_EQ(StringPiece("RejectBlacklisted"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kRejectBlacklisted));
-  EXPECT_EQ(StringPiece("RejectBlacklistedStatusCode"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kRejectBlacklistedStatusCode));
   EXPECT_EQ(StringPiece("RespectVary"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kRespectVary));
@@ -825,22 +751,15 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("RunExperiment"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kRunningFurious));
+  EXPECT_EQ(StringPiece("ServeBlinkNonCritical"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kServeBlinkNonCritical));
   EXPECT_EQ(StringPiece("ServeStaleIfFetchError"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kServeStaleIfFetchError));
-  EXPECT_EQ(StringPiece("SupportNoScriptEnabled"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kSupportNoScriptEnabled));
-  EXPECT_EQ(StringPiece("UseFixedUserAgentForBlinkCacheMisses"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kUseFixedUserAgentForBlinkCacheMisses));
-  EXPECT_EQ(StringPiece("UseFullUrlInBlinkFamilies"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kUseFullUrlInBlinkFamilies));
   EXPECT_EQ(StringPiece("XHeaderValue"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kXModPagespeedHeaderValue));
-
   EXPECT_EQ(StringPiece("CollectRefererStatistics"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kCollectRefererStatistics));
@@ -859,9 +778,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("FileCacheSizeKb"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kFileCacheCleanSizeKb));
-  EXPECT_EQ(StringPiece("FileCacheInodeLimit"),
+  EXPECT_EQ(StringPiece("GeneratedFilePrefix"),
             RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kFileCacheCleanInodeLimit));
+                RewriteOptions::kFileNamePrefix));
   EXPECT_EQ(StringPiece("HashRefererStatistics"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kHashRefererStatistics));
@@ -871,12 +790,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("LRUCacheKbPerProcess"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kLruCacheKbPerProcess));
-  EXPECT_EQ(StringPiece("MemcachedServers"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kMemcachedServers));
-  EXPECT_EQ(StringPiece("MemcachedThreads"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kMemcachedThreads));
   EXPECT_EQ(StringPiece("RefererStatisticsOutputLevel"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kRefererStatisticsOutputLevel));
@@ -895,88 +808,108 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_EQ(StringPiece("Statistics"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kStatisticsEnabled));
-  EXPECT_EQ(StringPiece("StatisticsLogging"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kStatisticsLoggingEnabled));
-  EXPECT_EQ(StringPiece("StatisticsLoggingFile"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kStatisticsLoggingFile));
-  EXPECT_EQ(StringPiece("StatisticsLoggingIntervalMs"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kStatisticsLoggingIntervalMs));
-  EXPECT_EQ(StringPiece("StatisticsLoggingChartsCSS"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kStatisticsLoggingChartsCSS));
-  EXPECT_EQ(StringPiece("StatisticsLoggingChartsJS"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kStatisticsLoggingChartsJS));
   EXPECT_EQ(StringPiece("TestProxy"),
             RewriteOptions::LookupOptionEnum(
                 RewriteOptions::kTestProxy));
+  EXPECT_EQ(StringPiece("DomainRewriteHyperlinks"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kDomainRewriteHyperlinks));
+  EXPECT_EQ(StringPiece("AvoidRenamingIntrospectiveJavascript"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kAvoidRenamingIntrospectiveJavascript));
+  EXPECT_EQ(StringPiece("UseFixedUserAgentForBlinkCacheMisses"),
+            RewriteOptions::LookupOptionEnum(
+                RewriteOptions::kUseFixedUserAgentForBlinkCacheMisses));
 }
 
-TEST_F(RewriteOptionsTest, PrioritizeVisibleContentFamily) {
-  GoogleUrl gurl_one("http://www.test.org/one.html");
-  GoogleUrl gurl_two("http://www.test.org/two.html");
+TEST_F(RewriteOptionsTest, PrioritizeCacheableFamilies1) {
+  // Default matches nothing.
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
 
-  EXPECT_FALSE(options_.IsInBlinkCacheableFamily(gurl_one));
-  options_.set_apply_blink_if_no_families(true);
-  EXPECT_TRUE(options_.IsInBlinkCacheableFamily(gurl_one));
-  EXPECT_EQ(RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-            options_.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ(RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-            options_.GetBlinkCacheTimeFor(gurl_two));
-  EXPECT_EQ("", options_.GetBlinkNonCacheableElementsFor(gurl_one));
-  EXPECT_EQ("", options_.GetBlinkNonCacheableElementsFor(gurl_two));
+  // Set explicitly.
+  options_.AddToPrioritizeVisibleContentCacheableFamilies("zero*?");
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zero1"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zerooooo1"));
 
-  options_.AddBlinkCacheableFamily("/one*", 10, "something");
-  EXPECT_TRUE(options_.IsInBlinkCacheableFamily(gurl_one));
-  EXPECT_FALSE(options_.IsInBlinkCacheableFamily(gurl_two));
-  EXPECT_EQ(10, options_.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ("something", options_.GetBlinkNonCacheableElementsFor(gurl_one));
-
+  // Merge in an options with default cacheable families.  This should not
+  // affect options_.
   RewriteOptions options1;
-  options1.AddBlinkCacheableFamily("/two*", 20, "something");
   options_.Merge(options1);
-  EXPECT_FALSE(options_.IsInBlinkCacheableFamily(gurl_one));
-  EXPECT_TRUE(options_.IsInBlinkCacheableFamily(gurl_two));
-  EXPECT_EQ(RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-            options_.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ(20, options_.GetBlinkCacheTimeFor(gurl_two));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zero1"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zerooooo1"));
 
-  EXPECT_EQ(RewriteOptions::kDefaultOverrideBlinkCacheTimeMs,
-            options1.override_blink_cache_time_ms());
-  options1.set_override_blink_cache_time_ms(120000);
-  EXPECT_EQ(120000, options1.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ(120000, options1.GetBlinkCacheTimeFor(gurl_two));
-
-  RewriteOptions options2;
-  options2.AddBlinkCacheableFamily("/two*", 40, "else");
-  options_.Merge(options2);
-  EXPECT_EQ(40, options_.GetBlinkCacheTimeFor(gurl_two));
+  // Merge in an options with explicit options.
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("one?");
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("?two*");
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("three");
+  options_.Merge(options1);
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zero1"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "zerooooo1"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "one1"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "one"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "2two"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "2twoANYTHING"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "twoANYTHING"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "three"));
 }
 
-TEST_F(RewriteOptionsTest, PrioritizeVisibleContentFamilyFullUrl) {
-  options_.set_use_full_url_in_blink_families(true);
-  GoogleUrl gurl_one("http://www.test.org/one.html");
-  GoogleUrl gurl_two("http://www.test.org/two.html");
+TEST_F(RewriteOptionsTest, PrioritizeCacheableFamilies2) {
+  // Default matches nothing.
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
 
-  EXPECT_FALSE(options_.IsInBlinkCacheableFamily(gurl_one));
-  options_.set_apply_blink_if_no_families(true);
-  EXPECT_TRUE(options_.IsInBlinkCacheableFamily(gurl_one));
-  EXPECT_EQ(RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-            options_.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ(RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
-            options_.GetBlinkCacheTimeFor(gurl_two));
-  EXPECT_EQ("", options_.GetBlinkNonCacheableElementsFor(gurl_one));
-  EXPECT_EQ("", options_.GetBlinkNonCacheableElementsFor(gurl_two));
+  // Merge in an options with default cacheable families.  This should not
+  // affect options_.
+  RewriteOptions options1;
+  options_.Merge(options1);
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
 
-  options_.AddBlinkCacheableFamily("http://www.test.org/one*", 10, "something");
-  options_.AddBlinkCacheableFamily("/two*", 40, "else");
-  EXPECT_TRUE(options_.IsInBlinkCacheableFamily(gurl_one));
-  EXPECT_FALSE(options_.IsInBlinkCacheableFamily(gurl_two));
-  EXPECT_EQ(10, options_.GetBlinkCacheTimeFor(gurl_one));
-  EXPECT_EQ("something", options_.GetBlinkNonCacheableElementsFor(gurl_one));
+  // Merge in an options with explicit options.
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("one?");
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("?two*");
+  options1.AddToPrioritizeVisibleContentCacheableFamilies("three");
+  options_.Merge(options1);
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "MatchesNothing"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(""));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "one1"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "one"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "2two"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "2twoANYTHING"));
+  EXPECT_FALSE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "twoANYTHING"));
+  EXPECT_TRUE(options_.MatchesPrioritizeVisibleContentCacheableFamilies(
+      "three"));
 }
 
 TEST_F(RewriteOptionsTest, FuriousSpecTest) {
@@ -1023,46 +956,6 @@ TEST_F(RewriteOptionsTest, FuriousSpecTest) {
 
   options_.SetFuriousState(17);
   EXPECT_EQ(4, options_.furious_ga_slot());
-
-  options_.SetFuriousState(7);
-  EXPECT_EQ("a", options_.GetFuriousStateStr());
-  options_.SetFuriousState(2);
-  EXPECT_EQ("b", options_.GetFuriousStateStr());
-  options_.SetFuriousState(17);
-  EXPECT_EQ("c", options_.GetFuriousStateStr());
-  options_.SetFuriousState(furious::kFuriousNotSet);
-  EXPECT_EQ("", options_.GetFuriousStateStr());
-  options_.SetFuriousState(furious::kFuriousNoExperiment);
-  EXPECT_EQ("", options_.GetFuriousStateStr());
-
-  options_.SetFuriousStateStr("a");
-  EXPECT_EQ("a", options_.GetFuriousStateStr());
-  options_.SetFuriousStateStr("b");
-  EXPECT_EQ("b", options_.GetFuriousStateStr());
-  options_.SetFuriousStateStr("c");
-  EXPECT_EQ("c", options_.GetFuriousStateStr());
-
-  // Invalid state index 'd'; we only added three specs above.
-  options_.SetFuriousStateStr("d");
-  // No effect on the furious state; stay with 'c' from before.
-  EXPECT_EQ("c", options_.GetFuriousStateStr());
-
-  // Check a state index that will be out of bounds in the other direction.
-  options_.SetFuriousStateStr("`");
-  // Still no effect on the furious state.
-  EXPECT_EQ("c", options_.GetFuriousStateStr());
-
-  // Check that we have a maximum size of 26 concurrent experiment specs.
-  // Get us up to 26.
-  for(int i = options_.num_furious_experiments(); i < 26 ; i++) {
-    int tmp_id = i+100;  // Don't want conflict with experiments added above.
-    EXPECT_TRUE(options_.AddFuriousSpec(
-        StrCat("id=", IntegerToString(tmp_id),
-               ";percent=1;default"), &handler));
-  }
-  EXPECT_EQ(26, options_.num_furious_experiments());
-  // Object to adding a 27th.
-  EXPECT_FALSE(options_.AddFuriousSpec("id=200;percent=1;default", &handler));
 }
 
 TEST_F(RewriteOptionsTest, FuriousPrintTest) {
@@ -1079,21 +972,19 @@ TEST_F(RewriteOptionsTest, FuriousPrintTest) {
                                       &handler));
   options_.SetFuriousState(-7);
   // This should be the core filters.
-  EXPECT_EQ("ah,cc,gp,mc,pj,ec,ei,es,if,hw,ci,ii,il,ji,js,tu,rj,rp,rw,ri,cf,jm,"
-            "cu,cp,md,css:2048,im:2048,js:2048;",
-            options_.ToExperimentDebugString());
+  EXPECT_EQ("ah,cc,mc,ec,ei,es,hw,ci,ii,il,ji,ir,ri,cf,jm,cu,"
+            "css:2048,im:2048,js:2048;", options_.ToExperimentDebugString());
   EXPECT_EQ("", options_.ToExperimentString());
   options_.SetFuriousState(1);
-  EXPECT_EQ("Experiment: 1; ah,ai,cc,gp,mc,pj,ec,ei,es,if,hw,ci,ii,il,ji,ig,js,"
-            "tu,rj,rp,rw,ri,cf,jm,cu,cp,md,css:2048,im:2048,js:2048;",
+  EXPECT_EQ("Experiment: 1; ah,ai,cc,mc,ec,ei,es,hw,ci,ii,il,ji,ig,ir,ri,cf,"
+            "jm,cu,css:2048,im:2048,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 1", options_.ToExperimentString());
   options_.SetFuriousState(7);
   // This should be all non-dangerous filters.
-  EXPECT_EQ("Experiment: 7; ab,ah,ai,cw,cc,ch,jc,gp,jp,jw,mc,pj,db,di,"
-            "ea,ec,ei,ep,es,fc,if,fs,hn,hw,ci,ii,il,ji,idp,ig,id,js,tu,ls,"
-            "ga,cj,cm,co,jo,pv,rj,rp,rw,rc,rq,ri,rm,cf,rd,jm,cs,cu,is,cp,md,"
-            "css:2048,im:2048,js:2048;",
+  EXPECT_EQ("Experiment: 7; ab,ah,ai,cw,cc,ch,jc,jp,jw,mc,pj,db,di,ea,ec,ei,es,"
+            "if,hw,ci,ii,il,ji,ig,id,tu,ls,ga,cj,cm,co,jo,pv,ir,rc,rq,ri,rm,cf,"
+            "rd,jm,cs,cu,is,css:2048,im:2048,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 7", options_.ToExperimentString());
   options_.SetFuriousState(2);
@@ -1107,99 +998,6 @@ TEST_F(RewriteOptionsTest, FuriousPrintTest) {
 
   // Make sure we set the ga_id to the one specified by spec 2.
   EXPECT_EQ("122333-4", options_.ga_id());
-}
-
-TEST_F(RewriteOptionsTest, FuriousUndoOptionsTest) {
-  NullMessageHandler handler;
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.set_running_furious_experiment(true);
-
-  // Default for this is 2048.
-  EXPECT_EQ(2048L, options_.ImageInlineMaxBytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=1;percent=15;enable=inline_images;"
-      "inline_images=1024", &handler));
-  options_.SetFuriousState(1);
-  EXPECT_EQ(1024L, options_.ImageInlineMaxBytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=2;percent=15;enable=inline_images", &handler));
-  options_.SetFuriousState(2);
-  EXPECT_EQ(2048L, options_.ImageInlineMaxBytes());
-}
-
-TEST_F(RewriteOptionsTest, FuriousOptionsTest) {
-  NullMessageHandler handler;
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.set_running_furious_experiment(true);
-
-  // Default for this is 2048.
-  EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=1;percent=15;enable=defer_javascript;"
-      "options=CssInlineMaxBytes=1024", &handler));
-  options_.SetFuriousState(1);
-  EXPECT_EQ(1024L, options_.css_inline_max_bytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=2;percent=15;enable=resize_images;options=BogusOption=35", &handler));
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=3;percent=15;enable=defer_javascript", &handler));
-  options_.SetFuriousState(3);
-  EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=4;percent=15;enable=defer_javascript;"
-      "options=CssInlineMaxBytes=Cabbage", &handler));
-  options_.SetFuriousState(4);
-  EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=5;percent=15;enable=defer_javascript;"
-      "options=Potato=Carrot,5=10,6==9,CssInlineMaxBytes=1024", &handler));
-  options_.SetFuriousState(5);
-  EXPECT_EQ(1024L, options_.css_inline_max_bytes());
-  EXPECT_TRUE(options_.AddFuriousSpec(
-      "id=6;percent=15;enable=defer_javascript;"
-      "options=JsOutlineMinBytes=4096,JpegRecompresssionQuality=50,"
-      "CssInlineMaxBytes=100,JsInlineMaxBytes=123", &handler));
-  options_.SetFuriousState(6);
-  EXPECT_EQ(100L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, FuriousMergeTest) {
-  NullMessageHandler handler;
-  RewriteOptions::FuriousSpec *spec = new
-      RewriteOptions::FuriousSpec("id=1;percentage=15;"
-                                  "enable=defer_javascript;"
-                                  "options=CssInlineMaxBytes=100",
-                                  &options_, &handler);
-
-  RewriteOptions::FuriousSpec *spec2 = new
-      RewriteOptions::FuriousSpec("id=2;percentage=25;enable=resize_images;"
-                                  "options=CssInlineMaxBytes=125", &options_,
-                                  &handler);
-  options_.InsertFuriousSpecInVector(spec);
-  options_.InsertFuriousSpecInVector(spec2);
-  options_.SetFuriousState(1);
-  EXPECT_EQ(15, spec->percent());
-  EXPECT_EQ(1, spec->id());
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kResizeImages));
-  EXPECT_EQ(100L, options_.css_inline_max_bytes());
-  spec->Merge(*spec2);
-  options_.SetFuriousState(1);
-  EXPECT_EQ(25, spec->percent());
-  EXPECT_EQ(1, spec->id());
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kResizeImages));
-  EXPECT_EQ(125L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, SetOptionsFromName) {
-  RewriteOptions::OptionSet option_set;
-  option_set.insert(RewriteOptions::OptionStringPair(
-      "CssInlineMaxBytes", "1024"));
-  EXPECT_TRUE(options_.SetOptionsFromName(option_set));
-  option_set.insert(RewriteOptions::OptionStringPair(
-      "Not an Option", "nothing"));
-  EXPECT_FALSE(options_.SetOptionsFromName(option_set));
 }
 
 // TODO(sriharis):  Add thorough ComputeSignature tests
@@ -1252,69 +1050,4 @@ TEST_F(RewriteOptionsTest, ComputeSignatureOptionEffect) {
   EXPECT_NE(signature2, signature3);
 }
 
-TEST_F(RewriteOptionsTest, ImageOptimizableCheck) {
-  options_.ClearFilters();
-  options_.EnableFilter(RewriteOptions::kRecompressJpeg);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kRecompressJpeg);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kRecompressPng);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kRecompressPng);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kRecompressWebp);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kRecompressWebp);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kConvertGifToPng);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kConvertGifToPng);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kConvertJpegToWebp);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kConvertPngToJpeg);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kConvertPngToJpeg);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-}
-
-TEST_F(RewriteOptionsTest, UrlCacheInvalidationTest) {
-  options_.AddUrlCacheInvalidationEntry("one*", 10L, true);
-  options_.AddUrlCacheInvalidationEntry("two*", 25L, false);
-  RewriteOptions options1;
-  options1.AddUrlCacheInvalidationEntry("one*", 20L, true);
-  options1.AddUrlCacheInvalidationEntry("three*", 23L, false);
-  options1.AddUrlCacheInvalidationEntry("three*", 30L, true);
-  options_.Merge(options1);
-  EXPECT_TRUE(options_.IsUrlCacheInvalidationEntriesSorted());
-  EXPECT_FALSE(options_.IsUrlCacheValid("one1", 9L));
-  EXPECT_FALSE(options_.IsUrlCacheValid("one1", 19L));
-  EXPECT_TRUE(options_.IsUrlCacheValid("one1", 21L));
-  EXPECT_FALSE(options_.IsUrlCacheValid("two2", 21L));
-  EXPECT_TRUE(options_.IsUrlCacheValid("two2", 26L));
-  EXPECT_TRUE(options_.IsUrlCacheValid("three3", 31L));
-}
-
-TEST_F(RewriteOptionsTest, UrlCacheInvalidationSignatureTest) {
-  options_.ComputeSignature(&hasher_);
-  GoogleString signature1 = options_.signature();
-  options_.ClearSignatureForTesting();
-  options_.AddUrlCacheInvalidationEntry("one*", 10L, true);
-  options_.ComputeSignature(&hasher_);
-  GoogleString signature2 = options_.signature();
-  EXPECT_EQ(signature1, signature2);
-  options_.ClearSignatureForTesting();
-  options_.AddUrlCacheInvalidationEntry("two*", 10L, false);
-  options_.ComputeSignature(&hasher_);
-  GoogleString signature3 = options_.signature();
-  EXPECT_NE(signature2, signature3);
-}
-
-}  // namespace net_instaweb
+}  // namespace

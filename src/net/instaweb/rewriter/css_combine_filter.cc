@@ -26,17 +26,17 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -71,7 +71,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
               CssCombineFilter* filter)
       : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1, filter),
         css_tag_scanner_(css_tag_scanner) {
-    Statistics* stats = server_context_->statistics();
+    Statistics* stats = resource_manager_->statistics();
     css_file_count_reduction_ = stats->GetVariable(kCssFileCountReduction);
   }
 
@@ -121,10 +121,6 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
 
   void AddFileCountReduction(int num_files) {
     css_file_count_reduction_->Add(num_files);
-    if (num_files >= 1 && rewrite_driver_->log_record() != NULL) {
-      rewrite_driver_->log_record()->LogAppliedRewriter(
-          RewriteOptions::FilterId(RewriteOptions::kCombineCss));
-    }
   }
 
  private:
@@ -257,16 +253,11 @@ class CssCombineFilter::Context : public RewriteContext {
         continue;
       }
 
-      // We need to be sure this is HTML to omit the "/" before the
-      // ">".  If the content-type is not known then make sure we use
-      // "<link ... />".
-      if (filter_->driver()->MimeTypeXhtmlStatus() !=
-          RewriteDriver::kIsNotXhtml) {
+      if (filter_->driver()->doctype().IsXhtml()) {
         int first_element_index = partition->input(0).index();
         HtmlElement* first_element = elements_[first_element_index];
         first_element->set_close_style(HtmlElement::BRIEF_CLOSE);
       }
-
       for (int i = 1; i < partition->input_size(); ++i) {
         int slot_index = partition->input(i).index();
         slot(slot_index)->set_should_delete_element(true);
@@ -324,7 +315,7 @@ CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
 CssCombineFilter::~CssCombineFilter() {
 }
 
-void CssCombineFilter::InitStats(Statistics* statistics) {
+void CssCombineFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCssFileCountReduction);
 }
 
@@ -335,24 +326,12 @@ void CssCombineFilter::StartDocumentImpl() {
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  if (element->keyword() == HtmlName::kStyle) {
-    // We can't reorder styles on a page, so if we are only combining <link>
-    // tags, we can't combine them across a <style> tag.
-    // TODO(sligocki): Maybe we should just combine <style>s too?
-    // We can run outline_css first for now to make all <style>s into <link>s.
-    NextCombination("css_combine: inline style");
-  } else if (driver_->HasChildrenInFlushWindow(element)) {
-    // TODO(jmarantz): Call NextCombination here to avoid combining across
-    // a malformed link.
-    if (DebugMode() &&
-        css_tag_scanner_.ParseCssElement(element, &href, &media)) {
-      driver_->InsertComment("css_combine: children in flush window");
-    }
-  } else if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
+  if (!driver_->HasChildrenInFlushWindow(element) &&
+      css_tag_scanner_.ParseCssElement(element, &href, &media)) {
     // We cannot combine with a link in <noscript> tag and we cannot combine
     // over a link in a <noscript> tag, so this is a barrier.
     if (noscript_element() != NULL) {
-      NextCombination("css_combine: noscript");
+      NextCombination();
     } else {
       if (context_->new_combination()) {
         context_->SetMedia(media);
@@ -363,21 +342,24 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
         // thing?  sligocki thinks mdsteele looked into this and it
         // depended on HTML version.  In one display was default, in the
         // other screen was IIRC.
-        NextCombination("css_combine: media mismatch");
+        NextCombination();
         context_->SetMedia(media);
       }
       if (!context_->AddElement(element, href)) {
-        NextCombination("css_combine: resource not rewriteable");
+        NextCombination();
       }
     }
+  } else if (element->keyword() == HtmlName::kStyle) {
+    // We can't reorder styles on a page, so if we are only combining <link>
+    // tags, we can't combine them across a <style> tag.
+    // TODO(sligocki): Maybe we should just combine <style>s too?
+    // We can run outline_css first for now to make all <style>s into <link>s.
+    NextCombination();
   }
 }
 
-void CssCombineFilter::NextCombination(const char* debug_help) {
+void CssCombineFilter::NextCombination() {
   if (!context_->empty()) {
-    if (DebugMode()) {
-      driver_->InsertComment(debug_help);
-    }
     driver_->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
   }
@@ -389,11 +371,11 @@ void CssCombineFilter::NextCombination(const char* debug_help) {
 void CssCombineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   // TODO(sligocki): Figure out how to safely parse IEDirectives, for now we
   // just consider them black boxes / solid barriers.
-  NextCombination("css_combine: ie directive");
+  NextCombination();
 }
 
 void CssCombineFilter::Flush() {
-  NextCombination("css_combine: flush");
+  NextCombination();
 }
 
 bool CssCombineFilter::CssCombiner::WritePiece(

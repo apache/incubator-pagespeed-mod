@@ -34,44 +34,19 @@ class CriticalImagesFinder {
   CriticalImagesFinder();
   virtual ~CriticalImagesFinder();
 
-  // Checks whether IsCriticalImage will return meaningful results about
-  // critical images. Users of IsCriticalImage should check this function and
-  // supply a default behavior if IsMeaningful returns false.
-  virtual bool IsMeaningful() const = 0;
-
   // Checks whether the requested image is present in the critical set or not.
-  // Users of this function should also check IsMeaningful() to see if the
-  // implementation of this function returns meaningful results and provide a
-  // default behavior if it does not.
   virtual bool IsCriticalImage(const GoogleString& image_url,
-                               const RewriteDriver* driver) const;
+                               RewriteDriver* driver) const;
 
-  // Gets critical images if present in the property cache and
-  // updates the critical_images set in RewriteDriver with the obtained set.
+  // Gets critical images and update the critical images set in RewriteDriver.
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
 
   // Compute the critical images for the given url.
   virtual void ComputeCriticalImages(StringPiece url,
                                      RewriteDriver* driver,
-                                     bool must_compute) = 0;
-
-  // Identifies which cohort in the PropertyCache the critical image information
-  // is located in.
-  virtual const char* GetCriticalImagesCohort() const = 0;
-
- protected:
-  // Updates the critical images property cache entry. This will take the
-  // ownership of the critical_images_set. Returns if the update succeeded or
-  // not. Note that this base implementation does not call WriteCohort. This
-  // should be called in the subclass if the cohort is not written elsewhere.
-  virtual bool UpdateCriticalImagesCacheEntry(
-      RewriteDriver* driver,
-      StringSet* critical_images_set);
+                                     bool must_compute);
 
  private:
-  static const char kCriticalImagesPropertyName[];
-
-  friend class CriticalImagesFinderTestBase;
   DISALLOW_COPY_AND_ASSIGN(CriticalImagesFinder);
 };
 

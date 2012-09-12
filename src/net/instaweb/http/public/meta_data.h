@@ -27,11 +27,10 @@ namespace net_instaweb {
 
 // Global constants for common HTML attributes names and values.
 //
-// TODO(jmarantz): Proactively change all the occurrences of the static strings
+// TODO(jmarantz): proactively change all the occurences of the static strings
 // to use these shared constants.
 struct HttpAttributes {
   static const char kAcceptEncoding[];
-  static const char kAuthorization[];
   static const char kCacheControl[];
   static const char kConnection[];
   static const char kContentEncoding[];
@@ -53,7 +52,6 @@ struct HttpAttributes {
   static const char kLocation[];
   static const char kNoCache[];
   static const char kPragma[];
-  static const char kProxyAuthorization[];
   static const char kReferer[];  // sic
   static const char kServer[];
   static const char kSetCookie[];
@@ -65,18 +63,6 @@ struct HttpAttributes {
   static const char kXAssociatedContent[];
   static const char kXForwardedFor[];
   static const char kXGooglePagespeedClientId[];
-  // If this header's value matches the configured blocking rewrite key, then
-  // all rewrites are completed before the response is sent to the client.
-  static const char kXGoogleRequestEventId[];
-  static const char kXPsaBlockingRewrite[];
-
-  // This header is set on optional fetches that got dropped due to load.
-  static const char kXPsaLoadShed[];
-  static const char kXRequestedWith[];
-
-  // This header is set on optimized responses to indicate the original
-  // content length.
-  static const char kXOriginalContentLength[];
 };
 
 namespace HttpStatus {
@@ -140,11 +126,7 @@ enum Code {
   // outside the normal HTTP range, but we consider these response codes
   // to be 'cacheable' in our own cache.
   kRememberFetchFailedStatusCode = 10001,
-  // Note that this includes all non-200 status code responses that are not
-  // cacheable.
   kRememberNotCacheableStatusCode = 10002,
-  // This includes all 200 status code responses that are not cacheable.
-  kRememberNotCacheableAnd200StatusCode = 10003,
 };
 
 // Transform a status code into the equivalent reason phrase.

@@ -24,7 +24,7 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
@@ -35,13 +35,11 @@ namespace net_instaweb {
 class ResourceNamer;
 struct ContentType;
 
-class CssRewriteTestBase : public RewriteTestBase {
+class CssRewriteTestBase : public ResourceManagerTestBase {
  protected:
   CssRewriteTestBase() {
     num_blocks_rewritten_ =
         statistics()->GetVariable(CssFilter::kBlocksRewritten);
-    num_fallback_rewrites_ =
-        statistics()->GetVariable(CssFilter::kFallbackRewrites);
     num_parse_failures_ = statistics()->GetVariable(CssFilter::kParseFailures);
     num_rewrites_dropped_ =
         statistics()->GetVariable(CssFilter::kRewritesDropped);
@@ -49,30 +47,16 @@ class CssRewriteTestBase : public RewriteTestBase {
     total_original_bytes_ =
         statistics()->GetVariable(CssFilter::kTotalOriginalBytes);
     num_uses_ = statistics()->GetVariable(CssFilter::kUses);
-    num_flatten_imports_charset_mismatch_ =
-        statistics()->GetVariable(CssFilter::kCharsetMismatch);
-    num_flatten_imports_invalid_url_ =
-        statistics()->GetVariable(CssFilter::kInvalidUrl);
-    num_flatten_imports_limit_exceeded_ =
-        statistics()->GetVariable(CssFilter::kLimitExceeded);
-    num_flatten_imports_minify_failed_ =
-        statistics()->GetVariable(CssFilter::kMinifyFailed);
-    num_flatten_imports_recursion_ =
-        statistics()->GetVariable(CssFilter::kRecursion);
-    num_flatten_imports_complex_queries_ =
-        statistics()->GetVariable(CssFilter::kComplexQueries);
   }
   ~CssRewriteTestBase();
 
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->set_always_rewrite_css(true);
     AddFilter(RewriteOptions::kRewriteCss);
   }
 
   enum ValidationFlags {
-    kNoFlags = 0,
-
     kExpectSuccess = 1,   // CSS parser succeeds and URL should be rewritten.
     kExpectNoChange = 2,  // CSS parser succeeds but URL not rewritten because
                           // we increased the size of contents.
@@ -94,14 +78,6 @@ class CssRewriteTestBase : public RewriteTestBase {
     kMetaCharsetISO88591 = 2048,
     kMetaHttpEquiv = 4096,
     kMetaHttpEquivUnquoted = 8192,
-
-    // Flags to the check various import flattening failure statistics.
-    kFlattenImportsCharsetMismatch = 1<<14,
-    kFlattenImportsInvalidUrl = 1<<15,
-    kFlattenImportsLimitExceeded = 1<<16,
-    kFlattenImportsMinifyFailed = 1<<17,
-    kFlattenImportsRecursion = 1<<18,
-    kFlattenImportsComplexQueries = 1<<19,
   };
 
   static bool ExactlyOneTrue(bool a, bool b) {
@@ -190,18 +166,11 @@ class CssRewriteTestBase : public RewriteTestBase {
   void TestCorruptUrl(const char* junk);
 
   Variable* num_blocks_rewritten_;
-  Variable* num_fallback_rewrites_;
   Variable* num_parse_failures_;
   Variable* num_rewrites_dropped_;
   Variable* total_bytes_saved_;
   Variable* total_original_bytes_;
   Variable* num_uses_;
-  Variable* num_flatten_imports_charset_mismatch_;
-  Variable* num_flatten_imports_invalid_url_;
-  Variable* num_flatten_imports_limit_exceeded_;
-  Variable* num_flatten_imports_minify_failed_;
-  Variable* num_flatten_imports_recursion_;
-  Variable* num_flatten_imports_complex_queries_;
 };
 
 }  // namespace net_instaweb

@@ -21,6 +21,7 @@
 
 #include <vector>
 #include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -68,8 +69,7 @@ class HtmlLexer {
   // Print element stack to stdout (for debugging).
   void DebugPrintStack();
 
-  // Returns the current lowest-level parent element in the element stack, or
-  // NULL if the stack is empty.
+  // Returns the current lowest-level parent element in the element stack
   HtmlElement* Parent() const;
 
   // Return the current assumed doctype of the document (based on the content

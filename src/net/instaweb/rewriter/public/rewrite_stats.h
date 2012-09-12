@@ -40,7 +40,7 @@ class RewriteStats {
   RewriteStats(Statistics* stats, ThreadSystem* thread_system, Timer* timer);
   ~RewriteStats();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   Variable* cached_output_hits() { return cached_output_hits_; }
   Variable* cached_output_missed_deadline() {

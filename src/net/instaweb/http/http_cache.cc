@@ -23,9 +23,9 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -45,10 +45,6 @@ namespace {
 // in this case we could arguably remember it using the original cc-private ttl.
 const int kRememberNotCacheableTtl = 300;
 const int kRememberFetchFailedTtl = 300;
-
-// We use an extremely low TTL for load-shed resources since we don't
-// want this to get in the way of debugging.
-const int kRememberFetchDroppedTtl = 10;
 
 // Maximum size of response content in bytes. -1 indicates that there is no size
 // limit.
@@ -80,7 +76,6 @@ HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
       name_(StrCat("HTTPCache using backend : ", cache->Name())) {
   remember_not_cacheable_ttl_seconds_ = kRememberNotCacheableTtl;
   remember_fetch_failed_ttl_seconds_ = kRememberFetchFailedTtl;
-  remember_fetch_dropped_ttl_seconds_ = kRememberFetchDroppedTtl;
   max_cacheable_response_content_length_ = kCacheSizeUnlimited;
 }
 
@@ -90,18 +85,11 @@ void HTTPCache::SetIgnoreFailurePuts() {
   ignore_failure_puts_.set_value(true);
 }
 
-bool HTTPCache::IsCurrentlyValid(const RequestHeaders* request_headers,
-                                 const ResponseHeaders& headers, int64 now_ms) {
+bool HTTPCache::IsCurrentlyValid(const ResponseHeaders& headers, int64 now_ms) {
   if (force_caching_) {
     return true;
   }
-  if (!headers.IsCacheable()) {
-    return false;
-  }
-
-  if ((request_headers == NULL && !headers.IsProxyCacheable()) ||
-      (request_headers != NULL &&
-       !headers.IsProxyCacheableGivenRequest(*request_headers))) {
+  if (!headers.IsCacheable() || !headers.IsProxyCacheable()) {
     // TODO(jmarantz): Should we have a separate 'force' bit that doesn't
     // expired resources to be valid, but does ignore cache-control:private?
     return false;
@@ -113,9 +101,8 @@ bool HTTPCache::IsCurrentlyValid(const RequestHeaders* request_headers,
   return false;
 }
 
-bool HTTPCache::IsAlreadyExpired(const RequestHeaders* request_headers,
-                                 const ResponseHeaders& headers) {
-  return !IsCurrentlyValid(request_headers, headers, timer_->NowMs());
+bool HTTPCache::IsAlreadyExpired(const ResponseHeaders& headers) {
+  return !IsCurrentlyValid(headers, timer_->NowMs());
 }
 
 class HTTPCacheCallback : public CacheInterface::Callback {
@@ -138,7 +125,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     ResponseHeaders* headers = callback_->response_headers();
     if ((state == CacheInterface::kAvailable) &&
         callback_->http_value()->Link(value(), headers, handler_) &&
-        callback_->IsCacheValid(key_, *headers)) {
+        callback_->IsCacheValid(*headers)) {
       // While stale responses can potentially be used in case of fetch
       // failures, responses invalidated via a cache flush should never be
       // returned under any scenario.
@@ -149,36 +136,17 @@ class HTTPCacheCallback : public CacheInterface::Callback {
       // two-level HTTPCache, while freshening a resource, this ensures that we
       // check both caches and don't return a valid response from the L1 cache
       // that is about to expire soon. We instead also check the L2 cache which
-      // could have a fresher response. We don't need to pass request_headers
-      // here, as we shouldn't have put things in here that required
-      // Authorization in the first place.
-      int64 override_cache_ttl_ms = callback_->OverrideCacheTtlMs(key_);
-      if (override_cache_ttl_ms > 0) {
-        // Use the OverrideCacheTtlMs if specified.
-        headers->ForceCaching(override_cache_ttl_ms);
-      }
-      // Is the response still valid?
-      bool is_valid = http_cache_->IsCurrentlyValid(NULL, *headers, now_ms) &&
+      // could have a fresher response.
+      bool is_valid = http_cache_->IsCurrentlyValid(*headers, now_ms) &&
           callback_->IsFresh(*headers);
       int http_status = headers->status_code();
-
       if (http_status == HttpStatus::kRememberNotCacheableStatusCode ||
-          http_status == HttpStatus::kRememberNotCacheableAnd200StatusCode ||
           http_status == HttpStatus::kRememberFetchFailedStatusCode) {
-        // If the response was stored as uncacheable and a 200, it may since
-        // have since been added to the override caching group. Hence, we
-        // consider it invalid if override_cache_ttl_ms > 0.
-        if (override_cache_ttl_ms > 0 &&
-            http_status == HttpStatus::kRememberNotCacheableAnd200StatusCode) {
-          is_valid = false;
-        }
         if (is_valid) {
           int64 remember_not_found_time_ms = headers->CacheExpirationTimeMs()
               - start_ms_;
           const char* status = NULL;
-          if (http_status == HttpStatus::kRememberNotCacheableStatusCode ||
-              http_status ==
-                  HttpStatus::kRememberNotCacheableAnd200StatusCode) {
+          if (http_status == HttpStatus::kRememberNotCacheableStatusCode) {
             status = "not-cacheable";
             result = HTTPCache::kRecentFetchNotCacheable;
           } else {
@@ -197,16 +165,6 @@ class HTTPCacheCallback : public CacheInterface::Callback {
       } else {
         if (is_valid) {
           result = HTTPCache::kFound;
-          if (headers->UpdateCacheHeadersIfForceCached()) {
-            // If the cache headers were updated as a result of it being force
-            // cached, we need to reconstruct the HTTPValue with the new
-            // headers.
-            StringPiece content;
-            callback_->http_value()->ExtractContents(&content);
-            callback_->http_value()->Clear();
-            callback_->http_value()->Write(content, handler_);
-            callback_->http_value()->SetHeaders(headers);
-          }
         } else {
           if (http_cache_->force_caching_ ||
               (headers->IsCacheable() && headers->IsProxyCacheable())) {
@@ -262,8 +220,7 @@ class SynchronizingCallback : public HTTPCache::Callback {
     called_ = true;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
     // We don't support custom invalidation policy on the legacy sync path.
     return true;
   }
@@ -287,12 +244,9 @@ void HTTPCache::UpdateStats(FindResult result, int64 delta_us) {
 }
 
 void HTTPCache::RememberNotCacheable(const GoogleString& key,
-                                     bool is_200_status_code,
                                      MessageHandler* handler) {
-  RememberFetchFailedorNotCacheableHelper(
-      key, handler,
-      is_200_status_code ? HttpStatus::kRememberNotCacheableAnd200StatusCode :
-                           HttpStatus::kRememberNotCacheableStatusCode,
+  RememberFetchFailedorNotCacheableHelper(key, handler,
+      HttpStatus::kRememberNotCacheableStatusCode,
       remember_not_cacheable_ttl_seconds_);
 }
 
@@ -301,13 +255,6 @@ void HTTPCache::RememberFetchFailed(const GoogleString& key,
   RememberFetchFailedorNotCacheableHelper(key, handler,
       HttpStatus::kRememberFetchFailedStatusCode,
       remember_fetch_failed_ttl_seconds_);
-}
-
-void HTTPCache::RememberFetchDropped(const GoogleString& key,
-                                    MessageHandler* handler) {
-  RememberFetchFailedorNotCacheableHelper(key, handler,
-      HttpStatus::kRememberFetchFailedStatusCode,
-      remember_fetch_dropped_ttl_seconds_);
 }
 
 void HTTPCache::set_max_cacheable_response_content_length(int64 value) {
@@ -414,10 +361,7 @@ void HTTPCache::Put(const GoogleString& key, ResponseHeaders* headers,
                     const StringPiece& content, MessageHandler* handler) {
   int64 start_us = timer_->NowUs();
   int64 now_ms = start_us / 1000;
-  // Note: this check is only valid if the caller didn't send an Authorization:
-  // header.
-  // TODO(morlovich): expose the request_headers in the API?
-  if ((!IsCurrentlyValid(NULL, *headers, now_ms) ||
+  if ((!IsCurrentlyValid(*headers, now_ms) ||
        !IsCacheableBodySize(content.size()))
       && !force_caching_) {
     return;
@@ -449,7 +393,7 @@ void HTTPCache::Delete(const GoogleString& key) {
   return cache_->Delete(key);
 }
 
-void HTTPCache::InitStats(Statistics* statistics) {
+void HTTPCache::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCacheTimeUs);
   statistics->AddVariable(kCacheHits);
   statistics->AddVariable(kCacheMisses);
@@ -462,30 +406,30 @@ HTTPCache::Callback::~Callback() {
   if (owns_response_headers_) {
     delete response_headers_;
   }
-  if (owns_logging_info_) {
-    delete logging_info_;
+  if (owns_timing_info_) {
+    delete timing_info_;
   }
 }
 
 void HTTPCache::Callback::SetTimingMs(int64 timing_value_ms) {
-  logging_info()->mutable_timing_info()->set_cache1_ms(timing_value_ms);
+  timing_info()->set_cache1_ms(timing_value_ms);
 }
 
-void HTTPCache::Callback::set_logging_info(LoggingInfo* logging_info) {
-  DCHECK(!owns_logging_info_);
-  if (owns_logging_info_) {
-    delete logging_info_;
+void HTTPCache::Callback::set_timing_info(TimingInfo* timing_info) {
+  DCHECK(!owns_timing_info_);
+  if (owns_timing_info_) {
+    delete timing_info_;
   }
-  logging_info_ = logging_info;
-  owns_logging_info_ = false;
+  timing_info_ = timing_info;
+  owns_timing_info_ = false;
 }
 
-LoggingInfo* HTTPCache::Callback::logging_info() {
-  if (logging_info_ == NULL) {
-    logging_info_ = new LoggingInfo;
-    owns_logging_info_ = true;
+TimingInfo* HTTPCache::Callback::timing_info() {
+  if (timing_info_ == NULL) {
+    timing_info_ = new TimingInfo;
+    owns_timing_info_ = true;
   }
-  return logging_info_;
+  return timing_info_;
 }
 
 }  // namespace net_instaweb

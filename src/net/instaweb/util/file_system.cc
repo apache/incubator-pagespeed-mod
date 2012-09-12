@@ -16,11 +16,10 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/util/public/file_system.h"
-
 #include <cstddef>
 
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -55,17 +54,6 @@ bool FileSystem::ReadFile(const char* filename, GoogleString* buffer,
 bool FileSystem::ReadFile(const char* filename, Writer* writer,
                           MessageHandler* message_handler) {
   InputFile* input_file = OpenInputFile(filename, message_handler);
-  return ReadFile(input_file, writer, message_handler);
-}
-
-bool FileSystem::ReadFile(InputFile* input_file, GoogleString* buffer,
-                          MessageHandler* message_handler) {
-  StringWriter writer(buffer);
-  return ReadFile(input_file, &writer, message_handler);
-}
-
-bool FileSystem::ReadFile(InputFile* input_file, Writer* writer,
-                          MessageHandler* message_handler) {
   bool ret = false;
   if (input_file != NULL) {
     char buf[kStackBufferSize];
@@ -159,54 +147,39 @@ bool FileSystem::RecursivelyMakeDir(const StringPiece& full_path_const,
   return ret;
 }
 
-void FileSystem::GetDirInfo(const StringPiece& path, DirInfo* dirinfo,
-                            MessageHandler* handler) {
-  // This function is not guaranteed to produce correct results if files or
-  // directories are modified while this function is executing.
-
-  // Reset dirinfo
-  dirinfo->files.clear();
-  dirinfo->empty_dirs.clear();
-  dirinfo->size_bytes = 0;
-  dirinfo->inode_count = 0;
-
-  StringVector dirs_to_traverse;
-  dirs_to_traverse.push_back(path.as_string());
-  while (!dirs_to_traverse.empty()) {
-    GoogleString dir = dirs_to_traverse.back();
-    dirs_to_traverse.pop_back();
-    StringVector dir_contents;
-    bool is_ok = ListContents(dir, &dir_contents, handler);
-    if (!is_ok) {
-      continue;
-    }
-
-    // Save empty directories to remove if we have to clean.
-    if (dir_contents.empty()) {
-      dirinfo->empty_dirs.push_back(dir);
-      continue;
-    }
-
-    // Add files in directory to our vector of files and subdirs to our vector
-    // of directories to traverse.
-    dirinfo->inode_count += dir_contents.size();
-    StringVector::iterator it;
-    for (it = dir_contents.begin(); it != dir_contents.end(); ++it) {
-      GoogleString file_name = *it;
-      // Add size for both files and directories
-      int64 file_size;
-      Size(file_name, &file_size, handler);
-      dirinfo->size_bytes += file_size;
-      BoolOrError is_dir = IsDir(file_name.c_str(), handler);
-      if (is_dir.is_false()) {
-        int64 file_atime;
-        Atime(file_name, &file_atime, handler);
-        dirinfo->files.push_back(FileInfo(file_size, file_atime, file_name));
-      } else if (is_dir.is_true()) {
-        dirs_to_traverse.push_back(file_name);
+bool FileSystem::RecursiveDirSize(const StringPiece& path, int64* size,
+                                  MessageHandler* handler) {
+  // TODO(abliss): replace this recursive algorithm with an iterator
+  // that keeps its own state.  It can keep a tree of directory names
+  // to save memory, and simplify the implementation of file_cache.Clean.
+  const GoogleString path_string = path.as_string();
+  const char* path_str = path_string.c_str();
+  int64 file_size = 0;
+  StringVector files;
+  if (!ListContents(path_str, &files, handler)) {
+    return false;
+  }
+  const GoogleString prefix = path_string + "/";
+  for (int i = files.size() - 1; i >= 0; i--) {
+    const GoogleString file_name = files[i];
+    BoolOrError isDir = IsDir(file_name.c_str(), handler);
+    if (isDir.is_error()) {
+      return false;
+    } else if (isDir.is_false()) {
+      if (!Size(file_name, &file_size, handler)) {
+        return false;
+      }
+      *size += file_size;
+    } else {
+      // Recurse on directory
+      // TODO(abliss): Should guard against infinite loops here, in
+      // the case of a filesystem with cyclic symlinks.
+      if (!RecursiveDirSize(file_name, size, handler)) {
+        return false;
       }
     }
   }
+  return true;
 }
 
 // Try to make directories to store file.

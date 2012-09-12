@@ -257,18 +257,6 @@ bool StringEqualConcat(const StringPiece& str, const StringPiece& first,
       str.starts_with(first) && str.ends_with(second);
 }
 
-StringPiece PieceAfterEquals(const StringPiece& piece) {
-  size_t index = piece.find("=");
-  if (index != piece.npos) {
-    ++index;
-    StringPiece ret = piece;
-    ret.remove_prefix(index);
-    TrimWhitespace(&ret);
-    return ret;
-  }
-  return StringPiece(piece.data(), 0);
-}
-
 void ParseShellLikeString(const StringPiece& input,
                           std::vector<GoogleString>* output) {
   output->clear();
@@ -342,17 +330,6 @@ void TrimWhitespace(StringPiece* str) {
     str->remove_suffix(1);
     size = str->size();
   }
-}
-
-void TrimQuote(StringPiece* str) {
-  TrimWhitespace(str);
-  if (str->starts_with("\"") || str->starts_with("'")) {
-    str->remove_prefix(1);
-  }
-  if (str->ends_with("\"") || str->ends_with("'")) {
-    str->remove_suffix(1);
-  }
-  TrimWhitespace(str);
 }
 
 void TrimLeadingWhitespace(StringPiece* str) {

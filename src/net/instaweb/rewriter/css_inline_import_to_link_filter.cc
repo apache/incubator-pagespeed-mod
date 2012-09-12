@@ -24,6 +24,7 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
@@ -35,7 +36,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -61,7 +61,7 @@ CssInlineImportToLinkFilter::CssInlineImportToLinkFilter(RewriteDriver* driver,
 
 CssInlineImportToLinkFilter::~CssInlineImportToLinkFilter() {}
 
-void CssInlineImportToLinkFilter::InitStats(Statistics* statistics) {
+void CssInlineImportToLinkFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCssImportsToLinks);
 }
 
@@ -133,20 +133,19 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
     if (import.get() != NULL &&
         style_element_->FindAttribute(HtmlName::kHref) == NULL &&
         style_element_->FindAttribute(HtmlName::kRel) == NULL) {
-      StringPiece url(import->link().utf8_data(), import->link().utf8_length());
+      StringPiece url(import->link.utf8_data(), import->link.utf8_length());
       if (!url.empty()) {
         bool import_media_ok = false;
         const HtmlElement::Attribute* media_attribute =
             style_element_->FindAttribute(HtmlName::kMedia);
         // Cater for simple cases first for performance reasons.
-        if (import->media_queries().empty()) {
+        if (import->media.empty()) {
           import_media_ok = true;
         } else if (media_attribute != NULL &&
-                   import->media_queries().size() == 1 &&
-                   !css_util::IsComplexMediaQuery(*import->media_queries()[0])
-                   && media_attribute->DecodedValueOrNull() == StringPiece(
-                       import->media_queries()[0]->media_type().utf8_data(),
-                       import->media_queries()[0]->media_type().utf8_length())){
+                   import->media.size() == 1 &&
+                   media_attribute->DecodedValueOrNull() == StringPiece(
+                       import->media[0].utf8_data(),
+                       import->media[0].utf8_length())) {
           // TODO(jmarantz): this code would feel a bit better if
           // attribute-decoding supported UTF8.
           import_media_ok = true;
@@ -154,23 +153,21 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
           // If the style has media then the @import may specify no media or the
           // same media; if the style has no media use the @import's, if any.
           StringVector import_media;
-          if (css_util::ConvertMediaQueriesToStringVector(
-                  import->media_queries(), &import_media)) {
-            if (media_attribute != NULL) {
-              StringVector style_media;
-              css_util::VectorizeMediaAttribute(
-                  media_attribute->DecodedValueOrNull(), &style_media);
-              std::sort(import_media.begin(), import_media.end());
-              std::sort(style_media.begin(), style_media.end());
-              import_media_ok = (style_media == import_media);
-            } else {
-              import_media_ok = true;
-              // Set the media in the style so it's copied to the link below.
-              GoogleString media_text =
-                  css_util::StringifyMediaVector(import_media);
-              driver_->AddAttribute(style_element_, HtmlName::kMedia,
-                                    media_text);
-            }
+          css_util::ConvertUnicodeVectorToStringVector(import->media,
+                                                       &import_media);
+          if (media_attribute != NULL) {
+            StringVector style_media;
+            css_util::VectorizeMediaAttribute(
+                media_attribute->DecodedValueOrNull(), &style_media);
+            std::sort(import_media.begin(), import_media.end());
+            std::sort(style_media.begin(), style_media.end());
+            import_media_ok = (style_media == import_media);
+          } else {
+            import_media_ok = true;
+            // Set the media in the style so it's copied to the link below.
+            GoogleString media_text =
+                css_util::StringifyMediaVector(import_media);
+            driver_->AddAttribute(style_element_, HtmlName::kMedia, media_text);
           }
         }
 
@@ -178,17 +175,15 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
           // Create new link element to replace the style element with.
           HtmlElement* link_element =
               driver_->NewElement(style_element_->parent(), HtmlName::kLink);
-          if (driver_->MimeTypeXhtmlStatus() != RewriteDriver::kIsNotXhtml) {
+          if (driver_->doctype().IsXhtml()) {
             link_element->set_close_style(HtmlElement::BRIEF_CLOSE);
           }
           driver_->AddAttribute(link_element, HtmlName::kRel,
                                 CssTagScanner::kStylesheet);
           driver_->AddAttribute(link_element, HtmlName::kHref, url);
           // Add all style atrributes to link.
-          const HtmlElement::AttributeList& attrs(style_element_->attributes());
-          for (HtmlElement::AttributeConstIterator i(attrs.begin());
-               i != attrs.end(); ++i) {
-            const HtmlElement::Attribute& attr = *i;
+          for (int i = 0; i < style_element_->attribute_size(); ++i) {
+            const HtmlElement::Attribute& attr = style_element_->attribute(i);
             link_element->AddAttribute(attr);
           }
           // Add link to DOM.

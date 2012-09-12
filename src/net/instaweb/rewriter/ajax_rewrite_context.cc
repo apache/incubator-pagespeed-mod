@@ -71,8 +71,7 @@ RecordingFetch::~RecordingFetch() {}
 void RecordingFetch::HandleHeadersComplete() {
   can_ajax_rewrite_ = CanAjaxRewrite();
   if (can_ajax_rewrite_) {
-    // Save the headers, and wait to finalize them in HandleDone().
-    saved_headers_.CopyFrom(*response_headers());
+    cache_value_writer_.SetHeaders(response_headers());
   } else {
     FreeDriver();
   }
@@ -104,20 +103,6 @@ bool RecordingFetch::HandleFlush(MessageHandler* handler) {
 }
 
 void RecordingFetch::HandleDone(bool success) {
-  if (success && can_ajax_rewrite_) {
-    // Extract X-Original-Content-Length from the response headers, which may
-    // have been added by the fetcher, and set it in the Resource. This will
-    // be used to build the X-Original-Content-Length for rewrites.
-    const char* original_content_length_hdr = extra_response_headers()->Lookup1(
-        HttpAttributes::kXOriginalContentLength);
-    if (original_content_length_hdr != NULL) {
-      saved_headers_.Replace(HttpAttributes::kXOriginalContentLength,
-                             original_content_length_hdr);
-    }
-    // Now finalize the headers.
-    cache_value_writer_.SetHeaders(&saved_headers_);
-  }
-
   base_fetch()->Done(success);
 
   if (success && can_ajax_rewrite_) {
@@ -134,16 +119,14 @@ bool RecordingFetch::CanAjaxRewrite() {
   if (type == NULL) {
     return false;
   }
-  // Note that this only checks the length, not the caching headers; the
-  // latter are checked in IsAlreadyExpired.
   if (!cache_value_writer_.CheckCanCacheElseClear(response_headers())) {
     return false;
   }
   if (type->type() == ContentType::kCss ||
       type->type() == ContentType::kJavascript ||
       type->IsImage()) {
-    if (!context_->driver_->server_context()->http_cache()->IsAlreadyExpired(
-        request_headers(), *response_headers())) {
+    if (!context_->driver_->resource_manager()->http_cache()->IsAlreadyExpired(
+        *response_headers())) {
       return true;
     }
   }
@@ -287,7 +270,8 @@ RewriteFilter* AjaxRewriteContext::GetRewriteFilter(
       options->Enabled(RewriteOptions::kRewriteJavascript)) {
     return driver_->FindFilter(RewriteOptions::kJavascriptMinId);
   }
-  if (type.IsImage() && options->ImageOptimizationEnabled()) {
+  if (type.IsImage() && options->Enabled(RewriteOptions::kRecompressImages) &&
+      !driver_->ShouldNotRewriteImages()) {
     // TODO(nikhilmadan): This converts one image format to another. We
     // shouldn't do inter-conversion since we can't change the file extension.
     return driver_->FindFilter(RewriteOptions::kImageCompressionId);
@@ -359,4 +343,11 @@ void AjaxRewriteContext::StartFetchReconstruction() {
 void AjaxRewriteContext::StartFetchReconstructionParent() {
   RewriteContext::StartFetchReconstruction();
 }
+
+GoogleString AjaxRewriteContext::CacheKeySuffix() const {
+  // Include driver_->ShouldNotRewriteImages() in the cache key to
+  // prevent image rewrites when bot detection is enabled.
+  return driver_->ShouldNotRewriteImages() ? "0" : "1";
+}
+
 }  // namespace net_instaweb

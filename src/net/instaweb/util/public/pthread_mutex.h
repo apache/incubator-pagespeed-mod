@@ -30,7 +30,6 @@ class PthreadMutex : public ThreadSystem::CondvarCapableMutex {
  public:
   PthreadMutex();
   virtual ~PthreadMutex();
-  virtual bool TryLock();
   virtual void Lock();
   virtual void Unlock();
   virtual ThreadSystem::Condvar* NewCondvar();

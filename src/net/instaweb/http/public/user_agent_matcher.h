@@ -17,11 +17,9 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/fast_wildcard_group.h"
+#include "net/instaweb/util/public/wildcard_group.h"
 
 namespace net_instaweb {
-
-class RequestHeaders;
 
 // This class contains various user agent based checks.  Currently all of these
 // are based on simple wildcard based white- and black-lists.
@@ -32,20 +30,10 @@ class RequestHeaders;
 // clients.
 class UserAgentMatcher {
  public:
-  enum BlinkRequestType {
-    kBlinkWhiteListForDesktop,
-    kBlinkBlackListForDesktop,
-    kBlinkMobile,
-    kNullOrEmpty,
+  enum BlinkUserAgentType {
+    kSupportsBlinkDesktop,
+    kSupportsBlinkMobile,
     kDoesNotSupportBlink,
-  };
-
-  enum PrefetchMechanism {
-    kPrefetchNotSupported,
-    kPrefetchLinkRelSubresource,
-    kPrefetchImageTag,
-    kPrefetchObjectTag,
-    kPrefetchLinkScriptTag,
   };
 
   UserAgentMatcher();
@@ -57,41 +45,31 @@ class UserAgentMatcher {
   bool IsIe6or7(const StringPiece& user_agent) const {
     return IsIe6(user_agent) || IsIe7(user_agent);
   };
-  bool IsIe9(const StringPiece& user_agent) const;
 
-  virtual bool SupportsImageInlining(const StringPiece& user_agent) const;
+  bool SupportsImageInlining(const StringPiece& user_agent) const;
 
-  // Returns the request type for the given request. The return type currently
+  // Returns the user agent type for user_agent. The return type currently
   // supports desktop, mobile and not supported.
-  virtual BlinkRequestType GetBlinkRequestType(
-      const char* user_agent, const RequestHeaders* request_headers) const;
-
-  // Returns the supported prefetch mechanism depending upon the user agent.
-  PrefetchMechanism GetPrefetchMechanism(const StringPiece& user_agent) const;
+  BlinkUserAgentType GetBlinkUserAgentType(const char* user_agent,
+                                           bool allow_mobile) const;
 
   bool SupportsJsDefer(const StringPiece& user_agent) const;
   bool SupportsWebp(const StringPiece& user_agent) const;
 
-  // IE9 does not implement <link rel=dns-prefetch ...>. Instead it does DNS
-  // preresolution when it sees <link rel=prefetch ...>. This method returns
-  // true if the browser support DNS prefetch using rel=prefetch.
-  // Refer: http://blogs.msdn.com/b/ie/archive/2011/03/17/internet-explorer-9-network-performance-improvements.aspx NOLINT
-  bool SupportsDnsPrefetchUsingRelPrefetch(const StringPiece& user_agent) const;
-
-  virtual bool IsMobileUserAgent(const StringPiece& user_agent) const;
-  virtual bool IsMobileRequest(
-      const StringPiece& user_agent,
-      const RequestHeaders* request_headers) const;
-
+  // The following two functions have similar names, but different
+  // functionality. The first one implements a simple restricted wildcard based
+  // check of whether user_agent corresponds to a mobile. It is not exhaustive.
+  // The second one is meant to check if user_agent matches all currently known
+  // mobile user agent pattern.
+  // TODO(sriharis): Remove the need for these two separate functions, and
+  // refactor the names.
+  bool IsMobileUserAgent(const StringPiece& user_agent) const;
+  virtual bool IsAnyMobileUserAgent(const char* user_agent) const;
  private:
-  FastWildcardGroup supports_image_inlining_;
-  FastWildcardGroup blink_desktop_whitelist_;
-  FastWildcardGroup blink_desktop_blacklist_;
-  FastWildcardGroup supports_webp_;
-  FastWildcardGroup mobile_user_agents_;
-  FastWildcardGroup supports_prefetch_link_rel_subresource_;
-  FastWildcardGroup supports_prefetch_image_tag_;
-  FastWildcardGroup supports_prefetch_link_script_tag_;
+  WildcardGroup supports_image_inlining_;
+  WildcardGroup supports_blink_desktop_;
+  WildcardGroup supports_webp_;
+  WildcardGroup mobile_user_agents_;
 
   DISALLOW_COPY_AND_ASSIGN(UserAgentMatcher);
 };

@@ -28,7 +28,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/arena.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -40,9 +40,15 @@
 namespace net_instaweb {
 
 class DocType;
+class HtmlCdataNode;
+class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlDirectiveNode;
 class HtmlEvent;
 class HtmlFilter;
+class HtmlIEDirectiveNode;
 class HtmlLexer;
+class HtmlNode;
 class MessageHandler;
 class Timer;
 
@@ -347,11 +353,6 @@ class HtmlParse {
   // Adds a filter to be called during parsing as new events are added.
   // Takes ownership of the HtmlFilter passed in.
   void add_event_listener(HtmlFilter* listener);
-
-  // Inserts a comment before or after the current node.  The function tries to
-  // pick an intelligent place depending on the document structure and
-  // whether the current node is a start-element, end-element, or a leaf.
-  void InsertComment(const StringPiece& sp);
 
  protected:
   typedef std::vector<HtmlFilter*> FilterVector;

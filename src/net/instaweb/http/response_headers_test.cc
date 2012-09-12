@@ -20,10 +20,8 @@
 
 #include <cstddef>                     // for size_t
 #include <algorithm>
-#include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers_parser.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
@@ -47,7 +45,6 @@ class ResponseHeadersTest : public testing::Test {
                         &start_time_plus_5_minutes_string_);
     ConvertTimeToString(MockTimer::kApr_5_2010_ms + 6 * Timer::kMinuteMs,
                         &start_time_plus_6_minutes_string_);
-    with_auth_.Add(HttpAttributes::kAuthorization, "iris scan");
   }
 
   void CheckGoogleHeaders(const ResponseHeaders& response_headers) {
@@ -147,10 +144,6 @@ class ResponseHeadersTest : public testing::Test {
   ResponseHeaders response_headers_;
   ResponseHeadersParser parser_;
 
-  // RequestHeaders with and without an 'Authorization:' header.
-  RequestHeaders with_auth_;
-  RequestHeaders without_auth_;
-
   GoogleString start_time_string_;
   GoogleString start_time_plus_5_minutes_string_;
   GoogleString start_time_plus_6_minutes_string_;
@@ -230,17 +223,6 @@ TEST_F(ResponseHeadersTest, TestParseAndWrite) {
   CheckGoogleHeaders(response_headers3);
 }
 
-TEST_F(ResponseHeadersTest, TestSizeEstimate) {
-  GoogleString headers = StrCat(
-      "HTTP/1.0 200 OK\r\n"
-      "Cache-control: max-age=300\r\n"
-      "Date: ", start_time_string_, "\r\n",
-      "X-Pagespeed: Fast\r\n"
-      "\r\n");
-  ParseHeaders(headers);
-  EXPECT_EQ(headers.length(), response_headers_.SizeEstimate());
-}
-
 // Test caching header interpretation.  Note that the detailed testing
 // of permutations is done in pagespeed/core/resource_util_test.cc.  We
 // are just trying to ensure that we have populated the Resource object
@@ -281,11 +263,8 @@ TEST_F(ResponseHeadersTest, TestCachingPublic) {
   ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n\r\n"));
-
   EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
-  EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
-  EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
   EXPECT_EQ(300 * 1000,
             response_headers_.CacheExpirationTimeMs() -
             response_headers_.date_ms());
@@ -298,22 +277,18 @@ TEST_F(ResponseHeadersTest, TestCachingPrivate) {
                       "Cache-control: private, max-age=10\r\n\r\n"));
   EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
-  EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
-  EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
   EXPECT_EQ(10 * 1000,
             response_headers_.CacheExpirationTimeMs() -
             response_headers_.date_ms());
 }
 
-// Default caching (public unless request has authorization headers)
+// Default caching (when in doubt, it's public)
 TEST_F(ResponseHeadersTest, TestCachingDefault) {
   ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=100\r\n\r\n"));
   EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
-  EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
-  EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
   EXPECT_EQ(100 * 1000,
             response_headers_.CacheExpirationTimeMs() -
             response_headers_.date_ms());
@@ -479,29 +454,6 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForNonHtml) {
                       "Cache-control: max-age=300\r\n\r\n"));
   EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
-}
-
-TEST_F(ResponseHeadersTest, GetSanitizedProto) {
-  ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Set-Cookie: CG=US:CA:Mountain+View\r\n"
-                      "Set-Cookie: UA=chrome\r\n"
-                      "Cache-Control: max-age=100\r\n"
-                      "Set-Cookie: path=/\r\n"
-                      "Vary: User-Agent\r\n"
-                      "Set-Cookie2: LA=1275937193\r\n"
-                      "Vary: Accept-Encoding\r\n"
-                      "\r\n"));
-  HttpResponseHeaders proto;
-  response_headers_.GetSanitizedProto(&proto);
-  ASSERT_EQ(proto.header_size(), 4);
-  EXPECT_EQ(proto.header(0).name(), HttpAttributes::kDate);
-  EXPECT_EQ(proto.header(1).name(), HttpAttributes::kCacheControl);
-  EXPECT_EQ(proto.header(1).value(), "max-age=100");
-  EXPECT_EQ(proto.header(2).name(), HttpAttributes::kVary);
-  EXPECT_EQ(proto.header(2).value(), "User-Agent");
-  EXPECT_EQ(proto.header(3).name(), HttpAttributes::kVary);
-  EXPECT_EQ(proto.status_code(), 200);
 }
 
 TEST_F(ResponseHeadersTest, TestRemoveAll) {
@@ -719,48 +671,6 @@ TEST_F(ResponseHeadersTest, TestCachingVaryStar) {
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: *\r\n\r\n\r\n"));
   EXPECT_FALSE(response_headers_.IsCacheable());
-  EXPECT_FALSE(response_headers_.VaryCacheable(true));
-  EXPECT_FALSE(response_headers_.VaryCacheable(false));
-}
-
-TEST_F(ResponseHeadersTest, TestCachingVaryCookie) {
-  ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: public, max-age=300\r\n"
-                      "Vary: Cookie\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsCacheable());
-  EXPECT_FALSE(response_headers_.VaryCacheable(true));
-  EXPECT_TRUE(response_headers_.VaryCacheable(false));
-}
-
-TEST_F(ResponseHeadersTest, TestCachingVaryCookieUserAgent) {
-  ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: public, max-age=300\r\n"
-                      "Vary: Cookie,User-Agent\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsCacheable());
-  EXPECT_FALSE(response_headers_.VaryCacheable(true));
-  EXPECT_FALSE(response_headers_.VaryCacheable(false));
-}
-
-TEST_F(ResponseHeadersTest, TestCachingVaryAcceptEncoding) {
-  ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: public, max-age=300\r\n"
-                      "Vary: Accept-Encoding\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsCacheable());
-  EXPECT_TRUE(response_headers_.VaryCacheable(true));
-  EXPECT_TRUE(response_headers_.VaryCacheable(false));
-}
-
-TEST_F(ResponseHeadersTest, TestCachingVaryAcceptEncodingCookie) {
-  ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
-                      "Date: ", start_time_string_, "\r\n"
-                      "Cache-control: public, max-age=300\r\n"
-                      "Vary: Accept-Encoding,Cookie\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsCacheable());
-  EXPECT_FALSE(response_headers_.VaryCacheable(true));
-  EXPECT_TRUE(response_headers_.VaryCacheable(false));
 }
 
 TEST_F(ResponseHeadersTest, TestSetDateAndCaching) {
@@ -1283,78 +1193,6 @@ TEST_F(ResponseHeadersTest, IsHtmlLike) {
 
   EXPECT_TRUE(IsHtmlLike("text/html"));
   EXPECT_TRUE(IsHtmlLike("application/xhtml+xml"));
-}
-
-TEST_F(ResponseHeadersTest, ForceCachingForNoCache) {
-  response_headers_.SetStatusAndReason(HttpStatus::kOK);
-  response_headers_.SetDate(MockTimer::kApr_5_2010_ms);
-  response_headers_.Add(HttpAttributes::kCacheControl, "max-age=0, no-cache");
-  response_headers_.ForceCaching(360 * 1000);
-  response_headers_.ComputeCaching();
-
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
-  EXPECT_EQ(360 * 1000, response_headers_.cache_ttl_ms());
-  EXPECT_FALSE(response_headers_.Has(HttpAttributes::kExpires));
-  ConstStringStarVector values;
-  response_headers_.Lookup(HttpAttributes::kCacheControl, &values);
-  EXPECT_EQ(2, values.size());
-  EXPECT_STREQ("max-age=0", *(values[0]));
-  EXPECT_STREQ("no-cache", *(values[1]));
-
-  response_headers_.UpdateCacheHeadersIfForceCached();
-  EXPECT_STREQ("max-age=360",
-               response_headers_.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_6_minutes_string_,
-               response_headers_.Lookup1(HttpAttributes::kExpires));
-}
-
-TEST_F(ResponseHeadersTest, ForceCachingForPrivate) {
-  response_headers_.SetStatusAndReason(HttpStatus::kOK);
-  response_headers_.SetDate(MockTimer::kApr_5_2010_ms);
-  response_headers_.Add(HttpAttributes::kCacheControl,
-                        "private, max-age=30000000");
-  response_headers_.ForceCaching(360 * 1000);
-  response_headers_.ComputeCaching();
-
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
-  EXPECT_EQ(360 * 1000, response_headers_.cache_ttl_ms());
-  EXPECT_FALSE(response_headers_.Has(HttpAttributes::kExpires));
-  ConstStringStarVector values;
-  response_headers_.Lookup(HttpAttributes::kCacheControl, &values);
-  EXPECT_EQ(2, values.size());
-  EXPECT_STREQ("private", *(values[0]));
-  EXPECT_STREQ("max-age=30000000", *(values[1]));
-
-  response_headers_.UpdateCacheHeadersIfForceCached();
-  EXPECT_STREQ("max-age=360",
-               response_headers_.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_6_minutes_string_,
-               response_headers_.Lookup1(HttpAttributes::kExpires));
-}
-
-TEST_F(ResponseHeadersTest, ForceCachingForAlreadyPublic) {
-  response_headers_.SetStatusAndReason(HttpStatus::kOK);
-  response_headers_.SetDate(MockTimer::kApr_5_2010_ms);
-  response_headers_.Add(HttpAttributes::kCacheControl,
-                        "public, max-age=3456");
-  response_headers_.ForceCaching(360 * 1000);
-  response_headers_.ComputeCaching();
-
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
-  EXPECT_EQ(3456 * 1000, response_headers_.cache_ttl_ms());
-  EXPECT_FALSE(response_headers_.Has(HttpAttributes::kExpires));
-  ConstStringStarVector values;
-  response_headers_.Lookup(HttpAttributes::kCacheControl, &values);
-  EXPECT_EQ(2, values.size());
-  EXPECT_STREQ("public", *(values[0]));
-  EXPECT_STREQ("max-age=3456", *(values[1]));
-
-  response_headers_.UpdateCacheHeadersIfForceCached();
-  EXPECT_FALSE(response_headers_.Has(HttpAttributes::kExpires));
-  response_headers_.Lookup(HttpAttributes::kCacheControl, &values);
-  EXPECT_EQ(2, values.size());
-  EXPECT_STREQ("public", *(values[0]));
-  EXPECT_STREQ("max-age=3456", *(values[1]));
 }
 
 }  // namespace net_instaweb

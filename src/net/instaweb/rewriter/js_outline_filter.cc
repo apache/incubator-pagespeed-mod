@@ -25,7 +25,7 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
@@ -43,7 +43,7 @@ const char JsOutlineFilter::kFilterId[] = "jo";
 JsOutlineFilter::JsOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       inline_element_(NULL),
-      server_context_(driver->server_context()),
+      resource_manager_(driver->resource_manager()),
       size_threshold_bytes_(driver->options()->js_outline_min_bytes()),
       script_tag_scanner_(driver_) { }
 
@@ -137,7 +137,7 @@ bool JsOutlineFilter::WriteResource(const GoogleString& content,
   // We don't provide charset here since in generally we can just inherit
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
-  return server_context_->Write(
+  return resource_manager_->Write(
       ResourceVector(), content, &kContentTypeJavascript, StringPiece(),
       resource, handler);
 }

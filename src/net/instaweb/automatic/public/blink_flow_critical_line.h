@@ -20,9 +20,7 @@
 #define NET_INSTAWEB_AUTOMATIC_PUBLIC_BLINK_FLOW_CRITICAL_LINE_H_
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -34,7 +32,7 @@ class BlinkCriticalLineDataFinder;
 class PropertyPage;
 class ProxyFetchPropertyCallbackCollector;
 class ProxyFetchFactory;
-class ServerContext;
+class ResourceManager;
 class RewriteOptions;
 class Statistics;
 class TimedVariable;
@@ -47,18 +45,17 @@ class BlinkFlowCriticalLine {
   // These strings identify sync-points for reproducing races between foreground
   // serving request and background blink computation requests in tests.
   static const char kBackgroundComputationDone[];
-  static const char kUpdateResponseCodeDone[];
 
   static void Start(const GoogleString& url,
                     AsyncFetch* base_fetch,
                     RewriteOptions* options,
                     ProxyFetchFactory* factory,
-                    ServerContext* manager,
+                    ResourceManager* manager,
                     ProxyFetchPropertyCallbackCollector* property_callback);
 
   virtual ~BlinkFlowCriticalLine();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   static const char kAboveTheFold[];
   static const char kNumBlinkHtmlCacheHits[];
@@ -66,25 +63,15 @@ class BlinkFlowCriticalLine {
   static const char kNumBlinkSharedFetchesStarted[];
   static const char kNumBlinkSharedFetchesCompleted[];
   static const char kNumComputeBlinkCriticalLineDataCalls[];
-  static const char kNumBlinkHtmlMatches[];
-  static const char kNumBlinkHtmlMismatches[];
-  static const char kNumBlinkHtmlMismatchesCacheDeletes[];
-  static const char kNumBlinkHtmlSmartdiffMatches[];
-  static const char kNumBlinkHtmlSmartdiffMismatches[];
+  static const char kNoScriptRedirectFormatter[];
 
  private:
   BlinkFlowCriticalLine(const GoogleString& url,
                         AsyncFetch* base_fetch,
                         RewriteOptions* options,
                         ProxyFetchFactory* factory,
-                        ServerContext* manager,
+                        ResourceManager* manager,
                         ProxyFetchPropertyCallbackCollector* property_callback);
-
-  // Sets request start time.
-  void SetStartRequestTimings();
-
-  // Sets the server side response start time.
-  void SetResponseStartTime();
 
   // Function called by the callback collector whenever property cache lookup
   // is done. Based on the result, it will call either
@@ -100,14 +87,7 @@ class BlinkFlowCriticalLine {
   // compute BlinkCriticalLineData.
   void BlinkCriticalLineDataMiss();
 
-  // Creates a rewrite driver and triggers proxy fetch.
-  // critical_line_data_found indicates whether it is a cache hit case, while
-  // serve_non_critical means that non critical needs to be served (i.e., not
-  // yet served).
-  void TriggerProxyFetch(bool critical_line_data_found,
-                         bool serve_non_critical);
-
-  void WriteResponseStartAndLookUpTimings();
+  void TriggerProxyFetch(bool critical_line_data_found);
 
   // Serves all the panel contents including critical html, critical images json
   // and non critical json. This is the case when there are no cacheable panels
@@ -128,15 +108,7 @@ class BlinkFlowCriticalLine {
   // Sends non critical json to the client.
   void SendNonCriticalJson(GoogleString* non_critical_json_str);
 
-  // Sends the lazyload filter javascript code.
-  void SendLazyloadImagesJs();
-
   void WriteString(const StringPiece& str);
-
-  int64 GetTimeElapsedFromStartRequest();
-
-  GoogleString GetAddTimingScriptString(const GoogleString& timing_str,
-                                        int64 time_ms);
 
   void Flush();
 
@@ -148,20 +120,14 @@ class BlinkFlowCriticalLine {
   bool IsLastResponseCodeInvalid(PropertyPage* page);
 
   GoogleString url_;
-  GoogleUrl google_url_;
   GoogleString critical_html_;
   AsyncFetch* base_fetch_;
-  LogRecord* log_record_;
-  BlinkInfo* blink_info_;
   RewriteOptions* options_;
   ProxyFetchFactory* factory_;
-  ServerContext* manager_;
+  ResourceManager* manager_;
   ProxyFetchPropertyCallbackCollector* property_callback_;
   scoped_ptr<BlinkCriticalLineData> blink_critical_line_data_;
   BlinkCriticalLineDataFinder* finder_;
-  int64 request_start_time_ms_;
-  int64 time_to_start_blink_flow_critical_line_ms_;
-  int64 time_to_critical_line_data_look_up_done_ms_;
 
   TimedVariable* num_blink_html_cache_hits_;
   TimedVariable* num_blink_shared_fetches_started_;

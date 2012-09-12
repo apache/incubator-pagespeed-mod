@@ -26,7 +26,6 @@
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
@@ -51,7 +50,6 @@ static const char kTestDomain[] = "http://test.com/";
 //      +- TopChild2Child1
 static const char kTopCss[] =
     ".background_red{background-color:red}"
-    "@font-face { font-family: 'Magellan'; font-style: normal }"
     ".foreground_yellow{color:#ff0}";
 static const char kTopChild1Css[] =
     ".background_blue{background-color:#00f}"
@@ -61,7 +59,6 @@ static const char kTopChild1Child1Css[] =
     ".foreground_pink{color:#ffc0cb}";
 static const char kTopChild2Css[] =
     ".background_white{background-color:#fff}"
-    "@font-face { font-family: 'Cook'; font-style: normal }"
     ".foreground_black{color:#000}";
 static const char kTopChild2Child1Css[] =
     ".background_green{background-color:#0f0}"
@@ -69,7 +66,7 @@ static const char kTopChild2Child1Css[] =
 
 }  // namespace
 
-class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
+class CssHierarchyTest : public ::testing::Test {
  protected:
   CssHierarchyTest()
       : top_url_(kTestDomain),
@@ -88,8 +85,7 @@ class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, flat_top_css_,
                         false /* is_xhtml */, false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
-                        message_handler());
+                        NULL /* stylesheet */, message_handler());
   }
 
   // Initialize a nested root - top-level CSS with @imports.
@@ -97,8 +93,7 @@ class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* is_xhtml */, false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
-                        message_handler());
+                        NULL /* stylesheet */, message_handler());
   }
 
   // Initialize a nested root with the given media.
@@ -108,8 +103,7 @@ class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
     InitializeCss(top_media, child_media);
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* is_xhtml */, false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
-                        message_handler());
+                        NULL /* stylesheet */, message_handler());
   }
 
   // Expand the hierarchy using ExpandChildren. Expands the top then adds
@@ -120,7 +114,7 @@ class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
   void ResizeChildren(CssHierarchy* top, int n) {
     top->children().resize(n);
     for (int i = 0; i < n; ++i) {
-      top->children()[i] = new CssHierarchy(NULL);
+      top->children()[i] = new CssHierarchy();
     }
   }
 
@@ -300,7 +294,7 @@ bool CssHierarchyTest::AreEquivalent(const CssHierarchy& one,
 }
 
 TEST_F(CssHierarchyTest, ParseFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
@@ -313,7 +307,7 @@ TEST_F(CssHierarchyTest, ParseFlat) {
 }
 
 TEST_F(CssHierarchyTest, ExpandFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeFlatRoot(&top);
   EXPECT_TRUE(NULL == top.stylesheet());
@@ -331,7 +325,7 @@ TEST_F(CssHierarchyTest, ExpandFlat) {
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
@@ -343,7 +337,7 @@ TEST_F(CssHierarchyTest, RollUpContentsFlat) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
@@ -362,7 +356,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsFlat) {
 }
 
 TEST_F(CssHierarchyTest, ParseNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -373,7 +367,7 @@ TEST_F(CssHierarchyTest, ParseNested) {
 }
 
 TEST_F(CssHierarchyTest, ExpandNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -396,8 +390,8 @@ TEST_F(CssHierarchyTest, ExpandNested) {
 }
 
 TEST_F(CssHierarchyTest, ExpandEqualsPopulate) {
-  CssHierarchy top1(NULL);
-  CssHierarchy top2(NULL);
+  CssHierarchy top1;
+  CssHierarchy top2;
 
   InitializeNestedRoot(&top1);
   ExpandHierarchy(&top1);
@@ -419,12 +413,11 @@ TEST_F(CssHierarchyTest, ExpandEqualsPopulate) {
 TEST_F(CssHierarchyTest, FailOnDirectRecursion) {
   InitializeCss("", "");  // to initialize top_url().
 
-  CssHierarchy top(NULL);
+  CssHierarchy top;
   GoogleString recursive_import = StrCat("@import '", top_url().Spec(), "' ;");
   top.InitializeRoot(top_url(), top_url(), recursive_import,
                      false /* is_xhtml */, false /* has_unparseables */,
-                     0 /* flattened_result_limit */, NULL /* stylesheet */,
-                     message_handler());
+                     NULL /* stylesheet */, message_handler());
 
   // The top-level normally doesn't have an URL so we won't catch it recursing
   // until the grandchild level, but we -do- catch it, eventually.
@@ -448,7 +441,7 @@ TEST_F(CssHierarchyTest, FailOnDirectRecursion) {
 }
 
 TEST_F(CssHierarchyTest, FailOnIndirectRecursion) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
 
@@ -456,7 +449,7 @@ TEST_F(CssHierarchyTest, FailOnIndirectRecursion) {
   EXPECT_TRUE(top.Parse());
   EXPECT_TRUE(top.ExpandChildren());
   EXPECT_TRUE(top.flattening_succeeded());
-  EXPECT_TRUE(top.unparseable_detected());
+  EXPECT_FALSE(top.unparseable_detected());
 
   CssHierarchy* child1 = top.children()[0];
   child1->set_input_contents(nested_child1_css());
@@ -493,11 +486,10 @@ TEST_F(CssHierarchyTest, UnparseableSection) {
   GoogleString unparseable_css = StrCat("body { background: "
                                         "url(", top_url().Spec(), "), ",
                                         "url(", top_url().Spec(), ") }");
-  CssHierarchy top(NULL);
+  CssHierarchy top;
   top.InitializeRoot(top_url(), top_url(), unparseable_css,
                      false /* is_xhtml */, false /* has_unparseables */,
-                     0 /* flattened_result_limit */, NULL /* stylesheet */,
-                     message_handler());
+                     NULL /* stylesheet */, message_handler());
 
   // The top-level normally doesn't have an URL so we won't catch it recursing
   // until the grandchild level, but we -do- catch it, eventually.
@@ -507,7 +499,7 @@ TEST_F(CssHierarchyTest, UnparseableSection) {
 }
 
 TEST_F(CssHierarchyTest, ExpandElidesImportsWithNoMedia) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRootWithMedia(&top, "screen", "print");
   ExpandHierarchy(&top);
@@ -537,7 +529,7 @@ TEST_F(CssHierarchyTest, ExpandElidesImportsWithNoMedia) {
 }
 
 TEST_F(CssHierarchyTest, CompatibleCharset) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -562,7 +554,7 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
 }
 
 TEST_F(CssHierarchyTest, IncompatibleCharset) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -583,7 +575,7 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -594,43 +586,8 @@ TEST_F(CssHierarchyTest, RollUpContentsNested) {
   EXPECT_EQ(flattened_css(), top.minified_contents());
 }
 
-TEST_F(CssHierarchyTest, RollUpContentsNestedUnderLimit) {
-  // The flattening limit is so big flattening succeeds just fine.
-  CssHierarchy top(NULL);
-  InitializeNestedRoot(&top);
-  top.set_flattened_result_limit(2048L);
-  ExpandHierarchy(&top);
-  top.RollUpContents();
-  EXPECT_TRUE(top.flattening_succeeded());
-  EXPECT_EQ(flattened_css(), top.minified_contents());
-}
-
-TEST_F(CssHierarchyTest, RollUpContentsNestedAtLimit) {
-  // The flattening limit is exactly the flattened result size, so flattening
-  // fails, and the result is the unflattened/original input.
-  CssHierarchy top(NULL);
-  InitializeNestedRoot(&top);
-  top.set_flattened_result_limit(flattened_css().size());
-  ExpandHierarchy(&top);
-  top.RollUpContents();
-  EXPECT_FALSE(top.flattening_succeeded());
-  EXPECT_EQ(nested_top_css(), top.minified_contents());
-}
-
-TEST_F(CssHierarchyTest, RollUpContentsNestedOverLimit) {
-  // The flattening limit is tiny so flattening fails, and the result is the
-  // unflattened/original input.
-  CssHierarchy top(NULL);
-  InitializeNestedRoot(&top);
-  top.set_flattened_result_limit(10L);
-  ExpandHierarchy(&top);
-  top.RollUpContents();
-  EXPECT_FALSE(top.flattening_succeeded());
-  EXPECT_EQ(nested_top_css(), top.minified_contents());
-}
-
 TEST_F(CssHierarchyTest, RollUpStylesheetsNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -650,7 +607,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNested) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithoutRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.
@@ -669,7 +626,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithoutRollUpContents) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithChildrenRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.
@@ -698,7 +655,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithChildrenRollUpContents) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedAfterRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top;
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.

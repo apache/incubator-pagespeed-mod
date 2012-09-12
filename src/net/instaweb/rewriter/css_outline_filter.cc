@@ -24,7 +24,7 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -133,8 +133,7 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
   // We don't provide charset here since in general we can just inherit
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
-  // TODO(matterbury) but AFAICT you cannot have a BOM in a <style> tag.
-  return server_context_->Write(
+  return resource_manager_->Write(
       ResourceVector(), content, &kContentTypeCss, StringPiece(),
       resource, handler);
 }
@@ -182,11 +181,9 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
           driver_->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
           driver_->AddAttribute(link_element, HtmlName::kHref,
                                 output_resource->url());
-          // Add all style attributes to link.
-          const HtmlElement::AttributeList& attrs = style_element->attributes();
-          for (HtmlElement::AttributeConstIterator i(attrs.begin());
-               i != attrs.end(); ++i) {
-            const HtmlElement::Attribute& attr = *i;
+          // Add all style atrributes to link.
+          for (int i = 0; i < style_element->attribute_size(); ++i) {
+            const HtmlElement::Attribute& attr = style_element->attribute(i);
             link_element->AddAttribute(attr);
           }
           // Add link to DOM.

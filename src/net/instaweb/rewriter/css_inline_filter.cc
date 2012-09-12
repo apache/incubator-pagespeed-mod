@@ -23,10 +23,8 @@
 #include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -44,14 +42,10 @@ class CssInlineFilter::Context : public InlineRewriteContext {
       : InlineRewriteContext(filter, element, src),
         filter_(filter) {
     base_url_.Reset(base_url);
-    const char* charset = element->AttributeValue(HtmlName::kCharset);
-    if (charset != NULL) {
-      attrs_charset_ = GoogleString(charset);
-    }
   }
 
-  virtual bool ShouldInline(const ResourcePtr& resource) const {
-    return filter_->ShouldInline(resource, attrs_charset_);
+  virtual bool ShouldInline(const StringPiece& input) const {
+    return filter_->ShouldInline(input);
   }
 
   virtual void Render() {
@@ -74,7 +68,6 @@ class CssInlineFilter::Context : public InlineRewriteContext {
  private:
   CssInlineFilter* filter_;
   GoogleUrl base_url_;
-  GoogleString attrs_charset_;
 
   DISALLOW_COPY_AND_ASSIGN(Context);
 };
@@ -96,28 +89,12 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
       return;
     }
 
-    // Only inline if the media type includes "screen". We don't inline other
-    // types since they're much less common so inlining them would actually
-    // slow down the 99% case of "screen". "all" means all types, including
-    // "screen", and the type can be a comma-separated list, so we have to
-    // check every type in the list.
-    const char* media = element->EscapedAttributeValue(HtmlName::kMedia);
-    if (media != NULL) {
-      StringPiece media_sp(media);
-      StringPieceVector media_vector;
-      SplitStringPieceToVector(media_sp, ",", &media_vector, true);
-      bool is_for_screen = false;
-      for (int i = 0, n = media_vector.size(); i < n; ++i) {
-        TrimWhitespace(&media_vector[i]);
-        if (StringCaseEqual(media_vector[i], "all") ||
-            StringCaseEqual(media_vector[i], "screen")) {
-          is_for_screen = true;
-          break;
-        }
-      }
-      if (!is_for_screen) {
-        return;
-      }
+    // If the link tag has a media attribute whose value isn't "all", don't
+    // inline.  (Note that "all" is equivalent to having no media attribute;
+    // see http://www.w3.org/TR/html5/semantics.html#the-style-element)
+    const char* media = element->AttributeValue(HtmlName::kMedia);
+    if (media != NULL && strcmp(media, "all") != 0) {
+      return;
     }
 
     // Get the URL where the external script is stored
@@ -151,18 +128,8 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   }
 }
 
-bool CssInlineFilter::ShouldInline(const ResourcePtr& resource,
-                                   const StringPiece& attrs_charset) const {
-  // If the contents are bigger than our threshold, don't inline.
-  if (resource->contents().size() > size_threshold_bytes_) {
-    return false;
-  }
-
-  // If the charset is incompatible with the HTML's, don't inline.
-  StringPiece htmls_charset(driver_->containing_charset());
-  GoogleString css_charset = RewriteFilter::GetCharsetForStylesheet(
-      resource.get(), attrs_charset, htmls_charset);
-  if (!StringCaseEqual(htmls_charset, css_charset)) {
+bool CssInlineFilter::ShouldInline(const StringPiece& contents) const {
+  if (contents.size() > size_threshold_bytes_) {
     return false;
   }
 
@@ -180,17 +147,15 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
   // Note that we have to do this at rendering stage, since the same stylesheet
   // may be included from HTML in different directories.
   // TODO(jmarantz): fix bug 295:  domain-rewrite & shard here.
-  StringPiece clean_contents(contents);
-  StripUtf8Bom(&clean_contents);
   GoogleString rewritten_contents;
   StringWriter writer(&rewritten_contents);
   GoogleUrl resource_url(resource->url());
   bool resolved_ok = true;
-  switch (driver_->ResolveCssUrls(resource_url, base_url.Spec(), clean_contents,
+  switch (driver_->ResolveCssUrls(resource_url, base_url.Spec(), contents,
                                   &writer, message_handler)) {
     case RewriteDriver::kNoResolutionNeeded:
       // We don't need to absolutify URLs if input directory is same as base.
-      if (!writer.Write(clean_contents, message_handler)) {
+      if (!writer.Write(contents, message_handler)) {
         resolved_ok = false;
       }
       break;
@@ -209,15 +174,6 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
       driver_->AppendChild(style_element,
                            driver_->NewCharactersNode(element,
                                                       rewritten_contents));
-
-      // If the link tag has a media attribute, copy it over to the style.
-      HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kMedia);
-      if (attr != NULL) {
-        const char* media = attr->escaped_value();
-        if (media != NULL) {
-          driver_->AddEscapedAttribute(style_element, HtmlName::kMedia, media);
-        }
-      }
     }
 
     // Add the local storage cache attributes if it is enabled.

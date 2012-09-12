@@ -20,7 +20,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -36,11 +36,10 @@ const char kCssTail[] = "styles.css";
 const char kCssSubdir[] = "assets/";
 const char kCssData[] = ".blue {color: blue; src: url(dummy.png);}";
 
-class CssInlineImportToLinkFilterTest : public RewriteTestBase {
+class CssInlineImportToLinkFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
-    SetHtmlMimetype();
+    ResourceManagerTestBase::SetUp();
   }
 
   // Test general situations.
@@ -135,30 +134,6 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithDifferentMedia) {
   ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen\">"
                          "@import url(assets/styles.css) all;</style>");
   ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen,printer\">"
-                         "@import url(assets/styles.css) screen;</style>");
-}
-
-TEST_F(CssInlineImportToLinkFilterTest, MediaQueries) {
-  AddFilter(RewriteOptions::kInlineImportToLink);
-  // If @import has no media, we'll keep the complex media query in the
-  // media attribute.
-  ValidateStyleToLink("<style type=\"text/css\" media=\"not screen\">"
-                      "@import url(assets/styles.css);</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"not screen\">");
-
-  // Generally we just give up on complex media queries. Note, these could
-  // be rewritten in the future, just change the tests to produce sane results.
-  ValidateStyleUnchanged("<style type=\"text/css\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style media=\"not screen and (color), only print\">"
-                         "@import url(assets/styles.css)"
-                         " not screen and (color), only print;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen and (x)\">"
                          "@import url(assets/styles.css) screen;</style>");
 }
 

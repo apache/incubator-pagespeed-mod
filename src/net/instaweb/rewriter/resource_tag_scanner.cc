@@ -14,174 +14,65 @@
  * limitations under the License.
  */
 
-// Authors: jmarantz@google.com (Joshua Marantz)
-//          jefftk@google.com (Jeff Kaufman)
+// Author: jmarantz@google.com (Joshua Marantz)
+
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-namespace resource_tag_scanner {
 
-const char kIcon[] = "icon";  // favicons
-
-// See http://developer.apple.com/library/ios/#DOCUMENTATION/
-//   AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/
-//   ConfiguringWebApplications.html
-const char kAppleTouchIcon[] = "apple-touch-icon";
-const char kAppleTouchIconPrecomposed[] = "apple-touch-icon-precomposed";
-const char kAppleTouchStartupImage[] = "apple-touch-startup-image";
-
-// Below are the values of the "rel" attribute of LINK tag which are relevant to
-// DNS prefetch.
-const char kRelPrefetch[] = "prefetch";
-const char kRelDnsPrefetch[] = "dns-prefetch";
-
-const char kAttrValImage[] = "image";  // <input type="image" src=...>
-
-HtmlElement::Attribute* ScanElement(
-    HtmlElement* element,
-    RewriteDriver* driver,  // Can be NULL.
-    semantic_type::Category* category) {
+HtmlElement::Attribute* ResourceTagScanner::ScanElement(
+    HtmlElement* element, bool* is_hyperlink) const {
+  *is_hyperlink = false;
   HtmlName::Keyword keyword = element->keyword();
   HtmlElement::Attribute* attr = NULL;
-  *category = semantic_type::kUndefined;
-  if (element->attributes().IsEmpty()) {
-    return NULL;  // No attributes.
-  }
   switch (keyword) {
     case HtmlName::kLink: {
       // See http://www.whatwg.org/specs/web-apps/current-work/multipage/
       // links.html#linkTypes
-      attr = element->FindAttribute(HtmlName::kHref);
-      *category = semantic_type::kHyperlink;
       HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
-      if (rel_attr != NULL) {
-        if (StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                            CssTagScanner::kStylesheet)) {
-          *category = semantic_type::kStylesheet;
-        } else if (StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kIcon) ||
-                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kAppleTouchIcon) ||
-                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kAppleTouchIconPrecomposed) ||
-                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kAppleTouchStartupImage)) {
-          *category = semantic_type::kImage;
-        } else if (StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kRelPrefetch) ||
-                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                   kRelDnsPrefetch)) {
-          *category = semantic_type::kPrefetch;
-        }
+      if ((rel_attr != NULL) &&
+          StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                          CssTagScanner::kStylesheet)) {
+        attr = element->FindAttribute(HtmlName::kHref);
       }
       break;
     }
     case HtmlName::kScript:
-      attr = element->FindAttribute(HtmlName::kSrc);
-      *category = semantic_type::kScript;
-      break;
     case HtmlName::kImg:
       attr = element->FindAttribute(HtmlName::kSrc);
-      *category = semantic_type::kImage;
-      break;
-    case HtmlName::kBody:
-    case HtmlName::kTd:
-    case HtmlName::kTh:
-    case HtmlName::kTable:
-    case HtmlName::kTbody:
-    case HtmlName::kTfoot:
-    case HtmlName::kThead:
-      attr = element->FindAttribute(HtmlName::kBackground);
-      *category = semantic_type::kImage;
-      break;
-    case HtmlName::kInput:
-      if (StringCaseEqual(element->AttributeValue(HtmlName::kType),
-                          kAttrValImage)) {
-        attr = element->FindAttribute(HtmlName::kSrc);
-        *category = semantic_type::kImage;
-      }
-      break;
-    case HtmlName::kCommand:
-      attr = element->FindAttribute(HtmlName::kIcon);
-      *category = semantic_type::kImage;
       break;
     case HtmlName::kA:
     case HtmlName::kArea:
-      attr = element->FindAttribute(HtmlName::kHref);
-      *category = semantic_type::kHyperlink;
+      // http://www.whatwg.org/specs/web-apps/current-work/multipage/
+      // section-index.html#attributes-1
+      // lists all HTML tags that have 'href'.  The only one we are not
+      // scanning for in this switch-statement is 'base'.
+      //
+      // TODO(jmarantz): Add tag-scanning for 'base', but do not use that for
+      // trimming or domain-rewriting.
+      if (find_a_tags_) {
+        attr = element->FindAttribute(HtmlName::kHref);
+        *is_hyperlink = true;
+      }
       break;
     case HtmlName::kForm:
-      attr = element->FindAttribute(HtmlName::kAction);
-      *category = semantic_type::kHyperlink;
-      break;
-    case HtmlName::kAudio:
-    case HtmlName::kVideo:
-    case HtmlName::kSource:
-    case HtmlName::kTrack:
-    case HtmlName::kEmbed:
-    case HtmlName::kFrame:
-    case HtmlName::kIframe:
-      attr = element->FindAttribute(HtmlName::kSrc);
-      *category = semantic_type::kOtherResource;
-      break;
-    case HtmlName::kHtml:
-      attr = element->FindAttribute(HtmlName::kManifest);
-      *category = semantic_type::kOtherResource;
-      break;
-    case HtmlName::kBlockquote:
-    case HtmlName::kQ:
-    case HtmlName::kIns:
-    case HtmlName::kDel:
-      attr = element->FindAttribute(HtmlName::kCite);
-      *category = semantic_type::kHyperlink;
-      break;
-    case HtmlName::kButton:
-      attr = element->FindAttribute(HtmlName::kFormaction);
-      *category = semantic_type::kHyperlink;
+      if (find_form_tags_) {
+        attr = element->FindAttribute(HtmlName::kAction);
+        *is_hyperlink = true;
+      }
       break;
     default:
       break;
   }
-  if (*category == semantic_type::kUndefined && driver != NULL) {
-    // Find matching elements.
-    for (int i = 0, n = driver->options()->num_url_valued_attributes();
-         i < n; ++i) {
-      StringPiece element_i;
-      StringPiece attribute_i;
-      semantic_type::Category category_i;
-      driver->options()->UrlValuedAttribute(
-          i, &element_i, &attribute_i, &category_i);
-      if (StringCaseEqual(element->name_str(), element_i)) {
-        // Find matching attributes.
-        HtmlElement::AttributeList* attrs = element->mutable_attributes();
-        for (HtmlElement::AttributeIterator j = attrs->begin();
-             j != attrs->end(); ++j) {
-          HtmlElement::Attribute* attribute_j = j.Get();
-          if (StringCaseEqual(attribute_j->name_str(), attribute_i) &&
-              !attribute_j->decoding_error()) {
-            *category = category_i;
-            return attribute_j;
-          }
-        }
-      }
-    }
-  }
-  if (attr == NULL || attr->decoding_error() ||
-      *category == semantic_type::kUndefined) {
+  if ((attr != NULL) && attr->decoding_error()) {
     attr = NULL;
-    *category = semantic_type::kUndefined;
   }
   return attr;
 }
 
-}  // namespace resource_tag_scanner
 }  // namespace net_instaweb

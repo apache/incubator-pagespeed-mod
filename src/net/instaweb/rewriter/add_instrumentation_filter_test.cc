@@ -18,30 +18,28 @@
 
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
-#include <cstddef>
-
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class AddInstrumentationFilterTest : public RewriteTestBase {
+class AddInstrumentationFilterTest : public ResourceManagerTestBase {
  protected:
   AddInstrumentationFilterTest() {}
 
   virtual void SetUp() {
     options()->set_beacon_url("http://example.com/beacon?org=xxx&ets=");
-    AddInstrumentationFilter::InitStats(statistics());
+    AddInstrumentationFilter::Initialize(statistics());
     options()->EnableFilter(RewriteOptions::kAddInstrumentation);
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     report_unload_time_ = false;
     xhtml_mode_ = false;
     cdata_mode_ = false;
@@ -56,26 +54,16 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
     GoogleString url =
         StrCat((https_mode_ ? "https://example.com/" : kTestDomain),
                "index.html?a&b");
-    ParseUrl(url, "<head></head><head></head><body></body><body></body>");
+    ParseUrl(url, "<head></head><body></body>");
     EXPECT_EQ(https_mode_,
               output_buffer_.find("https://example.com/beacon?") !=
               GoogleString::npos);
     EXPECT_EQ(https_mode_,
               output_buffer_.find("http://example.com/beacon?") ==
               GoogleString::npos);
-    size_t index = output_buffer_.find("ets=load");
-    EXPECT_TRUE(index != GoogleString::npos);
-    EXPECT_FALSE(
-        output_buffer_.find("ets=load", index + 8) != GoogleString::npos);
-    size_t unload_index = output_buffer_.find("ets=unload");
+    EXPECT_TRUE(output_buffer_.find("ets=load") != GoogleString::npos);
     EXPECT_EQ(report_unload_time_,
-              unload_index != GoogleString::npos);
-    // Whether report unload time is enabled or not, it should not be present
-    // second time.
-    if (unload_index!=GoogleString::npos) {
-      EXPECT_FALSE(output_buffer_.find("ets=unload", unload_index + 10) !=
-                  GoogleString::npos);
-    }
+              output_buffer_.find("ets=unload") != GoogleString::npos);
 
     // All of the ampersands should be suffixed with "amp;" if that's what
     // we are looking for.
@@ -96,7 +84,10 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
   }
 
   void SetMimetypeToXhtml() {
-    SetXhtmlMimetype();
+    rewrite_driver()->set_response_headers_ptr(&response_headers_);
+    response_headers_.Add(HttpAttributes::kContentType,
+                          "application/xhtml+xml");
+    response_headers_.ComputeCaching();
     xhtml_mode_ = !cdata_mode_;
   }
 
@@ -109,6 +100,7 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
     https_mode_ = true;
   }
 
+  ResponseHeaders response_headers_;
   bool report_unload_time_;
   bool xhtml_mode_;
   bool cdata_mode_;
@@ -198,51 +190,5 @@ TEST_F(AddInstrumentationFilterTest,
   report_unload_time_ = true;
   RunInjection();
 }
-
-// Test that experiment id reporting is done correctly.
-TEST_F(AddInstrumentationFilterTest,
-       TestFuriousExperimentIdReporting) {
-  NullMessageHandler handler;
-  options()->set_running_furious_experiment(true);
-  options()->AddFuriousSpec("id=2;percent=10;slot=4;", &handler);
-  options()->AddFuriousSpec("id=7;percent=10;level=CoreFilters;slot=4;",
-                            &handler);
-  options()->SetFuriousState(2);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find("&exptid=2") != GoogleString::npos);
-}
-
-// Test that we're escaping ampersands in Xhtml.
-TEST_F(AddInstrumentationFilterTest,
-       TestFuriousExperimentIdReportingXhtml) {
-  NullMessageHandler handler;
-  options()->set_running_furious_experiment(true);
-  options()->AddFuriousSpec("id=2;percent=100", &handler);
-  options()->SetFuriousState(2);
-  SetMimetypeToXhtml();
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find("&amp;exptid=2") != GoogleString::npos);
-  EXPECT_TRUE(output_buffer_.find("hft") == GoogleString::npos);
-}
-
-// Test that headers fetch timing reporting is done correctly.
-TEST_F(AddInstrumentationFilterTest, TestHeadersFetchTimingReporting) {
-  NullMessageHandler handler;
-  LoggingInfo logging_info;
-  LogRecord log_record(&logging_info);
-  log_record.logging_info()->mutable_timing_info()->set_header_fetch_ms(200);
-  rewrite_driver()->set_log_record(&log_record);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find("&hft=200") != GoogleString::npos);
-}
-
-// Test that flush subresources count and time for origin html is reported.
-TEST_F(AddInstrumentationFilterTest, TestFlushEarlyInformation) {
-  NullMessageHandler handler;
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find("&nrp=") != GoogleString::npos);
-  EXPECT_TRUE(output_buffer_.find("&htmlAt=") != GoogleString::npos);
-}
-
 
 }  // namespace net_instaweb

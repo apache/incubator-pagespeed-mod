@@ -22,7 +22,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
@@ -67,7 +67,7 @@ void DetectReflowJsDeferFilter::EndElement(HtmlElement* element) {
 
 void DetectReflowJsDeferFilter::InsertDetectReflowCode(HtmlElement* element) {
   StaticJavascriptManager* static_js_manager =
-      rewrite_driver_->server_context()->static_javascript_manager();
+      rewrite_driver_->resource_manager()->static_javascript_manager();
   // Detect reflow functions script node.
   HtmlElement* script_node = rewrite_driver_->NewElement(element,
                                                          HtmlName::kScript);

@@ -84,10 +84,8 @@ void HtmlWriterFilter::StartElement(HtmlElement* element) {
   EmitBytes("<");
   EmitName(element->name());
 
-  const HtmlElement::AttributeList& attrs = element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
-    const HtmlElement::Attribute& attribute = *i;
+  for (int i = 0; i < element->attribute_size(); ++i) {
+    const HtmlElement::Attribute& attribute = element->attribute(i);
     // If the column has grown too large, insert a newline.  It's always safe
     // to insert whitespace in the middle of tag parameters.
     int attr_length = 1 + strlen(attribute.name_str());
@@ -177,9 +175,9 @@ void HtmlWriterFilter::EndElement(HtmlElement* element) {
         // If this attribute was unquoted, or lacked a value, then we'll need
         // to add a space here to ensure that HTML parsers don't interpret the
         // '/' in the '/>' as part of the attribute.
-        if (!element->attributes().IsEmpty()) {
-          const HtmlElement::Attribute& attribute =
-              *element->attributes().Last();
+        if (element->attribute_size() != 0) {
+          const HtmlElement::Attribute& attribute = element->attribute(
+              element->attribute_size() - 1);
           if ((attribute.escaped_value() == NULL) ||
               (attribute.quote_style() == HtmlElement::NO_QUOTE)) {
             EmitBytes(" ");

@@ -31,9 +31,9 @@
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace {
 // Set the cache size large enough so nothing gets evicted during this test.
@@ -57,17 +57,13 @@ class HTTPCacheTest : public testing::Test {
       result_ = HTTPCache::kNotFound;
       cache_valid_ = true;
       fresh_ = true;
-      override_cache_ttl_ms_= -1;
-      http_value()->Clear();
-      fallback_http_value()->Clear();
       return this;
     }
     virtual void Done(HTTPCache::FindResult result) {
       called_ = true;
       result_ = result;
     }
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) {
+    virtual bool IsCacheValid(const ResponseHeaders& headers) {
       // For unit testing, we are simply stubbing IsCacheValid.
       return cache_valid_;
     }
@@ -75,15 +71,10 @@ class HTTPCacheTest : public testing::Test {
       // For unit testing, we are simply stubbing IsFresh.
       return fresh_;
     }
-    virtual int64 OverrideCacheTtlMs(const GoogleString& key) {
-      return override_cache_ttl_ms_;
-    }
-
     bool called_;
     HTTPCache::FindResult result_;
     bool cache_valid_;
     bool fresh_;
-    int64 override_cache_ttl_ms_;
   };
 
   static int64 ParseDate(const char* start_date) {
@@ -114,7 +105,7 @@ class HTTPCacheTest : public testing::Test {
   static void SetUpTestCase() {
     testing::Test::SetUpTestCase();
     simple_stats_ = new SimpleStats;
-    HTTPCache::InitStats(simple_stats_);
+    HTTPCache::Initialize(simple_stats_);
   }
 
   static void TearDownTestCase() {
@@ -321,9 +312,9 @@ TEST_F(HTTPCacheTest, RememberFetchFailed) {
 
 // Verifies that the cache will 'remember' 'non-cacheable' for
 // remember_not_cacheable_ttl_seconds_.
-TEST_F(HTTPCacheTest, RememberNotCacheableNot200) {
+TEST_F(HTTPCacheTest, RememberNotCacheable) {
   ResponseHeaders meta_data_out;
-  http_cache_.RememberNotCacheable("mykey", false, &message_handler_);
+  http_cache_.RememberNotCacheable("mykey", &message_handler_);
   HTTPValue value;
   EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
             Find("mykey", &value, &meta_data_out, &message_handler_));
@@ -335,67 +326,11 @@ TEST_F(HTTPCacheTest, RememberNotCacheableNot200) {
             Find("mykey", &value, &meta_data_out, &message_handler_));
 
   http_cache_.set_remember_not_cacheable_ttl_seconds(600);
-  http_cache_.RememberNotCacheable("mykey", false, &message_handler_);
+  http_cache_.RememberNotCacheable("mykey", &message_handler_);
   // Now advance time 301 seconds; the cache should remember that the fetch
   // failed previously.
   mock_timer_.AdvanceMs(301 * 1000);
   EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-}
-
-// Verifies that the cache will 'remember' 'non-cacheable' for
-// remember_not_cacheable_ttl_seconds_.
-TEST_F(HTTPCacheTest, RememberNotCacheable200) {
-  ResponseHeaders meta_data_out;
-  http_cache_.RememberNotCacheable("mykey", true, &message_handler_);
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-
-  // Now advance time 301 seconds; the cache should allow us to try fetching
-  // again.
-  mock_timer_.AdvanceMs(301 * 1000);
-  EXPECT_EQ(HTTPCache::kNotFound,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-
-  http_cache_.set_remember_not_cacheable_ttl_seconds(600);
-  http_cache_.RememberNotCacheable("mykey", true, &message_handler_);
-  // Now advance time 301 seconds; the cache should remember that the fetch
-  // failed previously.
-  mock_timer_.AdvanceMs(301 * 1000);
-  EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-}
-
-// Verifies that the cache will 'remember' 'dropped' for
-// remember_dropped_ttl_seconds_.
-TEST_F(HTTPCacheTest, RememberDropped) {
-  ResponseHeaders meta_data_out;
-  http_cache_.RememberFetchDropped("mykey", &message_handler_);
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-
-  // Advance by 5 seconds: must still be here.
-  mock_timer_.AdvanceMs(5 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-
-  // After 6 more => 11 seconds later the cache should now let us retry
-  // again.
-  mock_timer_.AdvanceMs(6 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kNotFound,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-
-  http_cache_.set_remember_fetch_dropped_ttl_seconds(60);
-  http_cache_.RememberFetchDropped("mykey", &message_handler_);
-  // Now should remember after 11 seconds.
-  mock_timer_.AdvanceMs(11 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            Find("mykey", &value, &meta_data_out, &message_handler_));
-  // ... but not after 61.
-  mock_timer_.AdvanceMs(50 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kNotFound,
             Find("mykey", &value, &meta_data_out, &message_handler_));
 }
 
@@ -403,9 +338,9 @@ TEST_F(HTTPCacheTest, RememberDropped) {
 // non-recording of failures mode (but do before that), and that we
 // remember successful results even when in SetIgnoreFailurePuts() mode.
 TEST_F(HTTPCacheTest, IgnoreFailurePuts) {
-  http_cache_.RememberNotCacheable("mykey", false, &message_handler_);
+  http_cache_.RememberNotCacheable("mykey", &message_handler_);
   http_cache_.SetIgnoreFailurePuts();
-  http_cache_.RememberNotCacheable("mykey2", false, &message_handler_);
+  http_cache_.RememberNotCacheable("mykey2", &message_handler_);
 
   ResponseHeaders meta_data_in, meta_data_out;
   InitHeaders(&meta_data_in, "max-age=300");
@@ -483,140 +418,6 @@ TEST_F(HTTPCacheTest, IsFresh) {
   EXPECT_TRUE(value.Empty());
   EXPECT_TRUE(callback.fallback_http_value()->ExtractContents(&contents));
   EXPECT_STREQ(kDataIn, contents);
-}
-
-TEST_F(HTTPCacheTest, OverrideCacheTtlMs) {
-  // First test overriding works for a publicly cacheable response if the
-  // override TTL is larger than the original one.
-  const char kDataIn[] = "content";
-  ResponseHeaders meta_data_in, meta_data_out;
-  InitHeaders(&meta_data_in, "max-age=300");
-  http_cache_.Put("mykey", &meta_data_in, kDataIn, &message_handler_);
-  HTTPValue value;
-  Callback callback;
-  callback.override_cache_ttl_ms_ = 400 * 1000;
-  EXPECT_EQ(HTTPCache::kFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-  StringPiece contents;
-  EXPECT_TRUE(value.ExtractContents(&contents));
-  EXPECT_STREQ(kDataIn, contents);
-  EXPECT_TRUE(callback.fallback_http_value()->Empty());
-  EXPECT_STREQ("max-age=400",
-               meta_data_out.Lookup1(HttpAttributes::kCacheControl));
-
-  // Now, test that overriding has no effect if the override TTL is less than
-  // the original one.
-  callback.Reset();
-  value.Clear();
-  callback.override_cache_ttl_ms_ = 200 * 1000;
-  EXPECT_EQ(HTTPCache::kFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-  EXPECT_TRUE(value.ExtractContents(&contents));
-  EXPECT_STREQ(kDataIn, contents);
-  EXPECT_TRUE(callback.fallback_http_value()->Empty());
-  EXPECT_STREQ("max-age=300",
-               meta_data_out.Lookup1(HttpAttributes::kCacheControl));
-
-  // Now, test that overriding works for Cache-Control: private responses.
-  callback.Reset();
-  value.Clear();
-  meta_data_in.Clear();
-  InitHeaders(&meta_data_in, "private");
-  http_cache_.Put("mykey", &meta_data_in, kDataIn, &message_handler_);
-  callback.override_cache_ttl_ms_ = 400 * 1000;
-  EXPECT_EQ(HTTPCache::kFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-  EXPECT_TRUE(value.ExtractContents(&contents));
-  EXPECT_STREQ(kDataIn, contents);
-  EXPECT_TRUE(callback.fallback_http_value()->Empty());
-  EXPECT_STREQ("max-age=400",
-               meta_data_out.Lookup1(HttpAttributes::kCacheControl));
-
-  // Now advance the time by 310 seconds and set override cache TTL to 300
-  // seconds. The lookup fails.
-  mock_timer_.AdvanceMs(310 * 1000);
-  callback.Reset();
-  value.Clear();
-  meta_data_in.Clear();
-  callback.override_cache_ttl_ms_ = 300 * 1000;
-  EXPECT_EQ(HTTPCache::kNotFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-
-  // Set the override cache TTL to 400 seconds. The lookup succeeds and the
-  // Cache-Control header is updated.
-  callback.Reset();
-  value.Clear();
-  meta_data_in.Clear();
-  callback.override_cache_ttl_ms_ = 400 * 1000;
-  EXPECT_EQ(HTTPCache::kFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-  EXPECT_TRUE(value.ExtractContents(&contents));
-  EXPECT_STREQ(kDataIn, contents);
-  EXPECT_TRUE(callback.fallback_http_value()->Empty());
-  EXPECT_STREQ("max-age=400",
-               meta_data_out.Lookup1(HttpAttributes::kCacheControl));
-}
-
-TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyNotCacheable200) {
-  ResponseHeaders meta_data_out;
-  http_cache_.RememberNotCacheable("mykey", true, &message_handler_);
-  HTTPValue value;
-  Callback callback;
-  EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-
-  // Now change the value of override_cache_ttl_ms_. The lookup returns
-  // kNotFound now.
-  callback.Reset();
-  value.Clear();
-  callback.override_cache_ttl_ms_ = 200 * 1000;
-  EXPECT_EQ(HTTPCache::kNotFound,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-}
-
-TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyNotCacheableNon200) {
-  ResponseHeaders meta_data_out;
-  http_cache_.RememberNotCacheable("mykey", false, &message_handler_);
-  HTTPValue value;
-  Callback callback;
-  EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-
-  // Now change the value of override_cache_ttl_ms_. The lookup returns
-  // kNotFound now.
-  callback.Reset();
-  value.Clear();
-  callback.override_cache_ttl_ms_ = 200 * 1000;
-  EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-}
-
-TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyFetchFailed) {
-  ResponseHeaders meta_data_out;
-  http_cache_.RememberFetchFailed("mykey", &message_handler_);
-  HTTPValue value;
-  Callback callback;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
-
-  // Now change the value of override_cache_ttl_ms_. The lookup continues to
-  // return kRecentFetchFailed.
-  callback.Reset();
-  value.Clear();
-  callback.override_cache_ttl_ms_ = 200 * 1000;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            FindWithCallback("mykey", &value, &meta_data_out, &message_handler_,
-                             &callback));
 }
 
 }  // namespace net_instaweb

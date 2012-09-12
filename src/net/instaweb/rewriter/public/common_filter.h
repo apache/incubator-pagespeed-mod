@@ -22,15 +22,15 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class GoogleUrl;
 class HtmlElement;
-class ServerContext;
+class ResourceManager;
 class ResponseHeaders;
+class RewriteDriver;
 class RewriteOptions;
 
 // CommonFilter encapsulates useful functionality that many filters will want.
@@ -78,12 +78,6 @@ class CommonFilter : public EmptyHtmlFilter {
 
   RewriteDriver* driver() { return driver_; }
 
-  // Returns whether the current options specify the "debug" filter.
-  // If set, then other filters can annotate output HTML with HTML
-  // comments indicating why they did or did not do an optimization,
-  // using HtmlParse::InsertComment.
-  bool DebugMode() const { return driver_->DebugMode(); }
-
   // Utility function to extract the mime type and/or charset from a meta tag,
   // either the HTML4 http-equiv form or the HTML5 charset form:
   // element is the meta tag element to process.
@@ -102,12 +96,6 @@ class CommonFilter : public EmptyHtmlFilter {
                                     GoogleString* mime_type,
                                     GoogleString* charset);
 
-  // Add this filter to the logged list of applied rewriters. The intended
-  // semantics of this are that it should only include filters that modified the
-  // content of the response to the request being processed.
-  // This class logs using Name(); subclasses may do otherwise.
-  virtual void LogFilterModifiedContent();
-
  protected:
   // Overload these implementer methods:
   // Intentionally left abstract so that implementers don't forget to change
@@ -118,7 +106,7 @@ class CommonFilter : public EmptyHtmlFilter {
 
   // Protected pointers for inheriter's to use
   RewriteDriver* driver_;
-  ServerContext* server_context_;
+  ResourceManager* resource_manager_;
   const RewriteOptions* rewrite_options_;
 
  private:
