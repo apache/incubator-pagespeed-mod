@@ -11,10 +11,8 @@ Please do not post new questions to this page; if you do they will be deleted an
 = When will you support my favorite OS/http server/protocol/ice cream flavor? =
 While we have no dates to announce for upcoming releases, we definitely want to know what you think we should be working on.  Please click on the "Issues" tab, and search for your feature.  (If you don't find it, open a new issue and tag it "Type-Enhancement"). Then click on the Star icon in the top left of the Issue page.  That way, we'll know how many people are interested, and you'll get any updates we post about that feature.
 
-Robert Munteanu (robert.munteanu@gmail.com) has set up a repository which publishes OpenSUSE RPMs for mod_pagespeed. The repository is hosted on OpenSUSE's build service instance and has the following versions enabled:
-  * OpenSUSE 11.4 -[http://download.opensuse.org/repositories/home:/robert_munteanu/openSUSE_11.4/]
-  * OpenSUSE 12.1 - [http://download.opensuse.org/repositories/home:/robert_munteanu/openSUSE_12.1/]
-  * OpenSUSE Factory - [http://download.opensuse.org/repositories/home:/robert_munteanu/openSUSE_Factory/]
+Robert Munteanu (robert.munteanu@gmail.com) has set up a repository which publishes OpenSUSE RPMs for mod_pagespeed. The repository is hosted on OpenSUSE's build service instance: http://software.opensuse.org/package/apache2-mod_pagespeed
+
 The builds have seen some testing on one of Robert's servers ( OpenSUSE 12.1/x86_64 ) but he'd appreciate anyone else testing it.
 
 To enable the module, install it, add 'deflate pagespeed' to your list of apache modules in /etc/sysconfig/apache2  and restart apache.
