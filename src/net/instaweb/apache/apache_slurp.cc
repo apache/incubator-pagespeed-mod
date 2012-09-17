@@ -14,10 +14,9 @@
 //
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/apache/apache_slurp.h"
-
 // Must precede any Apache includes, for now, due a conflict in
 // the use of 'OK" as an Instaweb enum and as an Apache #define.
+#include "base/string_util.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/instaweb_context.h"
 

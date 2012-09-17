@@ -19,8 +19,7 @@
 # library (.a) from an already-built mod_pagespeed distribution.  This
 
 # MOD_PAGESPEED_ROOT should be set to the 'src' directory where mod_pagespeed
-# was built.  See:
-# https://developers.google.com/speed/docs/mod_pagespeed/build_from_source
+# was built.  See http://code.google.com/p/modpagespeed/wiki/HowToBuild
 #
 # When running this Makefile from the 'automatic' directory then it will
 # be set automatically.
@@ -45,13 +44,7 @@ BASE_LIBS = \
   build/temp_gyp/libgoogleurl.a \
   net/instaweb/libautomatic_util.a \
   net/instaweb/libhttp_core.a \
-  net/instaweb/libinstaweb_blink_critical_line_data_pb.a \
   net/instaweb/libinstaweb_clientstate_pb.a \
-  net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
-  net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
-  net/instaweb/libinstaweb_critical_line_info_pb.a \
-  net/instaweb/libinstaweb_defer_iframe_data2c.a \
-  net/instaweb/libinstaweb_defer_iframe_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_data2c.a \
   net/instaweb/libinstaweb_delay_images_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_inline_data2c.a \
@@ -60,7 +53,6 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_detect_reflow_opt_data2c.a \
   net/instaweb/libinstaweb_deterministic_data2c.a \
   net/instaweb/libinstaweb_deterministic_opt_data2c.a \
-  net/instaweb/libinstaweb_flush_early_pb.a \
   net/instaweb/libinstaweb_htmlparse_core.a \
   net/instaweb/libinstaweb_htmlparse_core_gperf.a \
   net/instaweb/libinstaweb_http.a \
@@ -73,7 +65,7 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_lazyload_images_opt_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_opt_data2c.a \
-  net/instaweb/libinstaweb_logging_pb.a \
+  net/instaweb/libinstaweb_panel_config_pb.a \
   net/instaweb/libinstaweb_propcache_pb.a \
   net/instaweb/libinstaweb_rewriter.a \
   net/instaweb/libinstaweb_rewriter_base.a \
@@ -86,12 +78,14 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_rewriter_pb.a \
   net/instaweb/libinstaweb_spriter.a \
   net/instaweb/libinstaweb_spriter_pb.a \
+  net/instaweb/libinstaweb_timing_pb.a \
   net/instaweb/libinstaweb_util.a \
   net/instaweb/libinstaweb_util_core.a \
   net/instaweb/libinstaweb_util_pthread.a \
   net/instaweb/libprocess_context.a \
   third_party/base64/libbase64.a \
   third_party/chromium/src/base/third_party/dynamic_annotations/libdynamic_annotations.a \
+  third_party/chromium/src/net/tools/liburl_to_filename_encoder.a \
   third_party/css_parser/libcss_parser.a \
   third_party/css_parser/libutf.a \
   third_party/domain_registry_provider/src/domain_registry/libdomain_registry_lib.a \
@@ -115,9 +109,7 @@ BASE_LIBS = \
   third_party/libpagespeed/src/third_party/optipng/libopngreduc.a \
   third_party/libpng/libpng.a \
   third_party/libwebp/libwebp_dec.a \
-  third_party/libwebp/libwebp_dsp.a \
   third_party/libwebp/libwebp_enc.a \
-  third_party/libwebp/libwebp_utils.a \
   third_party/opencv/libhighgui.a \
   third_party/opencv/libopencv_imgproc.a \
   third_party/opencv/libopencv_core.a \
@@ -140,7 +132,7 @@ CXX = $(BINDIR)/gcc-4.2 -arch i386 -fvisibility=hidden
 SYSLIBS = -Wl,-search_paths_first -framework AppKit -lpthread -lstdc++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/libre2_bench_util.a
 
-build_libraries :
+build_libraries:
 	cd $(MOD_PAGESPEED_ROOT)/build && xcodebuild -project all.xcodeproj \
 		-configuration $(BUILDTYPE) -target pagespeed_automatic
 
@@ -163,7 +155,7 @@ SYSLIBS = -lpthread -lrt
 CXX = /usr/bin/g++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/third_party/re2/libre2_bench_util.a
 
-build_libraries :
+build_libraries:
 	cd $(MOD_PAGESPEED_ROOT) && make BUILDTYPE=$(BUILDTYPE)
 
 endif
@@ -171,8 +163,7 @@ endif
 INCLUDE_PATH = \
     -I$(MOD_PAGESPEED_ROOT) \
     -I$(MOD_PAGESPEED_ROOT)/third_party/chromium/src \
-    -I$(MOD_PAGESPEED_ROOT)/third_party/gflags/gen/$(INCLUDE_ARCH)/include \
-    -I$(MOD_PAGESPEED_ROOT)/third_party/protobuf/src
+    -I$(MOD_PAGESPEED_ROOT)/third_party/gflags/gen/$(INCLUDE_ARCH)/include
 OBJS          = $(OUTPUT_DIR)/static_rewriter_main.o \
 		$(OUTPUT_DIR)/static_rewriter.o \
 		$(OUTPUT_DIR)/pagespeed_automatic.a
@@ -218,9 +209,9 @@ $(OUTPUT_DIR)/collapse_whitespace.html : $(EXE) $(EXAMPLE_ROOT)/collapse_whitesp
 $(SPEED_TEST) : $(SPEED_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(SYSLIBS)
 
-examples : $(EXAMPLES)
+examples: $(EXAMPLES)
 
-clean :
+clean:
 	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES)
 
 echo_libs :

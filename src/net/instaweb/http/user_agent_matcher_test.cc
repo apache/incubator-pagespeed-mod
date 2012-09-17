@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstddef>
-
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -68,8 +65,6 @@ TEST_F(UserAgentMatcherTest, SupportsImageInlining) {
       UserAgentStrings::kSafariUserAgent));
   EXPECT_TRUE(user_agent_matcher_.SupportsImageInlining(
       UserAgentStrings::kIPhoneUserAgent));
-  EXPECT_TRUE(user_agent_matcher_.SupportsImageInlining(
-      UserAgentStrings::kAndroidChrome21UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, NotSupportsImageInlining) {
@@ -83,73 +78,42 @@ TEST_F(UserAgentMatcherTest, NotSupportsImageInlining) {
       UserAgentStrings::kOpera5UserAgent));
   EXPECT_FALSE(user_agent_matcher_.SupportsImageInlining(
       UserAgentStrings::kPSPUserAgent));
-  EXPECT_TRUE(user_agent_matcher_.SupportsImageInlining(
-      UserAgentStrings::kAndroidChrome18UserAgent));
 }
 
-TEST_F(UserAgentMatcherTest, BlinkWhitelistForDesktop) {
-  const RequestHeaders headers;
-  EXPECT_EQ(UserAgentMatcher::kBlinkWhiteListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kFirefoxUserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkWhiteListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kIe9UserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkWhiteListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kChromeUserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkWhiteListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kSafariUserAgent, &headers));
+TEST_F(UserAgentMatcherTest, SupportsBlinkDesktop) {
+  EXPECT_EQ(UserAgentMatcher::kSupportsBlinkDesktop,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kFirefoxUserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kSupportsBlinkDesktop,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kIe9UserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kSupportsBlinkDesktop,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kChromeUserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kSupportsBlinkDesktop,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kSafariUserAgent, false));
 }
 
-TEST_F(UserAgentMatcherTest, BlinkBlackListForDesktop) {
-  const RequestHeaders headers;
-  EXPECT_EQ(UserAgentMatcher::kBlinkBlackListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kIe6UserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkBlackListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kIe8UserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkBlackListForDesktop,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kFirefox1UserAgent, &headers));
-}
-
-TEST_F(UserAgentMatcherTest, DoesNotSupportBlink) {
-  const RequestHeaders headers;
+TEST_F(UserAgentMatcherTest, NotSupportsBlink) {
   EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kNokiaUserAgent, &headers));
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kIe6UserAgent, false));
   EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kOpera5UserAgent, &headers));
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kIe8UserAgent, false));
   EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
-            user_agent_matcher_.GetBlinkRequestType(
-                UserAgentStrings::kPSPUserAgent, &headers));
-}
-
-TEST_F(UserAgentMatcherTest, PrefetchMechanism) {
-  EXPECT_EQ(UserAgentMatcher::kPrefetchImageTag,
-            user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_image_tag"));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
-            user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kIe9UserAgent));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchLinkRelSubresource,
-            user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_link_rel_subresource"));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kSafariUserAgent));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
-            user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_link_script_tag"));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(
-                NULL));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(""));
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kFirefox1UserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kNokiaUserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kOpera5UserAgent, false));
+  EXPECT_EQ(UserAgentMatcher::kDoesNotSupportBlink,
+            user_agent_matcher_.GetBlinkUserAgentType(
+                UserAgentStrings::kPSPUserAgent, false));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsJsDefer) {
@@ -226,17 +190,6 @@ TEST_F(UserAgentMatcherTest, DoesntSupportWebp) {
       UserAgentStrings::kPSPUserAgent));
   EXPECT_FALSE(user_agent_matcher_.SupportsWebp(
       UserAgentStrings::kSafariUserAgent));
-}
-
-TEST_F(UserAgentMatcherTest, SupportsDnsPrefetchUsingRelPrefetch) {
-  EXPECT_FALSE(user_agent_matcher_.SupportsDnsPrefetchUsingRelPrefetch(
-      UserAgentStrings::kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsDnsPrefetchUsingRelPrefetch(
-      UserAgentStrings::kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsDnsPrefetchUsingRelPrefetch(
-      UserAgentStrings::kIe8UserAgent));
-  EXPECT_TRUE(user_agent_matcher_.SupportsDnsPrefetchUsingRelPrefetch(
-      UserAgentStrings::kIe9UserAgent));
 }
 
 }  // namespace net_instaweb

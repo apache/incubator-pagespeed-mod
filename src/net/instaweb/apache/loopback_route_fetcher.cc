@@ -100,7 +100,7 @@ bool LoopbackRouteFetcher::IsLoopbackAddr(const apr_sockaddr_t* addr) {
   if (addr->family == APR_INET) {
     // 127.0.0.0/8 is the IPv4 loopback.
     // Note: is network byte order, so we can do char-wide indexing into it
-    // consistently (but not look at the whole thing).
+    // consistently (but not look at the whole thing)
     const char* ipbytes = reinterpret_cast<const char*>(
         &addr->sa.sin.sin_addr.s_addr);
     return (ipbytes[0] == 127);

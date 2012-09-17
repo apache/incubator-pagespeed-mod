@@ -58,18 +58,11 @@ void CssRewriteTestBase::ValidateRewriteInlineCss(
 
 void CssRewriteTestBase::ResetStats() {
   num_blocks_rewritten_->Set(0);
-  num_fallback_rewrites_->Set(0);
   num_parse_failures_->Set(0);
   num_rewrites_dropped_->Set(0);
   total_bytes_saved_->Set(0);
   total_original_bytes_->Set(0);
   num_uses_->Set(0);
-  num_flatten_imports_charset_mismatch_->Set(0);
-  num_flatten_imports_invalid_url_->Set(0);
-  num_flatten_imports_limit_exceeded_->Set(0);
-  num_flatten_imports_minify_failed_->Set(0);
-  num_flatten_imports_recursion_->Set(0);
-  num_flatten_imports_complex_queries_->Set(0);
 }
 
 void CssRewriteTestBase::ValidateWithStats(
@@ -86,7 +79,6 @@ void CssRewriteTestBase::ValidateWithStats(
   if (!FlagSet(flags, kNoStatCheck)) {
     if (FlagSet(flags, kExpectSuccess)) {
       EXPECT_EQ(1, num_blocks_rewritten_->Get()) << id;
-      EXPECT_EQ(0, num_fallback_rewrites_->Get()) << id;
       EXPECT_EQ(0, num_parse_failures_->Get()) << id;
       EXPECT_EQ(0, num_rewrites_dropped_->Get()) << id;
       EXPECT_EQ(css_input.size() - expected_css_output.size(),
@@ -95,27 +87,18 @@ void CssRewriteTestBase::ValidateWithStats(
       EXPECT_EQ(1, num_uses_->Get()) << id;
     } else if (FlagSet(flags, kExpectNoChange)) {
       EXPECT_EQ(0, num_blocks_rewritten_->Get()) << id;
-      EXPECT_EQ(0, num_fallback_rewrites_->Get()) << id;
       EXPECT_EQ(0, num_parse_failures_->Get()) << id;
-      // TODO(sligocki): Test num_rewrites_dropped_. Currently a couple tests
-      // have kExpectNoChange, but fail at a different place in the code, so
-      // they do not trigger the num_rewrites_dropped_ variable.
+      // TODO(sligocki): Test num_rewrites_dropped_
       // EXPECT_EQ(1, num_rewrites_dropped_->Get()) << id;
       EXPECT_EQ(0, total_bytes_saved_->Get()) << id;
       EXPECT_EQ(0, total_original_bytes_->Get()) << id;
       EXPECT_EQ(0, num_uses_->Get()) << id;
     } else if (FlagSet(flags, kExpectFallback)) {
-      EXPECT_EQ(0, num_blocks_rewritten_->Get()) << id;
-      EXPECT_EQ(1, num_fallback_rewrites_->Get()) << id;
-      EXPECT_EQ(1, num_parse_failures_->Get()) << id;
-      EXPECT_EQ(0, num_rewrites_dropped_->Get()) << id;
-      EXPECT_EQ(0, total_bytes_saved_->Get()) << id;
-      EXPECT_EQ(0, total_original_bytes_->Get()) << id;
-      EXPECT_EQ(1, num_uses_->Get()) << id;
+      CHECK(false) << "kExpectFallback not supported.";
+      // TODO(sligocki): Implement fallback testing.
     } else {
       CHECK(FlagSet(flags, kExpectFailure));
       EXPECT_EQ(0, num_blocks_rewritten_->Get()) << id;
-      EXPECT_EQ(0, num_fallback_rewrites_->Get()) << id;
       EXPECT_EQ(1, num_parse_failures_->Get()) << id;
       EXPECT_EQ(0, num_rewrites_dropped_->Get()) << id;
       EXPECT_EQ(0, total_bytes_saved_->Get()) << id;
@@ -123,21 +106,6 @@ void CssRewriteTestBase::ValidateWithStats(
       EXPECT_EQ(0, num_uses_->Get()) << id;
     }
   }
-
-  // Check each of the import flattening statistics. Since each of these
-  // is controlled individually they are not gated by kNoStatCheck above.
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsCharsetMismatch) ? 1 : 0,
-            num_flatten_imports_charset_mismatch_->Get()) << id;
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsInvalidUrl) ? 1 : 0,
-            num_flatten_imports_invalid_url_->Get()) << id;
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsLimitExceeded) ? 1 : 0,
-            num_flatten_imports_limit_exceeded_->Get()) << id;
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsMinifyFailed) ? 1 : 0,
-            num_flatten_imports_minify_failed_->Get()) << id;
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsRecursion) ? 1 : 0,
-            num_flatten_imports_recursion_->Get()) << id;
-  EXPECT_EQ(FlagSet(flags, kFlattenImportsComplexQueries) ? 1 : 0,
-            num_flatten_imports_complex_queries_->Get()) << id;
 }
 
 GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
@@ -243,7 +211,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
       Encode(css_gurl.AllExceptLeaf(), namer.id(), namer.hash(),
              namer.name(), namer.ext());
 
-  if (FlagSet(flags, kExpectSuccess) || FlagSet(flags, kExpectFallback)) {
+  if (FlagSet(flags, kExpectSuccess)) {
     html_output = StringPrintf(html_template, meta_tag.c_str(),
                                expected_new_url.c_str(), link_extras.c_str());
   } else {
@@ -254,7 +222,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
                     css_input, expected_css_output, flags);
 
   // If we produced a new output resource, check it.
-  if (FlagSet(flags, kExpectSuccess) || FlagSet(flags, kExpectFallback)) {
+  if (FlagSet(flags, kExpectSuccess)) {
     GoogleString actual_output;
     // TODO(sligocki): This will only work with mock_hasher.
     EXPECT_TRUE(FetchResourceUrl(expected_new_url, &actual_output)) << css_url;

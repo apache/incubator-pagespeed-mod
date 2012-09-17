@@ -133,15 +133,6 @@ class DomainLawyer {
                                const StringPiece& comma_separated_from_domains,
                                MessageHandler* handler);
 
-  // Adds domain mappings that handle both http and https urls for the given
-  // from_domain_name.  No wildcards may be used in either domain, and both
-  // must be protocol-free and should not have port numbers.
-  //
-  // This routine can be called multiple times for the same to_domain.
-  bool AddTwoProtocolRewriteDomainMapping(const StringPiece& to_domain_name,
-                                          const StringPiece& from_domain_name,
-                                          MessageHandler* handler);
-
   // Adds a domain mapping, to assist with fetching resources from locally
   // signficant names/ip-addresses.
   //
@@ -205,12 +196,6 @@ class DomainLawyer {
   bool DoDomainsServeSameContent(const StringPiece& domain1,
                                  const StringPiece& domain2) const;
 
-  // Finds domains rewritten to this domain. Includes only non-wildcarded
-  // domains. comma_separated_from_domains is empty if no mapping found.
-  void FindDomainsRewrittenTo(
-      const GoogleUrl& domain_name,
-      ConstStringStarVector* from_domains) const;
-
   // Computes a signature for the DomainLawyer object including containing
   // classes (Domain).
   GoogleString Signature() const;
@@ -241,17 +226,6 @@ class DomainLawyer {
       SetDomainFn set_domain_fn,
       bool allow_wildcards,
       bool allow_map_to_https,
-      bool authorize,
-      MessageHandler* handler);
-
-  bool DomainNameToTwoProtocols(const StringPiece& domain_name,
-                                GoogleString* http_url,
-                                GoogleString* https_url);
-
-  bool TwoProtocolDomainHelper(
-      const StringPiece& to_domain_name,
-      const StringPiece& from_domain_name,
-      SetDomainFn set_domain_fn,
       bool authorize,
       MessageHandler* handler);
 

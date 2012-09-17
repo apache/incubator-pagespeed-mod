@@ -21,7 +21,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -48,7 +48,7 @@ void DeterministicJsFilter::StartElement(HtmlElement* element) {
         driver_->MakeName(HtmlName::kPagespeedNoDefer), NULL,
         HtmlElement::NO_QUOTE);
     StaticJavascriptManager* static_js_manager =
-        driver_->server_context()->static_javascript_manager();
+        driver_->resource_manager()->static_javascript_manager();
     StringPiece deterministic_js =
         static_js_manager->GetJsSnippet(
             StaticJavascriptManager::kDeterministicJs, driver_->options());

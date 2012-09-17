@@ -19,8 +19,8 @@
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
@@ -30,11 +30,10 @@
 
 namespace net_instaweb {
 
-class JsDeferDisabledFilterTest : public RewriteTestBase {
+class JsDeferDisabledFilterTest : public ResourceManagerTestBase {
  protected:
-  // TODO(matterbury): Delete this method as it should be redundant.
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
   }
 
   virtual void InitJsDeferDisabledFilter(bool debug) {
@@ -54,7 +53,7 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
 TEST_F(JsDeferDisabledFilterTest, DeferScript) {
   InitJsDeferDisabledFilter(false);
   StringPiece defer_js_code =
-      server_context()->static_javascript_manager()->GetJsSnippet(
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
           StaticJavascriptManager::kDeferJs, options());
   ValidateExpected("defer_script",
       "<head>"
@@ -78,7 +77,7 @@ TEST_F(JsDeferDisabledFilterTest, DeferScript) {
 TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
   InitJsDeferDisabledFilter(false);
   StringPiece defer_js_code =
-      server_context()->static_javascript_manager()->GetJsSnippet(
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
           StaticJavascriptManager::kDeferJs, options());
   ValidateExpected("defer_script_multi_body",
       "<head>"
@@ -102,7 +101,7 @@ TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
 TEST_F(JsDeferDisabledFilterTest, DeferScriptNoHead) {
   InitJsDeferDisabledFilter(false);
   StringPiece defer_js_code =
-      server_context()->static_javascript_manager()->GetJsSnippet(
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
           StaticJavascriptManager::kDeferJs, options());
   ValidateExpected("defer_script_no_head",
       "<body>Hello, world!</body><body>"

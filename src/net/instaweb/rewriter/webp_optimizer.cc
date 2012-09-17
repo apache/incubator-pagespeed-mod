@@ -23,6 +23,7 @@
 #include <cstdlib>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "pagespeed/image_compression/jpeg_reader.h"
@@ -38,12 +39,9 @@ extern "C" {
 #else
 #include "third_party/libwebp/webp/encode.h"
 #include "third_party/libwebp/webp/decode.h"
-#include "pagespeed/image_compression/jpeg_utils.h"
 #endif
 // TODO(jmaessen): open source imports & build of libwebp.
 }
-
-using pagespeed::image_compression::JpegUtils;
 
 namespace net_instaweb {
 
@@ -73,7 +71,7 @@ const J_DCT_METHOD fastest_dct_method = JDCT_IFAST;
 #endif
 
 
-int GoogleStringWebpWriter(const uint8_t* data, size_t data_size,
+int GoogleStringWebpWriter(const uint8* data, size_t data_size,
                            const WebPPicture* const picture) {
   GoogleString* compressed_webp =
       static_cast<GoogleString*>(picture->custom_ptr);
@@ -90,7 +88,6 @@ class WebpOptimizer {
   // Take the given input file and transcode it to webp.
   // Return true on success.
   bool CreateOptimizedWebp(const GoogleString& original_jpeg,
-                           int configured_quality,
                            GoogleString* compressed_webp);
 
  private:
@@ -122,12 +119,7 @@ class WebpOptimizer {
   DISALLOW_COPY_AND_ASSIGN(WebpOptimizer);
 };  // class WebpOptimizer
 
-WebpOptimizer::WebpOptimizer()
-    : pixels_(NULL),
-      rows_(NULL),
-      width_(0),
-      height_(0),
-      row_stride_(0) { }
+WebpOptimizer::WebpOptimizer() : pixels_(NULL), rows_(NULL) { }
 WebpOptimizer::~WebpOptimizer() {
   delete[] pixels_;
   DCHECK(rows_ == NULL);
@@ -306,36 +298,14 @@ bool WebpOptimizer::WebPImportYUV(WebPPicture* const picture) {
 
 // Main body of transcode.
 bool WebpOptimizer::CreateOptimizedWebp(
-    const GoogleString& original_jpeg,
-    int configured_quality, GoogleString* compressed_webp) {
+    const GoogleString& original_jpeg, GoogleString* compressed_webp) {
   // Begin by making sure we can create a webp image at all:
   WebPPicture picture;
   WebPConfig config;
-  int input_quality = JpegUtils::GetImageQualityFromImage(original_jpeg);
-
   if (!WebPPictureInit(&picture) || !WebPConfigInit(&config)) {
     // Version mismatch.
     return false;
-  }
-
-  if (configured_quality == kNoQualityGiven) {
-    // If configured quality is not available use the webp config
-    // quality as the configured quality.
-    configured_quality = config.quality;
-  }
-
-  int output_quality = configured_quality;
-
-  if (input_quality != kNoQualityGiven && input_quality < configured_quality) {
-      output_quality =  input_quality;
-    } else {
-    // If JpegUtils::GetImageQualityFromImage couldn't figure
-    // out the quality or if the input quality is more than the configured
-    // quality, use configured quality to rewrite.
-      output_quality = configured_quality;
-  }
-
-  if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, output_quality)) {
+  } else if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, config.quality)) {
     // Couldn't use the default preset.
     return false;
   } else if (!WebPValidateConfig(&config)) {
@@ -383,11 +353,10 @@ bool WebpOptimizer::CreateOptimizedWebp(
 
 }  // namespace
 
-bool OptimizeWebp(const GoogleString& original_jpeg, int configured_quality,
+bool OptimizeWebp(const GoogleString& original_jpeg,
                   GoogleString* compressed_webp) {
   WebpOptimizer optimizer;
-  return optimizer.CreateOptimizedWebp(original_jpeg, configured_quality,
-                                       compressed_webp);
+  return optimizer.CreateOptimizedWebp(original_jpeg, compressed_webp);
 }
 
 bool ReduceWebpImageQuality(const GoogleString& original_webp,
@@ -402,42 +371,28 @@ bool ReduceWebpImageQuality(const GoogleString& original_webp,
 
   const uint8* webp = reinterpret_cast<const uint8*>(original_webp.data());
   const int webp_size = original_webp.size();
-  // At the recommendation of skal@, we decompress and recompress in YUV space
-  // here.  We used to do this for jpeg conversion (as evidenced by the code
-  // above), but there are subtle differences between webp and jpeg YUV space
-  // conversions that require an adjustment step that was never implemented (see
-  // http://en.wikipedia.org/wiki/YCbCr).  Here, however, it makes conversions
-  // less lossy and allows us to operate exclusively on the downsampled image --
-  // and of course we're operating in the webp yuv space in both cases.
-  WebPConfig config;
-  if (WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, quality) == 0) {
-    // Couldn't set up preset.
+  int width = 0, height = 0;
+  // TODO(jmaessen): code below used to use rgba, but that's still in a state of
+  // flux in libwebp and we aren't at present using the alpha channel.  Change
+  // this code to use 4 color planes and RGBA when transparent webp images
+  // become an active concern.
+  const int kColorPlanes = 3;
+  scoped_ptr_malloc<uint8> rgb(
+      WebPDecodeRGB(webp, webp_size, &width, &height));
+  if (rgb == NULL) {
+    // Webp decode function is not able to decode the provided images.
     return false;
   }
-  WebPPicture picture;
-  if (WebPPictureInit(&picture) == 0) {
-    // Couldn't set up picture due to library version mismatch.
+  int stride = width * kColorPlanes;
+  uint8* buf;
+  size_t size = WebPEncodeRGB(rgb.get(), width, height, stride, quality, &buf);
+  if (size == 0) {
+    // Webp Encode failed.
     return false;
   }
-  picture.colorspace = WEBP_YUV420;
-  picture.writer = &GoogleStringWebpWriter;
-  picture.custom_ptr = reinterpret_cast<void*>(compressed_webp);
-  // Note: decode yields YUV420, the only colorspace currently used in lossy
-  // webp.
-  picture.y =
-      WebPDecodeYUV(webp, webp_size, &picture.width, &picture.height,
-                    &picture.u, &picture.v,
-                    &picture.y_stride, &picture.uv_stride);
-  if (picture.y == NULL) {
-    // WebPDecodeYUV call failed.
-    return false;
-  }
-  bool result = WebPEncode(&config, &picture);
-  // We own picture.y (which also allocates space for uv).  As a result, we
-  // can't call WebPPictureFree(&picture), which assumes it did the allocation /
-  // management.
-  free(picture.y);
-  return result;
+  compressed_webp->append(reinterpret_cast<const char*>(buf), size);
+  free(buf);
+  return true;
 }
 
 }  // namespace net_instaweb

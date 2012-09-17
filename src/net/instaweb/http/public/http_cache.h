@@ -21,7 +21,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/atomic_bool.h"
@@ -29,15 +28,14 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
-
 namespace net_instaweb {
 
 class CacheInterface;
 class Hasher;
 class MessageHandler;
-class RequestHeaders;
 class Statistics;
 class Timer;
+class TimingInfo;
 class Variable;
 
 // Implements HTTP caching semantics, including cache expiration and
@@ -80,8 +78,8 @@ class HTTPCache {
     Callback()
         : response_headers_(NULL),
           owns_response_headers_(false),
-          logging_info_(NULL),
-          owns_logging_info_(false) {
+          timing_info_(NULL),
+          owns_timing_info_(false) {
     }
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
@@ -94,8 +92,7 @@ class HTTPCache {
     //
     // See also OptionsAwareHTTPCacheCallback in rewrite_driver.h for an
     // implementation you probably want to use.
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) = 0;
+    virtual bool IsCacheValid(const ResponseHeaders& headers) = 0;
 
     // A method that allows client Callbacks to check if the response in cache
     // is fresh enough, in addition to it being valid.  This is used while
@@ -105,11 +102,6 @@ class HTTPCache {
     // calls Callback::Done with find_result = kNotFound and fills in
     // fallback_http_value() with the cached response.
     virtual bool IsFresh(const ResponseHeaders& headers) { return true; }
-
-    // Overrides the cache ttl of the cached response with the given value. Note
-    // that this has no effect if the returned value is negative or less than
-    // the cache ttl of the stored value.
-    virtual int64 OverrideCacheTtlMs(const GoogleString& key) { return -1; }
 
     // TODO(jmarantz): specify the dataflow between http_value and
     // response_headers.
@@ -134,11 +126,11 @@ class HTTPCache {
     }
     HTTPValue* fallback_http_value() { return &fallback_http_value_; }
 
-    // Sets the LoggingInfo to the specified pointer.  The caller must
-    // guarantee that the pointed-to LoggingInfo remains valid as long as the
+    // Sets the TimingInfo to the specified pointer.  The caller must
+    // guarantee that the pointed-to TimingInfo remains valid as long as the
     // HTTPCache is running.
-    void set_logging_info(LoggingInfo* logging_info);
-    virtual LoggingInfo* logging_info();
+    void set_timing_info(TimingInfo* timing_info);
+    virtual TimingInfo* timing_info();
     virtual void SetTimingMs(int64 timing_value_ms);
 
    private:
@@ -148,8 +140,8 @@ class HTTPCache {
     HTTPValue fallback_http_value_;
     ResponseHeaders* response_headers_;
     bool owns_response_headers_;
-    LoggingInfo* logging_info_;
-    bool owns_logging_info_;
+    TimingInfo* timing_info_;
+    bool owns_timing_info_;
 
     DISALLOW_COPY_AND_ASSIGN(Callback);
   };
@@ -169,8 +161,6 @@ class HTTPCache {
 
   // Note that Put takes a non-const pointer for ResponseHeaders* so it
   // can update the caching fields prior to storing.
-  // If you call this method, you must be certain that the outgoing
-  // request was not sent with Authorization:.
   virtual void Put(const GoogleString& key, ResponseHeaders* headers,
                    const StringPiece& content, MessageHandler* handler);
 
@@ -179,22 +169,17 @@ class HTTPCache {
 
   virtual void set_force_caching(bool force) { force_caching_ = force; }
   bool force_caching() const { return force_caching_; }
-  virtual void set_disable_html_caching_on_https(bool x) {
-    disable_html_caching_on_https_ = x;
-  }
   Timer* timer() const { return timer_; }
 
   // Tell the HTTP Cache to remember that a particular key is not cacheable
   // because the URL was marked with Cache-Control 'nocache' or Cache-Control
   // 'private'. We would like to avoid DOSing the origin server or spinning our
   // own wheels trying to re-fetch this resource.
+  //
   // The not-cacheable setting will be 'remembered' for
   // remember_not_cacheable_ttl_seconds_.
-  // Note that we remember whether the response was originally a "200 OK" so
-  // that we can check if the cache TTL can be overridden.
   virtual void RememberNotCacheable(const GoogleString& key,
-                                    bool is_200_status_code,
-                                    MessageHandler* handler);
+                                    MessageHandler * handler);
 
   // Tell the HTTP Cache to remember that a particular key is not cacheable
   // because the associated URL failing Fetch.
@@ -202,13 +187,7 @@ class HTTPCache {
   // The not-cacheable setting will be 'remembered' for
   // remember_fetch_failed_ttl_seconds_.
   virtual void RememberFetchFailed(const GoogleString& key,
-                                   MessageHandler* handler);
-
-  // Tell the HTTP Cache to remember that we had to give up on doing a
-  // background fetch due to load. This will remember it for
-  // remember_fetch_load_shed_ttl_seconds_.
-  virtual void RememberFetchDropped(const GoogleString& key,
-                                    MessageHandler* handler);
+                                   MessageHandler * handler);
 
   // Indicates if the response is within the cacheable size limit. Clients of
   // HTTPCache must check if they will be eventually able to cache their entries
@@ -222,19 +201,12 @@ class HTTPCache {
   bool IsCacheableBodySize(int64 body_size) const;
 
   // Initialize statistics variables for the cache
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
-  // Returns true if the resource is already at the point of expiration
-  // (or not cacheable by us), and would never be used if inserted into the
-  // cache. Otherwise, returns false. If the entry was rejected because of
-  // expiration but would otherwise have been cacheable, this also increments
-  // the cache expirations statistic.
-  //
-  // request_headers is used to check for resources requested with
-  // authorization. It is OK to pass NULL if you're certain that the fetch
-  // was done without authorization headers.
-  bool IsAlreadyExpired(const RequestHeaders* request_headers,
-                        const ResponseHeaders& headers);
+  // Returns true if the resource is already at the point of expiration,
+  // and would never be used if inserted into the cache. Otherwise, returns
+  // false and increments the cache expirations statistic
+  bool IsAlreadyExpired(const ResponseHeaders& headers);
 
   Variable* cache_time_us()     { return cache_time_us_; }
   Variable* cache_hits()        { return cache_hits_; }
@@ -265,17 +237,6 @@ class HTTPCache {
     }
   }
 
-  int64 remember_fetch_dropped_ttl_seconds() {
-    return remember_fetch_dropped_ttl_seconds_;
-  }
-
-  virtual void set_remember_fetch_dropped_ttl_seconds(int64 value) {
-    DCHECK_LE(0, value);
-    if (value >= 0) {
-      remember_fetch_dropped_ttl_seconds_ = value;
-    }
-  }
-
   int max_cacheable_response_content_length() {
     return max_cacheable_response_content_length_;
   }
@@ -292,10 +253,7 @@ class HTTPCache {
   friend class HTTPCacheCallback;
   friend class WriteThroughHTTPCache;
 
-  bool IsCurrentlyValid(const RequestHeaders* request_headers,
-                        const ResponseHeaders& headers, int64 now_ms);
-
-  bool MayCacheUrl(const GoogleString& url, const ResponseHeaders& headers);
+  bool IsCurrentlyValid(const ResponseHeaders& headers, int64 now_ms);
   // Requires either content or value to be non-NULL.
   // Applies changes to headers. If the headers are actually changed or if value
   // is NULL then it builds and returns a new HTTPValue. If content is NULL
@@ -312,8 +270,6 @@ class HTTPCache {
   Timer* timer_;
   Hasher* hasher_;
   bool force_caching_;
-  // Whether to disable caching of HTML content fetched via https.
-  bool disable_html_caching_on_https_;
   Variable* cache_time_us_;
   Variable* cache_hits_;
   Variable* cache_misses_;
@@ -323,7 +279,6 @@ class HTTPCache {
   GoogleString name_;
   int64 remember_not_cacheable_ttl_seconds_;
   int64 remember_fetch_failed_ttl_seconds_;
-  int64 remember_fetch_dropped_ttl_seconds_;
   int64 max_cacheable_response_content_length_;
   AtomicBool ignore_failure_puts_;
 

@@ -36,7 +36,7 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -499,12 +499,9 @@ class Library : public spriter::ImageLibraryInterface {
         spriter::ImageLibraryInterface::Canvas(lib),
         lib_(lib) {
       DCHECK(lib != NULL);
-      net_instaweb::Image::CompressionOptions* options =
-          new net_instaweb::Image::CompressionOptions();
-      options->recompress_png = true;
-      image_.reset(BlankImageWithOptions(width, height,
-                                         net_instaweb::Image::IMAGE_PNG,
-                                         tmp_dir, handler, options));
+      image_.reset(net_instaweb::BlankImage(width, height,
+                                            net_instaweb::Image::IMAGE_PNG,
+                                            tmp_dir, handler));
     }
 
     virtual ~Canvas() { }
@@ -677,12 +674,12 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 
     combination->EnsureCachedResultCreated()->mutable_spriter_result()->
         CopyFrom(*result);
-    if (!server_context_->Write(combine_resources,
-                                result_image->image()->Contents(),
-                                &kContentTypePng,
-                                StringPiece(),  // no charset on images.
-                                combination.get(),
-                                handler)) {
+    if (!resource_manager_->Write(combine_resources,
+                                  result_image->image()->Contents(),
+                                  &kContentTypePng,
+                                  StringPiece(),  // no charset on images.
+                                  combination.get(),
+                                  handler)) {
       handler->Error(UrlSafeId().c_str(), 0,
                      "Could not write sprited resource.");
       return false;
@@ -756,7 +753,7 @@ class ImageCombineFilter::Context : public RewriteContext {
           const GoogleUrl& css_url, const StringPiece& css_text)
       : RewriteContext(NULL, parent, NULL),
         library_(NULL,
-                 filter->driver()->server_context()->filename_prefix(),
+                 filter->driver()->resource_manager()->filename_prefix(),
                  filter->driver()->message_handler()),
         filter_(filter) {
     MD5Hasher hasher;
@@ -767,7 +764,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   Context(RewriteDriver* driver, ImageCombineFilter* filter)
       : RewriteContext(driver, NULL, NULL),
         library_(NULL,
-                 filter->driver()->server_context()->filename_prefix(),
+                 filter->driver()->resource_manager()->filename_prefix(),
                  filter->driver()->message_handler()),
         filter_(filter) {
   }
@@ -910,8 +907,7 @@ class ImageCombineFilter::Context : public RewriteContext {
     CrossThreadPartitionDone(partitions->partition_size() != 0);
   }
 
-  void PartitionCancel(OutputPartitions* partitions,
-                       OutputResourceVector* outputs) {
+  void PartitionCancel() {
     CrossThreadPartitionDone(false);
   }
 
@@ -1120,14 +1116,14 @@ class ImageCombineFilter::Context : public RewriteContext {
 ImageCombineFilter::ImageCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       context_(NULL) {
-  Statistics* stats = driver->server_context()->statistics();
+  Statistics* stats = driver->resource_manager()->statistics();
   image_file_count_reduction_ = stats->GetVariable(kImageFileCountReduction);
 }
 
 ImageCombineFilter::~ImageCombineFilter() {
 }
 
-void ImageCombineFilter::InitStats(Statistics* statistics) {
+void ImageCombineFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kImageFileCountReduction);
 }
 

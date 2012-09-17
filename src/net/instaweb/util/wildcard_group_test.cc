@@ -65,13 +65,6 @@ TEST_F(WildcardGroupTest, AppendSequence) {
   group_.AppendFrom(appended);
   EXPECT_TRUE(group_.Match("cb.cc", false));
   EXPECT_FALSE(group_.Match("ca.cc", true));
-  TestGroup(group_);
-}
-
-TEST_F(WildcardGroupTest, EmptyGroup) {
-  WildcardGroup group;
-  EXPECT_TRUE(group.Match("cb.cc", true));
-  EXPECT_FALSE(group.Match("ca.cc", false));
 }
 
 }  // namespace net_instaweb

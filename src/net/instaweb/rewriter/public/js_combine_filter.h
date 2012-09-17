@@ -70,7 +70,7 @@ class JsCombineFilter : public RewriteFilter {
   virtual ~JsCombineFilter();
 
   // Registers the provided statistics variable names with 'statistics'.
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   virtual const char* id() const {
     return RewriteOptions::kJavascriptCombinerId;
   }
@@ -85,9 +85,7 @@ class JsCombineFilter : public RewriteFilter {
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "JsCombine"; }
   virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const {
-    return &encoder_;
-  }
+  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
 
  private:
   class JsCombiner;

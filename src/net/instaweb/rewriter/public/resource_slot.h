@@ -27,7 +27,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/vector_deque.h"
 
 namespace net_instaweb {
@@ -95,29 +94,13 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   void set_was_optimized(bool x) { was_optimized_ = x; }
 
   // Render is not thread-safe.  This must be called from the thread that
-  // owns the DOM or CSS file. The RewriteContext state machine will only
-  // call ResourceSlot::Render() on slots that were optimized successfully,
-  // and whose partitions are safely url_relocatable(). (Note that this is
-  // different from RewriteContext::Render).
+  // owns the DOM or CSS file.
   virtual void Render() = 0;
 
   // Called after all contexts have had a chance to Render.
   // This is especially useful for cases where Render was never called
   // but you want something to be done to all slots.
   virtual void Finished() {}
-
-  // Update the URL in the slot target without touching the resource. This is
-  // intended for when we're inlining things as data: URLs. Note that if you
-  // call this you should also call set_disable_rendering(true), or otherwise
-  // the result will be overwritten. Does not alter the URL in any way.  Not
-  // supported on all slot types --- presently only slots representing things
-  // within CSS and HTML have this operation (others will DCHECK-fail).  Must be
-  // called from within a context's Render() method.
-  virtual void DirectSetUrl(const StringPiece& url);
-
-  // Returns true if DirectSetUrl is supported by this slot (html and css right
-  // now).
-  virtual bool CanDirectSetUrl() { return false; }
 
   // Return the last context to have been added to this slot.  Returns NULL
   // if no context has been added to the slot so far.
@@ -189,8 +172,6 @@ class HtmlResourceSlot : public ResourceSlot {
 
   virtual void Render();
   virtual GoogleString LocationString();
-  virtual void DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);

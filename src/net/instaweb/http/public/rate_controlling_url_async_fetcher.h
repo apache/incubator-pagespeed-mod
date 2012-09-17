@@ -45,8 +45,6 @@ class Variable;
 // the fetch out and updates the count. If greater than the per-domain limit,
 // and if the global queue size is within the limit, it queues the request up.
 // However, if the global queue size is above the limit, it drops the request.
-// If a request is dropped, the response will have HttpAttributes::kXPsaLoadShed
-// set on the response headers.
 class RateControllingUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
   static const char kQueuedFetchCount[];
@@ -71,7 +69,7 @@ class RateControllingUrlAsyncFetcher : public UrlAsyncFetcher {
                      AsyncFetch* fetch);
 
   // Initializes statistics variables associated with this class.
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
  private:
   class HostFetchInfo;

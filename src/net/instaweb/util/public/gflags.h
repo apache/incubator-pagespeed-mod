@@ -22,10 +22,4 @@
 
 #include "gflags/gflags.h"
 
-namespace net_instaweb {
-
-void ParseGflags(const char* progname, int* argc, char*** argv);
-
-}  // namespace net_instaweb
-
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_GFLAGS_H_

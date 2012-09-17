@@ -18,6 +18,7 @@
 
 #include "net/instaweb/htmlparse/public/canonical_attributes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 
 namespace net_instaweb {
 
@@ -37,10 +38,8 @@ void CanonicalAttributes::StartDocument() {
 }
 
 void CanonicalAttributes::StartElement(HtmlElement* element) {
-  HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
-    HtmlElement::Attribute& attribute = *i;
+  for (int i = 0; i < element->attribute_size(); ++i) {
+    HtmlElement::Attribute& attribute = element->attribute(i);
     const char* value = attribute.DecodedValueOrNull();
     if (attribute.decoding_error()) {
       ++num_errors_;

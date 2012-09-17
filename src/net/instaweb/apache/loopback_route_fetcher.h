@@ -48,7 +48,7 @@ class LoopbackRouteFetcher : public UrlAsyncFetcher {
   virtual ~LoopbackRouteFetcher();
 
   virtual bool SupportsHttps() const {
-    return backend_fetcher_->SupportsHttps();
+    return false;
   }
 
   virtual bool Fetch(const GoogleString& url,

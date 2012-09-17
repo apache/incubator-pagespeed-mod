@@ -18,7 +18,7 @@
 
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/waveform.h"
@@ -74,7 +74,7 @@ namespace net_instaweb {
 //
 // Note that there are other statistics owned by filters and subsystems,
 // that must get the some treatment.
-void RewriteStats::InitStats(Statistics* statistics) {
+void RewriteStats::Initialize(Statistics* statistics) {
   statistics->AddVariable(kResourceUrlDomainRejections);
   statistics->AddVariable(kCachedOutputMissedDeadline);
   statistics->AddVariable(kCachedOutputHits);
@@ -93,13 +93,13 @@ void RewriteStats::InitStats(Statistics* statistics) {
   statistics->AddVariable(kFallbackResponsesServed);
   statistics->AddVariable(kNumConditionalRefreshes);
   statistics->AddTimedVariable(kTotalFetchCount,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kTotalRewriteCount,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kRewritesExecuted,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kRewritesDropped,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
 }
 
 // This is called when a RewriteDriverFactory is created, and adds

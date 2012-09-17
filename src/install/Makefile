@@ -72,11 +72,8 @@ MODS_ENABLED_DIR = $(shell if [ -d $(APACHE_ROOT)/mods-enabled ]; then \
 MODS_AVAILABLE_DIR = $(shell if [ -d $(APACHE_ROOT)/mods-available ]; then \
 	echo $(APACHE_ROOT)/mods-available; fi)
 
-# Determines where mod_pagespeed should write files.
-MOD_PAGESPEED_CACHE = /var/cache/mod_pagespeed
-
-# Determines where statistics should be logged.
-MOD_PAGESPEED_STATS_LOG = /var/log/mod_pagespeed_stats.log
+# Determines should mod_pagespeed should write files
+MOD_PAGESPEED_FILE_ROOT = /var/mod_pagespeed
 
 # The username used to run apache.  This is needed to create the directory
 # used to store mod_pagespeed files and cache data.
@@ -85,9 +82,9 @@ APACHE_USER = www-data
 # Set this to 1 to enable mod_proxy and mod_rewrite
 ENABLE_PROXY = 0
 
-.PHONY : config_file echo_vars
+.PHONY: config_file echo_vars
 
-echo_vars :
+echo_vars:
 	@echo Run "restart" to add default instaweb config to apache
 	@echo Or run "stop", "staging", "install", and "start".
 	@echo These configuration variables can be reset on the make command line,
@@ -98,7 +95,7 @@ echo_vars :
 	@echo "   APACHE_ROOT=$(APACHE_ROOT)"
 	@echo "   APACHE_START=$(APACHE_START)"
 	@echo "   APACHE_STOP=$(APACHE_STOP)"
-	@echo "   MOD_PAGESPEED_CACHE=$(MOD_PAGESPEED_CACHE)"
+	@echo "   MOD_PAGESPEED_FILE_ROOT=$(MOD_PAGESPEED_FILE_ROOT)"
 	@echo "   MODS_ENABLED_DIR=$(MODS_ENABLED_DIR)"
 	@echo "   MODS_AVAILABLE_DIR=$(MODS_AVAILABLE_DIR)"
 	@echo "   STAGING_DIR=$(STAGING_DIR)"
@@ -211,14 +208,6 @@ else
   SHARED_MEM_LOCK_TEST_SED_PATTERN=^\#SHARED_MEM_LOCKS.*\n
 endif
 
-ifeq ($(MEMCACHED_TEST),1)
-  # remove prefix
-  MEMCACHED_TEST_SED_PATTERN=^\#MEMCACHED
-else
-  # remove whole line
-  MEMCACHED_TEST_SED_PATTERN=^\#MEMCACHED.*\n
-endif
-
 ifeq ($(SPELING_TEST),1)
   # remove prefix
   SPELING_TEST_SED_PATTERN=^\#SPELING
@@ -243,36 +232,12 @@ else
   GZIP_TEST_SED_PATTERN=^\#GZIP.*\n
 endif
 
-ifeq ($(FURIOUS_GA_TEST),1)
+ifeq ($(FURIOUS_TEST),1)
   # remove prefix
-  FURIOUS_GA_TEST_SED_PATTERN=^\#FURIOUS_GA
+  FURIOUS_TEST_SED_PATTERN=^\#FURIOUS
 else
   # remove whole line
-  FURIOUS_GA_TEST_SED_PATTERN=^\#FURIOUS_GA.*\n
-endif
-
-ifeq ($(FURIOUS_NO_GA_TEST),1)
-  # remove prefix
-  FURIOUS_NO_GA_TEST_SED_PATTERN=^\#FURIOUS_NO_GA
-else
-  # remove whole line
-  FURIOUS_NO_GA_TEST_SED_PATTERN=^\#FURIOUS_NO_GA.*\n
-endif
-
-ifeq ($(URL_ATTRIBUTE_TEST),1)
-  # remove prefix
-  URL_ATTRIBUTE_TEST_SED_PATTERN=^\#URL_ATTRIBUTE
-else
-  # remove whole line
-  URL_ATTRIBUTE_TEST_SED_PATTERN=^\#URL_ATTRIBUTE.*\n
-endif
-
-ifeq ($(ABSOLUTE_URLS_TEST),1)
-  # remove prefix
-  ABSOLUTE_URLS_TEST_SED_PATTERN=^\#ABSOLUTE_URLS
-else
-  # remove whole line
-  ABSOLUTE_URLS_TEST_SED_PATTERN=^\#ABSOLUTE_URLS.*\n
+  FURIOUS_TEST_SED_PATTERN=^\#FURIOUS.*\n
 endif
 
 ifeq ($(HTTPS_TEST),1)
@@ -289,14 +254,6 @@ ifeq ($(XHEADER_TEST),1)
 else
   # remove whole line
   XHEADER_TEST_SED_PATTERN=^\#XHEADER.*\n
-endif
-
-ifeq ($(CLIENT_DOMAIN_REWRITE_TEST),1)
-  # remove prefix
-  CLIENT_DOMAIN_REWRITE_TEST_SED_PATTERN=^\#CLIENT_DOMAIN_REWRITE
-else
-  # remove whole line
-  CLIENT_DOMAIN_REWRITE_TEST_SED_PATTERN=^\#CLIENT_DOMAIN_REWRITE.*\n
 endif
 
 ifeq ($(DOMAIN_HYPERLINKS_TEST),1)
@@ -323,22 +280,6 @@ else
   ALL_DIRECTIVES_TEST_SED_PATTERN=^\#ALL_DIRECTIVES.*\n
 endif
 
-ifeq ($(PER_VHOST_STATS_TEST),1)
-  # remove prefix
-  PER_VHOST_STATS_TEST_SED_PATTERN=^\#PER_VHOST_STATS
-else
-  # remove whole line
-  PER_VHOST_STATS_TEST_SED_PATTERN=^\#PER_VHOST_STATS.*\n
-endif
-
-ifeq ($(STATS_LOGGING_TEST),1)
-  # remove prefix
-  STATS_LOGGING_TEST_SED_PATTERN=^\#STATS_LOGGING
-else
-  # remove whole line
-  STATS_LOGGING_TEST_SED_PATTERN=^\#STATS_LOGGING.*\n
-endif
-
 # Note that the quoted sed replacement for APACHE_SLURP_DIR_COMMAND is because
 # that might have embedded spaces, and 'sed' is interpreted first by bash.
 
@@ -348,8 +289,7 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s!@@APACHE_HTTPS_DOMAIN@@!$(APACHE_HTTPS_DOMAIN)!g" \
 	    -e "s!@@APACHE_MODULES@@!$(APACHE_MODULES)!g" \
 	    -e "s!@@APACHE_SECONDARY_PORT@@!$(APACHE_SECONDARY_PORT)!g" \
-	    -e "s!@@MOD_PAGESPEED_CACHE@@!$(MOD_PAGESPEED_CACHE)!g" \
-	    -e "s!@@MOD_PAGESPEED_STATS_LOG@@!$(MOD_PAGESPEED_STATS_LOG)!g" \
+	    -e "s!@@MODPAGESPEED_CACHE_ROOT@@!$(MOD_PAGESPEED_FILE_ROOT)!g" \
 	    -e "s@# ModPagespeedSlurpDirectory ...@$(APACHE_SLURP_DIR_COMMAND)@g" \
 	    -e "s@# ModPagespeedSlurpReadOnly on@$(APACHE_SLURP_READ_ONLY_COMMAND)@g" \
 	    -e "s|@@TMP_SLURP_DIR@@|$(TMP_SLURP_DIR)|g" \
@@ -360,20 +300,13 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s@$(SLURP_TEST_SED_PATTERN)@@" \
 	    -e "s@$(SHARED_MEM_LOCK_TEST_SED_PATTERN)@@" \
 	    -e "s@$(SPELING_TEST_SED_PATTERN)@@" \
-	    -e "s@$(MEMCACHED_TEST_SED_PATTERN)@@" \
 	    -e "s@$(GZIP_TEST_SED_PATTERN)@@" \
 	    -e "s@$(HTTPS_TEST_SED_PATTERN)@@" \
-	    -e "s@$(FURIOUS_GA_TEST_SED_PATTERN)@@" \
-	    -e "s@$(FURIOUS_NO_GA_TEST_SED_PATTERN)@@" \
-	    -e "s@$(URL_ATTRIBUTE_TEST_SED_PATTERN)@@" \
-	    -e "s@$(ABSOLUTE_URLS_TEST_SED_PATTERN)@@" \
+	    -e "s@$(FURIOUS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(XHEADER_TEST_SED_PATTERN)@@" \
-	    -e "s@$(CLIENT_DOMAIN_REWRITE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(DOMAIN_HYPERLINKS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(DOMAIN_RESOURCE_TAGS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(ALL_DIRECTIVES_TEST_SED_PATTERN)@@" \
-	    -e "s@$(PER_VHOST_STATS_TEST_SED_PATTERN)@@" \
-	    -e "s@$(STATS_LOGGING_TEST_SED_PATTERN)@@" \
 		$^ > $@
 	! grep '@@' $@  # Make sure we don't have any remaining @@variables@@
 
@@ -390,14 +323,14 @@ setup_staging_dir :
 
 # Generate a configuration file and copy it to the staging area.
 # Also copy the example tree, and the built Apache module
-staging_except_module : setup_staging_dir $(CONF_TEMPLATES)
+staging_except_module: setup_staging_dir $(CONF_TEMPLATES)
 	cat common/pagespeed.load.template | \
 	    sed s~@@APACHE_MODULEDIR@@~$(APACHE_MODULES)~ | \
 	    sed s/@@COMMENT_OUT_DEFLATE@@// > $(STAGING_DIR)/pagespeed.load
 	$(MODS_ENABLED_STAGING_COMMANDS)
 	cp -rp mod_pagespeed_example mod_pagespeed_test $(STAGING_DIR)
 
-staging : staging_except_module
+staging: staging_except_module
 	cp $(PAGESPEED_MODULE) $(STAGING_DIR)/mod_pagespeed.so
 	cp $(PAGESPEED_MODULE_24) $(STAGING_DIR)/mod_pagespeed_ap24.so
 
@@ -418,15 +351,17 @@ install : install_except_module
 	cp $(STAGING_DIR)/mod_pagespeed_ap24.so $(APACHE_MODULES)
 
 mod_pagespeed_file_root :
-	mkdir -p $(MOD_PAGESPEED_CACHE)
-	chown -R $(APACHE_USER) $(MOD_PAGESPEED_CACHE)
-
-	mkdir -p $(MOD_PAGESPEED_CACHE)-alt
-	chown -R $(APACHE_USER) $(MOD_PAGESPEED_CACHE)-alt
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)/cache
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)/secondary_cache
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)/files
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)-alt/cache
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)-alt/secondary_cache
+	mkdir -p $(MOD_PAGESPEED_FILE_ROOT)-alt/files
+	chown -R $(APACHE_USER) $(MOD_PAGESPEED_FILE_ROOT)
 
 flush_disk_cache :
-	rm -rf $(MOD_PAGESPEED_CACHE)
-	$(MAKE) MOD_PAGESPEED_CACHE=$(MOD_PAGESPEED_CACHE) \
+	rm -rf $(MOD_PAGESPEED_FILE_ROOT)
+	$(MAKE) MOD_PAGESPEED_FILE_ROOT=$(MOD_PAGESPEED_FILE_ROOT) \
 		APACHE_USER=$(APACHE_USER) mod_pagespeed_file_root
 
 # Starts Apache server
@@ -453,61 +388,31 @@ restart : staging
 
 # Tests that the installed mod_pagespeed server is working.
 test :
+	./system_test.sh localhost
 	CACHE_FLUSH_TEST=on APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 		./apache_system_test.sh localhost
 
 # Now hook in the full integration test suite. It needs to be run as root.
-# Each test is on it's own line for better diff/merge support.
-apache_install_conf :
-	$(MAKE) staging_except_module \
-	    $(OPT_REWRITE_TEST)
-	    $(OPT_PROXY_TEST) \
-	    $(OPT_SLURP_TEST) \
-	    $(OPT_MEMCACHED_TEST) \
-	    $(OPT_SPELING_TEST) \
-	    $(OPT_COVERAGE_TRACE_TEST) \
-	    $(OPT_STRESS_TEST) \
-	    $(OPT_HTTPS_TEST) \
-	    $(OPT_SHARED_MEM_LOCK_TEST) \
-	    $(OPT_GZIP_TEST) \
-	    $(OPT_FURIOUS_GA_TEST) \
-	    $(OPT_FURIOUS_NO_GA_TEST) \
-	    $(OPT_XHEADER_TEST) \
-	    $(OPT_CLIENT_DOMAIN_REWRITE_TEST) \
-	    $(OPT_DOMAIN_HYPERLINKS_TEST) \
-	    $(OPT_DOMAIN_RESOURCE_TAGS_TEST) \
-	    $(OPT_ALL_DIRECTIVES_TEST) \
-	    $(OPT_URL_ATTRIBUTE_TEST) \
-	    $(OPT_ABSOLUTE_URLS_TEST) \
-	    $(OPT_PER_VHOST_STATS_TEST) \
-	    $(OPT_STATS_LOGGING_TEST)
-	$(MAKE) install_except_module \
-	    $(OPT_REWRITE_TEST) \
-	    $(OPT_PROXY_TEST) \
-	    $(OPT_SLURP_TEST) \
-	    $(OPT_MEMCACHED_TEST) \
-	    $(OPT_SPELING_TEST) \
-	    $(OPT_COVERAGE_TRACE_TEST) \
-	    $(OPT_STRESS_TEST) \
-	    $(OPT_HTTPS_TEST) \
-	    $(OPT_SHARED_MEM_LOCK_TEST) \
-	    $(OPT_GZIP_TEST) \
-	    $(OPT_FURIOUS_GA_TEST) \
-	    $(OPT_FURIOUS_NO_GA_TEST) \
-	    $(OPT_XHEADER_TEST) \
-	    $(OPT_CLIENT_DOMAIN_REWRITE_TEST) \
-	    $(OPT_DOMAIN_HYPERLINKS_TEST) \
-	    $(OPT_DOMAIN_RESOURCE_TAGS_TEST) \
-	    $(OPT_ALL_DIRECTIVES_TEST) \
-	    $(OPT_URL_ATTRIBUTE_TEST) \
-	    $(OPT_ABSOLUTE_URLS_TEST) \
-	    $(OPT_PER_VHOST_STATS_TEST) \
-	    $(OPT_STATS_LOGGING_TEST)
+apache_install_conf:
+	$(MAKE) staging_except_module $(OPT_REWRITE_TEST) $(OPT_PROXY_TEST) \
+	    $(OPT_SLURP_TEST) $(OPT_SPELING_TEST) \
+	    $(OPT_COVERAGE_TRACE_TEST) $(OPT_STRESS_TEST) \
+	    $(OPT_HTTPS_TEST) $(OPT_SHARED_MEM_LOCK_TEST) \
+	    $(OPT_GZIP_TEST) $(OPT_FURIOUS_TEST) $(OPT_XHEADER_TEST) \
+	    $(OPT_DOMAIN_HYPERLINKS_TEST) $(OPT_DOMAIN_RESOURCE_TAGS_TEST) \
+	    $(OPT_ALL_DIRECTIVES_TEST)
+	$(MAKE) install_except_module $(OPT_REWRITE_TEST) $(OPT_PROXY_TEST) \
+	    $(OPT_SLURP_TEST) $(OPT_SPELING_TEST) \
+	    $(OPT_COVERAGE_TRACE_TEST) $(OPT_STRESS_TEST) \
+	    $(OPT_HTTPS_TEST) $(OPT_SHARED_MEM_LOCK_TEST) \
+	    $(OPT_GZIP_TEST) $(OPT_FURIOUS_TEST) $(OPT_XHEADER_TEST) \
+	    $(OPT_DOMAIN_HYPERLINKS_TEST) $(OPT_DOMAIN_RESOURCE_TAGS_TEST) \
+	    $(OPT_ALL_DIRECTIVES_TEST)
 
-apache_debug_restart :
+apache_debug_restart:
 	$(APACHE_CONTROL_PROGRAM) restart
 
-apache_debug_stop : stop
+apache_debug_stop: stop
 
 # Enables a few ports that are needed by system tests.  This is needed on
 # CentOS only to work around barriers erected by SELinux.  See
@@ -525,8 +430,8 @@ enable_ports_and_file_access :
 	    /usr/sbin/semanage port -m -t http_port_t -p tcp $$port; \
 	done
 	set -x; \
-	for dir in $(MOD_PAGESPEED_CACHE) \
-	           $(MOD_PAGESPEED_CACHE)-alt; do \
+	for dir in $(MOD_PAGESPEED_FILE_ROOT) \
+	           $(MOD_PAGESPEED_FILE_ROOT)-alt; do \
 	  mkdir $$dir; \
 	  chown $(APACHE_USER) $dir; \
 	  chcon -R -t httpd_sys_content_t $$dir; \
@@ -535,14 +440,15 @@ enable_ports_and_file_access :
 # Hooks for tests we can only run in development due to needing extensive
 # configuration changes in Apache (and potentially different build flags).
 # Stubbed out here.
-apache_debug_leak_test :
-apache_debug_proxy_test :
-apache_debug_slurp_test :
+apache_debug_leak_test:
+apache_debug_proxy_test:
+apache_debug_slurp_test:
 
 APACHE_DEBUG_PORT=80
 APACHE_HTTPS_PORT=
 APACHE_CTRL_BIN=$(APACHE_CONTROL_PROGRAM)
 APACHE_DEBUG_PAGESPEED_CONF=$(APACHE_CONF)/pagespeed.conf
+PAGESPEED_ROOT=$(MOD_PAGESPEED_FILE_ROOT)
 INSTALL_DATA_DIR=.
 
 include tests.mk

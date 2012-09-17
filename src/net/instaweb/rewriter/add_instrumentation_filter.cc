@@ -22,9 +22,9 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/rewriter/public/furious_util.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/http/public/content_type.h"  // for ContentType
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/escaping.h"
@@ -48,11 +48,8 @@ const char kHeadScript[] =
 //     1. %s : CDATA hack opener or "".
 //     2. %s : the custom beacon url, by default "./mod_pagespeed_beacon?ets=".
 //     3. %s : kUnloadTag.
-//     4. %s : time taken to fetch the headers of the html document.
-//     5. %s : time taken to fetch the complete resource from origin.
-//     6. %s : experiment id.
-//     7. %s : URL of HTML.
-//     8. %s : CDATA hack closer or "".
+//     4. %s : URL of HTML.
+//     5. %s : CDATA hack closer or "".
 //
 //  Then our timing info, e.g. "unload:123", will be appended.
 const char kUnloadScriptFormat[] =
@@ -63,7 +60,7 @@ const char kUnloadScriptFormat[] =
     "if(window.parent != window){ifr=1}"
     "new Image().src='%s%s'+"
     "(Number(new Date())-window.mod_pagespeed_start)+'&ifr='+ifr+'"
-    "%s%s%s&url='+encodeURIComponent('%s');};"
+    "&url='+encodeURIComponent('%s');};"
     "var f=window.addEventListener;if(f){f('beforeunload',g,false);}else{"
     "f=window.attachEvent;if(f){f('onbeforeunload',g);}}"
     "})();%s</script>";
@@ -74,16 +71,11 @@ const char kUnloadScriptFormat[] =
 // Then our timing info, e.g. "load:123", will be appended.
 const char kTailScriptFormat[] =
     "<script type='text/javascript'>%s"
-    "(function(){function g(){var ifr=0;var rpi='';"
-    "if(window.mod_pagespeed_prefetch_start){"
-    "rpi+='&nrp='+window.mod_pagespeed_num_resources_prefetched;"
-    "rpi+='&htmlAt=';"
-    "rpi+=(window.mod_pagespeed_start-window.mod_pagespeed_prefetch_start);}"
+    "(function(){function g(){var ifr=0;"
     "if(window.parent != window){ifr=1}"
     "new Image().src='%s%s'+"
     "(Number(new Date())-window.mod_pagespeed_start)+'&ifr='+ifr+'"
-    "'+rpi+'"
-    "%s%s%s&url='+encodeURIComponent('%s');"
+    "&url='+encodeURIComponent('%s');"
     "window.mod_pagespeed_loaded=true;};"
     "var f=window.addEventListener;if(f){f('load',g,false);}else{"
     "f=window.attachEvent;if(f){f('onload',g);}}"
@@ -111,6 +103,8 @@ const char kCdataHackClose[] = "\n//]]>";
 // above via the second %s.
 const char AddInstrumentationFilter::kLoadTag[] = "load:";
 const char AddInstrumentationFilter::kUnloadTag[] = "unload:";
+GoogleString* AddInstrumentationFilter::kTailScriptFormatXhtml = NULL;
+GoogleString* AddInstrumentationFilter::kUnloadScriptFormatXhtml = NULL;
 
 // Counters.
 const char AddInstrumentationFilter::kInstrumentationScriptAddedCount[] =
@@ -119,24 +113,33 @@ AddInstrumentationFilter::AddInstrumentationFilter(RewriteDriver* driver)
     : driver_(driver),
       found_head_(false),
       use_cdata_hack_(
-          !driver_->server_context()->response_headers_finalized()),
-      added_tail_script_(false),
-      added_unload_script_(false) {
-  Statistics* stats = driver->server_context()->statistics();
+          !driver_->resource_manager()->response_headers_finalized()) {
+  Statistics* stats = driver->resource_manager()->statistics();
   instrumentation_script_added_count_ = stats->GetVariable(
       kInstrumentationScriptAddedCount);
 }
 
 AddInstrumentationFilter::~AddInstrumentationFilter() {}
 
-void AddInstrumentationFilter::InitStats(Statistics* statistics) {
+void AddInstrumentationFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kInstrumentationScriptAddedCount);
+  if (kTailScriptFormatXhtml == NULL) {
+    kTailScriptFormatXhtml = new GoogleString(kTailScriptFormat);
+    GlobalReplaceSubstring("&", "&amp;", kTailScriptFormatXhtml);
+    kUnloadScriptFormatXhtml = new GoogleString(kUnloadScriptFormat);
+    GlobalReplaceSubstring("&", "&amp;", kUnloadScriptFormatXhtml);
+  }
+}
+
+void AddInstrumentationFilter::Terminate() {
+  delete kTailScriptFormatXhtml;
+  kTailScriptFormatXhtml = NULL;
+  delete kUnloadScriptFormatXhtml;
+  kUnloadScriptFormatXhtml = NULL;
 }
 
 void AddInstrumentationFilter::StartDocument() {
   found_head_ = false;
-  added_tail_script_ = false;
-  added_unload_script_ = false;
 }
 
 void AddInstrumentationFilter::StartElement(HtmlElement* element) {
@@ -153,76 +156,64 @@ void AddInstrumentationFilter::StartElement(HtmlElement* element) {
   }
 }
 
+bool AddInstrumentationFilter::IsXhtml() {
+  bool is_xhtml = false;
+  if (!use_cdata_hack_) {
+    const ResponseHeaders* headers = driver_->response_headers();
+    if (headers != NULL) {
+      const ContentType* content_type = headers->DetermineContentType();
+      if (content_type != NULL) {
+        is_xhtml = content_type->IsXmlLike();
+      }
+    }
+  }
+  return is_xhtml;
+}
+
 void AddInstrumentationFilter::EndElement(HtmlElement* element) {
-  if (!added_tail_script_ && element->keyword() == HtmlName::kBody) {
+  if (element->keyword() == HtmlName::kBody) {
     // We relied on the existence of a <head> element.  This should have been
     // assured by add_head_filter.
     CHECK(found_head_) << "Reached end of document without finding <head>."
         "  Please turn on the add_head filter.";
-    AddScriptNode(element, kTailScriptFormat, kLoadTag);
-    added_tail_script_ = true;
+    bool is_xhtml = IsXhtml();
+    const char* script = is_xhtml
+        ? kTailScriptFormatXhtml->c_str() : kTailScriptFormat;
+    AddScriptNode(element, script, kLoadTag, is_xhtml);
   } else if (found_head_ && element->keyword() == HtmlName::kHead &&
-             driver_->options()->report_unload_time() &&
-             !added_unload_script_) {
-    AddScriptNode(element, kUnloadScriptFormat, kUnloadTag);
-    added_unload_script_ = true;
+             driver_->options()->report_unload_time()) {
+    bool is_xhtml = IsXhtml();
+    const char* script = is_xhtml
+        ? kUnloadScriptFormatXhtml->c_str() : kUnloadScriptFormat;
+    AddScriptNode(element, script, kUnloadTag, is_xhtml);
   }
 }
 
 void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
                                              const GoogleString& script_format,
-                                             const GoogleString& tag_name) {
+                                             const GoogleString& tag_name,
+                                             bool is_xhtml) {
   GoogleString html_url;
   EscapeToJsStringLiteral(driver_->google_url().Spec(),
                           false, /* no quotes */
                           &html_url);
+  if (is_xhtml) {
+    GlobalReplaceSubstring("&", "&amp;", &html_url);
+  }
   const RewriteOptions::BeaconUrl& beacons = driver_->options()->beacon_url();
   const GoogleString* beacon_url =
       driver_->IsHttps() ? &beacons.https : &beacons.http;
-  GoogleString expt_id_param;
-  if (driver_->options()->running_furious()) {
-    int furious_state = driver_->options()->furious_id();
-    if (furious_state != furious::kFuriousNotSet &&
-        furious_state != furious::kFuriousNoExperiment) {
-      expt_id_param = StringPrintf("&exptid=%d",
-                                   driver_->options()->furious_id());
-    }
-  }
-  GoogleString headers_fetch_time;
-  GoogleString fetch_time;
-  LogRecord* log_record = driver_->log_record();
-  if (log_record != NULL && log_record->logging_info()->has_timing_info()) {
-    if (log_record->logging_info()->timing_info().has_header_fetch_ms()) {
-      int64 header_fetch_ms =
-          log_record->logging_info()->timing_info().header_fetch_ms();
-      // If time taken to fetch the http header is not set, then the response
-      // came from cache.
-      headers_fetch_time = StrCat(
-          "&hft=",
-          Integer64ToString(header_fetch_ms));
-    }
-    if (log_record->logging_info()->timing_info().has_fetch_ms()) {
-      int64 fetch_ms = log_record->logging_info()->timing_info().fetch_ms();
-      // If time taken to fetch the resource is not set, then the response
-      // came from cache.
-      fetch_time = StrCat("&ft=", Integer64ToString(fetch_ms));
-    }
+  GoogleString xhtml_conversion_buffer;
+  if (is_xhtml) {
+    xhtml_conversion_buffer = *beacon_url;
+    GlobalReplaceSubstring("&", "&amp;", &xhtml_conversion_buffer);
+    beacon_url = &xhtml_conversion_buffer;
   }
   GoogleString tail_script = StringPrintf(
       script_format.c_str(),
       use_cdata_hack_ ? kCdataHackOpen : "",
-      beacon_url->c_str(), tag_name.c_str(),
-      headers_fetch_time.c_str(), fetch_time.c_str(),
-      expt_id_param.c_str(),
-      html_url.c_str(),
+      beacon_url->c_str(), tag_name.c_str(), html_url.c_str(),
       use_cdata_hack_ ? kCdataHackClose: "");
-  if (driver_->MimeTypeXhtmlStatus() == RewriteDriver::kIsXhtml) {
-    // We shouldn't escape ampersands if we're using CDATA, but we will only use
-    // CDATA if the response headers aren't finalized while we will only have
-    // have MimeTypeXhtmlStatus as Xhtml if they are.
-    CHECK(!use_cdata_hack_);
-    GlobalReplaceSubstring("&", "&amp;", &tail_script);
-  }
   HtmlCharactersNode* script =
       driver_->NewCharactersNode(element, tail_script);
   driver_->InsertElementBeforeCurrent(script);

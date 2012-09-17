@@ -195,8 +195,7 @@ TEST_F(ParserTest, ErrorNumber) {
 }
 
 TEST_F(ParserTest, unescape) {
-  // Invalid Unicode char.
-  TestUnescape("\\abcdef aabc", 8, ' ');
+  TestUnescape("\\abcdef aabc", 8, 0xABCDEF);
   TestUnescape("\\A", 2, 0xA);
   TestUnescape("\\A0b5C\r\n", 8, 0xa0b5C);
   TestUnescape("\\AB ", 4, 0xAB);
@@ -1266,8 +1265,7 @@ TEST_F(ParserTest, atrules) {
   a->ParseAtRule(t.get());
 
   ASSERT_EQ(1, t->imports().size());
-  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link()));
-  EXPECT_EQ(2, t->import(0).media_queries().size());
+  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link));
   EXPECT_EQ(true, a->Done());
 
   a.reset(new Parser("@charset \"ISO-8859-1\" ;"));
@@ -1283,17 +1281,9 @@ TEST_F(ParserTest, atrules) {
 
   ASSERT_EQ(1, t->rulesets().size());
   ASSERT_EQ(1, t->ruleset(0).selectors().size());
-  ASSERT_EQ(2, t->ruleset(0).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            t->ruleset(0).media_query(0).qualifier());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(0).media_type()));
-  EXPECT_EQ(0, t->ruleset(0).media_query(0).expressions().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            t->ruleset(0).media_query(1).qualifier());
-  EXPECT_EQ("screen",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(1).media_type()));
-  EXPECT_EQ(0, t->ruleset(0).media_query(1).expressions().size());
+  ASSERT_EQ(2, t->ruleset(0).media().size());
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(0).medium(0)));
+  EXPECT_EQ("screen", UnicodeTextToUTF8(t->ruleset(0).medium(1)));
   ASSERT_EQ(1, t->ruleset(0).selectors()[0]->size());
   EXPECT_EQ(kHtmlTagBody,
             t->ruleset(0).selector(0)[0]->get(0)->element_type());
@@ -1317,12 +1307,8 @@ TEST_F(ParserTest, atrules) {
   a->ParseAtRule(t.get());
 
   ASSERT_EQ(2, t->rulesets().size());
-  ASSERT_EQ(1, t->ruleset(0).media_queries().size());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(0).media_type()));
-  ASSERT_EQ(1, t->ruleset(1).media_queries().size());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(1).media_query(0).media_type()));
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(0).medium(0)));
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(1).medium(0)));
   t->ToString(); // Make sure it can be written as a string.
 }
 
@@ -1344,11 +1330,10 @@ TEST_F(ParserTest, stylesheets) {
   scoped_ptr<Stylesheet> t(a->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
   ASSERT_EQ(2, t->imports().size());
-  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(0).link()));
-  ASSERT_EQ(1, t->import(0).media_queries().size());
-  EXPECT_EQ("all",
-            UnicodeTextToUTF8(t->import(0).media_queries()[0]->media_type()));
-  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(1).link()));
+  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(0).link));
+  ASSERT_EQ(1, t->import(0).media.size());
+  EXPECT_EQ("all", UnicodeTextToUTF8(t->import(0).media[0]));
+  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(1).link));
   // html-style comment should NOT work
   EXPECT_EQ(4, t->rulesets().size());
   EXPECT_TRUE(a->Done());
@@ -1477,11 +1462,10 @@ TEST_F(ParserTest, SelectorError) {
 }
 
 TEST_F(ParserTest, MediaError) {
-  Parser p("@media screen and (max-width^?` { .a { color: red; } }");
+  Parser p("@media screen and (max-width: 290px) {}");
   scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p.errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n@media screen { .a {color: #ff0000} }\n",
-            stylesheet->ToString());
+  EXPECT_EQ(0, stylesheet->rulesets().size());
+  EXPECT_TRUE(Parser::kMediaError & p.errors_seen_mask());
 }
 
 TEST_F(ParserTest, HtmlCommentError) {
@@ -1664,101 +1648,27 @@ TEST_F(ParserTest, Counter) {
             declarations->ToString());
 }
 
-TEST_F(ParserTest, ParseNextImport) {
-  scoped_ptr<Parser> parser(new Parser(
-      "@IMPORT url(assets/style.css) screen,printer"));
-  scoped_ptr<Import> import(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(2, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(1, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(0, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_TRUE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"
-                          "*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@charset \"ISO-8859-1\";\n"
-                          "@import \"mystyle.css\" all;"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-}
-
 TEST_F(ParserTest, ParseSingleImport) {
   scoped_ptr<Parser> parser(new Parser(
       "@IMPORT url(assets/style.css) screen,printer"));
   scoped_ptr<Import> import(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(2, import->media_queries().size());
+    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(1, import->media_queries().size());
+    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(0, import->media_queries().size());
+    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("*border: 0px"));
@@ -1774,120 +1684,6 @@ TEST_F(ParserTest, ParseSingleImport) {
                           "@import \"mystyle.css\" all;"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() == NULL);
-}
-
-TEST_F(ParserTest, MediaQueries) {
-  Parser p("@import url(a.css);\n"
-           "@import url(b.css) screen;\n"
-           "@import url(c.css) NOT (max-width: 300px) and (color);\n"
-           "@import url(d.css) only print and (color), not screen;\n"
-           "@media { .a { color: red; } }\n"
-           "@media onLy screen And (max-width: 250px) { .a { color: green } }\n"
-           ".a { color: blue; }\n"
-           "@media (nonsense: foo(')', \")\", [)])) { body { color: red } }\n");
-
-  scoped_ptr<Stylesheet> s(p.ParseStylesheet());
-  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
-
-  ASSERT_EQ(4, s->imports().size());
-  EXPECT_EQ(0, s->import(0).media_queries().size());
-
-  ASSERT_EQ(1, s->import(1).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            s->import(1).media_queries()[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->import(1).media_queries()[0]->media_type()));
-  EXPECT_EQ(0, s->import(1).media_queries()[0]->expressions().size());
-
-  ASSERT_EQ(1, s->import(2).media_queries().size());
-  EXPECT_EQ(MediaQuery::NOT, s->import(2).media_queries()[0]->qualifier());
-  EXPECT_EQ("", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->media_type()));
-  ASSERT_EQ(2, s->import(2).media_queries()[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(0).name()));
-  ASSERT_TRUE(s->import(2).media_queries()[0]->expression(0).has_value());
-  EXPECT_EQ("300px", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(0).value()));
-  EXPECT_EQ("color", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(1).name()));
-  ASSERT_FALSE(s->import(2).media_queries()[0]->expression(1).has_value());
-
-  ASSERT_EQ(2, s->import(3).media_queries().size());
-  EXPECT_EQ(MediaQuery::ONLY, s->import(3).media_queries()[0]->qualifier());
-  EXPECT_EQ("print", UnicodeTextToUTF8(
-      s->import(3).media_queries()[0]->media_type()));
-  ASSERT_EQ(1, s->import(3).media_queries()[0]->expressions().size());
-  EXPECT_EQ("color", UnicodeTextToUTF8(
-      s->import(3).media_queries()[0]->expression(0).name()));
-  ASSERT_FALSE(s->import(3).media_queries()[0]->expression(0).has_value());
-
-  EXPECT_EQ(MediaQuery::NOT, s->import(3).media_queries()[1]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->import(3).media_queries()[1]->media_type()));
-  EXPECT_EQ(0, s->import(3).media_queries()[1]->expressions().size());
-
-
-  ASSERT_EQ(4, s->rulesets().size());
-  EXPECT_EQ(0, s->ruleset(0).media_queries().size());
-
-  ASSERT_EQ(1, s->ruleset(1).media_queries().size());
-  EXPECT_EQ(MediaQuery::ONLY, s->ruleset(1).media_query(0).qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).media_type()));
-  ASSERT_EQ(1, s->ruleset(1).media_query(0).expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).expression(0).name()));
-  ASSERT_TRUE(s->ruleset(1).media_query(0).expression(0).has_value());
-  EXPECT_EQ("250px", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).expression(0).value()));
-
-  EXPECT_EQ(0, s->ruleset(2).media_queries().size());
-
-  ASSERT_EQ(1, s->ruleset(3).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER, s->ruleset(3).media_query(0).qualifier());
-  EXPECT_EQ("", UnicodeTextToUTF8(s->ruleset(3).media_query(0).media_type()));
-  ASSERT_EQ(1, s->ruleset(3).media_query(0).expressions().size());
-  EXPECT_EQ("nonsense", UnicodeTextToUTF8(
-      s->ruleset(3).media_query(0).expression(0).name()));
-  ASSERT_TRUE(s->ruleset(3).media_query(0).expression(0).has_value());
-  EXPECT_EQ("foo(')', \")\", [)])", UnicodeTextToUTF8(
-      s->ruleset(3).media_query(0).expression(0).value()));
-}
-
-TEST_F(ParserTest, ExtractCharset) {
-  scoped_ptr<Parser> parser;
-  UnicodeText charset;
-
-  parser.reset(new Parser("@charset \"ISO-8859-1\" ;"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("ISO-8859-1", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charset foobar;"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charset \"UTF-8\" \"or 9\";"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
-  EXPECT_EQ("UTF-8", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charsets \"UTF-8\" and \"ISO-8859-1\";"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@IMPORT url(assets/style.css) screen,printer"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("wotcha!"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
 }
 
 TEST_F(ParserTest, UnexpectedAtRule) {
@@ -1901,17 +1697,6 @@ TEST_F(ParserTest, UnexpectedAtRule) {
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
-
-  // In preservation mode.
-  parser.reset(new Parser(
-      "@font-face{font-family:'Ubuntu';font-style:normal}"
-      ".foo { width: 1px; }"));
-  parser->set_preservation_mode(true);
-  stylesheet.reset(parser->ParseStylesheet());
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n/* Unparsed region: */ "
-            "@font-face{font-family:'Ubuntu';font-style:normal}\n"
-            ".foo {width: 1px}\n", stylesheet->ToString());
 
   // ... and with extra selectors.
   parser.reset(new Parser(

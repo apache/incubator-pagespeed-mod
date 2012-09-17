@@ -24,7 +24,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_COMBINER_H_
 
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/url_partnership.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest_prod.h"
@@ -124,7 +124,7 @@ class ResourceCombiner {
   // Your implementation must call the superclass.
   virtual void Clear();
 
-  ServerContext* const server_context_;
+  ResourceManager* const resource_manager_;
   RewriteDriver* const rewrite_driver_;
 
  private:
@@ -146,14 +146,6 @@ class ResourceCombiner {
   // Determines whether our accumulated leaf size is too big, taking into
   // account both per-segment and total-url limitations.
   bool UrlTooBig();
-
-  // Computes the total combined resources size.
-  // Override this if combined resource size to be restricted to some limit.
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {}
-
-  // Determines whether our accumulated resources size is too big.
-  // Override this if combined resource size to be restricted to some limit.
-  virtual bool ContentSizeTooBig() const { return false; }
 
   // Override this if you need to forbid some combinations based on the
   // content of the resource (e.g. with resource->HttpStatusOk())

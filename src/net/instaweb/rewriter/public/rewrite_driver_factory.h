@@ -34,18 +34,17 @@ namespace net_instaweb {
 class AbstractClientState;
 class AbstractMutex;
 class BlinkCriticalLineDataFinder;
+class CacheInterface;
 class CriticalImagesFinder;
 class FileSystem;
 class FilenameEncoder;
-class FlushEarlyInfoFinder;
-class FuriousMatcher;
 class Hasher;
-class LogRecord;
+class HTTPCache;
 class MessageHandler;
 class NamedLockManager;
 class PropertyCache;
 class QueuedWorkerPool;
-class ServerContext;
+class ResourceManager;
 class RewriteDriver;
 class RewriteOptions;
 class RewriteStats;
@@ -102,6 +101,9 @@ class RewriteDriverFactory {
   void set_filename_encoder(FilenameEncoder* filename_encoder);
   void set_url_namer(UrlNamer* url_namer);
   void set_timer(Timer* timer);
+  void set_critical_images_finder(CriticalImagesFinder* finder);
+  void set_blink_critical_line_data_finder(BlinkCriticalLineDataFinder* finder);
+  void set_enable_property_cache(bool enabled);
   void set_usage_data_reporter(UsageDataReporter* reporter);
 
   // Set up a directory for slurped files for HTML and resources.  If
@@ -156,10 +158,17 @@ class RewriteDriverFactory {
   // These accessors are *not* thread-safe.  They must be called once prior
   // to forking threads, e.g. via ComputeUrlFetcher().
   Timer* timer();
+  HTTPCache* http_cache();
+  PropertyCache* page_property_cache();
+  PropertyCache* client_property_cache();
   NamedLockManager* lock_manager();
   QueuedWorkerPool* WorkerPool(WorkerPoolName pool);
   Scheduler* scheduler();
   UsageDataReporter* usage_data_reporter();
+
+  // Builds a PropertyCache given a key prefix and a CacheInterface.
+  PropertyCache* MakePropertyCache(const GoogleString& cache_key_prefix,
+                                   CacheInterface* cache) const;
 
   // Computes URL fetchers using the based fetcher, and optionally,
   // slurp_directory and slurp_read_only.  These are not thread-safe;
@@ -168,21 +177,19 @@ class RewriteDriverFactory {
   virtual UrlFetcher* ComputeUrlFetcher();
   virtual UrlAsyncFetcher* ComputeUrlAsyncFetcher();
 
-  // Threadsafe mechanism to create a managed ServerContext.  The
-  // ServerContext is owned by the factory, and should not be
+  // Computes the HTTPCache using the CacheInterface.  This is not thread-safe.
+  virtual HTTPCache* ComputeHTTPCache();
+
+  // Threadsafe mechanism to create a managed ResourceManager.  The
+  // ResourceManager is owned by the factory, and should not be
   // deleted directly.  Currently it is not possible to delete a
-  // server context except by deleting the entire factory.
-  ServerContext* CreateServerContext();
+  // resource manager except by deleting the entire factory.
+  ResourceManager* CreateResourceManager();
 
-  // Initializes a ServerContext that has been new'd directly.  This
+  // Initializes a ResourceManager that has been new'd directly.  This
   // allows 2-phase initialization if required.  There is no need to
-  // call this if you use CreateServerContext.
-  void InitServerContext(ServerContext* server_context);
-
-  // Called from InitServerContext, but virtualized separately
-  // as it is platform-specific.  This method must call on the resource
-  // manager: set_http_cache, set_metadata_cache, and MakePropertyCaches.
-  virtual void SetupCaches(ServerContext* server_context) = 0;
+  // call this if you use CreateResourceManager.
+  void InitResourceManager(ResourceManager* resource_manager);
 
   // Provides an optional hook for adding rewrite passes to the HTML filter
   // chain.  This should be used for filters that are specific to a particular
@@ -204,6 +211,9 @@ class RewriteDriverFactory {
 
   ThreadSystem* thread_system() { return thread_system_.get(); }
 
+  CriticalImagesFinder* critical_images_finder();
+  BlinkCriticalLineDataFinder* blink_critical_line_data_finder();
+
   // Returns the set of directories that we (our our subclasses) have created
   // thus far.
   const StringSet& created_directories() const {
@@ -215,19 +225,14 @@ class RewriteDriverFactory {
   // Collection of global statistics objects.  This is thread-unsafe:
   // it must be called prior to spawning threads, and after any calls
   // to SetStatistics.  Failing that, it will be initialized in the
-  // first call to InitServerContext(), which is thread-safe.
+  // first call to ComputeResourceManager, which is thread-safe.
   RewriteStats* rewrite_stats();
 
   // statistics (default is NullStatistics).  This can be overridden by calling
   // SetStatistics, either from subclasses or externally.
   Statistics* statistics() { return statistics_; }
 
-  // Initializes statistics variables.  This must be done at process
-  // startup to enable shared memory segments in Apache to be set up.
-  static void InitStats(Statistics* statistics);
-
-  // Initializes static variables.  Initialize/Terminate calls must be paired.
-  static void Initialize();
+  static void Initialize(Statistics* statistics);
   static void Terminate();
 
   // Does *not* take ownership of Statistics.
@@ -252,10 +257,6 @@ class RewriteDriverFactory {
   // forwards to NewRewriteOptions().
   virtual RewriteOptions* NewRewriteOptionsForQuery();
 
-  // Creates a new LogRecord object. The caller of this method has to take
-  // ownership of the returned LogRecord instance.
-  virtual LogRecord* NewLogRecord();
-
   // get/set the version placed into the X-[Mod-]Page(s|-S)peed header.
   const GoogleString& version_string() const { return version_string_; }
   void set_version_string(const StringPiece& version_string) {
@@ -277,19 +278,15 @@ class RewriteDriverFactory {
   // subclass if the default isn't acceptable.
   virtual AbstractClientState* NewClientState();
 
-  // Creates a FuriousMatcher, which is used to match clients or sessions to
-  // a specific furious experiment.
-  virtual FuriousMatcher* NewFuriousMatcher();
-
  protected:
   bool FetchersComputed() const;
-  virtual void StopCacheActivity();
+  void StopCacheWrites();
   StringPiece filename_prefix();
 
   // Used by subclasses to indicate that a ResourceManager has been
   // terminated.  Returns true if this was the last resource manager
   // known to this factory.
-  bool TerminateServerContext(ServerContext* rm);
+  bool TerminateResourceManager(ResourceManager* rm);
 
   // Implementors of RewriteDriverFactory must supply default definitions
   // for each of these methods, although they may be overridden via set_
@@ -303,14 +300,14 @@ class RewriteDriverFactory {
 
   virtual Hasher* NewHasher() = 0;
 
+  // Default implementation returns NULL.
   virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
 
   // Default implementation returns NULL.
-  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
-      PropertyCache* cache);
+  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder();
 
-  // Default implementation returns NULL.
-  virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();
+  // Note: Returned CacheInterface should be thread-safe.
+  virtual CacheInterface* DefaultCacheInterface() = 0;
 
   // They may also supply a custom lock manager. The default implementation
   // will use the file system.
@@ -348,10 +345,20 @@ class RewriteDriverFactory {
   // filename_prefix()
   virtual StringPiece LockFilePrefix();
 
+  // Return memo-ized backend cache interface.
+  CacheInterface* cache_backend();
+
+  // Return the CacheInterface to be used by the property cache.
+  virtual CacheInterface* property_cache_backend() { return cache_backend(); }
+
   // Creates a StaticJavascriptManager instance. Default implementation creates
   // an instance that disables serving of filter javascript via gstatic
   // (gstatic.com is the domain google uses for serving static content).
   virtual StaticJavascriptManager* DefaultStaticJavascriptManager();
+
+  // Sets up the property cache cohorts. Should be called only after the
+  // property cache is initialized.
+  virtual void SetupCohorts() {}
 
  private:
   void SetupSlurpDirectories();
@@ -378,20 +385,29 @@ class RewriteDriverFactory {
   bool force_caching_;
   bool slurp_read_only_;
   bool slurp_print_urls_;
+  bool enable_property_cache_;
 
-  // protected by server_context_mutex_;
-  typedef std::set<ServerContext*> ServerContextSet;
-  ServerContextSet server_contexts_;
-  scoped_ptr<AbstractMutex> server_context_mutex_;
+  // protected by resource_manager_mutex_;
+  typedef std::set<ResourceManager*> ResourceManagerSet;
+  ResourceManagerSet resource_managers_;
+  scoped_ptr<AbstractMutex> resource_manager_mutex_;
 
   // Stores options with hard-coded defaults and adjustments from
   // the core system, subclasses, and command-line.
   scoped_ptr<RewriteOptions> default_options_;
 
+  // Caching support
+  scoped_ptr<CacheInterface> cache_backend_;
+  scoped_ptr<HTTPCache> http_cache_;
+
   // Manage locks for output resources.
   scoped_ptr<NamedLockManager> lock_manager_;
 
   scoped_ptr<ThreadSystem> thread_system_;
+  scoped_ptr<CriticalImagesFinder> critical_images_finder_;
+  scoped_ptr<BlinkCriticalLineDataFinder> blink_critical_line_data_finder_;
+  scoped_ptr<PropertyCache> page_property_cache_;
+  scoped_ptr<PropertyCache> client_property_cache_;
 
   // Default statistics implementation which can be overridden by children
   // by calling SetStatistics().
@@ -411,7 +427,6 @@ class RewriteDriverFactory {
   std::vector<Function*> deferred_deletes_;
 
   // Version string to put into HTTP response headers.
-  // TODO(sligocki): Remove. Redundant with RewriteOptions::x_header_value().
   GoogleString version_string_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverFactory);

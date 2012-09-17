@@ -19,9 +19,8 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
@@ -43,14 +42,7 @@ const char kBikePngFile[] = "BikeCrashIcn.png";
 const char kCuppaPngFile[] = "Cuppa.png";
 const char kPuzzleJpgFile[] = "Puzzle.jpg";
 
-const char kDummyContent[] = "Invalid PNG but it does not matter for this test";
-
-const ContentType kContentTypeTtf =
-    { "application/octet-stream", ".ttf", ContentType::kOther };
-const ContentType kContentTypeEot =
-    { "application/vnd.ms-fontobject", ".eot", ContentType::kOther };
-const ContentType kContentTypeHtc =
-    { "text/x-component", ".htc",  ContentType::kOther };
+const char kImageData[] = "Invalid PNG but it does not matter for this test";
 
 class CssImageRewriterTest : public CssRewriteTestBase {
  protected:
@@ -58,7 +50,6 @@ class CssImageRewriterTest : public CssRewriteTestBase {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kExtendCacheImages);
-    options()->EnableFilter(RewriteOptions::kFallbackRewriteCssUrls);
     CssRewriteTestBase::SetUp();
   }
 };
@@ -66,7 +57,7 @@ class CssImageRewriterTest : public CssRewriteTestBase {
 TEST_F(CssImageRewriterTest, CacheExtendsImagesSimple) {
   // Simplified version of CacheExtendsImages, which doesn't have many copies of
   // the same URL.
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
 
   static const char css_before[] =
       "body {\n"
@@ -77,8 +68,9 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesSimple) {
              Encode(kTestDomain, "ce", "0", "foo.png", "png"),
              ")}");
 
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  ValidateRewrite("cache_extends_images",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsImagesEmbeddedComma) {
@@ -87,7 +79,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesEmbeddedComma) {
   // the "," and IE8 interprets those backslashes as forward slashes,
   // making the URL incorrect.
   static const char kImageUrl[] = "foo,bar.png";
-  SetResponseWithDefaultHeaders(kImageUrl, kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders(kImageUrl, kContentTypePng, kImageData, 100);
 
   static const char css_before[] =
       "body {\n"
@@ -98,15 +90,16 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesEmbeddedComma) {
              Encode(kTestDomain, "ce", "0", kImageUrl, "png"),
              ")}");
 
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  ValidateRewrite("cache_extends_images",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsImagesEmbeddedSpace) {
   // Note that GoogleUrl will, internal to our system, convert the space to
   // a %20, so we'll be fetching the percentified form.
   SetResponseWithDefaultHeaders("foo%20bar.png", kContentTypePng,
-                                kDummyContent, 100);
+                                kImageData, 100);
 
   static const char css_before[] =
       "body {\n"
@@ -117,14 +110,15 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesEmbeddedSpace) {
              Encode(kTestDomain, "ce", "0", "foo%20bar.png", "png"),
              ")}");
 
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  ValidateRewrite("cache_extends_images",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
   options()->ClearSignatureForTesting();
   options()->DisableFilter(RewriteOptions::kExtendCacheImages);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
 
   static const char css_before[] =
       "body {\n"
@@ -133,8 +127,9 @@ TEST_F(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
   static const char css_after[] =
       "body{background-image:url(foo bar.png)}";
 
-  ValidateRewrite("minify", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  ValidateRewrite("cache_extends_images",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsWhenCssGrows) {
@@ -145,8 +140,8 @@ TEST_F(CssImageRewriterTest, CacheExtendsWhenCssGrows) {
   // (We want to rewrite the CSS in that case)
   options()->ClearSignatureForTesting();
   options()->set_always_rewrite_css(false);
-  server_context()->ComputeSignature(options());
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
+  resource_manager()->ComputeSignature(options());
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
   static const char css_before[] =
       "body{background-image: url(foo.png)}";
   const GoogleString css_after =
@@ -154,8 +149,9 @@ TEST_F(CssImageRewriterTest, CacheExtendsWhenCssGrows) {
              Encode(kTestDomain, "ce", "0", "foo.png", "png)"),
              "}");
 
-  ValidateRewrite("cache_extends_images_growcheck", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  ValidateRewrite("cache_extends_images_growcheck",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevel) {
@@ -170,7 +166,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevel) {
       Encode(kTestDomain, "cf", "0", "stylesheet.css", "css");
   const char kCssTemplate[] = "body{background-image:url(%s)}";
 
-  SetResponseWithDefaultHeaders(kImg, kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders(kImg, kContentTypePng, kImageData, 100);
   SetResponseWithDefaultHeaders(
       kCss, kContentTypeCss, StringPrintf(kCssTemplate, kImg), 100);
 
@@ -190,9 +186,9 @@ TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevel) {
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsImages) {
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("bar.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
+  SetResponseWithDefaultHeaders("bar.png", kContentTypePng, kImageData, 100);
+  SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kImageData, 100);
 
   static const char css_before[] =
       "body {\n"
@@ -229,16 +225,19 @@ TEST_F(CssImageRewriterTest, CacheExtendsImages) {
       "OHwAAAABJRU5ErkJggg==);"
       "-proprietary-background-property:url(foo.png)}");
 
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
+  // Can't serve from new contexts yet, because we're using mock_fetcher_.
+  // TODO(sligocki): Resolve that.
+  ValidateRewrite("cache_extends_images",
+                  css_before, css_after,
+                  kExpectSuccess | kNoOtherContexts | kNoClearFetcher);
 }
 
 // See TrimsImageUrls below: change one, change them both!
 TEST_F(CssImageRewriterTest, TrimsImageUrls) {
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
+  resource_manager()->ComputeSignature(options());
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
   static const char kCss[] =
       "body {\n"
       "  background-image: url(foo.png);\n"
@@ -250,7 +249,8 @@ TEST_F(CssImageRewriterTest, TrimsImageUrls) {
       ")}");
 
   ValidateRewriteExternalCss("trims_css_urls", kCss, kCssAfter,
-                              kExpectSuccess | kNoClearFetcher);
+                              kExpectSuccess |
+                              kNoOtherContexts | kNoClearFetcher);
 }
 
 class CssImageRewriterTestUrlNamer : public CssImageRewriterTest {
@@ -269,8 +269,8 @@ TEST_F(CssImageRewriterTestUrlNamer, TrimsImageUrls) {
   // A verbatim copy of the test above but using TestUrlNamer.
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
+  resource_manager()->ComputeSignature(options());
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
   static const char kCss[] =
       "body {\n"
       "  background-image: url(foo.png);\n"
@@ -282,7 +282,8 @@ TEST_F(CssImageRewriterTestUrlNamer, TrimsImageUrls) {
       ")}");
 
   ValidateRewriteExternalCss("trims_css_urls", kCss, kCssAfter,
-                              kExpectSuccess | kNoClearFetcher);
+                              kExpectSuccess |
+                              kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, InlinePaths) {
@@ -292,9 +293,9 @@ TEST_F(CssImageRewriterTest, InlinePaths) {
   // null rewrites from cache.
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
-                                kDummyContent, 100);
+                                kImageData, 100);
 
   static const char kCssBefore[] =
       "body {\n"
@@ -323,9 +324,9 @@ TEST_F(CssImageRewriterTest, RewriteCached) {
   // Make sure we produce the same output from cache.
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
-                                kDummyContent, 100);
+                                kImageData, 100);
 
   static const char kCssBefore[] =
       "body {\n"
@@ -355,28 +356,26 @@ TEST_F(CssImageRewriterTest, RewriteCached) {
   EXPECT_EQ(0, total_bytes_saved_->Get());
 }
 
-// Test that we remember parse failures.
 TEST_F(CssImageRewriterTest, CacheInlineParseFailures) {
   const char kInvalidCss[] = " div{";
 
   ValidateRewriteInlineCss("inline-invalid", kInvalidCss, kInvalidCss,
-                           kExpectFallback);
+                           kExpectFailure | kNoOtherContexts);
   EXPECT_EQ(1, num_parse_failures_->Get());
 
-  // kNoStatCheck because we are explicitly depending on an extra failure
-  // not being recorded.
-  ValidateRewriteInlineCss("inline-invalid2", kInvalidCss, kInvalidCss,
-                           kExpectFallback | kNoStatCheck);
+  ValidateRewriteInlineCss(
+      "inline-invalid2", kInvalidCss, kInvalidCss,
+      kExpectFailure | kNoOtherContexts | kNoStatCheck);
   // Shouldn't reparse -- and stats are reset between runs.
   EXPECT_EQ(0, num_parse_failures_->Get());
 }
 
 TEST_F(CssImageRewriterTest, RecompressImages) {
   options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  server_context()->ComputeSignature(options());
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
+  resource_manager()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
-                       kContentTypePng, 100);
+                        kContentTypePng, 100);
   static const char kCss[] =
       "body {\n"
       "  background-image: url(foo.png);\n"
@@ -388,7 +387,8 @@ TEST_F(CssImageRewriterTest, RecompressImages) {
       ")}");
 
   ValidateRewriteExternalCss("recompress_css_images", kCss, kCssAfter,
-                              kExpectSuccess | kNoClearFetcher);
+                              kExpectSuccess |
+                              kNoOtherContexts | kNoClearFetcher);
 }
 
 TEST_F(CssImageRewriterTest, InlineImages) {
@@ -399,7 +399,7 @@ TEST_F(CssImageRewriterTest, InlineImages) {
   options()->set_css_image_inline_max_bytes(2000);
   EXPECT_EQ(2000, options()->ImageInlineMaxBytes());
   EXPECT_EQ(2000, options()->CssImageInlineMaxBytes());
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   // Here Cuppa.png is 1763 bytes, so should be inlined.
   AddFileToMockFetcher(StrCat(kTestDomain, "Cuppa.png"), kCuppaPngFile,
                        kContentTypePng, 100);
@@ -423,43 +423,8 @@ TEST_F(CssImageRewriterTest, InlineImages) {
   // (which causes the check to fail).  That eliminates a resource fetch, so it
   // should normally be a net win in practice.
   ValidateRewrite("inline_css_images", kCss, kCssAfter,
-                  kExpectSuccess | kNoClearFetcher | kNoStatCheck);
-}
-
-TEST_F(CssImageRewriterTest, InlineImagesFallback) {
-  // Make sure we can inline images when CSS parsing goes to fallback mode.
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->set_image_inline_max_bytes(2000);
-  options()->set_css_image_inline_max_bytes(2000);
-  server_context()->ComputeSignature(options());
-  // Here Cuppa.png is 1763 bytes, so should be inlined.
-  AddFileToMockFetcher(StrCat(kTestDomain, "Cuppa.png"), kCuppaPngFile,
-                       kContentTypePng, 100);
-
-  // This ought to not parse..
-  static const char kCssTemplate[] =
-      "body {\n"
-      "  background-image: url(%s);\n"
-      "}}}}}\n";
-  GoogleString css_before = StringPrintf(kCssTemplate, "Cuppa.png");
-
-  // Read original image file and create data url for comparison purposes.
-  GoogleString contents;
-  StdioFileSystem stdio_file_system;
-  GoogleString filename = StrCat(GTestSrcDir(), kTestData, kCuppaPngFile);
-  ASSERT_TRUE(stdio_file_system.ReadFile(
-      filename.c_str(), &contents, message_handler()));
-  GoogleString data_url;
-  DataUrl(kContentTypePng, BASE64, contents, &data_url);
-
-  GoogleString css_after = StringPrintf(kCssTemplate, data_url.c_str());
-
-  // Here we skip the stat check because we are *increasing* the size of the CSS
-  // (which causes the check to fail).  That eliminates a resource fetch, so it
-  // should normally be a net win in practice.
-  ValidateRewrite("inline_css_images", css_before, css_after,
-                  kExpectFallback | kNoClearFetcher | kNoStatCheck);
+                  kExpectSuccess |
+                  kNoClearFetcher | kNoStatCheck);
 }
 
 TEST_F(CssImageRewriterTest, InlineImageOnlyInOutlineCss) {
@@ -473,7 +438,7 @@ TEST_F(CssImageRewriterTest, InlineImageOnlyInOutlineCss) {
   options()->set_css_image_inline_max_bytes(2000);
   EXPECT_EQ(0, options()->ImageInlineMaxBytes());  // This is disabled...
   ASSERT_EQ(2000, options()->CssImageInlineMaxBytes());  // But this is enabled.
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   // Here Cuppa.png is 1763 bytes, so should be inlined.
   AddFileToMockFetcher(StrCat(kTestDomain, "Cuppa.png"), kCuppaPngFile,
                        kContentTypePng, 100);
@@ -513,11 +478,11 @@ TEST_F(CssImageRewriterTest, UseCorrectBaseUrl) {
   static const char css_before[] = "body { background: url(image.png); }";
   SetResponseWithDefaultHeaders(css_url, kContentTypeCss, css_before, 100);
   static const char image_url[] = "http://www.example.com/bar/image.png";
-  SetResponseWithDefaultHeaders(image_url, kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders(image_url, kContentTypePng, kImageData, 100);
 
   // Construct URL for rewritten image.
   GoogleString expected_image_url = ExpectedRewrittenUrl(
-      image_url, kDummyContent, RewriteOptions::kCacheExtenderId,
+      image_url, kImageData, RewriteOptions::kCacheExtenderId,
       kContentTypePng);
 
   GoogleString css_after = StrCat(
@@ -546,13 +511,13 @@ TEST_F(CssImageRewriterTest, UseCorrectBaseUrl) {
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsImagesInStyleAttributes) {
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("bar.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kDummyContent, 100);
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kImageData, 100);
+  SetResponseWithDefaultHeaders("bar.png", kContentTypePng, kImageData, 100);
+  SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kImageData, 100);
 
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
 
   ValidateExpected("cache_extend_images_simple",
                    "<div style=\""
@@ -601,274 +566,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesInStyleAttributes) {
                    "\"/>");
 }
 
-// Fallback rewriter tests
-
-TEST_F(CssImageRewriterTest, CacheExtendsImagesSimpleFallback) {
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
-
-  // Note: Extra }s cause parse failure.
-  static const char css_template[] =
-      "body {\n"
-      "  background-image: url(%s);\n"
-      "}}}}}\n";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(
-      css_template, Encode(kTestDomain, "ce", "0", "foo.png", "png").c_str());
-
-  ValidateRewrite("unparseable", css_before, css_after,
-                  kExpectFallback | kNoClearFetcher);
-}
-
-TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevelFallback) {
-  // Test to make sure that if we cache extend inside CSS we can do it
-  // for the same image in HTML at the same time.
-  const char kImg[] = "img.png";
-  const GoogleString kExtendedImg =
-      Encode(kTestDomain, "ce", "0", "img.png", "png");
-
-  const char kCss[] = "stylesheet.css";
-  const GoogleString kRewrittenCss =
-      Encode(kTestDomain, "cf", "0", "stylesheet.css", "css");
-  // Note: Extra }s cause parse failure.
-  const char kCssTemplate[] = "body{background-image:url(%s)}}}}}";
-
-  SetResponseWithDefaultHeaders(kImg, kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders(
-      kCss, kContentTypeCss, StringPrintf(kCssTemplate, kImg), 100);
-
-  const char kHtmlTemplate[] =
-      "<link rel='stylesheet' href='%s'>"
-      "<img src='%s'>";
-
-  ValidateExpected("repeated_top_level",
-                   StringPrintf(kHtmlTemplate, kCss, kImg),
-                   StringPrintf(kHtmlTemplate,
-                                kRewrittenCss.c_str(),
-                                kExtendedImg.c_str()));
-
-  GoogleString css_out;
-  EXPECT_TRUE(FetchResourceUrl(kRewrittenCss, &css_out));
-  EXPECT_EQ(StringPrintf(kCssTemplate, kExtendedImg.c_str()), css_out);
-}
-
-TEST_F(CssImageRewriterTest, CacheExtendsImagesFallback) {
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("bar.png", kContentTypePng, kDummyContent, 100);
-  SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kDummyContent, 100);
-
-  static const char css_template[] =
-      "body {\n"
-      "  background-image: url(%s);\n"
-      "  list-style-image: url('%s');\n"
-      "}\n"
-      ".titlebar p.cfoo, #end p {\n"
-      "  background: url(\"%s\");\n"
-      "  list-style: url('%s');\n"
-      "}\n"
-      ".other {\n"
-      "  background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA"
-      "AUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4"
-      "OHwAAAABJRU5ErkJggg==);"
-      "  -proprietary-background-property: url(%s);\n"
-      // Note: Extra }s cause parse failure.
-      "}}}}}}";
-  const GoogleString css_before = StringPrintf(
-      css_template, "foo.png", "bar.png", "baz.png", "foo.png", "foo.png");
-  const GoogleString css_after = StringPrintf(
-      css_template,
-      Encode(kTestDomain, "ce", "0", "foo.png", "png").c_str(),
-      Encode(kTestDomain, "ce", "0", "bar.png", "png").c_str(),
-      Encode(kTestDomain, "ce", "0", "baz.png", "png").c_str(),
-      Encode(kTestDomain, "ce", "0", "foo.png", "png").c_str(),
-      Encode(kTestDomain, "ce", "0", "foo.png", "png").c_str());
-
-
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectFallback | kNoClearFetcher);
-}
-
-TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  server_context()->ComputeSignature(options());
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  // Note: Extra }s cause parse failure.
-  static const char css_template[] =
-      "body {\n"
-      "  background-image: url(%s);\n"
-      "}}}}}\n";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(
-      css_template, Encode(kTestDomain, "ic", "0", "foo.png", "png").c_str());
-
-  ValidateRewriteExternalCss("recompress_css_images", css_before, css_after,
-                             kExpectFallback | kNoClearFetcher);
-}
-
-// Make sure we don't break import URLs or other non-image URLs.
-TEST_F(CssImageRewriterTest, FallbackImportsAndUnknownContentType) {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  server_context()->ComputeSignature(options());
-
-  AddFileToMockFetcher(StrCat(kTestDomain, "image.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  SetResponseWithDefaultHeaders("style.css", kContentTypeCss,
-                                kDummyContent, 100);
-  SetResponseWithDefaultHeaders("zero.css", kContentTypeCss, kDummyContent, 0);
-  SetResponseWithDefaultHeaders("doc.html", kContentTypeHtml,
-                                kDummyContent, 100);
-
-  SetResponseWithDefaultHeaders("behavior.htc", kContentTypeHtc,
-                                kDummyContent, 100);
-  SetResponseWithDefaultHeaders("font.ttf", kContentTypeTtf,
-                                kDummyContent, 100);
-  SetResponseWithDefaultHeaders("font.eot", kContentTypeEot,
-                                kDummyContent, 100);
-
-  static const char css_template[] =
-      "@import '%s';"
-      // zero.css doesn't get cache extended because it has 0 TTL.
-      "@import url(zero.css);"
-      "@font-face {\n"
-      "  font-family: name;\n"
-      // Unapproved Content-Types do not get cache extended.
-      "  src: url('font.ttf'), url(font.eot);\n"
-      "}\n"
-      "body {\n"
-      "  background-image: url(%s);\n"
-      // Unapproved Content-Types do not get cache extended.
-      "  behavior: url(behavior.htc);\n"
-      "  -moz-content-file: url(doc.html);\n"
-      // Note: Extra }s cause parse failure.
-      "}}}}}\n";
-  const GoogleString css_before = StringPrintf(
-      css_template, "style.css", "image.png");
-  const GoogleString css_after = StringPrintf(
-      css_template,
-      Encode(kTestDomain, "ce", "0", "style.css", "css").c_str(),
-      Encode(kTestDomain, "ic", "0", "image.png", "png").c_str());
-
-  ValidateRewriteExternalCss("recompress_css_images", css_before, css_after,
-                             kExpectFallback | kNoClearFetcher);
-}
-
-// Test that the fallback fetcher fails smoothly.
-TEST_F(CssImageRewriterTest, FallbackFails) {
-  // Note: //// is not a valid URL leading to fallback rewrite failure.
-  static const char bad_css[] = ".foo { url(////); }}}}}}";
-  ValidateRewrite("fallback_fails", bad_css, bad_css, kExpectFailure);
-}
-
-// Check that we absolutify URLs when moving CSS.
-TEST_F(CssImageRewriterTest, FallbackAbsolutify) {
-  options()->ClearSignatureForTesting();
-  DomainLawyer* lawyer = options()->domain_lawyer();
-  lawyer->AddRewriteDomainMapping("http://new_domain.com", kTestDomain,
-                                  &message_handler_);
-  // Turn off trimming to make sure we can see full absolutifications.
-  options()->DisableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
-
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 0);
-
-  // Note: Extra }s cause parse failure.
-  const char css_template[] = ".foo { background: url(%s); }}}}";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(css_template,
-                                              "http://new_domain.com/foo.png");
-
-  // We only test inline CSS because ValidateRewriteExternalCss doesn't work
-  // with AddRewriteDomainMapping.
-  ValidateRewriteInlineCss("change_domain", css_before, css_after,
-                           kExpectFallback | kNoClearFetcher);
-
-  // Test loading from other domains.
-  SetResponseWithDefaultHeaders("other_domain.css", kContentTypeCss,
-                                css_before, 100);
-
-  const char rewritten_url[] =
-      "http://test.com/I.other_domain.css.pagespeed.cf.0.css";
-  ServeResourceFromManyContexts(rewritten_url, css_after);
-}
-
-// Check that we don't absolutify URLs when not moving them.
-TEST_F(CssImageRewriterTest, FallbackNoAbsolutify) {
-  options()->ClearSignatureForTesting();
-  // Turn off trimming to make sure we can see full absolutifications.
-  options()->DisableFilter(RewriteOptions::kLeftTrimUrls);
-  server_context()->ComputeSignature(options());
-
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 0);
-
-  // Note: Extra }s cause parse failure.
-  const char css[] = ".foo { background: url(foo.png); }}}}";
-
-  ValidateRewrite("change_domain", css, css, kExpectFallback | kNoClearFetcher);
-}
-
-// Check that we still absolutify URLs even if we fail to parse CSS while
-// rewriting on a fetch. This can come up if you have different rewrite
-// options on the HTML and resources-serving servers or if the resource
-// changes between the HTML and resource servers (race condition during push).
-TEST_F(CssImageRewriterTest, FetchRewriteFailure) {
-  options()->ClearSignatureForTesting();
-  DomainLawyer* lawyer = options()->domain_lawyer();
-  lawyer->AddRewriteDomainMapping("http://new_domain.com", kTestDomain,
-                                  &message_handler_);
-  // Turn off trimming to make sure we can see full absolutifications.
-  options()->DisableFilter(RewriteOptions::kLeftTrimUrls);
-  options()->DisableFilter(RewriteOptions::kFallbackRewriteCssUrls);
-  server_context()->ComputeSignature(options());
-
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 0);
-
-  // Note: Extra }s cause parse failure.
-  const char css_template[] = ".foo { background: url(%s); }}}}";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(css_template,
-                                              "http://new_domain.com/foo.png");
-
-  // Test loading from other domains.
-  SetResponseWithDefaultHeaders("other_domain.css", kContentTypeCss,
-                                css_before, 100);
-
-  GoogleString content;
-  FetchResource(kTestDomain, "cf", "other_domain.css", "css", &content);
-  EXPECT_STREQ(css_after, content);
-  EXPECT_EQ(0, num_fallback_rewrites_->Get());
-  EXPECT_EQ(1, num_parse_failures_->Get());
-
-  // Check that this still works correctly the second time (this loads the
-  // result from cache and so goes through a different code path).
-  content.clear();
-  FetchResource(kTestDomain, "cf", "other_domain.css", "css", &content);
-  EXPECT_STREQ(css_after, content);
-}
-
-TEST_F(CssImageRewriterTest, DummyRuleset) {
-  // Simplified version of CacheExtendsImages, which doesn't have many copies of
-  // the same URL.
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, kDummyContent, 100);
-
-  static const char css_before[] =
-      "@font-face { font-family: 'Robotnik'; font-style: normal }\n"
-      "body {\n"
-      "  background-image: url(foo.png);\n"
-      "}\n"
-      "@to-infinity and beyond;\n";
-  const GoogleString css_after =
-      StrCat("@font-face { font-family: 'Robotnik'; font-style: normal }"
-             "body{background-image:url(",
-             Encode(kTestDomain, "ce", "0", "foo.png", "png"),
-             ")}@to-infinity and beyond;");
-
-  ValidateRewrite("cache_extends_images", css_before, css_after,
-                  kExpectSuccess | kNoClearFetcher);
-}
-
-class CssRecompressImagesInStyleAttributes : public RewriteTestBase {
+class CssRecompressImagesInStyleAttributes : public ResourceManagerTestBase {
  protected:
   CssRecompressImagesInStyleAttributes()
       : div_before_(
@@ -877,9 +575,8 @@ class CssRecompressImagesInStyleAttributes : public RewriteTestBase {
           "\"/>") {}
 
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kRewriteCss);
-    options()->EnableFilter(RewriteOptions::kFallbackRewriteCssUrls);
     options()->set_always_rewrite_css(true);
     AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                          kContentTypePng, 100);
@@ -908,49 +605,16 @@ TEST_F(CssRecompressImagesInStyleAttributes, OnlyStyleEnabled) {
 
 // No rewriting if only 'recompress' is enabled.
 TEST_F(CssRecompressImagesInStyleAttributes, OnlyRecompressEnabled) {
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kRecompressImages);
   ValidateNoChanges("recompress_images_disabled", div_before_);
 }
 
 // Rewrite iff both options are enabled.
 TEST_F(CssRecompressImagesInStyleAttributes, RecompressAndStyleEnabled) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
   rewrite_driver()->AddFilters();
   ValidateExpected("options_enabled", div_before_, div_after_);
-}
-
-TEST_F(CssRecompressImagesInStyleAttributes, RecompressAndWebpAndStyleEnabled) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
-  options()->set_image_jpeg_recompress_quality(85);
-  rewrite_driver()->set_user_agent("webp");
-  rewrite_driver()->AddFilters();
-  ValidateExpected("webp",
-      "<div style=\"background-image:url(foo.jpg)\"/>",
-      "<div style=\"background-image:url("
-      "http://test.com/wfoo.jpg.pagespeed.ic.0.webp)\"/>");
-}
-
-TEST_F(CssRecompressImagesInStyleAttributes,
-       RecompressAndWebpAndStyleEnabledWithMaxCssSize) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
-  options()->set_image_jpeg_recompress_quality(85);
-  options()->set_max_image_bytes_for_webp_in_css(1);
-  rewrite_driver()->set_user_agent("webp");
-  rewrite_driver()->AddFilters();
-  ValidateExpected("webp",
-      "<div style=\"background-image:url(foo.jpg)\"/>",
-      "<div style=\"background-image:url("
-      "http://test.com/wfoo.jpg.pagespeed.ic.0.jpg)\"/>");
 }
 
 }  // namespace

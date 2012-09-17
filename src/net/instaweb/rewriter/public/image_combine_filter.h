@@ -20,7 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
 
 #include "net/instaweb/rewriter/public/css_filter.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -60,7 +60,7 @@ class ImageCombineFilter : public RewriteFilter {
   explicit ImageCombineFilter(RewriteDriver* rewrite_driver);
   virtual ~ImageCombineFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   // Attempt to add the CSS background image with (resolved) url original_url to
   // this partnership.  We do not take ownership of declarations; it must live

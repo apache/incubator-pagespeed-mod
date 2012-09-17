@@ -25,14 +25,10 @@
 #include "httpd.h"
 #include "ap_mpm.h"
 
-#include "net/instaweb/apache/add_headers_fetcher.h"
 #include "net/instaweb/apache/apache_cache.h"
-#include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apache_thread_system.h"
 #include "net/instaweb/apache/apr_file_system.h"
-#include "net/instaweb/apache/apr_mem_cache.h"
-#include "net/instaweb/apache/apr_mem_cache_servers.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/loopback_route_fetcher.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
@@ -41,15 +37,9 @@
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_writer.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter.h"
-#include "net/instaweb/http/public/write_through_http_cache.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/public/async_cache.h"
-#include "net/instaweb/util/public/cache_batcher.h"
-#include "net/instaweb/util/public/cache_copy.h"
-#include "net/instaweb/util/public/cache_stats.h"
 #ifndef NDEBUG
 #include "net/instaweb/util/public/checking_thread_system.h"
 #endif
@@ -77,9 +67,10 @@ namespace {
 const size_t kRefererStatisticsNumberOfPages = 1024;
 const size_t kRefererStatisticsAverageUrlLength = 64;
 
-}  // namespace
+// Statistics histogram names.
+const char* kHtmlRewriteTimeHistogram = "Html Time us Histogram";
 
-const char ApacheRewriteDriverFactory::kMemcached[] = "memcached";
+}  // namespace
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
@@ -101,7 +92,6 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
       statistics_frozen_(false),
       is_root_process_(true),
       fetch_with_gzip_(false),
-      track_original_content_length_(false),
       list_outstanding_urls_on_error_(false),
       shared_mem_referer_statistics_(NULL),
       hostname_identifier_(StrCat(server->server_hostname,
@@ -111,8 +101,7 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
           server_rec_, version_, timer())),
       apache_html_parse_message_handler_(new ApacheMessageHandler(
           server_rec_, version_, timer())),
-      use_per_vhost_statistics_(false),
-      enable_property_cache_(false),
+      html_rewrite_time_us_histogram_(NULL),
       thread_counts_finalized_(false),
       num_rewrite_threads_(-1),
       num_expensive_rewrite_threads_(-1),
@@ -125,11 +114,6 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
   message_handler();
   html_parse_message_handler();
   InitializeDefaultOptions();
-
-  // Note: this must run after mod_pagespeed_register_hooks has completed.
-  // See http://httpd.apache.org/docs/2.4/developer/new_api_2_4.html and
-  // search for ap_mpm_query.
-  AutoDetectThreadCounts();
 }
 
 ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
@@ -156,13 +140,6 @@ ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
     ApacheCache* cache = p->second;
     defer_delete(new Deleter<ApacheCache>(cache));
   }
-
-  for (MemcachedMap::iterator p = memcached_map_.begin(),
-           e = memcached_map_.end(); p != e; ++p) {
-    AprMemCacheServers* servers = p->second;
-    defer_delete(new Deleter<AprMemCacheServers>(servers));
-  }
-
   shared_mem_statistics_.reset(NULL);
 }
 
@@ -175,56 +152,6 @@ ApacheCache* ApacheRewriteDriverFactory::GetCache(ApacheConfig* config) {
     iter->second = new ApacheCache(path, *config, this);
   }
   return iter->second;
-}
-
-CacheInterface* ApacheRewriteDriverFactory::GetMemcached(
-    ApacheConfig* config, CacheInterface* l2_cache) {
-  CacheInterface* memcached = NULL;
-
-  // Find a memcache that matches the current spec, or create a new one
-  // if needed.
-  if (!config->memcached_servers().empty()) {
-    const GoogleString& server_spec = config->memcached_servers();
-    std::pair<MemcachedMap::iterator, bool> result = memcached_map_.insert(
-        MemcachedMap::value_type(server_spec,
-                                static_cast<AprMemCacheServers*>(NULL)));
-    MemcachedMap::iterator iter = result.first;
-    if (result.second) {
-      int thread_limit;
-      ap_mpm_query(AP_MPMQ_HARD_LIMIT_THREADS, &thread_limit);
-      thread_limit += num_rewrite_threads() + num_expensive_rewrite_threads();
-      iter->second = new AprMemCacheServers(server_spec, thread_limit,
-                                            hasher(), message_handler());
-    }
-    AprMemCacheServers* servers = iter->second;
-    memcached = new AprMemCache(servers, l2_cache, message_handler());
-    int num_threads = config->memcached_threads();
-    if (num_threads != 0) {
-      if (memcached_pool_.get() == NULL) {
-        // Note -- we will use the first value of ModPagespeedMemCacheThreads
-        // that we see in a VirtualHost, ignoring later ones.
-        memcached_pool_.reset(new QueuedWorkerPool(num_threads,
-                                                   thread_system()));
-      }
-      AsyncCache* async_cache = new AsyncCache(
-          memcached, thread_system()->NewMutex(), memcached_pool_.get());
-      async_caches_.push_back(async_cache);
-      memcached = async_cache;
-    }
-
-    // Put the batcher above the stats so that the stats sees the MultiGets
-    // and can show us the histogram of how they are sized.
-#if CACHE_STATISTICS
-    memcached = new CacheStats(kMemcached, memcached, timer(), statistics());
-#endif
-    CacheBatcher* batcher = new CacheBatcher(
-        memcached, thread_system()->NewMutex(), statistics());
-    if (num_threads != 0) {
-      batcher->set_max_parallel_lookups(num_threads);
-    }
-    memcached = batcher;
-  }
-  return memcached;
 }
 
 FileSystem* ApacheRewriteDriverFactory::DefaultFileSystem() {
@@ -250,49 +177,10 @@ MessageHandler* ApacheRewriteDriverFactory::DefaultMessageHandler() {
   return apache_message_handler_;
 }
 
-void ApacheRewriteDriverFactory::SetupCaches(
-    ServerContext* resource_manager) {
-  ApacheConfig* config = ApacheConfig::DynamicCast(
-      resource_manager->global_options());
-  ApacheCache* apache_cache = GetCache(config);
-  CacheInterface* l1_cache = apache_cache->l1_cache();
-  CacheInterface* l2_cache = apache_cache->l2_cache();
-  CacheInterface* memcached = GetMemcached(config, l2_cache);
-  if (memcached != NULL) {
-    l2_cache = memcached;
-    resource_manager->set_owned_cache(memcached);
-  }
-  Statistics* stats = resource_manager->statistics();
-
-  // TODO(jmarantz): consider moving ownership of the L1 cache into the
-  // factory, rather than having one per vhost.
-  //
-  // Note that a user can disable the L1 cache by setting its byte-count
-  // to 0, in which case we don't build the write-through mechanisms.
-  if (l1_cache == NULL) {
-    HTTPCache* http_cache = new HTTPCache(l2_cache, timer(), hasher(), stats);
-    resource_manager->set_http_cache(http_cache);
-    resource_manager->set_metadata_cache(new CacheCopy(l2_cache));
-    resource_manager->MakePropertyCaches(l2_cache);
-  } else {
-    WriteThroughHTTPCache* write_through_http_cache = new WriteThroughHTTPCache(
-        l1_cache, l2_cache, timer(), hasher(), stats);
-    write_through_http_cache->set_cache1_limit(config->lru_cache_byte_limit());
-    resource_manager->set_http_cache(write_through_http_cache);
-
-    WriteThroughCache* write_through_cache = new WriteThroughCache(
-        l1_cache, l2_cache);
-    write_through_cache->set_cache1_limit(config->lru_cache_byte_limit());
-    resource_manager->set_metadata_cache(write_through_cache);
-
-    resource_manager->MakePropertyCaches(l2_cache);
-  }
-
-  resource_manager->set_enable_property_cache(enable_property_cache());
-  PropertyCache* pcache = resource_manager->page_property_cache();
-  if (pcache->GetCohort(BeaconCriticalImagesFinder::kBeaconCohort) == NULL) {
-    pcache->AddCohort(BeaconCriticalImagesFinder::kBeaconCohort);
-  }
+// Note: DefaultCacheInterface should return a thread-safe cache object.
+CacheInterface* ApacheRewriteDriverFactory::DefaultCacheInterface() {
+  LOG(DFATAL) << "In Apache the cache is owned by ApacheCache, not the factory";
+  return NULL;
 }
 
 NamedLockManager* ApacheRewriteDriverFactory::DefaultLockManager() {
@@ -312,6 +200,7 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::DefaultAsyncUrlFetcher() {
 
 QueuedWorkerPool* ApacheRewriteDriverFactory::CreateWorkerPool(
     WorkerPoolName name) {
+  AutoDetectThreadCounts();
   switch (name) {
     case kHtmlWorkers:
       // In practice this is 0, as we don't use HTML threads in Apache.
@@ -375,7 +264,8 @@ void ApacheRewriteDriverFactory::AutoDetectThreadCounts() {
   thread_counts_finalized_ = true;
 }
 
-UrlAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(ApacheConfig* config) {
+UrlPollableAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(
+    ApacheConfig* config) {
   const GoogleString& proxy = config->fetcher_proxy();
 
   // Fetcher-key format: "[(R|W)slurp_directory][\nproxy]"
@@ -392,10 +282,10 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(ApacheConfig* config) {
   }
 
   std::pair<FetcherMap::iterator, bool> result = fetcher_map_.insert(
-      std::make_pair(key, static_cast<UrlAsyncFetcher*>(NULL)));
+      FetcherMap::value_type(key, static_cast<UrlPollableAsyncFetcher*>(NULL)));
   FetcherMap::iterator iter = result.first;
   if (result.second) {
-    UrlAsyncFetcher* fetcher = NULL;
+    UrlPollableAsyncFetcher* fetcher = NULL;
     if (config->slurping_enabled()) {
       if (config->slurp_read_only()) {
         HttpDumpUrlFetcher* dump_fetcher = new HttpDumpUrlFetcher(
@@ -403,10 +293,15 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(ApacheConfig* config) {
         defer_delete(new Deleter<HttpDumpUrlFetcher>(dump_fetcher));
         fetcher = new FakeUrlAsyncFetcher(dump_fetcher);
       } else {
-        SerfUrlAsyncFetcher* base_fetcher = GetSerfFetcher(config);
+        // Make a copy of the passed-in config with the slurp directory
+        // erased, and use that to construct the base fetcher.
+        ApacheConfig no_slurp_config("");
+        no_slurp_config.Merge(*config);
+        no_slurp_config.set_slurp_directory("");
+        UrlPollableAsyncFetcher* base_fetcher = GetFetcher(&no_slurp_config);
 
         UrlFetcher* sync_fetcher = new SyncFetcherAdapter(
-            timer(), config->blocking_fetch_timeout_ms(), base_fetcher,
+            timer(), config->fetcher_time_out_ms(), base_fetcher,
             thread_system());
         defer_delete(new Deleter<UrlFetcher>(sync_fetcher));
         HttpDumpUrlWriter* dump_writer = new HttpDumpUrlWriter(
@@ -415,31 +310,17 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(ApacheConfig* config) {
         fetcher = new FakeUrlAsyncFetcher(dump_writer);
       }
     } else {
-      fetcher = GetSerfFetcher(config);
+      SerfUrlAsyncFetcher* serf = new SerfUrlAsyncFetcher(
+          proxy.c_str(),
+          NULL,  // Do not use the Factory pool so we can control deletion.
+          thread_system(), statistics(), timer(),
+          config->fetcher_time_out_ms(),
+          message_handler());
+      serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
+      fetcher = serf;
+      fetcher->set_fetch_with_gzip(fetch_with_gzip_);
     }
     iter->second = fetcher;
-  }
-  return iter->second;
-}
-
-SerfUrlAsyncFetcher* ApacheRewriteDriverFactory::GetSerfFetcher(
-    ApacheConfig* config) {
-  // Since we don't do slurping a this level, our key is just the proxy setting.
-  const GoogleString& proxy = config->fetcher_proxy();
-  std::pair<SerfFetcherMap::iterator, bool> result = serf_fetcher_map_.insert(
-      std::make_pair(proxy, static_cast<SerfUrlAsyncFetcher*>(NULL)));
-  SerfFetcherMap::iterator iter = result.first;
-  if (result.second) {
-    SerfUrlAsyncFetcher* serf = new SerfUrlAsyncFetcher(
-        proxy.c_str(),
-        NULL,  // Do not use the Factory pool so we can control deletion.
-        thread_system(), statistics(), timer(),
-        config->blocking_fetch_timeout_ms(),
-        message_handler());
-    serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
-    serf->set_fetch_with_gzip(fetch_with_gzip_);
-    serf->set_track_original_content_length(track_original_content_length_);
-    iter->second = serf;
   }
   return iter->second;
 }
@@ -558,15 +439,6 @@ void ApacheRewriteDriverFactory::ChildInit() {
     resource_manager->ChildInit();
   }
   uninitialized_managers_.clear();
-
-  for (MemcachedMap::iterator p = memcached_map_.begin(),
-           e = memcached_map_.end(); p != e; ++p) {
-    AprMemCacheServers* servers = p->second;
-    if (!servers->Connect()) {
-      message_handler()->Message(kError, "Memory cache failed");
-      abort();  // TODO(jmarantz): is there a better way to exit?
-    }
-  }
 }
 
 void ApacheRewriteDriverFactory::DumpRefererStatistics(Writer* writer) {
@@ -592,16 +464,8 @@ void ApacheRewriteDriverFactory::DumpRefererStatistics(Writer* writer) {
 #endif
 }
 
-void ApacheRewriteDriverFactory::StopCacheActivity() {
-  RewriteDriverFactory::StopCacheActivity();
-  for (int i = 0, n = async_caches_.size(); i < n; ++i) {
-    AsyncCache* async_cache = async_caches_[i];
-    async_cache->StopCacheGets();
-  }
-}
-
 void ApacheRewriteDriverFactory::ShutDown() {
-  StopCacheActivity();
+  StopCacheWrites();
 
   // Next, we shutdown the fetchers before killing the workers in
   // RewriteDriverFactory::ShutDown; this is so any rewrite jobs in progress
@@ -641,12 +505,23 @@ void ApacheRewriteDriverFactory::ShutDown() {
 // Initializes global statistics object if needed, using factory to
 // help with the settings if needed.
 // Note: does not call set_statistics() on the factory.
-Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
-    bool logging, int64 logging_interval_ms,
-    const GoogleString& logging_file_base) {
+Statistics* ApacheRewriteDriverFactory::MakeSharedMemStatistics() {
   if (shared_mem_statistics_.get() == NULL) {
-    shared_mem_statistics_.reset(AllocateAndInitSharedMemStatistics(
-        "global", logging, logging_interval_ms, logging_file_base));
+    // Note that we create the statistics object in the parent process, and
+    // it stays around in the kids but gets reinitialized for them
+    // with a call to InitVariables(false) inside pagespeed_child_init.
+    //
+    // TODO(jmarantz): it appears that filename_prefix() is not actually
+    // established at the time of this construction, calling into question
+    // whether we are naming our shared-memory segments correctly.
+    shared_mem_statistics_.reset(new SharedMemStatistics(
+        shared_mem_runtime(), filename_prefix().as_string()));
+    Initialize(shared_mem_statistics_.get());
+    shared_mem_statistics_->AddHistogram(kHtmlRewriteTimeHistogram);
+    shared_mem_statistics_->Init(true, message_handler());
+    html_rewrite_time_us_histogram_ = shared_mem_statistics_->GetHistogram(
+        kHtmlRewriteTimeHistogram);
+    html_rewrite_time_us_histogram_->SetMaxValue(200 * Timer::kMsUs);
   }
   DCHECK(!statistics_frozen_);
   statistics_frozen_ = true;
@@ -654,44 +529,16 @@ Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
   return shared_mem_statistics_.get();
 }
 
-SharedMemStatistics* ApacheRewriteDriverFactory::
-    AllocateAndInitSharedMemStatistics(
-        const StringPiece& name, const bool logging,
-        const int64 logging_interval_ms,
-        const GoogleString& logging_file_base) {
-  // Note that we create the statistics object in the parent process, and
-  // it stays around in the kids but gets reinitialized for them
-  // inside ChildInit(), called from pagespeed_child_init.
-  //
-  // TODO(jmarantz): it appears that filename_prefix() is not actually
-  // established at the time of this construction, calling into question
-  // whether we are naming our shared-memory segments correctly.
-  SharedMemStatistics* stats = new SharedMemStatistics(
-      logging_interval_ms, StrCat(logging_file_base, name), logging,
-      StrCat(filename_prefix(), name), shared_mem_runtime(), message_handler(),
-      file_system(), timer());
-  InitStats(stats);
-  stats->Init(true, message_handler());
-  return stats;
+void ApacheRewriteDriverFactory::Initialize(Statistics* statistics) {
+  RewriteDriverFactory::Initialize(statistics);
+  SerfUrlAsyncFetcher::Initialize(statistics);
+  ApacheResourceManager::Initialize(statistics);
 }
 
-void ApacheRewriteDriverFactory::Initialize() {
-  ApacheConfig::Initialize();
-  RewriteDriverFactory::Initialize();
-}
-
-void ApacheRewriteDriverFactory::InitStats(Statistics* statistics) {
-  RewriteDriverFactory::InitStats(statistics);
-  SerfUrlAsyncFetcher::InitStats(statistics);
-  ApacheResourceManager::InitStats(statistics);
-  CacheStats::InitStats(ApacheCache::kFileCache, statistics);
-  CacheStats::InitStats(ApacheCache::kLruCache, statistics);
-  CacheStats::InitStats(kMemcached, statistics);
-}
-
-void ApacheRewriteDriverFactory::Terminate() {
-  RewriteDriverFactory::Terminate();
-  ApacheConfig::Terminate();
+void ApacheRewriteDriverFactory::AddHtmlRewriteTimeUs(int64 rewrite_time_us) {
+  if (html_rewrite_time_us_histogram_ != NULL) {
+    html_rewrite_time_us_histogram_->Add(rewrite_time_us);
+  }
 }
 
 ApacheResourceManager* ApacheRewriteDriverFactory::MakeApacheResourceManager(
@@ -712,7 +559,7 @@ bool ApacheRewriteDriverFactory::PoolDestroyed(ApacheResourceManager* rm) {
   // are partially constructed.  RewriteDriverFactory keeps track of
   // ResourceManagers that are already serving requests.  We need to clean
   // all of them out before we can terminate the driver.
-  bool no_active_resource_managers = TerminateServerContext(rm);
+  bool no_active_resource_managers = TerminateResourceManager(rm);
   return (no_active_resource_managers && uninitialized_managers_.empty());
 }
 
@@ -724,24 +571,8 @@ RewriteOptions* ApacheRewriteDriverFactory::NewRewriteOptionsForQuery() {
   return new ApacheConfig("query");
 }
 
-void ApacheRewriteDriverFactory::PrintMemCacheStats(GoogleString* out) {
-  for (MemcachedMap::iterator p = memcached_map_.begin(),
-           e = memcached_map_.end(); p != e; ++p) {
-    AprMemCacheServers* servers = p->second;
-    if (!servers->GetStatus(out)) {
-      StrAppend(out, "\nError getting memcached server status for ",
-                servers->server_spec());
-    }
-  }
-}
-
-void ApacheRewriteDriverFactory::ApplySessionFetchers(
+void ApacheRewriteDriverFactory::ApplyLoopbackFetchRouting(
     ApacheResourceManager* manager, RewriteDriver* driver, request_rec* req) {
-  if (driver->options()->num_custom_fetch_headers() > 0) {
-    driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
-                                                    driver->async_fetcher()));
-  }
-
   if (!manager->config()->slurping_enabled() &&
       !manager->config()->test_proxy()) {
     // Note the port here is our port, not from the request, since

@@ -26,7 +26,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -39,7 +38,7 @@ namespace net_instaweb {
 
 namespace {
 
-class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
+class LoopbackRouteFetcherTest : public ::testing::Test {
  public:
   LoopbackRouteFetcherTest()
       : pool_(NULL),

@@ -19,7 +19,6 @@
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 
 #include <algorithm>
-#include <cstddef>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
@@ -27,9 +26,8 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/furious_util.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -60,7 +58,7 @@ const char ProxyFetch::kHeadersSetupRaceFlush[] = "HeadersSetupRace:Flush";
 const char ProxyFetch::kHeadersSetupRacePrefix[] = "HeadersSetupRace:";
 const char ProxyFetch::kHeadersSetupRaceWait[] = "HeadersSetupRace:Wait";
 
-ProxyFetchFactory::ProxyFetchFactory(ServerContext* manager)
+ProxyFetchFactory::ProxyFetchFactory(ResourceManager* manager)
     : manager_(manager),
       timer_(manager->timer()),
       handler_(manager->message_handler()),
@@ -106,9 +104,6 @@ void ProxyFetchFactory::StartNewProxyFetch(
         async_fetch->response_headers()->SetStatusAndReason(
             HttpStatus::kForbidden);
         async_fetch->Done(false);
-        if (original_content_fetch != NULL) {
-          original_content_fetch->Done(false);
-        }
         driver->Cleanup();
         if (property_callback != NULL) {
           property_callback->Detach();
@@ -132,15 +127,6 @@ void ProxyFetchFactory::StartNewProxyFetch(
     // sending any cookies to origin, as a precaution against contamination.
     fetch->request_headers()->RemoveAll(HttpAttributes::kCookie);
     fetch->request_headers()->RemoveAll(HttpAttributes::kCookie2);
-
-    // Similarly we don't want to forward authorization, since we may end up
-    // forwarding it to wrong host. For proxy-authorization, we remove it here
-    // since if our own server implements it, it should do so before touching
-    // ProxyInterface, and this prevents it from accidentally leaking.
-    // TODO(morlovich): Should we also change 401 and 407 into a 403 on
-    // response?
-    fetch->request_headers()->RemoveAll(HttpAttributes::kAuthorization);
-    fetch->request_headers()->RemoveAll(HttpAttributes::kProxyAuthorization);
   } else {
     // If we didn't already remove all the cookies, remove the furious
     // ones so we don't confuse the origin.
@@ -169,26 +155,19 @@ ProxyFetchPropertyCallback::ProxyFetchPropertyCallback(
       collector_(collector) {
 }
 
-bool ProxyFetchPropertyCallback::IsCacheValid(int64 write_timestamp_ms) const {
-  return collector_->IsCacheValid(write_timestamp_ms);
-}
-
 void ProxyFetchPropertyCallback::Done(bool success) {
   collector_->Done(this, success);
 }
 
 ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
-    ServerContext* resource_manager, const StringPiece& url,
-    const RewriteOptions* options)
+    ResourceManager* resource_manager)
     : mutex_(resource_manager->thread_system()->NewMutex()),
-      server_context_(resource_manager),
-      url_(url.data(), url.size()),
+      resource_manager_(resource_manager),
       detached_(false),
       done_(false),
       success_(true),
       proxy_fetch_(NULL),
-      post_lookup_task_vector_(new std::vector<Function*>),
-      options_(options) {
+      post_lookup_task_vector_(new std::vector<Function*>) {
 }
 
 ProxyFetchPropertyCallbackCollector::~ProxyFetchPropertyCallbackCollector() {
@@ -223,21 +202,6 @@ ProxyFetchPropertyCallbackCollector::GetPropertyPageWithoutOwnership(
   return page;
 }
 
-bool ProxyFetchPropertyCallbackCollector::IsCacheValid(
-    int64 write_timestamp_ms) const {
-  ScopedMutex lock(mutex_.get());
-  // Since PropertyPage::CallDone is not yet called, we know that
-  // ProxyFetchPropertyCallbackCollector::Done is not called and hence done_ is
-  // false and hence this has not yet been deleted.
-  DCHECK(!done_);
-  // But Detach might have been called already and then options_ is not valid.
-  if (detached_) {
-    return false;
-  }
-  return (options_ == NULL ||
-          options_->IsUrlCacheValid(url_, write_timestamp_ms));
-}
-
 // Calls to Done(), ConnectProxyFetch(), and Detach() may occur on
 // different threads.  Exactly one of ConnectProxyFetch and Detach will
 // never race with each other, as they correspond to the construction
@@ -248,7 +212,7 @@ bool ProxyFetchPropertyCallbackCollector::IsCacheValid(
 
 void ProxyFetchPropertyCallbackCollector::Done(
     ProxyFetchPropertyCallback* callback, bool success) {
-  ServerContext* resource_manager = NULL;
+  ResourceManager* resource_manager = NULL;
   ProxyFetch* fetch = NULL;
   scoped_ptr<std::vector<Function*> > post_lookup_task_vector;
   bool do_delete = false;
@@ -260,11 +224,14 @@ void ProxyFetchPropertyCallbackCollector::Done(
     success_ &= success;
 
     if (pending_callbacks_.empty()) {
+      done_ = true;
       // There is a race where Detach() can be called immediately after we
       // release the lock below, and it (Detach) deletes 'this' (because we
       // just set done_ to true), which means we cannot rely on any data
       // members being valid after releasing the lock, so we copy them all.
-      resource_manager = server_context_;
+      resource_manager = resource_manager_;
+      fetch = proxy_fetch_;
+      do_delete = detached_;
       post_lookup_task_vector.reset(post_lookup_task_vector_.release());
       call_post = true;
     }
@@ -277,12 +244,6 @@ void ProxyFetchPropertyCallbackCollector::Done(
       for (int i = 0, n = post_lookup_task_vector->size(); i < n; ++i) {
         (*post_lookup_task_vector.get())[i]->CallRun();
       }
-    }
-    {
-      ScopedMutex lock(mutex_.get());
-      done_ = true;
-      fetch = proxy_fetch_;
-      do_delete = detached_;
     }
     if (fetch != NULL) {
       fetch->PropertyCacheComplete(this, success);  // deletes this.
@@ -326,8 +287,8 @@ void ProxyFetchPropertyCallbackCollector::AddPostLookupTask(Function* func) {
   {
     ScopedMutex lock(mutex_.get());
     DCHECK(!detached_);
-    do_run = post_lookup_task_vector_.get() == NULL;
-    if (!do_run) {
+    do_run = done_;
+    if (!done_) {
       post_lookup_task_vector_->push_back(func);
     }
   }
@@ -343,12 +304,12 @@ ProxyFetch::ProxyFetch(
     AsyncFetch* async_fetch,
     AsyncFetch* original_content_fetch,
     RewriteDriver* driver,
-    ServerContext* manager,
+    ResourceManager* manager,
     Timer* timer,
     ProxyFetchFactory* factory)
     : SharedAsyncFetch(async_fetch),
       url_(url),
-      server_context_(manager),
+      resource_manager_(manager),
       timer_(timer),
       cross_domain_(cross_domain),
       claims_html_(false),
@@ -383,19 +344,14 @@ ProxyFetch::ProxyFetch(
   // Make request headers available to the filters.
   driver_->set_request_headers(request_headers());
 
-  // Set the user agent in the rewrite driver if it is not set already.
-  if (driver_->user_agent().empty()) {
-    const char* user_agent = request_headers()->Lookup1(
-        HttpAttributes::kUserAgent);
-    if (user_agent != NULL) {
-      VLOG(1) << "Setting user-agent to " << user_agent;
-      driver_->set_user_agent(user_agent);
-    } else {
-      VLOG(1) << "User-agent empty";
-    }
+  const char* user_agent = request_headers()->Lookup1(
+      HttpAttributes::kUserAgent);
+  if (user_agent != NULL) {
+    VLOG(1) << "Setting user-agent to " << user_agent;
+    driver_->set_user_agent(user_agent);
+  } else {
+    VLOG(1) << "User-agent empty";
   }
-
-  driver_->EnableBlockingRewrite(request_headers());
 
   // Set the implicit cache ttl for the response headers based on the value
   // specified in the options.
@@ -423,12 +379,12 @@ bool ProxyFetch::StartParse() {
   // which rewrite options we need (in proxy_interface.cc) and here.
   // Therefore, we can not set the Set-Cookie header there, and must
   // do it here instead.
-  if (Options()->need_to_store_experiment_data() &&
-      Options()->running_furious()) {
+  if (driver_->need_furious_cookie() && Options()->running_furious()) {
     int furious_value = Options()->furious_id();
-    server_context_->furious_matcher()->StoreExperimentData(
-        furious_value, url_, server_context_->timer()->NowMs(),
-        response_headers());
+    // TODO(nforman): This seems to be returning times farther ahead than
+    // one week.  Investigate.
+    furious::SetFuriousCookie(response_headers(), furious_value, url_,
+                              resource_manager_->timer()->NowUs());
   }
   driver_->set_response_headers_ptr(response_headers());
   {
@@ -478,7 +434,7 @@ void ProxyFetch::HandleHeadersComplete() {
 
 void ProxyFetch::AddPagespeedHeader() {
   if (Options()->enabled()) {
-    response_headers()->Add(kPageSpeedHeader, Options()->x_header_value());
+    response_headers()->Add(kPageSpeedHeader, factory_->server_version());
     response_headers()->ComputeCaching();
   }
 }
@@ -527,7 +483,7 @@ void ProxyFetch::SetupForHtml() {
       // limited delay.  Note that this is a no-op except in test
       // ProxyInterfaceTest.FiltersRaceSetup which enables thread-sync
       // prefix "HeadersSetupRace:".
-      ThreadSynchronizer* sync = server_context_->thread_synchronizer();
+      ThreadSynchronizer* sync = resource_manager_->thread_synchronizer();
       sync->Signal(kHeadersSetupRaceWait);
       sync->TimedWait(kHeadersSetupRaceFlush, kTestSignalTimeoutMs);
 
@@ -536,7 +492,7 @@ void ProxyFetch::SetupForHtml() {
       // TODO(sligocki): Support Etags and/or Last-Modified.
       response_headers()->RemoveAll(HttpAttributes::kEtag);
       response_headers()->RemoveAll(HttpAttributes::kLastModified);
-      start_time_us_ = server_context_->timer()->NowUs();
+      start_time_us_ = resource_manager_->timer()->NowUs();
 
       // HTML sizes are likely to be altered by HTML rewriting.
       response_headers()->RemoveAll(HttpAttributes::kContentLength);
@@ -556,35 +512,14 @@ void ProxyFetch::StartFetch() {
 
 void ProxyFetch::DoFetch() {
   if (prepare_success_) {
-    const RewriteOptions* options = driver_->options();
-
-    if (options->enabled() && options->IsAllowed(url_)) {
-      // Pagespeed enabled on URL.
-      if (options->ajax_rewriting_enabled()) {
-        // For Ajax rewrites, we go through RewriteDriver to give it
-        // a chance to optimize resources. (If they are HTML, it will
-        // not touch them, and we will stream them to the parser here).
-        driver_->FetchResource(url_, this);
-        return;
-      }
-      // Otherwise we just do a normal fetch from cache, and if it's
-      // HTML we will do a streaming rewrite.
+    if (driver_->options()->enabled() &&
+        driver_->options()->ajax_rewriting_enabled() &&
+        driver_->options()->IsAllowed(url_)) {
+      driver_->FetchResource(url_, this);
     } else {
-      // Pagespeed disabled on URL.
-      if (options->reject_blacklisted()) {
-        // We were asked to error out in this case.
-        response_headers()->SetStatusAndReason(
-            options->reject_blacklisted_status_code());
-        Done(true);
-        return;
-      }
-      // Else we should do a passthrough. In that case, we still do a normal
-      // origin fetch, but we will never rewrite anything, since
-      // SetupForHtml() will re-check enabled() and IsAllowed();
+      cache_fetcher_.reset(driver_->CreateCacheFetcher());
+      cache_fetcher_->Fetch(url_, factory_->handler_, this);
     }
-
-    cache_fetcher_.reset(driver_->CreateCacheFetcher());
-    cache_fetcher_->Fetch(url_, factory_->handler_, this);
   } else {
     Done(false);
   }
@@ -645,11 +580,11 @@ AbstractClientState* ProxyFetch::GetClientState(
   if (driver_->client_id().empty()) {
     return NULL;
   }
-  PropertyCache* cache = server_context_->client_property_cache();
+  PropertyCache* cache = resource_manager_->client_property_cache();
   PropertyPage* client_property_page = collector->GetPropertyPage(
       ProxyFetchPropertyCallback::kClientPropertyCache);
   AbstractClientState* client_state =
-      server_context_->factory()->NewClientState();
+      resource_manager_->factory()->NewClientState();
   client_state->InitFromPropertyCache(
       driver_->client_id(), cache, client_property_page, timer_);
   return client_state;
@@ -698,24 +633,14 @@ bool ProxyFetch::HandleWrite(const StringPiece& str,
   bool ret = true;
   if (started_parse_) {
     // Buffer up all text & flushes until our worker-thread gets a chance
-    // to run. Also split up HTML into manageable chunks if we get a burst,
-    // as it will make it easier to insert flushes in between them in
-    // ExecuteQueued(), which we want to do in order to limit memory use and
-    // latency.
-    size_t chunk_size = Options()->flush_buffer_limit_bytes();
-    StringStarVector chunks;
-    for (size_t pos = 0; pos < str.size(); pos += chunk_size) {
-      GoogleString* buffer =
-          new GoogleString(str.data() + pos,
-                           std::min(chunk_size, str.size() - pos));
-      chunks.push_back(buffer);
-    }
+    // to run.  This will re-order pending flushes after already-received
+    // html, so that if the html is coming in faster than we can process it,
+    // then we'll perform fewer flushes.
 
+    GoogleString* buffer = new GoogleString(str.data(), str.size());
     {
       ScopedMutex lock(mutex_.get());
-      for (int c = 0, n = chunks.size(); c < n; ++c) {
-        text_queue_.push_back(chunks[c]);
-      }
+      text_queue_.push_back(buffer);
       ScheduleQueueExecutionIfNeeded();
     }
   } else {
@@ -770,7 +695,7 @@ void ProxyFetch::HandleDone(bool success) {
       html_detector_.ReleaseBuffered(&buffered);
       AddPagespeedHeader();
       base_fetch()->HeadersComplete();
-      Write(buffered, server_context_->message_handler());
+      Write(buffered, resource_manager_->message_handler());
     }
   } else if (!response_headers()->headers_complete()) {
     // This is a fetcher failure, like connection refused, not just an error
@@ -794,8 +719,7 @@ void ProxyFetch::HandleDone(bool success) {
 }
 
 bool ProxyFetch::IsCachedResultValid(const ResponseHeaders& headers) {
-  return headers.IsDateLaterThan(Options()->cache_invalidation_timestamp()) &&
-      Options()->IsUrlCacheValid(url_, headers.date_ms());
+  return headers.IsDateLaterThan(Options()->cache_invalidation_timestamp());
 }
 
 void ProxyFetch::FlushDone() {
@@ -812,52 +736,16 @@ void ProxyFetch::ExecuteQueued() {
   bool do_flush = false;
   bool do_finish = false;
   bool done_result = false;
-  bool force_flush = false;
-
-  size_t buffer_limit = Options()->flush_buffer_limit_bytes();
   StringStarVector v;
   {
     ScopedMutex lock(mutex_.get());
     DCHECK(!waiting_for_flush_to_finish_);
-
-    // See if we should force a flush based on how much stuff has
-    // accumulated.
-    size_t total = 0;
-    size_t force_flush_chunk_count = 0;  // set only if force_flush is true.
-    for (size_t c = 0, n = text_queue_.size(); c < n; ++c) {
-      total += text_queue_[c]->length();
-      if (total >= buffer_limit) {
-        force_flush = true;
-        force_flush_chunk_count = c + 1;
-        break;
-      }
-    }
-
-    // Are we forcing a flush of some, but not all, of the queued
-    // content?
-    bool partial_forced_flush =
-        force_flush && (force_flush_chunk_count != text_queue_.size());
-    if (partial_forced_flush) {
-      for (size_t c = 0; c < force_flush_chunk_count; ++c) {
-        v.push_back(text_queue_[c]);
-      }
-      size_t old_len = text_queue_.size();
-      text_queue_.erase(text_queue_.begin(),
-                        text_queue_.begin() + force_flush_chunk_count);
-      DCHECK_EQ(old_len, v.size() + text_queue_.size());
-
-      // Note that in this case, since text_queue_ isn't empty,
-      // the call to ScheduleQueueExecutionIfNeeded from FlushDone
-      // will make us run again.
-    } else {
-      v.swap(text_queue_);
-    }
-    do_flush = network_flush_outstanding_ || force_flush;
+    v.swap(text_queue_);
+    do_flush = network_flush_outstanding_;
     do_finish = done_outstanding_;
     done_result = done_result_;
 
     network_flush_outstanding_ = false;
-
     // Note that we don't clear done_outstanding_ here yet, as we
     // can only handle it if we are not also handling a flush.
     queue_run_job_created_ = false;
@@ -875,9 +763,6 @@ void ProxyFetch::ExecuteQueued() {
     delete str;
   }
   if (do_flush) {
-    if (force_flush) {
-      driver_->RequestFlush();
-    }
     if (driver_->flush_requested()) {
       // A flush is about to happen, so we don't want to redundantly
       // flush due to idleness.
@@ -935,7 +820,7 @@ void ProxyFetch::Finish(bool success) {
   }
 
   if (started_parse_ && success) {
-    RewriteStats* stats = server_context_->rewrite_stats();
+    RewriteStats* stats = resource_manager_->rewrite_stats();
     stats->rewrite_latency_histogram()->Add(
         (timer_->NowUs() - start_time_us_) / 1000.0);
     stats->total_rewrite_count()->IncBy(1);
@@ -948,7 +833,7 @@ void ProxyFetch::Finish(bool success) {
   // In ProxyInterfaceTest.HeadersSetupRace, raise a signal that
   // indicates the test functionality is complete.  In other contexts
   // this is a no-op.
-  ThreadSynchronizer* sync = server_context_->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager_->thread_synchronizer();
   delete this;
   sync->Signal(kHeadersSetupRaceDone);
 }
@@ -981,7 +866,7 @@ void ProxyFetch::QueueIdleAlarm() {
   // In ProxyInterfaceTest.HeadersSetupRace, raise a signal that
   // indicates the idle-callback has initiated.  In other contexts
   // this is a no-op.
-  ThreadSynchronizer* sync = server_context_->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager_->thread_synchronizer();
   sync->Signal(kHeadersSetupRaceAlarmQueued);
 }
 

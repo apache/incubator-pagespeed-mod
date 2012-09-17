@@ -25,7 +25,7 @@
 #include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/string.h"
@@ -41,8 +41,8 @@ const int64 kNotCacheable = 0;
 
 }  // namespace
 
-Resource::Resource(ServerContext* resource_manager, const ContentType* type)
-    : server_context_(resource_manager),
+Resource::Resource(ResourceManager* resource_manager, const ContentType* type)
+    : resource_manager_(resource_manager),
       type_(type),
       is_background_fetch_(true) {
 }
@@ -51,17 +51,14 @@ Resource::~Resource() {
 }
 
 bool Resource::IsValidAndCacheable() const {
-  // We don't have to worry about request_headers here since
-  // if we have some we should be using UrlInputResource's implementation
-  // of this method.
   return ((response_headers_.status_code() == HttpStatus::kOK) &&
-          !server_context_->http_cache()->IsAlreadyExpired(
-              NULL, response_headers_));
+          !resource_manager_->http_cache()->IsAlreadyExpired(
+              response_headers_));
 }
 
 GoogleString Resource::ContentsHash() const {
   DCHECK(IsValidAndCacheable());
-  return server_context_->contents_hasher()->Hash(contents());
+  return resource_manager_->contents_hasher()->Hash(contents());
 }
 
 void Resource::AddInputInfoToPartition(HashHint suggest_include_content_hash,

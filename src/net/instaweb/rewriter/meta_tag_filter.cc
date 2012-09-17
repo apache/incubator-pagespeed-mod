@@ -46,7 +46,7 @@ MetaTagFilter::MetaTagFilter(RewriteDriver* rewrite_driver)
   converted_meta_tag_count_ = stats->GetVariable(kConvertedMetaTags);
 }
 
-void MetaTagFilter::InitStats(Statistics* stats) {
+void MetaTagFilter::Initialize(Statistics* stats) {
   stats->AddVariable(kConvertedMetaTags);
 }
 
@@ -68,20 +68,10 @@ void MetaTagFilter::EndElementImpl(HtmlElement* element) {
       element->keyword() != HtmlName::kMeta) {
     return;
   }
-  if (ExtractAndUpdateMetaTagDetails(element, response_headers_)) {
-    converted_meta_tag_count_->Add(1);
-  }
-}
 
-bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
-    HtmlElement* element,
-    ResponseHeaders* response_headers) {
-  if (response_headers == NULL) {
-    return false;
-  }
   GoogleString content, mime_type, charset;
 
-  if (ExtractMetaTagDetails(*element, response_headers,
+  if (ExtractMetaTagDetails(*element, response_headers_,
                             &content, &mime_type, &charset)) {
     if (!content.empty()) {
       // Yes content => it has http-equiv and content attributes,
@@ -89,20 +79,19 @@ bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
       if (!mime_type.empty()) {
         const ContentType* type = MimeTypeToContentType(mime_type);
         if (type != NULL && type->IsHtmlLike()) {
-          if (response_headers->MergeContentType(content)) {
-            return true;
+          if (response_headers_->MergeContentType(content)) {
+            converted_meta_tag_count_->Add(1);
           }
         }
       }
     } else {
       // No content => it has a charset attribute (and no mime_type).
       GoogleString type = StrCat("; charset=", charset);
-      if (response_headers->MergeContentType(type)) {
-        return true;
+      if (response_headers_->MergeContentType(type)) {
+        converted_meta_tag_count_->Add(1);
       }
     }
   }
-  return false;
 }
 
 void MetaTagFilter::Flush() {

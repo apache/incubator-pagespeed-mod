@@ -51,8 +51,9 @@
 #include "third_party/serf/src/serf.h"
 #include "third_party/serf/src/serf_bucket_util.h"
 
-// This is an easy way to turn on lots of debug messages. Note that this
-// is somewhat verbose.
+// Until this fetcher has some mileage on it, it is useful to keep around
+// an easy way to turn on lots of debug messages.  But they do get a bit chatty
+// when things are working well.
 #define SERF_DEBUG(x)
 
 namespace {
@@ -172,14 +173,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
 
   void CallbackDone(bool success) {
     // fetcher_==NULL if Start is called during shutdown.
-    if (fetcher_ != NULL) {
-      if (!success) {
-        fetcher_->failure_count_->Add(1);
-      }
-      if (fetcher_->track_original_content_length()) {
-        async_fetch_->extra_response_headers()->SetOriginalContentLength(
-            bytes_received_);
-      }
+    if (!success && (fetcher_ != NULL)) {
+      fetcher_->failure_count_->Add(1);
     }
     async_fetch_->Done(success);
     // We should always NULL the async_fetch_ out after calling otherwise we
@@ -493,17 +488,14 @@ class SerfFetch : public PoolElement<SerfFetch> {
         serf_request_get_alloc(request), host);
     serf_bucket_t* hdrs_bkt = serf_bucket_request_get_headers(*req_bkt);
 
-    // Add other headers from the caller's request.  Skip the "Host:" header
-    // because it's set above.
+    // Selectively add other useful headers from the caller's request.
     for (int i = 0; i < request_headers->NumAttributes(); ++i) {
       const GoogleString& name = request_headers->Name(i);
       const GoogleString& value = request_headers->Value(i);
-      if (!(StringCaseEqual(name, HttpAttributes::kHost))) {
-        // Note: *_setn() stores a pointer to name and value instead of a
-        // copy of those values. So name and value must have long lifetimes.
-        // In this case, we depend on request_headers being unchanged for
-        // the lifetime of hdrs_bkt, which is a documented requirement of
-        // the UrlAsyncFetcher interface.
+      if ((StringCaseEqual(name, HttpAttributes::kUserAgent)) ||
+          (StringCaseEqual(name, HttpAttributes::kAcceptEncoding)) ||
+          (StringCaseEqual(name, HttpAttributes::kReferer)) ||
+          (StringCaseEqual(name, HttpAttributes::kCookie))) {
         serf_bucket_headers_setn(hdrs_bkt, name.c_str(), value.c_str());
       }
     }
@@ -562,7 +554,6 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
  public:
   SerfThreadedFetcher(SerfUrlAsyncFetcher* parent, const char* proxy) :
       SerfUrlAsyncFetcher(parent, proxy),
-      thread_id_(NULL),
       initiate_mutex_(parent->thread_system()->NewMutex()),
       initiate_fetches_(new SerfFetchPool()),
       initiate_fetches_nonempty_(initiate_mutex_->NewCondvar()),
@@ -879,7 +870,6 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       force_threaded_(false),
       shutdown_(false),
       list_outstanding_urls_on_error_(false),
-      track_original_content_length_(false),
       message_handler_(message_handler) {
   CHECK(statistics != NULL);
   request_count_  =
@@ -914,7 +904,6 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
       force_threaded_(parent->force_threaded_),
       shutdown_(false),
       list_outstanding_urls_on_error_(parent->list_outstanding_urls_on_error_),
-      track_original_content_length_(parent->track_original_content_length_),
       message_handler_(parent->message_handler_) {
   Init(parent->pool(), proxy);
 }
@@ -1217,7 +1206,7 @@ void SerfUrlAsyncFetcher::CleanupFetchesWithErrors() {
   }
 }
 
-void SerfUrlAsyncFetcher::InitStats(Statistics* statistics) {
+void SerfUrlAsyncFetcher::Initialize(Statistics* statistics) {
   statistics->AddVariable(SerfStats::kSerfFetchRequestCount);
   statistics->AddVariable(SerfStats::kSerfFetchByteCount);
   statistics->AddVariable(SerfStats::kSerfFetchTimeDurationMs);
@@ -1231,13 +1220,6 @@ void SerfUrlAsyncFetcher::set_list_outstanding_urls_on_error(bool x) {
   list_outstanding_urls_on_error_ = x;
   if (threaded_fetcher_ != NULL) {
     threaded_fetcher_->set_list_outstanding_urls_on_error(x);
-  }
-}
-
-void SerfUrlAsyncFetcher::set_track_original_content_length(bool x) {
-  track_original_content_length_ = x;
-  if (threaded_fetcher_ != NULL) {
-    threaded_fetcher_->set_track_original_content_length(x);
   }
 }
 

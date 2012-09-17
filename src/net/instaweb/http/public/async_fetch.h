@@ -23,19 +23,17 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_H_
 
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 
-
 namespace net_instaweb {
 
-class LogRecord;
 class MessageHandler;
 class RequestHeaders;
+class TimingInfo;
 class Variable;
 
 // Abstract base class for encapsulating streaming, asynchronous HTTP fetches.
@@ -55,13 +53,11 @@ class AsyncFetch : public Writer {
   AsyncFetch() :
       request_headers_(NULL),
       response_headers_(NULL),
-      extra_response_headers_(NULL),
-      log_record_(NULL),
+      timing_info_(NULL),
       owns_request_headers_(false),
       owns_response_headers_(false),
-      owns_extra_response_headers_(false),
-      owns_log_record_(false),
-      headers_complete_(false) {
+      headers_complete_(false),
+      owns_timing_info_(false) {
   }
 
   virtual ~AsyncFetch();
@@ -113,15 +109,6 @@ class AsyncFetch : public Writer {
   ResponseHeaders* response_headers();
   void set_response_headers(ResponseHeaders* headers);
 
-  // Returns extra response headers which may be modified between
-  // calls to HeadersComplete() and Done(). This is used to allow
-  // a fetch to provide additional headers which cannot be determined
-  // when HeadersComplete() has been invoked, e.g., X-Original-Content-Length.
-  // This is needed because it is not safe for the producer to modify
-  // response_headers() once HeadersComplete() has been called.
-  ResponseHeaders* extra_response_headers();
-  void set_extra_response_headers(ResponseHeaders* headers);
-
   virtual bool EnableThreaded() const { return false; }
 
   // Indicates whether the request is a background fetch. These can be scheduled
@@ -134,21 +121,20 @@ class AsyncFetch : public Writer {
 
   bool headers_complete() const { return headers_complete_; }
 
-  // Returns a pointer to the logging info, extracting it from the log record.
-  virtual LoggingInfo* logging_info();
-
-  // Returns a pointer to a log record that wraps this fetch's logging
-  // info, lazily constructing it if needed.
-  virtual LogRecord* log_record();
-
-  // Sets the log record to the specifid pointer.  The caller must
-  // guarantee that the pointed-to log record remains valid as long as the
+  // Sets the TimingInfo to the specified pointer.  The caller must
+  // guarantee that the pointed-to TimingInfo remains valid as long as the
   // AsyncFetch is running.
-  void set_log_record(LogRecord* log_record);
+  void set_timing_info(TimingInfo* timing_info);
 
-  // Returns logging information in a string eg. c1:0;c2:2;hf:45;.
+  // Returns a pointer to the timing info, lazily constructing
+  // them if needed.  If they are constructed here (as opposed to
+  // being set with set_timing_info) then they will be owned by
+  // the class instance.
+  virtual TimingInfo* timing_info();
+
+  // Returns a Timing information in a string eg. c1:0;c2:2;hf:45;.
   // c1 is cache 1, c2 is cache 2, hf is headers fetch.
-  GoogleString LoggingString();
+  GoogleString TimingString() const;
 
  protected:
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler) = 0;
@@ -156,22 +142,14 @@ class AsyncFetch : public Writer {
   virtual void HandleDone(bool success) = 0;
   virtual void HandleHeadersComplete() = 0;
 
-  // Returns a pointer to the log record, with no lazy construction behavior.
-  LogRecord* log_record_or_null() { return log_record_; }
-
-  // Sets LogRecord and claims ownership.
-  void set_owned_log_record(LogRecord* log_record);
-
  private:
   RequestHeaders* request_headers_;
   ResponseHeaders* response_headers_;
-  ResponseHeaders* extra_response_headers_;
-  LogRecord* log_record_;
+  TimingInfo* timing_info_;
   bool owns_request_headers_;
   bool owns_response_headers_;
-  bool owns_extra_response_headers_;
-  bool owns_log_record_;
   bool headers_complete_;
+  bool owns_timing_info_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncFetch);
 };
@@ -210,7 +188,6 @@ class StringAsyncFetch : public AsyncFetch {
     success_ = false;
     buffer_pointer_->clear();
     response_headers()->Clear();
-    extra_response_headers()->Clear();
     AsyncFetch::Reset();
   }
 

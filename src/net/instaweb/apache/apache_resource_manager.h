@@ -18,7 +18,7 @@
 #define NET_INSTAWEB_APACHE_APACHE_RESOURCE_MANAGER_H_
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 
 struct apr_pool_t;
 struct server_rec;
@@ -28,13 +28,12 @@ namespace net_instaweb {
 class ApacheConfig;
 class ApacheMessageHandler;
 class ApacheRewriteDriverFactory;
-class Histogram;
 class HTTPCache;
 class RewriteStats;
 class SharedMemStatistics;
 class Statistics;
 class ThreadSystem;
-class UrlAsyncFetcherStats;
+class UrlPollableAsyncFetcher;
 class Variable;
 
 // Creates an Apache-specific ResourceManager.  This differs from base class
@@ -43,7 +42,7 @@ class Variable;
 //    - default RewriteOptions.
 // Additionally, there are startup semantics for apache's prefork model
 // that require a phased initialization.
-class ApacheResourceManager : public ServerContext {
+class ApacheResourceManager : public ResourceManager {
  public:
   ApacheResourceManager(ApacheRewriteDriverFactory* factory,
                         server_rec* server,
@@ -51,36 +50,17 @@ class ApacheResourceManager : public ServerContext {
   virtual ~ApacheResourceManager();
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
+  void SetStatistics(SharedMemStatistics* x);
   ApacheRewriteDriverFactory* apache_factory() { return apache_factory_; }
   ApacheConfig* config();
   bool InitFileCachePath();
 
-  // These return configuration objects that hold settings from
-  // <ModPagespeedIf spdy> and <ModPagespeedIf !spdy> sections of configuration.
-  // They initialize lazily, so are not thread-safe; however they are only
-  // meant to be used during configuration parsing. These methods should be
-  // called only if there is actually a need to put something in them, since
-  // otherwise we may end up constructing separate SPDY vs. non-SPDY
-  // configurations needlessly.
-  ApacheConfig* SpdyConfigOverlay();
-  ApacheConfig* NonSpdyConfigOverlay();
-
-  // Returns special configuration that should be used for SPDY sessions
-  // instead of config(). Returns NULL if config() should be used instead.
-  ApacheConfig* SpdyConfig() { return spdy_specific_config_.get(); }
-
-  // This should be called after all configuration parsing is done to collapse
-  // configuration inside the config overlays into actual ApacheConfig objects.
-  // It will also compute signatures when done.
-  void CollapseConfigOverlaysAndComputeSignatures();
-
-  // Initialize this ResourceManager to have its own statistics domain.
-  // Must be called after global_statistics has been created and had
-  // ::Initialize called on it.
-  void CreateLocalStatistics(Statistics* global_statistics);
-
   // Should be called after the child process is forked.
   void ChildInit();
+
+  UrlPollableAsyncFetcher* subresource_fetcher() {
+    return subresource_fetcher_;
+  }
 
   bool initialized() const { return initialized_; }
 
@@ -103,10 +83,14 @@ class ApacheResourceManager : public ServerContext {
   // restart.
   void PollFilesystemForCacheFlush();
 
-  // Accumulate in a histogram the amount of time spent rewriting HTML.
-  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
+  static void Initialize(Statistics* statistics);
 
-  static void InitStats(Statistics* statistics);
+  void set_cache_flush_poll_interval_sec(int num_seconds) {
+    cache_flush_poll_interval_sec_ = num_seconds;
+  }
+  void set_cache_flush_filename(const StringPiece& sp) {
+    sp.CopyToString(&cache_flush_filename_);
+  }
 
   const server_rec* server() const { return server_rec_; }
 
@@ -122,31 +106,23 @@ class ApacheResourceManager : public ServerContext {
 
   bool initialized_;
 
-  // Non-NULL if we have per-vhost stats.
-  scoped_ptr<Statistics> split_statistics_;
-
-  // May be NULL. Owned by *split_statistics_.
-  SharedMemStatistics* local_statistics_;
-
-  // These are non-NULL if we have per-vhost stats.
-  scoped_ptr<RewriteStats> local_rewrite_stats_;
-  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
-
-  // May be NULL. Constructed once we see things in config files that should
-  // be stored in these.
-  scoped_ptr<ApacheConfig> spdy_config_overlay_;
-  scoped_ptr<ApacheConfig> non_spdy_config_overlay_;
-
-  // May be NULL if we don't have any special settings for when using SPDY.
-  scoped_ptr<ApacheConfig> spdy_specific_config_;
-
-  Histogram* html_rewrite_time_us_histogram_;
+  // A pollable fetcher provides a Poll() to wait for outstanding
+  // fetches to complete.  This is used in
+  // instaweb_handler.cc:handle_as_resource() to block the apache
+  // request thread until the requested resource has been delivered.
+  //
+  // TODO(jmarantz): use the scheduler & condition variables to
+  // accomplish this instead.
+  UrlPollableAsyncFetcher* subresource_fetcher_;
 
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
-  // time we Poll we will read the file.
+  // time we Poll we will read the file.  If cache_flush_poll_interval_sec_<=0
+  // then we turn off polling for cache-flushes.
   scoped_ptr<AbstractMutex> cache_flush_mutex_;
   int64 last_cache_flush_check_sec_;  // seconds since 1970
+  int64 cache_flush_poll_interval_sec_;
+  GoogleString cache_flush_filename_;
 
   Variable* cache_flush_count_;
 

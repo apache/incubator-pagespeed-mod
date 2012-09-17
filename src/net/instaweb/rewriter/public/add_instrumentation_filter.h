@@ -44,7 +44,8 @@ class AddInstrumentationFilter : public EmptyHtmlFilter {
   explicit AddInstrumentationFilter(RewriteDriver* driver);
   virtual ~AddInstrumentationFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
+  static void Terminate();
 
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
@@ -56,16 +57,16 @@ class AddInstrumentationFilter : public EmptyHtmlFilter {
   Variable* instrumentation_script_added_count_;
 
  private:
+  bool IsXhtml();
+
   // Adds a script node to given element using the specified format and
   // tag name.
   void AddScriptNode(HtmlElement* element, const GoogleString& script_format,
-                     const GoogleString& tag_name);
+                     const GoogleString& tag_name, bool is_xhtml);
 
   RewriteDriver* driver_;
   bool found_head_;
   bool use_cdata_hack_;
-  bool added_tail_script_;
-  bool added_unload_script_;
 
   DISALLOW_COPY_AND_ASSIGN(AddInstrumentationFilter);
 };

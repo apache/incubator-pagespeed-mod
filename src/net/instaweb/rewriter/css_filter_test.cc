@@ -20,15 +20,13 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
@@ -50,9 +48,9 @@ const char kInputStyle[] =
 const char kOutputStyle[] =
     ".background_blue{background-color:red}"
     ".foreground_yellow{color:#ff0}";
-const char kPuzzleJpgFile[] = "Puzzle.jpg";
 
 class CssFilterTest : public CssRewriteTestBase {
+
  protected:
   void TestUrlAbsolutification(const StringPiece id,
                                const StringPiece css_input,
@@ -64,17 +62,12 @@ class CssFilterTest : public CssRewriteTestBase {
     options()->ClearSignatureForTesting();
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     if (!enable_image_rewriting) {
-      options()->DisableFilter(RewriteOptions::kRecompressJpeg);
-      options()->DisableFilter(RewriteOptions::kRecompressPng);
-      options()->DisableFilter(RewriteOptions::kRecompressWebp);
-      options()->DisableFilter(RewriteOptions::kConvertPngToJpeg);
-      options()->DisableFilter(RewriteOptions::kConvertJpegToWebp);
-      options()->DisableFilter(RewriteOptions::kConvertGifToPng);
+      options()->DisableFilter(RewriteOptions::kRecompressImages);
       options()->DisableFilter(RewriteOptions::kLeftTrimUrls);
       options()->DisableFilter(RewriteOptions::kExtendCacheImages);
       options()->DisableFilter(RewriteOptions::kSpriteImages);
     }
-    server_context()->ComputeSignature(options());
+    resource_manager()->ComputeSignature(options());
 
     // Set things up so that RewriteDriver::ShouldAbsolutifyUrl returns true
     // even though we are not proxying (but skip it if it has already been
@@ -175,14 +168,10 @@ TEST_F(CssFilterTest, UrlTooLong) {
 
 // Make sure we can deal with 0 character nodes between open and close of style.
 TEST_F(CssFilterTest, RewriteEmptyCssTest) {
-  LoggingInfo logging_info;
-  LogRecord log_record(&logging_info);
-  rewrite_driver()->set_log_record(&log_record);
   // Note: We must check stats ourselves because, for technical reasons,
   // empty inline styles are not treated as being rewritten at all.
   ValidateRewriteInlineCss("rewrite_empty_css-inline", "", "",
                            kExpectSuccess | kNoStatCheck);
-  EXPECT_STREQ("", logging_info.applied_rewriters());
   EXPECT_EQ(0, num_blocks_rewritten_->Get());
   EXPECT_EQ(0, total_bytes_saved_->Get());
   EXPECT_EQ(0, num_parse_failures_->Get());
@@ -196,14 +185,10 @@ TEST_F(CssFilterTest, RewriteEmptyCssTest) {
 // Make sure we do not recompute external CSS when re-processing an already
 // handled page.
 TEST_F(CssFilterTest, RewriteRepeated) {
-  LoggingInfo logging_info;
-  LogRecord log_record(&logging_info);
-  rewrite_driver()->set_log_record(&log_record);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}", kExpectSuccess);
   int inserts_before = lru_cache()->num_inserts();
   EXPECT_EQ(1, num_blocks_rewritten_->Get());  // for factory_
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("cf", logging_info.applied_rewriters());
 
   ResetStats();
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
@@ -213,7 +198,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
   EXPECT_EQ(inserts_before, inserts_after);
   EXPECT_EQ(0, num_blocks_rewritten_->Get());
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("cf", logging_info.applied_rewriters());
 }
 
 // Make sure we do not reparse external CSS when we know it already has
@@ -233,60 +217,14 @@ TEST_F(CssFilterTest, RewriteRepeatedParseError) {
   EXPECT_EQ(0, num_parse_failures_->Get());
 }
 
-// Deal nicely with non-UTF8 encodings.
-TEST_F(CssFilterTest, NonUtf8) {
-  // Distilled examples.
-  // gb2312 (Not valid UTF-8, multi-byte).
-  ValidateRewrite("font", "a { font-family: \"\xCB\xCE\xCC\xE5\"; }",
-                          "a{font-family: \"\xCB\xCE\xCC\xE5\"}",
-                  kExpectSuccess);
-  // Windows-1252 (Not valid UTF-8, single-byte).
-  ValidateRewrite("string", ".foo { content: \"r\xE9sum\xE9\"; }",
-                            ".foo{content: \"r\xE9sum\xE9\"}",
-                  kExpectSuccess);
-  // Shift_JIS (Not valid UTF-8, multi-byte, second byte may not set high bit).
-  ValidateRewrite("ident_value",
-                  ".foo { -moz-charset: \x83\x56\x83\x74\x83\x67\x83\x57; }",
-                  ".foo{-moz-charset: \x83\x56\x83\x74\x83\x67\x83\x57}",
-                  kExpectSuccess);
-  // KOI8-R (Not valid UTF-8, single-byte).
-  ValidateRewrite("ident_param", ".foo { \xEB\xEF\xE9-8: standard; }",
-                                 ".foo{\xEB\xEF\xE9-8: standard}",
-                  kExpectSuccess);
-  // EUC-KR (Not valid UTF-8, multi-byte).
-  ValidateRewrite("ident_selector", ".\xB8\xC0 { color: red; }",
-                                    ".\xB8\xC0 {color:red}",
-                  kExpectSuccess);
-
-  // Verbatim example from http://www.baidu.com/
-  ValidateRewrite("baidu", "#lk span {font:14px \"\xCB\xCE\xCC\xE5\"}",
-                           "#lk span{font:14px \"\xCB\xCE\xCC\xE5\"}",
-                           kExpectSuccess);
-}
-
-// In UTF-8, all multi-byte characters have high bit set. This is not true in
-// other common web encodings.
-TEST_F(CssFilterTest, Non8BitEncoding) {
-  // Shift_JIS can have second bytes in range 0x40-0x7F,
-  // which includes ASCII chars: @ A-Z [/]^_` a-z {|}~
-
-  // 0x83 0x7D == KATAKANA LETTER MA
-  // 0x7D == RIGHT CURLY BRACKET }
-  ValidateRewrite("string-ma", ".foo { font-family: \"\x83\x7D\"; color: red }",
-                               ".foo{font-family: \"\x83\x7D\";color:red}",
-                  kExpectSuccess);
-  // Note: This text currently fails to be parsed. But if that changes,
-  // update this test to the correct golden rewrite.
-  ValidateFailParse("ident-ma", ".foo { -win-magic: bar\x83\x7D; color: red }");
-
-  // 0x83 0x7B == KATAKANA LETTER BO
-  // 0x7B == LEFT CURLY BRACKET {
-  ValidateRewrite("string-bo", ".foo { font-family: \"\x83\x7B\"; color: red }",
-                               ".foo{font-family: \"\x83\x7B\";color:red}",
-                  kExpectSuccess);
-  // Note: This text currently fails to be parsed. But if that changes,
-  // update this test to the correct golden rewrite.
-  ValidateFailParse("ident-bo", ".foo { -win-magic: bar\x83\x7B; color: red }");
+// Make sure we don't change CSS with errors. Note: We can move these tests
+// to expected rewrites if we find safe ways to edit them.
+TEST_F(CssFilterTest, NoRewriteParseError) {
+  ValidateFailParse("non_unicode_charset",
+                    "a { font-family: \"\xCB\xCE\xCC\xE5\"; }");
+  // From http://www.baidu.com/
+  ValidateFailParse("non_unicode_baidu",
+                    "#lk span {font:14px \"\xCB\xCE\xCC\xE5\"}");
 }
 
 // Make sure bad requests do not corrupt our extension.
@@ -365,24 +303,10 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // IE8 Hack \0/
     // See http://dimox.net/personal-css-hacks-for-ie6-ie7-ie8/
     "a{color: red\\0/ ;background-color:green}",
-    "a{font-family: font\\0  ;color:red}",
 
     "a{font:bold verdana 10px }",
     "a{foo: +bar }",
     "a{color: rgb(foo,+,) }",
-
-    // CSS3 media queries.
-    // http://code.google.com/p/modpagespeed/issues/detail?id=50
-    "@media screen and (max-width:290px){a{color:red}}",
-    "@media only print and (color){a{color:red}}",
-    // Nonsensical, but syntactic, media query.
-    "@media not (-moz-dimension-constraints:20 < width < 300 and 45 < height "
-    "< 1000){a{color:red}}",
-
-    // Unexpected @-statements
-    "@keyframes wiggle { 0% { transform: rotate(6deg); } }",
-    "@font-face { font-family: 'Ubuntu'; font-style: normal }",
-    "@foobar {",
 
     // Things from Alexa-100 that we get parsing errors for. Most are illegal
     // syntax/typos. Some are CSS3 constructs.
@@ -432,14 +356,19 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
   }
 
   const char* fail_examples[] = {
+    // CSS3 media "and (max-width: 290px).
+    // http://code.google.com/p/modpagespeed/issues/detail?id=50
+    "@media screen and (max-width: 290px) { a { color:red } }",
+
     // Malformed @import statements.
     "@import styles.css; a { color: red; }",
     "@import \"styles.css\", \"other.css\"; a { color: red; }",
     "@import url(styles.css), url(other.css); a { color: red; }",
     "@import \"styles.css\"...; a { color: red; }",
 
-    // Bad @-rule syntax.
-    "@foobar }",
+    // Unexpected @-statements
+    "@keyframes wiggle { 0% { transform: rotate(6deg); } }",
+    "@font-face { font-family: 'Ubuntu'; font-style: normal }",
 
     // Things from Alexa-100 that we get parsing errors for. Most are illegal
     // syntax/typos. Some are CSS3 constructs.
@@ -942,86 +871,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // @media with no contents
     { "@media; a { color: red; }", "a{color:red}" },
     { "@media screen, print; a { color: red; }", "a{color:red}" },
-
-    // Unexpected @-statements
-    { "@-webkit-keyframes wiggle {\n"
-      "  0% {-webkit-transform:rotate(6deg);}\n"
-      "  50% {-webkit-transform:rotate(-6deg);}\n"
-      "  100% {-webkit-transform:rotate(6deg);}\n"
-      "}\n"
-      "@-moz-keyframes wiggle {\n"
-      "  0% {-moz-transform:rotate(6deg);}\n"
-      "  50% {-moz-transform:rotate(-6deg);}\n"
-      "  100% {-moz-transform:rotate(6deg);}\n"
-      "}\n"
-      "@keyframes wiggle {\n"
-      "  0% {transform:rotate(6deg);}\n"
-      "  50% {transform:rotate(-6deg);}\n"
-      "  100% {transform:rotate(6deg);}\n"
-      "}\n",
-
-      // Rewritten version only has newlines stripped between @-rules.
-      "@-webkit-keyframes wiggle {\n"
-      "  0% {-webkit-transform:rotate(6deg);}\n"
-      "  50% {-webkit-transform:rotate(-6deg);}\n"
-      "  100% {-webkit-transform:rotate(6deg);}\n"
-      "}"
-      "@-moz-keyframes wiggle {\n"
-      "  0% {-moz-transform:rotate(6deg);}\n"
-      "  50% {-moz-transform:rotate(-6deg);}\n"
-      "  100% {-moz-transform:rotate(6deg);}\n"
-      "}"
-      "@keyframes wiggle {\n"
-      "  0% {transform:rotate(6deg);}\n"
-      "  50% {transform:rotate(-6deg);}\n"
-      "  100% {transform:rotate(6deg);}\n"
-      "}" },
-
-    { "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:normal;"
-      "src:local('Ubuntu'), url('http://themes.googleusercontent.com/static/"
-      "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf') format('truetype')}"
-      "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:bold;"
-      "src:local('Ubuntu Bold'), local('Ubuntu-Bold'), url('http://themes."
-      "googleusercontent.com/static/fonts/ubuntu/v2/0ihfXUL2emPh0ROJezvraKCWc"
-      "ynf_cDxXwCLxiixG1c.ttf') format('truetype')}",
-
-      "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:normal;"
-      "src:local('Ubuntu'), url('http://themes.googleusercontent.com/static/"
-      "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf') format('truetype')}"
-      "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:bold;"
-      "src:local('Ubuntu Bold'), local('Ubuntu-Bold'), url('http://themes."
-      "googleusercontent.com/static/fonts/ubuntu/v2/0ihfXUL2emPh0ROJezvraKCWc"
-      "ynf_cDxXwCLxiixG1c.ttf') format('truetype')}" },
-
-    // CSS3 media queries.
-    // http://code.google.com/p/modpagespeed/issues/detail?id=50
-    { "@media only screen and (min-device-width: 320px) and"
-      " (max-device-width: 480px) {\n"
-      "        body {"
-      "                padding: 0;\n"
-      "        }\n"
-      "        #page {\n"
-      "                margin-top: 0;\n"
-      "        }\n"
-      "        #branding {\n"
-      "                border-top: none;\n"
-      "        }\n"
-      "\n"
-      "}\n",
-
-      "@media only screen and (min-device-width:320px) and (max-device-width:"
-      "480px){body{padding:0}#page{margin-top:0}#branding{border-top:none}}" },
-
-    // Make sure we distinguish similar media queries.
-    { "@media screen { .a { color: red; } }\n"
-      "@media screen and (color) { .b { color: green; } }\n"
-      "@media not screen { .c { color: blue; } }\n"
-      "@media only screen { .d { color: cyan; } }\n",
-
-      "@media screen{.a{color:red}}"
-      "@media screen and (color){.b{color:green}}"
-      "@media not screen{.c{color:#00f}}"
-      "@media only screen{.d{color:#0ff}}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1030,10 +879,33 @@ TEST_F(CssFilterTest, ComplexCssTest) {
   }
 
   const char* parse_fail_examples[] = {
+    // Unexpected @-statements
+    "@-webkit-keyframes wiggle {\n"
+    "  0% {-webkit-transform:rotate(6deg);}\n"
+    "  50% {-webkit-transform:rotate(-6deg);}\n"
+    "  100% {-webkit-transform:rotate(6deg);}\n"
+    "}\n"
+    "@-moz-keyframes wiggle {\n"
+    "  0% {-moz-transform:rotate(6deg);}\n"
+    "  50% {-moz-transform:rotate(-6deg);}\n"
+    "  100% {-moz-transform:rotate(6deg);}\n"
+    "}\n"
+    "@keyframes wiggle {\n"
+    "  0% {transform:rotate(6deg);}\n"
+    "  50% {transform:rotate(-6deg);}\n"
+    "  100% {transform:rotate(6deg);}\n"
+    "}\n",
+
+    "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:normal;"
+    "src:local('Ubuntu'), url('http://themes.googleusercontent.com/static/"
+    "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf') format('truetype')}"
+    "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:bold;"
+    "src:local('Ubuntu Bold'), local('Ubuntu-Bold'), url('http://themes."
+    "googleusercontent.com/static/fonts/ubuntu/v2/0ihfXUL2emPh0ROJezvraKCWc"
+    "ynf_cDxXwCLxiixG1c.ttf') format('truetype')}",
+
     // Bad syntax
     "}}",
-    "@foobar this is totally wrong CSS syntax }",
-    "@media (color) and screen { .a { color: red; } }",
   };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
@@ -1050,7 +922,7 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   // Note: when this example is fixed in the minifier, this test will break :/
   options()->ClearSignatureForTesting();
   options()->set_always_rewrite_css(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   ValidateRewrite("expanding_example",
                   "@import url(http://www.example.com)",
                   "@import url(http://www.example.com) ;",
@@ -1060,7 +932,7 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   // else, like rewrite sub-resources.
   options()->ClearSignatureForTesting();
   options()->set_always_rewrite_css(false);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   ValidateRewrite("non_expanding_example",
                   "@import url(http://www.example.com)",
                   "@import url(http://www.example.com)",
@@ -1069,20 +941,15 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   // When we force always_rewrite_css, we allow rewriting something to nothing.
   options()->ClearSignatureForTesting();
   options()->set_always_rewrite_css(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   ValidateRewrite("contracting_example", "  ", "", kExpectSuccess);
 
-  // We still contract it with set_always_rewrite_css(false).
-  // Note: In the past we did not allow rewrites that resulted in empty output.
+  // With it set false, we do not allow something to be minified to nothing.
+  // Note: We may allow this in the future if contents are all whitespace.
   options()->ClearSignatureForTesting();
   options()->set_always_rewrite_css(false);
-  server_context()->ComputeSignature(options());
-  ValidateRewrite("contracting_example2", "  ", "", kExpectSuccess);
-}
-
-TEST_F(CssFilterTest, RemoveComments) {
-  ValidateRewrite("remove_comments",
-                  " /* This comment will be removed. */ ", "", kExpectSuccess);
+  resource_manager()->ComputeSignature(options());
+  ValidateRewrite("non_contracting_example", "  ", "  ", kExpectFailure);
 }
 
 TEST_F(CssFilterTest, NoQuirksModeForXhtml) {
@@ -1117,7 +984,7 @@ TEST_F(CssFilterTest, RewriteStyleAttribute) {
 
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
 
   // Test no rewriting.
   ValidateNoChanges("no-rewriting",
@@ -1192,33 +1059,6 @@ TEST_F(CssFilterTest, DontAbsolutifyEmptyUrl) {
   const char kNoUrlImport[] = "@import url() ;";
   ValidateRewrite("empty_url_in_import", kEmptyUrlImport, kNoUrlImport,
                   kExpectSuccess);
-}
-
-TEST_F(CssFilterTest, WebpRewriting) {
-  const char css_input[] = "body{background:url(a.jpg)}";
-  const char css_output[] =
-      "body{background:url(http://test.com/wa.jpg.pagespeed.ic.0.webp)}";
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  options()->set_image_jpeg_recompress_quality(85);
-  server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent("webp");
-
-  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
-  Parse("webp", CssLinkHref("foo.css"));
-  // Check for CSS files in the rewritten page.
-  StringVector css_urls;
-  CollectCssLinks("collect", output_buffer_, &css_urls);
-  ASSERT_EQ(1, css_urls.size());
-  EXPECT_EQ("http://test.com/W.foo.css.pagespeed.cf.0.css", css_urls[0]);
-
-  // Check the content of the CSS file.
-  GoogleString actual_output;
-  EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
-  EXPECT_STREQ(css_output, actual_output);
 }
 
 TEST_F(CssFilterTest, DontAbsolutifyUrlsIfNoDomainMapping) {
@@ -1334,76 +1174,6 @@ TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
   ValidateRewriteExternalCssUrl(StrCat(kTestDomain, "style/"),
                                 kInputStyle, kOutputStyle, kExpectSuccess);
-}
-
-TEST_F(CssFilterTest, FlushInInlineCss) {
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html><body><style>.a { co");
-  // Flush in middle of inline CSS.
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("lor: red; }</style></body></html>");
-  rewrite_driver()->FinishParse();
-
-  // Expect text to be rewritten because it is coalesced.
-  // HtmlParse will send events like this to filter:
-  //   StartElement style
-  //   Flush
-  //   Characters ...
-  //   EndElement style
-  EXPECT_EQ("<html><body><style>.a{color:red}</style></body></html>",
-            output_buffer_);
-}
-
-TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
-  LoggingInfo logging_info;
-  LogRecord log_record(&logging_info);
-  rewrite_driver()->set_log_record(&log_record);
-
-  GoogleString img_url = StrCat(kTestDomain, "a.jpg");
-  AddFileToMockFetcher(img_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  server_context()->ComputeSignature(options());
-
-  // Delay the http cache lookup for the image so that it is not rewritten.
-  delay_cache()->DelayKey(img_url);
-
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<html><body>"
-      "<style>body{background:url(a.jpg)}</style>");
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("</body></html>");
-  delay_cache()->ReleaseKey(img_url);
-  rewrite_driver()->FinishParse();
-
-  EXPECT_EQ("<html><body><style>body{background:url(a.jpg)}</style>"
-            "</body></html>", output_buffer_);
-  // There was previously a bug where we were logging this as a successful
-  // application of the css filter. Make sure that this case isn't logged.
-  EXPECT_STREQ("", logging_info.applied_rewriters());
-}
-
-TEST_F(CssFilterTest, FlushInEndTag) {
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html><body><style>.a { color: red; }</st");
-  // Flush in middle of closing </style> tag.
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("yle></body></html>");
-  rewrite_driver()->FinishParse();
-
-  // Expect text to be rewritten because it is coalesced.
-  // HtmlParse will send events like this to filter:
-  //   StartElement style
-  //   Characters ...
-  //   Flush
-  //   EndElement style
-  EXPECT_EQ("<html><body><style>.a{color:red}</style></body></html>",
-            output_buffer_);
 }
 
 class CssFilterTestUrlNamer : public CssFilterTest {

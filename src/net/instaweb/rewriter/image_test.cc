@@ -25,11 +25,11 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_data_lookup.h"
+#include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/image_test_base.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/util/public/base64_util.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -141,10 +141,8 @@ class ImageTest : public ImageTestBase {
 
     cached.set_inlined_data(image_contents.data(), image_contents.size());
     cached.set_inlined_image_type(static_cast<int>(image->image_type()));
-    DataUrl(
-        *Image::TypeToContentType(
-            static_cast<Image::Type>(cached.inlined_image_type())),
-        BASE64, cached.inlined_data(), &data_url);
+    EXPECT_TRUE(ImageRewriteFilter::TryInline(
+        image->output_size() + 1, &cached, &data_url));
     GoogleString data_header("data:");
     data_header.append(image->content_type()->mime_type());
     data_header.append(";base64,");
@@ -213,11 +211,6 @@ class ImageTest : public ImageTestBase {
     EXPECT_FALSE(ImageUrlEncoder::HasValidDimension(dim));
   }
 
-  void SetJpegRecompressionAndQuality(Image::CompressionOptions* options) {
-    options->jpeg_quality = 85;
-    options->recompress_jpeg = true;
-  }
-
   StdioFileSystem file_system_;
   GoogleMessageHandler handler_;
   ImageUrlEncoder encoder_;
@@ -249,23 +242,20 @@ TEST_F(ImageTest, InputWebpTest) {
       30320, false);
 }
 
-
 TEST_F(ImageTest, WebpLowResTest) {
   // FYI: Takes ~20000 ms to run under Valgrind.
   if (RunningOnValgrind()) {
     return;
   }
-  Image::CompressionOptions* options = new Image::CompressionOptions();
-  options->recompress_webp = true;
   GoogleString contents;
-  ImagePtr image(ReadFromFileWithOptions(kScenery, &contents, options));
+  ImagePtr image(ReadImageFromFile(Image::IMAGE_WEBP, kScenery, &contents,
+                                   false));
   int filesize = 30320;
   image->SetTransformToLowRes();
   EXPECT_GT(filesize, image->output_size());
 }
 
 TEST_F(ImageTest, PngTest) {
-  options_->recompress_png = true;
   CheckImageFromFile(
       kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_PNG,
       ImageHeaders::kPngHeaderLength,
@@ -296,33 +286,12 @@ TEST_F(ImageTest, PngToProgressiveJpegTest) {
 }
 
 TEST_F(ImageTest, GifTest) {
-  options_->convert_gif_to_png = true;
   CheckImageFromFile(
       kIronChef, Image::IMAGE_GIF, Image::IMAGE_PNG,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       192, 256,
       24941, true);
-}
-
-TEST_F(ImageTest, GifToPngTest) {
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  options->convert_gif_to_png = true;
-
-  GoogleString buffer;
-  ImagePtr image(ReadFromFileWithOptions(kIronChef, &buffer, options));
-  image->output_size();
-  EXPECT_EQ(ContentType::kPng, image->content_type()->type());
-}
-
-TEST_F(ImageTest, GifToPngDisabledTest) {
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  options->convert_gif_to_png = false;
-
-  GoogleString buffer;
-  ImagePtr image(ReadFromFileWithOptions(kIronChef, &buffer, options));
-  image->output_size();
-  EXPECT_EQ(ContentType::kGif, image->content_type()->type());
 }
 
 TEST_F(ImageTest, AnimationTest) {
@@ -335,7 +304,6 @@ TEST_F(ImageTest, AnimationTest) {
 }
 
 TEST_F(ImageTest, JpegTest) {
-  options_->recompress_jpeg = true;
   CheckImageFromFile(
       kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_JPEG,
       8,  // Min bytes to bother checking file type at all.
@@ -345,7 +313,6 @@ TEST_F(ImageTest, JpegTest) {
 }
 
 TEST_F(ImageTest, ProgressiveJpegTest) {
-  options_->recompress_jpeg = true;
   CheckImageFromFile(
       kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_JPEG,
       8,  // Min bytes to bother checking file type at all.
@@ -356,7 +323,7 @@ TEST_F(ImageTest, ProgressiveJpegTest) {
 
 TEST_F(ImageTest, NumProgressiveScansTest) {
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->progressive_jpeg = true;
   options->jpeg_num_progressive_scans = 3;
 
@@ -368,7 +335,7 @@ TEST_F(ImageTest, NumProgressiveScansTest) {
 
 TEST_F(ImageTest, UseJpegLossessIfInputQualityIsLowTest) {
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->progressive_jpeg = true;
 
   GoogleString buffer;
@@ -381,7 +348,7 @@ TEST_F(ImageTest, UseJpegLossessIfInputQualityIsLowTest) {
   // When num progressive scans is set, we use lossless path so we recompress
   // with quality 85.
   options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->progressive_jpeg = true;
   buffer.clear();
   options->jpeg_num_progressive_scans = 1;
@@ -392,7 +359,7 @@ TEST_F(ImageTest, UseJpegLossessIfInputQualityIsLowTest) {
 
   // Empty image will return -1 when we try to determine its quality.
   options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->progressive_jpeg = true;
   image.reset(NewImage("", "", GTestTempDir(), options, &handler_));
   EXPECT_EQ(
@@ -401,7 +368,7 @@ TEST_F(ImageTest, UseJpegLossessIfInputQualityIsLowTest) {
 
 TEST_F(ImageTest, JpegRetainColorProfileTest) {
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_color_profile = true;
 
   GoogleString buffer;
@@ -412,7 +379,7 @@ TEST_F(ImageTest, JpegRetainColorProfileTest) {
                                    GetColorProfileMarker()));
   // Try stripping the color profile information.
   options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_color_profile = false;
   buffer.clear();
   image.reset(ReadFromFileWithOptions(kAppSegments, &buffer, options));
@@ -425,7 +392,7 @@ TEST_F(ImageTest, JpegRetainColorProfileTest) {
 TEST_F(ImageTest, JpegRetainColorSamplingTest) {
   int num_components, h_sampling_factor, v_sampling_factor;
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_color_profile = false;
 
   GoogleString buffer;
@@ -446,7 +413,7 @@ TEST_F(ImageTest, JpegRetainColorSamplingTest) {
 
   // Try retaining the color sampling.
   options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_color_sampling = true;
   buffer.clear();
   image.reset(ReadFromFileWithOptions(kPuzzle, &buffer, options));
@@ -461,7 +428,7 @@ TEST_F(ImageTest, JpegRetainColorSamplingTest) {
 
 TEST_F(ImageTest, JpegRetainExifDataTest) {
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_exif_data = true;
 
   GoogleString buffer;
@@ -472,7 +439,7 @@ TEST_F(ImageTest, JpegRetainExifDataTest) {
                                    GetExifDataMarker()));
   // Try stripping the color profile information.
   options = new Image::CompressionOptions();
-  SetJpegRecompressionAndQuality(options);
+  options->jpeg_quality = 85;
   options->retain_exif_data = false;
   buffer.clear();
   image.reset(ReadFromFileWithOptions(kAppSegments, &buffer, options));
@@ -496,17 +463,15 @@ TEST_F(ImageTest, WebpTest) {
 }
 
 TEST_F(ImageTest, DrawImage) {
-  Image::CompressionOptions* options = new Image::CompressionOptions();
-  options->recompress_png = true;
   GoogleString buf1;
-  ImagePtr image1(ReadFromFileWithOptions(kBikeCrash, &buf1, options));
+  ImagePtr image1(ReadImageFromFile(Image::IMAGE_PNG, kBikeCrash, &buf1,
+                                    false));
   ImageDim image_dim1;
   image1->Dimensions(&image_dim1);
 
-  options = new Image::CompressionOptions();
-  options->recompress_png = true;
   GoogleString buf2;
-  ImagePtr image2(ReadFromFileWithOptions(kCuppa, &buf2, options));
+  ImagePtr image2(ReadImageFromFile(Image::IMAGE_PNG, kCuppa, &buf2,
+                                    false));
   ImageDim image_dim2;
   image2->Dimensions(&image_dim2);
 
@@ -514,10 +479,8 @@ TEST_F(ImageTest, DrawImage) {
   int height = image_dim1.height() + image_dim2.height();
   ASSERT_GT(width, 0);
   ASSERT_GT(height, 0);
-  options = new Image::CompressionOptions();
-  options->recompress_png = true;
-  ImagePtr canvas(BlankImageWithOptions(width, height, Image::IMAGE_PNG,
-                                        GTestTempDir(), &handler_, options));
+  ImagePtr canvas(BlankImage(width, height, Image::IMAGE_PNG,
+                             GTestTempDir(), &handler_));
   EXPECT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   EXPECT_TRUE(canvas->DrawImage(image2.get(), 0, image_dim1.height()));
   // The combined image should be bigger than either of the components, but

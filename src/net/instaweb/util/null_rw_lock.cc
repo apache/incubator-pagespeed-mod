@@ -23,18 +23,10 @@ namespace net_instaweb {
 NullRWLock::~NullRWLock() {
 }
 
-bool NullRWLock::TryLock() {
-  return true;
-}
-
 void NullRWLock::Lock() {
 }
 
 void NullRWLock::Unlock() {
-}
-
-bool NullRWLock::ReaderTryLock() {
-  return true;
 }
 
 void NullRWLock::ReaderLock() {

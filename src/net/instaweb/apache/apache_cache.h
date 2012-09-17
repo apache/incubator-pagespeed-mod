@@ -26,9 +26,6 @@ namespace net_instaweb {
 
 class ApacheConfig;
 class ApacheRewriteDriverFactory;
-class AprMemCache;
-class AprMemCacheServers;
-class AsyncCache;
 class CacheInterface;
 class FileCache;
 class FileSystemLockManager;
@@ -46,16 +43,19 @@ class Timer;
 // a locking mechanism and an optional per-process LRUCache.
 class ApacheCache {
  public:
-  static const char kFileCache[];
-  static const char kLruCache[];
-
   ApacheCache(const StringPiece& path,
               const ApacheConfig& config,
               ApacheRewriteDriverFactory* factory);
   ~ApacheCache();
-  CacheInterface* l1_cache() { return l1_cache_.get(); }
-  CacheInterface* l2_cache() { return l2_cache_.get(); }
+  CacheInterface* cache() { return cache_.get(); }
   NamedLockManager* lock_manager() { return lock_manager_; }
+  HTTPCache* http_cache() { return http_cache_.get(); }
+  PropertyCache* page_property_cache() {
+    return page_property_cache_.get();
+  }
+  PropertyCache* client_property_cache() {
+    return client_property_cache_.get();
+  }
 
   void RootInit();
   void ChildInit();
@@ -67,18 +67,15 @@ class ApacheCache {
   GoogleString path_;
 
   ApacheRewriteDriverFactory* factory_;
+  scoped_ptr<CacheInterface> cache_;
   scoped_ptr<SharedMemLockManager> shared_mem_lock_manager_;
   scoped_ptr<FileSystemLockManager> file_system_lock_manager_;
   NamedLockManager* lock_manager_;
-  FileCache* file_cache_;  // owned by l2 cache
-  scoped_ptr<CacheInterface> l1_cache_;
-  scoped_ptr<CacheInterface> l2_cache_;
+  FileCache* file_cache_;
+  scoped_ptr<HTTPCache> http_cache_;
+  scoped_ptr<PropertyCache> page_property_cache_;
+  scoped_ptr<PropertyCache> client_property_cache_;
 };
-
-// CACHE_STATISTICS is #ifdef'd to facilitate experiments with whether
-// tracking the detailed stats & histograms has a QPS impact.  Set it
-// to 0 to turn it off.
-#define CACHE_STATISTICS 1
 
 }  // namespace net_instaweb
 

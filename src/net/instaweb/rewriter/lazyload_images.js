@@ -30,7 +30,7 @@ var pagespeed = window['pagespeed'];
 /**
  * @constructor
  * @param {string} blankImageSrc The blank placeholder image used for images
- *     that are not visible.
+ *   that are not visible.
  */
 pagespeed.LazyloadImages = function(blankImageSrc) {
   /**
@@ -199,44 +199,22 @@ pagespeed.LazyloadImages.prototype.isVisible_ = function(element) {
  * @param {Element} element The element to check for visibility.
  */
 pagespeed.LazyloadImages.prototype.loadIfVisible = function(element) {
-  // Override this element's attributes if they haven't already been overridden.
-  this.overrideAttributeFunctionsInternal_(element);
-
   var context = this;
   window.setTimeout(function() {
     var data_src = element.getAttribute('pagespeed_lazy_src');
     if (data_src != null) {
       if ((context.force_load_ || context.isVisible_(element)) &&
-          element.src.indexOf(context.blank_image_src_ != -1)) {
-        // Only replace the src if the old value is the one we set. Note that we
-        // do a 'contains' match to handle the case when the blank src is a url
-        // starting with //. It is possible that a script has already changed
-        // the url, in which case, we should not modify it.
-        // Remove the element from the DOM and and add it back in, since simply
-        // setting the src doesn't seem to always work in chrome.
-        var parent_node = element.parentNode;
-        var next_sibling = element.nextSibling;
-        if (parent_node) {
-          parent_node.removeChild(element);
-        }
-
-        // Restore the old functions.
-        element.getAttribute = element._getAttribute;
-        // Remove attributes that are no longer needed.
-        element.removeAttribute('onload');
-        element.removeAttribute('pagespeed_lazy_src');
-        element.removeAttribute('pagespeed_lazy_replaced_functions');
-        // Set the src back to the original.
+          element.src == context.blank_image_src_) {
+        // Only replace the src if the old value is the one we set. It is
+        // possible that a script has already changed it, in which case, we
+        // should not try to modify it.
         element.src = data_src;
-        // If there was a next sibling, insert element before it.
-        if (parent_node) {
-          parent_node.insertBefore(element, next_sibling);
-        }
+        element.removeAttribute('pagespeed_lazy_src');
       } else {
         context.deferred_.push(element);
       }
     }
-  }, 0);
+  }, 100);
 };
 
 pagespeed.LazyloadImages.prototype['loadIfVisible'] =
@@ -269,61 +247,6 @@ pagespeed.LazyloadImages.prototype.loadVisible_ = function() {
 };
 
 /**
- * Returns true if the given element has an attribute with the given name.
- * @param {Element} element The element whose attributes we are checking.
- * @param {string} attribute The attribute we are checking for.
- * @return {boolean} True if the element has the given attribute.
- * @private
- */
-pagespeed.LazyloadImages.prototype.hasAttribute_ =
-    function(element, attribute) {
-  if (element.getAttribute_) {
-    return element.getAttribute_(attribute) != null;
-  }
-  return element.getAttribute(attribute) != null;
-};
-
-/**
- * Overrides attribute functions for all lazily loaded images if they have not
- * already been overridden.
- */
-pagespeed.LazyloadImages.prototype.overrideAttributeFunctions = function() {
-  var images = document.getElementsByTagName('img');
-  for (var i = 0; i < images.length; ++i) {
-    var element = images[i];
-    if (this.hasAttribute_(element, 'pagespeed_lazy_src')) {
-      this.overrideAttributeFunctionsInternal_(element);
-    }
-  }
-};
-
-pagespeed.LazyloadImages.prototype['overrideAttributeFunctions'] =
-    pagespeed.LazyloadImages.prototype.overrideAttributeFunctions;
-
-/**
- * Overrides attribute functions for the given image if they have not already
- * been overridden.
- * @param {Element} element The element whose attribute functions should be
- *     overridden.
- * @private
- */
-pagespeed.LazyloadImages.prototype.overrideAttributeFunctionsInternal_ =
-    function(element) {
-  var context = this;
-  if (!this.hasAttribute_(element, 'pagespeed_lazy_replaced_functions')) {
-    element._getAttribute = element.getAttribute;
-    element.getAttribute = function(name) {
-      if (name.toLowerCase() == 'src' &&
-          context.hasAttribute_(this, 'pagespeed_lazy_src')) {
-        name = 'pagespeed_lazy_src';
-      }
-      return this._getAttribute(name);
-    };
-    element.setAttribute('pagespeed_lazy_replaced_functions', '1');
-  }
-};
-
-/**
  * Runs the function when event is triggered.
  * @param {Window|Element} elem Element to attach handler.
  * @param {string} ev Name of the event.
@@ -343,7 +266,7 @@ pagespeed.addHandler = function(elem, ev, func) {
       if (oldHandler) {
         oldHandler.call(this);
       }
-    };
+    }
   }
 };
 
@@ -351,7 +274,7 @@ pagespeed.addHandler = function(elem, ev, func) {
  * Initializes the lazyload module.
  * @param {boolean} loadAfterOnload If true, load images when the onload event.
  * @param {string} blankImageSrc The blank placeholder image used for images
- *     that are not visible.
+ *   that are not visible.
  * is fired. Otherwise, load images on scrolling as they become visible.
  */
 pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
@@ -367,9 +290,6 @@ pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
       temp.force_load_ = loadAfterOnload;
       temp.loadVisible_();
     }, 200);
-  };
-  if (blankImageSrc.indexOf('data') != 0) {
-    new Image().src = blankImageSrc;
   }
   pagespeed.addHandler(window, 'load', lazy_onload);
   if (!loadAfterOnload) {

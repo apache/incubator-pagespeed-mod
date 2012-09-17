@@ -22,18 +22,12 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
-#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-class HtmlCdataNode;
-class HtmlCharactersNode;
-class HtmlCommentNode;
-class HtmlDirectiveNode;
-class HtmlIEDirectiveNode;
-class HtmlParse;
+class HtmlName;
 class Writer;
 
 class HtmlWriterFilter : public HtmlFilter {
@@ -59,12 +53,6 @@ class HtmlWriterFilter : public HtmlFilter {
 
   virtual const char* Name() const { return "HtmlWriter"; }
 
- protected:
-  // Clear various variables for rewriting a new html file.
-  virtual void Clear();
-
-  Writer* writer() { return writer_; }
-
  private:
   void EmitBytes(const StringPiece& str);
 
@@ -73,6 +61,7 @@ class HtmlWriterFilter : public HtmlFilter {
   void EmitName(const HtmlName& name);
 
   HtmlElement::CloseStyle GetCloseStyle(HtmlElement* element);
+  void Clear();
 
   // Escapes arbitrary text as HTML, e.g. turning & into &amp;.  If quoteChar
   // is non-zero, e.g. '"', then it would escape " as well.

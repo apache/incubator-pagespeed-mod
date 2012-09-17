@@ -29,6 +29,7 @@
 #include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/arena.h"
 #include "net/instaweb/util/public/atom.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -58,8 +59,7 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       log_rewrite_timing_(false),
       running_filters_(false),
       parse_start_time_us_(0),
-      timer_(NULL),
-      first_filter_(0) {
+      timer_(NULL) {
   lexer_ = new HtmlLexer(this);
   HtmlKeywords::Init();
 }
@@ -781,11 +781,8 @@ bool HtmlParse::ReplaceNode(HtmlNode* existing_node, HtmlNode* new_node) {
 HtmlElement* HtmlParse::CloneElement(HtmlElement* in_element) {
   HtmlElement* out_element = NewElement(NULL, in_element->name());
   out_element->set_close_style(in_element->close_style());
-
-  const HtmlElement::AttributeList& attrs = in_element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
-    out_element->AddAttribute(*i);
+  for (int i = 0; i < in_element->attribute_size(); ++i) {
+    out_element->AddAttribute(in_element->attribute(i));
   }
   return out_element;
 }
@@ -952,59 +949,6 @@ HtmlName HtmlParse::MakeName(const StringPiece& str_piece) {
 
 void HtmlParse::add_event_listener(HtmlFilter* listener) {
   event_listeners_.push_back(listener);
-}
-
-void HtmlParse::set_size_limit(int64 x) {
-  lexer_->set_size_limit(x);
-}
-
-bool HtmlParse::size_limit_exceeded() const {
-  return lexer_->size_limit_exceeded();
-}
-
-void HtmlParse::InsertComment(const StringPiece& sp) {
-  HtmlElement* parent = NULL;
-
-  if (queue_.begin() != queue_.end()) {
-    HtmlEventListIterator pos = current_;
-    HtmlEvent* event;
-
-    // Get the last event.
-    if (pos == queue_.end()) {
-      --pos;
-    }
-    event = *pos;
-
-    // Be careful where we insert comments into HTML Elements, as some of
-    // them cannot tolerate new children -- even comments (e.g. textarea,
-    // script).  So if we are looking at a start_element, then insert before,
-    // but if we are looking at an end_element, then insert after.
-    HtmlElement* start_element = event->GetElementIfStartEvent();
-    HtmlElement* end_element = event->GetElementIfEndEvent();
-    if (start_element != NULL) {
-      parent = start_element->parent();
-      InsertElementBeforeEvent(pos, NewCommentNode(parent, sp));
-    } else if (end_element != NULL) {
-      parent = end_element->parent();
-      InsertElementAfterEvent(pos, NewCommentNode(parent, sp));
-    } else {
-      // The current node must not be an element, but instead a leaf
-      // node such as another Comment, IEDirective, or Characters.
-      // Insert the comment immediately after the node if we are at the
-      // end, otherwise insert the comment before the current node.
-      HtmlNode* node = event->GetNode();
-      if (node != NULL) {
-        parent = node->parent();
-      }
-      if (current_ == queue_.end()) {
-        InsertElementAfterEvent(pos, NewCommentNode(parent, sp));
-      } else {
-        InsertElementBeforeEvent(pos, NewCommentNode(parent, sp));
-      }
-    }
-  } else {
-    AddEvent(new HtmlCommentEvent(NewCommentNode(NULL, sp), 0));
-  }
 }
 
 }  // namespace net_instaweb

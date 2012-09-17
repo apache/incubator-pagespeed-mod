@@ -22,17 +22,16 @@
 #include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class RewriteQueryTest : public RewriteTestBase {
+class RewriteQueryTest : public ResourceManagerTestBase {
  protected:
   RewriteOptions* ParseAndScan(const StringPiece& in_query,
                                const StringPiece& in_header_string) {
@@ -63,7 +62,7 @@ class RewriteQueryTest : public RewriteTestBase {
                                GoogleString* out_header_string) {
     options_.reset(new RewriteOptions);
     GoogleUrl url(StrCat("http://www.test.com/index.jsp?", in_query));
-    if (RewriteQuery::Scan(factory(), &url, request_headers,
+    if (RewriteQuery::Scan(factory_.get(), &url, request_headers,
                            &options_, &handler_)
         != RewriteQuery::kSuccess) {
       options_.reset(NULL);
@@ -81,18 +80,6 @@ class RewriteQueryTest : public RewriteTestBase {
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheCss));
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheImages));
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheScripts));
-  }
-
-  // In a fashion patterned after the usage in mod_instaweb.cc, establish
-  // a base configuration, and update it based on the passed-in query string.
-  void Incremental(const StringPiece& query, RewriteOptions* options) {
-    scoped_ptr<RewriteOptions> query_options;
-    GoogleUrl gurl(StrCat("http://example.com/?ModPagespeedFilters=", query));
-    RequestHeaders request_headers;
-    EXPECT_EQ(RewriteQuery::kSuccess,
-              RewriteQuery::Scan(factory(), &gurl, &request_headers,
-                                 &query_options, message_handler()));
-    options->Merge(*query_options.get());
   }
 
   GoogleMessageHandler handler_;
@@ -120,7 +107,6 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersQuery) {
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options, true);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -132,7 +118,6 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersHeaders) {
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options, true);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -146,7 +131,6 @@ TEST_F(RewriteQueryTest, SetFiltersQuery) {
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRemoveQuotes));
   CheckExtendCache(options, false);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -180,7 +164,6 @@ TEST_F(RewriteQueryTest, SetFiltersHeaders) {
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRemoveQuotes));
   CheckExtendCache(options, false);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeImages));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteCss));
@@ -237,12 +220,20 @@ TEST_F(RewriteQueryTest, MultipleBroken) {
   EXPECT_TRUE(options == NULL);
 }
 
+TEST_F(RewriteQueryTest, Bots) {
+  RewriteOptions* options = ParseAndScan("ModPagespeedDisableForBots=on", "");
+  ASSERT_TRUE(options != NULL);
+  EXPECT_TRUE(options->botdetect_enabled());
+  options = ParseAndScan("ModPagespeedDisableForBots=off", "");
+  ASSERT_TRUE(options != NULL);
+  EXPECT_FALSE(options->botdetect_enabled());
+}
+
 TEST_F(RewriteQueryTest, MultipleInt64Params) {
   RewriteOptions* options = ParseAndScan("ModPagespeedCssInlineMaxBytes=3"
                                          "&ModPagespeedImageInlineMaxBytes=5"
                                          "&ModPagespeedCssImageInlineMaxBytes=7"
-                                         "&ModPagespeedJsInlineMaxBytes=11"
-                                         "&ModPagespeedDomainShardCount=2",
+                                         "&ModPagespeedJsInlineMaxBytes=11",
                                          "");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
@@ -250,7 +241,6 @@ TEST_F(RewriteQueryTest, MultipleInt64Params) {
   EXPECT_EQ(5, options->ImageInlineMaxBytes());
   EXPECT_EQ(7, options->CssImageInlineMaxBytes());
   EXPECT_EQ(11, options->js_inline_max_bytes());
-  EXPECT_EQ(2, options->domain_shard_count());
 }
 
 TEST_F(RewriteQueryTest, OutputQueryandHeaders) {
@@ -259,8 +249,6 @@ TEST_F(RewriteQueryTest, OutputQueryandHeaders) {
                "&ModPagespeedImageInlineMaxBytes=5"
                "&ModPagespeedCssImageInlineMaxBytes=7"
                "&ModPagespeedJsInlineMaxBytes=11"
-               "&ModPagespeedDomainShardCount=100"
-               "&ModPagespeedCssFlattenMaxBytes=13"
                "&abc=1"
                "&def",
                "ModPagespeedFilters;inline_css;"
@@ -289,97 +277,6 @@ TEST_F(RewriteQueryTest, OutputQueryandHeadersPostRequest) {
   EXPECT_EQ(output_query, "abc=1&def");
   EXPECT_EQ(output_headers, "POST  HTTP/1.0\r\nxyz: 6\r\n\r\n");
   EXPECT_EQ(request_headers.message_body(), "pqr");
-}
-
-// Tests the ability to add an additional filter on the command-line based
-// on whatever set is already installed in the configuration.
-TEST_F(RewriteQueryTest, IncrementalAdd) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  options.EnableFilter(RewriteOptions::kStripScripts);
-  Incremental("+debug", &options);
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kDebug));
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kAddBaseTag));
-  EXPECT_TRUE(options.modified());
-}
-
-// Same exact test as above, except that we omit the "+".  This wipes out
-// the explicitly enabled filter in the configuration and also the core
-// level.
-TEST_F(RewriteQueryTest, NonIncrementalAdd) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  options.EnableFilter(RewriteOptions::kStripScripts);
-  Incremental("debug", &options);
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kDebug));
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options.modified());
-}
-
-// In this version we specify nothing, and that should erase the filters.
-TEST_F(RewriteQueryTest, IncrementalEmpty) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  options.EnableFilter(RewriteOptions::kStripScripts);
-  Incremental("", &options);
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options.modified());
-}
-
-TEST_F(RewriteQueryTest, IncrementalRemoveExplicit) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  options.EnableFilter(RewriteOptions::kStripScripts);
-  Incremental("-strip_scripts", &options);
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options.modified());
-}
-
-TEST_F(RewriteQueryTest, IncrementalRemoveFromCore) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  options.EnableFilter(RewriteOptions::kStripScripts);
-  Incremental("-combine_css", &options);
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options.modified());
-}
-
-TEST_F(RewriteQueryTest, NoChangesShouldNotModify) {
-  RewriteOptions options;
-  options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
-  Incremental("+combine_css", &options);
-  EXPECT_FALSE(options.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_TRUE(options.Enabled(RewriteOptions::kCombineCss));
-  //
-  // TODO(jmarantz): We would like at this point to have options show up
-  // as unmodified.  However our implementation of query-params parsing
-  // does not allow for this at this point, because it doesn't know
-  // that it is working with the core filters.  Right now this is not
-  // that important as the only usage of RewriteOptions::modified() is
-  // in apache/mod_instaweb.cc which is just checking to see if there are
-  // any directory-specific options set.
-  //
-  // EXPECT_FALSE(options.modified());
-}
-
-TEST_F(RewriteQueryTest, NoscriptQueryParamEmptyValue) {
-  RewriteOptions* options = ParseAndScan("ModPagespeed=noscript", "");
-  EXPECT_FALSE(options->IsAnyFilterRequiringScriptExecutionEnabled());
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kPrioritizeVisibleContent));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kHandleNoscriptRedirect));
-}
-
-TEST_F(RewriteQueryTest, NoscriptHeader) {
-  RewriteOptions* options = ParseAndScan("", "ModPagespeed;noscript");
-  EXPECT_FALSE(options->IsAnyFilterRequiringScriptExecutionEnabled());
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kPrioritizeVisibleContent));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kHandleNoscriptRedirect));
 }
 
 }  // namespace net_instaweb

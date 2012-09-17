@@ -18,7 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -27,8 +26,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/parser.h"
 
 namespace net_instaweb {
 
@@ -102,53 +99,6 @@ StringPiece RewriteFilter::GetCharsetForScript(
 
   // Well, we really have no idea.
   return StringPiece(NULL);
-}
-
-GoogleString RewriteFilter::GetCharsetForStylesheet(
-    const Resource* stylesheet,
-    const StringPiece attribute_charset,
-    const StringPiece enclosing_charset) {
-  // 1. If the stylesheet has a Content-Type with a charset, use that, else
-  if (!stylesheet->charset().empty()) {
-    return stylesheet->charset().as_string();
-  }
-
-  // 2. If the stylesheet has an initial @charset, use that.
-  StringPiece css(stylesheet->contents());
-  StripUtf8Bom(&css);
-  Css::Parser parser(css);
-  UnicodeText css_charset = parser.ExtractCharset();
-  if (parser.errors_seen_mask() == 0) {
-    GoogleString at_charset = UnicodeTextToUTF8(css_charset);
-    if (!at_charset.empty()) {
-      return at_charset;
-    }
-  }
-
-  // 3. If the stylesheet has a BOM, use that.
-  StringPiece bom_charset = GetCharsetForBom(stylesheet->contents());
-  if (!bom_charset.empty()) {
-    return bom_charset.as_string();
-  }
-
-  // 4. If the element has a charset attribute, use that.
-  if (!attribute_charset.empty()) {
-    return attribute_charset.as_string();
-  }
-
-  // 5. Use the charset of the enclosing page, if any.
-  if (!enclosing_charset.empty()) {
-    return enclosing_charset.as_string();
-  }
-
-  // Well, we really have no idea.
-  return GoogleString();
-}
-
-void RewriteFilter::LogFilterModifiedContent() {
-  if (driver()->log_record() != NULL) {
-    driver()->log_record()->LogAppliedRewriter(id());
-  }
 }
 
 }  // namespace net_instaweb

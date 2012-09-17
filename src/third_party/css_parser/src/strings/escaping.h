@@ -18,8 +18,6 @@
 
 #include "base/logging.h"
 
-namespace strings {
-
 inline int hex_digit_to_int(char c) {
   /* Assume ASCII. */
   DCHECK('0' == 0x30 && 'A' == 0x41 && 'a' == 0x61);
@@ -30,7 +28,5 @@ inline int hex_digit_to_int(char c) {
   }
   return x & 0xf;
 }
-
-}  // namespace strings
 
 #endif  // STRINGS_ESCAPING_H_
