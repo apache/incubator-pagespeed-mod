@@ -84,6 +84,12 @@ extern "C" {
 namespace net_instaweb {
 
 namespace {
+  
+// Passed to CheckGlobalOption
+enum VHostHandling {
+  kTolerateInVHost,
+  kErrorInVHost
+};
 
 // TODO(sligocki): Separate options parsing from all the other stuff here.
 // Instaweb directive names -- these must match
@@ -106,6 +112,8 @@ const char* kModPagespeedCssImageInlineMaxBytes =
     "ModPagespeedCssImageInlineMaxBytes";
 const char* kModPagespeedCssInlineMaxBytes = "ModPagespeedCssInlineMaxBytes";
 const char* kModPagespeedCssOutlineMinBytes = "ModPagespeedCssOutlineMinBytes";
+const char kModPagespeedDangerPermitFetchFromUnknownHosts[] =
+    "ModPagespeedDangerPermitFetchFromUnknownHosts";
 const char* kModPagespeedDisableFilters = "ModPagespeedDisableFilters";
 const char* kModPagespeedDisallow = "ModPagespeedDisallow";
 const char* kModPagespeedDomain = "ModPagespeedDomain";
@@ -1015,6 +1023,29 @@ static ApacheConfig* CmdOptions(cmd_parms* cmd, void* data) {
   return config;
 }
 
+// This should be called for global options to see if they were used properly.
+//
+// Returns NULL if successful, error string otherwise.
+static char* CheckGlobalOption(const cmd_parms* cmd,
+                               VHostHandling mode,
+                               MessageHandler* handler) {
+  if (cmd->server->is_virtual) {
+    char* vhost_error = apr_pstrcat(
+        cmd->pool, "Directive ", cmd->directive->directive,
+        " used inside a <VirtualHost> but applies globally.",
+        (mode == kTolerateInVHost ?
+            " Accepting for backwards compatibility. " :
+            NULL),
+        NULL);
+    if (mode == kErrorInVHost) {
+      return vhost_error;
+    } else {
+      handler->Message(kWarning, "%s", vhost_error);
+    }
+  }
+  return NULL;
+}
+
 // Callback function that parses a single-argument directive.  This is called
 // by the Apache config parser.
 static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
@@ -1099,6 +1130,14 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     ret = ParseIntOption(
         manager, cmd,
         &ApacheResourceManager::set_cache_flush_poll_interval_sec, arg);
+  } else if (StringCaseEqual(directive,
+                             kModPagespeedDangerPermitFetchFromUnknownHosts)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseBoolOption(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_disable_loopback_routing, arg);
+    }
   } else if (StringCaseEqual(directive, kModPagespeedDisableFilters)) {
     if (!options->DisableFiltersByCommaSeparatedList(arg, handler)) {
       ret = "Failed to disable some filters.";
@@ -1331,6 +1370,9 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "does not begin with a slash."),
   APACHE_CONFIG_OPTION(kModPagespeedCacheFlushPollIntervalSec,
         "Number of seconds to wait between polling for cache-flush requests"),
+  APACHE_CONFIG_OPTION(kModPagespeedDangerPermitFetchFromUnknownHosts,
+        "Disable security checks that prohibit fetching from hostnames "
+        "mod_pagespeed does not know about"),
   APACHE_CONFIG_OPTION(kModPagespeedFetcherTimeoutMs,
         "Set internal fetcher timeout in milliseconds"),
   APACHE_CONFIG_OPTION(kModPagespeedFetchProxy, "Set the fetch proxy"),
