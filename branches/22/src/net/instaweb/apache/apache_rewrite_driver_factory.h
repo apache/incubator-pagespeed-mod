@@ -138,6 +138,14 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
     list_outstanding_urls_on_error_ = x;
   }
 
+  bool disable_loopback_routing() const {
+    return disable_loopback_routing_;
+  }
+
+  void set_disable_loopback_routing(bool x) {
+    disable_loopback_routing_ = x;
+  }
+
   // Finds a Cache for the file_cache_path in the config.  If none exists,
   // creates one, using all the other parameters in the ApacheConfig.
   // Currently, no checking is done that the other parameters (e.g. cache
@@ -260,6 +268,10 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   ApacheResourceManagerSet uninitialized_managers_;
 
   Histogram* html_rewrite_time_us_histogram_;
+
+  // If false (default) we will redirect all fetches to unknown hosts to
+  // localhost.
+  bool disable_loopback_routing_;
 
   // true iff we ran through AutoDetectThreadCounts()
   bool thread_counts_finalized_;
