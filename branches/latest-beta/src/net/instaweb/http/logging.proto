@@ -1,0 +1,100 @@
+// Copyright 2012 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Author: snagori@google.com (Shrikant Nagori)
+// Protobufs to store all information related to logging.
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package net_instaweb;
+
+
+// This proto stores all information related to latency.
+// Next id for TimingInfo : 7
+message TimingInfo  {
+  // Local cache lookup time in ms.
+  optional int64 cache1_ms = 1;
+  // Remote cache lookup time in ms.
+  optional int64 cache2_ms = 2;
+  // Time taken to fetch the http header.
+  optional int64 header_fetch_ms = 3;
+  // Time taken to fetch the resource from the source.
+  optional int64 fetch_ms = 4;
+  // Time taken to send the first byte back to the client.
+  optional int64 time_to_first_byte_ms = 5;
+  // Absolute time when the request started, in ms since 1970.
+  optional int64 request_start_ms = 6;
+}
+
+// This proto stores all Blink related information.
+// Next id for BlinkInfo : 7
+message BlinkInfo {
+  enum BlinkRequestFlow {
+    BLINK_CACHE_HIT = 1;
+    BLINK_CACHE_MISS_FOUND_RESOURCE = 2;
+    BLINK_CACHE_MISS_FETCH_NON_OK = 3;
+    BLINK_CACHE_MISS_TRIGGERED_REWRITE = 4;
+    FOUND_MALFORMED_HTML = 5;
+    FOUND_LAST_STATUS_CODE_NON_OK = 6;
+    FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 7;
+  };
+  // Tracks the flow of a Blink request.
+  optional BlinkRequestFlow blink_request_flow = 1;
+
+  // The event id of the user request for which blink flow was triggered.
+  optional string request_event_id_time_usec = 2;
+
+  // Tracks whether html change detection full-diff found a match or not.
+  optional bool html_match = 3;
+
+  enum UserAgent {
+    NOT_SET = 0;
+    BLINK_DESKTOP_WHITELIST = 1;
+    BLINK_DESKTOP_BLACKLIST = 2;
+    BLINK_MOBILE = 3;
+    NULL_OR_EMPTY = 4;
+    NOT_SUPPORT_BLINK = 5;
+  };
+
+  optional UserAgent blink_user_agent = 4;
+
+  // Url of the request.
+  optional string url = 5;
+
+  // Tracks whether html change detection smart_diff found a match or not.
+  optional bool html_smart_diff_match = 6;
+}
+
+// This proto stores information related to metadata cache lookups.
+// Next id for MetadataCacheInfo: 4
+message MetadataCacheInfo {
+  optional int32 num_hits = 1;
+  optional int32 num_revalidates = 2;
+  optional int32 num_misses = 3;
+}
+
+// This proto stores all information which we would like to log.
+// Next id for LoggingInfo: 5
+message LoggingInfo {
+  // Used to track time taken by various components of page speed service
+  // processing.
+  optional TimingInfo timing_info = 1;
+  // Stores all Blink related information.
+  optional BlinkInfo blink_info = 2;
+  // Sorted list of applied rewriter ids separated by comma.
+  optional string applied_rewriters = 3;
+  // Metadata cache info.
+  optional MetadataCacheInfo metadata_cache_info = 4;
+}
