@@ -1,4 +1,0 @@
-ModPagespeedModifyCachingHeaders off
-<FilesMatch "\.html$">
-  Header set Cache-Control "private, max-age=3000"
-</FilesMatch>
