@@ -21,7 +21,6 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string.h"
@@ -59,37 +58,23 @@ void JsDisableFilter::StartDocument() {
 void JsDisableFilter::InsertJsDeferExperimentalScript(HtmlElement* element) {
   // We are not adding this code in js_defer_disabled_filter to avoid
   // duplication of code for blink and critical line code.
-  if (!rewrite_driver_->is_defer_javascript_script_flushed()) {
-    HtmlElement* script_node =
-        rewrite_driver_->NewElement(element, HtmlName::kScript);
+  bool defer_js_experimental =
+      rewrite_driver_->options()->enable_defer_js_experimental();
+  HtmlElement* script_node =
+      rewrite_driver_->NewElement(element, HtmlName::kScript);
 
-    rewrite_driver_->AddAttribute(script_node, HtmlName::kType,
-                                  "text/javascript");
-    rewrite_driver_->AddAttribute(script_node, HtmlName::kPagespeedNoDefer, "");
-    HtmlNode* script_code =
-        rewrite_driver_->NewCharactersNode(
-            script_node, GetJsDisableScriptSnippet(rewrite_driver_->options()));
-    rewrite_driver_->AppendChild(element, script_node);
-    rewrite_driver_->AppendChild(script_node, script_code);
-  }
+  rewrite_driver_->AddAttribute(script_node, HtmlName::kType,
+                                "text/javascript");
+  rewrite_driver_->AddAttribute(script_node, HtmlName::kPagespeedNoDefer, "");
+  HtmlNode* script_code =
+      rewrite_driver_->NewCharactersNode(
+          script_node,
+          (defer_js_experimental ?
+           JsDisableFilter::kEnableJsExperimental :
+           JsDisableFilter::kDisableJsExperimental));
+  rewrite_driver_->AppendChild(element, script_node);
+  rewrite_driver_->AppendChild(script_node, script_code);
   defer_js_experimental_script_written_ = true;
-}
-
-void JsDisableFilter::InsertMetaTagForIE(HtmlElement* element) {
-  if (!rewrite_driver_->options()->override_ie_document_mode() ||
-      !rewrite_driver_->user_agent_matcher().IsIe(
-          rewrite_driver_->user_agent())) {
-    return;
-  }
-  // TODO(ksimbili): Don't add the following if there is already a meta tag
-  // and if it's content is greater than IE8 (deferJs supported version).
-  HtmlElement* meta_tag =
-      rewrite_driver_->NewElement(element, HtmlName::kMeta);
-
-  rewrite_driver_->AddAttribute(meta_tag, HtmlName::kHttpEquiv,
-                                "X-UA-Compatible");
-  rewrite_driver_->AddAttribute(meta_tag, HtmlName::kContent, "IE=edge");
-  rewrite_driver_->AppendChild(element, meta_tag);
 }
 
 void JsDisableFilter::StartElement(HtmlElement* element) {
@@ -103,7 +88,6 @@ void JsDisableFilter::StartElement(HtmlElement* element) {
         rewrite_driver_->NewElement(element->parent(), HtmlName::kHead);
     rewrite_driver_->InsertElementBeforeCurrent(head_node);
     InsertJsDeferExperimentalScript(head_node);
-    InsertMetaTagForIE(head_node);
   } else {
     HtmlElement::Attribute* src;
     if (script_tag_scanner_.ParseScriptElement(element, &src) ==
@@ -111,21 +95,21 @@ void JsDisableFilter::StartElement(HtmlElement* element) {
       if (element->FindAttribute(HtmlName::kPagespeedNoDefer)) {
         return;
       }
-      if (src != NULL) {
-        src->set_name(rewrite_driver_->MakeName(HtmlName::kPagespeedOrigSrc));
-      } else if (index_ == 0 &&
-                 rewrite_driver_->options()->Enabled(
-                     RewriteOptions::kDeferJavascript)) {
-        return;
+      if ((src != NULL) && (src->DecodedValueOrNull() != NULL)) {
+        GoogleString url(src->DecodedValueOrNull());
+        element->AddAttribute(
+            rewrite_driver_->MakeName("orig_src"), url,
+            HtmlElement::DOUBLE_QUOTE);
+        element->DeleteAttribute(HtmlName::kSrc);
       }
       HtmlElement::Attribute* type = element->FindAttribute(HtmlName::kType);
-      if (type != NULL) {
-        type->set_name(rewrite_driver_->MakeName(HtmlName::kPagespeedOrigType));
+      if ((type != NULL) && (type->DecodedValueOrNull() != NULL)) {
+        GoogleString jstype(type->DecodedValueOrNull());
+        element->DeleteAttribute(HtmlName::kType);
+        element->AddAttribute(
+            rewrite_driver_->MakeName("orig_type"), jstype,
+            HtmlElement::DOUBLE_QUOTE);
       }
-      // Delete all type attributes if any. Some sites have more than one type
-      // attribute(duplicate). Chrome and firefox picks up the first type
-      // attribute for the node.
-      while (element->DeleteAttribute(HtmlName::kType)) {}
       element->AddAttribute(
           rewrite_driver_->MakeName(HtmlName::kType), "text/psajs",
           HtmlElement::DOUBLE_QUOTE);
@@ -153,7 +137,6 @@ void JsDisableFilter::EndElement(HtmlElement* element) {
   if (defer_js_enabled_ && element->keyword() == HtmlName::kHead &&
       !defer_js_experimental_script_written_) {
     InsertJsDeferExperimentalScript(element);
-    InsertMetaTagForIE(element);
   }
 }
 
@@ -161,13 +144,6 @@ void JsDisableFilter::EndDocument() {
   if (defer_js_enabled_ && !defer_js_experimental_script_written_) {
     rewrite_driver_->InfoHere("Experimental flag code is not written");
   }
-}
-
-GoogleString JsDisableFilter::GetJsDisableScriptSnippet(
-    const RewriteOptions* options) {
-  bool defer_js_experimental = options->enable_defer_js_experimental();
-  return defer_js_experimental ? JsDisableFilter::kEnableJsExperimental :
-      JsDisableFilter::kDisableJsExperimental;
 }
 
 }  // namespace net_instaweb

@@ -26,7 +26,6 @@
 #include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -40,29 +39,9 @@ class Variable {
   virtual int Get() const = 0;
   virtual void Set(int delta) = 0;
   virtual int64 Get64() const = 0;
-  // Return some name representing the variable, provided that the specific
-  // implementation has some sensible way of doing so.
-  virtual StringPiece GetName() const = 0;
 
   virtual void Add(int delta) { Set(delta + Get()); }
   void Clear() { Set(0); }
-};
-
-// Class that manages dumping statistics periodically to a file.
-class ConsoleStatisticsLogger {
-  public:
-    virtual ~ConsoleStatisticsLogger();
-    // If it's been longer than kStatisticsDumpIntervalMs, update the
-    // timestamp to now and dump the current state of the Statistics.
-    virtual void UpdateAndDumpIfRequired() = 0;
-    // Writes the data from the logfile in JSON format for the given variables,
-    // filtered with the given parameters.
-    virtual void DumpJSON(const std::set<GoogleString>& var_titles,
-                          const std::set<GoogleString>& hist_titles,
-                          int64 startTime, int64 endTime, int64 granularity_ms,
-                          Writer* writer,
-                          MessageHandler* message_handler) const = 0;
-    virtual Timer* timer() = 0;
 };
 
 class Histogram {
@@ -73,7 +52,7 @@ class Histogram {
   // Throw away all data.
   virtual void Clear() = 0;
   // True if the histogram is empty.
-  bool Empty() {
+  virtual bool Empty() {
    ScopedMutex hold(lock());
    return CountInternal() == 0;
   }
@@ -88,66 +67,64 @@ class Histogram {
   // |  [2,3] 1 25% 50%  |||||               |
   // |  [4,5] 2 50% 100% ||||||||||          |
   // |_______________________________________|
-  virtual void Render(int index, Writer* writer, MessageHandler* handler);
-
-  // Returns number of buckets the histogram actually has.
-  virtual int NumBuckets() = 0;
+  virtual void Render(const StringPiece& title, Writer* writer,
+                      MessageHandler* handler);
+  // Maxmum number of buckets. This number can be used to allocate a buffer for
+  // Histogram.
+  virtual int MaxBuckets() = 0;
   // Allow histogram have negative values.
   virtual void EnableNegativeBuckets() = 0;
   // Set the minimum value allowed in histogram.
   virtual void SetMinValue(double value) = 0;
   // Set the value upper-bound of a histogram,
   // the value range in histogram is [MinValue, MaxValue) or
-  // [-MaxValue, MaxValue) if enabled negative buckets.
+  // (-MaxValue, MaxValue) if enabled negative buckets.
   virtual void SetMaxValue(double value) = 0;
-
-  // Set the suggested number of buckets for the histogram. The implementation
-  // may chose to use a somewhat different number.
-  virtual void SetSuggestedNumBuckets(int i) = 0;
-
-  // Returns average of the values added.
-  double Average() {
+  // Set the maximum number of buckets.
+  virtual void SetMaxBuckets(int i) = 0;
+  // Record a value in its bucket.
+  virtual double Average() {
     ScopedMutex hold(lock());
     return AverageInternal();
   }
   // Return estimated value that is greater than perc% of all data.
   // e.g. Percentile(20) returns the value which is greater than
   // 20% of data.
-  double Percentile(const double perc) {
+  virtual double Percentile(const double perc) {
     ScopedMutex hold(lock());
     return PercentileInternal(perc);
   }
-  double StandardDeviation() {
+  virtual double StandardDeviation() {
     ScopedMutex hold(lock());
     return StandardDeviationInternal();
   }
-  double Count() {
+  virtual double Count() {
     ScopedMutex hold(lock());
     return CountInternal();
   }
-  double Maximum() {
+  virtual double Maximum() {
     ScopedMutex hold(lock());
     return MaximumInternal();
   }
-  double Minimum() {
+  virtual double Minimum() {
     ScopedMutex hold(lock());
     return MinimumInternal();
   }
-  double Median() {
+  virtual double Median() {
     return Percentile(50);
   }
 
-  // Formats the histogram statistics as an HTML table row.  This
-  // is intended for use in Statistics::RenderHistograms.
-  //
-  // The <tr> element id is given id=hist_row_%d where %d is from the index.
-  // Included in the row an input radio button which is initiated in state
-  // 'selected' for index==0.
-  GoogleString HtmlTableRow(const GoogleString& title, int index);
-
-  // Lower bound of a bucket. If index == NumBuckets() + 1, returns the
+ protected:
+  virtual AbstractMutex* lock() = 0;
+  virtual double AverageInternal() = 0;
+  virtual double PercentileInternal(const double perc) = 0;
+  virtual double StandardDeviationInternal() = 0;
+  virtual double CountInternal() = 0;
+  virtual double MaximumInternal() = 0;
+  virtual double MinimumInternal() = 0;
+  // Lower bound of a bucket. If index == MaxBuckets() + 1, returns the
   // upper bound of the histogram. DCHECK if index is in the range of
-  // [0, NumBuckets()+1].
+  // [0, MaxBuckets()+1].
   virtual double BucketStart(int index) = 0;
   // Upper bound of a bucket.
   virtual double BucketLimit(int index) {
@@ -155,30 +132,12 @@ class Histogram {
   }
   // Value of a bucket.
   virtual double BucketCount(int index) = 0;
-
- protected:
-  Histogram() {}
-
-  // Note that these *Internal interfaces require the mutex to be held.
-  virtual double AverageInternal() = 0;
-  virtual double PercentileInternal(const double perc) = 0;
-  virtual double StandardDeviationInternal() = 0;
-  virtual double CountInternal() = 0;
-  virtual double MaximumInternal() = 0;
-  virtual double MinimumInternal() = 0;
-
-  virtual AbstractMutex* lock() = 0;
-
   // Helper function of Render(), write entries of histogram raw data table.
   // Each entry includes bucket range, bucket count, percentage,
   // cumulative percentage, bar. It looks like:
   // [0,1] 1 5%  5%  ||||
   // [2,3] 2 10% 15% ||||||||
-  // Precondition: mutex held.
-  void WriteRawHistogramData(Writer* writer, MessageHandler* handler);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(Histogram);
+  virtual void WriteRawHistogramData(Writer* writer, MessageHandler* handler);
 };
 
 class NullHistogram : public Histogram {
@@ -187,12 +146,12 @@ class NullHistogram : public Histogram {
   virtual ~NullHistogram();
   virtual void Add(const double value) { }
   virtual void Clear() { }
-  virtual int NumBuckets() { return 0; }
+  virtual bool Empty() { return true; }
+  virtual int MaxBuckets() { return 0; }
   virtual void EnableNegativeBuckets() { }
   virtual void SetMinValue(double value) { }
   virtual void SetMaxValue(double value) { }
-  virtual void SetSuggestedNumBuckets(int i) { }
-  virtual GoogleString GetName() const { return ""; }
+  virtual void SetMaxBuckets(int i) { }
 
  protected:
   virtual AbstractMutex* lock() { return &mutex_; }
@@ -268,11 +227,6 @@ class Statistics {
   // not be deleted by the caller.
   virtual Variable* AddVariable(const StringPiece& name) = 0;
 
-  // Like AddVariable, but asks the implementation to scope the variable to the
-  // entire process, even if statistics are generally partitioned by domains or
-  // the like. Default implementation simply forwards to AddVariable.
-  virtual Variable* AddGlobalVariable(const StringPiece& name);
-
   // Find a variable from a name, returning NULL if not found.
   virtual Variable* FindVariable(const StringPiece& name) const = 0;
 
@@ -319,14 +273,7 @@ class Statistics {
   // Dump the variable-values to a writer.
   virtual void Dump(Writer* writer, MessageHandler* handler) = 0;
   // Export statistics to a writer. Statistics in a group are exported in one
-  // table. This only exports console-related variables, as opposed to all
-  // variables, as the above does.
-  // Empty implementation because most Statistics don't need this. It's
-  // here because in the context in which it is needed we only have access to a
-  // Statistics*, rather than the specific subclass.
-  // current_time_ms: the time at which the dump was triggered
-  virtual void DumpConsoleVarsToWriter(
-      int64 current_time_ms, Writer* writer, MessageHandler* message_handler) {}
+  // table.
   virtual void RenderTimedVariables(Writer* writer,
                                     MessageHandler* handler);
   // Write all the histograms in this Statistic object to a writer.
@@ -334,12 +281,6 @@ class Statistics {
   // Set all variables to 0.
   // Throw away all data in histograms and stats.
   virtual void Clear() = 0;
-
-  // This is implemented as NULL here because most Statistics don't
-  // need it. In the context in which it is needed we only have access to a
-  // Statistics*, rather than the specific subclass, hence its being here.
-  // Return the ConsoleStatisticsLogger associated with this Statistics.
-  virtual ConsoleStatisticsLogger* console_logger() const { return NULL; }
 
  protected:
   // A helper for subclasses that do not fully implement timed variables.

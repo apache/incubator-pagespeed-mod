@@ -20,6 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DOMAIN_REWRITE_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -40,10 +41,10 @@ class DomainRewriteFilter : public CommonFilter {
  public:
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
   ~DomainRewriteFilter();
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void EndElementImpl(HtmlElement* element) {}
 
   virtual const char* Name() const { return "DomainRewrite"; }
 
@@ -64,9 +65,9 @@ class DomainRewriteFilter : public CommonFilter {
                         GoogleString* output_url);
 
  private:
+  ResourceTagScanner tag_scanner_;
   // Stats on how much domain-rewriting we've done.
   Variable* rewrite_count_;
-  bool client_domain_rewriter_script_written_;
 
   DISALLOW_COPY_AND_ASSIGN(DomainRewriteFilter);
 };

@@ -29,9 +29,10 @@ namespace net_instaweb {
 
 const char RewriteQuery::kModPagespeed[] =
     "ModPagespeed";
+const char RewriteQuery::kModPagespeedDisableForBots[] =
+    "ModPagespeedDisableForBots";
 const char RewriteQuery::kModPagespeedFilters[] =
     "ModPagespeedFilters";
-const char RewriteQuery::kNoscriptValue[] = "noscript";
 
 // static array of query params that have setters taking a single int64 arg.
 // TODO(matterbury): Accept or solve the problem that the query parameter
@@ -42,21 +43,14 @@ struct Int64QueryParam {
   RewriteOptionsInt64PMF method_;
 };
 static struct Int64QueryParam int64_query_params_[] = {
-  { "ModPagespeedCssFlattenMaxBytes",
-    &RewriteOptions::set_css_flatten_max_bytes },
   { "ModPagespeedCssInlineMaxBytes",
     &RewriteOptions::set_css_inline_max_bytes },
-  // Note: If ModPagespeedImageInlineMaxBytes is specified, and
-  // ModPagespeedCssImageInlineMaxBytes is not set explicitly, both the
-  // thresholds get set to ModPagespeedImageInlineMaxBytes.
   { "ModPagespeedImageInlineMaxBytes",
     &RewriteOptions::set_image_inline_max_bytes },
   { "ModPagespeedCssImageInlineMaxBytes",
     &RewriteOptions::set_css_image_inline_max_bytes },
   { "ModPagespeedJsInlineMaxBytes",
-    &RewriteOptions::set_js_inline_max_bytes },
-  { "ModPagespeedDomainShardCount",
-    &RewriteOptions::set_domain_shard_count },
+    &RewriteOptions::set_js_inline_max_bytes }
 };
 
 // Scan for option-sets in query-params.  We will only allow a limited
@@ -175,15 +169,6 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     if (is_on || (value == "off")) {
       options->set_enabled(is_on);
       status = kSuccess;
-    } else if (value == kNoscriptValue) {
-      // Disable filters that depend on custom script execution.
-      options->DisableFiltersRequiringScriptExecution();
-      // Blink cache hit response will also redirect to "?Noscript=" and hence
-      // we need to disable blink.  Otherwise we will enter
-      // blink_flow_critical_line (causing a redirect loop).
-      options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
-      options->EnableFilter(RewriteOptions::kHandleNoscriptRedirect);
-      status = kSuccess;
     } else {
       // TODO(sligocki): Return 404s instead of logging server errors here
       // and below.
@@ -193,10 +178,24 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
                        value.c_str());
       status = kInvalid;
     }
+  } else if (name == kModPagespeedDisableForBots) {
+    bool is_on = value == "on";
+    if (is_on || (value == "off")) {
+      options->set_botdetect_enabled(is_on);
+      status = kSuccess;
+    } else {
+      handler->Message(kWarning, "Invalid value for %s: %s "
+                       "(should be on or off)",
+                       name.as_string().c_str(),
+                       value.c_str());
+      status = kInvalid;
+    }
   } else if (name == kModPagespeedFilters) {
     // When using ModPagespeedFilters query param, only the
     // specified filters should be enabled.
+    options->SetRewriteLevel(RewriteOptions::kPassThrough);
     if (options->AdjustFiltersByCommaSeparatedList(value, handler)) {
+      options->DisableAllFiltersNotExplicitlyEnabled();
       status = kSuccess;
     } else {
       status = kInvalid;

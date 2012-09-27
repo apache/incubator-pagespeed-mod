@@ -41,26 +41,6 @@ class RewriteOptions;
 
 const char kPagespeedOriginalUrl[] = "mod_pagespeed_original_url";
 
-// Tracks a single property-cache lookup.
-class PropertyCallback : public PropertyPage {
- public:
-  PropertyCallback(RewriteDriver* driver,
-                   ThreadSystem* thread_system,
-                   const StringPiece& key);
-
-  virtual void Done(bool success);
-
-  void BlockUntilDone();
-
- private:
-  RewriteDriver* driver_;
-  GoogleString url_;
-  bool done_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
-  DISALLOW_COPY_AND_ASSIGN(PropertyCallback);
-};
-
 // Context for an HTML rewrite.
 //
 // One is created for responses that appear to be HTML (although there is
@@ -92,7 +72,7 @@ class InstawebContext {
 
   apr_bucket_brigade* bucket_brigade() const { return bucket_brigade_; }
   ContentEncoding content_encoding() const { return  content_encoding_; }
-  ApacheResourceManager* manager() { return server_context_; }
+  ApacheResourceManager* manager() { return resource_manager_; }
   const GoogleString& output() { return output_; }
   bool empty() const { return output_.empty(); }
   void clear() { output_.clear(); }  // TODO(jmarantz): needed?
@@ -117,10 +97,6 @@ class InstawebContext {
 
  private:
   void ComputeContentEncoding(request_rec* request);
-
-  // Start a new property cache lookup. The caller is responsible for cleaning
-  // up the returned PropertyCallback*.
-  PropertyCallback* InitiatePropertyCacheLookup();
   void ProcessBytes(const char* input, int size);
 
   // Checks to see if there was a Furious cookie sent with the request.
@@ -136,7 +112,7 @@ class InstawebContext {
   ContentEncoding content_encoding_;
   const ContentType content_type_;
 
-  ApacheResourceManager* server_context_;
+  ApacheResourceManager* resource_manager_;
   RewriteDriver* rewrite_driver_;
   StringWriter string_writer_;
   scoped_ptr<GzipInflater> inflater_;

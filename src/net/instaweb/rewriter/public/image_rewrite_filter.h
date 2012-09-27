@@ -24,7 +24,7 @@
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -36,8 +36,10 @@
 namespace net_instaweb {
 
 class CachedResult;
+class CssResourceSlot;
 class ContentType;
 class ImageDim;
+class ImageTagScanner;
 class ResourceContext;
 class RewriteContext;
 class RewriteDriver;
@@ -54,7 +56,7 @@ class ImageRewriteFilter : public RewriteFilter {
  public:
   explicit ImageRewriteFilter(RewriteDriver* driver);
   virtual ~ImageRewriteFilter();
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
@@ -63,9 +65,9 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
-  bool TryInline(
+  static bool TryInline(
       int64 image_inline_max_bytes, const CachedResult* cached_result,
-      ResourceSlot* slot, GoogleString* data_url);
+      GoogleString* data_url);
 
   // The valid contents of a dimension attribute on an image element have one of
   // the following forms: "45%" "45%px" "+45.0%" [45% of browser width; we can't
@@ -104,17 +106,9 @@ class ImageRewriteFilter : public RewriteFilter {
   // name for statistic used to bound rewriting work.
   static const char kImageOngoingRewrites[];
 
-  // # of images that we decided not to rewrite because of size constraint.
-  static const char kImageNoRewritesHighResolution[];
-
   // TimedVariable denoting image rewrites we dropped due to
   // load (too many concurrent rewrites)
   static const char kImageRewritesDroppedDueToLoad[];
-
-  // The property cache property name used to store URLs discovered when
-  // image_inlining_identify_and_cache_without_rewriting() is set in the
-  // RewriteOptions.
-  static const char kInlinableImageUrlsPropertyName[];
 
  protected:
   virtual const UrlSegmentEncoder* encoder() const;
@@ -130,20 +124,19 @@ class ImageRewriteFilter : public RewriteFilter {
                                         Image* image);
   void BeginRewriteImageUrl(HtmlElement* element, HtmlElement::Attribute* src);
 
-  RewriteResult RewriteLoadedResourceImpl(Context* context,
+  RewriteResult RewriteLoadedResourceImpl(RewriteContext* context,
                                           const ResourcePtr& input_resource,
                                           const OutputResourcePtr& result);
 
   // Returns true if it rewrote (ie inlined) the URL.
   bool FinishRewriteCssImageUrl(
       int64 css_image_inline_max_bytes,
-      const CachedResult* cached, ResourceSlot* slot);
+      const CachedResult* cached, CssResourceSlot* slot);
 
   // Returns true if it rewrote the URL.
   bool FinishRewriteImageUrl(
       const CachedResult* cached, const ResourceContext* resource_context,
-      HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      ResourceSlot* slot);
+      HtmlElement* element, HtmlElement::Attribute* src, int image_index);
 
   // Save image contents in cached if the image is inlinable.
   void SaveIfInlinable(const StringPiece& contents,
@@ -168,24 +161,15 @@ class ImageRewriteFilter : public RewriteFilter {
   // An image is considered critical if it is in the critical list as determined
   // by CriticalImageFinder. Images are considered critical if the platform
   // lacks a CriticalImageFinder implementation.
-  bool IsCriticalImage(const StringPiece& image_url) const;
+  bool IsCriticalImage(const StringPiece& image_url, int image_index) const;
 
-  // Persist a URL that would have be inlined to the property cache, if
-  // options()->image_inlining_identify_and_cache_without_rewriting(). Returns
-  // true if a PropertyValue was written.
-  bool StoreUrlInPropertyCache(const StringPiece& url);
-
-  // Set attempt_webp in resource_context.
-  void SetAttemptWebp(StringPiece url, ResourceContext* resource_context);
-
+  scoped_ptr<const ImageTagScanner> image_filter_;
   scoped_ptr<WorkBound> work_bound_;
 
   // Statistics
 
   // # of images rewritten successfully.
   Variable* image_rewrites_;
-  // # of images that we decided not to rewrite because of size constraint.
-  Variable* image_norewrites_high_resolution_;
   // # of images that we decided not to serve rewritten. This could be because
   // the rewrite failed, recompression wasn't effective enough, the image
   // couldn't be resized because it had an alpha-channel, etc.
@@ -213,11 +197,6 @@ class ImageRewriteFilter : public RewriteFilter {
   // Counter to help associate each <img> tag in the HTML with a unique index,
   // for use in determining whether the image should be previewed.
   int image_counter_;
-
-  // The set of inlinable URLs, populated as the page is parsed, if
-  // image_inlining_identify_and_cache_without_rewriting() is set in the
-  // RewriteOptions.
-  StringSet inlinable_urls_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageRewriteFilter);
 };

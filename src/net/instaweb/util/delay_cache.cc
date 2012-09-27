@@ -60,10 +60,8 @@ class DelayCache::DelayCallback : public CacheInterface::Callback {
   // Helper method so that DelayCache can call the callback for keys
   // that are not being delayed, or for keys that have been released.
   void Run() {
-    Callback* callback = orig_callback_;
-    KeyState state = state_;
+    orig_callback_->DelegatedDone(state_);
     delete this;
-    callback->DelegatedDone(state);
   }
 
   const GoogleString& key() const { return key_; }
@@ -118,37 +116,21 @@ void DelayCache::ReleaseKeyInSequence(const GoogleString& key,
     int erased = delay_requests_.erase(key);
     CHECK_EQ(1, erased);
     DelayMap::iterator p = delay_map_.find(key);
-
-    // If the physical cache lookup has not completed yet, then we can simply
-    // simply forget that we tried to delay it.
-    if (p != delay_map_.end()) {
-      callback = p->second;
-      delay_map_.erase(p);
-    }
+    CHECK(p != delay_map_.end()) << key;
+    callback = p->second;
+    delay_map_.erase(p);
   }
 
   // Release lock first; then run callback or add it to the sequence.
-  if (callback != NULL) {
-    if (sequence != NULL) {
-      sequence->Add(MakeFunction(callback, &DelayCallback::Run));
-    } else {
-      callback->Run();
-    }
+  if (sequence != NULL) {
+    sequence->Add(MakeFunction(callback, &DelayCallback::Run));
+  } else {
+    callback->Run();
   }
 }
 
 void DelayCache::Get(const GoogleString& key, Callback* callback) {
   cache_->Get(key, new DelayCallback(key, this, callback));
-}
-
-void DelayCache::MultiGet(MultiGetRequest* request) {
-  for (int i = 0, n = request->size(); i < n; ++i) {
-    KeyCallback* key_callback = &(*request)[i];
-    DelayCallback* cb = new DelayCallback(key_callback->key, this,
-                                          key_callback->callback);
-    key_callback->callback = cb;
-  }
-  cache_->MultiGet(request);
 }
 
 void DelayCache::Put(const GoogleString& key, SharedString* value) {

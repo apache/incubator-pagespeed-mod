@@ -23,7 +23,7 @@
 
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/benchmark.h"
@@ -32,11 +32,10 @@ namespace net_instaweb { class RewriteDriver; }
 
 static void BM_RewriteDriverConstruction(int iters) {
   net_instaweb::MockUrlFetcher fetcher;
-  net_instaweb::RewriteDriverFactory::Initialize();
   net_instaweb::TestRewriteDriverFactory factory("/tmp", &fetcher);
-  net_instaweb::RewriteDriverFactory::InitStats(factory.statistics());
-  net_instaweb::ServerContext* resource_manager =
-      factory.CreateServerContext();
+  net_instaweb::RewriteDriverFactory::Initialize(factory.statistics());
+  net_instaweb::ResourceManager* resource_manager =
+      factory.CreateResourceManager();
   for (int i = 0; i < iters; ++i) {
     net_instaweb::RewriteOptions* options = new net_instaweb::RewriteOptions;
     options->SetRewriteLevel(net_instaweb::RewriteOptions::kAllFilters);
@@ -44,6 +43,5 @@ static void BM_RewriteDriverConstruction(int iters) {
         resource_manager->NewCustomRewriteDriver(options);
     resource_manager->ReleaseRewriteDriver(driver);
   }
-  net_instaweb::RewriteDriverFactory::Terminate();
 }
 BENCHMARK(BM_RewriteDriverConstruction);

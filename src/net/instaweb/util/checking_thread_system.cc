@@ -55,7 +55,6 @@ class CheckingThreadSystem::CheckingCondvar : public ThreadSystem::Condvar {
     condvar_->TimedWait(timeout_ms);
     mutex_->TakeLockControl();
   }
-
  private:
   CheckingThreadSystem::Mutex* mutex_;
   scoped_ptr<ThreadSystem::Condvar> condvar_;
@@ -80,14 +79,6 @@ void CheckingThreadSystem::Mutex::DropLockControl() {
 void CheckingThreadSystem::Mutex::TakeLockControl() {
   CHECK(!locked_.value()) << "Lock should have been available.";
   locked_.set_value(true);
-}
-
-bool CheckingThreadSystem::Mutex::TryLock() {
-  bool locked = mutex_->TryLock();
-  if (locked) {
-    TakeLockControl();
-  }
-  return locked;
 }
 
 void CheckingThreadSystem::Mutex::Lock() {
@@ -139,14 +130,6 @@ void CheckingThreadSystem::RWLock::TakeReaderLockControl() {
   locked_.increment(1);
 }
 
-bool CheckingThreadSystem::RWLock::TryLock() {
-  bool locked = lock_->TryLock();
-  if (locked) {
-    TakeLockControl();
-  }
-  return locked;
-}
-
 void CheckingThreadSystem::RWLock::Lock() {
   lock_->Lock();
   TakeLockControl();
@@ -155,14 +138,6 @@ void CheckingThreadSystem::RWLock::Lock() {
 void CheckingThreadSystem::RWLock::Unlock() {
   DropLockControl();
   lock_->Unlock();
-}
-
-bool CheckingThreadSystem::RWLock::ReaderTryLock() {
-  bool locked = lock_->ReaderTryLock();
-  if (locked) {
-    TakeReaderLockControl();
-  }
-  return locked;
 }
 
 void CheckingThreadSystem::RWLock::ReaderLock() {

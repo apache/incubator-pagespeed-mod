@@ -28,13 +28,12 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/javascript_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -49,7 +48,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
-
 namespace net_instaweb {
 
 namespace {
@@ -57,7 +55,6 @@ namespace {
 const char kJsUrl1[] = "a.js";
 const char kJsUrl2[] = "b.js";
 const char kJsUrl3[] = "c.js";
-const char kJsUrl4[] = "d.js";
 const char kStrictUrl1[] = "strict1.js";
 const char kStrictUrl2[] = "strict2.js";
 const char kIntrospectiveUrl1[] = "introspective1.js";
@@ -67,7 +64,6 @@ const char kMinifiedJs1[] = "var a=\"hello\\nsecond line\"";
 const char kJsText2[] = "// script2\r\nvar b=42;\n";
 const char kMinifiedJs2[] = "var b=42;";
 const char kJsText3[] = "var x = 42;\nvar y = 31459;\n";
-const char kJsText4[] = "var m = 'abcd';\n";
 const char kStrictText1[] = "'use strict'; var x = 32;";
 const char kStrictText2[] = "\"use strict\"; var x = 42;";
 const char kIntrospectiveText1[] = "var x = 7; $('script') ; var y = 42;";
@@ -82,7 +78,7 @@ const char kAlternateDomain[] = "http://alternate.com/";
 }  // namespace
 
 // Test fixture for JsCombineFilter unit tests.
-class JsCombineFilterTest : public RewriteTestBase {
+class JsCombineFilterTest : public ResourceManagerTestBase {
  public:
   struct ScriptInfo {
     HtmlElement* element;
@@ -143,25 +139,24 @@ class JsCombineFilterTest : public RewriteTestBase {
   }
 
   void SetUpWithJsFilter(bool use_js_filter) {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     UseMd5Hasher();
     SetDefaultLongCacheHeaders(&kContentTypeJavascript, &default_js_header_);
     SimulateJsResource(kJsUrl1, kJsText1);
     SimulateJsResource(kJsUrl2, kJsText2);
     SimulateJsResourceOnDomain(kAlternateDomain, kJsUrl2, kJsText2);
     SimulateJsResource(kJsUrl3, kJsText3);
-    SimulateJsResource(kJsUrl4, kJsText4);
     SimulateJsResource(kStrictUrl1, kStrictText1);
     SimulateJsResource(kStrictUrl2, kStrictText2);
     SimulateJsResource(kIntrospectiveUrl1, kIntrospectiveText1);
     SimulateJsResource(kIntrospectiveUrl2, kIntrospectiveText2);
 
     if (use_js_filter) {
-      options()->EnableFilter(RewriteOptions::kRewriteJavascript);
+      AddRewriteFilter(new JavascriptFilter(rewrite_driver()));
     }
-    rewrite_driver()->AddFilters();
     filter_ = new JsCombineFilter(rewrite_driver());
     AddRewriteFilter(filter_);
+    rewrite_driver()->AddFilters();
     // Some tests need an another domain, with (different)source files on it as
     // well.
     GoogleString test_domain(kTestDomain);
@@ -307,7 +302,7 @@ TEST_F(JsCombineFilterTest, CombineJs) {
 TEST_F(JsCombineFilterTest, CombineJsAvoidRewritingIntrospectiveJavascripOn) {
   options()->ClearSignatureForTesting();
   options()->set_avoid_renaming_introspective_javascript(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   TestCombineJs(MultiUrl("a.js", "b.js"), "g2Xe9o4bQ2", "KecOGCIjKt",
                 "dzsx6RqvJJ", false, kTestDomain);
 }
@@ -492,7 +487,7 @@ TEST_F(JsCombineFilterTest, TestBarriers) {
   // UnsafeToRename, with plain and jquery syntax
   options()->ClearSignatureForTesting();
   options()->set_avoid_renaming_introspective_javascript(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   ValidateNoChanges("introspective1",
                     StrCat("<script src=", kJsUrl1, "></script>",
                            "<script src=", kIntrospectiveUrl1, "></script>"));
@@ -683,9 +678,6 @@ TEST_F(JsCombineFilterTest, TestCrossDomainRecover) {
 }
 
 TEST_F(JsCombineFilterTest, TestCombineStats) {
-  LoggingInfo logging_info;
-  LogRecord log_record(&logging_info);
-  rewrite_driver()->set_log_record(&log_record);
   Variable* num_reduced =
       statistics()->GetVariable(JsCombineFilter::kJsFileCountReduction);
   EXPECT_EQ(0, num_reduced->Get());
@@ -696,7 +688,6 @@ TEST_F(JsCombineFilterTest, TestCombineStats) {
                   StrCat("<script src=", kJsUrl2, "></script>"),
                   StrCat("<script src=", kJsUrl3, "></script>")));
 
-  EXPECT_STREQ("jc", logging_info.applied_rewriters());
   EXPECT_EQ(2, num_reduced->Get());
 }
 
@@ -947,34 +938,5 @@ TEST_F(JsCombineFilterTest, EmbeddedBomReconstruct) {
   EXPECT_TRUE(FetchResourceUrl(js_url, &js_out));
   EXPECT_EQ(js_min, js_out);
 }
-
-TEST_F(JsCombineFilterTest, TestMaxCombinedJsSize) {
-  // Make sure we don't produce combined js resource bigger than the
-  // max_combined_js_bytes().
-
-  options()->ClearSignatureForTesting();
-  options()->set_max_combined_js_bytes(
-      STATIC_STRLEN(kJsText1) + STATIC_STRLEN(kJsText2));
-  server_context()->ComputeSignature(options());
-
-  ScriptInfoVector scripts;
-  PrepareToCollectScriptsInto(&scripts);
-  SetupWriter();
-  html_parse()->StartParse(kTestDomain);
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl1, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl2, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl3, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl4, "></script>"));
-  html_parse()->FinishParse();
-
-  ASSERT_EQ(6, scripts.size());
-  VerifyCombined(scripts[0], MultiUrl(kJsUrl1, kJsUrl2));
-  VerifyUse(scripts[1], kJsUrl1);
-  VerifyUse(scripts[2], kJsUrl2);
-  VerifyCombined(scripts[3], MultiUrl(kJsUrl3, kJsUrl4));
-  VerifyUse(scripts[4], kJsUrl3);
-  VerifyUse(scripts[5], kJsUrl4);
-}
-
 
 }  // namespace net_instaweb

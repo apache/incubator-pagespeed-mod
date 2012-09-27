@@ -19,11 +19,13 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_ELEMENT_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_HTML_ELEMENT_H_
 
+#include <vector>
+
 #include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/util/public/inline_slist.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -52,7 +54,7 @@ class HtmlElement : public HtmlNode {
     DOUBLE_QUOTE
   };
 
-  class Attribute : public InlineSListElement<Attribute> {
+  class Attribute {
    public:
     // A large quantity of HTML in the wild has attributes that are
     // improperly escaped.  Browsers are generally tolerant of this.
@@ -203,10 +205,7 @@ class HtmlElement : public HtmlNode {
     DISALLOW_COPY_AND_ASSIGN(Attribute);
   };
 
-  typedef InlineSList<Attribute> AttributeList;
-  typedef InlineSList<Attribute>::Iterator AttributeIterator;
-  typedef InlineSList<Attribute>::ConstIterator AttributeConstIterator;
-
+ public:
   virtual ~HtmlElement();
 
   virtual bool live() const { return (data_.get() != NULL) && data_->live_; }
@@ -233,6 +232,11 @@ class HtmlElement : public HtmlNode {
                            const StringPiece& escaped_value,
                            QuoteStyle quote_style);
 
+  // Removes the attribute at the given index, shifting higher-indexed
+  // attributes down.  Note that this operation is linear in the number of
+  // attributes.
+  void DeleteAttribute(int i);
+
   // Remove the attribute with the given name.  Return true if the attribute
   // was deleted, false if it wasn't there to begin with.
   bool DeleteAttribute(HtmlName::Keyword keyword);
@@ -247,7 +251,7 @@ class HtmlElement : public HtmlNode {
     return const_cast<Attribute*>(result);
   }
 
-  // Look up decoded attribute value by name.
+  // Look up attribute value by name.
   // Returns NULL if:
   //    1. no attribute exists
   //    2. the attribute has no value.
@@ -260,22 +264,6 @@ class HtmlElement : public HtmlNode {
     const Attribute* attribute = FindAttribute(name);
     if (attribute != NULL) {
       return attribute->DecodedValueOrNull();
-    }
-    return NULL;
-  }
-
-  // Look up escaped attribute value by name.
-  // Returns NULL if:
-  //    1. no attribute exists
-  //    2. the attribute has no value.
-  // If you care about this distinction, call FindAttribute.
-  // Use this only if you don't intend to change the attribute value;
-  // if you might change the attribute value, use FindAttribute instead
-  // (this avoids a double lookup).
-  const char* EscapedAttributeValue(HtmlName::Keyword name) const {
-    const Attribute* attribute = FindAttribute(name);
-    if (attribute != NULL) {
-      return attribute->escaped_value();
     }
     return NULL;
   }
@@ -297,8 +285,9 @@ class HtmlElement : public HtmlNode {
   // be changed to a span.
   void set_name(const HtmlName& new_tag) { data_->name_ = new_tag; }
 
-  const AttributeList& attributes() const { return data_->attributes_; }
-  AttributeList* mutable_attributes() { return &data_->attributes_; }
+  int attribute_size() const { return data_->attributes_.size(); }
+  const Attribute& attribute(int i) const { return *data_->attributes_[i]; }
+  Attribute& attribute(int i) { return *data_->attributes_[i]; }
 
   friend class HtmlParse;
   friend class HtmlLexer;
@@ -329,6 +318,7 @@ class HtmlElement : public HtmlNode {
          const HtmlEventListIterator& begin,
          const HtmlEventListIterator& end);
     ~Data();
+    inline void Clear();
 
     // Pack four fields into 64 bits using bitfields.  Warning: this
     // stuff is quite sensitive to details, so make sure to look at
@@ -347,7 +337,7 @@ class HtmlElement : public HtmlNode {
     CloseStyle close_style_ : 8;
 
     HtmlName name_;
-    AttributeList attributes_;
+    std::vector<Attribute*> attributes_;
     HtmlEventListIterator begin_;
     HtmlEventListIterator end_;
   };

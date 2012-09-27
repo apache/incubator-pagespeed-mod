@@ -22,7 +22,6 @@
 namespace net_instaweb {
 
 const char HttpAttributes::kAcceptEncoding[] = "Accept-Encoding";
-const char HttpAttributes::kAuthorization[] = "Authorization";
 const char HttpAttributes::kCacheControl[] = "Cache-Control";
 const char HttpAttributes::kConnection[] = "Connection";
 const char HttpAttributes::kContentEncoding[] = "Content-Encoding";
@@ -44,7 +43,6 @@ const char HttpAttributes::kLastModified[] = "Last-Modified";
 const char HttpAttributes::kLocation[] = "Location";
 const char HttpAttributes::kNoCache[] = "max-age=0, no-cache";
 const char HttpAttributes::kPragma[] = "Pragma";
-const char HttpAttributes::kProxyAuthorization[] = "Proxy-Authorization";
 const char HttpAttributes::kReferer[] = "Referer";  // sic
 const char HttpAttributes::kServer[] = "Server";
 const char HttpAttributes::kSetCookie[] = "Set-Cookie";
@@ -57,13 +55,6 @@ const char HttpAttributes::kXAssociatedContent[] = "X-Associated-Content";
 const char HttpAttributes::kXForwardedFor[] = "X-Forwarded-For";
 const char HttpAttributes::kXGooglePagespeedClientId[] =
     "X-Google-Pagespeed-Client-Id";
-const char HttpAttributes::kXGoogleRequestEventId[] =
-    "X-Google-Request-Event-Id";
-const char HttpAttributes::kXOriginalContentLength[] =
-    "X-Original-Content-Length";
-const char HttpAttributes::kXPsaBlockingRewrite[] = "X-PSA-Blocking-Rewrite";
-const char HttpAttributes::kXPsaLoadShed[] = "X-Psa-Load-Shed";
-const char HttpAttributes::kXRequestedWith[] = "X-Requested-With";
 
 
 const char* HttpStatus::GetReasonPhrase(HttpStatus::Code rc) {

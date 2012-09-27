@@ -23,10 +23,6 @@ namespace net_instaweb {
 NullMutex::~NullMutex() {
 }
 
-bool NullMutex::TryLock() {
-  return true;
-}
-
 void NullMutex::Lock() {
 }
 

@@ -39,7 +39,6 @@ class StdioFileSystem : public FileSystem {
   virtual InputFile* OpenInputFile(const char* filename,
                                    MessageHandler* message_handler);
   virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
                                            MessageHandler* message_handler);
   virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
                                          MessageHandler* message_handle);
@@ -47,7 +46,6 @@ class StdioFileSystem : public FileSystem {
   virtual bool ListContents(const StringPiece& dir, StringVector* files,
                             MessageHandler* handler);
   virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveDir(const char* directory_path, MessageHandler* handler);
   virtual bool RemoveFile(const char* filename, MessageHandler* handler);
   virtual bool RenameFileHelper(const char* old_file, const char* new_file,
                                 MessageHandler* handler);

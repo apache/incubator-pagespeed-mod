@@ -62,16 +62,15 @@ class ImageOomTest : public ImageTestBase {
   rlimit old_mem_limit_;
 };
 
+#if 0
 TEST_F(ImageOomTest, BlankImage) {
   if (RunningOnValgrind()) {
     return;
   }
 
-  Image::CompressionOptions* options = new Image::CompressionOptions();
-  options->recompress_png = true;
   // Make sure creating gigantic image fails cleanly.
-  ImagePtr giant(BlankImageWithOptions(10000, 10000, Image::IMAGE_PNG,
-                                       GTestTempDir(), &handler_, options));
+  ImagePtr giant(
+      BlankImage(10000, 10000, Image::IMAGE_PNG, GTestTempDir(), &handler_));
   EXPECT_FALSE(giant->EnsureLoaded(true));
 }
 
@@ -92,6 +91,7 @@ TEST_F(ImageOomTest, LoadImage) {
       ReadImageFromFile(Image::IMAGE_PNG, kCuppa, &buf, not_progressive));
   EXPECT_TRUE(small->EnsureLoaded(true));
 }
+#endif
 
 }  // namespace
 }  // namespace net_instaweb

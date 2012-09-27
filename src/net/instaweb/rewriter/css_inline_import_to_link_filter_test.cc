@@ -20,7 +20,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -36,11 +36,10 @@ const char kCssTail[] = "styles.css";
 const char kCssSubdir[] = "assets/";
 const char kCssData[] = ".blue {color: blue; src: url(dummy.png);}";
 
-class CssInlineImportToLinkFilterTest : public RewriteTestBase {
+class CssInlineImportToLinkFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
-    SetHtmlMimetype();
+    ResourceManagerTestBase::SetUp();
   }
 
   // Test general situations.
@@ -95,123 +94,6 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertGoodStyle) {
   ValidateStyleToLink("<style>@import url(assets/styles.css)</style>", kLink);
 }
 
-TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithMultipleImports) {
-  AddFilter(RewriteOptions::kInlineImportToLink);
-  ValidateStyleToLink(
-      "<style>"
-      "@import \"first.css\" all;\n"
-      "@import url(\"second.css\" );\n"
-      "@import 'third.css';\n"
-      "</style>",
-      "<link rel=\"stylesheet\" href=\"first.css\" media=\"all\">"
-      "<link rel=\"stylesheet\" href=\"second.css\">"
-      "<link rel=\"stylesheet\" href=\"third.css\">");
-  ValidateStyleToLink(
-      "<style>"
-      "@import \"first.css\" screen;\n"
-      "@import \"third.css\" print;\n"
-      "</style>",
-      "<link rel=\"stylesheet\" href=\"first.css\" media=\"screen\">"
-      "<link rel=\"stylesheet\" href=\"third.css\" media=\"print\">");
-  // Example from modpagespeed issue #491. Note that all the attributes from
-  // the style are copied to the end of every link.
-  ValidateStyleToLink(
-      "<style type=\"text/css\" title=\"currentStyle\" media=\"screen\">"
-      "   @import \"http://example.com/universal.css?63310\";"
-      "       @import \"http://example.com/navigation_beta.css?123\";"
-      "   @import \"http://example.com/navigation.css?321\";"
-      "   @import \"http://example.com/teases.css\";"
-      "   @import \"http://example.com/homepage.css?nocache=987\";"
-      "   @import \"http://example.com/yourPicks.css?nocache=123\";"
-      "   @import \"http://example.com/sportsTabsHomepage.css\";"
-      "   @import \"http://example.com/businessTabsHomepage.css\";"
-      "   @import \"http://example.com/slider.css?09\";"
-      "   @import \"http://example.com/weather.css\";"
-      "  @import \"http://example.com/style3.css\";"
-      "  @import \"http://example.com/style3_tmp.css\";"
-      "</style>",
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/universal.css?63310\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/navigation_beta.css?123\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/navigation.css?321\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/teases.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/homepage.css?nocache=987\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/yourPicks.css?nocache=123\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/sportsTabsHomepage.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/businessTabsHomepage.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/slider.css?09\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/weather.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/style3.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">"
-      "<link rel=\"stylesheet\""
-      " href=\"http://example.com/style3_tmp.css\" type=\"text/css\""
-      " title=\"currentStyle\" media=\"screen\">");
-
-  // Variations where there's more than just valid @imports.
-  ValidateStyleUnchanged("<style>"
-                         "@import \"first.css\" all;\n"
-                         "@import url('second.css' );\n"
-                         "@import \"third.css\";\n"
-                         ".a { background-color: red }"
-                         "</style>");
-  ValidateStyleUnchanged("<style>"
-                         "@import \"first.css\" all;\n"
-                         "@import url( );\n"
-                         "@import \"third.css\";\n"
-                         "</style>");
-  ValidateStyleUnchanged("<style>"
-                         "@charset \"ISO-8859-1\";\n"
-                         "@import \"first.css\" all;\n"
-                         "@import url('second.css' );\n"
-                         "@import \"third.css\";\n"
-                         "</style>");
-
-  // These could be handled as it's "obvious" what the right thing is, but
-  // at the moment we don't handle all perms-and-combs of media [queries].
-  // The first 4 could "ignore" the style's media as it includes the imports.
-  ValidateStyleUnchanged("<style>"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
-  ValidateStyleUnchanged("<style media=\"all\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" print;\n"
-                         "</style>");
-  ValidateStyleUnchanged("<style media=\"all\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n");
-  ValidateStyleUnchanged("<style media=\"screen, not screen\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
-  // This one could determine that the intersection of screen & not screen
-  // is the empty set and therefore drop the 2nd import/link completely.
-  ValidateStyleUnchanged("<style media=\"screen\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
-}
-
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithAttributes) {
   AddFilter(RewriteOptions::kInlineImportToLink);
   ValidateStyleToLink("<style type=\"text/css\">"
@@ -255,30 +137,6 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithDifferentMedia) {
                          "@import url(assets/styles.css) screen;</style>");
 }
 
-TEST_F(CssInlineImportToLinkFilterTest, MediaQueries) {
-  AddFilter(RewriteOptions::kInlineImportToLink);
-  // If @import has no media, we'll keep the complex media query in the
-  // media attribute.
-  ValidateStyleToLink("<style type=\"text/css\" media=\"not screen\">"
-                      "@import url(assets/styles.css);</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"not screen\">");
-
-  // Generally we just give up on complex media queries. Note, these could
-  // be rewritten in the future, just change the tests to produce sane results.
-  ValidateStyleUnchanged("<style type=\"text/css\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style media=\"not screen and (color), only print\">"
-                         "@import url(assets/styles.css)"
-                         " not screen and (color), only print;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen and (x)\">"
-                         "@import url(assets/styles.css) screen;</style>");
-}
-
 TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertBadStyle) {
   AddFilter(RewriteOptions::kInlineImportToLink);
   // These all are problematic in some way so are not changed at all.
@@ -288,6 +146,8 @@ TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertBadStyle) {
   ValidateStyleUnchanged("<style>@import url (assets/styles.css);</style>");
   ValidateStyleUnchanged("<style>@ import url(assets/styles.css)</style>");
   ValidateStyleUnchanged("<style>*border: 0px</style>");
+  ValidateStyleUnchanged("<style>@import \"mystyle.css\" all;\n"
+                         "@import url(\"mystyle.css\" );\n</style>");
   ValidateStyleUnchanged("<style>@charset \"ISO-8859-1\";\n"
                          "@import \"mystyle.css\" all;</style>");
   ValidateStyleUnchanged("<style><p/>@import url(assets/styles.css)</style>");

@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -28,8 +27,7 @@ namespace net_instaweb {
 
 namespace {
 
-class StaticJavascriptManagerTest
-    : public RewriteOptionsTestBase<RewriteOptions> {
+class StaticJavascriptManagerTest : public ::testing::Test {
  protected:
   StaticJavascriptManagerTest() {
     url_namer_.set_proxy_domain("http://proxy-domain");
@@ -66,7 +64,8 @@ TEST_F(StaticJavascriptManagerTest, TestJsDebug) {
        ++i) {
     StaticJavascriptManager::JsModule module =
         static_cast<StaticJavascriptManager::JsModule>(i);
-    GoogleString script(manager.GetJsSnippet(module, &options_));
+    GoogleString script(manager.GetJsSnippet(
+        module, &options_));
     EXPECT_NE(GoogleString::npos, script.find("/*"))
         << "There should be some comments in the debug code";
   }
@@ -79,7 +78,8 @@ TEST_F(StaticJavascriptManagerTest, TestJsOpt) {
        ++i) {
     StaticJavascriptManager::JsModule module =
         static_cast<StaticJavascriptManager::JsModule>(i);
-    GoogleString script(manager.GetJsSnippet(module, &options_));
+    GoogleString script(manager.GetJsSnippet(
+        module, &options_));
     EXPECT_EQ(GoogleString::npos, script.find("/*"))
         << "There should be no comments in the compiled code";
   }

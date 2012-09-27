@@ -20,47 +20,27 @@
 
 syntax = "proto2";
 
-option optimize_for = LITE_RUNTIME;
-
 package net_instaweb;
 
 // Protobuf to encapsulate the information use by blink flow.
-// Next id = 11
+// Next id = 6
 message BlinkCriticalLineData {
-  // URL of the request.
+  // Url of the request.
   required string url = 1;
 
-  // Critical HTML for the given URL. This can potentially be few KBs and could
+  // Critical html for the given url. This can potentially be few KBs and could
   // blow out our cache in the presence of a large URL-space due to query-params
-  // or large catalogs. Typed "bytes" not "string" as it can contain non-UTF-8
-  // content.
-  optional bytes critical_html = 2;
+  // or large catalogs.
+  optional string critical_html = 2;
 
-  // This is a JSON map from image URL to image content. Example -
+  // This is a json map from image url to image content. Example -
   // { 'url1' : 'low res image data2', 'url2' : 'low_res_image_data2' }
-  // Typed "bytes" not "string" as it can contain non-UTF-8 content.
-  optional bytes critical_images_map = 3;
+  optional string critical_images_map = 3;
 
-  // This is the part of the HTML which is not critical and will be sent to the
-  // client after critical HTML and critical images. Typed "bytes" not "string"
-  // as it can contain non-UTF-8 content.
-  optional bytes non_critical_json = 4;
+  // This is the part of the html which is not critical and will be sent to the
+  // client after critical html and critical images.
+  optional string non_critical_json = 4;
 
   // The value of the X-PSA-Last-Modified header.
   optional string last_modified_date = 5;
-
-  // Hash of the content used for html change detection full-diff.
-  optional string hash = 6;
-
-  // Timestamp when the html diff was last done.
-  optional int64 last_diff_timestamp_ms = 7;
-
-  // Timestamp when critical line computation was last done.
-  optional int64 last_critical_line_computation_timestamp_ms = 8;
-
-  // Hash of the content used for html change detection smart-diff.
-  optional string hash_smart_diff = 9;
-
-  // Character-set determined for the URL.
-  optional string charset = 10;
 }

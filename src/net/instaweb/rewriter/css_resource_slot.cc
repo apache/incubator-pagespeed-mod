@@ -26,7 +26,7 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -57,11 +57,11 @@ void CssResourceSlot::Render() {
     if (trim_base_.get() != NULL) {
       if (UrlLeftTrimFilter::Trim(
               *trim_base_, url, &trimmed_url,
-              resource()->server_context()->message_handler())) {
+              resource()->resource_manager()->message_handler())) {
         url = trimmed_url;
       }
     }
-    DirectSetUrl(url);
+    UpdateUrlInCss(url);
   }
 }
 
@@ -81,7 +81,7 @@ void CssResourceSlot::EnableTrim(const GoogleUrl& base_url) {
   trim_base_->Reset(base_url);
 }
 
-void CssResourceSlot::DirectSetUrl(const StringPiece& url) {
+void CssResourceSlot::UpdateUrlInCss(const StringPiece& url) {
   delete (*values_)[value_index_];
   (*values_)[value_index_] =
       new Css::Value(Css::Value::URI,

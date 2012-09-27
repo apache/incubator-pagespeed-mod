@@ -51,8 +51,7 @@ class MemFileSystem : public FileSystem {
   virtual InputFile* OpenInputFile(const char* filename,
                                    MessageHandler* message_handler);
   virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
-                                           MessageHandler* message_handler);
+                                          MessageHandler* message_handler);
   virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
                                         MessageHandler* message_handle);
 
@@ -61,7 +60,6 @@ class MemFileSystem : public FileSystem {
   virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
   virtual bool RecursivelyMakeDir(const StringPiece& directory_path,
                                   MessageHandler* handler);
-  virtual bool RemoveDir(const char* path, MessageHandler* handler);
   virtual bool RemoveFile(const char* filename, MessageHandler* handler);
   virtual bool RenameFileHelper(const char* old_file, const char* new_file,
                                MessageHandler* handler);
@@ -129,9 +127,6 @@ class MemFileSystem : public FileSystem {
   scoped_ptr<AbstractMutex> all_else_mutex_;  // controls access to all else.
 
   bool enabled_;  // When disabled, OpenInputFile returns NULL.
-  // MemFileSystem::RemoveDir depends on string_map_ being sorted by key. If an
-  // unsorted data structure is used (say a hash_map) this implementation will
-  // need to be modified.
   StringStringMap string_map_;
   Timer* timer_;
   MockTimer* mock_timer_;  // used only for auto-advance functionality.

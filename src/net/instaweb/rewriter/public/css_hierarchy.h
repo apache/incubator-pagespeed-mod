@@ -32,9 +32,10 @@ namespace Css {
 class Stylesheet;
 }  // namespace Css
 
+class UnicodeText;
+
 namespace net_instaweb {
 
-class CssFilter;
 class MessageHandler;
 
 // Representation of a CSS with all the information required for import
@@ -64,7 +65,7 @@ class CssHierarchy {
  public:
   // Initialized in an empty state, which is considered successful since it
   // can be flattened into nothing.
-  explicit CssHierarchy(CssFilter* filter);
+  CssHierarchy();
   ~CssHierarchy();
 
   // Initialize the top-level hierarchy's state from the given values.
@@ -75,7 +76,6 @@ class CssHierarchy {
                       const StringPiece input_contents,
                       bool is_xhtml,
                       bool has_unparseables,
-                      int64 flattened_result_limit,
                       Css::Stylesheet* stylesheet,
                       MessageHandler* message_handler);
 
@@ -118,9 +118,6 @@ class CssHierarchy {
 
   bool unparseable_detected() const { return unparseable_detected_; }
   void set_unparseable_detected(bool ok) { unparseable_detected_ = ok; }
-
-  bool flattened_result_limit() const { return flattened_result_limit_; }
-  void set_flattened_result_limit(int64 x) { flattened_result_limit_ = x; }
 
   // If we haven't already, determine the charset of this CSS, then check if
   // it is compatible with the charset of its parent; currently they are
@@ -210,18 +207,16 @@ class CssHierarchy {
   // CSS's media attribute. If the resulting media is empty then this CSS
   // doesn't have to be processed at all so return false, otherwise true.
   bool DetermineImportMedia(const StringVector& containing_media,
-                            const StringVector& import_media);
+                            const std::vector<UnicodeText>& import_media_in);
 
   // Determine the media applicable to a ruleset as the intersection of the
   // set of media that apply just to the ruleset and the set of media that
   // apply to this CSS (as determined by DetermineImportMedia above), and
-  // edits ruleset_media in place. If the intersection is empty, false is
-  // returned and the ruleset doesn't have to be processed at all (it can
-  // be omitted), else true is returned.
-  bool DetermineRulesetMedia(StringVector* ruleset_media);
-
-  // The filter that owns us, used for recording statistics.
-  CssFilter* filter_;
+  // return this result in ruleset_media_out. If the intersection is empty,
+  // false is returned and the ruleset doesn't have to be processed at all
+  // (it can be omitted), else true is returned.
+  bool DetermineRulesetMedia(const std::vector<UnicodeText>& ruleset_media_in,
+                             StringVector* ruleset_media_out);
 
   // The URL of the stylesheet being represented; in the case of inline CSS
   // this will be a data URL.
@@ -273,16 +268,6 @@ class CssHierarchy {
 
   // An indication of whether anything unparseable was detected in this CSS.
   bool unparseable_detected_;
-
-  // The limit to the size of the result of flattening (0 means no limit).
-  // If the flattened result would be this much or more, flattening will be
-  // aborted. TODO(matterbury): Investigate whether we can, or ought to,
-  // flatten nested @imports that do fit within the limit [eg. a.css imports
-  // b.css then has a load of CSS; b.css imports c.ss then some CSS; say the
-  // flattened version of b.css fits in the limit, but the flattened version
-  // of a.css does not; we could flatten b.css then change the @import in
-  // a.css to import the flattened version, saving the fetch of c.css].
-  int64 flattened_result_limit_;
 
   // For logging messages.
   MessageHandler* message_handler_;

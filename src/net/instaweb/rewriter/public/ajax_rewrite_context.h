@@ -23,10 +23,9 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/http_value_writer.h"
-#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -40,6 +39,7 @@ namespace net_instaweb {
 
 class InputInfo;
 class MessageHandler;
+class ResponseHeaders;
 class RewriteDriver;
 class RewriteFilter;
 class UrlAsyncFetcher;
@@ -68,7 +68,7 @@ class AjaxRewriteResourceSlot : public ResourceSlot {
 // Context that is used for an ajax rewrite.
 class AjaxRewriteContext : public SingleRewriteContext {
  public:
-  AjaxRewriteContext(RewriteDriver* driver, const StringPiece& url);
+  AjaxRewriteContext(RewriteDriver* driver, const GoogleString& url);
 
   virtual ~AjaxRewriteContext();
 
@@ -85,6 +85,8 @@ class AjaxRewriteContext : public SingleRewriteContext {
                                GoogleUrlStarVector* url_vector);
   // Implements RewriteContext::StartFetchReconstruction().
   virtual void StartFetchReconstruction();
+  // Implements RewriteContext::CacheKeySuffix().
+  virtual GoogleString CacheKeySuffix() const;
 
  private:
   friend class RecordingFetch;
@@ -153,7 +155,6 @@ class RecordingFetch : public SharedAsyncFetch {
 
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
-  ResponseHeaders saved_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(RecordingFetch);
 };

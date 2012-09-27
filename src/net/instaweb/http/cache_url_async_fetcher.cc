@@ -23,7 +23,6 @@
 #include "net/instaweb/http/public/http_value_writer.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -34,8 +33,9 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 
-
 namespace net_instaweb {
+
+class TimingInfo;
 
 namespace {
 
@@ -83,16 +83,13 @@ class CachePutFetch : public SharedAsyncFetch {
     }
     headers->ComputeCaching();
 
-    cacheable_ = headers->IsProxyCacheableGivenRequest(*request_headers());
+    cacheable_ = headers->IsProxyCacheable();
     if (cacheable_ && (respect_vary_ || is_html)) {
-      cacheable_ = headers->VaryCacheable(
-          request_headers()->Has(HttpAttributes::kCookie));
+      cacheable_ = headers->VaryCacheable();
     }
 
     if (cacheable_) {
-      // Make a copy of the headers which we will send to the
-      // cache_value_writer_ later.
-      saved_headers_.CopyFrom(*headers);
+      cache_value_writer_.SetHeaders(headers);
     }
 
     base_fetch()->HeadersComplete();
@@ -114,21 +111,6 @@ class CachePutFetch : public SharedAsyncFetch {
   }
 
   virtual void HandleDone(bool success) {
-    if (success && cacheable_ && cache_value_writer_.has_buffered()) {
-      // The X-Original-Content-Length header will have been added after
-      // HandleHeadersComplete(), so extract its value and add it to the
-      // saved headers.
-      const char* orig_content_length = extra_response_headers()->Lookup1(
-          HttpAttributes::kXOriginalContentLength);
-      int64 ocl;
-      if (orig_content_length != NULL &&
-          StringToInt64(orig_content_length, &ocl)) {
-        saved_headers_.SetOriginalContentLength(ocl);
-      }
-      // Finalize the headers.
-      cache_value_writer_.SetHeaders(&saved_headers_);
-    }
-
     // Finish fetch.
     base_fetch()->Done(success);
     // Add result to cache.
@@ -150,7 +132,6 @@ class CachePutFetch : public SharedAsyncFetch {
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
   int64 start_time_ms_;  // only used if backend_first_byte_latency_ != NULL
-  ResponseHeaders saved_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(CachePutFetch);
 };
@@ -182,8 +163,8 @@ class CacheFindCallback : public HTTPCache::Callback {
   }
   virtual ~CacheFindCallback() {}
 
-  virtual LoggingInfo* logging_info() {
-    return base_fetch_->logging_info();
+  virtual TimingInfo* timing_info() {
+    return base_fetch_->timing_info();
   }
 
   virtual void Done(HTTPCache::FindResult find_result) {
@@ -269,23 +250,8 @@ class CacheFindCallback : public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
-    // base_fetch_ is assumed to have the key (URL).
-    if (base_fetch_->IsCachedResultValid(headers)) {
-      // The response may have been cached when respect_vary_ was disabled.
-      // Hence we need to make sure that it is still usable for the current
-      // request.
-      // Also, if we cached a response with "Vary: Cookie", we cannot use it if
-      // the current request has a Cookie header in the request.
-      bool is_html = headers.IsHtmlLike();
-      if (respect_vary_ || is_html) {
-        return headers.VaryCacheable(
-            request_headers()->Has(HttpAttributes::kCookie));
-      }
-      return true;
-    }
-    return false;
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return base_fetch_->IsCachedResultValid(headers);
   }
 
  private:

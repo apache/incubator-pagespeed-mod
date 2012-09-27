@@ -27,7 +27,7 @@
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/simple_text_filter.h"
@@ -68,7 +68,7 @@ class FakeRewriter : public SimpleTextFilter::Rewriter {
 
   virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* resource_manager) {
+                           ResourceManager* resource_manager) {
     if (enabled_) {
       ++num_rewrites_;
       StrAppend(out, in, ":", id_);
@@ -131,7 +131,7 @@ class FakeFetch : public AsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(FakeFetch);
 };
 
-class AjaxRewriteContextTest : public RewriteTestBase {
+class AjaxRewriteContextTest : public ResourceManagerTestBase {
  protected:
   AjaxRewriteContextTest()
       : cache_html_url_("http://www.example.com/cacheable.html"),
@@ -152,7 +152,7 @@ class AjaxRewriteContextTest : public RewriteTestBase {
 
   virtual void SetUp() {
     mock_timer()->SetTimeUs(start_time_ms() * Timer::kMsUs);
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     mock_url_fetcher()->set_fail_on_unexpected(false);
 
     // Set fetcher result and headers.
@@ -193,11 +193,11 @@ class AjaxRewriteContextTest : public RewriteTestBase {
     rewrite_driver()->AddFilters();
 
     options()->ClearSignatureForTesting();
-    AddRecompressImageFilters();
+    options()->EnableFilter(RewriteOptions::kRecompressImages);
     options()->EnableFilter(RewriteOptions::kRewriteJavascript);
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     options()->set_ajax_rewriting_enabled(true);
-    server_context()->ComputeSignature(options());
+    resource_manager()->ComputeSignature(options());
     // Clear stats since we may have added something to the cache.
     ClearStats();
   }
@@ -241,7 +241,7 @@ class AjaxRewriteContextTest : public RewriteTestBase {
                              int64 expected_ttl,
                              const char* etag,
                              int64 date_ms) {
-    WorkerTestBase::SyncPoint sync(server_context()->thread_system());
+    WorkerTestBase::SyncPoint sync(resource_manager()->thread_system());
     FakeFetch mock_fetch(&sync, &response_headers_);
     mock_fetch.set_request_headers(&request_headers_);
 
@@ -264,7 +264,7 @@ class AjaxRewriteContextTest : public RewriteTestBase {
     img_filter_->ClearStats();
     js_filter_->ClearStats();
     css_filter_->ClearStats();
-    RewriteTestBase::ClearStats();
+    ResourceManagerTestBase::ClearStats();
   }
 
   void ExpectAjaxImageSuccessFlow(const GoogleString& url) {
@@ -667,7 +667,7 @@ TEST_F(AjaxRewriteContextTest, CacheableJsUrlRewritingSucceeds) {
 TEST_F(AjaxRewriteContextTest, CacheableJsUrlRewritingWithStaleServing) {
   options()->ClearSignatureForTesting();
   options()->set_metadata_cache_staleness_threshold_ms(ttl_ms_);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
 
   FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, NULL,
                         start_time_ms());
@@ -735,7 +735,7 @@ TEST_F(AjaxRewriteContextTest, CacheableJsUrlModifiedImplicitCacheTtl) {
 TEST_F(AjaxRewriteContextTest, CacheableCssUrlIfCssRewritingDisabled) {
   options()->ClearSignatureForTesting();
   options()->DisableFilter(RewriteOptions::kRewriteCss);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
                         start_time_ms());
 

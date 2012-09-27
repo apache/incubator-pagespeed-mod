@@ -46,7 +46,6 @@ namespace net_instaweb {
 struct StringCompareInsensitive;
 
 typedef std::map<GoogleString, GoogleString> StringStringMap;
-typedef std::map<GoogleString, int> StringIntMap;
 typedef std::set<GoogleString> StringSet;
 typedef std::set<GoogleString, StringCompareInsensitive> StringSetInsensitive;
 typedef std::vector<GoogleString> StringVector;
@@ -90,11 +89,6 @@ inline bool StringToInt(const GoogleString& in, int* out) {
 inline bool StringToInt64(const GoogleString& in, int64* out) {
   return base::StringToInt64(in, out);
 }
-
-// Returns the part of the piece after the first '=', trimming any
-// white space found at the beginning or end of the resulting piece.
-// Returns an empty string if '=' was not found.
-StringPiece PieceAfterEquals(const StringPiece& piece);
 
 class EmptyString {
  public:
@@ -217,9 +211,6 @@ inline void TrimWhitespace(const StringPiece& in, GoogleString* output) {
 
 void TrimWhitespace(StringPiece* str);
 
-// In-place removal of leading and trailing quote.
-void TrimQuote(StringPiece* str);
-
 // Trims only whitespace at the beginning of the string.
 void TrimLeadingWhitespace(StringPiece* str);
 
@@ -299,7 +290,6 @@ inline GoogleString* StringVectorAdd(StringVector* v) {
   v->push_back(GoogleString());
   return &v->back();
 }
-
 
 }  // namespace net_instaweb
 

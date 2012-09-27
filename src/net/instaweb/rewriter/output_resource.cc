@@ -29,7 +29,7 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -67,7 +67,7 @@ class SyncCallback : public CacheInterface::Callback {
 
 }  // namespace
 
-OutputResource::OutputResource(ServerContext* resource_manager,
+OutputResource::OutputResource(ResourceManager* resource_manager,
                                const StringPiece& resolved_base,
                                const StringPiece& unmapped_base,
                                const StringPiece& original_base,
@@ -95,7 +95,7 @@ OutputResource::~OutputResource() {
 
 void OutputResource::DumpToDisk(MessageHandler* handler) {
   GoogleString file_name = DumpFileName();
-  FileSystem* file_system = server_context_->file_system();
+  FileSystem* file_system = resource_manager_->file_system();
   FileSystem::OutputFile* output_file =
       file_system->OpenOutputFile(file_name.c_str(), handler);
   if (output_file == NULL) {
@@ -132,7 +132,7 @@ Writer* OutputResource::BeginWrite(MessageHandler* handler) {
 void OutputResource::EndWrite(MessageHandler* handler) {
   CHECK(!writing_complete_);
   value_.SetHeaders(&response_headers_);
-  Hasher* hasher = server_context_->hasher();
+  Hasher* hasher = resource_manager_->hasher();
   full_name_.set_hash(hasher->Hash(contents()));
   computed_url_.clear();  // Since dependent on full_name_.
   writing_complete_ = true;
@@ -146,8 +146,8 @@ StringPiece OutputResource::suffix() const {
 
 GoogleString OutputResource::DumpFileName() const {
   GoogleString filename;
-  server_context_->filename_encoder()->Encode(
-      server_context_->filename_prefix(), url(), &filename);
+  resource_manager_->filename_encoder()->Encode(
+      resource_manager_->filename_prefix(), url(), &filename);
   return filename;
 }
 
@@ -166,7 +166,7 @@ GoogleString OutputResource::url() const {
   // so we compute it the first time we're called and cache the result;
   // computed_url_ is declared mutable.
   if (computed_url_.empty()) {
-    computed_url_ = server_context()->url_namer()->Encode(rewrite_options_,
+    computed_url_ = resource_manager()->url_namer()->Encode(rewrite_options_,
                                                             *this);
   }
   return computed_url_;
@@ -176,7 +176,7 @@ GoogleString OutputResource::UrlEvenIfHashNotSet() {
   GoogleString result;
   if (!has_hash()) {
     full_name_.set_hash("0");
-    result = server_context()->url_namer()->Encode(rewrite_options_, *this);
+    result = resource_manager()->url_namer()->Encode(rewrite_options_, *this);
     full_name_.ClearHash();
   } else {
     result = url();
@@ -198,7 +198,7 @@ bool OutputResource::Load(MessageHandler* handler) {
 GoogleString OutputResource::decoded_base() const {
   GoogleUrl gurl(url());
   GoogleString decoded_url;
-  if (server_context()->url_namer()->Decode(gurl, NULL, &decoded_url)) {
+  if (resource_manager()->url_namer()->Decode(gurl, NULL, &decoded_url)) {
     gurl.Reset(decoded_url);
   }
   return gurl.AllExceptLeaf().as_string();
@@ -224,7 +224,7 @@ void OutputResource::SetType(const ContentType* content_type) {
 
 NamedLock* OutputResource::CreationLock() {
   if (creation_lock_.get() == NULL) {
-    creation_lock_.reset(server_context_->MakeCreationLock(name_key()));
+    creation_lock_.reset(resource_manager_->MakeCreationLock(name_key()));
   }
   return creation_lock_.get();
 }
@@ -237,7 +237,7 @@ bool OutputResource::TryLockForCreation() {
   if (has_lock()) {
     return true;
   } else {
-    return server_context_->TryLockForCreation(CreationLock());
+    return resource_manager_->TryLockForCreation(CreationLock());
   }
 }
 
@@ -246,7 +246,7 @@ void OutputResource::LockForCreation(QueuedWorkerPool::Sequence* worker,
   if (has_lock()) {
     worker->Add(callback);
   } else {
-    server_context_->LockForCreation(CreationLock(), worker, callback);
+    resource_manager_->LockForCreation(CreationLock(), worker, callback);
   }
 }
 

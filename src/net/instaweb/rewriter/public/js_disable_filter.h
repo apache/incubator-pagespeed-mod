@@ -26,9 +26,7 @@
 
 namespace net_instaweb {
 
-class HtmlElement;
 class RewriteDriver;
-class RewriteOptions;
 
 // Disables javscript by converting input html:
 //   <script src="1.js">var a = 1...</script>
@@ -57,16 +55,9 @@ class JsDisableFilter : public EmptyHtmlFilter {
     return "JsDisableFilter";
   }
 
-  static GoogleString GetJsDisableScriptSnippet(const RewriteOptions* options);
-
  private:
   // Inserts the experimental js enable/disable code.
   void InsertJsDeferExperimentalScript(HtmlElement* element);
-
-  // Insert meta tag with 'X-UA-Compatible'. This will avoid IE going to quirks
-  // mode. More information about this can be found in
-  // http://webdesign.about.com/od/metataglibraries/p/x-ua-compatible-meta-tag.htm
-  void InsertMetaTagForIE(HtmlElement* element);
 
   RewriteDriver* rewrite_driver_;
   ScriptTagScanner script_tag_scanner_;

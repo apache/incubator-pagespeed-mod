@@ -122,7 +122,7 @@ TEST_F(CssImageCombineTest, SpritesImages) {
   // We want pixels 45 to 55 out of the image, therefore align the image
   // 45 pixels to the left of the div.
   TestSpriting("center top", "-45px -70px", true);
-  // Same as above, but this time select the middle 10 pixels vertically,
+  // Same as above, but this time select the middle 10 pixels verically,
   // as well (45 to 55, but offset by 70 for the image above).
   TestSpriting("center center", "-45px -115px", true);
   // We want the bottom, right corner of the image, i.e. pixels
@@ -165,13 +165,13 @@ TEST_F(CssImageCombineTest, SpritesMultiple) {
   GoogleString abs_cuppa = AbsolutifyUrl(kCuppaPngFile);
   after = StringPrintf(kHtmlTemplate3Divs, abs_bike.c_str(), abs_bike.c_str(),
                        0, 999, abs_cuppa.c_str(), 0);
-  ValidateExpected("sprite_none_dimensions", before, after);
+  ValidateExpected("sprite_none_dimmensions", before, after);
 }
 
 // Try the last test from SpritesMultiple with a cold cache.
 TEST_F(CssImageCombineTest, NoSpritesMultiple) {
   GoogleString text;
-  // If the second occurrence of the image is unspriteable (e.g. if the div is
+  // If the second occurence of the image is unspriteable (e.g. if the div is
   // larger than the image), then don't sprite anything.
   GoogleString in_text =
       StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 999,
@@ -217,8 +217,9 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
   cssUrl += "style.css";
   // At first try, not even the CSS gets loaded, so nothing gets
   // changed at all.
-  ValidateRewriteExternalCss("wip", beforeCss, beforeCss,
-                             kExpectNoChange | kNoClearFetcher);
+  ValidateRewriteExternalCss(
+      "wip", beforeCss, beforeCss,
+      kExpectNoChange | kNoOtherContexts | kNoClearFetcher);
 
   // Allow the images to load
   CallFetcherCallbacks();
@@ -233,9 +234,9 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
       "background-position:0px 0px}"
       "#div2{background:transparent url(", sprite,
       ");width:10px;height:10px;background-position:0px -70px}");
-  // kNoStatCheck because ImageCombineFilter uses different stats.
-  ValidateRewriteExternalCss("wip", beforeCss, spriteCss,
-                             kExpectSuccess | kNoClearFetcher | kNoStatCheck);
+  ValidateRewriteExternalCss(
+      "wip", beforeCss, spriteCss,
+      kExpectSuccess | kNoOtherContexts | kNoClearFetcher | kNoStatCheck);
 }
 
 TEST_F(CssImageCombineTest, SpritesOkAfter404) {

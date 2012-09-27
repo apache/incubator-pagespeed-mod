@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_BLINK_CRITICAL_LINE_DATA_FINDER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -29,6 +28,7 @@ class BlinkCriticalLineData;
 class PropertyPage;
 class ResponseHeaders;
 class RewriteDriver;
+class RewriteOptions;
 
 // Finds BlinkCriticalLineData from the given html content. This information
 // will be used by BlinkFlowCriticalLine.
@@ -41,18 +41,12 @@ class BlinkCriticalLineDataFinder {
 
   // Gets BlinkCriticalLineData from the given PropertyPage.
   virtual BlinkCriticalLineData* ExtractBlinkCriticalLineData(
-      int64 cache_time_ms, PropertyPage* page, int64 now_ms, bool diff_enabled,
-      bool propagate_cache_deletes);
+      PropertyPage* page, const RewriteOptions* options);
 
   // Computes BlinkCriticalLineData for the given html content.
   virtual void ComputeBlinkCriticalLineData(
-      const GoogleString& computed_hash,
-      const GoogleString& computed_hash_smart_diff,
-      const StringPiece html_content,
-      const ResponseHeaders* response_headers,
+      const StringPiece html_content, const ResponseHeaders* response_headers,
       RewriteDriver* driver);
-
-  virtual void PropagateCacheDeletes(const GoogleString& key);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BlinkCriticalLineDataFinder);

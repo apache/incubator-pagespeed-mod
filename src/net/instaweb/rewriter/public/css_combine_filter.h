@@ -44,7 +44,7 @@ class CssCombineFilter : public RewriteFilter {
   explicit CssCombineFilter(RewriteDriver* rewrite_driver);
   virtual ~CssCombineFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
@@ -64,7 +64,7 @@ class CssCombineFilter : public RewriteFilter {
   class CssCombiner;
 
   CssCombiner* combiner();
-  void NextCombination(const char* debug_help);
+  void NextCombination();
   Context* MakeContext();
 
   CssTagScanner css_tag_scanner_;

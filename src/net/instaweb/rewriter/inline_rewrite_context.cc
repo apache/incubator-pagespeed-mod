@@ -24,7 +24,7 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
@@ -64,7 +64,7 @@ bool InlineRewriteContext::Partition(OutputPartitions* partitions,
                                      OutputResourceVector* outputs) {
   CHECK(num_slots() == 1) << "InlineRewriteContext only handles one slot";
   ResourcePtr resource(slot(0)->resource());
-  if (resource->IsValidAndCacheable() && ShouldInline(resource)) {
+  if (resource->IsValidAndCacheable() && ShouldInline(resource->contents())) {
     CachedResult* partition = partitions->add_partition();
     resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
     partition->set_inlined_data(resource->contents().as_string());

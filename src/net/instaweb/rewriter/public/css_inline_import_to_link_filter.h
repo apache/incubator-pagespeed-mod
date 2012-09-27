@@ -19,13 +19,16 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 
+#include <vector>
+
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class HtmlCharactersNode;
-class HtmlElement;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -41,7 +44,7 @@ class CssInlineImportToLinkFilter : public EmptyHtmlFilter {
                                        Statistics* statistics);
   virtual ~CssInlineImportToLinkFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocument();
   virtual void EndDocument();

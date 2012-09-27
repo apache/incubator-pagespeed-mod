@@ -18,8 +18,8 @@
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
 #include "base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -28,12 +28,12 @@
 
 namespace net_instaweb {
 
-class DeterministicJsFilterTest : public RewriteTestBase {
+class DeterministicJsFilterTest : public ResourceManagerTestBase {
  public:
   DeterministicJsFilterTest() {}
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     deterministic_js_filter_.reset(new DeterministicJsFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(deterministic_js_filter_.get());
   }
@@ -46,7 +46,7 @@ class DeterministicJsFilterTest : public RewriteTestBase {
 
 TEST_F(DeterministicJsFilterTest, DeterministicJsInjection) {
   StringPiece deterministic_js_code =
-      server_context()->static_javascript_manager()->GetJsSnippet(
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
           StaticJavascriptManager::kDeterministicJs, options());
   GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
                                      "pagespeed_no_defer>",
@@ -64,7 +64,7 @@ TEST_F(DeterministicJsFilterTest, DeterministicJsInjection) {
 
 TEST_F(DeterministicJsFilterTest, DeterministicJsInjectionWithSomeHeadContent) {
   StringPiece deterministic_js_code =
-      server_context()->static_javascript_manager()->GetJsSnippet(
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
           StaticJavascriptManager::kDeterministicJs, options());
   GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
                                      "pagespeed_no_defer>",
