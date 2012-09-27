@@ -18,6 +18,7 @@
 
 #include "net/instaweb/rewriter/public/blink_util.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -25,83 +26,45 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/panel_config.pb.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/re2.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/wildcard.h"
 
 namespace net_instaweb {
 namespace BlinkUtil {
 
 namespace {
 
-bool IsAllIncludedIn(const StringPieceVector& spec_vector,
-                     const StringPieceVector& value_vector) {
-  for (int i = 0, m = spec_vector.size(); i < m; ++i) {
-    bool found_spec_item = false;
-    for (int j = 0, n = value_vector.size(); j < n; ++j) {
-      if (StringCaseCompare(value_vector[j], spec_vector[i]) == 0) {
-        // The i'th token in spec is there in value.
-        found_spec_item = true;
-        break;
-      }
-    }
-    if (!found_spec_item) {
-      // If a token in spec is not found in value then we can return false.
-      return false;
-    }
-  }
-  // Found all in spec in value.
-  return true;
-}
-
-}  // namespace
-
-bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
-                                const RewriteOptions* options,
-                                const char* user_agent,
-                                const UserAgentMatcher& user_agent_matcher) {
-  UserAgentMatcher::BlinkRequestType request_type =
-      user_agent_matcher.GetBlinkRequestType(
-          user_agent, async_fetch->request_headers());
-  BlinkInfo* blink_info =
-      async_fetch->log_record()->logging_info()->mutable_blink_info();
-  switch (request_type) {
-    case UserAgentMatcher::kBlinkWhiteListForDesktop:
-      blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_WHITELIST);
+bool IsBlacklistedBrowser(const StringPiece& user_agent,
+                          const PublisherConfig& config) {
+  for (int i = 0; i < config.browser_blacklist_patterns_size(); ++i) {
+    Wildcard wildcard(config.browser_blacklist_patterns(i));
+    if (wildcard.Match(user_agent)) {
       return true;
-    case UserAgentMatcher::kDoesNotSupportBlink:
-      blink_info->set_blink_user_agent(BlinkInfo::NOT_SUPPORT_BLINK);
-      return false;
-    case UserAgentMatcher::kBlinkBlackListForDesktop:
-      blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_BLACKLIST);
-      return false;
-    case UserAgentMatcher::kBlinkMobile:
-      blink_info->set_blink_user_agent(BlinkInfo::BLINK_MOBILE);
-      // Is mobile request allowed?
-      return (options->enable_blink_for_mobile_devices()) ? true : false;
-    case UserAgentMatcher::kNullOrEmpty:
-      blink_info->set_blink_user_agent(BlinkInfo::NULL_OR_EMPTY);
-      return false;
+    }
   }
   return false;
 }
 
+}  // namespace
+
 // TODO(rahulbansal): Add tests for this.
 bool IsBlinkRequest(const GoogleUrl& url,
-                    AsyncFetch* async_fetch,
+                    const RequestHeaders* request_headers,
                     const RewriteOptions* options,
                     const char* user_agent,
-                    const UserAgentMatcher& user_agent_matcher) {
+                    const UserAgentMatcher& user_agent_matcher_) {
   if (options != NULL &&
       // Is rewriting enabled?
       options->enabled() &&
       // Is Get Request?
-      async_fetch->request_headers()->method() == RequestHeaders::kGet &&
+      request_headers->method() == RequestHeaders::kGet &&
       // Is prioritize visible content filter enabled?
       options->Enabled(RewriteOptions::kPrioritizeVisibleContent) &&
       // Is url allowed? (i.e., it is not in black-list.)
@@ -109,29 +72,209 @@ bool IsBlinkRequest(const GoogleUrl& url,
       // (ProxyFetch).  Should we combine these?
       options->IsAllowed(url.Spec()) &&
       // Does url match a cacheable family pattern specified in config?
-      options->IsInBlinkCacheableFamily(url) &&
-      // Is the user agent allowed to enter the blink flow?
-      IsUserAgentAllowedForBlink(async_fetch, options,
-                                 user_agent, user_agent_matcher)) {
-    // Is the request a HTTP request?
-    if (url.SchemeIs("http")) {
-      return true;
-    }
-    if (!options->apply_blink_if_no_families()) {
-      LOG(ERROR) << "Non http url : " << url.spec_c_str() << " allowed in "
-                 << "blink cacheable families.";
-    }
+      options->MatchesPrioritizeVisibleContentCacheableFamilies(
+          url.PathAndLeaf()) &&
+      // user agent supports Blink.
+      user_agent_matcher_.GetBlinkUserAgentType(
+          user_agent, options->enable_blink_for_mobile_devices()) !=
+          UserAgentMatcher::kDoesNotSupportBlink) {
+    return true;
   }
   return false;
 }
 
 bool ShouldApplyBlinkFlowCriticalLine(
-    const ServerContext* manager,
+    const ResourceManager* manager,
     const RewriteOptions* options) {
   return options != NULL &&
       // Blink flow critical line is enabled in rewrite options.
       options->enable_blink_critical_line() &&
       manager->blink_critical_line_data_finder() != NULL;
+}
+
+const Layout* ExtractBlinkLayout(const GoogleUrl& url,
+                                 RewriteOptions* options,
+                                 const StringPiece& user_agent) {
+  if (options != NULL) {
+    const PublisherConfig* config = options->panel_config();
+    if (config != NULL && !IsBlacklistedBrowser(user_agent, *config)) {
+      return FindLayout(*config, url);
+    }
+  }
+  return NULL;
+}
+
+// Finds the layout for the given request_url.
+const Layout* FindLayout(const PublisherConfig& config,
+                         const GoogleUrl& request_url) {
+  for (int i = 0; i < config.layout_size(); ++i) {  // Typically 3-4 layouts.
+    const Layout& layout = config.layout(i);
+    if (layout.reference_page_url_path() == request_url.PathAndLeaf()) {
+      return &layout;
+    }
+    for (int j = 0; j < layout.relative_url_patterns_size(); ++j) {
+      VLOG(2) << "regex = |" << layout.relative_url_patterns(j)
+              << "|\t str = |" << request_url.PathAndLeaf() << "|";
+      if (RE2::FullMatch(request_url.PathAndLeaf().data(),
+                         layout.relative_url_patterns(j).data())) {
+        return &layout;
+      }
+    }
+  }
+  return NULL;
+}
+
+void SplitCritical(const Json::Value& complete_json,
+                   const PanelIdToSpecMap& panel_id_to_spec,
+                   GoogleString* critical_json_str,
+                   GoogleString* non_critical_json_str,
+                   GoogleString* pushed_images_str) {
+  Json::Value critical_json(Json::arrayValue);
+  Json::Value non_cacheable_critical_json(Json::arrayValue);
+  Json::Value non_critical_json(Json::arrayValue);
+  Json::Value pushed_images(Json::objectValue);
+
+  Json::Value panel_json(complete_json);
+  panel_json[0].removeMember(kInstanceHtml);
+
+  SplitCriticalArray(panel_json, panel_id_to_spec, &critical_json,
+                     &non_cacheable_critical_json, &non_critical_json,
+                     true, 1, &pushed_images);
+  critical_json = critical_json.empty() ? Json::objectValue : critical_json[0];
+
+  Json::FastWriter fast_writer;
+  *critical_json_str = fast_writer.write(critical_json);
+  BlinkUtil::StripTrailingNewline(critical_json_str);
+
+  DeleteImagesFromJson(&non_critical_json);
+  non_critical_json =
+      non_critical_json.empty() ? Json::objectValue : non_critical_json[0];
+  *non_critical_json_str = fast_writer.write(non_critical_json);
+  BlinkUtil::StripTrailingNewline(non_critical_json_str);
+
+  *pushed_images_str = fast_writer.write(pushed_images);
+  BlinkUtil::StripTrailingNewline(pushed_images_str);
+}
+
+// complete_json = [panel1, panel2 ... ]
+// panel = {
+//   "instanceHtml": "html of panel",
+//   "images": {"img1:<lowres>", "img2:<lowres>"} (images inside instanceHtml)
+//   "panel-id.0": <complete_json>,
+//   "panel-id.1": <complete_json>,
+// }
+//
+// CRITICAL = [panel1]
+// NON-CACHEABLE = [Empty panel, panel2]
+// NON-CRITICAL = [Empty panel, Empty panel, panel3]
+//
+// TODO(ksimbili): Support images inling for non_cacheable too.
+void SplitCriticalArray(const Json::Value& complete_json,
+                        const PanelIdToSpecMap& panel_id_to_spec,
+                        Json::Value* critical_json,
+                        Json::Value* critical_non_cacheable_json,
+                        Json::Value* non_critical_json,
+                        bool panel_cacheable,
+                        int num_critical_instances,
+                        Json::Value* pushed_images) {
+  DCHECK(pushed_images);
+  num_critical_instances = std::min(num_critical_instances,
+                                    static_cast<int>(complete_json.size()));
+
+  for (int i = 0; i < num_critical_instances; ++i) {
+    Json::Value instance_critical(Json::objectValue);
+    Json::Value instance_non_cacheable_critical(Json::objectValue);
+    Json::Value instance_non_critical(Json::objectValue);
+
+    SplitCriticalObj(complete_json[i], panel_id_to_spec, &instance_critical,
+                     &instance_non_cacheable_critical,
+                     &instance_non_critical,
+                     panel_cacheable,
+                     pushed_images);
+    critical_json->append(instance_critical);
+    critical_non_cacheable_json->append(instance_non_cacheable_critical);
+    non_critical_json->append(instance_non_critical);
+  }
+
+  for (Json::ArrayIndex i = num_critical_instances; i < complete_json.size();
+      ++i) {
+    non_critical_json->append(complete_json[i]);
+  }
+
+  ClearArrayIfAllEmpty(critical_json);
+  ClearArrayIfAllEmpty(critical_non_cacheable_json);
+  ClearArrayIfAllEmpty(non_critical_json);
+}
+
+void SplitCriticalObj(const Json::Value& json_obj,
+                      const PanelIdToSpecMap& panel_id_to_spec,
+                      Json::Value* critical_obj,
+                      Json::Value* non_cacheable_obj,
+                      Json::Value* non_critical_obj,
+                      bool panel_cacheable,
+                      Json::Value* pushed_images) {
+  const std::vector<std::string>& keys = json_obj.getMemberNames();
+  for (Json::ArrayIndex j = 0; j < keys.size(); ++j) {
+    const std::string& key = keys[j];
+
+    if (key == kContiguous) {
+      (*critical_obj)[kContiguous] = json_obj[key];
+      (*non_cacheable_obj)[kContiguous] = json_obj[key];
+      (*non_critical_obj)[kContiguous] = json_obj[key];
+      continue;
+    }
+
+    if (key == kInstanceHtml) {
+      if (panel_cacheable) {
+        (*critical_obj)[kInstanceHtml] = json_obj[key];
+      } else {
+        (*non_cacheable_obj)[kInstanceHtml] = json_obj[key];
+      }
+      continue;
+    }
+
+    if (key == kImages) {
+      if (panel_cacheable) {
+        const Json::Value& image_obj = json_obj[key];
+        const std::vector<std::string>& image_keys = image_obj.getMemberNames();
+        for (Json::ArrayIndex k = 0; k < image_keys.size(); ++k) {
+          const std::string& image_url = image_keys[k];
+          (*pushed_images)[image_url] = image_obj[image_url];
+        }
+      }
+      continue;
+    }
+
+    if (panel_id_to_spec.find(key) == panel_id_to_spec.end()) {
+      LOG(DFATAL) << "SplitCritical called with invalid Panelid: " << key;
+      continue;
+    }
+    const Panel& child_panel = *((panel_id_to_spec.find(key))->second);
+
+    Json::Value child_critical(Json::arrayValue);
+    Json::Value child_non_cacheable_critical(Json::arrayValue);
+    Json::Value child_non_critical(Json::arrayValue);
+    bool child_panel_cacheable = panel_cacheable &&
+        (child_panel.cacheability_in_minutes() != 0);
+    SplitCriticalArray(json_obj[key],
+                       panel_id_to_spec,
+                       &child_critical,
+                       &child_non_cacheable_critical,
+                       &child_non_critical,
+                       child_panel_cacheable,
+                       child_panel.num_critical_instances(),
+                       pushed_images);
+
+    if (!child_critical.empty()) {
+      (*critical_obj)[key] = child_critical;
+    }
+    if (!child_non_cacheable_critical.empty()) {
+      (*non_cacheable_obj)[key] = child_non_cacheable_critical;
+    }
+    if (!child_non_critical.empty()) {
+      (*non_critical_obj)[key] = child_non_critical;
+    }
+  }
 }
 
 bool IsJsonEmpty(const Json::Value& json) {
@@ -154,51 +297,35 @@ void ClearArrayIfAllEmpty(Json::Value* json) {
   json->clear();
 }
 
-void EscapeString(GoogleString* str) {
-  // TODO(sriharis):  Check whether we need to do any other escaping.  Also
-  // change the escaping of '<' and '>' to use standard '\u' mechanism.
-  int num_replacements = 0;
-  GoogleString tmp;
-  const int length = str->length();
-  for (int i = 0; i < length; ++i) {
-    const unsigned char c = (*str)[i];
-    switch (c) {
-      case '<': {
-        ++num_replacements;
-        tmp.append("__psa_lt;");
-        break;
-      }
-      case '>': {
-        ++num_replacements;
-        tmp.append("__psa_gt;");
-        break;
-      }
-      case 0xe2: {
-        if ((i + 2 < length) && ((*str)[i + 1] == '\x80')) {
-          if ((*str)[i + 2] == '\xa8') {
-            ++num_replacements;
-            tmp.append("\\u2028");
-            i += 2;
-            break;
-          } else if ((*str)[i + 2] == '\xa9') {
-            ++num_replacements;
-            tmp.append("\\u2029");
-            i += 2;
-            break;
-          }
-        }
-        tmp.push_back(c);
-        break;
-      }
-      default: {
-        tmp.push_back(c);
-        break;
+void DeleteImagesFromJson(Json::Value* complete_json) {
+  for (Json::ArrayIndex i = 0; i < complete_json->size(); ++i) {
+    const std::vector<std::string>& keys = (*complete_json)[i].getMemberNames();
+    for (Json::ArrayIndex j = 0; j < keys.size(); ++j) {
+      const std::string& key = keys[j];
+      if (key == kImages) {
+        (*complete_json)[i].removeMember(key);
+      } else if (key != kInstanceHtml) {
+        DeleteImagesFromJson(&(*complete_json)[i][key]);
       }
     }
   }
-  if (num_replacements > 0) {
-    str->swap(tmp);
+}
+
+bool ComputePanels(const PanelSet* panel_set_,
+                   PanelIdToSpecMap* panel_id_to_spec) {
+  bool non_cacheable_present = false;
+  for (int i = 0; i < panel_set_->panels_size(); ++i) {
+    const Panel& panel = panel_set_->panels(i);
+    const GoogleString panel_id = StrCat(kPanelId, ".", IntegerToString(i));
+    non_cacheable_present |= (panel.cacheability_in_minutes() == 0);
+    (*panel_id_to_spec)[panel_id] = &panel;
   }
+  return non_cacheable_present;
+}
+
+void EscapeString(GoogleString* str) {
+  GlobalReplaceSubstring("<", "__psa_lt;", str);
+  GlobalReplaceSubstring(">", "__psa_gt;", str);
 }
 
 bool StripTrailingNewline(GoogleString* s) {
@@ -212,13 +339,34 @@ bool StripTrailingNewline(GoogleString* s) {
   return false;
 }
 
+StringPiece GetNonCacheableElements(
+    const GoogleString& atf_non_cacheable_elements, const GoogleUrl& url) {
+  StringPieceVector url_family_non_cacheable_elements;
+  SplitStringPieceToVector(atf_non_cacheable_elements,
+                           ";", &url_family_non_cacheable_elements, true);
+  for (size_t i = 0; i < url_family_non_cacheable_elements.size(); ++i) {
+    StringPieceVector url_family_non_cacheable_elements_pair;
+    SplitStringPieceToVector(url_family_non_cacheable_elements[i], ":",
+                             &url_family_non_cacheable_elements_pair, true);
+    if (url_family_non_cacheable_elements_pair.size() != 2) {
+      LOG(ERROR) << "Incorrect non cacheable element value "
+                 << url_family_non_cacheable_elements[i];
+      return "";
+    }
+    Wildcard wildcard(url_family_non_cacheable_elements_pair[0]);
+    if (wildcard.Match(url.PathAndLeaf())) {
+      return url_family_non_cacheable_elements_pair[1];
+    }
+  }
+  return "";
+}
+
 void PopulateAttributeToNonCacheableValuesMap(
-    const RewriteOptions* rewrite_options, const GoogleUrl& url,
+    const GoogleString& atf_non_cacheable_elements, const GoogleUrl& url,
     AttributesToNonCacheableValuesMap* attribute_non_cacheable_values_map,
     std::vector<int>* panel_number_num_instances) {
-  GoogleString non_cacheable_elements_str =
-      rewrite_options->GetBlinkNonCacheableElementsFor(url);
-  StringPiece non_cacheable_elements(non_cacheable_elements_str);
+  StringPiece non_cacheable_elements =
+      GetNonCacheableElements(atf_non_cacheable_elements, url);
   // TODO(rahulbansal): Add more error checking.
   StringPieceVector non_cacheable_values;
   SplitStringPieceToVector(non_cacheable_elements,
@@ -228,58 +376,36 @@ void PopulateAttributeToNonCacheableValuesMap(
     SplitStringPieceToVector(non_cacheable_values[i], "=",
                              &non_cacheable_values_pair, true);
     if (non_cacheable_values_pair.size() != 2) {
-      LOG(WARNING) << "Incorrect non cacheable element value "
-                   << non_cacheable_values[i];
+      LOG(ERROR) << "Incorrect non cacheable element value " <<
+          non_cacheable_values[i];
       return;
     }
-    StringPiece attribute_name = non_cacheable_values_pair[0];
-    StringPiece attribute_value = non_cacheable_values_pair[1];
-    TrimWhitespace(&attribute_name);
-    TrimQuote(&attribute_value);
     attribute_non_cacheable_values_map->insert(make_pair(
-        attribute_name.as_string(),
-        make_pair(attribute_value.as_string(), i)));
+        non_cacheable_values_pair[0].as_string(),
+        make_pair(non_cacheable_values_pair[1].as_string(), i)));
     panel_number_num_instances->push_back(0);
   }
 }
 
 int GetPanelNumberForNonCacheableElement(
-    const AttributesToNonCacheableValuesMap& attribute_non_cacheable_values_map,
+    const AttributesToNonCacheableValuesMap&
+        attribute_non_cacheable_values_map,
     const HtmlElement* element) {
-  const HtmlElement::AttributeList& attrs = element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
-    const HtmlElement::Attribute& attribute = *i;
+  for (int i = 0; i < element->attribute_size(); ++i) {
+    const HtmlElement::Attribute& attribute = element->attribute(i);
     StringPiece value = attribute.DecodedValueOrNull();
     if (value.empty()) {
       continue;
     }
-    // Get all items in the map with matching attribute name.
-    // TODO(sriharis):  We need case insensitive compare here.
-    typedef AttributesToNonCacheableValuesMap::const_iterator Iterator;
-    std::pair<Iterator, Iterator> ret =
-        attribute_non_cacheable_values_map.equal_range(
-            attribute.name().c_str());
-
-    if (attribute.name().keyword() == HtmlName::kClass) {
-      // Split class attribute value on whitespace.
-      StringPieceVector value_vector;
-      SplitStringPieceToVector(value, " \r\n\t", &value_vector, true);
-      for (Iterator it = ret.first; it != ret.second; ++it) {
-        StringPieceVector spec_vector;
-        SplitStringPieceToVector(it->second.first, " \t", &spec_vector, true);
-        // If spec_vector is a subset of value_vector return the index
-        // (it->second.second).
-        if (IsAllIncludedIn(spec_vector, value_vector)) {
-          return it->second.second;
-        }
-      }
-    } else {
-      for (Iterator it = ret.first; it != ret.second; ++it) {
-        if (value == it->second.first) {
-          // Returning the index.
-          return it->second.second;
-        }
+    std::pair<AttributesToNonCacheableValuesMap::const_iterator,
+        AttributesToNonCacheableValuesMap::const_iterator> ret =
+            attribute_non_cacheable_values_map.equal_range(
+                attribute.name().c_str());
+    AttributesToNonCacheableValuesMap::const_iterator it;
+    for (it = ret.first; it != ret.second; ++it) {
+      if ((it->first == attribute.name().c_str()) &&
+          (value == it->second.first)) {
+        return it->second.second;
       }
     }
   }

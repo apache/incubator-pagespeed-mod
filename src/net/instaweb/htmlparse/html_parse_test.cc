@@ -30,6 +30,7 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -140,11 +141,9 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
   AttrValuesSaverFilter() { }
 
   virtual void StartElement(HtmlElement* element) {
-    const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
-      const char* value = i->DecodedValueOrNull();
-      if (i->decoding_error()) {
+    for (int i = 0; i < element->attribute_size(); ++i) {
+      const char* value = element->attribute(i).DecodedValueOrNull();
+      if (element->attribute(i).decoding_error()) {
         value_ += "<ERROR>";
       } else if (value == NULL) {
         value_ += "(null)";
@@ -305,103 +304,6 @@ TEST_F(HtmlParseTest, OpenBracketAfterName) {
   ValidateNoChanges("open_brack_after_name", input);
 }
 
-class HtmlParseTestNoBodyNoHtml : public HtmlParseTestNoBody {
- protected:
-  virtual bool AddHtmlTags() const { return false; }
-
-  void CheckOutput(int start_index, int end_index,
-                   const GoogleString& input,
-                   const GoogleString& expected_output) {
-    for (int i = start_index; i < end_index; ++i) {
-      SetupWriter();
-      html_parse()->set_size_limit(i);
-      html_parse()->StartParse("http://test.com/in.html");
-      // Flush after every character.
-      for (int j = 0; j < input.size(); ++j) {
-        GoogleString x;
-        x.push_back(input[j]);
-        html_parse()->ParseText(StringPiece(x));
-        html_parse()->Flush();
-      }
-      html_parse()->FinishParse();
-      EXPECT_EQ(expected_output, output_buffer_);
-    }
-  }
-};
-
-TEST_F(HtmlParseTestNoBodyNoHtml, SizeLimit) {
-  static const char input[] =
-      "<html>"  // 6 chars
-      "<input type=\"text\"/>"  // 20 chars
-      "<script type=\"text/javascript\">alert('123');</script>"  // 53 chars
-      "<!--[if IE]>...<![endif]-->"  // 27 chars
-      "<table><tr><td>blah</td></tr></table>"  // 37 chars
-      "</html>";  // 7 chars
-  ValidateNoChanges("no_limit", input);
-
-  static const char output_when_break_in_html[] =
-      "<html></html>";
-
-  for (int i = 1; i < 150; ++i) {
-    // With no flushes, the output is just <html></html>
-    html_parse_.set_size_limit(i);
-    ValidateExpected("break_in_input", input,
-                     output_when_break_in_html);
-  }
-
-  // Now test with flushes injected.
-
-  CheckOutput(1, 6, input, output_when_break_in_html);
-
-  static const char output_when_break_in_input[] =
-      "<html><input type=\"text\"/></html>";
-  CheckOutput(6, 26, input, output_when_break_in_input);
-
-  static const char output_with_break_in_script_tag[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\"></script>"
-      "</html>";
-  CheckOutput(26, 57, input, output_with_break_in_script_tag);
-
-  static const char output_with_break_in_script_text_or_later[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\">alert('123');</script>"
-      "</html>";
-  CheckOutput(57, 79, input, output_with_break_in_script_text_or_later);
-
-  static const char output_with_break_in_comment[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\">alert('123');</script>"
-      "<!--[if IE]>...<![endif]-->"
-      "<table></table>"
-      "</html>";
-  CheckOutput(79, 113, input, output_with_break_in_comment);
-
-  static const char output_with_break_in_tr[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\">alert('123');</script>"
-      "<!--[if IE]>...<![endif]-->"
-      "<table><tr></tr></table>"
-      "</html>";
-  CheckOutput(113, 117, input, output_with_break_in_tr);
-
-  static const char output_with_break_in_td[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\">alert('123');</script>"
-      "<!--[if IE]>...<![endif]-->"
-      "<table><tr><td></td></tr></table>"
-      "</html>";
-  CheckOutput(117, 121, input, output_with_break_in_td);
-
-  static const char output_with_break_in_td_text[] =
-      "<html><input type=\"text\"/>"
-      "<script type=\"text/javascript\">alert('123');</script>"
-      "<!--[if IE]>...<![endif]-->"
-      "<table><tr><td>blah</td></tr></table>"
-      "</html>";
-  CheckOutput(121, 160, input, output_with_break_in_td_text);
-}
-
 TEST_F(HtmlParseTest, OpenBracketAfterSpace) {
   // '<' after after unquoted attr value. Here name<input is an attribute
   // name.
@@ -485,20 +387,15 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
 
   virtual void StartElement(HtmlElement* element) {
     StrAppend(&buffer_, (buffer_.empty() ? "+" : " +"), element->name_str());
-
-    bool first = true;
-    const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
-      const HtmlElement::Attribute& attr = *i;
-      StrAppend(&buffer_, (first ? ":" : ","), attr.name_str());
+    for (int i = 0; i < element->attribute_size(); ++i) {
+      const HtmlElement::Attribute& attr = element->attribute(i);
+      StrAppend(&buffer_, (i == 0 ? ":" : ","), attr.name_str());
       const char* value = attr.DecodedValueOrNull();
       if (attr.decoding_error()) {
         StrAppend(&buffer_, "=<ERROR>");
       } else if (value != NULL) {
         StrAppend(&buffer_, "=", attr.quote_str(), value, attr.quote_str());
       }
-      first = false;
     }
   }
   virtual void EndElement(HtmlElement* element) {
@@ -1403,103 +1300,6 @@ TEST_F(EventListManipulationTest, TestHasChildren) {
   EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
 }
 
-TEST_F(EventListManipulationTest, AppendComment) {
-  html_parse_.InsertComment("hello");
-  CheckExpected("1<!--hello-->");
-}
-
-TEST_F(EventListManipulationTest, CommentBeforeDiv1) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.AddElement(div, -1);
-  html_parse_.InsertComment("hello");
-  html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
-  CheckExpected("1<!--hello--><div></div>");
-}
-
-TEST_F(EventListManipulationTest, CommentBeforeDiv2) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.InsertComment("hello");
-  html_parse_.AddElement(div, -1);
-  html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
-  CheckExpected("1<!--hello--><div></div>");
-}
-
-TEST_F(EventListManipulationTest, CommentAfterDiv) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.AddElement(div, -1);
-  html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
-  html_parse_.InsertComment("hello");
-  CheckExpected("1<div></div><!--hello-->");
-}
-
-TEST_F(EventListManipulationTest, CommentAfterFirstDiv) {
-  HtmlElement* div1 = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.AddElement(div1, -1);
-  html_parse_.CloseElement(div1, HtmlElement::EXPLICIT_CLOSE, -1);
-  HtmlElement* div2 = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.AddElement(div2, -1);
-  html_parse_.CloseElement(div2, HtmlElement::EXPLICIT_CLOSE, -1);
-  HtmlTestingPeer::SetCurrent(&html_parse_, div1);
-  html_parse_.InsertComment("hello");
-  CheckExpected("1<div></div><!--hello--><div></div>");
-}
-
-class InsertCommentOnFirstDivFilter : public EmptyHtmlFilter {
- public:
-  InsertCommentOnFirstDivFilter(bool at_start, HtmlParse* parse)
-      : html_parse_(parse),
-        at_start_(at_start),
-        first_(true) {
-  }
-
-  virtual void StartDocument() { first_ = true; }
-  virtual void StartElement(HtmlElement* element) { Insert(true, element); }
-  virtual void EndElement(HtmlElement* element) { Insert(false, element); }
-  virtual const char* Name() const { return "InsertCommentOnFirstDivFilter"; }
-
- private:
-  void Insert(bool at_start, HtmlElement* element) {
-    if (first_ && (at_start == at_start_) &&
-        (element->keyword() == HtmlName::kDiv)) {
-      html_parse_->InsertComment("hello");
-      first_ = false;
-    }
-  }
-
-
- private:
-  HtmlParse* html_parse_;
-  bool at_start_;
-  bool first_;
-
-  DISALLOW_COPY_AND_ASSIGN(InsertCommentOnFirstDivFilter);
-};
-
-TEST_F(HtmlParseTestNoBody, CommentInsideFirstDiv) {
-  InsertCommentOnFirstDivFilter insert_at_first_div(true, &html_parse_);
-  html_parse_.AddFilter(&insert_at_first_div);
-  SetupWriter();
-  ValidateExpected("comment_inside_first_div",
-                   "1<div>2</div>3<div>4</div>5",
-                   "1<!--hello--><div>2</div>3<div>4</div>5");
-}
-
-TEST_F(HtmlParseTestNoBody, CommentAfterFirstDiv) {
-  InsertCommentOnFirstDivFilter insert_at_first_div(false, &html_parse_);
-  html_parse_.AddFilter(&insert_at_first_div);
-  SetupWriter();
-  ValidateExpected("comment_inside_first_div",
-                   "1<div>2</div>3<div>4</div>5",
-                   "1<div>2</div><!--hello-->3<div>4</div>5");
-}
-
-TEST_F(HtmlParseTestNoBody, InsertCommentFromEmpty) {
-  html_parse_.InsertComment("hello");
-  SetupWriter();
-  html_parse()->ApplyFilter(html_writer_filter_.get());
-  EXPECT_EQ("<!--hello-->", output_buffer_);
-}
-
 // Unit tests for attribute manipulation.
 // Goal is to make sure we don't (eg) read deallocated storage
 // while manipulating attribute values.
@@ -1536,30 +1336,6 @@ class AttributeManipulationTest : public HtmlParseTest {
     EXPECT_EQ(expected, output_buffer_);
   }
 
-  int NumAttributes(HtmlElement* element) {
-    int size = 0;
-    const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
-      ++size;
-    }
-
-    return size;
-  }
-
-  HtmlElement::Attribute* AttributeAt(HtmlElement* element, int index) {
-    int pos = 0;
-    HtmlElement::AttributeList* attrs = element->mutable_attributes();
-    for (HtmlElement::AttributeIterator i(attrs->begin());
-         i != attrs->end(); ++i) {
-      if (pos == index) {
-        return i.Get();
-      }
-      ++pos;
-    }
-    return NULL;
-  }
-
   HtmlElement* node_;
 
  private:
@@ -1570,7 +1346,7 @@ TEST_F(AttributeManipulationTest, PropertiesAndDeserialize) {
   StringPiece google("http://www.google.com/");
   StringPiece number37("37");
   StringPiece search("search!");
-  EXPECT_EQ(4, NumAttributes(node_));
+  EXPECT_EQ(4, node_->attribute_size());
   EXPECT_EQ(google, node_->AttributeValue(HtmlName::kHref));
   EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
   EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
@@ -1601,10 +1377,10 @@ TEST_F(AttributeManipulationTest, AddAttribute) {
 }
 
 TEST_F(AttributeManipulationTest, DeleteAttribute) {
-  node_->DeleteAttribute(HtmlName::kId);
+  node_->DeleteAttribute(1);
   CheckExpected("<a href=\"http://www.google.com/\" class='search!'"
                 " selected />");
-  node_->DeleteAttribute(HtmlName::kSelected);
+  node_->DeleteAttribute(2);
   CheckExpected("<a href=\"http://www.google.com/\" class='search!'/>");
 }
 
@@ -1644,16 +1420,16 @@ TEST_F(AttributeManipulationTest, CloneElement) {
   EXPECT_NE(clone, node_);
   EXPECT_EQ(HtmlName::kA, clone->keyword());
   EXPECT_EQ(node_->close_style(), clone->close_style());
-  EXPECT_EQ(4, NumAttributes(clone));
-  EXPECT_EQ(HtmlName::kHref, AttributeAt(clone, 0)->keyword());
+  EXPECT_EQ(4, clone->attribute_size());
+  EXPECT_EQ(HtmlName::kHref, clone->attribute(0).keyword());
   EXPECT_STREQ("http://www.google.com/",
-               AttributeAt(clone, 0)->DecodedValueOrNull());
-  EXPECT_EQ(HtmlName::kId, AttributeAt(clone, 1)->keyword());
-  EXPECT_STREQ("37", AttributeAt(clone, 1)->DecodedValueOrNull());
-  EXPECT_EQ(HtmlName::kClass, AttributeAt(clone, 2)->keyword());
-  EXPECT_STREQ("search!", AttributeAt(clone, 2)->DecodedValueOrNull());
-  EXPECT_EQ(HtmlName::kSelected, AttributeAt(clone, 3)->keyword());
-  EXPECT_EQ(NULL, AttributeAt(clone, 3)->DecodedValueOrNull());
+               clone->attribute(0).DecodedValueOrNull());
+  EXPECT_EQ(HtmlName::kId, clone->attribute(1).keyword());
+  EXPECT_STREQ("37", clone->attribute(1).DecodedValueOrNull());
+  EXPECT_EQ(HtmlName::kClass, clone->attribute(2).keyword());
+  EXPECT_STREQ("search!", clone->attribute(2).DecodedValueOrNull());
+  EXPECT_EQ(HtmlName::kSelected, clone->attribute(3).keyword());
+  EXPECT_EQ(NULL, clone->attribute(3).DecodedValueOrNull());
 
   HtmlElement::Attribute* id = clone->FindAttribute(HtmlName::kId);
   ASSERT_TRUE(id != NULL);

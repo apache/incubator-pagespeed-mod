@@ -45,8 +45,7 @@ class HTTPValueWriter {
 
   // Checks if the http_value should be buffered or not depending on whether we
   // can eventually cache it. It also clears the http_value if it can not be
-  // buffered. Note that this only checks the size constraints, not cache
-  // headers.
+  // buffered.
   bool CheckCanCacheElseClear(ResponseHeaders* headers);
 
  private:

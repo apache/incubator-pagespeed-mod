@@ -32,8 +32,8 @@
 #include "net/instaweb/util/public/shared_circular_buffer.h"
 
 struct apr_pool_t;
-struct request_rec;
 struct server_rec;
+struct request_rec;
 
 namespace net_instaweb {
 
@@ -42,8 +42,6 @@ class ApacheCache;
 class ApacheConfig;
 class ApacheMessageHandler;
 class ApacheResourceManager;
-class AprMemCache;
-class AsyncCache;
 class SerfUrlAsyncFetcher;
 class SharedMemLockManager;
 class SharedMemRefererStatistics;
@@ -55,8 +53,6 @@ class UrlPollableAsyncFetcher;
 // Creates an Apache RewriteDriver.
 class ApacheRewriteDriverFactory : public RewriteDriverFactory {
  public:
-  static const char kMemcached[];
-
   ApacheRewriteDriverFactory(server_rec* server, const StringPiece& version);
   virtual ~ApacheRewriteDriverFactory();
 
@@ -113,16 +109,10 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
 
   SlowWorker* slow_worker() { return slow_worker_.get(); }
 
-  // Build global shared-memory statistics.  This is invoked if at least
-  // one server context (global or VirtualHost) enables statistics.
-  Statistics* MakeGlobalSharedMemStatistics(bool logging,
-                                            int64 logging_interval_ms,
-                                            const GoogleString& logging_file);
-
-  // Creates and ::Initializes a shared memory statistics object.
-  SharedMemStatistics* AllocateAndInitSharedMemStatistics(
-      const StringPiece& name, const bool logging,
-      const int64 logging_interval_ms, const GoogleString& logging_file);
+  // Build shared-memory statistics.  This is invoked only if at least
+  // one VirtualHost enables statistics, in which case the shared-mem
+  // statistics is used for VirtualHosts.
+  Statistics* MakeSharedMemStatistics();
 
   ApacheResourceManager* MakeApacheResourceManager(server_rec* server);
 
@@ -130,24 +120,10 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // accept-encoding:gzip, even when used in a context when we want
   // cleartext.  We'll decompress as we read the content if needed.
   void set_fetch_with_gzip(bool x) { fetch_with_gzip_ = x; }
-  bool fetch_with_gzip() const { return fetch_with_gzip_; }
-
-  // Tracks the size of resources fetched from origin and populates the
-  // X-Original-Content-Length header for resources derived from them.
-  void set_track_original_content_length(bool x) {
-    track_original_content_length_ = x;
-  }
-  bool track_original_content_length() const {
-    return track_original_content_length_;
-  }
 
   void set_num_rewrite_threads(int x) { num_rewrite_threads_ = x; }
-  int num_rewrite_threads() const { return num_rewrite_threads_; }
   void set_num_expensive_rewrite_threads(int x) {
     num_expensive_rewrite_threads_ = x;
-  }
-  int num_expensive_rewrite_threads() const {
-    return num_expensive_rewrite_threads_;
   }
 
   void set_message_buffer_size(int x) {
@@ -160,31 +136,6 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // which case this should be turned on.
   void list_outstanding_urls_on_error(bool x) {
     list_outstanding_urls_on_error_ = x;
-  }
-
-  bool use_per_vhost_statistics() const {
-    return use_per_vhost_statistics_;
-  }
-
-  void set_use_per_vhost_statistics(bool x) {
-    use_per_vhost_statistics_ = x;
-  }
-
-  bool enable_property_cache() const {
-    return enable_property_cache_;
-  }
-
-  void set_enable_property_cache(bool x) {
-    enable_property_cache_ = x;
-  }
-
-  // If true, virtual hosts should inherit global configuration.
-  bool inherit_vhost_config() const {
-    return inherit_vhost_config_;
-  }
-
-  void set_inherit_vhost_config(bool x) {
-    inherit_vhost_config_ = x;
   }
 
   bool disable_loopback_routing() const {
@@ -201,27 +152,13 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // size, cleanup interval, etc.) are consistent.
   ApacheCache* GetCache(ApacheConfig* config);
 
-  // Makes a memcached-based cache if the configuration contains a
-  // memcached server specification.  The l2_cache passed in is used
-  // to handle puts/gets for huge (>1M) values.  NULL is returned if
-  // memcached is not specified for this server.
-  //
-  // If a non-null CacheInterface* is returned, its ownership is transferred
-  // to the caller and must be freed on destruction.
-  CacheInterface* GetMemcached(ApacheConfig* config, CacheInterface* l2_cache);
-
-  // Stops any further Gets from occuring in the Async cache.  This is used to
-  // help wind down activity during a shutdown.
-  void StopAsyncGets();
-
   // Finds a fetcher for the settings in this config, sharing with
   // existing fetchers if possible, otherwise making a new one (and
   // its required thread).
-  UrlAsyncFetcher* GetFetcher(ApacheConfig* config);
+  UrlPollableAsyncFetcher* GetFetcher(ApacheConfig* config);
 
-  // As above, but just gets a Serf fetcher --- not a slurp fetcher or a rate
-  // limiting one, etc.
-  SerfUrlAsyncFetcher* GetSerfFetcher(ApacheConfig* config);
+  // Accumulate in a histogram the amount of time spent rewriting HTML.
+  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
 
   // Notification of apache tearing down a context (vhost or top-level)
   // corresponding to given ApacheResourceManager. Returns true if it was
@@ -239,32 +176,24 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // Initializes all the statistics objects created transitively by
   // ApacheRewriteDriverFactory, including apache-specific and
   // platform-independent statistics.
-  static void InitStats(Statistics* statistics);
-  static void Initialize();
-  static void Terminate();
+  static void Initialize(Statistics* statistics);
 
-  // Print out details of all the connections to memcached servers.
-  void PrintMemCacheStats(GoogleString* out);
-
-  // If needed, sets session fetchers on the driver to do the following:
-  // a) Adds custom headers when configured in RewriteOptions.
-  // b) Route requests directly to this very server when they are not
-  //    configured to be external.
-  void ApplySessionFetchers(ApacheResourceManager* manager,
+  // Sets a session fetcher on the driver that routes requests directly to this
+  // very server when they are not configured to be external.
+  void ApplyLoopbackFetchRouting(ApacheResourceManager* manager,
                                  RewriteDriver* driver,
                                  request_rec* req);
 
  protected:
   virtual UrlFetcher* DefaultUrlFetcher();
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
-  virtual void StopCacheActivity();
 
   // Provide defaults.
   virtual MessageHandler* DefaultHtmlParseMessageHandler();
   virtual MessageHandler* DefaultMessageHandler();
   virtual FileSystem* DefaultFileSystem();
   virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* resource_manager);
+  virtual CacheInterface* DefaultCacheInterface();
   virtual NamedLockManager* DefaultLockManager();
   virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolName name);
 
@@ -303,12 +232,11 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // some other struct, which would keep them distinct from the rest of the
   // state.  Note also that some of the options are in the base class,
   // RewriteDriverFactory, so we'd have to sort out how that worked.
-  GoogleString version_;
+  std::string version_;
 
   bool statistics_frozen_;
   bool is_root_process_;
   bool fetch_with_gzip_;
-  bool track_original_content_length_;
   bool list_outstanding_urls_on_error_;
 
   scoped_ptr<SharedMemRefererStatistics> shared_mem_referer_statistics_;
@@ -339,16 +267,7 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   typedef std::set<ApacheResourceManager*> ApacheResourceManagerSet;
   ApacheResourceManagerSet uninitialized_managers_;
 
-  // If true, we'll have a separate statistics object for each vhost
-  // (along with a global aggregate), rather than just a single object
-  // aggregating all of them.
-  bool use_per_vhost_statistics_;
-
-  // Enable the property cache.
-  bool enable_property_cache_;
-
-  // Inherit configuration from global context into vhosts.
-  bool inherit_vhost_config_;
+  Histogram* html_rewrite_time_us_histogram_;
 
   // If false (default) we will redirect all fetches to unknown hosts to
   // localhost.
@@ -365,46 +284,16 @@ class ApacheRewriteDriverFactory : public RewriteDriverFactory {
   // /mod_pagespeed_messages.
   int message_buffer_size_;
 
-  // File-Caches are expensive.  Just allocate one per distinct file-cache path.
-  // At the moment there is no consistency checking for other parameters.  Note
-  // that the LRUCache is instantiated inside the ApacheCache, so we get a new
-  // LRUCache for each distinct file-cache path.  Also note that only the
-  // file-cache path is used as the key in this map.  Other parameters changed,
-  // such as lru cache size or file cache clean interval, are taken from the
-  // first file-cache found configured to one address.
-  //
-  // TODO(jmarantz): Consider instantiating one LRUCache per process.
+  // Caches are expensive.  Just allocate one per distinct file-cache path.
+  // At the moment there is no consistency checking for other parameters.
   typedef std::map<GoogleString, ApacheCache*> PathCacheMap;
   PathCacheMap path_cache_map_;
-
-  // memcache connections are expensive.  Just allocate one per
-  // distinct server-list.  At the moment there is no consistency
-  // checking for other parameters.  Note that each memcached
-  // interface share the thread allocation, based on the
-  // ModPagespeedMemcachedThreads settings first encountered for
-  // a particular server-set.
-  //
-  // The QueuedWorkerPool for async cache-gets is shared among all
-  // memcached connections.
-  //
-  // The CacheInterface* value in the MemcacheMap now includes,
-  // depending on options, instances of CacheBatcher, AsyncCache,
-  // and CacheStats.  Explicit lists of AprMemCache instances and
-  // AsyncCache objects are also included, as they require extra
-  // treatment during startup and shutdown.
-  typedef std::map<GoogleString, CacheInterface*> MemcachedMap;
-  MemcachedMap memcached_map_;
-  scoped_ptr<QueuedWorkerPool> memcached_pool_;
-  std::vector<AprMemCache*> memcache_servers_;
-  std::vector<AsyncCache*> async_caches_;
 
   // Serf fetchers are expensive -- they each cost a thread. Allocate
   // one for each proxy/slurp-setting.  Currently there is no
   // consistency checking for fetcher timeout.
-  typedef std::map<GoogleString, UrlAsyncFetcher*> FetcherMap;
+  typedef std::map<GoogleString, UrlPollableAsyncFetcher*> FetcherMap;
   FetcherMap fetcher_map_;
-  typedef std::map<GoogleString, SerfUrlAsyncFetcher*> SerfFetcherMap;
-  SerfFetcherMap serf_fetcher_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheRewriteDriverFactory);
 };

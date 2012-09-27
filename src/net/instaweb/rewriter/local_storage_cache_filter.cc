@@ -26,7 +26,7 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/escaping.h"
@@ -90,17 +90,17 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
   if (is_img || is_link) {
     const char* url = element->AttributeValue(HtmlName::kPagespeedLscUrl);
     if (url != NULL) {
-      GoogleString hash = driver_->server_context()->hasher()->Hash(url);
+      GoogleString hash = driver_->resource_manager()->hasher()->Hash(url);
       if (IsHashInCookie(driver_, kLscCookieName, hash, &cookie_hashes_)) {
         StringPiece given_url(url);
         GoogleUrl abs_url(base_url(), given_url);
         StringPiece lsc_url(abs_url.is_valid() ? abs_url.Spec() : given_url);
-        GoogleString snippet("pagespeed.localStorageCache.");
+        GoogleString snippet;
         if (is_img) {
-          StrAppend(&snippet, "inlineImg(\"", lsc_url, "\"",
-                    ExtractOtherImgAttributes(element), ");");
+          snippet = StrCat("pagespeed.inlineImg(\"", lsc_url, "\"",
+                           ExtractOtherImgAttributes(element), ");");
         } else /* is_link */ {
-          StrAppend(&snippet, "inlineCss(\"", lsc_url, "\");");
+          snippet = StrCat("pagespeed.inlineCss(\"", lsc_url, "\");");
         }
         HtmlElement* script_element =
             driver_->NewElement(element->parent(), HtmlName::kScript);
@@ -118,7 +118,7 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
 
 void LocalStorageCacheFilter::InsertOurScriptElement(HtmlElement* before) {
   StaticJavascriptManager* static_js_manager =
-      driver_->server_context()->static_javascript_manager();
+      driver_->resource_manager()->static_javascript_manager();
   StringPiece local_storage_cache_js =
       static_js_manager->GetJsSnippet(
           StaticJavascriptManager::kLocalStorageCacheJs, driver_->options());
@@ -170,7 +170,7 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
       LocalStorageCacheFilter* lsc =
           static_cast<LocalStorageCacheFilter*>(filter);
       GoogleString hash =
-          driver->server_context()->hasher()->Hash(state->url_);
+          driver->resource_manager()->hasher()->Hash(state->url_);
       add_the_attr = IsHashInCookie(driver, kLscCookieName, hash,
                                     lsc->mutable_cookie_hashes());
     }
@@ -196,7 +196,7 @@ bool LocalStorageCacheFilter::AddLscAttributes(const StringPiece url,
 
   GoogleUrl gurl(driver->base_url(), url);
   StringPiece lsc_url(gurl.is_valid() ? gurl.Spec() : url);
-  GoogleString hash = driver->server_context()->hasher()->Hash(lsc_url);
+  GoogleString hash = driver->resource_manager()->hasher()->Hash(lsc_url);
   if (!has_url) {
     driver->AddAttribute(element, HtmlName::kPagespeedLscUrl, lsc_url);
   }
@@ -267,10 +267,8 @@ GoogleString LocalStorageCacheFilter::ExtractOtherImgAttributes(
   // pagespeed_no_defer
   // src
   GoogleString result;
-  const HtmlElement::AttributeList& attrs = element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
-    const HtmlElement::Attribute& attr = *i;
+  for (int i = 0, n = element->attribute_size(); i < n; ++i) {
+    const HtmlElement::Attribute& attr = element->attribute(i);
     HtmlName::Keyword keyword = attr.keyword();
     if (keyword != HtmlName::kPagespeedLscUrl &&
         keyword != HtmlName::kPagespeedLscHash &&

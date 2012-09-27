@@ -19,11 +19,9 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -45,10 +43,10 @@ const char kTo2BDomain[] = "http://to2b.test.com/";
 
 namespace net_instaweb {
 
-class DomainRewriteFilterTest : public RewriteTestBase {
+class DomainRewriteFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->Disallow("*dont_shard*");
     DomainLawyer* lawyer = options()->domain_lawyer();
     lawyer->AddRewriteDomainMapping(kTo1Domain, kFrom1Domain,
@@ -182,39 +180,6 @@ TEST_F(DomainRewriteFilterTest, RewriteRedirectLocations) {
   ValidateNoChanges("headers", "");
   EXPECT_EQ(StrCat(kTo1Domain, "redirect"),
             headers.Lookup1(HttpAttributes::kLocation));
-}
-
-TEST_F(DomainRewriteFilterTest, NoClientDomainRewrite) {
-  options()->ClearSignatureForTesting();
-  options()->set_domain_rewrite_hyperlinks(true);
-  options()->set_client_domain_rewrite(true);
-  ValidateNoChanges("client domain rewrite", "<html><body></body></html>");
-}
-
-TEST_F(DomainRewriteFilterTest, ClientDomainRewrite) {
-  options()->ClearSignatureForTesting();
-  options()->domain_lawyer()->AddRewriteDomainMapping(
-      kHtmlDomain, "http://clientrewrite.com/", &message_handler_);
-  options()->set_domain_rewrite_hyperlinks(true);
-  options()->set_client_domain_rewrite(true);
-  StringPiece client_domain_rewriter_code =
-      server_context_->static_javascript_manager()->GetJsSnippet(
-          StaticJavascriptManager::kClientDomainRewriter, options());
-
-  SetupWriter();
-  html_parse()->StartParse("http://test.com/");
-  html_parse()->ParseText("<html><body>");
-  html_parse()->Flush();
-  html_parse()->ParseText("</body></html>");
-  html_parse()->FinishParse();
-
-  EXPECT_EQ(StrCat("<html><body>",
-                   "<script type=\"text/javascript\">",
-                   client_domain_rewriter_code,
-                   "pagespeed.clientDomainRewriterInit("
-                   "[\"http://clientrewrite.com/\"]);</script>",
-                   "</body></html>"),
-            output_buffer_);
 }
 
 }  // namespace net_instaweb

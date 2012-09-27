@@ -19,16 +19,13 @@
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -48,11 +45,13 @@ namespace net_instaweb {
 DomainRewriteFilter::DomainRewriteFilter(RewriteDriver* rewrite_driver,
                                          Statistics *stats)
     : CommonFilter(rewrite_driver),
+      tag_scanner_(rewrite_driver),
       rewrite_count_(stats->GetVariable(kDomainRewrites)) {}
 
 void DomainRewriteFilter::StartDocumentImpl() {
-  client_domain_rewriter_script_written_ = false;
   bool rewrite_hyperlinks = driver_->options()->domain_rewrite_hyperlinks();
+  tag_scanner_.set_find_a_tags(rewrite_hyperlinks);
+  tag_scanner_.set_find_form_tags(rewrite_hyperlinks);
 
   if (rewrite_hyperlinks) {
     // TODO(nikhilmadan): Rewrite the domain for cookies.
@@ -72,36 +71,29 @@ void DomainRewriteFilter::StartDocumentImpl() {
 
 DomainRewriteFilter::~DomainRewriteFilter() {}
 
-void DomainRewriteFilter::InitStats(Statistics* statistics) {
+void DomainRewriteFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kDomainRewrites);
 }
 
 void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
-  semantic_type::Category category;
-  HtmlElement::Attribute* href = resource_tag_scanner::ScanElement(
-      element, driver_, &category);
-
-  // Disable domain_rewrite for non-image, non-script, non-stylesheet urls
-  // unless ModPagespeedDomainRewriteHyperlinks is on
-  if (category != semantic_type::kImage &&
-      category != semantic_type::kScript &&
-      category != semantic_type::kStylesheet &&
-      !driver_->options()->domain_rewrite_hyperlinks()) {
+  // Disable domain_rewrite for img if ModPagespeedDisableForBots is on
+  // and the user-agent is a bot.
+  if (element->keyword() == HtmlName::kImg &&
+      driver_->ShouldNotRewriteImages()) {
     return;
   }
-  if (href != NULL) {
-    StringPiece val(href->DecodedValueOrNull());
+  bool is_hyperlink;
+  HtmlElement::Attribute* attr = tag_scanner_.ScanElement(
+      element, &is_hyperlink);
+  if (attr != NULL) {
+    StringPiece val(attr->DecodedValueOrNull());
     GoogleString rewritten_val;
-    // Don't shard hyperlinks, prefetch, embeds, frames, or iframes.
-    bool apply_sharding = (category != semantic_type::kHyperlink &&
-                           category != semantic_type::kPrefetch &&
-                           element->keyword() != HtmlName::kEmbed &&
-                           element->keyword() != HtmlName::kFrame &&
-                           element->keyword() != HtmlName::kIframe);
-    if (!val.empty() && BaseUrlIsValid() &&
+    bool apply_sharding = !is_hyperlink;
+    if (!val.empty() &&
+        BaseUrlIsValid() &&
         (Rewrite(val, driver_->base_url(), apply_sharding, &rewritten_val) ==
          kRewroteDomain)) {
-      href->SetValue(rewritten_val);
+      attr->SetValue(rewritten_val);
       rewrite_count_->Add(1);
     }
   }
@@ -137,7 +129,7 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
 
   if (!options->IsAllowed(orig_spec) ||
       // Don't rewrite a domain from an already-rewritten resource.
-      server_context_->IsPagespeedResource(orig_url)) {
+      resource_manager_->IsPagespeedResource(orig_url)) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
     orig_url.Spec().CopyToString(rewritten_url);
@@ -180,43 +172,6 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
     return kDomainUnchanged;
   } else {
     return kRewroteDomain;
-  }
-}
-
-void DomainRewriteFilter::EndElementImpl(HtmlElement* element) {
-  if (driver_->options()->client_domain_rewrite() &&
-      (element->keyword() == HtmlName::kBody &&
-      !client_domain_rewriter_script_written_)) {
-    const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
-    ConstStringStarVector from_domains;
-    lawyer->FindDomainsRewrittenTo(driver_->base_url(), &from_domains);
-
-    if (from_domains.empty()) {
-      return;
-    }
-
-    GoogleString comma_separated_from_domains;
-    for (int i = 0, n = from_domains.size(); i < n; i++) {
-      StrAppend(&comma_separated_from_domains, "\"", *(from_domains[i]), "\"");
-      if (i != n - 1) {
-        StrAppend(&comma_separated_from_domains, ",");
-      }
-    }
-
-    HtmlElement* script_node =driver_->NewElement(element, HtmlName::kScript);
-    driver_->AddAttribute(script_node, HtmlName::kType, "text/javascript");
-    StaticJavascriptManager* js_manager =
-        driver_->server_context()->static_javascript_manager();
-    GoogleString js = StrCat(
-        js_manager->GetJsSnippet(
-            StaticJavascriptManager::kClientDomainRewriter, driver_->options()),
-            "pagespeed.clientDomainRewriterInit([",
-            comma_separated_from_domains, "]);");
-    HtmlCharactersNode* script_content = driver_->NewCharactersNode(
-        script_node, js);
-    driver_->AppendChild(element, script_node);
-    driver_->AppendChild(script_node, script_content);
-    client_domain_rewriter_script_written_ = true;
   }
 }
 

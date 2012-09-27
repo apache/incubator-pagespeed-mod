@@ -29,7 +29,7 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
@@ -43,16 +43,14 @@
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/url_escaper.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
-#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
-
 
 namespace net_instaweb {
 
 ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
                                    const StringPiece& extension,
                                    RewriteFilter* filter)
-    : server_context_(driver->server_context()),
+    : resource_manager_(driver->resource_manager()),
       rewrite_driver_(driver),
       partnership_(driver),
       prev_num_components_(0),
@@ -68,9 +66,9 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
                     extension.size()),
       filter_(filter) {
   // This CHECK is here because RewriteDriver is constructed with its
-  // server_context_ == NULL.
+  // resource_manager_ == NULL.
   // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
-  CHECK(server_context_ != NULL);
+  CHECK(resource_manager_ != NULL);
 }
 
 ResourceCombiner::~ResourceCombiner() {
@@ -118,12 +116,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
       AccumulateLeafSize(relative_path);
     }
 
-    AccumulateCombinedSize(resource);
-
     resources_.push_back(resource);
-    if (ContentSizeTooBig() || UrlTooBig()) {
-      // TODO(ksimbili) : Propagate the correct reason-string to the caller.
-      handler->Message(kInfo, "Cannot combine: contents/url size too big");
+    if (UrlTooBig()) {
+      handler->Message(kInfo, "Cannot combine: url too big");
       RemoveLastResource();
       added = false;
     }
@@ -153,7 +148,7 @@ GoogleString ResourceCombiner::UrlSafeId() const {
 void ResourceCombiner::ComputeLeafSize() {
   GoogleString segment = UrlSafeId();
   accumulated_leaf_size_ = segment.size() + url_overhead_
-      + server_context_->hasher()->HashSizeInChars();
+      + resource_manager_->hasher()->HashSizeInChars();
 }
 
 void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
@@ -249,7 +244,7 @@ bool ResourceCombiner::WriteCombination(
   if (written) {
     // TODO(morlovich): Fix combiners to deal with charsets.
     written =
-        server_context_->Write(
+        resource_manager_->Write(
             combine_resources, combined_contents, CombinationContentType(),
             StringPiece() /* not computing charset for now */,
             combination.get(), handler);

@@ -34,19 +34,17 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -148,13 +146,11 @@ class FreshenMetadataUpdateManager {
       // One of the resources changed. Delete the metadata.
       metadata_cache_->Delete(partition_key_);
     } else if (partitions_.get() != NULL) {
-      GoogleString buf;
-      {
-        StringOutputStream sstream(&buf);  // finalizes buf in destructor
-        partitions_->SerializeToZeroCopyStream(&sstream);
-      }
+      SharedString buf;
+      StringOutputStream sstream(buf.get());
+      partitions_->SerializeToZeroCopyStream(&sstream);
       // Write the updated partition info to the metadata cache.
-      metadata_cache_->PutSwappingString(partition_key_, &buf);
+      metadata_cache_->Put(partition_key_, &buf);
     }
     delete this;
   }
@@ -404,7 +400,7 @@ class RewriteContext::FetchContext {
       return;
     }
     RewriteDriver* driver = rewrite_context_->Driver();
-    Timer* timer = rewrite_context_->FindServerContext()->timer();
+    Timer* timer = rewrite_context_->Manager()->timer();
 
     // Startup an alarm which will cause us to return unrewritten content
     // rather than hold up the fetch too long on firing. We use a longer
@@ -439,7 +435,9 @@ class RewriteContext::FetchContext {
     handler_->Message(
         kInfo, "Deadline exceeded for rewrite of resource %s with %s.",
         input->url().c_str(), rewrite_context_->id());
-    FetchFallbackDoneImpl(input->contents(), input->response_headers());
+    bool absolutify_contents = true;
+    FetchFallbackDoneImpl(input->contents(), input->response_headers(),
+                          absolutify_contents);
   }
 
   // Note that the callback is called from the RewriteThread.
@@ -480,7 +478,7 @@ class RewriteContext::FetchContext {
       if (rewrite_context_->CanFetchFallbackToOriginal(kFallbackEmergency)) {
         ResourcePtr input_resource(rewrite_context_->slot(0)->resource());
         if (input_resource.get() != NULL && input_resource->HttpStatusOk()) {
-          handler_->Message(kWarning, "Rewrite %s failed while fetching %s",
+          handler_->Message(kError, "Rewrite %s failed while fetching %s",
                             input_resource->url().c_str(),
                             output_resource_->UrlEvenIfHashNotSet().c_str());
           // TODO(sligocki): Log variable for number of failed rewrites in
@@ -498,7 +496,7 @@ class RewriteContext::FetchContext {
               input_resource->contents(), async_fetch_, handler_);
         } else {
           GoogleString url = input_resource->url();
-          handler_->Warning(
+          handler_->Error(
               output_resource_->name().as_string().c_str(), 0,
               "Resource based on %s but cannot access the original",
               url.c_str());
@@ -527,21 +525,29 @@ class RewriteContext::FetchContext {
       return;
     }
 
-    FetchFallbackDoneImpl(contents, headers);
+    bool absolutify_contents = false;
+    FetchFallbackDoneImpl(contents, headers, absolutify_contents);
   }
 
   // Backend for FetchFallbackCacheDone, but can be also invoked
   // for main rewrite when background rewrite is detached.
   void FetchFallbackDoneImpl(const StringPiece& contents,
-                             const ResponseHeaders* headers) {
+                             const ResponseHeaders* headers,
+                             bool absolutify_contents) {
     async_fetch_->response_headers()->CopyFrom(*headers);
     rewrite_context_->FixFetchFallbackHeaders(async_fetch_->response_headers());
     // Use the most conservative Cache-Control considering all inputs.
     ApplyInputCacheControl(async_fetch_->response_headers());
     async_fetch_->HeadersComplete();
 
-    bool ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
-                                                   handler_);
+    bool ok;
+    if (absolutify_contents) {
+      ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
+                                                handler_);
+    } else {
+      ok = async_fetch_->Write(contents, handler_);
+    }
+
     rewrite_context_->FetchCallbackDone(ok);
   }
 
@@ -565,8 +571,7 @@ class RewriteContext::FetchContext {
       inputs.push_back(rewrite_context_->slot(i)->resource());
     }
 
-    rewrite_context_->FindServerContext()->ApplyInputCacheControl(inputs,
-                                                                  headers);
+    rewrite_context_->Manager()->ApplyInputCacheControl(inputs, headers);
   }
 
   RewriteContext* rewrite_context_;
@@ -595,16 +600,14 @@ class RewriteContext::InvokeRewriteFunction : public Function {
   virtual ~InvokeRewriteFunction() {}
 
   virtual void Run() {
-    context_->FindServerContext()->rewrite_stats()->num_rewrites_executed()
-        ->IncBy(1);
+    context_->Manager()->rewrite_stats()->num_rewrites_executed()->IncBy(1);
     context_->Rewrite(partition_,
                       context_->partitions_->mutable_partition(partition_),
                       output_);
   }
 
   virtual void Cancel() {
-    context_->FindServerContext()->rewrite_stats()->num_rewrites_dropped()
-        ->IncBy(1);
+    context_->Manager()->rewrite_stats()->num_rewrites_dropped()->IncBy(1);
     context_->RewriteDone(kTooBusy, partition_);
   }
 
@@ -723,7 +726,7 @@ void RewriteContext::Start() {
   // Note that the output_key_name is not necessarily the same as the
   // name of the output.
   // Write partition to metadata cache.
-  CacheInterface* metadata_cache = FindServerContext()->metadata_cache();
+  CacheInterface* metadata_cache = Manager()->metadata_cache();
   SetPartitionKey();
 
   // See if some other handler already had to do an identical rewrite.
@@ -772,28 +775,6 @@ GoogleString HashSplit(const Hasher* hasher, const StringPiece& str) {
   return StrCat(hash.substr(0, 1), "/", hash.substr(1));
 }
 
-// Utility to log metadata cache lookup info.
-// This executes in driver's rewrite thread, i.e., all calls to this are from
-// Functions added to the same QueuedWorkedPool::Sequence and so none of the
-// calls will be concurrent.
-void LogMetadataCacheInfo(
-    bool cache_ok, bool can_revalidate, RewriteDriver* driver) {
-  LogRecord* log_record = driver->log_record();
-  if (log_record == NULL) {
-    return;
-  }
-  MetadataCacheInfo* metadata_log_info =
-      log_record->logging_info()->mutable_metadata_cache_info();
-  if (cache_ok) {
-    metadata_log_info->set_num_hits(metadata_log_info->num_hits() + 1);
-  } else if (can_revalidate) {
-    metadata_log_info->set_num_revalidates(
-        metadata_log_info->num_revalidates() + 1);
-  } else {
-    metadata_log_info->set_num_misses(metadata_log_info->num_misses() + 1);
-  }
-}
-
 }  // namespace
 
 void RewriteContext::SetPartitionKey() {
@@ -819,7 +800,7 @@ void RewriteContext::SetPartitionKey() {
   // hierarchies if possible.  So we use a dummy URL of "" in our
   // url-list for now.
   StringVector urls;
-  const Hasher* hasher = FindServerContext()->lock_hasher();
+  const Hasher* hasher = Manager()->lock_hasher();
   GoogleString url;
   GoogleString signature = hasher->Hash(Options()->signature());
   GoogleString suffix = CacheKeySuffix();
@@ -861,7 +842,7 @@ void RewriteContext::SetPartitionKey() {
     url = HashSplit(hasher, url);
   }
 
-  partition_key_ = StrCat(ServerContext::kCacheKeyResourceNamePrefix,
+  partition_key_ = StrCat(ResourceManager::kCacheKeyResourceNamePrefix,
                           id(), "_", signature, "/",
                           url, "@", suffix);
 }
@@ -905,7 +886,7 @@ bool RewriteContext::IsOtherDependencyValid(
 }
 
 void RewriteContext::AddRecheckDependency() {
-  int64 now_ms = FindServerContext()->timer()->NowMs();
+  int64 now_ms = Manager()->timer()->NowMs();
   InputInfo* force_recheck = partitions_->add_other_dependency();
   force_recheck->set_type(InputInfo::CACHED);
   force_recheck->set_expiration_time_ms(
@@ -921,7 +902,7 @@ bool RewriteContext::IsInputValid(const InputInfo& input_info) {
         return false;
       }
       int64 ttl_ms = input_info.expiration_time_ms() -
-          FindServerContext()->timer()->NowMs();
+          Manager()->timer()->NowMs();
       if (ttl_ms > 0) {
         return true;
       } else if (ttl_ms + Options()->metadata_cache_staleness_threshold_ms()
@@ -940,9 +921,8 @@ bool RewriteContext::IsInputValid(const InputInfo& input_info) {
         return false;
       }
       int64 mtime_sec;
-      FindServerContext()->file_system()->Mtime(
-          input_info.filename(), &mtime_sec,
-          FindServerContext()->message_handler());
+      Manager()->file_system()->Mtime(input_info.filename(), &mtime_sec,
+                                      Manager()->message_handler());
       return (mtime_sec * Timer::kSecondMs ==
                 input_info.last_modified_time_ms());
     }
@@ -959,15 +939,15 @@ bool RewriteContext::TryDecodeCacheResult(CacheInterface::KeyState state,
                                           bool* can_revalidate,
                                           InputInfoStarVector* revalidate) {
   if (state != CacheInterface::kAvailable) {
-    FindServerContext()->rewrite_stats()->cached_output_misses()->Add(1);
+    Manager()->rewrite_stats()->cached_output_misses()->Add(1);
     *can_revalidate = false;
     return false;
   }
 
   // We've got a hit on the output metadata; the contents should
   // be a protobuf.  Try to parse it.
-  StringPiece val_str = value.Value();
-  ArrayInputStream input(val_str.data(), val_str.size());
+  const GoogleString* val_str = value.get();
+  ArrayInputStream input(val_str->data(), val_str->size());
   if (partitions_->ParseFromZeroCopyStream(&input) &&
       IsOtherDependencyValid(partitions_.get())) {
     bool ok = true;
@@ -1001,7 +981,6 @@ void RewriteContext::OutputCacheDone(CacheInterface::KeyState state,
   bool cache_ok, can_revalidate;
   InputInfoStarVector revalidate;
   cache_ok = TryDecodeCacheResult(state, value, &can_revalidate, &revalidate);
-  LogMetadataCacheInfo(cache_ok, can_revalidate, Driver());
   // If OK or worth rechecking, set things up for the cache hit case.
   if (cache_ok || can_revalidate) {
     for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
@@ -1044,7 +1023,7 @@ void RewriteContext::OutputCacheHit(bool write_partitions) {
 void RewriteContext::OutputCacheMiss() {
   outputs_.clear();
   partitions_->Clear();
-  if (FindServerContext()->TryLockForCreation(Lock())) {
+  if (Manager()->TryLockForCreation(Lock())) {
     FetchInputs();
   } else {
     // TODO(jmarantz): bump stat for abandoned rewrites due to lock contention.
@@ -1061,7 +1040,7 @@ void RewriteContext::OutputCacheRevalidate(
   for (int i = 0, n = to_revalidate.size(); i < n; ++i) {
     InputInfo* input_info = to_revalidate[i];
     ResourcePtr resource = slots_[input_info->index()]->resource();
-    FindServerContext()->ReadAsync(
+    Manager()->ReadAsync(
         Resource::kReportFailureIfNotCacheable,
         new ResourceRevalidateCallback(this, resource, input_info));
   }
@@ -1117,7 +1096,7 @@ NamedLock* RewriteContext::Lock() {
     // single-resource rewriters, we really only need one of these locks.  So
     // figure out which one we'll go with and use that.
     GoogleString lock_name = StrCat(kRewriteContextLockPrefix, partition_key_);
-    result = FindServerContext()->MakeCreationLock(lock_name);
+    result = Manager()->MakeCreationLock(lock_name);
     lock_.reset(result);
   }
   return result;
@@ -1139,7 +1118,7 @@ void RewriteContext::FetchInputs() {
       // resource object (e.g. if we got a metadata hit on the previous step).
       bool handled_internally = false;
       GoogleUrl resource_gurl(resource->url());
-      if (FindServerContext()->IsPagespeedResource(resource_gurl)) {
+      if (Manager()->IsPagespeedResource(resource_gurl)) {
         RewriteDriver* nested_driver = Driver()->Clone();
         RewriteFilter* filter = NULL;
         // We grab the filter now (and not just call DecodeOutputResource
@@ -1159,7 +1138,7 @@ void RewriteContext::FetchInputs() {
           // resource object in the callback.
           nested_driver->FetchResource(resource->url(), callback);
         } else {
-          FindServerContext()->ReleaseRewriteDriver(nested_driver);
+          Manager()->ReleaseRewriteDriver(nested_driver);
         }
       }
 
@@ -1175,7 +1154,7 @@ void RewriteContext::FetchInputs() {
             noncache_policy = Resource::kLoadEvenIfNotCacheable;
           }
         }
-        FindServerContext()->ReadAsync(noncache_policy,
+        Manager()->ReadAsync(noncache_policy,
                              new ResourceFetchCallback(this, resource, i));
       }
     }
@@ -1290,11 +1269,11 @@ void RewriteContext::PartitionDone(bool result) {
 }
 
 void RewriteContext::WritePartition() {
-  ServerContext* manager = FindServerContext();
+  ResourceManager* manager = Manager();
   if (ok_to_write_output_partitions_ &&
       !manager->metadata_cache_readonly()) {
     CacheInterface* metadata_cache = manager->metadata_cache();
-    GoogleString buf;
+    SharedString buf;
     {
 #ifndef NDEBUG
       for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
@@ -1306,10 +1285,11 @@ void RewriteContext::WritePartition() {
       }
 #endif
 
-      StringOutputStream sstream(&buf);  // finalizes buf in destructor
+      StringOutputStream sstream(buf.get());
       partitions_->SerializeToZeroCopyStream(&sstream);
+      // destructor of sstream prepares *buf.get()
     }
-    metadata_cache->PutSwappingString(partition_key_, &buf);
+    metadata_cache->Put(partition_key_, &buf);
   } else {
     // TODO(jmarantz): if our rewrite failed due to lock contention or
     // being too busy, then cancel all successors.
@@ -1628,7 +1608,7 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
   ResourceNamer namer;
   if (gurl.is_valid() && namer.Decode(gurl.LeafWithQuery())) {
     output_resource->reset(
-        new OutputResource(FindServerContext(),
+        new OutputResource(Manager(),
                            gurl.AllExceptLeaf() /* resolved_base */,
                            gurl.AllExceptLeaf() /* unmapped_base */,
                            Driver()->base_url().Origin() /* original_base */,
@@ -1661,8 +1641,8 @@ void RewriteContext::CrossThreadPartitionDone(bool result) {
 void RewriteContext::Freshen() {
   FreshenMetadataUpdateManager* freshen_manager =
       new FreshenMetadataUpdateManager(
-          partition_key_, FindServerContext()->metadata_cache(),
-          FindServerContext()->thread_system()->NewMutex());
+          partition_key_, Manager()->metadata_cache(),
+          Manager()->thread_system()->NewMutex());
   for (int j = 0, n = partitions_->partition_size(); j < n; ++j) {
     const CachedResult& partition = partitions_->partition(j);
     for (int i = 0, m = partition.input_size(); i < m; ++i) {
@@ -1673,7 +1653,7 @@ void RewriteContext::Freshen() {
            input_info.has_date_ms() &&
            input_info.has_index())) {
         ResourcePtr resource(slots_[input_info.index()]->resource());
-        if (stale_rewrite_|| FindServerContext()->IsImminentlyExpiring(
+        if (stale_rewrite_|| Manager()->IsImminentlyExpiring(
             input_info.date_ms(), input_info.expiration_time_ms())) {
           RewriteFreshenCallback* callback = NULL;
           if (input_info.has_input_content_hash()) {
@@ -1684,7 +1664,7 @@ void RewriteContext::Freshen() {
           // TODO(nikhilmadan): We don't actually update the metadata when the
           // InputInfo does not contain an input_content_hash. However, we still
           // re-fetch the original resource and update the HTTPCache.
-          resource->Freshen(callback, FindServerContext()->message_handler());
+          resource->Freshen(callback, Manager()->message_handler());
         }
       }
     }
@@ -1739,7 +1719,7 @@ bool RewriteContext::DecodeFetchUrls(
       if (check_for_multiple_rewrites) {
         scoped_ptr<GoogleUrl> orig_based_url(
             new GoogleUrl(original_base, urls[i]));
-        if (FindServerContext()->IsPagespeedResource(*orig_based_url.get())) {
+        if (Manager()->IsPagespeedResource(*orig_based_url.get())) {
           url = orig_based_url.release();
         }
       }
@@ -1771,16 +1751,6 @@ bool RewriteContext::Fetch(
         is_valid = false;
         break;
       }
-
-      if (!FindServerContext()->url_namer()->ProxyMode() &&
-          !driver->MatchesBaseUrl(*url)) {
-        // Reject absolute url references unless we're proxying.
-        is_valid = false;
-        message_handler->Message(kError, "Rejected absolute url reference %s",
-                                 url->spec_c_str());
-        break;
-      }
-
       ResourcePtr resource(driver->CreateInputResource(*url));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
@@ -1825,10 +1795,8 @@ void RewriteContext::FetchCacheDone(
   // so these two are ignored.
   bool can_revalidate = false;
   InputInfoStarVector revalidate;
-  bool cache_ok = TryDecodeCacheResult(
-      state, value, &can_revalidate, &revalidate);
-  LogMetadataCacheInfo(cache_ok, can_revalidate, Driver());
-  if (cache_ok && (num_output_partitions() == 1)) {
+  if (TryDecodeCacheResult(state, value, &can_revalidate, &revalidate) &&
+      (num_output_partitions() == 1)) {
     CachedResult* result = output_partition(0);
     OutputResourcePtr output_resource;
     if (result->optimizable() &&
@@ -1855,9 +1823,9 @@ void RewriteContext::FetchCacheDone(
 
 void RewriteContext::FetchTryFallback(const GoogleString& url,
                                       const StringPiece& hash) {
-  FindServerContext()->http_cache()->Find(
+  Manager()->http_cache()->Find(
       url,
-      FindServerContext()->message_handler(),
+      Manager()->message_handler(),
       new HTTPCacheCallback(
           this, &RewriteContext::FetchFallbackCacheDone));
 }
@@ -1908,7 +1876,7 @@ void RewriteContext::StartFetch() {
   } else {
     // Try to lookup metadata, as it may mark the result as non-optimizable
     // or point us to the right hash.
-    FindServerContext()->metadata_cache()->Get(
+    Manager()->metadata_cache()->Get(
         partition_key_,
         new OutputCacheCallback(this, &RewriteContext::FetchCacheDone));
   }
@@ -1918,7 +1886,7 @@ void RewriteContext::StartFetchReconstruction() {
   // Note that in case of fetches we continue even if we didn't manage to
   // take the lock.
   partitions_->Clear();
-  FindServerContext()->LockForCreation(
+  Manager()->LockForCreation(
       Lock(), Driver()->rewrite_worker(),
       MakeFunction(this, &RewriteContext::FetchInputs,
                    &RewriteContext::FetchInputs));
@@ -1938,11 +1906,11 @@ RewriteDriver* RewriteContext::Driver() const {
   return rc->driver_;
 }
 
-ServerContext* RewriteContext::FindServerContext() const {
-  return Driver()->server_context();
+ResourceManager* RewriteContext::Manager() const {
+  return Driver()->resource_manager();
 }
 
-const RewriteOptions* RewriteContext::Options() const {
+const RewriteOptions* RewriteContext::Options() {
   return Driver()->options();
 }
 

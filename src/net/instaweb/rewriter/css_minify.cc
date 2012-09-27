@@ -30,7 +30,6 @@
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/writer.h"
 #include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/property.h"
 #include "webutil/css/selector.h"
@@ -73,11 +72,11 @@ bool CssMinify::AbsolutifyImports(Css::Stylesheet* stylesheet,
   Css::Imports::const_iterator iter;
   for (iter = imports.begin(); iter != imports.end(); ++iter) {
     Css::Import* import = *iter;
-    StringPiece url(import->link().utf8_data(), import->link().utf8_length());
+    StringPiece url(import->link.utf8_data(), import->link.utf8_length());
     GoogleUrl gurl(base, url);
     if (gurl.is_valid() && gurl.Spec() != url) {
       url = gurl.Spec();
-      import->set_link(UTF8ToUnicodeText(url.data(), url.length()));
+      import->link.CopyUTF8(url.data(), url.length());
       result = true;
     }
   }
@@ -93,79 +92,58 @@ bool CssMinify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
   RewriteDomainTransformer transformer(&base, &base, driver);
   transformer.set_trim_urls(false);
   bool result = false;
-
-  // Absolutify URLs in unparseable selectors and declarations.
   Css::Rulesets& rulesets = stylesheet->mutable_rulesets();
   for (Css::Rulesets::iterator ruleset_iter = rulesets.begin();
        ruleset_iter != rulesets.end(); ++ruleset_iter) {
     Css::Ruleset* ruleset = *ruleset_iter;
-    // Check any unparseable sections for any URLs and absolutify as required.
+    // Check any unparseable selectors for any URLs and absolutify as required.
     if (handle_unparseable_sections) {
-      switch (ruleset->type()) {
-        case Css::Ruleset::RULESET: {
-          Css::Selectors& selectors(ruleset->mutable_selectors());
-          if (selectors.is_dummy()) {
-            StringPiece original_bytes = selectors.bytes_in_original_buffer();
-            GoogleString rewritten_bytes;
-            StringWriter writer(&rewritten_bytes);
-            if (CssTagScanner::TransformUrls(original_bytes, &writer,
-                                             &transformer, handler)) {
-              selectors.set_bytes_in_original_buffer(rewritten_bytes);
-              result = true;
-            }
-          }
-          break;
+      Css::Selectors& selectors(ruleset->mutable_selectors());
+      if (selectors.is_dummy()) {
+        StringPiece original_bytes = selectors.bytes_in_original_buffer();
+        GoogleString rewritten_bytes;
+        StringWriter writer(&rewritten_bytes);
+        if (CssTagScanner::TransformUrls(original_bytes, &writer,
+                                         &transformer, handler)) {
+          selectors.set_bytes_in_original_buffer(rewritten_bytes);
+          result = true;
         }
-        case Css::Ruleset::UNPARSED_REGION: {
-          Css::UnparsedRegion* unparsed = ruleset->mutable_unparsed_region();
-          StringPiece original_bytes = unparsed->bytes_in_original_buffer();
+      }
+    }
+    Css::Declarations& decls = ruleset->mutable_declarations();
+    for (Css::Declarations::iterator decl_iter = decls.begin();
+         decl_iter != decls.end(); ++decl_iter) {
+      Css::Declaration* decl = *decl_iter;
+      if (decl->prop() == Css::Property::UNPARSEABLE) {
+        if (handle_unparseable_sections) {
+          StringPiece original_bytes = decl->bytes_in_original_buffer();
           GoogleString rewritten_bytes;
           StringWriter writer(&rewritten_bytes);
           if (CssTagScanner::TransformUrls(original_bytes, &writer,
                                            &transformer, handler)) {
-            unparsed->set_bytes_in_original_buffer(rewritten_bytes);
             result = true;
+            decl->set_bytes_in_original_buffer(rewritten_bytes);
           }
-          break;
         }
-      }
-    }
-    if (ruleset->type() == Css::Ruleset::RULESET) {
-      Css::Declarations& decls = ruleset->mutable_declarations();
-      for (Css::Declarations::iterator decl_iter = decls.begin();
-           decl_iter != decls.end(); ++decl_iter) {
-        Css::Declaration* decl = *decl_iter;
-        if (decl->prop() == Css::Property::UNPARSEABLE) {
-          if (handle_unparseable_sections) {
-            StringPiece original_bytes = decl->bytes_in_original_buffer();
-            GoogleString rewritten_bytes;
-            StringWriter writer(&rewritten_bytes);
-            if (CssTagScanner::TransformUrls(original_bytes, &writer,
-                                             &transformer, handler)) {
-              result = true;
-              decl->set_bytes_in_original_buffer(rewritten_bytes);
-            }
-          }
-        } else if (handle_parseable_sections) {
-          // [cribbed from css_image_rewriter.cc]
-          // Rewrite all URLs.
-          // Note: We must rewrite all URLs. Not just ones from declarations
-          // we expect to have URLs.
-          Css::Values* values = decl->mutable_values();
-          for (size_t value_index = 0; value_index < values->size();
-               ++value_index) {
-            Css::Value* value = values->at(value_index);
-            if (value->GetLexicalUnitType() == Css::Value::URI) {
-              result = true;
-              GoogleString in = UnicodeTextToUTF8(value->GetStringValue());
-              GoogleString out;
-              transformer.Transform(in, &out);
-              if (in != out) {
-                delete (*values)[value_index];
-                (*values)[value_index] =
-                    new Css::Value(Css::Value::URI,
-                                   UTF8ToUnicodeText(out.data(), out.size()));
-              }
+      } else if (handle_parseable_sections) {
+        // [cribbed from css_image_rewriter.cc]
+        // Rewrite all URLs.
+        // Note: We must rewrite all URLs. Not just ones from declarations
+        // we expect to have URLs.
+        Css::Values* values = decl->mutable_values();
+        for (size_t value_index = 0; value_index < values->size();
+             ++value_index) {
+          Css::Value* value = values->at(value_index);
+          if (value->GetLexicalUnitType() == Css::Value::URI) {
+            result = true;
+            GoogleString in = UnicodeTextToUTF8(value->GetStringValue());
+            GoogleString out;
+            transformer.Transform(in, &out);
+            if (in != out) {
+              delete (*values)[value_index];
+              (*values)[value_index] =
+                  new Css::Value(Css::Value::URI,
+                                 UTF8ToUnicodeText(out.data(), out.size()));
             }
           }
         }
@@ -272,12 +250,23 @@ void CssMinify::JoinMinifyIter<Css::Rulesets::const_iterator>(
     Css::Rulesets::const_iterator first = iter;
     MinifyRulesetMediaStart(**first);
     MinifyRulesetIgnoringMedia(**first);
-    for (++iter; iter != end && Equals((*first)->media_queries(),
-                                       (*iter)->media_queries()); ++iter) {
+    for (++iter; iter != end && (*first)->media() == (*iter)->media(); ++iter) {
       Write(sep);
       MinifyRulesetIgnoringMedia(**iter);
     }
     MinifyRulesetMediaEnd(**first);
+  }
+}
+
+template<typename Container>
+void CssMinify::JoinMediaMinify(const Container& container,
+                                const StringPiece& sep) {
+  for (typename Container::const_iterator iter = container.begin();
+       iter != container.end(); ++iter) {
+    if (iter != container.begin()) {
+      Write(sep);
+    }
+    Write(CSSEscapeString(*iter));
   }
 }
 
@@ -307,69 +296,33 @@ void CssMinify::Minify(const Css::Charsets& charsets) {
 
 void CssMinify::Minify(const Css::Import& import) {
   Write("@import url(");
-  WriteURL(import.link());
+  WriteURL(import.link);
   Write(") ");
-  JoinMinify(import.media_queries(), ",");
+  JoinMediaMinify(import.media, ",");
   Write(";");
 }
 
-void CssMinify::Minify(const Css::MediaQuery& media_query) {
-  switch (media_query.qualifier()) {
-    case Css::MediaQuery::ONLY:
-      Write("only ");
-      break;
-    case Css::MediaQuery::NOT:
-      Write("not ");
-      break;
-    case Css::MediaQuery::NO_QUALIFIER:
-      break;
-  }
-
-  Write(CSSEscapeString(media_query.media_type()));
-  if (!media_query.media_type().empty() && !media_query.expressions().empty()) {
-    Write(" and ");
-  }
-  JoinMinify(media_query.expressions(), " and ");
-}
-
-void CssMinify::Minify(const Css::MediaExpression& expression) {
-  Write("(");
-  Write(CSSEscapeString(expression.name()));
-  if (expression.has_value()) {
-    Write(":");
-    Write(CSSEscapeString(expression.value()));
-  }
-  Write(")");
-}
-
 void CssMinify::MinifyRulesetIgnoringMedia(const Css::Ruleset& ruleset) {
-  switch (ruleset.type()) {
-    case Css::Ruleset::RULESET:
-      if (ruleset.selectors().is_dummy()) {
-        Write(ruleset.selectors().bytes_in_original_buffer());
-      } else {
-        JoinMinify(ruleset.selectors(), ",");
-      }
-      Write("{");
-      JoinMinify(ruleset.declarations(), ";");
-      Write("}");
-      break;
-    case Css::Ruleset::UNPARSED_REGION:
-      Minify(*ruleset.unparsed_region());
-      break;
+  if (ruleset.selectors().is_dummy()) {
+    Write(ruleset.selectors().bytes_in_original_buffer());
+  } else {
+    JoinMinify(ruleset.selectors(), ",");
   }
+  Write("{");
+  JoinMinify(ruleset.declarations(), ";");
+  Write("}");
 }
 
 void CssMinify::MinifyRulesetMediaStart(const Css::Ruleset& ruleset) {
-  if (!ruleset.media_queries().empty()) {
+  if (!ruleset.media().empty()) {
     Write("@media ");
-    JoinMinify(ruleset.media_queries(), ",");
+    JoinMediaMinify(ruleset.media(), ",");
     Write("{");
   }
 }
 
 void CssMinify::MinifyRulesetMediaEnd(const Css::Ruleset& ruleset) {
-  if (!ruleset.media_queries().empty()) {
+  if (!ruleset.media().empty()) {
     Write("}");
   }
 }
@@ -535,51 +488,6 @@ void CssMinify::Minify(const Css::FunctionParameters& parameters) {
     }
     Minify(*parameters.value(i));
   }
-}
-
-void CssMinify::Minify(const Css::UnparsedRegion& unparsed_region) {
-  Write(unparsed_region.bytes_in_original_buffer());
-}
-
-
-bool CssMinify::Equals(const Css::MediaQueries& a,
-                       const Css::MediaQueries& b) const {
-  if (a.size() != b.size()) {
-    return false;
-  }
-  for (int i = 0, n = a.size(); i < n; ++i) {
-    if (!Equals(*a.at(i), *b.at(i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool CssMinify::Equals(const Css::MediaQuery& a,
-                       const Css::MediaQuery& b) const {
-  if (a.qualifier() != b.qualifier() ||
-      a.media_type() != b.media_type() ||
-      a.expressions().size() != b.expressions().size()) {
-    return false;
-  }
-  for (int i = 0, n = a.expressions().size(); i < n; ++i) {
-    if (!Equals(a.expression(i), b.expression(i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool CssMinify::Equals(const Css::MediaExpression& a,
-                       const Css::MediaExpression& b) const {
-  if (a.name() != b.name() ||
-      a.has_value() != b.has_value()) {
-    return false;
-  }
-  if (a.has_value() && a.value() != b.value()) {
-    return false;
-  }
-  return true;
 }
 
 }  // namespace net_instaweb

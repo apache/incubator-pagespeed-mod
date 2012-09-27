@@ -23,7 +23,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -191,13 +190,12 @@ FileSystem::InputFile* StdioFileSystem::OpenInputFile(
 
 
 FileSystem::OutputFile* StdioFileSystem::OpenOutputFileHelper(
-    const char* filename, bool append, MessageHandler* message_handler) {
+    const char* filename, MessageHandler* message_handler) {
   FileSystem::OutputFile* output_file = NULL;
   if (strcmp(filename, "-") == 0) {
     output_file = new StdioOutputFile(stdout, "<stdout>");
   } else {
-    const char* mode = append ? "a" : "w";
-    FILE* f = fopen(filename, mode);
+    FILE* f = fopen(filename, "w");
     if (f == NULL) {
       message_handler->Error(filename, 0,
                              "opening output file: %s", strerror(errno));
@@ -268,15 +266,6 @@ bool StdioFileSystem::MakeDir(const char* path, MessageHandler* handler) {
   bool ret = (mkdir(path, 0777) == 0);
   if (!ret) {
     handler->Message(kError, "Failed to make directory %s: %s",
-                     path, strerror(errno));
-  }
-  return ret;
-}
-
-bool StdioFileSystem::RemoveDir(const char* path, MessageHandler* handler) {
-  bool ret = (rmdir(path) == 0);
-  if (!ret) {
-    handler->Message(kError, "Failed to remove directory %s: %s",
                      path, strerror(errno));
   }
   return ret;

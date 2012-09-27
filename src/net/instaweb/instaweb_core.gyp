@@ -31,14 +31,12 @@
       'sources': [
         'util/atom.cc',
         'util/charset_util.cc',
-        'util/fast_wildcard_group.cc',
         'util/file_message_handler.cc',
         'util/google_message_handler.cc',
         'util/google_url.cc',
         'util/message_handler.cc',
         'util/print_message_handler.cc',
         'util/query_params.cc',
-        'util/rolling_hash.cc',
         'util/string_convert.cc',
         'util/string_util.cc',
         'util/string_writer.cc',
@@ -121,7 +119,6 @@
       ],
       'sources': [
         'http/content_type.cc',
-        'http/semantic_type.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -145,6 +142,7 @@
       'sources': [
         'rewriter/collapse_whitespace_filter.cc',
         'rewriter/elide_attributes_filter.cc',
+        'rewriter/file_load_policy.cc',
         'rewriter/html_attribute_quote_removal.cc',
         'rewriter/remove_comments_filter.cc',
       ],

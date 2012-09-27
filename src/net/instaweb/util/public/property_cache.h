@@ -78,7 +78,7 @@
 //    "prop/http://example.com/index.html@render_data".
 //
 // Within the values for
-//    "prop/http://example.com/index.html@dom_metrics"
+//    "pcache/http://example.com/index.html@dom_metrics"
 // we'll have a 2-element array of Property values for "num_divs" and
 // "num_a_tags".  We'll write to that cache entry; possibly every
 // time http://example.com/index.html is rewritten, so that we can track
@@ -307,11 +307,8 @@ class PropertyPage {
   explicit PropertyPage(AbstractMutex* mutex, const StringPiece& key)
       : mutex_(mutex),
         key_(key.as_string()),
-        was_read_(false) {}
-
-  // Called immediatly after the underlying cache lookup is done, from
-  // PropertyCache::CacheInterfaceCallback::Done().
-  virtual bool IsCacheValid(int64 write_timestamp_ms) const { return true; }
+        was_read_(false) {
+  }
 
   // Called as a result of PropertyCache::Read when the data is available.
   virtual void Done(bool success) = 0;

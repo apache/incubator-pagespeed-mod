@@ -16,12 +16,10 @@
 
 // Author: jmaessen@google.com (Jan Maessen)
 
-#include "base/scoped_ptr.h"  // for scoped_ptr
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -29,32 +27,24 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
+#include "net/instaweb/rewriter/public/image_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
-
-class AbstractMutex;
 
 namespace {
 
@@ -64,7 +54,6 @@ const char kPuzzleJpgFile[] = "Puzzle.jpg";
 const char kChefGifFile[] = "IronChef2.gif";
 const char kCuppaTPngFile[] = "CuppaT.png";
 const char kCuppaOPngFile[] = "CuppaO.png";
-const char kLargePngFile[] = "Large.png";
 
 // A callback for HTTP cache that stores body and string representation
 // of headers into given strings.
@@ -98,65 +87,18 @@ class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
   DISALLOW_COPY_AND_ASSIGN(HTTPCacheStringCallback);
 };
 
-// By default, CriticalImagesFinder does not return meaningful results. However,
-// this test manually manages the critical image set, so CriticalImagesFinder
-// can return useful information for testing this filter.
-class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
- public:
-  MeaningfulCriticalImagesFinder()
-      : compute_calls_(0) {}
-  virtual ~MeaningfulCriticalImagesFinder() {}
-  virtual bool IsMeaningful() const {
-    return true;
-  }
-  virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver,
-                                     bool must_compute) {
-    ++compute_calls_;
-  }
-  int num_compute_calls() { return compute_calls_; }
-  virtual const char* GetCriticalImagesCohort() const {
-    return kCriticalImagesCohort;
-  }
-
- private:
-  static const char kCriticalImagesCohort[];
-  int compute_calls_;
-  DISALLOW_COPY_AND_ASSIGN(MeaningfulCriticalImagesFinder);
-};
-
-const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
-    "critical_images";
-
-class MockPage : public PropertyPage {
- public:
-  MockPage(AbstractMutex* mutex, const StringPiece& key)
-      : PropertyPage(mutex, key) {}
-  virtual ~MockPage() {}
-  virtual void Done(bool valid) {}
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockPage);
-};
-
-class ImageRewriteTest : public RewriteTestBase {
+class ImageRewriteTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    PropertyCache* pcache = page_property_cache();
-    server_context_->set_enable_property_cache(true);
-    pcache->AddCohort(RewriteDriver::kDomCohort);
-    RewriteTestBase::SetUp();
-    MockPage* page = new MockPage(factory_->thread_system()->NewMutex(),
-                                  kTestDomain);
-    pcache->set_enabled(true);
-    rewrite_driver()->set_property_page(page);
-    pcache->Read(page);
+    ResourceManagerTestBase::SetUp();
   }
 
   // Simple image rewrite test to check resource fetching functionality.
   void RewriteImage(const GoogleString& tag_string,
                     const ContentType& content_type) {
     options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-    AddRecompressImageFilters();
+    options()->EnableFilter(RewriteOptions::kRecompressImages);
+    options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
     options()->set_image_inline_max_bytes(2000);
     rewrite_driver()->AddFilters();
 
@@ -228,14 +170,13 @@ class ImageRewriteTest : public RewriteTestBase {
   class ImageCollector : public EmptyHtmlFilter {
    public:
     ImageCollector(HtmlParse* html_parse, StringVector* img_srcs)
-        : img_srcs_(img_srcs) {
+        : img_srcs_(img_srcs),
+          image_filter_(html_parse) {
     }
 
     virtual void StartElement(HtmlElement* element) {
-      semantic_type::Category category;
-      HtmlElement::Attribute* src = resource_tag_scanner::ScanElement(
-          element, NULL /* driver */, &category);
-      if (src != NULL && category == semantic_type::kImage) {
+      HtmlElement::Attribute* src = image_filter_.ParseImageElement(element);
+      if (src != NULL) {
         img_srcs_->push_back(src->DecodedValueOrNull());
       }
     }
@@ -244,6 +185,7 @@ class ImageRewriteTest : public RewriteTestBase {
 
    private:
     StringVector* img_srcs_;
+    ImageTagScanner image_filter_;
 
     DISALLOW_COPY_AND_ASSIGN(ImageCollector);
   };
@@ -310,10 +252,7 @@ class ImageRewriteTest : public RewriteTestBase {
     AddFileToMockFetcher(StrCat(kTestDomain, "c.gif"), kChefGifFile,
                          kContentTypeGif, 100);
 
-    options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-    options()->EnableFilter(RewriteOptions::kRecompressPng);
-    options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-    rewrite_driver()->AddFilters();
+    AddFilter(RewriteOptions::kRecompressImages);
 
     StringVector img_srcs;
     ImageCollector image_collect(rewrite_driver(), &img_srcs);
@@ -400,26 +339,6 @@ class ImageRewriteTest : public RewriteTestBase {
         StringPrintf(html_boilerplate, rewritten_url.c_str(), final_dims);
     EXPECT_EQ(AddHtmlBody(html_expected_output), output_buffer_);
   }
-
-  // Returns the property cache value for kInlinableImageUrlsPropertyName,
-  // or NULL if it is not present.
-  const PropertyValue* FetchInlinablePropertyCacheValue() {
-    PropertyCache* pcache = page_property_cache();
-    if (pcache == NULL) {
-      return NULL;
-    }
-    const PropertyCache::Cohort* cohort = pcache->GetCohort(
-        RewriteDriver::kDomCohort);
-    if (cohort == NULL) {
-      return NULL;
-    }
-    PropertyPage* property_page = rewrite_driver()->property_page();
-    if (property_page == NULL) {
-      return NULL;
-    }
-    return property_page->GetProperty(
-        cohort, ImageRewriteFilter::kInlinableImageUrlsPropertyName);
-  }
 };
 
 TEST_F(ImageRewriteTest, ImgTag) {
@@ -478,6 +397,7 @@ TEST_F(ImageRewriteTest, AddDimTest) {
 TEST_F(ImageRewriteTest, PngToJpeg) {
   // Make sure we convert png to jpeg if we requested that.
   // We lower compression quality to ensure the jpeg is smaller.
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
@@ -493,6 +413,7 @@ TEST_F(ImageRewriteTest, PngToWebp) {
   }
   // Make sure we convert png to webp if user agent permits.
   // We lower compression quality to ensure the webp is smaller.
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
@@ -516,17 +437,6 @@ TEST_F(ImageRewriteTest, ResizeTest) {
   const char kResizedDims[] = " width=\"256\" height=\"192\"";
   TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg, kContentTypeJpeg,
                     kResizedDims, kResizedDims, true, false);
-}
-
-TEST_F(ImageRewriteTest, ResizeHigherDimensionTest) {
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  const char kOriginalDims[] = " width=\"100000\" height=\"100000\"";
-  TestSingleRewrite(kLargePngFile, kContentTypePng, kContentTypePng,
-                    kOriginalDims, kOriginalDims, false, false);
-  Variable* no_rewrites = statistics()->GetVariable(
-      net_instaweb::ImageRewriteFilter::kImageNoRewritesHighResolution);
-  EXPECT_EQ(1, no_rewrites->Get());
 }
 
 TEST_F(ImageRewriteTest, DimensionParsingOK) {
@@ -781,77 +691,23 @@ TEST_F(ImageRewriteTest, NullResizeTest) {
                     " style", " style", false, false);
 }
 
-TEST_F(ImageRewriteTest, InlineTestWithoutOptimize) {
-  // Make sure we don't resize, if we don't optimize.
+TEST_F(ImageRewriteTest, InlineTest) {
+  // Make sure we resize and inline images, but don't optimize them in place.
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   rewrite_driver()->AddFilters();
   const char kChefDims[] = " width=\"192\" height=\"256\"";
+  const char kResizedDims[] = " width=48 height=64";
   // Without resize, it's not optimizable.
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", kChefDims, false, false);
-}
-
-TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
-  options()->set_image_inline_max_bytes(10000);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // Without resize, it's not optimizable.
   // With resize, the image shrinks quite a bit, and we can inline it
   // given the 10K threshold explicitly set above.  This also strips the
   // size information, which is now embedded in the image itself anyway.
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
                     kResizedDims, "", true, true);
-}
-
-TEST_F(ImageRewriteTest, InlineCriticalOnly) {
-  StringSet* critical_images = new StringSet;
-  rewrite_driver()->set_critical_images(critical_images);
-  MeaningfulCriticalImagesFinder* finder = new MeaningfulCriticalImagesFinder;
-  server_context()->set_critical_images_finder(finder);
-  options()->set_image_inline_max_bytes(30000);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  rewrite_driver()->AddFilters();
-  // Image not present in critical set should not be inlined.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-
-  // Image present in critical set should be inlined.
-  critical_images->insert(StrCat(kTestDomain, kChefGifFile));
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, true);
-}
-
-TEST_F(ImageRewriteTest, ComputeCriticalImages) {
-  MeaningfulCriticalImagesFinder* finder = new MeaningfulCriticalImagesFinder;
-  server_context()->set_critical_images_finder(finder);
-  options()->set_image_inline_max_bytes(30000);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  // Empty user agent supports inlining, so we call ComputeCriticalImages.
-  EXPECT_EQ(1, finder->num_compute_calls());
-
-  // Change to a user agent that does not support inlining. We don't call
-  // ComputeCriticalImages.
-  rewrite_driver()->set_user_agent("Firefox/2.0");
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  EXPECT_EQ(1, finder->num_compute_calls());
-
-  // Change back to a user agent that supports inlining. We call
-  // ComputeCriticalImages again.
-  rewrite_driver()->set_user_agent("Firefox/3.0");
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  EXPECT_EQ(2, finder->num_compute_calls());
 }
 
 TEST_F(ImageRewriteTest, InlineNoRewrite) {
@@ -862,11 +718,8 @@ TEST_F(ImageRewriteTest, InlineNoRewrite) {
   const char kChefDims[] = " width=192 height=256";
   // This image is just small enough to inline, which also erases
   // dimension information.
-  // TODO(jmaessen): At present we're conservatively leaving it in
-  // due to problems with resizing in the field.  The second set
-  // of dimensions ought to be "".
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kChefDims, kChefDims, false, true);
+                    kChefDims, "", false, true);
   // This image is too big to inline, and we don't insert missing
   // dimension information because that is not explicitly enabled.
   TestSingleRewrite(kPuzzleJpgFile, kContentTypeJpeg, kContentTypeJpeg,
@@ -877,7 +730,6 @@ TEST_F(ImageRewriteTest, InlineNoResize) {
   // Make sure we inline an image if it meets the inlining threshold but can't
   // be resized.  Make sure we retain sizing information when this happens.
   options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   rewrite_driver()->AddFilters();
   const char kOrigDims[] = " width=65 height=70";
@@ -907,18 +759,6 @@ TEST_F(ImageRewriteTest, InlineLargerResize) {
                     kResizedDims, kResizedDims, false, true);
 }
 
-TEST_F(ImageRewriteTest, InlineEnlargedImage) {
-  // Make sure we inline an image that meets the inlining threshold,
-  // but retain its sizing information if the image has been enlarged.
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-  const char kDoubledDims[] = " width=130 height=140";
-  TestSingleRewrite(kCuppaOPngFile, kContentTypePng, kContentTypePng,
-                    kDoubledDims, kDoubledDims, false, true);
-}
-
 TEST_F(ImageRewriteTest, RespectsBaseUrl) {
   // Put original files into our fetcher.
   const char html_url[] = "http://image.test/base_url.html";
@@ -945,10 +785,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
       StringPrintf(html_format, "bar/a.png", "/baz/b.jpeg", "c.gif");
 
   // Rewrite
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kRecompressImages);
   ParseUrl(html_url, html_input);
 
   // Check for image files in the rewritten page.
@@ -995,7 +832,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
 TEST_F(ImageRewriteTest, FetchInvalid) {
   // Make sure that fetching invalid URLs cleanly reports a problem by
   // calling Done(false).
-  AddFilter(RewriteOptions::kRecompressJpeg);
+  AddFilter(RewriteOptions::kRecompressImages);
   GoogleString out;
 
   // We are trying to test with an invalid encoding. By construction,
@@ -1011,7 +848,7 @@ TEST_F(ImageRewriteTest, FetchInvalid) {
 TEST_F(ImageRewriteTest, Rewrite404) {
   // Make sure we don't fail when rewriting with invalid input.
   SetFetchResponse404("404.jpg");
-  AddFilter(RewriteOptions::kRecompressJpeg);
+  AddFilter(RewriteOptions::kRecompressImages);
   ValidateNoChanges("404", "<img src='404.jpg'>");
 
   // Try again to exercise cached case.
@@ -1031,7 +868,7 @@ TEST_F(ImageRewriteTest, NoWrongExtCorruption) {
 }
 
 TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   rewrite_driver()->AddFilters();
   AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
@@ -1049,7 +886,7 @@ TEST_F(ImageRewriteTest, NoCrashOnInvalidDim) {
 TEST_F(ImageRewriteTest, RewriteCacheExtendInteraction) {
   // There was a bug in async mode where rewriting failing would prevent
   // cache extension from working as well.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kExtendCacheImages);
   rewrite_driver()->AddFilters();
 
@@ -1065,7 +902,7 @@ TEST_F(ImageRewriteTest, RewriteCacheExtendInteraction) {
 
 // http://code.google.com/p/modpagespeed/issues/detail?id=324
 TEST_F(ImageRewriteTest, RetainExtraHeaders) {
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   rewrite_driver()->AddFilters();
 
   // Store image contents into fetcher.
@@ -1078,7 +915,7 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   // Make sure we're limiting # of concurrent rewrites properly even when we're
   // nested inside another filter, and that we do not cache that outcome
   // improperly.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressImages);
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_max_rewrites_at_once(1);
   options()->set_always_rewrite_css(true);
@@ -1126,105 +963,6 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   // This time, however, CSS should be altered (and the drop count still be 1).
   EXPECT_EQ(expected_out_css, out_css);
   EXPECT_EQ(1, drops->Get(TimedVariable::START));
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestWithResizeWithOptimize) {
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // With resize and optimization. Translating gif to png.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    kResizedDims, kResizedDims, true, false);
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestResizeEnableGifToPngDisabled) {
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  const char kResizedDims[] = " width=48 height=64";
-  // Not traslating gifs to pngs.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kResizedDims, kResizedDims, false, false);
-}
-
-TEST_F(ImageRewriteTest, GifToPngTestWithoutResizeWithOptimize) {
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-  // Without resize and with optimization
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    "", "", true, false);
-}
-
-// TODO(poojatandon): Add a test where .gif file size increases on optimization.
-
-TEST_F(ImageRewriteTest, GifToPngTestWithoutResizeWithoutOptimize) {
-  // Without resize and without optimization
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-}
-
-TEST_F(ImageRewriteTest, InlinableImagesInsertedIntoPropertyCache) {
-  // If image_inlining_identify_and_cache_without_rewriting() is set in
-  // RewriteOptions, images that would have been inlined are instead inserted
-  // into the property cache.
-  const char kChefDims[] = " width=192 height=256";
-  options()->set_image_inline_max_bytes(30000);
-  options()->set_cache_small_images_unrewritten(true);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kChefDims, kChefDims, false, false);
-  EXPECT_STREQ("\"http://test.com/IronChef2.gif\"",
-               FetchInlinablePropertyCacheValue()->value());
-}
-
-TEST_F(ImageRewriteTest, InlinableCssImagesInsertedIntoPropertyCache) {
-  // If image_inlining_identify_and_cache_without_rewriting() is set in
-  // RewriteOptions, CSS images that would have been inlined are instead
-  // inserted into the property cache.
-  options()->set_image_inline_max_bytes(30000);
-  options()->set_cache_small_images_unrewritten(true);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  rewrite_driver()->AddFilters();
-  const char kPngFile1[] = "a.png";
-  const char kPngFile2[] = "b.png";
-  AddFileToMockFetcher(StrCat(kTestDomain, kPngFile1), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, kPngFile2), kCuppaTPngFile,
-                       kContentTypePng, 100);
-  const char kCssFile[] = "a.css";
-  // We include a duplicate image here to verify that duplicate suppression
-  // is working.
-  GoogleString css_contents = StringPrintf(
-      "div{background-image:url(%s)}"
-      "h1{background-image:url(%s)}"
-      "p{background-image:url(%s)}", kPngFile1, kPngFile1, kPngFile2);
-  SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss, css_contents, 100);
-  // Parse the CSS and ensure contents are unchanged.
-  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", kCssFile, "css");
-  GoogleString out_css;
-  StringAsyncFetch async_fetch(&out_css);
-  ResponseHeaders response;
-  async_fetch.set_response_headers(&response);
-  EXPECT_TRUE(rewrite_driver_->FetchResource(out_css_url, &async_fetch));
-  rewrite_driver_->WaitForShutDown();
-  EXPECT_TRUE(async_fetch.success());
-
-  // The CSS is unmodified and the image URL is stored in the property cache.
-  EXPECT_STREQ(css_contents, out_css);
-  // The expected URLs are present.
-  StringPieceVector urls;
-  StringSet expected_urls;
-  expected_urls.insert("\"http://test.com/a.png\"");
-  expected_urls.insert("\"http://test.com/b.png\"");
-  SplitStringPieceToVector(FetchInlinablePropertyCacheValue()->value(), ",",
-                           &urls, false);
-  EXPECT_EQ(expected_urls.size(), urls.size());
-  for (int i = 0; i < urls.size(); ++i) {
-    EXPECT_EQ(1, expected_urls.count(urls[i].as_string()));
-  }
 }
 
 }  // namespace

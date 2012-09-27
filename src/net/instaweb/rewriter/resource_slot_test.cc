@@ -31,7 +31,7 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -48,14 +48,14 @@ static const char kUpdatedUrl[] = "http://html.parse.test/new_css.css";
 
 namespace net_instaweb {
 
-class ResourceSlotTest : public RewriteTestBase {
+class ResourceSlotTest : public ResourceManagerTestBase {
  protected:
   typedef std::set<HtmlResourceSlotPtr, HtmlResourceSlotComparator> SlotSet;
 
   virtual bool AddBody() const { return false; }
 
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
 
     // Set up 4 slots for testing.
     RewriteDriver* driver = rewrite_driver();
@@ -81,7 +81,7 @@ class ResourceSlotTest : public RewriteTestBase {
 
   virtual void TearDown() {
     rewrite_driver()->FinishParse();
-    RewriteTestBase::TearDown();
+    ResourceManagerTestBase::TearDown();
   }
 
   HtmlResourceSlotPtr MakeSlot(int element_index, int attribute_index) {
@@ -102,16 +102,7 @@ class ResourceSlotTest : public RewriteTestBase {
   const HtmlResourceSlotPtr slot(int index) const { return slots_[index]; }
   HtmlElement* element(int index) { return elements_[index]; }
   HtmlElement::Attribute* attribute(int element_index, int attribute_index) {
-    HtmlElement* el = element(element_index);
-    HtmlElement::AttributeList* attrs = el->mutable_attributes();
-    int pos = 0;
-    for (net_instaweb::HtmlElement::AttributeIterator i(attrs->begin());
-         i != attrs->end(); ++i, ++pos) {
-      if (pos == attribute_index) {
-        return i.Get();
-      }
-    }
-    return NULL;
+    return &element(element_index)->attribute(attribute_index);
   }
 
   GoogleString GetHtmlDomAsString() {
@@ -128,13 +119,13 @@ class ResourceSlotTest : public RewriteTestBase {
 
 TEST_F(ResourceSlotTest, Accessors) {
   EXPECT_EQ(element(0), slot(0)->element());
-  EXPECT_EQ(attribute(0, 0), slot(0)->attribute());
+  EXPECT_EQ(&element(0)->attribute(0), slot(0)->attribute());
   EXPECT_EQ(element(0), slot(1)->element());
-  EXPECT_EQ(attribute(0, 1), slot(1)->attribute());
+  EXPECT_EQ(&element(0)->attribute(1), slot(1)->attribute());
   EXPECT_EQ(element(1), slot(2)->element());
-  EXPECT_EQ(attribute(1, 0), slot(2)->attribute());
+  EXPECT_EQ(&element(1)->attribute(0), slot(2)->attribute());
   EXPECT_EQ(element(1), slot(3)->element());
-  EXPECT_EQ(attribute(1, 1), slot(3)->attribute());
+  EXPECT_EQ(&element(1)->attribute(1), slot(3)->attribute());
   EXPECT_FALSE(slot(0)->was_optimized());
   slot(0)->set_was_optimized(true);
   EXPECT_TRUE(slot(0)->was_optimized());
@@ -144,7 +135,7 @@ TEST_F(ResourceSlotTest, Accessors) {
 
   const char kDataUrl[] = "data:text/plain,Huh";
   ResourcePtr resource =
-      DataUrlInputResource::Make(kDataUrl, server_context());
+      DataUrlInputResource::Make(kDataUrl, resource_manager());
   ResourceSlotPtr fetch_slot(new FetchResourceSlot(resource));
   EXPECT_EQ(StrCat("Fetch of ", kDataUrl), fetch_slot->LocationString());
 }

@@ -27,10 +27,11 @@
 
 namespace net_instaweb {
 
+class CacheInterface;
 class FileSystem;
 class Hasher;
 class MessageHandler;
-class ServerContext;
+class ResourceManager;
 class Statistics;
 class Timer;
 class UrlAsyncFetcher;
@@ -43,24 +44,24 @@ class Writer;
 // TODO(jmarantz): fill out enough functionality so that this will be
 // a functional static rewriter that could optimize an HTML file
 // passed as a command-line parameter or via stdin.
-class FileRewriter : public RewriteDriverFactory {
+class FileRewriter : public net_instaweb::RewriteDriverFactory {
  public:
-  FileRewriter(const RewriteGflags* gflags,
+  FileRewriter(const net_instaweb::RewriteGflags* gflags,
                bool echo_errors_to_stdout);
   virtual ~FileRewriter();
-  virtual Hasher* NewHasher();
-  virtual UrlFetcher* DefaultUrlFetcher();
-  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
-  virtual MessageHandler* DefaultHtmlParseMessageHandler();
-  virtual MessageHandler* DefaultMessageHandler();
-  virtual FileSystem* DefaultFileSystem();
-  virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* resource_manager);
-  virtual Statistics* statistics();
+  virtual net_instaweb::Hasher* NewHasher();
+  virtual net_instaweb::UrlFetcher* DefaultUrlFetcher();
+  virtual net_instaweb::UrlAsyncFetcher* DefaultAsyncUrlFetcher();
+  virtual net_instaweb::MessageHandler* DefaultHtmlParseMessageHandler();
+  virtual net_instaweb::MessageHandler* DefaultMessageHandler();
+  virtual net_instaweb::FileSystem* DefaultFileSystem();
+  virtual net_instaweb::Timer* DefaultTimer();
+  virtual net_instaweb::CacheInterface* DefaultCacheInterface();
+  virtual net_instaweb::Statistics* statistics();
 
  private:
-  const RewriteGflags* gflags_;
-  SimpleStats simple_stats_;
+  const net_instaweb::RewriteGflags* gflags_;
+  net_instaweb::SimpleStats simple_stats_;
   bool echo_errors_to_stdout_;
 
   DISALLOW_COPY_AND_ASSIGN(FileRewriter);
@@ -86,7 +87,7 @@ class StaticRewriter {
  private:
   RewriteGflags gflags_;
   FileRewriter file_rewriter_;
-  ServerContext* server_context_;
+  ResourceManager* resource_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(StaticRewriter);
 };

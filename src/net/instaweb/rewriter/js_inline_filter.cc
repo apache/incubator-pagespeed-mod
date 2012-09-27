@@ -17,6 +17,7 @@
 #include "net/instaweb/rewriter/public/js_inline_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
@@ -27,7 +28,6 @@
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -38,8 +38,8 @@ class JsInlineFilter::Context : public InlineRewriteContext {
           HtmlElement::Attribute* src)
       : InlineRewriteContext(filter, element, src), filter_(filter) {}
 
-  virtual bool ShouldInline(const ResourcePtr& resource) const {
-    return filter_->ShouldInline(resource);
+  virtual bool ShouldInline(const StringPiece& input) const {
+    return filter_->ShouldInline(input);
   }
 
   virtual void RenderInline(
@@ -98,9 +98,7 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
   should_inline_ = false;
 }
 
-bool JsInlineFilter::ShouldInline(const ResourcePtr& resource) const {
-  StringPiece contents(resource->contents());
-
+bool JsInlineFilter::ShouldInline(const StringPiece& contents) const {
   // Only inline if it's small enough, and if it doesn't contain
   // "</script" anywhere.  If we inline an external script containing
   // "</script>" and a few variations like </script    > or even
@@ -132,9 +130,9 @@ void JsInlineFilter::RenderInline(
   // we have to hide the CDATA delimiters behind Javascript comments.
   // See http://lachy.id.au/log/2006/11/xhtml-script
   // and http://code.google.com/p/modpagespeed/issues/detail?id=125
-  if (driver_->MimeTypeXhtmlStatus() != RewriteDriver::kIsNotXhtml) {
+  if (driver_->doctype().IsXhtml()) {
     // CDATA sections cannot be nested because they end with the first
-    // occurrence of "]]>", so if the script contains that string
+    // occurance of "]]>", so if the script contains that string
     // anywhere (and we're in XHTML) we can't inline.
     // TODO(mdsteele): Again, we should consider escaping somehow.
     if (contents.find("]]>") == StringPiece::npos) {

@@ -22,7 +22,6 @@
 #include <cstddef>
 
 #include "net/instaweb/rewriter/public/css_filter.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/util/public/basictypes.h"
 
 namespace Css {
@@ -45,7 +44,7 @@ class Statistics;
 
 class CssImageRewriter {
  public:
-  CssImageRewriter(CssFilter::Context* root_context,
+  CssImageRewriter(CssFilter::Context* context,
                    CssFilter* filter,
                    RewriteDriver* driver,
                    CacheExtender* cache_extender,
@@ -53,7 +52,7 @@ class CssImageRewriter {
                    ImageCombineFilter* image_combiner);
   ~CssImageRewriter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   // Attempts to rewrite the given CSS, starting nested rewrites for each
   // import and image to be rewritten. If successful, it mutates the CSS
@@ -70,12 +69,6 @@ class CssImageRewriter {
   // Are any rewrites enabled?
   bool RewritesEnabled(int64 image_inline_max_bytes) const;
 
-  // Rewrite an image already loaded into a slot. Used by RewriteImage and
-  // AssociationTransformer to rewrite images in either case.
-  void RewriteSlot(const ResourceSlotPtr& slot,
-                   int64 image_inline_max_bytes,
-                   RewriteContext* parent);
-
  private:
   void RewriteImport(RewriteContext* parent,
                      CssHierarchy* hierarchy);
@@ -84,7 +77,8 @@ class CssImageRewriter {
                     const GoogleUrl& trim_url,
                     const GoogleUrl& original_url,
                     RewriteContext* parent,
-                    Css::Values* values, size_t value_index);
+                    Css::Values* values, size_t value_index,
+                    MessageHandler* handler);
 
   // Needed for import flattening.
   CssFilter* filter_;
@@ -92,8 +86,8 @@ class CssImageRewriter {
   // Needed for resource_manager and options.
   RewriteDriver* driver_;
 
-  // Top level context for rewriting root CSS file itself.
-  CssFilter::Context* root_context_;
+  // For parenting our nested contexts.
+  CssFilter::Context* context_;
 
   // Pointers to other HTML filters used to rewrite images.
   // TODO(sligocki): morlovich suggests separating this out as some

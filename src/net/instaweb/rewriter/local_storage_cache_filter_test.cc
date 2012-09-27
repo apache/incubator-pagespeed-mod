@@ -20,11 +20,10 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
@@ -84,11 +83,11 @@ const char kCuppaPngInlineData[] =
     "KA9+vXr9MbvQ50qrNnz57RYTmyevPO19bWRo/HmjTwXYs/Q2o2GaWaNxxGCTAGJq070BjgcB"
     "MiwMFN73nXNjAO3vWlG0+BcXDTe961DYyDd33pxtN/Wk9wIrGXNoUAAAAASUVORK5CYII=";
 
-class LocalStorageCacheTest : public RewriteTestBase,
+class LocalStorageCacheTest : public ResourceManagerTestBase,
                               public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     MySetUp();
   }
 
@@ -108,7 +107,7 @@ class LocalStorageCacheTest : public RewriteTestBase,
     AddFileToMockFetcher(StrCat(kTestDomain, kPuzzleJpgFilename),
                          kPuzzleJpgFilename, kContentTypeJpeg, 100);
     StaticJavascriptManager* static_js_manager =
-        server_context()->static_javascript_manager();
+        resource_manager()->static_javascript_manager();
     local_storage_cache_js_ =
         StrCat("<script pagespeed_no_defer>",
                static_js_manager->GetJsSnippet(
@@ -123,11 +122,11 @@ class LocalStorageCacheTest : public RewriteTestBase,
                         const GoogleString& body_html_in,
                         const GoogleString& body_html_out) {
     StaticJavascriptManager* static_js_manager =
-        server_context()->static_javascript_manager();
+        resource_manager()->static_javascript_manager();
     StringPiece local_storage_cache_js =
         static_js_manager->GetJsSnippet(
             StaticJavascriptManager::kLocalStorageCacheJs, options());
-    const char kInWrapperFormat[] =
+    const char kWrapperFormat[] =
         "<head>\n"
         "  <title>Local Storage Cache Test</title>\n"
         "%s"
@@ -135,24 +134,11 @@ class LocalStorageCacheTest : public RewriteTestBase,
         "<body>\n"
         "%s"
         "</body>\n";
-    const GoogleString out_wrapper_format = StrCat(
-        "<head>\n"
-        "  <title>Local Storage Cache Test</title>\n"
-        "%s"
-        "</head>\n"
-        "<body>",
-        kNoScriptRedirectFormatter, "\n"
-        "%s"
-        "</body>\n");
-
-    GoogleString url = StrCat(
-        "http://test.com/", case_id, ".html?ModPagespeed=noscript");
 
     GoogleString html_in(StringPrintf(
-        kInWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
+        kWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
     GoogleString html_out(StringPrintf(
-        out_wrapper_format.c_str(), head_html_out.c_str(), url.c_str(),
-        url.c_str(), body_html_out.c_str()));
+        kWrapperFormat, head_html_out.c_str(), body_html_out.c_str()));
 
     // Set this for every test.
     rewrite_driver()->set_request_headers(&request_headers_);
@@ -215,7 +201,7 @@ TEST_F(LocalStorageCacheTest, LinkUrlTransormationFails) {
 class LocalStorageCacheTinyTest : public LocalStorageCacheTest {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->set_css_inline_max_bytes(10);  // An arbitrary tiny value.
     MySetUp();
   }
@@ -254,11 +240,9 @@ TEST_F(LocalStorageCacheTest, ImgTooBig) {
 
 TEST_F(LocalStorageCacheTest, ImgLocalStorageDisabled) {
   options()->ClearSignatureForTesting();
-  // Enabling another filter that triggers the NOSCRIPT tag-insertion in HTML.
-  options()->EnableFilter(RewriteOptions::kDeferIframe);
   options()->DisableFilter(RewriteOptions::kLocalStorageCache);
   options()->set_ajax_rewriting_enabled(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
 
   TestLocalStorage("img_local_storage_disabled", "", "",
                    StrCat("<img src='", kPuzzleJpgFilename, "'>"),
@@ -276,8 +260,7 @@ TEST_F(LocalStorageCacheTest, CookieSet) {
                           kStylesCssFilename,
                           "'>"),
                    InsertScriptBefore(
-                       StrCat("<script pagespeed_no_defer>"
-                              "pagespeed.localStorageCache.inlineCss("
+                       StrCat("<script pagespeed_no_defer>pagespeed.inlineCss("
                               "\"", kTestDomain, kStylesCssFilename, "\""
                               ");</script>")),
                    StrCat("<img src='", kCuppaPngFilename, "'>"),
@@ -347,11 +330,11 @@ TEST_F(LocalStorageCacheTest, RepeatViews) {
   // Third view will not send the inlined data and will send scripts in place
   // of the link and img elements.
   GoogleString scripted_css = StrCat("<script pagespeed_no_defer>"
-                                     "pagespeed.localStorageCache.inlineCss("
+                                     "pagespeed.inlineCss("
                                      "\"", kTestDomain, kStylesCssFilename, "\""
                                      ");</script>");
   GoogleString scripted_img = StrCat("<script pagespeed_no_defer>"
-                                     "pagespeed.localStorageCache.inlineImg("
+                                     "pagespeed.inlineImg("
                                      "\"", kTestDomain, kCuppaPngFilename, "\""
                                      ");</script>");
   TestLocalStorage("third_view",
@@ -429,11 +412,11 @@ TEST_F(LocalStorageCacheTest, RepeatViewsWithOtherAttributes) {
   // Third view will not send the inlined data and will send scripts in place
   // of the link and img elements.
   GoogleString scripted_css = StrCat("<script pagespeed_no_defer>"
-                                     "pagespeed.localStorageCache.inlineCss("
+                                     "pagespeed.inlineCss("
                                      "\"", kTestDomain, kStylesCssFilename, "\""
                                      ");</script>");
   GoogleString scripted_img = StrCat("<script pagespeed_no_defer>"
-                                     "pagespeed.localStorageCache.inlineImg("
+                                     "pagespeed.inlineImg("
                                      "\"", kTestDomain, kCuppaPngFilename, "\""
                                      ", \"alt=A cup of joe\""
                                      ", \"alt=A cup of joe\""

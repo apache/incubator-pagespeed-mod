@@ -28,7 +28,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/arena.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -40,9 +40,15 @@
 namespace net_instaweb {
 
 class DocType;
+class HtmlCdataNode;
+class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlDirectiveNode;
 class HtmlEvent;
 class HtmlFilter;
+class HtmlIEDirectiveNode;
 class HtmlLexer;
+class HtmlNode;
 class MessageHandler;
 class Timer;
 
@@ -94,11 +100,9 @@ class HtmlParse {
   //
   // It is invalid to call ParseText when the StartParse* routines returned
   // false.
-  void ParseText(const char* content, int size) {
-    ParseTextInternal(content, size);
-  }
+  void ParseText(const char* content, int size);
   void ParseText(const StringPiece& sp) {
-    ParseTextInternal(sp.data(), sp.size());
+    ParseText(sp.data(), sp.size());
   }
 
   // Flush the currently queued events through the filters.  It is desirable
@@ -350,16 +354,6 @@ class HtmlParse {
   // Takes ownership of the HtmlFilter passed in.
   void add_event_listener(HtmlFilter* listener);
 
-  // Inserts a comment before or after the current node.  The function tries to
-  // pick an intelligent place depending on the document structure and
-  // whether the current node is a start-element, end-element, or a leaf.
-  void InsertComment(const StringPiece& sp);
-
-  // Sets the limit on the maximum number of bytes that should be parsed.
-  void set_size_limit(int64 x);
-  // Returns whether we have exceeded the size limit.
-  bool size_limit_exceeded() const;
-
  protected:
   typedef std::vector<HtmlFilter*> FilterVector;
   typedef std::list<HtmlFilter*> FilterList;
@@ -385,8 +379,6 @@ class HtmlParse {
   // yet.
   HtmlEvent* GetEndElementEvent(const HtmlElement* element);
 
-  virtual void ParseTextInternal(const char* content, int size);
-
  private:
   void ApplyFilterHelper(HtmlFilter* filter);
   HtmlEventListIterator Last();  // Last element in queue
@@ -408,6 +400,7 @@ class HtmlParse {
   void CoalesceAdjacentCharactersNodes();
   void ClearEvents();
   void EmitQueue(MessageHandler* handler);
+
 
   // Visible for testing only, via HtmlTestingPeer
   friend class HtmlTestingPeer;

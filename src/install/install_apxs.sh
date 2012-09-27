@@ -15,12 +15,10 @@
 SRC_ROOT="$(dirname $0)/.."
 BUILD_ROOT="${SRC_ROOT}/out/Release"
 MODPAGESPEED_SO_PATH="${BUILD_ROOT}/libmod_pagespeed.so"
-MODPAGESPEED_SO24_PATH="${BUILD_ROOT}/libmod_pagespeed_ap24.so"
 
-MOD_PAGESPEED_CACHE=${MOD_PAGESPEED_CACHE:-"/var/cache/mod_pagespeed"}
+MODPAGESPEED_CACHE_ROOT=${MODPAGESPEED_CACHE_ROOT:-"/var/mod_pagespeed"}
 APACHE_CONF_FILENAME=${APACHE_CONF_FILENAME:-"httpd.conf"}
 MODPAGESPEED_SO_NAME=${MODPAGESPEED_SO_NAME:-"mod_pagespeed.so"}
-MODPAGESPEED_SO24_NAME=${MODPAGESPEED_SO24_NAME:-"mod_pagespeed_ap24.so"}
 MODPAGESPEED_CONF_NAME=${MODPAGESPEED_CONF_NAME:-"pagespeed.conf"}
 
 MODPAGESPEED_FILE_USER=${MODPAGESPEED_FILE_USER:-"root"}
@@ -181,14 +179,14 @@ check APACHE_GROUP "egrep -q '^${APACHE_GROUP}:' /etc/group" "valid Apache group
 MODPAGESPEED_CONFDIR=${MODPAGESPEED_CONFDIR:-${APACHE_CONFDIR}}
 
 echo "mod_pagespeed needs to cache optimized resources on the file system."
-echo "The default location for this cache is '${MOD_PAGESPEED_CACHE}'."
+echo "The default location for this cache is '${MODPAGESPEED_CACHE_ROOT}'."
 read -p "Would you like to specify a different location? (y/N) " -n1 PROMPT
 if [ "${PROMPT}" = "y" -o "${PROMPT}" = "Y" ]; then
   echo ""
-  read -p "Location for mod_pagespeed file cache: " MOD_PAGESPEED_CACHE
+  read -p "Location for mod_pagespeed file cache: " MODPAGESPEED_CACHE_ROOT
 fi
 
-if [ -z "${MOD_PAGESPEED_CACHE}" ]; then
+if [ -z "${MODPAGESPEED_CACHE_ROOT}" ]; then
   echo ""
   echo "Must specify a mod_pagespeed file cache."
   exit 1
@@ -197,9 +195,9 @@ fi
 echo ""
 echo "Preparing to install to the following locations:"
 echo "${APACHE_MODULEDIR}/${MODPAGESPEED_SO_NAME} (${MODPAGESPEED_FILE_USER}:${MODPAGESPEED_FILE_GROUP})"
-echo "${APACHE_MODULEDIR}/${MODPAGESPEED_SO24_NAME} (${MODPAGESPEED_FILE_USER}:${MODPAGESPEED_FILE_GROUP})"
 echo "${MODPAGESPEED_CONFDIR}/${MODPAGESPEED_CONF_NAME} (${MODPAGESPEED_FILE_USER}:${MODPAGESPEED_FILE_GROUP})"
-echo "${MOD_PAGESPEED_CACHE} (${APACHE_USER}:${APACHE_GROUP})"
+echo "${MODPAGESPEED_CACHE_ROOT}/cache (${APACHE_USER}:${APACHE_GROUP})"
+echo "${MODPAGESPEED_CACHE_ROOT}/files (${APACHE_USER}:${APACHE_GROUP})"
 echo ""
 if [ -z "${NO_PROMPT}" ]; then
   echo -n "Continue? (y/N) "
@@ -211,8 +209,11 @@ if [ -z "${NO_PROMPT}" ]; then
   fi
 fi
 
-if [ -d "${MOD_PAGESPEED_CACHE}" ]; then
-  echo "${MOD_PAGESPEED_CACHE} already exists. Not creating."
+if [ -d "${MODPAGESPEED_CACHE_ROOT}/cache" ]; then
+  echo "${MODPAGESPEED_CACHE_ROOT}/cache already exists. Not creating."
+fi
+if [ -d "${MODPAGESPEED_CACHE_ROOT}/files" ]; then
+  echo "${MODPAGESPEED_CACHE_ROOT}/files already exists. Not creating."
 fi
 
 # Only attempt to load mod_deflate in our conf file if it's actually
@@ -232,19 +233,15 @@ cat "${TMP_CONF}" >> "${TMP_LOAD}"
 
 INSTALLATION_SUCCEEDED=0
 if (
-do_install "${MODPAGESPEED_FILE_USER}" "${MODPAGESPEED_FILE_GROUP}" \
-  "-m 644 -s" \
+do_install "${MODPAGESPEED_FILE_USER}" "${MODPAGESPEED_FILE_GROUP}" "-m 644 -s" \
   "${MODPAGESPEED_SO_PATH}" \
   "${APACHE_MODULEDIR}/${MODPAGESPEED_SO_NAME}" &&
-do_install "${MODPAGESPEED_FILE_USER}" "${MODPAGESPEED_FILE_GROUP}" \
-  "-m 644 -s" \
-  "${MODPAGESPEED_SO24_PATH}" \
-  "${APACHE_MODULEDIR}/${MODPAGESPEED_SO24_NAME}" &&
 do_install "${MODPAGESPEED_FILE_USER}" "${MODPAGESPEED_FILE_GROUP}" "-m 644" \
   "${TMP_LOAD}" \
   "${MODPAGESPEED_CONFDIR}/${MODPAGESPEED_CONF_NAME}" &&
 do_install "${APACHE_USER}" "${APACHE_GROUP}" "-m 755 -d" \
-  "${MOD_PAGESPEED_CACHE}" \
+  "${MODPAGESPEED_CACHE_ROOT}/cache" \
+  "${MODPAGESPEED_CACHE_ROOT}/files"
 ); then
   MODPAGESPEED_LOAD_LINE="Include ${MODPAGESPEED_CONFDIR}/${MODPAGESPEED_CONF_NAME}"
   if ! grep -q "${MODPAGESPEED_LOAD_LINE}" "${APACHE_CONF_FILE}"; then

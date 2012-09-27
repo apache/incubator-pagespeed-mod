@@ -53,10 +53,9 @@ class CheckingThreadSystem : public ThreadSystem {
   // CheckingThreadSystems.
   class Mutex : public ThreadSystem::CondvarCapableMutex {
    public:
-    explicit Mutex(ThreadSystem::CondvarCapableMutex* mutex) : mutex_(mutex) { }
+    Mutex(ThreadSystem::CondvarCapableMutex* mutex) : mutex_(mutex) { }
     virtual ~Mutex();
 
-    virtual bool TryLock();
     virtual void Lock();
     virtual void Unlock();
     // This implementation of DCheckLocked CHECK-fails if lock is not held.
@@ -80,13 +79,11 @@ class CheckingThreadSystem : public ThreadSystem {
   // CheckingThreadSystems.
   class RWLock : public ThreadSystem::RWLock {
    public:
-    explicit RWLock(ThreadSystem::RWLock* lock) : lock_(lock) { }
+    RWLock(ThreadSystem::RWLock* lock) : lock_(lock) { }
     virtual ~RWLock();
 
-    virtual bool TryLock();
     virtual void Lock();
     virtual void Unlock();
-    virtual bool ReaderTryLock();
     virtual void ReaderLock();
     virtual void ReaderUnlock();
 
@@ -105,7 +102,7 @@ class CheckingThreadSystem : public ThreadSystem {
     DISALLOW_COPY_AND_ASSIGN(RWLock);
   };
 
-  explicit CheckingThreadSystem(ThreadSystem* thread_system)
+  CheckingThreadSystem(ThreadSystem* thread_system)
       : thread_system_(thread_system) { }
   virtual ~CheckingThreadSystem();
 

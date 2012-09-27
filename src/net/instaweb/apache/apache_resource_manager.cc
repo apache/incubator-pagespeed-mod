@@ -21,26 +21,20 @@
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
-#include "net/instaweb/http/public/url_async_fetcher_stats.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/shared_mem_statistics.h"
-#include "net/instaweb/util/public/split_statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 
 namespace {
 
+// TODO(jmarantz): add a configuration that allows turning off cache.flush
+// checking or possibly customizes the filename.
+const int64 kDefaultCacheFlushIntervalSec = 5;
 
 const char kCacheFlushCount[] = "cache_flush_count";
-
-// Statistics histogram names.
-const char kHtmlRewriteTimeUsHistogram[] = "Html Time us Histogram";
-
-const char kLocalFetcherStatsPrefix[] = "http";
 
 }  // namespace
 
@@ -54,17 +48,17 @@ ApacheResourceManager::ApacheResourceManager(
     ApacheRewriteDriverFactory* factory,
     server_rec* server,
     const StringPiece& version)
-    : ServerContext(factory),
+    : ResourceManager(factory),
       apache_factory_(factory),
       server_rec_(server),
       version_(version.data(), version.size()),
       hostname_identifier_(StrCat(server->server_hostname, ":",
                                   IntegerToString(server->port))),
       initialized_(false),
-      local_statistics_(NULL),
-      html_rewrite_time_us_histogram_(NULL),
+      subresource_fetcher_(NULL),
       cache_flush_mutex_(thread_system()->NewMutex()),
       last_cache_flush_check_sec_(0),
+      cache_flush_poll_interval_sec_(kDefaultCacheFlushIntervalSec),
       cache_flush_count_(NULL) {  // Lazy-initialized under mutex.
   config()->set_description(hostname_identifier_);
   // We may need the message handler for error messages very early, before
@@ -84,15 +78,8 @@ ApacheResourceManager::ApacheResourceManager(
 ApacheResourceManager::~ApacheResourceManager() {
 }
 
-void ApacheResourceManager::InitStats(Statistics* statistics) {
+void ApacheResourceManager::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCacheFlushCount);
-  Histogram* html_rewrite_time_us_histogram =
-      statistics->AddHistogram(kHtmlRewriteTimeUsHistogram);
-  // We set the boundary at 2 seconds which is about 2 orders of magnitude
-  // worse than anything we have reasonably seen, to make sure we don't
-  // cut off actual samples.
-  html_rewrite_time_us_histogram->SetMaxValue(2000 * Timer::kMsUs);
-  UrlAsyncFetcherStats::InitStats(kLocalFetcherStatsPrefix, statistics);
 }
 
 bool ApacheResourceManager::InitFileCachePath() {
@@ -113,100 +100,20 @@ ApacheConfig* ApacheResourceManager::config() {
   return ApacheConfig::DynamicCast(global_options());
 }
 
-ApacheConfig* ApacheResourceManager::SpdyConfigOverlay() {
-  if (spdy_config_overlay_.get() == NULL) {
-    spdy_config_overlay_.reset(new ApacheConfig());
-    // We want to copy any implicit rewrite level from the parent,
-    // so we don't end up overriding it with passthrough. It's also OK
-    // to forward explicit one to an implicit one here, since an implicit
-    // will never override an explicit one (even if its different).
-    spdy_config_overlay_->SetDefaultRewriteLevel(config()->level());
-  }
-  return spdy_config_overlay_.get();
-}
-
-ApacheConfig* ApacheResourceManager::NonSpdyConfigOverlay() {
-  if (non_spdy_config_overlay_.get() == NULL) {
-    non_spdy_config_overlay_.reset(new ApacheConfig());
-    // See ::SpdyConfigOverlay for explanation.
-    non_spdy_config_overlay_->SetDefaultRewriteLevel(config()->level());
-  }
-  return non_spdy_config_overlay_.get();
-}
-
-void ApacheResourceManager::CollapseConfigOverlaysAndComputeSignatures() {
-  if (spdy_config_overlay_.get() != NULL ||
-      non_spdy_config_overlay_.get() != NULL) {
-    // We need separate SPDY/non-SPDY configs if we have any
-    // <IfModpagespeed spdy> or <IfModpagespeed !spdy> blocks.
-    // We compute the SPDY one first since we need config() to be
-    // the common config and not common + !spdy.
-    spdy_specific_config_.reset(config()->Clone());
-    if (spdy_config_overlay_.get() != NULL) {
-      spdy_specific_config_->Merge(*spdy_config_overlay_);
-    }
-    ComputeSignature(spdy_specific_config_.get());
-  }
-
-  if (non_spdy_config_overlay_.get() != NULL) {
-    config()->Merge(*non_spdy_config_overlay_);
-  }
-
-  ComputeSignature(config());
-}
-
-void ApacheResourceManager::CreateLocalStatistics(
-    Statistics* global_statistics) {
-  local_statistics_ =
-      apache_factory_->AllocateAndInitSharedMemStatistics(
-          hostname_identifier(),
-          config()->statistics_logging_enabled(),
-          config()->statistics_logging_interval_ms(),
-          config()->statistics_logging_file());
-  split_statistics_.reset(new SplitStatistics(
-      apache_factory_->thread_system(), local_statistics_, global_statistics));
-  // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,
-  // but we need to take care of split_statistics_.
-  ApacheRewriteDriverFactory::InitStats(split_statistics_.get());
-}
-
 void ApacheResourceManager::ChildInit() {
   DCHECK(!initialized_);
   if (!initialized_) {
     initialized_ = true;
     ApacheCache* cache = apache_factory_->GetCache(config());
-
+    set_http_cache(cache->http_cache());
+    set_page_property_cache(cache->page_property_cache());
+    set_client_property_cache(cache->client_property_cache());
+    set_metadata_cache(cache->cache());
     set_lock_manager(cache->lock_manager());
-    UrlAsyncFetcher* fetcher = apache_factory_->GetFetcher(config());
+    UrlPollableAsyncFetcher* fetcher = apache_factory_->GetFetcher(config());
     set_default_system_fetcher(fetcher);
-
-    if (split_statistics_.get() != NULL) {
-      // Readjust the SHM stuff for the new process
-      local_statistics_->Init(false, message_handler());
-
-      // Create local stats for the ResourceManager, and fill in its
-      // statistics() and rewrite_stats() using them; if we didn't do this here
-      // they would get set to the factory's by the InitResourceManager call
-      // below.
-      set_statistics(split_statistics_.get());
-      local_rewrite_stats_.reset(new RewriteStats(
-          split_statistics_.get(), apache_factory_->thread_system(),
-          apache_factory_->timer()));
-      set_rewrite_stats(local_rewrite_stats_.get());
-
-      // In case of gzip fetching, we will have the UrlAsyncFetcherStats take
-      // care of it rather than the original fetcher, so we get correct
-      // numbers for bytes fetched.
-      if (apache_factory_->fetch_with_gzip()) {
-        fetcher->set_fetch_with_gzip(false);
-      }
-      stats_fetcher_.reset(new UrlAsyncFetcherStats(
-          kLocalFetcherStatsPrefix, fetcher,
-          apache_factory_->timer(), split_statistics_.get()));
-      if (apache_factory_->fetch_with_gzip()) {
-        stats_fetcher_->set_fetch_with_gzip(true);
-      }
-      set_default_system_fetcher(stats_fetcher_.get());
+    if (!config()->slurping_enabled_read_only()) {
+      subresource_fetcher_ = fetcher;
     }
 
     // To allow Flush to come in while multiple threads might be
@@ -215,10 +122,7 @@ void ApacheResourceManager::ChildInit() {
     // an optional read/writer lock for this purpose.
     global_options()->set_cache_invalidation_timestamp_mutex(
         thread_system()->NewRWLock());
-    apache_factory_->InitServerContext(this);
-
-    html_rewrite_time_us_histogram_ = statistics()->GetHistogram(
-        kHtmlRewriteTimeUsHistogram);
+    apache_factory_->InitResourceManager(this);
   }
 }
 
@@ -233,38 +137,35 @@ bool ApacheResourceManager::PoolDestroyed() {
 // so that all child processes see the flush, and so the flush persists
 // across server restart.
 void ApacheResourceManager::PollFilesystemForCacheFlush() {
-  int64 cache_flush_poll_interval_sec =
-      config()->cache_flush_poll_interval_sec();
-  if (cache_flush_poll_interval_sec > 0) {
+  if (cache_flush_poll_interval_sec_ > 0) {
     int64 now_sec = timer()->NowMs() / Timer::kSecondMs;
     bool check_cache_file = false;
     {
       ScopedMutex lock(cache_flush_mutex_.get());
       if (now_sec >= (last_cache_flush_check_sec_ +
-                      cache_flush_poll_interval_sec)) {
+                      cache_flush_poll_interval_sec_)) {
         last_cache_flush_check_sec_ = now_sec;
         check_cache_file = true;
       }
       if (cache_flush_count_ == NULL) {
-        cache_flush_count_ = statistics()->GetVariable(kCacheFlushCount);
+        cache_flush_count_ = statistics()->AddVariable(kCacheFlushCount);
       }
     }
 
     if (check_cache_file) {
-      GoogleString cache_flush_filename = config()->cache_flush_filename();
-      if (cache_flush_filename.empty()) {
-        cache_flush_filename = "cache.flush";
+      if (cache_flush_filename_.empty()) {
+        cache_flush_filename_ = "cache.flush";
       }
-      if (cache_flush_filename[0] != '/') {
+      if (cache_flush_filename_[0] != '/') {
         // Note that we catch this in mod_instaweb.cc in the parsing of
         // option kModPagespeedFileCachePath.
         DCHECK_EQ('/', config()->file_cache_path()[0]);
-        cache_flush_filename = StrCat(config()->file_cache_path(), "/",
-                                      cache_flush_filename);
+        cache_flush_filename_ = StrCat(config()->file_cache_path(), "/",
+                                       cache_flush_filename_);
       }
       int64 cache_flush_timestamp_sec;
       NullMessageHandler null_handler;
-      if (file_system()->Mtime(cache_flush_filename,
+      if (file_system()->Mtime(cache_flush_filename_,
                                &cache_flush_timestamp_sec,
                                &null_handler)) {
         int64 timestamp_ms = cache_flush_timestamp_sec * Timer::kSecondMs;
@@ -274,12 +175,6 @@ void ApacheResourceManager::PollFilesystemForCacheFlush() {
         }
       }
     }
-  }
-}
-
-void ApacheResourceManager::AddHtmlRewriteTimeUs(int64 rewrite_time_us) {
-  if (html_rewrite_time_us_histogram_ != NULL) {
-    html_rewrite_time_us_histogram_->Add(rewrite_time_us);
   }
 }
 

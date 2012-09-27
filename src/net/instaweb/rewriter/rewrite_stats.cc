@@ -18,12 +18,10 @@
 
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/waveform.h"
-
-namespace net_instaweb {
 
 namespace {
 
@@ -31,10 +29,10 @@ namespace {
 // could have rewritten, except that they lay in a domain that did not
 // permit resource rewriting relative to the current page.
 const char kResourceUrlDomainRejections[] = "resource_url_domain_rejections";
-const char kCachedOutputMissedDeadline[] =
+static const char kCachedOutputMissedDeadline[] =
     "rewrite_cached_output_missed_deadline";
-const char kCachedOutputHits[] = "rewrite_cached_output_hits";
-const char kCachedOutputMisses[] = "rewrite_cached_output_misses";
+static const char kCachedOutputHits[] = "rewrite_cached_output_hits";
+static const char kCachedOutputMisses[] = "rewrite_cached_output_misses";
 const char kInstawebResource404Count[] = "resource_404_count";
 const char kInstawebSlurp404Count[] = "slurp_404_count";
 const char kResourceFetchesCached[] = "resource_fetches_cached";
@@ -50,15 +48,12 @@ const char kNumConditionalRefreshes[] = "num_conditional_refreshes";
 // mod_pagespeed_handler on apache.  The average load time in milliseconds is
 // total_page_load_ms / page_load_count.  Note that these are not updated
 // together atomically, so you might get a slightly bogus value.
-//
-// We also keep a histogram, kBeaconTimingsMsHistogram of these.
 const char kTotalPageLoadMs[] = "total_page_load_ms";
 const char kPageLoadCount[] = "page_load_count";
 
 const int kNumWaveformSamples = 200;
 
 // Histogram names.
-const char kBeaconTimingsMsHistogram[] = "Beacon Reported Load Time (ms)";
 const char kFetchLatencyHistogram[] = "Pagespeed Resource Latency Histogram";
 const char kRewriteLatencyHistogram[] = "Rewrite Latency Histogram";
 const char kBackendLatencyHistogram[] =
@@ -72,12 +67,14 @@ const char kRewritesDropped[] = "num_rewrites_dropped";
 
 }  // namespace
 
+namespace net_instaweb {
+
 // In Apache, this is called in the root process to establish shared memory
 // boundaries prior to the primary initialization of RewriteDriverFactories.
 //
 // Note that there are other statistics owned by filters and subsystems,
 // that must get the some treatment.
-void RewriteStats::InitStats(Statistics* statistics) {
+void RewriteStats::Initialize(Statistics* statistics) {
   statistics->AddVariable(kResourceUrlDomainRejections);
   statistics->AddVariable(kCachedOutputMissedDeadline);
   statistics->AddVariable(kCachedOutputHits);
@@ -90,20 +87,19 @@ void RewriteStats::InitStats(Statistics* statistics) {
   statistics->AddVariable(kResourceFetchConstructSuccesses);
   statistics->AddVariable(kResourceFetchConstructFailures);
   statistics->AddVariable(kNumFlushes);
-  statistics->AddHistogram(kBeaconTimingsMsHistogram);
   statistics->AddHistogram(kFetchLatencyHistogram);
   statistics->AddHistogram(kRewriteLatencyHistogram);
   statistics->AddHistogram(kBackendLatencyHistogram);
   statistics->AddVariable(kFallbackResponsesServed);
   statistics->AddVariable(kNumConditionalRefreshes);
   statistics->AddTimedVariable(kTotalFetchCount,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kTotalRewriteCount,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kRewritesExecuted,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
   statistics->AddTimedVariable(kRewritesDropped,
-                               ServerContext::kStatisticsGroup);
+                               ResourceManager::kStatisticsGroup);
 }
 
 // This is called when a RewriteDriverFactory is created, and adds
@@ -142,8 +138,6 @@ RewriteStats::RewriteStats(Statistics* stats,
           stats->GetVariable(kFallbackResponsesServed)),
       num_conditional_refreshes_(
           stats->GetVariable(kNumConditionalRefreshes)),
-      beacon_timings_ms_histogram_(
-          stats->GetHistogram(kBeaconTimingsMsHistogram)),
       fetch_latency_histogram_(
           stats->GetHistogram(kFetchLatencyHistogram)),
       rewrite_latency_histogram_(
@@ -159,7 +153,6 @@ RewriteStats::RewriteStats(Statistics* stats,
   // EnableNegativeBuckets is called, allowing bars to be created with
   // negative x-axis labels in the histogram.
   // TODO(sligocki): Any reason not to set this by default for all Histograms?
-  beacon_timings_ms_histogram_->EnableNegativeBuckets();
   fetch_latency_histogram_->EnableNegativeBuckets();
   rewrite_latency_histogram_->EnableNegativeBuckets();
   backend_latency_histogram_->EnableNegativeBuckets();

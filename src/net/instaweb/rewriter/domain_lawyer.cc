@@ -329,29 +329,6 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
   return domain;
 }
 
-void DomainLawyer::FindDomainsRewrittenTo(
-    const GoogleUrl& original_url,
-    ConstStringStarVector* from_domains) const {
-  // TODO(rahulbansal): Make this more efficient by maintaining the map of
-  // rewrite_domain -> from_domains.
-  if (!original_url.is_valid()) {
-    LOG(ERROR) << "Invalid url " << original_url.Spec();
-    return;
-  }
-
-  GoogleString domain_name;
-  original_url.Origin().CopyToString(&domain_name);
-  EnsureEndsInSlash(&domain_name);
-  for (DomainMap::const_iterator p = domain_map_.begin();
-      p != domain_map_.end(); ++p) {
-    Domain* src_domain = p->second;
-    if (!src_domain->IsWildcarded() && (src_domain->rewrite_domain() != NULL) &&
-        domain_name == src_domain->rewrite_domain()->name()) {
-      from_domains->push_back(&src_domain->name());
-    }
-  }
-}
-
 bool DomainLawyer::MapRequestToDomain(
     const GoogleUrl& original_request,
     const StringPiece& resource_url,  // relative to original_request
@@ -482,61 +459,6 @@ bool DomainLawyer::AddRewriteDomainMapping(
   return result;
 }
 
-bool DomainLawyer::DomainNameToTwoProtocols(
-    const StringPiece& domain_name,
-    GoogleString* http_url, GoogleString* https_url) {
-  *http_url = NormalizeDomainName(domain_name);
-  StringPiece http_url_piece(*http_url);
-  if (!http_url_piece.starts_with("http:")) {
-    return false;
-  }
-  *https_url = StrCat("https", http_url_piece.substr(4));
-  return true;
-}
-
-bool DomainLawyer::TwoProtocolDomainHelper(
-      const StringPiece& to_domain_name,
-      const StringPiece& from_domain_name,
-      SetDomainFn set_domain_fn,
-      bool authorize,
-      MessageHandler* handler) {
-  GoogleString http_to_url, http_from_url, https_to_url, https_from_url;
-  if (!DomainNameToTwoProtocols(to_domain_name, &http_to_url, &https_to_url)) {
-    return false;
-  }
-  if (!DomainNameToTwoProtocols(from_domain_name,
-                                &http_from_url, &https_from_url)) {
-    return false;
-  }
-  if (!MapDomainHelper(http_to_url, http_from_url,
-                       set_domain_fn,
-                       false, /* allow_wildcards */
-                       false, /* allow_map_to_https */
-                       authorize, handler)) {
-    return false;
-  }
-  if (!MapDomainHelper(https_to_url, https_from_url,
-                       set_domain_fn,
-                       false, /* allow_wildcards */
-                       true, /* allow_map_to_https */
-                       authorize, handler)) {
-    // Note that we still retain the http domain mapping in this case.
-    return false;
-  }
-  return true;
-}
-
-bool DomainLawyer::AddTwoProtocolRewriteDomainMapping(
-    const StringPiece& to_domain_name,
-    const StringPiece& from_domain_name,
-    MessageHandler* handler) {
-  bool result = TwoProtocolDomainHelper(to_domain_name, from_domain_name,
-                                        &Domain::SetRewriteDomain,
-                                        true /*authorize */, handler);
-  can_rewrite_domains_ |= result;
-  return result;
-}
-
 bool DomainLawyer::AddOriginDomainMapping(
     const StringPiece& to_domain_name,
     const StringPiece& comma_separated_from_domains,
@@ -553,9 +475,27 @@ bool DomainLawyer::AddTwoProtocolOriginDomainMapping(
     const StringPiece& to_domain_name,
     const StringPiece& from_domain_name,
     MessageHandler* handler) {
-  return TwoProtocolDomainHelper(to_domain_name, from_domain_name,
-                                 &Domain::SetOriginDomain,
-                                 false /*authorize */, handler);
+  GoogleString http_to_url = NormalizeDomainName(to_domain_name);
+  GoogleString http_from_url =  NormalizeDomainName(from_domain_name);
+  if (!StringPiece(http_to_url).starts_with("http:") ||
+      !StringPiece(http_from_url).starts_with("http:")) {
+    return false;
+  }
+  GoogleString https_to_url = StrCat("https", http_to_url.substr(4));
+  GoogleString https_from_url = StrCat("https", http_from_url.substr(4));
+  return
+      (MapDomainHelper(http_to_url, http_from_url,
+                       &Domain::SetOriginDomain,
+                       false, /* allow_wildcards */
+                       false, /* allow_map_to_https */
+                       false, /* authorize */
+                       handler) &&
+       MapDomainHelper(https_to_url, https_from_url,
+                       &Domain::SetOriginDomain,
+                       false, /* allow_wildcards */
+                       true,  /* allow_map_to_https */
+                       false, /* authorize */
+                       handler));
 }
 
 bool DomainLawyer::AddShard(

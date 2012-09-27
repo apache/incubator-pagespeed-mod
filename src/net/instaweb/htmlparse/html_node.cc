@@ -19,6 +19,7 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 
 #include "net/instaweb/htmlparse/html_event.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 
 namespace net_instaweb {
 

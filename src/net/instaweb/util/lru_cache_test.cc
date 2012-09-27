@@ -41,7 +41,7 @@ class LRUCacheTest : public CacheTestBase {
   }
 
   virtual CacheInterface* Cache() { return &cache_; }
-  virtual void PostOpCleanup() { cache_.SanityCheck(); }
+  virtual void SanityCheck() { cache_.SanityCheck(); }
 
   LRUCache cache_;
 
@@ -86,14 +86,14 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   for (int i = 0; i < 10; ++i) {
     SStringPrintf(&keys[i], key_pattern, i);
     SStringPrintf(&values[i], value_pattern, i);
-    CheckPut(keys[i], values[i]);
+    CheckPut(keys[i].c_str(), values[i].c_str());
   }
   EXPECT_EQ(kMaxSize, cache_.size_bytes());
   EXPECT_EQ(num_elements, cache_.num_elements());
 
   // Ensure we can see those.
   for (int i = 0; i < 10; ++i) {
-    CheckGet(keys[i], values[i]);
+    CheckGet(keys[i].c_str(), values[i]);
   }
 
   // Now if we insert a new entry totaling 10 bytes, that should work,
@@ -122,7 +122,7 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   CheckGet("nameC", "valueC");
   CheckGet("name1", "valu1");
   for (int i = 5; i < 10; ++i) {
-    CheckGet(keys[i], values[i]);
+    CheckGet(keys[i].c_str(), values[i]);
   }
 
   // Now the oldest item is "nameA".  Freshen it by re-inserting it, tickling
@@ -136,7 +136,7 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   CheckGet("nameC", "valueC");
   CheckGet("name1", "valu1");
   for (int i = 5; i < 10; ++i) {
-    CheckGet(keys[i], values[i]);
+    CheckGet(keys[i].c_str(), values[i]);
   }
 }
 
@@ -149,11 +149,6 @@ TEST_F(LRUCacheTest, BasicInvalid) {
   set_invalid_value("valueA");
   CheckNotFound("nameA");
   CheckGet("nameB", "valueB");
-}
-
-TEST_F(LRUCacheTest, MultiGet) {
-  // This covers CacheInterface's default implementation of MultiGet.
-  TestMultiGet();
 }
 
 }  // namespace net_instaweb

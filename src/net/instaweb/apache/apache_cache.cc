@@ -17,11 +17,12 @@
 #include "net/instaweb/apache/apache_cache.h"
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
-#include "net/instaweb/util/public/cache_stats.h"
+#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/util/public/file_cache.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/shared_mem_lock_manager.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/threadsafe_cache.h"
@@ -30,9 +31,6 @@
 namespace net_instaweb {
 
 class Timer;
-
-const char ApacheCache::kFileCache[] = "file_cache";
-const char ApacheCache::kLruCache[] = "lru_cache";
 
 // The ApacheCache encapsulates a cache-sharing model where a user specifies
 // a file-cache path per virtual-host.  With each file-cache object we keep
@@ -57,14 +55,10 @@ ApacheCache::ApacheCache(const StringPiece& path,
       factory->timer(),
       factory->hasher(),
       config.file_cache_clean_interval_ms(),
-      config.file_cache_clean_size_kb() * 1024,
-      config.file_cache_clean_inode_limit());
+      config.file_cache_clean_size_kb() * 1024);
   file_cache_ = new FileCache(
       config.file_cache_path(), factory->file_system(), NULL,
       factory->filename_encoder(), policy, factory->message_handler());
-  l2_cache_.reset(new CacheStats(kFileCache, file_cache_, factory->timer(),
-                                 factory->statistics()));
-
   if (config.lru_cache_kb_per_process() != 0) {
     LRUCache* lru_cache = new LRUCache(
         config.lru_cache_kb_per_process() * 1024);
@@ -75,13 +69,23 @@ ApacheCache::ApacheCache(const StringPiece& path,
     // cause contention.
     ThreadsafeCache* ts_cache =
         new ThreadsafeCache(lru_cache, factory->thread_system()->NewMutex());
-#if CACHE_STATISTICS
-    l1_cache_.reset(new CacheStats(kLruCache, ts_cache, factory->timer(),
-                                   factory->statistics()));
-#else
-    l1_cache_.reset(ts_cache);
-#endif
+    WriteThroughCache* write_through_cache =
+        new WriteThroughCache(ts_cache, file_cache_);
+    // By default, WriteThroughCache does not limit the size of entries going
+    // into its front cache.
+    if (config.lru_cache_byte_limit() != 0) {
+      write_through_cache->set_cache1_limit(config.lru_cache_byte_limit());
+    }
+    cache_.reset(write_through_cache);
+  } else {
+    cache_.reset(file_cache_);
   }
+  http_cache_.reset(new HTTPCache(cache_.get(), factory->timer(),
+                                  factory->hasher(), factory->statistics()));
+  page_property_cache_.reset(factory->MakePropertyCache(
+      PropertyCache::kPagePropertyCacheKeyPrefix, file_cache_));
+  client_property_cache_.reset(factory->MakePropertyCache(
+      PropertyCache::kClientPropertyCacheKeyPrefix, file_cache_));
 }
 
 ApacheCache::~ApacheCache() {
@@ -103,9 +107,7 @@ void ApacheCache::ChildInit() {
       !shared_mem_lock_manager_->Attach()) {
     FallBackToFileBasedLocking();
   }
-  if (file_cache_ != NULL) {
-    file_cache_->set_worker(factory_->slow_worker());
-  }
+  file_cache_->set_worker(factory_->slow_worker());
 }
 
 void ApacheCache::FallBackToFileBasedLocking() {

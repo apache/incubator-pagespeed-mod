@@ -19,8 +19,6 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_FILE_SYSTEM_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_FILE_SYSTEM_H_
 
-#include <vector>
-
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -117,24 +115,6 @@ class FileSystem {
     virtual ~OutputFile();
   };
 
-  struct FileInfo {
-    FileInfo(int64 size_bytes, int64 atime_sec, const GoogleString& name)
-        : size_bytes(size_bytes), atime_sec(atime_sec), name(name) {}
-
-    int64 size_bytes;
-    int64 atime_sec;
-    GoogleString name;
-  };
-
-  struct DirInfo {
-    DirInfo() : size_bytes(0), inode_count(0) { }
-
-    std::vector<FileInfo> files;
-    StringVector empty_dirs;
-    int64 size_bytes;
-    int64 inode_count;
-  };
-
   // Returns the maximum possible length of a path in a given directory.
   // Note that this is the total, and there may be further constraints
   // on each level. It also depends on the base path.
@@ -142,19 +122,11 @@ class FileSystem {
   // Default implementation defensively returns 8192.
   virtual int MaxPathLength(const StringPiece& base) const;
 
-  // High level support to read/write entire files in one shot.  The input_file
-  // versions accept a NULL input_file, in which case they report failure.  All
-  // routines close the file.
+  // High level support to read/write entire files in one shot.
   virtual bool ReadFile(const char* filename,
                         GoogleString* buffer,
                         MessageHandler* handler);
   virtual bool ReadFile(const char* filename,
-                        Writer* writer,
-                        MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
-                        GoogleString* buffer,
-                        MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
                         Writer* writer,
                         MessageHandler* handler);
   virtual bool WriteFile(const char* filename,
@@ -181,14 +153,7 @@ class FileSystem {
   OutputFile* OpenOutputFile(const char* filename,
                              MessageHandler* handler) {
     SetupFileDir(filename, handler);
-    return OpenOutputFileHelper(filename, false, handler);
-  }
-  // Open a file to append to it.
-  // Automatically creates sub-directories to filename.
-  OutputFile* OpenOutputFileForAppend(const char* filename,
-                                      MessageHandler* handler) {
-    SetupFileDir(filename, handler);
-    return OpenOutputFileHelper(filename, true, handler);
+    return OpenOutputFileHelper(filename, handler);
   }
   // Opens a temporary file to write, with the specified prefix.
   // If successful, the filename can be obtained from File::filename().
@@ -219,10 +184,6 @@ class FileSystem {
   // Like POSIX 'mkdir', makes a directory only if parent directory exists.
   // Fails if directory_name already exists or parent directory doesn't exist.
   virtual bool MakeDir(const char* directory_path, MessageHandler* handler) = 0;
-
-  // Like POSIX 'rmdir', remove a directory only if it is empty.
-  virtual bool RemoveDir(const char* directory_path,
-                         MessageHandler* handler) = 0;
 
   // Like POSIX 'test -e', checks if path exists (is a file, directory, etc.).
   virtual BoolOrError Exists(const char* path, MessageHandler* handler) = 0;
@@ -256,16 +217,15 @@ class FileSystem {
   virtual bool Mtime(const StringPiece& path, int64* timestamp_sec,
                      MessageHandler* handler) = 0;
 
-  // Given a directory path, list the files in the directory and all
-  // subdirectories along with total size, inode count, and list of empty
-  // directories (useful for cache cleaning). The files/directories in the
-  // 'files' and 'empty_dirs' members of dirinfo will have the 'path' input
-  // parameter prepended to them. We assume no circular links. If the files or
-  // directories are modified while we traverse, we are not guaranteed to
-  // represent their final state. The path name should NOT end in a "/".
+  // Given a directory, recursively computes the total size of all its
+  // files and directories, and increments *size by the sum total.  We
+  // assume no circular links.  Returns true on success, false on
+  // failure.  If the files are modified while we traverse, we are not
+  // guaranteed to represent their final state.
+  // The path name should NOT end in a "/".
   // TODO(abliss): unify all slash-ending assumptions
-  virtual void GetDirInfo(const StringPiece& path, DirInfo* dirinfo,
-                          MessageHandler* handler);
+  virtual bool RecursiveDirSize(const StringPiece& path, int64* size,
+                                MessageHandler* handler);
 
   // Given a file, computes its size in bytes and store it in *size.  Returns
   // true on success, false on failure.  Behavior is undefined if path refers to
@@ -305,7 +265,6 @@ class FileSystem {
   // These interfaces must be defined by implementers of FileSystem.
   // They may assume the directory already exists.
   virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
                                            MessageHandler* handler) = 0;
   virtual OutputFile* OpenTempFileHelper(const StringPiece& filename,
                                          MessageHandler* handler) = 0;

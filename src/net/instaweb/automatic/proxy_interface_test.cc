@@ -31,24 +31,15 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/reflecting_test_fetcher.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/rewriter/public/furious_util.h"
-#include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
-#include "net/instaweb/rewriter/public/js_disable_filter.h"
-#include "net/instaweb/rewriter/public/lazyload_images_filter.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/split_html_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
@@ -90,335 +81,21 @@ namespace {
 // for the cache lookup to come back.
 const char kImageFilenameLackingExt[] = "jpg_file_lacks_ext";
 const char kPageUrl[] = "page.html";
-const char kHttpsPageUrl[] = "https://www.test.com/page.html";
-const char kHttpsCssUrl[] = "https://www.test.com/style.css";
 
 const char kCssContent[] = "* { display: none; }";
 const char kMinimizedCssContent[] = "*{display:none}";
 const char kBackgroundFetchHeader[] = "X-Background-Fetch";
-const char kFlushEarlyHtml[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"1.css\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"2.css\">"
-    "<script src=\"1.js\"></script>"
-    "<script src=\"2.js\"></script>"
-    "<img src=\"1.jpg\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"3.css\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kRewrittenHtml[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script src=\"%s\"></script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlImageTag[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<script type=\"text/javascript\">(function(){"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";})()</script>"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 5</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script src=\"%s\"></script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlImageTagInsertDnsPrefetch[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<script type=\"text/javascript\">(function(){"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";})()</script>"
-    "<link rel=\"dns-prefetch\" href=\"//test.com\">"
-    "<link rel=\"dns-prefetch\" href=\"//www.domain1.com\">"
-    "<link rel=\"dns-prefetch\" href=\"//www.domain2.com\">"
-    "<link rel=\"dns-prefetch\" href=\"//www.domain3.com\">"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 5</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script src=\"%s\"></script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlLinkRelSubresource[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 5</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script src=\"%s\"></script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlLinkScript[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<script type=\"psa_prefetch\" src=\"%s\"></script>\n"
-    "<script type=\"psa_prefetch\" src=\"%s\"></script>\n"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 5</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script src=\"%s\"></script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kRewrittenHtmlLazyloadDeferJsScriptFlushedEarly[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<link rel=\"stylesheet\" href=\"%s\" media=\"print\" disabled=\"true\"/>\n"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 3</script>"
-    "<script type=\"text/javascript\">%s</script>"
-    "%s"
-    "<script type=\"text/javascript\">%s</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script pagespeed_orig_src=\"%s\" type=\"text/psajs\" orig_index=\"0\">"
-    "</script>"
-    "<script type=\"text/psajs\" orig_index=\"1\">eval(mod_pagespeed_0);"
-    "</script>"
-    "<script type=\"text/psajs\" orig_index=\"2\">eval(mod_pagespeed_0);"
-    "</script>"
-    "<img pagespeed_lazy_src=\"%s\""
-    " src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///////"
-    "yH+A1BTQQAsAAAAAAEAAQAAAgJEAQA7\""
-    " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>"
-    "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-    "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-    "<script pagespeed_orig_src=\"http://test.com/private.js\""
-    " type=\"text/psajs\""
-    " orig_index=\"3\"></script>"
-    "<script pagespeed_orig_src=\"http://www.domain1.com/private.js\""
-    " type=\"text/psajs\" orig_index=\"4\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script pagespeed_orig_src=\"http://www.domain2.com/private.js\""
-    " type=\"text/psajs\" orig_index=\"5\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlImageTagWithDeferJs[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<script type=\"text/javascript\">(function(){"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";"
-    "new Image().src=\"%s\";})()</script>"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 3</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script>eval(mod_pagespeed_0);</script>"
-    "<script>eval(mod_pagespeed_0);</script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
-const char kFlushEarlyRewrittenHtmlLinkRelSubresourceWithDeferJs[] =
-    "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-    "<html>"
-    "<head>"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<link rel=\"subresource\" href=\"%s\"/>\n"
-    "<script type='text/javascript'>"
-    "window.mod_pagespeed_prefetch_start = Number(new Date());"
-    "window.mod_pagespeed_num_resources_prefetched = 3</script>"
-    "</head><head>%s"
-    "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-    "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-    "<meta charset=\"UTF-8\"/>"
-    "<title>Flush Subresources Early example</title>"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"%s\"></script>"
-    "<script>eval(mod_pagespeed_0);</script>"
-    "<script>eval(mod_pagespeed_0);</script>"
-    "<img src=\"%s\"/>"
-    "<script src=\"http://test.com/private.js\"></script>"
-    "<script src=\"http://www.domain1.com/private.js\"></script>"
-    "</head>"
-    "<body>%s"
-    "Hello, mod_pagespeed!"
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script src=\"http://www.domain2.com/private.js\"></script>"
-    "<link rel=\"stylesheet\" type=\"text/css\""
-    " href=\"http://www.domain3.com/3.css\">"
-    "</body>"
-    "</html>";
 
 // Like ExpectStringAsyncFetch but for asynchronous invocation -- it lets
 // one specify a WorkerTestBase::SyncPoint to help block until completion.
 class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
  public:
   AsyncExpectStringAsyncFetch(bool expect_success,
-                              bool log_flush,
-                              GoogleString* buffer,
-                              ResponseHeaders* response_headers,
-                              LoggingInfo* logging_info,
-                              bool* done_value,
                               WorkerTestBase::SyncPoint* notify,
                               ThreadSynchronizer* sync)
       : ExpectStringAsyncFetch(expect_success),
-        buffer_(buffer),
-        done_value_(done_value),
-        logging_info_(logging_info),
         notify_(notify),
-        sync_(sync),
-        log_flush_(log_flush) {
-    buffer->clear();
-    response_headers->Clear();
-    logging_info->Clear();
-    *done_value = false;
-    set_response_headers(response_headers);
+        sync_(sync) {
   }
 
   virtual ~AsyncExpectStringAsyncFetch() {}
@@ -430,29 +107,13 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
   }
 
   virtual void HandleDone(bool success) {
-    *buffer_ = buffer();
-    *done_value_ = success;
-    logging_info_->CopyFrom(*logging_info());
     ExpectStringAsyncFetch::HandleDone(success);
-    WorkerTestBase::SyncPoint* notify = notify_;
-    delete this;
-    notify->Notify();
-  }
-
-  virtual bool HandleFlush(MessageHandler* handler) {
-    if (log_flush_) {
-      HandleWrite("|Flush|", handler);
-    }
-    return true;
+    notify_->Notify();
   }
 
  private:
-  GoogleString* buffer_;
-  bool* done_value_;
-  LoggingInfo* logging_info_;
   WorkerTestBase::SyncPoint* notify_;
   ThreadSynchronizer* sync_;
-  bool log_flush_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncExpectStringAsyncFetch);
 };
@@ -530,7 +191,7 @@ class MockFilter : public EmptyHtmlFilter {
   virtual void StartDocument() {
     num_elements_ = 0;
     PropertyCache* page_cache =
-        driver_->server_context()->page_property_cache();
+        driver_->resource_manager()->page_property_cache();
     const PropertyCache::Cohort* cohort =
         page_cache->GetCohort(RewriteDriver::kDomCohort);
     PropertyPage* page = driver_->property_page();
@@ -559,7 +220,7 @@ class MockFilter : public EmptyHtmlFilter {
       // of elements that we expect based on the cache.
       GoogleString comment = " ";
       PropertyCache* page_cache =
-          driver_->server_context()->page_property_cache();
+          driver_->resource_manager()->page_property_cache();
 
       if (!client_id_.empty()) {
         StrAppend(&comment, "ClientID: ", client_id_, " ");
@@ -594,7 +255,7 @@ class MockFilter : public EmptyHtmlFilter {
 
     if (num_elements_property_ != NULL) {
       PropertyCache* page_cache =
-          driver_->server_context()->page_property_cache();
+          driver_->resource_manager()->page_property_cache();
       page_cache->UpdateValue(IntegerToString(num_elements_),
                               num_elements_property_);
       num_elements_property_ = NULL;
@@ -687,7 +348,7 @@ class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
 // setup fetchers; and also indirectly to prevent any rewrites from timing out
 // (as it runs the tests with real scheduler but mock timer). It would probably
 // be better to port this away to use TestRewriteDriverFactory directly.
-class ProxyInterfaceTest : public RewriteTestBase {
+class ProxyInterfaceTest : public ResourceManagerTestBase {
  public:
   // Helper function to run the fetch for ProxyInterfaceTest.HeadersSetupRace
   // in a thread so we can control it with signals using ThreadSynchronizer.
@@ -714,26 +375,26 @@ class ProxyInterfaceTest : public RewriteTestBase {
   virtual ~ProxyInterfaceTest() {}
 
   virtual void SetUp() {
-    RewriteOptions* options = server_context()->global_options();
-    server_context_->set_enable_property_cache(true);
-    page_property_cache()->AddCohort(RewriteDriver::kDomCohort);
-    server_context_->client_property_cache()->AddCohort(
+    RewriteOptions* options = resource_manager()->global_options();
+    factory()->set_enable_property_cache(true);
+    factory()->page_property_cache()->AddCohort(RewriteDriver::kDomCohort);
+    factory()->client_property_cache()->AddCohort(
         ClientState::kClientStateCohort);
     options->ClearSignatureForTesting();
     options->EnableFilter(RewriteOptions::kRewriteCss);
     options->set_max_html_cache_time_ms(kHtmlCacheTimeSec * Timer::kSecondMs);
     options->set_ajax_rewriting_enabled(true);
     options->Disallow("*blacklist*");
-    server_context()->ComputeSignature(options);
-    RewriteTestBase::SetUp();
-    ProxyInterface::InitStats(statistics());
+    resource_manager()->ComputeSignature(options);
+    ResourceManagerTestBase::SetUp();
+    ProxyInterface::Initialize(statistics());
     // The original url_async_fetcher() is still owned by RewriteDriverFactory.
     background_fetch_fetcher_.reset(new BackgroundFetchCheckingUrlAsyncFetcher(
         factory()->ComputeUrlAsyncFetcher()));
-    server_context()->set_default_system_fetcher(
+    resource_manager()->set_default_system_fetcher(
         background_fetch_fetcher_.get());
     proxy_interface_.reset(
-        new ProxyInterface("localhost", 80, server_context(), statistics()));
+        new ProxyInterface("localhost", 80, resource_manager(), statistics()));
     start_time_ms_ = mock_timer()->NowMs();
 
     SetResponseWithDefaultHeaders(kImageFilenameLackingExt, kContentTypeJpeg,
@@ -746,8 +407,8 @@ class ProxyInterfaceTest : public RewriteTestBase {
     // Make sure all the jobs are over before we check for leaks ---
     // someone might still be trying to clean themselves up.
     mock_scheduler()->AwaitQuiescence();
-    EXPECT_EQ(0, server_context()->num_active_rewrite_drivers());
-    RewriteTestBase::TearDown();
+    EXPECT_EQ(0, resource_manager()->num_active_rewrite_drivers());
+    ResourceManagerTestBase::TearDown();
   }
 
   // Initiates a fetch using the proxy interface, and waits for it to
@@ -757,11 +418,10 @@ class ProxyInterfaceTest : public RewriteTestBase {
                       bool expect_success,
                       GoogleString* string_out,
                       ResponseHeaders* headers_out) {
-    FetchFromProxyNoWait(url, request_headers, expect_success,
-                         false /* log_flush*/, headers_out);
+    FetchFromProxyNoWait(url, request_headers, expect_success, headers_out);
     WaitForFetch();
-    *string_out = callback_buffer_;
-    logging_info_.CopyFrom(callback_logging_info_);
+    *string_out = callback_->buffer();
+    timing_info_.CopyFrom(*callback_->timing_info());
   }
 
   // TODO(jmarantz): eliminate this interface as it's annoying to have
@@ -775,40 +435,25 @@ class ProxyInterfaceTest : public RewriteTestBase {
                    headers_out);
   }
 
-  void FetchFromProxyLoggingFlushes(const StringPiece& url,
-                                    bool expect_success,
-                                    GoogleString* string_out) {
-    RequestHeaders request_headers;
-    ResponseHeaders response_headers;
-    FetchFromProxyNoWait(url, request_headers, expect_success,
-                         true /* log_flush*/, &response_headers);
-    WaitForFetch();
-    *string_out = callback_buffer_;
-    logging_info_.CopyFrom(callback_logging_info_);
-  }
-
   // Initiates a fetch using the proxy interface, without waiting for it to
   // complete.  The usage model here is to delay callbacks and/or fetches
   // to control their order of delivery, then call WaitForFetch.
   void FetchFromProxyNoWait(const StringPiece& url,
                             const RequestHeaders& request_headers,
                             bool expect_success,
-                            bool log_flush,
                             ResponseHeaders* headers_out) {
     sync_.reset(new WorkerTestBase::SyncPoint(
-        server_context()->thread_system()));
-    AsyncFetch* fetch = new AsyncExpectStringAsyncFetch(
-        expect_success, log_flush, &callback_buffer_,
-        &callback_response_headers_, &callback_logging_info_,
-        &callback_done_value_, sync_.get(),
-        server_context()->thread_synchronizer());
-    fetch->set_response_headers(headers_out);
-    fetch->request_headers()->CopyFrom(request_headers);
+        resource_manager()->thread_system()));
+    callback_.reset(new AsyncExpectStringAsyncFetch(
+        expect_success, sync_.get(),
+        resource_manager()->thread_synchronizer()));
+    callback_->set_response_headers(headers_out);
+    callback_->request_headers()->CopyFrom(request_headers);
     fetch_already_done_ = proxy_interface_->Fetch(AbsolutifyUrl(url),
                                                   message_handler(),
-                                                  fetch);
+                                                  callback_.get());
     if (fetch_already_done_) {
-      EXPECT_TRUE(callback_done_value_);
+      EXPECT_TRUE(callback_->done());
     }
   }
 
@@ -840,7 +485,7 @@ class ProxyInterfaceTest : public RewriteTestBase {
   }
 
   virtual void ClearStats() {
-    RewriteTestBase::ClearStats();
+    ResourceManagerTestBase::ClearStats();
     background_fetch_fetcher_->clear_num_background_fetches();
   }
 
@@ -911,27 +556,13 @@ class ProxyInterfaceTest : public RewriteTestBase {
   void TestPropertyCache(const StringPiece& url,
                          bool delay_pcache, bool thread_pcache,
                          bool expect_success) {
-    RequestHeaders request_headers;
-    ResponseHeaders response_headers;
-    GoogleString output;
-    TestPropertyCacheWithHeadersAndOutput(
-        url, delay_pcache, thread_pcache, expect_success, true, true, false,
-        request_headers, &response_headers, &output);
-  }
-
-  void TestPropertyCacheWithHeadersAndOutput(
-      const StringPiece& url, bool delay_pcache, bool thread_pcache,
-      bool expect_success, bool check_stats, bool add_create_filter_callback,
-      bool expect_detach_before_pcache, const RequestHeaders& request_headers,
-      ResponseHeaders* response_headers, GoogleString* output) {
     scoped_ptr<QueuedWorkerPool> pool;
     QueuedWorkerPool::Sequence* sequence = NULL;
 
-    ThreadSynchronizer* sync = server_context()->thread_synchronizer();
-    sync->EnableForPrefix(ProxyFetch::kCollectorDelete);
+    ThreadSynchronizer* sync = resource_manager()->thread_synchronizer();
     GoogleString delay_pcache_key, delay_http_cache_key;
     if (delay_pcache || thread_pcache) {
-      PropertyCache* pcache = page_property_cache();
+      PropertyCache* pcache = resource_manager()->page_property_cache();
       const PropertyCache::Cohort* cohort =
           pcache->GetCohort(RewriteDriver::kDomCohort);
       delay_http_cache_key = AbsolutifyUrl(url);
@@ -940,19 +571,20 @@ class ProxyInterfaceTest : public RewriteTestBase {
       if (thread_pcache) {
         delay_cache()->DelayKey(delay_http_cache_key);
         pool.reset(new QueuedWorkerPool(
-            1, server_context()->thread_system()));
+            1, resource_manager()->thread_system()));
         sequence = pool->NewSequence();
       }
     }
 
     CreateFilterCallback create_filter_callback;
-    if (add_create_filter_callback) {
-      factory()->AddCreateFilterCallback(&create_filter_callback);
-    }
+    factory()->AddCreateFilterCallback(&create_filter_callback);
+
+    GoogleString image_out;
+    ResponseHeaders headers_out;
 
     if (thread_pcache) {
-      FetchFromProxyNoWait(url, request_headers, expect_success,
-                           false /* don't log flushes*/, response_headers);
+      RequestHeaders request_headers;
+      FetchFromProxyNoWait(url, request_headers, expect_success, &headers_out);
       delay_cache()->ReleaseKeyInSequence(delay_pcache_key, sequence);
 
       // Wait until the property-cache-thread is in
@@ -971,29 +603,16 @@ class ProxyInterfaceTest : public RewriteTestBase {
       // Now we can release the property-cache thread.
       sync->Signal(ProxyFetch::kCollectorDone);
       WaitForFetch();
-      *output = callback_buffer_;
-      sync->Wait(ProxyFetch::kCollectorDelete);
       pool->ShutDown();
     } else {
-      FetchFromProxyNoWait(url, request_headers, expect_success, false,
-                           response_headers);
-      if (expect_detach_before_pcache) {
-        WaitForFetch();
-      }
+      FetchFromProxy(url, expect_success, &image_out, &headers_out);
       if (delay_pcache) {
         delay_cache()->ReleaseKey(delay_pcache_key);
       }
-      if (!expect_detach_before_pcache) {
-        WaitForFetch();
-      }
-      *output = callback_buffer_;
-      sync->Wait(ProxyFetch::kCollectorDelete);
     }
 
-    if (check_stats) {
-      EXPECT_EQ(1, lru_cache()->num_inserts());  // http-cache
-      EXPECT_EQ(2, lru_cache()->num_misses());   // http-cache & prop-cache
-    }
+    EXPECT_EQ(1, lru_cache()->num_inserts());  // http-cache
+    EXPECT_EQ(2, lru_cache()->num_misses());   // http-cache & prop-cache
   }
 
   void TestOptionsUsedInCacheKey() {
@@ -1007,247 +626,16 @@ class ProxyInterfaceTest : public RewriteTestBase {
     PropertyPage* page = callback_collector->GetPropertyPageWithoutOwnership(
         ProxyFetchPropertyCallback::kPagePropertyCache);
     EXPECT_NE(static_cast<PropertyPage*>(NULL), page);
-    server_context()->ComputeSignature(options());
+    resource_manager()->ComputeSignature(options());
     GoogleString expected = StrCat(gurl.Spec(), "_", options()->signature());
     EXPECT_EQ(expected, page->key());
   }
 
   void DisableAjax() {
-    RewriteOptions* options = server_context()->global_options();
+    RewriteOptions* options = resource_manager()->global_options();
     options->ClearSignatureForTesting();
     options->set_ajax_rewriting_enabled(false);
-    server_context()->ComputeSignature(options);
-  }
-
-  void RejectBlacklisted() {
-    RewriteOptions* options = server_context()->global_options();
-    options->ClearSignatureForTesting();
-    options->set_reject_blacklisted(true);
-    options->set_reject_blacklisted_status_code(HttpStatus::kImATeapot);
-    server_context()->ComputeSignature(options);
-  }
-
-  void SetupForFlushEarlyFlow(bool enable_experimental) {
-    // Setup
-    ResponseHeaders headers;
-    headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-    headers.Add(HttpAttributes::kSetCookie, "CG=US:CA:Mountain+View");
-    headers.Add(HttpAttributes::kSetCookie, "UA=chrome");
-    headers.Add(HttpAttributes::kSetCookie, "path=/");
-
-    headers.SetStatusAndReason(HttpStatus::kOK);
-    mock_url_fetcher_.SetResponse(kTestDomain, headers, kFlushEarlyHtml);
-
-    // Enable FlushSubresourcesFilter filter.
-    RewriteOptions* rewrite_options = server_context()->global_options();
-    rewrite_options->ClearSignatureForTesting();
-    rewrite_options->EnableFilter(RewriteOptions::kFlushSubresources);
-    rewrite_options->EnableFilter(RewriteOptions::kCombineCss);
-    rewrite_options->EnableFilter(RewriteOptions::kCombineJavascript);
-    rewrite_options->set_enable_flush_subresources_experimental(
-        enable_experimental);
-    rewrite_options->EnableExtendCacheFilters();
-    // Disabling the inline filters so that the resources get flushed early
-    // else our dummy resources are too small and always get inlined.
-    rewrite_options->DisableFilter(RewriteOptions::kInlineCss);
-    rewrite_options->DisableFilter(RewriteOptions::kInlineJavascript);
-    rewrite_options->ComputeSignature(hasher());
-
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.css"), kContentTypeCss,
-                                  kCssContent, kHtmlCacheTimeSec * 2);
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "2.css"), kContentTypeCss,
-                                  kCssContent, kHtmlCacheTimeSec * 2);
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "3.css"), kContentTypeCss,
-                                  kCssContent, kHtmlCacheTimeSec * 2);
-    const char kContent[] = "function f() {alert('foo');}";
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.js"),
-                                  kContentTypeJavascript, kContent,
-                                  kHtmlCacheTimeSec * 2);
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "2.js"),
-                                  kContentTypeJavascript, kContent,
-                                  kHtmlCacheTimeSec * 2);
-    SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.jpg"),
-                                  kContentTypeJpeg, "image",
-                                  kHtmlCacheTimeSec * 2);
-    ResponseHeaders private_headers;
-    DefaultResponseHeaders(kContentTypeJavascript, kHtmlCacheTimeSec,
-                           &private_headers);
-    private_headers.SetDateAndCaching(http_cache()->timer()->NowMs(),
-                                      300 * Timer::kSecondMs, ", private");
-    private_headers.ComputeCaching();
-    SetFetchResponse(AbsolutifyUrl("private.js"), private_headers, "a");
-  }
-
-  void VerifyCharset(ResponseHeaders* headers) {
-    EXPECT_TRUE(StringCaseEqual(headers->Lookup1(HttpAttributes::kContentType),
-                                "text/html; charset=utf-8"));
-  }
-
-  GoogleString FlushEarlyRewrittenHtml(
-      UserAgentMatcher::PrefetchMechanism value,
-      bool defer_js_enabled, bool insert_dns_prefetch) {
-    return FlushEarlyRewrittenHtml(value, defer_js_enabled,
-                                   insert_dns_prefetch, false);
-  }
-
-  GoogleString FlushEarlyRewrittenHtml(
-      UserAgentMatcher::PrefetchMechanism value,
-      bool defer_js_enabled, bool insert_dns_prefetch,
-      bool split_html_enabled) {
-    GoogleString rewritten_css_url_1 = Encode(kTestDomain,
-                                              "cf", "0", "1.css", "css");
-    GoogleString rewritten_css_url_2 = Encode(kTestDomain,
-                                              "cf", "0", "2.css", "css");
-    GoogleString rewritten_css_url_3 = Encode(kTestDomain,
-                                              "cf", "0", "3.css", "css");
-    GoogleString rewritten_js_url_1 = Encode(kTestDomain,
-                                             "jm", "0", "1.js", "js");
-    GoogleString rewritten_js_url_2 = Encode(kTestDomain,
-                                             "jm", "0", "2.js", "js");
-    GoogleString combined_js_url = Encode(
-        kTestDomain, "jc", "0",
-        "1.js.pagespeed.jm.0.jsX2.js.pagespeed.jm.0.js", "js");;
-    GoogleString rewritten_img_url_1 = Encode(kTestDomain,
-                                              "ce", "0", "1.jpg", "jpg");
-    GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
-    GoogleString cookie_script =
-        "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-        "(function(){"
-          "var data = [\"CG=US:CA:Mountain+View\",\"UA=chrome\",\"path=/\"];"
-          "for (var i = 0; i < data.length; i++) {"
-          "document.cookie = data[i];"
-         "}})()"
-        "</script>";
-    combined_js_url[combined_js_url.find('X')] = '+';
-    if (value == UserAgentMatcher::kPrefetchLinkScriptTag && defer_js_enabled) {
-      return StringPrintf(
-          kRewrittenHtmlLazyloadDeferJsScriptFlushedEarly,
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          rewritten_css_url_3.data(),
-          LazyloadImagesFilter::GetLazyloadJsSnippet(
-              options_,
-              server_context()->static_javascript_manager()).c_str(),
-          StrCat("<script type=\"text/javascript\">",
-                 JsDisableFilter::GetJsDisableScriptSnippet(options_),
-                 "</script>").c_str(),
-          JsDeferDisabledFilter::GetDeferJsSnippet(
-              options_,
-              server_context()->static_javascript_manager()).c_str(),
-          cookie_script.data(),
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          combined_js_url.data(), rewritten_img_url_1.data(),
-          StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                                 redirect_url.c_str()).c_str(),
-          rewritten_css_url_3.data());
-    } else if (value == UserAgentMatcher::kPrefetchLinkScriptTag &&
-        split_html_enabled) {
-      return StringPrintf(
-          kRewrittenHtmlLazyloadDeferJsScriptFlushedEarly,
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          rewritten_css_url_3.data(),
-          LazyloadImagesFilter::GetLazyloadJsSnippet(
-              options_,
-              server_context()->static_javascript_manager()).c_str(),
-          StrCat("<script type=\"text/javascript\">",
-                 JsDisableFilter::GetJsDisableScriptSnippet(options_),
-                 "</script>",
-                 "<script src=\"", SplitHtmlFilter::GetBlinkJsUrl(options_,
-                 server_context()->static_javascript_manager()),
-                 "\" type=\"text/javascript\"></script>").c_str(),
-          SplitHtmlFilter::kDeferJsSnippet,
-          cookie_script.data(),
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          combined_js_url.data(), rewritten_img_url_1.data(),
-          StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                                 redirect_url.c_str()).c_str(),
-          rewritten_css_url_3.data());
-    } else if (value == UserAgentMatcher::kPrefetchNotSupported) {
-      return StringPrintf(kRewrittenHtml, rewritten_css_url_1.data(),
-          rewritten_css_url_2.data(), rewritten_js_url_1.data(),
-          rewritten_js_url_2.data(), rewritten_img_url_1.data(),
-          rewritten_css_url_3.data());
-    } else if (defer_js_enabled) {
-      return StringPrintf(
-          value == UserAgentMatcher::kPrefetchLinkRelSubresource ?
-          kFlushEarlyRewrittenHtmlLinkRelSubresourceWithDeferJs :
-          kFlushEarlyRewrittenHtmlImageTagWithDeferJs,
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          rewritten_css_url_3.data(), cookie_script.data(),
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          combined_js_url.data(), rewritten_img_url_1.data(),
-          StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                       redirect_url.c_str()).c_str(),
-          rewritten_css_url_3.data());
-    } else {
-      GoogleString output_format;
-      if (insert_dns_prefetch) {
-        output_format = kFlushEarlyRewrittenHtmlImageTagInsertDnsPrefetch;
-      } else if (value == UserAgentMatcher::kPrefetchLinkRelSubresource) {
-        output_format = kFlushEarlyRewrittenHtmlLinkRelSubresource;
-      } else if (value == UserAgentMatcher::kPrefetchLinkScriptTag) {
-        output_format = kFlushEarlyRewrittenHtmlLinkScript;
-      } else {
-        output_format = kFlushEarlyRewrittenHtmlImageTag;
-      }
-      return StringPrintf(
-          output_format.c_str(),
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          rewritten_js_url_1.data(), rewritten_js_url_2.data(),
-          rewritten_css_url_3.data(), cookie_script.data(),
-          rewritten_css_url_1.data(), rewritten_css_url_2.data(),
-          rewritten_js_url_1.data(), rewritten_js_url_2.data(),
-          rewritten_img_url_1.data(),
-          StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                                 redirect_url.c_str()).c_str(),
-          rewritten_css_url_3.data());
-    }
-  }
-
-  void ExperimentalFlushEarlyFlowTestHelper(
-      const GoogleString& user_agent,
-      UserAgentMatcher::PrefetchMechanism mechanism, bool inject_error) {
-    ExperimentalFlushEarlyFlowTestHelperWithPropertyCache(
-        user_agent, mechanism, false, false, inject_error);
-    ExperimentalFlushEarlyFlowTestHelperWithPropertyCache(
-        user_agent, mechanism, false, true, inject_error);
-    ExperimentalFlushEarlyFlowTestHelperWithPropertyCache(
-        user_agent, mechanism, true, true, inject_error);
-    ExperimentalFlushEarlyFlowTestHelperWithPropertyCache(
-        user_agent, mechanism, true, false, inject_error);
-  }
-
-  void ExperimentalFlushEarlyFlowTestHelperWithPropertyCache(
-      const GoogleString& user_agent,
-      UserAgentMatcher::PrefetchMechanism mechanism,
-      bool delay_pcache, bool thread_pcache, bool inject_error) {
-    lru_cache()->Clear();
-    SetupForFlushEarlyFlow(true);
-    GoogleString text;
-    RequestHeaders request_headers;
-    request_headers.Replace(HttpAttributes::kUserAgent, user_agent);
-    ResponseHeaders headers;
-    TestPropertyCacheWithHeadersAndOutput(
-        kTestDomain, delay_pcache, thread_pcache, true, false, false,
-        false, request_headers, &headers, &text);
-
-    if (inject_error) {
-      ResponseHeaders error_headers;
-      error_headers.SetStatusAndReason(HttpStatus::kOK);
-      mock_url_fetcher_.SetResponse(
-          kTestDomain, error_headers, "");
-    }
-
-    // Fetch the url again. This time FlushEarlyFlow should not be triggered.
-    // None
-    TestPropertyCacheWithHeadersAndOutput(
-        kTestDomain, delay_pcache, thread_pcache, true, false, false,
-        inject_error, request_headers, &headers, &text);
-    GoogleString expected_output = FlushEarlyRewrittenHtml(mechanism,
-                                                           false, false);
-    if (!inject_error) {
-      EXPECT_EQ(expected_output, text);
-      VerifyCharset(&headers);
-    }
+    resource_manager()->ComputeSignature(options);
   }
 
   scoped_ptr<ProxyInterface> proxy_interface_;
@@ -1256,16 +644,13 @@ class ProxyInterfaceTest : public RewriteTestBase {
   GoogleString start_time_string_;
   GoogleString start_time_plus_300s_string_;
   GoogleString old_time_string_;
-  LoggingInfo logging_info_;
+  TimingInfo timing_info_;
   const GoogleString max_age_300_;
   int64 request_start_time_ms_;
 
   bool fetch_already_done_;
   scoped_ptr<WorkerTestBase::SyncPoint> sync_;
-  ResponseHeaders callback_response_headers_;
-  GoogleString callback_buffer_;
-  bool callback_done_value_;
-  LoggingInfo callback_logging_info_;
+  scoped_ptr<AsyncExpectStringAsyncFetch> callback_;
 
  private:
   friend class FilterCallback;
@@ -1273,495 +658,7 @@ class ProxyInterfaceTest : public RewriteTestBase {
   DISALLOW_COPY_AND_ASSIGN(ProxyInterfaceTest);
 };
 
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTest) {
-  SetupForFlushEarlyFlow(false);
-  GoogleString text;
-  RequestHeaders request_headers;
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  // Check total number of cache inserts.
-  // 7 for 1.css, 2.css, 3.css, 1.js, 2.js, 1.jpg and private.js.
-  // 6 for I.1.css.pagespeed.cf.0.css, I.2.css.pagespeed.cf.0.css,
-  //       I.3.css.pagespeed.cf.0.css, 1.js.pagespeed.jm.0.js and
-  //       2.js.pagespeed.jm.0.js and 1.jpg.pagespeed.ce.0.jpg.
-  // 13 metadata cache entries - three for cf and jm, seven for ce.
-  // 1 for DomCohort write in property cache.
-  EXPECT_EQ(27, lru_cache()->num_inserts());
-
-  // Fetch the url again. This time FlushEarlyFlow should not be triggered.
-  // None
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchNotSupported, false, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestPrefetch) {
-  SetupForFlushEarlyFlow(false);
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "prefetch_link_rel_subresource");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  // Check total number of cache inserts.
-  // 7 for 1.css, 2.css, 3.css, 1.js, 2.js, 1.jpg and private.js.
-  // 6 for I.1.css.pagespeed.cf.0.css, I.2.css.pagespeed.cf.0.css,
-  //       I.3.css.pagespeed.cf.0.css, 1.js.pagespeed.jm.0.js and
-  //       2.js.pagespeed.jm.0.js and 1.jpg.pagespeed.ce.0.jpg.
-  // 19 metadata cache enties - three for cf and jm, seven for ce and
-  //       six for fs.
-  // 1 for DomCohort write in property cache.
-  EXPECT_EQ(33, lru_cache()->num_inserts());
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkRelSubresource, false, false),
-      text);
-  EXPECT_STREQ("cf,ei,jm", logging_info_.applied_rewriters());
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestImageTag) {
-  SetupForFlushEarlyFlow(false);
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent, "prefetch_image_tag");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  // Check total number of cache inserts.
-  // 7 for 1.css, 2.css, 3.css, 1.js, 2.js, 1.jpg and private.js.
-  // 6 for I.1.css.pagespeed.cf.0.css, I.2.css.pagespeed.cf.0.css,
-  //       I.3.css.pagespeed.cf.0.css, 1.js.pagespeed.jm.0.js and
-  //       2.js.pagespeed.jm.0.js and 1.jpg.pagespeed.ce.0.jpg.
-  // 19 metadata cache enties - three for cf and jm, seven for ce and
-  //       six for fs.
-  // 1 for DomCohort write in property cache.
-  EXPECT_EQ(33, lru_cache()->num_inserts());
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchImageTag, false, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestLinkScript) {
-  SetupForFlushEarlyFlow(false);
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "prefetch_link_script_tag");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  // Check total number of cache inserts.
-  // 7 for 1.css, 2.css, 3.css, 1.js, 2.js, 1.jpg and private.js.
-  // 6 for I.1.css.pagespeed.cf.0.css, I.2.css.pagespeed.cf.0.css,
-  //       I.3.css.pagespeed.cf.0.css, 1.js.pagespeed.jm.0.js and
-  //       2.js.pagespeed.jm.0.js and 1.jpg.pagespeed.ce.0.jpg.
-  // 19 metadata cache enties - three for cf and jm, seven for ce and
-  //       six for fs.
-  // 1 for DomCohort write in property cache.
-  EXPECT_EQ(33, lru_cache()->num_inserts());
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkScriptTag, false, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestWithDeferJsImageTag) {
-  SetupForFlushEarlyFlow(false);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent, "prefetch_image_tag");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchImageTag, true, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestWithDeferJsPrefetch) {
-  SetupForFlushEarlyFlow(false);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "prefetch_link_rel_subresource");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkRelSubresource, true, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTest) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "", UserAgentMatcher::kPrefetchNotSupported, false);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestError) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "", UserAgentMatcher::kPrefetchNotSupported, true);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestPrefetch) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "prefetch_link_rel_subresource",
-      UserAgentMatcher::kPrefetchLinkRelSubresource, false);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestPrefetchError) {
-  ExperimentalFlushEarlyFlowTestHelper(
-       "prefetch_link_rel_subresource",
-      UserAgentMatcher::kPrefetchLinkRelSubresource, true);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestImageTag) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "prefetch_image_tag", UserAgentMatcher::kPrefetchImageTag, false);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestImageTagError) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "prefetch_image_tag", UserAgentMatcher::kPrefetchImageTag, true);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestLinkScript) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "prefetch_link_script_tag", UserAgentMatcher::kPrefetchLinkScriptTag,
-      false);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestLinkScriptError) {
-  ExperimentalFlushEarlyFlowTestHelper(
-      "prefetch_link_script_tag", UserAgentMatcher::kPrefetchLinkScriptTag,
-      true);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestWithDeferJsImageTag) {
-  SetupForFlushEarlyFlow(true);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent, "prefetch_image_tag");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchImageTag, true, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest, ExperimentalFlushEarlyFlowTestWithDeferJsPrefetch) {
-  SetupForFlushEarlyFlow(true);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "prefetch_link_rel_subresource");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkRelSubresource, true, false), text);
-  VerifyCharset(&headers);
-}
-
-TEST_F(ProxyInterfaceTest,
-       ExperimentalFlushEarlyFlowTestWithInsertDnsPrefetch) {
-  SetupForFlushEarlyFlow(true);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kInsertDnsPrefetch);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent, "prefetch_image_tag");
-  ResponseHeaders headers;
-
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered but not
-  // insert dns prefetch filter as domains are not yet stable.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time InsertDnsPrefetch filter should applied.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchImageTag, false, true), text);
-}
-
-TEST_F(ProxyInterfaceTest, LazyloadAndDeferJsScriptFlushedEarly) {
-  SetupForFlushEarlyFlow(true);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  custom_options->EnableFilter(RewriteOptions::kLazyloadImages);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-  GoogleString text;
-  RequestHeaders request_headers;
-  // Useragent is set to Firefox/ 9.0 because all flush early flow, defer
-  // javascript and lazyload filter are enabled for this user agent.
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "Firefox/ 9.0");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkScriptTag, true, false), text);
-}
-
-TEST_F(ProxyInterfaceTest, LazyloadAndBlinkScriptFlushedEarly) {
-  SetupForFlushEarlyFlow(true);
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
-  custom_options->EnableFilter(RewriteOptions::kLazyloadImages);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-  GoogleString text;
-  RequestHeaders request_headers;
-  // Useragent is set to Firefox/ 9.0 because all flush early flow, defer
-  // javascript and lazyload filter are enabled for this user agent.
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "Firefox/ 9.0");
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(FlushEarlyRewrittenHtml(
-      UserAgentMatcher::kPrefetchLinkScriptTag, true, false, true), text);
-}
-
-TEST_F(ProxyInterfaceTest, NoLazyloadScriptFlushedOutIfNoImagePresent) {
-  const char kInputHtml[] =
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-      "<meta charset=\"UTF-8\"/>"
-      "<title>Flush Subresources Early example</title>"
-      "<link rel=\"stylesheet\" type=\"text/css\" href=\"1.css\">"
-      "</head>"
-      "<body>"
-      "Hello, mod_pagespeed!"
-      "</body>"
-      "</html>";
-
-  GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
-  GoogleString kOutputHtml = StrCat(
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<link rel=\"stylesheet\""
-      " href=\"http://test.com/I.1.css.pagespeed.cf.0.css\""
-      " media=\"print\" disabled=\"true\"/>\n"
-      "<script type='text/javascript'>"
-      "window.mod_pagespeed_prefetch_start = Number(new Date());"
-      "window.mod_pagespeed_num_resources_prefetched = 1"
-      "</script>"
-      "</head>"
-      "<head>"
-      "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
-      "<meta charset=\"UTF-8\"/>"
-      "<title>Flush Subresources Early example</title>"
-      "<link rel=\"stylesheet\" type=\"text/css\""
-      " href=\"http://test.com/I.1.css.pagespeed.cf.0.css\"></head>"
-      "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                   redirect_url.c_str()),
-      "Hello, mod_pagespeed!</body></html>");
-
-  ResponseHeaders headers;
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  mock_url_fetcher_.SetResponse(kTestDomain, headers, kInputHtml);
-
-  // Enable FlushSubresourcesFilter filter.
-  RewriteOptions* rewrite_options = server_context()->global_options();
-  rewrite_options->ClearSignatureForTesting();
-  rewrite_options->EnableFilter(RewriteOptions::kFlushSubresources);
-  rewrite_options->set_enable_flush_subresources_experimental(true);
-  rewrite_options->EnableExtendCacheFilters();
-  // Disabling the inline filters so that the resources get flushed early
-  // else our dummy resources are too small and always get inlined.
-  rewrite_options->DisableFilter(RewriteOptions::kInlineCss);
-  rewrite_options->DisableFilter(RewriteOptions::kInlineJavascript);
-  rewrite_options->ComputeSignature(hasher());
-
-  SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.css"), kContentTypeCss,
-                                kCssContent, kHtmlCacheTimeSec * 2);
-
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kLazyloadImages);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  // Useragent is set to Firefox/ 9.0 because all flush early flow, defer
-  // javascript and lazyload filter is enabled for this user agent.
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "Firefox/ 9.0");
-
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(kOutputHtml, text);
-}
-
-TEST_F(ProxyInterfaceTest, InsertLazyloadJsOnlyIfResourceHtmlNotEmpty) {
-  const char kInputHtml[] =
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<title>Flush Subresources Early example</title>"
-      "</head>"
-      "<body>"
-      "<img src=1.jpg />"
-      "Hello, mod_pagespeed!"
-      "</body>"
-      "</html>";
-
-  GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
-  GoogleString kOutputHtml = StrCat(
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<title>Flush Subresources Early example</title>"
-      "</head>"
-      "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                   redirect_url.c_str()),
-      "<script type=\"text/javascript\">",
-      LazyloadImagesFilter::GetLazyloadJsSnippet(
-          options_, server_context()->static_javascript_manager()),
-      "</script>"
-      "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.0.jpg"
-      " src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///////"
-      "yH+A1BTQQAsAAAAAAEAAQAAAgJEAQA7\""
-      " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>"
-      "Hello, mod_pagespeed!"
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-      "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-      "</body></html>");
-
-  ResponseHeaders headers;
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  mock_url_fetcher_.SetResponse(kTestDomain, headers, kInputHtml);
-
-  // Enable FlushSubresourcesFilter filter.
-  RewriteOptions* rewrite_options = server_context()->global_options();
-  rewrite_options->ClearSignatureForTesting();
-  rewrite_options->EnableFilter(RewriteOptions::kFlushSubresources);
-  rewrite_options->set_enable_flush_subresources_experimental(true);
-  rewrite_options->EnableExtendCacheFilters();
-  // Disabling the inline filters so that the resources get flushed early
-  // else our dummy resources are too small and always get inlined.
-  rewrite_options->DisableFilter(RewriteOptions::kInlineCss);
-  rewrite_options->DisableFilter(RewriteOptions::kInlineJavascript);
-  rewrite_options->ComputeSignature(hasher());
-
-  SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.jpg"), kContentTypeJpeg,
-                                "image", kHtmlCacheTimeSec * 2);
-
-  scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
-  custom_options->EnableFilter(RewriteOptions::kLazyloadImages);
-  ProxyUrlNamer url_namer;
-  url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  GoogleString text;
-  RequestHeaders request_headers;
-  // Useragent is set to Firefox/ 9.0 because all flush early flow, defer
-  // javascript and lazyload filter is enabled for this user agent.
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "Firefox/ 9.0");
-
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-
-  // Fetch the url again. This time FlushEarlyFlow should be triggered but no
-  // lazyload js will be flushed early as no resource is present in the html.
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  EXPECT_EQ(kOutputHtml, text);
-}
-
-TEST_F(ProxyInterfaceTest, FlushEarlyFlowTestWithLocalStorageDoesNotCrash) {
-  SetupForFlushEarlyFlow(true);
-  GoogleString text;
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kUserAgent,
-                          "prefetch_link_rel_subresource");
-
-  RewriteOptions* rewrite_options = server_context()->global_options();
-  rewrite_options->ClearSignatureForTesting();
-  rewrite_options->EnableFilter(RewriteOptions::kLocalStorageCache);
-  rewrite_options->ForceEnableFilter(RewriteOptions::kInlineImages);
-  rewrite_options->ForceEnableFilter(RewriteOptions::kInlineCss);
-  rewrite_options->ComputeSignature(hasher());
-
-  // This sequence of requests used to cause a crash earlier. Here, we just test
-  // that this server doesn't crash and don't check the output.
-  ResponseHeaders headers;
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-  FetchFromProxy(kTestDomain, request_headers, true, &text, &headers);
-}
-
-TEST_F(ProxyInterfaceTest, LoggingInfo) {
+TEST_F(ProxyInterfaceTest, TimingInfo) {
   GoogleString url = "http://www.example.com/";
   GoogleString text;
   RequestHeaders request_headers;
@@ -1774,7 +671,6 @@ TEST_F(ProxyInterfaceTest, LoggingInfo) {
   FetchFromProxy(url, request_headers, true, &text, &headers);
   CheckBackgroundFetch(headers, false);
   CheckNumBackgroundFetches(0);
-  const TimingInfo timing_info_ = logging_info_.timing_info();
   ASSERT_TRUE(timing_info_.has_cache1_ms());
   EXPECT_EQ(timing_info_.cache1_ms(), 0);
   EXPECT_FALSE(timing_info_.has_cache2_ms());
@@ -1848,7 +744,7 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
                                 orig_css, kHtmlCacheTimeSec * 2);
 
   // By default, cache extension is off in the default options.
-  server_context()->global_options()->SetDefaultRewriteLevel(
+  resource_manager()->global_options()->SetDefaultRewriteLevel(
       RewriteOptions::kPassThrough);
 
   // Because cache-extension was turned off, the image in the CSS file
@@ -2007,104 +903,6 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, lru_cache()->num_hits());
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-}
-
-TEST_F(ProxyInterfaceTest, NotCachedIfAuthorizedAndNotPublic) {
-  // We should not cache things which are default cache-control if we
-  // are sending Authorization:. See RFC 2616, 14.8.
-  ReflectingTestFetcher reflect;
-  server_context()->set_default_system_fetcher(&reflect);
-
-  RequestHeaders request_headers;
-  request_headers.Add("Was", "Here");
-  request_headers.Add(HttpAttributes::kAuthorization, "Secret");
-  // This will get reflected as well, and hence will determine whether
-  // cacheable or not.
-  request_headers.Replace(HttpAttributes::kCacheControl, "max-age=600000");
-
-  ResponseHeaders out_headers;
-  GoogleString out_text;
-  // Using .txt here so we don't try any AJAX rewriting.
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
-  // We should see the request headers we sent back as the response headers
-  // as we're using a ReflectingTestFetcher.
-  EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
-
-  // Not cross-domain, so should propagate out header.
-  EXPECT_TRUE(out_headers.Has(HttpAttributes::kAuthorization));
-
-  // Should not have written anything to cache, due to the authorization
-  // header.
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-
-  ClearStats();
-
-  // Now try again. This time no authorization header, different 'Was'.
-  request_headers.Replace("Was", "There");
-  request_headers.RemoveAll(HttpAttributes::kAuthorization);
-
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
-  // Should get different headers since we should not be cached.
-  EXPECT_STREQ("There", out_headers.Lookup1("Was"));
-  EXPECT_FALSE(out_headers.Has(HttpAttributes::kAuthorization));
-
-  // And should be a miss per stats.
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-
-  mock_scheduler()->AwaitQuiescence();
-}
-
-TEST_F(ProxyInterfaceTest, CachedIfAuthorizedAndPublic) {
-  // This with Cache-Control: public should be cached even if
-  // we are sending Authorization:. See RFC 2616.
-  ReflectingTestFetcher reflect;
-  server_context()->set_default_system_fetcher(&reflect);
-
-  RequestHeaders request_headers;
-  request_headers.Add("Was", "Here");
-  request_headers.Add(HttpAttributes::kAuthorization, "Secret");
-  // This will get reflected as well, and hence will determine whether
-  // cacheable or not.
-  request_headers.Replace(HttpAttributes::kCacheControl, "max-age=600000");
-  request_headers.Add(HttpAttributes::kCacheControl, "public");  // unlike above
-
-  ResponseHeaders out_headers;
-  GoogleString out_text;
-  // Using .txt here so we don't try any AJAX rewriting.
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
-  EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
-
-  // Not cross-domain, so should propagate out header.
-  EXPECT_TRUE(out_headers.Has(HttpAttributes::kAuthorization));
-
-  // Should have written the result to the cache, despite the request having
-  // Authorization: thanks to cache-control: public,
-  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
-
-  ClearStats();
-
-  // Now try again. This time no authorization header, different 'Was'.
-  request_headers.Replace("Was", "There");
-  request_headers.RemoveAll(HttpAttributes::kAuthorization);
-
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
-  // Should get old headers, since original was cacheable.
-  EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
-
-  // ... of course hopefully a real server won't serve secrets on a
-  // cache-control: public page.
-  EXPECT_STREQ("Secret", out_headers.Lookup1(HttpAttributes::kAuthorization));
-
-  // And should be a hit per stats.
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-
-  mock_scheduler()->AwaitQuiescence();
 }
 
 TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
@@ -2345,144 +1143,11 @@ TEST_F(ProxyInterfaceTest, InvalidationForCacheableHtml) {
 
   // Invalidate the cache.
   scoped_ptr<RewriteOptions> custom_options(
-      server_context()->global_options()->Clone());
+      resource_manager()->global_options()->Clone());
   custom_options->set_cache_invalidation_timestamp(mock_timer()->NowMs());
   ProxyUrlNamer url_namer;
   url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
-
-  ClearStats();
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.html", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  // We get the new response since we've invalidated the cache.
-  EXPECT_EQ("new", text);
-  // The HTTP response is found in the LRU cache but counts as a miss in the
-  // HTTPCache since it has been invalidated. Also, cache misses for the ajax
-  // metadata and property cache entry.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-}
-
-TEST_F(ProxyInterfaceTest, UrlInvalidationForCacheableHtml) {
-  ResponseHeaders headers;
-  const char kContent[] = "A very compelling article";
-  mock_timer()->SetTimeMs(MockTimer::kApr_5_2010_ms);
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.SetDateAndCaching(MockTimer::kApr_5_2010_ms, 300 * Timer::kSecondMs);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.html"), headers, kContent);
-
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("text.html", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kContent, text);
-  // One lookup for ajax metadata, one for the HTTP response and one for the
-  // property cache entry. None are found.
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, lru_cache()->num_hits());
-
-  ClearStats();
-  // Fetch again from cache. It has the same caching headers.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.html", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  EXPECT_EQ(kContent, text);
-  // One hit for the HTTP response. Misses for the property cache entry and the
-  // ajax metadata.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-
-  // Change the response.
-  SetFetchResponse(AbsolutifyUrl("text.html"), headers, "new");
-
-  ClearStats();
-  // Fetch again from cache. It has the same caching headers.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.html", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  // We continue to serve the previous response since we've cached it.
-  EXPECT_EQ(kContent, text);
-  // One hit for the HTTP response. Misses for the property cache entry and the
-  // ajax metadata.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-
-
-  // Invalidate the cache for some URL other than 'text.html'.
-  scoped_ptr<RewriteOptions> custom_options_1(
-      server_context()->global_options()->Clone());
-  custom_options_1->AddUrlCacheInvalidationEntry(
-      AbsolutifyUrl("foo.bar"), mock_timer()->NowMs(), true);
-  ProxyUrlNamer url_namer_1;
-  url_namer_1.set_options(custom_options_1.get());
-  server_context()->set_url_namer(&url_namer_1);
-
-  ClearStats();
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.html", true, &text, &response_headers);
-
-  EXPECT_STREQ(max_age_300_,
-               response_headers.Lookup1(HttpAttributes::kCacheControl));
-  EXPECT_STREQ(start_time_plus_300s_string_,
-               response_headers.Lookup1(HttpAttributes::kExpires));
-  EXPECT_STREQ(start_time_string_,
-               response_headers.Lookup1(HttpAttributes::kDate));
-  // We continue to serve the previous response since we've cached it.
-  EXPECT_EQ(kContent, text);
-  // One hit for the HTTP response. Misses for the property cache entry and the
-  // ajax metadata.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-
-
-  // Invalidate the cache.
-  scoped_ptr<RewriteOptions> custom_options_2(
-      server_context()->global_options()->Clone());
-  // Strictness of URL cache invalidation entry (last argument below) does not
-  // matter in this test since there is nothing cached in metadata or property
-  // caches.
-  custom_options_2->AddUrlCacheInvalidationEntry(
-      AbsolutifyUrl("text.html"), mock_timer()->NowMs(), true);
-  ProxyUrlNamer url_namer_2;
-  url_namer_2.set_options(custom_options_2.get());
-  server_context()->set_url_namer(&url_namer_2);
+  resource_manager()->set_url_namer(&url_namer);
 
   ClearStats();
   text.clear();
@@ -2548,10 +1213,10 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
 }
 
 TEST_F(ProxyInterfaceTest, ModifiedImplicitCachingHeadersForCss) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_implicit_cache_ttl_ms(500 * Timer::kSecondMs);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   ResponseHeaders headers;
   const char kContent[] = "A very compelling article";
@@ -2882,10 +1547,10 @@ TEST_F(ProxyInterfaceTest, AjaxRewritingForCss) {
 
   // Disable ajax rewriting. We now received the response fetched while
   // freshening. This response has kBackgroundFetchHeader set to 1.
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_ajax_rewriting_enabled(false);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   ClearStats();
   text.clear();
@@ -2906,67 +1571,11 @@ TEST_F(ProxyInterfaceTest, AjaxRewritingForCss) {
   EXPECT_EQ(0, lru_cache()->num_misses());
 }
 
-TEST_F(ProxyInterfaceTest, NoAjaxRewritingWhenAuthorizationSent) {
-  // We should not do ajax rewriting when sending over an authorization
-  // header if the original isn't cache-control: public.
-  ResponseHeaders headers;
-  mock_timer()->SetTimeUs(MockTimer::kApr_5_2010_ms * Timer::kMsUs);
-  headers.Add(HttpAttributes::kContentType, kContentTypeCss.mime_type());
-  headers.SetDate(MockTimer::kApr_5_2010_ms);
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.css"), headers, kCssContent);
-
-  // The first response served by the fetcher and is not rewritten. An ajax
-  // rewrite is triggered.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  RequestHeaders request_headers;
-  request_headers.Add(HttpAttributes::kAuthorization, "Paperwork");
-  FetchFromProxy("text.css", request_headers, true, &text, &response_headers);
-  EXPECT_EQ(kCssContent, text);
-
-  // The second version should still be unoptimized, since original wasn't
-  // cacheable.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.css", request_headers, true, &text, &response_headers);
-  EXPECT_EQ(kCssContent, text);
-}
-
-TEST_F(ProxyInterfaceTest, AjaxRewritingWhenAuthorizationButPublic) {
-  // We should do ajax rewriting when sending over an authorization
-  // header if the original is cache-control: public.
-  ResponseHeaders headers;
-  mock_timer()->SetTimeUs(MockTimer::kApr_5_2010_ms * Timer::kMsUs);
-  headers.Add(HttpAttributes::kContentType, kContentTypeCss.mime_type());
-  headers.SetDate(MockTimer::kApr_5_2010_ms);
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.Add(HttpAttributes::kCacheControl, "public, max-age=400");
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("text.css"), headers, kCssContent);
-
-  // The first response served by the fetcher and is not rewritten. An ajax
-  // rewrite is triggered.
-  GoogleString text;
-  ResponseHeaders response_headers;
-  RequestHeaders request_headers;
-  request_headers.Add(HttpAttributes::kAuthorization, "Paperwork");
-  FetchFromProxy("text.css", request_headers, true, &text, &response_headers);
-  EXPECT_EQ(kCssContent, text);
-
-  // The second version should be optimized in this case.
-  text.clear();
-  response_headers.Clear();
-  FetchFromProxy("text.css", request_headers, true, &text, &response_headers);
-  EXPECT_EQ(kMinimizedCssContent, text);
-}
-
 TEST_F(ProxyInterfaceTest, AjaxRewritingDisabledByGlobalDisable) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_enabled(false);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
                                 kHtmlCacheTimeSec * 2);
@@ -3031,32 +1640,6 @@ TEST_F(ProxyInterfaceTest, AjaxRewritingSkippedIfBlacklisted) {
   EXPECT_EQ(1, lru_cache()->num_hits());
 }
 
-TEST_F(ProxyInterfaceTest, AjaxRewritingBlacklistReject) {
-  // Makes sure that we honor reject_blacklisted() when ajax rewriting may
-  // have normally happened.
-  RejectBlacklisted();
-
-  ResponseHeaders headers;
-  mock_timer()->SetTimeUs(MockTimer::kApr_5_2010_ms * Timer::kMsUs);
-  headers.Add(HttpAttributes::kContentType, kContentTypeCss.mime_type());
-  headers.SetDate(MockTimer::kApr_5_2010_ms);
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  headers.ComputeCaching();
-  SetFetchResponse(AbsolutifyUrl("blacklistCoffee.css"), headers, kCssContent);
-  SetFetchResponse(AbsolutifyUrl("tea.css"), headers, kCssContent);
-
-  GoogleString text;
-  ResponseHeaders response_headers;
-  FetchFromProxy("blacklistCoffee.css", true, &text, &response_headers);
-  EXPECT_EQ(HttpStatus::kImATeapot, response_headers.status_code());
-  EXPECT_TRUE(text.empty());
-
-  // Non-blacklisted stuff works OK.
-  FetchFromProxy("tea.css", true, &text, &response_headers);
-  EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
-  EXPECT_EQ(kCssContent, text);
-}
-
 TEST_F(ProxyInterfaceTest, EatCookiesOnReconstructFailure) {
   // Make sure we don't pass through a Set-Cookie[2] when reconstructing
   // a resource on demand fails.
@@ -3080,11 +1663,11 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
   GoogleString text;
   ResponseHeaders headers;
 
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   headers.Add(HttpAttributes::kEtag, "something");
   headers.SetDateAndCaching(MockTimer::kApr_5_2010_ms,
@@ -3110,7 +1693,6 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
             headers.CacheExpirationTimeMs());
   EXPECT_EQ(NULL, headers.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(NULL, headers.Lookup1(HttpAttributes::kLastModified));
-  EXPECT_STREQ("cf", logging_info_.applied_rewriters());
 
   // Fetch the rewritten resource as well.
   text.clear();
@@ -3131,55 +1713,6 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
   EXPECT_EQ(kMinimizedCssContent, text);
 }
 
-TEST_F(ProxyInterfaceTest, FlushHugeHtml) {
-  // Test the forced flushing of HTML controlled by flush_buffer_limit_bytes().
-  RewriteOptions* options = server_context()->global_options();
-  options->ClearSignatureForTesting();
-  options->set_flush_buffer_limit_bytes(8);  // 2 self-closing tags ("<p/>")
-  options->set_flush_html(true);
-  server_context()->ComputeSignature(options);
-
-  SetResponseWithDefaultHeaders("page.html", kContentTypeHtml,
-                                "<a/><b/><c/><d/><e/><f/><g/><h/>",
-                                kHtmlCacheTimeSec * 2);
-
-  GoogleString out;
-  FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/>|Flush|<c/><d/>|Flush|<e/><f/>|Flush|<g/><h/>|Flush||Flush|",
-      out);
-
-  // Now tell to flush after 3 self-closing tags.
-  options->ClearSignatureForTesting();
-  options->set_flush_buffer_limit_bytes(12);  // 3 self-closing tags
-  server_context()->ComputeSignature(options);
-
-  FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/><c/>|Flush|<d/><e/><f/>|Flush|<g/><h/>|Flush|", out);
-
-  // And now with 2.5. This means we will flush 2 (as that many are complete),
-  // then 5, and 7.
-  options->ClearSignatureForTesting();
-  options->set_flush_buffer_limit_bytes(10);
-  server_context()->ComputeSignature(options);
-
-  FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/>|Flush|<c/><d/><e/>|Flush|<f/><g/>|Flush|<h/>|Flush|", out);
-
-  // Now 9 bytes, e.g. 2 1/4 of a self-closing tag. Looks almost the same as
-  // every 2 self-closing tags (8 bytes), but we don't get an extra flush
-  // at the end.
-  options->ClearSignatureForTesting();
-  options->set_flush_buffer_limit_bytes(9);
-  server_context()->ComputeSignature(options);
-  FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/>|Flush|<c/><d/>|Flush|<e/><f/>|Flush|<g/><h/>|Flush|",
-      out);
-}
-
 TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtml) {
   // Blacklisted URL should not be rewritten.
   SetResponseWithDefaultHeaders("blacklist.html", kContentTypeHtml,
@@ -3192,29 +1725,6 @@ TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtml) {
   FetchFromProxy("blacklist.html", true, &text, &headers);
   CheckHeaders(headers, kContentTypeHtml);
   EXPECT_EQ(CssLinkHref("a.css"), text);
-}
-
-TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtmlRejectMode) {
-  // If we're in reject_blacklisted mode, we should just respond with the
-  // configured status.
-  RejectBlacklisted();
-  SetResponseWithDefaultHeaders("blacklistCoffee.html", kContentTypeHtml,
-                                CssLinkHref("a.css"), kHtmlCacheTimeSec * 2),
-  SetResponseWithDefaultHeaders("tea.html", kContentTypeHtml,
-                                "tasty", kHtmlCacheTimeSec * 2);
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
-                                kHtmlCacheTimeSec * 2);
-
-  GoogleString text;
-  ResponseHeaders headers;
-  FetchFromProxy("blacklistCoffee.html", true, &text, &headers);
-  EXPECT_EQ(HttpStatus::kImATeapot, headers.status_code());
-  EXPECT_TRUE(text.empty());
-
-  // Fetching non-blacklisted one works fine.
-  FetchFromProxy("tea.html", true, &text, &headers);
-  EXPECT_EQ(HttpStatus::kOK, headers.status_code());
-  EXPECT_STREQ("tasty", text);
 }
 
 TEST_F(ProxyInterfaceTest, DontRewriteMislabeledAsHtml) {
@@ -3265,12 +1775,11 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
                                 orig_css, kHtmlCacheTimeSec * 2);
 
   // By default, cache extension is off in the default options.
-  server_context()->global_options()->SetDefaultRewriteLevel(
+  resource_manager()->global_options()->SetDefaultRewriteLevel(
       RewriteOptions::kPassThrough);
   ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheCss));
   ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheImages));
   ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCacheScripts));
-  ASSERT_FALSE(options()->Enabled(RewriteOptions::kExtendCachePdfs));
   ASSERT_EQ(RewriteOptions::kPassThrough, options()->level());
 
   // Because cache-extension was turned off, the image in the CSS file
@@ -3285,14 +1794,13 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   custom_options->EnableFilter(RewriteOptions::kExtendCacheCss);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheImages);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
-  custom_options->EnableFilter(RewriteOptions::kExtendCachePdfs);
   custom_options->set_cache_invalidation_timestamp(mock_timer()->NowMs());
   mock_timer()->AdvanceUs(Timer::kMsUs);
 
   // Inject the custom options into the flow via a custom URL namer.
   ProxyUrlNamer url_namer;
   url_namer.set_options(custom_options.get());
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
 
   // Use EncodeNormal because it matches the logic used by ProxyUrlNamer.
   const GoogleString kExtendedBackgroundImage =
@@ -3350,41 +1858,12 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithNoUrlNamerOptions) {
   GoogleUrl gurl("http://example.com/?ModPagespeedFilters=bogus_filter");
   EXPECT_FALSE(proxy_interface_->GetQueryOptions(&gurl, &request_headers,
                                                  message_handler()).second);
-
-  // The default url_namer does not yield any name-derived options, and we
-  // have not specified any URL params or request-headers, and kXRequestedWith
-  // header is set with bogus value, so there will be no custom options, and no
-  // errors.
-  request_headers.Add(
-      HttpAttributes::kXRequestedWith, "bogus");
-  options.reset(
-      GetCustomOptions("http://example.com/", &request_headers, NULL));
-  ASSERT_TRUE(options.get() == NULL);
-
-  // The default url_namer does not yield any name-derived options, and we
-  // have not specified any URL params or request-headers, but kXRequestedWith
-  // header is set to 'XmlHttpRequest', so there will be custom options with
-  // all js inserted filters disabled.
-  request_headers.RemoveAll(HttpAttributes::kXRequestedWith);
-  request_headers.Add(
-      HttpAttributes::kXRequestedWith, ProxyInterface::kXmlHttpRequest);
-  options.reset(
-      GetCustomOptions("http://example.com/", &request_headers, NULL));
-  // Disable DelayImages for XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
-  EXPECT_TRUE(options->enabled());
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kDelayImages));
-  // As kDelayImages filter is present in the disabled list, so it will not get
-  // enabled even if it is enabled via EnableFilter().
-  options->EnableFilter(RewriteOptions::kDelayImages);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kDelayImages));
 }
 
 TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
   // Inject a url-namer that will establish a domain configuration.
   RewriteOptions namer_options;
   namer_options.EnableFilter(RewriteOptions::kCombineJavascript);
-  namer_options.EnableFilter(RewriteOptions::kDelayImages);
 
   RequestHeaders request_headers;
   scoped_ptr<RewriteOptions> options(
@@ -3397,7 +1876,6 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
   CheckExtendCache(options.get(), false);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineJavascript));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kDelayImages));
 
   // Now combine with query params, which turns core-filters on.
   options.reset(GetCustomOptions(
@@ -3427,43 +1905,16 @@ TEST_F(ProxyInterfaceTest, CustomOptionsWithUrlNamerOptions) {
   GoogleUrl gurl("http://example.com/?ModPagespeedFilters=bogus_filter");
   EXPECT_FALSE(proxy_interface_->GetQueryOptions(&gurl, &request_headers,
                                                  message_handler()).second);
-
-  request_headers.Add(
-      HttpAttributes::kXRequestedWith, "bogus");
-  options.reset(
-      GetCustomOptions("http://example.com/", &request_headers,
-                       &namer_options));
-  // Don't disable DelayImages for Non-XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
-  EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), false);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineJavascript));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kDelayImages));
-
-  request_headers.RemoveAll(HttpAttributes::kXRequestedWith);
-  request_headers.Add(
-      HttpAttributes::kXRequestedWith, ProxyInterface::kXmlHttpRequest);
-  options.reset(
-      GetCustomOptions("http://example.com/", &request_headers,
-                       &namer_options));
-  // Disable DelayImages for XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
-  EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options.get(), false);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineJavascript));
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kDelayImages));
 }
 
 TEST_F(ProxyInterfaceTest, MinResourceTimeZero) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
   options->set_min_resource_cache_time_to_rewrite_ms(
       kHtmlCacheTimeSec * Timer::kSecondMs);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml,
                                 CssLinkHref("a.css"), kHtmlCacheTimeSec * 2);
@@ -3477,13 +1928,13 @@ TEST_F(ProxyInterfaceTest, MinResourceTimeZero) {
 }
 
 TEST_F(ProxyInterfaceTest, MinResourceTimeLarge) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
   options->set_min_resource_cache_time_to_rewrite_ms(
       4 * kHtmlCacheTimeSec * Timer::kSecondMs);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml,
                                 CssLinkHref("a.css"), kHtmlCacheTimeSec * 2);
@@ -3536,7 +1987,7 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnProxy) {
   SetFetchResponse(AbsolutifyUrl("style.css"), resource_headers, "a");
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
 
@@ -3590,11 +2041,11 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnResourceFetch) {
   resource_headers.ComputeCaching();
   SetFetchResponse(AbsolutifyUrl("style.css"), resource_headers, "a");
 
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   ResponseHeaders out_headers;
   GoogleString out_text;
@@ -3663,10 +2114,10 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnResourceFetch) {
 // No matter what options->respect_vary() is set to we will respect HTML Vary
 // headers.
 TEST_F(ProxyInterfaceTest, NoCacheVaryHtml) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_respect_vary(false);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   ResponseHeaders html_headers;
   DefaultResponseHeaders(kContentTypeHtml, kHtmlCacheTimeSec, &html_headers);
@@ -3702,53 +2153,12 @@ TEST_F(ProxyInterfaceTest, NoCacheVaryHtml) {
   EXPECT_EQ("a", text);
 }
 
-// Test https HTML responses are never cached, while https resources are cached.
-TEST_F(ProxyInterfaceTest, NoCacheHttpsHtml) {
-  RewriteOptions* options = server_context()->global_options();
-  options->ClearSignatureForTesting();
-  options->set_respect_vary(false);
-  server_context()->ComputeSignature(options);
-  http_cache()->set_disable_html_caching_on_https(true);
-
-  ResponseHeaders html_headers;
-  DefaultResponseHeaders(kContentTypeHtml, kHtmlCacheTimeSec, &html_headers);
-  html_headers.ComputeCaching();
-  SetFetchResponse(kHttpsPageUrl, html_headers, "1");
-  ResponseHeaders resource_headers;
-  DefaultResponseHeaders(kContentTypeCss, kHtmlCacheTimeSec, &resource_headers);
-  resource_headers.ComputeCaching();
-  SetFetchResponse(kHttpsCssUrl, resource_headers, "a");
-
-  GoogleString text;
-  ResponseHeaders actual_headers;
-  FetchFromProxy(kHttpsPageUrl, true, &text, &actual_headers);
-  EXPECT_EQ("1", text);
-  text.clear();
-  FetchFromProxy(kHttpsCssUrl, true, &text, &actual_headers);
-  EXPECT_EQ("a", text);
-
-  SetFetchResponse(kHttpsPageUrl, html_headers, "2");
-  SetFetchResponse(kHttpsCssUrl, resource_headers, "b");
-
-  ClearStats();
-  // HTML was not cached because it was via https. So we do fetch the new value.
-  text.clear();
-  FetchFromProxy(kHttpsPageUrl, true, &text, &actual_headers);
-  EXPECT_EQ("2", text);
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  // Resource was cached, so we serve the old value.
-  text.clear();
-  FetchFromProxy(kHttpsCssUrl, true, &text, &actual_headers);
-  EXPECT_EQ("a", text);
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-}
-
 // Respect Vary for resources if options tell us to.
 TEST_F(ProxyInterfaceTest, NoCacheVaryAll) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_respect_vary(true);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   ResponseHeaders html_headers;
   DefaultResponseHeaders(kContentTypeHtml, kHtmlCacheTimeSec, &html_headers);
@@ -3812,7 +2222,7 @@ TEST_F(ProxyInterfaceTest, RepairMismappedResource) {
   ProxyUrlNamer url_namer;
   ResponseHeaders headers;
   GoogleString text;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
 
   // Now fetch the origin content.  This will simply hit the
   // mock fetcher and always worked.
@@ -3851,7 +2261,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeaders) {
   SetFetchResponse("http://test.com/file.css", orig_headers, kText);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(
@@ -3860,34 +2270,6 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeaders) {
       true, &out_text, &out_headers);
   EXPECT_STREQ(kText, out_text);
   EXPECT_STREQ(NULL, out_headers.Lookup1(HttpAttributes::kSetCookie));
-}
-
-TEST_F(ProxyInterfaceTest, CrossDomainAuthorization) {
-  // If we're serving content from evil.com via kProxyHostUrl, we need to make
-  // sure we don't propagate through any (non-proxy) authorization headers, as
-  // they may have been cached from good.com (as both would look like
-  // kProxyHost to the browser).
-  ReflectingTestFetcher reflect;
-  server_context()->set_default_system_fetcher(&reflect);
-
-  ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
-
-  RequestHeaders request_headers;
-  request_headers.Add("Was", "Here");
-  request_headers.Add(HttpAttributes::kAuthorization, "Secret");
-  request_headers.Add(HttpAttributes::kProxyAuthorization, "OurSecret");
-
-  ResponseHeaders out_headers;
-  GoogleString out_text;
-  // Using .txt here so we don't try any AJAX rewriting.
-  FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
-                        "/test.com/test.com/file.txt"),
-                 request_headers,  true, &out_text, &out_headers);
-  EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
-  EXPECT_FALSE(out_headers.Has(HttpAttributes::kAuthorization));
-  EXPECT_FALSE(out_headers.Has(HttpAttributes::kProxyAuthorization));
-  mock_scheduler()->AwaitQuiescence();
 }
 
 TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnProxy) {
@@ -3905,7 +2287,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnProxy) {
   SetFetchResponse("http://test.com/file.css", orig_headers, kText);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(
@@ -3944,7 +2326,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch) {
   SetFetchResponse("http://test.com/file.css", orig_headers, kText);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(Encode(kTestDomain, "ce", "0", "file.css", "css"),
@@ -3980,7 +2362,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch2) {
   SetFetchResponse("http://test.com/file.css", orig_headers, kText);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(Encode(kTestDomain, "cf", "0", "file.css", "css"),
@@ -4008,7 +2390,7 @@ TEST_F(ProxyInterfaceTest, ProxyResourceQueryOnly) {
                                 "var a = 2;// stuff", kHtmlCacheTimeSec * 2);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(
@@ -4030,7 +2412,7 @@ TEST_F(ProxyInterfaceTest, NoRehostIncompatMPS) {
   SetResponseWithDefaultHeaders(kOldName, kContentTypeCss, kContent, 100);
 
   ProxyUrlNamer url_namer;
-  server_context()->set_url_namer(&url_namer);
+  resource_manager()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
   FetchFromProxy(
@@ -4044,10 +2426,10 @@ TEST_F(ProxyInterfaceTest, NoRehostIncompatMPS) {
 
 // Test that we serve "Cache-Control: no-store" only when original page did.
 TEST_F(ProxyInterfaceTest, NoStore) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_max_html_cache_time_ms(0);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
 
   // Most headers get converted to "no-cache, max-age=0".
   EXPECT_STREQ("max-age=0, no-cache",
@@ -4109,14 +2491,14 @@ TEST_F(ProxyInterfaceTest, PropCacheFilter) {
 
   // Finally, disable the property-cache and note that the element-count
   // annotatation reverts to "unknown mode"
-  server_context_->set_enable_property_cache(false);
+  factory()->set_enable_property_cache(false);
   FetchFromProxy(kPageUrl, true, &text_out, &headers_out);
   EXPECT_EQ("<!-- --><div><span><p></p></span></div>", text_out);
 }
 
-TEST_F(ProxyInterfaceTest, DomCohortWritten) {
-  // Other than the write of DomCohort, there will be no properties added to
-  // the cache in this test because we have not enabled the filter with
+TEST_F(ProxyInterfaceTest, PropCacheNoWritesIfNoProperties) {
+  // There will be no properties added to the cache set in this test because
+  // we have not enabled the filter with
   //     CreateFilterCallback create_filter_callback;
   //     factory()->AddCreateFilterCallback(&callback);
 
@@ -4125,11 +2507,11 @@ TEST_F(ProxyInterfaceTest, DomCohortWritten) {
   ResponseHeaders headers_out;
 
   FetchFromProxy(kPageUrl, true, &text_out, &headers_out);
-  EXPECT_EQ(1, lru_cache()->num_inserts());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(2, lru_cache()->num_misses());  // property-cache + http-cache
 
   ClearStats();
-  server_context_->set_enable_property_cache(false);
+  factory()->set_enable_property_cache(false);
   FetchFromProxy(kPageUrl, true, &text_out, &headers_out);
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(1, lru_cache()->num_misses());  // http-cache only.
@@ -4155,7 +2537,7 @@ TEST_F(ProxyInterfaceTest, PropCacheNoWritesIfHtmlEndsWithTxt) {
   EXPECT_EQ(1, lru_cache()->num_misses());  // http-cache only
 
   ClearStats();
-  server_context_->set_enable_property_cache(false);
+  factory()->set_enable_property_cache(false);
   FetchFromProxy("page.txt", true, &text_out, &headers_out);
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(1, lru_cache()->num_misses());  // http-cache only
@@ -4178,7 +2560,7 @@ TEST_F(ProxyInterfaceTest, PropCacheNoWritesIfNonHtmlThreadedCache) {
   // extension, where the property-cache lookup is delivered in a
   // separate thread.
   DisableAjax();
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager()->thread_synchronizer();
   sync->EnableForPrefix(ProxyFetch::kCollectorPrefix);
   TestPropertyCache(kImageFilenameLackingExt, true, true, true);
 }
@@ -4187,7 +2569,7 @@ TEST_F(ProxyInterfaceTest, ThreadedHtml) {
   // Tests rewriting HTML resource where property-cache lookup is delivered
   // in a separate thread.
   DisableAjax();
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager()->thread_synchronizer();
   sync->EnableForPrefix(ProxyFetch::kCollectorPrefix);
   TestPropertyCache(kPageUrl, true, true, true);
 }
@@ -4227,15 +2609,15 @@ TEST_F(ProxyInterfaceTest, HeadersSetupRace) {
   // not occur at all, so we have to declare it as "Sloppy" so the
   // ThreadSynchronizer class doesn't vomit on destruction.
   const int kIdleCallbackTimeoutMs = 10;
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_idle_flush_time_ms(kIdleCallbackTimeoutMs);
   options->set_flush_html(true);
-  server_context()->ComputeSignature(options);
+  resource_manager()->ComputeSignature(options);
   DisableAjax();
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager()->thread_synchronizer();
   sync->EnableForPrefix(ProxyFetch::kHeadersSetupRacePrefix);
-  ThreadSystem* thread_system = server_context()->thread_system();
+  ThreadSystem* thread_system = resource_manager()->thread_system();
   QueuedWorkerPool pool(1, thread_system);
   QueuedWorkerPool::Sequence* sequence = pool.NewSequence();
   WorkerTestBase::SyncPoint sync_point(thread_system);
@@ -4265,7 +2647,7 @@ TEST_F(ProxyInterfaceTest, BothClientAndPropertyCache) {
   // incorrectly calls Done() twice, then it will block forever on the
   // second call to Wait(ProxyFetch::kCollectorDone), since we only offer
   // one Signal here.
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  ThreadSynchronizer* sync = resource_manager()->thread_synchronizer();
   sync->EnableForPrefix(ProxyFetch::kCollectorPrefix);
   sync->Signal(ProxyFetch::kCollectorDone);
 
@@ -4279,7 +2661,6 @@ TEST_F(ProxyInterfaceTest, BothClientAndPropertyCache) {
   GoogleString response;
   FetchFromProxy(kPageUrl, request_headers, true, &response, &response_headers);
   sync->Wait(ProxyFetch::kCollectorReady);  // Clears Signal from PFPCC::Done.
-  sync->Wait(ProxyFetch::kCollectorDelete);
 }
 
 // TODO(jmarantz): add a test with a simulated slow cache to see what happens
@@ -4288,20 +2669,17 @@ TEST_F(ProxyInterfaceTest, BothClientAndPropertyCache) {
 
 // Test that we set the Furious cookie up appropriately.
 TEST_F(ProxyInterfaceTest, FuriousTest) {
-  RewriteOptions* options = server_context()->global_options();
+  RewriteOptions* options = resource_manager()->global_options();
   options->ClearSignatureForTesting();
   options->set_ga_id("123-455-2341");
   options->set_running_furious_experiment(true);
   NullMessageHandler handler;
-  options->AddFuriousSpec("id=2;enable=extend_cache;percent=100", &handler);
-  server_context()->ComputeSignature(options);
-
-  SetResponseWithDefaultHeaders("example.jpg", kContentTypeJpeg,
-                                "image data", 300);
+  options->AddFuriousSpec("id=2", &handler);
+  resource_manager()->ComputeSignature(options);
 
   ResponseHeaders headers;
   const char kContent[] = "<html><head></head><body>A very compelling "
-      "article with an image: <img src=example.jpg></body></html>";
+      "article</body></html>";
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   headers.SetStatusAndReason(HttpStatus::kOK);
   SetFetchResponse(AbsolutifyUrl("text.html"), headers, kContent);
@@ -4309,7 +2687,6 @@ TEST_F(ProxyInterfaceTest, FuriousTest) {
 
   GoogleString text;
   FetchFromProxy("text.html", true, &text, &headers);
-  // Assign all visitors to a furious_spec.
   EXPECT_TRUE(headers.Has(HttpAttributes::kSetCookie));
   ConstStringStarVector values;
   headers.Lookup(HttpAttributes::kSetCookie, &values);
@@ -4321,8 +2698,6 @@ TEST_F(ProxyInterfaceTest, FuriousTest) {
     }
   }
   EXPECT_TRUE(found);
-  // Image cache-extended and including furious_spec 'a'.
-  EXPECT_TRUE(text.find("example.jpg.pagespeed.a.ce") != GoogleString::npos);
 
   headers.Clear();
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
@@ -4335,66 +2710,7 @@ TEST_F(ProxyInterfaceTest, FuriousTest) {
   req_headers.Add(HttpAttributes::kCookie, "_GFURIOUS=2");
 
   FetchFromProxy("text2.html", req_headers, true, &text, &headers);
-  // Visitor already has cookie with id=2; don't give them a new one.
   EXPECT_FALSE(headers.Has(HttpAttributes::kSetCookie));
-  // Image cache-extended and including furious_spec 'a'.
-  EXPECT_TRUE(text.find("example.jpg.pagespeed.a.ce") != GoogleString::npos);
-
-  // Check that we don't include a furious_spec index in urls for the "no
-  // experiment" group (id=0).
-  headers.Clear();
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  SetFetchResponse(AbsolutifyUrl("text3.html"), headers, kContent);
-  headers.Clear();
-  text.clear();
-
-  RequestHeaders req_headers2;
-  req_headers2.Add(HttpAttributes::kCookie, "_GFURIOUS=0");
-
-  FetchFromProxy("text3.html", req_headers2, true, &text, &headers);
-  EXPECT_FALSE(headers.Has(HttpAttributes::kSetCookie));
-  EXPECT_TRUE(text.find("example.jpg.pagespeed.ce") != GoogleString::npos);
-}
-
-TEST_F(ProxyInterfaceTest, UrlAttributeTest) {
-  RewriteOptions* options = server_context()->global_options();
-  options->ClearSignatureForTesting();
-  options->EnableFilter(RewriteOptions::kRewriteDomains);
-  options->set_domain_rewrite_hyperlinks(true);
-  NullMessageHandler handler;
-  options->domain_lawyer()->AddRewriteDomainMapping(
-      "http://dst.example.com", "http://src.example.com", &handler);
-  options->AddUrlValuedAttribute(
-      "span", "src", semantic_type::kHyperlink);
-  options->AddUrlValuedAttribute("hr", "imgsrc", semantic_type::kImage);
-  server_context()->ComputeSignature(options);
-
-  SetResponseWithDefaultHeaders(
-      "http://src.example.com/null", kContentTypeHtml, "", 0);
-  ResponseHeaders headers;
-  const char kContent[] = "<html><head></head><body>"
-      "<img src=\"http://src.example.com/null\">"
-      "<hr imgsrc=\"http://src.example.com/null\">"
-      "<span src=\"http://src.example.com/null\"></span>"
-      "<other src=\"http://src.example.com/null\"></other></body></html>";
-  headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-  headers.SetStatusAndReason(HttpStatus::kOK);
-  SetFetchResponse(AbsolutifyUrl("text.html"), headers, kContent);
-  headers.Clear();
-  GoogleString text;
-  FetchFromProxy("text.html", true, &text, &headers);
-
-  // img.src, hr.imgsrc, and span.src are all rewritten
-  EXPECT_TRUE(text.find("<img src=\"http://dst.example.com/null\"") !=
-              GoogleString::npos);
-  EXPECT_TRUE(text.find("<hr imgsrc=\"http://dst.example.com/null\"") !=
-              GoogleString::npos);
-  EXPECT_TRUE(text.find("<span src=\"http://dst.example.com/null\"") !=
-              GoogleString::npos);
-  // other.src not rewritten
-  EXPECT_TRUE(text.find("<other src=\"http://src.example.com/null\"") !=
-              GoogleString::npos);
 }
 
 // Test that ClientState is properly read from the client property cache.
@@ -4433,60 +2749,6 @@ TEST_F(ProxyInterfaceTest, ClientStateTest) {
 
 TEST_F(ProxyInterfaceTest, TestOptionsUsedInCacheKey) {
   TestOptionsUsedInCacheKey();
-}
-
-TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
-  RewriteOptions* options = server_context()->global_options();
-  options->ClearSignatureForTesting();
-  options->EnableExtendCacheFilters();
-  options->set_max_html_parse_bytes(60);
-  server_context()->ComputeSignature(options);
-
-  SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.jpg"), kContentTypeJpeg,
-                                "image", kHtmlCacheTimeSec * 2);
-
-  // This is larger than 60 bytes.
-  const char kContent[] = "<html><head></head><body>"
-      "<img src=\"1.jpg\">"
-      "<p>Some very long and very boring text</p>"
-      "</body></html>";
-  SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml, kContent, 0);
-  ResponseHeaders headers;
-  GoogleString text;
-  FetchFromProxy(kPageUrl, true, &text, &headers);
-  // For the first request, we bail out of parsing and insert the redirect. We
-  // also update the pcache.
-  EXPECT_EQ("<html><script type=\"text/javascript\">"
-            "window.location=\"http://test.com/page.html?ModPagespeed=off\";"
-            "</script></html>", text);
-
-  headers.Clear();
-  text.clear();
-  // We look up the pcache and find that we should skip parsing. Hence, we just
-  // pass the bytes through.
-  FetchFromProxy(kPageUrl, true, &text, &headers);
-  EXPECT_EQ(kContent, text);
-
-  // This is smaller than 60 bytes.
-  const char kNewContent[] = "<html><head></head><body>"
-       "<img src=\"1.jpg\"></body></html>";
-
-  SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml, kNewContent, 0);
-  headers.Clear();
-  text.clear();
-  // We still remember that we should skip parsing. Hence, we pass the bytes
-  // through. However, after this request, we update the pcache to indicate that
-  // we should no longer skip parsing.
-  FetchFromProxy(kPageUrl, true, &text, &headers);
-  EXPECT_EQ(kNewContent, text);
-
-  headers.Clear();
-  text.clear();
-  // This request is rewritten.
-  FetchFromProxy(kPageUrl, true, &text, &headers);
-  EXPECT_EQ("<html><head></head><body>"
-            "<img src=\"http://test.com/1.jpg.pagespeed.ce.0.jpg\">"
-            "</body></html>", text);
 }
 
 }  // namespace net_instaweb

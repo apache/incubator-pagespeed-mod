@@ -44,10 +44,8 @@
         '<(DEPTH)',
       ],
       'sources': [
-        'apache/add_headers_fetcher.cc',
         'apache/apache_thread_system.cc',
         'apache/apr_file_system.cc',
-        'apache/apr_mem_cache.cc',
         'apache/apr_timer.cc',
         'apache/loopback_route_fetcher.cc',
         'apache/serf_url_async_fetcher.cc',

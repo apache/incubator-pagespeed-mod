@@ -35,11 +35,6 @@ void ResourceSlot::SetResource(const ResourcePtr& resource) {
   resource_ = ResourcePtr(resource);
 }
 
-void ResourceSlot::DirectSetUrl(const StringPiece& url) {
-  LOG(DFATAL) << "Trying to direct-set a URL on a slot that does not "
-                 "support it";
-}
-
 RewriteContext* ResourceSlot::LastContext() const {
   if (contexts_.empty()) {
     return NULL;
@@ -80,9 +75,12 @@ void HtmlResourceSlot::Render() {
       element_ = NULL;
     }
   } else {
-    DirectSetUrl(resource()->url());
-    // Note that to insert image dimensions, we explicitly save
-    // a reference to the element in the enclosing Context object.
+    DCHECK(attribute_ != NULL);
+    if (attribute_ != NULL) {
+      attribute_->SetValue(resource()->url());
+      // Note, for inserting image-dimensions, we will likely have
+      // to subclass or augment HtmlResourceSlot.
+    }
   }
 }
 
@@ -93,13 +91,6 @@ GoogleString HtmlResourceSlot::LocationString() {
     return StrCat(html_parse_->id(), ":",
                   IntegerToString(begin_line_number_),
                   "-", IntegerToString(end_line_number_));
-  }
-}
-
-void HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
-  DCHECK(attribute_ != NULL);
-  if (attribute_ != NULL) {
-    attribute_->SetValue(url);
   }
 }
 

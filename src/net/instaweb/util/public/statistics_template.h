@@ -19,10 +19,10 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_STATISTICS_TEMPLATE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_STATISTICS_TEMPLATE_H_
 
-#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <vector>
+#include <utility>                      // for pair
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -53,17 +53,6 @@ template<class Var, class Hist, class TimedVar> class StatisticsTemplate
     Var* var = FindVariable(name);
     if (var == NULL) {
       var = NewVariable(name, variables_.size());
-      variables_.push_back(var);
-      variable_names_.push_back(name.as_string());
-      variable_map_[name.as_string()] = var;
-    }
-    return var;
-  }
-
-  virtual Var* AddGlobalVariable(const StringPiece& name) {
-    Var* var = FindVariable(name);
-    if (var == NULL) {
-      var = NewGlobalVariable(name, variables_.size());
       variables_.push_back(var);
       variable_names_.push_back(name.as_string());
       variable_map_[name.as_string()] = var;
@@ -131,24 +120,11 @@ template<class Var, class Hist, class TimedVar> class StatisticsTemplate
   }
 
   virtual void Dump(Writer* writer, MessageHandler* message_handler) {
-    int longest_string = 0;
     for (int i = 0, n = variables_.size(); i < n; ++i) {
-      const GoogleString& var_name = variable_names_[i];
-      int length_number = Integer64ToString(variables_[i]->Get64()).size();
-      int length_name = var_name.size();
-      longest_string = std::max(longest_string, length_name + length_number);
-    }
-
-    GoogleString spaces_buffer = GoogleString(longest_string, ' ');
-    StringPiece spaces(spaces_buffer);
-    for (int i = 0, n = variables_.size(); i < n; ++i) {
-      const GoogleString& var_name = variable_names_[i];
-      GoogleString var_as_str = Integer64ToString(variables_[i]->Get64());
-      writer->Write(var_name, message_handler);
+      Variable* var = variables_[i];
+      writer->Write(variable_names_[i], message_handler);
       writer->Write(": ", message_handler);
-      int num_spaces = longest_string - var_name.size() - var_as_str.size();
-      writer->Write(spaces.substr(0, num_spaces), message_handler);
-      writer->Write(var_as_str, message_handler);
+      writer->Write(Integer64ToString(var->Get64()), message_handler);
       writer->Write("\n", message_handler);
     }
   }
@@ -171,12 +147,6 @@ template<class Var, class Hist, class TimedVar> class StatisticsTemplate
  protected:
   // Interface to subclass.
   virtual Var* NewVariable(const StringPiece& name, int index) = 0;
-
-  // Default implementation just calls NewVariable
-  virtual Var* NewGlobalVariable(const StringPiece& name, int index) {
-    return NewVariable(name, index);
-  }
-
   virtual Hist* NewHistogram(const StringPiece& name) = 0;
   virtual TimedVar* NewTimedVariable(const StringPiece& name, int index) = 0;
 

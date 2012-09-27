@@ -46,7 +46,7 @@ class MessageHandler;
 class ProxyFetch;
 class ProxyFetchPropertyCallbackCollector;
 class QueuedAlarm;
-class ServerContext;
+class ResourceManager;
 class ResponseHeaders;
 class RewriteDriver;
 class RewriteOptions;
@@ -56,7 +56,7 @@ class Timer;
 // ProxyFetches it creates.
 class ProxyFetchFactory {
  public:
-  explicit ProxyFetchFactory(ServerContext* manager);
+  explicit ProxyFetchFactory(ResourceManager* manager);
   ~ProxyFetchFactory();
 
   void StartNewProxyFetch(
@@ -65,6 +65,11 @@ class ProxyFetchFactory {
       RewriteDriver* driver,
       ProxyFetchPropertyCallbackCollector* property_callback,
       AsyncFetch* original_content_fetch);
+
+  void set_server_version(const StringPiece& server_version) {
+    server_version.CopyToString(&server_version_);
+  }
+  const GoogleString& server_version() const { return server_version_; }
 
   MessageHandler* message_handler() const { return handler_; }
 
@@ -78,9 +83,10 @@ class ProxyFetchFactory {
   void Start(ProxyFetch* proxy_fetch);
   void Finish(ProxyFetch* proxy_fetch);
 
-  ServerContext* manager_;
+  ResourceManager* manager_;
   Timer* timer_;
   MessageHandler* handler_;
+  GoogleString server_version_;
 
   scoped_ptr<AbstractMutex> outstanding_proxy_fetches_mutex_;
   std::set<ProxyFetch*> outstanding_proxy_fetches_;
@@ -104,32 +110,26 @@ class ProxyFetchPropertyCallback : public PropertyPage {
     kClientPropertyCache
   };
 
-  ProxyFetchPropertyCallback(CacheType cache_type,
-                             const StringPiece& key,
-                             ProxyFetchPropertyCallbackCollector* collector,
-                             AbstractMutex* mutex);
+  explicit ProxyFetchPropertyCallback(
+      CacheType cache_type,
+      const StringPiece& key,
+      ProxyFetchPropertyCallbackCollector* collector,
+      AbstractMutex* mutex);
 
   CacheType cache_type() const { return cache_type_; }
-
-  // Delegates to collector_'s IsCacheValid.
-  virtual bool IsCacheValid(int64 write_timestamp_ms) const;
 
   virtual void Done(bool success);
 
  private:
   CacheType cache_type_;
   ProxyFetchPropertyCallbackCollector* collector_;
-  GoogleString url_;
-  const RewriteOptions* options_;
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchPropertyCallback);
 };
 
 // Tracks a collection of property-cache lookups occuring in parallel.
 class ProxyFetchPropertyCallbackCollector {
  public:
-  ProxyFetchPropertyCallbackCollector(ServerContext* manager,
-                                      const StringPiece& url,
-                                      const RewriteOptions* options);
+  explicit ProxyFetchPropertyCallbackCollector(ResourceManager* manager);
   virtual ~ProxyFetchPropertyCallbackCollector();
 
   // Add a callback to be handled by this collector.
@@ -171,28 +171,21 @@ class ProxyFetchPropertyCallbackCollector {
   // initiate SetProxyFetch().
   void AddPostLookupTask(Function* func);
 
-  // If options_ is NULL returns true.  Else, returns true if (url_,
-  // write_timestamp_ms) is valid as per URL cache invalidation entries is
-  // options_.
-  bool IsCacheValid(int64 write_timestamp_ms) const;
-
   // Called by a ProxyFetchPropertyCallback when the former is complete.
-  void Done(ProxyFetchPropertyCallback* callback, bool success);
+  virtual void Done(ProxyFetchPropertyCallback* callback, bool success);
 
  private:
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
   std::map<ProxyFetchPropertyCallback::CacheType, PropertyPage*>
   property_pages_;
   scoped_ptr<AbstractMutex> mutex_;
-  ServerContext* server_context_;
-  GoogleString url_;
+  ResourceManager* resource_manager_;
   bool detached_;             // protected by mutex_.
   bool done_;                 // protected by mutex_.
   bool success_;              // protected by mutex_; accessed after quiescence.
   ProxyFetch* proxy_fetch_;   // protected by mutex_.
   // protected by mutex_.
   scoped_ptr<std::vector<Function*> > post_lookup_task_vector_;
-  const RewriteOptions* options_;  // protected by mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchPropertyCallbackCollector);
 };
@@ -224,7 +217,6 @@ class ProxyFetch : public SharedAsyncFetch {
   static const char kCollectorDone[];
   static const char kCollectorPrefix[];
   static const char kCollectorReady[];
-  static const char kCollectorDelete[];
 
   // These strings identify sync-points for introducing races between
   // PropertyCache lookup completion and HeadersComplete.
@@ -275,7 +267,7 @@ class ProxyFetch : public SharedAsyncFetch {
              AsyncFetch* async_fetch,
              AsyncFetch* original_content_fetch,
              RewriteDriver* driver,
-             ServerContext* manager,
+             ResourceManager* manager,
              Timer* timer,
              ProxyFetchFactory* factory);
   virtual ~ProxyFetch();
@@ -332,7 +324,7 @@ class ProxyFetch : public SharedAsyncFetch {
   void HandleIdleAlarm();
 
   GoogleString url_;
-  ServerContext* server_context_;
+  ResourceManager* resource_manager_;
   Timer* timer_;
 
   scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
@@ -352,6 +344,9 @@ class ProxyFetch : public SharedAsyncFetch {
   bool done_called_;
 
   HtmlDetector html_detector_;
+
+  // Statistics
+  int64 start_time_us_;
 
   // Tracks a set of outstanding property-cache lookups.  This is NULLed
   // when the property-cache completes or when we detach it.  We use

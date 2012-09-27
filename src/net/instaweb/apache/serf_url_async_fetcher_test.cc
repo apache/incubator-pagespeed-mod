@@ -18,7 +18,6 @@
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <string>
 #include <vector>
 #include "apr_atomic.h"
@@ -30,7 +29,6 @@
 #include "base/stl_util-inl.h"
 #include "net/instaweb/apache/apr_file_system.h"
 #include "net/instaweb/apache/apr_timer.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
@@ -40,14 +38,6 @@
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-// Default domain to test URL fetches from.  If the default site is
-// down, the tests can be directed to a backup host by setting the
-// environment variable FETCH_TEST_DOMAIN.  Note that this relies on
-// 'mod_pagespeed_examples/' and 'do_not_modify/' being available
-// relative to the domain, by copying them into /var/www from
-// MOD_PAGESPEED_SVN_PATH/src/install.
-const char kFetchTestDomain[] = "//modpagespeed.com";
 
 namespace net_instaweb {
 
@@ -62,7 +52,7 @@ const int kFetcherTimeoutMs = 5 * 1000;
 const int kModpagespeedSite = 0;  // TODO(matterbury): These should be an enum?
 const int kGoogleFavicon = 1;
 const int kGoogleLogo = 2;
-const int kCgiSlowJs = 3;
+const int kSteveSoudersCgi = 3;
 const int kModpagespeedBeacon = 4;
 const int kHttpsGoogleFavicon = 5;
 const int kConnectionRefused = 6;
@@ -143,38 +133,24 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
   SerfUrlAsyncFetcherTest() { }
 
   virtual void SetUp() {
-    StringPiece fetch_test_domain(getenv("FETCH_TEST_DOMAIN"));
-    if (fetch_test_domain.empty()) {
-      fetch_test_domain = kFetchTestDomain;
-    }
     apr_pool_create(&pool_, NULL);
     timer_.reset(new MockTimer(MockTimer::kApr_5_2010_ms));
-    SerfUrlAsyncFetcher::InitStats(&statistics_);
+    SerfUrlAsyncFetcher::Initialize(&statistics_);
     thread_system_.reset(ThreadSystem::CreateThreadSystem());
     serf_url_async_fetcher_.reset(
         new SerfUrlAsyncFetcher(kProxy, pool_, thread_system_.get(),
                                 &statistics_, timer_.get(), kFetcherTimeoutMs,
                                 &message_handler_));
     mutex_.reset(thread_system_->NewMutex());
-    AddTestUrl(StrCat("http:", fetch_test_domain,
-                      "/mod_pagespeed_example/index.html"),
-               "<!doctype html>");
-    // Note: We store resources in www.modpagespeed.com/do_not_modify and
-    // with content hash so that we can make sure the files don't change
-    // from under us and cause our tests to fail.
-    AddTestUrl(StrCat("http:", fetch_test_domain, "/do_not_modify/"
-                      "favicon.d034f46c06475a27478e98ef5dff965e.ico"),
+    AddTestUrl("http://www.modpagespeed.com/", "<!doctype html>");
+    AddTestUrl("http://www.google.com/favicon.ico",
                GoogleString("\000\000\001\000", 4));
-    AddTestUrl(StrCat("http:", fetch_test_domain, "/do_not_modify/"
-                      "logo.e80d1c59a673f560785784fb1ac10959.gif"), "GIF");
-    AddTestUrl("http://modpagespeed.com/do_not_modify/cgi/slow_js.cgi",
-               "alert('hello world');");
-    AddTestUrl(StrCat("http:", fetch_test_domain, "/mod_pagespeed_beacon"), "");
-    AddTestUrl(StrCat("https:", fetch_test_domain, "/do_not_modify/"
-                      "favicon.d034f46c06475a27478e98ef5dff965e.ico"),
-               GoogleString());
-    AddTestUrl(StrCat("http:", fetch_test_domain, ":1023/refused.jpg"),
-               GoogleString());
+    AddTestUrl("http://www.google.com/intl/en_ALL/images/logo.gif", "GIF");
+    AddTestUrl("http://stevesouders.com/bin/resource.cgi?type=js&sleep=10",
+               "var");
+    AddTestUrl("http://modpagespeed.com/mod_pagespeed_beacon", "");
+    AddTestUrl("https://www.google.com/favicon.ico", GoogleString());
+    AddTestUrl("http://modpagespeed.com:1023/refused.jpg", GoogleString());
     prev_done_count = 0;
   }
 
@@ -237,8 +213,6 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
         // We've started to see some flakiness in this test requesting
         // google.com/favicon, so try, at most 10 times, to re-issue
         // the request and sleep.
-        // TODO(sligocki): See if this flakiness goes away now that we
-        // changed to a static resource.
         usleep(50 * Timer::kMsUs);
         LOG(ERROR) << "Serf retrying flaky url " << urls_[idx];
         callbacks_[idx]->Reset();
@@ -404,6 +378,12 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLWithGzip) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
+  // Note: these two accept-encoding commands are not currently effective
+  // for some reason.
+  request_headers_[kGoogleFavicon]->Add(HttpAttributes::kAcceptEncoding,
+                                        HttpAttributes::kGzip);
+  request_headers_[kGoogleLogo]->Add(HttpAttributes::kAcceptEncoding,
+                                     HttpAttributes::kGzip);
   EXPECT_TRUE(TestFetch(kGoogleFavicon, kGoogleLogo));
   int request_count =
       statistics_.GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
@@ -415,6 +395,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
   //
   // TODO(jmarantz): switch to referencing some fixed-size resources on
   // modpagespeed.com so we are not sensitive to favicon changes.
+  //
   EXPECT_EQ(13988, bytes_count);
   int time_duration =
       statistics_.GetVariable(SerfStats::kSerfFetchTimeDurationMs)->Get();
@@ -531,14 +512,16 @@ TEST_F(SerfUrlAsyncFetcherTest, TestTwoThreadedOneSync) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestTimeout) {
-  StartFetches(kCgiSlowJs, kCgiSlowJs, false);
+  StartFetches(kSteveSoudersCgi, kSteveSoudersCgi, false);
   int timeouts =
       statistics_.GetVariable(SerfStats::kSerfFetchTimeoutCount)->Get();
-  ASSERT_EQ(0, WaitTillDone(kCgiSlowJs, kCgiSlowJs, kThreadedPollMs));
+  ASSERT_EQ(0, WaitTillDone(kSteveSoudersCgi, kSteveSoudersCgi,
+                            kThreadedPollMs));
   timer_->AdvanceMs(2 * kFetcherTimeoutMs);
-  ASSERT_EQ(1, WaitTillDone(kCgiSlowJs, kCgiSlowJs, kThreadedPollMs));
-  ASSERT_TRUE(callbacks_[kCgiSlowJs]->IsDone());
-  EXPECT_FALSE(callbacks_[kCgiSlowJs]->success());
+  ASSERT_EQ(1, WaitTillDone(kSteveSoudersCgi, kSteveSoudersCgi,
+                            kThreadedPollMs));
+  ASSERT_TRUE(callbacks_[kSteveSoudersCgi]->IsDone());
+  EXPECT_FALSE(callbacks_[kSteveSoudersCgi]->success());
   EXPECT_EQ(timeouts + 1,
             statistics_.GetVariable(SerfStats::kSerfFetchTimeoutCount)->Get());
 }
@@ -582,27 +565,6 @@ TEST_F(SerfUrlAsyncFetcherTest, ThreadedConnectionRefusedWithDetail) {
   serf_url_async_fetcher_->set_list_outstanding_urls_on_error(true);
   ConnectionRefusedTest(true);
   EXPECT_EQ(2, message_handler_.SeriousMessages());
-}
-
-// Test that the X-Original-Content-Length header is properly set
-// when requested.
-TEST_F(SerfUrlAsyncFetcherTest, TestTrackOriginalContentLength) {
-  serf_url_async_fetcher_->set_track_original_content_length(true);
-  StringAsyncFetch async_fetch;
-  serf_url_async_fetcher_->Fetch(urls_[kModpagespeedSite], &message_handler_,
-                                 &async_fetch);
-  while (!async_fetch.done()) {
-    YieldToThread();
-    serf_url_async_fetcher_->Poll(kThreadedPollMs);
-  }
-  const char* ocl_header = async_fetch.response_headers()->Lookup1(
-      HttpAttributes::kXOriginalContentLength);
-  EXPECT_TRUE(ocl_header != NULL);
-  int bytes_count =
-      statistics_.GetVariable(SerfStats::kSerfFetchByteCount)->Get();
-  int64 ocl_value;
-  EXPECT_TRUE(StringToInt64(ocl_header, &ocl_value));
-  EXPECT_EQ(bytes_count, ocl_value);
 }
 
 }  // namespace net_instaweb

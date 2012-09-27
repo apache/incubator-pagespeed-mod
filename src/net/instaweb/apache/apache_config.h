@@ -43,9 +43,6 @@ class ApacheConfig : public RewriteOptions {
   static bool ParseRefererStatisticsOutputLevel(
       const StringPiece& in, RefererStatisticsOutputLevel* out);
 
-  static void Initialize();
-  static void Terminate();
-
   explicit ApacheConfig(const StringPiece& dir);
   ApacheConfig();
   ~ApacheConfig() {}
@@ -68,12 +65,6 @@ class ApacheConfig : public RewriteOptions {
   void set_file_cache_clean_size_kb(int64 x) {
     set_option(x, &file_cache_clean_size_kb_);
   }
-  int64 file_cache_clean_inode_limit() const {
-    return file_cache_clean_inode_limit_.value();
-  }
-  void set_file_cache_clean_inode_limit(int64 x) {
-    set_option(x, &file_cache_clean_inode_limit_);
-  }
   int64 lru_cache_byte_limit() const {
     return lru_cache_byte_limit_.value();
   }
@@ -85,6 +76,12 @@ class ApacheConfig : public RewriteOptions {
   }
   void set_lru_cache_kb_per_process(int64 x) {
     set_option(x, &lru_cache_kb_per_process_);
+  }
+  int64 fetcher_time_out_ms() const {
+    return fetcher_time_out_ms_.value();
+  }
+  void set_fetcher_time_out_ms(int64 x) {
+    set_option(x, &fetcher_time_out_ms_);
   }
   int64 slurp_flush_limit() const {
     return slurp_flush_limit_.value();
@@ -116,30 +113,6 @@ class ApacheConfig : public RewriteOptions {
   void set_statistics_enabled(bool x) {
     set_option(x, &statistics_enabled_);
   }
-  bool statistics_logging_enabled() const {
-    return statistics_logging_enabled_.value();
-  }
-  void set_statistics_logging_enabled(bool x) {
-    set_option(x, &statistics_logging_enabled_);
-  }
-  const GoogleString& statistics_logging_file() const {
-    return statistics_logging_file_.value();
-  }
-  const GoogleString& statistics_logging_charts_css() const {
-    return statistics_logging_charts_css_.value();
-  }
-  const GoogleString& statistics_logging_charts_js() const {
-    return statistics_logging_charts_js_.value();
-  }
-  void set_statistics_logging_file(GoogleString x) {
-    set_option(x, &statistics_logging_file_);
-  }
-  int64 statistics_logging_interval_ms() const {
-    return statistics_logging_interval_ms_.value();
-  }
-  void set_statistics_logging_interval_ms(int64 x) {
-    set_option(x, &statistics_logging_interval_ms_);
-  }
   bool slurp_read_only() const {
     return slurp_read_only_.value();
   }
@@ -158,17 +131,11 @@ class ApacheConfig : public RewriteOptions {
   void set_file_cache_path(GoogleString x) {
     set_option(x, &file_cache_path_);
   }
-  const GoogleString& memcached_servers() const {
-    return memcached_servers_.value();
+  const GoogleString& filename_prefix() const {
+    return filename_prefix_.value();
   }
-  void set_memcached_servers(GoogleString x) {
-    set_option(x, &memcached_servers_);
-  }
-  int memcached_threads() const {
-    return memcached_threads_.value();
-  }
-  void set_memcached_threads(int x) {
-    set_option(x, &memcached_threads_);
+  void set_filename_prefix(GoogleString x) {
+    set_option(x, &filename_prefix_);
   }
   const GoogleString& slurp_directory() const {
     return slurp_directory_.value();
@@ -181,20 +148,6 @@ class ApacheConfig : public RewriteOptions {
   }
   void set_fetcher_proxy(GoogleString x) {
     set_option(x, &fetcher_proxy_);
-  }
-
-  // Cache flushing configuration.
-  void set_cache_flush_poll_interval_sec(int64 num_seconds) {
-    set_option(num_seconds, &cache_flush_poll_interval_sec_);
-  }
-  int64 cache_flush_poll_interval_sec() const {
-    return cache_flush_poll_interval_sec_.value();
-  }
-  void set_cache_flush_filename(const StringPiece& sp) {
-    set_option(sp.as_string(), &cache_flush_filename_);
-  }
-  const GoogleString& cache_flush_filename() const {
-    return cache_flush_filename_.value();
   }
 
   // Controls whether we act as a rewriting proxy, fetching
@@ -216,7 +169,7 @@ class ApacheConfig : public RewriteOptions {
   }
 
   // Make an identical copy of these options and return it.
-  virtual ApacheConfig* Clone() const;
+  virtual RewriteOptions* Clone() const;
 
   // Returns a suitably down cast version of 'instance' if it is an instance
   // of this class, NULL if not.
@@ -254,26 +207,6 @@ class ApacheConfig : public RewriteOptions {
   };
 
  private:
-  // Keeps the properties added by this subclass.  These are merged into
-  // RewriteOptions::all_properties_ during Initialize().
-  static Properties* apache_properties_;
-
-  // Adds an option to apache_properties_.
-  //
-  // TODO(jmarantz): rename this to avoid coinciding with private
-  // method RewriteOptions::add_option.  This is done for now so
-  // review-diffs are readable, at the cost of a small non-functional
-  // follow-up refactor.
-  template<class RewriteOptionsSubclass, class OptionClass>
-  static void add_option(typename OptionClass::ValueType default_value,
-                         OptionClass RewriteOptionsSubclass::*offset,
-                         const char* id,
-                         OptionEnum option_enum) {
-    AddProperty(default_value, offset, id, option_enum, apache_properties_);
-  }
-
-  void InitializeSignaturesAndDefaults();
-  static void AddProperties();
   void Init();
 
   static bool ParseFromString(const GoogleString& value_string,
@@ -299,38 +232,24 @@ class ApacheConfig : public RewriteOptions {
 
   Option<GoogleString> fetcher_proxy_;
   Option<GoogleString> file_cache_path_;
-
-  // comma-separated list of host[:port].  See AprMemCache::AprMemCache
-  // for code that parses it.
-  Option<GoogleString> memcached_servers_;
+  Option<GoogleString> filename_prefix_;
   Option<GoogleString> slurp_directory_;
-  Option<GoogleString> statistics_logging_file_;
-  Option<GoogleString> statistics_logging_charts_css_;
-  Option<GoogleString> statistics_logging_charts_js_;
-  Option<GoogleString> cache_flush_filename_;
 
   ApacheOption<RefererStatisticsOutputLevel> referer_statistics_output_level_;
 
   Option<bool> collect_referer_statistics_;
   Option<bool> hash_referer_statistics_;
   Option<bool> statistics_enabled_;
-  Option<bool> statistics_logging_enabled_;
   Option<bool> test_proxy_;
   Option<bool> use_shared_mem_locking_;
   Option<bool> slurp_read_only_;
 
-  Option<int> memcached_threads_;
-
-  Option<int64> file_cache_clean_inode_limit_;
+  Option<int64> fetcher_time_out_ms_;
   Option<int64> file_cache_clean_interval_ms_;
   Option<int64> file_cache_clean_size_kb_;
   Option<int64> lru_cache_byte_limit_;
   Option<int64> lru_cache_kb_per_process_;
   Option<int64> slurp_flush_limit_;
-  Option<int64> statistics_logging_interval_ms_;
-  // If cache_flush_poll_interval_sec_<=0 then we turn off polling for
-  // cache-flushes.
-  Option<int64> cache_flush_poll_interval_sec_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheConfig);
 };

@@ -16,15 +16,13 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/util/public/statistics.h"
-
-#include <limits>
 #include <map>
 #include <utility>
 #include <vector>
 
-#include "base/logging.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
@@ -44,9 +42,6 @@ class MessageHandler;
 Variable::~Variable() {
 }
 
-ConsoleStatisticsLogger::~ConsoleStatisticsLogger() {
-}
-
 Histogram::~Histogram() {
 }
 
@@ -62,7 +57,7 @@ FakeTimedVariable::~FakeTimedVariable() {
 void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
   const char bucket_style[] = "<tr><td style=\"padding: 0 0 0 0.25em\">"
       "[</td><td style=\"text-align:right;padding:0 0.25em 0 0\">"
-      "%s,</td><td style=text-align:right;padding: 0 0.25em\">%s)</td>";
+      "%.0f,</td><td style=text-align:right;padding: 0 0.25em\">%.f)</td>";
   const char value_style[] = "<td style=\"text-align:right;padding:0 0.25em\">"
                              "%.f</td>";
   const char perc_style[] = "<td style=\"text-align:right;padding:0 0.25em\">"
@@ -73,8 +68,8 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
   double perc = 0;
   double cumulative_perc = 0;
   // Write prefix of the table.
-  writer->Write("<table>", handler);
-  for (int i = 0, n = NumBuckets(); i < n; ++i) {
+  writer->Write("<hr><table>", handler);
+  for (int i = 0, n = MaxBuckets(); i < n; ++i) {
     double value = BucketCount(i);
     if (value == 0) {
       // We do not draw empty bucket.
@@ -82,21 +77,10 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
     }
     double lower_bound = BucketStart(i);
     double upper_bound = BucketLimit(i);
-
-    GoogleString lower_bound_string = StringPrintf("%.0f", lower_bound);
-    if (lower_bound == -std::numeric_limits<double>::infinity()) {
-      lower_bound_string = "-&infin;";
-    }
-    GoogleString upper_bound_string = StringPrintf("%.0f", upper_bound);
-    if (upper_bound == std::numeric_limits<double>::infinity()) {
-      upper_bound_string = "&infin;";
-    }
-
     perc = value * 100 / count;
     cumulative_perc += perc;
     GoogleString output = StrCat(
-        StringPrintf(bucket_style, lower_bound_string.c_str(),
-                     upper_bound_string.c_str()),
+        StringPrintf(bucket_style, lower_bound, upper_bound),
         StringPrintf(value_style, value),
         StringPrintf(perc_style, perc),
         StringPrintf(perc_style, cumulative_perc),
@@ -105,22 +89,41 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
     writer->Write(output, handler);
   }
   // Write suffix of the table.
-  writer->Write("</table>", handler);
+  writer->Write("</table></div></div></div><hr style='clear:both;'/>",
+                handler);
 }
 
-void Histogram::Render(int index, Writer* writer, MessageHandler* handler) {
+void Histogram::Render(const StringPiece& title,
+                       Writer* writer, MessageHandler* handler) {
   ScopedMutex hold(lock());
-  writer->Write(StringPrintf("<div id='hist_%d' style='display:none'>", index),
-                handler);
+  MD5Hasher hasher;
+  // Generate an id for the histogram graph.
+  GoogleString div_id = hasher.Hash(title);
+  GoogleString id = StrCat("id", div_id);
+  // Title of the histogram graph.
+  const GoogleString title_string = StrCat("<div><h3>", title, "</h3>",
+                                           "<div style='float:left;'></div>");
+  // statistics numbers under graph.
+  const GoogleString stat = StringPrintf("<hr/>Count: %.1f | Avg: %.1f "
+      "| StdDev: %.1f | Min: %.0f | Median: %.0f | Max: %.0f "
+      "| 90%%: %.0f | 95%%: %.0f | 99%%: %.0f",
+      CountInternal(), AverageInternal(), StandardDeviationInternal(),
+      MinimumInternal(), PercentileInternal(50), MaximumInternal(),
+      PercentileInternal(90), PercentileInternal(95), PercentileInternal(99));
+
+  const GoogleString raw_data_header = StringPrintf("<div>"
+      "<span style='cursor:pointer;' onclick=\"toggleVisible('%s')\">"
+      "&gt;Raw Histogram Data...</span>"
+      "<div id='%s' style='display:none;'>", id.c_str(),
+      id.c_str());
+  GoogleString output = StrCat(title_string, raw_data_header, stat);
+  // Write title, header and statistics.
+  writer->Write(output, handler);
+  // Write raw data table.
   WriteRawHistogramData(writer, handler);
-  writer->Write("</div>\n", handler);
 }
 
 Statistics::~Statistics() {
-}
-
-Variable* Statistics::AddGlobalVariable(const StringPiece& name) {
-  return AddVariable(name);
 }
 
 FakeTimedVariable* Statistics::NewFakeTimedVariable(
@@ -128,141 +131,20 @@ FakeTimedVariable* Statistics::NewFakeTimedVariable(
   return new FakeTimedVariable(AddVariable(name));
 }
 
-namespace {
-
-const char kHistogramProlog[] =
-    "<div>\n"
-    "  <table>\n"
-    "    <thead><tr>\n"
-    "      <td>Histogram Name (click to view)</td>\n"
-    "      <td>Count</td>\n"
-    "      <td>Avg</td>\n"
-    "      <td>StdDev</td>\n"
-    "      <td>Min</td>\n"
-    "      <td>Median</td>\n"
-    "      <td>Max</td>\n"
-    "      <td>90%</td>\n"
-    "      <td>95%</td>\n"
-    "      <td>99%</td>\n"
-    "    </tr></thead><tbody>\n";
-
-const char kHistogramRowFormat[] =
-    "      <tr id='hist_row_%d'>\n"
-    "        <td><label><input type='radio' name='choose_histogram'%s\n"
-    "                   onchange='setHistogram(%d)'>%s</label></td>\n"
-    "        <td>%.0f</td><td>%.1f</td><td>%.1f</td>\n"  // count, avg, stddev
-    "        <td>%.0f</td><td>%.0f</td><td>%.0f</td>\n"  // min, median, max
-    "        <td>%.0f</td><td>%.0f</td><td>%.0f</td>\n"  // 90%, 95%, 99%
-    "     </tr>\n";
-
-const char kHistogramEpilog[] =
-    "    </tbody>\n"
-    "  </table>\n"
-    "</div>\n";
-
-const char kHistogramScript[] =
-    "<script>\n"
-    "  var currentHistogram = -1;\n"
-    "  function setHistogram(id) {\n"
-    "    var div = document.getElementById('hist_' + currentHistogram);\n"
-    "    if (div) {\n"
-    "      div.style.display = 'none';\n"
-    "    }\n"
-    "    div = document.getElementById('hist_' + id);\n"
-    "    if (div) {\n"
-    "      div.style.display = '';\n"
-    "    }\n"
-    "    var row = document.getElementById('hist_row_' + currentHistogram);\n"
-    "    if (row) {\n"
-    "      row.style.backgroundColor = 'white';\n"
-    "    }\n"
-    "    row = document.getElementById('hist_row_' + id);\n"
-    "    if (row) {\n"
-    "      row.style.backgroundColor = 'yellow';\n"
-    "    }\n"
-    "    currentHistogram = id;\n"
-    "  }\n"
-    "  setHistogram(0);\n"
-    "</script>\n";
-
-}  // namespace
-
 void Statistics::RenderHistograms(Writer* writer, MessageHandler* handler) {
-  StringVector hist_names = HistogramNames();  // includes empty ones.
-  StringVector populated_histogram_names;
-  std::vector<Histogram*> populated_histograms;
-
-  // Find non-empty histograms.  Note that when the server first comes
-  // up, there won't be any data in the histograms because there is no
-  // traffic.  Other histograms may never be populated depending on
-  // mod_pagespeed settings.  We pre-scan the histograms, capturing a
-  // snapshot of the non-empty ones, because a histogram might become
-  // non-empty asynchronously between the next two loops, and that
-  // would skew indexing.
+  // Write script for the web page.
+  writer->Write("<script>\n"
+      "function toggleVisible(id) {\n"
+      "  var e = document.getElementById(id);\n"
+      "  e.style.display = (e.style.display == '') ? 'none' : '';\n"
+      "}\n</script>\n", handler);
+  // Write data of each histogram.
+  Histogram* hist = NULL;
+  StringVector hist_names = HistogramNames();
   for (int i = 0, n = hist_names.size(); i < n; ++i) {
-    Histogram* hist = FindHistogram(hist_names[i]);
-
-    // Exclude histograms with zero count.
-    if (hist->Count() != 0) {
-      populated_histograms.push_back(hist);
-      populated_histogram_names.push_back(hist_names[i]);
-    }
+    hist = FindHistogram(hist_names[i]);
+    hist->Render(hist_names[i], writer, handler);
   }
-
-  writer->Write("<hr/>", handler);
-
-  // Write table data for each histogram.
-  if (populated_histograms.empty()) {
-    writer->Write("<em>No histogram data yet.  Refresh once there is "
-                  "traffic.</em>", handler);
-  } else {
-    // Write the table header for all histograms.
-    writer->Write(StringPiece(kHistogramProlog,
-                              STATIC_STRLEN(kHistogramProlog)),
-                  handler);
-
-    // Write a row of the table data for each non-empty histogram.
-    CHECK_EQ(populated_histogram_names.size(), populated_histograms.size());
-    for (int i = 0, n = populated_histograms.size(); i < n; ++i) {
-      Histogram* hist = populated_histograms[i];
-      GoogleString row = hist->HtmlTableRow(populated_histogram_names[i], i);
-      writer->Write(row, handler);
-    }
-    writer->Write(StringPiece(kHistogramEpilog,
-                              STATIC_STRLEN(kHistogramEpilog)),
-                  handler);
-
-    // Render the non-empty histograms.
-    for (int i = 0, n = populated_histograms.size(); i < n; ++i) {
-      populated_histograms[i]->Render(i, writer, handler);
-    }
-
-    // Write the JavaScript to display the histograms and highlight the row
-    // when selected.
-    writer->Write(StringPiece(kHistogramScript,
-                              STATIC_STRLEN(kHistogramScript)),
-                  handler);
-  }
-  writer->Write("<hr/>\n", handler);
-}
-
-GoogleString Histogram::HtmlTableRow(const GoogleString& title, int index) {
-  ScopedMutex hold(lock());
-  return StringPrintf(
-      kHistogramRowFormat,
-      index,
-      (index == 0) ? " selected" : "",
-      index,
-      title.c_str(),
-      CountInternal(),
-      AverageInternal(),
-      StandardDeviationInternal(),
-      MinimumInternal(),
-      PercentileInternal(50),
-      MaximumInternal(),
-      PercentileInternal(90),
-      PercentileInternal(95),
-      PercentileInternal(99));
 }
 
 void Statistics::RenderTimedVariables(Writer* writer,
@@ -303,5 +185,6 @@ void Statistics::RenderTimedVariables(Writer* writer,
     writer->Write(end, message_handler);
   }
 }
+
 
 }  // namespace net_instaweb

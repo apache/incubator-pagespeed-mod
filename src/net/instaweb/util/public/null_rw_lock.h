@@ -29,10 +29,8 @@ class NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
   virtual ~NullRWLock();
-  virtual bool TryLock();
   virtual void Lock();
   virtual void Unlock();
-  virtual bool ReaderTryLock();
   virtual void ReaderLock();
   virtual void ReaderUnlock();
   virtual void DCheckReaderLocked();
