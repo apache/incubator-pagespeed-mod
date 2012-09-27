@@ -62,6 +62,7 @@ class ImageOomTest : public ImageTestBase {
   rlimit old_mem_limit_;
 };
 
+#if 0
 TEST_F(ImageOomTest, BlankImage) {
   if (RunningOnValgrind()) {
     return;
@@ -92,6 +93,7 @@ TEST_F(ImageOomTest, LoadImage) {
       ReadImageFromFile(Image::IMAGE_PNG, kCuppa, &buf, not_progressive));
   EXPECT_TRUE(small->EnsureLoaded(true));
 }
+#endif
 
 }  // namespace
 }  // namespace net_instaweb
