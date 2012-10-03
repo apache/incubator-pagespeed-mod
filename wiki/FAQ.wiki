@@ -1,3 +1,1 @@
-#summary Frequently Asked Questions
-
-This page has been moved to [https://developers.google.com/speed/docs/mod_pagespeed/faq developers.google.com].
+This page has moved to [https://developers.google.com/speed/docs/mod_pagespeed/faq developers.google.com].
