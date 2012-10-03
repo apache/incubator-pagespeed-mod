@@ -1,6 +1,7 @@
 #summary mod_pagespeed downloads
 
 To download binaries, please go to the Google Developers 
-[https://developers.google.com/speed/pagespeed/ download page]
+[https://developers.google.com/speed/docs/mod_pagespeed/download download page].
 
-To download source, please go to HowToBuild
+To download source, please go to he Google Developers 
+[https://developers.google.com/speed/docs/mod_pagespeed/build_from_source page on building from source].
