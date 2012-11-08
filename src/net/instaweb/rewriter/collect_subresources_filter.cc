@@ -147,6 +147,9 @@ CollectSubresourcesFilter::~CollectSubresourcesFilter() {
 }
 
 void CollectSubresourcesFilter::StartElementImpl(HtmlElement* element) {
+  if (!driver()->UserAgentSupportsFlushEarly()) {
+    return;
+  }
   if (element->keyword() == HtmlName::kHead && !seen_first_head_) {
     seen_first_head_ = true;
     in_first_head_ = true;
@@ -173,6 +176,9 @@ void CollectSubresourcesFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void CollectSubresourcesFilter::EndElementImpl(HtmlElement* element) {
+  if (!driver()->UserAgentSupportsFlushEarly()) {
+    return;
+  }
   if (element->keyword() == HtmlName::kHead && in_first_head_) {
     in_first_head_ = false;
   }

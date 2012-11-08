@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Author: sriharis@google.com (Srihari Sukumaran)
+// Author: nikhilmadan@google.com (Nikhil Madan)
 
 // Test the interaction of L1 and L2 cache for the metadata cache.
 
@@ -161,10 +161,10 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
 
 }  // namespace
 
-class TwoLevelCacheTest : public RewriteContextTestBase {
+class TwoLevelCacheTest : public RewriteContextTest {
  protected:
   TwoLevelCacheTest()
-      : RewriteContextTestBase(
+      : RewriteContextTest(
           CustomRewriteDriverFactory::MakeFactories(&mock_url_fetcher_)) {}
 
   // These must be run prior to the calls to 'new CustomRewriteDriverFactory'
@@ -184,15 +184,15 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
         static_cast<CustomRewriteDriverFactory*>(factory());
     cache1_ = custom_factory->cache1();
     cache2_ = custom_factory->cache2();
-    RewriteContextTestBase::SetUp();
+    RewriteContextTest::SetUp();
   }
 
   virtual void TearDown() {
-    RewriteContextTestBase::TearDown();
+    RewriteContextTest::TearDown();
   }
 
   virtual void ClearStats() {
-    RewriteContextTestBase::ClearStats();
+    RewriteContextTest::ClearStats();
     cache1_->ClearStats();
     cache2_->ClearStats();
   }

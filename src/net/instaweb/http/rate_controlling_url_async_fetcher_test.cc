@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/rate_controller.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -90,7 +89,7 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
         body1_("b1"),
         body2_("b2"),
         ttl_ms_(Timer::kHourMs) {
-    RateController::InitStats(&stats_);
+    RateControllingUrlAsyncFetcher::InitStats(&stats_);
     thread_system_.reset(ThreadSystem::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &mock_fetcher_, thread_system_->NewMutex()));
@@ -164,7 +163,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(4, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   // The next 94 fetches get shedded due to load.
   for (int i = 6; i < 100; ++i) {
@@ -196,13 +195,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   }
 
   EXPECT_EQ(4, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(94, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -230,7 +229,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(4, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   for (int i = 104; i < 300; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
@@ -278,13 +277,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
   }
 
   EXPECT_EQ(4, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(196, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -322,7 +321,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(10, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   // 94 fetches get shedded due to load.
   for (int i = 12; i < 100; ++i) {
@@ -384,13 +383,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
       fetch->response_headers()->Has(HttpAttributes::kXPsaLoadShed));
 
   EXPECT_EQ(10, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(94, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }

@@ -327,11 +327,10 @@ void SplitHtmlFilter::InsertSplitInitScripts(HtmlElement* element) {
   }
 
   if (critical_line_info_.panels_size() == 0) {
-    StrAppend(&defer_js_with_blink, "<script type=\"text/javascript\" src=\"",
-              js_manager->GetDeferJsUrl(options_),
-              "\"></script><script type=\"text/javascript\">",
-              JsDeferDisabledFilter::kSuffix,
-              "</script>");
+    GoogleString defer_js = JsDeferDisabledFilter::GetDeferJsSnippet(
+        options_, js_manager);
+    StrAppend(&defer_js_with_blink, "<script type=\"text/javascript\">",
+              defer_js, "</script>");
   } else {
     if (!send_lazyload_script_) {
       StrAppend(&defer_js_with_blink, kPagespeedFunc);

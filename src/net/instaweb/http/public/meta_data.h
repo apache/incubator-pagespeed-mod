@@ -84,7 +84,6 @@ struct HttpAttributes {
   // This header is set on optimized responses to indicate the original
   // content length.
   static const char kXOriginalContentLength[];
-  static const char kXUACompatible[];
 };
 
 namespace HttpStatus {

@@ -50,7 +50,6 @@ const char kHeadHtmlWithDeferJsTemplate[] =
     "<head><script type=\"text/javascript\" pagespeed_no_defer=\"\">"
     "%s"
     "</script>"
-    "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
     "<script type=\"text/javascript\">"
     "%s"
     "</script>"
@@ -143,7 +142,8 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString GetDeferJsCode() {
-    return JsDeferDisabledFilter::kSuffix;
+    return GetJsCode(StaticJavascriptManager::kDeferJs,
+                     JsDeferDisabledFilter::kSuffix);
   }
 
   GoogleString GetDelayImagesCode() {
@@ -221,26 +221,6 @@ TEST_F(DelayImagesFilterTest, DelayImagesAcrossDifferentFlushWindow) {
   EXPECT_TRUE(Wildcard(output_html).Match(output_buffer_));
   EXPECT_TRUE(logging_info.applied_rewriters().find("di") !=
               GoogleString::npos);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImagesPreserveURLsOn) {
-  // Make sure that we don't delay images when preserve urls is on.
-  options()->set_image_preserve_urls(true);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.jpeg", kSampleJpgFile,
-                       kContentTypeJpeg, 100);
-  const char kInputHtml[] =
-      "<html><head></head><body>"
-      "<img src=\"http://test.com/1.jpeg\"/>"
-      "</body></html>";
-
-  // We'll add the noscript code but the image URL shouldn't change.
-  GoogleString output_html = StrCat(
-      "<html><head></head><body>",
-      GetNoscript(),
-      "<img src=\"http://test.com/1.jpeg\"/></body></html>");
-
-  MatchOutputAndCountBytes(kInputHtml, output_html);
 }
 
 TEST_F(DelayImagesFilterTest, DelayImageWithDeferJavascriptDisabled) {

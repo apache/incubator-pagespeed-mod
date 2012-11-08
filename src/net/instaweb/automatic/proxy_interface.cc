@@ -316,8 +316,7 @@ ProxyFetchPropertyCallbackCollector*
   PropertyCache* page_property_cache = NULL;
   if (!is_resource_fetch &&
       server_context_->page_property_cache()->enabled() &&
-      UrlMightHavePropertyCacheEntry(request_url) &&
-      async_fetch->request_headers()->method() == RequestHeaders::kGet) {
+      UrlMightHavePropertyCacheEntry(request_url)) {
     page_property_cache = server_context_->page_property_cache();
     AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
     if (options != NULL) {
@@ -488,19 +487,16 @@ void ProxyInterface::ProxyRequestCallback(
       }
       driver->set_log_record(async_fetch->log_record());
 
-      // TODO(mmohabey): Remove duplicate setting of user agent and
-      // request headers for different flows.
+      // TODO(mmohabey): Remove duplicate setting of user agent for different
+      // flows.
       if (user_agent != NULL) {
         VLOG(1) << "Setting user-agent to " << user_agent;
         driver->set_user_agent(user_agent);
       } else {
         VLOG(1) << "User-agent empty";
       }
-      driver->set_request_headers(async_fetch->request_headers());
-
-      if (driver->options() != NULL && driver->options()->enabled() &&
-          property_callback != NULL && driver->SupportsFlushEarly() &&
-          driver->options()->IsAllowed(url_string)) {
+      if (property_callback != NULL &&
+        FlushEarlyFlow::CanFlushEarly(url_string, async_fetch, driver)) {
         FlushEarlyFlow::Start(url_string, &async_fetch, driver,
                               proxy_fetch_factory_.get(),
                               property_callback.get());

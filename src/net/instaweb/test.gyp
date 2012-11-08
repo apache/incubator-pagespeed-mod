@@ -156,7 +156,6 @@
         'rewriter/resource_namer_test.cc',
         'rewriter/resource_slot_test.cc',
         'rewriter/resource_tag_scanner_test.cc',
-        'rewriter/resource_update_test.cc',
         'rewriter/rewrite_context_test.cc',
         'rewriter/rewrite_context_test_base.cc',
         'rewriter/rewrite_driver_test.cc',

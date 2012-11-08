@@ -27,8 +27,6 @@ if [ -z $APACHE_DOC_ROOT ]; then
   APACHE_DOC_ROOT=/usr/local/apache2/htdocs/
 fi
 
-PSA_JS_LIBRARY_URL_PREFIX="mod_pagespeed_static"
-
 # Run General system tests.
 this_dir=$(dirname $0)
 source "$this_dir/system_test.sh" || exit 1
@@ -197,44 +195,14 @@ test_filter remove_comments retains appropriate comments.
 check run_wget_with_args $URL
 check grep -q retained $FETCHED        # RetainComment directive
 
-# Make sure that when in PreserveURLs mode that we don't rewrite URLs. This is
-# non-exhaustive, the unit tests should cover the rest.
-# Note: We block with psatest here because this is a negative test.  We wouldn't
-# otherwise know how many wget attempts should be made.
-WGET_ARGS="--header=X-PSA-Blocking-Rewrite:psatest"
-echo TEST: PreserveURLs on prevents URL rewriting
-FILE=preserveurls/on/preserveurls.html
-URL=$TEST_ROOT/$FILE
-FETCHED=$OUTDIR/preserveurls.html
-check run_wget_with_args $URL
-unset WGET_ARGS
-check_not_from "$FETCHED" fgrep -q \.pagespeed\.
-
-# When PreserveURLs is off do a quick check to make sure that normal rewriting
-# occurs.  This is not exhaustive, the unit tests should cover the rest.
-echo TEST: PreserveURLs off causes URL rewriting
-FILE=preserveurls/off/preserveurls.html
-URL=$TEST_ROOT/$FILE
-FETCHED=$OUTDIR/preserveurls.html
-# Check that style.css was inlined.
-fetch_until $URL 'grep -c #9370db' 1
-# Check that introspection.js was inlined.
-fetch_until $URL 'grep -c script_tags' 1
-# Check that the image was optimized.
-fetch_until $URL 'grep -c BikeCrashIcn\.png\.pagespeed\.' 2
-
-# TODO(jkarlin): When ajax rewriting is in MPS check that it works with
-# MPS.
-
-
 # TODO(sligocki): This test needs to be run before below tests.
 # Remove once below tests are moved to system_test.sh.
 test_filter rewrite_images inlines, compresses, and resizes.
 fetch_until $URL 'grep -c data:image/png' 1  # inlined
 fetch_until $URL 'grep -c .pagespeed.ic' 2   # other 2 images optimized
 check run_wget_with_args $URL
-check_file_size "$OUTDIR/xBikeCrashIcn*" -lt 25000     # re-encoded
-check_file_size "$OUTDIR/*256x192*Puzzle*" -lt 24126   # resized
+check [ "$(stat -c %s $OUTDIR/xBikeCrashIcn*)" -lt 25000 ]      # re-encoded
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)"  -lt 24126  ]  # resized
 URL=$EXAMPLE_ROOT"/rewrite_images.html?ModPagespeedFilters=rewrite_images"
 IMG_URL=$(egrep -o http://.*.pagespeed.*.jpg $FETCHED | head -n1)
 check [ x"$IMG_URL" != x ]
@@ -276,7 +244,7 @@ fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimiz
 # size is 8157B, while on 64 it is 8155B. Initial investigation showed no
 # visible differences between the generated images.
 # TODO(jmaessen) Verify that this behavior is expected.
-check_file_size "$OUTDIR/*256x192*Puzzle*" -le 8157   # resized
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)" -le 8157  ]  # resized
 
 echo TEST: quality of jpeg output images
 rm -rf $OUTDIR
@@ -285,7 +253,7 @@ IMG_REWRITE=$TEST_ROOT"/jpeg_rewriting/rewrite_images.html"
 REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",recompress_jpeg&"$IMAGES_QUALITY"=85&"$JPEG_QUALITY"=70"
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
-check_file_size "$OUTDIR/*256x192*Puzzle*" -le 7564   # resized
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)" -le 7564  ]  # resized
 
 echo TEST: quality of webp output images
 rm -rf $OUTDIR
@@ -294,7 +262,7 @@ IMG_REWRITE=$TEST_ROOT"/webp_rewriting/rewrite_images.html"
 REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",convert_jpeg_to_webp&"$IMAGES_QUALITY"=75&"$WEBP_QUALITY"=65"
 check run_wget_with_args --header 'X-PSA-Blocking-Rewrite: psatest' $URL
-check_file_size "$OUTDIR/*webp*" -le 1784   # resized, optimized to webp
+check [ "$(stat -c %s $OUTDIR/*webp*)" -le 1784  ]  # resized, optimized to webp
 
 # Depends upon "Header append Vary User-Agent" and ModPagespeedRespectVary.
 echo TEST: respect vary user-agent
