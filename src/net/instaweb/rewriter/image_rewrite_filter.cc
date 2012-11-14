@@ -370,7 +370,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   Image::Type original_image_type = image->image_type();
   if (original_image_type == Image::IMAGE_UNKNOWN) {
-    message_handler->Message(kWarning, "Image MIME type could not be "
+    message_handler->Message(kInfo, "Image MIME type could not be "
                              "discovered from reading magic bytes for URL %s",
                              input_resource->url().c_str());
     image_rewrites_dropped_intentionally_->Add(1);
