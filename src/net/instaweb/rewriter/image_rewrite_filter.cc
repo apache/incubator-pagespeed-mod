@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "base/logging.h"               // for CHECK, etc
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -47,7 +48,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/statistics_work_bound.h"
 #include "net/instaweb/util/public/string.h"
@@ -64,14 +64,6 @@ const char ImageRewriteFilter::kImageNoRewritesHighResolution[] =
     "image_norewrites_high_resolution";
 const char kImageRewritesDroppedIntentionally[] =
     "image_rewrites_dropped_intentionally";
-const char ImageRewriteFilter::kImageRewritesDroppedServerWriteFail[] =
-    "image_rewrites_dropped_server_write_fail";
-const char ImageRewriteFilter::kImageRewritesDroppedMIMETypeUnknown[] =
-    "image_rewrites_dropped_mime_type_unknown";
-const char ImageRewriteFilter::kImageRewritesDroppedNoSavingResize[] =
-    "image_rewrites_dropped_nosaving_resize";
-const char ImageRewriteFilter::kImageRewritesDroppedNoSavingNoResize[] =
-    "image_rewrites_dropped_nosaving_noresize";
 const char ImageRewriteFilter::kImageRewritesDroppedDueToLoad[] =
     "image_rewrites_dropped_due_to_load";
 const char kImageRewriteTotalBytesSaved[] = "image_rewrite_total_bytes_saved";
@@ -178,14 +170,6 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
       kImageNoRewritesHighResolution);
   image_rewrites_dropped_intentionally_ =
       stats->GetVariable(kImageRewritesDroppedIntentionally);
-  image_rewrites_dropped_server_write_fail_ =
-      stats->GetVariable(kImageRewritesDroppedServerWriteFail);
-  image_rewrites_dropped_mime_type_unknown_ =
-      stats->GetVariable(kImageRewritesDroppedMIMETypeUnknown);
-  image_rewrites_dropped_nosaving_resize_ =
-      stats->GetVariable(kImageRewritesDroppedNoSavingResize);
-  image_rewrites_dropped_nosaving_noresize_ =
-      stats->GetVariable(kImageRewritesDroppedNoSavingNoResize);
   image_rewrites_dropped_due_to_load_ =
       stats->GetTimedVariable(kImageRewritesDroppedDueToLoad);
   image_rewrite_total_bytes_saved_ =
@@ -207,10 +191,6 @@ void ImageRewriteFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kImageRewrites);
   statistics->AddVariable(kImageNoRewritesHighResolution);
   statistics->AddVariable(kImageRewritesDroppedIntentionally);
-  statistics->AddVariable(kImageRewritesDroppedMIMETypeUnknown);
-  statistics->AddVariable(kImageRewritesDroppedServerWriteFail);
-  statistics->AddVariable(kImageRewritesDroppedNoSavingResize);
-  statistics->AddVariable(kImageRewritesDroppedNoSavingNoResize);
   statistics->AddTimedVariable(kImageRewritesDroppedDueToLoad,
                                ServerContext::kStatisticsGroup);
   statistics->AddVariable(kImageRewriteTotalBytesSaved);
@@ -390,12 +370,10 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   Image::Type original_image_type = image->image_type();
   if (original_image_type == Image::IMAGE_UNKNOWN) {
+    message_handler->Message(kInfo, "Image MIME type could not be "
+                             "discovered from reading magic bytes for URL %s",
+                             input_resource->url().c_str());
     image_rewrites_dropped_intentionally_->Add(1);
-    image_rewrites_dropped_mime_type_unknown_->Add(1);
-    driver_->InfoAt(
-        rewrite_context, "%s: Image MIME type could not be "
-        "discovered from reading magic bytes; rewriting dropped.",
-        input_resource->url().c_str());
     return kRewriteFailed;
   }
   // We used to reject beacon images based on their size (1x1 or less) here, but
@@ -453,37 +431,17 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
         }
 
         rewrite_result = kRewriteOk;
-      } else {
-        // Server fails to write merged files.
-        image_rewrites_dropped_server_write_fail_->Add(1);
-        driver_->InfoAt(
-            rewrite_context, "Server fails writing image content for `%s'; "
-            "rewriting dropped.",
-            input_resource->url().c_str());
       }
     } else if (resized) {
       // Eliminate any image dimensions from a resize operation that succeeded,
       // but yielded overly-large output.
-      image_rewrites_dropped_nosaving_resize_->Add(1);
       driver_->InfoAt(
           rewrite_context,
-          "Shrink of image `%s' (%u -> %u bytes) doesn't save space; dropped.",
-          input_resource->url().c_str(),
-          static_cast<unsigned>(image->input_size()),
-          static_cast<unsigned>(image->output_size()));
+          "Shrink of image `%s' doesn't save space; dropped.",
+          input_resource->url().c_str());
       ImageDim* dims = cached->mutable_image_file_dims();
       dims->clear_width();
       dims->clear_height();
-    } else if (options->ImageOptimizationEnabled()) {
-      // Fails due to overly-large output without resize.
-      image_rewrites_dropped_nosaving_noresize_->Add(1);
-      driver_->InfoAt(
-          rewrite_context,
-          "Recompressing image `%s' (%u -> %u bytes) doesn't save space; "
-          "dropped.",
-          input_resource->url().c_str(),
-          static_cast<unsigned>(image->input_size()),
-          static_cast<unsigned>(image->output_size()));
     }
 
     // Try inlining input image if output hasn't been inlined already.

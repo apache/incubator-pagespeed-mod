@@ -53,7 +53,6 @@ class SingleRewriteContext : public RewriteContext {
                        CachedResult* partition,
                        const OutputResourcePtr& output);
 
- private:
   DISALLOW_COPY_AND_ASSIGN(SingleRewriteContext);
 };
 

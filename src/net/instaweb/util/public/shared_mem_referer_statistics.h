@@ -20,8 +20,7 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_SHARED_MEM_REFERER_STATISTICS_H_
 
 #include <cstddef>
-
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 

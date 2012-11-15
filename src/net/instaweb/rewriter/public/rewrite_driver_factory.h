@@ -22,10 +22,10 @@
 #include <set>
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/null_statistics.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -349,16 +349,12 @@ class RewriteDriverFactory {
   // filename_prefix()
   virtual StringPiece LockFilePrefix();
 
-  // Initializes the StaticJavascriptManager.
-  virtual void InitStaticJavascriptManager(
-      StaticJavascriptManager* static_js_manager) {}
-
- private:
   // Creates a StaticJavascriptManager instance. Default implementation creates
   // an instance that disables serving of filter javascript via gstatic
   // (gstatic.com is the domain google uses for serving static content).
-  StaticJavascriptManager* DefaultStaticJavascriptManager();
+  virtual StaticJavascriptManager* DefaultStaticJavascriptManager();
 
+ private:
   void SetupSlurpDirectories();
   void Init();  // helper-method for constructors.
 

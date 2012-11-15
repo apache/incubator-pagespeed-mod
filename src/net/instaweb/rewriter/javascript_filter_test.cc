@@ -110,15 +110,9 @@ class JavascriptFilterTest : public RewriteTestBase {
             STATIC_STRLEN(kJsMinData), hash, kLibraryUrl));
   }
 
-  // Generate HTML loading a single script with the specified URL.
+  // Generate HTML loading 3 resources with the specified URLs
   GoogleString GenerateHtml(const char* a) {
     return StringPrintf(kHtmlFormat, a);
-  }
-
-  // Generate HTML loading a single script twice from the specified URL.
-  GoogleString GenerateTwoHtml(const char* a) {
-    GoogleString once = GenerateHtml(a);
-    return StrCat(once, once);
   }
 
   void TestCorruptUrl(const char* new_suffix) {
@@ -220,25 +214,15 @@ TEST_F(JavascriptFilterTest, IdentifyLibraryTwice) {
   // Make sure cached recognition is handled properly.
   RegisterLibrary();
   InitFiltersAndTest(100);
-  ValidateExpected("identify_library_twice",
-                   GenerateTwoHtml(kOrigJsName),
-                   GenerateTwoHtml(kLibraryUrl));
+  GoogleString orig = StrCat(GenerateHtml(kOrigJsName),
+                             GenerateHtml(kOrigJsName));
+  GoogleString expect = StrCat(GenerateHtml(kLibraryUrl),
+                               GenerateHtml(kLibraryUrl));
+  ValidateExpected("identify_library_twice", orig, expect);
   // The second rewrite uses cached data from the first rewrite.
   EXPECT_EQ(1, libraries_identified_->Get());
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
-}
-
-TEST_F(JavascriptFilterTest, JsPreserveURLsOnTest) {
-  // Make sure that when in conservative mode URL stays the same.
-  RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
-  options()->set_js_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  InitTest(100);
-  ValidateExpected("js_urls_preserved",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kOrigJsName));
 }
 
 TEST_F(JavascriptFilterTest, IdentifyLibraryNoMinification) {
@@ -289,31 +273,6 @@ TEST_F(JavascriptFilterTest, IgnoreLibraryNoIdentification) {
   EXPECT_EQ(0, minification_failures_->Get());
 }
 
-TEST_F(JavascriptFilterTest, DontCombineIdentified) {
-  // Don't combine a 3rd-party library with other scripts if we'd otherwise
-  // redirect that library to its canonical url.  Doing so will cause us to
-  // download content that we think has a fair probability of being cached in
-  // the browser already.  If we're better off combining, we shouldn't be
-  // considering the library as a candidate for library identification in the
-  // first place.
-  RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kCombineJavascript);
-  InitFiltersAndTest(100);
-  ValidateExpected("DontCombineIdentified",
-                   GenerateTwoHtml(kOrigJsName),
-                   GenerateTwoHtml(kLibraryUrl));
-}
-
-TEST_F(JavascriptFilterTest, DontInlineIdentified) {
-  // Don't inline a one-line library that was rewritten to a canonical url.
-  RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kInlineJavascript);
-  InitFiltersAndTest(100);
-  ValidateExpected("DontInlineIdentified",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kLibraryUrl));
-}
-
 TEST_F(JavascriptFilterTest, ServeFiles) {
   InitFilters();
   TestServeFiles(&kContentTypeJavascript, kFilterId, "js",
@@ -341,25 +300,6 @@ TEST_F(JavascriptFilterTest, ServeFilesUnhealthy) {
   TestServeFiles(&kContentTypeJavascript, kFilterId, "js",
                  kOrigJsName, kJsData,
                  kRewrittenJsName, kJsMinData);
-}
-
-TEST_F(JavascriptFilterTest, ServeRewrittenLibrary) {
-  // If a request comes in for the rewritten version of a JS library
-  // that we have identified as matching a canonical library, we should
-  // still serve some useful content.  It won't be minified because we
-  // don't want to update metadata cache entries on the fly.
-  RegisterLibrary();
-  InitFiltersAndTest(100);
-  GoogleString content;
-  EXPECT_TRUE(
-      FetchResource(kTestDomain, "jm", kRewrittenJsName, "js", &content));
-  EXPECT_EQ(kJsData, content);
-
-  // And having done so, we should still identify the library in subsequent html
-  // (ie the cache should not be corrupted to prevent library identification).
-  ValidateExpected("identify_library",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kLibraryUrl));
 }
 
 TEST_F(JavascriptFilterTest, InvalidInputMimetype) {

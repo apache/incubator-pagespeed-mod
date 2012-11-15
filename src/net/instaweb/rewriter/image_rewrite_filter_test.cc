@@ -16,6 +16,7 @@
 
 // Author: jmaessen@google.com (Jan Maessen)
 
+#include "base/scoped_ptr.h"  // for scoped_ptr
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -49,7 +50,6 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/scoped_ptr.h"  // for scoped_ptr
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -68,7 +68,6 @@ const char kChefGifFile[] = "IronChef2.gif";
 const char kCuppaTPngFile[] = "CuppaT.png";
 const char kCuppaOPngFile[] = "CuppaO.png";
 const char kLargePngFile[] = "Large.png";
-const char kSmallDataFile[] = "small-data.png";
 
 // A callback for HTTP cache that stores body and string representation
 // of headers into given strings.
@@ -553,18 +552,6 @@ TEST_F(ImageRewriteTest, PngToWebp) {
   // webp_optimizer.cc (the latter code is jpeg-specific right now).
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypeJpeg,
                     "", " width=\"100\" height=\"100\"", true, false);
-}
-
-TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOn) {
-  // Make sure that the image URL stays the same.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_image_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                    "",       // initial_dims,
-                    "",       // final_dims,
-                    false,   // expect_rewritten
-                    false);  // expect_inline
 }
 
 TEST_F(ImageRewriteTest, ResizeTest) {
@@ -1301,28 +1288,6 @@ TEST_F(ImageRewriteTest, InlinableCssImagesInsertedIntoPropertyCache) {
   for (int i = 0; i < urls.size(); ++i) {
     EXPECT_EQ(1, expected_urls.count(urls[i].as_string()));
   }
-}
-
-TEST_F(ImageRewriteTest, RewritesDroppedDueToNoSavingNoResizeTest) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-  const char kOriginalDims[] = " width=65 height=70";
-  TestSingleRewrite(kCuppaOPngFile, kContentTypePng, kContentTypePng,
-                    kOriginalDims, kOriginalDims, false, false);
-  Variable* rewrites_drops = statistics()->GetVariable(
-      net_instaweb::ImageRewriteFilter::kImageRewritesDroppedNoSavingNoResize);
-  EXPECT_EQ(1, rewrites_drops->Get());
-}
-
-TEST_F(ImageRewriteTest, RewritesDroppedDueToMIMETypeUnknownTest) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-  const char kOriginalDims[] = " width=10 height=10";
-  TestSingleRewrite(kSmallDataFile, kContentTypePng, kContentTypePng,
-                    kOriginalDims, kOriginalDims, false, false);
-  Variable* rewrites_drops = statistics()->GetVariable(
-      net_instaweb::ImageRewriteFilter::kImageRewritesDroppedMIMETypeUnknown);
-  EXPECT_EQ(1, rewrites_drops->Get());
 }
 
 }  // namespace

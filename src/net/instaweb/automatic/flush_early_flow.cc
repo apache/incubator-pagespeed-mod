@@ -22,11 +22,13 @@
 #include <set>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/js/public/js_minify.h"
@@ -42,13 +44,11 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/proto_util.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -115,10 +115,21 @@ const char FlushEarlyFlow::kNumResourcesFlushedEarly[] =
 const char FlushEarlyFlow::kFlushEarlyRewriteLatencyMs[] =
     "flush_early_rewrite_latency_ms";
 
+// TODO(mmohabey): If the cookie is HttpOnly then do not enter FlushEarlyFlow.
 // TODO(mmohabey): Do not flush early if the html is cacheable.
 // If this is called then the content type must be html.
 // TODO(nikhilmadan): Disable flush early if the response code isn't
 // consistently a 200.
+bool FlushEarlyFlow::CanFlushEarly(const GoogleString& url,
+                                   const AsyncFetch* async_fetch,
+                                   const RewriteDriver* driver) {
+  const RewriteOptions* options = driver->options();
+  return (options != NULL && options->enabled() &&
+          options->Enabled(RewriteOptions::kFlushSubresources) &&
+          async_fetch->request_headers()->method() == RequestHeaders::kGet &&
+          driver->UserAgentSupportsFlushEarly() &&
+          options->IsAllowed(url));
+}
 
 // AsyncFetch that manages the parallelization of FlushEarlyFlow with the
 // ProxyFetch flow. Note that this fetch is passed to ProxyFetch as the
@@ -331,8 +342,7 @@ void FlushEarlyFlow::FlushEarly() {
       ArrayInputStream value(property_value->value().data(),
                              property_value->value().size());
       flush_early_info.ParseFromZeroCopyStream(&value);
-      if (!flush_early_info.http_only_cookie_present() &&
-          flush_early_info.has_resource_html() &&
+      if (flush_early_info.has_resource_html() &&
           !flush_early_info.resource_html().empty() &&
           flush_early_info.response_headers().status_code() ==
           HttpStatus::kOK) {
@@ -468,8 +478,8 @@ void FlushEarlyFlow::FlushEarlyRewriteDone(int64 start_time_ms,
   if (should_flush_early_js_defer_script_) {
     // Flush defer_javascript script content.
     WriteScript(JsDisableFilter::GetJsDisableScriptSnippet(driver_->options()));
-    WriteExternalScript(static_js_manager->GetDeferJsUrl(driver_->options()));
-    WriteScript(JsDeferDisabledFilter::kSuffix);
+    WriteScript(JsDeferDisabledFilter::GetDeferJsSnippet(
+        driver_->options(), static_js_manager));
   }
 
   if (max_preconnect_attempts > 0 &&

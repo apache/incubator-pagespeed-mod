@@ -21,10 +21,10 @@
 #include <cstdio>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -183,7 +183,7 @@ void HtmlElement::Attribute::CopyValue(const StringPiece& src,
   if (src.data() == NULL) {
     // This case indicates attribute without value <tag attr>, as opposed
     // to data()=="", which implies an empty value <tag attr=>.
-    dst->reset();
+    dst->reset(NULL);
   } else {
     char* buf = new char[src.size() + 1];
     memcpy(buf, src.data(), src.size());
@@ -230,7 +230,7 @@ void HtmlElement::Attribute::SetEscapedValue(const StringPiece& escaped_value) {
         << "Setting escaped value from substring of unescaped value.";
   }
 
-  decoded_value_.reset();
+  decoded_value_.reset(NULL);
   decoding_error_ = false;
   decoded_value_computed_ = false;
 

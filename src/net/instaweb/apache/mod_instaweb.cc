@@ -22,10 +22,12 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstring>
 #include <set>
 #include <utility>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/loopback_route_fetcher.h"
@@ -52,7 +54,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -135,7 +136,6 @@ const char kModPagespeedCssImageInlineMaxBytes[] =
     "ModPagespeedCssImageInlineMaxBytes";
 const char kModPagespeedCssInlineMaxBytes[] = "ModPagespeedCssInlineMaxBytes";
 const char kModPagespeedCssOutlineMinBytes[] = "ModPagespeedCssOutlineMinBytes";
-const char kModPagespeedCssPreserveURLs[] = "ModPagespeedCssPreserveURLs";
 const char kModPagespeedCustomFetchHeader[] = "ModPagespeedCustomFetchHeader";
 const char kModPagespeedDangerPermitFetchFromUnknownHosts[] =
     "ModPagespeedDangerPermitFetchFromUnknownHosts";
@@ -155,7 +155,6 @@ const char kModPagespeedFileCacheInodeLimit[] =
     "ModPagespeedFileCacheInodeLimit";
 const char kModPagespeedFileCachePath[] = "ModPagespeedFileCachePath";
 const char kModPagespeedFileCacheSizeKb[] = "ModPagespeedFileCacheSizeKb";
-const char kModPagespeedForbidFilters[] = "ModPagespeedForbidFilters";
 const char kModPagespeedForceCaching[] = "ModPagespeedForceCaching";
 const char kModPagespeedFuriousSlot[] = "ModPagespeedExperimentVariable";
 const char kModPagespeedFuriousSpec[] = "ModPagespeedExperimentSpec";
@@ -173,7 +172,6 @@ const char kModPagespeedImageMaxRewritesAtOnce[] =
     "ModPagespeedImageMaxRewritesAtOnce";
 const char kModPagespeedImageRecompressionQuality[] =
     "ModPagespeedImageRecompressionQuality";
-const char kModPagespeedImagePreserveURLs[] = "ModPagespeedImagePreserveURLs";
 const char kModPagespeedInheritVHostConfig[] = "ModPagespeedInheritVHostConfig";
 const char kModPagespeedInstallCrashHandler[] =
     "ModPagespeedInstallCrashHandler";
@@ -184,7 +182,6 @@ const char kModPagespeedWebpRecompressionQuality[] =
 
 const char kModPagespeedJsInlineMaxBytes[] = "ModPagespeedJsInlineMaxBytes";
 const char kModPagespeedJsOutlineMinBytes[] = "ModPagespeedJsOutlineMinBytes";
-const char kModPagespeedJsPreserveURLs[] = "ModPagespeedJsPreserveURLs";
 const char kModPagespeedLRUCacheByteLimit[] = "ModPagespeedLRUCacheByteLimit";
 const char kModPagespeedLRUCacheKbPerProcess[] =
     "ModPagespeedLRUCacheKbPerProcess";
@@ -199,7 +196,6 @@ const char kModPagespeedLoadFromFileRuleMatch[] =
 const char kModPagespeedLogRewriteTiming[] = "ModPagespeedLogRewriteTiming";
 const char kModPagespeedLowercaseHtmlNames[] = "ModPagespeedLowercaseHtmlNames";
 const char kModPagespeedMapOriginDomain[] = "ModPagespeedMapOriginDomain";
-const char kModPagespeedMapProxyDomain[] = "ModPagespeedMapProxyDomain";
 const char kModPagespeedMapRewriteDomain[] = "ModPagespeedMapRewriteDomain";
 const char kModPagespeedMaxHtmlParseBytes[] = "ModPagespeedMaxHtmlParseBytes";
 const char kModPagespeedMaxImageSizeLowResolutionBytes[] =
@@ -339,7 +335,7 @@ apr_bucket* rewrite_html(InstawebContext* context, request_rec* request,
   if (!context->sent_headers()) {
     ResponseHeaders* headers = context->response_headers();
     apr_table_clear(request->headers_out);
-    AddResponseHeadersToRequest(headers, NULL, request);
+    AddResponseHeadersToRequest(*headers, request);
     headers->Clear();
     context->set_sent_headers(true);
   }
@@ -528,14 +524,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
     // (instead of stripping them here) params before content generation.
     GoogleUrl gurl(absolute_url);
     ApacheRequestToRequestHeaders(*request, request_headers.get());
-
-    // Copy headers_out and err_headers_out into response_headers.
-    // Note that err_headers_out will come after the headers_out in the list of
-    // headers. Because of this, err_headers_out will effectively override
-    // headers_out when we call GetQueryOptions as it applies the header options
-    // in order.
-    ApacheRequestToResponseHeaders(*request, &response_headers,
-                                   &response_headers);
+    ApacheRequestToResponseHeaders(*request, &response_headers);
     int num_response_attributes = response_headers.NumAttributes();
     ServerContext::OptionsBoolPair query_options_success =
         manager->GetQueryOptions(&gurl, request_headers.get(),
@@ -574,40 +563,8 @@ InstawebContext* build_context_for_request(request_rec* request) {
       // them.
       DCHECK(response_headers.NumAttributes() <= num_response_attributes);
       if (response_headers.NumAttributes() < num_response_attributes) {
-        // Something was stripped, but we don't know if it came from
-        // headers_out or err_headers_out.  We need to treat them separately.
-        if (apr_is_empty_table(request->err_headers_out)) {
-          // We know that response_headers were all from request->headers_out
-          apr_table_clear(request->headers_out);
-          AddResponseHeadersToRequest(&response_headers, NULL, request);
-        } else if (apr_is_empty_table(request->headers_out)) {
-          // We know that response_headers were all from err_headers_out
-          apr_table_clear(request->err_headers_out);
-          AddResponseHeadersToRequest(NULL, &response_headers, request);
-
-        } else {
-          // We don't know which table changed, so scan them individually and
-          // write them both back. This should be a rare case and could be
-          // optimized a bit if we find that we're spending time here.
-          ResponseHeaders tmp_err_resp_headers, tmp_resp_headers;
-          RewriteOptions unused_opts1, unused_opts2;
-
-          ApacheRequestToResponseHeaders(*request, &tmp_resp_headers,
-                                         &tmp_err_resp_headers);
-
-          // Use ScanHeader's parsing logic to find and strip the ModPagespeed
-          // options from the headers.
-          RewriteQuery::ScanHeader(&tmp_err_resp_headers, &unused_opts1,
-                                   factory->message_handler());
-          RewriteQuery::ScanHeader(&tmp_resp_headers, &unused_opts2,
-                                   factory->message_handler());
-
-          // Write the stripped headers back to the Apache record.
-          apr_table_clear(request->err_headers_out);
-          apr_table_clear(request->headers_out);
-          AddResponseHeadersToRequest(&tmp_resp_headers, &tmp_err_resp_headers,
-                                      request);
-        }
+        apr_table_clear(request->headers_out);
+        AddResponseHeadersToRequest(response_headers, request);
       }
     }
   }
@@ -958,7 +915,7 @@ int pagespeed_modify_request(request_rec* r) {
   // Detect local requests from us.
   const char* ua = apr_table_get(r->headers_in, HttpAttributes::kUserAgent);
   if (ua != NULL &&
-      strstr(ua, " mod_pagespeed/" MOD_PAGESPEED_VERSION_STRING) != NULL) {
+      std::strstr(ua, " mod_pagespeed/" MOD_PAGESPEED_VERSION_STRING) != NULL) {
 #ifdef MPS_APACHE_24
     apr_sockaddr_t* client_addr = c->client_addr;
 #else
@@ -1322,10 +1279,6 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
       ret = ParseBoolOption(
           factory, cmd, &ApacheRewriteDriverFactory::set_fetch_with_gzip, arg);
     }
-  } else if (StringCaseEqual(directive, kModPagespeedForbidFilters)) {
-    if (!options->ForbidFiltersByCommaSeparatedList(arg, handler)) {
-      ret = "Failed to forbid some filters.";
-    }
   } else if (StringCaseEqual(directive, kModPagespeedForceCaching)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
@@ -1555,9 +1508,6 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
   } else if (StringCaseEqual(directive, kModPagespeedMapOriginDomain)) {
     options->domain_lawyer()->AddOriginDomainMapping(
         arg1, arg2, manager->message_handler());
-  } else if (StringCaseEqual(directive, kModPagespeedMapProxyDomain)) {
-    options->domain_lawyer()->AddProxyDomainMapping(
-        arg1, arg2, manager->message_handler());
   } else if (StringCaseEqual(directive, kModPagespeedShardDomain)) {
     options->domain_lawyer()->AddShard(arg1, arg2, manager->message_handler());
   } else if (StringCaseEqual(directive, kModPagespeedCustomFetchHeader)) {
@@ -1696,8 +1646,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Number of bytes below which stylesheets will be inlined."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedCssOutlineMinBytes,
         "Number of bytes above which inline CSS resources will be outlined."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssPreserveURLs,
-        "Disable the rewriting of CSS URLs."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisableFilters,
         "Comma-separated list of disabled filters"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisallow,
@@ -1710,8 +1658,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "to resource tags."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedEnableFilters,
         "Comma-separated list of enabled filters"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedForbidFilters,
-        "Comma-separated list of forbidden filters"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedFuriousSlot,
          "Specify the custom variable slot with which to run experiments."
          "Defaults to 1."),
@@ -1736,17 +1682,11 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_DIR_OPTION(kModPagespeedJpegRecompressionQuality,
         "Set quality parameter for recompressing jpeg images [-1,100], 100 "
         "refers to best quality, -1 disables lossy compression."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedImagePreserveURLs,
-        "Disable the rewriting of image URLs."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedImgInlineMaxBytes,
-        "DEPRECATED, use ModPagespeedImageInlineMaxBytes."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedJsInlineMaxBytes,
         "Number of bytes below which javascript will be inlined."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedJsOutlineMinBytes,
         "Number of bytes above which inline Javascript resources will"
         "be outlined."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedJsPreserveURLs,
-        "Disable the rewriting of Javascript URLs."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedListOutstandingUrlsOnError,
         "Adds an error message into the log for every URL fetch in "
         "flight when the HTTP stack encounters a system error, e.g. "
@@ -1897,8 +1837,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "custom_header_name custom_header_value"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
         "to_domain from_domain[,from_domain]*"),
-  APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapProxyDomain,
-        "proxy_domain origin_domain"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,
         "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedShardDomain,

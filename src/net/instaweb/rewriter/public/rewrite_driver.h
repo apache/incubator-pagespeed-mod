@@ -22,12 +22,11 @@
 #include <map>
 #include <set>
 #include <vector>
-
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
-#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -37,9 +36,9 @@
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/printf_format.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/string.h"
@@ -83,6 +82,9 @@ class Writer;
 // TODO(jmarantz): rename this class to RequestContext.  This extends
 // class HtmlParse (which should renamed HtmlContext) by providing
 // context for rewriting resources (css, js, images).
+//
+// Also note that ResourceManager should be renamed ServerContext, as
+// it no longer contains much logic about resources.
 class RewriteDriver : public HtmlParse {
  public:
   // Status return-code for ResolveCssUrls.
@@ -244,8 +246,7 @@ class RewriteDriver : public HtmlParse {
   bool UserAgentSupportsJsDefer() const;
   bool UserAgentSupportsWebp() const;
   bool IsMobileUserAgent() const;
-  // Whether flush early flow is supported for this request.
-  bool SupportsFlushEarly() const;
+  bool UserAgentSupportsFlushEarly() const;
 
   // Adds the filters from the options, specified by name in enabled_filters.
   // This must be called explicitly after object construction to provide an
@@ -295,28 +296,26 @@ class RewriteDriver : public HtmlParse {
   Writer* writer() const { return writer_; }
 
   // Initiates an async fetch for a rewritten resource with the specified name.
-  // If url matches the pattern of what the driver is authorized to serve,
-  // then true is returned and the caller must listen on the callback for
-  // the completion of the request.
+  // If resource matches the pattern of what the driver is authorized to serve,
+  // then true is returned and the caller must listen on the callback for the
+  // completion of the request.
   //
-  // If the driver is not authorized to serve the resource for any of the
-  // following reasons, false is returned and the callback will -not- be
-  // called - the request should be passed to another handler.
-  // * The URL is invalid or it does not match the general pagespeed pattern.
-  // * The filter id in the URL does not map to a known filter.
-  // * The filter for the id in the URL doesn't recognize the format of the URL.
-  // * The filter for the id in the URL is forbidden.
+  // If the pattern does not match, then false is returned, and the request
+  // should be passed to another handler, and the callback will *not* be
+  // called.  In other words there are four outcomes for this routine:
   //
-  // In other words there are three outcomes for this routine:
   //   1. the request was handled immediately and the callback called
   //      before the method returns.  true is returned.
   //   2. the request looks good but was queued because some other resource
   //      fetch is needed to satisfy it.  true is returned.
-  //   3. the request does not look like it belongs to Instaweb.  The callback
+  //   3. the request looks like one it belongs to Instaweb, but the resource
+  //      could not be decoded.  The callback is called immediately with
+  //      'false', but true is returned.
+  //   4. the request does not look like it belongs to Instaweb.  The callback
   //      will not be called, and false will be returned.
   //
-  // In even other words, if this routine returns 'false' then the callback
-  // will not be called.  If the callback -is- called, then this should be the
+  // In other words, if this routine returns 'false' then the callback
+  // will not be called.  If the callback is called, then this should be the
   // 'final word' on this request, whether it was called with success=true or
   // success=false.
   bool FetchResource(const StringPiece& url, AsyncFetch* fetch);
@@ -671,15 +670,6 @@ class RewriteDriver : public HtmlParse {
   void set_rewrite_deadline_ms(int x) { rewrite_deadline_ms_ = x; }
   int rewrite_deadline_ms() { return rewrite_deadline_ms_; }
 
-  // Sets a maximum amount of time to process a page across all flush
-  // windows; i.e., the entire lifecycle of this driver during a given pageload.
-  // A negative value indicates no limit.
-  // Setting fully_rewrite_on_flush() overrides this.
-  void set_max_page_processing_delay_ms(int x) {
-    max_page_processing_delay_ms_ = x;
-  }
-  int max_page_processing_delay_ms() { return max_page_processing_delay_ms_; }
-
   // Tries to register the given rewrite context as working on
   // its partition key. If this context is the first one to try to handle it,
   // returns NULL. Otherwise returns the previous such context.
@@ -912,7 +902,6 @@ class RewriteDriver : public HtmlParse {
   bool can_rewrite_resources() { return can_rewrite_resources_; }
 
  private:
-  friend class RewriteDriverTest;
   friend class RewriteTestBase;
   friend class ServerContextTest;
 
@@ -944,12 +933,6 @@ class RewriteDriver : public HtmlParse {
   // once the rendering is complete. Calls back to 'callback' after its
   // processing, but with the lock released.
   void FlushAsyncDone(int num_rewrites, Function* callback);
-
-  // Returns the amount of time to wait for rewrites to complete for the
-  // current flush window. This combines the per-flush window deadline
-  // (configured via rewrite_deadline_ms()) and the per-page deadline
-  // (configured via max_page_processing_delay_ms()).
-  int64 ComputeCurrentFlushWindowRewriteDelayMs();
 
   // Queues up invocation of FlushAsyncDone in our html_workers sequence.
   void QueueFlushAsyncDone(int num_rewrites, Function* callback);
@@ -1159,7 +1142,7 @@ class RewriteDriver : public HtmlParse {
   mutable LazyBool user_agent_supports_js_defer_;
   mutable LazyBool user_agent_supports_webp_;
   mutable LazyBool is_mobile_user_agent_;
-  mutable LazyBool supports_flush_early_;
+  mutable LazyBool user_agent_supports_flush_early_;
 
   LazyBool should_skip_parsing_;
 
@@ -1175,14 +1158,7 @@ class RewriteDriver : public HtmlParse {
   // only in the main thread of RewriteDriver (aka the HTML thread).
   typedef std::vector<RewriteContext*> RewriteContextVector;
   RewriteContextVector rewrites_;  // ordered list of rewrites to initiate
-
-  // The interval to wait for async rewrites to complete before flushing
-  // content.
   int rewrite_deadline_ms_;
-
-  // The maximum amount of time to wait for page processing across all flush
-  // windows. A negative value implies no limit.
-  int max_page_processing_delay_ms_;
 
   typedef std::set<RewriteContext*> RewriteContextSet;
 

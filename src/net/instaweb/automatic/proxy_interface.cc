@@ -19,6 +19,7 @@
 #include "net/instaweb/automatic/public/proxy_interface.h"
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/automatic/public/blink_flow_critical_line.h"
 #include "net/instaweb/automatic/public/flush_early_flow.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
@@ -38,7 +39,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -316,8 +316,7 @@ ProxyFetchPropertyCallbackCollector*
   PropertyCache* page_property_cache = NULL;
   if (!is_resource_fetch &&
       server_context_->page_property_cache()->enabled() &&
-      UrlMightHavePropertyCacheEntry(request_url) &&
-      async_fetch->request_headers()->method() == RequestHeaders::kGet) {
+      UrlMightHavePropertyCacheEntry(request_url)) {
     page_property_cache = server_context_->page_property_cache();
     AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
     if (options != NULL) {
@@ -488,19 +487,16 @@ void ProxyInterface::ProxyRequestCallback(
       }
       driver->set_log_record(async_fetch->log_record());
 
-      // TODO(mmohabey): Remove duplicate setting of user agent and
-      // request headers for different flows.
+      // TODO(mmohabey): Remove duplicate setting of user agent for different
+      // flows.
       if (user_agent != NULL) {
         VLOG(1) << "Setting user-agent to " << user_agent;
         driver->set_user_agent(user_agent);
       } else {
         VLOG(1) << "User-agent empty";
       }
-      driver->set_request_headers(async_fetch->request_headers());
-
-      if (driver->options() != NULL && driver->options()->enabled() &&
-          property_callback != NULL && driver->SupportsFlushEarly() &&
-          driver->options()->IsAllowed(url_string)) {
+      if (property_callback != NULL &&
+        FlushEarlyFlow::CanFlushEarly(url_string, async_fetch, driver)) {
         FlushEarlyFlow::Start(url_string, &async_fetch, driver,
                               proxy_fetch_factory_.get(),
                               property_callback.get());

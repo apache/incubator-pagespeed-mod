@@ -17,7 +17,6 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/util/public/string_util.h"
-
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -328,7 +327,7 @@ int FindIgnoreCase(StringPiece haystack, StringPiece needle) {
     ++pos;
     haystack.remove_prefix(1);
   }
-  return static_cast<int>(StringPiece::npos);
+  return StringPiece::npos;
 }
 
 

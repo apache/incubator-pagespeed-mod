@@ -20,9 +20,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "base/md5.h"
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 92861
-using base::MD5Digest;
-#endif
 
 namespace net_instaweb {
 

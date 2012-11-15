@@ -636,12 +636,6 @@ void RewriteOptions::AddProperties() {
   add_option(false, &RewriteOptions::respect_x_forwarded_proto_, "rxfp",
              kRespectXForwardedProto);
   add_option(false, &RewriteOptions::flush_html_, "fh", kFlushHtml);
-  add_option(false, &RewriteOptions::css_preserve_urls_, "cpu",
-             kCssPreserveURLs);
-  add_option(false, &RewriteOptions::image_preserve_urls_, "ipu",
-             kImagePreserveURLs);
-  add_option(false, &RewriteOptions::js_preserve_urls_, "jpu",
-             kJsPreserveURLs);
   add_option(true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
              kServeStaleIfFetchError);
   add_option(false,
@@ -1066,12 +1060,6 @@ bool RewriteOptions::DisableFiltersByCommaSeparatedList(
       filters, &disabled_filters_, handler);
 }
 
-bool RewriteOptions::ForbidFiltersByCommaSeparatedList(
-    const StringPiece& filters, MessageHandler* handler) {
-  return AddCommaSeparatedListToFilterSetState(
-      filters, &forbidden_filters_, handler);
-}
-
 void RewriteOptions::DisableAllFiltersNotExplicitlyEnabled() {
   for (int f = kFirstFilter; f != kEndOfFilters; ++f) {
     Filter filter = static_cast<Filter>(f);
@@ -1098,9 +1086,6 @@ void RewriteOptions::ForceEnableFilter(Filter filter) {
 
   // remove from set of disabled filters.
   modified_ |= disabled_filters_.erase(filter);
-
-  // remove from set of forbidden filters.
-  modified_ |= forbidden_filters_.erase(filter);
 }
 
 void RewriteOptions::EnableExtendCacheFilters() {
@@ -1114,13 +1099,6 @@ void RewriteOptions::DisableFilter(Filter filter) {
   DCHECK(!frozen_);
   std::pair<FilterSet::iterator, bool> inserted =
       disabled_filters_.insert(filter);
-  modified_ |= inserted.second;
-}
-
-void RewriteOptions::ForbidFilter(Filter filter) {
-  DCHECK(!frozen_);
-  std::pair<FilterSet::iterator, bool> inserted =
-      forbidden_filters_.insert(filter);
   modified_ |= inserted.second;
 }
 
@@ -1140,20 +1118,11 @@ void RewriteOptions::DisableFilters(
   }
 }
 
-void RewriteOptions::ForbidFilters(
-    const RewriteOptions::FilterSet& filter_set) {
-  for (RewriteOptions::FilterSet::const_iterator iter = filter_set.begin();
-       iter != filter_set.end(); ++iter) {
-    ForbidFilter(*iter);
-  }
-}
-
 void RewriteOptions::ClearFilters() {
   DCHECK(!frozen_);
   modified_ = true;
   enabled_filters_.clear();
   disabled_filters_.clear();
-  forbidden_filters_.clear();
 
   // Re-enable HtmlWriterFilter by default.
   EnableFilter(kHtmlWriterFilter);
@@ -1386,9 +1355,6 @@ bool RewriteOptions::Enabled(Filter filter) const {
   if (disabled_filters_.find(filter) != disabled_filters_.end()) {
     return false;
   }
-  if (forbidden_filters_.find(filter) != forbidden_filters_.end()) {
-    return false;
-  }
   switch (level_.value()) {
     case kTestingCoreFilters:
       if (IsInSet(kTestFilterSet, arraysize(kTestFilterSet), filter)) {
@@ -1410,11 +1376,6 @@ bool RewriteOptions::Enabled(Filter filter) const {
       break;
   }
   return enabled_filters_.find(filter) != enabled_filters_.end();
-}
-
-bool RewriteOptions::Forbidden(StringPiece filter_id) const {
-  RewriteOptions::Filter filter = RewriteOptions::LookupFilterById(filter_id);
-  return (forbidden_filters_.find(filter) != forbidden_filters_.end());
 }
 
 int64 RewriteOptions::ImageInlineMaxBytes() const {
@@ -1528,29 +1489,15 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   for (FilterSet::const_iterator p = src.enabled_filters_.begin(),
            e = src.enabled_filters_.end(); p != e; ++p) {
     Filter filter = *p;
-    // A filter forbidden in 'this' cannot be enabled by 'src',
-    // but otherwise enabling in 'src' trumps disabling in 'this'.
-    if (forbidden_filters_.find(filter) == forbidden_filters_.end()) {
-      disabled_filters_.erase(filter);
-      enabled_filters_.insert(filter);
-    } else {
-      LOG(WARNING) << "Filter is forbidden: " << FilterName(filter);
-    }
+    // Enabling in 'second' trumps Disabling in first.
+    disabled_filters_.erase(filter);
+    enabled_filters_.insert(filter);
   }
 
   for (FilterSet::const_iterator p = src.disabled_filters_.begin(),
            e = src.disabled_filters_.end(); p != e; ++p) {
     Filter filter = *p;
-    // Disabling in 'src' trumps enabling in 'this'.
-    disabled_filters_.insert(filter);
-    enabled_filters_.erase(filter);
-  }
-
-  for (FilterSet::const_iterator p = src.forbidden_filters_.begin(),
-           e = src.forbidden_filters_.end(); p != e; ++p) {
-    Filter filter = *p;
-    // Forbidding in 'src' trumps enabling in 'this'.
-    forbidden_filters_.insert(filter);
+    // Disabling in 'second' trumps enabling in anything.
     disabled_filters_.insert(filter);
     enabled_filters_.erase(filter);
   }
@@ -1957,7 +1904,6 @@ bool RewriteOptions::SetupFuriousRewriters() {
   SetRewriteLevel(spec->rewrite_level());
   EnableFilters(spec->enabled_filters());
   DisableFilters(spec->disabled_filters());
-  // spec doesn't specify forbidden filters so no need to call ForbidFilters().
   // We need these for the experiment to work properly.
   SetRequiredFuriousFilters();
   set_css_inline_max_bytes(spec->css_inline_max_bytes());

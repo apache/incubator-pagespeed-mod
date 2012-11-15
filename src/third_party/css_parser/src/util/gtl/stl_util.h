@@ -16,10 +16,7 @@
 #ifndef UTIL_GTL_STL_UTIL_H_
 #define UTIL_GTL_STL_UTIL_H_
 
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 93110
-#include "base/stl_util.h"
-#else
+//#include "third_party/chromium/src/base/stl_util-inl.h"
 #include "base/stl_util-inl.h"
-#endif
 
 #endif  // UTIL_GTL_STL_UTIL_H_

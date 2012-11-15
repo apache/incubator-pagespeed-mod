@@ -22,8 +22,6 @@
 #include <map>
 #include <set>
 #include <vector>
-
-#include "base/stringprintf.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 

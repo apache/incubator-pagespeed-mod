@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -34,7 +35,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/fast_wildcard_group.h"
 #include "net/instaweb/util/public/gtest_prod.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -172,7 +172,6 @@ class RewriteOptions {
     kCssImageInlineMaxBytes,
     kCssInlineMaxBytes,
     kCssOutlineMinBytes,
-    kCssPreserveURLs,
     kDefaultCacheHtml,
     kDomainRewriteHyperlinks,
     kDomainShardCount,
@@ -197,7 +196,6 @@ class RewriteOptions {
     kImageLimitOptimizedPercent,
     kImageLimitResizeAreaPercent,
     kImageMaxRewritesAtOnce,
-    kImagePreserveURLs,
     kImageRetainColorProfile,
     kImageRetainColorSampling,
     kImageRetainExifData,
@@ -210,7 +208,6 @@ class RewriteOptions {
     kJsInlineMaxBytes,
     kJsOutlineMinBytes,
     kLazyloadImagesBlankUrl,
-    kJsPreserveURLs,
     kLazyloadImagesAfterOnload,
     kInlineOnlyCriticalImages,
     kLogRewriteTiming,
@@ -829,12 +826,6 @@ class RewriteOptions {
   bool DisableFiltersByCommaSeparatedList(const StringPiece& filters,
                                           MessageHandler* handler);
 
-  // Adds a set of filters to the forbidden set.  Returns false if any
-  // of the filter names are invalid, but all the valid ones will be
-  // added anyway.
-  bool ForbidFiltersByCommaSeparatedList(const StringPiece& filters,
-                                         MessageHandler* handler);
-
   // Explicitly disable all filters which are not *currently* explicitly enabled
   //
   // Note: Do not call EnableFilter(...) for this options object after calling
@@ -845,17 +836,14 @@ class RewriteOptions {
   void DisableAllFiltersNotExplicitlyEnabled();
 
   // Adds the filter to the list of enabled filters. However, if the filter
-  // is also present in either the list of disabled or forbidden filters,
-  // that takes precedence and it is not enabled.
+  // is also present in the list of disabled filters, that takes precedence.
   void EnableFilter(Filter filter);
   // Guarantees that a filter would be enabled even if it is present in the list
-  // of disabled filters by removing it from disabled & forbidden filter lists.
+  // of disabled filters by removing it from disabled filter list.
   void ForceEnableFilter(Filter filter);
   void DisableFilter(Filter filter);
-  void ForbidFilter(Filter filter);
   void EnableFilters(const FilterSet& filter_set);
   void DisableFilters(const FilterSet& filter_set);
-  void ForbidFilters(const FilterSet& filter_set);
   // Clear all explicitly enabled and disabled filters. Some filters may still
   // be enabled by the rewrite level and HtmlWriterFilter will be enabled.
   void ClearFilters();
@@ -865,7 +853,6 @@ class RewriteOptions {
   void EnableExtendCacheFilters();
 
   bool Enabled(Filter filter) const;
-  bool Forbidden(StringPiece filter_id) const;
 
   // Returns the set of enabled filters that require JavaScript for execution.
   void GetEnabledFiltersRequiringScriptExecution(FilterSet* filter_set) const;
@@ -1221,27 +1208,6 @@ class RewriteOptions {
     return critical_images_cache_expiration_time_ms_.value();
   }
 
-  bool css_preserve_urls() const {
-    return css_preserve_urls_.value();
-  }
-  void set_css_preserve_urls(bool x) {
-    set_option(x, &css_preserve_urls_);
-  }
-
-  bool image_preserve_urls() const {
-    return image_preserve_urls_.value();
-  }
-  void set_image_preserve_urls(bool x) {
-    set_option(x, &image_preserve_urls_);
-  }
-
-  bool js_preserve_urls() const {
-    return js_preserve_urls_.value();
-  }
-  void set_js_preserve_urls(bool x) {
-    set_option(x, &js_preserve_urls_);
-  }
-
   bool image_retain_color_profile() const {
     return image_retain_color_profile_.value();
   }
@@ -1571,8 +1537,7 @@ class RewriteOptions {
   }
 
   // Merge src into 'this'.  Generally, options that are explicitly
-  // set in src will override those explicitly set in 'this' (except that
-  // filters forbidden in 'this' cannot be enabled by 'src'), although
+  // set in src will override those explicitly set in 'this', although
   // option Merge implementations can be redefined by specific Option
   // class implementations (e.g. OptionInt64MergeWithMax).  One
   // semantic subject to interpretation is when a core-filter is
@@ -2336,7 +2301,6 @@ class RewriteOptions {
   bool frozen_;
   FilterSet enabled_filters_;
   FilterSet disabled_filters_;
-  FilterSet forbidden_filters_;
 
   // Note: using the template class Option here saves a lot of repeated
   // and error-prone merging code.  However, it is not space efficient as
@@ -2357,12 +2321,6 @@ class RewriteOptions {
   Option<int64> css_image_inline_max_bytes_;
   Option<int64> css_inline_max_bytes_;
   Option<int64> css_outline_min_bytes_;
-
-  // Preserve URL options
-  Option<bool> css_preserve_urls_;
-  Option<bool> js_preserve_urls_;
-  Option<bool> image_preserve_urls_;
-
   Option<int64> image_inline_max_bytes_;
   Option<int64> js_inline_max_bytes_;
   Option<int64> js_outline_min_bytes_;

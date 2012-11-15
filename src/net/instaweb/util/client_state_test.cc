@@ -18,6 +18,7 @@
 
 #include <cstddef>                     // for size_t
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/client_state.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/client_state.h"
@@ -25,7 +26,6 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"

@@ -466,18 +466,6 @@ UnicodeText Parser::ParseStringOrIdent() {
   }
 }
 
-template <char delim>
-Value* Parser::ParseStringValue() {
-  Tracer trace(__func__, this);
-
-  const char* oldin = in_;
-  UnicodeText string_contents = ParseString<delim>();
-  StringPiece verbatim_bytes(oldin, in_ - oldin);
-  Value* value = new Value(Value::STRING, string_contents);
-  value->set_bytes_in_original_buffer(verbatim_bytes);
-  return value;
-}
-
 // Parse a CSS number, including unit or percent sign.
 Value* Parser::ParseNumber() {
   Tracer trace(__func__, this);
@@ -808,10 +796,10 @@ Value* Parser::ParseAny(const StringPiece& allowed_chars) {
       break;
     }
     case '"':
-      toret = ParseStringValue<'"'>();
+      toret = new Value(Value::STRING, ParseString<'"'>());
       break;
     case '\'':
-      toret = ParseStringValue<'\''>();
+      toret = new Value(Value::STRING, ParseString<'\''>());
       break;
     case '#': {
       HtmlColor color = ParseColor();

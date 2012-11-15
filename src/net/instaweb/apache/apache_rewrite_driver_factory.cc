@@ -46,7 +46,6 @@
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_writer.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/rate_controller.h"
 #include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -56,7 +55,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/abstract_shared_mem.h"
 #include "net/instaweb/util/public/async_cache.h"
 #include "net/instaweb/util/public/cache_batcher.h"
@@ -97,8 +95,6 @@ const char kShutdownCount[] = "child_shutdown_count";
 }  // namespace
 
 const char ApacheRewriteDriverFactory::kMemcached[] = "memcached";
-const char ApacheRewriteDriverFactory::kStaticJavaScriptPrefix[] =
-    "/mod_pagespeed_static/";
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
@@ -354,11 +350,6 @@ void ApacheRewriteDriverFactory::SetupCaches(
   if (pcache->GetCohort(BeaconCriticalImagesFinder::kBeaconCohort) == NULL) {
     pcache->AddCohort(BeaconCriticalImagesFinder::kBeaconCohort);
   }
-}
-
-void ApacheRewriteDriverFactory::InitStaticJavascriptManager(
-    StaticJavascriptManager* static_js_manager) {
-  static_js_manager->set_library_url_prefix(kStaticJavaScriptPrefix);
 }
 
 NamedLockManager* ApacheRewriteDriverFactory::DefaultLockManager() {
@@ -793,7 +784,7 @@ void ApacheRewriteDriverFactory::Initialize() {
 void ApacheRewriteDriverFactory::InitStats(Statistics* statistics) {
   RewriteDriverFactory::InitStats(statistics);
   SerfUrlAsyncFetcher::InitStats(statistics);
-  RateController::InitStats(statistics);
+  RateControllingUrlAsyncFetcher::InitStats(statistics);
   ApacheResourceManager::InitStats(statistics);
   AprMemCache::InitStats(statistics);
   CacheStats::InitStats(ApacheCache::kFileCache, statistics);

@@ -22,6 +22,7 @@
 
 #include <cstddef>
 
+#include "base/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
@@ -51,7 +52,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/split_html_filter.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
@@ -70,7 +70,6 @@
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -312,7 +311,7 @@ const char kRewrittenHtmlLazyloadDeferJsScriptFlushedEarly[] =
     "window.mod_pagespeed_num_resources_prefetched = 3</script>"
     "<script type=\"text/javascript\">%s</script>"
     "%s"
-    "%s"
+    "<script type=\"text/javascript\">%s</script>"
     "</head><head>%s"
     "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
     "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
@@ -1188,16 +1187,6 @@ class ProxyInterfaceTest : public RewriteTestBase {
                                    insert_dns_prefetch, false, true);
   }
 
-  GoogleString GetDeferJsCode() {
-    return StrCat("<script src=\"",
-                  server_context()->static_javascript_manager()->GetDeferJsUrl(
-                      options_),
-                  "\" type=\"text/javascript\"></script>"
-                  "<script type=\"text/javascript\">",
-                  JsDeferDisabledFilter::kSuffix,
-                  "</script>");
-  }
-
   GoogleString FlushEarlyRewrittenHtml(
       UserAgentMatcher::PrefetchMechanism value,
       bool defer_js_enabled, bool insert_dns_prefetch,
@@ -1238,7 +1227,9 @@ class ProxyInterfaceTest : public RewriteTestBase {
           StrCat("<script type=\"text/javascript\">",
                  JsDisableFilter::GetJsDisableScriptSnippet(options_),
                  "</script>").c_str(),
-          GetDeferJsCode().c_str(),
+          JsDeferDisabledFilter::GetDeferJsSnippet(
+              options_,
+              server_context()->static_javascript_manager()).c_str(),
           cookie_script.data(),
           rewritten_css_url_1.data(), rewritten_css_url_2.data(),
           rewritten_js_url_1.data(), rewritten_js_url_2.data(),
@@ -1402,10 +1393,9 @@ TEST_F(ProxyInterfaceTest, FlushEarlyFlowTest) {
   // 6 for I.1.css.pagespeed.cf.0.css, I.2.css.pagespeed.cf.0.css,
   //       I.3.css.pagespeed.cf.0.css, 1.js.pagespeed.jm.0.js and
   //       2.js.pagespeed.jm.0.js and 1.jpg.pagespeed.ce.0.jpg.
-  // 19 metadata cache enties - three for cf and jm, seven for ce and
-  //       six for fs.
+  // 13 metadata cache entries - three for cf and jm, seven for ce.
   // 1 for DomCohort write in property cache.
-  EXPECT_EQ(33, lru_cache()->num_inserts());
+  EXPECT_EQ(27, lru_cache()->num_inserts());
 
   // Fetch the url again. This time FlushEarlyFlow should not be triggered.
   // None
@@ -2116,7 +2106,8 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
 
   set_text = "<html></html>";
 
-  mock_url_fetcher_.SetResponse(url, set_headers, set_text);
+  mock_url_fetcher_.SetResponse("http://www.example.com/", set_headers,
+                                set_text);
   FetchFromProxy(url, request_headers, true, &get_text, &get_headers);
 
   // Headers and body are correct for a Get request.
@@ -2130,16 +2121,9 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
             "HeadersComplete: 1\r\n\r\n", get_headers.ToString());
   EXPECT_EQ(set_text, get_text);
 
-  // Remove from the cache so we can actually test a HEAD fetch.
-  http_cache()->Delete(url);
-
-  ClearStats();
-
   // Headers and body are correct for a Head request.
   request_headers.set_method(RequestHeaders::kHead);
   FetchFromProxy(url, request_headers, true, &get_text, &get_headers);
-
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
 
   EXPECT_EQ("HTTP/1.0 200 OK\r\n"
             "Content-Type: text/html\r\n"
@@ -4394,29 +4378,6 @@ TEST_F(ProxyInterfaceTest, PropCacheNoWritesIfHtmlEndsWithTxt) {
                                 "<div><p></p></div>", 0);
   GoogleString text_out;
   ResponseHeaders headers_out;
-
-  FetchFromProxy("page.txt", true, &text_out, &headers_out);
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, lru_cache()->num_misses());  // http-cache only
-
-  ClearStats();
-  server_context_->set_enable_property_cache(false);
-  FetchFromProxy("page.txt", true, &text_out, &headers_out);
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, lru_cache()->num_misses());  // http-cache only
-}
-
-TEST_F(ProxyInterfaceTest, PropCacheNoWritesForNonGetRequests) {
-  CreateFilterCallback create_filter_callback;
-  factory()->AddCreateFilterCallback(&create_filter_callback);
-
-  DisableAjax();
-  SetResponseWithDefaultHeaders("page.txt", kContentTypeHtml,
-                                "<div><p></p></div>", 0);
-  GoogleString text_out;
-  ResponseHeaders headers_out;
-  RequestHeaders request_headers;
-  request_headers.set_method(RequestHeaders::kPost);
 
   FetchFromProxy("page.txt", true, &text_out, &headers_out);
   EXPECT_EQ(0, lru_cache()->num_inserts());

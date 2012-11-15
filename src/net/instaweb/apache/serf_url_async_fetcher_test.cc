@@ -24,6 +24,7 @@
 
 #include "apr_pools.h"
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -35,7 +36,6 @@
 #include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string_util.h"

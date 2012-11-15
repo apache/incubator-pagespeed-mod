@@ -22,6 +22,7 @@
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -42,7 +43,6 @@
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/mock_time_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"  // for StrCat, etc
 #include "net/instaweb/util/public/threadsafe_cache.h"

@@ -27,8 +27,6 @@ if [ -z $APACHE_DOC_ROOT ]; then
   APACHE_DOC_ROOT=/usr/local/apache2/htdocs/
 fi
 
-PSA_JS_LIBRARY_URL_PREFIX="mod_pagespeed_static"
-
 # Run General system tests.
 this_dir=$(dirname $0)
 source "$this_dir/system_test.sh" || exit 1
@@ -128,70 +126,27 @@ check $WGET -q "$EXAMPLE_ROOT/?ModPagespeed=off" \
 check $WGET -q "$EXAMPLE_ROOT/index.html?ModPagespeed=off" -O $OUTDIR/index.html
 check diff $OUTDIR/index.html $OUTDIR/mod_pagespeed_example
 
-echo TEST: Request Headers affect MPS options
-
-# Get the special file response_headers.html and test the result.
-# This file has Apache request_t headers_out and err_headers_out modified
-# according to the query parameter.  The modification happens in
-# instaweb_handler when the handler == kGenerateResponseWithOptionsHandler.
-# Possible query flags include: headers_out, headers_errout, headers_override,
-# and headers_combine.
-function response_header_test() {
-    query=$1
-    mps_on=$2
-    comments_removed=$3
-    rm -rf $OUTDIR
-    mkdir -p $OUTDIR
-
-    # Get the file
-    check $WGET -q -S -O - \
-      "$TEST_ROOT/response_headers.html?$query" >& $OUTDIR/header_out
-
-    # Make sure that any MPS option headers were stripped
-    check_not grep -q ^ModPagespeed: $OUTDIR/header_out
-
-    # Verify if MPS is on or off
-    if [ $mps_on = "no" ]; then
-      # Verify that ModPagespeed was off
-      check_not fgrep -q 'X-Mod-Pagespeed:' $OUTDIR/header_out
-      check_not fgrep -q '<script' $OUTDIR/header_out
-    else
-      # Verify that ModPagespeed was on
-      check fgrep -q 'X-Mod-Pagespeed:' $OUTDIR/header_out
-      check fgrep -q '<script' $OUTDIR/header_out
-    fi
-
-    # Verify if comments were stripped
-    if [ $comments_removed = "no" ]; then
-      # Verify that comments were not removed
-      check fgrep -q '<!--' $OUTDIR/header_out
-    else
-      # Verify that comments were removed
-      check_not fgrep -q '<!--' $OUTDIR/header_out
-    fi
-}
-
-# headers_out =     MPS: off
-# err_headers_out =
-response_header_test headers_out no no
-
-# headers_out =
-# err_headers_out = MPS: on
-response_header_test headers_errout no no
-
-# Note: The next two tests will break if remove_comments gets into the
-# CoreFilter set.
-
-# headers_out     = MPS: off, Filters: -remove_comments
-# err_headers_out = MPS: on,  Filters: +remove_comments
-# err_headers should is processed after headers_out, and so it should override
-# but disabling a filter trumps enabling one. The overriding is described in
-# the code for build_context_for_request.
-response_header_test headers_override yes no
-
-# headers_out     = MPS: on
-# err_headers_out = Filters: +remove_comments
-response_header_test headers_combine yes yes
+# TODO(jkarlin): bring back the test by handling err_headers_out in MPS.
+#echo TEST: Request Headers affect MPS options
+#rm -rf $OUTDIR
+#mkdir -p $OUTDIR
+#check $WGET -q -S -O - \
+#  "$TEST_ROOT/response_header_mps_off.php" > $OUTDIR/result_off 2>&1
+#check $WGET -q -S -O - \
+#  "$TEST_ROOT/response_header_mps_on.php" > $OUTDIR/result_on 2>&1
+#if grep -q '<?php' $OUTDIR/result_off; then
+#  echo "*** Skipped because PHP is not installed. If you'd like to enable this"
+#  echo "*** test please run: sudo apt-get install php5-common php5"
+#else
+#  echo ' TEST: ModPagespeed: off header was stripped'
+#  check_not fgrep 'ModPagespeed: off' $OUTDIR/result_off
+#
+#  echo ' TEST: Verify that ModPagespeed was off (check for inserted javascript)'
+#  check_not fgrep '<script' $OUTDIR/result_off
+#
+#  echo ' TEST: Verify that ModPagespeed was on for result_on'
+#  check fgrep '<script' $OUTDIR/result_on
+#fi
 
 echo "TEST: Respect X-Forwarded-Proto when told to"
 FETCHED=$OUTDIR/x_forwarded_proto
@@ -240,44 +195,14 @@ test_filter remove_comments retains appropriate comments.
 check run_wget_with_args $URL
 check grep -q retained $FETCHED        # RetainComment directive
 
-# Make sure that when in PreserveURLs mode that we don't rewrite URLs. This is
-# non-exhaustive, the unit tests should cover the rest.
-# Note: We block with psatest here because this is a negative test.  We wouldn't
-# otherwise know how many wget attempts should be made.
-WGET_ARGS="--header=X-PSA-Blocking-Rewrite:psatest"
-echo TEST: PreserveURLs on prevents URL rewriting
-FILE=preserveurls/on/preserveurls.html
-URL=$TEST_ROOT/$FILE
-FETCHED=$OUTDIR/preserveurls.html
-check run_wget_with_args $URL
-unset WGET_ARGS
-check_not_from "$FETCHED" fgrep -q \.pagespeed\.
-
-# When PreserveURLs is off do a quick check to make sure that normal rewriting
-# occurs.  This is not exhaustive, the unit tests should cover the rest.
-echo TEST: PreserveURLs off causes URL rewriting
-FILE=preserveurls/off/preserveurls.html
-URL=$TEST_ROOT/$FILE
-FETCHED=$OUTDIR/preserveurls.html
-# Check that style.css was inlined.
-fetch_until $URL 'grep -c #9370db' 1
-# Check that introspection.js was inlined.
-fetch_until $URL 'grep -c script_tags' 1
-# Check that the image was optimized.
-fetch_until $URL 'grep -c BikeCrashIcn\.png\.pagespeed\.' 2
-
-# TODO(jkarlin): When ajax rewriting is in MPS check that it works with
-# MPS.
-
-
 # TODO(sligocki): This test needs to be run before below tests.
 # Remove once below tests are moved to system_test.sh.
 test_filter rewrite_images inlines, compresses, and resizes.
 fetch_until $URL 'grep -c data:image/png' 1  # inlined
 fetch_until $URL 'grep -c .pagespeed.ic' 2   # other 2 images optimized
 check run_wget_with_args $URL
-check_file_size "$OUTDIR/xBikeCrashIcn*" -lt 25000     # re-encoded
-check_file_size "$OUTDIR/*256x192*Puzzle*" -lt 24126   # resized
+check [ "$(stat -c %s $OUTDIR/xBikeCrashIcn*)" -lt 25000 ]      # re-encoded
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)"  -lt 24126  ]  # resized
 URL=$EXAMPLE_ROOT"/rewrite_images.html?ModPagespeedFilters=rewrite_images"
 IMG_URL=$(egrep -o http://.*.pagespeed.*.jpg $FETCHED | head -n1)
 check [ x"$IMG_URL" != x ]
@@ -319,7 +244,7 @@ fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimiz
 # size is 8157B, while on 64 it is 8155B. Initial investigation showed no
 # visible differences between the generated images.
 # TODO(jmaessen) Verify that this behavior is expected.
-check_file_size "$OUTDIR/*256x192*Puzzle*" -le 8157   # resized
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)" -le 8157  ]  # resized
 
 echo TEST: quality of jpeg output images
 rm -rf $OUTDIR
@@ -328,7 +253,7 @@ IMG_REWRITE=$TEST_ROOT"/jpeg_rewriting/rewrite_images.html"
 REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",recompress_jpeg&"$IMAGES_QUALITY"=85&"$JPEG_QUALITY"=70"
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
-check_file_size "$OUTDIR/*256x192*Puzzle*" -le 7564   # resized
+check [ "$(stat -c %s $OUTDIR/*256x192*Puzzle*)" -le 7564  ]  # resized
 
 echo TEST: quality of webp output images
 rm -rf $OUTDIR
@@ -337,7 +262,7 @@ IMG_REWRITE=$TEST_ROOT"/webp_rewriting/rewrite_images.html"
 REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",convert_jpeg_to_webp&"$IMAGES_QUALITY"=75&"$WEBP_QUALITY"=65"
 check run_wget_with_args --header 'X-PSA-Blocking-Rewrite: psatest' $URL
-check_file_size "$OUTDIR/*webp*" -le 1784   # resized, optimized to webp
+check [ "$(stat -c %s $OUTDIR/*webp*)" -le 1784  ]  # resized, optimized to webp
 
 # Depends upon "Header append Vary User-Agent" and ModPagespeedRespectVary.
 echo TEST: respect vary user-agent
@@ -529,40 +454,6 @@ else
   # 2.2 prefork returns no content length while 2.2 worker returns a real
   # content length. IDK why but skip this test because of that.
   # check [ $(grep -c '^Content-Length: [0-9]'          $FETCHED) = 1 ]
-fi
-
-echo TEST: ModPagespeedMapProxyDomain
-URL=$EXAMPLE_ROOT/proxy_external_resource.html
-echo Rewrite HTML with reference to a proxyable image.
-fetch_until -save -recursive $URL \
-    'grep -c pss_images/xPuzzle\.jpg\.pagespeed\.ic' 1
-check_file_size "$OUTDIR/xPuzzle*" -lt 60000
-
-# To make sure that we can reconstruct the proxied content by going back
-# to the origin, we must avoid hitting the output cache.
-# Note that cache-flushing does not affect the cache of rewritten resources;
-# only input-resources and metadata.  To avoid hitting that cache and force
-# us to rewrite the resource from origin, we grab this resource from a
-# virtual host attached to a different cache.
-if [ "$SECONDARY_HOSTNAME" != "" ]; then
-  # With the proper hash, we'll get a long cache lifetime.
-  SECONDARY_HOST="http://secondary.example.com/pss_images"
-  PROXIED_IMAGE="$SECONDARY_HOST/$(basename $OUTDIR/xPuzzle*)"
-  WGET_ARGS="--save-headers"
-
-  echo $PROXIED_IMAGE expecting one year cache.
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $PROXIED_IMAGE \
-      "grep -c max-age=31536000" 1
-
-  # With the wrong hash, we'll get a short cache lifetime (and also no output
-  # cache hit.
-  WRONG_HASH="0"
-  PROXIED_IMAGE="$SECONDARY_HOST/xPuzzle.jpg.pagespeed.ic.$WRONG_HASH.jpg"
-  echo Fetching $PROXIED_IMAGE expecting short private cache.
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $PROXIED_IMAGE \
-      "grep -c max-age=300,private" 1
-
-  WGET_ARGS=""
 fi
 
 # TODO(sligocki): TEST: ModPagespeedMaxSegmentLength
@@ -786,61 +677,6 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
   http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL > $CSS_OUT
   check fgrep -q "Cache-Control: max-age=31536000" $CSS_OUT
   rm -f $CSS_OUT
-
-  # Test ModPagespeedForbidFilters, which is set in pagespeed.conf for the VHost
-  # forbidden.example.com, where we've forbidden remove_quotes, remove_comments,
-  # collapse_whitespace, rewrite_css, and resize_images; we've also disabled
-  # inline_css so the link doesn't get inlined since we test that it still has
-  # all its quotes.
-  FORBIDDEN_TEST_ROOT=http://forbidden.example.com/mod_pagespeed_test
-  function test_forbid_filters() {
-    QUERYP="$1"
-    HEADER="$2"
-    URL="$FORBIDDEN_TEST_ROOT/forbidden.html"
-    OUTFILE="$TEMPDIR/test_forbid_filters.$$"
-    echo http_proxy=$SECONDARY_HOSTNAME $WGET $HEADER $URL$QUERYP
-    http_proxy=$SECONDARY_HOSTNAME $WGET -q -O $OUTFILE $HEADER $URL$QUERYP
-    check egrep -q '<link rel="stylesheet' $OUTFILE
-    check egrep -q '<!--'                  $OUTFILE
-    check egrep -q '    <li>'              $OUTFILE
-    rm -f $OUTFILE
-  }
-  echo "TEST: ModPagespeedForbidFilters baseline check."
-  test_forbid_filters "" ""
-  echo "TEST: ModPagespeedForbidFilters query parameters check."
-  QUERYP="?ModPagespeedFilters="
-  QUERYP="${QUERYP}+remove_quotes,+remove_comments,+collapse_whitespace"
-  test_forbid_filters $QUERYP ""
-  echo "TEST: ModPagespeedForbidFilters request headers check."
-  HEADER="--header=ModPagespeedFilters:"
-  HEADER="${HEADER}+remove_quotes,+remove_comments,+collapse_whitespace"
-  test_forbid_filters "" $HEADER
-
-  echo "TEST: ModPagespeedForbidFilters disallows direct resource rewriting."
-  FORBIDDEN_EXAMPLE_ROOT=http://forbidden.example.com/mod_pagespeed_example
-  FORBIDDEN_STYLES_ROOT=$FORBIDDEN_EXAMPLE_ROOT/styles
-  FORBIDDEN_IMAGES_ROOT=$FORBIDDEN_EXAMPLE_ROOT/images
-  # .ce. is allowed
-  ALLOWED="$FORBIDDEN_STYLES_ROOT/all_styles.css.pagespeed.ce.n7OstQtwiS.css"
-  check fgrep -q "200 OK" <(http_proxy=$SECONDARY_HOSTNAME \
-    $WGET -O /dev/null $ALLOWED 2>&1)
-  # .cf. is forbidden
-  FORBIDDEN=$FORBIDDEN_STYLES_ROOT/I.all_styles.css.pagespeed.cf.UH8L-zY4b4.css
-  check fgrep -q "404 Not Found" <(http_proxy=$SECONDARY_HOSTNAME \
-    $WGET -O /dev/null $FORBIDDEN 2>&1)
-  # The image will be optimized but NOT resized to the much smaller size,
-  # so it will be >200k (optimized) rather than <20k (resized).
-  # Use a blocking fetch to force all -allowed- rewriting to be done.
-  RESIZED=$FORBIDDEN_IMAGES_ROOT/256x192xPuzzle.jpg.pagespeed.ic.8AB3ykr7Of.jpg
-  HEADERS="$OUTDIR/headers.$$"
-  http_proxy=$SECONDARY_HOSTNAME $WGET -q --server-response -O /dev/null \
-    --header 'X-PSA-Blocking-Rewrite: psatest' $RESIZED >& $HEADERS
-  LENGTH=$(grep '^ *Content-Length:' $HEADERS | sed -e 's/.*://')
-  check test -n "$LENGTH"
-  check test $LENGTH -gt 200000
-  CCONTROL=$(grep '^ *Cache-Control:' $HEADERS | sed -e 's/.*://')
-  check_from "$CCONTROL" grep -w max-age=300
-  check_from "$CCONTROL" grep -w private
 fi
 
 echo "TEST: Send custom fetch headers on resource re-fetches."

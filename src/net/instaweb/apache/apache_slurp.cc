@@ -40,6 +40,7 @@
 // For now use wget when slurping additional files.
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apache_resource_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -55,7 +56,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/query_params.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -229,8 +229,7 @@ class StrippingFetch : public StringAsyncFetch {
     // sharded domains, we apply mapping origin domain here.  Simply map all
     // the shards back into the origin domain in pagespeed.conf.
     GoogleString origin_url;
-    bool is_proxy = false;
-    if (lawyer_->MapOrigin(url_, &origin_url, &is_proxy)) {
+    if (lawyer_->MapOrigin(url_, &origin_url)) {
       url_ = origin_url;
       GoogleUrl gurl(url_);
       request_headers()->Replace(HttpAttributes::kHost, gurl.Host());

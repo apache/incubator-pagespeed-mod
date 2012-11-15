@@ -74,9 +74,6 @@ class InsertDnsPrefetchFilter : public CommonFilter {
   // order they were seen in BODY.
   StringVector dns_prefetch_domains_;
 
-  // Whether this user agent supports dns prefetch filter.
-  bool user_agent_supports_dns_prefetch_;
-
   DISALLOW_COPY_AND_ASSIGN(InsertDnsPrefetchFilter);
 };
 

@@ -22,12 +22,12 @@
 #include <map>
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/public/suppress_prehead_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/json.h"
 #include "net/instaweb/util/public/json_writer.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -71,6 +71,8 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
 
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
+
+  static bool ShouldApply(RewriteDriver* driver);
 
   static const GoogleString& GetBlinkJsUrl(
       const RewriteOptions* options,
@@ -143,14 +145,6 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
   void ComputePanels(const CriticalLineInfo& critical_line_info,
                      PanelIdToSpecMap* panel_id_to_spec);
 
-  void InvokeBaseHtmlFilterStartDocument();
-
-  void InvokeBaseHtmlFilterStartElement(HtmlElement* element);
-
-  void InvokeBaseHtmlFilterEndElement(HtmlElement* element);
-
-  void InvokeBaseHtmlFilterEndDocument();
-
   RewriteDriver* rewrite_driver_;
   const RewriteOptions* options_;
   PanelIdToSpecMap panel_id_to_spec_;
@@ -166,7 +160,6 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
   StringPiece url_;
   bool script_written_;
   bool flush_head_enabled_;
-  bool disable_filter_;
   bool send_lazyload_script_;
   int num_low_res_images_inlined_;
   HtmlElement* current_panel_parent_element_;

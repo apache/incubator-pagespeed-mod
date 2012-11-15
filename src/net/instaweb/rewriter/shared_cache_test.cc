@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
@@ -68,7 +69,6 @@
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
@@ -84,10 +84,10 @@ namespace net_instaweb {
 // Reproduce MPS issue 488 emulating memcached with LRUCache. We use the
 // 2 server contexts to emulate different servers, each with their own
 // filesystem and with a shared http/metadata cache.
-class SharedCacheTest : public RewriteContextTestBase {
+class SharedCacheTest : public RewriteContextTest {
  protected:
   virtual void SetUp() {
-    RewriteContextTestBase::SetUp();
+    RewriteContextTest::SetUp();
 
     options()->file_load_policy()->Associate(kTestDomain, "/test/");
     other_options()->file_load_policy()->Associate(kTestDomain, "/test/");

@@ -479,30 +479,6 @@ TEST_F(RewriteOptionsTest, DisableAllFiltersOverrideFilterLevel) {
   EXPECT_TRUE(OnlyEnabled(RewriteOptions::kAddHead));
 }
 
-TEST_F(RewriteOptionsTest, ForbidFilter) {
-  // Forbid a core filter: this will disable it.
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.ForbidFilter(RewriteOptions::kExtendCacheCss);
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_TRUE(options_.Forbidden(
-      RewriteOptions::FilterId(RewriteOptions::kExtendCacheCss)));
-
-  // Forbid a filter, then try to merge in an enablement: it won't take.
-  // At the same time, merge in a new "forbiddenment": it will take.
-  RewriteOptions one, two;
-  one.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  one.ForbidFilter(RewriteOptions::kExtendCacheCss);
-  two.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  two.ForbidFilter(RewriteOptions::kFlattenCssImports);
-  one.Merge(two);
-  EXPECT_FALSE(one.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_FALSE(one.Enabled(RewriteOptions::kFlattenCssImports));
-  EXPECT_TRUE(one.Forbidden(
-      RewriteOptions::FilterId(RewriteOptions::kExtendCacheCss)));
-  EXPECT_TRUE(one.Forbidden(
-      RewriteOptions::FilterId(RewriteOptions::kFlattenCssImports)));
-}
-
 TEST_F(RewriteOptionsTest, AllDoesNotImplyStripScrips) {
   options_.SetRewriteLevel(RewriteOptions::kAllFilters);
   EXPECT_TRUE(options_.Enabled(RewriteOptions::kCombineCss));
@@ -688,7 +664,7 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // kEndOfOptions explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
-  EXPECT_EQ(117, RewriteOptions::kEndOfOptions);
+  EXPECT_EQ(114, RewriteOptions::kEndOfOptions);
   EXPECT_STREQ("AjaxRewritingEnabled",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kAjaxRewritingEnabled));
@@ -734,9 +710,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("CssOutlineMinBytes",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kCssOutlineMinBytes));
-  EXPECT_STREQ("CssPreserveURLs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kCssPreserveURLs));
   EXPECT_STREQ("DefaultCacheHtml",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kDefaultCacheHtml));
@@ -815,9 +788,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("ImageRecompressionQuality",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageRecompressionQuality));
-  EXPECT_STREQ("ImagePreserveURLs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kImagePreserveURLs));
   EXPECT_STREQ("ImageWebpRecompressionQuality",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageWebpRecompressionQuality));
@@ -836,9 +806,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("LazyloadImagesBlankUrl",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kLazyloadImagesBlankUrl));
-  EXPECT_STREQ("JsPreserveURLs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kJsPreserveURLs));
   EXPECT_STREQ("LazyloadImagesAfterOnload",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kLazyloadImagesAfterOnload));
@@ -1130,17 +1097,6 @@ TEST_F(RewriteOptionsTest, FuriousSpecTest) {
   EXPECT_EQ(26, options_.num_furious_experiments());
   // Object to adding a 27th.
   EXPECT_FALSE(options_.AddFuriousSpec("id=200;percent=1;default", &handler));
-}
-
-TEST_F(RewriteOptionsTest, PreserveURLDefaults) {
-  // This test serves as a warning. If you enable preserve URLs by default then
-  // many unit tests will fail due to filters being omitted from the HTML path.
-  // Further, preserve_urls is not explicitly tested for the 'false' case, it is
-  // assumed to be tested by the normal unit tests since the default value is
-  // false.
-  EXPECT_FALSE(options_.image_preserve_urls());
-  EXPECT_FALSE(options_.css_preserve_urls());
-  EXPECT_FALSE(options_.js_preserve_urls());
 }
 
 TEST_F(RewriteOptionsTest, FuriousPrintTest) {

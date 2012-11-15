@@ -504,8 +504,9 @@ void CssMinify::Minify(const Css::Value& value) {
           value.GetColorValue()));
       break;
     case Css::Value::STRING:
-      // Note: bytes_in_original_buffer() contains quote chars.
-      Write(value.bytes_in_original_buffer());
+      Write("\"");
+      Write(CSSEscapeString(value.GetStringValue()));
+      Write("\"");
       break;
     case Css::Value::IDENT:
       Write(CSSEscapeString(value.GetIdentifierText()));

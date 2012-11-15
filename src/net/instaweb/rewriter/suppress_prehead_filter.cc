@@ -22,7 +22,6 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 #include "net/instaweb/rewriter/public/meta_tag_filter.h"
@@ -72,8 +71,12 @@ void SuppressPreheadFilter::StartDocument() {
   }
   // Setting the charset in response headers related initialization.
   response_headers_.CopyFrom(*(driver_->response_headers()));
-  charset_ = response_headers_.DetermineCharset();
-  has_charset_ = !charset_.empty();
+  FlushEarlyInfoFinder* finder =
+      driver_->server_context()->flush_early_info_finder();
+  if (finder != NULL && finder->IsMeaningful()) {
+    finder->UpdateFlushEarlyInfoInDriver(driver_);
+    charset_ = finder->GetCharset(driver_);
+  }
 }
 
 // TODO(mmohabey): AddHead filter will not add a head in the following case:
@@ -98,13 +101,7 @@ void SuppressPreheadFilter::EndElement(HtmlElement* element) {
   HtmlWriterFilter::EndElement(element);
   if (noscript_element_ == NULL &&
       element->keyword() == HtmlName::kMeta) {
-    if (!has_charset_) {
-      has_charset_ = MetaTagFilter::ExtractAndUpdateMetaTagDetails(element,
-          &response_headers_);
-    }
-    if (!has_x_ua_compatible_) {
-      has_x_ua_compatible_ = ExtractAndUpdateXUACompatible(element);
-    }
+    MetaTagFilter::ExtractAndUpdateMetaTagDetails(element, &response_headers_);
   }
   if (element == noscript_element_) {
     noscript_element_ = NULL;  // We are exitting the top-level <noscript>
@@ -113,8 +110,6 @@ void SuppressPreheadFilter::EndElement(HtmlElement* element) {
 
 void SuppressPreheadFilter::Clear() {
   seen_first_head_ = false;
-  has_charset_ = false;
-  has_x_ua_compatible_ = false;
   noscript_element_ = NULL;
   pre_head_.clear();
   charset_.clear();
@@ -133,21 +128,10 @@ void SuppressPreheadFilter::EndDocument() {
   }
 
   driver_->flush_early_info()->set_pre_head(pre_head_);
-  // See the description of the HttpOnly cookie in
-  // http://tools.ietf.org/html/rfc6265#section-4.1.2.6
-  driver_->flush_early_info()->set_http_only_cookie_present(
-      response_headers_.HasCookie("HttpOnly", NULL));
-  if (!has_charset_) {
-    FlushEarlyInfoFinder* finder =
-        driver_->server_context()->flush_early_info_finder();
-    if (finder != NULL && finder->IsMeaningful()) {
-      finder->UpdateFlushEarlyInfoInDriver(driver_);
-      charset_ = finder->GetCharset(driver_);
-      if (!charset_.empty()) {
-        GoogleString type = StrCat(";charset=", charset_);
-        response_headers_.MergeContentType(type);
-      }
-    }
+  if (!charset_.empty()) {
+    GoogleString type = StrCat(";charset=", charset_);
+    // Set the charset if it is not already set.
+    response_headers_.MergeContentType(type);
   }
   driver_->SaveOriginalHeaders(response_headers_);
 }
@@ -203,30 +187,6 @@ void SuppressPreheadFilter::UpdateFetchLatencyInFlushEarlyProto(
   }
   flush_early_info->set_average_fetch_latency_ms(average_fetch_latency);
   flush_early_info->set_last_n_fetch_latencies(last_n_fetch_latency);
-}
-
-bool SuppressPreheadFilter::ExtractAndUpdateXUACompatible(
-    HtmlElement* element) {
-  const HtmlElement::Attribute* equiv =
-      element->FindAttribute(HtmlName::kHttpEquiv);
-  const HtmlElement::Attribute* value =
-      element->FindAttribute(HtmlName::kContent);
-  if (equiv != NULL && value!= NULL) {
-    StringPiece attribute = equiv->DecodedValueOrNull();
-    StringPiece value_str = value->DecodedValueOrNull();
-    if (!value_str.empty() && !attribute.empty()) {
-      TrimWhitespace(&attribute);
-
-      // http-equiv must equal "Content-Type" and content must not be blank.
-      if (StringCaseEqual(attribute, HttpAttributes::kXUACompatible)) {
-        if (!response_headers_.HasValue(attribute, value_str)) {
-          response_headers_.Add(attribute, value_str);
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }
 
 void SuppressPreheadFilter::SendCookies(HtmlElement* element) {

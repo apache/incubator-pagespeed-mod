@@ -142,45 +142,35 @@ ModPagespeedEnableFilters add_instrumentation
 # scope we test to make sure the options we claim are really settable in
 # .htaccess.  Note that <Directory> and .htaccess are enforced the same way.
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/htaccess_test" >
-  ModPagespeed on
-  ModPagespeedAllow *
-  ModPagespeedAvoidRenamingIntrospectiveJavascript on
-  ModPagespeedBeaconUrl foo
-  ModPagespeedCombineAcrossPaths off
-  ModPagespeedCssFlattenMaxBytes 100
-  ModPagespeedCssImageInlineMaxBytes 100
-  ModPagespeedCssInlineMaxBytes 100
-  ModPagespeedCssOutlineMinBytes 10000
-  ModPagespeedDisableFilters rewrite_images
-  ModPagespeedDisallow *bad*
-  ModPagespeedDomain example.com
-  ModPagespeedEnableFilters extend_cache
-  ModPagespeedImageInlineMaxBytes 100
-  ModPagespeedImageLimitOptimizedPercent 50
-  ModPagespeedImageLimitResizeAreaPercent 50
-  ModPagespeedJpegRecompressionQuality 85
-  ModPagespeedJsInlineMaxBytes 100
-  ModPagespeedJsOutlineMinBytes 10000
-  ModPagespeedLowercaseHtmlNames on
-  ModPagespeedMapOriginDomain localhost example.com
-  ModPagespeedMapRewriteDomain cdn.com example.com
-  ModPagespeedMaxHtmlParseBytes 100000
-  ModPagespeedMaxInlinedPreviewImagesIndex 10
-  ModPagespeedMinImageSizeLowResolutionBytes 100
-  ModPagespeedModifyCachingHeaders off
-  ModPagespeedRetainComment *ad_tag*
-  ModPagespeedRewriteLevel PassThrough
+ModPagespeed on
+ModPagespeedAllow *
+ModPagespeedAvoidRenamingIntrospectiveJavascript on
+ModPagespeedBeaconUrl foo
+ModPagespeedCombineAcrossPaths off
+ModPagespeedCssFlattenMaxBytes 100
+ModPagespeedCssImageInlineMaxBytes 100
+ModPagespeedCssInlineMaxBytes 100
+ModPagespeedCssOutlineMinBytes 10000
+ModPagespeedDisableFilters rewrite_images
+ModPagespeedDisallow *bad*
+ModPagespeedDomain example.com
+ModPagespeedEnableFilters extend_cache
+ModPagespeedImageInlineMaxBytes 100
+ModPagespeedImageLimitOptimizedPercent 50
+ModPagespeedImageLimitResizeAreaPercent 50
+ModPagespeedJpegRecompressionQuality 85
+ModPagespeedJsInlineMaxBytes 100
+ModPagespeedJsOutlineMinBytes 10000
+ModPagespeedLowercaseHtmlNames on
+ModPagespeedMapOriginDomain localhost example.com
+ModPagespeedMapRewriteDomain cdn.com example.com
+ModPagespeedMaxHtmlParseBytes 100000
+ModPagespeedMaxInlinedPreviewImagesIndex 10
+ModPagespeedMinImageSizeLowResolutionBytes 100
+ModPagespeedModifyCachingHeaders off
+ModPagespeedRetainComment *ad_tag*
+ModPagespeedRewriteLevel PassThrough
 </Directory>
-
-# Establish a proxy mapping where the current server proxies an image
-# stored on ref.pssdemos.com.  We use ref.pssdemos.com rather than
-# modpagespeed.com so that we use a single html file both for:
-#   1. a demo of the feature on modpagespeed.com.  It would
-#      be confusing to demo a Proxying when the origin was the
-#      same as the proxy.
-#   2. A system-test of the feature to be run with our usual testing.
-ModPagespeedMapProxyDomain @@APACHE_DOMAIN@@/pss_images \
-                           http://ref.pssdemos.com/filter/images
 
 # This is needed for the server-side includes test in
 # apache_system_test.sh.  See mod_pagespeed_test/ssi/.htaccess as well.
@@ -251,10 +241,6 @@ ModPagespeedCustomFetchHeader x-other False
 </Location>
 
 ModPagespeedRespectXForwardedProto on
-
-<Location ~ "/mod_pagespeed_test/response_headers.html*">
-  SetHandler mod_pagespeed_response_options_handler
-</Location>
 
 #SPELING # Enable mod_speling to ensure that we don't regress Issue 194
 #SPELING <IfModule !speling_module>
@@ -503,8 +489,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeed on
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/_secondary/"
 
-  ModPagespeedMapProxyDomain secondary.example.com/pss_images \
-                             http://ref.pssdemos.com/filter/images
   # This is the same memcached instance as the root configuration,
   # but with a different file-cache path.
 #MEMCACHED  ModPagespeedMemcachedServers localhost:6765
@@ -563,21 +547,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeedEnableFilters rewrite_css,rewrite_images
 </VirtualHost>
 
-# Sets up a virtual host where we can specify forbidden filters without
-# affecting any other hosts.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName forbidden.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@/"
-  # Start with all core filters enabled ...
-  ModPagespeedRewriteLevel CoreFilters
-  # ... then forbid these filters ...
-  ModPagespeedForbidFilters remove_quotes,remove_comments,collapse_whitespace
-  ModPagespeedForbidFilters rewrite_css,resize_images
-  # ... and disable but not forbid this one (to ensure we retain its URL).
-  ModPagespeedDisableFilters inline_css
-</VirtualHost>
-
 #ALL_DIRECTIVES # Invoke all ModPagespeed* directives to make sure they work:
 #ALL_DIRECTIVES ModPagespeedAllow foo
 #ALL_DIRECTIVES ModPagespeedAnalyticsID 1234
@@ -593,7 +562,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedCssImageInlineMaxBytes 2000
 #ALL_DIRECTIVES ModPagespeedCssInlineMaxBytes 2000
 #ALL_DIRECTIVES ModPagespeedCssOutlineMinBytes 2000
-#ALL_DIRECTIVES ModPagespeedCssPreserveURLs off
 #ALL_DIRECTIVES ModPagespeedDisableFilters strip_scripts
 #ALL_DIRECTIVES ModPagespeedDisallow bar
 #ALL_DIRECTIVES ModPagespeedDomain http://example.com
@@ -609,7 +577,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedFileCacheInodeLimit 10000
 #ALL_DIRECTIVES ModPagespeedFileCachePath /tmp/cache/
 #ALL_DIRECTIVES ModPagespeedFileCacheSizeKb 1000
-#ALL_DIRECTIVES ModPagespeedForbidFilters rewrite_images
 #ALL_DIRECTIVES ModPagespeedForceCaching off
 #ALL_DIRECTIVES ModPagespeedHashRefererStatistics false
 #ALL_DIRECTIVES ModPagespeedImageInlineMaxBytes 2000
@@ -617,7 +584,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedImageLimitResizeAreaPercent 80
 #ALL_DIRECTIVES ModPagespeedImageMaxRewritesAtOnce 5
 #ALL_DIRECTIVES ModPagespeedImageRecompressionQuality 75
-#ALL_DIRECTIVES ModPagespeedImagePreserveURLs false
 #ALL_DIRECTIVES ModPagespeedImgInlineMaxBytes 2000
 #ALL_DIRECTIVES ModPagespeedImgMaxRewritesAtOnce 5
 #ALL_DIRECTIVES ModPagespeedIncreaseSpeedTracking true
@@ -625,7 +591,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedJpegRecompressionQuality 80
 #ALL_DIRECTIVES ModPagespeedJsInlineMaxBytes 2000
 #ALL_DIRECTIVES ModPagespeedJsOutlineMinBytes 2000
-#ALL_DIRECTIVES ModPagespeedJsPreserveURLS off
 #ALL_DIRECTIVES ModPagespeedLRUCacheByteLimit 1000
 #ALL_DIRECTIVES ModPagespeedLRUCacheKbPerProcess 1
 #ALL_DIRECTIVES ModPagespeedListOutstandingUrlsOnError on

@@ -15,7 +15,7 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -71,6 +71,7 @@ class RewriteQuery {
                      scoped_ptr<RewriteOptions>* options,
                      MessageHandler* handler);
 
+ private:
   // Performs the request and response header scanning for Scan(). If any
   // "ModPagespeed" options are found in the headers they are stripped.
   // Returns kNoneFound if no options found.  Returns kSuccess and
@@ -84,7 +85,6 @@ class RewriteQuery {
                            RewriteOptions* options,
                            MessageHandler* handler);
 
- private:
   static bool MayHaveCustomOptions(const QueryParams& params,
                                    const RequestHeaders* req_headers,
                                    const ResponseHeaders* resp_headers);

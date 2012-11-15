@@ -19,6 +19,7 @@
 #include <cstdio>     // for fprintf, stderr, snprintf
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders, etc
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/headers.h"
@@ -26,7 +27,6 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/escaping.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_multi_map.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -889,43 +889,6 @@ bool ResponseHeaders::GetCookieString(GoogleString* cookie_str) const {
   }
   StrAppend(cookie_str, "]");
   return true;
-}
-
-bool ResponseHeaders::HasCookie(StringPiece name,
-                                StringPieceVector* values) const {
-  bool has_cookie = false;
-  ConstStringStarVector cookies;
-  if (Lookup(HttpAttributes::kSetCookie, &cookies)) {
-    // Iterate through the cookies.
-    for (int i = 0, n = cookies.size(); i < n; ++i) {
-      StringPieceVector cookie_pairs;
-      // Get the vector of name-value pairs of cookies.
-      SplitStringPieceToVector(*cookies[i], ";", &cookie_pairs, true);
-      for (int j = 0, npairs = cookie_pairs.size(); j < npairs; ++j) {
-        StringPiece::size_type index = cookie_pairs[j].find('=');
-        if (index == StringPiece::npos) {
-          StringPiece cookie_attribute = cookie_pairs[j];
-          TrimWhitespace(&cookie_attribute);
-          if (StringCaseEqual(cookie_attribute, name)) {
-            has_cookie = true;
-          }
-        } else {
-          StringPiece cookie_attribute = cookie_pairs[j].substr(0, index);
-          StringPiece cookie_value = cookie_pairs[j].substr(index + 1,
-              cookie_pairs[j].size() - index - 1);
-          TrimWhitespace(&cookie_attribute);
-          if (StringCaseEqual(cookie_attribute, name)) {
-            has_cookie = true;
-            if (values != NULL) {
-              TrimWhitespace(&cookie_value);
-              values->push_back(cookie_value);
-            }
-          }
-        }
-      }
-    }
-  }
-  return has_cookie;
 }
 
 }  // namespace net_instaweb
