@@ -1,0 +1,2 @@
+(function(){var a="prototype",b="img",e="input",g="pagespeed_high_res_src",h="src";window.pagespeed=window.pagespeed||{};var j=window.pagespeed,k=function(){this.b={}};k[a].c=function(d,c){this.b[d]=c};k[a].addLowResImages=k[a].c;k[a].a=function(d){for(var c=0;c<d.length;++c){var f=d[c].getAttribute(g);f&&d[c].setAttribute(h,this.b[f])}};k[a].replaceElementSrc=k[a].a;k[a].d=function(){this.a(document.getElementsByTagName(b));this.a(document.getElementsByTagName(e))};k[a].replaceWithLowRes=k[a].d;
+j.e=function(){j.delayImagesInline=new k};j.delayImagesInlineInit=j.e;})();
