@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
@@ -34,8 +33,8 @@
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/simple_stats.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace {
@@ -54,8 +53,7 @@ class MessageHandler;
 class FakeHttpCacheCallback : public HTTPCache::Callback {
  public:
   FakeHttpCacheCallback()
-      : HTTPCache::Callback(RequestContextPtr(NULL)),
-        called_(false),
+      : called_(false),
         result_(HTTPCache::kNotFound),
         first_call_cache_valid_(true),
         first_cache_valid_(true),
@@ -197,7 +195,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
   EXPECT_EQ(1, cache1_.num_inserts());
@@ -212,7 +209,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
   EXPECT_EQ(1, cache1_.num_inserts());
@@ -230,7 +226,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(1, cache1_.num_misses());
   EXPECT_EQ(2, cache1_.num_inserts());
@@ -249,7 +244,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, cache1_.num_hits());
   EXPECT_EQ(1, cache1_.num_misses());
   EXPECT_EQ(2, cache1_.num_inserts());
@@ -273,7 +267,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // response in the L2 cache instead.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -305,7 +298,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // response in the L2 cache instead.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -332,7 +324,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // we use the stale response from cache1
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -624,7 +615,6 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
   // ... only goes to cache1_ and hits.
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -646,7 +636,6 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
   // ... hits both cache1_ and cache_2.
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -672,7 +661,6 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
   // misses.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());

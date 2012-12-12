@@ -72,7 +72,6 @@ class DeferIframeFilter : public EmptyHtmlFilter {
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
-  virtual void DetermineEnabled();
 
   virtual const char* Name() const { return "DeferIframe"; }
 
@@ -80,6 +79,7 @@ class DeferIframeFilter : public EmptyHtmlFilter {
   RewriteDriver* driver_;
   StaticJavascriptManager* static_js_manager_;
   bool script_inserted_;
+  bool defer_js_enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(DeferIframeFilter);
 };

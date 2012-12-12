@@ -43,7 +43,9 @@ class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
     return true;
   }
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) {}
+                                     RewriteDriver* driver,
+                                     bool must_compute) {
+  }
   virtual const char* GetCriticalImagesCohort() const {
     return kCriticalImagesCohort;
   }

@@ -27,7 +27,6 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
@@ -76,10 +75,8 @@ const char kSmallDataFile[] = "small-data.png";
 class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
  public:
   HTTPCacheStringCallback(const RewriteOptions* options,
-                          const RequestContextPtr& request_ctx,
                           GoogleString* body_out, GoogleString* headers_out)
-      : OptionsAwareHTTPCacheCallback(options, request_ctx),
-        body_out_(body_out),
+      : OptionsAwareHTTPCacheCallback(options), body_out_(body_out),
         headers_out_(headers_out), found_(false) {}
 
   virtual ~HTTPCacheStringCallback() {}
@@ -118,7 +115,8 @@ class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
     return true;
   }
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) {
+                                     RewriteDriver* driver,
+                                     bool must_compute) {
     ++compute_calls_;
   }
   int num_compute_calls() { return compute_calls_; }
@@ -167,6 +165,10 @@ class ImageRewriteTest : public RewriteTestBase {
     options()->set_image_inline_max_bytes(2000);
     rewrite_driver()->AddFilters();
 
+    LoggingInfo logging_info;
+    LogRecord log_record(&logging_info);
+    rewrite_driver()->set_log_record(&log_record);
+
     // URLs and content for HTML document and resources.
     const GoogleUrl domain(EncodeWithBase("http://rewrite_image.test/",
                                           "http://rewrite_image.test/",
@@ -205,8 +207,7 @@ class ImageRewriteTest : public RewriteTestBase {
     GoogleString rewritten_image;
     GoogleString rewritten_headers;
     HTTPCacheStringCallback cache_callback(
-        options(), rewrite_driver()->request_context(),
-        &rewritten_image, &rewritten_headers);
+        options(), &rewritten_image, &rewritten_headers);
     http_cache()->Find(src_string, message_handler(), &cache_callback);
     cache_callback.ExpectFound();
 
@@ -232,7 +233,7 @@ class ImageRewriteTest : public RewriteTestBase {
     ServeResourceFromManyContexts(src_string, rewritten_image);
 
     // Check that filter application was logged.
-    EXPECT_STREQ("ic", logging_info()->applied_rewriters());
+    EXPECT_STREQ("ic", logging_info.applied_rewriters());
   }
 
   // Helper class to collect image srcs.

@@ -66,15 +66,14 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
 }
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
-void LazyloadImagesFilter::DetermineEnabled() {
-  set_is_enabled(ShouldApply(driver()));
-}
-
 void LazyloadImagesFilter::StartDocumentImpl() {
   Clear();
 }
 
 void LazyloadImagesFilter::EndDocument() {
+  if (!ShouldApply(driver())) {
+    return;
+  }
   driver()->UpdatePropertyValueInDomCohort(
       kIsLazyloadScriptInsertedPropertyName,
       main_script_inserted_ ? "1" : "0");
@@ -93,7 +92,7 @@ bool LazyloadImagesFilter::ShouldApply(RewriteDriver* driver) {
 }
 
 void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (!ShouldApply(driver()) || noscript_element() != NULL) {
     return;
   }
   if (skip_rewrite_ == NULL) {
@@ -131,7 +130,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (!ShouldApply(driver()) || noscript_element() != NULL) {
     return;
   }
   if (skip_rewrite_ == element) {

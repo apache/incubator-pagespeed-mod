@@ -172,8 +172,7 @@ class ResourceManagerHttpCallback : public OptionsAwareHTTPCacheCallback {
   ResourceManagerHttpCallback(
       Resource::NotCacheablePolicy not_cacheable_policy,
       Resource::AsyncCallback* resource_callback,
-      ServerContext* resource_manager,
-      const RequestContextPtr& request_context);
+      ServerContext* resource_manager);
   virtual ~ResourceManagerHttpCallback();
   virtual void Done(HTTPCache::FindResult find_result);
 
@@ -272,8 +271,7 @@ void ServerContext::InitWorkersAndDecodingDriver() {
   low_priority_rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
   decoding_driver_.reset(NewUnmanagedRewriteDriver(
-      NULL, global_options()->Clone(),
-      RequestContextPtr(new RequestContext(thread_system()->NewMutex()))));
+      NULL, global_options()->Clone()));
   // Apply platform configuration mutation for consistency's sake.
   factory_->ApplyPlatformSpecificConfiguration(decoding_driver_.get());
   // Inserts platform-specific rewriters into the resource_filter_map_, so that
@@ -532,11 +530,9 @@ void ServerContext::RefreshIfImminentlyExpiring(
 ResourceManagerHttpCallback::ResourceManagerHttpCallback(
     Resource::NotCacheablePolicy not_cacheable_policy,
     Resource::AsyncCallback* resource_callback,
-    ServerContext* resource_manager,
-    const RequestContextPtr& request_context)
+    ServerContext* resource_manager)
     : OptionsAwareHTTPCacheCallback(
-          resource_callback->resource()->rewrite_options(),
-          request_context),
+          resource_callback->resource()->rewrite_options()),
       resource_callback_(resource_callback),
       server_context_(resource_manager),
       not_cacheable_policy_(not_cacheable_policy) {
@@ -613,7 +609,6 @@ void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
 // TODO(morlovich): Should this load non-cacheable + non-loaded resources?
 void ServerContext::ReadAsync(
     Resource::NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
     Resource::AsyncCallback* callback) {
   // If the resource is not already loaded, and this type of resource (e.g.
   // URL vs File vs Data) is cacheable, then try to load it.
@@ -623,10 +618,7 @@ void ServerContext::ReadAsync(
     callback->Done(false /* lock_failure */, true /* resource_ok */);
   } else if (resource->IsCacheableTypeOfResource()) {
     ResourceManagerHttpCallback* resource_manager_callback =
-        new ResourceManagerHttpCallback(not_cacheable_policy,
-                                        callback,
-                                        this,
-                                        request_context);
+        new ResourceManagerHttpCallback(not_cacheable_policy, callback, this);
     http_cache_->Find(resource->url(), message_handler_,
                       resource_manager_callback);
   }
@@ -785,11 +777,10 @@ bool ServerContext::HandleBeacon(const StringPiece& unparsed_url) {
 // memory overhead.
 
 RewriteDriver* ServerContext::NewCustomRewriteDriver(
-    RewriteOptions* options, const RequestContextPtr& request_ctx) {
+    RewriteOptions* options) {
   RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver(
       NULL /* no pool as custom*/,
-      options,
-      request_ctx);
+      options);
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     active_rewrite_drivers_.insert(rewrite_driver);
@@ -805,24 +796,20 @@ RewriteDriver* ServerContext::NewCustomRewriteDriver(
 }
 
 RewriteDriver* ServerContext::NewUnmanagedRewriteDriver(
-    RewriteDriverPool* pool, RewriteOptions* options,
-    const RequestContextPtr& request_ctx) {
+    RewriteDriverPool* pool, RewriteOptions* options) {
   RewriteDriver* rewrite_driver = new RewriteDriver(
       message_handler_, file_system_, default_system_fetcher_);
   rewrite_driver->set_options_for_pool(pool, options);
   rewrite_driver->SetResourceManager(this);
-  rewrite_driver->set_request_context(request_ctx);
   return rewrite_driver;
 }
 
-RewriteDriver* ServerContext::NewRewriteDriver(
-    const RequestContextPtr& request_ctx) {
-  return NewRewriteDriverFromPool(
-      available_rewrite_drivers_.get(), request_ctx);
+RewriteDriver* ServerContext::NewRewriteDriver() {
+  return NewRewriteDriverFromPool(available_rewrite_drivers_.get());
 }
 
 RewriteDriver* ServerContext::NewRewriteDriverFromPool(
-    RewriteDriverPool* pool, const RequestContextPtr& request_ctx) {
+    RewriteDriverPool* pool) {
   RewriteDriver* rewrite_driver = NULL;
 
   RewriteOptions* options = pool->TargetOptions();
@@ -853,8 +840,7 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
   }
 
   if (rewrite_driver == NULL) {
-    rewrite_driver = NewUnmanagedRewriteDriver(
-        pool, options->Clone(), request_ctx);
+    rewrite_driver = NewUnmanagedRewriteDriver(pool, options->Clone());
     if (factory_ != NULL) {
       factory_->ApplyPlatformSpecificConfiguration(rewrite_driver);
     }
@@ -862,8 +848,6 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
     if (factory_ != NULL) {
       factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
     }
-  } else {
-    rewrite_driver->set_request_context(request_ctx);
   }
 
   {
@@ -1038,6 +1022,10 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   url_namer()->ConfigureCustomOptions(*request_headers, custom_options.get());
 
   return custom_options.release();
+}
+
+LogRecord* ServerContext::NewLogRecord() {
+  return factory_->NewLogRecord();
 }
 
 void ServerContext::ComputeSignature(RewriteOptions* rewrite_options) const {

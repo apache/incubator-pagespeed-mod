@@ -219,10 +219,8 @@ UrlNamer* TestRewriteDriverFactory::DefaultUrlNamer() {
 }
 
 void TestRewriteDriverFactory::SetUseTestUrlNamer(bool x) {
-  if (use_test_url_namer_ != x) {
-    use_test_url_namer_ = x;
-    set_url_namer(DefaultUrlNamer());
-  }
+  use_test_url_namer_ = x;
+  set_url_namer(DefaultUrlNamer());
 }
 
 Scheduler* TestRewriteDriverFactory::CreateScheduler() {

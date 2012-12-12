@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/atomic_bool.h"
@@ -52,6 +51,7 @@ class Function;
 class FuriousMatcher;
 class GoogleUrl;
 class Hasher;
+class LogRecord;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
@@ -280,7 +280,6 @@ class ServerContext {
   // be called directly, rather than asynchronously.  The resource
   // will be passed to the callback, with its contents and headers filled in.
   void ReadAsync(Resource::NotCacheablePolicy not_cacheable_policy,
-                 const RequestContextPtr& request_context,
                  Resource::AsyncCallback* callback);
 
   // Allocate an NamedLock to guard the creation of the given resource.  If the
@@ -353,6 +352,10 @@ class ServerContext {
                                    RewriteOptions* domain_options,
                                    RewriteOptions* query_options);
 
+  // Makes a new LogRecord. The caller of this method has to take the ownership
+  // of the object.
+  LogRecord* NewLogRecord();
+
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
   // but you can generate a RewriteDriver* for each thread.  The
@@ -361,12 +364,11 @@ class ServerContext {
   //
   // Filters allocated using this mechanism have their filter-chain
   // already frozen (see AddFilters()).
-  RewriteDriver* NewRewriteDriver(const RequestContextPtr& request_ctx);
+  RewriteDriver* NewRewriteDriver();
 
   // As above, but uses a specific RewriteDriverPool to determine the options
   // and manage the lifetime of the result. 'pool' must not be NULL.
-  RewriteDriver* NewRewriteDriverFromPool(
-      RewriteDriverPool* pool, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewRewriteDriverFromPool(RewriteDriverPool* pool);
 
   // Generates a new unmanaged RewriteDriver with given RewriteOptions,
   // which are assumed to correspond to drivers managed by 'pool'
@@ -382,8 +384,7 @@ class ServerContext {
   //
   // Takes ownership of 'options'.
   RewriteDriver* NewUnmanagedRewriteDriver(
-      RewriteDriverPool* pool, RewriteOptions* options,
-      const RequestContextPtr& request_ctx);
+      RewriteDriverPool* pool, RewriteOptions* options);
 
   // Like NewUnmanagedRewriteDriver, but uses standard semi-automatic
   // memory management for RewriteDrivers.
@@ -395,8 +396,7 @@ class ServerContext {
   // already frozen (see AddFilters()).
   //
   // Takes ownership of 'custom_options'.
-  RewriteDriver* NewCustomRewriteDriver(
-      RewriteOptions* custom_options, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewCustomRewriteDriver(RewriteOptions* custom_options);
 
   // Puts a RewriteDriver back on the free pool.  This is intended to
   // be called by a RewriteDriver on itself, once all pending

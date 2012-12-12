@@ -38,21 +38,19 @@ DeferIframeFilter::DeferIframeFilter(RewriteDriver* driver)
     : driver_(driver),
       static_js_manager_(
           driver->server_context()->static_javascript_manager()),
-      script_inserted_(false) {}
+      script_inserted_(false),
+      defer_js_enabled_(false) {}
 
 DeferIframeFilter::~DeferIframeFilter() {
 }
 
-void DeferIframeFilter::DetermineEnabled() {
-  set_is_enabled(driver_->UserAgentSupportsJsDefer());
-}
-
 void DeferIframeFilter::StartDocument() {
   script_inserted_ = false;
+  defer_js_enabled_ = driver_->UserAgentSupportsJsDefer();
 }
 
 void DeferIframeFilter::StartElement(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kIframe) {
+  if (defer_js_enabled_ && element->keyword() == HtmlName::kIframe) {
     if (!script_inserted_) {
       HtmlElement* script = driver_->NewElement(element->parent(),
                                                 HtmlName::kScript);
@@ -70,7 +68,7 @@ void DeferIframeFilter::StartElement(HtmlElement* element) {
 }
 
 void DeferIframeFilter::EndElement(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kPagespeedIframe) {
+  if (defer_js_enabled_ && element->keyword() == HtmlName::kPagespeedIframe) {
     HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
     driver_->AddAttribute(script, HtmlName::kType, "text/javascript");
     HtmlCharactersNode* script_content = driver_->NewCharactersNode(

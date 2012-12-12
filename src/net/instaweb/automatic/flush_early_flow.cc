@@ -106,6 +106,8 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
 
 }  // namespace
 
+class StaticJavascriptManager;
+
 const char FlushEarlyFlow::kNumRequestsFlushedEarly[] =
     "num_requests_flushed_early";
 const char FlushEarlyFlow::kNumResourcesFlushedEarly[] =
@@ -130,8 +132,7 @@ const char FlushEarlyFlow::kNumFlushEarlyHttpStatusCodeDeemedUnstable[] =
 class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
  public:
   FlushEarlyAsyncFetch(AsyncFetch* fetch, AbstractMutex* mutex)
-      : AsyncFetch(fetch->request_context()),
-        base_fetch_(fetch),
+      : base_fetch_(fetch),
         mutex_(mutex),
         flush_early_flow_done_(false),
         flushed_early_(false),
@@ -141,6 +142,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
         done_value_(false),
         flush_handler_(NULL) {
     set_request_headers(fetch->request_headers());
+    set_log_record(fetch->log_record());
   }
 
   // Indicates that the flush early flow is complete.
@@ -523,9 +525,7 @@ void FlushEarlyFlow::GenerateResponseHeaders(
   ResponseHeaders* response_headers = base_fetch_->response_headers();
   response_headers->UpdateFromProto(flush_early_info.response_headers());
   // TODO(mmohabey): Add this header only when debug filter is on.
-  response_headers->Add(
-      kPsaRewriterHeader,
-      RewriteOptions::FilterId(RewriteOptions::kFlushSubresources));
+  response_headers->Add(kPsaRewriterHeader, kFlushSubresourcesFilter);
   response_headers->SetDateAndCaching(manager_->timer()->NowMs(), 0,
                                       ", private, no-cache");
   response_headers->ComputeCaching();

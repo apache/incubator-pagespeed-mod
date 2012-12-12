@@ -40,6 +40,7 @@ class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class FuriousMatcher;
 class Hasher;
+class LogRecord;
 class MessageHandler;
 class NamedLockManager;
 class PropertyCache;
@@ -251,6 +252,10 @@ class RewriteDriverFactory {
   // custom options from queries or headers. Default implementation just
   // forwards to NewRewriteOptions().
   virtual RewriteOptions* NewRewriteOptionsForQuery();
+
+  // Creates a new LogRecord object. The caller of this method has to take
+  // ownership of the returned LogRecord instance.
+  virtual LogRecord* NewLogRecord();
 
   // get/set the version placed into the X-[Mod-]Page(s|-S)peed header.
   const GoogleString& version_string() const { return version_string_; }

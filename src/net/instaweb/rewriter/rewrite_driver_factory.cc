@@ -597,6 +597,10 @@ RewriteOptions* RewriteDriverFactory::NewRewriteOptionsForQuery() {
   return NewRewriteOptions();
 }
 
+LogRecord* RewriteDriverFactory::NewLogRecord() {
+  return new LogRecord();
+}
+
 FuriousMatcher* RewriteDriverFactory::NewFuriousMatcher() {
   return new FuriousMatcher;
 }

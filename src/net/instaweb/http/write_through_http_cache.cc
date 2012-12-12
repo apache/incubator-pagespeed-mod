@@ -22,7 +22,7 @@
 
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -44,39 +44,28 @@ class FallbackCacheCallback: public HTTPCache::Callback {
 
   FallbackCacheCallback(const GoogleString& key,
                         WriteThroughHTTPCache* write_through_http_cache,
-                        HTTPCache* cache1,
                         HTTPCache::Callback* client_callback,
                         UpdateCache1HandlerFunction function)
-      : HTTPCache::Callback(client_callback->request_context()),
-        key_(key),
+      : key_(key),
         write_through_http_cache_(write_through_http_cache),
-        cache1_(cache1),
         client_callback_(client_callback),
         function_(function) {}
 
   virtual ~FallbackCacheCallback() {}
 
   virtual void Done(HTTPCache::FindResult find_result) {
-    HTTPValue* client_fallback = client_callback_->fallback_http_value();
-    const bool has_cache1_fallback = !client_fallback->Empty();
     if (find_result != HTTPCache::kNotFound) {
       client_callback_->http_value()->Link(http_value());
       client_callback_->response_headers()->CopyFrom(*response_headers());
       // Clear the fallback_http_value() in client_callback_ since we found a
       // fresh response.
-      client_fallback->Clear();
+      client_callback_->fallback_http_value()->Clear();
       // Insert the response into cache1.
       (write_through_http_cache_->*function_)(key_, http_value());
-      if (has_cache1_fallback) {
-        cache1_->cache_fallbacks()->Add(-1);
-      }
     } else if (!fallback_http_value()->Empty()) {
       // We assume that the fallback value in the L2 cache is always fresher
       // than or as fresh as the fallback value in the L1 cache.
-      if (has_cache1_fallback) {
-        // Both caches had a fallback value, make sure we don't double count.
-        cache1_->cache_fallbacks()->Add(-1);
-      }
+      HTTPValue* client_fallback = client_callback_->fallback_http_value();
       client_fallback->Clear();
       client_fallback->Link(fallback_http_value());
     }
@@ -94,18 +83,17 @@ class FallbackCacheCallback: public HTTPCache::Callback {
   }
 
   virtual void SetTimingMs(int64 timing_value_ms) {
-    if (request_context().get() != NULL) {
-      ScopedMutex lock(log_record()->mutex());
-      TimingInfo* timing_info =
-          log_record()->logging_info()->mutable_timing_info();
-      timing_info->set_cache2_ms(timing_value_ms);
-    }
+    client_callback_->logging_info()->mutable_timing_info()->set_cache2_ms(
+        timing_value_ms);
+  }
+
+  virtual LoggingInfo* logging_info() {
+    return client_callback_->logging_info();
   }
 
  private:
   GoogleString key_;
   WriteThroughHTTPCache* write_through_http_cache_;
-  HTTPCache* cache1_;
   HTTPCache::Callback* client_callback_;
   UpdateCache1HandlerFunction function_;
 };
@@ -119,8 +107,7 @@ class Cache1Callback: public HTTPCache::Callback {
                  MessageHandler* handler,
                  HTTPCache::Callback* client_callback,
                  HTTPCache::Callback* fallback_cache_callback)
-      : HTTPCache::Callback(client_callback->request_context()),
-        key_(key),
+      : key_(key),
         fallback_cache_(fallback_cache),
         handler_(handler),
         client_callback_(client_callback),
@@ -155,12 +142,12 @@ class Cache1Callback: public HTTPCache::Callback {
   }
 
   virtual void SetTimingMs(int64 timing_value_ms) {
-    if (request_context().get() != NULL) {
-      ScopedMutex lock(log_record()->mutex());
-      TimingInfo* timing_info =
-          log_record()->logging_info()->mutable_timing_info();
-      timing_info->set_cache1_ms(timing_value_ms);
-    }
+    client_callback_->logging_info()->mutable_timing_info()->set_cache1_ms(
+          timing_value_ms);
+  }
+
+  virtual LoggingInfo* logging_info() {
+    return client_callback_->logging_info();
   }
 
  private:
@@ -212,7 +199,7 @@ void WriteThroughHTTPCache::Find(const GoogleString& key,
                                  MessageHandler* handler,
                                  Callback* callback) {
   FallbackCacheCallback* fallback_cache_callback = new FallbackCacheCallback(
-      key, this, cache1_.get(), callback, &WriteThroughHTTPCache::PutInCache1);
+      key, this, callback, &WriteThroughHTTPCache::PutInCache1);
   Cache1Callback* cache1_callback = new Cache1Callback(
       key, cache2_.get(), handler, callback, fallback_cache_callback);
   cache1_->Find(key, handler, cache1_callback);

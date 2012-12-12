@@ -313,7 +313,6 @@ class ServerContextTest : public RewriteTestBase {
     ResourcePtr resource(rewrite_driver()->CreateInputResource(gurl));
     VerifyContentsCallback callback(resource, "payload");
     server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable,
-                                rewrite_driver()->request_context(),
                                 &callback);
     callback.AssertCalled();
     return resource;
@@ -644,16 +643,14 @@ TEST_F(ServerContextTest, TestPlatformSpecificConfiguration) {
   MockPlatformConfigCallback custom_callback(&rec_custom_driver);
 
   factory()->AddPlatformSpecificConfigurationCallback(&normal_callback);
-  RewriteDriver* normal_driver = server_context()->NewRewriteDriver(
-      RequestContext::NewTestRequestContext());
+  RewriteDriver* normal_driver = server_context()->NewRewriteDriver();
   EXPECT_EQ(normal_driver, rec_normal_driver);
   factory()->ClearPlatformSpecificConfigurationCallback();
   normal_driver->Cleanup();
 
   factory()->AddPlatformSpecificConfigurationCallback(&custom_callback);
   RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          new RewriteOptions(), RequestContext::NewTestRequestContext());
+      server_context()->NewCustomRewriteDriver(new RewriteOptions());
   EXPECT_EQ(custom_driver, rec_custom_driver);
   custom_driver->Cleanup();
 }
@@ -817,18 +814,15 @@ TEST_F(ServerContextTest, TestNonCacheableReadResultPolicy) {
   ResourcePtr resource1(CreateResource("http://example.com/", "/"));
   ASSERT_TRUE(resource1.get() != NULL);
   MockResourceCallback callback1(resource1);
-  server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
-                              &callback1);
+  server_context()->ReadAsync(
+      Resource::kReportFailureIfNotCacheable, &callback1);
   EXPECT_TRUE(callback1.done());
   EXPECT_FALSE(callback1.success());
 
   ResourcePtr resource2(CreateResource("http://example.com/", "/"));
   ASSERT_TRUE(resource2.get() != NULL);
   MockResourceCallback callback2(resource2);
-  server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable,
-                              rewrite_driver()->request_context(),
-                              &callback2);
+  server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable, &callback2);
   EXPECT_TRUE(callback2.done());
   EXPECT_TRUE(callback2.success());
 }
@@ -1304,8 +1298,7 @@ TEST_F(ServerContextTest, ShutDownAssumptions) {
   // The code in ResourceManager::ShutDownWorkers assumes that some potential
   // interleaving of operations are safe. Since they are pretty unlikely
   // in practice, this test exercises them.
-  RewriteDriver* driver = server_context()->NewRewriteDriver(
-      RequestContext::NewTestRequestContext());
+  RewriteDriver* driver = server_context()->NewRewriteDriver();
   EnableRewriteDriverCleanupMode(true);
   driver->WaitForShutDown();
   driver->WaitForShutDown();

@@ -153,7 +153,9 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
 }
 
 void RewriteFilter::LogFilterModifiedContent() {
-  driver()->log_record()->LogAppliedRewriter(id());
+  if (driver()->log_record() != NULL) {
+    driver()->log_record()->LogAppliedRewriter(id());
+  }
 }
 
 }  // namespace net_instaweb

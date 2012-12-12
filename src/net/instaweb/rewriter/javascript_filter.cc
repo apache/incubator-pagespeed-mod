@@ -176,7 +176,9 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     }
     // The url or script content is changing, so log that fact.
     config_->num_uses()->Add(1);
-    Driver()->log_record()->LogAppliedRewriter(id());
+    if (Driver()->log_record() != NULL) {
+      Driver()->log_record()->LogAppliedRewriter(id());
+    }
   }
 
   virtual OutputResourceKind kind() const { return kRewrittenResource; }

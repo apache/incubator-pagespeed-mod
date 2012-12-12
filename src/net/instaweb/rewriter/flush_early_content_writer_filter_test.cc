@@ -54,7 +54,7 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
   }
 
   virtual void Clear() {
-    ClearRewriteDriver();
+    rewrite_driver()->Clear();
     rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(190);
     output_.clear();
   }

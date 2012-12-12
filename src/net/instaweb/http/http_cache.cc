@@ -22,7 +22,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -60,7 +60,6 @@ const int64 kCacheSizeUnlimited = -1;
 const char HTTPCache::kCacheTimeUs[] = "cache_time_us";
 const char HTTPCache::kCacheHits[] = "cache_hits";
 const char HTTPCache::kCacheMisses[] = "cache_misses";
-const char HTTPCache::kCacheFallbacks[] = "cache_fallbacks";
 const char HTTPCache::kCacheExpirations[] = "cache_expirations";
 const char HTTPCache::kCacheInserts[] = "cache_inserts";
 const char HTTPCache::kCacheDeletes[] = "cache_deletes";
@@ -79,7 +78,6 @@ HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
       cache_time_us_(stats->GetVariable(kCacheTimeUs)),
       cache_hits_(stats->GetVariable(kCacheHits)),
       cache_misses_(stats->GetVariable(kCacheMisses)),
-      cache_fallbacks_(stats->GetVariable(kCacheFallbacks)),
       cache_expirations_(stats->GetVariable(kCacheExpirations)),
       cache_inserts_(stats->GetVariable(kCacheInserts)),
       cache_deletes_(stats->GetVariable(kCacheDeletes)),
@@ -223,10 +221,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     }
 
     int64 elapsed_us = std::max(static_cast<int64>(0), now_us - start_us_);
-    http_cache_->UpdateStats(result,
-                             !callback_->fallback_http_value()->Empty(),
-                             elapsed_us);
-
+    http_cache_->UpdateStats(result, elapsed_us);
     callback_->SetTimingMs(elapsed_us/1000);
     if (result != HTTPCache::kFound) {
       headers->Clear();
@@ -253,17 +248,45 @@ void HTTPCache::Find(const GoogleString& key, MessageHandler* handler,
   cache_->Get(key, cb);
 }
 
-void HTTPCache::UpdateStats(
-    FindResult result, bool has_fallback, int64 delta_us) {
+namespace {
+
+// TODO(jmarantz): remove this class once all blocking usages of
+// HTTPCache are remove in favor of non-blocking usages.
+class SynchronizingCallback : public HTTPCache::Callback {
+ public:
+  SynchronizingCallback()
+      : called_(false),
+        result_(HTTPCache::kNotFound) {
+  }
+  bool called() const { return called_; }
+  HTTPCache::FindResult result() const { return result_; }
+
+  virtual void Done(HTTPCache::FindResult result) {
+    result_ = result;
+    called_ = true;
+  }
+
+  virtual bool IsCacheValid(const GoogleString& key,
+                            const ResponseHeaders& headers) {
+    // We don't support custom invalidation policy on the legacy sync path.
+    return true;
+  }
+
+ private:
+  bool called_;
+  HTTPCache::FindResult result_;
+
+  DISALLOW_COPY_AND_ASSIGN(SynchronizingCallback);
+};
+
+}  // namespace
+
+void HTTPCache::UpdateStats(FindResult result, int64 delta_us) {
   cache_time_us_->Add(delta_us);
   if (result == kFound) {
     cache_hits_->Add(1);
-    DCHECK(!has_fallback);
   } else {
     cache_misses_->Add(1);
-    if (has_fallback) {
-      cache_fallbacks_->Add(1);
-    }
   }
 }
 
@@ -453,7 +476,6 @@ void HTTPCache::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCacheTimeUs);
   statistics->AddVariable(kCacheHits);
   statistics->AddVariable(kCacheMisses);
-  statistics->AddVariable(kCacheFallbacks);
   statistics->AddVariable(kCacheExpirations);
   statistics->AddVariable(kCacheInserts);
   statistics->AddVariable(kCacheDeletes);
@@ -463,18 +485,30 @@ HTTPCache::Callback::~Callback() {
   if (owns_response_headers_) {
     delete response_headers_;
   }
-}
-
-LogRecord* HTTPCache::Callback::log_record() {
-  return request_context()->log_record();
+  if (owns_logging_info_) {
+    delete logging_info_;
+  }
 }
 
 void HTTPCache::Callback::SetTimingMs(int64 timing_value_ms) {
-  if (request_context().get() != NULL) {
-    ScopedMutex lock(log_record()->mutex());
-    log_record()->logging_info()->mutable_timing_info()->
-        set_cache1_ms(timing_value_ms);
+  logging_info()->mutable_timing_info()->set_cache1_ms(timing_value_ms);
+}
+
+void HTTPCache::Callback::set_logging_info(LoggingInfo* logging_info) {
+  DCHECK(!owns_logging_info_);
+  if (owns_logging_info_) {
+    delete logging_info_;
   }
+  logging_info_ = logging_info;
+  owns_logging_info_ = false;
+}
+
+LoggingInfo* HTTPCache::Callback::logging_info() {
+  if (logging_info_ == NULL) {
+    logging_info_ = new LoggingInfo;
+    owns_logging_info_ = true;
+  }
+  return logging_info_;
 }
 
 }  // namespace net_instaweb

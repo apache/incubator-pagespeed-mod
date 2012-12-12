@@ -19,6 +19,7 @@
 #ifndef NET_INSTAWEB_AUTOMATIC_PUBLIC_BLINK_FLOW_CRITICAL_LINE_H_
 #define NET_INSTAWEB_AUTOMATIC_PUBLIC_BLINK_FLOW_CRITICAL_LINE_H_
 
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -30,7 +31,6 @@ namespace net_instaweb {
 class AsyncFetch;
 class BlinkCriticalLineData;
 class BlinkCriticalLineDataFinder;
-class LogRecord;
 class PropertyPage;
 class ProxyFetchPropertyCallbackCollector;
 class ProxyFetchFactory;
@@ -146,14 +146,12 @@ class BlinkFlowCriticalLine {
   // Returns true if property cache has last response code as non 200.
   bool IsLastResponseCodeInvalid(PropertyPage* page);
 
-  // Convenience method to access the log record from base_fetch_'s request
-  // context.
-  LogRecord* log_record();
-
   GoogleString url_;
   GoogleUrl google_url_;
   GoogleString critical_html_;
   AsyncFetch* base_fetch_;
+  LogRecord* log_record_;
+  BlinkInfo* blink_info_;
   RewriteOptions* options_;
   ProxyFetchFactory* factory_;
   ServerContext* manager_;

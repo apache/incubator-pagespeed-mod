@@ -63,7 +63,8 @@ class CriticalImagesFinder {
 
   // Compute the critical images for the given url.
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) = 0;
+                                     RewriteDriver* driver,
+                                     bool must_compute) = 0;
 
   // Identifies which cohort in the PropertyCache the critical image information
   // is located in.
@@ -96,9 +97,10 @@ class CriticalImagesFinder {
   // after checking if the property value is still valid using the provided TTL.
   // It also updates stats variables if track_stats is true.
   StringSet* ExtractCriticalImagesSet(
-      RewriteDriver* driver,
-      const PropertyValue* property_value,
-      bool track_stats);
+    const PropertyValue* property_value,
+    const PropertyCache* page_property_cache,
+    int64 cache_ttl_ms,
+    bool track_stats);
 
   Variable* critical_images_valid_count_;
   Variable* critical_images_expired_count_;

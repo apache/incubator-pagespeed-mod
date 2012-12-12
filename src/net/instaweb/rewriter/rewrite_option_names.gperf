@@ -34,7 +34,7 @@ struct OptionName {
 "BlinkNonCacheablesForAllFamilies",      RewriteOptions::kBlinkNonCacheablesForAllFamilies
 "ClientDomainRewrite",                   RewriteOptions::kClientDomainRewrite
 "CombineAcrossPaths",                    RewriteOptions::kCombineAcrossPaths
-"FinderPropertiesCacheExpirationTimeMs", RewriteOptions::kFinderPropertiesCacheExpirationTimeMs,
+"CriticalImagesCacheExpirationTimeMs",   RewriteOptions::kCriticalImagesCacheExpirationTimeMs
 "CriticalLineConfig",                    RewriteOptions::kCriticalLineConfig
 "CssFlattenMaxBytes",                    RewriteOptions::kCssFlattenMaxBytes
 "CssImageInlineMaxBytes",                RewriteOptions::kCssImageInlineMaxBytes
@@ -56,7 +56,6 @@ struct OptionName {
 "FlushHtml",                             RewriteOptions::kFlushHtml
 "FlushMoreResourcesEarlyIfTimePermits",  RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits
 "ForbidAllDisabledFilters",              RewriteOptions::kForbidAllDisabledFilters
-"FuriousCookieDurationMs",               RewriteOptions::kFuriousCookieDurationMs
 "IdleFlushTimeMs",                       RewriteOptions::kIdleFlushTimeMs
 "ImageInlineMaxBytes",                   RewriteOptions::kImageInlineMaxBytes
 "ImageJpegNumProgressiveScans",          RewriteOptions::kImageJpegNumProgressiveScans

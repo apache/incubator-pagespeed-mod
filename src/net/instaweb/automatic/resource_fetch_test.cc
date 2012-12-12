@@ -22,7 +22,6 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -33,10 +32,10 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -67,8 +66,7 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   RewriteOptions* custom_options =
       server_context()->global_options()->Clone();
   RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options, RequestContext::NewTestRequestContext());
+      server_context()->NewCustomRewriteDriver(custom_options);
 
   GoogleUrl url(Encode(kTestDomain, "cf", "0", "a.css", "css"));
   EXPECT_TRUE(
@@ -85,14 +83,13 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
   // Fetch stuff.
   GoogleString buffer;
   StringWriter writer(&buffer);
-  RewriteOptions* custom_options =
-      server_context()->global_options()->Clone();
-  RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options, RequestContext::NewTestRequestContext());
   SyncFetcherAdapterCallback* callback =
       new SyncFetcherAdapterCallback(server_context()->thread_system(),
                                      &writer);
+  RewriteOptions* custom_options =
+      server_context()->global_options()->Clone();
+  RewriteDriver* custom_driver =
+      server_context()->NewCustomRewriteDriver(custom_options);
 
   // Encode an URL then invalidate it by removing the hash. This will cause
   // RewriteDriver::DecodeOutputResourceNameHelper to reject it, which will

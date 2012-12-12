@@ -43,7 +43,8 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
   }
 
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver);
+                                     RewriteDriver* driver,
+                                     bool must_compute);
 
   virtual const char* GetCriticalImagesCohort() const {
     return kBeaconCohort;

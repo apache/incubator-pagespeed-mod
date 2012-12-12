@@ -134,10 +134,8 @@ class UrlResourceFetchCallback : public AsyncFetch {
  public:
   UrlResourceFetchCallback(ServerContext* server_context,
                            const RewriteOptions* rewrite_options,
-                           HTTPValue* fallback_value,
-                           const RequestContextPtr& request_context)
-      : AsyncFetch(request_context),
-        server_context_(server_context),
+                           HTTPValue* fallback_value)
+      : server_context_(server_context),
         rewrite_options_(rewrite_options),
         message_handler_(NULL),
         success_(false),
@@ -371,10 +369,8 @@ class FreshenFetchCallback : public UrlResourceFetchCallback {
                        const RewriteOptions* rewrite_options,
                        HTTPValue* fallback_value,
                        Resource::FreshenCallback* callback)
-      : UrlResourceFetchCallback(server_context,
-                                 rewrite_options,
-                                 fallback_value,
-                                 rewrite_driver->request_context()),
+      : UrlResourceFetchCallback(server_context, rewrite_options,
+                                 fallback_value),
         url_(url),
         http_cache_(http_cache),
         rewrite_driver_(rewrite_driver),
@@ -425,7 +421,7 @@ class FreshenHttpCacheCallback : public OptionsAwareHTTPCacheCallback {
                            RewriteDriver* driver,
                            const RewriteOptions* options,
                            Resource::FreshenCallback* callback)
-      : OptionsAwareHTTPCacheCallback(options, driver->request_context()),
+      : OptionsAwareHTTPCacheCallback(options),
         url_(url),
         manager_(manager),
         driver_(driver),
@@ -520,12 +516,10 @@ void UrlInputResource::Freshen(Resource::FreshenCallback* callback,
 class UrlReadAsyncFetchCallback : public UrlResourceFetchCallback {
  public:
   explicit UrlReadAsyncFetchCallback(Resource::AsyncCallback* callback,
-                                     UrlInputResource* resource,
-                                     const RequestContextPtr& request_context)
+                                     UrlInputResource* resource)
       : UrlResourceFetchCallback(resource->server_context(),
                                  resource->rewrite_options(),
-                                 &resource->fallback_value_,
-                                 request_context),
+                                 &resource->fallback_value_),
         resource_(resource),
         callback_(callback),
         http_value_writer_(http_value(), http_cache()) {
@@ -600,9 +594,7 @@ void UrlInputResource::LoadAndCallback(NotCacheablePolicy no_cache_policy,
     callback->Done(true, true);
   } else {
     UrlReadAsyncFetchCallback* cb =
-        new UrlReadAsyncFetchCallback(callback,
-                                      this,
-                                      rewrite_driver_->request_context());
+        new UrlReadAsyncFetchCallback(callback, this);
     if (no_cache_policy == Resource::kLoadEvenIfNotCacheable) {
       cb->set_no_cache_ok(true);
     }

@@ -142,8 +142,9 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // Stats.
   void AddFileCountReduction(int files) {
     js_file_count_reduction_->Add(files);
-    if (files >= 1) {
-      filter_->LogFilterModifiedContent();
+    if (files >= 1 && rewrite_driver_->log_record() != NULL) {
+      rewrite_driver_->log_record()->LogAppliedRewriter(
+          RewriteOptions::FilterId(RewriteOptions::kCombineJavascript));
     }
   }
 

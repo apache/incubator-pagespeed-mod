@@ -166,8 +166,7 @@ class RewriteDriver : public HtmlParse {
   // instances without propagating the include files.
   virtual ~RewriteDriver();
 
-  // Returns a fresh instance using the same options we do, using the same log
-  // record. Drivers should only be cloned within the same request.
+  // Returns a fresh instance using the same options we do.
   RewriteDriver* Clone();
 
   // Clears the current request cache of resources and base URL.  The
@@ -222,7 +221,9 @@ class RewriteDriver : public HtmlParse {
   }
 
   RequestContextPtr request_context() { return request_context_; }
-  void set_request_context(const RequestContextPtr& x);
+  void set_request_context(const RequestContextPtr& x) {
+    request_context_.reset(x);
+  }
 
   // Convenience method to return the trace context from the request_context()
   // if both are configured and NULL otherwise.
@@ -944,27 +945,13 @@ class RewriteDriver : public HtmlParse {
   // be used in subsequent request.
   void SaveOriginalHeaders(const ResponseHeaders& response_headers);
 
-  // log_record() always returns a pointer to a valid LogRecord, owned by the
-  // rewrite_driver's request context.
-  LogRecord* log_record();
+  // log_record() can return NULL.
+  LogRecord* log_record() { return log_record_; }
+  void set_log_record(LogRecord* l) { log_record_ = l; }
 
   // Determines whether the system is healthy enough to rewrite resources.
   // Currently, systems get sick based on the health of the metadata cache.
   bool can_rewrite_resources() { return can_rewrite_resources_; }
-
-  // Sets the is_nested property on the driver.
-  void set_is_nested(bool n) { is_nested_ = n; }
-
-  // Sets must compute finder properties to true. Note that this value is
-  // sticky. Once it is set to true for a given request, it remains true till
-  // the driver is reset.
-  void enable_must_compute_finder_properties() {
-    must_compute_finder_properties_ = true;
-  }
-
-  bool must_compute_finder_properties() {
-    return must_compute_finder_properties_;
-  }
 
  private:
   friend class RewriteDriverTest;
@@ -1391,20 +1378,19 @@ class RewriteDriver : public HtmlParse {
   bool is_blink_request_;
   bool can_rewrite_resources_;
 
-  // Indicates whether we must properties of any of the finders.
-  bool must_compute_finder_properties_;
+  // Pointer to the base fetch's log record, passed in from ProxyInterface; this
+  // may be NULL and accessing it beyond the base fetch's lifespan is unsafe.
+  // Reset to NULL in Cleanup()
+  LogRecord* log_record_;
 
   // Additional request context that may outlive this RewriteDriver. (Thus,
   // the context is reference counted.)
+  // TODO(piatek): Merge this with log_record_ and track them similarly since
+  //               they have the same flow.
   RequestContextPtr request_context_;
 
   // Start time for HTML requests. Used for statistics reporting.
   int64 start_time_ms_;
-
-  // True if this driver has been cloned from another to execute subordinate
-  // rewrites. Some logging operations aren't executed on nested rewrite
-  // drivers. Note that this is totally distinct from nested rewrite contexts.
-  bool is_nested_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };
@@ -1420,9 +1406,7 @@ class OptionsAwareHTTPCacheCallback : public HTTPCache::Callback {
  protected:
   // Sub-classes need to ensure that rewrite_options remains valid till
   // Callback::Done finishes.
-  OptionsAwareHTTPCacheCallback(
-      const RewriteOptions* rewrite_options,
-      const RequestContextPtr& request_ctx);
+  explicit OptionsAwareHTTPCacheCallback(const RewriteOptions* rewrite_options);
 
  private:
   const RewriteOptions* rewrite_options_;

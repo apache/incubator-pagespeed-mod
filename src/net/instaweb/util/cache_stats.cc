@@ -69,7 +69,7 @@ CacheStats::CacheStats(StringPiece prefix,
       hits_(statistics->GetVariable(StrCat(prefix, kHits))),
       inserts_(statistics->GetVariable(StrCat(prefix, kInserts))),
       misses_(statistics->GetVariable(StrCat(prefix, kMisses))),
-      name_(StrCat(prefix, "_with_stats_", cache->Name())) {
+      name_(StrCat(prefix, "_stats")) {
   get_count_histogram_->SetMaxValue(kGetCountHistogramMaxValue);
   insert_size_bytes_histogram_->SetMaxValue(kSizeHistogramMaxValue);
   lookup_size_bytes_histogram_->SetMaxValue(kSizeHistogramMaxValue);
