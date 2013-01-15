@@ -20,19 +20,6 @@
 // interaction with various subsystems.
 
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
-
-#include "base/logging.h"
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/util/public/function.h"
-#include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/stl_util.h"
 
 namespace net_instaweb {
@@ -143,15 +130,17 @@ void NestedFilter::Context::Harvest() {
     ResourcePtr resource(slot->resource());
     StrAppend(&new_content, resource->url(), "\n");
   }
-
+  ServerContext* resource_manager = FindServerContext();
+  MessageHandler* message_handler = resource_manager->message_handler();
   // Warning: this uses input's content-type for simplicity, but real
   // filters should not do that --- see comments in
   // CacheExtender::RewriteLoadedResource as to why.
-  if (Driver()->Write(ResourceVector(1, slot(0)->resource()),
-                      new_content,
-                      slot(0)->resource()->type(),
-                      slot(0)->resource()->charset(),
-                      output(0).get())) {
+  if (resource_manager->Write(ResourceVector(1, slot(0)->resource()),
+                              new_content,
+                              slot(0)->resource()->type(),
+                              slot(0)->resource()->charset(),
+                              output(0).get(),
+                              message_handler)) {
     result = kRewriteOk;
   }
   RewriteDone(result, 0);
@@ -207,8 +196,7 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
   for (int i = 0, n = num_slots(); i < n; ++i) {
     slot(i)->resource()->AddInputInfoToPartition(
         Resource::kIncludeInputHash, i, partition);
-    if (!slot(i)->resource()->IsSafeToRewrite() ||
-        !combiner_.AddResourceNoFetch(slot(i)->resource(), handler).value) {
+    if (!combiner_.AddResourceNoFetch(slot(i)->resource(), handler).value) {
       return false;
     }
   }
@@ -308,6 +296,7 @@ void RewriteContextTestBase::SetUp() {
   other_trim_filter_ = NULL;
   combining_filter_ = NULL;
   nested_filter_ = NULL;
+  logging_info_ = log_record_.logging_info();
 
   RewriteTestBase::SetUp();
 
@@ -370,20 +359,6 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
 
   SetFetchResponse(StrCat(domain, "a_no_cache.css"),
                    no_cache_css_header,
-                   " a ");
-
-  // trimmable, no-transform
-  ResponseHeaders no_transform_css_header;
-  now_ms = http_cache()->timer()->NowMs();
-  no_transform_css_header.set_major_version(1);
-  no_transform_css_header.set_minor_version(1);
-  no_transform_css_header.SetStatusAndReason(HttpStatus::kOK);
-  no_transform_css_header.SetDateAndCaching(now_ms, kOriginTtlMs,
-                                            ",no-transform");
-  no_transform_css_header.ComputeCaching();
-
-  SetFetchResponse(StrCat(domain, "a_no_transform.css"),
-                   no_transform_css_header,
                    " a ");
 
   // trimmable, no-cache, no-store
@@ -459,6 +434,7 @@ void RewriteContextTestBase::ClearStats() {
   if (nested_filter_ != NULL) {
     nested_filter_->ClearStats();
   }
+  log_record_.logging_info()->Clear();
 }
 
 }  // namespace net_instaweb

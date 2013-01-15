@@ -21,11 +21,6 @@
 
 namespace net_instaweb {
 
-namespace UserAgentStrings {
-const char kTestingWebp[] = "webp";
-const char kTestingWebpLosslessAlpha[] = "webp-la";
-}
-
 class UserAgentMatcherTest : public testing::Test {
  protected:
   UserAgentMatcher user_agent_matcher_;
@@ -135,36 +130,26 @@ TEST_F(UserAgentMatcherTest, DoesNotSupportBlink) {
 }
 
 TEST_F(UserAgentMatcherTest, PrefetchMechanism) {
-  const RequestHeaders headers;
   EXPECT_EQ(UserAgentMatcher::kPrefetchImageTag,
             user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_image_tag", &headers));
+                "prefetch_image_tag"));
   EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
             user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kIe9UserAgent, &headers));
+                UserAgentStrings::kIe9UserAgent));
   EXPECT_EQ(UserAgentMatcher::kPrefetchLinkRelSubresource,
             user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_link_rel_subresource", &headers));
+                "prefetch_link_rel_subresource"));
   EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
             user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kSafariUserAgent, &headers));
+                UserAgentStrings::kSafariUserAgent));
   EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
             user_agent_matcher_.GetPrefetchMechanism(
-                "prefetch_link_script_tag", &headers));
+                "prefetch_link_script_tag"));
   EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
             user_agent_matcher_.GetPrefetchMechanism(
-                NULL, &headers));
+                NULL));
   EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism("", &headers));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kAndroidICSUserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kIPhoneUserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kPrefetchNotSupported,
-            user_agent_matcher_.GetPrefetchMechanism(
-                UserAgentStrings::kIPadUserAgent, &headers));
+            user_agent_matcher_.GetPrefetchMechanism(""));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsJsDefer) {
@@ -212,11 +197,6 @@ TEST_F(UserAgentMatcherTest, NotSupportsJsDeferAllowMobile) {
 }
 
 TEST_F(UserAgentMatcherTest, SupportsWebp) {
-  EXPECT_TRUE(user_agent_matcher_.SupportsWebp(
-      UserAgentStrings::kTestingWebp));
-  EXPECT_TRUE(user_agent_matcher_.SupportsWebp(
-      UserAgentStrings::kTestingWebpLosslessAlpha));
-
   EXPECT_TRUE(user_agent_matcher_.SupportsWebp(
       UserAgentStrings::kAndroidICSUserAgent));
   EXPECT_TRUE(user_agent_matcher_.SupportsWebp(
@@ -319,61 +299,6 @@ TEST_F(UserAgentMatcherTest, DoesntSupportDnsPrefetch) {
       UserAgentStrings::kSafariUserAgent));
 }
 
-TEST_F(UserAgentMatcherTest, SupportsWebpLosslessAlpha) {
-  EXPECT_TRUE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kTestingWebpLosslessAlpha));
-}
-
-TEST_F(UserAgentMatcherTest, DoesntSupportWebpLosslessAlpha) {
-  // The most interesting tests here are the recent but slightly older versions
-  // of Chrome and Opera that can't display webp.
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kTestingWebp));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kAndroidICSUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kChrome12UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kChrome18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kOpera1110UserAgent));
-
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kAndroidHCUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kChromeUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kChrome9UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kChrome15UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kOpera1101UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kFirefoxUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kFirefox1UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kIe8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kIe9UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kIPhoneUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kNokiaUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kOpera5UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kOpera8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kPSPUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.SupportsWebpLosslessAlpha(
-      UserAgentStrings::kSafariUserAgent));
-}
-
 TEST_F(UserAgentMatcherTest, SupportsDnsPrefetchUsingRelPrefetch) {
   EXPECT_FALSE(user_agent_matcher_.SupportsDnsPrefetchUsingRelPrefetch(
       UserAgentStrings::kIe6UserAgent));
@@ -410,35 +335,6 @@ TEST_F(UserAgentMatcherTest, SplitHtmlRelated) {
       UserAgentStrings::kOpera5UserAgent, false));
   EXPECT_FALSE(user_agent_matcher_.SupportsSplitHtml(
       UserAgentStrings::kPSPUserAgent, false));
-}
-
-TEST_F(UserAgentMatcherTest, IsMobileUserAgent) {
-  EXPECT_TRUE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kAndroidICSUserAgent));
-  EXPECT_TRUE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kAndroidNexusSUserAgent));
-  EXPECT_TRUE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kAndroidChrome21UserAgent));
-  EXPECT_TRUE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kIPhoneChrome21UserAgent));
-  EXPECT_TRUE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kIPhoneUserAgent));
-
-  EXPECT_FALSE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kNexus7ChromeUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kIPadUserAgent));
-  EXPECT_FALSE(user_agent_matcher_.IsMobileUserAgent(
-      UserAgentStrings::kSafariUserAgent));
-}
-
-TEST_F(UserAgentMatcherTest, GetDeviceTypeForUA) {
-  EXPECT_EQ(UserAgentMatcher::kDesktop, user_agent_matcher_.GetDeviceTypeForUA(
-      UserAgentStrings::kIe9UserAgent));
-  EXPECT_EQ(UserAgentMatcher::kMobile, user_agent_matcher_.GetDeviceTypeForUA(
-      UserAgentStrings::kIPhone4Safari));
-  EXPECT_EQ(UserAgentMatcher::kDesktop, user_agent_matcher_.GetDeviceTypeForUA(
-      NULL));
 }
 
 }  // namespace net_instaweb

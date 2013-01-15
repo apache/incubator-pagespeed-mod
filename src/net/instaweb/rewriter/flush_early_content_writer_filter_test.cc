@@ -17,7 +17,6 @@
 
 #include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
 
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -31,10 +30,6 @@
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
-const char kPrefetchScript[] =
-    "<script type='text/javascript'>window.mod_pagespeed_prefetch_start"
-    " = Number(new Date());window.mod_pagespeed_num_resources_prefetched"
-    " = %d</script>";
 
 class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
  public:
@@ -52,7 +47,6 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
     options()->set_flush_more_resources_early_if_time_permits(true);
     options()->set_flush_more_resources_in_ie_and_firefox(true);
     RewriteTestBase::SetUp();
-    rewrite_driver()->set_request_headers(&request_headers_);
     rewrite_driver()->set_flushing_early(true);
     rewrite_driver()->SetWriter(&writer_);
     server_context()->set_flush_early_info_finder(
@@ -60,24 +54,9 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
   }
 
   virtual void Clear() {
-    ClearRewriteDriver();
+    rewrite_driver()->Clear();
     rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(190);
-    rewrite_driver()->set_request_headers(&request_headers_);
     output_.clear();
-  }
-
-  void EnableDeferJsAndSetFetchLatency(int latency) {
-    Clear();
-    options()->ClearSignatureForTesting();
-    options()->EnableFilter(RewriteOptions::kDeferJavascript);
-    server_context()->ComputeSignature(options());
-    rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(latency);
-  }
-
-  GoogleString RewrittenOutputWithResources(const GoogleString& html_output,
-                                            const int& number_of_resources) {
-    return StrCat(html_output,
-                  StringPrintf(kPrefetchScript, number_of_resources));
   }
 
   GoogleString output_;
@@ -85,7 +64,6 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
  private:
   scoped_ptr<FlushEarlyContentWriterFilter> filter_;
   StringWriter writer_;
-  RequestHeaders request_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(FlushEarlyContentWriterFilterTest);
 };
@@ -120,7 +98,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
 
   // First test with no User-Agent.
   Parse("no_user_agent", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_link_rel_subresource.
   Clear();
@@ -130,10 +108,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "\"http://www.test.com/c.js.pagespeed.jm.0.js\"/>\n"
       "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.0.css\"/>\n"
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
-      "<link rel=\"prefetch\" href=\"//test1.com\">";
+      "<link rel=\"prefetch\" href=\"//test1.com\">"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 2</script>";
 
   Parse("prefetch_link_rel_subresource", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_link_script_tag.
   Clear();
@@ -147,11 +128,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "\"http://www.test.com/c.js.pagespeed.jm.0.js\"></script>\n"
       "<link rel=\"stylesheet\" href=\"d.css.pagespeed.cf.0.css\" "
       "media=\"print\" disabled=\"true\"/>\n"
-      "<script type=\"psa_prefetch\" src=\"d.js.pagespeed.ce.0.js\">"
-      "</script>\n";
+      "<script type=\"psa_prefetch\" src=\"d.js.pagespeed.ce.0.js\"></script>\n"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 4</script>";
 
   Parse("prefetch_link_script_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_image_tag.
   Clear();
@@ -165,10 +148,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
       "<link rel=\"prefetch\" href=\"//test1.com\">"
       "<script type=\"text/javascript\">"
-      "(function(){new Image().src=\"d.js.pagespeed.ce.0.js\";})()</script>";
+      "(function(){new Image().src=\"d.js.pagespeed.ce.0.js\";})()</script>"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 4</script>";
 
   Parse("prefetch_image_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Enable defer_javasript. We will flush JS resources only if time permits.
   Clear();
@@ -187,10 +173,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "(function(){"
       "new Image().src=\"http://www.test.com/c.js.pagespeed.jm.0.js\";"
       "new Image().src=\"d.js.pagespeed.ce.0.js\";})()"
-      "</script>";
+      "</script>"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 4</script>";
 
   Parse("defer_javasript", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_link_script_tag with defer_javascript
   // enabled.
@@ -202,10 +191,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
       "<link rel=\"prefetch\" href=\"//test1.com\">"
       "<link rel=\"stylesheet\" href=\"d.css.pagespeed.cf.0.css\" "
-      "media=\"print\" disabled=\"true\"/>\n";
+      "media=\"print\" disabled=\"true\"/>\n"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 2</script>";
 
   Parse("prefetch_link_script_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
+  EXPECT_EQ(html_output, output_);
 }
 
 TEST_F(FlushEarlyContentWriterFilterTest, NoResourcesToFlush) {
@@ -221,49 +213,21 @@ TEST_F(FlushEarlyContentWriterFilterTest, NoResourcesToFlush) {
 
   // First test with no User-Agent.
   Parse("no_user_agent", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_link_rel_subresource.
   output_.clear();
   rewrite_driver()->set_user_agent("prefetch_link_rel_subresource");
 
   Parse("prefetch_link_rel_subresource", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_image_tag.
   output_.clear();
   rewrite_driver()->set_user_agent("prefetch_image_tag");
 
   Parse("prefetch_image_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
-}
-
-TEST_F(FlushEarlyContentWriterFilterTest, FlushDeferJsEarlyIfTimePermits) {
-  GoogleString html_input =
-      "<!DOCTYPE html>"
-      "<html>"
-      "<head>"
-      "</head>"
-      "<body></body></html>";
-
-  // Set fetch latency to 0. DeferJs should not be flushed early.
-  EnableDeferJsAndSetFetchLatency(0);
-  // User-Agent: prefetch_link_script_tag.
-  output_.clear();
-  rewrite_driver()->set_user_agent("prefetch_link_script_tag");
-  Parse("prefetch_link_script_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources("", 0), output_);
-
-
-  // Set fetch latency to 200. DeferJs should be flushed early.
-  EnableDeferJsAndSetFetchLatency(200);
-  // User-Agent: prefetch_link_script_tag.
-  output_.clear();
-  rewrite_driver()->set_user_agent("prefetch_link_script_tag");
-  Parse("prefetch_link_script_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(
-      "<script type=\"psa_prefetch\" src=\"/psajs/js_defer.0.js\"></script>\n",
-      1), output_);
+  EXPECT_EQ(html_output, output_);
 }
 
 TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources) {
@@ -288,7 +252,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources) {
 
   // First test with no User-Agent.
   Parse("no_user_agent", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_link_rel_subresource.
   output_.clear();
@@ -297,10 +261,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources) {
       "<link rel=\"subresource\" href=\"a.css\"/>\n"
       "<link rel=\"subresource\" href="
       "\"http://www.test.com/c.js.pagespeed.jm.0.js\"/>\n"
-      "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.0.css\"/>\n";
+      "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.0.css\"/>\n"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 3</script>";
 
   Parse("prefetch_link_rel_subresource", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 3), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Set the User-Agent to prefetch_image_tag.
   output_.clear();
@@ -310,10 +277,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources) {
       "new Image().src=\"a.css\";"
       "new Image().src=\"http://www.test.com/c.js.pagespeed.jm.0.js\";"
       "new Image().src=\"d.css.pagespeed.cf.0.css\";})()"
-      "</script>";
+      "</script>"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 3</script>";
 
   Parse("prefetch_image_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 3), output_);
+  EXPECT_EQ(html_output, output_);
 
   // Enable defer_javasript. We don't flush JS resources now.
   output_.clear();
@@ -325,10 +295,13 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources) {
       "<script type=\"text/javascript\">(function(){"
       "new Image().src=\"a.css\";"
       "new Image().src=\"d.css.pagespeed.cf.0.css\";})()"
-      "</script>";
+      "</script>"
+      "<script type='text/javascript'>"
+      "window.mod_pagespeed_prefetch_start = Number(new Date());"
+      "window.mod_pagespeed_num_resources_prefetched = 2</script>";
 
   Parse("prefetch_image_tag", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
+  EXPECT_EQ(html_output, output_);
 }
 
 }  // namespace net_instaweb

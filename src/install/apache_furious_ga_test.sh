@@ -24,4 +24,4 @@ start_test Analytics javascript is not added for the no-experiment group.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=0' $EXTEND_CACHE)
 check_not_from "$OUT" fgrep -q 'Experiment:'
 
-check_failures_and_exit
+system_test_trailer

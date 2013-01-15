@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
@@ -153,14 +152,6 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   // TODO(jmarantz): this should be done as a SimpleTextFilter.
   virtual void RewriteSingle(
       const ResourcePtr& input, const OutputResourcePtr& output) {
-    bool is_ipro =
-        num_slots() == 1 &&
-        (slot(0)->LocationString() ==
-            InPlaceRewriteResourceSlot::kIproSlotLocation);
-    AttachDependentRequestTrace(is_ipro ? "IproProcessJs" : "ProcessJs");
-    if (!StringPiece(input->url()).starts_with("data:")) {
-      TracePrintf("RewriteJs: %s", input->url().c_str());
-    }
     RewriteDone(RewriteJavascript(input, output), 0);
   }
 
@@ -185,7 +176,9 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     }
     // The url or script content is changing, so log that fact.
     config_->num_uses()->Add(1);
-    Driver()->log_record()->LogAppliedRewriter(id());
+    if (Driver()->log_record() != NULL) {
+      Driver()->log_record()->LogAppliedRewriter(id());
+    }
   }
 
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
@@ -211,11 +204,12 @@ class JavascriptFilter::Context : public SingleRewriteContext {
         content_type->type() != ContentType::kJavascript) {
       content_type = &kContentTypeJavascript;
     }
-    if (Driver()->Write(ResourceVector(1, script_resource),
-                        script_out,
-                        content_type,
-                        script_resource->charset(),
-                        script_dest.get())) {
+    if (server_context->Write(ResourceVector(1, script_resource),
+                              script_out,
+                              content_type,
+                              script_resource->charset(),
+                              script_dest.get(),
+                              message_handler)) {
       ok = true;
       message_handler->Message(kInfo, "Rewrite script %s to %s",
                                script_resource->url().c_str(),
@@ -352,9 +346,6 @@ void JavascriptFilter::RewriteExternalScript() {
   if (resource.get() != NULL) {
     ResourceSlotPtr slot(
         driver_->GetSlot(resource, script_in_progress_, script_src_));
-    if (driver_->options()->js_preserve_urls()) {
-      slot->set_disable_rendering(true);
-    }
     Context* jrc = new Context(driver_, NULL, config_.get(), body_node_);
     jrc->AddSlot(slot);
     driver_->InitiateRewrite(jrc);

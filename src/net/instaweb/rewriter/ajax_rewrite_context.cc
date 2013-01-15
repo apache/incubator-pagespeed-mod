@@ -16,7 +16,7 @@
 
 // Author: nikhilmadan@google.com (Nikhil Madan)
 
-#include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
+#include "net/instaweb/rewriter/public/ajax_rewrite_context.h"
 
 #include <algorithm>
 
@@ -49,49 +49,42 @@ namespace net_instaweb {
 
 class MessageHandler;
 
-const char InPlaceRewriteResourceSlot::kIproSlotLocation[] = "ipro";
-
 // Names for Statistics variables.
-const char InPlaceRewriteContext::kInPlaceOversizedOptStream[] =
+const char AjaxRewriteContext::kInPlaceOversizedOptStream[] =
     "in_place_oversized_opt_stream";
 
-InPlaceRewriteResourceSlot::InPlaceRewriteResourceSlot(
-    const ResourcePtr& resource)
+AjaxRewriteResourceSlot::AjaxRewriteResourceSlot(const ResourcePtr& resource)
     : ResourceSlot(resource) {}
 
-InPlaceRewriteResourceSlot::~InPlaceRewriteResourceSlot() {}
+AjaxRewriteResourceSlot::~AjaxRewriteResourceSlot() {}
 
-GoogleString InPlaceRewriteResourceSlot::LocationString() {
-  return kIproSlotLocation;
-}
-
-void InPlaceRewriteResourceSlot::Render() {
+void AjaxRewriteResourceSlot::Render() {
   // Do nothing.
 }
 
 RecordingFetch::RecordingFetch(AsyncFetch* async_fetch,
                                const ResourcePtr& resource,
-                               InPlaceRewriteContext* context,
+                               AjaxRewriteContext* context,
                                MessageHandler* handler)
     : SharedAsyncFetch(async_fetch),
       handler_(handler),
       resource_(resource),
       context_(context),
-      can_in_place_rewrite_(false),
+      can_ajax_rewrite_(false),
       streaming_(true),
       cache_value_writer_(&cache_value_,
                           context_->FindServerContext()->http_cache()) {
   Statistics* stats = context->FindServerContext()->statistics();
   in_place_oversized_opt_stream_ =
-      stats->GetVariable(InPlaceRewriteContext::kInPlaceOversizedOptStream);
+      stats->GetVariable(AjaxRewriteContext::kInPlaceOversizedOptStream);
 }
 
 RecordingFetch::~RecordingFetch() {}
 
 void RecordingFetch::HandleHeadersComplete() {
-  can_in_place_rewrite_ = CanInPlaceRewrite();
+  can_ajax_rewrite_ = CanAjaxRewrite();
   streaming_ = ShouldStream();
-  if (can_in_place_rewrite_) {
+  if (can_ajax_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.CopyFrom(*response_headers());
     if (streaming_) {
@@ -110,7 +103,7 @@ void RecordingFetch::FreeDriver() {
 }
 
 bool RecordingFetch::ShouldStream() {
-  return !can_in_place_rewrite_
+  return !can_ajax_rewrite_
       || !context_->Options()->in_place_wait_for_optimized();
 }
 
@@ -120,15 +113,15 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
   if (streaming_) {
     result = base_fetch()->Write(content, handler);
   }
-  if (can_in_place_rewrite_) {
+  if (can_ajax_rewrite_) {
     if (cache_value_writer_.CanCacheContent(content)) {
       result &= cache_value_writer_.Write(content, handler);
       DCHECK(cache_value_writer_.has_buffered());
     } else {
-      // Cannot inplace rewrite a resource which is too big to fit in cache.
+      // Cannot ajax rewrite a resource which is too big to fit in cache.
       // TODO(jkarlin): Do we make note that the resource was too big so that
       // we don't try to cache it later? Test and fix if not.
-      can_in_place_rewrite_ = false;
+      can_ajax_rewrite_ = false;
       if (!streaming_) {
         // We need to start streaming now so write out what we've cached so far.
         streaming_ = true;
@@ -153,7 +146,7 @@ bool RecordingFetch::HandleFlush(MessageHandler* handler) {
 }
 
 void RecordingFetch::HandleDone(bool success) {
-  if (success && can_in_place_rewrite_) {
+  if (success && can_ajax_rewrite_) {
     // Extract X-Original-Content-Length from the response headers, which may
     // have been added by the fetcher, and set it in the Resource. This will
     // be used to build the X-Original-Content-Length for rewrites.
@@ -172,7 +165,7 @@ void RecordingFetch::HandleDone(bool success) {
     base_fetch()->Done(success);
   }
 
-  if (success && can_in_place_rewrite_) {
+  if (success && can_ajax_rewrite_) {
     resource_->Link(&cache_value_, handler_);
     if (streaming_) {
       context_->DetachFetch();
@@ -185,14 +178,11 @@ void RecordingFetch::HandleDone(bool success) {
   delete this;
 }
 
-bool RecordingFetch::CanInPlaceRewrite() {
+bool RecordingFetch::CanAjaxRewrite() {
   const ContentType* type = response_headers()->DetermineContentType();
   if (type == NULL) {
-    VLOG(2) << "CanInPlaceRewrite false. Content-Type is not defined. Url: "
-            << resource_->url();
     return false;
   }
-
   // Note that this only checks the length, not the caching headers; the
   // latter are checked in IsAlreadyExpired.
   if (!cache_value_writer_.CheckCanCacheElseClear(response_headers())) {
@@ -205,87 +195,79 @@ bool RecordingFetch::CanInPlaceRewrite() {
         request_headers(), *response_headers())) {
       return true;
     }
-    VLOG(2) << "CanInPlaceRewrite false, since J/I/C resource is not cacheable."
-            << " Url: " << resource_->url();
   }
   return false;
 }
 
-InPlaceRewriteContext::InPlaceRewriteContext(RewriteDriver* driver,
+AjaxRewriteContext::AjaxRewriteContext(RewriteDriver* driver,
                                        const StringPiece& url)
     : SingleRewriteContext(driver, NULL, NULL),
       driver_(driver),
       url_(url.data(), url.size()),
-      is_rewritten_(true),
-      perform_http_fetch_(true) {
+      is_rewritten_(true) {
   set_notify_driver_on_fetch_done(true);
 }
 
-InPlaceRewriteContext::~InPlaceRewriteContext() {}
+AjaxRewriteContext::~AjaxRewriteContext() {}
 
-void InPlaceRewriteContext::InitStats(Statistics* statistics) {
+void AjaxRewriteContext::InitStats(Statistics* statistics) {
   statistics->AddVariable(kInPlaceOversizedOptStream);
 }
 
-int64 InPlaceRewriteContext::GetRewriteDeadlineAlarmMs() const {
-  if (Options()->in_place_wait_for_optimized()) {
-    return Driver()->options()->in_place_rewrite_deadline_ms();
-  }
-  return RewriteContext::GetRewriteDeadlineAlarmMs();
-}
-
-void InPlaceRewriteContext::Harvest() {
+void AjaxRewriteContext::Harvest() {
   if (num_nested() == 1) {
-    RewriteContext* const nested_context = nested(0);
-    if (nested_context->num_slots() == 1 && num_output_partitions() == 1 &&
-        nested_context->slot(0)->was_optimized()) {
+    RewriteContext* nested_context = nested(0);
+    if (nested_context->num_slots() == 1) {
       ResourcePtr nested_resource = nested_context->slot(0)->resource();
-      CachedResult* partition = output_partition(0);
-      VLOG(1) << "In-place rewrite succeeded for " << url_
-              << " and the rewritten resource is "
-              << nested_resource->url();
-      partition->set_url(nested_resource->url());
-      partition->set_optimizable(true);
-      if (partitions()->other_dependency_size() == 1) {
-        // If there is only one other dependency, then the InputInfo is
-        // already covered in the first partition. We're clearing this here
-        // since freshens only update the partitions and not the other
-        // dependencies.
-        partitions()->clear_other_dependency();
-      }
-      if (!FetchContextDetached() &&
-          Options()->in_place_wait_for_optimized()) {
-        // If we're waiting for the optimized version before responding,
-        // prepare the output here. Most of this is translated from
-        // RewriteContext::FetchContext::FetchDone
-        output_resource_->response_headers()->CopyFrom(
-            *(nested_resource->response_headers()));
-        Writer* writer = output_resource_->BeginWrite(
-            driver_->message_handler());
-        writer->Write(nested_resource->contents(),
-                      driver_->message_handler());
-        output_resource_->EndWrite(driver_->message_handler());
+      if (nested_context->slot(0)->was_optimized() &&
+          num_output_partitions() == 1) {
+        CachedResult* partition = output_partition(0);
+        VLOG(1) << "Ajax rewrite succeeded for " << url_
+                << " and the rewritten resource is "
+                << nested_resource->url();
+        partition->set_url(nested_resource->url());
+        partition->set_optimizable(true);
+        if (partitions()->other_dependency_size() == 1) {
+          // If there is only one other dependency, then the InputInfo is
+          // already covered in the first partition. We're clearing this here
+          // since freshens only update the partitions and not the other
+          // dependencies.
+          partitions()->clear_other_dependency();
+        }
+        if (!FetchContextDetached() &&
+             Options()->in_place_wait_for_optimized()) {
+          // If we're waiting for the optimized version before responding,
+          // prepare the output here. Most of this is translated from
+          // RewriteContext::FetchContext::FetchDone
+          output_resource_->response_headers()->CopyFrom(
+              *(input_resource_->response_headers()));
+          Writer* writer = output_resource_->BeginWrite(
+              driver_->message_handler());
+          writer->Write(nested_resource->contents(),
+                        driver_->message_handler());
+          output_resource_->EndWrite(driver_->message_handler());
 
-        is_rewritten_ = true;
-        // EndWrite updated the hash in output_resource_.
-        output_resource_->full_name().hash().CopyToString(&rewritten_hash_);
-        FixFetchFallbackHeaders(output_resource_->response_headers());
+          is_rewritten_ = true;
+          // EndWrite updated the hash in output_resource_.
+          output_resource_->full_name().hash().CopyToString(&rewritten_hash_);
+          FixFetchFallbackHeaders(output_resource_->response_headers());
 
-        // Use the most conservative Cache-Control considering the input.
-        // TODO(jkarlin): Is ApplyInputCacheControl needed here?
-        ResourceVector rv(1, input_resource_);
-        FindServerContext()->ApplyInputCacheControl(
-            rv, output_resource_->response_headers());
+          // Use the most conservative Cache-Control considering the input.
+          // TODO(jkarlin): Is ApplyInputCacheControl needed here?
+          ResourceVector rv(1, input_resource_);
+          FindServerContext()->ApplyInputCacheControl(
+              rv, output_resource_->response_headers());
+        }
+        RewriteDone(kRewriteOk, 0);
+        return;
       }
-      RewriteDone(kRewriteOk, 0);
-      return;
     }
   }
-  VLOG(1) << "In-place rewrite failed for " << url_;
+  VLOG(1) << "Ajax rewrite failed for " << url_;
   RewriteDone(kRewriteFailed, 0);
 }
 
-void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
+void AjaxRewriteContext::FetchTryFallback(const GoogleString& url,
                                           const StringPiece& hash) {
   const char* request_etag = async_fetch()->request_headers()->Lookup1(
       HttpAttributes::kIfNoneMatch);
@@ -314,7 +296,7 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
   }
 }
 
-void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
+void AjaxRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (is_rewritten_) {
     if (!rewritten_hash_.empty()) {
       headers->Replace(HttpAttributes::kEtag, StringPrintf(
@@ -347,7 +329,7 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   }
 }
 
-void InPlaceRewriteContext::UpdateDateAndExpiry(
+void AjaxRewriteContext::UpdateDateAndExpiry(
     const protobuf::RepeatedPtrField<InputInfo>& inputs,
     int64* date_ms,
     int64* expire_at_ms) {
@@ -360,19 +342,19 @@ void InPlaceRewriteContext::UpdateDateAndExpiry(
   }
 }
 
-void InPlaceRewriteContext::FetchCallbackDone(bool success) {
+void AjaxRewriteContext::FetchCallbackDone(bool success) {
   if (is_rewritten_ && num_output_partitions() == 1) {
-    // In-place rewrites always have a single output partition.
+    // Ajax rewrites always have a single output partition.
     // Freshen the resource if possible. Note that since is_rewritten_ is true,
     // we got a metadata cache hit and a hit on the rewritten resource in cache.
-    // TODO(nikhilmadan): Freshening is broken for inplace rewrites on css,
-    // since we don't update the other dependencies.
+    // TODO(nikhilmadan): Freshening is broken for ajax rewrites on css, since
+    // we don't update the other dependencies.
     Freshen();
   }
   RewriteContext::FetchCallbackDone(success);
 }
 
-RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
+RewriteFilter* AjaxRewriteContext::GetRewriteFilter(
     const ContentType& type) {
   const RewriteOptions* options = driver_->options();
   if (type.type() == ContentType::kCss &&
@@ -391,7 +373,7 @@ RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
   return NULL;
 }
 
-void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
+void AjaxRewriteContext::RewriteSingle(const ResourcePtr& input,
                                        const OutputResourcePtr& output) {
   input_resource_ = input;
   output_resource_ = output;
@@ -400,15 +382,15 @@ void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
     const ContentType* type = input->type();
     RewriteFilter* filter = GetRewriteFilter(*type);
     if (filter != NULL) {
-      ResourceSlotPtr in_place_slot(
-          new InPlaceRewriteResourceSlot(slot(0)->resource()));
+      ResourceSlotPtr ajax_slot(
+          new AjaxRewriteResourceSlot(slot(0)->resource()));
       RewriteContext* context = filter->MakeNestedRewriteContext(
-          this, in_place_slot);
+          this, ajax_slot);
 
       if (context != NULL) {
         AddNestedContext(context);
         if (!is_rewritten_ && !rewritten_hash_.empty()) {
-          // The inplace metadata was found but the rewritten resource is not.
+          // The ajax metadata was found but the rewritten resource is not.
           // Hence, make the nested rewrite skip the metadata and force a
           // rewrite.
           context->set_force_rewrite(true);
@@ -425,7 +407,7 @@ void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
       } else {
         LOG(ERROR) << "Filter (" << filter->id() << ") does not support "
                    << "nested contexts.";
-        in_place_slot.clear();
+        ajax_slot.clear();
       }
     }
   }
@@ -435,7 +417,7 @@ void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
   // metadata so that the fetcher can skip reading from the cache.
 }
 
-bool InPlaceRewriteContext::DecodeFetchUrls(
+bool AjaxRewriteContext::DecodeFetchUrls(
     const OutputResourcePtr& output_resource,
     MessageHandler* message_handler,
     GoogleUrlStarVector* url_vector) {
@@ -444,20 +426,16 @@ bool InPlaceRewriteContext::DecodeFetchUrls(
   return true;
 }
 
-void InPlaceRewriteContext::StartFetchReconstruction() {
-  // The in-place metdata or the rewritten resource was not found in cache.
-  // Fetch the original resource and trigger an asynchronous rewrite.
+void AjaxRewriteContext::StartFetchReconstruction() {
+  // The ajax metdata or the rewritten resource was not found in cache. Fetch
+  // the original resource and trigger an asynchronous rewrite.
   if (num_slots() == 1) {
     ResourcePtr resource(slot(0)->resource());
     // If we get here, the resource must not have been rewritten.
     is_rewritten_ = false;
     RecordingFetch* fetch = new RecordingFetch(
         async_fetch(), resource, this, fetch_message_handler());
-    if (perform_http_fetch_) {
-      cache_fetcher_.reset(driver_->CreateCacheFetcher());
-    } else {
-      cache_fetcher_.reset(driver_->CreateCacheOnlyFetcher());
-    }
+    cache_fetcher_.reset(driver_->CreateCacheFetcher());
     cache_fetcher_->Fetch(url_, fetch_message_handler(), fetch);
   } else {
     LOG(ERROR) << "Expected one resource slot, but found " << num_slots()
@@ -466,7 +444,7 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
   }
 }
 
-void InPlaceRewriteContext::StartFetchReconstructionParent() {
+void AjaxRewriteContext::StartFetchReconstructionParent() {
   RewriteContext::StartFetchReconstruction();
 }
 }  // namespace net_instaweb

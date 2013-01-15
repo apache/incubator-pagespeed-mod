@@ -22,14 +22,12 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -61,7 +59,8 @@ const char AddInstrumentationFilter::kInstrumentationScriptAddedCount[] =
 AddInstrumentationFilter::AddInstrumentationFilter(RewriteDriver* driver)
     : driver_(driver),
       found_head_(false),
-      added_head_script_(false),
+      use_cdata_hack_(
+          !driver_->server_context()->response_headers_finalized()),
       added_tail_script_(false),
       added_unload_script_(false) {
   Statistics* stats = driver->server_context()->statistics();
@@ -77,35 +76,21 @@ void AddInstrumentationFilter::InitStats(Statistics* statistics) {
 
 void AddInstrumentationFilter::StartDocument() {
   found_head_ = false;
-  added_head_script_ = false;
   added_tail_script_ = false;
   added_unload_script_ = false;
 }
 
-void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
-  // IE doesn't like tags other than title or meta at the start of the
-  // head. The MSDN page says:
-  //   The X-UA-Compatible header isn't case sensitive; however, it must appear
-  //   in the header of the webpage (the HEAD section) before all other elements
-  //   except for the title element and other meta elements.
-  // Reference: http://msdn.microsoft.com/en-us/library/jj676915(v=vs.85).aspx
-  if (element->keyword() != HtmlName::kTitle &&
-      element->keyword() != HtmlName::kMeta) {
-    added_head_script_ = true;
-    // TODO(abliss): add an actual element instead, so other filters can
-    // rewrite this JS
-    HtmlCharactersNode* script = driver_->NewCharactersNode(NULL, kHeadScript);
-    driver_->InsertElementBeforeCurrent(script);
-    instrumentation_script_added_count_->Add(1);
-  }
-}
-
 void AddInstrumentationFilter::StartElement(HtmlElement* element) {
-  if (found_head_ && !added_head_script_) {
-    AddHeadScript(element);
-  }
-  if (!found_head_ && element->keyword() == HtmlName::kHead) {
-    found_head_ = true;
+  if (!found_head_) {
+    if (element->keyword() == HtmlName::kHead) {
+      found_head_ = true;
+      // TODO(abliss): add an actual element instead, so other filters can
+      // rewrite this JS
+      HtmlCharactersNode* script =
+          driver_->NewCharactersNode(element, kHeadScript);
+      driver_->InsertElementAfterCurrent(script);
+      instrumentation_script_added_count_->Add(1);
+    }
   }
 }
 
@@ -115,17 +100,14 @@ void AddInstrumentationFilter::EndElement(HtmlElement* element) {
     // assured by add_head_filter.
     CHECK(found_head_) << "Reached end of document without finding <head>."
         "  Please turn on the add_head filter.";
+    GoogleString event = kLoadTag;
     AddScriptNode(element, kLoadTag);
     added_tail_script_ = true;
-  } else if (found_head_ && element->keyword() == HtmlName::kHead) {
-    if (!added_head_script_) {
-      AddHeadScript(element);
-    }
-    if (driver_->options()->report_unload_time() &&
-        !added_unload_script_) {
-      AddScriptNode(element, kUnloadTag);
-      added_unload_script_ = true;
-    }
+  } else if (found_head_ && element->keyword() == HtmlName::kHead &&
+             driver_->options()->report_unload_time() &&
+             !added_unload_script_) {
+    AddScriptNode(element, kUnloadTag);
+    added_unload_script_ = true;
   }
 }
 
@@ -157,22 +139,19 @@ void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
   GoogleString headers_fetch_time;
   GoogleString fetch_time;
   LogRecord* log_record = driver_->log_record();
-  {
-    ScopedMutex lock(log_record->mutex());
-    if (log_record->logging_info()->has_timing_info()) {
-      if (log_record->logging_info()->timing_info().has_header_fetch_ms()) {
-        int64 header_fetch_ms =
-            log_record->logging_info()->timing_info().header_fetch_ms();
-        // If time taken to fetch the http header is not set, then the response
-        // came from cache.
-        headers_fetch_time = Integer64ToString(header_fetch_ms);
-      }
-      if (log_record->logging_info()->timing_info().has_fetch_ms()) {
-        int64 fetch_ms = log_record->logging_info()->timing_info().fetch_ms();
-        // If time taken to fetch the resource is not set, then the response
-        // came from cache.
-        fetch_time = Integer64ToString(fetch_ms);
-      }
+  if (log_record != NULL && log_record->logging_info()->has_timing_info()) {
+    if (log_record->logging_info()->timing_info().has_header_fetch_ms()) {
+      int64 header_fetch_ms =
+          log_record->logging_info()->timing_info().header_fetch_ms();
+      // If time taken to fetch the http header is not set, then the response
+      // came from cache.
+      headers_fetch_time = Integer64ToString(header_fetch_ms);
+    }
+    if (log_record->logging_info()->timing_info().has_fetch_ms()) {
+      int64 fetch_ms = log_record->logging_info()->timing_info().fetch_ms();
+      // If time taken to fetch the resource is not set, then the response
+      // came from cache.
+      fetch_time = Integer64ToString(fetch_ms);
     }
   }
 

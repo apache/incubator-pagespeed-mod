@@ -57,8 +57,8 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -85,6 +85,21 @@ const size_t kUrlPrefixLength = STATIC_STRLEN(kUrlPrefix);
 }  // namespace
 
 namespace net_instaweb {
+
+namespace {
+
+class MockPage : public PropertyPage {
+ public:
+  MockPage(AbstractMutex* mutex, const StringPiece& key)
+      : PropertyPage(mutex, key) {}
+  virtual ~MockPage() {}
+  virtual void Done(bool valid) {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockPage);
+};
+
+}  // namespace
 
 class HtmlElement;
 class SharedString;
@@ -134,35 +149,15 @@ class ServerContextTest : public RewriteTestBase {
     return async_fetch->success();
   }
 
-  // Helper for testing of FetchOutputResource. Assumes that output_resource
-  // is to be handled by the filter with 2-letter code filter_id, and
-  // verifies result to match expect_success and expect_content.
-  void TestFetchOutputResource(const OutputResourcePtr& output_resource,
-                               const char* filter_id,
-                               bool expect_success,
-                               StringPiece expect_content) {
-    ASSERT_TRUE(output_resource.get());
-    RewriteFilter* filter = rewrite_driver()->FindFilter(filter_id);
-    ASSERT_TRUE(filter != NULL);
-    StringAsyncFetch fetch_result(CreateRequestContext());
-    EXPECT_TRUE(rewrite_driver()->FetchOutputResource(
-        output_resource, filter, &fetch_result));
-    rewrite_driver()->WaitForCompletion();
-    EXPECT_TRUE(fetch_result.done());
-    EXPECT_EQ(expect_success, fetch_result.success());
-    EXPECT_EQ(expect_content, fetch_result.buffer());
-  }
-
   GoogleString GetOutputResourceWithoutLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch fetch(RequestContext::NewTestRequestContext(
-        server_context()->thread_system()));
+    StringAsyncFetch fetch;
     EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
     EXPECT_FALSE(resource->has_lock());
     return fetch.buffer();
   }
 
   GoogleString GetOutputResourceWithLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch fetch(CreateRequestContext());
+    StringAsyncFetch fetch;
     EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
     EXPECT_TRUE(resource->has_lock());
     return fetch.buffer();
@@ -171,7 +166,7 @@ class ServerContextTest : public RewriteTestBase {
   // Returns whether there was an existing copy of data for the resource.
   // If not, makes sure the resource is wrapped.
   bool TryFetchExtantOutputResourceOrLock(const OutputResourcePtr& resource) {
-    StringAsyncFetch dummy_fetch(CreateRequestContext());
+    StringAsyncFetch dummy_fetch;
     return FetchExtantOutputResourceHelper(resource, &dummy_fetch);
   }
 
@@ -253,8 +248,9 @@ class ServerContextTest : public RewriteTestBase {
     // Write some data
     ASSERT_TRUE(ResourceManagerTestingPeer::HasHash(output.get()));
     EXPECT_EQ(kRewrittenResource, output->kind());
-    EXPECT_TRUE(rewrite_driver()->Write(
-        ResourceVector(), contents, &kContentTypeText, "utf-8", output.get()));
+    EXPECT_TRUE(server_context()->Write(
+        ResourceVector(), contents, &kContentTypeText, "utf-8",
+        output.get(), message_handler()));
     EXPECT_TRUE(output->IsWritten());
     // Check that hash and ext are correct.
     EXPECT_EQ("0", output->hash());
@@ -317,7 +313,6 @@ class ServerContextTest : public RewriteTestBase {
     ResourcePtr resource(rewrite_driver()->CreateInputResource(gurl));
     VerifyContentsCallback callback(resource, "payload");
     server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable,
-                                rewrite_driver()->request_context(),
                                 &callback);
     callback.AssertCalled();
     return resource;
@@ -511,49 +506,47 @@ TEST_F(ServerContextTest, TestNamed) {
 }
 
 TEST_F(ServerContextTest, TestOutputInputUrl) {
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
-  rewrite_driver()->AddFilters();
-
   GoogleString url = Encode("http://example.com/dir/123/",
                             RewriteOptions::kJavascriptMinId,
                             "0", "orig", "js");
-  SetResponseWithDefaultHeaders(
-      "http://example.com/dir/123/orig", kContentTypeJavascript,
-      "foo() /*comment */;", 100);
-
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
-  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
-                          true, "foo();");
+  ASSERT_TRUE(output_resource.get());
+  RewriteFilter* filter = rewrite_driver()->FindFilter(
+      RewriteOptions::kJavascriptMinId);
+  ASSERT_TRUE(filter != NULL);
+  ResourcePtr input_resource(
+      filter->CreateInputResourceFromOutputResource(output_resource.get()));
+  EXPECT_EQ("http://example.com/dir/123/orig", input_resource->url());
 }
 
 TEST_F(ServerContextTest, TestOutputInputUrlEvil) {
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
-  rewrite_driver()->AddFilters();
-
   GoogleString url = MakeEvilUrl("example.com", "http://www.evil.com");
-  SetResponseWithDefaultHeaders(
-      "http://www.evil.com/", kContentTypeJavascript,
-      "foo() /*comment */;", 100);
-
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
-  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
-                          false, "");
+  ASSERT_TRUE(output_resource.get());
+  RewriteFilter* filter = rewrite_driver()->FindFilter(
+      RewriteOptions::kJavascriptMinId);
+  ASSERT_TRUE(filter != NULL);
+  ResourcePtr input_resource(
+      filter->CreateInputResourceFromOutputResource(output_resource.get()));
+  EXPECT_EQ(NULL, input_resource.get());
 }
 
 TEST_F(ServerContextTest, TestOutputInputUrlBusy) {
   EXPECT_TRUE(options()->domain_lawyer()->AddOriginDomainMapping(
       "www.busy.com", "example.com", message_handler()));
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
-  rewrite_driver()->AddFilters();
 
   GoogleString url = MakeEvilUrl("example.com", "http://www.busy.com");
-  SetResponseWithDefaultHeaders(
-      "http://www.busy.com/", kContentTypeJavascript,
-      "foo() /*comment */;", 100);
-
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
-  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
-                          false, "");
+  ASSERT_TRUE(output_resource.get());
+  RewriteFilter* filter = rewrite_driver()->FindFilter(
+      RewriteOptions::kJavascriptMinId);
+  ASSERT_TRUE(filter != NULL);
+  ResourcePtr input_resource(
+      filter->CreateInputResourceFromOutputResource(output_resource.get()));
+  EXPECT_EQ(NULL, input_resource.get());
+  if (input_resource.get() != NULL) {
+    LOG(ERROR) << input_resource->url();
+  }
 }
 
 // Check that we can origin-map a domain referenced from an HTML file
@@ -590,9 +583,9 @@ TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
 
   // We need to 'Write' an output resource before we can determine its
   // URL.
-  rewrite_driver()->Write(
+  server_context()->Write(
       ResourceVector(), StringPiece(kStyleContent), &kContentTypeCss,
-      StringPiece(), output.get());
+      StringPiece(), output.get(), message_handler());
   EXPECT_EQ(Encode("http://cdn.com/", "ce", "0", "style.css", "css"),
             output->url());
 }
@@ -650,18 +643,14 @@ TEST_F(ServerContextTest, TestPlatformSpecificConfiguration) {
   MockPlatformConfigCallback custom_callback(&rec_custom_driver);
 
   factory()->AddPlatformSpecificConfigurationCallback(&normal_callback);
-  RewriteDriver* normal_driver = server_context()->NewRewriteDriver(
-      RequestContext::NewTestRequestContext(server_context()->thread_system()));
+  RewriteDriver* normal_driver = server_context()->NewRewriteDriver();
   EXPECT_EQ(normal_driver, rec_normal_driver);
   factory()->ClearPlatformSpecificConfigurationCallback();
   normal_driver->Cleanup();
 
   factory()->AddPlatformSpecificConfigurationCallback(&custom_callback);
   RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          new RewriteOptions(),
-          RequestContext::NewTestRequestContext(
-              server_context()->thread_system()));
+      server_context()->NewCustomRewriteDriver(new RewriteOptions());
   EXPECT_EQ(custom_driver, rec_custom_driver);
   custom_driver->Cleanup();
 }
@@ -825,18 +814,15 @@ TEST_F(ServerContextTest, TestNonCacheableReadResultPolicy) {
   ResourcePtr resource1(CreateResource("http://example.com/", "/"));
   ASSERT_TRUE(resource1.get() != NULL);
   MockResourceCallback callback1(resource1);
-  server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
-                              &callback1);
+  server_context()->ReadAsync(
+      Resource::kReportFailureIfNotCacheable, &callback1);
   EXPECT_TRUE(callback1.done());
   EXPECT_FALSE(callback1.success());
 
   ResourcePtr resource2(CreateResource("http://example.com/", "/"));
   ASSERT_TRUE(resource2.get() != NULL);
   MockResourceCallback callback2(resource2);
-  server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable,
-                              rewrite_driver()->request_context(),
-                              &callback2);
+  server_context()->ReadAsync(Resource::kLoadEvenIfNotCacheable, &callback2);
   EXPECT_TRUE(callback2.done());
   EXPECT_TRUE(callback2.success());
 }
@@ -884,9 +870,9 @@ TEST_F(ServerContextTest, TestOutlined) {
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 
-  rewrite_driver()->Write(
+  server_context()->Write(
       ResourceVector(), "", &kContentTypeCss, StringPiece(),
-      output_resource.get());
+      output_resource.get(), message_handler());
   EXPECT_EQ(NULL, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
@@ -925,9 +911,9 @@ TEST_F(ServerContextTest, TestOnTheFly) {
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 
-  rewrite_driver()->Write(
+  server_context()->Write(
       ResourceVector(), "", &kContentTypeCss, StringPiece(),
-      output_resource.get());
+      output_resource.get(), message_handler());
   EXPECT_TRUE(output_resource->cached_result() != NULL);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
@@ -936,40 +922,37 @@ TEST_F(ServerContextTest, TestOnTheFly) {
 }
 
 TEST_F(ServerContextTest, TestHandleBeaconNoLoadParam) {
-  EXPECT_FALSE(server_context()->HandleBeacon(
-      "/index.html", CreateRequestContext()));
+  EXPECT_FALSE(server_context()->HandleBeacon("/index.html"));
 }
 
 TEST_F(ServerContextTest, TestHandleBeaconInvalidLoadParam) {
-  EXPECT_FALSE(server_context()->HandleBeacon(
-      "/beacon?ets=asd", CreateRequestContext()));
+  EXPECT_FALSE(server_context()->HandleBeacon("/beacon?ets=asd"));
 }
 
 TEST_F(ServerContextTest, TestHandleBeaconNoUrl) {
-  EXPECT_FALSE(server_context()->HandleBeacon(
-      "/beacon?ets=load:34", CreateRequestContext()));
+  EXPECT_FALSE(server_context()->HandleBeacon("/beacon?ets=load:34"));
 }
 
 TEST_F(ServerContextTest, TestHandleBeaconInvalidUrl) {
   EXPECT_FALSE(server_context()->HandleBeacon(
-      "/beacon?url=%2f%2finvalidurl&ets=load:34", CreateRequestContext()));
+      "/beacon?url=%2f%2finvalidurl&ets=load:34"));
 }
 
 TEST_F(ServerContextTest, TestHandleBeacon) {
   EXPECT_TRUE(server_context()->HandleBeacon(
       "/beacon?url=http%3A%2F%2Flocalhost%3A8080%2Findex.html"
-      "&ets=load:34", CreateRequestContext()));
+      "&ets=load:34"));
 }
 
 TEST_F(ServerContextTest, TestHandleBeaconCritImages) {
   PropertyCache* property_cache = server_context()->page_property_cache();
   property_cache->set_enabled(true);
-  SetupCohort(property_cache, BeaconCriticalImagesFinder::kBeaconCohort);
+  property_cache->AddCohort(BeaconCriticalImagesFinder::kBeaconCohort);
   const PropertyCache::Cohort* cohort = property_cache->GetCohort(
       BeaconCriticalImagesFinder::kBeaconCohort);
-  scoped_ptr<MockPropertyPage> page(NewMockPage(kUrlPrefix));
-  property_cache->Read(page.get());
-  PropertyValue* property = page->GetProperty(cohort, "critical_images");
+  MockPage page(factory_->thread_system()->NewMutex(), kUrlPrefix);
+  property_cache->Read(&page);
+  PropertyValue* property = page.GetProperty(cohort, "critical_images");
   EXPECT_FALSE(property->has_value());
 
   GoogleString img1 = "http://www.example.com/img1.png";
@@ -980,27 +963,26 @@ TEST_F(ServerContextTest, TestHandleBeaconCritImages) {
       HashString<CasePreserve, int>(img2.c_str(), img2.size()));
 
   EXPECT_TRUE(server_context()->HandleBeacon(
-      "/beacon?url=http%3A%2F%2Fwww.example.com&critimg=" + hash1,
-      CreateRequestContext()));
-  property_cache->Read(page.get());
-  property = page->GetProperty(cohort, "critical_images");
+      "/beacon?url=http%3A%2F%2Fwww.example.com&critimg=" + hash1));
+  property_cache->Read(&page);
+  property = page.GetProperty(cohort, "critical_images");
   EXPECT_TRUE(property->has_value());
   EXPECT_EQ(hash1, property->value());
 
   EXPECT_TRUE(server_context()->HandleBeacon(
       "/beacon?url=http%3A%2F%2Fwww.example.com&critimg=" + hash1 + "," +
-      hash2, CreateRequestContext()));
-  property_cache->Read(page.get());
-  property = page->GetProperty(cohort, "critical_images");
+      hash2));
+  property_cache->Read(&page);
+  property = page.GetProperty(cohort, "critical_images");
   EXPECT_TRUE(property->has_value());
   EXPECT_EQ(hash1 + "\n" + hash2, property->value());
 
   // Ensure duplicate critimgs only get inserted once.
   EXPECT_TRUE(server_context()->HandleBeacon(
       "/beacon?url=http%3A%2F%2Fwww.example.com&critimg=" + hash1 + "," +
-      hash1, CreateRequestContext()));
-  property_cache->Read(page.get());
-  property = page->GetProperty(cohort, "critical_images");
+      hash1));
+  property_cache->Read(&page);
+  property = page.GetProperty(cohort, "critical_images");
   EXPECT_TRUE(property->has_value());
   EXPECT_EQ(hash1, property->value());
 }
@@ -1022,9 +1004,9 @@ TEST_F(ServerContextTest, TestNotGenerated) {
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 
-  rewrite_driver()->Write(
+  server_context()->Write(
       ResourceVector(), "", &kContentTypeCss, StringPiece(),
-      output_resource.get());
+      output_resource.get(), message_handler());
   EXPECT_TRUE(output_resource->cached_result() != NULL);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
@@ -1174,11 +1156,12 @@ TEST_F(ResourceManagerShardedTest, TestNamed) {
           "orig.js",
           kRewrittenResource));
   ASSERT_TRUE(output_resource.get());
-  ASSERT_TRUE(rewrite_driver()->Write(ResourceVector(),
+  ASSERT_TRUE(server_context()->Write(ResourceVector(),
                                       "alert('hello');",
                                       &kContentTypeJavascript,
                                       StringPiece(),
-                                      output_resource.get()));
+                                      output_resource.get(),
+                                      message_handler()));
 
   // This always gets mapped to shard0 because we are using the mock
   // hasher for the content hash.  Note that the sharding sensitivity
@@ -1294,11 +1277,12 @@ TEST_F(ServerContextTest, WriteChecksInputVector) {
           private_400, kRewrittenResource));
 
 
-  rewrite_driver()->Write(ResourceVector(1, private_400),
+  server_context()->Write(ResourceVector(1, private_400),
                           "boo!",
                           &kContentTypeText,
                           "\"\\koi8-r\"",  // covers escaping behavior, too.
-                          output_resource.get());
+                          output_resource.get(),
+                          message_handler());
   ResponseHeaders* headers = output_resource->response_headers();
   EXPECT_FALSE(headers->HasValue(HttpAttributes::kCacheControl, "public"));
   EXPECT_TRUE(headers->HasValue(HttpAttributes::kCacheControl, "private"));
@@ -1314,8 +1298,7 @@ TEST_F(ServerContextTest, ShutDownAssumptions) {
   // The code in ResourceManager::ShutDownWorkers assumes that some potential
   // interleaving of operations are safe. Since they are pretty unlikely
   // in practice, this test exercises them.
-  RewriteDriver* driver =
-      server_context()->NewRewriteDriver(CreateRequestContext());
+  RewriteDriver* driver = server_context()->NewRewriteDriver();
   EnableRewriteDriverCleanupMode(true);
   driver->WaitForShutDown();
   driver->WaitForShutDown();
@@ -1514,7 +1497,7 @@ class ResourceManagerTestThreadedCache : public ServerContextTest {
         cache_(new ThreadAlternatingCache(
             mock_scheduler(),
             new ThreadsafeCache(cache_backend_, threads_->NewMutex()),
-            new QueuedWorkerPool(2, "alternator", threads_.get()))),
+            new QueuedWorkerPool(2, threads_.get()))),
         http_cache_(new HTTPCache(cache_.get(), timer(), hasher(),
                                   statistics())) {
   }

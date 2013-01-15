@@ -16,19 +16,19 @@
 
 // Author: piatek@google.com (Michael Piatek)
 
-#include "net/instaweb/util/public/request_trace.h"
+#include "net/instaweb/http/public/base_trace_context.h"
 
 #include <cstdarg>
 
 namespace net_instaweb {
 
-RequestTrace::RequestTrace() : tracing_enabled_(false) {
+BaseTraceContext::BaseTraceContext() : tracing_enabled_(false) {
 }
 
-RequestTrace::~RequestTrace() {
+BaseTraceContext::~BaseTraceContext() {
 }
 
-void RequestTrace::TracePrintf(const char* fmt, ...) {
+void BaseTraceContext::TracePrintf(const char* fmt, ...) {
   if (!tracing_enabled_) {
     return;
   }

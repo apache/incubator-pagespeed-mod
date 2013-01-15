@@ -65,9 +65,6 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   var currentTime = Number(new Date());
   var traditionalPLT = (currentTime - oldStartTime);
 
-  // Handle a beacon url that already has query params.
-  url += (url.indexOf('?') == -1) ? '?' : '&';
-  url += 'ets=';
   url += (this.event_ == 'load') ? 'load:' : 'unload:';
   url += traditionalPLT;
 
@@ -111,9 +108,6 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
            '&b_cihrl=' + bcsi['CRITICAL_IMAGES_HIGH_RES_LOADED'] +
            '&b_ncdl=' + bcsi['NON_CACHEABLE_DATA_LOADED'] +
            '&b_ncl=' + bcsi['NON_CRITICAL_LOADED'];
-    var bci = pagespeed['panelLoader']['getCriticalImagesInfo']();
-    url += '&b_ncii=' + bci['NUM_CRITICAL_IMAGES_INLINED'] +
-           '&b_ncini=' + bci['NUM_CRITICAL_IMAGES_NOT_INLINED'];
   }
   if (this.headerFetchTime_ != '') {
     url += '&hft=' + this.headerFetchTime_;

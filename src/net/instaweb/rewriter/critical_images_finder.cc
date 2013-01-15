@@ -117,13 +117,16 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
       PropertyValue* property_value = page->GetProperty(
           cohort, kCriticalImagesPropertyName);
       driver->set_critical_images(ExtractCriticalImagesSet(
-          driver, property_value, true));
+          property_value, page_property_cache,
+          driver->options()->critical_images_cache_expiration_time_ms(), true));
     }
     if (driver->css_critical_images() == NULL) {
       PropertyValue* property_value = page->GetProperty(
           cohort, kCssCriticalImagesPropertyName);
       driver->set_css_critical_images(ExtractCriticalImagesSet(
-          driver, property_value, false));
+          property_value, page_property_cache,
+          driver->options()->critical_images_cache_expiration_time_ms(),
+          false));
     }
   }
 }
@@ -183,19 +186,13 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
 // Extract the critical images stored for the given property_value in the
 // property page. Returned StringSet will owned by the caller.
 StringSet* CriticalImagesFinder::ExtractCriticalImagesSet(
-    RewriteDriver* driver,
     const PropertyValue* property_value,
+    const PropertyCache* page_property_cache,
+    int64 cache_ttl_ms,
     bool track_stats) {
-  // Don't track stats if we are flushing early, since we will already be
-  // counting this when we are rewriting the full page.
-  track_stats &= !driver->flushing_early();
-  const PropertyCache* page_property_cache =
-      driver->server_context()->page_property_cache();
-  int64 cache_ttl_ms =
-      driver->options()->finder_properties_cache_expiration_time_ms();
   // Check if the cache value exists and is not expired.
   if (property_value->has_value()) {
-    const bool is_valid =
+    bool is_valid =
         !page_property_cache->IsExpired(property_value, cache_ttl_ms);
     if (is_valid) {
       StringPieceVector critical_images_vector;
@@ -215,12 +212,6 @@ StringSet* CriticalImagesFinder::ExtractCriticalImagesSet(
       if (track_stats) {
         critical_images_valid_count_->Add(1);
       }
-      // Force a computation if the value is imminently expiry.
-      if (page_property_cache->IsExpired(
-          property_value,
-          driver->options()->finder_properties_cache_refresh_time_ms())) {
-        driver->enable_must_compute_finder_properties();
-      }
       return critical_images;
     } else if (track_stats) {
       critical_images_expired_count_->Add(1);
@@ -228,7 +219,6 @@ StringSet* CriticalImagesFinder::ExtractCriticalImagesSet(
   } else if (track_stats) {
     critical_images_not_found_count_->Add(1);
   }
-  driver->enable_must_compute_finder_properties();
   return NULL;
 }
 

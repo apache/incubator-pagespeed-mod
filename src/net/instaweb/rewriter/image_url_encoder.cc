@@ -19,8 +19,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_escaper.h"
@@ -30,22 +28,13 @@ namespace net_instaweb {
 namespace {
 
 const char kCodeSeparator = 'x';
-const char kCodeWebpLossy = 'w';               // for decoding legacy URLs.
-const char kCodeWebpLossyLosslessAlpha = 'v';  // for decoding legacy URLs.
-const char kCodeMobileUserAgent = 'm';         // for decoding legacy URLs.
+const char kCodeWebp = 'w';
+const char kCodeMobileUserAgent = 'm';
 const char kMissingDimension = 'N';
 
-// Constants for UserAgent cache key enteries.
-const char kWebpLossyUserAgentKey[] = "w";
-const char kWebpLossyLossLessAlphaUserAgentKey[] = "v";
-const char kMobileUserAgentKey[] = "m";
-const char kUserAgentScreenResolutionKey[] = "screen";
-
 bool IsValidCode(char code) {
-  return ((code == kCodeSeparator) ||
-          (code == kCodeWebpLossy) ||
-          (code == kCodeWebpLossyLosslessAlpha) ||
-          (code == kCodeMobileUserAgent));
+  return (code == kCodeSeparator) || (code == kCodeWebp) ||
+      (code == kCodeMobileUserAgent);
 }
 
 // Decodes a single dimension (either N or an integer), removing it from *in and
@@ -74,30 +63,6 @@ uint32 DecodeDimension(StringPiece* in, bool* ok, bool* has_dimension) {
   return result;
 }
 
-struct ScreenResolution {
-  int width;
-  int height;
-};
-
-// Used by kSquashImagesForMobileScreen as target screen resolution.
-// Keep the list small and in descending order of width.
-// We use normalized screen resolution to reduce cache fragmentation.
-static const ScreenResolution kNormalizedScreenResolutions[] = {
-    {1080, 1920},
-    {800, 1280},
-    {600, 1024},
-    {480, 800},
-};
-
-#ifndef NDEBUG
-void CheckScreenResolutionOrder() {
-  for (int i = 1, n = arraysize(kNormalizedScreenResolutions); i < n; ++i) {
-    DCHECK_LT(kNormalizedScreenResolutions[i].width,
-              kNormalizedScreenResolutions[i - 1].width);
-  }
-}
-#endif
-
 }  // namespace
 
 ImageUrlEncoder::~ImageUrlEncoder() { }
@@ -125,9 +90,15 @@ void ImageUrlEncoder::Encode(const StringVector& urls,
                   StringPiece(&kMissingDimension, 1));
       }
     }
-    rewritten_url->push_back(kCodeSeparator);
+    if (data->mobile_user_agent()) {
+      rewritten_url->push_back(kCodeMobileUserAgent);
+    }
+    if (data->attempt_webp()) {
+      rewritten_url->push_back(kCodeWebp);
+    } else {
+      rewritten_url->push_back(kCodeSeparator);
+    }
   }
-
   UrlEscaper::EncodeToUrlSegment(urls[0], rewritten_url);
 }
 
@@ -201,40 +172,20 @@ bool ImageUrlEncoder::Decode(const StringPiece& encoded,
   }
   // Remove the terminator
   remaining.remove_prefix(1);
-
-  // Set mobile user agent & set webp only if its a legacy encoding.
   if (terminator == kCodeMobileUserAgent) {
     data->set_mobile_user_agent(true);
-    // There must be a final kCodeWebpLossy,
-    // kCodeWebpLossyLosslessAlpha, or kCodeSeparator. Otherwise,
-    // invalid.
+    // There must be a final kCodeWebp or kCodeSeparator. Otherwise, invalid.
     // Check and strip it.
     if (remaining.empty()) {
       return false;
     }
     terminator = remaining[0];
-    if (terminator != kCodeWebpLossy &&
-        terminator != kCodeWebpLossyLosslessAlpha &&
-        terminator != kCodeSeparator) {
+    if (terminator != kCodeWebp && terminator != kCodeSeparator) {
       return false;
     }
     remaining.remove_prefix(1);
   }
-  // Following terminator check is for Legacy Url Encoding.
-  // If it's a legacy "x" encoding, we don't overwrite the libwebp_level.
-  // Example: if a webp-capable UA requested a legacy "x"-encoded url, we would
-  // wind up with a ResourceContext specifying a different webp-version of the
-  // original resourcem, but at least it's safe to send that to the UA,
-  // since we know it can handle it.
-  //
-  // In case it doesn't hit either of the following two conditions,
-  // the libwebp level is taken as the one set previously. This will happen
-  // mostly when the url is a Non-Legacy encoded one.
-  if (terminator == kCodeWebpLossy) {
-    data->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
-  } else if (terminator == kCodeWebpLossyLosslessAlpha) {
-    data->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA);
-  }
+  data->set_attempt_webp(terminator == kCodeWebp);
 
   GoogleString* url = StringVectorAdd(urls);
   if (UrlEscaper::DecodeFromUrlSegment(remaining, url)) {
@@ -243,104 +194,6 @@ bool ImageUrlEncoder::Decode(const StringPiece& encoded,
     urls->pop_back();
     return false;
   }
-}
-
-void ImageUrlEncoder::SetLibWebpLevel(const RewriteDriver& driver,
-                                      ResourceContext* resource_context) {
-  ResourceContext::LibWebpLevel libwebp_level = ResourceContext::LIBWEBP_NONE;
-  if (driver.UserAgentSupportsWebpLosslessAlpha()) {
-    libwebp_level = ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA;
-  } else if (driver.UserAgentSupportsWebp()) {
-    libwebp_level = ResourceContext::LIBWEBP_LOSSY_ONLY;
-  }
-  resource_context->set_libwebp_level(libwebp_level);
-}
-
-void ImageUrlEncoder::SetWebpAndMobileUserAgent(
-    const RewriteDriver& driver,
-    ResourceContext* context) {
-  const RewriteOptions* options = driver.options();
-  if (context == NULL) {
-    return;
-  }
-
-  // TODO(poojatandon): Do enabled checks before Setting the Webp Level, since
-  // it avoids writing two metadata cache keys for same output.
-  SetLibWebpLevel(driver, context);
-
-  if (options->NeedLowResImages() &&
-      options->Enabled(RewriteOptions::kResizeMobileImages) &&
-      driver.IsMobileUserAgent()) {
-    context->set_mobile_user_agent(true);
-  }
-}
-
-void ImageUrlEncoder::SetUserAgentScreenResolution(
-    RewriteDriver* driver, ResourceContext* context) {
-  if (context == NULL) {
-    return;
-  }
-  int screen_width = 0;
-  int screen_height = 0;
-  if (driver->GetScreenResolution(&screen_width, &screen_height) &&
-      GetNormalizedScreenResolution(
-          screen_width, screen_height, &screen_width, &screen_height)) {
-    ImageDim *dims = context->mutable_user_agent_screen_resolution();
-    dims->set_width(screen_width);
-    dims->set_height(screen_height);
-  }
-}
-
-GoogleString ImageUrlEncoder::CacheKeyFromResourceContext(
-    const ResourceContext& resource_context) {
-  GoogleString user_agent_cache_key = "";
-  if (resource_context.libwebp_level() ==
-      ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA) {
-    StrAppend(&user_agent_cache_key, kWebpLossyLossLessAlphaUserAgentKey);
-  }
-  if (resource_context.libwebp_level() ==
-      ResourceContext::LIBWEBP_LOSSY_ONLY) {
-    StrAppend(&user_agent_cache_key, kWebpLossyUserAgentKey);
-  }
-  if (resource_context.mobile_user_agent()) {
-    StrAppend(&user_agent_cache_key, kMobileUserAgentKey);
-  }
-  if (resource_context.has_user_agent_screen_resolution() &&
-      resource_context.user_agent_screen_resolution().has_width() &&
-      resource_context.user_agent_screen_resolution().has_height()) {
-    StrAppend(
-        &user_agent_cache_key,
-        kUserAgentScreenResolutionKey,
-        IntegerToString(
-            resource_context.user_agent_screen_resolution().width()),
-        StringPiece(&kCodeSeparator, 1),
-        IntegerToString(
-            resource_context.user_agent_screen_resolution().height()));
-  }
-  return user_agent_cache_key;
-}
-
-// Returns true if screen_width is less than any width in
-// kNormalizedScreenResolutions, in which case the normalized resolution with
-// the smallest width that is not less than screen_width will be returned.
-bool ImageUrlEncoder::GetNormalizedScreenResolution(
-    int screen_width, int screen_height, int* normalized_width,
-    int* normalized_height) {
-#ifndef NDEBUG
-  CheckScreenResolutionOrder();
-#endif
-
-  bool normalized = false;
-  for (int i = 0, n = arraysize(kNormalizedScreenResolutions); i < n; ++i) {
-    if (kNormalizedScreenResolutions[i].width >= screen_width) {
-      *normalized_width = kNormalizedScreenResolutions[i].width;
-      *normalized_height = kNormalizedScreenResolutions[i].height;
-      normalized = true;
-    } else {
-      break;
-    }
-  }
-  return normalized;
 }
 
 }  // namespace net_instaweb

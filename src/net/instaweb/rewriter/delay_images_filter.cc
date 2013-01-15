@@ -45,9 +45,8 @@ const char DelayImagesFilter::kDelayImagesInlineSuffix[] =
     "\npagespeed.delayImagesInlineInit();";
 
 const char DelayImagesFilter::kOnloadFunction[] =
-    "var elem=this;"
-    "setTimeout(function(){elem.removeAttribute('onload');"
-    "elem.src=elem.getAttribute('pagespeed_high_res_src');}, 0);";
+    "this.removeAttribute('onload');"
+    "this.src=this.getAttribute('pagespeed_high_res_src');";
 
 DelayImagesFilter::DelayImagesFilter(RewriteDriver* driver)
     : driver_(driver),
@@ -119,8 +118,10 @@ void DelayImagesFilter::EndElement(HtmlElement* element) {
           // page.
           // High res src is added and original img src attribute is removed
           // from img tag.
-          driver_->log_record()->LogAppliedRewriter(
-              RewriteOptions::FilterId(RewriteOptions::kDelayImages));
+          if (driver_->log_record() != NULL) {
+            driver_->log_record()->LogAppliedRewriter(
+                RewriteOptions::FilterId(RewriteOptions::kDelayImages));
+          }
           driver_->SetAttributeName(src, HtmlName::kPagespeedHighResSrc);
           if (insert_low_res_images_inplace_) {
             driver_->AddAttribute(element, HtmlName::kSrc,

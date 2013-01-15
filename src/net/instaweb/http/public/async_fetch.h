@@ -23,6 +23,7 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_H_
 
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -52,8 +53,17 @@ class Variable;
 // Write, Flush or Done.
 class AsyncFetch : public Writer {
  public:
-  AsyncFetch();
-  explicit AsyncFetch(const RequestContextPtr& request_ctx);
+  AsyncFetch() :
+      request_headers_(NULL),
+      response_headers_(NULL),
+      extra_response_headers_(NULL),
+      log_record_(NULL),
+      owns_request_headers_(false),
+      owns_response_headers_(false),
+      owns_extra_response_headers_(false),
+      owns_log_record_(false),
+      headers_complete_(false) {
+  }
 
   virtual ~AsyncFetch();
 
@@ -97,9 +107,6 @@ class AsyncFetch : public Writer {
   // Does not take ownership of headers.
   void set_request_headers(RequestHeaders* headers);
 
-  // Same as above, but takes ownership.
-  void SetRequestHeadersTakingOwnership(RequestHeaders* headers);
-
   // Returns the request_headers as a const pointer: it is required
   // that the RequestHeaders be pre-initialized via non-const
   // request_headers() or via set_request_headers before calling this.
@@ -130,17 +137,27 @@ class AsyncFetch : public Writer {
 
   bool headers_complete() const { return headers_complete_; }
 
+  // Returns a pointer to the logging info, extracting it from the log record.
+  virtual LoggingInfo* logging_info();
+
+  // Returns a pointer to a log record that wraps this fetch's logging
+  // info, lazily constructing it if needed.
+  virtual LogRecord* log_record();
+
+  // Sets the log record to the specifid pointer.  The caller must
+  // guarantee that the pointed-to log record remains valid as long as the
+  // AsyncFetch is running.
+  void set_log_record(LogRecord* log_record);
+
   // Returns logging information in a string eg. c1:0;c2:2;hf:45;.
   // c1 is cache 1, c2 is cache 2, hf is headers fetch.
   GoogleString LoggingString();
 
   // Returns the request context associated with this fetch, if any, or
   // NULL if no request context exists.
-  virtual const RequestContextPtr& request_context() { return request_ctx_; }
-
-  // Returns a pointer to a log record that wraps this fetch's logging
-  // info.
-  virtual LogRecord* log_record();
+  virtual RequestContextPtr request_context() {
+    return RequestContextPtr(NULL);
+  }
 
  protected:
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler) = 0;
@@ -148,14 +165,21 @@ class AsyncFetch : public Writer {
   virtual void HandleDone(bool success) = 0;
   virtual void HandleHeadersComplete() = 0;
 
+  // Returns a pointer to the log record, with no lazy construction behavior.
+  LogRecord* log_record_or_null() { return log_record_; }
+
+  // Sets LogRecord and claims ownership.
+  void set_owned_log_record(LogRecord* log_record);
+
  private:
   RequestHeaders* request_headers_;
   ResponseHeaders* response_headers_;
   ResponseHeaders* extra_response_headers_;
-  RequestContextPtr request_ctx_;
+  LogRecord* log_record_;
   bool owns_request_headers_;
   bool owns_response_headers_;
   bool owns_extra_response_headers_;
+  bool owns_log_record_;
   bool headers_complete_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncFetch);
@@ -167,23 +191,11 @@ class AsyncFetch : public Writer {
 // TODO(jmarantz): move StringAsyncFetch into its own file.
 class StringAsyncFetch : public AsyncFetch {
  public:
-  // TODO(marq): Remove constructors lacking a request context.
   StringAsyncFetch() : buffer_pointer_(&buffer_) { Init(); }
-
-  explicit StringAsyncFetch(const RequestContextPtr& request_ctx)
-      : AsyncFetch(request_ctx), buffer_pointer_(&buffer_) {
-    Init();
-  }
 
   explicit StringAsyncFetch(GoogleString* buffer) : buffer_pointer_(buffer) {
     Init();
   }
-
-  StringAsyncFetch(const RequestContextPtr& request_ctx, GoogleString* buffer)
-      : AsyncFetch(request_ctx), buffer_pointer_(buffer) {
-    Init();
-  }
-
   virtual ~StringAsyncFetch();
 
   virtual bool HandleWrite(const StringPiece& content,
@@ -237,10 +249,7 @@ class StringAsyncFetch : public AsyncFetch {
 // class is still abstract, and requires inheritors to implement Done().
 class AsyncFetchUsingWriter : public AsyncFetch {
  public:
-  AsyncFetchUsingWriter(const RequestContextPtr& request_context,
-                        Writer* writer)
-     : AsyncFetch(request_context),
-       writer_(writer) {}
+  explicit AsyncFetchUsingWriter(Writer* writer) : writer_(writer) {}
   virtual ~AsyncFetchUsingWriter();
 
  protected:
@@ -264,7 +273,7 @@ class SharedAsyncFetch : public AsyncFetch {
   AsyncFetch* base_fetch() { return base_fetch_; }
   const AsyncFetch* base_fetch() const { return base_fetch_; }
 
-  virtual const RequestContextPtr& request_context() {
+  virtual RequestContextPtr request_context() {
     return base_fetch_->request_context();
   }
 

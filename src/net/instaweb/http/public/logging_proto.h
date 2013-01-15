@@ -23,8 +23,6 @@ namespace net_instaweb {
 class BlinkInfo;
 class LoggingInfo;
 class MetadataCacheInfo;
-class PropertyCohortInfo;
-class PropertyPageInfo;
 class TimingInfo;
 
 }

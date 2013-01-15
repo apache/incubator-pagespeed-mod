@@ -251,10 +251,10 @@ bool ResourceCombiner::WriteCombination(
   if (written) {
     // TODO(morlovich): Fix combiners to deal with charsets.
     written =
-        rewrite_driver_->Write(
+        server_context_->Write(
             combine_resources, combined_contents, CombinationContentType(),
             StringPiece() /* not computing charset for now */,
-            combination.get());
+            combination.get(), handler);
   }
   return written;
 }

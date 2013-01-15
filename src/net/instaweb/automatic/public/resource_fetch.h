@@ -20,11 +20,10 @@
 // changed extensively. Contact us at mod-pagespeed-discuss@googlegroups.com
 // if you are interested in using it.
 
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_FETCH_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_FETCH_H_
+#ifndef NET_INSTAWEB_AUTOMATIC_PUBLIC_RESOURCE_FETCH_H_
+#define NET_INSTAWEB_AUTOMATIC_PUBLIC_RESOURCE_FETCH_H_
 
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 
@@ -83,8 +82,7 @@ class ResourceFetch : public SharedAsyncFetch {
                                   RewriteOptions* custom_options,
                                   RewriteDriverPool* driver_pool,
                                   bool using_spdy,
-                                  ServerContext* server_context,
-                                  const RequestContextPtr& request_ctx);
+                                  ServerContext* server_context);
 
  protected:
   // Protected interface from AsyncFetch.
@@ -135,4 +133,4 @@ class ResourceFetch : public SharedAsyncFetch {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_FETCH_H_
+#endif  // NET_INSTAWEB_AUTOMATIC_PUBLIC_RESOURCE_FETCH_H_

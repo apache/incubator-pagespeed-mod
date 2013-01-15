@@ -26,16 +26,13 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
@@ -56,7 +53,7 @@ class FetcherTest : public testing::Test {
   static const char kHeaderValue[];
   static const char kErrorMessage[];
 
-  FetcherTest();
+  FetcherTest() : mock_async_fetcher_(&mock_fetcher_) {}
 
   static void SetUpTestCase();
   static void TearDownTestCase();
@@ -69,12 +66,12 @@ class FetcherTest : public testing::Test {
    public:
     MockFetcher() : num_fetches_(0) {}
 
+
     virtual bool StreamingFetchUrl(const GoogleString& url,
                                    const RequestHeaders& request_headers,
                                    ResponseHeaders* response_headers,
                                    Writer* response_writer,
-                                   MessageHandler* message_handler,
-                                   const RequestContextPtr& request_context);
+                                   MessageHandler* message_handler);
 
     int num_fetches() const { return num_fetches_; }
 
@@ -112,11 +109,8 @@ class FetcherTest : public testing::Test {
   // it has been called yet or not.
   class CheckCallback : public StringAsyncFetch {
    public:
-    CheckCallback(const RequestContextPtr& ctx, bool expect_success,
-                  bool* callback_called)
-        : StringAsyncFetch(ctx),
-          expect_success_(expect_success),
-          callback_called_(callback_called) {
+    explicit CheckCallback(bool expect_success, bool* callback_called)
+        : expect_success_(expect_success), callback_called_(callback_called) {
     }
 
     virtual void HandleDone(bool success) {
@@ -165,6 +159,7 @@ class FetcherTest : public testing::Test {
     return NULL;
   };
 
+
   GoogleString TestFilename() {
     return (GTestSrcDir() +
             "/net/instaweb/http/testdata/google.http");
@@ -178,7 +173,6 @@ class FetcherTest : public testing::Test {
   GoogleMessageHandler message_handler_;
   MockFetcher mock_fetcher_;
   MockAsyncFetcher mock_async_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
   static SimpleStats* statistics_;
 
  private:

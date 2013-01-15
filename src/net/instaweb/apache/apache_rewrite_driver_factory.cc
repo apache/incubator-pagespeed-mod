@@ -236,7 +236,6 @@ CacheInterface* ApacheRewriteDriverFactory::GetMemcached(
           // Note -- we will use the first value of ModPagespeedMemCacheThreads
           // that we see in a VirtualHost, ignoring later ones.
           memcached_pool_.reset(new QueuedWorkerPool(num_threads,
-                                                     "memcached",
                                                      thread_system()));
         }
         AsyncCache* async_cache = new AsyncCache(mem_cache,
@@ -390,19 +389,18 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::DefaultAsyncUrlFetcher() {
 }
 
 QueuedWorkerPool* ApacheRewriteDriverFactory::CreateWorkerPool(
-    WorkerPoolCategory pool, StringPiece name) {
-  switch (pool) {
+    WorkerPoolName name) {
+  switch (name) {
     case kHtmlWorkers:
       // In practice this is 0, as we don't use HTML threads in Apache.
-      return new QueuedWorkerPool(1, name, thread_system());
+      return new QueuedWorkerPool(1, thread_system());
     case kRewriteWorkers:
-      return new QueuedWorkerPool(num_rewrite_threads_, name, thread_system());
+      return new QueuedWorkerPool(num_rewrite_threads_, thread_system());
     case kLowPriorityRewriteWorkers:
       return new QueuedWorkerPool(num_expensive_rewrite_threads_,
-                                  name,
                                   thread_system());
     default:
-      return RewriteDriverFactory::CreateWorkerPool(pool, name);
+      return RewriteDriverFactory::CreateWorkerPool(name);
   }
 }
 
@@ -543,16 +541,9 @@ SerfUrlAsyncFetcher* ApacheRewriteDriverFactory::GetSerfFetcher(
     serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
     serf->set_fetch_with_gzip(fetch_with_gzip_);
     serf->set_track_original_content_length(track_original_content_length_);
-    serf->SetHttpsOptions(https_options_);
     iter->second = serf;
   }
   return iter->second;
-}
-
-bool ApacheRewriteDriverFactory::SetHttpsOptions(StringPiece directive,
-                                                 GoogleString* error_message) {
-  directive.CopyToString(&https_options_);
-  return SerfUrlAsyncFetcher::ValidateHttpsOptions(directive, error_message);
 }
 
 // TODO(jmarantz): make this per-vhost.
@@ -656,7 +647,7 @@ void ApacheRewriteDriverFactory::ChildInit() {
   apache_message_handler_->SetPidString(static_cast<int64>(getpid()));
   apache_html_parse_message_handler_->SetPidString(
       static_cast<int64>(getpid()));
-  slow_worker_.reset(new SlowWorker("slow_work_thread", thread_system()));
+  slow_worker_.reset(new SlowWorker(thread_system()));
   if (shared_mem_statistics_.get() != NULL) {
     shared_mem_statistics_->Init(false, message_handler());
   }
@@ -829,9 +820,6 @@ void ApacheRewriteDriverFactory::InitStats(Statistics* statistics) {
   CacheStats::InitStats(ApacheCache::kFileCache, statistics);
   CacheStats::InitStats(ApacheCache::kLruCache, statistics);
   CacheStats::InitStats(kMemcached, statistics);
-  PropertyCache::InitCohortStats(BeaconCriticalImagesFinder::kBeaconCohort,
-                                 statistics);
-  PropertyCache::InitCohortStats(RewriteDriver::kDomCohort, statistics);
   statistics->AddVariable(kShutdownCount);
 }
 

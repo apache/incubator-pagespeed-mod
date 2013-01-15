@@ -27,11 +27,9 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/response_headers.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -41,13 +39,11 @@
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 // We need to include mock_timer.h to allow upcast to Timer*.
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
 
@@ -61,10 +57,12 @@ class HtmlWriterFilter;
 class LRUCache;
 class MessageHandler;
 class MockScheduler;
+class MockTimer;
 class PropertyCache;
 class ResourceNamer;
 class RewriteFilter;
 class Statistics;
+class UrlNamer;
 class WaitUrlAsyncFetcher;
 struct ContentType;
 
@@ -169,18 +167,15 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                             GoogleString* text);
 
   void ServeResourceFromManyContexts(const GoogleString& resource_url,
-                                     const StringPiece& expected_content);
-
-  void ServeResourceFromManyContextsWithUA(
-      const GoogleString& resource_url,
-      const StringPiece& expected_content,
-      const StringPiece& user_agent);
+                                     const StringPiece& expected_content,
+                                     UrlNamer* new_rms_url_namer = NULL);
 
   // Test that a resource can be served from an new server that has not already
   // constructed it.
   void ServeResourceFromNewContext(
       const GoogleString& resource_url,
-      const StringPiece& expected_content);
+      const StringPiece& expected_content,
+      UrlNamer* new_rms_url_namer = NULL);
 
   // This definition is required by HtmlParseTestBase which defines this as
   // pure abstract, so that the test subclass can define how it instantiates
@@ -391,10 +386,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                                      const StringPiece& content,
                                      int64 ttl_sec);
 
-  // Load a test file (from testdata/) into 'contents', returning false on
-  // failure.
-  bool LoadFile(const StringPiece& filename, GoogleString* contents);
-
   // Add the contents of a file to mock fetcher (with default headers).
   void AddFileToMockFetcher(const StringPiece& url,
                             const StringPiece& filename,
@@ -418,10 +409,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void ClearFetcherResponses() { mock_url_fetcher()->Clear(); }
 
   virtual void ClearStats();
-
-  // Calls Clear() on the rewrite driver and does any other necessary
-  // clean-up so the driver is okay for a test to reuse.
-  void ClearRewriteDriver();
 
   MockUrlFetcher* mock_url_fetcher() {
     return &mock_url_fetcher_;
@@ -539,33 +526,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
       StringPiece expected_contents,
       int64 expected_expiration_ms);
 
-  // Setup statistics for the given cohort and add it to the give PropertyCache.
-  void SetupCohort(PropertyCache* cache, const GoogleString& cohort) {
-    factory()->SetupCohort(cache, cohort);
-  }
-
-  // Returns a new mock property page for the page property cache.
-  MockPropertyPage* NewMockPage(const StringPiece& key) {
-    return new MockPropertyPage(
-        server_context_->thread_system(),
-        *server_context_->page_property_cache(),
-        key);
-  }
-
-  // Returns a new mock property page for the client property cache.
-  MockPropertyPage* NewMockClientPage(const StringPiece& key) {
-    return new MockPropertyPage(
-        server_context_->thread_system(),
-        *server_context_->client_property_cache(),
-        key);
-  }
-
  protected:
   void Init();
-
-  // Override this if the test fixture needs to use a different RequestContext
-  // subclass.
-  virtual RequestContextPtr CreateRequestContext();
 
   // Calls callbacks on given wait fetcher, making sure to properly synchronize
   // with async rewrite flows given driver.
@@ -592,17 +554,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Adjusts time ignoring any scheduler callbacks.  Use with caution.
   void AdjustTimeUsWithoutWakingAlarms(int64 time_us);
 
-  // Convenience method to pull the logging info proto out of the current
-  // request context's log record. The request context owns the log record, and
-  // if the log record has a non-NULL mutex, it will need to be locked
-  // for this call.
-  LoggingInfo* logging_info();
-
-  // Sets current_user_agent_
-  void SetCurrentUserAgent(const StringPiece& user_agent) {
-    current_user_agent_ = user_agent;
-  }
-
   // The mock fetcher & stats are global across all Factories used in the tests.
   MockUrlFetcher mock_url_fetcher_;
   scoped_ptr<Statistics> statistics_;
@@ -621,7 +572,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   scoped_ptr<HtmlWriterFilter> other_html_writer_filter_;
   ActiveServerFlag active_server_;
   bool use_managed_rewrite_drivers_;
-  StringPiece current_user_agent_;
+
   MD5Hasher md5_hasher_;
 
   RewriteOptions* options_;  // owned by rewrite_driver_.

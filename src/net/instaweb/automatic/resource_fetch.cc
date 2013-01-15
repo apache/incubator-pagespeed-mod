@@ -16,7 +16,7 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
-#include "net/instaweb/rewriter/public/resource_fetch.h"
+#include "net/instaweb/automatic/public/resource_fetch.h"
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -65,12 +65,12 @@ void ResourceFetch::ApplyFuriousOptions(const ServerContext* server_context,
 RewriteDriver* ResourceFetch::GetDriver(
     const GoogleUrl& url, RewriteOptions* custom_options,
     RewriteDriverPool* driver_pool, bool using_spdy,
-    ServerContext* server_context, const RequestContextPtr& request_ctx) {
+    ServerContext* server_context) {
   DCHECK((custom_options != NULL) ^ (driver_pool != NULL));
   ApplyFuriousOptions(server_context, url, driver_pool, &custom_options);
   RewriteDriver* driver = (custom_options == NULL)
-      ? server_context->NewRewriteDriverFromPool(driver_pool, request_ctx)
-      : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
+      ? server_context->NewRewriteDriverFromPool(driver_pool)
+      : server_context->NewCustomRewriteDriver(custom_options);
   // Note: this is reset in RewriteDriver::clear().
   driver->set_using_spdy(using_spdy);
   return driver;
@@ -98,7 +98,7 @@ void ResourceFetch::Start(const GoogleUrl& url,
       url, custom_options,
       (custom_options != NULL) ?
           NULL : server_context->standard_rewrite_driver_pool(),
-      using_spdy, server_context, async_fetch->request_context());
+      using_spdy, server_context);
   StartWithDriver(url, kAutoCleanupDriver,
                   server_context, driver, async_fetch);
 }
@@ -183,7 +183,7 @@ void ResourceFetch::HandleHeadersComplete() {
 void ResourceFetch::HandleDone(bool success) {
   if (success) {
     LOG(INFO) << "Resource " << resource_url_.Spec()
-              << " : " << response_headers()->status_code();
+              << " : " << response_headers()->status_code() ;
   } else {
     // This is a fetcher failure, like connection refused, not just an error
     // status code.

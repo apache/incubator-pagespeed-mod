@@ -23,11 +23,10 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -54,7 +53,6 @@ namespace net_instaweb {
 namespace {
 
 const char kDomain[] = "http://combine_css.test/";
-const char kProxyMapDomain[] = "http://proxy.test/";
 const char kYellow[] = ".yellow {background-color: yellow;}";
 const char kBlue[] = ".blue {color: blue;}\n";
 const char kACssBody[] = ".c1 {\n background-color: blue;\n}\n";
@@ -117,6 +115,9 @@ class CssCombineFilterTest : public RewriteTestBase {
                            const char* a_css_name,
                            const char* b_css_name,
                            bool expect_combine) {
+    LoggingInfo logging_info;
+    LogRecord log_record(&logging_info);
+    rewrite_driver()->set_log_record(&log_record);
     // URLs and content for HTML document and resources.
     CHECK_EQ(StringPiece::npos, id.find("/"));
     GoogleString html_url = StrCat(kDomain, id, ".html");
@@ -178,7 +179,7 @@ class CssCombineFilterTest : public RewriteTestBase {
 
     EXPECT_EQ(expected_file_count_reduction, css_file_count_reduction->Get());
     if (expected_file_count_reduction > 0) {
-      EXPECT_STREQ("cc", logging_info()->applied_rewriters());
+      EXPECT_STREQ("cc", logging_info.applied_rewriters());
     }
 
     GoogleString expected_output(AddHtmlBody(StrCat(
@@ -208,7 +209,7 @@ class CssCombineFilterTest : public RewriteTestBase {
       EXPECT_EQ(expected_output, output_buffer_);
 
       // Fetch the combination to make sure we can serve the result from above.
-      ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
+      ExpectStringAsyncFetch expect_callback(true);
       rewrite_driver()->FetchResource(combine_url, &expect_callback);
       rewrite_driver()->WaitForCompletion();
       EXPECT_EQ(HttpStatus::kOK,
@@ -220,8 +221,7 @@ class CssCombineFilterTest : public RewriteTestBase {
       // does not already have the combination cached.
       // TODO(sligocki): This has too much shared state with the first server.
       // See RewriteImage for details.
-      ExpectStringAsyncFetch other_expect_callback(true,
-                                                   CreateRequestContext());
+      ExpectStringAsyncFetch other_expect_callback(true);
       message_handler_.Message(kInfo, "Now with serving.");
       file_system()->Enable();
       other_rewrite_driver()->FetchResource(combine_url,
@@ -258,9 +258,7 @@ class CssCombineFilterTest : public RewriteTestBase {
     GoogleString kABCUrl = Encode(kDomain, "cc", "0",
                                   MultiUrl("a.css", "bbb.css", "c.css"),
                                   "css");
-    ExpectStringAsyncFetch expect_callback(
-        true, RequestContext::NewTestRequestContext(
-            server_context()->thread_system()));
+    ExpectStringAsyncFetch expect_callback(true);
 
     // NOTE: This first fetch used to return status 0 because response_headers
     // weren't initialized by the first resource fetch (but were cached
@@ -284,9 +282,7 @@ class CssCombineFilterTest : public RewriteTestBase {
     // an entirely non-existent resource appears to test a strict superset of
     // filter code paths when compared with returning a 404 for the resource.
     SetFetchFailOnUnexpected(false);
-    ExpectStringAsyncFetch fail_callback(
-        false, RequestContext::NewTestRequestContext(
-            server_context()->thread_system()));
+    ExpectStringAsyncFetch fail_callback(false);
     EXPECT_TRUE(
         rewrite_driver()->FetchResource(kABCUrl, &fail_callback));
     rewrite_driver()->WaitForCompletion();
@@ -482,97 +478,13 @@ class CssCombineFilterCustomOptions : public CssCombineFilterTest {
   virtual void SetUp() {}
 };
 
+
 TEST_F(CssCombineFilterCustomOptions, CssPreserveURLs) {
   options()->set_css_preserve_urls(true);
   CssCombineFilterTest::SetUp();
   SetHtmlMimetype();
   CombineCssWithNames("combine_css_no_hash", "", "", false, "a.css", "b.css",
                       false);
-}
-
-// Tests Issue 600 in which CSS files in a MapProxyDomain were not combined with
-// local files but they should have been after mapping into the same domain.
-TEST_F(CssCombineFilterCustomOptions, CssCombineAcrossProxyDomains) {
-  // Proxy http://kProxyMapDomain/ onto http://kTestDomain/proxied/
-  DomainLawyer* lawyer = options()->domain_lawyer();
-  GoogleString proxy_target = StrCat(kTestDomain, "proxied/");
-  ASSERT_TRUE(lawyer->AddProxyDomainMapping(proxy_target,
-                                            kProxyMapDomain,
-                                            &message_handler_));
-  CssCombineFilterTest::SetUp();
-  SetHtmlMimetype();
-
-  // Create http://kTestDomain/a.css and http://kProxyMapDomain/b.css
-  GoogleString a_local_css_url = StrCat(kTestDomain, "a.css");
-  GoogleString b_proxy_css_url = StrCat(kProxyMapDomain, "b.css");
-  ResponseHeaders default_css_header;
-  SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
-  SetFetchResponse(a_local_css_url, default_css_header, kACssBody);
-  SetFetchResponse(b_proxy_css_url, default_css_header, kBCssBody);
-
-  // Parse html that links to both css files.
-  GoogleString html_input(StrCat(
-      "<head>\n"
-      "  ", Link(a_local_css_url), "\n"
-      "  ", Link(b_proxy_css_url), "\n"
-      "</head>\n"));
-
-  ParseUrl(StrCat(kTestDomain, "base_url.html"), html_input);
-
-  // The two css files should be combined since they're now in the same domain.
-  StringVector css_urls;
-  CollectCssLinks("combine_css", output_buffer_, &css_urls);
-  ASSERT_EQ(1UL, css_urls.size());
-  // Encode doesn't allow a '/' as it expects a leaf so we have to add proxied/
-  // after the encoding occurs.
-  GoogleString encoded = Encode(kTestDomain, "cc", "0",
-                                MultiUrl("a.css", "b.css"), "css");
-  GlobalReplaceSubstring("b.css", "proxied,_b.css", &encoded);
-  EXPECT_STREQ(encoded, css_urls[0]);
-
-  // Make sure we can fetch the combined resource.
-  GoogleString output;
-  ResponseHeaders response_headers;
-  EXPECT_TRUE(FetchResourceUrl(css_urls[0], &output, &response_headers));
-  EXPECT_EQ(StrCat(kACssBody, kBCssBody), output);
-
-  // Now clear the cache and reconstruct it.
-  lru_cache()->Clear();
-  EXPECT_TRUE(FetchResourceUrl(css_urls[0], &output, &response_headers));
-  EXPECT_EQ(StrCat(kACssBody, kBCssBody), output);
-}
-
-// Dual to CssCombineAcrossProxyDomains to ensure that if no mapping occurs we
-// do not combine CSS files from different domains.
-TEST_F(CssCombineFilterCustomOptions, CssDoNotCombineAcrossNotProxiedDomains) {
-  // Proxy http://kProxyMapDomain/ onto http://kTestDomain/proxied/
-  CssCombineFilterTest::SetUp();
-  SetHtmlMimetype();
-
-  // Create http://kTestDomain/a.css and http://kProxyMapDomain/b.css
-  GoogleString a_local_css_url = StrCat(kTestDomain, "a.css");
-  GoogleString b_proxy_css_url = StrCat(kProxyMapDomain, "b.css");
-  ResponseHeaders default_css_header;
-  SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
-  SetFetchResponse(a_local_css_url, default_css_header, kACssBody);
-  SetFetchResponse(b_proxy_css_url, default_css_header, kBCssBody);
-
-  // Parse html that links to both css files.
-  GoogleString html_input(StrCat(
-      "<head>\n"
-      "  ", Link(a_local_css_url), "\n"
-      "  ", Link(b_proxy_css_url), "\n"
-      "</head>\n"));
-
-  ParseUrl(StrCat(kTestDomain, "base_url.html"), html_input);
-
-  // The two css files should not be combined since they're not mapped to the
-  // same domain.
-  StringVector css_urls;
-  CollectCssLinks("combine_css", output_buffer_, &css_urls);
-  ASSERT_EQ(2UL, css_urls.size());
-  EXPECT_STREQ(a_local_css_url, css_urls[0]);
-  EXPECT_STREQ(b_proxy_css_url, css_urls[1]);
 }
 
 // Make sure that if we re-parse the same html twice we do not

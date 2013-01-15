@@ -31,16 +31,6 @@ ModPagespeedBlockingRewriteKey psatest
   ModPagespeedMaxHtmlParseBytes 5000
 </Directory>
 
-# This will cause an error report in the startup log if mod_pagespeed is not
-# built with ssl, but otherwise will cause no trouble.
-ModPagespeedFetchHttps enable,allow_self_signed
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/https_fetch" >
-  ModPagespeedDomain https://modpagespeed.com
-  ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/modpagespeed_dot_com \
-                             https://modpagespeed.com/do_not_modify
-</Directory>
-
 #PER_VHOST_STATS ModPagespeedUsePerVHostStatistics on
 #PER_VHOST_STATS <Location /mod_pagespeed_global_statistics>
 #PER_VHOST_STATS    Order allow,deny
@@ -272,8 +262,6 @@ ModPagespeedCustomFetchHeader x-other False
   SetHandler mod_pagespeed_log_request_headers
 </Location>
 
-ModPagespeedInPlaceResourceOptimization on
-
 ModPagespeedRespectXForwardedProto on
 
 <Location ~ "/mod_pagespeed_test/response_headers.html*">
@@ -479,6 +467,40 @@ ModPagespeedRespectXForwardedProto on
 #FURIOUS_NO_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images;disable=convert_jpeg_to_progressive;percent=50"
 #FURIOUS_NO_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images;percent=50"
 
+#URL_ATTRIBUTE # This is used for testing dynamically defined url-valued
+#URL_ATTRIBUTE # attributes
+#URL_ATTRIBUTE ModPagespeedUrlValuedAttribute span src Hyperlink
+#URL_ATTRIBUTE ModPagespeedUrlValuedAttribute hr imgsrc Image
+#URL_ATTRIBUTE ModPagespeedDomainRewriteHyperlinks on
+#URL_ATTRIBUTE ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
+#URL_ATTRIBUTE ModPagespeedEnableFilters rewrite_domains
+#URL_ATTRIBUTE ModPagespeedUrlValuedAttribute custom a Image
+#URL_ATTRIBUTE ModPagespeedUrlValuedAttribute custom b otherResource
+#URL_ATTRIBUTE ModPagespeedUrlValuedAttribute custom c hyperlink
+
+#ABSOLUTE_URLS # This is used for testing that we don't load resources from
+#ABSOLUTE_URLS # absolute urls during resource reconstruction unless they're for
+#ABSOLUTE_URLS # our own hostname.  While ModPagespeedDomain should no longer
+#ABSOLUTE_URLS # have an effect on whether we load absolute urls, we need to
+#ABSOLUTE_URLS # include it to be sure we're failing because of the code under
+#ABSOLUTE_URLS # test and not because the domain lawyer is rejecting it.
+#ABSOLUTE_URLS ModPagespeedDomain http://example.com
+
+#XHEADER # Set the value of the X-Mod-Pagespeed header
+#XHEADER ModPagespeedXHeaderValue "UNSPECIFIED VERSION"
+
+#DOMAIN_HYPERLINKS ModPagespeedDomainRewriteHyperlinks on
+#DOMAIN_HYPERLINKS ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
+#DOMAIN_HYPERLINKS ModPagespeedEnableFilters rewrite_domains
+
+#CLIENT_DOMAIN_REWRITE ModPagespeedMapRewriteDomain http://@@APACHE_DOMAIN@@ http://localhost:9090
+#CLIENT_DOMAIN_REWRITE ModPagespeedClientDomainRewrite true
+#CLIENT_DOMAIN_REWRITE ModPagespeedEnableFilters rewrite_domains
+
+#DOMAIN_RESOURCE_TAGS ModPagespeedDomainRewriteHyperlinks off
+#DOMAIN_RESOURCE_TAGS ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
+#DOMAIN_RESOURCE_TAGS ModPagespeedEnableFilters rewrite_domains
+
 # Another VirtualHost can be enabled by default as it does no harm.  This can
 # be used for testing alternate configuration settings in system tests without
 # restarting Apache.
@@ -584,97 +606,11 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeedMaxCacheableContentLength 85
 </VirtualHost>
 
-# Set the value of the X-Mod-Pagespeed header
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName xheader.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  ModPagespeedXHeaderValue "UNSPECIFIED VERSION"
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName domain_hyperlinks_on.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  ModPagespeedDomainRewriteHyperlinks on
-  ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
-  ModPagespeedEnableFilters rewrite_domains
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName domain_hyperlinks_off.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  ModPagespeedDomainRewriteHyperlinks off
-  ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
-  ModPagespeedEnableFilters rewrite_domains
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName client_domain_rewrite.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  ModPagespeedMapRewriteDomain  http://client_domain_rewrite.example.com http://@@APACHE_DOMAIN@@
-  ModPagespeedClientDomainRewrite true
-  ModPagespeedEnableFilters rewrite_domains
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName url_attribute.example.com
-
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  # This is used for testing dynamically defined url-valued
-  # attributes
-  ModPagespeedUrlValuedAttribute span src Hyperlink
-  ModPagespeedUrlValuedAttribute hr imgsrc Image
-  ModPagespeedDomainRewriteHyperlinks on
-  ModPagespeedMapRewriteDomain http://dst.example.com http://src.example.com
-  ModPagespeedEnableFilters rewrite_domains
-  ModPagespeedUrlValuedAttribute custom a Image
-  ModPagespeedUrlValuedAttribute custom b otherResource
-  ModPagespeedUrlValuedAttribute custom c hyperlink
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName absolute_urls.example.com
-
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-
-  # This is used for testing that we don't load resources from
-  # absolute urls during resource reconstruction unless they're for
-  # our own hostname.  While ModPagespeedDomain should no longer
-  # have an effect on whether we load absolute urls, we need to
-  # include it to be sure we're failing because of the code under
-  # test and not because the domain lawyer is rejecting it.
-  ModPagespeedDomain http://example.com
-</VirtualHost>
-
-# Proxy modpagespeed.com for testing Issue 582.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName modpagespeed.com
-
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@/"
-
-  ModPagespeed off
-  ServerAlias www.modpagespeed.com
-
-  ProxyPass / http://modpagespeed.com/
-  ProxyPassReverse / http://modpagespeed.com/
-</VirtualHost>
-
 #ALL_DIRECTIVES # Invoke all ModPagespeed* directives to make sure they work:
 #ALL_DIRECTIVES ModPagespeedAllow foo
 #ALL_DIRECTIVES ModPagespeedAnalyticsID 1234
 #ALL_DIRECTIVES ModPagespeedAvoidRenamingIntrospectiveJavascript true
-#ALL_DIRECTIVES ModPagespeedBeaconUrl "http://example.com/beacon"
+#ALL_DIRECTIVES ModPagespeedBeaconUrl "http://example.com/beacon?ets="
 #ALL_DIRECTIVES ModPagespeedBlockingRewriteKey test
 #ALL_DIRECTIVES ModPagespeedCacheFlushFilename /tmp/cache.flush
 #ALL_DIRECTIVES ModPagespeedCacheFlushPollIntervalSec 10
@@ -710,10 +646,8 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedImageMaxRewritesAtOnce 5
 #ALL_DIRECTIVES ModPagespeedImageRecompressionQuality 75
 #ALL_DIRECTIVES ModPagespeedImagePreserveURLs false
-#ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQuality 85
 #ALL_DIRECTIVES ModPagespeedImgInlineMaxBytes 2000
 #ALL_DIRECTIVES ModPagespeedImgMaxRewritesAtOnce 5
-#ALL_DIRECTIVES ModPagespeedInPlaceResourceOptimization on
 #ALL_DIRECTIVES ModPagespeedIncreaseSpeedTracking true
 #ALL_DIRECTIVES ModPagespeedInstallCrashHandler off
 #ALL_DIRECTIVES ModPagespeedJpegRecompressionQuality 80
@@ -757,12 +691,13 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedSlurpReadOnly true
 #ALL_DIRECTIVES ModPagespeedStatistics true
 #ALL_DIRECTIVES ModPagespeedStatisticsLogging true
-#ALL_DIRECTIVES ModPagespeedStatisticsLoggingChartsCSS "example.com/css.css"
-#ALL_DIRECTIVES ModPagespeedStatisticsLoggingChartsJS "example.com/js.js"
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingIntervalMs 3000
+#ALL_DIRECTIVES ModPagespeedStatisticsLoggingChartsCSS "example.com/css.css"
+#ALL_DIRECTIVES ModPagespeedStatisticsLoggingChartsJS "example.com/js.js"
 #ALL_DIRECTIVES ModPagespeedSupportNoScriptEnabled true
 #ALL_DIRECTIVES ModPagespeedTestProxy off
 #ALL_DIRECTIVES ModPagespeedUrlValuedAttribute span src Hyperlink
 #ALL_DIRECTIVES ModPagespeedUsePerVHostStatistics on
+#ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQuality 85
 #ALL_DIRECTIVES ModPagespeedXHeaderValue "test"

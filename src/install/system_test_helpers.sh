@@ -14,14 +14,14 @@
 #
 # Callers should leave argument parsing to this script.
 #
-# Callers should invoke check_failures_and_exit after no more tests are left so that
+# Callers should invoke system_test_trailer after no more tests are left so that
 # expected failures can be logged.
 #
 # If command line args are wrong, exit with status code 2.
-# If no tests fail, it will exit the shell-script with status 0.
+# If no tests fail, don't call exit and instead return control to the caller.
 # If a test fails:
 #  - If it's listed in PAGESPEED_EXPECTED_FAILURES, log the name of the failing
-#    test, to display when check_failures_and_exit is called, at which point exit
+#    test, to display when system_test_trailer is called, at which point exit
 #    with status code 1.
 #  - Otherwise, exit immediately with status code 1.
 #
@@ -33,8 +33,6 @@
 #       ~compression is enabled for rewritten JS.~
 #       ~convert_meta_tags~
 #       ~regression test with same filtered input twice in combination"
-
-set -u  # Disallow referencing undefined variables.
 
 # Catch potential misuse of this script.
 if [ "$(basename $0)" == "system_test_helpers.sh" ] ; then
@@ -52,15 +50,14 @@ fi;
 
 TEMPDIR=${TEMPDIR-/tmp/mod_pagespeed_test.$USER}
 FAILURES="${TEMPDIR}/failures"
-rm -f "$FAILURES"
+rm "$FAILURES"
 
 # Make this easier to process so we're always looking for '~target~'.
 PAGESPEED_EXPECTED_FAILURES="~${PAGESPEED_EXPECTED_FAILURES=}~"
 
 # If the user has specified an alternate WGET as an environment variable, then
 # use that, otherwise use the one in the path.
-# Note: ${WGET:-} syntax is used to avoid breaking "set -u".
-if [ "${WGET:-}" == "" ]; then
+if [ "$WGET" == "" ]; then
   WGET=wget
 else
   echo WGET = $WGET
@@ -73,7 +70,7 @@ if [ $? != 0 ]; then
 fi
 
 # Ditto for curl.
-if [ "${CURL:-}" == "" ]; then
+if [ "$CURL" == "" ]; then
   CURL=curl
 else
   echo CURL = $CURL
@@ -106,12 +103,12 @@ MESSAGE_URL=http://$HOSTNAME/mod_pagespeed_message
 # invocation it is set to the newly-chosen TEST_ROOT.  This permits us to call
 # this from other test scripts that use different host prefixes for rewritten
 # content.
-REWRITTEN_TEST_ROOT=${TEST_ROOT:-}
+REWRITTEN_TEST_ROOT=$TEST_ROOT
 TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
 REWRITTEN_TEST_ROOT=${REWRITTEN_TEST_ROOT:-$TEST_ROOT}
 
 # This sets up similar naming for https requests.
-HTTPS_HOST=${2:-}
+HTTPS_HOST=$2
 HTTPS_EXAMPLE_ROOT=https://$HTTPS_HOST/mod_pagespeed_example
 
 # These are the root URLs for rewritten resources; by default, no change.
@@ -119,9 +116,9 @@ REWRITTEN_ROOT=${REWRITTEN_ROOT:-$EXAMPLE_ROOT}
 PROXY_DOMAIN=${PROXY_DOMAIN:-$HOSTNAME}
 
 # Setup wget proxy information
-export http_proxy=${3:-}
-export https_proxy=${3:-}
-export ftp_proxy=${3:-}
+export http_proxy=$3
+export https_proxy=$3
+export ftp_proxy=$3
 export no_proxy=""
 
 # Version timestamped with nanoseconds, making it extremely unlikely to hit.
@@ -189,9 +186,7 @@ function run_wget_with_args() {
 # errors will be reported immediately and will make us exit with status 1, tests
 # listed in PAGESPEED_EXPECTED_FAILURES will let us continue.  This prints out
 # failure information for these tests, if appropriate.
-#
-# This function always exits the scripts with status 0 or 1.
-function check_failures_and_exit() {
+function system_test_trailer() {
   if [ -e $FAILURES ] ; then
     echo Failing Tests:
     sed 's/^/  /' $FAILURES
@@ -199,21 +194,13 @@ function check_failures_and_exit() {
     exit 1
   fi
   echo "PASS."
-  exit 0
-}
-
-# Did we expect the current test, as set by start_test, to fail?
-function is_expected_failure() {
-  # Does PAGESPEED_EXPECTED_FAILURES contain CURRENT_TEST?
-  test "$PAGESPEED_EXPECTED_FAILURES" != \
-       "${PAGESPEED_EXPECTED_FAILURES/~"${CURRENT_TEST}"~/}"
 }
 
 # By default, print a message like:
 #   failure at line 374
 #   FAIL
-# and then exit with return value 1.  If we expected this test to fail, log to
-# $FAILURES and return without exiting.
+# and then exit with return value 1.  If PAGESPEED_EXPECTED_FAILURES contains
+# the name of the current test, log to $FAILURES and return without exiting.
 #
 # If the shell does not support the 'caller' builtin, skip the line number info.
 #
@@ -229,7 +216,9 @@ function handle_failure() {
     echo FAILed Input: "$1"
   fi
   echo "in '$CURRENT_TEST'"
-  if is_expected_failure ; then
+  if [ "$PAGESPEED_EXPECTED_FAILURES" != \
+       "${PAGESPEED_EXPECTED_FAILURES/~"${CURRENT_TEST}"~/}" ] ; then
+    # We expected this test to fail.
     echo $CURRENT_TEST >> $FAILURES
     echo "Continuing after expected failure..."
   else
@@ -274,13 +263,13 @@ function check_not_from() {
 # check that its size meets constraint identified with $2 $3, e.g.
 #   check_file_size "$OUTDIR/xPuzzle*" -le 60000
 function check_file_size() {
-  filename_pattern="$1"
+  pattern="$1"
   op="$2"
-  expected_value="$3"
-  SIZE=$(stat -c %s $filename_pattern) || handle_failure \
-      "$filename_pattern not found"
-  [ "$SIZE" "$op" "$expected_value" ] || handle_failure \
-      "$filename_pattern : $SIZE $op $expected_value"
+  value="$3"
+  SIZE=$(stat -c %s $pattern) || handle_failure \
+      "$pattern not found"
+  [ "$SIZE" "$op" "$value" ] || handle_failure \
+      "$pattern : $SIZE $op $value"
 }
 
 # In a pipeline a failed check or check_not will not halt the script on error.
@@ -301,8 +290,8 @@ function check_stat() {
   NEW_STATS_FILE=$2
   COUNTER_NAME=$3
   EXPECTED_DIFF=$4
-  OLD_VAL=$(grep -w ${COUNTER_NAME} ${OLD_STATS_FILE} | awk '{print $2}')
-  NEW_VAL=$(grep -w ${COUNTER_NAME} ${NEW_STATS_FILE} | awk '{print $2}')
+  OLD_VAL=$(grep -w ${COUNTER_NAME} ${OLD_STATS_FILE} | cut -d: -f2)
+  NEW_VAL=$(grep -w ${COUNTER_NAME} ${NEW_STATS_FILE} | cut -d: -f2)
 
   if [ $((${NEW_VAL} - ${OLD_VAL})) = ${EXPECTED_DIFF} ]; then
     return;
@@ -316,14 +305,14 @@ function check_stat() {
   fi
 }
 
-FETCH_UNTIL_OUTFILE="$OUTDIR/fetch_until_output.$$"
+FETCH_UNTIL_OUTFILE="$TEMPDIR/fetch_until_output.$$"
 
-# Continuously fetches URL and pipes the output to COMMAND.  Loops until COMMAND
-# outputs RESULT, in which case we return 0, or until TIMEOUT seconds have
+# Continuously fetches URL and pipes the output to COMMAND.  Loops until
+# COMMAND outputs RESULT, in which case we return 0, or until 10 seconds have
 # passed, in which case we return 1.
 #
 # Usage:
-#    fetch_until [-save] [-recursive] REQUESTURL COMMAND RESULT [WGET_ARGS] [OP]
+#    fetch_until [-save] [-recursive] REQUESTURL COMMAND RESULT [WGET_ARGS]
 #
 # If "-save" is specified as the first argument, then the output from $COMMAND
 # is retained in $FETCH_UNTIL_OUTFILE.
@@ -346,44 +335,29 @@ function fetch_until() {
   REQUESTURL=$1
   COMMAND=$2
   RESULT=$3
-  FETCH_UNTIL_WGET_ARGS="$WGET_ARGS ${4:-}"
-  OP=${5:-=}  # Default to =
+  FETCH_UNTIL_WGET_ARGS="$WGET_ARGS $4"
 
   if [ $recursive -eq 1 ]; then
     FETCH_FILE="$OUTDIR/$(basename $REQUESTURL)"
     FETCH_UNTIL_WGET_ARGS="$FETCH_UNTIL_WGET_ARGS $PREREQ_ARGS"
   else
     FETCH_FILE="$FETCH_UNTIL_OUTFILE"
-    FETCH_UNTIL_WGET_ARGS="$FETCH_UNTIL_WGET_ARGS -o $WGET_OUTPUT \
-                                                  -O $FETCH_FILE"
+    FETCH_UNTIL_WGET_ARGS="$FETCH_UNTIL_WGET_ARGS -O $FETCH_FILE"
   fi
 
-  # TIMEOUT is how long to keep trying, in seconds.
-  if is_expected_failure ; then
-    # For tests that we expect to fail, don't wait hoping for the right result.
-    TIMEOUT=0
-  else
-    # This is longer than PageSpeed should normally ever take to rewrite
-    # resources, but if it's running under Valgrind it might occasionally take a
-    # really long time.
-    TIMEOUT=100
-  fi
 
+  TIMEOUT=10
   START=$(date +%s)
   STOP=$((START+$TIMEOUT))
   WGET_HERE="$WGET -q $FETCH_UNTIL_WGET_ARGS"
   echo -n "      Fetching $REQUESTURL $FETCH_UNTIL_WGET_ARGS"
-  echo " until \$($COMMAND) $OP $RESULT"
+  echo " until \$($COMMAND) = $RESULT"
   echo "$WGET_HERE $REQUESTURL and checking with $COMMAND"
   while test -t; do
-    # Clean out OUTDIR so that wget doesn't create .1 files.
-    rm -rf $OUTDIR
-    mkdir $OUTDIR
-
     $WGET_HERE $REQUESTURL
-    if [ $($COMMAND < "$FETCH_FILE") "$OP" "$RESULT" ]; then
+    if [ $($COMMAND < "$FETCH_FILE") = "$RESULT" ]; then
       echo "."
-      if [ $save -eq 0 ]; then
+      if [ $save = 0 ]; then
         if [ $recursive -eq 1 ]; then
           rm -rf $OUTDIR
         else
@@ -394,9 +368,15 @@ function fetch_until() {
     fi
     if [ $(date +%s) -gt $STOP ]; then
       echo ""
-      echo "TIMEOUT: $WGET_HERE $REQUESTURL output in $FETCH_FILE"
+      echo "*** $WGET_HERE output in $FETCH_FILE"
       handle_failure
       return
+    fi
+    if [ $recursive -eq 1 ]; then
+      rm -rf $OUTDIR
+      mkdir $OUTDIR
+    else
+      rm -f "$FETCH_FILE"
     fi
     echo -n "."
     sleep 0.1
@@ -448,5 +428,5 @@ function test_resource_ext_corruption() {
 
 # Scrapes the specified statistic, returning the statistic value.
 function scrape_stat {
-  $WGET_DUMP $STATISTICS_URL | egrep "^$1:? " | awk '{print $2}'
+  $WGET_DUMP $STATISTICS_URL | grep "^$1\:" | cut -d: -f2
 }

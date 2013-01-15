@@ -121,7 +121,6 @@ class PoolTest : public testing::Test {
 
   IntPool pool_;
   IntElement elements_[4];
-
  private:
   DISALLOW_COPY_AND_ASSIGN(PoolTest);
 };

@@ -690,10 +690,10 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // kEndOfOptions explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
-  EXPECT_EQ(132, RewriteOptions::kEndOfOptions);
-  EXPECT_STREQ("AddOptionsToUrls",
+  EXPECT_EQ(124, RewriteOptions::kEndOfOptions);
+  EXPECT_STREQ("AjaxRewritingEnabled",
                RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kAddOptionsToUrls));
+                   RewriteOptions::kAjaxRewritingEnabled));
   EXPECT_STREQ("AlwaysRewriteCss",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kAlwaysRewriteCss));
@@ -721,9 +721,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("ClientDomainRewrite",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kClientDomainRewrite));
-  EXPECT_STREQ("FinderPropertiesCacheExpirationTimeMs",
+  EXPECT_STREQ("CriticalImagesCacheExpirationTimeMs",
                RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kFinderPropertiesCacheExpirationTimeMs));
+                   RewriteOptions::kCriticalImagesCacheExpirationTimeMs));
   EXPECT_STREQ("CriticalLineConfig",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kCriticalLineConfig));
@@ -832,21 +832,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("ImplicitCacheTtlMs",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImplicitCacheTtlMs));
-  EXPECT_STREQ("InPlaceResourceOptimization",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kInPlaceResourceOptimization));
-  EXPECT_STREQ("InPlaceRewriteDeadlineMs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kInPlaceRewriteDeadlineMs));
-  EXPECT_STREQ("InPlacePreemptiveRewriteCssImages",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kInPlacePreemptiveRewriteCssImages));
   EXPECT_STREQ("InPlaceWaitForOptimized",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kInPlaceWaitForOptimized));
-  EXPECT_STREQ("InlineOnlyCriticalImages",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kInlineOnlyCriticalImages));
   EXPECT_STREQ("JpegRecompressionQuality",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageJpegRecompressionQuality));
@@ -865,6 +853,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("LazyloadImagesAfterOnload",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kLazyloadImagesAfterOnload));
+  EXPECT_STREQ("InlineOnlyCriticalImages",
+               RewriteOptions::LookupOptionEnum(
+                   RewriteOptions::kInlineOnlyCriticalImages));
   EXPECT_STREQ("LogRewriteTiming",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kLogRewriteTiming));
@@ -957,9 +948,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("ExperimentalFetchFromModSpdy",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kExperimentalFetchFromModSpdy));
-  EXPECT_EQ(StringPiece("FetchHttps"),
-            RewriteOptions::LookupOptionEnum(
-                RewriteOptions::kFetchHttps));
   EXPECT_STREQ("FetchProxy",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kFetcherProxy));
@@ -1035,15 +1023,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("TestProxy",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kTestProxy));
-  EXPECT_STREQ("TestProxySlurp",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kTestProxySlurp));
   EXPECT_STREQ("UseSmartDiffInBlink",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kUseSmartDiffInBlink));
-  EXPECT_STREQ("FuriousCookieDurationMs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kFuriousCookieDurationMs));
 }
 
 TEST_F(RewriteOptionsTest, PrioritizeVisibleContentFamily) {
@@ -1230,8 +1212,8 @@ TEST_F(RewriteOptionsTest, FuriousPrintTest) {
   // This should be all non-dangerous filters.
   EXPECT_EQ("Experiment: 7; ab,ah,ai,cw,fe,cc,ch,jc,gp,jp,jw,mc,pj,db,di,"
             "ea,ec,ei,ep,es,fc,if,fs,hn,hw,ci,ii,il,ji,idp,ig,id,js,tu,ls,"
-            "ga,cj,cm,co,jo,pc,ws,pv,rj,rp,rw,rc,rq,ri,rm,cf,rd,jm,cs,cu,is,sq,"
-            "cp,md,css:2048,im:2048,js:2048;",
+            "ga,cj,cm,co,jo,pc,pv,rj,rp,rw,rc,rq,ri,rm,cf,rd,jm,cs,cu,is,sq,cp,"
+            "md,css:2048,im:2048,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 7", options_.ToExperimentString());
   options_.SetFuriousState(2);
@@ -1390,20 +1372,6 @@ TEST_F(RewriteOptionsTest, ComputeSignatureOptionEffect) {
   EXPECT_NE(signature2, signature3);
 }
 
-TEST_F(RewriteOptionsTest, ComputeSignatureEmptyIdempotent) {
-  options_.ClearSignatureForTesting();
-  options_.DisallowTroublesomeResources();
-  options_.ComputeSignature(&hasher_);
-  GoogleString signature1 = options_.signature();
-  options_.ClearSignatureForTesting();
-
-  // Merging in empty RewriteOptions should not change the signature.
-  RewriteOptions options2;
-  options_.Merge(options2);
-  options_.ComputeSignature(&hasher_);
-  EXPECT_EQ(signature1, options_.signature());
-}
-
 TEST_F(RewriteOptionsTest, ImageOptimizableCheck) {
   options_.ClearFilters();
   options_.EnableFilter(RewriteOptions::kRecompressJpeg);
@@ -1434,11 +1402,6 @@ TEST_F(RewriteOptionsTest, ImageOptimizableCheck) {
   options_.EnableFilter(RewriteOptions::kConvertPngToJpeg);
   EXPECT_TRUE(options_.ImageOptimizationEnabled());
   options_.DisableFilter(RewriteOptions::kConvertPngToJpeg);
-  EXPECT_FALSE(options_.ImageOptimizationEnabled());
-
-  options_.EnableFilter(RewriteOptions::kConvertToWebpLossless);
-  EXPECT_TRUE(options_.ImageOptimizationEnabled());
-  options_.DisableFilter(RewriteOptions::kConvertToWebpLossless);
   EXPECT_FALSE(options_.ImageOptimizationEnabled());
 }
 
@@ -1532,76 +1495,6 @@ TEST_F(RewriteOptionsTest, FilterLookupMethods) {
             RewriteOptions::LookupFilterById(""));
   EXPECT_EQ(RewriteOptions::kEndOfFilters,
             RewriteOptions::LookupFilterById(NULL));
-
-  EXPECT_EQ(RewriteOptions::kEndOfOptions,
-            RewriteOptions::LookupOptionEnumById("  "));
-  EXPECT_EQ(RewriteOptions::kAnalyticsID,
-            RewriteOptions::LookupOptionEnumById("ig"));
-  EXPECT_EQ(RewriteOptions::kImageJpegRecompressionQuality,
-            RewriteOptions::LookupOptionEnumById("iq"));
-  EXPECT_EQ(RewriteOptions::kEndOfOptions,
-            RewriteOptions::LookupOptionEnumById("junk"));
-  EXPECT_EQ(RewriteOptions::kEndOfOptions,
-            RewriteOptions::LookupOptionEnumById(""));
-  EXPECT_EQ(RewriteOptions::kEndOfOptions,
-            RewriteOptions::LookupOptionEnumById(NULL));
-}
-
-TEST_F(RewriteOptionsTest, ParseBeaconUrl) {
-  RewriteOptions::BeaconUrl beacon_url;
-  GoogleString url = "www.example.com";
-  GoogleString url2 = "www.example.net";
-
-  EXPECT_FALSE(RewriteOptions::ParseBeaconUrl("", &beacon_url));
-  EXPECT_FALSE(RewriteOptions::ParseBeaconUrl("a b c", &beacon_url));
-
-  EXPECT_TRUE(RewriteOptions::ParseBeaconUrl("http://" + url, &beacon_url));
-  EXPECT_STREQ("http://" + url, beacon_url.http);
-  EXPECT_STREQ("https://" + url, beacon_url.https);
-
-  EXPECT_TRUE(RewriteOptions::ParseBeaconUrl("https://" + url, &beacon_url));
-  EXPECT_STREQ("https://" + url, beacon_url.http);
-  EXPECT_STREQ("https://" + url, beacon_url.https);
-
-  EXPECT_TRUE(RewriteOptions::ParseBeaconUrl(
-      "http://" + url + " " + "https://" + url2, &beacon_url));
-  EXPECT_STREQ("http://" + url, beacon_url.http);
-  EXPECT_STREQ("https://" + url2, beacon_url.https);
-
-  // Verify that ets parameters get stripped from the beacon_url
-  EXPECT_TRUE(RewriteOptions::ParseBeaconUrl("http://" + url + "?ets=" + " " +
-                                             "https://"+ url2 + "?foo=bar&ets=",
-                                             &beacon_url));
-  EXPECT_STREQ("http://" + url, beacon_url.http);
-  EXPECT_STREQ("https://" + url2 + "?foo=bar", beacon_url.https);
-}
-
-TEST_F(RewriteOptionsTest, AccessOptionByIdAndEnum) {
-  const char* id = NULL;
-  GoogleString value;
-  bool was_set = false;
-  EXPECT_TRUE(options_.OptionValue(
-      RewriteOptions::kImageJpegRecompressionQuality, &id, &was_set, &value));
-  EXPECT_FALSE(was_set);
-  EXPECT_STREQ("iq", id);
-  const RewriteOptions::OptionEnum kBogusOptionEnum =
-      static_cast<RewriteOptions::OptionEnum>(-1);
-  EXPECT_EQ(RewriteOptions::kOptionNameUnknown,
-            options_.SetOptionFromEnum(kBogusOptionEnum, ""));
-  EXPECT_EQ(RewriteOptions::kOptionValueInvalid,
-            options_.SetOptionFromEnum(
-                RewriteOptions::kImageJpegRecompressionQuality, "garbage"));
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.SetOptionFromEnum(
-                RewriteOptions::kImageJpegRecompressionQuality, "63"));
-  id = NULL;
-  EXPECT_TRUE(options_.OptionValue(
-      RewriteOptions::kImageJpegRecompressionQuality, &id, &was_set, &value));
-  EXPECT_TRUE(was_set);
-  EXPECT_STREQ("iq", id);
-  EXPECT_STREQ("63", value);
-
-  EXPECT_FALSE(options_.OptionValue(kBogusOptionEnum, &id, &was_set, &value));
 }
 
 }  // namespace net_instaweb

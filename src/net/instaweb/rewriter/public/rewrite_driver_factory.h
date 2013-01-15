@@ -40,6 +40,7 @@ class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class FuriousMatcher;
 class Hasher;
+class LogRecord;
 class MessageHandler;
 class NamedLockManager;
 class PropertyCache;
@@ -68,7 +69,7 @@ class RewriteDriverFactory {
   // Helper for users of defer_cleanup; see below.
   template<class T> class Deleter;
 
-  enum WorkerPoolCategory {
+  enum WorkerPoolName {
     kHtmlWorkers,
     kRewriteWorkers,
     kLowPriorityRewriteWorkers,
@@ -156,7 +157,7 @@ class RewriteDriverFactory {
   // to forking threads, e.g. via ComputeUrlFetcher().
   Timer* timer();
   NamedLockManager* lock_manager();
-  QueuedWorkerPool* WorkerPool(WorkerPoolCategory pool);
+  QueuedWorkerPool* WorkerPool(WorkerPoolName pool);
   Scheduler* scheduler();
   UsageDataReporter* usage_data_reporter();
 
@@ -252,6 +253,10 @@ class RewriteDriverFactory {
   // forwards to NewRewriteOptions().
   virtual RewriteOptions* NewRewriteOptionsForQuery();
 
+  // Creates a new LogRecord object. The caller of this method has to take
+  // ownership of the returned LogRecord instance.
+  virtual LogRecord* NewLogRecord();
+
   // get/set the version placed into the X-[Mod-]Page(s|-S)peed header.
   const GoogleString& version_string() const { return version_string_; }
   void set_version_string(const StringPiece& version_string) {
@@ -322,8 +327,7 @@ class RewriteDriverFactory {
   // Subclasses can override this to create an appropriately-sized thread
   // pool for their environment. The default implementation will always
   // make one with a single thread.
-  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
-                                             StringPiece name);
+  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolName name);
 
   // Subclasses can override this method to request load-shedding to happen
   // if the low-priority work pool has too many inactive sequences queued up

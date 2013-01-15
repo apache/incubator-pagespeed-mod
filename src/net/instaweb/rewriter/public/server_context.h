@@ -26,14 +26,12 @@
 #include <vector>
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -53,9 +51,11 @@ class Function;
 class FuriousMatcher;
 class GoogleUrl;
 class Hasher;
+class LogRecord;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
+class PropertyCache;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
@@ -138,6 +138,22 @@ class ServerContext {
   }
   FuriousMatcher* furious_matcher() { return furious_matcher_.get(); }
 
+  // Writes the specified contents into the output resource, and marks it
+  // as optimized. 'inputs' described the input resources that were used
+  // to construct the output, and is used to determine whether the
+  // result can be safely cache extended and be marked publicly cacheable.
+  // 'content_type' and 'charset' specify the mimetype and encoding of
+  // the contents, and will help form the Content-Type header.
+  // 'charset' may be empty when not specified.
+  //
+  // Note that this does not escape charset.
+  //
+  // Callers should take care that dangerous types like 'text/html' do not
+  // sneak into content_type.
+  bool Write(const ResourceVector& inputs, const StringPiece& contents,
+             const ContentType* content_type, StringPiece charset,
+             OutputResource* output, MessageHandler* handler);
+
   // Computes the most restrictive Cache-Control intersection of the input
   // resources, and the provided headers, and sets that cache-control on the
   // provided headers.  Does nothing if all of the resources are fully
@@ -194,12 +210,6 @@ class ServerContext {
   PropertyCache* client_property_cache() const {
     return client_property_cache_.get();
   }
-  void set_device_property_cache(PropertyCache* cache) {
-    device_property_cache_.reset(cache);
-  }
-  PropertyCache* device_property_cache() const {
-    return device_property_cache_.get();
-  }
 
   // Cache for storing file system metadata. It must be private to a server,
   // preferably but not necessarily shared between its processes, and is
@@ -240,8 +250,8 @@ class ServerContext {
   }
   void set_flush_early_info_finder(FlushEarlyInfoFinder* finder);
 
-  UserAgentMatcher* user_agent_matcher() {
-    return user_agent_matcher_;
+  const UserAgentMatcher& user_agent_matcher() const {
+    return *user_agent_matcher_;
   }
   void set_user_agent_matcher(UserAgentMatcher* n) { user_agent_matcher_ = n; }
 
@@ -270,7 +280,6 @@ class ServerContext {
   // be called directly, rather than asynchronously.  The resource
   // will be passed to the callback, with its contents and headers filled in.
   void ReadAsync(Resource::NotCacheablePolicy not_cacheable_policy,
-                 const RequestContextPtr& request_context,
                  Resource::AsyncCallback* callback);
 
   // Allocate an NamedLock to guard the creation of the given resource.  If the
@@ -301,8 +310,7 @@ class ServerContext {
   // variables.  Returns true if the url was parsed and handled correctly; in
   // this case a 204 No Content response should be sent.  Returns false if the
   // url could not be parsed; in this case the request should be declined.
-  bool HandleBeacon(const StringPiece& unparsed_url,
-                    const RequestContextPtr& request_context);
+  bool HandleBeacon(const StringPiece& unparsed_url);
 
   // Returns a pointer to the master global_options.  These are not used
   // directly in RewriteDrivers, but are Cloned into the drivers as they
@@ -344,11 +352,9 @@ class ServerContext {
                                    RewriteOptions* domain_options,
                                    RewriteOptions* query_options);
 
-  // Returns the page property cache key to be used for the proxy interface
-  // flow.  options is expected to be frozen.
-  GoogleString GetPagePropertyCacheKey(const StringPiece& url,
-                                       const RewriteOptions* options,
-                                       const StringPiece& device_type_suffix);
+  // Makes a new LogRecord. The caller of this method has to take the ownership
+  // of the object.
+  LogRecord* NewLogRecord();
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -358,12 +364,11 @@ class ServerContext {
   //
   // Filters allocated using this mechanism have their filter-chain
   // already frozen (see AddFilters()).
-  RewriteDriver* NewRewriteDriver(const RequestContextPtr& request_ctx);
+  RewriteDriver* NewRewriteDriver();
 
   // As above, but uses a specific RewriteDriverPool to determine the options
   // and manage the lifetime of the result. 'pool' must not be NULL.
-  RewriteDriver* NewRewriteDriverFromPool(
-      RewriteDriverPool* pool, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewRewriteDriverFromPool(RewriteDriverPool* pool);
 
   // Generates a new unmanaged RewriteDriver with given RewriteOptions,
   // which are assumed to correspond to drivers managed by 'pool'
@@ -379,8 +384,7 @@ class ServerContext {
   //
   // Takes ownership of 'options'.
   RewriteDriver* NewUnmanagedRewriteDriver(
-      RewriteDriverPool* pool, RewriteOptions* options,
-      const RequestContextPtr& request_ctx);
+      RewriteDriverPool* pool, RewriteOptions* options);
 
   // Like NewUnmanagedRewriteDriver, but uses standard semi-automatic
   // memory management for RewriteDrivers.
@@ -392,8 +396,7 @@ class ServerContext {
   // already frozen (see AddFilters()).
   //
   // Takes ownership of 'custom_options'.
-  RewriteDriver* NewCustomRewriteDriver(
-      RewriteOptions* custom_options, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewCustomRewriteDriver(RewriteOptions* custom_options);
 
   // Puts a RewriteDriver back on the free pool.  This is intended to
   // be called by a RewriteDriver on itself, once all pending
@@ -522,11 +525,6 @@ class ServerContext {
     hostname_ = x;
   }
 
-  // Adds an X-Original-Content-Length header to the response headers
-  // based on the size of the input resources.
-  void AddOriginalContentLengthHeader(const ResourceVector& inputs,
-                                      ResponseHeaders* headers);
-
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
   // appropriate spot during shutdown.
@@ -540,6 +538,11 @@ class ServerContext {
 
   // Must be called with rewrite_drivers_mutex_ held.
   void ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver);
+
+  // Adds an X-Original-Content-Length header to the response headers
+  // based on the size of the input resources.
+  void AddOriginalContentLengthHeader(const ResourceVector& inputs,
+                                      ResponseHeaders* headers);
 
   // These are normally owned by the RewriteDriverFactory that made 'this'.
   ThreadSystem* thread_system_;
@@ -570,7 +573,6 @@ class ServerContext {
   scoped_ptr<HTTPCache> http_cache_;
   scoped_ptr<PropertyCache> page_property_cache_;
   scoped_ptr<PropertyCache> client_property_cache_;
-  scoped_ptr<PropertyCache> device_property_cache_;
   scoped_ptr<CacheInterface> filesystem_metadata_cache_;
   scoped_ptr<CacheInterface> metadata_cache_;
 

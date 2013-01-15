@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
@@ -45,6 +44,7 @@ class Writer;
 // decompress or de-chunk them.
 class HttpDumpUrlFetcher : public UrlFetcher {
  public:
+
   // When the slurped data is gzipped, but request headers are made
   // that don't include 'gzip' in an Accept-Encodings header, then
   // this fetcher inflates the gzipped output as it streams.  It
@@ -75,8 +75,7 @@ class HttpDumpUrlFetcher : public UrlFetcher {
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* fetched_content_writer,
-                                 MessageHandler* message_handler,
-                                 const RequestContextPtr& request_context);
+                                 MessageHandler* message_handler);
 
   // Parse file into response_headers and response_writer as if it were bytes
   // off the wire.

@@ -33,7 +33,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/writer.h"
 #include "net/instaweb/util/public/gtest.h"
 
@@ -51,11 +50,6 @@ const char FetcherTest::kHeaderName[] = "header-name";
 const char FetcherTest::kHeaderValue[] = "header value";
 
 SimpleStats* FetcherTest::statistics_ = NULL;
-
-FetcherTest::FetcherTest()
-    : mock_async_fetcher_(&mock_fetcher_),
-      thread_system_(ThreadSystem::CreateThreadSystem()) {
-}
 
 void FetcherTest::ValidateMockFetcherResponse(
     bool success, bool check_error_message,
@@ -89,7 +83,7 @@ int FetcherTest::CountFetchesSync(
   ResponseHeaders response_headers;
   bool success = fetcher->StreamingFetchUrl(
       url.as_string(), request_headers, &response_headers, &content_writer,
-      &message_handler_, RequestContextPtr(NULL));
+      &message_handler_);
   EXPECT_EQ(expect_success, success);
   ValidateMockFetcherResponse(success, check_error_message, content,
                               response_headers);
@@ -101,12 +95,11 @@ int FetcherTest::CountFetchesAsync(const StringPiece& url, bool expect_success,
   CHECK(async_fetcher() != NULL);
   *callback_called = false;
   int starting_fetches = mock_fetcher_.num_fetches();
-  CheckCallback* fetch = new CheckCallback(
-      RequestContext::NewTestRequestContext(thread_system_.get()),
-      expect_success, callback_called);
+  CheckCallback* fetch = new CheckCallback(expect_success, callback_called);
   async_fetcher()->Fetch(url.as_string(), &message_handler_, fetch);
   return mock_fetcher_.num_fetches() - starting_fetches;
 }
+
 
 void FetcherTest::ValidateOutput(const GoogleString& content,
                                  const ResponseHeaders& response_headers) {
@@ -134,8 +127,7 @@ bool FetcherTest::MockFetcher::StreamingFetchUrl(
     const RequestHeaders& request_headers,
     ResponseHeaders* response_headers,
     Writer* writer,
-    MessageHandler* message_handler,
-    const RequestContextPtr& unused_request_context) {
+    MessageHandler* message_handler) {
   bool ret = false;
   if (url == kGoodUrl) {
     ret = Populate("max-age=300", response_headers, writer,
@@ -174,7 +166,7 @@ void FetcherTest::MockAsyncFetcher::Fetch(const GoogleString& url,
                                           AsyncFetch* fetch) {
   bool status = url_fetcher_->StreamingFetchUrl(
       url, *fetch->request_headers(), fetch->response_headers(), fetch,
-      handler, fetch->request_context());
+      handler);
   deferred_callbacks_.push_back(std::make_pair(status, fetch));
 }
 
@@ -197,4 +189,4 @@ void FetcherTest::TearDownTestCase() {
   statistics_ = NULL;
 }
 
-}  // namespace net_instaweb
+}  // namespace net_isntaweb

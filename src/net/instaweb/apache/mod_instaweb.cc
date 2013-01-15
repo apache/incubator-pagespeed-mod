@@ -38,7 +38,6 @@
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
-#include "net/instaweb/apache/serf_url_async_fetcher.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
@@ -152,7 +151,6 @@ const char kModPagespeedDomain[] = "ModPagespeedDomain";
 const char kModPagespeedDomainRewriteHyperlinks[] =
     "ModPagespeedDomainRewriteHyperlinks";
 const char kModPagespeedEnableFilters[] = "ModPagespeedEnableFilters";
-const char kModPagespeedFetchHttps[] = "ModPagespeedFetchHttps";
 const char kModPagespeedFetchProxy[] = "ModPagespeedFetchProxy";
 const char kModPagespeedFetcherTimeoutMs[] = "ModPagespeedFetcherTimeOutMs";
 const char kModPagespeedFetchWithGzip[] = "ModPagespeedFetchWithGzip";
@@ -183,13 +181,14 @@ const char kModPagespeedImageMaxRewritesAtOnce[] =
 const char kModPagespeedImageRecompressionQuality[] =
     "ModPagespeedImageRecompressionQuality";
 const char kModPagespeedImagePreserveURLs[] = "ModPagespeedImagePreserveURLs";
-const char kModPagespeedInPlaceResourceOptimization[] =
-    "ModPagespeedInPlaceResourceOptimization";
 const char kModPagespeedInheritVHostConfig[] = "ModPagespeedInheritVHostConfig";
 const char kModPagespeedInstallCrashHandler[] =
     "ModPagespeedInstallCrashHandler";
 const char kModPagespeedJpegRecompressionQuality[] =
     "ModPagespeedJpegRecompressionQuality";
+const char kModPagespeedWebpRecompressionQuality[] =
+    "ModPagespeedImageWebpRecompressionQuality";
+
 const char kModPagespeedJsInlineMaxBytes[] = "ModPagespeedJsInlineMaxBytes";
 const char kModPagespeedJsOutlineMinBytes[] = "ModPagespeedJsOutlineMinBytes";
 const char kModPagespeedJsPreserveURLs[] = "ModPagespeedJsPreserveURLs";
@@ -247,7 +246,6 @@ const char kModPagespeedSharedMemoryLocks[] = "ModPagespeedSharedMemoryLocks";
 const char kModPagespeedSlurpDirectory[] = "ModPagespeedSlurpDirectory";
 const char kModPagespeedSlurpFlushLimit[] = "ModPagespeedSlurpFlushLimit";
 const char kModPagespeedSlurpReadOnly[] = "ModPagespeedSlurpReadOnly";
-const char kModPagespeedSpeedTracking[] = "ModPagespeedIncreaseSpeedTracking";
 const char kModPagespeedSupportNoScriptEnabled[] =
     "ModPagespeedSupportNoScriptEnabled";
 const char kModPagespeedStatistics[] = "ModPagespeedStatistics";
@@ -261,15 +259,13 @@ const char kModPagespeedStatisticsLoggingChartsCSS[] =
 const char kModPagespeedStatisticsLoggingChartsJS[] =
     "ModPagespeedStatisticsLoggingChartsJS";
 const char kModPagespeedTestProxy[] = "ModPagespeedTestProxy";
-const char kModPagespeedTestProxySlurp[] = "ModPagespeedTestProxySlurp";
 const char kModPagespeedTrackOriginalContentLength[] =
     "ModPagespeedTrackOriginalContentLength";
 const char kModPagespeedUrlPrefix[] = "ModPagespeedUrlPrefix";
 const char kModPagespeedUrlValuedAttribute[] = "ModPagespeedUrlValuedAttribute";
 const char kModPagespeedUsePerVHostStatistics[] =
     "ModPagespeedUsePerVHostStatistics";
-const char kModPagespeedWebpRecompressionQuality[] =
-    "ModPagespeedImageWebpRecompressionQuality";
+const char kModPagespeedSpeedTracking[] = "ModPagespeedIncreaseSpeedTracking";
 const char kModPagespeedXHeaderValue[] = "ModPagespeedXHeaderValue";
 
 // The following two are deprecated due to spelling
@@ -306,10 +302,14 @@ bool check_pagespeed_applicable(request_rec* request,
   // rewrittten, could in turn spawn more requests which could cascade into a
   // bad situation.  To mod_pagespeed, any fetched HTML is an error condition,
   // so there's no reason to rewrite it anyway.
-  if (is_pagespeed_subrequest(request)) {
+  const char* user_agent = apr_table_get(request->headers_in,
+                                         HttpAttributes::kUserAgent);
+  // TODO(abliss): unify this string literal with the one in
+  // serf_url_async_fetcher.cc
+  if ((user_agent != NULL) && strstr(user_agent, "mod_pagespeed")) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                   "Request not rewritten because: User-Agent appears to be "
-                  "mod_pagespeed");
+                  "mod_pagespeed (was %s)", user_agent);
     return false;
   }
 
@@ -431,7 +431,7 @@ class ScopedTimer {
   int64 start_time_us_;
 };
 
-// Builds a new context for an HTML request, returning NULL if we decide
+// Builds a new context for an HTTP request, returning NULL if we decide
 // that we should not handle the request for various reasons.
 // TODO(sligocki): Move most of these checks into non-Apache specific code.
 InstawebContext* build_context_for_request(request_rec* request) {
@@ -1335,16 +1335,6 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     if (!options->EnableFiltersByCommaSeparatedList(arg, handler)) {
       ret = "Failed to enable some filters.";
     }
-  } else if (StringCaseEqual(directive, kModPagespeedFetchHttps)) {
-    ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
-    if (ret == NULL) {
-      GoogleString error_message;
-      if (!factory->SetHttpsOptions(arg, &error_message)) {
-        ret = apr_pstrcat(cmd->pool, "Invalid argument '", arg, "' to ",
-                          cmd->directive->directive, ": ",
-                          error_message.c_str(), NULL);
-      }
-    }
   } else if (StringCaseEqual(directive, kModPagespeedFetchWithGzip)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
@@ -1760,9 +1750,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "100 refers to best quality, -1 disables lossy compression."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedImgInlineMaxBytes,
         "DEPRECATED, use ModPagespeedImageInlineMaxBytes."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedInPlaceResourceOptimization,
-                           "Allow rewriting resources even when they are "
-                           "fetched over non-pagespeed URLs."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedJpegRecompressionQuality,
         "Set quality parameter for recompressing jpeg images [-1,100], 100 "
         "refers to best quality, -1 disables lossy compression."),
@@ -1851,9 +1838,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Under construction. Do not use"),
   APACHE_CONFIG_OPTION(kModPagespeedFetcherTimeoutMs,
         "Set internal fetcher timeout in milliseconds"),
-  APACHE_CONFIG_OPTION(kModPagespeedFetchHttps,
-        "Controls direct fetching of HTTPS resources.  Value is "
-        "comma-separated list of keywords: " SERF_HTTPS_KEYWORDS),
   APACHE_CONFIG_OPTION(kModPagespeedFetchProxy, "Set the fetch proxy"),
   APACHE_CONFIG_OPTION(kModPagespeedFetchWithGzip,
                        "Request http content from origin servers using gzip"),
@@ -1923,11 +1907,7 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_OPTION(kModPagespeedStatisticsLoggingChartsJS,
         "Where to find an offline copy of the Google Charts Tools API JS."),
   APACHE_CONFIG_OPTION(kModPagespeedTestProxy,
-        "Direct non-mod_pagespeed URLs to a fetcher, acting as a simple "
-        "proxy. Meant for test use only"),
-  APACHE_CONFIG_OPTION(kModPagespeedTestProxySlurp,
-        "If set, the fetcher used by the TestProxy mode will be a "
-        "readonly slurp fetcher from the given directory"),
+        "Act as a proxy without maintaining a slurp dump."),
   APACHE_CONFIG_OPTION(kModPagespeedTrackOriginalContentLength,
         "Add X-Original-Content-Length headers to rewritten resources"),
   APACHE_CONFIG_OPTION(kModPagespeedUrlPrefix, "No longer used."),

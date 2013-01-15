@@ -31,6 +31,8 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_REF_COUNTED_PTR_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_REF_COUNTED_PTR_H_
 
+#include "net/instaweb/util/public/basictypes.h"
+
 #include "base/memory/ref_counted.h"
 
 namespace net_instaweb {
@@ -54,26 +56,10 @@ class RefCountedPtr : public scoped_refptr<T> {
       : scoped_refptr<T>(src) {
   }
 
-  RefCountedPtr<T>& operator=(const RefCountedPtr<T>& other) {
-    scoped_refptr<T>::operator=(other);
-    return *this;
-  }
-
-  template<class U>
-  RefCountedPtr<T>& operator=(const RefCountedPtr<U>& other) {
-    scoped_refptr<T>::operator=(other);
-    return *this;
-  }
-
   // Determines whether any other RefCountedPtr objects share the same
   // storage.  This can be used to create copy-on-write semantics if
   // desired.
   bool unique() const { return !this->ptr_ || this->ptr_->HasOneRef(); }
-
-  template<typename U>
-  RefCountedPtr<U> StaticCast() const {
-    return RefCountedPtr<U>(static_cast<U*>(this->get()));
-  }
 
   void clear() {
     *this = RefCountedPtr();

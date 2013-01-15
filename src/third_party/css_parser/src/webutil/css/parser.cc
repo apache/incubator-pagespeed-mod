@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/scoped_ptr.h"
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
@@ -205,53 +204,43 @@ void Parser::SkipComment() {
 // skips until delim is seen or end-of-stream. returns if delim is actually
 // seen.
 bool Parser::SkipPastDelimiter(char delim) {
-  // Stack of delims to look for. It starts just looking for top delim,
-  // but if ({[ are encountered, their respective closing delims are added
-  // to the stack.
-  string delim_stack;
-  delim_stack.push_back(delim);
-
   SkipSpace();
-  while (in_ < end_) {
-    if (*in_ == delim_stack[delim_stack.size() - 1]) {
-      ++in_;
-      delim_stack.erase(delim_stack.size() - 1);
-      if (delim_stack.empty()) {
-        // Found original delim.
-        return true;
-      }
-    } else {
-      switch (*in_) {
-        case '(':
-          ++in_;
-          delim_stack.push_back(')');
-          break;
-        case '[':
-          ++in_;
-          delim_stack.push_back(']');
-          break;
-        case '{':
-          ++in_;
-          delim_stack.push_back('}');
-          break;
-        case '\'':
-          // Ignore results.
-          ParseString<'\''>();
-          break;
-        case '"':
-          // Ignore results.
-          ParseString<'"'>();
-          break;
-        default:
-          ++in_;
-          break;
-      }
+  while (in_ < end_ && *in_ != delim) {
+    switch (*in_) {
+      case '(':
+        ++in_;
+        SkipPastDelimiter(')');
+        break;
+      case '[':
+        ++in_;
+        SkipPastDelimiter(']');
+        break;
+      case '{':
+        ++in_;
+        SkipPastDelimiter('}');
+        break;
+      case '\'':
+        // Ignore results.
+        ParseString<'\''>();
+        break;
+      case '"':
+        // Ignore results.
+        ParseString<'"'>();
+        break;
+      default:
+        ++in_;
+        break;
     }
     SkipSpace();  // Skips comments too.
   }
 
-  DCHECK(Done());
-  return false;
+  if (Done()) {
+    return false;
+  } else {
+    DCHECK_EQ(delim, *in_);
+    ++in_;
+    return true;
+  }
 }
 
 // returns true if there might be a token to read
@@ -822,7 +811,7 @@ Value* Parser::ParseAny() {
         toret = ParseNumber();
         break;
       }
-      FALLTHROUGH_INTENDED;
+      // fail through
     default: {
       UnicodeText id = ParseIdent();
       if (id.empty()) {
@@ -1584,7 +1573,7 @@ SimpleSelector* Parser::ParseAttributeSelector() {
         in_++;
         if (Done() || *in_ != '=')
           break;
-        FALLTHROUGH_INTENDED;
+        // fall through
       case '=': {
         in_++;
         UnicodeText value = ParseStringOrIdent();
@@ -2014,16 +2003,9 @@ MediaQuery* Parser::ParseMediaQuery() {
     id = ParseIdent();
   }
 
-  // Do we need to find an 'and' before the next media expression? This is
-  // always true unless there was no explicit media type, ex: "@media (color)".
-  bool need_and = false;
-  // Have we seen an 'and' token since last media expression or media type.
-  bool found_and = false;
-
   // Set media type (optional).
   if (!id.empty()) {
     query->set_media_type(id);
-    need_and = true;
   }
 
   bool done = false;
@@ -2036,13 +2018,6 @@ MediaQuery* Parser::ParseMediaQuery() {
         done = true;
         break;
       case '(': {  // CSS3 media expression. Ex: (max-width:290px)
-        if (need_and != found_and) {
-          ReportParsingError(kMediaError,
-                             "Missing or extra 'and' in media query");
-        }
-        // Reset
-        need_and = true;
-        found_and = false;
         in_++;
         SkipSpace();
         UnicodeText name = ParseIdent();
@@ -2089,26 +2064,7 @@ MediaQuery* Parser::ParseMediaQuery() {
       default: {
         // Ignore "and" between media expressions. All other things are errors.
         UnicodeText ident = ParseIdent();
-        if (StringCaseEquals(ident, "and")) {
-          if (found_and) {
-            ReportParsingError(kMediaError, "Multiple 'and' tokens in a row.");
-          } else if (!Done() && *in_ == '(') {
-            // TODO(sligocki): Instead of special-casing "and(" let's lex the
-            // content first in general (say with a NextToken() function).
-
-            // This @media query is technically invalid because CSS is
-            // defined to be lexed context-free first and defines the
-            // flex primitive:
-            //   FUNCTION {ident}\(
-            // Thus "and(color)" will be parsed as a function instead of an
-            // identifier followed by a media expression.
-            // See: b/7694757 and
-            //   http://lists.w3.org/Archives/Public/www-style/2012Dec/0263.html
-            ReportParsingError(kMediaError,
-                               "Space required between 'and' and '(' tokens.");
-          }
-          found_and = true;
-        } else {
+        if (!StringCaseEquals(ident, "and")) {
           if (ident.empty()) {
             ReportParsingError(kMediaError, StringPrintf(
                 "Unexpected char in media query: %c", *in_));
@@ -2123,10 +2079,6 @@ MediaQuery* Parser::ParseMediaQuery() {
       }
     }
     SkipSpace();
-  }
-
-  if (found_and) {
-    ReportParsingError(kMediaError, "Unexpected trailing 'and' token.");
   }
 
   // If there is no media type or expressions. For example, we want to treat

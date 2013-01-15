@@ -73,11 +73,12 @@ bool CssImageRewriter::FlatteningEnabled() const {
 bool CssImageRewriter::RewritesEnabled(
     int64 image_inline_max_bytes) const {
   const RewriteOptions* options = driver_->options();
-  return (image_inline_max_bytes > 0 ||
-          options->ImageOptimizationEnabled() ||
-          options->Enabled(RewriteOptions::kLeftTrimUrls) ||
-          options->Enabled(RewriteOptions::kExtendCacheImages) ||
-          options->Enabled(RewriteOptions::kSpriteImages));
+  return ((image_inline_max_bytes > 0 ||
+           options->ImageOptimizationEnabled() ||
+           options->Enabled(RewriteOptions::kLeftTrimUrls) ||
+           options->Enabled(RewriteOptions::kExtendCacheImages) ||
+           options->Enabled(RewriteOptions::kSpriteImages)) &&
+          !options->image_preserve_urls());
 }
 
 void CssImageRewriter::RewriteImport(
@@ -107,9 +108,6 @@ void CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
 
   CssResourceSlotPtr slot(
       root_context_->slot_factory()->GetSlot(resource, values, value_index));
-  if (driver_->options()->image_preserve_urls()) {
-    slot->set_disable_rendering(true);
-  }
 
   RewriteSlot(ResourceSlotPtr(slot), image_inline_max_bytes, parent);
 
@@ -126,15 +124,11 @@ void CssImageRewriter::RewriteSlot(const ResourceSlotPtr& slot,
                                    int64 image_inline_max_bytes,
                                    RewriteContext* parent) {
   const RewriteOptions* options = driver_->options();
-  if (options->ImageOptimizationEnabled() || image_inline_max_bytes > 0) {
-    // If this isn't an IPRO rewrite or we've enabled preemptive IPRO CSS
-    // rewrites.
-    if (!slot->disable_rendering() ||
-        options->in_place_preemptive_rewrite_css_images()) {
-      parent->AddNestedContext(
-          image_rewriter_->MakeNestedRewriteContextForCss(
-              image_inline_max_bytes, parent, slot));
-    }
+  if (options->ImageOptimizationEnabled() ||
+      image_inline_max_bytes > 0) {
+    parent->AddNestedContext(
+        image_rewriter_->MakeNestedRewriteContextForCss(image_inline_max_bytes,
+            parent, slot));
   }
 
   if (driver_->MayCacheExtendImages()) {
@@ -171,8 +165,7 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
     }
   }
 
-  // TODO(jkarlin): We need a separate flag for CssImagePreserveURLs in case the
-  // user is willing to change image URLs in CSS but not in HTML.
+  // TODO(jkarlin): We need a separate flag for CssImagePreserveURLs.
   bool is_enabled = RewritesEnabled(image_inline_max_bytes);
 
   if (is_enabled) {

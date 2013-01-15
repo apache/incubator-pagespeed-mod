@@ -54,10 +54,8 @@ class RedirectOnSizeLimitFilterTest : public RewriteTestBase {
 
   void ClearAndResetDriver(int size_limit) {
     delete rewrite_driver();
-    delete other_rewrite_driver();
     output_.clear();
     options_ = new RewriteOptions();
-    other_options_ = new RewriteOptions();
     SetupDriver(size_limit);
   }
 

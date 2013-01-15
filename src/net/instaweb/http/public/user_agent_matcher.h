@@ -22,8 +22,6 @@
 
 namespace net_instaweb {
 
-class PropertyCache;
-class PropertyPage;
 class RequestHeaders;
 
 // This class contains various user agent based checks.  Currently all of these
@@ -44,15 +42,6 @@ class UserAgentMatcher {
     kDoesNotSupportBlink,
   };
 
-  enum DeviceType {
-    kDesktop,
-    kTablet,
-    kMobile,
-    // This should always be the last type. This is used to mark the size of an
-    // array containing various DeviceTypes.
-    kEndOfDeviceType
-  };
-
   enum PrefetchMechanism {
     kPrefetchNotSupported,
     kPrefetchLinkRelSubresource,
@@ -60,11 +49,6 @@ class UserAgentMatcher {
     kPrefetchObjectTag,
     kPrefetchLinkScriptTag,
   };
-
-  // Cohort descriptors for PropertyCache lookups of device objects.
-  static const char kDevicePropertiesCohort[];
-  static const char kScreenWidth[];
-  static const char kScreenHeight[];
 
   UserAgentMatcher();
   virtual ~UserAgentMatcher();
@@ -85,19 +69,10 @@ class UserAgentMatcher {
       const char* user_agent, const RequestHeaders* request_headers) const;
 
   // Returns the supported prefetch mechanism depending upon the user agent.
-  PrefetchMechanism GetPrefetchMechanism(
-      const StringPiece& user_agent,
-      const RequestHeaders* request_headers) const;
-
-  // Returns the DeviceType for the given user agent string.
-  DeviceType GetDeviceTypeForUA(const StringPiece& user_agent) const;
-
-  // Returns the suffix for the given device_type.
-  static StringPiece DeviceTypeSuffix(DeviceType device_type);
+  PrefetchMechanism GetPrefetchMechanism(const StringPiece& user_agent) const;
 
   bool SupportsJsDefer(const StringPiece& user_agent, bool allow_mobile) const;
   bool SupportsWebp(const StringPiece& user_agent) const;
-  bool SupportsWebpLosslessAlpha(const StringPiece& user_agent) const;
 
   // IE9 does not implement <link rel=dns-prefetch ...>. Instead it does DNS
   // preresolution when it sees <link rel=prefetch ...>. This method returns
@@ -121,28 +96,17 @@ class UserAgentMatcher {
   virtual bool SupportsSplitHtml(const StringPiece& user_agent,
                                  bool allow_mobile) const;
 
-  // Looks up device properties and stores them in device_property_cache_.
-  virtual void LookupDeviceProperties(const StringPiece& user_agent,
-      PropertyPage* page);
-  void set_device_cache(PropertyCache* cache) { device_cache_ = cache; }
-  PropertyCache* device_cache() const { return device_cache_; }
-  void set_device_page(PropertyPage* page) { device_page_ = page; }
-  PropertyPage* device_page() const { return device_page_; }
-
  private:
   FastWildcardGroup supports_image_inlining_;
   FastWildcardGroup blink_desktop_whitelist_;
   FastWildcardGroup blink_desktop_blacklist_;
   FastWildcardGroup blink_mobile_whitelist_;
   FastWildcardGroup supports_webp_;
-  FastWildcardGroup supports_webp_lossless_alpha_;
   FastWildcardGroup mobile_user_agents_;
   FastWildcardGroup supports_prefetch_link_rel_subresource_;
   FastWildcardGroup supports_prefetch_image_tag_;
   FastWildcardGroup supports_prefetch_link_script_tag_;
   FastWildcardGroup supports_dns_prefetch_;
-  PropertyCache* device_cache_;
-  PropertyPage* device_page_;
 
   const RE2 chrome_version_pattern_;
 

@@ -48,11 +48,11 @@ static const char kAllMedia[] = "all";
 static const int kNoValue = -1;
 
 enum DimensionState {
-  kNoDimensions,       // No dimensions found.
-  kHasHeightOnly,      // Found height only.
-  kHasWidthOnly,       // Found width only.
-  kHasBothDimensions,  // Found both width and height.
-  kNotParsable         // Found a dimension, but couldn't extract a value.
+  kNoDimensions, // No dimensions found.
+  kHasHeightOnly, // Found height only.
+  kHasWidthOnly, // Found width only.
+  kHasBothDimensions, // Found both width and height.
+  kNotParsable // Found a dimension, but couldn't extract a value.
 };
 
 // Extract the width and height values out of a list of declarations.
@@ -66,7 +66,7 @@ DimensionState GetDimensions(Css::Declarations* decls, int* width, int* height);
 
 class StyleExtractor {
  public:
-  explicit StyleExtractor(HtmlElement* element);
+  StyleExtractor(HtmlElement* element);
   virtual ~StyleExtractor();
 
 
@@ -168,8 +168,8 @@ void EliminateElementsNotIn(std::vector<T>* sorted_inner,
   }
 }
 
-}  // namespace css_util
+}  // css_util
 
-}  // namespace net_instaweb
+}  // net_instaweb
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSS_UTIL_H_

@@ -24,9 +24,8 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
@@ -178,15 +177,11 @@ void ProxyFetchFactory::RegisterFinishedFetch(ProxyFetch* fetch) {
 }
 
 ProxyFetchPropertyCallback::ProxyFetchPropertyCallback(
-    CacheType cache_type,
-    const PropertyCache& property_cache,
-    const StringPiece& key,
-    UserAgentMatcher::DeviceType device_type,
+    CacheType cache_type, const StringPiece& key,
     ProxyFetchPropertyCallbackCollector* collector,
     AbstractMutex* mutex)
-    : PropertyPage(mutex, property_cache, key, collector->request_context()),
+    : PropertyPage(mutex, key),
       cache_type_(cache_type),
-      device_type_(device_type),
       collector_(collector) {
 }
 
@@ -200,13 +195,10 @@ void ProxyFetchPropertyCallback::Done(bool success) {
 
 ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
     ServerContext* server_context, const StringPiece& url,
-    const RequestContextPtr& request_ctx, const RewriteOptions* options,
-    const StringPiece& user_agent)
+    const RewriteOptions* options)
     : mutex_(server_context->thread_system()->NewMutex()),
       server_context_(server_context),
       url_(url.data(), url.size()),
-      request_context_(request_ctx),
-      user_agent_(user_agent.data(), user_agent.size()),
       detached_(false),
       done_(false),
       success_(true),
@@ -224,7 +216,6 @@ ProxyFetchPropertyCallbackCollector::~ProxyFetchPropertyCallbackCollector() {
   }
   STLDeleteElements(&pending_callbacks_);
   STLDeleteValues(&property_pages_);
-  STLDeleteValues(&property_pages_for_device_types_);
 }
 
 void ProxyFetchPropertyCallbackCollector::AddCallback(
@@ -239,21 +230,6 @@ PropertyPage* ProxyFetchPropertyCallbackCollector::GetPropertyPage(
   PropertyPage* page = property_pages_[cache_type];
   property_pages_[cache_type] = NULL;
   return page;
-}
-
-UserAgentMatcher::DeviceType
-ProxyFetchPropertyCallbackCollector::GetDeviceTypeFromDeviceCacheMutexHeld() {
-  // TODO(ksimbili): Pass the property page from device cache.
-  const UserAgentMatcher* user_agent_matcher =
-      server_context_->user_agent_matcher();
-  return user_agent_matcher->GetDeviceTypeForUA(user_agent_.c_str());
-}
-
-void ProxyFetchPropertyCallbackCollector::SetPropertyPageForDeviceTypeMutexHeld(
-    UserAgentMatcher::DeviceType device_type) {
-  property_pages_[ProxyFetchPropertyCallback::kPagePropertyCache] =
-      property_pages_for_device_types_[device_type];
-  property_pages_for_device_types_[device_type] = NULL;
 }
 
 PropertyPage*
@@ -297,17 +273,10 @@ void ProxyFetchPropertyCallbackCollector::Done(
   {
     ScopedMutex lock(mutex_.get());
     pending_callbacks_.erase(callback);
-    if (callback->cache_type() ==
-        ProxyFetchPropertyCallback::kPagePropertyCache) {
-      property_pages_for_device_types_[callback->device_type()] = callback;
-    } else {
-      property_pages_[callback->cache_type()] = callback;
-    }
+    property_pages_[callback->cache_type()] = callback;
     success_ &= success;
 
     if (pending_callbacks_.empty()) {
-      SetPropertyPageForDeviceTypeMutexHeld(
-          GetDeviceTypeFromDeviceCacheMutexHeld());
       // There is a race where Detach() can be called immediately after we
       // release the lock below, and it (Detach) deletes 'this' (because we
       // just set done_ to true), which means we cannot rely on any data
@@ -517,9 +486,7 @@ bool ProxyFetch::StartParse() {
       Options()->running_furious()) {
     int furious_value = Options()->furious_id();
     server_context_->furious_matcher()->StoreExperimentData(
-        furious_value, url_,
-        server_context_->timer()->NowMs() +
-            Options()->furious_cookie_duration_ms(),
+        furious_value, url_, server_context_->timer()->NowMs(),
         response_headers());
   }
   driver_->set_response_headers_ptr(response_headers());
@@ -591,9 +558,14 @@ void ProxyFetch::SetupForHtml() {
               HttpAttributes::kCacheControl, "must-revalidate")) {
         ttl_ms = 0;
         cache_control_suffix = ", no-cache";
-        // Preserve values like no-store and no-transform.
-        cache_control_suffix +=
-            response_headers()->CacheControlValuesToPreserve();
+        // We don't want to add no-store unless we have to.
+        // TODO(sligocki): Stop special-casing no-store, just preserve all
+        // Cache-Control identifiers except for restricting max-age and
+        // private/no-cache level.
+        if (response_headers()->HasValue(
+                HttpAttributes::kCacheControl, "no-store")) {
+          cache_control_suffix += ", no-store";
+        }
       } else {
         ttl_ms = std::min(options->max_html_cache_time_ms(),
                           response_headers()->cache_ttl_ms());
@@ -697,20 +669,17 @@ void ProxyFetch::ScheduleQueueExecutionIfNeeded() {
 
 void ProxyFetch::PropertyCacheComplete(
     bool success, ProxyFetchPropertyCallbackCollector* callback_collector) {
-  driver_->TracePrintf("PropertyCache lookup completed");
   ScopedMutex lock(mutex_.get());
 
   if (driver_ == NULL) {
     LOG(DFATAL) << "Expected non-null driver.";
   } else {
-    // Set the page property, device property and client state objects
-    // in the driver.
+    // Set the property page and client state objects in the driver
     driver_->set_property_page(
         callback_collector->GetPropertyPage(
             ProxyFetchPropertyCallback::kPagePropertyCache));
-    driver_->set_device_property_page(
-        callback_collector->GetPropertyPage(
-            ProxyFetchPropertyCallback::kDevicePropertyCache));
+
+    // Set the client state in the driver.
     driver_->set_client_state(GetClientState(callback_collector));
   }
   // We have to set the callback to NULL to let ScheduleQueueExecutionIfNeeded
@@ -959,14 +928,10 @@ void ProxyFetch::ExecuteQueued() {
   }
 
   if (!parse_text_called_) {
-    DCHECK(request_context().get() != NULL);
-    ScopedMutex lock(log_record()->mutex());
-    TimingInfo* timing_info =
-        log_record()->logging_info()->mutable_timing_info();
+    TimingInfo* timing_info = logging_info()->mutable_timing_info();
     if (timing_info->has_request_start_ms()) {
       timing_info->set_time_to_start_parse_ms(
-          server_context_->timer()->NowMs() -
-              timing_info->request_start_ms());
+          server_context_->timer()->NowMs() - timing_info->request_start_ms());
     }
     parse_text_called_ = true;
   }

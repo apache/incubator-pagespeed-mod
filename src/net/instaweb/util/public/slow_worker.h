@@ -23,7 +23,6 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_SLOW_WORKER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/worker.h"
 
 namespace net_instaweb {
@@ -36,7 +35,7 @@ class SlowWorker : public Worker {
  public:
   // Initializes the worker. You still need to call ->Start to actually
   // start the thread, however. (Note: start can return false on failure).
-  SlowWorker(StringPiece thread_name, ThreadSystem* runtime);
+  explicit SlowWorker(ThreadSystem* runtime);
 
   // This waits for the running task to terminate.
   virtual ~SlowWorker();

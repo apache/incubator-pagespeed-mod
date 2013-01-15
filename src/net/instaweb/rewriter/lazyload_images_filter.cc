@@ -38,6 +38,8 @@ const char kTrue[] = "true";
 const char kFalse[] = "false";
 const char kData[] = "data:";
 const char kJquerySlider[] = "jquery.sexyslider";
+const char kDfcg[] = "dfcg";
+const char kNivoSlider[] = "nivoSlider";
 
 }  // namespace
 
@@ -64,15 +66,14 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
 }
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
-void LazyloadImagesFilter::DetermineEnabled() {
-  set_is_enabled(ShouldApply(driver()));
-}
-
 void LazyloadImagesFilter::StartDocumentImpl() {
   Clear();
 }
 
 void LazyloadImagesFilter::EndDocument() {
+  if (!ShouldApply(driver())) {
+    return;
+  }
   driver()->UpdatePropertyValueInDomCohort(
       kIsLazyloadScriptInsertedPropertyName,
       main_script_inserted_ ? "1" : "0");
@@ -91,7 +92,7 @@ bool LazyloadImagesFilter::ShouldApply(RewriteDriver* driver) {
 }
 
 void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (!ShouldApply(driver()) || noscript_element() != NULL) {
     return;
   }
   if (skip_rewrite_ == NULL) {
@@ -106,15 +107,10 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
         HtmlName::kClass);
     if (class_attribute != NULL) {
       StringPiece class_value(class_attribute->DecodedValueOrNull());
-      if (!class_value.empty()) {
-        GoogleString class_string;
-        class_value.CopyToString(&class_string);
-        LowerString(&class_string);
-        if (!driver()->options()->IsLazyloadEnabledForClassName(
-            class_string)) {
-          skip_rewrite_ = element;
-          return;
-        }
+      if (class_value.find(kDfcg) != StringPiece::npos ||
+          class_value.find(kNivoSlider) != StringPiece::npos) {
+        skip_rewrite_ = element;
+        return;
       }
     }
   }
@@ -134,7 +130,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (!ShouldApply(driver()) || noscript_element() != NULL) {
     return;
   }
   if (skip_rewrite_ == element) {
@@ -166,7 +162,6 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
       StringPiece url(src->DecodedValueOrNull());
       if (!url.empty() && !url.starts_with(kData) &&
           element->FindAttribute(HtmlName::kOnload) == NULL &&
-          element->FindAttribute(HtmlName::kDataSrc) == NULL &&
           element->FindAttribute(HtmlName::kPagespeedLazySrc) == NULL &&
           !element->DeleteAttribute(HtmlName::kPagespeedNoDefer)) {
         // Lazily load the image if it has a src, does not have an onload /

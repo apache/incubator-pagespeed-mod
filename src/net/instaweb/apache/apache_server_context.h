@@ -137,8 +137,6 @@ class ApacheServerContext : public ServerContext {
   const server_rec* server() const { return server_rec_; }
 
  private:
-  bool UpdateCacheFlushTimestampMs(int64 timestamp_ms);
-
   ApacheRewriteDriverFactory* apache_factory_;
   server_rec* server_rec_;
   GoogleString version_;

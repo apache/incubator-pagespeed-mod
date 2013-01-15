@@ -24,24 +24,21 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
-#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
@@ -52,9 +49,8 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scheduler.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -66,6 +62,11 @@ class RewriteFilter;
 class RewriteDriverTest : public RewriteTestBase {
  protected:
   RewriteDriverTest() {}
+
+  // TODO(matterbury): Delete this method as it should be redundant.
+  virtual void SetUp() {
+    RewriteTestBase::SetUp();
+  }
 
   bool CanDecodeUrl(const StringPiece& url) {
     GoogleUrl gurl(url);
@@ -734,7 +735,7 @@ TEST_F(RewriteDriverTest, MultipleDomains) {
                                    hasher()->Hash(kCss), "b.css", "css");
 
   EXPECT_TRUE(TryFetchResource(rewritten1));
-  ClearRewriteDriver();
+  rewrite_driver()->Clear();
   EXPECT_TRUE(TryFetchResource(rewritten2));
 }
 
@@ -756,7 +757,6 @@ TEST_F(RewriteDriverTest, ResourceCharset) {
     MockResourceCallback mock_callback(resource);
     EXPECT_TRUE(resource.get() != NULL);
     server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                                rewrite_driver()->request_context(),
                                 &mock_callback);
     EXPECT_TRUE(mock_callback.done());
     EXPECT_TRUE(mock_callback.success());
@@ -795,7 +795,6 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   MockResourceCallback mock_callback(resource);
   EXPECT_TRUE(resource.get() != NULL);
   server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
                               &mock_callback);
   EXPECT_TRUE(mock_callback.done());
   EXPECT_TRUE(mock_callback.success());
@@ -810,7 +809,6 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   MockResourceCallback mock_callback2(resource2);
   EXPECT_TRUE(resource2.get() != NULL);
   server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
                               &mock_callback2);
   EXPECT_TRUE(mock_callback2.done());
   EXPECT_TRUE(mock_callback2.success());
@@ -825,7 +823,6 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   MockResourceCallback mock_callback3(resource3);
   EXPECT_TRUE(resource3.get() != NULL);
   server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
                               &mock_callback3);
   EXPECT_TRUE(mock_callback3.done());
   EXPECT_EQ(kResourceContents2, resource3->contents());
@@ -859,7 +856,6 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   EXPECT_EQ(&kContentTypeCss, resource->type());
   MockResourceCallback mock_callback(resource);
   server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
                               &mock_callback);
   EXPECT_TRUE(mock_callback.done());
   EXPECT_TRUE(mock_callback.success());
@@ -875,7 +871,6 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   EXPECT_EQ(&kContentTypeCss, resource2->type());
   MockResourceCallback mock_callback2(resource2);
   server_context()->ReadAsync(Resource::kReportFailureIfNotCacheable,
-                              rewrite_driver()->request_context(),
                               &mock_callback2);
   EXPECT_TRUE(mock_callback2.done());
   EXPECT_TRUE(mock_callback2.success());
@@ -1136,129 +1131,6 @@ TEST_F(RewriteDriverTest, SetSessionFetcherTest) {
   EXPECT_TRUE(FetchResourceUrl(url, &output, &response_headers));
   EXPECT_STREQ(kFetcher1Css, output);
   EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-}
-
-TEST_F(RewriteDriverTest, GetScreenResolutionTest) {
-  rewrite_driver()->set_user_agent(UserAgentStrings::kAndroidICSUserAgent);
-  PropertyCache* dcache = server_context_->MakePropertyCache(
-      PropertyCache::kDevicePropertyCacheKeyPrefix, lru_cache());
-  PropertyCache::InitCohortStats(UserAgentMatcher::kDevicePropertiesCohort,
-        rewrite_driver()->statistics());
-  int width, height;
-  // No device property page.
-  EXPECT_FALSE(rewrite_driver()->GetScreenResolution(&width, &height));
-
-  // Property values not set, return defaults.
-  server_context_->set_device_property_cache(dcache);
-  server_context_->device_property_cache()->AddCohort(
-      UserAgentMatcher::kDevicePropertiesCohort);
-  server_context_->device_property_cache()->set_enabled(true);
-  MockPropertyPage* device_page(new MockPropertyPage(
-      server_context_->thread_system(),
-      *server_context_->device_property_cache(), "test_ua"));
-  rewrite_driver()->set_device_property_page(device_page);
-  server_context_->device_property_cache()->Read(device_page);
-  EXPECT_TRUE(rewrite_driver()->GetScreenResolution(&width, &height));
-  EXPECT_EQ(RewriteDriver::kDefaultMobileScreenWidth, width);
-  EXPECT_EQ(RewriteDriver::kDefaultMobileScreenHeight, height);
-
-  // Bad data in page, return defaults.
-  const PropertyCache::Cohort* device_cohort =
-      server_context_->device_property_cache()->GetCohort(
-      UserAgentMatcher::kDevicePropertiesCohort);
-  PropertyValue* width_pvalue = device_page->GetProperty(device_cohort,
-      UserAgentMatcher::kScreenWidth);
-  PropertyValue* height_pvalue = device_page->GetProperty(device_cohort,
-      UserAgentMatcher::kScreenHeight);
-  server_context_->device_property_cache()->UpdateValue("cat", width_pvalue);
-  server_context_->device_property_cache()->UpdateValue("200", height_pvalue);
-  server_context_->device_property_cache()->WriteCohort(
-      device_cohort, device_page);
-  server_context_->device_property_cache()->Read(device_page);
-  EXPECT_TRUE(rewrite_driver()->GetScreenResolution(&width, &height));
-  EXPECT_EQ(RewriteDriver::kDefaultMobileScreenWidth, width);
-  EXPECT_EQ(RewriteDriver::kDefaultMobileScreenHeight, height);
-
-  // Good data in page.
-  server_context_->device_property_cache()->UpdateValue("100", width_pvalue);
-  server_context_->device_property_cache()->WriteCohort(
-      device_cohort, device_page);
-  server_context_->device_property_cache()->Read(device_page);
-  EXPECT_TRUE(rewrite_driver()->GetScreenResolution(&width, &height));
-  EXPECT_EQ(100, width);
-  EXPECT_EQ(200, height);
-}
-
-class InPlaceTest : public RewriteTestBase {
- protected:
-  InPlaceTest() {}
-  virtual ~InPlaceTest() {}
-
-  bool FetchInPlaceResource(const StringPiece& url,
-                            bool perform_http_fetch,
-                            GoogleString* content,
-                            ResponseHeaders* response) {
-    GoogleUrl gurl(url);
-    content->clear();
-    StringAsyncFetch async_fetch(CreateRequestContext(), content);
-    async_fetch.set_response_headers(response);
-    rewrite_driver_->FetchInPlaceResource(gurl, perform_http_fetch,
-                                          &async_fetch);
-
-    // Make sure we let the rewrite complete, and also wait for the driver to be
-    // idle so we can reuse it safely.
-    rewrite_driver_->WaitForShutDown();
-    rewrite_driver_->Clear();
-
-    EXPECT_TRUE(async_fetch.done());
-    return async_fetch.done() && async_fetch.success();
-  }
-
-  bool TryFetchInPlaceResource(const StringPiece& url,
-                               bool perform_http_fetch) {
-    GoogleString contents;
-    ResponseHeaders response;
-    return FetchInPlaceResource(url, perform_http_fetch, &contents, &response);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(InPlaceTest);
-};
-
-TEST_F(InPlaceTest, FetchInPlaceResource) {
-  AddFilter(RewriteOptions::kRewriteCss);
-
-  GoogleString url = "http://example.com/foo.css";
-  SetResponseWithDefaultHeaders(url, kContentTypeCss,
-                                ".a { color: red; }", 100);
-
-  // This will fail because cache is empty and we are not allowing HTTP fetch.
-  bool perform_http_fetch = false;
-  EXPECT_FALSE(TryFetchInPlaceResource(url, perform_http_fetch));
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  ClearStats();
-
-  // Now we allow HTTP fetches and we expect success.
-  perform_http_fetch = true;
-  EXPECT_TRUE(TryFetchInPlaceResource(url, perform_http_fetch));
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  // We insert both original and rewritten resources.
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  ClearStats();
-
-  // Now that we've loaded the resource into cache, we expect success.
-  perform_http_fetch = false;
-  EXPECT_TRUE(TryFetchInPlaceResource(url, perform_http_fetch));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  ClearStats();
 }
 
 class RewriteDriverInhibitTest : public RewriteDriverTest {

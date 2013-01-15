@@ -18,7 +18,7 @@
 
 // Unit-tests for ResourceFetch
 
-#include "net/instaweb/rewriter/public/resource_fetch.h"
+#include "net/instaweb/automatic/public/resource_fetch.h"
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -32,10 +32,10 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -61,15 +61,12 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   GoogleString buffer;
   StringWriter writer(&buffer);
   SyncFetcherAdapterCallback* callback =
-      new SyncFetcherAdapterCallback(
-          server_context()->thread_system(), &writer,
-          CreateRequestContext());
+      new SyncFetcherAdapterCallback(server_context()->thread_system(),
+                                     &writer);
   RewriteOptions* custom_options =
       server_context()->global_options()->Clone();
   RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options,
-          CreateRequestContext());
+      server_context()->NewCustomRewriteDriver(custom_options);
 
   GoogleUrl url(Encode(kTestDomain, "cf", "0", "a.css", "css"));
   EXPECT_TRUE(
@@ -86,14 +83,13 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
   // Fetch stuff.
   GoogleString buffer;
   StringWriter writer(&buffer);
+  SyncFetcherAdapterCallback* callback =
+      new SyncFetcherAdapterCallback(server_context()->thread_system(),
+                                     &writer);
   RewriteOptions* custom_options =
       server_context()->global_options()->Clone();
   RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options, CreateRequestContext());
-  SyncFetcherAdapterCallback* callback =
-      new SyncFetcherAdapterCallback(
-          server_context()->thread_system(), &writer, CreateRequestContext());
+      server_context()->NewCustomRewriteDriver(custom_options);
 
   // Encode an URL then invalidate it by removing the hash. This will cause
   // RewriteDriver::DecodeOutputResourceNameHelper to reject it, which will

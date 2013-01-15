@@ -21,19 +21,19 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+
 
 namespace net_instaweb {
 
 class CacheInterface;
 class Hasher;
-class LogRecord;
 class MessageHandler;
 class RequestHeaders;
 class Statistics;
@@ -48,7 +48,6 @@ class HTTPCache {
   static const char kCacheTimeUs[];
   static const char kCacheHits[];
   static const char kCacheMisses[];
-  static const char kCacheFallbacks[];
   static const char kCacheExpirations[];
   static const char kCacheInserts[];
   static const char kCacheDeletes[];
@@ -83,10 +82,11 @@ class HTTPCache {
   // this would impact callers.
   class Callback {
    public:
-    explicit Callback(const RequestContextPtr& request_ctx)
+    Callback()
         : response_headers_(NULL),
           owns_response_headers_(false),
-          request_ctx_(request_ctx) {
+          logging_info_(NULL),
+          owns_logging_info_(false) {
     }
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
@@ -139,9 +139,11 @@ class HTTPCache {
     }
     HTTPValue* fallback_http_value() { return &fallback_http_value_; }
 
-    LogRecord* log_record();
-    const RequestContextPtr& request_context() { return request_ctx_; }
-
+    // Sets the LoggingInfo to the specified pointer.  The caller must
+    // guarantee that the pointed-to LoggingInfo remains valid as long as the
+    // HTTPCache is running.
+    void set_logging_info(LoggingInfo* logging_info);
+    virtual LoggingInfo* logging_info();
     virtual void SetTimingMs(int64 timing_value_ms);
 
    private:
@@ -151,7 +153,8 @@ class HTTPCache {
     HTTPValue fallback_http_value_;
     ResponseHeaders* response_headers_;
     bool owns_response_headers_;
-    RequestContextPtr request_ctx_;
+    LoggingInfo* logging_info_;
+    bool owns_logging_info_;
 
     DISALLOW_COPY_AND_ASSIGN(Callback);
   };
@@ -241,7 +244,6 @@ class HTTPCache {
   Variable* cache_time_us()     { return cache_time_us_; }
   Variable* cache_hits()        { return cache_hits_; }
   Variable* cache_misses()      { return cache_misses_; }
-  Variable* cache_fallbacks()   { return cache_fallbacks_; }
   Variable* cache_expirations() { return cache_expirations_; }
   Variable* cache_inserts()     { return cache_inserts_; }
   Variable* cache_deletes()     { return cache_deletes_; }
@@ -306,7 +308,7 @@ class HTTPCache {
   HTTPValue* ApplyHeaderChangesForPut(
       const GoogleString& key, int64 start_us, const StringPiece* content,
       ResponseHeaders* headers, HTTPValue* value, MessageHandler* handler);
-  void UpdateStats(FindResult result, bool has_fallback, int64 delta_us);
+  void UpdateStats(FindResult result, int64 delta_us);
   void RememberFetchFailedorNotCacheableHelper(
       const GoogleString& key, MessageHandler* handler, HttpStatus::Code code,
       int64 ttl_sec);
@@ -320,7 +322,6 @@ class HTTPCache {
   Variable* cache_time_us_;
   Variable* cache_hits_;
   Variable* cache_misses_;
-  Variable* cache_fallbacks_;
   Variable* cache_expirations_;
   Variable* cache_inserts_;
   Variable* cache_deletes_;

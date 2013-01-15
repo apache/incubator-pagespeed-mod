@@ -125,7 +125,7 @@ inline bool EatLiteral(const StringPiece& expected, StringPiece* in) {
 }
 
 inline bool IsCssWhitespace(char c) {
-  // As specified in CSS2.1,  G.2, production 's'
+ // As specified in CSS2.1,  G.2, production 's'
   return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n') || (c == '\f');
 }
 
@@ -174,7 +174,6 @@ bool CssExtractUntil(bool is_string, char term,
             if (is_string) {
               break;
             }
-            FALLTHROUGH_INTENDED;
           default:
             // We can't parse it but it's not clear that ignoring it is the
             // safest thing, so we just pass it through unmodified

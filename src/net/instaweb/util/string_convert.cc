@@ -47,4 +47,4 @@ bool AccumulateHexValue(char c, uint32* value) {
   return true;
 }
 
-}  // namespace net_instaweb
+}  // namespace

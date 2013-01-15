@@ -24,7 +24,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/wget_url_fetcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -137,8 +136,7 @@ bool StaticRewriter::ParseText(const StringPiece& url,
                                const StringPiece& text,
                                const StringPiece& output_dir,
                                Writer* writer) {
-  RewriteDriver* driver = server_context_->NewRewriteDriver(
-      RequestContext::NewTestRequestContext(server_context_->thread_system()));
+  RewriteDriver* driver = server_context_->NewRewriteDriver();
 
   // For this simple file transformation utility we always want to perform
   // any optimizations we can, so we wait until everything is done rather

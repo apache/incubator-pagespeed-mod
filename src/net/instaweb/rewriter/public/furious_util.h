@@ -60,10 +60,10 @@ bool GetFuriousCookieState(const RequestHeaders& headers, int* value);
 void RemoveFuriousCookie(RequestHeaders *headers);
 
 // Add a Set-Cookie header for Furious on the domain of url,
-// expiring at expiration_time_ms (specified as ms since the epoch),
-// putting it on the side of the experiment indicated by state.
+// one week from now_ms, putting it on the side of the experiment
+// indicated by state.
 void SetFuriousCookie(ResponseHeaders* headers, int state,
-                      const StringPiece& url, int64 expiration_time_ms);
+                      const StringPiece& url, int64 now_ms);
 
 // Determines which side of the experiment this request should end up on.
 int DetermineFuriousState(const RewriteOptions* options);
@@ -79,4 +79,4 @@ int CookieStringToState(const StringPiece& cookie_str);
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_FURIOUS_UTIL_H_
+#endif // NET_INSTAWEB_REWRITER_PUBLIC_FURIOUS_UTIL_H_

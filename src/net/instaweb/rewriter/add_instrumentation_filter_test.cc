@@ -19,7 +19,7 @@
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -38,7 +38,7 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
   AddInstrumentationFilterTest() {}
 
   virtual void SetUp() {
-    options()->set_beacon_url("http://example.com/beacon?org=xxx");
+    options()->set_beacon_url("http://example.com/beacon?org=xxx&ets=");
     AddInstrumentationFilter::InitStats(statistics());
     options()->EnableFilter(RewriteOptions::kAddInstrumentation);
     RewriteTestBase::SetUp();
@@ -166,8 +166,11 @@ TEST_F(AddInstrumentationFilterTest,
 // Test that headers fetch timing reporting is done correctly.
 TEST_F(AddInstrumentationFilterTest, TestHeadersFetchTimingReporting) {
   NullMessageHandler handler;
-  logging_info()->mutable_timing_info()->set_header_fetch_ms(200);
-  logging_info()->mutable_timing_info()->set_fetch_ms(500);
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  log_record.logging_info()->mutable_timing_info()->set_header_fetch_ms(200);
+  log_record.logging_info()->mutable_timing_info()->set_fetch_ms(500);
+  rewrite_driver()->set_log_record(&log_record);
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
@@ -176,14 +179,5 @@ TEST_F(AddInstrumentationFilterTest, TestHeadersFetchTimingReporting) {
               GoogleString::npos);
 }
 
-
-// Test that head script is inserted after title and meta tags.
-TEST_F(AddInstrumentationFilterTest, TestScriptAfterTitleAndMeta) {
-  rewrite_driver()->AddFilters();
-  ParseUrl(GetTestUrl(),
-           "<head><meta name='abc' /><title></title></head><body></body>");
-  EXPECT_TRUE(output_buffer_.find(
-      "<head><meta name='abc' /><title></title><script"));
-}
 
 }  // namespace net_instaweb

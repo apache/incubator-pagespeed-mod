@@ -20,132 +20,35 @@
 
 #include <set>
 
-#include "base/logging.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-LogRecord::LogRecord(AbstractMutex* mutex) : finalized_(false), mutex_(mutex) {
-  InitLogging();
+LogRecord::LogRecord() : logging_info_(new LoggingInfo),
+    owns_logging_info_(true) {
 }
 
-// Non-initializing constructor for subclasses to invoke.
-LogRecord::LogRecord()
-    : logging_info_(NULL),
-      finalized_(false),
-      mutex_(NULL) {
-}
-
-void LogRecord::InitLogging() {
-  logging_info_.reset(new LoggingInfo);
+LogRecord::LogRecord(LoggingInfo* logging_info)
+    : logging_info_(logging_info), owns_logging_info_(false) {
 }
 
 LogRecord::~LogRecord() {
-  mutex_->DCheckUnlocked();
-  // Please do not add non-diagnostic functionality here.
-  //
-  // LogRecords are typically owned by reference counted objects, and
-  // doing work in the dtor will result in actions being taken at
-  // unpredictable times, leading to difficult to diagnose performance
-  // and correctness bugs.
-}
-
-void LogRecord::set_mutex(AbstractMutex* m) {
-  CHECK(mutex_.get() == NULL);
-  mutex_.reset(m);
-}
-
-LoggingInfo* LogRecord::logging_info() {
-  return logging_info_.get();
-}
-
-int LogRecord::AddPropertyCohortInfo(const GoogleString& cohort) {
-  ScopedMutex lock(mutex_.get());
-  PropertyCohortInfo* cohort_info =
-      logging_info()->mutable_property_page_info()->add_cohort_info();
-  cohort_info->set_name(cohort);
-  return logging_info()->property_page_info().cohort_info_size() - 1;
-}
-
-void LogRecord::AddFoundPropertyToCohortInfo(
-    int index, const GoogleString& property) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->mutable_property_page_info()->mutable_cohort_info(index)->
-      add_properties_found(property);
-}
-
-void LogRecord::SetCacheStatusForCohortInfo(int index, bool found) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->mutable_property_page_info()->mutable_cohort_info(index)->
-      set_is_cache_hit(found);
+  if (owns_logging_info_) {
+    delete logging_info_;
+  }
 }
 
 void LogRecord::LogAppliedRewriter(const char* rewriter_id) {
-  ScopedMutex lock(mutex_.get());
-  LogAppliedRewriterImpl(rewriter_id);
-}
-
-void LogRecord::LogAppliedRewriterImpl(const char* rewriter_id) {
-  mutex_->DCheckLocked();
-  if (!finalized()) {
-    applied_rewriters_.insert(rewriter_id);
-  }
+  applied_rewriters_.insert(rewriter_id);
 }
 
 void LogRecord::Finalize() {
-  ScopedMutex lock(mutex_.get());
-  FinalizeImpl();
+  logging_info()->set_applied_rewriters(ConcatenatedRewriterString());
 }
 
-void LogRecord::FinalizeImpl() {
-  mutex_->DCheckLocked();
-  if (!finalized()) {
-    logging_info()->set_applied_rewriters(ConcatenatedRewriterString());
-    finalized_ = true;
-  }
-}
-
-void LogRecord::SetBlinkRequestFlow(int flow) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->mutable_blink_info()->set_blink_request_flow(
-      static_cast<BlinkInfo::BlinkRequestFlow>(flow));
-}
-
-void LogRecord::SetIsOriginalResourceCacheable(bool cacheable) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->set_is_original_resource_cacheable(cacheable);
-}
-
-void LogRecord::SetTimingRequestStartMs(int64 ms) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->mutable_timing_info()->set_request_start_ms(ms);
-}
-
-void LogRecord::SetTimingFetchMs(int64 ms) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->mutable_timing_info()->set_fetch_ms(ms);
-}
-
-void LogRecord::UpdateTimingInfoWithFetchStartTime(int64 start_time_ms) {
-  ScopedMutex lock(mutex_.get());
-  TimingInfo* timing_info = logging_info()->mutable_timing_info();
-  if (timing_info->has_request_start_ms()) {
-    timing_info->set_time_to_start_fetch_ms(
-      start_time_ms - timing_info->request_start_ms());
-  }
-}
-
-void LogRecord::SetBlinkInfo(const GoogleString& user_agent) {
-  ScopedMutex lock(mutex_.get());
-  SetBlinkInfoImpl(user_agent);
-}
-
-bool LogRecord::WriteLog() {
-  ScopedMutex lock(mutex_.get());
-  return WriteLogImpl();
+void LogRecord::WriteLogForBlink(const GoogleString& user_agent) {
+  // no-op.
 }
 
 GoogleString LogRecord::ConcatenatedRewriterString() {

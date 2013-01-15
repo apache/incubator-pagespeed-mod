@@ -26,7 +26,4 @@ AbstractMutex::~AbstractMutex() {
 void AbstractMutex::DCheckLocked() {
 }
 
-void AbstractMutex::DCheckUnlocked() {
-}
-
 }  // namespace net_instaweb

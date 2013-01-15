@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
@@ -47,29 +46,19 @@ void FlushEarlyInfoFinder::UpdateFlushEarlyInfoInDriver(RewriteDriver* driver) {
   if (page != NULL && cohort != NULL) {
     PropertyValue* property_value = page->GetProperty(
         cohort, kFlushEarlyRenderPropertyName);
-    int64 cache_ttl_ms =
-      driver->options()->finder_properties_cache_expiration_time_ms();
     if (property_value->has_value() && !property_cache->IsExpired(
-          property_value, cache_ttl_ms)) {
+          property_value, cache_expiration_time_ms())) {
       FlushEarlyRenderInfo* flush_early_render_info = new FlushEarlyRenderInfo;
       StringPiece value = property_value->value();
-      ArrayInputStream property_stream(value.data(), value.size());
-      if (!flush_early_render_info->ParseFromZeroCopyStream(&property_stream)) {
+      ArrayInputStream property_value(value.data(), value.size());
+      if (!flush_early_render_info->ParseFromZeroCopyStream(&property_value)) {
         driver->message_handler()->Message(kError, "Parsing value from cache "
                                            "into FlushEarlyRenderInfo failed.");
         delete flush_early_render_info;
       } else {
-        // Force a computation if the value is imminently expiry.
-        if (property_cache->IsExpired(
-            property_value,
-            driver->options()->finder_properties_cache_refresh_time_ms())) {
-          driver->enable_must_compute_finder_properties();
-        }
         driver->set_flush_early_render_info(flush_early_render_info);
-        return;
       }
     }
-    driver->enable_must_compute_finder_properties();
   }
 }
 

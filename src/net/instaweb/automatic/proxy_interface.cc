@@ -22,17 +22,15 @@
 #include "net/instaweb/automatic/public/blink_flow_critical_line.h"
 #include "net/instaweb/automatic/public/flush_early_flow.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
+#include "net/instaweb/automatic/public/resource_fetch.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/resource_fetch.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
@@ -40,8 +38,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/request_trace.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
@@ -98,7 +94,6 @@ bool UrlMightHavePropertyCacheEntry(const GoogleUrl& url) {
     case ContentType::kOther:
     case ContentType::kJson:
     case ContentType::kVideo:
-    case ContentType::kOctetStream:
       return false;
   }
   LOG(DFATAL) << "URL " << url.Spec() << ": unexpected type:" << type->type()
@@ -313,59 +308,40 @@ ProxyFetchPropertyCallbackCollector*
     bool is_resource_fetch,
     const GoogleUrl& request_url,
     RewriteOptions* options,
-    AsyncFetch* async_fetch,
-    bool* added_page_property_callback) {
-  RequestContextPtr request_ctx = async_fetch->request_context();
-  DCHECK(request_ctx.get() != NULL);
-  if (request_ctx->root_trace_context() != NULL) {
-    request_ctx->root_trace_context()->TracePrintf(
-        "PropertyCache lookup start");
-  }
-  StringPiece user_agent =
-      async_fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
+    AsyncFetch* async_fetch) {
   scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
       new ProxyFetchPropertyCallbackCollector(
-          server_context_, request_url.Spec(), request_ctx, options,
-          user_agent));
+          server_context_, request_url.Spec(), options));
   bool added_callback = false;
-  PropertyPageStarVector property_callbacks;
-
-  ProxyFetchPropertyCallback* client_callback = NULL;
-  ProxyFetchPropertyCallback* device_callback = NULL;
-  PropertyCache* page_property_cache = server_context_->page_property_cache();
-  PropertyCache* client_property_cache =
-      server_context_->client_property_cache();
-  PropertyCache* device_property_cache =
-      server_context_->device_property_cache();
+  ProxyFetchPropertyCallback* property_callback = NULL;
+  PropertyCache* page_property_cache = NULL;
   if (!is_resource_fetch &&
       server_context_->page_property_cache()->enabled() &&
       UrlMightHavePropertyCacheEntry(request_url) &&
       async_fetch->request_headers()->method() == RequestHeaders::kGet) {
+    page_property_cache = server_context_->page_property_cache();
+    AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
     if (options != NULL) {
       server_context_->ComputeSignature(options);
+      property_callback = new ProxyFetchPropertyCallback(
+          ProxyFetchPropertyCallback::kPagePropertyCache,
+          StrCat(request_url.Spec(), "_", options->signature()),
+          callback_collector.get(), mutex);
+    } else {
+      property_callback = new ProxyFetchPropertyCallback(
+          ProxyFetchPropertyCallback::kPagePropertyCache,
+          request_url.Spec(),
+          callback_collector.get(), mutex);
     }
-    for (int i = 0;
-         i < static_cast<int>(UserAgentMatcher::kEndOfDeviceType);
-         ++i) {
-      UserAgentMatcher::DeviceType device_type =
-          static_cast<UserAgentMatcher::DeviceType>(i);
-      AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
-      const StringPiece& device_type_suffix =
-          UserAgentMatcher::DeviceTypeSuffix(device_type);
-      GoogleString page_key = server_context_->GetPagePropertyCacheKey(
-          request_url.Spec(), options, device_type_suffix);
-      ProxyFetchPropertyCallback* property_callback =
-          new ProxyFetchPropertyCallback(
-              ProxyFetchPropertyCallback::kPagePropertyCache,
-              *page_property_cache,
-              page_key, device_type, callback_collector.get(), mutex);
-      property_callbacks.push_back(property_callback);
-      callback_collector->AddCallback(property_callback);
-    }
+    callback_collector->AddCallback(property_callback);
     added_callback = true;
-    if (added_page_property_callback != NULL) {
-      *added_page_property_callback = true;
-    }
+
+    // Don't initiate the Read until the client_id lookup, if any, has had
+    // an opportunity to establish its callback.  Otherwise we race the
+    // completion of this pcache lookup against adding the client-cache
+    // lookup's callback.  Also this would cause the unit-test
+    // ProxyInterfaceTest.BothClientAndPropertyCache to hang on two
+    // Wait calls when the test only sets up one Signal.
   }
 
   // Initiate client property cache lookup.
@@ -373,45 +349,24 @@ ProxyFetchPropertyCallbackCollector*
     const char* client_id = async_fetch->request_headers()->Lookup1(
         HttpAttributes::kXGooglePagespeedClientId);
     if (client_id != NULL) {
+      PropertyCache* client_property_cache =
+          server_context_->client_property_cache();
       if (client_property_cache->enabled()) {
         AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
-        client_callback = new ProxyFetchPropertyCallback(
-            ProxyFetchPropertyCallback::kClientPropertyCache,
-            *client_property_cache, client_id,
-            UserAgentMatcher::kEndOfDeviceType,
-            callback_collector.get(), mutex);
-        callback_collector->AddCallback(client_callback);
+        ProxyFetchPropertyCallback* callback =
+            new ProxyFetchPropertyCallback(
+                ProxyFetchPropertyCallback::kClientPropertyCache,
+                client_id,
+                callback_collector.get(), mutex);
+        callback_collector->AddCallback(callback);
         added_callback = true;
+        client_property_cache->Read(callback);
       }
     }
-
-    // Initiate device properties lookup.
-    const char* user_agent = async_fetch->request_headers()->Lookup1(
-        HttpAttributes::kUserAgent);
-    if (device_property_cache != NULL &&
-        device_property_cache->enabled() &&
-        user_agent != NULL) {
-      AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
-      device_callback = new ProxyFetchPropertyCallback(
-          ProxyFetchPropertyCallback::kDevicePropertyCache,
-          *device_property_cache, user_agent,
-          UserAgentMatcher::kEndOfDeviceType, callback_collector.get(), mutex);
-      callback_collector->AddCallback(device_callback);
-      added_callback = true;
-    }
   }
-
-  // All callbacks need to be registered before Reads to avoid race.
-  if (!property_callbacks.empty()) {
-    page_property_cache->MultiRead(&property_callbacks);
+  if (page_property_cache != NULL) {
+    page_property_cache->Read(property_callback);
   }
-  if (client_callback != NULL) {
-    client_property_cache->Read(client_callback);
-  }
-  if (device_callback != NULL) {
-    device_property_cache->Read(device_callback);
-  }
-
   if (!added_callback) {
     callback_collector.reset(NULL);
   }
@@ -495,12 +450,12 @@ void ProxyInterface::ProxyRequestCallback(
     bool apply_blink_critical_line =
         BlinkUtil::ShouldApplyBlinkFlowCriticalLine(server_context_,
                                                     options);
-    bool page_callback_added = false;
-    property_callback.reset(InitiatePropertyCacheLookup(
-        is_resource_fetch, *request_url, options, async_fetch,
-        &page_callback_added));
-
-    if (is_blink_request && apply_blink_critical_line && page_callback_added) {
+    if (is_blink_request && apply_blink_critical_line) {
+      property_callback.reset(InitiatePropertyCacheLookup(
+          is_resource_fetch, *request_url, options, async_fetch));
+    }
+    if (is_blink_request && apply_blink_critical_line &&
+        property_callback.get() != NULL) {
       // In blink flow, we have to modify RewriteOptions after the
       // property cache read is completed. Hence, we clear the signature to
       // unfreeze RewriteOptions, which was frozen during signature computation
@@ -523,15 +478,17 @@ void ProxyInterface::ProxyRequestCallback(
                                    property_callback.release());
     } else {
       RewriteDriver* driver = NULL;
-      RequestContextPtr request_ctx = async_fetch->request_context();
-      DCHECK(request_ctx.get() != NULL) << "Async fetch must have a request"
-                                        << "context but does not.";
+      // Starting property cache lookup after the furious state is set.
+      property_callback.reset(InitiatePropertyCacheLookup(
+          is_resource_fetch, *request_url, options, async_fetch));
       if (options == NULL) {
-        driver = server_context_->NewRewriteDriver(request_ctx);
+        driver = server_context_->NewRewriteDriver();
       } else {
         // NewCustomRewriteDriver takes ownership of custom_options_.
-        driver = server_context_->NewCustomRewriteDriver(options, request_ctx);
+        driver = server_context_->NewCustomRewriteDriver(options);
       }
+      driver->set_log_record(async_fetch->log_record());
+      driver->set_request_context(async_fetch->request_context());
 
       // TODO(mmohabey): Remove duplicate setting of user agent and
       // request headers for different flows.

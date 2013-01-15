@@ -22,7 +22,6 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -49,7 +48,7 @@ void HtmlWriterFilter::Clear() {
   write_errors_ = 0;
 }
 
-void HtmlWriterFilter::TerminateLazyCloseElement() {
+void HtmlWriterFilter::EmitBytes(const StringPiece& str) {
   if (lazy_close_element_ != NULL) {
     lazy_close_element_ = NULL;
     if (!writer_->Write(">", html_parse_->message_handler())) {
@@ -57,10 +56,6 @@ void HtmlWriterFilter::TerminateLazyCloseElement() {
     }
     ++column_;
   }
-}
-
-void HtmlWriterFilter::EmitBytes(const StringPiece& str) {
-  TerminateLazyCloseElement();
 
   // Search backward from the end for the last occurrence of a newline.
   column_ += str.size();  // if there are no newlines, bump up column counter.
@@ -193,7 +188,7 @@ void HtmlWriterFilter::EndElement(HtmlElement* element) {
         EmitBytes("/>");
         break;
       }
-      FALLTHROUGH_INTENDED;
+      // fall through
     case HtmlElement::EXPLICIT_CLOSE:
       EmitBytes("</");
       EmitName(element->name());

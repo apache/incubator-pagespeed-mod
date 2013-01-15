@@ -43,7 +43,9 @@ class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
     return true;
   }
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) {}
+                                     RewriteDriver* driver,
+                                     bool must_compute) {
+  }
   virtual const char* GetCriticalImagesCohort() const {
     return kCriticalImagesCohort;
   }
@@ -69,7 +71,6 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
     if (debug) {
       options()->EnableFilter(RewriteOptions::kDebug);
     }
-    options()->DisallowTroublesomeResources();
     lazyload_images_filter_.reset(
         new LazyloadImagesFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(lazyload_images_filter_.get());
@@ -128,7 +129,6 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
       "</marquee>"
       "<img src=\"1.jpg\" />"
       "<img src=\"1.jpg\" pagespeed_no_defer/>"
-      "<img src=\"1.jpg\" data-src=\"2.jpg\"/>"
       "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhE\"/>"
       "<img src=\"2's.jpg\" height=\"300\" width=\"123\" />"
       "<input src=\"12.jpg\"type=\"image\" />"
@@ -149,8 +149,7 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
              "</marquee>",
              GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
-             "<img src=\"1.jpg\"/>"
-             "<img src=\"1.jpg\" data-src=\"2.jpg\"/>",
+             "<img src=\"1.jpg\"/>",
              StrCat("<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhE\"/>",
                     GenerateRewrittenImageTag("img", "2's.jpg",
                                               "height=\"300\" width=\"123\" "),
@@ -328,28 +327,6 @@ TEST_F(LazyloadImagesFilterTest, DfcgClass) {
       "<div class=\"dfcg\">"
       "<img src=\"1.jpg\"/>"
       "</div>"
-      "</body>";
-  ValidateNoChanges("lazyload_images", input_html);
-}
-
-TEST_F(LazyloadImagesFilterTest, NivoClass) {
-  InitLazyloadImagesFilter(false);
-  GoogleString input_html = "<body>"
-      "<div class=\"nivo_sl\">"
-      "<img src=\"1.jpg\"/>"
-      "</div>"
-      "<img class=\"nivo\" src=\"1.jpg\"/>"
-      "</body>";
-  ValidateNoChanges("lazyload_images", input_html);
-}
-
-TEST_F(LazyloadImagesFilterTest, ClassContainsSlider) {
-  InitLazyloadImagesFilter(false);
-  GoogleString input_html = "<body>"
-      "<div class=\"SliderName2\">"
-      "<img src=\"1.jpg\"/>"
-      "</div>"
-      "<img class=\"my_sLiDer\" src=\"1.jpg\"/>"
       "</body>";
   ValidateNoChanges("lazyload_images", input_html);
 }

@@ -27,7 +27,7 @@ namespace net_instaweb {
 
 class MockResourceCallback : public Resource::AsyncCallback {
  public:
-  explicit MockResourceCallback(const ResourcePtr& resource)
+  MockResourceCallback(const ResourcePtr& resource)
       : Resource::AsyncCallback(resource) {}
   virtual ~MockResourceCallback();
 

@@ -569,13 +569,15 @@ class Library : public spriter::ImageLibraryInterface {
 
     net_instaweb::Image::CompressionOptions* image_options =
         new net_instaweb::Image::CompressionOptions();
+    image_options->webp_preferred = false;  // Not working with jpg/webp at all.
     // TODO(satyanarayana): Use appropriate quality param for spriting.
     image_options->jpeg_quality =
         RewriteOptions::kDefaultImageJpegRecompressQuality;
     // TODO(nikhilmadan): Use appropriate progressive setting for spriting.
     image_options->progressive_jpeg = false;
+    image_options->convert_png_to_jpeg = false;
 
-    scoped_ptr<net_instaweb::Image> image(NewImage(
+    scoped_ptr<net_instaweb::Image> image(net_instaweb::NewImage(
         resource->contents(), resource->url(), tmp_dir_, image_options,
         handler_));
 
@@ -674,11 +676,12 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 
     combination->EnsureCachedResultCreated()->mutable_spriter_result()->
         CopyFrom(*result);
-    if (!rewrite_driver_->Write(combine_resources,
+    if (!server_context_->Write(combine_resources,
                                 result_image->image()->Contents(),
                                 &kContentTypePng,
                                 StringPiece(),  // no charset on images.
-                                combination.get())) {
+                                combination.get(),
+                                handler)) {
       handler->Error(UrlSafeId().c_str(), 0,
                      "Could not write sprited resource.");
       return false;
@@ -991,7 +994,7 @@ class ImageCombineFilter::Context : public RewriteContext {
       SpriteFuture* future = sprite_slot->future();
       GoogleString resource_url = resource->url();
       if (no_sprite->find(resource_url) == no_sprite->end()) {
-        if (!resource->IsSafeToRewrite()) {
+        if (!resource->IsValidAndCacheable()) {
           no_sprite->insert(resource_url);
         } else {
           // Register the resource with the library and then check

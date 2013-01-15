@@ -40,6 +40,7 @@
 namespace net_instaweb {
 
 // RewriteFilter prefixes
+const char RewriteOptions::kAjaxRewriteId[] = "aj";
 const char RewriteOptions::kCssCombinerId[] = "cc";
 const char RewriteOptions::kCssFilterId[] = "cf";
 const char RewriteOptions::kCssImportFlattenerId[] = "if";
@@ -47,7 +48,6 @@ const char RewriteOptions::kCssInlineId[] = "ci";
 const char RewriteOptions::kCacheExtenderId[] = "ce";
 const char RewriteOptions::kImageCombineId[] = "is";
 const char RewriteOptions::kImageCompressionId[] = "ic";
-const char RewriteOptions::kInPlaceRewriteId[] = "aj";  // Comes from ajax.
 const char RewriteOptions::kJavascriptCombinerId[] = "jc";
 const char RewriteOptions::kJavascriptMinId[] = "jm";
 const char RewriteOptions::kJavascriptInlineId[] = "ji";
@@ -168,7 +168,7 @@ const int kValgrindWaitForRewriteMs = 1000;
 
 const int RewriteOptions::kDefaultPropertyCacheHttpStatusStabilityThreshold = 5;
 
-const char RewriteOptions::kDefaultBeaconUrl[] = "/mod_pagespeed_beacon";
+const char RewriteOptions::kDefaultBeaconUrl[] = "/mod_pagespeed_beacon?ets=";
 
 const int RewriteOptions::kDefaultMaxInlinedPreviewImagesIndex = 5;
 const int64 RewriteOptions::kDefaultMinImageSizeLowResolutionBytes = 1 * 1024;
@@ -177,12 +177,8 @@ const int64 RewriteOptions::kDefaultMaxImageSizeLowResolutionBytes =
 
 // Setting the limit on combined js resource to -1 will bypass the size check.
 const int64 RewriteOptions::kDefaultMaxCombinedJsBytes = -1;
-const int64 RewriteOptions::kDefaultFuriousCookieDurationMs =
-    Timer::kWeekMs;
-const int64 RewriteOptions::kDefaultFinderPropertiesCacheExpirationTimeMs =
-    2 * Timer::kHourMs;
-const int64 RewriteOptions::kDefaultFinderPropertiesCacheRefreshTimeMs =
-    (3 * Timer::kHourMs) / 2;
+const int64 RewriteOptions::kDefaultCriticalImagesCacheExpirationMs =
+    Timer::kHourMs;
 const int64 RewriteOptions::kDefaultMetadataCacheStalenessThresholdMs = 0;
 const int RewriteOptions::kDefaultFuriousTrafficPercent = 50;
 const int RewriteOptions::kDefaultFuriousSlot = 1;
@@ -209,9 +205,6 @@ const char* RewriteOptions::option_enum_to_name_array_[
 
 const RewriteOptions::FilterEnumToIdAndNameEntry*
     RewriteOptions::filter_id_to_enum_array_[RewriteOptions::kEndOfFilters];
-
-const RewriteOptions::PropertyBase**
-    RewriteOptions::option_id_to_property_array_ = NULL;
 
 RewriteOptions::Properties* RewriteOptions::properties_ = NULL;
 RewriteOptions::Properties* RewriteOptions::all_properties_ = NULL;
@@ -262,6 +255,7 @@ const RewriteOptions::Filter kTestFilterSet[] = {
 // Note: These filters should not be included even if the level is "All".
 const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kCanonicalizeJavascriptLibraries,
+  RewriteOptions::kComputePanelJson,  // internal, enabled conditionally
   RewriteOptions::kComputeVisibleText,  // internal, enabled conditionally
   RewriteOptions::kDeferIframe,
   RewriteOptions::kDeferJavascript,
@@ -329,6 +323,8 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ch", "Combine Heads" },
   { RewriteOptions::kCombineJavascript,
     RewriteOptions::kJavascriptCombinerId, "Combine Javascript" },
+  { RewriteOptions::kComputePanelJson,
+    "cv", "Computes panel json" },
   { RewriteOptions::kComputeVisibleText,
     "bp", "Computes visible text" },
   { RewriteOptions::kConvertGifToPng,
@@ -415,8 +411,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "jo", "Outline Javascript" },
   { RewriteOptions::kPedantic,
     "pc", "Add pedantic types" },
-  { RewriteOptions::kConvertToWebpLossless,
-    "ws", "When converting images to WebP, prefer lossless conversions" },
   { RewriteOptions::kPrioritizeVisibleContent,
     "pv", "Prioritize Visible Content" },
   { RewriteOptions::kProcessBlinkInBackground,
@@ -463,35 +457,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ss", "Strip Scripts" },
 };
 
-const RewriteOptions::Filter kImagePreserveUrlForbiddenFilters[] = {
-    // TODO(jkarlin): Remove kResizeImages from the forbid list and allow image
-    // squashing prefetching in HTML path (but don't allow resizing based on
-    // HTML attributes.
-  RewriteOptions::kDelayImages,
-  RewriteOptions::kExtendCacheImages,
-  RewriteOptions::kInlineImages,
-  RewriteOptions::kLazyloadImages,
-  RewriteOptions::kSpriteImages
-};
-
-const RewriteOptions::Filter kJsPreserveUrlForbiddenFilters[] = {
-  RewriteOptions::kCanonicalizeJavascriptLibraries,
-  RewriteOptions::kCombineJavascript,
-  RewriteOptions::kDeferJavascript,
-  RewriteOptions::kExtendCacheScripts,
-  RewriteOptions::kInlineJavascript,
-  RewriteOptions::kOutlineJavascript
-};
-
-const RewriteOptions::Filter kCssPreserveUrlForbiddenFilters[] = {
-  RewriteOptions::kCombineCss,
-  RewriteOptions::kExtendCacheCss,
-  RewriteOptions::kInlineCss,
-  RewriteOptions::kInlineImportToLink,
-  RewriteOptions::kLeftTrimUrls,
-  RewriteOptions::kOutlineCss
-};
-
 #ifndef NDEBUG
 void CheckFilterSetOrdering(const RewriteOptions::Filter* filters, int num) {
   for (int i = 1; i < num; ++i) {
@@ -504,15 +469,6 @@ bool IsInSet(const RewriteOptions::Filter* filters, int num,
              RewriteOptions::Filter filter) {
   const RewriteOptions::Filter* end = filters + num;
   return std::binary_search(filters, end, filter);
-}
-
-// Strip the "ets=" query param from then end of the beacon URLs.
-void StripBeaconUrlQueryParam(GoogleString* url) {
-  if (StringPiece(*url).ends_with("ets=")) {
-    // Strip the ? or & in front of ets= as well.
-    int chars_to_strip = STATIC_STRLEN("ets=") + 1;
-    url->resize(url->size() - chars_to_strip);
-  }
 }
 
 }  // namespace
@@ -568,18 +524,14 @@ bool RewriteOptions::ParseBeaconUrl(const StringPiece& in, BeaconUrl* out) {
   urls[0].CopyToString(&out->http);
   if (urls.size() == 2) {
     urls[1].CopyToString(&out->https);
-  } else if (urls[0].starts_with("http:")) {
+    return true;
+  }
+  if (urls[0].starts_with("http:")) {
     out->https.clear();
     StrAppend(&out->https, "https:", urls[0].substr(STATIC_STRLEN("http:")));
   } else {
     urls[0].CopyToString(&out->https);
   }
-
-  // We used to require that the query param end with "ets=", but no longer
-  // do, so strip it if it's present.
-  StripBeaconUrlQueryParam(&out->http);
-  StripBeaconUrlQueryParam(&out->https);
-
   return true;
 }
 
@@ -590,8 +542,7 @@ bool RewriteOptions::ImageOptimizationEnabled() const {
           this->Enabled(RewriteOptions::kConvertGifToPng) ||
           this->Enabled(RewriteOptions::kConvertJpegToProgressive) ||
           this->Enabled(RewriteOptions::kConvertPngToJpeg) ||
-          this->Enabled(RewriteOptions::kConvertJpegToWebp) ||
-          this->Enabled(RewriteOptions::kConvertToWebpLossless));
+          this->Enabled(RewriteOptions::kConvertJpegToWebp));
 }
 
 RewriteOptions::RewriteOptions()
@@ -709,17 +660,10 @@ void RewriteOptions::AddProperties() {
   add_option(kDefaultRewriteDeadlineMs, &RewriteOptions::rewrite_deadline_ms_,
              "rdm", kRewriteDeadlineMs);
   add_option(true, &RewriteOptions::enabled_, "e", kEnabled);
-  add_option(false, &RewriteOptions::add_options_to_urls_, "aou",
-             kAddOptionsToUrls);
-  add_option(false, &RewriteOptions::ajax_rewriting_enabled_, "ipro",
-             kInPlaceResourceOptimization);
+  add_option(false, &RewriteOptions::ajax_rewriting_enabled_, "ar",
+             kAjaxRewritingEnabled);
   add_option(false, &RewriteOptions::in_place_wait_for_optimized_, "ipwo",
              kInPlaceWaitForOptimized);
-  add_option(kDefaultRewriteDeadlineMs,
-             &RewriteOptions::in_place_rewrite_deadline_ms_, "iprdm",
-             kInPlaceRewriteDeadlineMs);
-  add_option(true, &RewriteOptions::in_place_preemptive_rewrite_css_images_,
-             "ipprci", kInPlacePreemptiveRewriteCssImages);
   add_option(true, &RewriteOptions::combine_across_paths_, "cp",
              kCombineAcrossPaths);
   add_option(false, &RewriteOptions::log_rewrite_timing_, "lr",
@@ -799,15 +743,9 @@ void RewriteOptions::AddProperties() {
   add_option(kDefaultMaxImageSizeLowResolutionBytes,
              &RewriteOptions::max_image_size_low_resolution_bytes_, "xislr",
              kMaxImageSizeLowResolutionBytes);
-  add_option(kDefaultFinderPropertiesCacheExpirationTimeMs,
-             &RewriteOptions::finder_properties_cache_expiration_time_ms_,
-             "fpce", kFinderPropertiesCacheExpirationTimeMs);
-  add_option(kDefaultFinderPropertiesCacheRefreshTimeMs,
-             &RewriteOptions::finder_properties_cache_refresh_time_ms_,
-             "fpcr", kFinderPropertiesCacheRefreshTimeMs);
-  add_option(kDefaultFuriousCookieDurationMs,
-             &RewriteOptions::furious_cookie_duration_ms_, "fcd",
-             kFuriousCookieDurationMs);
+  add_option(kDefaultCriticalImagesCacheExpirationMs,
+             &RewriteOptions::critical_images_cache_expiration_time_ms_, "cice",
+             kCriticalImagesCacheExpirationTimeMs);
   add_option(kDefaultImageJpegNumProgressiveScans,
              &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
              kImageJpegNumProgressiveScans);
@@ -1026,7 +964,6 @@ bool RewriteOptions::Initialize() {
     InitOptionEnumToNameArray();
     InitFilterIdToEnumArray();
     all_properties_->Merge(properties_);
-    InitOptionIdToEnumArray();
     return true;
   }
   return false;
@@ -1056,36 +993,9 @@ void RewriteOptions::InitFilterIdToEnumArray() {
             RewriteOptions::FilterEnumToIdAndNameEntryLessThanById);
 }
 
-struct RewriteOptions::OptionIdCompare {
-  bool operator()(const PropertyBase* a, StringPiece b) const {
-    return StringCaseCompare(a->id(), b) < 0;
-  }
-  bool operator()(StringPiece a, const PropertyBase* b) const {
-    return StringCaseCompare(a, b->id()) < 0;
-  }
-  bool operator()(const PropertyBase* a, const PropertyBase* b) const {
-    return StringCaseCompare(a->id(), b->id()) < 0;
-  }
-};
-
-void RewriteOptions::InitOptionIdToEnumArray() {
-  DCHECK(option_id_to_property_array_ == NULL);
-  option_id_to_property_array_ =
-      new const PropertyBase*[all_properties_->size()];
-  for (int i = 0, n = all_properties_->size(); i < n; ++i) {
-    option_id_to_property_array_[i] = all_properties_->property(i);
-  }
-  std::sort(option_id_to_property_array_,
-            option_id_to_property_array_ + all_properties_->size(),
-            OptionIdCompare());
-}
-
 bool RewriteOptions::Terminate() {
   if (Properties::Terminate(&properties_)) {
     Properties::Terminate(&all_properties_);
-    DCHECK(option_id_to_property_array_ != NULL);
-    delete [] option_id_to_property_array_;
-    option_id_to_property_array_ = NULL;
     return true;
   }
   return false;
@@ -1189,10 +1099,9 @@ void RewriteOptions::DisallowTroublesomeResources() {
   // unique urls:
   // Disallow("*//stats.wordpress.com/e-*");
 
-  DisableLazyloadForClassName("*dfcg*");
-  DisableLazyloadForClassName("*nivo*");
-  DisableLazyloadForClassName("*slider*");
-
+  if (Enabled(kComputePanelJson)) {
+    RetainComment(StrCat(kPanelCommentPrefix, "*"));
+  }
 }
 
 bool RewriteOptions::EnableFiltersByCommaSeparatedList(
@@ -1469,23 +1378,6 @@ RewriteOptions::Filter RewriteOptions::LookupFilterById(
   return (*it)->filter_enum;
 }
 
-RewriteOptions::OptionEnum RewriteOptions::LookupOptionEnumById(
-    const StringPiece& option_id) {
-  const PropertyBase** end =
-      option_id_to_property_array_ + all_properties_->size();
-  const PropertyBase** it = std::lower_bound(
-      option_id_to_property_array_, end, option_id, OptionIdCompare());
-
-  // We use lower_bound because it's O(log n) so relatively efficient, but
-  // we must double-check its result as it doesn't guarantee an exact match.
-  // Note that std::binary_search provides an exact match but only a bool
-  // result and not the actual object we were searching for.
-  if ((it == end) || (option_id != (*it)->id())) {
-    return kEndOfOptions;
-  }
-  return (*it)->option_enum();
-}
-
 bool RewriteOptions::SetOptionsFromName(const OptionSet& option_set) {
   bool ret = true;
   for (RewriteOptions::OptionSet::const_iterator iter = option_set.begin();
@@ -1500,65 +1392,33 @@ bool RewriteOptions::SetOptionsFromName(const OptionSet& option_set) {
   return ret;
 }
 
+
 RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromName(
     const StringPiece& name, const GoogleString& value, GoogleString* msg) {
-  OptionEnum option_enum = LookupOption(name);
-  if (option_enum == kEndOfOptions) {
+  OptionEnum name_enum = LookupOption(name);
+  if (name_enum == kEndOfOptions) {
     // Not a mapped option.
     SStringPrintf(msg, "Option %s not mapped.", name.as_string().c_str());
     return kOptionNameUnknown;
   }
-  RewriteOptions::OptionSettingResult result = SetOptionFromEnum(
-      option_enum, value);
-  switch (result) {
-    case kOptionNameUnknown:
-      SStringPrintf(msg, "Option %s not found.", name.as_string().c_str());
-      break;
-    case kOptionValueInvalid:
-      SStringPrintf(msg, "Cannot set %s for option %s.", value.c_str(),
-                    name.as_string().c_str());
-      break;
-    default:
-      break;
-  }
-  return result;
-}
-
-RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromEnum(
-    OptionEnum option_enum, const GoogleString& value) {
   OptionBaseVector::iterator it = std::lower_bound(
-      all_options_.begin(), all_options_.end(), option_enum,
+      all_options_.begin(), all_options_.end(), name_enum,
       RewriteOptions::OptionEnumLessThanArg);
   if (it != all_options_.end()) {
     OptionBase* option = *it;
-    if (option->option_enum() == option_enum) {
+    if (option->option_enum() == name_enum) {
       if (!option->SetFromString(value)) {
+        SStringPrintf(msg, "Cannot set %s for option %s.", value.c_str(),
+                      name.as_string().c_str());
         return kOptionValueInvalid;
       } else {
         return kOptionOk;
       }
     }
   }
+  // No Option with name_enum in all_options_.
+  SStringPrintf(msg, "Option %s not found.", name.as_string().c_str());
   return kOptionNameUnknown;
-}
-
-bool RewriteOptions::OptionValue(OptionEnum option_enum,
-                                 const char** id,
-                                 bool* was_set,
-                                 GoogleString* value) const {
-  OptionBaseVector::const_iterator it = std::lower_bound(
-      all_options_.begin(), all_options_.end(), option_enum,
-      RewriteOptions::OptionEnumLessThanArg);
-  if (it != all_options_.end()) {
-    OptionBase* option = *it;
-    if (option->option_enum() == option_enum) {
-      *value = option->ToString();
-      *id = option->id();
-      *was_set = option->was_set();
-      return true;
-    }
-  }
-  return false;
 }
 
 bool RewriteOptions::SetOptionFromNameAndLog(const StringPiece& name,
@@ -1586,7 +1446,7 @@ bool RewriteOptions::Enabled(Filter filter) const {
       if (IsInSet(kTestFilterSet, arraysize(kTestFilterSet), filter)) {
         return true;
       }
-      FALLTHROUGH_INTENDED;
+      // fall through
     case kCoreFilters:
       if (IsInSet(kCoreFilterSet, arraysize(kCoreFilterSet), filter)) {
         return true;
@@ -1821,7 +1681,6 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   file_load_policy_.Merge(src.file_load_policy_);
   allow_resources_.AppendFrom(src.allow_resources_);
   retain_comments_.AppendFrom(src.retain_comments_);
-  lazyload_enabled_classes_.AppendFrom(src.lazyload_enabled_classes_);
   javascript_library_identification_.Merge(
       src.javascript_library_identification_);
   override_caching_wildcard_.AppendFrom(src.override_caching_wildcard_);
@@ -1925,37 +1784,11 @@ GoogleString RewriteOptions::OptionSignature(const BeaconUrl& beacon_url,
   return hasher->Hash(ToString(beacon_url));
 }
 
-void RewriteOptions::ForbidFiltersForPreserveUrl() {
-  if (image_preserve_urls()) {
-    for (int i = 0, n = arraysize(kImagePreserveUrlForbiddenFilters); i < n;
-         ++i) {
-      ForbidFilter(kImagePreserveUrlForbiddenFilters[i]);
-    }
-  }
-  if (js_preserve_urls()) {
-    for (int i = 0, n = arraysize(kJsPreserveUrlForbiddenFilters); i < n;
-         ++i) {
-      ForbidFilter(kJsPreserveUrlForbiddenFilters[i]);
-    }
-  }
-  if (css_preserve_urls()) {
-    for (int i = 0, n = arraysize(kCssPreserveUrlForbiddenFilters); i < n;
-         ++i) {
-      ForbidFilter(kCssPreserveUrlForbiddenFilters[i]);
-    }
-  }
-}
-
-void RewriteOptions::ResolveConflicts() {
-  DCHECK(!frozen_);
-  ForbidFiltersForPreserveUrl();
-}
-
 void RewriteOptions::ComputeSignature(const Hasher* hasher) {
   if (frozen_) {
     return;
   }
-  ResolveConflicts();
+
 #ifndef NDEBUG
   if (!options_uniqueness_checked_) {
     options_uniqueness_checked_ = true;
@@ -1992,7 +1825,6 @@ void RewriteOptions::ComputeSignature(const Hasher* hasher) {
   StrAppend(&signature_, domain_lawyer_.Signature(), "_");
   StrAppend(&signature_, "AR:", allow_resources_.Signature(), "_");
   StrAppend(&signature_, "RC:", retain_comments_.Signature(), "_");
-  StrAppend(&signature_, "LDC:", lazyload_enabled_classes_.Signature(), "_");
   StrAppend(&signature_, "UCI:");
   for (int i = 0, n = url_cache_invalidation_entries_.size(); i < n; ++i) {
     const UrlCacheInvalidationEntry& entry =

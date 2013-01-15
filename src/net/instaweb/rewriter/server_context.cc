@@ -28,11 +28,13 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/blink_critical_line_data_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 #include "net/instaweb/rewriter/public/furious_matcher.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -49,7 +51,6 @@
 #include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
@@ -65,6 +66,7 @@
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_to_filename_encoder.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
@@ -101,12 +103,9 @@ class BeaconPropertyCallback : public PropertyPage {
   BeaconPropertyCallback(
       ServerContext* server_context,
       const StringPiece& key,
-      const RequestContextPtr& request_context,
       StringSet* html_critical_images_set,
       StringSet* css_critical_images_set)
-      : PropertyPage(server_context->thread_system()->NewMutex(),
-                     *server_context->page_property_cache(), key,
-                     request_context),
+      : PropertyPage(server_context->thread_system()->NewMutex(), key),
         server_context_(server_context),
         html_critical_images_set_(html_critical_images_set),
         css_critical_images_set_(css_critical_images_set) {
@@ -173,8 +172,7 @@ class ResourceManagerHttpCallback : public OptionsAwareHTTPCacheCallback {
   ResourceManagerHttpCallback(
       Resource::NotCacheablePolicy not_cacheable_policy,
       Resource::AsyncCallback* resource_callback,
-      ServerContext* resource_manager,
-      const RequestContextPtr& request_context);
+      ServerContext* resource_manager);
   virtual ~ResourceManagerHttpCallback();
   virtual void Done(HTTPCache::FindResult find_result);
 
@@ -266,13 +264,14 @@ ServerContext::~ServerContext() {
 }
 
 void ServerContext::InitWorkersAndDecodingDriver() {
-  html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
+  html_workers_ = factory_->WorkerPool(
+      RewriteDriverFactory::kHtmlWorkers);
   rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kRewriteWorkers);
   low_priority_rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
   decoding_driver_.reset(NewUnmanagedRewriteDriver(
-      NULL, global_options()->Clone(), RequestContextPtr(NULL)));
+      NULL, global_options()->Clone()));
   // Apply platform configuration mutation for consistency's sake.
   factory_->ApplyPlatformSpecificConfiguration(decoding_driver_.get());
   // Inserts platform-specific rewriters into the resource_filter_map_, so that
@@ -356,6 +355,60 @@ void ServerContext::SetContentType(const ContentType* content_type,
 
 void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
   file_prefix.CopyToString(&file_prefix_);
+}
+
+bool ServerContext::Write(const ResourceVector& inputs,
+                          const StringPiece& contents,
+                          const ContentType* type,
+                          StringPiece charset,
+                          OutputResource* output,
+                          MessageHandler* handler) {
+  output->SetType(type);
+  output->set_charset(charset);
+  ResponseHeaders* meta_data = output->response_headers();
+  SetDefaultLongCacheHeadersWithCharset(type, charset, meta_data);
+  meta_data->SetStatusAndReason(HttpStatus::kOK);
+  ApplyInputCacheControl(inputs, meta_data);
+  AddOriginalContentLengthHeader(inputs, meta_data);
+
+  // The URL for any resource we will write includes the hash of contents,
+  // so it can can live, essentially, forever. So compute this hash,
+  // and cache the output using meta_data's default headers which are to cache
+  // forever.
+  Writer* writer = output->BeginWrite(handler);
+  bool ret = (writer != NULL);
+  if (ret) {
+    ret = writer->Write(contents, handler);
+    output->EndWrite(handler);
+
+    if (output->kind() != kOnTheFlyResource &&
+        (http_cache_->force_caching() || meta_data->IsProxyCacheable())) {
+      // This URL should already be mapped to the canonical rewrite domain,
+      // But we should store its unsharded form in the cache.
+      http_cache_->Put(output->HttpCacheKey(), &output->value_, handler);
+    }
+
+    // If we're asked to, also save a debug dump
+    if (store_outputs_in_file_system_) {
+      output->DumpToDisk(handler);
+    }
+
+    // If our URL is derived from some pre-existing URL (and not invented by
+    // us due to something like outlining), cache the mapping from original URL
+    // to the constructed one.
+    if (output->kind() != kOutlinedResource) {
+      CachedResult* cached = output->EnsureCachedResultCreated();
+      cached->set_optimizable(true);
+      cached->set_url(output->url());  // Note: output->url() will be sharded.
+    }
+  } else {
+    // Note that we've already gotten a "could not open file" message;
+    // this just serves to explain why and suggest a remedy.
+    handler->Message(kInfo, "Could not create output resource"
+                     " (bad filename prefix '%s'?)",
+                     file_prefix_.c_str());
+  }
+  return ret;
 }
 
 void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
@@ -477,11 +530,9 @@ void ServerContext::RefreshIfImminentlyExpiring(
 ResourceManagerHttpCallback::ResourceManagerHttpCallback(
     Resource::NotCacheablePolicy not_cacheable_policy,
     Resource::AsyncCallback* resource_callback,
-    ServerContext* resource_manager,
-    const RequestContextPtr& request_context)
+    ServerContext* resource_manager)
     : OptionsAwareHTTPCacheCallback(
-          resource_callback->resource()->rewrite_options(),
-          request_context),
+          resource_callback->resource()->rewrite_options()),
       resource_callback_(resource_callback),
       server_context_(resource_manager),
       not_cacheable_policy_(not_cacheable_policy) {
@@ -558,7 +609,6 @@ void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
 // TODO(morlovich): Should this load non-cacheable + non-loaded resources?
 void ServerContext::ReadAsync(
     Resource::NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
     Resource::AsyncCallback* callback) {
   // If the resource is not already loaded, and this type of resource (e.g.
   // URL vs File vs Data) is cacheable, then try to load it.
@@ -568,10 +618,7 @@ void ServerContext::ReadAsync(
     callback->Done(false /* lock_failure */, true /* resource_ok */);
   } else if (resource->IsCacheableTypeOfResource()) {
     ResourceManagerHttpCallback* resource_manager_callback =
-        new ResourceManagerHttpCallback(not_cacheable_policy,
-                                        callback,
-                                        this,
-                                        request_context);
+        new ResourceManagerHttpCallback(not_cacheable_policy, callback, this);
     http_cache_->Find(resource->url(), message_handler_,
                       resource_manager_callback);
   }
@@ -618,8 +665,7 @@ void ServerContext::LockForCreation(NamedLock* creation_lock,
       new QueuedWorkerPool::Sequence::AddFunction(worker, callback));
 }
 
-bool ServerContext::HandleBeacon(const StringPiece& unparsed_url,
-                                 const RequestContextPtr& request_context) {
+bool ServerContext::HandleBeacon(const StringPiece& unparsed_url) {
   // The url HandleBeacon recieves is a relative url, so adding some dummy
   // host to make it complete url so that i can use GoogleUrl for parsing.
   GoogleUrl base("http://www.example.com");
@@ -707,7 +753,7 @@ bool ServerContext::HandleBeacon(const StringPiece& unparsed_url,
     // BeaconPropertyCallback::Done(). Done() is called when the read completes.
     scoped_ptr<BeaconPropertyCallback> property_callback(
         new BeaconPropertyCallback(
-            this, url_query_param.AllExceptQuery(), request_context,
+            this, url_query_param.AllExceptQuery(),
             html_critical_images_set.release(),
             css_critical_images_set.release()));
     page_property_cache()->Read(property_callback.release());
@@ -731,11 +777,10 @@ bool ServerContext::HandleBeacon(const StringPiece& unparsed_url,
 // memory overhead.
 
 RewriteDriver* ServerContext::NewCustomRewriteDriver(
-    RewriteOptions* options, const RequestContextPtr& request_ctx) {
+    RewriteOptions* options) {
   RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver(
       NULL /* no pool as custom*/,
-      options,
-      request_ctx);
+      options);
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     active_rewrite_drivers_.insert(rewrite_driver);
@@ -751,24 +796,20 @@ RewriteDriver* ServerContext::NewCustomRewriteDriver(
 }
 
 RewriteDriver* ServerContext::NewUnmanagedRewriteDriver(
-    RewriteDriverPool* pool, RewriteOptions* options,
-    const RequestContextPtr& request_ctx) {
+    RewriteDriverPool* pool, RewriteOptions* options) {
   RewriteDriver* rewrite_driver = new RewriteDriver(
       message_handler_, file_system_, default_system_fetcher_);
   rewrite_driver->set_options_for_pool(pool, options);
   rewrite_driver->SetResourceManager(this);
-  rewrite_driver->set_request_context(request_ctx);
   return rewrite_driver;
 }
 
-RewriteDriver* ServerContext::NewRewriteDriver(
-    const RequestContextPtr& request_ctx) {
-  return NewRewriteDriverFromPool(
-      available_rewrite_drivers_.get(), request_ctx);
+RewriteDriver* ServerContext::NewRewriteDriver() {
+  return NewRewriteDriverFromPool(available_rewrite_drivers_.get());
 }
 
 RewriteDriver* ServerContext::NewRewriteDriverFromPool(
-    RewriteDriverPool* pool, const RequestContextPtr& request_ctx) {
+    RewriteDriverPool* pool) {
   RewriteDriver* rewrite_driver = NULL;
 
   RewriteOptions* options = pool->TargetOptions();
@@ -799,8 +840,7 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
   }
 
   if (rewrite_driver == NULL) {
-    rewrite_driver = NewUnmanagedRewriteDriver(
-        pool, options->Clone(), request_ctx);
+    rewrite_driver = NewUnmanagedRewriteDriver(pool, options->Clone());
     if (factory_ != NULL) {
       factory_->ApplyPlatformSpecificConfiguration(rewrite_driver);
     }
@@ -808,8 +848,6 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
     if (factory_ != NULL) {
       factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
     }
-  } else {
-    rewrite_driver->set_request_context(request_ctx);
   }
 
   {
@@ -986,17 +1024,8 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   return custom_options.release();
 }
 
-GoogleString ServerContext::GetPagePropertyCacheKey(
-    const StringPiece& url, const RewriteOptions* options,
-    const StringPiece& device_type_suffix) {
-  // TODO(ksimbili): Understand why we need the options signature.
-  GoogleString options_signature_hash;
-  if (options != NULL) {
-    // Should we use lock_hasher() instead of hasher() below?
-    StrAppend(&options_signature_hash,
-              "_", hasher()->Hash(options->signature()));
-  }
-  return StrCat(url, options_signature_hash, device_type_suffix);
+LogRecord* ServerContext::NewLogRecord() {
+  return factory_->NewLogRecord();
 }
 
 void ServerContext::ComputeSignature(RewriteOptions* rewrite_options) const {
@@ -1030,9 +1059,9 @@ void ServerContext::MakePropertyCaches(CacheInterface* backend_cache) {
 }
 
 PropertyCache* ServerContext::MakePropertyCache(
-    const GoogleString& cache_key_prefix, CacheInterface* cache) const {
+    const GoogleString& cache_key_prefix, CacheInterface *cache) const {
   PropertyCache* pcache = new PropertyCache(
-      cache_key_prefix, cache, timer(), statistics(), thread_system_);
+      cache_key_prefix, cache, timer(), thread_system_);
   pcache->set_enabled(enable_property_cache_);
   return pcache;
 }

@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_USAGE_DATA_REPORTER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -53,10 +52,6 @@ class UsageDataReporter {
   // Report a warning.
   virtual void ReportWarning(const GoogleUrl& url, int32 warning_code,
                              const StringPiece& warning_message) {}
-
-  // Report bandwidth.
-  virtual void ReportBandwidth(int64 project_id, const GoogleUrl& url,
-                               int64 bandwidth) {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(UsageDataReporter);

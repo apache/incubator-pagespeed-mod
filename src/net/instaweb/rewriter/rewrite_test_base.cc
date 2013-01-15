@@ -23,30 +23,26 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/process_context.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
@@ -68,9 +64,9 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
@@ -125,6 +121,7 @@ void RewriteTestBase::Init() {
   other_factory_->SetStatistics(statistics_.get());
   server_context_ = factory_->CreateServerContext();
   other_server_context_ = other_factory_->CreateServerContext();
+  other_rewrite_driver_ = MakeDriver(other_server_context_, other_options_);
   active_server_ = kPrimary;
 }
 
@@ -136,13 +133,11 @@ RewriteTestBase::~RewriteTestBase() {
 void RewriteTestBase::SetUp() {
   HtmlParseTestBaseNoAlloc::SetUp();
   rewrite_driver_ = MakeDriver(server_context_, options_);
-  other_rewrite_driver_ = MakeDriver(other_server_context_, other_options_);
 }
 
 void RewriteTestBase::TearDown() {
   if (use_managed_rewrite_drivers_) {
     factory_->ShutDown();
-    other_factory_->ShutDown();
   } else {
     rewrite_driver_->WaitForShutDown();
 
@@ -152,18 +147,16 @@ void RewriteTestBase::TearDown() {
     factory_->ShutDown();
     rewrite_driver_->Clear();
     delete rewrite_driver_;
-
-    other_rewrite_driver_->WaitForShutDown();
-    other_factory_->ShutDown();
-    other_rewrite_driver_->Clear();
-    delete other_rewrite_driver_;
   }
+  other_rewrite_driver_->WaitForShutDown();
+  other_factory_->ShutDown();
+  other_rewrite_driver_->Clear();
+  delete other_rewrite_driver_;
   HtmlParseTestBaseNoAlloc::TearDown();
 }
 
 // Adds rewrite filters related to recompress images.
 void RewriteTestBase::AddRecompressImageFilters() {
-  // TODO(vchudnov): Consider adding kConvertToWebpLossless.
   options()->EnableFilter(RewriteOptions::kRecompressJpeg);
   options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->EnableFilter(RewriteOptions::kRecompressWebp);
@@ -245,22 +238,16 @@ void RewriteTestBase::AppendDefaultHeaders(
 
 void RewriteTestBase::ServeResourceFromManyContexts(
     const GoogleString& resource_url,
-    const StringPiece& expected_content) {
-  ServeResourceFromNewContext(resource_url, expected_content);
-}
-
-void RewriteTestBase::ServeResourceFromManyContextsWithUA(
-    const GoogleString& resource_url,
     const StringPiece& expected_content,
-    const StringPiece& user_agent) {
+    UrlNamer* new_rms_url_namer) {
   // TODO(sligocki): Serve the resource under several contexts. For example:
   //   1) With output-resource cached,
   //   2) With output-resource not cached, but in a file,
   //   3) With output-resource unavailable, but input-resource cached,
   //   4) With output-resource unavailable and input-resource not cached,
   //      but still fetchable,
-  SetCurrentUserAgent(user_agent);
-  ServeResourceFromNewContext(resource_url, expected_content);
+  ServeResourceFromNewContext(resource_url, expected_content,
+                              new_rms_url_namer);
   //   5) With nothing available (failure).
 }
 
@@ -272,7 +259,9 @@ TestRewriteDriverFactory* RewriteTestBase::MakeTestFactory() {
 // been constructed.
 void RewriteTestBase::ServeResourceFromNewContext(
     const GoogleString& resource_url,
-    const StringPiece& expected_content) {
+    const StringPiece& expected_content,
+    UrlNamer* new_rms_url_namer) {
+
   // New objects for the new server.
   SimpleStats stats;
   scoped_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
@@ -280,17 +269,18 @@ void RewriteTestBase::ServeResourceFromNewContext(
   new_factory->SetUseTestUrlNamer(factory_->use_test_url_namer());
   new_factory->SetStatistics(&stats);
   ServerContext* new_server_context = new_factory->CreateServerContext();
+  if (new_rms_url_namer != NULL) {
+    new_server_context->set_url_namer(new_rms_url_namer);
+  }
   new_server_context->set_hasher(server_context_->hasher());
   RewriteOptions* new_options = options_->Clone();
   server_context_->ComputeSignature(new_options);
   RewriteDriver* new_rewrite_driver = MakeDriver(new_server_context,
                                                  new_options);
-  new_rewrite_driver->set_user_agent(current_user_agent_);
-
   new_factory->SetupWaitFetcher();
 
   // TODO(sligocki): We should set default request headers.
-  ExpectStringAsyncFetch response_contents(true, CreateRequestContext());
+  ExpectStringAsyncFetch response_contents(true);
 
   // Check that we don't already have it in cache.
   HTTPValue value;
@@ -299,7 +289,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
       resource_url, new_server_context->http_cache(), &value,
       &response_headers));
   // Initiate fetch.
-  EXPECT_TRUE(new_rewrite_driver->FetchResource(
+  EXPECT_EQ(true, new_rewrite_driver->FetchResource(
       resource_url, &response_contents));
 
   // Content should not be set until we call the callback.
@@ -308,7 +298,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
 
   // After we call the callback, it should be correct.
   new_factory->CallFetcherCallbacksForDriver(new_rewrite_driver);
-  EXPECT_TRUE(response_contents.done());
+  EXPECT_EQ(true, response_contents.done());
   EXPECT_STREQ(expected_content, response_contents.buffer());
 
   // Check that stats say we took the construct resource path.
@@ -374,17 +364,6 @@ void RewriteTestBase::SetFetchResponse404(
   SetFetchResponse(name, response_headers, StringPiece());
 }
 
-bool RewriteTestBase::LoadFile(const StringPiece& filename,
-                               GoogleString* contents) {
-  // We need to load a file from the testdata directory. Don't use this
-  // physical filesystem for anything else, use file_system_ which can be
-  // abstracted as a MemFileSystem instead.
-  StdioFileSystem stdio_file_system(timer());
-  GoogleString filename_str = StrCat(GTestSrcDir(), kTestData, filename);
-  return stdio_file_system.ReadFile(
-      filename_str.c_str(), contents, message_handler());
-}
-
 void RewriteTestBase::AddFileToMockFetcher(
     const StringPiece& url,
     const StringPiece& filename,
@@ -392,8 +371,14 @@ void RewriteTestBase::AddFileToMockFetcher(
     int64 ttl_sec) {
   // TODO(sligocki): There's probably a lot of wasteful copying here.
 
+  // We need to load a file from the testdata directory. Don't use this
+  // physical filesystem for anything else, use file_system_ which can be
+  // abstracted as a MemFileSystem instead.
   GoogleString contents;
-  ASSERT_TRUE(LoadFile(filename, &contents));
+  StdioFileSystem stdio_file_system(timer());
+  GoogleString filename_str = StrCat(GTestSrcDir(), kTestData, filename);
+  ASSERT_TRUE(stdio_file_system.ReadFile(
+      filename_str.c_str(), &contents, message_handler()));
   SetResponseWithDefaultHeaders(url, content_type, contents, ttl_sec);
 }
 
@@ -425,15 +410,14 @@ bool RewriteTestBase::FetchResourceUrl(
 bool RewriteTestBase::FetchResourceUrl(
     const StringPiece& url, GoogleString* content, ResponseHeaders* response) {
   content->clear();
-  StringAsyncFetch async_fetch(rewrite_driver_->request_context(), content);
+  StringAsyncFetch async_fetch(content);
   async_fetch.set_response_headers(response);
   bool fetched = rewrite_driver_->FetchResource(url, &async_fetch);
 
   // Make sure we let the rewrite complete, and also wait for the driver to be
   // idle so we can reuse it safely.
   rewrite_driver_->WaitForShutDown();
-
-  ClearRewriteDriver();
+  rewrite_driver_->Clear();
 
   // The callback should be called if and only if FetchResource returns true.
   EXPECT_EQ(fetched, async_fetch.done());
@@ -677,10 +661,7 @@ GoogleString RewriteTestBase::EncodeCssName(const StringPiece& name,
   CssUrlEncoder encoder;
   ResourceContext resource_context;
   resource_context.set_inline_images(can_inline);
-  if (supports_webp) {
-    // TODO(vchudnov): Deal with webp lossless.
-    resource_context.set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
-  }
+  resource_context.set_attempt_webp(supports_webp);
   StringVector urls;
   GoogleString encoded_url;
   name.CopyToString(StringVectorAdd(&urls));
@@ -711,17 +692,11 @@ void RewriteTestBase::SetupWaitFetcher() {
 
 void RewriteTestBase::CallFetcherCallbacks() {
   factory_->CallFetcherCallbacksForDriver(rewrite_driver_);
-  // This calls Clear() on the driver, so give it a new request context.
-  rewrite_driver_->set_request_context(CreateRequestContext());
 }
 
 void RewriteTestBase::SetUseManagedRewriteDrivers(
     bool use_managed_rewrite_drivers) {
   use_managed_rewrite_drivers_ = use_managed_rewrite_drivers;
-}
-
-RequestContextPtr RewriteTestBase::CreateRequestContext() {
-  return RequestContext::NewTestRequestContext(factory_->thread_system());
 }
 
 RewriteDriver* RewriteTestBase::MakeDriver(
@@ -730,18 +705,16 @@ RewriteDriver* RewriteTestBase::MakeDriver(
   // that _test.cc files can add options after the driver was created
   // and before the filters are added.
   //
-  // TODO(jmarantz): Change call-sites to make this use a more standard flow.
+  // TODO(jmarantz): change call-sites to make this use a more
+  // standard flow.
   RewriteDriver* rd;
   if (!use_managed_rewrite_drivers_) {
     rd = server_context->NewUnmanagedRewriteDriver(
-        NULL /* custom options, so no pool*/, options,
-        CreateRequestContext());
+        NULL /* custom options, so no pool*/, options);
     rd->set_externally_managed(true);
   } else {
-    rd = server_context->NewCustomRewriteDriver(options,
-                                                CreateRequestContext());
+    rd = server_context->NewCustomRewriteDriver(options);
   }
-
   return rd;
 }
 
@@ -787,12 +760,6 @@ void RewriteTestBase::ClearStats() {
   }
   counting_url_async_fetcher()->Clear();
   file_system()->ClearStats();
-  rewrite_driver()->set_request_context(CreateRequestContext());
-}
-
-void RewriteTestBase::ClearRewriteDriver() {
-  rewrite_driver()->Clear();
-  rewrite_driver()->set_request_context(CreateRequestContext());
 }
 
 void RewriteTestBase::SetCacheDelayUs(int64 delay_us) {
@@ -842,10 +809,7 @@ class DeferredResourceCallback : public Resource::AsyncCallback {
 
 class HttpCallback : public HTTPCache::Callback {
  public:
-  explicit HttpCallback(const RequestContextPtr& request_context)
-      : HTTPCache::Callback(request_context),
-        done_(false),
-        result_(HTTPCache::kNotFound) {}
+  HttpCallback() : done_(false) {}
   virtual ~HttpCallback() {}
   virtual bool IsCacheValid(const GoogleString& key,
                             const ResponseHeaders& headers) {
@@ -884,7 +848,7 @@ void RewriteTestBase::InitiateResourceRead(
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
     const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
     ResponseHeaders* headers) {
-  HttpCallback callback(CreateRequestContext());
+  HttpCallback callback;
   callback.set_response_headers(headers);
   http_cache->Find(key, message_handler(), &callback);
   CHECK(callback.done());
@@ -949,11 +913,6 @@ void RewriteTestBase::SetTimeUs(int64 time_us) {
 
 void RewriteTestBase::AdjustTimeUsWithoutWakingAlarms(int64 time_us) {
   factory_->mock_timer()->SetTimeUs(time_us);
-}
-
-LoggingInfo* RewriteTestBase::logging_info() {
-  CHECK(rewrite_driver()->request_context().get() != NULL);
-  return rewrite_driver()->request_context()->log_record()->logging_info();
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

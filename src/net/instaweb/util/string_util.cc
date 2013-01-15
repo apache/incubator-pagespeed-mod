@@ -275,9 +275,9 @@ void ParseShellLikeString(const StringPiece& input,
   output->clear();
   for (size_t index = 0; index < input.size();) {
     const char ch = input[index];
+    // If we see a quoted section, treat it as a single item even if there are
+    // spaces in it.
     if (ch == '"' || ch == '\'') {
-      // If we see a quoted section, treat it as a single item even if there are
-      // spaces in it.
       const char quote = ch;
       ++index;  // skip open quote
       output->push_back("");
@@ -292,15 +292,17 @@ void ParseShellLikeString(const StringPiece& input,
         part.push_back(input[index]);
       }
       ++index;  // skip close quote
-    } else if (!isspace(ch)) {
-      // Without quotes, items are whitespace-separated.
+    }
+    // Without quotes, items are whitespace-separated.
+    else if (!isspace(ch)) {
       output->push_back("");
       GoogleString& part = output->back();
       for (; index < input.size() && !isspace(input[index]); ++index) {
         part.push_back(input[index]);
       }
-    } else {
-      // Ignore whitespace (outside of quotes).
+    }
+    // Ignore whitespace (outside of quotes).
+    else {
       ++index;
     }
   }
@@ -396,7 +398,7 @@ namespace {
 //                       | "{" | "}" | SP | HT
 const char separators[] = "()<>@,;:\\\"/[]?={}";
 
-}  // namespace
+} // namespace
 
 bool HasIllicitTokenCharacter(const StringPiece& str) {
   for (int i = 0, n = str.size(); i < n; ++i) {

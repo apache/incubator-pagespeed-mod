@@ -41,6 +41,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -135,12 +136,13 @@ class TestRewriter : public RewriteFilter {
       return kTooBusy;
     }
 
-    bool ok = driver_->Write(
+    bool ok = server_context_->Write(
         ResourceVector(1, input_resource),
         StrCat(contents, contents),
         &kContentTypeText,
         StringPiece(),  // no explicit charset
-        output_resource.get());
+        output_resource.get(),
+        driver_->message_handler());
     return ok ? kRewriteOk : kRewriteFailed;
   }
 

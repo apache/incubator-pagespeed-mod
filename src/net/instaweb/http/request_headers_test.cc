@@ -25,6 +25,7 @@ namespace net_instaweb {
 
 class RequestHeadersTest : public testing::Test {
  protected:
+
   RequestHeaders::Method CheckMethod(RequestHeaders::Method method) {
     request_headers_.set_method(method);
     return request_headers_.method();

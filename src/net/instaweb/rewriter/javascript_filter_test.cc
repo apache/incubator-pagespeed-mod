@@ -22,8 +22,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -161,6 +160,9 @@ class JavascriptFilterTest : public RewriteTestBase {
 };
 
 TEST_F(JavascriptFilterTest, DoRewrite) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   InitFiltersAndTest(100);
   ValidateExpected("do_rewrite",
                    GenerateHtml(kOrigJsName),
@@ -172,15 +174,18 @@ TEST_F(JavascriptFilterTest, DoRewrite) {
             total_bytes_saved_->Get());
   EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("jm", logging_info()->applied_rewriters());
+  EXPECT_STREQ("jm", logging_info.applied_rewriters());
 }
 
 TEST_F(JavascriptFilterTest, DoRewriteUnhealthy) {
   lru_cache()->set_is_healthy(false);
 
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   InitFiltersAndTest(100);
   ValidateNoChanges("do_rewrite", GenerateHtml(kOrigJsName));
-  EXPECT_STREQ("", logging_info()->applied_rewriters());
+  EXPECT_STREQ("", logging_info.applied_rewriters());
 }
 
 TEST_F(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
@@ -230,37 +235,15 @@ TEST_F(JavascriptFilterTest, IdentifyLibraryTwice) {
 }
 
 TEST_F(JavascriptFilterTest, JsPreserveURLsOnTest) {
-  // Make sure that when in conservative mode the URL stays the same.
+  // Make sure that when in conservative mode URL stays the same.
   RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
   options()->set_js_preserve_urls(true);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
-  // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
   InitTest(100);
-  // Make sure the URL doesn't change.
   ValidateExpected("js_urls_preserved",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
-
-  // We should have optimized the JS even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_js_url = Encode(kTestDomain, "jm", "0", kRewrittenJsName,
-                                   "js");
-  GoogleString out_js;
-  EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Was the JS minified?
-  EXPECT_EQ(kJsMinData, out_js);
 }
 
 TEST_F(JavascriptFilterTest, IdentifyLibraryNoMinification) {

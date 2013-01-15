@@ -61,8 +61,6 @@ class ImageRewriteFilter : public RewriteFilter {
   virtual const char* Name() const { return "ImageRewrite"; }
   virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
 
-  void EncodeUserAgentIntoResourceContext(ResourceContext* context) const;
-
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
   bool TryInline(
@@ -105,28 +103,8 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Update desired image dimensions if necessary. Returns true if it is
   // updated.
-  bool UpdateDesiredImageDimsIfNecessary(
-      const ImageDim& image_dim, const ResourceContext& resource_context,
-      ImageDim* desired_dim);
-
-  // Determines whether an image should be resized based on the current options.
-  //
-  // Returns the dimensions to resize to in *desired_dimensions.
-  bool ShouldResize(const ResourceContext& context,
-                    Image* image,
-                    ImageDim* desired_dimensions);
-
-  // Resize image if necessary, returning true if this resizing succeeds and
-  // false if it's unnecessary or fails.
-  bool ResizeImageIfNecessary(
-      const RewriteContext* rewrite_context, const GoogleString& url,
-      ResourceContext* context, Image* image, CachedResult* cached);
-
-  // Allocate and initialize CompressionOptions object based on RewriteOptions
-  // and ResourceContext.
-  Image::CompressionOptions* ImageOptionsForLoadedResource(
-      const ResourceContext& context, const ResourcePtr& input_resource,
-      bool is_css);
+  static bool UpdateDesiredImageDimsIfNecessary(
+      const ImageDim& image_dim, RewriteDriver* driver, ImageDim* desired_dim);
 
   // name for statistic used to bound rewriting work.
   static const char kImageOngoingRewrites[];
@@ -217,7 +195,8 @@ class ImageRewriteFilter : public RewriteFilter {
   // true if a PropertyValue was written.
   bool StoreUrlInPropertyCache(const StringPiece& url);
 
-  bool SquashImagesForMobileScreenEnabled() const;
+  // Set attempt_webp in resource_context.
+  void SetAttemptWebp(StringPiece url, ResourceContext* resource_context);
 
   scoped_ptr<WorkBound> work_bound_;
 

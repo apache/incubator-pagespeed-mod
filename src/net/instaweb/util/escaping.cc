@@ -20,10 +20,6 @@
 
 #include <cstddef>
 
-#include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
-
 namespace net_instaweb {
 
 // We escape backslash, double-quote, CR and LF while forming a string
@@ -67,7 +63,7 @@ void EscapeToJsStringLiteral(const StringPiece& original,
         if (StringCaseStartsWith(original.substr(c), "/script")) {
           (*escaped) += '\\';
         }
-        FALLTHROUGH_INTENDED;
+        // fallthrough intentional.
       default:
         (*escaped) += original[c];
     }

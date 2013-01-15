@@ -131,7 +131,8 @@ unsigned int HTTPValue::SizeOfFirstChunk() const {
 // our cache gets corrupted (say) on disk, we just consider it an
 // invalid entry rather than aborting the server.
 bool HTTPValue::ExtractHeaders(ResponseHeaders* headers,
-                               MessageHandler* handler) const {
+                               MessageHandler* handler)
+    const {
   bool ret = false;
   headers->Clear();
   if (storage_.size() >= kStorageOverhead) {

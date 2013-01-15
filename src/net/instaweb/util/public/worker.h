@@ -24,7 +24,6 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -59,7 +58,7 @@ class Worker {
   void set_queue_size_stat(Waveform* x) { queue_size_ = x; }
 
  protected:
-  Worker(StringPiece thread_name, ThreadSystem* runtime);
+  explicit Worker(ThreadSystem* runtime);
   virtual ~Worker();
 
   // If IsPermitted() returns true, queues up the given closure to be run,

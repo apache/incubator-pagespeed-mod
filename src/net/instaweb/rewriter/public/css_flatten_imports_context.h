@@ -115,11 +115,12 @@ class CssFlattenImportsContext : public SingleRewriteContext {
 
     ServerContext* manager = FindServerContext();
     manager->MergeNonCachingResponseHeaders(input_resource_, output_resource_);
-    if (Driver()->Write(ResourceVector(1, input_resource_),
-                        hierarchy_->minified_contents(),
-                        &kContentTypeCss,
-                        input_resource_->charset(),
-                        output_resource_.get())) {
+    if (manager->Write(ResourceVector(1, input_resource_),
+                       hierarchy_->minified_contents(),
+                       &kContentTypeCss,
+                       input_resource_->charset(),
+                       output_resource_.get(),
+                       Driver()->message_handler())) {
       RewriteDone(kRewriteOk, 0);
     } else {
       RewriteDone(kRewriteFailed, 0);

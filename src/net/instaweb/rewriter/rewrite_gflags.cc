@@ -100,16 +100,6 @@ DEFINE_bool(ajax_rewriting_enabled, false, "Boolean to indicate whether ajax "
 DEFINE_bool(in_place_wait_for_optimized, false, "Indicates whether in-place "
             "resource optimization should wait to optimize the resource before "
             "responding.");
-DEFINE_int32(in_place_rewrite_deadline_ms,
-             net_instaweb::RewriteOptions::kDefaultRewriteDeadlineMs,
-             "Deadline for rewriting a resource on the in-place serving path. "
-             "(--in_place_wait_for_optimized must be set for this to apply.) "
-             "After this interval passes, the original unoptimized resource "
-             "will be served to clients. A value of -1 will wait indefinitely "
-             "for each in-place rewrite to complete.");
-DEFINE_bool(in_place_preemptive_rewrite_css_images, true,
-            "If set, preemptive rewrite images in CSS files on the IPRO "
-            "serving path.");
 DEFINE_bool(image_preserve_urls, false, "Boolean to indicate whether image"
             "URLs should be preserved.");
 DEFINE_bool(css_preserve_urls, false, "Boolean to indicate whether CSS URLS"
@@ -121,11 +111,6 @@ DEFINE_int32(rewrite_deadline_per_flush_ms,
              "Deadline to rewrite a resource before putting the rewrite in the "
              "background and returning the original resource. A value of -1 "
              "will result in waiting for all rewrites to complete.");
-DEFINE_int32(
-    furious_cookie_duration_ms,
-    net_instaweb::RewriteOptions::kDefaultFuriousCookieDurationMs,
-    "Duration after which the furious cookie used for A/B experiments "
-    "should expire on the user's browser.");
 DEFINE_bool(log_rewrite_timing, false, "Log time taken by rewrite filters.");
 DEFINE_int64(max_html_cache_time_ms,
              net_instaweb::RewriteOptions::kDefaultMaxHtmlCacheTimeMs,
@@ -147,7 +132,7 @@ DEFINE_string(shard_domain_map, "",
               "Semicolon-separated list of shard_domain maps. "
               "Each domain-map is of the form master=shard1,shard2,shard3");
 
-DEFINE_int64(lru_cache_size_bytes, 10 * 1024 * 1024, "LRU cache size");
+DEFINE_int32(lru_cache_size_bytes, 10 * 1000 * 1000, "LRU cache size");
 DEFINE_bool(force_caching, false,
             "Ignore caching headers and cache everything.");
 DEFINE_bool(flush_html, false, "Pass fetcher-generated flushes through HTML");
@@ -179,13 +164,9 @@ DEFINE_int64(max_image_size_low_resolution_bytes,
     net_instaweb::RewriteOptions::kDefaultMaxImageSizeLowResolutionBytes,
     "Maximum image size below which low res image is generated.");
 
-DEFINE_int64(finder_properties_cache_expiration_time_ms,
-    net_instaweb::RewriteOptions::kDefaultFinderPropertiesCacheExpirationTimeMs,
-    "Cache expiration time for properties of finders in msec.");
-
-DEFINE_int64(finder_properties_cache_refresh_time_ms,
-    net_instaweb::RewriteOptions::kFinderPropertiesCacheRefreshTimeMs,
-    "Cache refresh time for properties of finders in msec.");
+DEFINE_int64(critical_images_cache_expiration_time_ms,
+    net_instaweb::RewriteOptions::kDefaultCriticalImagesCacheExpirationMs,
+    "Critical images ajax metadata cache expiration time in msec.");
 
 DEFINE_int64(
     metadata_cache_staleness_threshold_ms,
@@ -338,10 +319,6 @@ DEFINE_bool(enable_aggressive_rewriters_for_mobile, false,
             "If true then aggressive rewriters will be turned on for "
             "mobile user agents.");
 
-DEFINE_string(lazyload_disabled_classes, "",
-              "A comma separated list of classes for which the lazyload images "
-              "filter is disabled.");
-
 namespace net_instaweb {
 
 namespace {
@@ -476,13 +453,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("max_combined_js_bytes")) {
     options->set_max_combined_js_bytes(FLAGS_max_combined_js_bytes);
   }
-  if (WasExplicitlySet("finder_properties_cache_expiration_time_ms")) {
-    options->set_finder_properties_cache_expiration_time_ms(
-        FLAGS_finder_properties_cache_expiration_time_ms);
-  }
-  if (WasExplicitlySet("finder_properties_cache_refresh_time_ms")) {
-    options->set_finder_properties_cache_refresh_time_ms(
-        FLAGS_finder_properties_cache_refresh_time_ms);
+  if (WasExplicitlySet("critical_images_cache_expiration_time_ms")) {
+    options->set_critical_images_cache_expiration_time_ms(
+        FLAGS_critical_images_cache_expiration_time_ms);
   }
   if (WasExplicitlySet("metadata_cache_staleness_threshold_ms")) {
     options->set_metadata_cache_staleness_threshold_ms(
@@ -539,10 +512,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("rewrite_deadline_per_flush_ms")) {
     options->set_rewrite_deadline_ms(FLAGS_rewrite_deadline_per_flush_ms);
   }
-  if (WasExplicitlySet("furious_cookie_duration_ms")) {
-    options->set_furious_cookie_duration_ms(
-        FLAGS_furious_cookie_duration_ms);
-  }
   if (WasExplicitlySet("avoid_renaming_introspective_javascript")) {
     options->set_avoid_renaming_introspective_javascript(
         FLAGS_avoid_renaming_introspective_javascript);
@@ -594,17 +563,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_enable_aggressive_rewriters_for_mobile(
         FLAGS_enable_aggressive_rewriters_for_mobile);
   }
-  if (WasExplicitlySet("lazyload_disabled_classes")) {
-    GoogleString lazyload_disabled_classes_string(
-        FLAGS_lazyload_disabled_classes);
-    LowerString(&lazyload_disabled_classes_string);
-    StringPieceVector lazyload_disabled_classes;
-    SplitStringPieceToVector(lazyload_disabled_classes_string, ",",
-                             &lazyload_disabled_classes, true);
-    for (int i = 0, n = lazyload_disabled_classes.size(); i < n; ++i) {
-      options->DisableLazyloadForClassName(lazyload_disabled_classes[i]);
-    }
-  }
   if (WasExplicitlySet("property_cache_http_status_stability_threshold")) {
     options->set_property_cache_http_status_stability_threshold(
         FLAGS_property_cache_http_status_stability_threshold);
@@ -617,16 +575,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
 
   if (WasExplicitlySet("in_place_wait_for_optimized")) {
     options->set_in_place_wait_for_optimized(FLAGS_in_place_wait_for_optimized);
-  }
-
-  if (WasExplicitlySet("in_place_rewrite_deadline_ms")) {
-    options->set_in_place_rewrite_deadline_ms(
-        FLAGS_in_place_rewrite_deadline_ms);
-  }
-
-  if (WasExplicitlySet("in_place_preemptive_rewrite_css_images")) {
-    options->set_in_place_preemptive_rewrite_css_images(
-        FLAGS_in_place_preemptive_rewrite_css_images);
   }
 
   MessageHandler* handler = factory->message_handler();

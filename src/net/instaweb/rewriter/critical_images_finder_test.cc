@@ -21,8 +21,8 @@
 
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -37,7 +37,9 @@ class CriticalImagesFinderMock : public CriticalImagesFinder {
 
   // Provide stub instantions for pure virtual functions
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) {}
+                                     RewriteDriver* driver,
+                                     bool must_compute) {
+  }
 
   virtual const char* GetCriticalImagesCohort() const {
     return kCriticalImagesCohort;
@@ -61,8 +63,6 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
   virtual void SetUp() {
     CriticalImagesFinderTestBase::SetUp();
     finder_.reset(new CriticalImagesFinderMock(statistics()));
-    SetupCohort(page_property_cache(), finder()->GetCriticalImagesCohort());
-    ResetDriver();
   }
 
   void CheckCriticalImageFinderStats(int hits, int expiries, int not_found) {
@@ -79,6 +79,7 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
 };
 
 TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySuccess) {
+  page_property_cache()->AddCohort(finder()->GetCriticalImagesCohort());
   // Include an actual value in the RPC result to induce a cache write.
   StringSet* critical_images_set = new StringSet;
   critical_images_set->insert("imageA.jpeg");
@@ -92,6 +93,7 @@ TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySuccess) {
 
 TEST_F(CriticalImagesFinderTest,
        UpdateCriticalImagesCacheEntrySuccessEmptySet) {
+  page_property_cache()->AddCohort(finder()->GetCriticalImagesCohort());
   // Include an actual value in the RPC result to induce a cache write.
   StringSet* critical_images_set = new StringSet;
   StringSet* css_critical_images_set = new StringSet;
@@ -102,6 +104,7 @@ TEST_F(CriticalImagesFinderTest,
 }
 
 TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySetNULL) {
+  page_property_cache()->AddCohort(finder()->GetCriticalImagesCohort());
   EXPECT_FALSE(CallUpdateCriticalImagesCacheEntry(
       rewrite_driver(), NULL, NULL));
   EXPECT_FALSE(GetCriticalImagesUpdatedValue()->has_value());
@@ -109,9 +112,23 @@ TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySetNULL) {
 }
 
 TEST_F(CriticalImagesFinderTest,
+       UpdateCriticalImagesCacheEntryCohortMissing) {
+  // No cache insert if render cohort is missing.
+  // Include an actual value in the RPC result to induce a cache write. We
+  // expect no writes, but not from a lack of results!
+  StringSet* critical_images_set = new StringSet;
+  StringSet* css_critical_images_set = new StringSet;
+  EXPECT_FALSE(CallUpdateCriticalImagesCacheEntry(
+      rewrite_driver(), critical_images_set, css_critical_images_set));
+  EXPECT_EQ(NULL, GetCriticalImagesUpdatedValue());
+  EXPECT_EQ(NULL, GetCssCriticalImagesUpdatedValue());
+}
+
+TEST_F(CriticalImagesFinderTest,
        UpdateCriticalImagesCacheEntryPropertyPageMissing) {
   // No cache insert if PropertyPage is not set in RewriteDriver.
   rewrite_driver()->set_property_page(NULL);
+  page_property_cache()->AddCohort(finder()->GetCriticalImagesCohort());
   // Include an actual value in the RPC result to induce a cache write. We
   // expect no writes, but not from a lack of results!
   StringSet* critical_images_set = new StringSet;
@@ -124,6 +141,7 @@ TEST_F(CriticalImagesFinderTest,
 
 TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   // First it will insert the value in cache, then it retrieves critical images.
+  page_property_cache()->AddCohort(finder()->GetCriticalImagesCohort());
   // Include an actual value in the RPC result to induce a cache write.
   StringSet* critical_images_set = new StringSet;
   critical_images_set->insert("imageA.jpeg");
@@ -143,20 +161,14 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
 
   EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
       rewrite_driver(), critical_images_set, css_critical_images_set));
-  const PropertyCache::Cohort* cohort = page_property_cache()->GetCohort(
-      finder()->GetCriticalImagesCohort());
-  // Write the updated value to the pcache.
-  page_property_cache()->WriteCohort(
-      cohort, rewrite_driver()->property_page());
   EXPECT_TRUE(GetCriticalImagesUpdatedValue()->has_value());
   EXPECT_TRUE(GetCssCriticalImagesUpdatedValue()->has_value());
 
   // critical_images() is NULL because there is no previous call to
   // GetCriticalImages()
   EXPECT_TRUE(rewrite_driver()->critical_images() == NULL);
-  ResetDriver();
+  rewrite_driver()->set_updated_critical_images(false);
   finder()->UpdateCriticalImagesSetInDriver(rewrite_driver());
-  EXPECT_FALSE(rewrite_driver()->must_compute_finder_properties());
   CheckCriticalImageFinderStats(1, 0, 0);
   ClearStats();
 
@@ -177,28 +189,12 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   EXPECT_TRUE(
       css_critical_images->find("imageA.jpeg") == css_critical_images->end());
 
-  // Reset the driver, read the page and call UpdateCriticalImagesSetInDriver.
-  // We read it from cache.
-  ResetDriver();
-  finder()->UpdateCriticalImagesSetInDriver(rewrite_driver());
-  EXPECT_FALSE(rewrite_driver()->must_compute_finder_properties());
-  CheckCriticalImageFinderStats(1, 0, 0);
-  ClearStats();
-
-  // Advance to 90% of expiry. We get a hit from cache and must_compute is true.
-  AdvanceTimeMs(0.9 * options()->finder_properties_cache_expiration_time_ms());
-  ResetDriver();
-  finder()->UpdateCriticalImagesSetInDriver(rewrite_driver());
-  EXPECT_TRUE(rewrite_driver()->must_compute_finder_properties());
-  CheckCriticalImageFinderStats(1, 0, 0);
-  ClearStats();
-
-  ResetDriver();
+  rewrite_driver()->set_critical_images(NULL);
+  rewrite_driver()->set_css_critical_images(NULL);
   // Advance past expiry, so that the pages expire.
-  AdvanceTimeMs(2 * options()->finder_properties_cache_expiration_time_ms());
+  AdvanceTimeMs(2 * options()->critical_images_cache_expiration_time_ms());
   rewrite_driver()->set_updated_critical_images(false);
   finder()->UpdateCriticalImagesSetInDriver(rewrite_driver());
-  EXPECT_TRUE(rewrite_driver()->must_compute_finder_properties());
   CheckCriticalImageFinderStats(0, 1, 0);
 }
 

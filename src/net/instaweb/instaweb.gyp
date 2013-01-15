@@ -441,9 +441,6 @@
         'rewriter/flush_early.proto',
         '<(protoc_out_dir)/<(instaweb_protoc_subdir)/flush_early.pb.cc',
       ],
-      'dependencies': [
-        'instaweb_http_pb',
-      ],
       'includes': [
         'protoc.gypi',
       ],
@@ -578,6 +575,7 @@
       'sources': [
         # TODO(sligocki): Move http/ files to instaweb_http.
         'http/async_fetch.cc',
+        'http/base_trace_context.cc',
         'http/cache_url_async_fetcher.cc',
         'http/external_url_fetcher.cc',
         'http/fake_url_async_fetcher.cc',
@@ -639,7 +637,6 @@
         'util/md5_hasher.cc',
         'util/mock_hasher.cc',
         'util/mock_message_handler.cc',
-        'util/mock_property_page.cc',
         'util/named_lock_manager.cc',
         'util/null_message_handler.cc',
         'util/null_mutex.cc',
@@ -652,7 +649,6 @@
         'util/queued_worker.cc',
         'util/queued_worker_pool.cc',
         'util/ref_counted.cc',
-        'util/request_trace.cc',
         'util/rolling_hash.cc',
         'util/scheduler.cc',
         'util/scheduler_based_abstract_lock.cc',
@@ -1028,6 +1024,7 @@
       'sources': [
         'rewriter/add_head_filter.cc',
         'rewriter/add_instrumentation_filter.cc',
+        'rewriter/ajax_rewrite_context.cc',
         'rewriter/base_tag_filter.cc',
         'rewriter/blink_background_filter.cc',
         'rewriter/blink_filter.cc',
@@ -1061,7 +1058,6 @@
         'rewriter/google_analytics_filter.cc',
         'rewriter/handle_noscript_redirect_filter.cc',
         'rewriter/image_rewrite_filter.cc',
-        'rewriter/in_place_rewrite_context.cc',
         'rewriter/inline_rewrite_context.cc',
         'rewriter/insert_dns_prefetch_filter.cc',
         'rewriter/insert_ga_filter.cc',
@@ -1076,7 +1072,6 @@
         'rewriter/pedantic_filter.cc',
         'rewriter/redirect_on_size_limit_filter.cc',
         'rewriter/resource_combiner.cc',
-        'rewriter/resource_fetch.cc',
         'rewriter/resource_slot.cc',
         'rewriter/resource_tag_scanner.cc',
         'rewriter/rewrite_context.cc',
@@ -1159,6 +1154,7 @@
         'automatic/html_detector.cc',
         'automatic/proxy_fetch.cc',
         'automatic/proxy_interface.cc',
+        'automatic/resource_fetch.cc',
       ],
     },
     {

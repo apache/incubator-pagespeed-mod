@@ -18,7 +18,6 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -29,8 +28,8 @@
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -133,7 +132,7 @@ TEST_F(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
       "  background-image: url('foo bar.png');\n"
       "}\n";
   static const char css_after[] =
-      "body{background-image:url(foo\\ bar.png)}";
+      "body{background-image:url(foo bar.png)}";
 
   ValidateRewrite("minify", css_before, css_after,
                   kExpectSuccess | kNoClearFetcher);
@@ -391,64 +390,6 @@ TEST_F(CssImageRewriterTest, RecompressImages) {
 
   ValidateRewriteExternalCss("recompress_css_images", kCss, kCssAfter,
                               kExpectSuccess | kNoClearFetcher);
-}
-
-TEST_F(CssImageRewriterTest, CssImagePreserveUrls) {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_image_preserve_urls(true);
-  server_context()->ComputeSignature(options());
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(foo.png);\n"
-      "}\n";
-
-  const GoogleString kCssAfter =  "body{background-image:url(foo.png)}";
-  // The CSS should minify but the URL shouldn't change.
-  ValidateRewriteExternalCss("compress_preserve_css_images", kCss, kCssAfter,
-                             kExpectSuccess | kNoClearFetcher);
-
-  // We should have optimized the image even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_img_url = Encode(kTestDomain, "ic", "0", "foo.png", "png");
-  GoogleString out_img;
-  EXPECT_TRUE(FetchResourceUrl(out_img_url, &out_img));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-}
-
-TEST_F(CssImageRewriterTest, CssImagePreserveUrlsNoPreemptiveRewrite) {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_image_preserve_urls(true);
-  options()->set_in_place_preemptive_rewrite_css_images(false);
-  server_context()->ComputeSignature(options());
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(foo.png);\n"
-      "}\n";
-
-  const GoogleString kCssAfter =  "body{background-image:url(foo.png)}";
-  // The CSS should minify but the URL shouldn't change.
-  ValidateRewriteExternalCss("compress_preserve_css_images", kCss, kCssAfter,
-                             kExpectSuccess | kNoClearFetcher);
-
-  // We should not find a cache hit when requesting the image, indicating it
-  // has not been optimized, in contrast with the CssImagePreserveUrls test.
-  ClearStats();
-  GoogleString out_img_url = Encode(kTestDomain, "ic", "0", "foo.png", "png");
-  GoogleString out_img;
-  EXPECT_TRUE(FetchResourceUrl(out_img_url, &out_img));
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_hits()));
 }
 
 TEST_F(CssImageRewriterTest, InlineImages) {
@@ -993,23 +934,7 @@ TEST_F(CssRecompressImagesInStyleAttributes, RecompressAndWebpAndStyleEnabled) {
   ValidateExpected("webp",
       "<div style=\"background-image:url(foo.jpg)\"/>",
       "<div style=\"background-image:url("
-      "http://test.com/xfoo.jpg.pagespeed.ic.0.webp)\"/>");
-}
-
-TEST_F(CssRecompressImagesInStyleAttributes,
-       RecompressAndWebpLosslessAndStyleEnabled) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
-  options()->set_image_jpeg_recompress_quality(85);
-  rewrite_driver()->set_user_agent("webp-la");
-  rewrite_driver()->AddFilters();
-  ValidateExpected("webp-lossless",
-      "<div style=\"background-image:url(foo.jpg)\"/>",
-      "<div style=\"background-image:url("
-      "http://test.com/xfoo.jpg.pagespeed.ic.0.webp)\"/>");
+      "http://test.com/wfoo.jpg.pagespeed.ic.0.webp)\"/>");
 }
 
 TEST_F(CssRecompressImagesInStyleAttributes,
@@ -1026,24 +951,7 @@ TEST_F(CssRecompressImagesInStyleAttributes,
   ValidateExpected("webp",
       "<div style=\"background-image:url(foo.jpg)\"/>",
       "<div style=\"background-image:url("
-      "http://test.com/xfoo.jpg.pagespeed.ic.0.jpg)\"/>");
-}
-
-TEST_F(CssRecompressImagesInStyleAttributes,
-       RecompressAndWebpLosslessAndStyleEnabledWithMaxCssSize) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
-  options()->set_image_jpeg_recompress_quality(85);
-  options()->set_max_image_bytes_for_webp_in_css(1);
-  rewrite_driver()->set_user_agent("webp-la");
-  rewrite_driver()->AddFilters();
-  ValidateExpected("webp-lossless",
-      "<div style=\"background-image:url(foo.jpg)\"/>",
-      "<div style=\"background-image:url("
-      "http://test.com/xfoo.jpg.pagespeed.ic.0.jpg)\"/>");
+      "http://test.com/wfoo.jpg.pagespeed.ic.0.jpg)\"/>");
 }
 
 }  // namespace

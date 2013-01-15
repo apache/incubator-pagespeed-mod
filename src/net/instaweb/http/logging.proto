@@ -45,7 +45,7 @@ message TimingInfo  {
 }
 
 // This proto stores all Blink related information.
-// Next id for BlinkInfo : 8
+// Next id for BlinkInfo : 7
 message BlinkInfo {
   enum BlinkRequestFlow {
     BLINK_CACHE_HIT = 1;
@@ -81,9 +81,6 @@ message BlinkInfo {
 
   // Tracks whether html change detection smart_diff found a match or not.
   optional bool html_smart_diff_match = 6;
-
-  // Tracks whether we hit the #mismatches threshold for blacklisting.
-  optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
 // This proto stores information related to metadata cache lookups.
@@ -94,32 +91,8 @@ message MetadataCacheInfo {
   optional int32 num_misses = 3;
 }
 
-// This proto stores all information related to split_html.
-// Next id for SplitHtmlInfo : 2
-message SplitHtmlInfo {
-  // Total size of below-the-fold JSON.
-  optional int64 json_size = 1;
-}
-
-// This proto stores all information related to property cohorts.
-// Next is for PropertyCohortInfo: 4
-message PropertyCohortInfo {
-  // The name of the property cohort.
-  optional string name = 1;
-  // Whether the cohort was found in the cache
-  optional bool is_cache_hit = 2 [ default = false];
-  // The list of properties that were found in the cache.
-  repeated string properties_found = 3;
-}
-
-// This proto stores information related to property cache lookups.
-// Next id for PropertyPageInfo: 2
-message PropertyPageInfo {
-  repeated PropertyCohortInfo cohort_info = 1;
-}
-
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 9
+// Next id for LoggingInfo: 7
 message LoggingInfo {
   // Used to track time taken by various components of page speed service
   // processing.
@@ -134,8 +107,4 @@ message LoggingInfo {
   optional bool is_original_resource_cacheable = 5 [ default = true ];
   // Furious ID used for this request.
   optional int32 furious_id = 6;
-  // All information related to split_html.
-  optional SplitHtmlInfo split_html_info = 7;
-  // All information related to the pcache lookup.
-  optional PropertyPageInfo property_page_info = 8;
 }

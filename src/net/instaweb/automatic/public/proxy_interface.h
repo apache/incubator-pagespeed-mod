@@ -84,8 +84,7 @@ class ProxyInterface : public UrlAsyncFetcher {
       bool is_resource_fetch,
       const GoogleUrl& request_url,
       RewriteOptions* options,
-      AsyncFetch* async_fetch,
-      bool* added_page_property_callback = NULL);
+      AsyncFetch* async_fetch);
 
  private:
   friend class ProxyInterfaceTest;

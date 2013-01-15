@@ -26,7 +26,6 @@
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_fetcher.h"  // for UrlFetcher
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -43,7 +42,6 @@
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/mock_time_cache.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"  // for StrCat, etc
@@ -86,14 +84,12 @@ class ProxyUrlFetcher : public UrlFetcher {
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* response_writer,
-                                 MessageHandler* message_handler,
-                                 const RequestContextPtr& request_context) {
+                                 MessageHandler* message_handler) {
     return fetcher_->StreamingFetchUrl(url,
                                        request_headers,
                                        response_headers,
                                        response_writer,
-                                       message_handler,
-                                       request_context);
+                                       message_handler);
   }
 
  private:
@@ -111,7 +107,6 @@ TestRewriteDriverFactory::TestRewriteDriverFactory(
     const StringPiece& temp_dir, MockUrlFetcher* mock_fetcher)
   : mock_timer_(NULL),
     mock_scheduler_(NULL),
-    delay_cache_(NULL),
     lru_cache_(NULL),
     proxy_url_fetcher_(NULL),
     mock_url_fetcher_(mock_fetcher),
@@ -224,10 +219,8 @@ UrlNamer* TestRewriteDriverFactory::DefaultUrlNamer() {
 }
 
 void TestRewriteDriverFactory::SetUseTestUrlNamer(bool x) {
-  if (use_test_url_namer_ != x) {
-    use_test_url_namer_ = x;
-    set_url_namer(DefaultUrlNamer());
-  }
+  use_test_url_namer_ = x;
+  set_url_namer(DefaultUrlNamer());
 }
 
 Scheduler* TestRewriteDriverFactory::CreateScheduler() {
@@ -278,12 +271,6 @@ void TestRewriteDriverFactory::ApplyPlatformSpecificConfiguration(
 
 void TestRewriteDriverFactory::AdvanceTimeMs(int64 delta_ms) {
   mock_scheduler_->AdvanceTimeMs(delta_ms);
-}
-
-void TestRewriteDriverFactory::SetupCohort(PropertyCache* cache,
-                                           const GoogleString& cohort_name) {
-  PropertyCache::InitCohortStats(cohort_name, statistics());
-  cache->AddCohort(cohort_name);
 }
 
 TestRewriteDriverFactory::CreateFilterCallback::~CreateFilterCallback() {

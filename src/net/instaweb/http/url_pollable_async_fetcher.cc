@@ -22,4 +22,4 @@ namespace net_instaweb {
 UrlPollableAsyncFetcher::~UrlPollableAsyncFetcher() {
 }
 
-}  // namespace net_instaweb
+}  // namespace instaweb

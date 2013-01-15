@@ -20,13 +20,11 @@
 
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
-class RewriteDriver;
 class MessageHandler;
 
 // This class implements the encoding of image urls with optional additional
@@ -69,29 +67,6 @@ class ImageUrlEncoder : public UrlSegmentEncoder {
                       ResourceContext* dim,
                       MessageHandler* handler) const;
 
-  // Set LibWebp level according to the user agent.
-  // TODO(poojatandon): Pass a user agent object with its webp-cabaple bits
-  // pre-analyzed (not just the string from the request headers), since
-  // checking webp level related code doesn't belong here.
-  static void  SetLibWebpLevel(const RewriteDriver& driver,
-                               ResourceContext* resource_context);
-
-  // Sets webp and mobile capability in resource context.
-  //
-  // The parameters to this method are urls, rewrite options & resource context.
-  // Since rewrite options are not changed, we have passed const reference and
-  // resource context is modified and can be NULL, hence we pass as a pointer.
-  static void SetWebpAndMobileUserAgent(const RewriteDriver& driver,
-                                        ResourceContext* context);
-
-  // Set context for screen resolution.
-  static void SetUserAgentScreenResolution(
-      RewriteDriver* driver, ResourceContext* context);
-
-  // Helper function to generate Metadata cache key from ResourceContext.
-  static GoogleString CacheKeyFromResourceContext(
-      const ResourceContext& resource_context);
-
   static bool HasDimensions(const ResourceContext& data) {
     return (data.has_desired_image_dims() &&
             HasValidDimensions(data.desired_image_dims()));
@@ -111,16 +86,6 @@ class ImageUrlEncoder : public UrlSegmentEncoder {
   }
 
  private:
-  FRIEND_TEST(ImageRewriteTest, SquashImagesForMobileScreen);
-  FRIEND_TEST(ImageUrlEncoderTest, UserAgentScreenResolution);
-
-  // Returns true if screen width and height are normalized according to a
-  // predefined list of screen resolutions (see implementation header document
-  // for more details).
-  static bool GetNormalizedScreenResolution(
-      int screen_width, int screen_height, int* normalized_width,
-      int* normalized_height);
-
   DISALLOW_COPY_AND_ASSIGN(ImageUrlEncoder);
 };
 

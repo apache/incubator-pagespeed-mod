@@ -17,24 +17,21 @@
 
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/mock_property_page.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
 const char CriticalImagesFinderTestBase::kRequestUrl[] = "http://www.test.com";
 
-void CriticalImagesFinderTestBase::ResetDriver() {
-  rewrite_driver()->Clear();
-  rewrite_driver()->set_request_context(
-      RequestContext::NewTestRequestContext(factory()->thread_system()));
+void CriticalImagesFinderTestBase::SetUp() {
+  RewriteTestBase::SetUp();
   PropertyCache* pcache = server_context_->page_property_cache();
-  MockPropertyPage* page = NewMockPage(kRequestUrl);
+  MockPage* page = new MockPage(factory_->thread_system()->NewMutex(),
+                                kRequestUrl);
   rewrite_driver()->set_property_page(page);
   pcache->set_enabled(true);
   pcache->Read(page);
@@ -72,6 +69,9 @@ CriticalImagesFinderTestBase::GetCssCriticalImagesUpdatedValue() {
   const PropertyValue* property_value = page->GetProperty(
       cohort, CriticalImagesFinder::kCssCriticalImagesPropertyName);
   return property_value;
+}
+
+CriticalImagesFinderTestBase::MockPage::~MockPage() {
 }
 
 }  // namespace net_instaweb

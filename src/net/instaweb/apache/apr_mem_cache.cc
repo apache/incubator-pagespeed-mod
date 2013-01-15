@@ -310,9 +310,6 @@ void AprMemCache::PutHelper(const GoogleString& key,
     message_handler_->Message(
         kError, "AprMemCache::Put error: %s (%d) on key %s, value-size %d",
         buf, status, key.c_str(), value_size);
-    if (status == APR_TIMEUP) {
-      timeouts_->Add(1);
-    }
   }
 }
 
@@ -368,9 +365,6 @@ void AprMemCache::Delete(const GoogleString& key) {
     message_handler_->Message(
         kError, "AprMemCache::Delete error: %s (%d) on key %s", buf, status,
         key.c_str());
-    if (status == APR_TIMEUP) {
-      timeouts_->Add(1);
-    }
   }
 }
 

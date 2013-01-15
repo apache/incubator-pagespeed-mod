@@ -21,15 +21,12 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/delay_cache.h"
@@ -39,8 +36,8 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -57,8 +54,6 @@ const char kOutputStyle[] =
     ".foreground_yellow{color:#ff0}";
 const char kPuzzleJpgFile[] = "Puzzle.jpg";
 const char kBikePngFile[] = "BikeCrashIcn.png";
-const char kUaWebp[] = "webp";
-const char kUaWebpLossless[] = "webp-la";
 
 class CssFilterTest : public CssRewriteTestBase {
  protected:
@@ -78,7 +73,6 @@ class CssFilterTest : public CssRewriteTestBase {
       options()->DisableFilter(RewriteOptions::kConvertPngToJpeg);
       options()->DisableFilter(RewriteOptions::kConvertJpegToWebp);
       options()->DisableFilter(RewriteOptions::kConvertGifToPng);
-      options()->DisableFilter(RewriteOptions::kConvertToWebpLossless);
       options()->DisableFilter(RewriteOptions::kLeftTrimUrls);
       options()->DisableFilter(RewriteOptions::kExtendCacheImages);
       options()->DisableFilter(RewriteOptions::kSpriteImages);
@@ -179,31 +173,11 @@ class CssFilterTestCustomOptions : public CssFilterTest {
   virtual void SetUp() {}
 };
 
-TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
-  options()->EnableFilter(RewriteOptions::kInlineCss);
+TEST_F(CssFilterTestCustomOptions, CssPreserveURLs) {
   options()->set_css_preserve_urls(true);
   CssFilterTest::SetUp();
-  // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(RewriteOptions::kInlineCss));
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kInputStyle, 100);
-
-  // The URL shouldn't change.
   ValidateNoChanges("css_preserve_urls_on", "<link rel=StyleSheet href=a.css>");
-
-  // We should have the optimized CSS even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", "a.css", "css");
-  GoogleString out_css;
-  EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Was the CSS minified?
-  EXPECT_EQ(kOutputStyle, out_css);
 }
 
 TEST_F(CssFilterTest, LinkHrefCaseInsensitive) {
@@ -229,11 +203,14 @@ TEST_F(CssFilterTest, UrlTooLong) {
 
 // Make sure we can deal with 0 character nodes between open and close of style.
 TEST_F(CssFilterTest, RewriteEmptyCssTest) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   // Note: We must check stats ourselves because, for technical reasons,
   // empty inline styles are not treated as being rewritten at all.
   ValidateRewriteInlineCss("rewrite_empty_css-inline", "", "",
                            kExpectSuccess | kNoStatCheck);
-  EXPECT_STREQ("", logging_info()->applied_rewriters());
+  EXPECT_STREQ("", logging_info.applied_rewriters());
   EXPECT_EQ(0, num_blocks_rewritten_->Get());
   EXPECT_EQ(0, total_bytes_saved_->Get());
   EXPECT_EQ(0, num_parse_failures_->Get());
@@ -247,22 +224,16 @@ TEST_F(CssFilterTest, RewriteEmptyCssTest) {
 // Make sure we do not recompute external CSS when re-processing an already
 // handled page.
 TEST_F(CssFilterTest, RewriteRepeated) {
-  // ValidateRewriteExternalCssUrl calls FetchResourceUrl, which resets
-  // the request context on rewrite_driver_. So we can test changes to the log
-  // record, we keep a (ref counted) pointer to the request context before
-  // running the validate.
-  // TODO(marq): Make this not necessary by folding log validation into
-  // ValidateWithStats().
-  RequestContextPtr rctx = rewrite_driver()->request_context();
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}", kExpectSuccess);
   int inserts_before = lru_cache()->num_inserts();
   EXPECT_EQ(1, num_blocks_rewritten_->Get());  // for factory_
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("cf", rctx->log_record()->logging_info()->applied_rewriters());
+  EXPECT_STREQ("cf", logging_info.applied_rewriters());
 
   ResetStats();
-
-  rctx.reset(rewrite_driver()->request_context());
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectSuccess | kNoStatCheck);
   int inserts_after = lru_cache()->num_inserts();
@@ -270,7 +241,7 @@ TEST_F(CssFilterTest, RewriteRepeated) {
   EXPECT_EQ(inserts_before, inserts_after);
   EXPECT_EQ(0, num_blocks_rewritten_->Get());
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("cf", rctx->log_record()->logging_info()->applied_rewriters());
+  EXPECT_STREQ("cf", logging_info.applied_rewriters());
 }
 
 // Make sure we do not reparse external CSS when we know it already has
@@ -532,9 +503,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "a { color: red;\n .foo { margin: 10px; }",
     "a { color: red;\n h1 { margin: 10px; }",
 
-    // Don't "fix" by adding space between 'and' and '('.
-    "@media only screen and(min-resolution:240dpi){ .bar{ background: red; }}",
-
     // Things from Alexa-100 that we get parsing errors for. Most are illegal
     // syntax/typos. Some are CSS3 constructs.
 
@@ -779,7 +747,8 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "a{content:\"Special chars: \\n\\r\\t\\A \\D \\9\"}" },
 
     // Test some interesting combinations of @media.
-    { "@media screen {"
+    {
+      "@media screen {"
       "  body { counter-reset:section }"
       "  h1 { counter-reset:subsection }"
       "}"
@@ -1146,17 +1115,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       // Note: 333 is not converted to a more correct #333.
       "#post_content,#post_content p{font-family:Helvetica;font-size:16px;"
       "color:333;line-height:24px;margin-bottom:15px}" },
-
-    // Properly deal with space in URL.
-    { "#ac { background:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA"
-      "AAG4AAAAfCAA AAAAjTqdDAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZS\") no-repeat; }",
-
-      // Note we unquote the url() and escape the space with a backslash.
-      // It's fine if we choose a different strategy in the future. We just
-      // need to make sure that the space is not left verbatim in the
-      // unquoted url().
-      "#ac{background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA"
-      "AAG4AAAAfCAA\\ AAAAjTqdDAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZS) no-repeat}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1169,21 +1127,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     "}}",
     "@foobar this is totally wrong CSS syntax }",
     "@media (color) and screen { .a { color: red; } }",
-
-    // Do not "fix" by putting a space between 'and' and '('.
-    "@media only screen and(-webkit-min-device-pixel-ratio:1.5),"
-    "only screen and(min--moz-device-pixel-ratio:1.5),"
-    "only screen and(min-resolution:240dpi){"
-    ".ui-icon-plus,.ui-icon-minus,.ui-icon-delete,.ui-icon-arrow-r,"
-    ".ui-icon-arrow-l,.ui-icon-arrow-u,.ui-icon-arrow-d,.ui-icon-check,"
-    ".ui-icon-gear,.ui-icon-refresh,.ui-icon-forward,.ui-icon-back,"
-    ".ui-icon-grid,.ui-icon-star,.ui-icon-alert,.ui-icon-info,.ui-icon-home,"
-    ".ui-icon-search,.ui-icon-searchfield:after,.ui-icon-checkbox-off,"
-    ".ui-icon-checkbox-on,.ui-icon-radio-off,.ui-icon-radio-on{"
-    "background-image:url(images/icons-36-white.png);"
-    "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
-    "-webkit-background-size:776px 18px;background-size:776px 18px;}"
-    ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}",
   };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
@@ -1407,7 +1350,7 @@ TEST_F(CssFilterTest, DontAbsolutifyEmptyUrl) {
 TEST_F(CssFilterTest, WebpRewriting) {
   const char css_input[] = "body{background:url(a.jpg)}";
   const char css_output[] =
-      "body{background:url(http://test.com/xa.jpg.pagespeed.ic.0.webp)}";
+      "body{background:url(http://test.com/wa.jpg.pagespeed.ic.0.webp)}";
   AddFileToMockFetcher(StrCat(kTestDomain, "a.jpg"), kPuzzleJpgFile,
                        kContentTypeJpeg, 100);
   options()->ClearSignatureForTesting();
@@ -1415,7 +1358,7 @@ TEST_F(CssFilterTest, WebpRewriting) {
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_jpeg_recompress_quality(85);
   server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent(kUaWebp);
+  rewrite_driver()->set_user_agent("webp");
 
   SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
   Parse("webp", CssLinkHref("foo.css"));
@@ -1432,8 +1375,6 @@ TEST_F(CssFilterTest, WebpRewriting) {
 }
 
 TEST_F(CssFilterTest, NoWebpRewritingFromJpgIfDisabled) {
-  // Note that the image URL doesn't reflect the UA's webp capability with the
-  // new Non-Legacy Encoding.
   const char css_input[] = "body{background:url(a.jpg)}";
   const char css_output[] =
       "body{background:url(http://test.com/xa.jpg.pagespeed.ic.0.jpg)}";
@@ -1445,7 +1386,7 @@ TEST_F(CssFilterTest, NoWebpRewritingFromJpgIfDisabled) {
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_jpeg_recompress_quality(85);
   server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent(kUaWebp);
+  rewrite_driver()->set_user_agent("webp");
 
   SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
   Parse("webp", CssLinkHref("foo.css"));
@@ -1454,36 +1395,6 @@ TEST_F(CssFilterTest, NoWebpRewritingFromJpgIfDisabled) {
   CollectCssLinks("collect", output_buffer_, &css_urls);
   ASSERT_EQ(1, css_urls.size());
   EXPECT_EQ("http://test.com/W.foo.css.pagespeed.cf.0.css", css_urls[0]);
-
-  // Check the content of the CSS file.
-  GoogleString actual_output;
-  EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
-  EXPECT_STREQ(css_output, actual_output);
-}
-
-TEST_F(CssFilterTest, NoWebpLaRewritingFromJpgIfDisabled) {
-  // Note that the image URL doesn't reflect the UA's webp capability with the
-  // new Non-Legacy Encoding.
-  const char css_input[] = "body{background:url(a.jpg)}";
-  const char css_output[] =
-      "body{background:url(http://test.com/xa.jpg.pagespeed.ic.0.jpg)}";
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  options()->ClearSignatureForTesting();
-  options()->DisableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  options()->set_image_jpeg_recompress_quality(85);
-  server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent(kUaWebpLossless);
-
-  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
-  Parse("webp", CssLinkHref("foo.css"));
-  // Check for CSS files in the rewritten page.
-  StringVector css_urls;
-  CollectCssLinks("collect", output_buffer_, &css_urls);
-  ASSERT_EQ(1, css_urls.size());
-  EXPECT_EQ("http://test.com/V.foo.css.pagespeed.cf.0.css", css_urls[0]);
 
   // Check the content of the CSS file.
   GoogleString actual_output;
@@ -1492,8 +1403,6 @@ TEST_F(CssFilterTest, NoWebpLaRewritingFromJpgIfDisabled) {
 }
 
 TEST_F(CssFilterTest, NoWebpRewritingFromPngIfDisabled) {
-  // Note that the image URL doesn't reflect the UA's webp capability with the
-  // new Non-Legacy Encoding.
   const char css_input[] = "body{background:url(a.png)}";
   const char css_output[] =
       "body{background:url(http://test.com/xa.png.pagespeed.ic.0.png)}";
@@ -1506,7 +1415,7 @@ TEST_F(CssFilterTest, NoWebpRewritingFromPngIfDisabled) {
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_jpeg_recompress_quality(85);
   server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent(kUaWebp);
+  rewrite_driver()->set_user_agent("webp");
 
   SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
   Parse("webp", CssLinkHref("foo.css"));
@@ -1515,36 +1424,6 @@ TEST_F(CssFilterTest, NoWebpRewritingFromPngIfDisabled) {
   CollectCssLinks("collect", output_buffer_, &css_urls);
   ASSERT_EQ(1, css_urls.size());
   EXPECT_EQ("http://test.com/W.foo.css.pagespeed.cf.0.css", css_urls[0]);
-
-  // Check the content of the CSS file.
-  GoogleString actual_output;
-  EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
-  EXPECT_STREQ(css_output, actual_output);
-}
-
-TEST_F(CssFilterTest, NoWebpLaRewritingFromPngIfDisabled) {
-  // Note that the image URL still reflects the UA's webp capability.
-  const char css_input[] = "body{background:url(a.png)}";
-  const char css_output[] =
-      "body{background:url(http://test.com/xa.png.pagespeed.ic.0.png)}";
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  options()->ClearSignatureForTesting();
-  options()->DisableFilter(RewriteOptions::kConvertPngToJpeg);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  options()->set_image_jpeg_recompress_quality(85);
-  server_context()->ComputeSignature(options());
-  rewrite_driver()->set_user_agent(kUaWebpLossless);
-
-  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
-  Parse("webp", CssLinkHref("foo.css"));
-  // Check for CSS files in the rewritten page.
-  StringVector css_urls;
-  CollectCssLinks("collect", output_buffer_, &css_urls);
-  ASSERT_EQ(1, css_urls.size());
-  EXPECT_EQ("http://test.com/V.foo.css.pagespeed.cf.0.css", css_urls[0]);
 
   // Check the content of the CSS file.
   GoogleString actual_output;
@@ -1706,6 +1585,10 @@ TEST_F(CssFilterTest, FlushInInlineCss) {
 }
 
 TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
+
   GoogleString img_url = StrCat(kTestDomain, "a.jpg");
   AddFileToMockFetcher(img_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
   options()->ClearSignatureForTesting();
@@ -1730,7 +1613,7 @@ TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
             "</body></html>", output_buffer_);
   // There was previously a bug where we were logging this as a successful
   // application of the css filter. Make sure that this case isn't logged.
-  EXPECT_STREQ("", logging_info()->applied_rewriters());
+  EXPECT_STREQ("", logging_info.applied_rewriters());
 }
 
 TEST_F(CssFilterTest, FlushInEndTag) {

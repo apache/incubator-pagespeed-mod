@@ -28,6 +28,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 namespace furious {
@@ -64,14 +65,14 @@ void RemoveFuriousCookie(RequestHeaders* headers) {
 void SetFuriousCookie(ResponseHeaders* headers,
                       int state,
                       const StringPiece& url,
-                      int64 expiration_time_ms) {
+                      int64 now_ms) {
   GoogleUrl request_url(url);
   // If we can't parse this url, don't try to set headers on the response.
   if (!request_url.is_valid()) {
     return;
   }
   GoogleString expires;
-  ConvertTimeToString(expiration_time_ms, &expires);
+  ConvertTimeToString(now_ms + Timer::kWeekMs, &expires);
   StringPiece host = request_url.Host();
   if (host.length() == 0) {
     return;

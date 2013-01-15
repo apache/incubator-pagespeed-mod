@@ -93,12 +93,9 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_PROPERTY_CACHE_H_
 
 #include <map>
-#include <vector>
+#include <set>
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/cache_interface.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -106,14 +103,11 @@
 namespace net_instaweb {
 
 class AbstractMutex;
-class LogRecord;
+class CacheInterface;
 class PropertyValueProtobuf;
 class PropertyPage;
-class Statistics;
 class ThreadSystem;
 class Timer;
-
-typedef std::vector<PropertyPage*> PropertyPageStarVector;
 
 // Holds the value & stability-metadata for a property.
 class PropertyValue {
@@ -179,7 +173,6 @@ class PropertyCache {
   // Property cache key prefixes.
   static const char kPagePropertyCacheKeyPrefix[];
   static const char kClientPropertyCacheKeyPrefix[];
-  static const char kDevicePropertyCacheKeyPrefix[];
 
   class CacheInterfaceCallback;
 
@@ -187,41 +180,23 @@ class PropertyCache {
   // same expected frequency.  The PropertyCache object keeps track of
   // the known set of Cohorts but does not actually keep any data for
   // them.  The data only arrives when we do a lookup.
-  // Each cohort uses a different CacheInterface so that we can track cache
-  // metrics on a per cohort basis.
-  class Cohort {
-   public:
-    // Takes ownership of the cache.
-    Cohort(StringPiece name, CacheInterface* cache)
-        : cache_(cache) {
-      name.CopyToString(&name_);
-    }
-    const GoogleString& name() const { return name_; }
-    CacheInterface* cache() const { return cache_.get(); }
-
-   private:
-    scoped_ptr<CacheInterface> cache_;
-    GoogleString name_;
-
-    DISALLOW_COPY_AND_ASSIGN(Cohort);
-  };
+  //
+  // Note: if you add any new methods, consider using containment
+  // rather than inheritance as GoogleString lacks a virtual dtor.
+  //
+  // Note that the PropertyCache::Cohort is just a predefined label
+  // used for organizing properties.  The Cohort object doesn't
+  // contain any data itself.
+  class Cohort : public GoogleString {};
 
   PropertyCache(const GoogleString& cache_key_prefix,
-                CacheInterface* cache, Timer* timer,
-                Statistics* stats, ThreadSystem* threads);
+                CacheInterface* cache, Timer* timer, ThreadSystem* threads);
   ~PropertyCache();
 
-  // Reads all the PropertyValues in all the known Cohorts from
+  // Reads the all the PropertyValues in all the known Cohorts from
   // cache, calling PropertyPage::Done when done.  It is essential
   // that the Cohorts are established prior to calling this function.
   void Read(PropertyPage* property_page) const;
-
-  // Reads PropertyValues for multiple pages, calling corresponding
-  // PropertyPage::Done as and when page read completes. It is essential
-  // that the Cohorts are established prior to calling this function.
-  void MultiRead(PropertyPageStarVector* property_page_list) const;
-
-  void SetupCohorts(PropertyPage* property_page) const;
 
   // Updates a Cohort of properties into the cache.  It is a
   // programming error (dcheck-fail) to Write a PropertyPage that
@@ -255,8 +230,7 @@ class PropertyCache {
     mutations_per_1000_writes_threshold_ = x;
   }
 
-  // Establishes a new Cohort for this property cache. Note that you must call
-  // InitCohortStats prior to calling AddCohort.
+  // Establishes a new Cohort for this property cache.
   const Cohort* AddCohort(const StringPiece& cohort_name);
 
   // Returns the specified Cohort* or NULL if not found.  Cohorts must
@@ -280,22 +254,17 @@ class PropertyCache {
 
   const CacheInterface* cache_backend() const { return cache_; }
 
-  // Initialize stats for the specified cohort.
-  static void InitCohortStats(const GoogleString& cohort,
-                              Statistics* statistics);
-
-  // TODO(jmarantz): add some statistics tracking for stomps, stability, etc.
+  // TODO(jmarantz): add a some statistics tracking for stomps, stability, etc.
 
  private:
   GoogleString cache_key_prefix_;
   CacheInterface* cache_;
   Timer* timer_;
-  Statistics* stats_;
   ThreadSystem* thread_system_;
 
   int mutations_per_1000_writes_threshold_;
-  typedef std::map<GoogleString, Cohort*> CohortMap;
-  CohortMap cohorts_;
+  typedef std::set<Cohort> CohortSet;
+  CohortSet cohorts_;
 
   bool enabled_;
 
@@ -341,16 +310,12 @@ class PropertyPage {
 
   const GoogleString& key() const { return key_; }
 
-  LogRecord* log_record() {
-    return request_context_->log_record();
-  }
-
  protected:
   // The Page takes ownership of the mutex.
-  PropertyPage(AbstractMutex* mutex,
-               const PropertyCache& property_cache,
-               const StringPiece& key,
-               const RequestContextPtr& request_context);
+  explicit PropertyPage(AbstractMutex* mutex, const StringPiece& key)
+      : mutex_(mutex),
+        key_(key.as_string()),
+        was_read_(false) {}
 
   // Called immediatly after the underlying cache lookup is done, from
   // PropertyCache::CacheInterfaceCallback::Done().
@@ -384,21 +349,17 @@ class PropertyPage {
   typedef std::map<GoogleString, PropertyValue*> PropertyMap;
 
   struct PropertyMapStruct {
-    PropertyMapStruct(LogRecord* log, int index)
-        : has_deleted_property(false),
-          log_record(log),
-          cohort_index(index) {}
+    PropertyMapStruct() {
+      has_deleted_property = false;
+    }
     PropertyMap pmap;
     bool has_deleted_property;
-    LogRecord* log_record;
-    int cohort_index;
   };
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
       CohortDataMap;
   CohortDataMap cohort_data_map_;
   scoped_ptr<AbstractMutex> mutex_;
   GoogleString key_;
-  RequestContextPtr request_context_;
   bool was_read_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyPage);

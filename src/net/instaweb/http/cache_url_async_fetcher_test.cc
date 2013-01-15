@@ -27,13 +27,10 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
@@ -43,7 +40,6 @@
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
@@ -52,18 +48,15 @@ namespace {
 
 class MockFetch : public AsyncFetch {
  public:
-  MockFetch(const RequestContextPtr& ctx,
-            GoogleString* content,
+  MockFetch(GoogleString* content,
             bool* done,
             bool* success,
             bool* is_origin_cacheable)
-      : AsyncFetch(ctx),
-        content_(content),
+      : content_(content),
         done_(done),
         success_(success),
         is_origin_cacheable_(is_origin_cacheable),
-        cache_result_valid_(true) {
-  }
+        cache_result_valid_(true) {}
 
   virtual ~MockFetch() {}
 
@@ -84,13 +77,9 @@ class MockFetch : public AsyncFetch {
 
   // Fetch complete.
   virtual void HandleDone(bool success) {
-    {
-      ScopedMutex lock(log_record()->mutex());
-      *is_origin_cacheable_ = log_record()->logging_info()->
-          is_original_resource_cacheable();
-      *success_ = success;
-      *done_ = true;
-    }
+    *is_origin_cacheable_ = logging_info()->is_original_resource_cacheable();
+    *success_ = success;
+    *done_ = true;
     delete this;
   }
 
@@ -119,10 +108,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   // that are blocking in nature (e.g. in-memory LRU or blocking file-system).
   class Callback : public HTTPCache::Callback {
    public:
-    explicit Callback(const RequestContextPtr& ctx)
-        : HTTPCache::Callback(ctx) {
-      Reset();
-    }
+    Callback() { Reset(); }
     Callback* Reset() {
       called_ = false;
       result_ = HTTPCache::kNotFound;
@@ -172,8 +158,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
         etag_("123456790ABCDEF"),
         ttl_ms_(Timer::kHourMs),
         implicit_cache_ttl_ms_(500 * Timer::kSecondMs),
-        cache_result_valid_(true),
-        thread_system_(ThreadSystem::CreateThreadSystem()) {
+        cache_result_valid_(true) {
     HTTPCache::InitStats(&statistics_);
     http_cache_.reset(new HTTPCache(&lru_cache_, &timer_, &mock_hasher_,
                                     &statistics_));
@@ -269,16 +254,14 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   HTTPCache::FindResult Find(const GoogleString& key, HTTPValue* value,
                              ResponseHeaders* headers,
                              MessageHandler* handler) {
-    Callback callback(
-        RequestContext::NewTestRequestContext(thread_system_.get()));
+    Callback callback;
     return FindWithCallback(key, value, headers, handler, &callback);
   }
 
   HTTPCache::FindResult Find(const GoogleString& key, HTTPValue* value,
                              ResponseHeaders* headers,
                              MessageHandler* handler, bool cache_valid) {
-    Callback callback(
-        RequestContext::NewTestRequestContext(thread_system_.get()));
+    Callback callback;
     callback.cache_valid_ = cache_valid;
     return FindWithCallback(key, value, headers, handler, &callback);
   }
@@ -312,9 +295,8 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     bool is_cacheable = false;
     ResponseHeaders fetch_response_headers;
     fetch_response_headers.set_implicit_cache_ttl_ms(implicit_cache_ttl_ms_);
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()),
-        &fetch_content, &fetch_done, &fetch_success, &is_cacheable);
+    MockFetch* fetch = new MockFetch(&fetch_content, &fetch_done,
+                                     &fetch_success, &is_cacheable);
     fetch->set_cache_result_valid(cache_result_valid_);
     fetch->request_headers()->CopyFrom(request_headers);
     fetch->set_response_headers(&fetch_response_headers);
@@ -511,8 +493,6 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   int64 implicit_cache_ttl_ms_;
 
   bool cache_result_valid_;
-
-  scoped_ptr<ThreadSystem> thread_system_;
 };
 
 TEST_F(CacheUrlAsyncFetcherTest, CacheableUrl) {

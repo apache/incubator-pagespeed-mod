@@ -19,9 +19,6 @@
 // Contains ReflectingTestFetcher, which just echoes its input. Meant for use in
 // unit tests.
 
-#ifndef NET_INSTAWEB_HTTP_PUBLIC_REFLECTING_TEST_FETCHER_H_
-#define NET_INSTAWEB_HTTP_PUBLIC_REFLECTING_TEST_FETCHER_H_
-
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
@@ -60,5 +57,3 @@ class ReflectingTestFetcher : public UrlAsyncFetcher {
 };
 
 }  // namespace net_instaweb
-
-#endif  // NET_INSTAWEB_HTTP_PUBLIC_REFLECTING_TEST_FETCHER_H_

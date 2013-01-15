@@ -33,8 +33,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
@@ -49,8 +47,7 @@ class QueuedWorkerPool {
  public:
   static const int kNoLoadShedding = -1;
 
-  QueuedWorkerPool(int max_workers, StringPiece thread_name_base,
-                   ThreadSystem* thread_system);
+  QueuedWorkerPool(int max_workers, ThreadSystem* thread_system);
   ~QueuedWorkerPool();
 
   // Functions added to a Sequence will be run sequentially, though not
@@ -236,8 +233,6 @@ class QueuedWorkerPool {
   std::vector<Sequence*> all_sequences_;
   std::deque<Sequence*> queued_sequences_;
   std::vector<Sequence*> free_sequences_;
-
-  GoogleString thread_name_base_;
 
   size_t max_workers_;
   bool shutdown_;

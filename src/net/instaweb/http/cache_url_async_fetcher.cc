@@ -20,19 +20,19 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value_writer.h"
+#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"  // for LogRecord
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 
 
@@ -135,7 +135,7 @@ class CachePutFetch : public SharedAsyncFetch {
       cache_value_writer_.SetHeaders(&saved_headers_);
     } else {
       // Set is_original_resource_cacheable.
-      base_fetch()->log_record()->SetIsOriginalResourceCacheable(false);
+      base_fetch()->logging_info()->set_is_original_resource_cacheable(false);
     }
 
     // Finish fetch.
@@ -170,8 +170,7 @@ class CacheFindCallback : public HTTPCache::Callback {
                     AsyncFetch* base_fetch,
                     CacheUrlAsyncFetcher* owner,
                     MessageHandler* handler)
-      : HTTPCache::Callback(base_fetch->request_context()),
-        url_(url),
+      : url_(url),
         base_fetch_(base_fetch),
         cache_(owner->http_cache()),
         fetcher_(owner->fetcher()),
@@ -191,6 +190,10 @@ class CacheFindCallback : public HTTPCache::Callback {
     set_response_headers(base_fetch->response_headers());
   }
   virtual ~CacheFindCallback() {}
+
+  virtual LoggingInfo* logging_info() {
+    return base_fetch_->logging_info();
+  }
 
   virtual void Done(HTTPCache::FindResult find_result) {
     switch (find_result) {
@@ -235,7 +238,7 @@ class CacheFindCallback : public HTTPCache::Callback {
           // we will refetch the resource as we would for kNotFound.
           //
           // For example, we should do this for fetches that are being proxied.
-          FALLTHROUGH_INTENDED;
+          // fall through
         }
       case HTTPCache::kNotFound: {
         VLOG(1) << "Did not find in cache: " << url_;
@@ -281,11 +284,7 @@ class CacheFindCallback : public HTTPCache::Callback {
           base_fetch = conditional_fetch;
         }
 
-        if (fetcher_ != NULL) {
-          fetcher_->Fetch(url_, handler_, base_fetch);
-        } else {
-          base_fetch->Done(false);
-        }
+        fetcher_->Fetch(url_, handler_, base_fetch);
         break;
       }
     }
@@ -373,8 +372,8 @@ void CacheUrlAsyncFetcher::Fetch(
       // able to respond to HEAD requests with a cached value from a GET
       // response, at this point we do not allow caching of HEAD responses from
       // the origin, so mark the "original" resource as uncacheable.
-      base_fetch->log_record()->SetIsOriginalResourceCacheable(false);
-      FALLTHROUGH_INTENDED;
+      base_fetch->logging_info()->set_is_original_resource_cacheable(false);
+      // Fall through.
     case RequestHeaders::kGet:
       {
         CacheFindCallback* find_callback =
@@ -391,12 +390,8 @@ void CacheUrlAsyncFetcher::Fetch(
   }
 
   // Original resource not cacheable.
-  base_fetch->log_record()->SetIsOriginalResourceCacheable(false);
-  if (fetcher_ != NULL) {
-    fetcher_->Fetch(url, handler, base_fetch);
-  } else {
-    base_fetch->Done(false);
-  }
+  base_fetch->logging_info()->set_is_original_resource_cacheable(false);
+  fetcher_->Fetch(url, handler, base_fetch);
 }
 
 }  // namespace net_instaweb

@@ -119,7 +119,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
 
   void AddFileCountReduction(int num_files) {
     css_file_count_reduction_->Add(num_files);
-    if (num_files >= 1) {
+    if (num_files >= 1 && rewrite_driver_->log_record() != NULL) {
       rewrite_driver_->log_record()->LogAppliedRewriter(
           RewriteOptions::FilterId(RewriteOptions::kCombineCss));
     }
@@ -188,7 +188,7 @@ class CssCombineFilter::Context : public RewriteContext {
       bool add_input = false;
       ResourcePtr resource(slot(i)->resource());
 
-      if (resource->IsSafeToRewrite()) {
+      if (resource->IsValidAndCacheable()) {
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           // This new element works in the existing partition.
           add_input = true;

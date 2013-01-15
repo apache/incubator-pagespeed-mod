@@ -63,15 +63,14 @@ class FileSystem;
 class FlushEarlyInfo;
 class FlushEarlyRenderInfo;
 class Function;
+class BaseTraceContext;
 class HtmlEvent;
 class HtmlFilter;
 class HtmlWriterFilter;
 class LogRecord;
 class MessageHandler;
-class OutputResource;
 class PropertyPage;
 class RequestHeaders;
-class RequestTrace;
 class ResourceContext;
 class ResourceNamer;
 class ResponseHeaders;
@@ -159,9 +158,6 @@ class RewriteDriver : public HtmlParse {
   // responses.
   static const char kStatusCodePropertyName[];
 
-  static const int kDefaultMobileScreenWidth;
-  static const int kDefaultMobileScreenHeight;
-
   RewriteDriver(MessageHandler* message_handler,
                 FileSystem* file_system,
                 UrlAsyncFetcher* url_async_fetcher);
@@ -170,8 +166,7 @@ class RewriteDriver : public HtmlParse {
   // instances without propagating the include files.
   virtual ~RewriteDriver();
 
-  // Returns a fresh instance using the same options we do, using the same log
-  // record. Drivers should only be cloned within the same request.
+  // Returns a fresh instance using the same options we do.
   RewriteDriver* Clone();
 
   // Clears the current request cache of resources and base URL.  The
@@ -209,7 +204,6 @@ class RewriteDriver : public HtmlParse {
     user_agent_supports_image_inlining_ = kNotSet;
     user_agent_supports_js_defer_ = kNotSet;
     user_agent_supports_webp_ = kNotSet;
-    user_agent_supports_webp_lossless_alpha_ = kNotSet;
     is_mobile_user_agent_ = kNotSet;
     user_agent_supports_split_html_ = kNotSet;
     is_screen_resolution_set_ = kNotSet;
@@ -227,11 +221,13 @@ class RewriteDriver : public HtmlParse {
   }
 
   RequestContextPtr request_context() { return request_context_; }
-  void set_request_context(const RequestContextPtr& x);
+  void set_request_context(const RequestContextPtr& x) {
+    request_context_.reset(x);
+  }
 
   // Convenience method to return the trace context from the request_context()
   // if both are configured and NULL otherwise.
-  RequestTrace* trace_context();
+  BaseTraceContext* trace_context();
 
   // Convenience method to issue a trace annotation if tracing is enabled.
   // If tracing is disabled, this function is a no-op.
@@ -269,14 +265,13 @@ class RewriteDriver : public HtmlParse {
     return request_headers_;
   }
 
-  UserAgentMatcher* user_agent_matcher() const {
+  const UserAgentMatcher& user_agent_matcher() const {
     DCHECK(server_context() != NULL);
     return server_context()->user_agent_matcher();
   }
   bool UserAgentSupportsImageInlining() const;
   bool UserAgentSupportsJsDefer() const;
   bool UserAgentSupportsWebp() const;
-  bool UserAgentSupportsWebpLosslessAlpha() const;
   bool IsMobileUserAgent() const;
   bool GetScreenResolution(int* width, int* height);
   void SetScreenResolution(int width, int height);
@@ -358,20 +353,6 @@ class RewriteDriver : public HtmlParse {
   // success=false.
   bool FetchResource(const StringPiece& url, AsyncFetch* fetch);
 
-  // Initiates an In-Place Resource Optimization (IPRO) fetch (A resource which
-  // is served under the original URL, but is still able to be rewritten).
-  //
-  // perform_http_fetch indicates whether or not an HTTP fetch should be done
-  // to get the resource if a cache lookup fails. Proxy implementations will
-  // want to set this to true because there is no other way to get the content.
-  // However, origin implementations will want to set this to false so that
-  // they can fall back to locally serving the contents.
-  //
-  // async_fetch->Done(false) will be called if perform_http_fetch is false
-  // and the resource could not be found in HTTP cache.
-  void FetchInPlaceResource(const GoogleUrl& gurl, bool perform_http_fetch,
-                            AsyncFetch* async_fetch);
-
   // See FetchResource.  There are two differences:
   //   1. It takes an OutputResource instead of a URL.
   //   2. It returns whether a fetch was queued or not.  This is safe
@@ -415,8 +396,6 @@ class RewriteDriver : public HtmlParse {
   // Creates a cache fetcher that uses the driver's fetcher and its options.
   // Note: this means the driver's fetcher must survive as long as this does.
   CacheUrlAsyncFetcher* CreateCacheFetcher();
-  // Returns a cache fetcher that does not fall back to an actual fetcher.
-  CacheUrlAsyncFetcher* CreateCacheOnlyFetcher();
 
   ServerContext* server_context() const { return server_context_; }
   Statistics* statistics() const;
@@ -861,10 +840,6 @@ class RewriteDriver : public HtmlParse {
   // Does not take the ownership of the page.
   void set_unowned_property_page(PropertyPage* page);
 
-  PropertyPage* device_property_page() const { return device_property_page_; }
-  void set_device_property_page(PropertyPage* page);
-  void set_unowned_device_property_page(PropertyPage* page);
-
   // Used by ImageRewriteFilter for identifying critical images.
   const CriticalLineInfo* critical_line_info() const;
 
@@ -939,6 +914,13 @@ class RewriteDriver : public HtmlParse {
   }
   bool is_lazyload_script_flushed() { return is_lazyload_script_flushed_; }
 
+  void set_is_defer_javascript_script_flushed(bool x) {
+    is_defer_javascript_script_flushed_ = x;
+  }
+  bool is_defer_javascript_script_flushed() {
+    return is_defer_javascript_script_flushed_;
+  }
+
   // This method is not thread-safe. Call it only from the html parser thread.
   FlushEarlyInfo* flush_early_info();
 
@@ -963,48 +945,15 @@ class RewriteDriver : public HtmlParse {
   // be used in subsequent request.
   void SaveOriginalHeaders(const ResponseHeaders& response_headers);
 
-  // log_record() always returns a pointer to a valid LogRecord, owned by the
-  // rewrite_driver's request context.
-  LogRecord* log_record();
+  // log_record() can return NULL.
+  LogRecord* log_record() { return log_record_; }
+  void set_log_record(LogRecord* l) { log_record_ = l; }
 
   // Determines whether the system is healthy enough to rewrite resources.
   // Currently, systems get sick based on the health of the metadata cache.
   bool can_rewrite_resources() { return can_rewrite_resources_; }
 
-  // Sets the is_nested property on the driver.
-  void set_is_nested(bool n) { is_nested_ = n; }
-
-  // Sets must compute finder properties to true. Note that this value is
-  // sticky. Once it is set to true for a given request, it remains true till
-  // the driver is reset.
-  void enable_must_compute_finder_properties() {
-    must_compute_finder_properties_ = true;
-  }
-
-  bool must_compute_finder_properties() {
-    return must_compute_finder_properties_;
-  }
-
-  // Writes the specified contents into the output resource, and marks it
-  // as optimized. 'inputs' described the input resources that were used
-  // to construct the output, and is used to determine whether the
-  // result can be safely cache extended and be marked publicly cacheable.
-  // 'content_type' and 'charset' specify the mimetype and encoding of
-  // the contents, and will help form the Content-Type header.
-  // 'charset' may be empty when not specified.
-  //
-  // Note that this does not escape charset.
-  //
-  // Callers should take care that dangerous types like 'text/html' do not
-  // sneak into content_type.
-  bool Write(const ResourceVector& inputs,
-             const StringPiece& contents,
-             const ContentType* type,
-             StringPiece charset,
-             OutputResource* output);
-
  private:
-  friend class RewriteContext;
   friend class RewriteDriverTest;
   friend class RewriteTestBase;
   friend class ServerContextTest;
@@ -1139,9 +1088,6 @@ class RewriteDriver : public HtmlParse {
 
   void FinalizeFilterLogging();
 
-  // Used by CreateCacheFetcher() and CreateCacheOnlyFetcher().
-  CacheUrlAsyncFetcher* CreateCustomCacheFetcher(UrlAsyncFetcher* base_fetcher);
-
   // Only the first base-tag is significant for a document -- any subsequent
   // ones are ignored.  There should be no URLs referenced prior to the base
   // tag, if one exists.  See
@@ -1220,6 +1166,9 @@ class RewriteDriver : public HtmlParse {
   // If it is set to true, then lazyload script is flushed with flush early
   // flow.
   bool is_lazyload_script_flushed_;
+  // If it is set to true, then defer_javascript script is flushed with flush
+  // early flow.
+  bool is_defer_javascript_script_flushed_;
 
   // Set to true if RewriteDriver can be released.
   bool release_driver_;
@@ -1262,7 +1211,6 @@ class RewriteDriver : public HtmlParse {
   mutable LazyBool user_agent_supports_image_inlining_;
   mutable LazyBool user_agent_supports_js_defer_;
   mutable LazyBool user_agent_supports_webp_;
-  mutable LazyBool user_agent_supports_webp_lossless_alpha_;
   mutable LazyBool is_mobile_user_agent_;
   mutable LazyBool supports_flush_early_;
   mutable LazyBool user_agent_supports_split_html_;
@@ -1391,13 +1339,6 @@ class RewriteDriver : public HtmlParse {
   // Boolean value which tells whether property page is owned by driver or not.
   bool owns_property_page_;
 
-  // Stores any cached properties associated with the current device.
-  PropertyPage* device_property_page_;
-
-  // Boolean value which tells whether device property page is owned by driver
-  // or not.
-  bool owns_device_property_page_;
-
   scoped_ptr<CriticalLineInfo> critical_line_info_;
 
   // Stores all the critical images for the current URL.
@@ -1437,20 +1378,19 @@ class RewriteDriver : public HtmlParse {
   bool is_blink_request_;
   bool can_rewrite_resources_;
 
-  // Indicates whether we must properties of any of the finders.
-  bool must_compute_finder_properties_;
+  // Pointer to the base fetch's log record, passed in from ProxyInterface; this
+  // may be NULL and accessing it beyond the base fetch's lifespan is unsafe.
+  // Reset to NULL in Cleanup()
+  LogRecord* log_record_;
 
   // Additional request context that may outlive this RewriteDriver. (Thus,
   // the context is reference counted.)
+  // TODO(piatek): Merge this with log_record_ and track them similarly since
+  //               they have the same flow.
   RequestContextPtr request_context_;
 
   // Start time for HTML requests. Used for statistics reporting.
   int64 start_time_ms_;
-
-  // True if this driver has been cloned from another to execute subordinate
-  // rewrites. Some logging operations aren't executed on nested rewrite
-  // drivers. Note that this is totally distinct from nested rewrite contexts.
-  bool is_nested_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };
@@ -1466,9 +1406,7 @@ class OptionsAwareHTTPCacheCallback : public HTTPCache::Callback {
  protected:
   // Sub-classes need to ensure that rewrite_options remains valid till
   // Callback::Done finishes.
-  OptionsAwareHTTPCacheCallback(
-      const RewriteOptions* rewrite_options,
-      const RequestContextPtr& request_ctx);
+  explicit OptionsAwareHTTPCacheCallback(const RewriteOptions* rewrite_options);
 
  private:
   const RewriteOptions* rewrite_options_;

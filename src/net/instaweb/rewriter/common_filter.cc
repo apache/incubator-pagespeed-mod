@@ -35,7 +35,6 @@ CommonFilter::CommonFilter(RewriteDriver* driver)
     : driver_(driver),
       server_context_(driver->server_context()),
       rewrite_options_(driver->options()),
-      noscript_element_(NULL),
       seen_base_(false) {
 }
 
@@ -187,7 +186,9 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
 }
 
 void CommonFilter::LogFilterModifiedContent() {
-  driver()->log_record()->LogAppliedRewriter(Name());
+  if (driver()->log_record() != NULL) {
+    driver()->log_record()->LogAppliedRewriter(Name());
+  }
 }
 
 }  // namespace net_instaweb

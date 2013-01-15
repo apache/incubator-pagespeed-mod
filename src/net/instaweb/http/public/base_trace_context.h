@@ -16,8 +16,8 @@
 
 // Author: piatek@google.com (Michael Piatek)
 
-#ifndef NET_INSTAWEB_UTIL_PUBLIC_REQUEST_TRACE_H_
-#define NET_INSTAWEB_UTIL_PUBLIC_REQUEST_TRACE_H_
+#ifndef NET_INSTAWEB_HTTP_PUBLIC_BASE_TRACE_CONTEXT_H_
+#define NET_INSTAWEB_HTTP_PUBLIC_BASE_TRACE_CONTEXT_H_
 
 #include <cstdarg>
 
@@ -27,10 +27,10 @@ namespace net_instaweb {
 
 // The context for recording a distributed trace associated with a given
 // request.
-class RequestTrace {
+class BaseTraceContext {
  public:
-  RequestTrace();
-  virtual ~RequestTrace();
+  BaseTraceContext();
+  virtual ~BaseTraceContext();
 
   // Logs formatted output to the distributed tracing context.
   virtual void TraceVPrintf(const char* fm, va_list argp) = 0;
@@ -45,9 +45,9 @@ class RequestTrace {
  private:
   bool tracing_enabled_;
 
-  DISALLOW_COPY_AND_ASSIGN(RequestTrace);
+  DISALLOW_COPY_AND_ASSIGN(BaseTraceContext);
 };
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_UTIL_PUBLIC_REQUEST_TRACE_H_
+#endif  // NET_INSTAWEB_HTTP_PUBLIC_BASE_TRACE_CONTEXT_H_

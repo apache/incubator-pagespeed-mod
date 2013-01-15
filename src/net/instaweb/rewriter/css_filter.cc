@@ -38,8 +38,6 @@
 #include "net/instaweb/rewriter/public/css_url_counter.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
-#include "net/instaweb/rewriter/public/image_url_encoder.h"
-#include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -252,11 +250,6 @@ void CssFilter::Context::SetupExternalRewrite(const GoogleUrl& base_gurl,
 void CssFilter::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
-  bool is_ipro =
-      num_slots() == 1 &&
-      (slot(0)->LocationString() ==
-          InPlaceRewriteResourceSlot::kIproSlotLocation);
-  AttachDependentRequestTrace(is_ipro ? "IproProcessCSS" : "ProcessCSS");
   input_resource_ = input_resource;
   output_resource_ = output_resource;
   StringPiece input_contents = input_resource_->contents();
@@ -274,7 +267,6 @@ void CssFilter::Context::RewriteSingle(
   if (!StringPiece(input_resource_->url()).starts_with("data:")) {
     css_base_gurl_.Reset(input_resource_->url());
     css_trim_gurl_.Reset(output_resource_->UrlEvenIfHashNotSet());
-    TracePrintf("RewriteCss: %s", input_resource_->url().c_str());
   }
   in_text_size_ = input_contents.size();
   has_utf8_bom_ = StripUtf8Bom(&input_contents);
@@ -525,11 +517,12 @@ void CssFilter::Context::Harvest() {
       ServerContext* manager = FindServerContext();
       manager->MergeNonCachingResponseHeaders(input_resource_,
                                               output_resource_);
-      ok = driver_->Write(ResourceVector(1, input_resource_),
+      ok = manager->Write(ResourceVector(1, input_resource_),
                           out_text,
                           &kContentTypeCss,
                           input_resource_->charset(),
-                          output_resource_.get());
+                          output_resource_.get(),
+                          driver_->message_handler());
     } else {
       output_partition(0)->set_inlined_data(out_text);
     }
@@ -610,15 +603,6 @@ bool CssFilter::Context::Partition(OutputPartitions* partitions,
   }
 }
 
-GoogleString CssFilter::Context::UserAgentCacheKey(
-    const ResourceContext* resource_context) const {
-  if (resource_context != NULL && !has_parent()) {
-    // CSS cache-key is sensitive to whether the UA supports webp or not.
-    return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
-  }
-  return "";
-}
-
 GoogleString CssFilter::Context::CacheKeySuffix() const {
   GoogleString suffix;
   if (rewrite_inline_element_ != NULL) {
@@ -670,7 +654,6 @@ CssFilter::CssFilter(RewriteDriver* driver,
                      ImageCombineFilter* image_combiner)
     : RewriteFilter(driver),
       in_style_element_(false),
-      style_element_(NULL),
       cache_extender_(cache_extender),
       image_rewrite_filter_(image_rewriter),
       image_combiner_(image_combiner) {
@@ -897,10 +880,6 @@ CssFilter::Context* CssFilter::StartRewriting(const ResourceSlotPtr& slot) {
   DCHECK(driver_->can_rewrite_resources());
   CssFilter::Context* rewriter = MakeContext(driver_, NULL);
   rewriter->AddSlot(slot);
-  // Don't render if we're preserving URLs
-  if (driver_->options()->css_preserve_urls()) {
-    slot->set_disable_rendering(true);
-  }
   if (!driver_->InitiateRewrite(rewriter)) {
     rewriter = NULL;
   }
@@ -959,15 +938,7 @@ CssFilter::Context* CssFilter::MakeContext(RewriteDriver* driver,
   ResourceContext* resource_context = new ResourceContext;
   resource_context->set_inline_images(
       driver_->UserAgentSupportsImageInlining());
-  if (driver_->UserAgentSupportsWebpLosslessAlpha()) {
-    resource_context->set_libwebp_level(
-        ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA);
-  } else if (driver_->UserAgentSupportsWebp()) {
-    resource_context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
-  } else {
-    resource_context->set_libwebp_level(ResourceContext::LIBWEBP_NONE);
-  }
-
+  resource_context->set_attempt_webp(driver_->UserAgentSupportsWebp());
   return new Context(this, driver, parent, cache_extender_,
                      image_rewrite_filter_, image_combiner_, resource_context);
 }

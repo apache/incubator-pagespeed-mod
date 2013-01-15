@@ -57,6 +57,8 @@ class FlushEarlyInfoFinder {
 
   virtual const char* GetCohort() const = 0;
 
+  virtual int64 cache_expiration_time_ms() const = 0;
+
  protected:
   void UpdateFlushEarlyInfoCacheEntry(
       RewriteDriver* driver,

@@ -45,7 +45,6 @@ struct ContentType {
     kJson,
     kPdf,
     kVideo,
-    kOctetStream,  // Binary resources.
     kOther,  // Used to specify a new local ContentType in one test file.
   };
 
@@ -103,9 +102,6 @@ extern const ContentType& kContentTypeWebp;
 // Pdf:
 extern const ContentType& kContentTypePdf;
 
-// Binary/octet-stream.
-extern const ContentType& kBinaryOctetStream;
-
 // Given a name (file or url), see if it has the canonical extension
 // corresponding to a particular content type.
 const ContentType* NameExtensionToContentType(const StringPiece& name);
@@ -119,13 +115,6 @@ const ContentType* MimeTypeToContentType(const StringPiece& mime_type);
 bool ParseContentType(const StringPiece& content_type_str,
                       GoogleString* mime_type,
                       GoogleString* charset);
-
-// Splits comma-separated string to elements and tries to match each one with
-// a recognized content type. The out set will be cleared first and must be
-// present.
-void MimeTypeListToContentTypeSet(
-    const GoogleString& in,
-    std::set<ContentType::Type>* out);
 
 }  // namespace net_instaweb
 

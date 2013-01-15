@@ -83,6 +83,6 @@ class DocType {
   DocTypeEnum doctype_;
 };
 
-}  // namespace net_instaweb
+}  // net_instaweb
 
 #endif  // NET_INSTAWEB_HTMLPARSE_PUBLIC_DOCTYPE_H_

@@ -186,8 +186,7 @@ class HttpResponseWriter : public Writer {
 bool HttpDumpUrlFetcher::StreamingFetchUrl(
     const GoogleString& url, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, Writer* response_writer,
-    MessageHandler* handler,
-    const RequestContextPtr& unused_request_context) {
+    MessageHandler* handler) {
   bool ret = false;
   GoogleString filename;
   GoogleUrl gurl(url);

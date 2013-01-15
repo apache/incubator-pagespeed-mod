@@ -24,11 +24,10 @@
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
@@ -85,10 +84,6 @@ const int kMaxParallelDownload = 6;
 const int kGzipMultiplier = 3;
 const int64 kConnectionSpeedBytesPerMs = 1 * 1024 * 1024 / (8 * 1000);  // 1Mbps
 
-inline int64 TimeToDownload(int64 size) {
-  return size / (kConnectionSpeedBytesPerMs * kGzipMultiplier);
-}
-
 }  // namespace
 
 FlushEarlyContentWriterFilter::FlushEarlyContentWriterFilter(
@@ -106,8 +101,8 @@ void FlushEarlyContentWriterFilter::StartDocument() {
   // write whatever we need to original_writer_.
   original_writer_ = driver_->writer();
   set_writer(&null_writer_);
-  prefetch_mechanism_ = driver_->user_agent_matcher()->GetPrefetchMechanism(
-      driver_->user_agent(), driver_->request_headers());
+  prefetch_mechanism_ = driver_->user_agent_matcher().GetPrefetchMechanism(
+      driver_->user_agent());
   current_element_ = NULL;
   FlushEarlyInfoFinder* finder =
       driver_->server_context()->flush_early_info_finder();
@@ -146,45 +141,18 @@ void FlushEarlyContentWriterFilter::EndDocument() {
                      semantic_type::kScript);
     }
   }
-  TryFlushingDeferJavascriptEarly();
-
   if (insert_close_script_) {
     WriteToOriginalWriter("})()</script>");
   }
-
   if (!flush_early_content_.empty()) {
     WriteToOriginalWriter(flush_early_content_);
   }
-
   if (num_resources_flushed_ > 0) {
     num_resources_flushed_early_->IncBy(num_resources_flushed_);
+    WriteToOriginalWriter(
+        StringPrintf(kPrefetchStartTimeScript, num_resources_flushed_));
   }
-  WriteToOriginalWriter(
-      StringPrintf(kPrefetchStartTimeScript, num_resources_flushed_));
   Clear();
-}
-
-void FlushEarlyContentWriterFilter::TryFlushingDeferJavascriptEarly() {
-  const RewriteOptions* options = driver_->options();
-  // We don't flush defer js here if SplitHtml filter is enabled since blink js
-  // contains defer js.
-  bool should_try_flushing_early_js_defer_script =
-      !options->Enabled(RewriteOptions::kSplitHtml) &&
-      defer_javascript_enabled_ &&
-      driver_->UserAgentSupportsJsDefer() &&
-      options->flush_more_resources_early_if_time_permits();
-  if (should_try_flushing_early_js_defer_script) {
-    GoogleString defer_js = driver_->server_context()->
-        static_javascript_manager()->GetJsSnippet(
-            StaticJavascriptManager::kDeferJs, options);
-    int64 time_to_download = TimeToDownload(defer_js.size());
-    if (time_consumed_ms_ + time_to_download < max_available_time_ms_) {
-      StaticJavascriptManager* static_js_manager =
-          driver_->server_context()->static_javascript_manager();
-      FlushResources(static_js_manager->GetDeferJsUrl(options),
-                     time_to_download, false, semantic_type::kScript);
-    }
-  }
 }
 
 void FlushEarlyContentWriterFilter::StartElement(HtmlElement* element) {
@@ -240,7 +208,8 @@ void FlushEarlyContentWriterFilter::StartElement(HtmlElement* element) {
               // TODO(pulkitg): Add a mechanism to flush javascript if
               // defer_javascript is enabled and prefetch mechanism is
               // kPrefetchLinkScriptTag.
-              int64 time_to_download = TimeToDownload(size);
+              int64 time_to_download =
+                  size / (kConnectionSpeedBytesPerMs * kGzipMultiplier);
               ResourceInfo* js_info = new ResourceInfo(
                   url.as_string(), time_to_download, is_pagespeed_resource);
               js_resources_info_.push_back(js_info);

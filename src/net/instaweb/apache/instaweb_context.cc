@@ -21,17 +21,14 @@
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/apr_timer.h"
-#include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/mod_instaweb.h"
+#include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/condvar.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -53,10 +50,8 @@ const int kRequestChainLimit = 5;
 
 PropertyCallback::PropertyCallback(RewriteDriver* driver,
                                    ThreadSystem* thread_system,
-                                   const StringPiece& key)
-    : PropertyPage(thread_system->NewMutex(),
-                   *driver->server_context()->page_property_cache(), key,
-                   driver->request_context()),
+                                   const StringPiece& key) :
+  PropertyPage(thread_system->NewMutex(), key),
   driver_(driver),
   done_(false),
   mutex_(thread_system->NewMutex()),
@@ -107,8 +102,6 @@ InstawebContext::InstawebContext(request_rec* request,
     // what ExperimentSpec the user should be seeing.
     use_custom_options = true;
   }
-  RequestContextPtr request_context(
-      new RequestContext(server_context_->thread_system()->NewMutex()));
   if (use_custom_options) {
     // TODO(jmarantz): this is a temporary hack until we sort out better
     // memory management of RewriteOptions.  This will drag on performance.
@@ -123,20 +116,15 @@ InstawebContext::InstawebContext(request_rec* request,
       SetFuriousStateAndCookie(request, custom_options);
     }
     server_context_->ComputeSignature(custom_options);
-    rewrite_driver_ = server_context_->NewCustomRewriteDriver(
-        custom_options, request_context);
+    rewrite_driver_ = server_context_->NewCustomRewriteDriver(custom_options);
   } else if (using_spdy && (server_context_->SpdyConfig() != NULL)) {
     rewrite_driver_ = server_context_->NewRewriteDriverFromPool(
-        server_context_->spdy_driver_pool(), request_context);
+        server_context_->spdy_driver_pool());
   } else {
-    rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
+    rewrite_driver_ = server_context_->NewRewriteDriver();
   }
   modify_caching_headers_ =
       rewrite_driver_->options()->modify_caching_headers();
-
-  const char* user_agent = apr_table_get(request->headers_in,
-                                         HttpAttributes::kUserAgent);
-  rewrite_driver_->set_user_agent(user_agent);
 
   // Begin the property cache lookup. This should be as early as possible since
   // it may be asynchronous (in the case of memcached).
@@ -187,6 +175,9 @@ InstawebContext::InstawebContext(request_rec* request,
 
   rewrite_driver_->set_using_spdy(using_spdy);
 
+  const char* user_agent = apr_table_get(request->headers_in,
+                                         HttpAttributes::kUserAgent);
+  rewrite_driver_->set_user_agent(user_agent);
   // Make the entire request headers available to filters.
   rewrite_driver_->set_request_headers(request_headers_.get());
 
@@ -323,18 +314,9 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
 PropertyCallback* InstawebContext::InitiatePropertyCacheLookup() {
   PropertyCallback* property_callback = NULL;
   if (server_context_->page_property_cache()->enabled()) {
-    const UserAgentMatcher* user_agent_matcher =
-        server_context_->user_agent_matcher();
-    UserAgentMatcher::DeviceType device_type =
-        user_agent_matcher->GetDeviceTypeForUA(rewrite_driver_->user_agent());
-    StringPiece device_type_suffix =
-        UserAgentMatcher::DeviceTypeSuffix(device_type);
-
-    GoogleString key = server_context_->GetPagePropertyCacheKey(
-        absolute_url_, rewrite_driver_->options(), device_type_suffix);
     property_callback = new PropertyCallback(rewrite_driver_,
                                              server_context_->thread_system(),
-                                             key);
+                                             absolute_url_);
     server_context_->page_property_cache()->Read(property_callback);
   }
   return property_callback;
@@ -449,9 +431,7 @@ void InstawebContext::SetFuriousStateAndCookie(request_rec* request,
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
     int furious_value = options->furious_id();
     server_context_->furious_matcher()->StoreExperimentData(
-        furious_value, url,
-        timer.NowMs() + options->furious_cookie_duration_ms(),
-        &resp_headers);
+        furious_value, url, timer.NowMs(), &resp_headers);
     AddResponseHeadersToRequest(&resp_headers, NULL,
                                 options->modify_caching_headers(), request);
   }

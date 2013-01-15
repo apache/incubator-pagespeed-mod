@@ -22,15 +22,16 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/util/public/null_message_handler.h"
 
 namespace net_instaweb {
-
-class RewriteOptions;
 
 JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
     : rewrite_driver_(driver) {
@@ -47,17 +48,21 @@ bool JsDeferDisabledFilter::ShouldApply(RewriteDriver* driver) {
 }
 
 void JsDeferDisabledFilter::InsertJsDeferCode() {
-  StaticJavascriptManager* static_js_manager =
-      rewrite_driver_->server_context()->static_javascript_manager();
-  const RewriteOptions* options = rewrite_driver_->options();
-  // Insert script node with deferJs code as outlined.
-  HtmlElement* defer_js_url_node =
-      rewrite_driver_->NewElement(NULL, HtmlName::kScript);
-  rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kType,
-                                "text/javascript");
-  rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kSrc,
-                                static_js_manager->GetDeferJsUrl(options));
-  rewrite_driver_->InsertElementAfterCurrent(defer_js_url_node);
+  if (!rewrite_driver_->is_defer_javascript_script_flushed()) {
+    StaticJavascriptManager* static_js_manager =
+        rewrite_driver_->server_context()->static_javascript_manager();
+    const RewriteOptions* options = rewrite_driver_->options();
+    // Insert script node with deferJs code as outlined.
+    HtmlElement* defer_js_url_node =
+        rewrite_driver_->NewElement(NULL, HtmlName::kScript);
+    rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kType,
+                                  "text/javascript");
+    rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kSrc,
+                                  static_js_manager->GetDeferJsUrl(options));
+    rewrite_driver_->InsertElementAfterCurrent(defer_js_url_node);
+
+    rewrite_driver_->set_is_defer_javascript_script_flushed(true);
+  }
 }
 
 void JsDeferDisabledFilter::EndDocument() {

@@ -75,6 +75,7 @@ int MockMessageHandler::TotalMessages() const {
 }
 
 int MockMessageHandler::TotalMessagesImpl() const {
+
   int total = 0;
   for (MessageCountMap::const_iterator i = message_counts_.begin();
        i != message_counts_.end(); ++i) {

@@ -207,25 +207,13 @@ class ApacheConfig : public RewriteOptions {
     return cache_flush_filename_.value();
   }
 
-  // If this is set to true, we'll turn on our fallback proxy-like behavior
-  // on non-.pagespeed. URLs without changing the main fetcher from Serf
-  // (the way the slurp options would).
+  // Controls whether we act as a rewriting proxy, fetching
+  // URLs from origin without managing a slurp dump.
   bool test_proxy() const {
     return test_proxy_.value();
   }
   void set_test_proxy(bool x) {
     set_option(x, &test_proxy_);
-  }
-
-  // This configures the fetcher we use for fallback handling if test_proxy()
-  // is on:
-  //  - If this is empty, we use the usual mod_pagespeed fetcher
-  //    (e.g. Serf)
-  //  - If it's non-empty, the fallback URLs will be fetched from the given
-  //    slurp directory. mod_pagespeed resource fetches, however, will still
-  //    use the usual fetcher (e.g. Serf).
-  GoogleString test_proxy_slurp() const {
-    return test_proxy_slurp_.value();
   }
 
   // Helper functions
@@ -328,24 +316,22 @@ class ApacheConfig : public RewriteOptions {
 
   // comma-separated list of host[:port].  See AprMemCache::AprMemCache
   // for code that parses it.
-  Option<GoogleString> fetch_https_;
   Option<GoogleString> memcached_servers_;
   Option<GoogleString> slurp_directory_;
   Option<GoogleString> statistics_logging_file_;
   Option<GoogleString> statistics_logging_charts_css_;
   Option<GoogleString> statistics_logging_charts_js_;
   Option<GoogleString> cache_flush_filename_;
-  Option<GoogleString> test_proxy_slurp_;
 
   ApacheOption<RefererStatisticsOutputLevel> referer_statistics_output_level_;
 
   Option<bool> collect_referer_statistics_;
   Option<bool> hash_referer_statistics_;
-  Option<bool> slurp_read_only_;
   Option<bool> statistics_enabled_;
   Option<bool> statistics_logging_enabled_;
   Option<bool> test_proxy_;
   Option<bool> use_shared_mem_locking_;
+  Option<bool> slurp_read_only_;
   Option<bool> rate_limit_background_fetches_;
   Option<bool> experimental_fetch_from_mod_spdy_;
 

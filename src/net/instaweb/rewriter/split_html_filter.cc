@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
@@ -36,7 +35,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_javascript_manager.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/json_writer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -166,12 +164,9 @@ void SplitHtmlFilter::ServeNonCriticalPanelContents(const Json::Value& json) {
                            num_low_res_images_inlined_,
                            GetBlinkJsUrl(options_, static_js_manager_).c_str(),
                            non_critical_json.c_str()));
-  if (!json.empty()) {
+  if (rewrite_driver_->log_record() != NULL && !json.empty()) {
     rewrite_driver_->log_record()->LogAppliedRewriter(
         RewriteOptions::FilterId(RewriteOptions::kSplitHtml));
-    ScopedMutex lock(rewrite_driver_->log_record()->mutex());
-    rewrite_driver_->log_record()->logging_info()->mutable_split_html_info()
-        ->set_json_size(non_critical_json.size());
   }
   HtmlWriterFilter::Flush();
 }
@@ -331,17 +326,7 @@ void SplitHtmlFilter::StartElement(HtmlElement* element) {
   }
 
   if (!num_children_stack_.empty()) {
-    // Ignore some of the non-rendered tags for numbering the children. This
-    // helps avoid mismatches due to combine_javascript combining differently
-    // and creating different numbers of script nodes in different rewrites.
-    // This also helps when combine_css combines link tags or styles differently
-    // in different rewrites.
-    if (element->keyword() != HtmlName::kScript &&
-        element->keyword() != HtmlName::kNoscript &&
-        element->keyword() != HtmlName::kStyle &&
-        element->keyword() != HtmlName::kLink) {
-      num_children_stack_.back()++;;
-    }
+    num_children_stack_.back()++;;
     num_children_stack_.push_back(0);
   } else if (element->keyword() == HtmlName::kBody) {
     // Start the stack only once body is encountered.

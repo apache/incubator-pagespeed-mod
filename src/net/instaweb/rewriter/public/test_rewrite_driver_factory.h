@@ -45,7 +45,6 @@ class MockScheduler;
 class MockTimer;
 class MockTimeCache;
 class MockUrlFetcher;
-class PropertyCache;
 class ServerContext;
 class RewriteDriver;
 class RewriteFilter;
@@ -169,9 +168,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
 
   // Advances the mock scheduler by delta_ms.
   void AdvanceTimeMs(int64 delta_ms);
-
-  // Sets up the cohort in the PropertyCache provided.
-  void SetupCohort(PropertyCache* cache, const GoogleString& cohort_name);
 
  protected:
   virtual Hasher* NewHasher();

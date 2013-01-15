@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -74,7 +73,7 @@ ModSpdyFetchController::ModSpdyFetchController(
                        500 * num_threads,  /* queued per host */
                        thread_system,
                        statistics),
-      thread_pool_(num_threads, "instaweb_spdy_fetch", thread_system) {
+      thread_pool_(num_threads, thread_system) {
 }
 
 ModSpdyFetchController::~ModSpdyFetchController() {

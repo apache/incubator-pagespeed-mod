@@ -197,7 +197,7 @@ void CacheExtender::Context::Render() {
     // Log applied rewriter id. Here, we care only about non-nested
     // cache extensions, and that too, those occurring in synchronous
     // flows only.
-    if (driver_ != NULL) {
+    if (driver_ != NULL && driver_->log_record() != NULL) {
       if (slot(0)->resource().get() != NULL &&
           slot(0)->resource()->type() != NULL) {
         const char* filter_id = id();
@@ -298,11 +298,12 @@ RewriteResult CacheExtender::RewriteLoadedResource(
 
   server_context_->MergeNonCachingResponseHeaders(
       input_resource, output_resource);
-  if (driver_->Write(ResourceVector(1, input_resource),
-                     contents,
-                     output_type,
-                     input_resource->charset(),
-                     output_resource.get())) {
+  if (server_context_->Write(ResourceVector(1, input_resource),
+                               contents,
+                               output_type,
+                               input_resource->charset(),
+                               output_resource.get(),
+                               message_handler)) {
     return kRewriteOk;
   } else {
     return kRewriteFailed;

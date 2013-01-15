@@ -33,9 +33,7 @@ namespace {
 
 class SlowWorkerTest: public WorkerTestBase {
  public:
-  SlowWorkerTest()
-      : worker_(new SlowWorker("slow_worker_test", thread_runtime_.get())) {
-  }
+  SlowWorkerTest() : worker_(new SlowWorker(thread_runtime_.get())) {}
 
  protected:
   scoped_ptr<SlowWorker> worker_;

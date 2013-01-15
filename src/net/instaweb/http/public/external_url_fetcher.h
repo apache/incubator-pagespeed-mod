@@ -20,11 +20,9 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_EXTERNAL_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_EXTERNAL_URL_FETCHER_H_
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-
 #include "net/instaweb/http/public/url_fetcher.h"
 
 namespace net_instaweb {
@@ -50,8 +48,7 @@ class ExternalUrlFetcher : public UrlFetcher {
                                  const RequestHeaders& request_headers,
                                  ResponseHeaders* response_headers,
                                  Writer* writer,
-                                 MessageHandler* message_handler,
-                                 const RequestContextPtr& request_context);
+                                 MessageHandler* message_handler);
 
 
   // Default user agent to use.

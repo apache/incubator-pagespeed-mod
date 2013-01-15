@@ -19,7 +19,6 @@
 
 #include "net/instaweb/http/http.pb.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
 #include "net/instaweb/http/public/response_headers.h"
@@ -141,17 +140,19 @@ TEST_F(SuppressPreheadFilterTest, UpdateFetchLatencyInFlushEarlyProto) {
 
 TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
   InitResources();
-  const char pre_head_input[] = "<!DOCTYPE html><html><head>";
+  const char pre_head_input[] = "<!DOCTYPE html><html>";
   const char post_head_input[] =
+      "<head>"
         "<link type=\"text/css\" rel=\"stylesheet\""
         " href=\"http://test.com/a.css\"/>"
         "<script src=\"http://test.com/b.js\"></script>"
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  logging_info()->mutable_timing_info()->set_header_fetch_ms(100);
-  rewrite_driver_->log_record()->logging_info()->
-      set_is_original_resource_cacheable(false);
+  scoped_ptr<LogRecord> log_record(new LogRecord);
+  rewrite_driver_->set_log_record(log_record.get());
+  rewrite_driver_->log_record()->logging_info()
+      ->mutable_timing_info()->set_header_fetch_ms(100);
   rewrite_driver_->flush_early_info()->set_last_n_fetch_latencies("96,98");
   rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(97);
 
@@ -166,40 +167,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
             rewrite_driver_->flush_early_info()->last_n_fetch_latencies());
   EXPECT_EQ(98,
             rewrite_driver_->flush_early_info()->average_fetch_latency_ms());
-
-  // pre head is suppressed if the dummy head was flushed early.
-  output_.clear();
-  rewrite_driver()->set_flushed_early(true);
-  Parse("flushed_early", html_input);
-  EXPECT_EQ(post_head_input, output_);
-}
-
-TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppressWithCacheableHtml) {
-  InitResources();
-  const char pre_head_input[] = "<!DOCTYPE html><html><head>";
-  const char post_head_input[] =
-        "<link type=\"text/css\" rel=\"stylesheet\""
-        " href=\"http://test.com/a.css\"/>"
-        "<script src=\"http://test.com/b.js\"></script>"
-      "</head>"
-      "<body></body></html>";
-  GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  logging_info()->mutable_timing_info()->set_header_fetch_ms(100);
-  rewrite_driver_->log_record()->logging_info()->
-      set_is_original_resource_cacheable(true);
-  Parse("not_flushed_early", html_input);
-  EXPECT_EQ(html_input, output_);
-
-  // SuppressPreheadFilter should have populated the flush_early_proto with the
-  // appropriate pre head information and ensure that last_n_fetch_latencies
-  // and average_fetch_latency do not get populated as we don't want to flush
-  // more resources for cacheable html.
-  EXPECT_EQ(pre_head_input,
-            rewrite_driver()->flush_early_info()->pre_head());
-  EXPECT_FALSE(
-      rewrite_driver_->flush_early_info()->has_last_n_fetch_latencies());
-  EXPECT_FALSE(
-      rewrite_driver_->flush_early_info()->has_average_fetch_latency_ms());
+  rewrite_driver_->set_log_record(NULL);
 
   // pre head is suppressed if the dummy head was flushed early.
   output_.clear();
@@ -222,6 +190,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyMetaTags) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=EmulateIE7\"/>"
       "<meta http-equiv=\"X-UA-Compatible\" content=\"junk\"/>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
@@ -252,6 +221,7 @@ TEST_F(SuppressPreheadFilterTest, MetaTagsOutsideHead) {
       "<head></head>"
       "<body></body></html>";
   const char html_without_prehead_and_meta_tags[] =
+      "<head>"
       "</head>"
       "<body></body></html>";
 
@@ -279,10 +249,10 @@ TEST_F(SuppressPreheadFilterTest, NoHead) {
       "<!DOCTYPE html>"
       "<html>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<head></head><body></body></html>";
+      "<head/><body></body></html>";
 
   const char html_input_without_prehead[] =
-      "</head><body></body></html>";
+      "<head/><body></body></html>";
 
   Parse("not_flushed_early", html_input);
   EXPECT_EQ(html_input_with_head_tag, output_);
@@ -312,6 +282,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCharset) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "</head>"
       "<body></body></html>";
 
@@ -347,6 +318,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyPreExistingCharset) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "</head>"
       "<body></body></html>";
 
@@ -375,6 +347,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCookies) {
       "</head>"
       "<body></body></html>";
   const char html_with_cookie[] =
+      "<head>"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "(function(){"
         "var data = [\"CG=US:CA:Mountain+View\",\"UA=chrome\",\"path=/\"];"
@@ -408,6 +381,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCookies2) {
       "</head>"
       "<body></body></html>";
   const char html_with_cookie[] =
+      "<head>"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "(function(){"
         "var data = [\"RMID=266b56483f6e50519316c48a; expires=Friday, "

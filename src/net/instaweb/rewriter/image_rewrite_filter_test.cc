@@ -27,14 +27,12 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/image_testing_peer.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -43,32 +41,33 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
-#include "net/instaweb/util/public/md5_hasher.h"  // for MD5Hasher
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"  // for Timer, etc
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
+
+class AbstractMutex;
 
 namespace {
 
 // Filenames of resource files.
 const char kBikePngFile[] = "BikeCrashIcn.png";
-const char kChefGifFile[] = "IronChef2.gif";
-const char kCuppaOPngFile[] = "CuppaO.png";
-const char kCuppaTPngFile[] = "CuppaT.png";
-const char kLargePngFile[] = "Large.png";
 const char kPuzzleJpgFile[] = "Puzzle.jpg";
+const char kChefGifFile[] = "IronChef2.gif";
+const char kCuppaTPngFile[] = "CuppaT.png";
+const char kCuppaOPngFile[] = "CuppaO.png";
+const char kLargePngFile[] = "Large.png";
 const char kSmallDataFile[] = "small-data.png";
 
 // A callback for HTTP cache that stores body and string representation
@@ -76,10 +75,8 @@ const char kSmallDataFile[] = "small-data.png";
 class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
  public:
   HTTPCacheStringCallback(const RewriteOptions* options,
-                          const RequestContextPtr& request_ctx,
                           GoogleString* body_out, GoogleString* headers_out)
-      : OptionsAwareHTTPCacheCallback(options, request_ctx),
-        body_out_(body_out),
+      : OptionsAwareHTTPCacheCallback(options), body_out_(body_out),
         headers_out_(headers_out), found_(false) {}
 
   virtual ~HTTPCacheStringCallback() {}
@@ -118,7 +115,8 @@ class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
     return true;
   }
   virtual void ComputeCriticalImages(StringPiece url,
-                                     RewriteDriver* driver) {
+                                     RewriteDriver* driver,
+                                     bool must_compute) {
     ++compute_calls_;
   }
   int num_compute_calls() { return compute_calls_; }
@@ -135,16 +133,25 @@ class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
 const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
     "critical_images";
 
-}  // namespace
+class MockPage : public PropertyPage {
+ public:
+  MockPage(AbstractMutex* mutex, const StringPiece& key)
+      : PropertyPage(mutex, key) {}
+  virtual ~MockPage() {}
+  virtual void Done(bool valid) {}
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockPage);
+};
 
 class ImageRewriteTest : public RewriteTestBase {
  protected:
   virtual void SetUp() {
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    SetupCohort(pcache, RewriteDriver::kDomCohort);
+    pcache->AddCohort(RewriteDriver::kDomCohort);
     RewriteTestBase::SetUp();
-    MockPropertyPage* page = NewMockPage(kTestDomain);
+    MockPage* page = new MockPage(factory_->thread_system()->NewMutex(),
+                                  kTestDomain);
     pcache->set_enabled(true);
     rewrite_driver()->set_property_page(page);
     pcache->Read(page);
@@ -157,6 +164,10 @@ class ImageRewriteTest : public RewriteTestBase {
     AddRecompressImageFilters();
     options()->set_image_inline_max_bytes(2000);
     rewrite_driver()->AddFilters();
+
+    LoggingInfo logging_info;
+    LogRecord log_record(&logging_info);
+    rewrite_driver()->set_log_record(&log_record);
 
     // URLs and content for HTML document and resources.
     const GoogleUrl domain(EncodeWithBase("http://rewrite_image.test/",
@@ -196,8 +207,7 @@ class ImageRewriteTest : public RewriteTestBase {
     GoogleString rewritten_image;
     GoogleString rewritten_headers;
     HTTPCacheStringCallback cache_callback(
-        options(), rewrite_driver()->request_context(),
-        &rewritten_image, &rewritten_headers);
+        options(), &rewritten_image, &rewritten_headers);
     http_cache()->Find(src_string, message_handler(), &cache_callback);
     cache_callback.ExpectFound();
 
@@ -207,7 +217,7 @@ class ImageRewriteTest : public RewriteTestBase {
     EXPECT_STREQ(expect_headers, rewritten_headers);
 
     // Also fetch the resource to ensure it can be created dynamically
-    ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
+    ExpectStringAsyncFetch expect_callback(true);
     lru_cache()->Clear();
 
     EXPECT_TRUE(rewrite_driver()->FetchResource(src_string, &expect_callback));
@@ -218,13 +228,12 @@ class ImageRewriteTest : public RewriteTestBase {
     EXPECT_STREQ(rewritten_image, expect_callback.buffer());
     EXPECT_STREQ(rewritten_headers,
                  expect_callback.response_headers()->ToString());
+
     // Try to fetch from an independent server.
-    ServeResourceFromManyContextsWithUA(
-        src_string, rewritten_image,
-        rewrite_driver()->user_agent());
+    ServeResourceFromManyContexts(src_string, rewritten_image);
 
     // Check that filter application was logged.
-    EXPECT_STREQ("ic", logging_info()->applied_rewriters());
+    EXPECT_STREQ("ic", logging_info.applied_rewriters());
   }
 
   // Helper class to collect image srcs.
@@ -434,7 +443,7 @@ class ImageRewriteTest : public RewriteTestBase {
     options()->EnableFilter(RewriteOptions::kResizeImages);
     rewrite_driver()->AddFilters();
     // Perform resource fetch
-    ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
+    ExpectStringAsyncFetch expect_callback(true);
     EXPECT_TRUE(rewrite_driver()->FetchResource(fetch_url, &expect_callback));
     rewrite_driver()->WaitForCompletion();
     EXPECT_EQ(HttpStatus::kOK,
@@ -465,10 +474,9 @@ class ImageRewriteTest : public RewriteTestBase {
                       "", width_height_tags, expect_rewritten, false);
   }
 
-  void TestSquashImagesForMobileScreen(
-      RewriteDriver* driver, int screen_width, int screen_height) {
-    EXPECT_LT(1, screen_width);
-    EXPECT_LT(1, screen_height);
+  void TestSquashImagesForMobileScreen(RewriteDriver* driver) {
+    const int screen_width = 100;
+    const int screen_height = 80;
     rewrite_driver()->SetScreenResolution(screen_width, screen_height);
 
     ImageDim desired_dim;
@@ -477,20 +485,15 @@ class ImageRewriteTest : public RewriteTestBase {
     // Both image dims are less than screen.
     image_dim.set_width(screen_width - 1);
     image_dim.set_height(screen_height - 1);
-
-    ResourceContext context;
-    ImageRewriteFilter image_rewrite_filter(rewrite_driver());
-    image_rewrite_filter.EncodeUserAgentIntoResourceContext(&context);
-
-    EXPECT_FALSE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_FALSE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
 
     // Image height is larger than screen height but image width is less than
     // screen width.
     image_dim.set_width(screen_width - 1);
     image_dim.set_height(screen_height * 2);
-    EXPECT_TRUE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_TRUE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
     EXPECT_FALSE(desired_dim.has_width());
     EXPECT_EQ(screen_height, desired_dim.height());
     desired_dim.clear_height();
@@ -500,8 +503,8 @@ class ImageRewriteTest : public RewriteTestBase {
     // screen width.
     image_dim.set_width(screen_width * 2);
     image_dim.set_height(screen_height - 1);
-    EXPECT_TRUE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_TRUE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
     EXPECT_EQ(screen_width, desired_dim.width());
     EXPECT_FALSE(desired_dim.has_height());
     desired_dim.clear_height();
@@ -511,8 +514,8 @@ class ImageRewriteTest : public RewriteTestBase {
     // is larger than height ratio.
     image_dim.set_width(screen_width * 2);
     image_dim.set_height(screen_height * 3);
-    EXPECT_TRUE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_TRUE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
     EXPECT_FALSE(desired_dim.has_width());
     EXPECT_EQ(screen_height, desired_dim.height());
     desired_dim.clear_height();
@@ -522,8 +525,8 @@ class ImageRewriteTest : public RewriteTestBase {
     // is larger than width ratio.
     image_dim.set_width(screen_width * 3);
     image_dim.set_height(screen_height * 2);
-    EXPECT_TRUE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_TRUE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
     EXPECT_EQ(screen_width, desired_dim.width());
     EXPECT_FALSE(desired_dim.has_height());
 
@@ -535,18 +538,18 @@ class ImageRewriteTest : public RewriteTestBase {
     // If a desired dim is present, no squashing.
     desired_dim.set_width(screen_width);
     desired_dim.clear_height();
-    EXPECT_FALSE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_FALSE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
 
     desired_dim.clear_width();
     desired_dim.set_height(screen_height);
-    EXPECT_FALSE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_FALSE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
 
     desired_dim.set_width(screen_width);
     desired_dim.set_height(screen_height);
-    EXPECT_FALSE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-        image_dim, context, &desired_dim));
+    EXPECT_FALSE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+        image_dim, driver, &desired_dim));
   }
 };
 
@@ -634,61 +637,13 @@ TEST_F(ImageRewriteTest, PngToWebp) {
 TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOn) {
   // Make sure that the image URL stays the same.
   options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->set_image_preserve_urls(true);
   rewrite_driver()->AddFilters();
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                    " width=10 height=10",  // initial_dims,
-                    " width=10 height=10",  // final_dims,
+                    "",       // initial_dims,
+                    "",       // final_dims,
                     false,   // expect_rewritten
                     false);  // expect_inline
-  // The URL wasn't changed but the image should have been compressed and cached
-  // anyway (prefetching for IPRO).
-  ClearStats();
-  GoogleString out_png_url(Encode(kTestDomain, "ic", "0", kBikePngFile, "png"));
-  GoogleString out_png;
-  EXPECT_TRUE(FetchResourceUrl(out_png_url, &out_png));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Make sure that we didn't resize (original image is 100x100).
-  scoped_ptr<Image> image(
-      NewImage(out_png, out_png_url, server_context_->filename_prefix(),
-               new Image::CompressionOptions(), &message_handler_));
-  ImageDim image_dim;
-  image->Dimensions(&image_dim);
-  EXPECT_EQ(100, image_dim.width());
-  EXPECT_EQ(100, image_dim.height());
-}
-
-TEST_F(ImageRewriteTest, ImageRewriteInlinePreserveURLs) {
-  // Willing to inline large files.
-  options()->set_image_inline_max_bytes(1000000);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->set_image_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // File would be inlined without preserve urls, make sure it's not!
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kResizedDims, kResizedDims, false, false);
-  // The optimized file should be in the cache now.
-  ClearStats();
-  GoogleString out_gif_url = Encode(kTestDomain, "ic", "0", kChefGifFile,
-                                    "png");
-  GoogleString out_gif;
-  EXPECT_TRUE(FetchResourceUrl(out_gif_url, &out_gif));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
 }
 
 TEST_F(ImageRewriteTest, ImageRewriteNoTransformAttribute) {
@@ -1236,43 +1191,6 @@ TEST_F(ImageRewriteTest, Rewrite404) {
   ValidateNoChanges("404", "<img src='404.jpg'>");
 }
 
-TEST_F(ImageRewriteTest, HonorNoTransform) {
-  // If cache-control: no-transform then we should serve the original URL
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-
-  GoogleString url = StrCat(kTestDomain, "notransform.png");
-  AddFileToMockFetcher(url, kBikePngFile, kContentTypePng, 100);
-  AddToResponse(url, HttpAttributes::kCacheControl, "no-transform");
-
-  ValidateNoChanges("NoTransform1", StrCat("<img src=", url, ">"));
-  // Validate twice in case changes in cache from the first request alter the
-  // second.
-  ValidateNoChanges("NoTransform2", StrCat("<img src=", url, ">"));
-}
-
-TEST_F(ImageRewriteTest, YesTransform) {
-  // Replicates above test but without no-transform to show that it works.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-
-  GoogleString url = StrCat(kTestDomain, "notransform.png");
-  AddFileToMockFetcher(url, kBikePngFile,
-                       kContentTypePng, 100);
-  ValidateExpected("YesTransform", StrCat("<img src=", url, ">"),
-                   StrCat("<img src=",
-                          Encode("http://test.com/", "ic", "0",
-                                 "notransform.png", "png"),
-                          ">"));
-  // Validate twice in case changes in cache from the first request alter the
-  // second.
-  ValidateExpected("YesTransform", StrCat("<img src=", url, ">"),
-                   StrCat("<img src=",
-                          Encode("http://test.com/", "ic", "0",
-                                 "notransform.png", "png"),
-                          ">"));
-}
-
 TEST_F(ImageRewriteTest, NoExtensionCorruption) {
   TestCorruptUrl("%22", true /* append %22 */);
 }
@@ -1460,8 +1378,7 @@ TEST_F(ImageRewriteTest, InlinableCssImagesInsertedIntoPropertyCache) {
   // Parse the CSS and ensure contents are unchanged.
   GoogleString out_css_url = Encode(kTestDomain, "cf", "0", kCssFile, "css");
   GoogleString out_css;
-  StringAsyncFetch async_fetch(RequestContext::NewTestRequestContext(
-      server_context()->thread_system()), &out_css);
+  StringAsyncFetch async_fetch(&out_css);
   ResponseHeaders response;
   async_fetch.set_response_headers(&response);
   EXPECT_TRUE(rewrite_driver_->FetchResource(out_css_url, &async_fetch));
@@ -1514,130 +1431,25 @@ TEST_F(ImageRewriteTest, SquashImagesForMobileScreen) {
   options()->EnableFilter(RewriteOptions::kSquashImagesForMobileScreen);
   rewrite_driver()->AddFilters();
 
-  int screen_width;
-  int screen_height;
-  ImageUrlEncoder::GetNormalizedScreenResolution(
-      100, 80, &screen_width, &screen_height);
-  rewrite_driver()->set_user_agent("Android 4 Mobile Safari");
-
-  TestSquashImagesForMobileScreen(
-      rewrite_driver(), screen_width, screen_height);
+  rewrite_driver()->set_user_agent("Android 4");
+  TestSquashImagesForMobileScreen(rewrite_driver());
 
   rewrite_driver()->set_user_agent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/537.13+ "
       "(KHTML, like Gecko) Version/5.1.7 Safari/534.57.2");
-  rewrite_driver()->SetScreenResolution(screen_width, screen_height);
-
+  rewrite_driver()->SetScreenResolution(100, 80);
   ImageDim desired_dim;
   ImageDim image_dim;
   // Both image dims are larger than screen but no update since not mobile.
-  image_dim.set_width(screen_width + 100);
-  image_dim.set_height(screen_height + 100);
-  ImageRewriteFilter image_rewrite_filter(rewrite_driver());
-  ResourceContext context;
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&context);
-  EXPECT_FALSE(image_rewrite_filter.UpdateDesiredImageDimsIfNecessary(
-      image_dim, context, &desired_dim));
+  image_dim.set_width(300);
+  image_dim.set_height(160);
+  EXPECT_FALSE(ImageRewriteFilter::UpdateDesiredImageDimsIfNecessary(
+      image_dim, rewrite_driver(), &desired_dim));
 
   rewrite_driver()->set_user_agent("iPhone OS");
-  TestSquashImagesForMobileScreen(
-      rewrite_driver(), screen_width, screen_height);
+  TestSquashImagesForMobileScreen(rewrite_driver());
 }
 
-TEST_F(ImageRewriteTest, ProgressiveJpegThresholds) {
-  GoogleString image_data;
-  ASSERT_TRUE(LoadFile(kPuzzleJpgFile, &image_data));
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  options->recompress_jpeg = true;
-  scoped_ptr<Image> image(NewImage(image_data, kPuzzleJpgFile, "",
-                                   options, message_handler()));
-
-  // Since we haven't established a size, resizing won't happen.
-  ImageDim dims;
-  EXPECT_TRUE(ImageTestingPeer::ShouldConvertToProgressive(-1, image.get()));
-
-  // Now provide a context, resizing the image to 10x10.  Of course
-  // we should not convert that to progressive, because post-resizing
-  // the image will be tiny.
-  dims.set_width(10);
-  dims.set_height(10);
-  ImageTestingPeer::SetResizedDimensions(dims, image.get());
-  EXPECT_FALSE(ImageTestingPeer::ShouldConvertToProgressive(-1, image.get()));
-
-  // At 256x192, we are close to the tipping point, and whether we should
-  // convert to progressive or not is dependent on the compression
-  // level.
-  dims.set_width(256);
-  dims.set_height(192);
-  ImageTestingPeer::SetResizedDimensions(dims, image.get());
-  EXPECT_TRUE(ImageTestingPeer::ShouldConvertToProgressive(-1, image.get()));
-
-  // Setting compression to 90.  The quality level is high, and our model
-  // says we'll wind up with an image >10204 bytes, which is still
-  // large enough to convert to progressive.
-  EXPECT_TRUE(ImageTestingPeer::ShouldConvertToProgressive(90, image.get()));
-
-  // Now set the compression to 75, which shrinks our image to <10k so
-  // we should stop converting to progressive.
-  EXPECT_FALSE(ImageTestingPeer::ShouldConvertToProgressive(75, image.get()));
-}
-
-TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
-    GoogleString initial_image_url = StrCat(kTestDomain, kPuzzleJpgFile);
-    const GoogleString kHtmlInput =
-        StrCat("<img src='", initial_image_url.c_str(), "'>");
-    options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-    AddRecompressImageFilters();
-    rewrite_driver()->AddFilters();
-    rewrite_driver()->set_user_agent("webp");
-
-    GoogleString page_url = StrCat(kTestDomain, "test.html");
-    // Store image contents into fetcher.
-    AddFileToMockFetcher(initial_image_url, kPuzzleJpgFile,
-                         kContentTypeJpeg, 100);
-    ParseUrl(page_url, kHtmlInput);
-
-    StringVector image_urls;
-    CollectImgSrcs(initial_image_url, output_buffer_, &image_urls);
-    EXPECT_EQ(1, image_urls.size());
-    const GoogleUrl image_gurl(image_urls[0]);
-    EXPECT_TRUE(image_gurl.LeafSansQuery().ends_with("webp"));
-    const GoogleString& src_string = image_urls[0];
-
-    ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
-    EXPECT_TRUE(rewrite_driver()->FetchResource(src_string, &expect_callback));
-    rewrite_driver()->WaitForCompletion();
-
-    ResponseHeaders* response_headers = expect_callback.response_headers();
-    EXPECT_TRUE(response_headers->IsProxyCacheable());
-    EXPECT_EQ(Timer::kYearMs,
-              response_headers->CacheExpirationTimeMs() - timer()->NowMs());
-    // Set a non-webp UA.
-    rewrite_driver()->set_user_agent("");
-
-    GoogleString new_image_url =  StrCat(kTestDomain, kPuzzleJpgFile);
-    page_url = StrCat(kTestDomain, "test.html");
-    ParseUrl(page_url, kHtmlInput);
-
-    CollectImgSrcs(new_image_url, output_buffer_, &image_urls);
-    EXPECT_EQ(2, image_urls.size());
-    const GoogleString& rewritten_url = image_urls[1];
-    const GoogleUrl rewritten_gurl(rewritten_url);
-    EXPECT_TRUE(rewritten_gurl.LeafSansQuery().ends_with("jpg"));
-
-    GoogleString content;
-    ResponseHeaders response;
-    MD5Hasher hasher;
-    GoogleString new_hash = hasher.Hash(output_buffer_);
-    // Fetch a new rewritten url with a new hash so as to get a short cache
-    // time.
-    const GoogleString rewritten_url_new =
-        StrCat("http://test.com/x", kPuzzleJpgFile, ".pagespeed.ic.",
-               new_hash, ".jpg");
-    ASSERT_TRUE(FetchResourceUrl(rewritten_url_new, &content, &response));
-    EXPECT_FALSE(response.IsProxyCacheable());
-    EXPECT_EQ(5 * Timer::kMinuteMs,
-              response.CacheExpirationTimeMs() - timer()->NowMs());
-}
+}  // namespace
 
 }  // namespace net_instaweb

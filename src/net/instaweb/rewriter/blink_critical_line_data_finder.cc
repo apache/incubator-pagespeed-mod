@@ -46,14 +46,8 @@ void BlinkCriticalLineDataFinder::ComputeBlinkCriticalLineData(
 }
 
 void BlinkCriticalLineDataFinder::PropagateCacheDeletes(
-    const GoogleString& url, int furious_id) {
+    const GoogleString& key) {
   // Default interface is empty and derived classes can override.
-}
-
-bool BlinkCriticalLineDataFinder::UpdateDiffInfo(
-    bool is_diff, int64 now_ms, RewriteDriver* rewrite_driver) {
-  // Default interface is empty and derived classes can override.
-  return false;
 }
 
 }  // namespace net_instaweb

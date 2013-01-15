@@ -23,11 +23,11 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_writer.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -38,7 +38,6 @@
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/cache_batcher.h"
-#include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
 #include "net/instaweb/util/public/filename_encoder.h"
@@ -47,7 +46,6 @@
 #include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -318,9 +316,8 @@ UsageDataReporter* RewriteDriverFactory::DefaultUsageDataReporter() {
   return new UsageDataReporter;
 }
 
-QueuedWorkerPool* RewriteDriverFactory::CreateWorkerPool(
-    WorkerPoolCategory pool, StringPiece name) {
-  return new QueuedWorkerPool(1, name, thread_system());
+QueuedWorkerPool* RewriteDriverFactory::CreateWorkerPool(WorkerPoolName pool) {
+  return new QueuedWorkerPool(1, thread_system());
 }
 
 int RewriteDriverFactory::LowPriorityLoadSheddingThreshold() const {
@@ -338,26 +335,9 @@ NamedLockManager* RewriteDriverFactory::lock_manager() {
   return lock_manager_.get();
 }
 
-QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolCategory pool) {
+QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolName pool) {
   if (worker_pools_[pool] == NULL) {
-    StringPiece name;
-    switch (pool) {
-      case kHtmlWorkers:
-        name = "html";
-        break;
-      case kRewriteWorkers:
-        name = "rewrite";
-        break;
-      case kLowPriorityRewriteWorkers:
-        name = "slow_rewrite";
-        break;
-      default:
-        LOG(DFATAL) << "Unhandled enum value " << pool;
-        name = "unknown_worker";
-        break;
-    }
-
-    worker_pools_[pool] = CreateWorkerPool(pool, name);
+    worker_pools_[pool] = CreateWorkerPool(pool);
     worker_pools_[pool]->set_queue_size_stat(
         rewrite_stats()->thread_queue_depth(pool));
     if (pool == kLowPriorityRewriteWorkers) {
@@ -419,8 +399,6 @@ void RewriteDriverFactory::InitServerContext(
   }
   resource_manager->set_url_namer(url_namer());
   resource_manager->set_user_agent_matcher(user_agent_matcher());
-  resource_manager->user_agent_matcher()->set_device_cache(
-      resource_manager->device_property_cache());
   resource_manager->set_filename_encoder(filename_encoder());
   resource_manager->set_file_system(file_system());
   resource_manager->set_filename_prefix(filename_prefix_);
@@ -588,7 +566,6 @@ void RewriteDriverFactory::InitStats(Statistics* statistics) {
   RewriteStats::InitStats(statistics);
   CriticalImagesFinder::InitStats(statistics);
   CacheBatcher::InitStats(statistics);
-  PropertyCache::InitCohortStats(ClientState::kClientStateCohort, statistics);
 }
 
 void RewriteDriverFactory::Initialize() {
@@ -618,6 +595,10 @@ RewriteOptions* RewriteDriverFactory::NewRewriteOptions() {
 
 RewriteOptions* RewriteDriverFactory::NewRewriteOptionsForQuery() {
   return NewRewriteOptions();
+}
+
+LogRecord* RewriteDriverFactory::NewLogRecord() {
+  return new LogRecord();
 }
 
 FuriousMatcher* RewriteDriverFactory::NewFuriousMatcher() {

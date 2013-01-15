@@ -17,10 +17,10 @@
 // Author: pulkitg@google.com (Pulkit Goyal)
 
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
+#include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -34,9 +34,6 @@
 #include "net/instaweb/util/public/wildcard.h"
 
 namespace {
-const char kAndroidMobileUserAgent1[] = "Android 3.1 Mobile Safari";
-const char kAndroidMobileUserAgent2[] = "Android 4 Mobile Safari";
-
 const char kSampleJpgFile[] = "Sample.jpg";
 const char kSampleWebpFile[] = "Sample_webp.webp";
 const char kLargeJpgFile[] = "Puzzle.jpg";
@@ -168,13 +165,16 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   void SetupUserAgentTest(StringPiece user_agent) {
-    ClearRewriteDriver();
+    rewrite_driver()->Clear();
     rewrite_driver()->set_user_agent(user_agent);
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   }
 };
 
 TEST_F(DelayImagesFilterTest, DelayImagesAcrossDifferentFlushWindow) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   options()->EnableFilter(RewriteOptions::kDeferJavascript);
   options()->EnableFilter(RewriteOptions::kLazyloadImages);
   AddFilter(RewriteOptions::kDelayImages);
@@ -194,7 +194,7 @@ TEST_F(DelayImagesFilterTest, DelayImagesAcrossDifferentFlushWindow) {
   html_parse()->Flush();
   html_parse()->ParseText(flush2);
   html_parse()->FinishParse();
-  rewrite_driver()->log_record()->Finalize();
+  log_record.Finalize();
 
   GoogleString output_html = StrCat(GetHeadHtmlWithDeferJs(),
       StrCat("<body>",
@@ -214,7 +214,7 @@ TEST_F(DelayImagesFilterTest, DelayImagesAcrossDifferentFlushWindow) {
              "\npagespeed.delayImages.replaceWithHighRes();\n</script>"
              "</body>", GetDeferJs()));
   EXPECT_TRUE(Wildcard(output_html).Match(output_buffer_));
-  EXPECT_TRUE(logging_info()->applied_rewriters().find("di") !=
+  EXPECT_TRUE(logging_info.applied_rewriters().find("di") !=
               GoogleString::npos);
 }
 
@@ -229,7 +229,13 @@ TEST_F(DelayImagesFilterTest, DelayImagesPreserveURLsOn) {
       "<img src=\"http://test.com/1.jpeg\"/>"
       "</body></html>";
 
-  MatchOutputAndCountBytes(kInputHtml, kInputHtml);
+  // We'll add the noscript code but the image URL shouldn't change.
+  GoogleString output_html = StrCat(
+      "<html><head></head><body>",
+      GetNoscript(),
+      "<img src=\"http://test.com/1.jpeg\"/></body></html>");
+
+  MatchOutputAndCountBytes(kInputHtml, output_html);
 }
 
 TEST_F(DelayImagesFilterTest, DelayImageWithDeferJavascriptDisabled) {
@@ -562,14 +568,14 @@ TEST_F(DelayImagesFilterTest, ResizeForResolution) {
   SetupUserAgentTest("Safari");
   int byte_count_desktop1 = MatchOutputAndCountBytes(input_html, output_html);
 
-  SetupUserAgentTest(kAndroidMobileUserAgent1);
+  SetupUserAgentTest("Android 3.1");
   int byte_count_android1 = MatchOutputAndCountBytes(input_html, output_html);
   EXPECT_LT(byte_count_android1, byte_count_desktop1);
 
   SetupUserAgentTest("MSIE 8.0");
   int byte_count_desktop2 = MatchOutputAndCountBytes(input_html, output_html);
 
-  SetupUserAgentTest(kAndroidMobileUserAgent2);
+  SetupUserAgentTest("Android 4");
   int byte_count_android2 = MatchOutputAndCountBytes(input_html, output_html);
   EXPECT_EQ(byte_count_android1, byte_count_android2);
   EXPECT_EQ(byte_count_desktop1, byte_count_desktop2);
@@ -598,7 +604,7 @@ TEST_F(DelayImagesFilterTest, ResizeForResolutionWithSmallImage) {
 
   // No low quality data for an image smaller than kDelayImageWidthForMobile
   // (in image_rewrite_filter.cc).
-  rewrite_driver()->set_user_agent(kAndroidMobileUserAgent1);
+  rewrite_driver()->set_user_agent("Android 3.1");
   MatchOutputAndCountBytes(input_html, output_html);
 }
 
@@ -621,7 +627,7 @@ TEST_F(DelayImagesFilterTest, ResizeForResolutionNegative) {
   // outputs will have the same size.
   SetupUserAgentTest("Safari");
   int byte_count_desktop = MatchOutputAndCountBytes(input_html, output_html);
-  SetupUserAgentTest(kAndroidMobileUserAgent1);
+  SetupUserAgentTest("Android 3.1");
   int byte_count_mobile = MatchOutputAndCountBytes(input_html, output_html);
   EXPECT_EQ(byte_count_mobile, byte_count_desktop);
 }

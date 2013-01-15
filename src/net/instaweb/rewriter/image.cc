@@ -28,6 +28,7 @@
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/webp_optimizer.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_timer.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -91,70 +92,6 @@ const int64 kMaxJpegQuality = 100;
 
 }  // namespace ImageHeaders
 
-namespace {
-
-// To estimate the number of bytes from the number of pixels, we divide
-// by a magic ratio.  The 'correct' ratio is of course dependent on the
-// image itself, but we are ignoring that so we can make a fast judgement.
-// It is also dependent on a variety of image optimization settings, but
-// for now we will assume the 'rewrite_images' bucket is on, and vary only
-// on the jpeg compression level.
-//
-// Consider a testcase from our system tests, which resizes
-// mod_pagespeed_example/images/Puzzle.jpg to 256x192, or 49152
-// pixels, using compression level 75.  Our default byte threshold for
-// jpeg progressive conversion is 10240 (rewrite_options.cc).
-// Converting to progressive in this case makes the image slightly
-// larger (8251 bytes vs 8157 bytes), so we'd like this to be the
-// threshold where we decide *not* to convert to progressive.
-// Dividing 49152 by 5 (multiplying by 0.2) gets us just under our
-// default 10k byte threshold.
-//
-// Making this number smaller will break apache_system_test.sh with this
-// failure:
-//     failure at line 353
-// FAILed Input: /tmp/.../fetched_directory/*256x192*Puzzle* : 8251 -le 8157
-// in 'quality of jpeg output images with generic quality flag'
-// FAIL.
-//
-// A first attempt at computing that ratio is based on an analysis of Puzzle.jpg
-// at various compression ratios.  Sized to 256x192, or 49152 pixels:
-//
-// compression level    size(no progressive)  no_progressive/49152
-// 50,                  5891,                 0.1239217122
-// 55,                  6186,                 0.1299615486
-// 60,                  6661,                 0.138788298
-// 65,                  7068,                 0.1467195606
-// 70,                  7811,                 0.1611197005
-// 75,                  8402,                 0.1728746669
-// 80,                  9800,                 0.1976280565
-// 85,                  11001,                0.220020749
-// 90,                  15021,                0.2933279089
-// 95,                  19078,                0.3703545493
-// 100,                 19074,                0.3704283796
-//
-// At compression level 100, byte-sizes are almost identical to compression 95
-// so we throw this data-point out.
-//
-// Plotting this data in a graph the data is non-linear.  Experimenting in a
-// spreadsheet we get decent visual linearity by transforming the somewhat
-// arbitrary compression ratio with the formula (1 / (110 - compression_level)).
-// Drawing a line through the data-points at compression levels 50 and 95, we
-// get a slope of 4.92865674 and an intercept of 0.04177743.  Double-checking,
-// this fits the other data-points we have reasonably well, except for the
-// one at compression_level 100.
-const double JpegPixelToByteRatio(int compression_level) {
-  if ((compression_level > 95) || (compression_level < 0)) {
-    compression_level = 95;
-  }
-  double kSlope = 4.92865674;
-  double kIntercept = 0.04177743;
-  double ratio = kSlope / (110.0 - compression_level) + kIntercept;
-  return ratio;
-}
-
-}  // namespace
-
 // TODO(jmaessen): Put ImageImpl into private namespace.
 
 class ImageImpl : public Image {
@@ -172,10 +109,7 @@ class ImageImpl : public Image {
   virtual bool ResizeTo(const ImageDim& new_dim);
   virtual bool DrawImage(Image* image, int x, int y);
   virtual bool EnsureLoaded(bool output_useful);
-  virtual bool ShouldConvertToProgressive(int64 quality) const;
-  virtual void SetResizedDimensions(const ImageDim& dims) { dims_ = dims; }
   virtual void SetTransformToLowRes();
-  virtual const GoogleString& url() { return url_; }
 
  private:
   // byte buffer type most convenient for working with given OpenCV version
@@ -229,17 +163,6 @@ class ImageImpl : public Image {
                         GoogleString* filename);
 #endif
 
-  // Optimizes the png image_data, readable via png_reader.
-  bool OptimizePng(
-      const pagespeed::image_compression::PngReaderInterface& png_reader,
-      const GoogleString& image_data);
-
-  // Converts image_data, readable via png_reader, to a jpeg if
-  // possible or a png if not, using the settings in options_.
-  bool OptimizePngOrConvertToJpeg(
-      const pagespeed::image_compression::PngReaderInterface& png_reader,
-      const GoogleString& image_data);
-
   const GoogleString file_prefix_;
   MessageHandler* handler_;
   IplImage* opencv_image_;        // Lazily filled on OpenCV load.
@@ -247,7 +170,6 @@ class ImageImpl : public Image {
   bool changed_;
   const GoogleString url_;
   ImageDim dims_;
-  ImageDim resized_dimensions_;
   scoped_ptr<Image::CompressionOptions> options_;
   bool low_quality_enabled_;
 
@@ -255,12 +177,7 @@ class ImageImpl : public Image {
 };
 
 void ImageImpl::SetTransformToLowRes() {
-  // TODO(vchudnov): Deprecate low_quality_enabled_.
   low_quality_enabled_ = true;
-  // TODO(vchudnov): All these settings should probably be tunable.
-  if (options_->preferred_webp != WEBP_NONE) {
-    options_->preferred_webp = WEBP_LOSSY;
-  }
   options_->webp_quality = 10;
   options_->jpeg_quality = 10;
 }
@@ -269,13 +186,12 @@ Image::Image(const StringPiece& original_contents)
     : image_type_(IMAGE_UNKNOWN),
       original_contents_(original_contents),
       output_contents_(),
-      output_valid_(false),
-      rewrite_attempted_(false) { }
+      output_valid_(false) { }
 
 ImageImpl::ImageImpl(const StringPiece& original_contents,
                      const GoogleString& url,
                      const StringPiece& file_prefix,
-                     CompressionOptions* options,
+                     Image::CompressionOptions* options,
                      MessageHandler* handler)
     : Image(original_contents),
       file_prefix_(file_prefix.data(), file_prefix.size()),
@@ -299,18 +215,18 @@ Image::Image(Type type)
     : image_type_(type),
       original_contents_(),
       output_contents_(),
-      output_valid_(false),
-      rewrite_attempted_(false) { }
+      output_valid_(false) { }
 
 ImageImpl::ImageImpl(int width, int height, Type type,
                      const StringPiece& tmp_dir, MessageHandler* handler,
-                     CompressionOptions* options)
+                     Image::CompressionOptions* options)
     : Image(type),
       file_prefix_(tmp_dir.data(), tmp_dir.size()),
       handler_(handler),
       opencv_image_(NULL),
       opencv_load_possible_(true),
       changed_(false),
+      url_(),
       low_quality_enabled_(false) {
   options_.reset(options);
   dims_.set_width(width);
@@ -650,17 +566,15 @@ bool ImageImpl::LoadOpenCvEmpty() {
       ok = true;
     } catch (cv::Exception& e) {
       handler_->Message(
-          kError,
 #ifdef USE_OPENCV_2_1
-          "OpenCv exception in LoadOpenCvEmpty: %s", e.what()
+          kError, "OpenCv exception in LoadOpenCvEmpty: %s", e.what());
 #else
           // No .what() on cv::Exception in OpenCv 2.0
-          "OpenCv exception in LoadOpenCvEmpty"
+          kError, "OpenCv exception in LoadOpenCvEmpty");
 #endif
-                        );  // NOLINT
+    }
   }
-}
-return ok;
+  return ok;
 }
 
 #ifdef USE_OPENCV_2_1
@@ -695,8 +609,8 @@ bool ImageImpl::SaveOpenCvToBuffer(OpenCvBuffer* buf) {
 // so we need to write image data out and read it back in.
 
 bool ImageImpl::TempFileForImage(FileSystem* fs,
-                                 const StringPiece& contents,
-                                 GoogleString* filename) {
+                             const StringPiece& contents,
+                             GoogleString* filename) {
   GoogleString tmp_filename;
   bool ok = fs->WriteTempFile(file_prefix_, contents, &tmp_filename, handler_);
   if (ok) {
@@ -778,9 +692,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
       opencv_image_ = rescaled_image;
       changed_ = true;
       output_valid_ = false;
-      rewrite_attempted_ = false;
       output_contents_.clear();
-      resized_dimensions_ = new_dim;
     }
   }
   return changed_;
@@ -790,7 +702,6 @@ void ImageImpl::UndoChange() {
   if (changed_) {
     CleanOpenCv();
     output_valid_ = false;
-    rewrite_attempted_ = false;
     output_contents_.clear();
     image_type_ = IMAGE_UNKNOWN;
     changed_ = false;
@@ -799,10 +710,6 @@ void ImageImpl::UndoChange() {
 
 // Performs image optimization and output
 bool ImageImpl::ComputeOutputContents() {
-  if (rewrite_attempted_) {
-    return output_valid_;
-  }
-  rewrite_attempted_ = true;
   if (!output_valid_) {
     bool ok = true;
     OpenCvBuffer opencv_contents;
@@ -818,14 +725,6 @@ bool ImageImpl::ComputeOutputContents() {
       }
     }
     // Take image contents and re-compress them.
-    // The basic logic is this:
-    // * low_quality_enabled_ acts as though convert_gif_to_png and
-    //   convert_png_to_webp were both set for this image.
-    // * We compute the intended final end state of all the
-    //   convert_X_to_Y options, and try to convert to the final
-    //   option in one shot. If that fails, we back off by each of the stages.
-    // * We return as soon as any applicable conversion succeeds. We
-    //   do not compare the sizes of alternative conversions.
     if (ok) {
       // If we can't optimize the image, we'll fail.
       ok = false;
@@ -836,7 +735,6 @@ bool ImageImpl::ComputeOutputContents() {
       // args rather than const string&.  We would save lots of string-copying
       // if we made that change.
       GoogleString string_for_image(contents.data(), contents.size());
-      scoped_ptr<pagespeed::image_compression::PngReaderInterface> png_reader;
       switch (image_type()) {
         case IMAGE_UNKNOWN:
           break;
@@ -846,19 +744,23 @@ bool ImageImpl::ComputeOutputContents() {
                                         options_->webp_quality,
                                         &output_contents_);
           }
-          // TODO(pulkitg): Convert a webp image to jpeg image if
-          // web_preferred_ is false.
+            // TODO(pulkitg): Convert a webp image to jpeg image if
+            // web_preferred_ is false.
           break;
         case IMAGE_JPEG:
-          if (options_->convert_jpeg_to_webp &&
-              (options_->preferred_webp != WEBP_NONE)) {
+          if (options_->webp_preferred && !low_quality_enabled_) {
+            // Right now we just compute the webp, and assume that it'll be
+            // smaller than the equivalent re-compressed jpg.  Doing jpg
+            // recompression *as well* and picking the smaller file is very
+            // expensive for what's likely to be minimal gain.  We fall back
+            // to jpg reoptimization if webp fails.
             ok = OptimizeWebp(string_for_image, options_->webp_quality,
                               &output_contents_);
             if (!ok) {
               handler_->Warning(url_.c_str(), 0, "Failed to create webp!");
             }
           }
-          if (ok) {
+          if (ok) {  // && webp_preferred, which is implied.
             image_type_ = IMAGE_WEBP;
           } else if (resized || options_->recompress_jpeg) {
             JpegCompressionOptions jpeg_options;
@@ -867,80 +769,44 @@ bool ImageImpl::ComputeOutputContents() {
                 string_for_image, &output_contents_, jpeg_options);
           }
           break;
-        case IMAGE_PNG:
-          png_reader.reset(new pagespeed::image_compression::PngReader);
-          if ((options_->convert_png_to_jpeg || low_quality_enabled_)) {
-            if (options_->convert_jpeg_to_webp) {
-              // TODO(vchudnov): Implement the webp_conversion:
-              // ok = ConvertPngToWebpIfPossible(*png_reader.get(),
-              //                                 string_for_image);
+        case IMAGE_PNG: {
+          pagespeed::image_compression::PngReader png_reader;
+
+          if ((options_->convert_png_to_jpeg || low_quality_enabled_) &&
+              options_->jpeg_quality > 0) {
+            bool is_png;
+            JpegCompressionOptions jpeg_options;
+            ConvertToJpegOptions(*options_.get(), &jpeg_options);
+            ok = ImageConverter::OptimizePngOrConvertToJpeg(
+                png_reader, string_for_image, jpeg_options,
+                &output_contents_, &is_png);
+            if (ok && !is_png) {
+              image_type_ = IMAGE_JPEG;
             }
-            if (!ok && options_->jpeg_quality > 0) {
-              ok = OptimizePngOrConvertToJpeg(*png_reader.get(),
-                                              string_for_image);
-            };
-          }
-          if (!ok && (resized || options_->recompress_png)) {
-            ok = OptimizePng(*png_reader.get(), string_for_image);
+          } else if (resized || options_->recompress_png) {
+            pagespeed::image_compression::PngReader png_reader;
+            ok = PngOptimizer::OptimizePngBestCompression
+                (png_reader, string_for_image, &output_contents_);
           }
           break;
-        case IMAGE_GIF:
-          png_reader.reset(new pagespeed::image_compression::GifReader);
-          if (options_->convert_gif_to_png || low_quality_enabled_) {
-            if (options_->convert_png_to_jpeg || low_quality_enabled_) {
-              if (options_->convert_jpeg_to_webp) {
-                // TODO(vchudnov): Implement the webp conversion:
-                // ok = ConvertPngToWebpIfPossible(*png_reader.get(),
-                //                                 string_for_image);
-              }
-              if (!ok) {
-                // TODO(vchudnov): Implement the gif-to-jpeg
-                // conversion (requires expanding gif colormap)
-                // ok = OptimizePngOrConvertToJpeg(*png_reader.get(),
-                //                                 string_for_image);
-              }
-            }
-            if (!ok) {
-              ok = OptimizePng(*png_reader.get(), string_for_image);
+        }
+        case IMAGE_GIF: {
+          if (!low_quality_enabled_ && options_->convert_gif_to_png) {
+            pagespeed::image_compression::GifReader gif_reader;
+            ok = PngOptimizer::OptimizePngBestCompression(gif_reader,
+                                                          string_for_image,
+                                                          &output_contents_);
+            if (ok) {
+              image_type_ = IMAGE_PNG;
             }
           }
           break;
+        }
       }
     }
     output_valid_ = ok;
   }
   return output_valid_;
-}
-
-bool ImageImpl::OptimizePng(
-    const pagespeed::image_compression::PngReaderInterface& png_reader,
-    const GoogleString& image_data) {
-  bool ok = PngOptimizer::OptimizePngBestCompression(png_reader,
-                                                     image_data,
-                                                     &output_contents_);
-  if (ok) {
-    image_type_ = IMAGE_PNG;
-  }
-  return ok;
-}
-
-bool ImageImpl::OptimizePngOrConvertToJpeg(
-    const pagespeed::image_compression::PngReaderInterface& png_reader,
-    const GoogleString& image_data) {
-  bool is_png;
-  JpegCompressionOptions jpeg_options;
-  ConvertToJpegOptions(*options_.get(), &jpeg_options);
-  bool ok = ImageConverter::OptimizePngOrConvertToJpeg(
-      png_reader, image_data, jpeg_options,
-      &output_contents_, &is_png);
-  if (ok) {
-    if (is_png) {
-      image_type_ = IMAGE_PNG;
-    } else {
-      image_type_ = IMAGE_JPEG;
-    }
-  }
-  return ok;
 }
 
 // Converts gif into a png in output_contents_ as quickly as possible;
@@ -968,9 +834,9 @@ void ImageImpl::ConvertToJpegOptions(const Image::CompressionOptions& options,
       original_contents_.as_string());
   jpeg_options->retain_color_profile = options.retain_color_profile;
   jpeg_options->retain_exif_data = options.retain_exif_data;
+  jpeg_options->progressive = options.progressive_jpeg;
   int64 output_quality = std::min(ImageHeaders::kMaxJpegQuality,
                                   options.jpeg_quality);
-
   if (options.jpeg_quality > 0) {
     // If the source image is JPEG we want to fallback to lossless if the input
     // quality is less than the quality we want to set for final compression and
@@ -990,37 +856,8 @@ void ImageImpl::ConvertToJpegOptions(const Image::CompressionOptions& options,
         jpeg_options->lossy_options.color_sampling =
             pagespeed::image_compression::RETAIN;
       }
-    } else {
-      output_quality = input_quality;
     }
   }
-
-  jpeg_options->progressive = options.progressive_jpeg &&
-      ShouldConvertToProgressive(output_quality);
-}
-
-bool ImageImpl::ShouldConvertToProgressive(int64 quality) const {
-  bool progressive = false;
-
-  if (static_cast<int64>(original_contents_.size()) >=
-      options_->progressive_jpeg_min_bytes) {
-    progressive = true;
-    const ImageDim* expected_dimensions = &dims_;
-    if (ImageUrlEncoder::HasValidDimensions(resized_dimensions_)) {
-      expected_dimensions = &resized_dimensions_;
-    }
-    if (ImageUrlEncoder::HasValidDimensions(*expected_dimensions)) {
-      int64 estimated_output_pixels =
-          static_cast<int64>(expected_dimensions->width()) *
-          static_cast<int64>(expected_dimensions->height());
-      double ratio = JpegPixelToByteRatio(quality);
-      int64 estimated_output_bytes = estimated_output_pixels * ratio;
-      if (estimated_output_bytes < options_->progressive_jpeg_min_bytes) {
-        progressive = false;
-      }
-    }
-  }
-  return progressive;
 }
 
 StringPiece Image::Contents() {

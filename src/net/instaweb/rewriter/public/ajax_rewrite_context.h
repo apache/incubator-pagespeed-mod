@@ -16,8 +16,8 @@
 
 // Author: nikhilmadan@google.com (Nikhil Madan)
 
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_AJAX_REWRITE_CONTEXT_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_AJAX_REWRITE_CONTEXT_H_
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -43,47 +43,44 @@ class InputInfo;
 class MessageHandler;
 class RewriteDriver;
 class RewriteFilter;
-class Statistics;
 class UrlAsyncFetcher;
-class Variable;
 
-// A resource-slot created for an in-place rewrite. This has an empty render
-// method. Note that this class is usually used as a RefCountedPtr and gets
-//  deleted when there are no references remaining.
-class InPlaceRewriteResourceSlot : public ResourceSlot {
+// A resource-slot created for an ajax rewrite. This has an empty render method.
+// Note that this class is usually used as a RefCountedPtr and gets deleted when
+// there are no references remaining.
+class AjaxRewriteResourceSlot : public ResourceSlot {
  public:
-  static const char kIproSlotLocation[];
-  explicit InPlaceRewriteResourceSlot(const ResourcePtr& resource);
+  explicit AjaxRewriteResourceSlot(const ResourcePtr& resource);
 
   // Implements ResourceSlot::Render().
   virtual void Render();
 
   // Implements ResourceSlot::LocationString().
-  virtual GoogleString LocationString();
+  virtual GoogleString LocationString() { return "ajax"; }
 
  protected:
-  virtual ~InPlaceRewriteResourceSlot();
+  virtual ~AjaxRewriteResourceSlot();
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(InPlaceRewriteResourceSlot);
+  DISALLOW_COPY_AND_ASSIGN(AjaxRewriteResourceSlot);
 };
 
-// Context that is used for an in-place rewrite.
-class InPlaceRewriteContext : public SingleRewriteContext {
+// Context that is used for an ajax rewrite.
+class AjaxRewriteContext : public SingleRewriteContext {
  public:
   // Stats variable name to keep track of how often in-place falls back to
   // stream (due to a large resource) when Options->in_place_wait_for_optimized
   // is true.
   static const char kInPlaceOversizedOptStream[];
 
-  InPlaceRewriteContext(RewriteDriver* driver, const StringPiece& url);
-  virtual ~InPlaceRewriteContext();
+  AjaxRewriteContext(RewriteDriver* driver, const StringPiece& url);
+  virtual ~AjaxRewriteContext();
 
   // Implements SingleRewriteContext::RewriteSingle().
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output);
   // Implements RewriteContext::id().
-  virtual const char* id() const { return RewriteOptions::kInPlaceRewriteId; }
+  virtual const char* id() const { return RewriteOptions::kAjaxRewriteId; }
   // Implements RewriteContext::kind().
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
   // Implements RewriteContext::DecodeFetchUrls().
@@ -94,11 +91,6 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   virtual void StartFetchReconstruction();
 
   static void InitStats(Statistics* statistics);
-
-  bool perform_http_fetch() const { return perform_http_fetch_; }
-  void set_perform_http_fetch(bool x) { perform_http_fetch_ = x; }
-
-  virtual int64 GetRewriteDeadlineAlarmMs() const;
 
  private:
   friend class RecordingFetch;
@@ -133,10 +125,7 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 
   scoped_ptr<UrlAsyncFetcher> cache_fetcher_;
 
-  // Should we fetch the contents if cache lookup fails?
-  bool perform_http_fetch_;
-
-  DISALLOW_COPY_AND_ASSIGN(InPlaceRewriteContext);
+  DISALLOW_COPY_AND_ASSIGN(AjaxRewriteContext);
 };
 
 // Records the fetch into the provided resource and passes through events to the
@@ -145,7 +134,7 @@ class RecordingFetch : public SharedAsyncFetch {
  public:
   RecordingFetch(AsyncFetch* async_fetch,
                  const ResourcePtr& resource,
-                 InPlaceRewriteContext* context,
+                 AjaxRewriteContext* context,
                  MessageHandler* handler);
 
   virtual ~RecordingFetch();
@@ -162,7 +151,7 @@ class RecordingFetch : public SharedAsyncFetch {
  private:
   void FreeDriver();
 
-  bool CanInPlaceRewrite();
+  bool CanAjaxRewrite();
 
   // By default RecordingFetch streams back the original content to the browser.
   // If this returns false then the RecordingFetch should cache the original
@@ -171,8 +160,8 @@ class RecordingFetch : public SharedAsyncFetch {
 
   MessageHandler* handler_;
   ResourcePtr resource_;
-  InPlaceRewriteContext* context_;
-  bool can_in_place_rewrite_;
+  AjaxRewriteContext* context_;
+  bool can_ajax_rewrite_;
   bool streaming_;
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
@@ -183,4 +172,4 @@ class RecordingFetch : public SharedAsyncFetch {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
+#endif  // NET_INSTAWEB_REWRITER_PUBLIC_AJAX_REWRITE_CONTEXT_H_

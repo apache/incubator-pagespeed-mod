@@ -54,23 +54,14 @@ class Image {
     IMAGE_WEBP,  // Update kImageTypeEnd if you add something after this.
   };
 
-  enum PreferredWebp {
-    WEBP_NONE = 0,
-    WEBP_LOSSY,
-    WEBP_LOSSLESS
-  };
-
   struct CompressionOptions {
     CompressionOptions()
-        : preferred_webp(WEBP_NONE),
+        : webp_preferred(false),
           webp_quality(RewriteOptions::kDefaultImagesRecompressQuality),
           jpeg_quality(RewriteOptions::kDefaultImagesRecompressQuality),
-          progressive_jpeg_min_bytes(
-              RewriteOptions::kDefaultProgressiveJpegMinBytes),
           progressive_jpeg(false),
-          convert_gif_to_png(false),
           convert_png_to_jpeg(false),
-          convert_jpeg_to_webp(false),
+          convert_gif_to_png(false),
           recompress_jpeg(false),
           recompress_png(false),
           recompress_webp(false),
@@ -79,14 +70,12 @@ class Image {
           retain_exif_data(false),
           jpeg_num_progressive_scans(
               RewriteOptions::kDefaultImageJpegNumProgressiveScans) {}
-    PreferredWebp preferred_webp;
+    bool webp_preferred;
     int64 webp_quality;
     int64 jpeg_quality;
-    int64 progressive_jpeg_min_bytes;
     bool progressive_jpeg;
-    bool convert_gif_to_png;
     bool convert_png_to_jpeg;
-    bool convert_jpeg_to_webp;
+    bool convert_gif_to_png;
     bool recompress_jpeg;
     bool recompress_png;
     bool recompress_webp;
@@ -169,9 +158,6 @@ class Image {
   // directly to user, so it may be worthwhile to make it efficient.
   virtual bool EnsureLoaded(bool output_useful) = 0;
 
-  // Returns the image URL.
-  virtual const GoogleString& url() = 0;
-
  protected:
   explicit Image(const StringPiece& original_contents);
   explicit Image(Type type);
@@ -180,22 +166,12 @@ class Image {
   virtual void ComputeImageType() = 0;
   virtual bool ComputeOutputContents() = 0;
 
-  // Inject desired resized dimensions directly for testing.
-  virtual void SetResizedDimensions(const ImageDim& dim) = 0;
-
-  // Determines whether it's a good idea to convert this image to progressive
-  // jpeg.
-  virtual bool ShouldConvertToProgressive(int64 quality) const = 0;
-
-
   Type image_type_;  // Lazily initialized, initially IMAGE_UNKNOWN.
   const StringPiece original_contents_;
   GoogleString output_contents_;  // Lazily filled.
   bool output_valid_;             // Indicates output_contents_ now correct.
-  bool rewrite_attempted_;        // Indicates if we tried rewriting for this.
 
  private:
-  friend class ImageTestingPeer;
   friend class ImageTest;
 
   DISALLOW_COPY_AND_ASSIGN(Image);
@@ -214,12 +190,6 @@ class Image {
 // The jpeg_quality flag indicates what quality to use while recompressing jpeg
 // images. Quality value of 75 is used as default for web images by most of the
 // image libraries. Recommended setting for this is 85.
-//
-// The options should be set via Image::SetOptions after construction, before
-// the image is used for anything but determining its natural dimension size.
-//
-// TODO(jmarantz): It would seem natural to fold the ImageOptions into the
-// Image object itself.
 Image* NewImage(const StringPiece& original_contents,
                 const GoogleString& url,
                 const StringPiece& file_prefix,
