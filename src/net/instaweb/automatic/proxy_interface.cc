@@ -257,7 +257,8 @@ void ProxyInterface::Fetch(const GoogleString& requested_url_string,
     async_fetch->Done(false);
   } else {
     // Try to handle this as a .pagespeed. resource.
-    if (is_get_or_head && server_context_->IsPagespeedResource(requested_url)) {
+    if (server_context_->IsPagespeedResource(requested_url) &&
+        is_get_or_head) {
       pagespeed_requests_->IncBy(1);
       LOG(INFO) << "Serving URL as pagespeed resource: "
                 << requested_url.Spec();

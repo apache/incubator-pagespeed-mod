@@ -110,7 +110,6 @@ struct OptionName {
 "MinImageSizeLowResolutionBytes",        RewriteOptions::kMinImageSizeLowResolutionBytes
 "MinResourceCacheTimeToRewriteMs",       RewriteOptions::kMinResourceCacheTimeToRewriteMs
 "ModifyCachingHeaders",                  RewriteOptions::kModifyCachingHeaders
-"ObliviousPagespeedUrls",                RewriteOptions::kObliviousPagespeedUrls
 "OverrideCachingTtlMs",                  RewriteOptions::kOverrideCachingTtlMs
 "OverrideIeDocumentMode",                RewriteOptions::kOverrideIeDocumentMode
 "ProgressiveJpegMinBytes",               RewriteOptions::kProgressiveJpegMinBytes

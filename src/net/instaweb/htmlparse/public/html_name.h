@@ -72,7 +72,6 @@ class HtmlName {
     kContent,
     kControls,
     kData,
-    kDataPagespeedHref,
     kDataPagespeedPrioritize,
     kDataSrc,
     kDd,
