@@ -1698,7 +1698,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum2(
       domain_lawyer()->AddOriginDomainMapping(arg1, arg2, handler);
       break;
     case  kMapProxyDomain:
-      domain_lawyer()->AddProxyDomainMapping(arg1, arg2, handler);
+      domain_lawyer()->AddProxyDomainMapping(arg1, arg2, "", handler);
       break;
     case kMapRewriteDomain:
       domain_lawyer()->AddRewriteDomainMapping(arg1, arg2, handler);
@@ -1745,6 +1745,10 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum3(
                       arg3);
         return RewriteOptions::kOptionValueInvalid;
       }
+      break;
+    }
+    case kMapProxyDomain: {
+      domain_lawyer()->AddProxyDomainMapping(arg1, arg2, arg3, handler);
       break;
     }
     default:
