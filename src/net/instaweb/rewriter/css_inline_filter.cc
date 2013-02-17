@@ -56,8 +56,7 @@ class CssInlineFilter::Context : public InlineRewriteContext {
   virtual void Render() {
     if (num_output_partitions() < 1) {
       // Remove any LSC attributes as they're pointless if we don't inline.
-      LocalStorageCacheFilter::RemoveLscAttributes(get_element(),
-                                                   filter_->driver());
+      LocalStorageCacheFilter::RemoveLscAttributes(get_element());
     }
     InlineRewriteContext::Render();
   }
@@ -257,21 +256,14 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
         }
       }
     }
-    if (driver_->options()->Enabled(RewriteOptions::kComputeCriticalCss)) {
-      // If compute_critical_css is enabled, add 'href' attribute to the style
-      // node.
-      // Computing critical css needs this url to store the critical
-      // css in the map.
-      driver_->AddAttribute(style_element, HtmlName::kDataPagespeedHref,
-                            resource_url.Spec());
-    }
+
     // Add the local storage cache attributes if it is enabled.
     LocalStorageCacheFilter::AddLscAttributes(resource_url.Spec(), cached,
                                               false /* has_url */,
                                               driver_, style_element);
   } else {
     // Remove any LSC attributes as they're now pointless.
-    LocalStorageCacheFilter::RemoveLscAttributes(element, driver_);
+    LocalStorageCacheFilter::RemoveLscAttributes(element);
   }
 }
 

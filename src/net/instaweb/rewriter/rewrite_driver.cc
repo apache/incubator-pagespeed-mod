@@ -64,7 +64,6 @@
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -145,7 +144,6 @@
 
 namespace net_instaweb {
 
-class CriticalCssFinder;
 class RewriteDriverPool;
 
 namespace {
@@ -759,9 +757,7 @@ void RewriteDriver::InitStats(Statistics* statistics) {
   InsertGAFilter::InitStats(statistics);
   JavascriptFilter::InitStats(statistics);
   JsCombineFilter::InitStats(statistics);
-  LocalStorageCacheFilter::InitStats(statistics);
   MetaTagFilter::InitStats(statistics);
-  RewriteContext::InitStats(statistics);
   UrlLeftTrimFilter::InitStats(statistics);
 }
 
@@ -928,15 +924,7 @@ void RewriteDriver::AddPreRenderFilters() {
     AppendOwnedPreRenderFilter(new CssInlineImportToLinkFilter(this,
                                                                statistics()));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss)) {
-    // If we're inlining styles that resolved initially, skip outlining
-    // css since that works against this.
-    // TODO(slamm): Figure out if move_css_to_head needs to be disabled.
-    CriticalCssFinder* finder = server_context()->critical_css_finder();
-    if (finder != NULL) {
-      AppendOwnedPreRenderFilter(new CriticalCssFilter(this, finder));
-    }
-  } else if (rewrite_options->Enabled(RewriteOptions::kOutlineCss)) {
+  if (rewrite_options->Enabled(RewriteOptions::kOutlineCss)) {
     // Cut out inlined styles and make them into external resources.
     // This can only be called once and requires a resource_manager to be set.
     CHECK(server_context_ != NULL);
@@ -1327,13 +1315,6 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
     RewriteFilter** filter_out,
     GoogleString* url_base,
     StringVector* urls) const {
-  // In forward proxy in preserve-URLs mode we want to fetch .pagespeed.
-  // resource, i.e. do not decode and and do not fetch original (especially
-  // that encoded one will never be cached internally).
-  if (options_.get() != NULL && options_->oblivious_pagespeed_urls()) {
-    return false;
-  }
-
   // First, we can't handle anything that's not a valid URL nor is named
   // properly as our resource.
   if (!gurl.is_valid()) {

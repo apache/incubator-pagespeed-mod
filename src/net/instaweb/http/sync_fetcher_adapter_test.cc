@@ -150,14 +150,12 @@ class SyncFetcherAdapterTest : public testing::Test {
  protected:
   bool DoFetch(UrlFetcher* fetcher, Writer* response_writer) {
     RequestHeaders request_headers;
-    RequestContextPtr ctx(
-        RequestContext::NewTestRequestContext(thread_system_.get()));
     return fetcher->StreamingFetchUrl("http://www.example.com/",
                                       request_headers,
                                       &out_headers_,
                                       response_writer,
                                       &handler_,
-                                      ctx);
+                                      RequestContextPtr(NULL));
   }
 
   void TestSuccessfulFetch(UrlPollableAsyncFetcher* async_fetcher) {

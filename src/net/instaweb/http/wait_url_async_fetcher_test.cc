@@ -20,7 +20,6 @@
 
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/google_message_handler.h"
@@ -48,17 +47,15 @@ class WaitUrlAsyncFetcherTest : public ::testing::Test {
 
   WaitUrlAsyncFetcher* wait_fetcher() { return wait_fetcher_.get(); }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-
  private:
   MockUrlFetcher base_fetcher_;
+  scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
 };
 
 TEST_F(WaitUrlAsyncFetcherTest, FetcherWaits) {
   GoogleMessageHandler handler;
-  ExpectStringAsyncFetch callback(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback(true);
 
   wait_fetcher()->Fetch(kUrl, &handler, &callback);
 
@@ -74,8 +71,7 @@ TEST_F(WaitUrlAsyncFetcherTest, FetcherWaits) {
 
 TEST_F(WaitUrlAsyncFetcherTest, PassThrough) {
   GoogleMessageHandler handler;
-  ExpectStringAsyncFetch callback(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback(true);
 
   wait_fetcher()->Fetch(kUrl, &handler, &callback);
 
@@ -90,8 +86,7 @@ TEST_F(WaitUrlAsyncFetcherTest, PassThrough) {
   EXPECT_EQ(kBody, callback.buffer());
 
   // Now fetches happen instantly.
-  ExpectStringAsyncFetch callback2(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback2(true);
   wait_fetcher()->Fetch(kUrl, &handler, &callback2);
   EXPECT_TRUE(callback2.done());
   EXPECT_EQ(kBody, callback2.buffer());
