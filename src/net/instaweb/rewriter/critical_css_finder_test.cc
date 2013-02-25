@@ -139,11 +139,8 @@ TEST_F(CriticalCssFinderTest, CheckCacheHandling) {
 
   {
     StringStringMap map;
-    // Insert a rewritten url.
-    map.insert(make_pair(
-        GoogleString("http://test.com/I.b.css.pagespeed.cf.0.css"),
-        GoogleString("b_critical {color: black }")));
-    // Insert a non-rewritten url.
+    map.insert(make_pair(GoogleString("http://test.com/b.css"),
+                         GoogleString("b_critical {color: black }")));
     map.insert(make_pair(GoogleString("http://test.com/c.css"),
                          GoogleString("c_critical {color: cyan }")));
     EXPECT_TRUE(finder_->UpdateCache(rewrite_driver(), map));
@@ -159,7 +156,6 @@ TEST_F(CriticalCssFinderTest, CheckCacheHandling) {
     ResetDriver();
     scoped_ptr<StringStringMap> map(finder_->CriticalCssMap(rewrite_driver()));
     EXPECT_EQ(2, map->size());
-    // Fetch using non-rewritten url.
     EXPECT_EQ(GoogleString("b_critical {color: black }"),
               map->find(GoogleString("http://test.com/b.css"))->second);
     EXPECT_EQ(StringPiece("c_critical {color: cyan }"),

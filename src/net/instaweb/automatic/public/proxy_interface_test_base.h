@@ -37,7 +37,6 @@
 namespace net_instaweb {
 
 class AbstractClientState;
-class CriticalImagesFinder;
 class GoogleUrl;
 class HtmlElement;
 class HtmlFilter;
@@ -197,7 +196,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
  protected:
   static const int kHtmlCacheTimeSec = 5000;
 
-  ProxyInterfaceTestBase();
+  ProxyInterfaceTestBase() : callback_done_value_(false) {}
   virtual void SetUp();
   virtual void TearDown();
 
@@ -234,9 +233,6 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
       bool expect_detach_before_pcache, const RequestHeaders& request_headers,
       ResponseHeaders* response_headers, GoogleString* output);
 
-  void SetCriticalImagesInFinder(StringSet* critical_images);
-  void SetCssCriticalImagesInFinder(StringSet* css_critical_images);
-
   scoped_ptr<ProxyInterface> proxy_interface_;
   scoped_ptr<WorkerTestBase::SyncPoint> sync_;
   ResponseHeaders callback_response_headers_;
@@ -245,8 +241,6 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
 
  private:
   friend class FilterCallback;
-
-  CriticalImagesFinder* fake_critical_images_finder_;
 };
 
 }  // namespace net_instaweb

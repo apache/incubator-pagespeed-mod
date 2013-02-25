@@ -20,7 +20,6 @@
 
 #include <cstddef>
 
-#include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
@@ -102,9 +101,7 @@ class FallbackCacheCallback: public HTTPCache::Callback {
     ScopedMutex lock(log_record()->mutex());
     TimingInfo* timing_info =
         log_record()->logging_info()->mutable_timing_info();
-    if (!timing_info->has_cache2_ms()) {
-      timing_info->set_cache2_ms(timing_value_ms);
-    }
+    timing_info->set_cache2_ms(timing_value_ms);
   }
 
  private:
@@ -157,6 +154,14 @@ class Cache1Callback: public HTTPCache::Callback {
 
   virtual bool IsFresh(const ResponseHeaders& headers) {
     return client_callback_->IsFresh(headers);
+  }
+
+  virtual void SetTimingMs(int64 timing_value_ms) {
+    DCHECK(request_context().get() != NULL);
+    ScopedMutex lock(log_record()->mutex());
+    TimingInfo* timing_info =
+        log_record()->logging_info()->mutable_timing_info();
+    timing_info->set_cache1_ms(timing_value_ms);
   }
 
  private:

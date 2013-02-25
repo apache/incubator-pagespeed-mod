@@ -28,6 +28,7 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -228,7 +229,7 @@ InPlaceRewriteContext::InPlaceRewriteContext(RewriteDriver* driver,
       driver_(driver),
       url_(url.data(), url.size()),
       is_rewritten_(true),
-      proxy_mode_(true) {
+      perform_http_fetch_(true) {
   set_notify_driver_on_fetch_done(true);
 }
 
@@ -405,7 +406,7 @@ RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
 }
 
 void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
-                                          const OutputResourcePtr& output) {
+                                       const OutputResourcePtr& output) {
   input_resource_ = input;
   output_resource_ = output;
   input->DetermineContentType();
@@ -473,12 +474,12 @@ namespace {
 class NonHttpResourceCallback : public Resource::AsyncCallback {
  public:
   NonHttpResourceCallback(const ResourcePtr& resource,
-                          bool proxy_mode,
+                          bool perform_http_fetch,
                           RewriteContext* context,
                           RecordingFetch* fetch,
                           MessageHandler* handler)
       : AsyncCallback(resource),
-        proxy_mode_(proxy_mode),
+        perform_http_fetch_(perform_http_fetch),
         context_(context),
         async_fetch_(fetch),
         message_handler_(handler) {
@@ -499,14 +500,14 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
       // TODO(jmarantz): We might have to pass stuff through even on lock
       // failure.  Consider the error cases.
 
-      DCHECK(!proxy_mode_);
+      DCHECK(!perform_http_fetch_);
       async_fetch_->Done(false);
     }
     delete this;
   }
 
  private:
-  bool proxy_mode_;
+  bool perform_http_fetch_;
   RewriteContext* context_;
   RecordingFetch* async_fetch_;
   MessageHandler* message_handler_;
@@ -526,23 +527,17 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
     RecordingFetch* fetch = new RecordingFetch(
         async_fetch(), resource, this, fetch_message_handler());
     if (resource->UseHttpCache()) {
-      if (proxy_mode_) {
+      if (perform_http_fetch_) {
         cache_fetcher_.reset(driver_->CreateCacheFetcher());
-        // Since we are proxying resources to user, we want to fetch it even if
-        // there is a kRecentFetchNotCacheable message in the cache.
-        cache_fetcher_->set_ignore_recent_fetch_failed(true);
       } else {
         cache_fetcher_.reset(driver_->CreateCacheOnlyFetcher());
-        // Since we are not proxying resources to user, we can respect
-        // kRecentFetchNotCacheable messages.
-        cache_fetcher_->set_ignore_recent_fetch_failed(false);
       }
       cache_fetcher_->Fetch(url_, fetch_message_handler(), fetch);
     } else {
       ServerContext* server_context = resource->server_context();
       MessageHandler* handler = server_context->message_handler();
       NonHttpResourceCallback* callback = new NonHttpResourceCallback(
-          resource, proxy_mode_, this, fetch, handler);
+          resource, perform_http_fetch_, this, fetch, handler);
       server_context->ReadAsync(Resource::kLoadEvenIfNotCacheable,
                                 Driver()->request_context(), callback);
     }

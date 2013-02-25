@@ -31,14 +31,10 @@ var pagespeed = window['pagespeed'];
  * @constructor
  * @param {string} beaconUrl The URL on the server to send the beacon to.
  * @param {string} htmlUrl Url of the page the beacon is being inserted on.
- * @param {string} optionsHash The hash of the rewrite options. This is required
- *     to perform the property cache lookup when the beacon is handled by the
- *     sever.
  */
-pagespeed.CriticalImagesBeacon = function(beaconUrl, htmlUrl, optionsHash) {
+pagespeed.CriticalImagesBeacon = function(beaconUrl, htmlUrl) {
   this.beaconUrl_ = beaconUrl;
   this.htmlUrl_ = htmlUrl;
-  this.optionsHash_ = optionsHash;
   this.windowSize_ = this.getWindowSize_();
   this.imgLocations_ = {};
 };
@@ -161,7 +157,6 @@ pagespeed.CriticalImagesBeacon.prototype.checkCriticalImages_ = function() {
     // Handle a beacon url that already has query params.
     url += (url.indexOf('?') == -1) ? '?' : '&';
     url += 'url=' + encodeURIComponent(this.htmlUrl_);
-    url += '&oh=' + this.optionsHash_;
     url += '&ci=' + encodeURIComponent(critical_imgs[0]);
     var MAX_URL_LEN = 2000;
     for (var i = 1; i < critical_imgs.length &&
@@ -204,11 +199,9 @@ pagespeed.addHandler = function(elem, ev, func) {
  * Initialize.
  * @param {string} beaconUrl The URL on the server to send the beacon to.
  * @param {string} htmlUrl Url of the page the beacon is being inserted on.
- * @param {string} optionsHash The hash of the rewrite options.
  */
-pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl, optionsHash) {
-  var temp = new pagespeed.CriticalImagesBeacon(
-      beaconUrl, htmlUrl, optionsHash);
+pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl) {
+  var temp = new pagespeed.CriticalImagesBeacon(beaconUrl, htmlUrl);
   // Add event to the onload handler to scan images and beacon back the visible
   // ones.
   var beacon_onload = function() {

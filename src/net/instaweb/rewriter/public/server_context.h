@@ -101,9 +101,6 @@ class ServerContext {
   // Default statistics group name.
   static const char kStatisticsGroup[];
 
-  // Hash for resources in case of stale metadata cache lookup.
-  static const char kStaleHash[];
-
   explicit ServerContext(RewriteDriverFactory* factory);
   virtual ~ServerContext();
 
@@ -155,9 +152,6 @@ class ServerContext {
 
   // Is this URL a ref to a Pagespeed resource?
   bool IsPagespeedResource(const GoogleUrl& url);
-
-  // Is this URL a ref to a Pagespeed resource which is not stale ?
-  bool IsNonStalePagespeedResource(const GoogleUrl& url);
 
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched.
@@ -231,15 +225,15 @@ class ServerContext {
     owned_cache_.reset(owned_cache);
   }
 
-  CriticalCssFinder* critical_css_finder() const {
-    return critical_css_finder_.get();
-  }
-  void set_critical_css_finder(CriticalCssFinder* finder);
-
   CriticalImagesFinder* critical_images_finder() const {
     return critical_images_finder_.get();
   }
   void set_critical_images_finder(CriticalImagesFinder* finder);
+
+  CriticalCssFinder* critical_css_finder() const {
+    return critical_css_finder_.get();
+  }
+  void set_critical_css_finder(CriticalCssFinder* finder);
 
   FlushEarlyInfoFinder* flush_early_info_finder() const {
     return flush_early_info_finder_.get();
@@ -307,8 +301,7 @@ class ServerContext {
   // variables.  Returns true if the url was parsed and handled correctly; in
   // this case a 204 No Content response should be sent.  Returns false if the
   // url could not be parsed; in this case the request should be declined.
-  bool HandleBeacon(StringPiece unparsed_url,
-                    StringPiece user_agent,
+  bool HandleBeacon(const StringPiece& unparsed_url,
                     const RequestContextPtr& request_context);
 
   // Returns a pointer to the master global_options.  These are not used
@@ -353,13 +346,9 @@ class ServerContext {
 
   // Returns the page property cache key to be used for the proxy interface
   // flow.  options is expected to be frozen.
-  GoogleString GetPagePropertyCacheKey(StringPiece url,
+  GoogleString GetPagePropertyCacheKey(const StringPiece& url,
                                        const RewriteOptions* options,
-                                       StringPiece device_type_suffix);
-
-  GoogleString GetPagePropertyCacheKey(StringPiece url,
-                                       StringPiece options_signature_hash,
-                                       StringPiece device_type_suffix);
+                                       const StringPiece& device_type_suffix);
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -563,13 +552,6 @@ class ServerContext {
 
   // Must be called with rewrite_drivers_mutex_ held.
   void ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver);
-
-  // Checks if the given resource url is a pagespeed resource and if it is
-  // stale and sets is_pagespeed_resource and is_stale respectively.
-  // is_pagespeed_resource and is_stale should not be NULL.
-  // *is_stale makes sense only if *is_pagespeed_resource is true.
-  void GetResourceInfo(const GoogleUrl& url, bool* is_pagespeed_resource,
-                       bool* is_stale);
 
   // These are normally owned by the RewriteDriverFactory that made 'this'.
   ThreadSystem* thread_system_;

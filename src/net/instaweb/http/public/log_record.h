@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_LOG_RECORD_H_
 
 #include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -58,6 +57,10 @@ class LogRecord  {
   explicit LogRecord(AbstractMutex* mutex);
   virtual ~LogRecord();
 
+  // Log a rewriter (identified by an id string) as having been sucessfully
+  // applied to the request being logged.
+  void LogAppliedRewriter(const char* rewriter_id);
+
   // For compatibility with older logging methods, returns a comma-joined string
   // concatenating the sorted coalesced rewriter ids of APPLIED_OK entries in
   // the rewriter_info array. Each id will appear once in the string if any
@@ -70,10 +73,9 @@ class LogRecord  {
   // responsibility to handle this safely.
   RewriterInfo* NewRewriterInfo(const char* rewriter_id);
 
-  // Creates a new rewriter logging submessage for |rewriter_id|,
-  // and sets status it.
-  void SetRewriterLoggingStatus(
-      const char* rewriter_id, RewriterInfo::RewriterApplicationStatus status);
+  // Sets status on a RewriterInfo with updates to AppliedRewriters.
+  // Calling code must lock mutex().
+  void SetRewriterLoggingStatus(RewriterInfo* rewriter_info, int status);
 
   // Return the LoggingInfo proto wrapped by this class. Calling code must
   // guard any reads and writes to this using mutex().
@@ -122,20 +124,12 @@ class LogRecord  {
   // Log a RewriterInfo for the image rewrite filter.
   void LogImageRewriteActivity(
       const char* id,
-      RewriterInfo::RewriterApplicationStatus status,
+      int status,
       bool is_image_inlined,
       bool is_critical_image,
       bool try_low_res_src_insertion,
       bool low_res_src_inserted,
       int low_res_data_size);
-
-  void LogJsDisableFilter(const char* id,
-                          RewriterInfo::RewriterApplicationStatus status,
-                          bool has_pagespeed_no_defer);
-
-  void LogLazyloadFilter(const char* id,
-                         RewriterInfo::RewriterApplicationStatus status,
-                         bool is_blacklisted, bool is_critical);
 
   // Mutex-guarded log-writing operations. Derived classes should override
   // *Impl methods. Returns false if the log write attempt failed.
@@ -158,6 +152,11 @@ class LogRecord  {
 
   void set_mutex(AbstractMutex* m);
 
+  // Implementation methods for subclasses to override.
+  // Implements logging an applied rewriter.
+  virtual void LogAppliedRewriterImpl(const char* rewriter_id);
+  virtual RewriterInfo* NewRewriterInfoImpl(
+      const char* rewriter_id, int status);
   // Implements setting Blink-specific log information; base impl is a no-op.
   virtual void SetBlinkInfoImpl(const GoogleString& user_agent) {}
   // Implements writing a log, base implementation is a no-op. Returns false if

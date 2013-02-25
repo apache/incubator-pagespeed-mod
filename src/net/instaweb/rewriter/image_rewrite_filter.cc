@@ -544,7 +544,6 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   if (!encoder_.Decode(result->name(),
                        &urls, &resource_context, message_handler)) {
-    image_rewrites_dropped_intentionally_->Add(1);
     return kRewriteFailed;
   }
 
@@ -575,7 +574,6 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   image->Dimensions(&image_dim);
   int64 image_width = image_dim.width(), image_height = image_dim.height();
   if ((image_width*image_height*4) > options->image_resolution_limit_bytes()) {
-    image_rewrites_dropped_intentionally_->Add(1);
     image_norewrites_high_resolution_->Add(1);
     return kRewriteFailed;
   }
@@ -1048,7 +1046,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
 
   if (!image_inlined && !slot->disable_rendering()) {
     // Not inlined means we cannot store it in local storage.
-    LocalStorageCacheFilter::RemoveLscAttributes(element, driver_);
+    LocalStorageCacheFilter::RemoveLscAttributes(element);
     if (cached->optimizable()) {
       // Rewritten HTTP url
       src->SetValue(cached->url());

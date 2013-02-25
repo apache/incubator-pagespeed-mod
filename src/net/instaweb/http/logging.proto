@@ -88,36 +88,12 @@ message BlinkInfo {
   optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
-// This proto stores information related to metadata cache lookups and
-// rewriting.
-// Next id for MetadataCacheInfo: 8
+// This proto stores information related to metadata cache lookups.
+// Next id for MetadataCacheInfo: 4
 message MetadataCacheInfo {
-  // Number of hits.
   optional int32 num_hits = 1;
-  // Number of "can revalidates".
   optional int32 num_revalidates = 2;
-  // Number of misses.
   optional int32 num_misses = 3;
-
-  // The following fields are only for rewriting from HTML parse flow.
-
-  // The number of times we successfully revalidated an expired metadata within
-  // the rewrite deadline.  This will be 0 if
-  // metadata_cache_staleness_threshold_ms is >0.  Will be <= num_revalidates
-  optional int32 num_successful_revalidates = 4;
-  // The number of times we successfully fetched and rewrote a resource (when
-  // metadata cache gave a miss) within the rewrite deadline.  Will be <=
-  // num_misses.
-  optional int32 num_successful_rewrites_on_miss = 5;
-  // The number of times an expired resource metadata was used (as stale).  This
-  // will be 0 unless metadata_cache_staleness_threshold_ms flag has a value >0.
-  // Will be <= num_hits.
-  optional int32 num_stale_rewrites = 6;
-  // Total number of rewrites that were completed in the rewrite deadline.
-  optional int32 num_rewrites_completed = 7;
-}
-
-message RewritingInfo {
 }
 
 // This proto stores all information related to split_html.
@@ -193,7 +169,7 @@ message FlushEarlyResourceInfo {
 }
 
 // Information that applies to a resource.
-// Next id for RewriteResourceInfo: 5
+// Next id for RewriteResourceInfo: 4
 message RewriteResourceInfo {
   // True if we inlined the resource.
   optional bool is_inlined = 1 [ default = false ];
@@ -201,8 +177,6 @@ message RewriteResourceInfo {
   optional bool is_critical = 2 [ default = false ];
   // True if the resource has a pagespeed_no_defer attribute.
   optional bool has_pagespeed_no_defer = 3 [ default = false ];
-  // True if the resource is blacklisted.
-  optional bool is_blacklisted = 4 [ default = false ];
 }
 
 // Information related to each resource considered by the image rewrite filter.
@@ -238,7 +212,7 @@ message RewriterInfo {
 }
 
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 17
+// Next id for LoggingInfo: 16
 message LoggingInfo {
   // Used to track time taken by various components of page speed service
   // processing.
@@ -271,6 +245,4 @@ message LoggingInfo {
   optional FlushEarlyFlowInfo flush_early_flow_info = 14;
   // Whether the size limit for rewriter_info was exceeded.
   optional bool rewriter_info_size_limit_exceeded = 15 [ default = false ];
-  // Whether the request is for a pagespeed resource.
-  optional bool is_pagespeed_resource = 16 [ default = false ];
 }

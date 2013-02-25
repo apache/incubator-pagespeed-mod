@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/html_event.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -63,7 +64,6 @@
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -144,7 +144,6 @@
 
 namespace net_instaweb {
 
-class CriticalCssFinder;
 class RewriteDriverPool;
 
 namespace {
@@ -201,6 +200,11 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       is_lazyload_script_flushed_(false),
       release_driver_(false),
       write_property_cache_dom_cohort_(false),
+      inhibits_mutex_(NULL),
+      finish_parse_on_hold_(NULL),
+      inhibiting_event_(NULL),
+      flush_in_progress_(false),
+      uninhibit_reflush_requested_(false),
       rewrites_to_delete_(0),
       should_skip_parsing_(kNotSet),
       supports_flush_early_(kNotSet),
@@ -319,6 +323,12 @@ void RewriteDriver::Clear() {
   resource_map_.clear();
 
   if (!server_context_->shutting_down()) {
+    DCHECK(end_elements_inhibited_.empty());
+    DCHECK(deferred_queue_.empty());
+    DCHECK(inhibiting_event_ == NULL);
+    DCHECK(finish_parse_on_hold_ == NULL);
+    DCHECK(!flush_in_progress_);
+    DCHECK(!uninhibit_reflush_requested_);
     DCHECK(primary_rewrite_context_map_.empty());
     DCHECK(initiated_rewrites_.empty());
     DCHECK(detached_rewrites_.empty());
@@ -508,6 +518,30 @@ void RewriteDriver::ExecuteFlushIfRequestedAsync(Function* callback) {
   }
 }
 
+// This function should only be called at the beginning of a flush.  It moves
+// the first inhibited event on queue_, and everything that follows it, onto
+// deferred_queue_.  These events will be moved back onto queue_ before the
+// flush is complete.
+void RewriteDriver::SplitQueueIfNecessary() {
+  ScopedMutex lock(inhibits_mutex_.get());
+  if (end_elements_inhibited_.empty()) {
+    return;
+  }
+  ConstHtmlEventSet inhibited_events;
+  // The end() for an element may become available at any time, so we have to
+  // rebuild the list of inhibited events on each call.
+  ConstHtmlElementSet::iterator it = end_elements_inhibited_.begin();
+  for ( ; it != end_elements_inhibited_.end(); ++it) {
+    HtmlEvent* event = GetEndElementEvent(*it);
+    if (event != NULL) {
+      inhibited_events.insert(event);
+    }
+  }
+  DCHECK(deferred_queue_.empty());
+  inhibiting_event_ = SplitQueueOnFirstEventInSet(inhibited_events,
+                                                  &deferred_queue_);
+}
+
 void RewriteDriver::Flush() {
   SchedulerBlockingFunction wait(scheduler_);
   FlushAsync(&wait);
@@ -521,7 +555,15 @@ void RewriteDriver::FlushAsync(Function* callback) {
   if (debug_filter_ != NULL) {
     debug_filter_->StartRender();
   }
+  {
+    ScopedMutex lock(inhibits_mutex_.get());
+    DCHECK(!flush_in_progress_);
+    flush_in_progress_ = true;
+  }
   flush_requested_ = false;
+
+  // Hide the tail of the queue after an inhibited event.
+  SplitQueueIfNecessary();
 
   for (FilterList::iterator it = early_pre_render_filters_.begin();
       it != early_pre_render_filters_.end(); ++it) {
@@ -626,14 +668,6 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
   RewriteStats* stats = server_context_->rewrite_stats();
   stats->cached_output_hits()->Add(completed_rewrites);
   stats->cached_output_missed_deadline()->Add(pending_rewrites_);
-  {
-    // Add completed_rewrites (from this flush window) to the logged value.
-    ScopedMutex lock(log_record()->mutex());
-    MetadataCacheInfo* metadata_log_info =
-        log_record()->logging_info()->mutable_metadata_cache_info();
-    metadata_log_info->set_num_rewrites_completed(
-        metadata_log_info->num_rewrites_completed() + completed_rewrites);
-  }
 
   // While new slots are created for distinct HtmlElements, Resources can be
   // shared across multiple slots, via resource_map_.  However, to avoid
@@ -658,7 +692,27 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
 
   HtmlParse::Flush();  // Clears the queue_.
   flush_occurred_ = true;
-  callback->CallRun();
+
+  // Restore the tail of the queue_: an inhibited event and subsequent events.
+  AppendEventsToQueue(&deferred_queue_);
+  {
+    ScopedMutex lock(inhibits_mutex_.get());
+    DCHECK(flush_in_progress_);
+    flush_in_progress_ = false;
+    inhibiting_event_ = NULL;
+    if (uninhibit_reflush_requested_) {
+      // The flush that is currently concluding uninhibited an element.
+      // We therefore need to flush again, and eat the callback until that
+      // flush is complete.
+      uninhibit_reflush_requested_ = false;
+      Function* post_flush =
+          MakeFunction(this, &RewriteDriver::UninhibitFlushDone, callback);
+      html_worker_->Add(
+          MakeFunction(this, &RewriteDriver::FlushAsync, post_flush));
+      return;
+    }
+    callback->CallRun();
+  }
 }
 
 const char* RewriteDriver::kPassThroughRequestAttributes[5] = {
@@ -703,9 +757,7 @@ void RewriteDriver::InitStats(Statistics* statistics) {
   InsertGAFilter::InitStats(statistics);
   JavascriptFilter::InitStats(statistics);
   JsCombineFilter::InitStats(statistics);
-  LocalStorageCacheFilter::InitStats(statistics);
   MetaTagFilter::InitStats(statistics);
-  RewriteContext::InitStats(statistics);
   UrlLeftTrimFilter::InitStats(statistics);
 }
 
@@ -723,6 +775,7 @@ void RewriteDriver::SetResourceManager(ServerContext* resource_manager) {
   server_context_ = resource_manager;
   scheduler_ = server_context_->scheduler();
   set_timer(resource_manager->timer());
+  inhibits_mutex_.reset(server_context_->thread_system()->NewMutex());
   rewrite_worker_ = server_context_->rewrite_workers()->NewSequence();
   html_worker_ = server_context_->html_workers()->NewSequence();
   low_priority_rewrite_worker_ =
@@ -871,15 +924,7 @@ void RewriteDriver::AddPreRenderFilters() {
     AppendOwnedPreRenderFilter(new CssInlineImportToLinkFilter(this,
                                                                statistics()));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss)) {
-    // If we're inlining styles that resolved initially, skip outlining
-    // css since that works against this.
-    // TODO(slamm): Figure out if move_css_to_head needs to be disabled.
-    CriticalCssFinder* finder = server_context()->critical_css_finder();
-    if (finder != NULL) {
-      AppendOwnedPreRenderFilter(new CriticalCssFilter(this, finder));
-    }
-  } else if (rewrite_options->Enabled(RewriteOptions::kOutlineCss)) {
+  if (rewrite_options->Enabled(RewriteOptions::kOutlineCss)) {
     // Cut out inlined styles and make them into external resources.
     // This can only be called once and requires a resource_manager to be set.
     CHECK(server_context_ != NULL);
@@ -1242,6 +1287,7 @@ CacheUrlAsyncFetcher* RewriteDriver::CreateCustomCacheFetcher(
   CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
       server_context_->http_cache(), base_fetcher);
   cache_fetcher->set_respect_vary(options()->respect_vary());
+  cache_fetcher->set_ignore_recent_fetch_failed(true);
   cache_fetcher->set_default_cache_html(options()->default_cache_html());
   cache_fetcher->set_backend_first_byte_latency_histogram(
       server_context_->rewrite_stats()->backend_latency_histogram());
@@ -1269,13 +1315,6 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
     RewriteFilter** filter_out,
     GoogleString* url_base,
     StringVector* urls) const {
-  // In forward proxy in preserve-URLs mode we want to fetch .pagespeed.
-  // resource, i.e. do not decode and and do not fetch original (especially
-  // that encoded one will never be cached internally).
-  if (options_.get() != NULL && options_->oblivious_pagespeed_urls()) {
-    return false;
-  }
-
   // First, we can't handle anything that's not a valid URL nor is named
   // properly as our resource.
   if (!gurl.is_valid()) {
@@ -1614,15 +1653,16 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
   } else if (options()->in_place_rewriting_enabled()) {
     // This is an ajax resource.
     handled = true;
+    bool perform_http_fetch = true;
     // TODO(sligocki): Get rid of this fallback and make all callers call
     // FetchInPlaceResource when that is what they want.
-    FetchInPlaceResource(gurl, true /* proxy_mode */, async_fetch);
+    FetchInPlaceResource(gurl, perform_http_fetch, async_fetch);
   }
   return handled;
 }
 
 void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
-                                         bool proxy_mode,
+                                         bool perform_http_fetch,
                                          AsyncFetch* async_fetch) {
   CHECK(gurl.is_valid()) << "Invalid URL " << gurl.spec_c_str();
   StringPiece base = gurl.AllExceptLeaf();
@@ -1632,7 +1672,7 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
   SetBaseUrlForFetch(gurl.Spec());
   fetch_queued_ = true;
   InPlaceRewriteContext* context = new InPlaceRewriteContext(this, gurl.Spec());
-  context->set_proxy_mode(proxy_mode);
+  context->set_perform_http_fetch(perform_http_fetch);
   if (!context->Fetch(output_resource, async_fetch, message_handler())) {
     // RewriteContext::Fetch can fail if the input URLs are undecodeable
     // or unfetchable. There is no decoding in this case, but unfetchability
@@ -1970,16 +2010,6 @@ void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context,
   bool attached = false;
   RewriteContextSet::iterator p = initiated_rewrites_.find(rewrite_context);
   if (p != initiated_rewrites_.end()) {
-    if (rewrite_context->is_metadata_cache_miss()) {
-      // If the rewrite completed within the deadline and it actually involved
-      // and fetch rewrite (not a metadata hit or successful revalidate) then
-      // bump up the corresponding counter in log record.
-      ScopedMutex lock(log_record()->mutex());
-      MetadataCacheInfo* metadata_log_info =
-          log_record()->logging_info()->mutable_metadata_cache_info();
-      metadata_log_info->set_num_successful_rewrites_on_miss(
-          metadata_log_info->num_successful_rewrites_on_miss() + 1);
-    }
     initiated_rewrites_.erase(p);
     attached = true;
 
@@ -2255,6 +2285,13 @@ GoogleString RewriteDriver::ToString(bool show_detached_contexts) {
     AppendBool(&out, "can_rewrite_resources", can_rewrite_resources_);
     AppendBool(&out, "is_nested", is_nested_);
   }
+
+  {
+    ScopedMutex lock(inhibits_mutex_.get());
+    AppendBool(&out, "flush_in_progress", flush_in_progress_);
+    AppendBool(&out, "uninhibit_reflush_requested",
+               uninhibit_reflush_requested_);
+  }
   return out;
 }
 
@@ -2265,6 +2302,74 @@ void RewriteDriver::PrintState(bool show_detached_contexts) {
 void RewriteDriver::PrintStateToErrorLog(bool show_detached_contexts) {
   message_handler()->Message(kError, "%s",
                              ToString(show_detached_contexts).c_str());
+}
+
+void RewriteDriver::InhibitEndElement(const HtmlElement* element) {
+  // Since element->end() may not exist yet, we must store the actual element
+  // pointer.
+  ScopedMutex lock(inhibits_mutex_.get());
+  if (element == NULL) {
+    return;
+  }
+  end_elements_inhibited_.insert(element);
+}
+
+// Uninhibit the EndElementEvent for element.
+// This function may be called from another thread, typically a fetch callback.
+void RewriteDriver::UninhibitEndElement(const HtmlElement* element) {
+  ScopedMutex lock(inhibits_mutex_.get());
+  if (end_elements_inhibited_.erase(element) == 1) {
+    // The element was actually inhibited.  If it was at the front of the queue,
+    // it was preventing everything that follows it on the queue from flushing.
+    // Now that the inhibition is lifted, all that stuff needs to flush.
+
+    // Since inhibits are used to make time for the filters to wait for a slow
+    // remote input that affects the DOM, element almost certainly *was* at
+    // front of the queue.  Rather than synchronize with queue_ to check, we
+    // just flush.  This might occasionally be superfluous, but no harm is done.
+    if (flush_in_progress_) {
+      // This flag will cause FlushAsyncDone to eat the user callback and
+      // schedule another flush.
+      uninhibit_reflush_requested_ = true;
+    } else if (finish_parse_on_hold_ != NULL) {
+      // Schedule a flush.  If we aren't holding a FinishParse client callback,
+      // it's not safe to schedule a flush because we might race with the
+      // client to do so.  In that case, it's OK to do nothing: there will be
+      // another flush eventually, and so we won't deadlock.
+
+      Function* post_flush =
+          MakeFunction(this, &RewriteDriver::UninhibitFlushDone,
+                       static_cast<Function *>(NULL));
+      html_worker_->Add(
+          MakeFunction(this, &RewriteDriver::FlushAsync, post_flush));
+    }
+  }
+}
+
+bool RewriteDriver::EndElementIsInhibited(const HtmlElement* element) {
+  ScopedMutex lock(inhibits_mutex_.get());
+  return end_elements_inhibited_.find(element) != end_elements_inhibited_.end();
+}
+
+bool RewriteDriver::EndElementIsStoppingFlush(const HtmlElement* element) {
+  ScopedMutex lock(inhibits_mutex_.get());
+  return (inhibiting_event_ != NULL &&
+          inhibiting_event_->GetElementIfEndEvent() == element);
+}
+
+// Finish the parse if FinishParseAsync was previously held up by an inhibited
+// event.  Otherwise, run the user callback.
+void RewriteDriver::UninhibitFlushDone(Function* user_callback) {
+  inhibits_mutex_->DCheckLocked();
+  if (finish_parse_on_hold_ != NULL &&
+      end_elements_inhibited_.size() == 0 &&
+      GetEventQueueSize() == 0) {
+    html_worker_->Add(finish_parse_on_hold_);
+    finish_parse_on_hold_ = NULL;
+  }
+  if (user_callback != NULL) {
+    user_callback->CallRun();
+  }
 }
 
 void RewriteDriver::FinishParse() {
@@ -2280,10 +2385,19 @@ void RewriteDriver::FinishParseAsync(Function* callback) {
 }
 
 void RewriteDriver::QueueFinishParseAfterFlush(Function* user_callback) {
+  inhibits_mutex_->DCheckLocked();
   Function* finish_parse = MakeFunction(this,
                                         &RewriteDriver::FinishParseAfterFlush,
                                         user_callback);
-  html_worker_->Add(finish_parse);
+  if (GetEventQueueSize() > 0) {
+    // Because of an inhibit, the parse is not yet finished.  Save a callback
+    // to FinishParseAfterFlush for later.
+    finish_parse_on_hold_ = finish_parse;
+  } else {
+    // We're really done: queue FinishParseAfterFlush now.
+    DCHECK_EQ(0U, end_elements_inhibited_.size());
+    html_worker_->Add(finish_parse);
+  }
 }
 
 void RewriteDriver::FinishParseAfterFlush(Function* user_callback) {

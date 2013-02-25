@@ -257,7 +257,8 @@ void ProxyInterface::Fetch(const GoogleString& requested_url_string,
     async_fetch->Done(false);
   } else {
     // Try to handle this as a .pagespeed. resource.
-    if (is_get_or_head && server_context_->IsPagespeedResource(requested_url)) {
+    if (server_context_->IsPagespeedResource(requested_url) &&
+        is_get_or_head) {
       pagespeed_requests_->IncBy(1);
       LOG(INFO) << "Serving URL as pagespeed resource: "
                 << requested_url.Spec();
@@ -441,12 +442,6 @@ void ProxyInterface::ProxyRequestCallback(
   // Note: We preserve the User-Agent and Cookies so that the origin servers
   // send us the correct HTML. We will need to consider this for caching HTML.
 
-  LogRecord* log_record = async_fetch->request_context()->log_record();
-  {
-    ScopedMutex lock(log_record->mutex());
-    log_record->logging_info()->set_is_pagespeed_resource(is_resource_fetch);
-  }
-
   // Start fetch and rewrite.  If GetCustomOptions found options for us,
   // the RewriteDriver created by StartNewProxyFetch will take ownership.
   if (is_resource_fetch) {
@@ -491,6 +486,7 @@ void ProxyInterface::ProxyRequestCallback(
         &page_callback_added));
     if (options != NULL) {
       server_context_->ComputeSignature(options);
+      LogRecord* log_record = async_fetch->request_context()->log_record();
       {
         ScopedMutex lock(log_record->mutex());
         log_record->logging_info()->set_options_signature_hash(

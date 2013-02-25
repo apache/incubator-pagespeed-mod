@@ -202,17 +202,6 @@ void PropertyPage::AddValueFromProtobuf(
   property->InitFromProtobuf(pcache_value);
 }
 
-void PropertyPage::SetupCohorts(
-    const PropertyCache::CohortVector& cohort_list) {
-  for (int j = 0, n = cohort_list.size(); j < n; ++j) {
-    const PropertyCache::Cohort* cohort = cohort_list[j];
-    int cohort_index = log_record()->AddPropertyCohortInfo(cohort->name());
-    PropertyMapStruct* pmap_struct = new PropertyMapStruct(log_record(),
-                                                           cohort_index);
-    cohort_data_map_[cohort] = pmap_struct;
-  }
-}
-
 bool PropertyPage::EncodeCacheEntry(const PropertyCache::Cohort* cohort,
                                     GoogleString* value) {
   bool ret = false;
@@ -315,28 +304,39 @@ GoogleString PropertyCache::CacheKey(const StringPiece& key,
   return StrCat(cache_key_prefix_, key, "@", cohort->name());
 }
 
-// TODO(hujie): Remove MultiRead and cohort_list_ when proxy_interface.cc
-// changes to call MultiReadWithCohorts.
+void PropertyCache::SetupCohorts(PropertyPage* page) const {
+  for (CohortMap::const_iterator p = cohorts_.begin(), e = cohorts_.end();
+       p != e; ++p) {
+    const Cohort* cohort = p->second;
+    int cohort_index = page->log_record()->AddPropertyCohortInfo(
+        cohort->name());
+    PropertyPage::PropertyMapStruct* pmap_struct =
+        new PropertyPage::PropertyMapStruct(page->log_record(), cohort_index);
+    page->cohort_data_map_[cohort] = pmap_struct;
+  }
+}
+
 void PropertyCache::MultiRead(PropertyPageStarVector* page_list) const {
-  MultiReadWithCohorts(cohort_list_, page_list);
+  MultiReadWithCohorts(page_list, cohort_name_list_);
 }
 
 void PropertyCache::MultiReadWithCohorts(
-    const CohortVector& cohort_list,
-    PropertyPageStarVector* property_page_list) const {
-  for (int i = 0, m = property_page_list->size(); i < m; ++i) {
+    PropertyPageStarVector* property_page_list,
+    const StringVector cohort_name_list) const {
+  for (int i = 0, m = property_page_list->size(); i < m; i++) {
     PropertyPage* page = property_page_list->at(i);
-    if (!enabled_ || cohorts_.empty() || cohort_list.empty()) {
+    if (!enabled_  || cohorts_.empty() || cohort_name_list.empty()) {
       page->CallDone(false);
-      continue;
+      return;
     }
-    page->SetupCohorts(cohort_list);
 
     PropertyPage::CallbackCollector* collector =
         new PropertyPage::CallbackCollector(
-            page, cohort_list.size(), thread_system_->NewMutex());
-    for (int j = 0, n = cohort_list.size(); j < n; ++j) {
-      const Cohort* cohort = cohort_list[j];
+            page, cohort_name_list.size(), thread_system_->NewMutex());
+    for (int j = 0, n = cohort_name_list.size(); j < n; j++) {
+      CohortMap::const_iterator p = cohorts_.find(cohort_name_list[j]);
+      CHECK(p != cohorts_.end());
+      const Cohort* cohort = p->second;
       PropertyPage::CohortDataMap::iterator cohort_itr =
         page->cohort_data_map_.find(cohort);
       CHECK(cohort_itr != page->cohort_data_map_.end());
@@ -350,20 +350,17 @@ void PropertyCache::MultiReadWithCohorts(
   }
 }
 
-// TODO(hujie): Remove Read along with MultiRead after all original Read calls
-// are changed to MultiReadWithCohorts.
 void PropertyCache::Read(PropertyPage* page) const {
   PropertyPageStarVector page_list;
   page_list.push_back(page);
   MultiRead(&page_list);
 }
 
-void PropertyCache::ReadWithCohorts(
-    const CohortVector& cohort_list,
-    PropertyPage* property_page) const {
+void PropertyCache::ReadWithCohorts(PropertyPage* property_page,
+                                    const StringVector cohort_names) const {
   PropertyPageStarVector page_list;
   page_list.push_back(property_page);
-  MultiReadWithCohorts(cohort_list, &page_list);
+  MultiReadWithCohorts(&page_list, cohort_names);
 }
 
 bool PropertyValue::IsStable(int mutations_per_1000_threshold) const {
@@ -443,7 +440,7 @@ const PropertyCache::Cohort* PropertyCache::AddCohortWithCache(
                                                  timer_,
                                                  stats_);
     insertions.first->second = new Cohort(cohort_name, cache_stats);
-    cohort_list_.push_back(insertions.first->second);
+    cohort_name_list_.push_back(cohort_string);
   }
   return insertions.first->second;
 }
@@ -473,6 +470,7 @@ PropertyPage::PropertyPage(AbstractMutex* mutex,
         key_(key.as_string()),
         request_context_(request_context),
         was_read_(false) {
+  property_cache.SetupCohorts(this);
 }
 
 PropertyPage::~PropertyPage() {

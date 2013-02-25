@@ -1107,10 +1107,7 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     # Resource not in cache the first time.
     check_stat $STATS.0 $STATS.1 cache_hits 0
     check_stat $STATS.0 $STATS.1 cache_misses 1
-    check_stat $STATS.0 $STATS.1 ipro_served 0
-    check_stat $STATS.0 $STATS.1 ipro_not_rewritable 0
     # So we run the ipro recorder flow and insert it into the cache.
-    check_stat $STATS.0 $STATS.1 ipro_not_in_cache 1
     check_stat $STATS.0 $STATS.1 ipro_recorder_resources 1
     check_stat $STATS.0 $STATS.1 ipro_recorder_inserted_into_cache 1
     # Image doesn't get rewritten the first time.
@@ -1133,10 +1130,7 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
 
     # Resource is found in cache the second time.
     check_stat $STATS.1 $STATS.2 cache_hits 1
-    check_stat $STATS.1 $STATS.2 ipro_served 1
-    check_stat $STATS.1 $STATS.2 ipro_not_rewritable 0
     # So we don't run the ipro recorder flow.
-    check_stat $STATS.1 $STATS.2 ipro_not_in_cache 0
     check_stat $STATS.1 $STATS.2 ipro_recorder_resources 0
     # Image gets rewritten on the second pass through this filter.
     # TODO(sligocki): This should change to 0 when we get image rewrites started
@@ -1147,7 +1141,6 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $IPRO_STATS_URL > $STATS.3
 
     check_stat $STATS.2 $STATS.3 cache_hits 1
-    check_stat $STATS.1 $STATS.2 ipro_served 1
     check_stat $STATS.2 $STATS.3 ipro_recorder_resources 0
     check_stat $STATS.2 $STATS.3 image_rewrites 0
 
@@ -1164,15 +1157,12 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     # Resource not in cache the first time.
     check_stat $STATS.0 $STATS.1 cache_hits 0
     check_stat $STATS.0 $STATS.1 cache_misses 1
-    check_stat $STATS.0 $STATS.1 ipro_served 0
-    check_stat $STATS.0 $STATS.1 ipro_not_rewritable 0
     # So we run the ipro recorder flow, but the resource is not cacheable.
-    check_stat $STATS.0 $STATS.1 ipro_not_in_cache 1
     check_stat $STATS.0 $STATS.1 ipro_recorder_resources 1
     check_stat $STATS.0 $STATS.1 ipro_recorder_not_cacheable 1
     # Uncacheable, so no rewrites.
     check_stat $STATS.0 $STATS.1 image_rewrites 0
-    check_stat $STATS.0 $STATS.1 image_ongoing_rewrites 0
+    check_stat $STATS.1 $STATS.2 image_ongoing_rewrites 0
 
     # Second IPRO request.
     http_proxy=$SECONDARY_HOSTNAME check $WGET_DUMP $URL -O /dev/null
@@ -1182,12 +1172,9 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     # Note: This should load a RecentFetchFailed record from cache, but that
     # is reported as a cache miss.
     check_stat $STATS.1 $STATS.2 cache_misses 1
-    check_stat $STATS.1 $STATS.2 ipro_served 0
-    check_stat $STATS.1 $STATS.2 ipro_not_rewritable 1
-    # Important: We do not record this resource the second and third time
-    # because we remember that it was not cacheable.
-    check_stat $STATS.1 $STATS.2 ipro_not_in_cache 0
-    check_stat $STATS.1 $STATS.2 ipro_recorder_resources 0
+    # TODO(sligocki): Should be 0. We should remember that this resource is not
+    # cacheable and not record it every time it is requested.
+    check_stat $STATS.1 $STATS.2 ipro_recorder_resources 1
     check_stat $STATS.1 $STATS.2 image_rewrites 0
     check_stat $STATS.1 $STATS.2 image_ongoing_rewrites 0
 
@@ -1197,8 +1184,9 @@ blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     # Same as second fetch.
     check_stat $STATS.2 $STATS.3 cache_hits 0
     check_stat $STATS.2 $STATS.3 cache_misses 1
-    check_stat $STATS.2 $STATS.3 ipro_not_rewritable 1
-    check_stat $STATS.2 $STATS.3 ipro_recorder_resources 0
+    # TODO(sligocki): Should be 0. We should remember that this resource is not
+    # cacheable and not record it every time it is requested.
+    check_stat $STATS.2 $STATS.3 ipro_recorder_resources 1
     check_stat $STATS.2 $STATS.3 image_rewrites 0
     check_stat $STATS.2 $STATS.3 image_ongoing_rewrites 0
   fi
@@ -1497,33 +1485,6 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
       $HOST_NAME/mod_pagespeed_test/rewrite_domains.html)
   MATCHES=$(echo "$RESPONSE_OUT" | grep -c pagespeed\.clientDomainRewriterInit)
   check [ $MATCHES -eq 1 ]
-
-  # Verify that we can send a critical image beacon and that lazyload_images
-  # does not try to lazyload the critical images.
-  start_test lazyload with critical images beacon
-  HOST_NAME="http://imagebeacon.example.com"
-  URL="$HOST_NAME/mod_pagespeed_test/image_rewriting/rewrite_images.html"
-  # There are 3 images on rewrite_images.html. Check that they are all
-  # lazyloaded by default.
-  http_proxy=$SECONDARY_HOSTNAME\
-    fetch_until -save -recursive $URL 'fgrep -c pagespeed_lazy_src=' 3
-  check [ $(grep -c "^pagespeed\.criticalImagesBeaconInit" \
-    $OUTDIR/rewrite_images.html) = 1 ];
-  # We need the options hash to send a critical image beacon, so extract it from
-  # injected beacon JS.
-  OPTIONS_HASH=$(grep "^pagespeed\.criticalImagesBeaconInit" \
-    $OUTDIR/rewrite_images.html | awk -F\' '{print $(NF-1)}')
-  # Now send a beacon response inidicating that Puzzle.jpg is a critical image.
-  BEACON_URL="$HOST_NAME/mod_pagespeed_beacon?"
-  BEACON_URL+="url=http%3A%2F%2Fimagebeacon.example.com%2Fmod_pagespeed_test%2F"
-  BEACON_URL+="image_rewriting%2Frewrite_images.html"
-  BEACON_URL+="&oh=$OPTIONS_HASH&ci=2932493096"
-  http_proxy=$SECONDARY_HOSTNAME \
-    OUT=$($WGET --save-headers -q -O - "$BEACON_URL")
-  check_from "$OUT" egrep -q "HTTP/1[.]. 204"
-  # Now only 2 of the images should be lazyloaded, Puzzle.jpg should not be.
-  http_proxy=$SECONDARY_HOSTNAME \
-    fetch_until -save -recursive $URL 'fgrep -c pagespeed_lazy_src=' 2
 
   if [ -n "$APACHE_LOG" ]; then
     start_test Encoded absolute urls are not respected

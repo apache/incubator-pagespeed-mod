@@ -54,7 +54,6 @@ const char RewriteOptions::kJavascriptInlineId[] = "ji";
 const char RewriteOptions::kLocalStorageCacheId[] = "ls";
 const char RewriteOptions::kCollectFlushEarlyContentFilterId[] = "fe";
 const char RewriteOptions::kPanelCommentPrefix[] = "GooglePanel";
-const char RewriteOptions::kPrioritizeCriticalCssId[] = "pr";
 
 // Sets limit for buffering html in blink secondary fetch to 10MB default.
 const int64 RewriteOptions::kDefaultBlinkMaxHtmlSizeRewritable =
@@ -279,7 +278,6 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kExperimentSpdy,
   RewriteOptions::kExplicitCloseTags,
   RewriteOptions::kLazyloadImages,
-  RewriteOptions::kPrioritizeCriticalCss,
   RewriteOptions::kProcessBlinkInBackground,  // internal,
                                               // enabled conditionally
   RewriteOptions::kServeNonCacheableNonCritical,  // internal,
@@ -339,8 +337,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ch", "Combine Heads" },
   { RewriteOptions::kCombineJavascript,
     RewriteOptions::kJavascriptCombinerId, "Combine Javascript" },
-  { RewriteOptions::kComputeCriticalCss,
-    "bc", "Background Compute Critical css" },
   { RewriteOptions::kComputeVisibleText,
     "bp", "Computes visible text" },
   { RewriteOptions::kConvertGifToPng,
@@ -433,8 +429,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "jo", "Outline Javascript" },
   { RewriteOptions::kPedantic,
     "pc", "Add pedantic types" },
-  { RewriteOptions::kPrioritizeCriticalCss,
-    RewriteOptions::kPrioritizeCriticalCssId, "Prioritize Critical Css" },
   { RewriteOptions::kPrioritizeVisibleContent,
     "pv", "Prioritize Visible Content" },
   { RewriteOptions::kProcessBlinkInBackground,
@@ -710,9 +704,6 @@ void RewriteOptions::AddProperties() {
   add_option(kDefaultCacheInvalidationTimestamp,
              &RewriteOptions::cache_invalidation_timestamp_, "it",
              kCacheInvalidationTimestamp);
-  add_option(false,
-             &RewriteOptions::oblivious_pagespeed_urls_, "opu",
-             kObliviousPagespeedUrls);
   add_option(kDefaultIdleFlushTimeMs,
              &RewriteOptions::idle_flush_time_ms_, "if",
              kIdleFlushTimeMs);
@@ -912,8 +903,7 @@ void RewriteOptions::AddProperties() {
              &RewriteOptions::max_rewrite_info_log_size_, "mrils",
              kMaxRewriteInfoLogSize);
   add_option(kDefaultMetadataCacheStalenessThresholdMs,
-             &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst",
-             kMetadataCacheStalenessThresholdMs);
+             &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst");
   add_option(kDefaultMetadataInputErrorsCacheTtlMs,
              &RewriteOptions::metadata_input_errors_cache_ttl_ms_, "mect");
   add_option(false,
@@ -931,7 +921,6 @@ void RewriteOptions::AddProperties() {
              kUseSmartDiffInBlink);
   add_option(false, &RewriteOptions::enable_aggressive_rewriters_for_mobile_,
              "earm", kEnableAggressiveRewritersForMobile);
-  add_option(false, &RewriteOptions::is_blink_auto_blacklisted_, "ibab");
 
   // Test-only, so no enum.
   add_option(false, &RewriteOptions::test_instant_fetch_rewrite_deadline_,

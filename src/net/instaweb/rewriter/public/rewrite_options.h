@@ -85,7 +85,6 @@ class RewriteOptions {
     kCombineCss,
     kCombineHeads,
     kCombineJavascript,
-    kComputeCriticalCss,
     kComputeVisibleText,
     kConvertGifToPng,
     kConvertJpegToProgressive,
@@ -132,7 +131,6 @@ class RewriteOptions {
     kOutlineCss,
     kOutlineJavascript,
     kPedantic,
-    kPrioritizeCriticalCss,
     kPrioritizeVisibleContent,
     kProcessBlinkInBackground,
     kRecompressJpeg,
@@ -260,11 +258,9 @@ class RewriteOptions {
     kMaxRewriteInfoLogSize,
     kMaxUrlSegmentSize,
     kMaxUrlSize,
-    kMetadataCacheStalenessThresholdMs,
     kMinImageSizeLowResolutionBytes,
     kMinResourceCacheTimeToRewriteMs,
     kModifyCachingHeaders,
-    kObliviousPagespeedUrls,
     kOverrideBlinkCacheTimeMs,
     kOverrideCachingTtlMs,
     kOverrideIeDocumentMode,
@@ -383,20 +379,19 @@ class RewriteOptions {
   // options->set_default.
   static const int kOptionsVersion = 13;
 
-  static const char kCacheExtenderId[];
-  static const char kCollectFlushEarlyContentFilterId[];
   static const char kCssCombinerId[];
   static const char kCssFilterId[];
   static const char kCssImportFlattenerId[];
   static const char kCssInlineId[];
+  static const char kCacheExtenderId[];
   static const char kImageCombineId[];
   static const char kImageCompressionId[];
   static const char kInPlaceRewriteId[];
   static const char kJavascriptCombinerId[];
   static const char kJavascriptInlineId[];
-  static const char kJavascriptMinId[];
   static const char kLocalStorageCacheId[];
-  static const char kPrioritizeCriticalCssId[];
+  static const char kJavascriptMinId[];
+  static const char kCollectFlushEarlyContentFilterId[];
 
   static const char kPanelCommentPrefix[];
 
@@ -1178,13 +1173,6 @@ class RewriteOptions {
     set_option(x, &override_ie_document_mode_);
   }
 
-  bool is_blink_auto_blacklisted() const {
-    return is_blink_auto_blacklisted_.value();
-  }
-  void set_is_blink_auto_blacklisted(bool x) {
-    set_option(x, &is_blink_auto_blacklisted_);
-  }
-
   // Returns false if there is an entry in url_cache_invalidation_entries_ with
   // its timestamp_ms > time_ms and url matches the url_pattern.  Else, return
   // true.
@@ -1313,14 +1301,6 @@ class RewriteOptions {
 
   void set_in_place_rewriting_enabled(bool x) {
     set_option(x, &in_place_rewriting_enabled_);
-  }
-
-  void set_oblivious_pagespeed_urls(bool x) {
-    set_option(x, &oblivious_pagespeed_urls_);
-  }
-
-  bool oblivious_pagespeed_urls() const {
-    return oblivious_pagespeed_urls_.value();
   }
 
   bool in_place_rewriting_enabled() const {
@@ -2835,10 +2815,6 @@ class RewriteOptions {
   // Maximum image size below which low res image is generated.
   Option<int64> max_image_size_low_resolution_bytes_;
 
-  // For proxies operating in in-place mode this allows fetching optimized
-  // resources from sites that have MPS, etc configured.
-  Option<bool> oblivious_pagespeed_urls_;
-
   // Cache expiration time in msec for properties of finders.
   Option<int64> finder_properties_cache_expiration_time_ms_;
 
@@ -2873,8 +2849,6 @@ class RewriteOptions {
   //  ...
   std::vector<PrioritizeVisibleContentFamily*>
       prioritize_visible_content_families_;
-
-  Option<bool> is_blink_auto_blacklisted_;
 
   Option<GoogleString> ga_id_;
 

@@ -34,6 +34,7 @@
 #include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/apache_thread_system.h"
+#include "net/instaweb/apache/apr_mem_cache.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/in_place_resource_recorder.h"
 #include "net/instaweb/apache/mod_spdy_fetch_controller.h"
@@ -52,7 +53,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/system/public/apr_mem_cache.h"
 #include "net/instaweb/system/public/system_cache_path.h"
 #include "net/instaweb/util/public/abstract_shared_mem.h"
 #include "net/instaweb/util/public/async_cache.h"
@@ -64,7 +64,6 @@
 #include "net/instaweb/util/public/checking_thread_system.h"
 #endif
 #include "net/instaweb/util/public/fallback_cache.h"
-#include "net/instaweb/util/public/file_cache.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/md5_hasher.h"
@@ -892,12 +891,6 @@ void ApacheRewriteDriverFactory::ShutDown() {
   apache_html_parse_message_handler_->set_buffer(NULL);
 
   if (is_root_process_) {
-    // Cleanup per-path shm resources.
-    for (PathCacheMap::iterator p = path_cache_map_.begin(),
-         e = path_cache_map_.end(); p != e; ++p) {
-      p->second->GlobalCleanup(message_handler());
-    }
-
     // Cleanup statistics.
     // TODO(morlovich): This looks dangerous with async.
     if (shared_mem_statistics_.get() != NULL) {
@@ -963,7 +956,6 @@ void ApacheRewriteDriverFactory::InitStats(Statistics* statistics) {
   // Init Apache-specific stats.
   ApacheServerContext::InitStats(statistics);
   AprMemCache::InitStats(statistics);
-  FileCache::InitStats(statistics);
   InPlaceResourceRecorder::InitStats(statistics);
   RateController::InitStats(statistics);
   SerfUrlAsyncFetcher::InitStats(statistics);
