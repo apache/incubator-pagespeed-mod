@@ -38,7 +38,6 @@
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -52,7 +51,6 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/base64_util.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
@@ -732,14 +730,7 @@ class RewriteContext::FetchContext {
         handler_(handler),
         deadline_alarm_(NULL),
         success_(false),
-        detached_(false),
-        num_deadline_alarm_invocations_(
-            rewrite_context_->Driver()->statistics()->GetVariable(
-                kNumDeadlineAlarmInvocations)) {
-  }
-
-  static void InitStats(Statistics* stats) {
-    stats->AddVariable(kNumDeadlineAlarmInvocations);
+        detached_(false) {
   }
 
   void SetupDeadlineAlarm() {
@@ -806,43 +797,12 @@ class RewriteContext::FetchContext {
     // so, as OutputResource::UrlEvenIfHashNotSet can write to the hash,
     // which may race against normal setting of the hash in
     // ResourceManager::Write called off low-priority thread.
-    num_deadline_alarm_invocations_->Add(1);
+    // TODO(sligocki): Log a variable for number of deadline hits.
     ResourcePtr input(rewrite_context_->slot(0)->resource());
     handler_->Message(
         kInfo, "Deadline exceeded for rewrite of resource %s with %s.",
         input->url().c_str(), rewrite_context_->id());
     FetchFallbackDoneImpl(input->contents(), input->response_headers());
-  }
-
-  // We need to be careful not to leak metadata.  So only add it when
-  // it has been requested and we're configured to use distributed rewriting.
-  bool ShouldAddMetadata() {
-    const RequestHeaders* request_headers =
-        rewrite_context_->Driver()->request_headers();
-    // TODO(jkarlin): DCHECK that distributed rewrite is set in the request
-    // header.
-    // TODO(jkarlin): For Apache we'll also need to verify the src address is
-    // from a trusted host or trusted network. This will require a new directive
-    // and src address information in the request_context, which is not there
-    // today.
-    if (!rewrite_context_->Options()->distributed_rewrite_servers().empty() &&
-        request_headers != NULL && request_headers->MetadataRequested()) {
-      return true;
-    }
-    return false;
-  }
-
-  // If the request headers asked for metadata then put base64 encoded
-  // metadata in the response headers.
-  void AddMetadataHeaderIfNecessary(ResponseHeaders* response_headers) {
-    DCHECK(!response_headers->Has(HttpAttributes::kXPsaResponseMetadata));
-    if (ShouldAddMetadata()) {
-      GoogleString encoded, serialized;
-      if (rewrite_context_->partitions()->SerializeToString(&serialized)) {
-        Mime64Encode(serialized, &encoded);
-        response_headers->Add(HttpAttributes::kXPsaResponseMetadata,  encoded);
-      }
-    }
   }
 
   // Note that the callback is called from the RewriteThread.
@@ -868,7 +828,6 @@ class RewriteContext::FetchContext {
             output_resource_->response_headers()));
         // Use the most conservative Cache-Control considering all inputs.
         ApplyInputCacheControl(response_headers);
-        AddMetadataHeaderIfNecessary(response_headers);
         async_fetch_->HeadersComplete();
         ok = async_fetch_->Write(output_resource_->contents(), handler_);
       } else {
@@ -884,11 +843,6 @@ class RewriteContext::FetchContext {
       if (rewrite_context_->CanFetchFallbackToOriginal(kFallbackEmergency)) {
         ResourcePtr input_resource(rewrite_context_->slot(0)->resource());
         if (input_resource.get() != NULL && input_resource->HttpStatusOk()) {
-          // TODO(jkarlin): When we have an X-Psa-Distributed-Rewrite-Html
-          // header we should guard this message (and the one ~20 lines down)
-          // with it so that we don't print messages for what are ultimately
-          // html-derived rewrites.  We might also want to guard Rewrite-IPRO
-          // as well.
           handler_->Message(kWarning, "Rewrite %s failed while fetching %s",
                             input_resource->url().c_str(),
                             output_resource_->UrlEvenIfHashNotSet().c_str());
@@ -947,7 +901,6 @@ class RewriteContext::FetchContext {
     rewrite_context_->FixFetchFallbackHeaders(async_fetch_->response_headers());
     // Use the most conservative Cache-Control considering all inputs.
     ApplyInputCacheControl(async_fetch_->response_headers());
-    AddMetadataHeaderIfNecessary(async_fetch_->response_headers());
     async_fetch_->HeadersComplete();
 
     bool ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
@@ -988,7 +941,6 @@ class RewriteContext::FetchContext {
 
   bool success_;
   bool detached_;
-  Variable* const num_deadline_alarm_invocations_;
 
   DISALLOW_COPY_AND_ASSIGN(FetchContext);
 };
@@ -1028,13 +980,6 @@ class RewriteContext::InvokeRewriteFunction : public Function {
 RewriteContext::CacheLookupResultCallback::~CacheLookupResultCallback() {
 }
 
-void RewriteContext::InitStats(Statistics* stats) {
-  RewriteContext::FetchContext::InitStats(stats);
-}
-
-const char RewriteContext::kNumDeadlineAlarmInvocations[] =
-    "num_deadline_alarm_invocations";
-
 RewriteContext::RewriteContext(RewriteDriver* driver,
                                RewriteContext* parent,
                                ResourceContext* resource_context)
@@ -1055,8 +1000,6 @@ RewriteContext::RewriteContext(RewriteDriver* driver,
     notify_driver_on_fetch_done_(false),
     force_rewrite_(false),
     stale_rewrite_(false),
-    is_metadata_cache_miss_(false),
-    rewrite_uncacheable_(false),
     dependent_request_trace_(NULL) {
   partitions_.reset(new OutputPartitions);
 }
@@ -1105,7 +1048,7 @@ void RewriteContext::AddSlot(const ResourceSlotPtr& slot) {
 }
 
 void RewriteContext::RemoveLastSlot() {
-  const int index = num_slots() - 1;
+  int index = num_slots() - 1;
   slot(index)->DetachContext(this);
   RewriteContext* predecessor = slot(index)->LastContext();
   if (predecessor) {
@@ -1115,8 +1058,8 @@ void RewriteContext::RemoveLastSlot() {
     --num_predecessors_;
   }
 
-  slots_.pop_back();
-  render_slots_.pop_back();
+  slots_.erase(slots_.begin() + index);
+  render_slots_.erase(render_slots_.begin() + index);
 }
 
 void RewriteContext::Initiate() {
@@ -1141,14 +1084,6 @@ void RewriteContext::Start() {
   for (int c = 0; c < num_slots(); ++c) {
     if (slot(c)->disable_further_processing()) {
       rewrite_done_ = true;
-      if (!has_parent()) {
-        LogRecord* log_record = Driver()->log_record();
-        ScopedMutex lock(log_record->mutex());
-        MetadataCacheInfo* metadata_log_info =
-            log_record->logging_info()->mutable_metadata_cache_info();
-        metadata_log_info->set_num_disabled_rewrites(
-            metadata_log_info->num_disabled_rewrites() + 1);
-      }
       RetireRewriteForHtml(false /* no rendering*/);
       return;
     }
@@ -1176,9 +1111,9 @@ void RewriteContext::Start() {
     // When the cache lookup is finished, OutputCacheDone will be called.
     if (force_rewrite_) {
       // Make the metadata cache lookup fail since we want to force a rewrite.
-      (new OutputCacheCallback(
-          this, &RewriteContext::OutputCacheDone))->Done(
-              CacheInterface::kNotFound);
+       (new OutputCacheCallback(
+           this, &RewriteContext::OutputCacheDone))->Done(
+               CacheInterface::kNotFound);
     } else {
       metadata_cache->Get(
           partition_key_, new OutputCacheCallback(
@@ -1233,10 +1168,6 @@ void RewriteContext::LogMetadataCacheInfo(bool cache_ok, bool can_revalidate) {
         log_record->logging_info()->mutable_metadata_cache_info();
     if (cache_ok) {
       metadata_log_info->set_num_hits(metadata_log_info->num_hits() + 1);
-      if (stale_rewrite_) {
-        metadata_log_info->set_num_stale_rewrites(
-            metadata_log_info->num_stale_rewrites() + 1);
-      }
     } else if (can_revalidate) {
       metadata_log_info->set_num_revalidates(
           metadata_log_info->num_revalidates() + 1);
@@ -1409,7 +1340,6 @@ void RewriteContext::OutputCacheHit(bool write_partitions) {
 }
 
 void RewriteContext::OutputCacheMiss() {
-  is_metadata_cache_miss_ = true;
   outputs_.clear();
   partitions_->Clear();
   ServerContext* server_context = FindServerContext();
@@ -1600,15 +1530,6 @@ void RewriteContext::ResourceRevalidateDone(InputInfo* input_info,
   --outstanding_fetches_;
   if (outstanding_fetches_ == 0) {
     if (revalidate_ok_) {
-      // Increment num_successful_revalidates.
-      if (!has_parent()) {
-        LogRecord* log_record = Driver()->log_record();
-        ScopedMutex lock(log_record->mutex());
-        MetadataCacheInfo* metadata_log_info =
-            log_record->logging_info()->mutable_metadata_cache_info();
-        metadata_log_info->set_num_successful_revalidates(
-            metadata_log_info->num_successful_revalidates() + 1);
-      }
       OutputCacheHit(true /* update the cache with new timestamps*/);
     } else {
       OutputCacheMiss();
@@ -1618,7 +1539,7 @@ void RewriteContext::ResourceRevalidateDone(InputInfo* input_info,
 
 bool RewriteContext::ReadyToRewrite() const {
   DCHECK(!rewrite_done_);
-  const bool ready = ((outstanding_fetches_ == 0) && (num_predecessors_ == 0));
+  bool ready = ((outstanding_fetches_ == 0) && (num_predecessors_ == 0));
   return ready;
 }
 
@@ -1680,33 +1601,24 @@ void RewriteContext::PartitionDone(bool result) {
 
 void RewriteContext::WritePartition() {
   ServerContext* manager = FindServerContext();
-  // If this was an IPRO rewrite which was forced for uncacheable rewrite, we
-  // should not write partition data.
   if (ok_to_write_output_partitions_ && !manager->shutting_down()) {
-    // rewrite_uncacheable() is set in IPRO flow only, therefore there'll be
-    // just one slot. If this was uncacheable rewrite, we should skip writing
-    // to the metadata cache.
-    const bool is_uncacheable_rewrite = rewrite_uncacheable() &&
-        !slots_[0]->resource()->IsValidAndCacheable();
-    if (!is_uncacheable_rewrite) {
-      CacheInterface* metadata_cache = manager->metadata_cache();
-      GoogleString buf;
-      {
+    CacheInterface* metadata_cache = manager->metadata_cache();
+    GoogleString buf;
+    {
 #ifndef NDEBUG
-        for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
-          const CachedResult& partition = partitions_->partition(i);
-          if (partition.optimizable() && !partition.has_inlined_data()) {
-            GoogleUrl gurl(partition.url());
-            DCHECK(gurl.is_valid()) << partition.url();
-          }
+      for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
+        const CachedResult& partition = partitions_->partition(i);
+        if (partition.optimizable() && !partition.has_inlined_data()) {
+          GoogleUrl gurl(partition.url());
+          DCHECK(gurl.is_valid()) << partition.url();
         }
+      }
 #endif
 
-        StringOutputStream sstream(&buf);  // finalizes buf in destructor
-        partitions_->SerializeToZeroCopyStream(&sstream);
-      }
-      metadata_cache->PutSwappingString(partition_key_, &buf);
+      StringOutputStream sstream(&buf);  // finalizes buf in destructor
+      partitions_->SerializeToZeroCopyStream(&sstream);
     }
+    metadata_cache->PutSwappingString(partition_key_, &buf);
   } else {
     // TODO(jmarantz): if our rewrite failed due to lock contention or
     // being too busy, then cancel all successors.
@@ -1717,19 +1629,10 @@ void RewriteContext::WritePartition() {
 void RewriteContext::FinalizeRewriteForHtml() {
   DCHECK(fetch_.get() == NULL);
 
-  int num_repeated = repeated_.size();
-  if (!has_parent() && num_repeated > 0) {
-    LogRecord* log_record = Driver()->log_record();
-    ScopedMutex lock(log_record->mutex());
-    MetadataCacheInfo* metadata_log_info =
-        log_record->logging_info()->mutable_metadata_cache_info();
-    metadata_log_info->set_num_repeated_rewrites(
-        metadata_log_info->num_repeated_rewrites() + num_repeated);
-  }
   bool partition_ok = (partitions_->partition_size() != 0);
   // Tells each of the repeated rewrites of the same thing if we have a valid
   // result or not.
-  for (int c = 0; c < num_repeated; ++c) {
+  for (int c = 0, n = repeated_.size(); c < n; ++c) {
     if (partition_ok) {
       repeated_[c]->RepeatedSuccess(this);
     } else {
@@ -2089,7 +1992,7 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
   ResourceNamer namer;
   if (gurl.is_valid() && namer.Decode(gurl.LeafWithQuery())) {
     if (force_hash_to_zero) {
-      namer.set_hash(ServerContext::kStaleHash);
+      namer.set_hash("0");
     }
     output_resource->reset(
         new OutputResource(FindServerContext(),

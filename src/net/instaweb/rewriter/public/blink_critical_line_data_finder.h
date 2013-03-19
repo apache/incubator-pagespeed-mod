@@ -31,7 +31,6 @@ class BlinkCriticalLineData;
 class PropertyPage;
 class ResponseHeaders;
 class RewriteDriver;
-class RewriteDriverFactory;
 
 // Finds BlinkCriticalLineData from the given html content. This information
 // will be used by BlinkFlowCriticalLine.
@@ -58,8 +57,7 @@ class BlinkCriticalLineDataFinder {
                                      UserAgentMatcher::DeviceType device_type);
 
   virtual bool UpdateDiffInfo(
-      bool is_diff, int64 now_ms, RewriteDriver* rewrite_driver,
-      RewriteDriverFactory* factory);
+      bool is_diff, int64 now_ms, RewriteDriver* rewrite_driver);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BlinkCriticalLineDataFinder);

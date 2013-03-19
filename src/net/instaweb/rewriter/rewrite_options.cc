@@ -54,7 +54,6 @@ const char RewriteOptions::kJavascriptInlineId[] = "ji";
 const char RewriteOptions::kLocalStorageCacheId[] = "ls";
 const char RewriteOptions::kCollectFlushEarlyContentFilterId[] = "fe";
 const char RewriteOptions::kPanelCommentPrefix[] = "GooglePanel";
-const char RewriteOptions::kPrioritizeCriticalCssId[] = "pr";
 
 // Sets limit for buffering html in blink secondary fetch to 10MB default.
 const int64 RewriteOptions::kDefaultBlinkMaxHtmlSizeRewritable =
@@ -170,7 +169,7 @@ const int RewriteOptions::kDefaultRewriteDeadlineMs = 10;
 const int RewriteOptions::kDefaultRewriteDeadlineMs = 20;
 #endif
 const int kValgrindWaitForRewriteMs = 1000;
-const int64 RewriteOptions::kDefaultDistributedTimeoutMs = 60000;
+
 const int RewriteOptions::kDefaultPropertyCacheHttpStatusStabilityThreshold = 5;
 
 const int RewriteOptions::kDefaultMaxRewriteInfoLogSize = 150;
@@ -193,6 +192,10 @@ const int64 RewriteOptions::kDefaultFinderPropertiesCacheRefreshTimeMs =
 const int64 RewriteOptions::kDefaultMetadataCacheStalenessThresholdMs = 0;
 const int RewriteOptions::kDefaultFuriousTrafficPercent = 50;
 const int RewriteOptions::kDefaultFuriousSlot = 1;
+
+const char RewriteOptions::kDefaultBlinkDesktopUserAgentValue[] =
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 "
+    "(KHTML, like Gecko) Chrome/19.0.1084.46 Safari/536.5";
 
 // An empty default key indicates that the blocking rewrite feature is disabled.
 const char RewriteOptions::kDefaultBlockingRewriteKey[] = "";
@@ -275,7 +278,6 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kExperimentSpdy,
   RewriteOptions::kExplicitCloseTags,
   RewriteOptions::kLazyloadImages,
-  RewriteOptions::kPrioritizeCriticalCss,
   RewriteOptions::kProcessBlinkInBackground,  // internal,
                                               // enabled conditionally
   RewriteOptions::kServeNonCacheableNonCritical,  // internal,
@@ -335,8 +337,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ch", "Combine Heads" },
   { RewriteOptions::kCombineJavascript,
     RewriteOptions::kJavascriptCombinerId, "Combine Javascript" },
-  { RewriteOptions::kComputeCriticalCss,
-    "bc", "Background Compute Critical css" },
   { RewriteOptions::kComputeVisibleText,
     "bp", "Computes visible text" },
   { RewriteOptions::kConvertGifToPng,
@@ -429,8 +429,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "jo", "Outline Javascript" },
   { RewriteOptions::kPedantic,
     "pc", "Add pedantic types" },
-  { RewriteOptions::kPrioritizeCriticalCss,
-    RewriteOptions::kPrioritizeCriticalCssId, "Prioritize Critical Css" },
   { RewriteOptions::kPrioritizeVisibleContent,
     "pv", "Prioritize Visible Content" },
   { RewriteOptions::kProcessBlinkInBackground,
@@ -660,730 +658,273 @@ RewriteOptions::RewriteOptions()
 
 // static
 void RewriteOptions::AddProperties() {
-  // TODO(jmarantz): move the help text to #defines or maybe const char[] in
-  // .h file so that rewrite_gflags.cc can reference the same strings in
-  // DEFINE_xxx directives.
-  //
-  //
-  // Note: there are two functions used for registering properties here,
-  // AddBaseProperty() and AddRequestProperty().  AddRequestProperty()
-  // is kind of a hack for stuffing request-specific data into the RewriteOption
-  // object.  Those options should probably be changed to be fields in the
-  // recently-added RequestContext.
-  //
-  // AddBaseProperty() is for user-settable options.  The last argument
-  // is a help-string.  The presence of a help-string enables the option
-  // for mod_pagespeed, and serves as the error message if there is a
-  // syntax error specifying the option in pagespeed.conf.
-  //
-  // There are three sorts of options which pass in NULL for the help-string
-  // 1. Options that should be enabled in mod_pagespeed but we haven't
-  //    written the help-string or added HTML documentation yet.  These
-  //    will be flagged with:
-  //    // TODO(jmarantz): write help & doc for mod_pagespeed.
-  // 2. Options which are experimental and temporary and are not ready for
-  //    permanent support in mod_pagespeed.  These will be marked:
-  //    // TODO(jmarantz): eliminate experiment or document.
-  // 3. Options which are not applicable to mod_pagespeed, e.g. those that
-  //    support features not yet in mod_pagespeed such as Blink, or have
-  //    an alternate solution (populating the cache invalidation timestamp).
-  //    These are marked as:
-  //    // Not applicable for mod_pagespeed.
-  // 4. Options which should be in mod_pagespeed but need a bit more
-  //    implementation before they are ready.  Marked as:
-  //    // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kPassThrough, &RewriteOptions::level_, "l", kRewriteLevel,
-      kDirectoryScope,
-      "Base level of rewriting (PassThrough, CoreFilters)");
-  AddBaseProperty(
-      kDefaultBlinkMaxHtmlSizeRewritable,
-      &RewriteOptions::blink_max_html_size_rewritable_,
-      "bmhsr", kBlinkMaxHtmlSizeRewritable,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultCssFlattenMaxBytes,
-      &RewriteOptions::css_flatten_max_bytes_, "cf",
-      kCssFlattenMaxBytes,
-      kDirectoryScope,
-      "Number of bytes below which stylesheets will be flattened.");
-  AddBaseProperty(
-      kDefaultCssImageInlineMaxBytes,
-      &RewriteOptions::css_image_inline_max_bytes_,
-      "cii", kCssImageInlineMaxBytes,
-      kDirectoryScope,
-      "Number of bytes below which images will be inlined in "
-      "external CSS.");
-  AddBaseProperty(
-      kDefaultCssInlineMaxBytes,
-      &RewriteOptions::css_inline_max_bytes_, "ci",
-      kCssInlineMaxBytes,
-      kDirectoryScope,
-      "Number of bytes below which stylesheets will be inlined.");
-  AddBaseProperty(
-      kDefaultCssOutlineMinBytes,
-      &RewriteOptions::css_outline_min_bytes_, "co",
-      kCssOutlineMinBytes,
-      kDirectoryScope,
-      "Number of bytes above which inline CSS resources will be "
-      "outlined.");
-  AddBaseProperty(
-      kDefaultImageInlineMaxBytes,
-      &RewriteOptions::image_inline_max_bytes_, "ii",
-      kImageInlineMaxBytes,
-      kDirectoryScope,
-      "Number of bytes below which images will be inlined.");
-  AddBaseProperty(
-      kDefaultJsInlineMaxBytes,
-      &RewriteOptions::js_inline_max_bytes_, "ji",
-      kJsInlineMaxBytes,
-      kDirectoryScope,
-      "Number of bytes below which javascript will be inlined.");
-  AddBaseProperty(
-      kDefaultJsOutlineMinBytes,
-      &RewriteOptions::js_outline_min_bytes_, "jo",
-      kJsOutlineMinBytes,
-      kDirectoryScope,
-      "Number of bytes above which inline Javascript resources will"
-      "be outlined.");
-  AddBaseProperty(
-      kDefaultProgressiveJpegMinBytes,
-      &RewriteOptions::progressive_jpeg_min_bytes_,
-      "jp", kProgressiveJpegMinBytes,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMaxCacheableResponseContentLength,
-      &RewriteOptions::max_cacheable_response_content_length_, "rcl",
-      kMaxCacheableResponseContentLength,
-      kProcessScope,
-      "Maximum length of a cacheable response content.");
-  AddBaseProperty(
-      kDefaultMaxHtmlCacheTimeMs,
-      &RewriteOptions::max_html_cache_time_ms_, "hc",
-      kMaxHtmlCacheTimeMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMaxHtmlParseBytes,
-      &RewriteOptions::max_html_parse_bytes_, "hpb",
-      kMaxHtmlParseBytes,
-      kDirectoryScope,  // TODO(jmarantz): switch to kProcessScope?
-      "Maximum number of bytes of HTML that we parse, before "
-      "redirecting to ?ModPagespeed=off");
-  AddBaseProperty(
-      kDefaultMaxImageBytesForWebpInCss,
-      &RewriteOptions::max_image_bytes_for_webp_in_css_, "miwc",
-      kMaxImageBytesForWebpInCss,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMinResourceCacheTimeToRewriteMs,
-      &RewriteOptions::min_resource_cache_time_to_rewrite_ms_, "rc",
-      kMinResourceCacheTimeToRewriteMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultCacheInvalidationTimestamp,
-      &RewriteOptions::cache_invalidation_timestamp_, "it",
-      kCacheInvalidationTimestamp,
-      kServerScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::oblivious_pagespeed_urls_, "opu",
-      kObliviousPagespeedUrls,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::rewrite_uncacheable_resources_, "rur",
-      kRewriteUncacheableResources,
-      kServerScope,
-      "Allow optimization of uncacheable resources in the in-place rewriting"
-      " mode.");
-  AddBaseProperty(
-      kDefaultIdleFlushTimeMs,
-      &RewriteOptions::idle_flush_time_ms_, "if",
-      kIdleFlushTimeMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultFlushBufferLimitBytes,
-      &RewriteOptions::flush_buffer_limit_bytes_, "fbl",
-      kFlushBufferLimitBytes,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImplicitCacheTtlMs,
-      &RewriteOptions::implicit_cache_ttl_ms_, "ict",
-      kImplicitCacheTtlMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImageMaxRewritesAtOnce,
-      &RewriteOptions::image_max_rewrites_at_once_,
-      "im", kImageMaxRewritesAtOnce,
-      kProcessScope,
-      "Set bound on number of images being rewritten at one time "
-      "(0 = unbounded).");
-  AddBaseProperty(
-      kDefaultMaxUrlSegmentSize, &RewriteOptions::max_url_segment_size_,
-      "uss", kMaxUrlSegmentSize,
-      kDirectoryScope,
-      "Maximum size of a URL segment.");
-  AddBaseProperty(
-      kDefaultMaxUrlSize, &RewriteOptions::max_url_size_, "us",
-      kMaxUrlSize,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::forbid_all_disabled_filters_, "fadf",
-      kForbidAllDisabledFilters,
-      kDirectoryScope,
-      "Prevents the use of disabled filters");
-  AddBaseProperty(
-      kDefaultRewriteDeadlineMs, &RewriteOptions::rewrite_deadline_ms_,
-      "rdm", kRewriteDeadlineMs,
-      kDirectoryScope,
-      "Time to wait for resource optimization (per flush window) before"
-      "falling back to the original resource for the request.");
-  AddBaseProperty(
-      kEnabledOn, &RewriteOptions::enabled_, "e", kEnabled,
-      kDirectoryScope,
-      NULL);  // initialized explicitly in mod_instaweb.cc.
-  AddBaseProperty(
-      false, &RewriteOptions::add_options_to_urls_, "aou",
-      kAddOptionsToUrls,
-      kDirectoryScope,
-      "Add query-params with configuration adjustments to rewritten "
-      "URLs.");
-  AddBaseProperty(
-      false, &RewriteOptions::in_place_rewriting_enabled_, "ipro",
-      kInPlaceResourceOptimization,
-      kDirectoryScope,
-      "Allow rewriting resources even when they are "
-      "fetched over non-pagespeed URLs.");
-  AddBaseProperty(
-      false, &RewriteOptions::in_place_wait_for_optimized_, "ipwo",
-      kInPlaceWaitForOptimized,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultRewriteDeadlineMs,
-      &RewriteOptions::in_place_rewrite_deadline_ms_, "iprdm",
-      kInPlaceRewriteDeadlineMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_css_,
-      "ipprc", kInPlacePreemptiveRewriteCss,
-      kDirectoryScope,
-      "If set, issue preemptive rewrites of CSS on the HTML path when "
-      "configured to use IPRO.");
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_css_images_,
-      "ipprci", kInPlacePreemptiveRewriteCssImages,
-      kDirectoryScope,
-      "If set, issue preemptive rewrites of CSS images on the IPRO "
-      "serving path.");
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_images_,
-      "ippri", kInPlacePreemptiveRewriteImages,
-      kDirectoryScope,
-      "If set, issue preemptive rewrites of images on the HTML path "
-      "when configured to use IPRO.");
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_javascript_,
-      "ipprj", kInPlacePreemptiveRewriteJavascript,
-      kDirectoryScope,
-      "If set, issue preemptive rewrites of JS on the HTML path when "
-      "configured to use IPRO.");
-  AddBaseProperty(
-      true, &RewriteOptions::combine_across_paths_, "cp",
-      kCombineAcrossPaths,
-      kDirectoryScope,
-      "Allow combining resources from different paths");
-  AddBaseProperty(
-      false, &RewriteOptions::critical_images_beacon_enabled_, "cibe",
-      kCriticalImagesBeaconEnabled,
-      kDirectoryScope,
-      "Enable inserting client-side critical images detection "
-      "js for image optimization filters.");
-  AddBaseProperty(
-      false, &RewriteOptions::log_rewrite_timing_, "lr",
-      kLogRewriteTiming,
-      kDirectoryScope,
-      "Whether or not to report timing information about HtmlParse.");
-  AddBaseProperty(
-      false, &RewriteOptions::lowercase_html_names_, "lh",
-      kLowercaseHtmlNames,
-      kDirectoryScope,
-      "Lowercase tag and attribute names for HTML.");
-  AddBaseProperty(
-      false, &RewriteOptions::always_rewrite_css_, "arc",
-      kAlwaysRewriteCss,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::respect_vary_, "rv", kRespectVary,
-      kDirectoryScope,
-      "Whether to respect the Vary header.");
-  AddBaseProperty(
-      false, &RewriteOptions::respect_x_forwarded_proto_, "rxfp",
-      kRespectXForwardedProto,
-      kDirectoryScope,
-      "Whether to respect the X-Forwarded-Proto header.");
-  AddBaseProperty(
-      false, &RewriteOptions::flush_html_, "fh", kFlushHtml,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::css_preserve_urls_, "cpu",
-      kCssPreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of CSS URLs.");
-  AddBaseProperty(
-      false, &RewriteOptions::image_preserve_urls_, "ipu",
-      kImagePreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of Image URLs.");
-  AddBaseProperty(
-      false, &RewriteOptions::js_preserve_urls_, "jpu",
-      kJsPreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of Javascript URLs.");
-  AddBaseProperty(
-      true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
-      kServeStaleIfFetchError,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::flush_more_resources_early_if_time_permits_,
-      "fretp", kFlushMoreResourcesEarlyIfTimePermits,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddRequestProperty(
-      false,
-      &RewriteOptions::flush_more_resources_in_ie_and_firefox_,
-      "fmrief");
-  AddBaseProperty(
-      false, &RewriteOptions::enable_defer_js_experimental_, "edje",
-      kEnableDeferJsExperimental,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): eliminate experiment or document.
-  AddBaseProperty(
-      false, &RewriteOptions::enable_inline_preview_images_experimental_,
-      "eipie", kEnableInlinePreviewImagesExperimental,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): eliminate experiment or document.
-  AddBaseProperty(
-      false, &RewriteOptions::lazyload_highres_images_,
-      "elhr", kEnableLazyLoadHighResImages,
-      kDirectoryScope,
-      NULL);
-  AddBaseProperty(
-      false, &RewriteOptions::enable_blink_critical_line_, "ebcl",
-      kEnableBlinkCriticalLine,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::default_cache_html_, "dch",
-      kDefaultCacheHtml,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultDomainShardCount, &RewriteOptions::domain_shard_count_,
-      "dsc", kDomainShardCount,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      true, &RewriteOptions::modify_caching_headers_, "mch",
-      kModifyCachingHeaders,
-      kDirectoryScope,
-      "Set to false to disallow mod_pagespeed from editing HTML "
-      "Cache-Control headers. This is not safe in general and can cause "
-      "the incorrect versions of HTML to be served to users.");
-
+  add_option(kPassThrough, &RewriteOptions::level_, "l", kRewriteLevel);
+  add_option(kDefaultBlinkMaxHtmlSizeRewritable,
+             &RewriteOptions::blink_max_html_size_rewritable_,
+             "bmhsr", kBlinkMaxHtmlSizeRewritable);
+  add_option(kDefaultCssFlattenMaxBytes,
+             &RewriteOptions::css_flatten_max_bytes_, "cf",
+             kCssFlattenMaxBytes);
+  add_option(kDefaultCssImageInlineMaxBytes,
+             &RewriteOptions::css_image_inline_max_bytes_,
+             "cii", kCssImageInlineMaxBytes);
+  add_option(kDefaultCssInlineMaxBytes,
+             &RewriteOptions::css_inline_max_bytes_, "ci",
+             kCssInlineMaxBytes);
+  add_option(kDefaultCssOutlineMinBytes,
+             &RewriteOptions::css_outline_min_bytes_, "co",
+             kCssOutlineMinBytes);
+  add_option(kDefaultImageInlineMaxBytes,
+             &RewriteOptions::image_inline_max_bytes_, "ii",
+             kImageInlineMaxBytes);
+  add_option(kDefaultJsInlineMaxBytes,
+             &RewriteOptions::js_inline_max_bytes_, "ji",
+             kJsInlineMaxBytes);
+  add_option(kDefaultJsOutlineMinBytes,
+             &RewriteOptions::js_outline_min_bytes_, "jo",
+             kJsOutlineMinBytes);
+  add_option(kDefaultProgressiveJpegMinBytes,
+             &RewriteOptions::progressive_jpeg_min_bytes_,
+             "jp", kProgressiveJpegMinBytes);
+  add_option(kDefaultMaxCacheableResponseContentLength,
+             &RewriteOptions::max_cacheable_response_content_length_, "rcl",
+             kMaxCacheableResponseContentLength);
+  add_option(kDefaultMaxHtmlCacheTimeMs,
+             &RewriteOptions::max_html_cache_time_ms_, "hc",
+             kMaxHtmlCacheTimeMs);
+  add_option(kDefaultMaxHtmlParseBytes,
+             &RewriteOptions::max_html_parse_bytes_, "hpb",
+             kMaxHtmlParseBytes);
+  add_option(kDefaultMaxImageBytesForWebpInCss,
+             &RewriteOptions::max_image_bytes_for_webp_in_css_, "miwc",
+             kMaxImageBytesForWebpInCss);
+  add_option(kDefaultMinResourceCacheTimeToRewriteMs,
+             &RewriteOptions::min_resource_cache_time_to_rewrite_ms_, "rc",
+             kMinResourceCacheTimeToRewriteMs);
+  add_option(kDefaultCacheInvalidationTimestamp,
+             &RewriteOptions::cache_invalidation_timestamp_, "it",
+             kCacheInvalidationTimestamp);
+  add_option(kDefaultIdleFlushTimeMs,
+             &RewriteOptions::idle_flush_time_ms_, "if",
+             kIdleFlushTimeMs);
+  add_option(kDefaultFlushBufferLimitBytes,
+             &RewriteOptions::flush_buffer_limit_bytes_, "fbl",
+             kFlushBufferLimitBytes);
+  add_option(kDefaultImplicitCacheTtlMs,
+             &RewriteOptions::implicit_cache_ttl_ms_, "ict",
+             kImplicitCacheTtlMs);
+  add_option(kDefaultImageMaxRewritesAtOnce,
+             &RewriteOptions::image_max_rewrites_at_once_,
+             "im", kImageMaxRewritesAtOnce);
+  add_option(kDefaultMaxUrlSegmentSize, &RewriteOptions::max_url_segment_size_,
+             "uss", kMaxUrlSegmentSize);
+  add_option(kDefaultMaxUrlSize, &RewriteOptions::max_url_size_, "us",
+             kMaxUrlSize);
+  add_option(false, &RewriteOptions::forbid_all_disabled_filters_, "fadf",
+             kForbidAllDisabledFilters);
+  add_option(kDefaultRewriteDeadlineMs, &RewriteOptions::rewrite_deadline_ms_,
+             "rdm", kRewriteDeadlineMs);
+  add_option(kEnabledOn, &RewriteOptions::enabled_, "e", kEnabled);
+  add_option(false, &RewriteOptions::add_options_to_urls_, "aou",
+             kAddOptionsToUrls);
+  add_option(false, &RewriteOptions::in_place_rewriting_enabled_, "ipro",
+             kInPlaceResourceOptimization);
+  add_option(false, &RewriteOptions::in_place_wait_for_optimized_, "ipwo",
+             kInPlaceWaitForOptimized);
+  add_option(kDefaultRewriteDeadlineMs,
+             &RewriteOptions::in_place_rewrite_deadline_ms_, "iprdm",
+             kInPlaceRewriteDeadlineMs);
+  add_option(true, &RewriteOptions::in_place_preemptive_rewrite_css_,
+             "ipprc", kInPlacePreemptiveRewriteCss);
+  add_option(true, &RewriteOptions::in_place_preemptive_rewrite_css_images_,
+             "ipprci", kInPlacePreemptiveRewriteCssImages);
+  add_option(true, &RewriteOptions::in_place_preemptive_rewrite_images_,
+             "ippri", kInPlacePreemptiveRewriteImages);
+  add_option(true, &RewriteOptions::in_place_preemptive_rewrite_javascript_,
+             "ipprj", kInPlacePreemptiveRewriteJavascript);
+  add_option(true, &RewriteOptions::combine_across_paths_, "cp",
+             kCombineAcrossPaths);
+  add_option(false, &RewriteOptions::critical_images_beacon_enabled_, "cibe",
+             kCriticalImagesBeaconEnabled);
+  add_option(false, &RewriteOptions::log_rewrite_timing_, "lr",
+             kLogRewriteTiming);
+  add_option(false, &RewriteOptions::lowercase_html_names_, "lh",
+             kLowercaseHtmlNames);
+  add_option(false, &RewriteOptions::always_rewrite_css_, "arc",
+             kAlwaysRewriteCss);
+  add_option(false, &RewriteOptions::respect_vary_, "rv", kRespectVary);
+  add_option(false, &RewriteOptions::respect_x_forwarded_proto_, "rxfp",
+             kRespectXForwardedProto);
+  add_option(false, &RewriteOptions::flush_html_, "fh", kFlushHtml);
+  add_option(false, &RewriteOptions::css_preserve_urls_, "cpu",
+             kCssPreserveURLs);
+  add_option(false, &RewriteOptions::image_preserve_urls_, "ipu",
+             kImagePreserveURLs);
+  add_option(false, &RewriteOptions::js_preserve_urls_, "jpu",
+             kJsPreserveURLs);
+  add_option(true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
+             kServeStaleIfFetchError);
+  add_option(false,
+             &RewriteOptions::flush_more_resources_early_if_time_permits_,
+             "fretp", kFlushMoreResourcesEarlyIfTimePermits);
+  add_option(false,
+             &RewriteOptions::flush_more_resources_in_ie_and_firefox_,
+             "fmrief");
+  add_option(false, &RewriteOptions::enable_defer_js_experimental_, "edje",
+             kEnableDeferJsExperimental);
+  add_option(false, &RewriteOptions::enable_inline_preview_images_experimental_,
+             "eipie", kEnableInlinePreviewImagesExperimental);
+  add_option(false, &RewriteOptions::enable_blink_critical_line_, "ebcl",
+             kEnableBlinkCriticalLine);
+  add_option(false, &RewriteOptions::default_cache_html_, "dch",
+             kDefaultCacheHtml);
+  add_option(kDefaultDomainShardCount, &RewriteOptions::domain_shard_count_,
+             "dsc", kDomainShardCount);
+  add_option(true, &RewriteOptions::modify_caching_headers_, "mch",
+             kModifyCachingHeaders);
   // This is not Plain Old Data, so we initialize it here.
   const RewriteOptions::BeaconUrl kDefaultBeaconUrls =
       { kDefaultBeaconUrl, kDefaultBeaconUrl };
-  AddBaseProperty(
-      kDefaultBeaconUrls, &RewriteOptions::beacon_url_, "bu",
-      kBeaconUrl,
-      kDirectoryScope,
-      "URL for beacon callback injected by add_instrumentation.");
-
-  // TODO(jmarantz): igrigorik suggests that 'onload' should be the
-  // default in mobile.
-  //
-  // For mobile, the recommendation is that you prefetch all the
-  // necessary assets (burst your data), and then shutoff the radio to
-  // preserve battery. Further, if the radio has been idle, and then
-  // you scroll, then you'll have to incur the RRC upgrade cost, which
-  // can be anywhere from 100ms-2.5s, which makes the site appear very
-  // slowly.. and even worse if that triggers reflows.
-  //
-  // The problem on mobile is that everytime you wake up the radio, no
-  // matter the size of the transfer, it then has to cycle through
-  // the intermediate power states.. so even a tiny transfers results
-  // in radio consuming power for 10s+.  So you incur unnecessary
-  // latency, burn battery, etc.
-  //
-  // http://developer.android.com/training/efficient-downloads
-  // /efficient-network-access.html#PrefetchData
-  AddBaseProperty(
-      false, &RewriteOptions::lazyload_images_after_onload_, "llio",
-      kLazyloadImagesAfterOnload,
-      kDirectoryScope,
-      "Wait until page onload before loading lazy images");
-
-  AddBaseProperty(
-      "", &RewriteOptions::lazyload_images_blank_url_, "llbu",
-      kLazyloadImagesBlankUrl,
-      kDirectoryScope,
-      "URL of image used to display prior to loading the lazy image");
-  AddBaseProperty(
-      true, &RewriteOptions::inline_only_critical_images_, "ioci",
-      kInlineOnlyCriticalImages,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::domain_rewrite_hyperlinks_, "drh",
-      kDomainRewriteHyperlinks,
-      kDirectoryScope,
-      "Allow rewrite_domains to rewrite <form> and <a> tags in addition "
-      "to resource tags.");
-  AddBaseProperty(
-      false, &RewriteOptions::client_domain_rewrite_, "cdr",
-      kClientDomainRewrite,
-      kDirectoryScope,
-      "Allow rewrite_domains to rewrite urls on the client side.");
-  AddBaseProperty(
-      kDefaultImageJpegRecompressQuality,
-      &RewriteOptions::image_jpeg_recompress_quality_, "iq",
-      kImageJpegRecompressionQuality,
-      kDirectoryScope,
-      "Set quality parameter for recompressing jpeg images [-1,100], "
-      "100 Disable the rewriting of image URLs.");
-  // Use kDefaultImageJpegRecompressQuality as default.
-  AddBaseProperty(
-      kDefaultImageJpegRecompressQuality,
-      &RewriteOptions::image_jpeg_recompress_quality_for_small_screens_, "iqss",
-      kImageJpegRecompressionQualityForSmallScreens,
-      kDirectoryScope,
-      "Set quality parameter for recompressing jpeg images for small "
-      "screens. [-1,100], 100 refers to best quality, -1 falls back to "
-      "kImageJpegRecompressionQuality.");
-  AddBaseProperty(
-      kDefaultImagesRecompressQuality,
-      &RewriteOptions::image_recompress_quality_, "irq",
-      kImageRecompressionQuality,
-      kDirectoryScope,
-      "Set quality parameter for recompressing images [-1,100], "
-      "100 refers to best quality, -1 disables lossy compression. "
-      "JpegRecompressionQuality and WebpRecompressionQuality override "
-      "this.");
-  AddBaseProperty(
-      kDefaultImageLimitOptimizedPercent,
-      &RewriteOptions::image_limit_optimized_percent_, "ip",
-      kImageLimitOptimizedPercent,
-      kDirectoryScope,
-      "Replace images whose size after recompression is less than the "
-      "given percent of original image size; 100 means replace if "
-      "smaller.");
-  AddBaseProperty(
-      kDefaultImageLimitResizeAreaPercent,
-      &RewriteOptions::image_limit_resize_area_percent_, "ia",
-      kImageLimitResizeAreaPercent,
-      kDirectoryScope,
-      "Consider resizing images whose area in pixels is less than the "
-      "given percent of original image area; 100 means replace if "
-      "smaller.");
-  AddBaseProperty(
-      kDefaultImageWebpRecompressQuality,
-      &RewriteOptions::image_webp_recompress_quality_, "iw",
-      kImageWebpRecompressionQuality,
-      kDirectoryScope,
-      "Set quality parameter for recompressing webp images [-1,100], "
-      "100 refers to best quality, -1 disables lossy compression.");
-  // Use kDefaultImageWebpRecompressQuality as default.
-  AddBaseProperty(
-      kDefaultImageWebpRecompressQuality,
-      &RewriteOptions::image_webp_recompress_quality_for_small_screens_, "iwss",
-      kImageWebpRecompressionQualityForSmallScreens,
-      kDirectoryScope,
-      "Set quality parameter for recompressing webp images for small "
-      "screens. [-1,100], 100 refers to best quality, -1 falls back to "
-      "kImageWebpRecompressionQuality.");
-  AddBaseProperty(
-      kDefaultImageWebpTimeoutMs,
-      &RewriteOptions::image_webp_timeout_ms_, "wt",
-      kImageWebpTimeoutMs,
-      kProcessScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMaxInlinedPreviewImagesIndex,
-      &RewriteOptions::max_inlined_preview_images_index_, "mdii",
-      kMaxInlinedPreviewImagesIndex,
-      kDirectoryScope,
-      "Number of first N images for which low resolution image is "
-      "generated. Negative values result in generation for all images.");
-  AddBaseProperty(
-      kDefaultMinImageSizeLowResolutionBytes,
-      &RewriteOptions::min_image_size_low_resolution_bytes_, "nislr",
-      kMinImageSizeLowResolutionBytes,
-      kDirectoryScope,
-      "Minimum image size above which low resolution image is "
-      "generated.");
-  AddBaseProperty(
-      kDefaultMaxImageSizeLowResolutionBytes,
-      &RewriteOptions::max_image_size_low_resolution_bytes_, "xislr",
-      kMaxImageSizeLowResolutionBytes,
-      kDirectoryScope,
-      "Maximum image size below which low resolution image is "
-      "generated.");
-  AddBaseProperty(
-      kDefaultFinderPropertiesCacheExpirationTimeMs,
-      &RewriteOptions::finder_properties_cache_expiration_time_ms_,
-      "fpce", kFinderPropertiesCacheExpirationTimeMs,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultFinderPropertiesCacheRefreshTimeMs,
-      &RewriteOptions::finder_properties_cache_refresh_time_ms_,
-      "fpcr", kFinderPropertiesCacheRefreshTimeMs,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultFuriousCookieDurationMs,
-      &RewriteOptions::furious_cookie_duration_ms_, "fcd",
-      kFuriousCookieDurationMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImageJpegNumProgressiveScans,
-      &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
-      kImageJpegNumProgressiveScans,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::cache_small_images_unrewritten_, "csiu",
-      kCacheSmallImagesUnrewritten,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImageResolutionLimitBytes,
-      &RewriteOptions::image_resolution_limit_bytes_,
-      "irlb", kImageResolutionLimitBytes,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::image_retain_color_profile_, "ircp",
-      kImageRetainColorProfile,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::image_retain_color_sampling_, "ircs",
-      kImageRetainColorSampling,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::image_retain_exif_data_, "ired",
-      kImageRetainExifData,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      "", &RewriteOptions::ga_id_, "ig", kAnalyticsID,
-      kDirectoryScope,
-      "Google Analytics ID to use on site.");
-  AddBaseProperty(
-      true, &RewriteOptions::increase_speed_tracking_, "st",
-      kIncreaseSpeedTracking,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::running_furious_, "fur", kRunningFurious,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultFuriousSlot, &RewriteOptions::furious_ga_slot_, "fga",
-      kFuriousSlot,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::report_unload_time_, "rut",
-      kReportUnloadTime,
-      kDirectoryScope,
-      "If set reports optional page unload time.");
-  AddBaseProperty(
-      "", &RewriteOptions::x_header_value_, "xhv",
-      kXModPagespeedHeaderValue,
-      kDirectoryScope,
-      "Set the value for the X-Mod-Pagespeed HTTP header");
-  AddBaseProperty(
-      "", &RewriteOptions::distributed_rewrite_servers_, "drws",
-      kDistributedRewriteServers, kProcessScope,
-     "A comma-separated list of hosts to use for distributed rewrites.");
-  AddBaseProperty(
-      kDefaultDistributedTimeoutMs,
-      &RewriteOptions::distributed_rewrite_timeout_ms_, "drwt",
-      kDistributedRewriteTimeoutMs, kProcessScope,
-      "Time to wait before giving up on a distributed rewrite request.");
-  AddBaseProperty(
-      false, &RewriteOptions::avoid_renaming_introspective_javascript_,
-      "aris", kAvoidRenamingIntrospectiveJavascript,
-      kDirectoryScope,
-      "Don't combine, inline, cache extend, or otherwise modify "
-      "javascript in ways that require changing the URL if we see "
-      "introspection in the form of "
-      "document.getElementsByTagName('script').");
-  AddBaseProperty(
-      false,
-      &RewriteOptions::passthrough_blink_for_last_invalid_response_code_,
-      "ptbi", kPassthroughBlinkForInvalidResponseCode,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::reject_blacklisted_, "rbl",
-      kRejectBlacklisted,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      HttpStatus::kForbidden,
-      &RewriteOptions::reject_blacklisted_status_code_, "rbls",
-      kRejectBlacklistedStatusCode,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultBlockingRewriteKey, &RewriteOptions::blocking_rewrite_key_,
-      "blrw", kXPsaBlockingRewrite,
-      kServerScope,
-      "If the X-PSA-Pagespeed-Blocking-Rewrite header is present, and "
-      "its value matches the configured value, ensure that all "
-      "rewrites are completed before sending the response to the "
-      "client.");
-  AddBaseProperty(
-      true, &RewriteOptions::support_noscript_enabled_, "snse",
-      kSupportNoScriptEnabled,
-      kDirectoryScope,
-      "Support for clients with no script support, in filters that "
-      "insert new javascript.");
-  AddBaseProperty(
-      kDefaultMaxCombinedJsBytes,
-      &RewriteOptions::max_combined_js_bytes_, "xcj",
-      kMaxCombinedJsBytes,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::enable_blink_html_change_detection_,
-      "ebhcd", kEnableBlinkHtmlChangeDetection,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::enable_blink_html_change_detection_logging_,
-      "ebhcdl", kEnableBlinkHtmlChangeDetectionLogging,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      "", &RewriteOptions::critical_line_config_, "clc",
-      kCriticalLineConfig,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      -1, &RewriteOptions::override_caching_ttl_ms_, "octm",
-      kOverrideCachingTtlMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      5 * Timer::kSecondMs, &RewriteOptions::blocking_fetch_timeout_ms_,
-      "bfto", RewriteOptions::kFetcherTimeOutMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::enable_lazyload_in_blink_, "elib",
-      kEnableLazyloadInBlink,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::enable_prioritizing_scripts_, "eps",
-      kEnablePrioritizingScripts,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddRequestProperty(
-      "", &RewriteOptions::pre_connect_url_, "pcu");
-  AddRequestProperty(
-      kDefaultPropertyCacheHttpStatusStabilityThreshold,
-      &RewriteOptions::property_cache_http_status_stability_threshold_,
-      "pchsst");
-  AddBaseProperty(
-      kDefaultMaxRewriteInfoLogSize,
-      &RewriteOptions::max_rewrite_info_log_size_, "mrils",
-      kMaxRewriteInfoLogSize,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMetadataCacheStalenessThresholdMs,
-      &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst",
-      kMetadataCacheStalenessThresholdMs,
-      kDirectoryScope,
-      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddRequestProperty(
-      kDefaultMetadataInputErrorsCacheTtlMs,
-      &RewriteOptions::metadata_input_errors_cache_ttl_ms_,
-      "mect");
-  AddRequestProperty(
-      false,
-      &RewriteOptions::RewriteOptions::apply_blink_if_no_families_,
-      "abnf");
-  AddRequestProperty(
-      true, &RewriteOptions::enable_blink_debug_dashboard_, "ebdd");
-  AddRequestProperty(
-      kDefaultOverrideBlinkCacheTimeMs,
-      &RewriteOptions::override_blink_cache_time_ms_, "obctm");
-  AddBaseProperty(
-      "", &RewriteOptions::blink_non_cacheables_for_all_families_,
-      "bncfaf", kBlinkNonCacheablesForAllFamilies,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-  AddRequestProperty(
-      kDefaultBlinkHtmlChangeDetectionTimeMs,
-      &RewriteOptions::blink_html_change_detection_time_ms_,
-      "bhcdt");
-  AddRequestProperty(
-      false, &RewriteOptions::override_ie_document_mode_,
-      "oidm");
-  AddBaseProperty(
-      false, &RewriteOptions::use_smart_diff_in_blink_, "usdb",
-      kUseSmartDiffInBlink,
-      kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
-
-  // Note: defer_javascript and defer_iframe were previously not
-  // trusted on mobile user-agents, but have now matured to the point
-  // where we should trust them by default.  The mod_pagespeed
-  // config-file setting "ModPagespeedEnableAggressiveRewritersForMobile"
-  // will work, but we will omit it from the documentation because we
-  // are enabling it by default.
-  AddBaseProperty(
-      true, &RewriteOptions::enable_aggressive_rewriters_for_mobile_,
-      "earm", kEnableAggressiveRewritersForMobile,
-      kDirectoryScope,
-      "Allows defer_javascript and defer_iframe for mobile browsers");
-
-  AddRequestProperty(
-      false, &RewriteOptions::is_blink_auto_blacklisted_, "ibab");
-  AddBaseProperty(
-      false, &RewriteOptions::allow_logging_urls_in_log_record_,
-      "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
-      NULL);   // Not applicable for mod_pagespeed.
+  add_option(kDefaultBeaconUrls, &RewriteOptions::beacon_url_, "bu",
+             kBeaconUrl);
+  add_option(false, &RewriteOptions::lazyload_images_after_onload_, "llio",
+             kLazyloadImagesAfterOnload);
+  add_option("", &RewriteOptions::lazyload_images_blank_url_, "llbu",
+             kLazyloadImagesBlankUrl);
+  add_option(true, &RewriteOptions::inline_only_critical_images_, "ioci",
+             kInlineOnlyCriticalImages);
+  add_option(false, &RewriteOptions::domain_rewrite_hyperlinks_, "drh",
+             kDomainRewriteHyperlinks);
+  add_option(false, &RewriteOptions::client_domain_rewrite_, "cdr",
+             kClientDomainRewrite);
+  add_option(kDefaultImageJpegRecompressQuality,
+             &RewriteOptions::image_jpeg_recompress_quality_, "iq",
+             kImageJpegRecompressionQuality);
+  add_option(kDefaultImagesRecompressQuality,
+             &RewriteOptions::image_recompress_quality_, "irq",
+             kImageRecompressionQuality);
+  add_option(kDefaultImageLimitOptimizedPercent,
+             &RewriteOptions::image_limit_optimized_percent_, "ip",
+             kImageLimitOptimizedPercent);
+  add_option(kDefaultImageLimitResizeAreaPercent,
+             &RewriteOptions::image_limit_resize_area_percent_, "ia",
+             kImageLimitResizeAreaPercent);
+  add_option(kDefaultImageWebpRecompressQuality,
+             &RewriteOptions::image_webp_recompress_quality_, "iw",
+             kImageWebpRecompressionQuality);
+  add_option(kDefaultImageWebpTimeoutMs,
+             &RewriteOptions::image_webp_timeout_ms_, "wt",
+             kImageWebpTimeoutMs);
+  add_option(kDefaultMaxInlinedPreviewImagesIndex,
+             &RewriteOptions::max_inlined_preview_images_index_, "mdii",
+             kMaxInlinedPreviewImagesIndex);
+  add_option(kDefaultMinImageSizeLowResolutionBytes,
+             &RewriteOptions::min_image_size_low_resolution_bytes_, "nislr",
+             kMinImageSizeLowResolutionBytes);
+  add_option(kDefaultMaxImageSizeLowResolutionBytes,
+             &RewriteOptions::max_image_size_low_resolution_bytes_, "xislr",
+             kMaxImageSizeLowResolutionBytes);
+  add_option(kDefaultFinderPropertiesCacheExpirationTimeMs,
+             &RewriteOptions::finder_properties_cache_expiration_time_ms_,
+             "fpce", kFinderPropertiesCacheExpirationTimeMs);
+  add_option(kDefaultFinderPropertiesCacheRefreshTimeMs,
+             &RewriteOptions::finder_properties_cache_refresh_time_ms_,
+             "fpcr", kFinderPropertiesCacheRefreshTimeMs);
+  add_option(kDefaultFuriousCookieDurationMs,
+             &RewriteOptions::furious_cookie_duration_ms_, "fcd",
+             kFuriousCookieDurationMs);
+  add_option(kDefaultImageJpegNumProgressiveScans,
+             &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
+             kImageJpegNumProgressiveScans);
+  add_option(false, &RewriteOptions::cache_small_images_unrewritten_, "csiu",
+             kCacheSmallImagesUnrewritten);
+  add_option(kDefaultImageResolutionLimitBytes,
+             &RewriteOptions::image_resolution_limit_bytes_,
+             "irlb", kImageResolutionLimitBytes);
+  add_option(false, &RewriteOptions::image_retain_color_profile_, "ircp",
+             kImageRetainColorProfile);
+  add_option(false, &RewriteOptions::image_retain_color_sampling_, "ircs",
+             kImageRetainColorSampling);
+  add_option(false, &RewriteOptions::image_retain_exif_data_, "ired",
+             kImageRetainExifData);
+  add_option("", &RewriteOptions::ga_id_, "ig", kAnalyticsID);
+  add_option(true, &RewriteOptions::increase_speed_tracking_, "st",
+             kIncreaseSpeedTracking);
+  add_option(false, &RewriteOptions::running_furious_, "fur", kRunningFurious);
+  add_option(kDefaultFuriousSlot, &RewriteOptions::furious_ga_slot_, "fga",
+             kFuriousSlot);
+  add_option(false, &RewriteOptions::report_unload_time_, "rut",
+             kReportUnloadTime);
+  add_option("", &RewriteOptions::x_header_value_, "xhv",
+             kXModPagespeedHeaderValue);
+  add_option(false, &RewriteOptions::avoid_renaming_introspective_javascript_,
+             "aris", kAvoidRenamingIntrospectiveJavascript);
+  add_option(false,
+             &RewriteOptions::use_fixed_user_agent_for_blink_cache_misses_,
+             "ufua", kUseFixedUserAgentForBlinkCacheMisses);
+  add_option(kDefaultBlinkDesktopUserAgentValue,
+             &RewriteOptions::blink_desktop_user_agent_, "bdua",
+             kBlinkDesktopUserAgent);
+  add_option(false,
+             &RewriteOptions::passthrough_blink_for_last_invalid_response_code_,
+             "ptbi", kPassthroughBlinkForInvalidResponseCode);
+  add_option(false, &RewriteOptions::reject_blacklisted_, "rbl",
+             kRejectBlacklisted);
+  add_option(HttpStatus::kForbidden,
+             &RewriteOptions::reject_blacklisted_status_code_, "rbls",
+             kRejectBlacklistedStatusCode);
+  add_option(kDefaultBlockingRewriteKey, &RewriteOptions::blocking_rewrite_key_,
+             "blrw", kXPsaBlockingRewrite);
+  add_option(true, &RewriteOptions::support_noscript_enabled_, "snse",
+             kSupportNoScriptEnabled);
+  add_option(kDefaultMaxCombinedJsBytes,
+             &RewriteOptions::max_combined_js_bytes_, "xcj",
+             kMaxCombinedJsBytes);
+  add_option(false, &RewriteOptions::enable_blink_html_change_detection_,
+             "ebhcd", kEnableBlinkHtmlChangeDetection);
+  add_option(false,
+             &RewriteOptions::enable_blink_html_change_detection_logging_,
+             "ebhcdl", kEnableBlinkHtmlChangeDetectionLogging);
+  add_option("", &RewriteOptions::critical_line_config_, "clc",
+             kCriticalLineConfig);
+  add_option(-1, &RewriteOptions::override_caching_ttl_ms_, "octm",
+             kOverrideCachingTtlMs);
+  add_option(5 * Timer::kSecondMs, &RewriteOptions::blocking_fetch_timeout_ms_,
+             "bfto", RewriteOptions::kFetcherTimeOutMs);
+  add_option(false, &RewriteOptions::enable_lazyload_in_blink_, "elib",
+             kEnableLazyloadInBlink);
+  add_option(false, &RewriteOptions::enable_prioritizing_scripts_, "eps",
+             kEnablePrioritizingScripts);
+  add_option("", &RewriteOptions::pre_connect_url_, "pcu");
+  add_option(kDefaultPropertyCacheHttpStatusStabilityThreshold,
+             &RewriteOptions::property_cache_http_status_stability_threshold_,
+             "pchsst");
+  add_option(kDefaultMaxRewriteInfoLogSize,
+             &RewriteOptions::max_rewrite_info_log_size_, "mrils",
+             kMaxRewriteInfoLogSize);
+  add_option(kDefaultMetadataCacheStalenessThresholdMs,
+             &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst");
+  add_option(kDefaultMetadataInputErrorsCacheTtlMs,
+             &RewriteOptions::metadata_input_errors_cache_ttl_ms_, "mect");
+  add_option(false,
+             &RewriteOptions::RewriteOptions::apply_blink_if_no_families_,
+             "abnf");
+  add_option(true, &RewriteOptions::enable_blink_debug_dashboard_, "ebdd");
+  add_option(kDefaultOverrideBlinkCacheTimeMs,
+             &RewriteOptions::override_blink_cache_time_ms_, "obctm");
+  add_option("", &RewriteOptions::blink_non_cacheables_for_all_families_,
+             "bncfaf", kBlinkNonCacheablesForAllFamilies);
+  add_option(kDefaultBlinkHtmlChangeDetectionTimeMs,
+             &RewriteOptions::blink_html_change_detection_time_ms_, "bhcdt");
+  add_option(false, &RewriteOptions::override_ie_document_mode_, "oidm");
+  add_option(false, &RewriteOptions::use_smart_diff_in_blink_, "usdb",
+             kUseSmartDiffInBlink);
+  add_option(false, &RewriteOptions::enable_aggressive_rewriters_for_mobile_,
+             "earm", kEnableAggressiveRewritersForMobile);
 
   // Test-only, so no enum.
-  AddRequestProperty(
-      false, &RewriteOptions::test_instant_fetch_rewrite_deadline_, "tifrwd");
+  add_option(false, &RewriteOptions::test_instant_fetch_rewrite_deadline_,
+             "tifrwd");
 
   //
   // Recently sriharis@ excluded a variety of options from
@@ -1424,7 +965,7 @@ void RewriteOptions::AddProperties() {
   // running_furious_.DoNotUseForSignatureComputation();
   // x_header_value_.DoNotUseForSignatureComputation();
   // blocking_fetch_timeout_ms_.DoNotUseForSignatureComputation();
-}  // NOLINT  (large function)
+}
 
 RewriteOptions::~RewriteOptions() {
   STLDeleteElements(&custom_fetch_headers_);
@@ -1432,7 +973,7 @@ RewriteOptions::~RewriteOptions() {
   STLDeleteElements(&prioritize_visible_content_families_);
   STLDeleteElements(&url_cache_invalidation_entries_);
   STLDeleteValues(&rejected_request_map_);
-}  // NOLINT
+}
 
 void RewriteOptions::InitializeOptions(const Properties* properties) {
   all_options_.resize(all_properties_->size());
@@ -1635,6 +1176,9 @@ void RewriteOptions::DisallowTroublesomeResources() {
   // http://code.google.com/p/modpagespeed/issues/detail?id=352
   Disallow("*scriptaculous.js*");
 
+  // Breaks some sites.
+  Disallow("*connect.facebook.net/*");
+
   // http://code.google.com/p/modpagespeed/issues/detail?id=186
   // ckeditor.js, ckeditor_basic.js, ckeditor_basic_source.js, ...
   Disallow("*ckeditor*");
@@ -1654,39 +1198,6 @@ void RewriteOptions::DisallowTroublesomeResources() {
   // http://code.google.com/p/modpagespeed/issues/detail?id=142
   // Not clear which JS file is broken and proxying is not working correctly.
 
-  // Disable lazyload_images if there is another known lazyloader present.
-  DisableLazyloadForClassName("*dfcg*");
-  DisableLazyloadForClassName("*lazy*");
-  DisableLazyloadForClassName("*nivo*");
-  DisableLazyloadForClassName("*slider*");
-
-  // It is pretty well established that PSOL and the WordPress admin
-  // pages (wp-admin) don't work together.  Until we figure out why,
-  // black-list.
-  //
-  // http://snowulf.com/2013/03/06/
-  // wordpress-3-5-and-mod_pagespeed-does-not-play-well-together/
-  //
-  // TODO(jmarantz): Remove this blacklist once the source of the
-  // trouble is found and a more surgical workaround can be found.
-  Disallow("*/wp-admin/*");
-}
-
-// Note: this is not called by default in mod_pagespeed.
-void RewriteOptions::DisallowResourcesForProxy() {
-  Disallow("*://l.yimg.com/*");
-  Disallow("*store.yahoo.net/*");
-
-  // Breaks some sites.
-  Disallow("*connect.facebook.net/*");
-
-  // The following options are not really troublesome, but we want to disallow
-  // them anyway.
-
-  // The following url pattern shows up often, but under too many different
-  // unique urls:
-  // Disallow("*//stats.wordpress.com/e-*");
-
   // Disable resources that are already being shared across multiple sites and
   // have strong CDN support (ie they are already cheap to fetch and are also
   // very likely to reside in the browser cache from visits to another site).
@@ -1705,6 +1216,15 @@ void RewriteOptions::DisallowResourcesForProxy() {
   Disallow("*//www.google.com/coop/cse/brand*");
   Disallow("*//www.google-analytics.com/urchin.js*");
   Disallow("*//www.googleadservices.com/pagead/conversion.js*");
+  // The following url pattern shows up often, but under too many different
+  // unique urls:
+  // Disallow("*//stats.wordpress.com/e-*");
+
+  DisableLazyloadForClassName("*dfcg*");
+  DisableLazyloadForClassName("*lazy*");
+  DisableLazyloadForClassName("*nivo*");
+  DisableLazyloadForClassName("*slider*");
+
 }
 
 bool RewriteOptions::EnableFiltersByCommaSeparatedList(
@@ -1754,23 +1274,6 @@ void RewriteOptions::ForceEnableFilter(Filter filter) {
 
   // remove from set of forbidden filters.
   modified_ |= forbidden_filters_.erase(filter);
-}
-
-bool RewriteOptions::DistributeFiltersByCommaSeparatedList(
-    const StringPiece& filters, MessageHandler* handler) {
-  return AddCommaSeparatedListToFilterSetState(
-      filters, &distributable_filters_, handler);
-}
-
-void RewriteOptions::DistributeFilter(Filter filter) {
-  DCHECK(!frozen_);
-  std::pair<FilterSet::iterator, bool> inserted =
-      distributable_filters_.insert(filter);
-  modified_ |= inserted.second;
-}
-
-bool RewriteOptions::Distributable(Filter filter) const {
-  return distributable_filters_.find(filter) != distributable_filters_.end();
 }
 
 void RewriteOptions::EnableExtendCacheFilters() {
@@ -2112,14 +1615,6 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum1(
     case kDisallow:
       Disallow(arg);
       break;
-    case kDistributableFilters: {
-      bool ok = DistributeFiltersByCommaSeparatedList(arg, handler);
-      if (!ok) {
-        *msg = "Failed to make some filters distributable.";
-        return RewriteOptions::kOptionValueInvalid;
-      }
-      break;
-    }
     case kDomain:
       domain_lawyer()->AddDomain(arg, handler);
       break;
@@ -2193,8 +1688,8 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum2(
         *msg = "Argument 1 must be either 'Allow' or 'Disallow'";
         return RewriteOptions::kOptionValueInvalid;
       }
-      if (!file_load_policy()->AddRule(arg2.as_string(),
-                                       is_regexp, allow, msg)) {
+      if (!file_load_policy()->AddRule(arg2.as_string().c_str(),
+                                      is_regexp, allow, msg)) {
         return RewriteOptions::kOptionValueInvalid;
       }
       break;
@@ -2542,13 +2037,6 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
     forbidden_filters_.insert(filter);
     disabled_filters_.insert(filter);
     enabled_filters_.erase(filter);
-  }
-
-  for (FilterSet::const_iterator p = src.distributable_filters_.begin(),
-           e = src.distributable_filters_.end(); p != e; ++p) {
-    Filter filter = *p;
-    // Distributable filters union when merged.
-    distributable_filters_.insert(filter);
   }
 
   for (int i = 0, n = src.furious_specs_.size(); i < n; ++i) {

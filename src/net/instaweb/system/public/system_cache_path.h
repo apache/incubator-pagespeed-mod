@@ -64,7 +64,6 @@ class SystemCachePath {
 
  private:
   void FallBackToFileBasedLocking();
-  GoogleString LockManagerSegmentName() const;
 
   GoogleString path_;
 

@@ -206,8 +206,6 @@ class PropertyCache {
     DISALLOW_COPY_AND_ASSIGN(Cohort);
   };
 
-  typedef std::vector<const Cohort*> CohortVector;
-
   PropertyCache(const GoogleString& cache_key_prefix,
                 CacheInterface* cache, Timer* timer,
                 Statistics* stats, ThreadSystem* threads);
@@ -220,8 +218,23 @@ class PropertyCache {
 
   // Reads all the PropertyValues in the specified Cohorts from
   // cache, calling PropertyPage::Done when done.
-  void ReadWithCohorts(const CohortVector& cohort_list,
-                       PropertyPage* property_page) const;
+  void ReadWithCohorts(PropertyPage* property_page,
+                       const StringVector cohort_names) const;
+
+  // Reads PropertyValues for multiple pages, calling corresponding
+  // PropertyPage::Done as and when page read completes. It is essential
+  // that the Cohorts are established prior to calling this function.
+  void MultiRead(PropertyPageStarVector* property_page_list) const;
+
+  // Reads PropertyValues for multiple pages, each page has a specified
+  // cohorts. Here all pages from property_page_list have the same cohort
+  // list.
+  // Notes: Maybe PropertyPageStarVector should contain specified cohort
+  // information.
+  void MultiReadWithCohorts(PropertyPageStarVector* property_page_list,
+                            const StringVector cohort_name_list) const;
+
+  void SetupCohorts(PropertyPage* property_page) const;
 
   // Updates a Cohort of properties into the cache.  It is a
   // programming error (dcheck-fail) to Write a PropertyPage that
@@ -303,7 +316,7 @@ class PropertyCache {
   typedef std::map<GoogleString, Cohort*> CohortMap;
   CohortMap cohorts_;
   // For MutltiRead to scan all cohorts.
-  CohortVector cohort_list_;
+  StringVector cohort_name_list_;
   bool enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyCache);
@@ -333,21 +346,6 @@ class PropertyPage {
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
   PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
                              const StringPiece& property_name);
-
-  // This function returns the cache state for a given cohort.
-  //
-  // It is a programming error to call GetCacheState on a PropertyPage
-  // that has not yet been read.
-  CacheInterface::KeyState GetCacheState(const PropertyCache::Cohort* cohort);
-
-  // This function set the cache state for a given cohort. This is only for
-  // test code. Normally, cache state should be always set by cache, not from
-  // this function.
-  //
-  // It is a programming error to call set_cache_state_for_tests on a
-  // PropertyPage that has not yet been read.
-  void set_cache_state_for_tests(const PropertyCache::Cohort* cohort,
-                                 CacheInterface::KeyState x);
 
   // Deletes a property given the property name.
   //
@@ -390,8 +388,6 @@ class PropertyPage {
   friend class PropertyCache::CacheInterfaceCallback;
   friend class PropertyCache;
 
-  void SetupCohorts(const PropertyCache::CohortVector& cohort_list);
-
   // Serializes the values in this cohort into a string.  Returns
   // false if there were no values to serialize.
   bool EncodeCacheEntry(const PropertyCache::Cohort* cohort,
@@ -419,7 +415,6 @@ class PropertyPage {
     bool has_deleted_property;
     LogRecord* log_record;
     int cohort_index;
-    CacheInterface::KeyState cache_state;
   };
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
       CohortDataMap;

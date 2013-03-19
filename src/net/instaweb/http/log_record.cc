@@ -18,11 +18,10 @@
 
 #include "net/instaweb/http/public/log_record.h"
 
-#include <map>
 #include <set>
-#include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -39,13 +38,11 @@ LogRecord::LogRecord(AbstractMutex* mutex) : mutex_(mutex) {
 LogRecord::LogRecord()
     : logging_info_(NULL),
       mutex_(NULL),
-      rewriter_info_max_size_(-1),
-      allow_logging_urls_(false) {}
+      rewriter_info_max_size_(-1) {}
 
 void LogRecord::InitLogging() {
   logging_info_.reset(new LoggingInfo);
   rewriter_info_max_size_ = -1;
-  allow_logging_urls_ = false;
 }
 
 LogRecord::~LogRecord() {
@@ -105,8 +102,26 @@ void LogRecord::SetDeviceAndCacheTypeForCohortInfo(int index, int device_type,
   cohort_info->set_cache_type(cache_type);
 }
 
+void LogRecord::LogAppliedRewriter(const char* rewriter_id) {
+  ScopedMutex lock(mutex_.get());
+  LogAppliedRewriterImpl(rewriter_id);
+}
+
+void LogRecord::LogAppliedRewriterImpl(const char* rewriter_id) {
+  mutex_->DCheckLocked();
+  if (strlen(rewriter_id) > 0) {
+    NewRewriterInfoImpl(rewriter_id, RewriterInfo::APPLIED_OK);
+  }
+}
+
 RewriterInfo* LogRecord::NewRewriterInfo(const char* rewriter_id) {
   ScopedMutex lock(mutex_.get());
+  return NewRewriterInfoImpl(rewriter_id, RewriterInfo::UNKNOWN_STATUS);
+}
+
+RewriterInfo* LogRecord::NewRewriterInfoImpl(const char* rewriter_id,
+                                             int status) {
+  mutex_->DCheckLocked();
   if (rewriter_info_max_size_ != -1 &&
       logging_info()->rewriter_info_size() >= rewriter_info_max_size_) {
     if (!logging_info()->rewriter_info_size_limit_exceeded()) {
@@ -117,28 +132,21 @@ RewriterInfo* LogRecord::NewRewriterInfo(const char* rewriter_id) {
   }
   RewriterInfo* rewriter_info = logging_info()->add_rewriter_info();
   rewriter_info->set_id(rewriter_id);
+  SetRewriterLoggingStatus(rewriter_info, status);
   return rewriter_info;
 }
 
 void LogRecord::SetRewriterLoggingStatus(
-    const char* id, RewriterInfo::RewriterApplicationStatus status) {
-  SetRewriterLoggingStatus(id, "", status);
-}
-
-void LogRecord::SetRewriterLoggingStatus(
-    const char* id, const GoogleString& url,
-    RewriterInfo::RewriterApplicationStatus status) {
-  RewriterInfo* rewriter_info = NewRewriterInfo(id);
+    RewriterInfo* rewriter_info, int status) {
   if (rewriter_info == NULL) {
     return;
   }
-
-  ScopedMutex lock(mutex_.get());
-  if (allow_logging_urls_ && url != "") {
-    PopulateUrl(url, rewriter_info->mutable_rewrite_resource_info());
-  }
-
-  rewriter_info->set_status(status);
+  DCHECK(RewriterInfo::RewriterApplicationStatus_IsValid(status));
+  mutex_->DCheckLocked();
+  DCHECK_EQ(RewriterInfo::UNKNOWN_STATUS, rewriter_info->status()) <<
+    "Only RewriterInfo messages with UNKNOWN_STATUS may have their status set.";
+  rewriter_info->set_status(
+      static_cast<RewriterInfo::RewriterApplicationStatus>(status));
 }
 
 void LogRecord::SetBlinkRequestFlow(int flow) {
@@ -146,15 +154,6 @@ void LogRecord::SetBlinkRequestFlow(int flow) {
   ScopedMutex lock(mutex_.get());
   logging_info()->mutable_blink_info()->set_blink_request_flow(
       static_cast<BlinkInfo::BlinkRequestFlow>(flow));
-}
-
-void LogRecord::SetCacheHtmlRequestFlow(int flow) {
-  DCHECK(CacheHtmlLoggingInfo::CacheHtmlRequestFlow_IsValid(flow));
-  ScopedMutex lock(mutex_.get());
-  CacheHtmlLoggingInfo* cache_html_logging_info =
-      logging_info()->mutable_cache_html_logging_info();
-  cache_html_logging_info->set_cache_html_request_flow(
-      static_cast<CacheHtmlLoggingInfo::CacheHtmlRequestFlow>(flow));
 }
 
 void LogRecord::SetIsOriginalResourceCacheable(bool cacheable) {
@@ -205,10 +204,6 @@ void LogRecord::SetBlinkInfo(const GoogleString& user_agent) {
   SetBlinkInfoImpl(user_agent);
 }
 
-void LogRecord::SetCacheHtmlLoggingInfo(const GoogleString& user_agent) {
-  SetCacheHtmlInfoImpl(user_agent);
-}
-
 bool LogRecord::WriteLog() {
   ScopedMutex lock(mutex_.get());
   return WriteLogImpl();
@@ -243,15 +238,9 @@ void LogRecord::SetRewriterInfoMaxSize(int x) {
   rewriter_info_max_size_ = x;
 }
 
-void LogRecord::SetAllowLoggingUrls(bool allow_logging_urls) {
-  ScopedMutex lock(mutex_.get());
-  allow_logging_urls_ = allow_logging_urls;
-}
-
 void LogRecord::LogImageRewriteActivity(
     const char* id,
-    const GoogleString& url,
-    RewriterInfo::RewriterApplicationStatus status,
+    int status,
     bool is_image_inlined,
     bool is_critical_image,
     bool try_low_res_src_insertion,
@@ -261,14 +250,8 @@ void LogRecord::LogImageRewriteActivity(
   if (rewriter_info == NULL) {
     return;
   }
-
-  ScopedMutex lock(mutex_.get());
   RewriteResourceInfo* rewrite_resource_info =
       rewriter_info->mutable_rewrite_resource_info();
-  if (allow_logging_urls_ && url != "") {
-    PopulateUrl(url, rewrite_resource_info);
-  }
-
   rewrite_resource_info->set_is_inlined(is_image_inlined);
   rewrite_resource_info->set_is_critical(is_critical_image);
   if (try_low_res_src_insertion) {
@@ -278,68 +261,8 @@ void LogRecord::LogImageRewriteActivity(
         low_res_src_inserted);
     image_rewrite_resource_info->set_low_res_size(low_res_data_size);
   }
-
-  rewriter_info->set_status(status);
-}
-
-void LogRecord::LogJsDisableFilter(
-    const char* id, RewriterInfo::RewriterApplicationStatus status,
-    bool has_pagespeed_no_defer) {
-  RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
-    return;
-  }
-
   ScopedMutex lock(mutex_.get());
-  RewriteResourceInfo* rewrite_resource_info =
-      rewriter_info->mutable_rewrite_resource_info();
-  rewrite_resource_info->set_has_pagespeed_no_defer(has_pagespeed_no_defer);
-  rewriter_info->set_status(status);
-}
-
-void LogRecord::LogLazyloadFilter(
-    const char* id, RewriterInfo::RewriterApplicationStatus status,
-    bool is_blacklisted, bool is_critical) {
-  RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
-    return;
-  }
-
-  ScopedMutex lock(mutex_.get());
-  RewriteResourceInfo* rewrite_resource_info =
-      rewriter_info->mutable_rewrite_resource_info();
-  if (is_blacklisted) {
-    rewrite_resource_info->set_is_blacklisted(is_blacklisted);
-  }
-  if (is_critical) {
-    rewrite_resource_info->set_is_critical(is_critical);
-  }
-  rewriter_info->set_status(status);
-}
-
-void LogRecord::PopulateUrl(
-    const GoogleString& url, RewriteResourceInfo* rewrite_resource_info) {
-  std::pair<StringIntMap::iterator, bool> result = url_index_map_.insert(
-      std::make_pair(url, 0));
-  StringIntMap::iterator iter = result.first;
-  if (result.second) {
-    ResourceUrlInfo* resource_url_info =
-        logging_info()->mutable_resource_url_info();
-    resource_url_info->add_url(url);
-    iter->second =  resource_url_info->url_size() - 1;
-  }
-
-  rewrite_resource_info->set_original_resource_url_index(iter->second);
-}
-
-void LogRecord::SetNumHtmlCriticalImages(int num_html_critical_images) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->set_num_html_critical_images(num_html_critical_images);
-}
-
-void LogRecord::SetNumCssCriticalImages(int num_css_critical_images) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->set_num_css_critical_images(num_css_critical_images);
+  SetRewriterLoggingStatus(rewriter_info, status);
 }
 
 }  // namespace net_instaweb

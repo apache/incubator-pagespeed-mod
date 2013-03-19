@@ -57,7 +57,6 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
   net/instaweb/libinstaweb_critical_line_info_pb.a \
-  net/instaweb/libinstaweb_critical_selectors_pb.a \
   net/instaweb/libinstaweb_defer_iframe_data2c.a \
   net/instaweb/libinstaweb_defer_iframe_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_data2c.a \
@@ -74,7 +73,6 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_http.a \
   net/instaweb/libinstaweb_http_gperf.a \
   net/instaweb/libinstaweb_http_pb.a \
-  net/instaweb/libinstaweb_image_types_pb.a \
   net/instaweb/libinstaweb_javascript_gperf.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
@@ -109,7 +107,6 @@ BASE_LIBS = \
   third_party/gflags/libgflags.a \
   third_party/icu/libicudata.a \
   third_party/icu/libicuuc.a \
-  third_party/instaweb/libutil.a \
   third_party/jsoncpp/libjsoncpp.a \
   third_party/libjpeg/libjpeg.a \
   third_party/libpagespeed/src/pagespeed/core/libpagespeed_core.a \

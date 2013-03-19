@@ -43,11 +43,9 @@ namespace net_instaweb {
 
 class AbstractMutex;
 class BlinkCriticalLineDataFinder;
-class CacheHtmlInfoFinder;
 class ContentType;
 class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
@@ -103,9 +101,6 @@ class ServerContext {
   // Default statistics group name.
   static const char kStatisticsGroup[];
 
-  // Hash for resources in case of stale metadata cache lookup.
-  static const char kStaleHash[];
-
   explicit ServerContext(RewriteDriverFactory* factory);
   virtual ~ServerContext();
 
@@ -158,9 +153,6 @@ class ServerContext {
   // Is this URL a ref to a Pagespeed resource?
   bool IsPagespeedResource(const GoogleUrl& url);
 
-  // Is this URL a ref to a Pagespeed resource which is not stale ?
-  bool IsNonStalePagespeedResource(const GoogleUrl& url);
-
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched.
   bool IsImminentlyExpiring(int64 start_date_ms, int64 expire_ms) const;
@@ -186,16 +178,10 @@ class ServerContext {
   Scheduler* scheduler() const { return scheduler_; }
   void set_scheduler(Scheduler* s) { scheduler_ = s; }
   bool has_default_system_fetcher() { return default_system_fetcher_ != NULL; }
-  bool has_default_distributed_fetcher() {
-    return default_distributed_fetcher_ != NULL;
-  }
+
   // Note: for rewriting user content, you want to use RewriteDriver's
   // async_fetcher() instead, as it may apply session-specific optimizations.
   UrlAsyncFetcher* DefaultSystemFetcher() { return default_system_fetcher_; }
-
-  UrlAsyncFetcher* DefaultDistributedFetcher() {
-    return default_distributed_fetcher_;
-  }
 
   Timer* timer() const { return http_cache_->timer(); }
 
@@ -239,20 +225,15 @@ class ServerContext {
     owned_cache_.reset(owned_cache);
   }
 
-  CriticalCssFinder* critical_css_finder() const {
-    return critical_css_finder_.get();
-  }
-  void set_critical_css_finder(CriticalCssFinder* finder);
-
   CriticalImagesFinder* critical_images_finder() const {
     return critical_images_finder_.get();
   }
   void set_critical_images_finder(CriticalImagesFinder* finder);
 
-  CriticalSelectorFinder* critical_selector_finder() const {
-    return critical_selector_finder_.get();
+  CriticalCssFinder* critical_css_finder() const {
+    return critical_css_finder_.get();
   }
-  void set_critical_selector_finder(CriticalSelectorFinder* finder);
+  void set_critical_css_finder(CriticalCssFinder* finder);
 
   FlushEarlyInfoFinder* flush_early_info_finder() const {
     return flush_early_info_finder_.get();
@@ -270,12 +251,6 @@ class ServerContext {
 
   void set_blink_critical_line_data_finder(
       BlinkCriticalLineDataFinder* finder);
-
-  CacheHtmlInfoFinder* cache_html_info_finder() const {
-    return cache_html_info_finder_.get();
-  }
-
-  void set_cache_html_info_finder(CacheHtmlInfoFinder* finder);
 
   // Whether or not dumps of rewritten resources should be stored to
   // the filesystem. This is meant for testing purposes only.
@@ -321,18 +296,12 @@ class ServerContext {
   void set_default_system_fetcher(UrlAsyncFetcher* fetcher) {
     default_system_fetcher_ = fetcher;
   }
-  void set_default_distributed_fetcher(UrlAsyncFetcher* fetcher) {
-    default_distributed_fetcher_ = fetcher;
-  }
 
   // Handles an incoming beacon request by incrementing the appropriate
   // variables.  Returns true if the url was parsed and handled correctly; in
   // this case a 204 No Content response should be sent.  Returns false if the
-  // url could not be parsed; in this case the request should be declined. body
-  // should be either the query params or the POST body, depending on how the
-  // beacon was sent, from the beacon request.
-  bool HandleBeacon(StringPiece body,
-                    StringPiece user_agent,
+  // url could not be parsed; in this case the request should be declined.
+  bool HandleBeacon(const StringPiece& unparsed_url,
                     const RequestContextPtr& request_context);
 
   // Returns a pointer to the master global_options.  These are not used
@@ -377,13 +346,9 @@ class ServerContext {
 
   // Returns the page property cache key to be used for the proxy interface
   // flow.  options is expected to be frozen.
-  GoogleString GetPagePropertyCacheKey(StringPiece url,
+  GoogleString GetPagePropertyCacheKey(const StringPiece& url,
                                        const RewriteOptions* options,
-                                       StringPiece device_type_suffix);
-
-  GoogleString GetPagePropertyCacheKey(StringPiece url,
-                                       StringPiece options_signature_hash,
-                                       StringPiece device_type_suffix);
+                                       const StringPiece& device_type_suffix);
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -574,18 +539,6 @@ class ServerContext {
     return decoding_driver_.get();
   }
 
-  // Determines whether in this server, it makes sense to proxy HTML
-  // from external sources.  If we're acting as a reverse proxy that
-  // talks to the backend over HTTP, it makes sense to set this to
-  // 'true'.  The JavaScript loaded from the HTML on the origin
-  // domain will be given full access to cookies on the proxied
-  // domain.
-  //
-  // For resource-proxying (e.g. ModPagespeedMapProxyDomain) this should
-  // be set to 'false' as that command is intended only for reosurces, not
-  // for HTML.
-  virtual bool ProxiesHtml() const = 0;
-
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
   // appropriate spot during shutdown.
@@ -600,13 +553,6 @@ class ServerContext {
   // Must be called with rewrite_drivers_mutex_ held.
   void ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver);
 
-  // Checks if the given resource url is a pagespeed resource and if it is
-  // stale and sets is_pagespeed_resource and is_stale respectively.
-  // is_pagespeed_resource and is_stale should not be NULL.
-  // *is_stale makes sense only if *is_pagespeed_resource is true.
-  void GetResourceInfo(const GoogleUrl& url, bool* is_pagespeed_resource,
-                       bool* is_stale);
-
   // These are normally owned by the RewriteDriverFactory that made 'this'.
   ThreadSystem* thread_system_;
   RewriteStats* rewrite_stats_;
@@ -617,13 +563,10 @@ class ServerContext {
   UserAgentMatcher* user_agent_matcher_;
   Scheduler* scheduler_;
   UrlAsyncFetcher* default_system_fetcher_;
-  UrlAsyncFetcher* default_distributed_fetcher_;
   Hasher* hasher_;
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
-  scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
   scoped_ptr<BlinkCriticalLineDataFinder> blink_critical_line_data_finder_;
-  scoped_ptr<CacheHtmlInfoFinder> cache_html_info_finder_;
   scoped_ptr<FlushEarlyInfoFinder> flush_early_info_finder_;
 
   // hasher_ is often set to a mock within unit tests, but some parts of the

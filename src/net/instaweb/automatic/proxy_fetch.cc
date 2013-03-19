@@ -207,12 +207,12 @@ void ProxyFetchPropertyCallback::LogPageCohortInfo(
 ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
     ServerContext* server_context, const StringPiece& url,
     const RequestContextPtr& request_ctx, const RewriteOptions* options,
-    UserAgentMatcher::DeviceType device_type)
+    const StringPiece& user_agent)
     : mutex_(server_context->thread_system()->NewMutex()),
       server_context_(server_context),
       url_(url.data(), url.size()),
       request_context_(request_ctx),
-      device_type_(device_type),
+      user_agent_(user_agent.data(), user_agent.size()),
       detached_(false),
       done_(false),
       success_(true),
@@ -230,6 +230,7 @@ ProxyFetchPropertyCallbackCollector::~ProxyFetchPropertyCallbackCollector() {
   }
   STLDeleteElements(&pending_callbacks_);
   STLDeleteValues(&property_pages_);
+  STLDeleteValues(&property_pages_for_device_types_);
 }
 
 void ProxyFetchPropertyCallbackCollector::AddCallback(
@@ -244,6 +245,21 @@ PropertyPage* ProxyFetchPropertyCallbackCollector::GetPropertyPage(
   PropertyPage* page = property_pages_[cache_type];
   property_pages_[cache_type] = NULL;
   return page;
+}
+
+UserAgentMatcher::DeviceType
+ProxyFetchPropertyCallbackCollector::GetDeviceTypeFromDeviceCacheMutexHeld() {
+  // TODO(ksimbili): Pass the property page from device cache.
+  const UserAgentMatcher* user_agent_matcher =
+      server_context_->user_agent_matcher();
+  return user_agent_matcher->GetDeviceTypeForUA(user_agent_.c_str());
+}
+
+void ProxyFetchPropertyCallbackCollector::SetPropertyPageForDeviceTypeMutexHeld(
+    UserAgentMatcher::DeviceType device_type) {
+  property_pages_[ProxyFetchPropertyCallback::kPagePropertyCache] =
+      property_pages_for_device_types_[device_type];
+  property_pages_for_device_types_[device_type] = NULL;
 }
 
 PropertyPage*
@@ -287,10 +303,17 @@ void ProxyFetchPropertyCallbackCollector::Done(
   {
     ScopedMutex lock(mutex_.get());
     pending_callbacks_.erase(callback);
-    property_pages_[callback->cache_type()] = callback;
+    if (callback->cache_type() ==
+        ProxyFetchPropertyCallback::kPagePropertyCache) {
+      property_pages_for_device_types_[callback->device_type()] = callback;
+    } else {
+      property_pages_[callback->cache_type()] = callback;
+    }
     success_ &= success;
 
     if (pending_callbacks_.empty()) {
+      SetPropertyPageForDeviceTypeMutexHeld(
+          GetDeviceTypeFromDeviceCacheMutexHeld());
       // There is a race where Detach() can be called immediately after we
       // release the lock below, and it (Detach) deletes 'this' (because we
       // just set done_ to true), which means we cannot rely on any data
@@ -532,30 +555,17 @@ const RewriteOptions* ProxyFetch::Options() {
 }
 
 void ProxyFetch::HandleHeadersComplete() {
-  // Figure out semantic info from response_headers_
-  claims_html_ = response_headers()->IsHtmlLike();
-
   if (original_content_fetch_ != NULL) {
     ResponseHeaders* headers = original_content_fetch_->response_headers();
     headers->CopyFrom(*response_headers());
-
-    if (!server_context_->ProxiesHtml() && claims_html_) {
-      LOG(DFATAL) << "Investigate how servers that don't proxy HTML can be "
-          "initiated with original_content_fetch_ non-null";
-      headers->SetStatusAndReason(HttpStatus::kForbidden);
-    }
     original_content_fetch_->HeadersComplete();
   }
-
-  bool sanitize = cross_domain_;
-  if (claims_html_ && !server_context_->ProxiesHtml()) {
-    response_headers()->SetStatusAndReason(HttpStatus::kForbidden);
-    sanitize = true;
-  }
+  // Figure out semantic info from response_headers_
+  claims_html_ = response_headers()->IsHtmlLike();
 
   // Make sure we never serve cookies if the domain we are serving
   // under isn't the domain of the origin.
-  if (sanitize) {
+  if (cross_domain_) {
     // ... by calling Sanitize to remove them.
     bool changed = response_headers()->Sanitize();
     if (changed) {
@@ -684,9 +694,6 @@ void ProxyFetch::DoFetch() {
     }
 
     cache_fetcher_.reset(driver_->CreateCacheFetcher());
-    // Since we are proxying resources to user, we want to fetch it even if
-    // there is a kRecentFetchNotCacheable message in the cache.
-    cache_fetcher_->set_ignore_recent_fetch_failed(true);
     cache_fetcher_->Fetch(url_, factory_->handler_, this);
   } else {
     Done(false);
@@ -725,7 +732,8 @@ void ProxyFetch::PropertyCacheComplete(
     driver_->set_property_page(
         callback_collector->GetPropertyPage(
             ProxyFetchPropertyCallback::kPagePropertyCache));
-    driver_->set_device_type(callback_collector->device_type());
+    driver_->set_device_type(
+        callback_collector->GetDeviceTypeFromDeviceCacheMutexHeld());
     driver_->set_client_state(GetClientState(callback_collector));
   }
   // We have to set the callback to NULL to let ScheduleQueueExecutionIfNeeded
@@ -762,10 +770,6 @@ AbstractClientState* ProxyFetch::GetClientState(
 
 bool ProxyFetch::HandleWrite(const StringPiece& str,
                              MessageHandler* message_handler) {
-  if (claims_html_ && !server_context_->ProxiesHtml()) {
-    return true;
-  }
-
   // TODO(jmarantz): check if the server is being shut down and punt.
   if (original_content_fetch_ != NULL) {
     original_content_fetch_->Write(str, message_handler);

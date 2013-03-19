@@ -413,31 +413,6 @@ TEST_F(ParserTest, color) {
   a.reset(new Parser("rgb( 12% , 25% 30%)"));
   t.reset(a->ParseAny());
   EXPECT_FALSE(t.get());
-
-  // Parsed as color in quirks-mode.
-  a.reset(new Parser("0000ff"));
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::COLOR, t->GetLexicalUnitType());
-  EXPECT_EQ("#0000ff", t->ToString());
-  EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
-
-  // Parsed as dimension in standards-mode.
-  a.reset(new Parser("0000ff"));
-  a->set_quirks_mode(false);
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
-  EXPECT_EQ("0ff", t->ToString());
-  EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
-
-  // Original preserved in preservation-mode + standards-mode.
-  a.reset(new Parser("0000ff"));
-  a->set_quirks_mode(false);
-  a->set_preservation_mode(true);
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
-  EXPECT_EQ("0ff", t->ToString());
-  // ValueError assures that we will preserve the original string.
-  EXPECT_EQ(Parser::kValueError, a->errors_seen_mask());
 }
 
 TEST_F(ParserTest, url) {
@@ -725,63 +700,6 @@ TEST_F(ParserTest, font) {
   a.reset(new Parser("normal 10px Arial #333"));
   t.reset(a->ParseFont());
   EXPECT_EQ(static_cast<Values *>(NULL), t.get()) << "invalid type";
-}
-
-TEST_F(ParserTest, numbers) {
-  scoped_ptr<Parser> p;
-  scoped_ptr<Value> v;
-
-  p.reset(new Parser("1"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_TRUE(p->Done());
-
-  p.reset(new Parser("1;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser("1em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::EM, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser("1.1em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1.1, v->GetFloatValue());
-  EXPECT_EQ(Value::EM, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser(".1"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(.1, v->GetFloatValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_TRUE(p->Done());
-
-  // Note: 1.em is *not* parsed as 1.0em, instead it needs to be parsed as
-  // INT(1) DELIM(.) IDENT(em)
-  p.reset(new Parser("1.em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());  // Unit is not parsed.
-  EXPECT_EQ('.', *p->in_);  // Parsing ends on dot.
-
-  // Make sure this also works if file ends with dot.
-  p.reset(new Parser("1."));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_EQ('.', *p->in_);
 }
 
 TEST_F(ParserTest, values) {
@@ -1582,22 +1500,10 @@ TEST_F(ParserTest, Utf8Error) {
 }
 
 TEST_F(ParserTest, DeclarationError) {
-  scoped_ptr<Parser> p(new Parser("font-family ; "));
-  scoped_ptr<Declarations> declarations(p->ParseDeclarations());
+  Parser p("font-family ; ");
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
   EXPECT_EQ(0, declarations->size());
-  EXPECT_EQ(Parser::kDeclarationError, p->errors_seen_mask());
-
-  p.reset(new Parser("padding-top: 1.em"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
-
-  p.reset(new Parser("color: red !ie"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
-
-  p.reset(new Parser("color: red !important really"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
+  EXPECT_EQ(Parser::kDeclarationError, p.errors_seen_mask());
 }
 
 TEST_F(ParserTest, SelectorError) {

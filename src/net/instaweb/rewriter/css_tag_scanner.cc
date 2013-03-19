@@ -50,78 +50,54 @@ const char CssTagScanner::kUriValue[] = "url(";
 CssTagScanner::CssTagScanner(HtmlParse* html_parse) {
 }
 
-bool CssTagScanner::ParseCssElement(HtmlElement* element,
-                                    HtmlElement::Attribute** href,
-                                    const char** media,
-                                    int* num_nonstandard_attributes) {
+bool CssTagScanner::ParseCssElement(
+    HtmlElement* element, HtmlElement::Attribute** href, const char** media) {
+  int num_required_attributes_found = 0;
   *media = "";
   *href = NULL;
-  *num_nonstandard_attributes = 0;
-  if (element->keyword() != HtmlName::kLink) {
-    return false;
-  }
-  // We must have all attributes rel='stylesheet' href='name.css'; and if
-  // there is a type, it must be type='text/css'. These can be in any order.
-  HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  bool has_href = false, has_rel_stylesheet = false;
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
-    HtmlElement::Attribute& attr = *i;
-    switch (attr.keyword()) {
-      case HtmlName::kHref:
-        if (has_href || attr.decoding_error()) {
-          // Duplicate or undecipherable href.
-          return false;
-        }
-        *href = &attr;
-        has_href = true;
+  if (element->keyword() == HtmlName::kLink) {
+    // We must have all attributes rel='stylesheet' href='name.css'; and if
+    // there is a type, it better be type='text/css'. These can be in any order.
+    // We also panic on invalid attributes, since otherwise
+    // css_combine_filter.cc can lose them.
+    HtmlElement::AttributeList* attrs = element->mutable_attributes();
+    for (HtmlElement::AttributeIterator i(attrs->begin());
+         i != attrs->end(); ++i) {
+      HtmlElement::Attribute& attr = *i;
+      if (attr.decoding_error()) {
+        num_required_attributes_found = 0;
         break;
-      case HtmlName::kRel: {
+      } else if (attr.keyword() == HtmlName::kHref) {
+        *href = &attr;
+        ++num_required_attributes_found;
+      } else if (attr.keyword() == HtmlName::kRel) {
         StringPiece rel(attr.DecodedValueOrNull());
         TrimWhitespace(&rel);
-        if (!StringCaseEqual(rel, kStylesheet)) {
-          // rel=something_else.  Abort.  Includes alternate stylesheets.
-          return false;
+        if (StringCaseEqual(rel, kStylesheet)) {
+          ++num_required_attributes_found;
+        } else {
+          // rel=something_else.  abort.
+          num_required_attributes_found = 0;
+          break;
         }
-        has_rel_stylesheet = true;
-        break;
-      }
-      case HtmlName::kMedia:
+      } else if (attr.keyword() == HtmlName::kMedia) {
         *media = attr.DecodedValueOrNull();
-        if (*media == NULL) {
-          // No value (media rather than media=), or decoding error
-          return false;
+      } else {
+        // The only other attribute we should see is type=text/css.  This
+        // attribute is not required, but if the attribute we are
+        // finding here is anything else then abort.
+        if ((attr.keyword() != HtmlName::kType) ||
+            !StringCaseEqual(attr.DecodedValueOrNull(), kTextCss)) {
+          num_required_attributes_found = 0;
+          break;
         }
-        break;
-      case HtmlName::kType: {
-        // If we see this, it must be type=text/css.  This attribute is not
-        // required.
-        StringPiece type(attr.DecodedValueOrNull());
-        TrimWhitespace(&type);
-        if (!StringCaseEqual(type, kTextCss)) {
-          return false;
-        }
-        break;
       }
-      case HtmlName::kTitle:
-      case HtmlName::kPagespeedNoTransform:
-        // title= is here because it indicates a default stylesheet among
-        // alternatives.  See:
-        // http://www.w3.org/TR/REC-html40/present/styles.html#h-14.3.1
-        // We don't alter a link for which pagespeed_no_transform is set.
-        return false;
-      default:
-        // Other tags are assumed to be harmless noise; if that is not the case
-        // for a particular filter, it should be detected within that filter
-        // (examples: extra tags are rejected in css_combine_filter, but they're
-        // preserved by css_inline_filter).
-        ++(*num_nonstandard_attributes);
-        break;
     }
   }
 
   // we require both 'href=...' and 'rel=stylesheet'.
-  return (has_rel_stylesheet && has_href);
+  // TODO(jmarantz): warn when CSS elements aren't quite what we expect?
+  return (num_required_attributes_found >= 2);
 }
 
 namespace {
@@ -145,6 +121,17 @@ inline bool EatLiteral(const StringPiece& expected, StringPiece* in) {
     return true;
   } else {
     return false;
+  }
+}
+
+inline bool IsCssWhitespace(char c) {
+  // As specified in CSS2.1,  G.2, production 's'
+  return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n') || (c == '\f');
+}
+
+void EatCssWhiteSpace(StringPiece* in) {
+  while (!in->empty() && IsCssWhitespace((*in)[0])) {
+    in->remove_prefix(1);
   }
 }
 
@@ -283,7 +270,7 @@ bool CssTagScanner::TransformUrls(
       // write out with transformed URL, we should start with
       // @import.
       if (EatLiteral("import", &remaining)) {
-        TrimLeadingWhitespace(&remaining);
+        EatCssWhiteSpace(&remaining);
         // The code here handles @import "foo" and @import 'foo';
         // for @import url(... we simply pass the @import through and let
         // the code that handles url( below take care of it.
@@ -299,11 +286,11 @@ bool CssTagScanner::TransformUrls(
       // url(
       GoogleString wrapped_url;
       if (EatLiteral("rl(", &remaining)) {
-        TrimLeadingWhitespace(&remaining);
+        EatCssWhiteSpace(&remaining);
         // Note if we have a quoted URL inside url(), it needs to be
         // parsed as such.
         if (CssExtractString(&remaining, &url, &quote, &have_term_quote)) {
-          TrimLeadingWhitespace(&remaining);
+          EatCssWhiteSpace(&remaining);
           if (EatLiteral(")", &remaining)) {
             have_url = kUrl;
             is_quoted = true;
@@ -407,6 +394,7 @@ bool CssTagScanner::IsStylesheetOrAlternate(
   // Require "stylesheet", ignore "alternate", disallow all other values.
   return has_stylesheet && !has_other;
 }
+
 
 RewriteDomainTransformer::RewriteDomainTransformer(
     const GoogleUrl* old_base_url, const GoogleUrl* new_base_url,

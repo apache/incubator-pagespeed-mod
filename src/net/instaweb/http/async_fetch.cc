@@ -51,7 +51,6 @@ AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
       headers_complete_(false) {
-  DCHECK(request_ctx_.get() != NULL);
 }
 
 AsyncFetch::~AsyncFetch() {
@@ -76,8 +75,7 @@ bool AsyncFetch::Write(const StringPiece& sp, MessageHandler* handler) {
   if (!sp.empty()) {  // empty-writes should be no-ops.
     if (!headers_complete_) {
       HeadersComplete();
-    }
-    if (request_headers()->method() == RequestHeaders::kHead) {
+    } else if (request_headers()->method() == RequestHeaders::kHead) {
       // If the request is a head request, then don't write the contents of
       // body.
       return ret;

@@ -143,6 +143,8 @@ TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
 
 TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
   InitJsDeferDisabledFilter(false);
+  options_->ClearSignatureForTesting();
+  options_->set_enable_aggressive_rewriters_for_mobile(true);
   rewrite_driver()->SetUserAgent(UserAgentStrings::kIPhone4Safari);
   const char script[] = "<head>"
       "<script type='text/psajs' "
@@ -165,8 +167,6 @@ TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
 
 TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
   InitJsDeferDisabledFilter(false);
-  options_->ClearSignatureForTesting();
-  options_->set_enable_aggressive_rewriters_for_mobile(false);
   rewrite_driver()->SetUserAgent(UserAgentStrings::kIPhone4Safari);
   const char script[] = "<head>"
       "<script type='text/psajs' "
@@ -197,7 +197,7 @@ TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
       "</body><body><script type='text/psajs'> func2(); "
       "</script></body></html>"
       "<script type=\"text/javascript\" "
-      "src=\"//www.gstatic.com/psa/static/1-js_defer.js\">"
+      "src=\"http://www.gstatic.com/psa/static/1-js_defer.js\">"
       "</script>");
 }
 

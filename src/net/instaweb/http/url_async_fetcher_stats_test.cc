@@ -20,7 +20,6 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -81,8 +80,7 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   UrlAsyncFetcherStatsTest()
       : timer_(MockTimer::kApr_5_2010_ms),
         wait_fetcher_(&mock_fetcher_, new NullMutex),
-        stats_fetcher_("test", &wait_fetcher_, &timer_, stats_),
-        thread_system_(ThreadSystem::CreateThreadSystem()) {
+        stats_fetcher_("test", &wait_fetcher_, &timer_, stats_) {
     // We don't want delays unless we're testing timing stuff.
     wait_fetcher_.SetPassThroughMode(true);
   }
@@ -111,7 +109,6 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   MockUrlFetcher mock_fetcher_;
   WaitUrlAsyncFetcher wait_fetcher_;
   UrlAsyncFetcherStats stats_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(UrlAsyncFetcherStatsTest);
@@ -126,8 +123,7 @@ TEST_F(UrlAsyncFetcherStatsTest, BasicOperation) {
   const char kBody[] = "payload!";
   mock_fetcher_.SetResponse(kUrl, headers, kBody);
 
-  ExpectStringAsyncFetch target(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch target(true);
   stats_fetcher_.Fetch(kUrl, &message_handler_, &target);
   EXPECT_STREQ(kBody, target.buffer());
 
@@ -138,8 +134,7 @@ TEST_F(UrlAsyncFetcherStatsTest, BasicOperation) {
   EXPECT_EQ(target.response_headers()->SizeEstimate(),
             stats_->GetVariable("test_approx_header_bytes_fetched")->Get());
 
-  ExpectStringAsyncFetch target2(
-      false, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch target2(false);
   mock_fetcher_.set_fail_on_unexpected(false);
   stats_fetcher_.Fetch(StrCat(kUrl, "Not"), &message_handler_, &target2);
 
@@ -177,8 +172,7 @@ TEST_F(UrlAsyncFetcherStatsTest, GzipHandling) {
   mock_fetcher_.SetResponse(kUrl, headers, compressed);
 
   stats_fetcher_.set_fetch_with_gzip(true);
-  ExpectStringAsyncFetch target(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch target(true);
   stats_fetcher_.Fetch(kUrl, &message_handler_, &target);
   EXPECT_STREQ(kOriginal, target.buffer());
 
@@ -197,8 +191,7 @@ TEST_F(UrlAsyncFetcherStatsTest, TimeMeasurement) {
   const char kBody[] = "payload!";
   mock_fetcher_.SetResponse(kUrl, headers, kBody);
 
-  ExpectStringAsyncFetch target(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch target(true);
   stats_fetcher_.Fetch(kUrl, &message_handler_, &target);
   EXPECT_FALSE(target.done());
 
@@ -212,8 +205,7 @@ TEST_F(UrlAsyncFetcherStatsTest, TimeMeasurement) {
   EXPECT_DOUBLE_EQ(42, timings->Average());
 
   // Now do an another fetch, this with a 2 us.
-  ExpectStringAsyncFetch target2(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch target2(true);
   stats_fetcher_.Fetch(kUrl, &message_handler_, &target2);
   EXPECT_FALSE(target2.done());
   timer_.AdvanceUs(2);

@@ -29,7 +29,6 @@
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -76,7 +75,6 @@ RewriteDriverFactory::RewriteDriverFactory()
 void RewriteDriverFactory::Init() {
   url_fetcher_ = NULL;
   url_async_fetcher_ = NULL;
-  distributed_async_fetcher_ = NULL;
   force_caching_ = false;
   slurp_read_only_ = false;
   slurp_print_urls_ = false;
@@ -127,11 +125,6 @@ RewriteDriverFactory::~RewriteDriverFactory() {
     delete url_fetcher_;
   }
   url_fetcher_ = NULL;
-
-  if (distributed_async_fetcher_ != NULL) {
-    delete distributed_async_fetcher_;
-    distributed_async_fetcher_ = NULL;
-  }
 
   for (int i = 0, n = deferred_cleanups_.size(); i < n; ++i) {
     deferred_cleanups_[i]->CallRun();
@@ -187,13 +180,6 @@ void RewriteDriverFactory::set_base_url_fetcher(UrlFetcher* url_fetcher) {
   base_url_fetcher_.reset(url_fetcher);
 }
 
-void RewriteDriverFactory::SetDistributedAsyncFetcher(
-    UrlAsyncFetcher* fetcher) {
-  if (distributed_async_fetcher_ == NULL) {
-    distributed_async_fetcher_ = fetcher;
-  }
-}
-
 void RewriteDriverFactory::set_base_url_async_fetcher(
     UrlAsyncFetcher* url_async_fetcher) {
   CHECK(!FetchersComputed())
@@ -206,6 +192,7 @@ void RewriteDriverFactory::set_base_url_async_fetcher(
 
 void RewriteDriverFactory::set_hasher(Hasher* hasher) {
   hasher_.reset(hasher);
+  DCHECK(server_contexts_.empty());
 }
 
 void RewriteDriverFactory::set_timer(Timer* timer) {
@@ -313,16 +300,8 @@ StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
   return new StaticAssetManager(url_namer(), hasher(), message_handler());
 }
 
-CriticalCssFinder* RewriteDriverFactory::DefaultCriticalCssFinder() {
-  return NULL;
-}
-
 CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder() {
   return new BeaconCriticalImagesFinder(statistics());
-}
-
-CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder() {
-  return NULL;
 }
 
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
@@ -332,11 +311,6 @@ FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
 BlinkCriticalLineDataFinder*
 RewriteDriverFactory::DefaultBlinkCriticalLineDataFinder(
     PropertyCache* pcache) {
-  return NULL;
-}
-
-CacheHtmlInfoFinder* RewriteDriverFactory::DefaultCacheHtmlInfoFinder(
-    PropertyCache* cache) {
   return NULL;
 }
 
@@ -417,6 +391,10 @@ StringPiece RewriteDriverFactory::filename_prefix() {
   return filename_prefix_;
 }
 
+ServerContext* RewriteDriverFactory::NewServerContext() {
+  return new ServerContext(this);
+}
+
 ServerContext* RewriteDriverFactory::CreateServerContext() {
   ServerContext* resource_manager = NewServerContext();
   InitServerContext(resource_manager);
@@ -442,11 +420,6 @@ void RewriteDriverFactory::InitServerContext(
   if (!resource_manager->has_default_system_fetcher()) {
     resource_manager->set_default_system_fetcher(ComputeUrlAsyncFetcher());
   }
-  if (!resource_manager->has_default_distributed_fetcher() &&
-      distributed_async_fetcher_ != NULL) {
-    resource_manager->set_default_distributed_fetcher(
-        distributed_async_fetcher_);
-  }
   resource_manager->set_url_namer(url_namer());
   resource_manager->set_user_agent_matcher(user_agent_matcher());
   resource_manager->set_filename_encoder(filename_encoder());
@@ -456,15 +429,10 @@ void RewriteDriverFactory::InitServerContext(
   resource_manager->set_message_handler(message_handler());
   resource_manager->set_static_asset_manager(static_asset_manager());
   PropertyCache* pcache = resource_manager->page_property_cache();
-  resource_manager->set_critical_css_finder(DefaultCriticalCssFinder());
   resource_manager->set_critical_images_finder(DefaultCriticalImagesFinder());
-  resource_manager->set_critical_selector_finder(
-      DefaultCriticalSelectorFinder());
   resource_manager->set_flush_early_info_finder(DefaultFlushEarlyInfoFinder());
   resource_manager->set_blink_critical_line_data_finder(
       DefaultBlinkCriticalLineDataFinder(pcache));
-  resource_manager->set_cache_html_info_finder(
-      DefaultCacheHtmlInfoFinder(pcache));
   resource_manager->set_hostname(hostname_);
   resource_manager->InitWorkersAndDecodingDriver();
   server_contexts_.insert(resource_manager);
@@ -619,10 +587,9 @@ void RewriteDriverFactory::InitStats(Statistics* statistics) {
   HTTPCache::InitStats(statistics);
   RewriteDriver::InitStats(statistics);
   RewriteStats::InitStats(statistics);
-  CacheBatcher::InitStats(statistics);
   CriticalImagesFinder::InitStats(statistics);
+  CacheBatcher::InitStats(statistics);
   CriticalCssFinder::InitStats(statistics);
-  CriticalSelectorFinder::InitStats(statistics);
   PropertyCache::InitCohortStats(ClientState::kClientStateCohort, statistics);
 }
 

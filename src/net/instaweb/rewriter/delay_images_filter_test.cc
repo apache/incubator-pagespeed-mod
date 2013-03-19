@@ -33,7 +33,7 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "third_party/instaweb/util/wildcard.h"
+#include "net/instaweb/util/public/wildcard.h"
 
 namespace {
 const char kAndroidMobileUserAgent1[] = "Android 3.1 Mobile Safari";
@@ -149,21 +149,8 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString GetDelayImagesCode() {
-    GoogleString delayImagesSuffix = StrCat(
-        DelayImagesFilter::kDelayImagesSuffix,
-        "\npagespeed.delayImages.replaceWithHighRes();\n");
-    return GetJsCode(StaticAssetManager::kDelayImagesJs, delayImagesSuffix);
-  }
-
-  GoogleString GetDelayImagesLazyLoad() {
-    return StringPrintf(kScriptTemplate, GetDelayImagesLazyLoadCode().c_str());
-  }
-
-  GoogleString GetDelayImagesLazyLoadCode() {
-    GoogleString delayImagesSuffix = StrCat(
-        DelayImagesFilter::kDelayImagesSuffix,
-        "\npagespeed.delayImages.registerLazyLoadHighRes();\n");
-    return GetJsCode(StaticAssetManager::kDelayImagesJs, delayImagesSuffix);
+    return GetJsCode(StaticAssetManager::kDelayImagesJs,
+                     DelayImagesFilter::kDelayImagesSuffix);
   }
 
   GoogleString GetDelayImagesInlineCode() {
@@ -449,30 +436,6 @@ TEST_F(DelayImagesFilterTest, DelayImageWithMobileAggressiveEnabled) {
              GenerateAddLowResString("http://test.com/1.jpeg", kSampleJpegData),
              "\npagespeed.delayImagesInline.replaceWithLowRes();\n</script>",
              GetDelayImages(), "</body>"));
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageWithMobileLazyLoad) {
-  options()->set_enable_aggressive_rewriters_for_mobile(true);
-  options()->set_lazyload_highres_images(true);
-  SetupUserAgentTest(kAndroidMobileUserAgent1);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.jpeg", kSampleJpgFile,
-                       kContentTypeJpeg, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.jpeg\" />"
-      "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img pagespeed_high_res_src=\"http://test.com/1.jpeg\"/>",
-      StrCat(GetInlineScript(),
-             "</script>",
-             "<script type=\"text/javascript\">",
-             GenerateAddLowResString("http://test.com/1.jpeg", kSampleJpegData),
-             "\npagespeed.delayImagesInline.replaceWithLowRes();\n</script>",
-             GetDelayImagesLazyLoad(), "</body>"));
   MatchOutputAndCountBytes(input_html, output_html);
 }
 
@@ -854,51 +817,6 @@ TEST_F(DelayImagesFilterTest, ExperimentalIsTrue) {
       "<img pagespeed_high_res_src=\"http://test.com/1.jpeg\" src=\"",
       kSampleJpegData, "\" onload=\"",
       DelayImagesFilter::kOnloadFunction, "\"/></body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, ExperimentalAndLazyLoadIsTrueNotMobile) {
-  options()->set_enable_inline_preview_images_experimental(true);
-  options()->set_lazyload_highres_images(true);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.jpeg", kSampleJpgFile,
-                       kContentTypeJpeg, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.jpeg\" onload=\"blah();\"/>"
-      "<img src=\"http://test.com/1.jpeg\" />"
-      "</body>";
-  GoogleString output_html = StrCat("<head></head><body>",
-      GetNoscript(),
-      "<img src=\"http://test.com/1.jpeg\" onload=\"blah();\"/>"
-      "<img pagespeed_high_res_src=\"http://test.com/1.jpeg\" src=\"",
-      kSampleJpegData, "\" onload=\"",
-      DelayImagesFilter::kOnloadFunction, "\"/></body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, ExperimentalAndMobileLazyLoadIsTrue) {
-  options()->set_enable_aggressive_rewriters_for_mobile(true);
-  options()->set_enable_inline_preview_images_experimental(true);
-  options()->set_lazyload_highres_images(true);
-  SetupUserAgentTest(kAndroidMobileUserAgent1);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.jpeg", kSampleJpgFile,
-                       kContentTypeJpeg, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.jpeg\" />"
-      "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img pagespeed_high_res_src=\"http://test.com/1.jpeg\"/>",
-      StrCat(GetInlineScript(),
-             "</script>",
-             "<script type=\"text/javascript\">",
-             GenerateAddLowResString("http://test.com/1.jpeg", kSampleJpegData),
-             "\npagespeed.delayImagesInline.replaceWithLowRes();\n</script>",
-             GetDelayImagesLazyLoad(), "</body>"));
   MatchOutputAndCountBytes(input_html, output_html);
 }
 

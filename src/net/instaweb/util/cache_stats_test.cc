@@ -98,8 +98,4 @@ TEST_F(CacheStatsTest, BasicOperation) {
   // EXPECT_EQ(1, latency->Count());
 }
 
-TEST_F(CacheStatsTest, Backend) {
-  EXPECT_EQ(delay_cache_, cache_stats_->Backend());
-}
-
 }  // namespace net_instaweb

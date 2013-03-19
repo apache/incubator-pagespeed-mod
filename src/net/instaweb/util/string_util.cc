@@ -19,6 +19,7 @@
 #include "net/instaweb/util/public/string_util.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <vector>
 
@@ -236,6 +237,32 @@ GoogleString JoinStringStar(const ConstStringStarVector& vector,
   return result;
 }
 
+GoogleString JoinStringPieces(const StringPieceVector& vector,
+                              int start, int size,
+                              const StringPiece& delim) {
+  GoogleString result;
+
+  if (size > 0) {
+    int end = start + size;
+    // Precompute resulting length so we can reserve() memory in one shot.
+    int length = delim.size() * (size - 1);
+    for (int i = start; i < end; ++i) {
+      length += vector[i].size();
+    }
+    result.reserve(length);
+
+    // Now combine everything.
+    for (int i = start; i < end; ++i) {
+      if (i != start) {
+        delim.AppendToString(&result);
+      }
+      vector[i].AppendToString(&result);
+    }
+  }
+
+  return result;
+}
+
 bool StringCaseEqual(const StringPiece& s1, const StringPiece& s2) {
   return ((s1.size() == s2.size()) && (0 == StringCaseCompare(s1, s2)));
 }
@@ -291,11 +318,11 @@ void ParseShellLikeString(const StringPiece& input,
         part.push_back(input[index]);
       }
       ++index;  // skip close quote
-    } else if (!IsHtmlSpace(ch)) {
+    } else if (!isspace(ch)) {
       // Without quotes, items are whitespace-separated.
       output->push_back("");
       GoogleString& part = output->back();
-      for (; index < input.size() && !IsHtmlSpace(input[index]); ++index) {
+      for (; index < input.size() && !isspace(input[index]); ++index) {
         part.push_back(input[index]);
       }
     } else {
@@ -330,34 +357,16 @@ int FindIgnoreCase(StringPiece haystack, StringPiece needle) {
 
 
 // In-place StringPiece whitespace trimming.  This mutates the StringPiece.
-bool TrimLeadingWhitespace(StringPiece* str) {
-  // We use stringpiece_ssize_type to avoid signedness problems.
-  stringpiece_ssize_type size = str->size();
-  stringpiece_ssize_type trim = 0;
-  while (trim != size && IsHtmlSpace(str->data()[trim])) {
-    ++trim;
+void TrimWhitespace(StringPiece* str) {
+  while (str->size() && isspace(str->data()[0])) {
+    str->remove_prefix(1);
   }
-  str->remove_prefix(trim);
-  return (trim > 0);
-}
 
-bool TrimTrailingWhitespace(StringPiece* str) {
-  // We use stringpiece_ssize_type to avoid signedness problems.
-  stringpiece_ssize_type rightmost = str->size();
-  while (rightmost != 0 && IsHtmlSpace(str->data()[rightmost - 1])) {
-    --rightmost;
+  int size = str->size();
+  while (size && isspace(str->data()[size - 1])) {
+    str->remove_suffix(1);
+    size = str->size();
   }
-  if (rightmost != str->size()) {
-    str->remove_suffix(str->size() - rightmost);
-    return true;
-  }
-  return false;
-}
-
-bool TrimWhitespace(StringPiece* str) {
-  // We *must* trim *both* leading and trailing spaces, so we use the
-  // non-shortcut bitwise | on the boolean results.
-  return TrimLeadingWhitespace(str) | TrimTrailingWhitespace(str);
 }
 
 void TrimQuote(StringPiece* str) {
@@ -369,6 +378,12 @@ void TrimQuote(StringPiece* str) {
     str->remove_suffix(1);
   }
   TrimWhitespace(str);
+}
+
+void TrimLeadingWhitespace(StringPiece* str) {
+  while (str->size() && isspace(str->data()[0])) {
+    str->remove_prefix(1);
+  }
 }
 
 

@@ -34,10 +34,7 @@ namespace net_instaweb {
 class AbstractClientState;
 class AbstractMutex;
 class BlinkCriticalLineDataFinder;
-class CacheHtmlInfoFinder;
-class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
@@ -137,9 +134,6 @@ class RewriteDriverFactory {
   // been called.
   void set_base_url_fetcher(UrlFetcher* url_fetcher);
   void set_base_url_async_fetcher(UrlAsyncFetcher* url_fetcher);
-
-  // Takes ownership of fetcher. This should only be called once.
-  void SetDistributedAsyncFetcher(UrlAsyncFetcher* fetcher);
 
   bool set_filename_prefix(StringPiece p);
 
@@ -307,20 +301,16 @@ class RewriteDriverFactory {
 
   virtual Hasher* NewHasher() = 0;
 
-  // Creates a new ServerContext* object.  ServerContexst itself must be
-  // overridden per Factory as it has at least one pure virtual method.
-  virtual ServerContext* NewServerContext() = 0;
+  // If the platform uses CreateServerContext() and needs a platform-specific
+  // implementation, it should override this. Default implementation makes
+  // plain ServerContext's. Note that InitServerContext will be applied to the
+  // result.
+  virtual ServerContext* NewServerContext();
 
-  virtual CriticalCssFinder* DefaultCriticalCssFinder();
   virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
-  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder();
 
   // Default implementation returns NULL.
   virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
-      PropertyCache* cache);
-
-  // Default implementation returns NULL.
-  virtual CacheHtmlInfoFinder* DefaultCacheHtmlInfoFinder(
       PropertyCache* cache);
 
   // Default implementation returns NULL.
@@ -381,7 +371,6 @@ class RewriteDriverFactory {
   scoped_ptr<FileSystem> file_system_;
   UrlFetcher* url_fetcher_;
   UrlAsyncFetcher* url_async_fetcher_;
-  UrlAsyncFetcher* distributed_async_fetcher_;
   scoped_ptr<UrlFetcher> base_url_fetcher_;
   scoped_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
   scoped_ptr<Hasher> hasher_;

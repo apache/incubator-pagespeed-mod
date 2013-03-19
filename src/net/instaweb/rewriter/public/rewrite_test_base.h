@@ -62,7 +62,6 @@ class LRUCache;
 class MessageHandler;
 class MockScheduler;
 class PropertyCache;
-class RequestHeaders;
 class ResourceNamer;
 class RewriteFilter;
 class Statistics;
@@ -204,10 +203,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content,
                         ResponseHeaders* response);
-  bool FetchResourceUrl(const StringPiece& url,
-                        RequestHeaders* request_headers,
-                        GoogleString* content,
-                        ResponseHeaders* response_headers);
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content);
 
   // Just check if we can fetch a resource successfully, ignore response.

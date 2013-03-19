@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -91,60 +90,12 @@ void CriticalImagesFinder::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCriticalImagesNotFoundCount);
 }
 
-bool CriticalImagesFinder::IsHtmlCriticalImage(
-    const GoogleString& image_url, RewriteDriver* driver) {
-  const StringSet& critical_images_set = GetHtmlCriticalImages(driver);
-  return (critical_images_set.find(image_url) != critical_images_set.end());
+bool CriticalImagesFinder::IsCriticalImage(
+    const GoogleString& image_url, const RewriteDriver* driver) const {
+  const StringSet* critical_images_set = driver->critical_images();
+  return critical_images_set != NULL &&
+      critical_images_set->find(image_url) != critical_images_set->end();
 }
-
-bool CriticalImagesFinder::IsCssCriticalImage(
-    const GoogleString& image_url, RewriteDriver* driver) {
-  const StringSet& critical_images_set = GetCssCriticalImages(driver);
-  return (critical_images_set.find(image_url) != critical_images_set.end());
-}
-
-const StringSet& CriticalImagesFinder::GetHtmlCriticalImages(
-    RewriteDriver* driver) {
-  UpdateCriticalImagesSetInDriver(driver);
-  const CriticalImagesInfo* info = driver->critical_images_info();
-  CHECK(info != NULL);
-
-  return info->html_critical_images;
-}
-
-const StringSet& CriticalImagesFinder::GetCssCriticalImages(
-    RewriteDriver* driver) {
-  UpdateCriticalImagesSetInDriver(driver);
-  const CriticalImagesInfo* info = driver->critical_images_info();
-  CHECK(info != NULL);
-
-  return info->css_critical_images;
-}
-
-StringSet* CriticalImagesFinder::mutable_html_critical_images(
-    RewriteDriver* driver) {
-  DCHECK(driver != NULL);
-  CriticalImagesInfo* driver_info = driver->critical_images_info();
-  // Preserve CSS critical images if they have been updated already.
-  if (driver_info == NULL) {
-    driver_info = new CriticalImagesInfo;
-    driver->set_critical_images_info(driver_info);
-  }
-  return &driver_info->html_critical_images;
-}
-
-StringSet* CriticalImagesFinder::mutable_css_critical_images(
-    RewriteDriver* driver) {
-  DCHECK(driver != NULL);
-  CriticalImagesInfo* driver_info = driver->critical_images_info();
-  // Preserve CSS critical images if they have been updated already.
-  if (driver_info == NULL) {
-    driver_info = new CriticalImagesInfo;
-    driver->set_critical_images_info(driver_info);
-  }
-  return &driver_info->css_critical_images;
-}
-
 
 // Copy the critical images for this request from the property cache into the
 // RewriteDriver. The critical images are not stored in CriticalImageFinder
@@ -152,34 +103,29 @@ StringSet* CriticalImagesFinder::mutable_css_critical_images(
 // between requests.
 void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
     RewriteDriver* driver) {
-  const CriticalImagesInfo* driver_info = driver->critical_images_info();
-  // If driver_info is not NULL, then the CriticalImagesInfo has already been
-  // updated, so no need to do anything here.
-  if (driver_info != NULL) {
+  if (driver->updated_critical_images()) {
     return;
   }
-  scoped_ptr<CriticalImagesInfo> info(new CriticalImagesInfo);
+  driver->set_updated_critical_images(true);
   PropertyCache* page_property_cache =
       driver->server_context()->page_property_cache();
   const PropertyCache::Cohort* cohort =
       page_property_cache->GetCohort(GetCriticalImagesCohort());
   PropertyPage* page = driver->property_page();
   if (page != NULL && cohort != NULL) {
-    PropertyValue* property_value = page->GetProperty(
-        cohort, kCriticalImagesPropertyName);
-    ExtractCriticalImagesSet(driver, property_value, true,
-                             &info->html_critical_images);
-
-    property_value = page->GetProperty(
-        cohort, kCssCriticalImagesPropertyName);
-    ExtractCriticalImagesSet(driver, property_value, true,
-                             &info->css_critical_images);
-    driver->log_record()->SetNumHtmlCriticalImages(
-        info->html_critical_images.size());
-    driver->log_record()->SetNumCssCriticalImages(
-        info->css_critical_images.size());
+    if (driver->critical_images() == NULL) {
+      PropertyValue* property_value = page->GetProperty(
+          cohort, kCriticalImagesPropertyName);
+      driver->set_critical_images(ExtractCriticalImagesSet(
+          driver, property_value, true));
+    }
+    if (driver->css_critical_images() == NULL) {
+      PropertyValue* property_value = page->GetProperty(
+          cohort, kCssCriticalImagesPropertyName);
+      driver->set_css_critical_images(ExtractCriticalImagesSet(
+          driver, property_value, false));
+    }
   }
-  driver->set_critical_images_info(info.release());
 }
 
 // TODO(pulkitg): Change all instances of critical_images_set to
@@ -236,12 +182,10 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
 
 // Extract the critical images stored for the given property_value in the
 // property page. Returned StringSet will owned by the caller.
-void CriticalImagesFinder::ExtractCriticalImagesSet(
+StringSet* CriticalImagesFinder::ExtractCriticalImagesSet(
     RewriteDriver* driver,
     const PropertyValue* property_value,
-    bool track_stats,
-    StringSet* critical_images) {
-  DCHECK(critical_images != NULL);
+    bool track_stats) {
   // Don't track stats if we are flushing early, since we will already be
   // counting this when we are rewriting the full page.
   track_stats &= !driver->flushing_early();
@@ -261,6 +205,7 @@ void CriticalImagesFinder::ExtractCriticalImagesSet(
       // empty, because the property cache does not store empty values.
       SplitStringPieceToVector(property_value->value(), kImageUrlSeparator,
                                &critical_images_vector, true);
+      StringSet* critical_images(new StringSet);  // Owned by RewriteDriver.
       StringPieceVector::iterator it;
       for (it = critical_images_vector.begin();
            it != critical_images_vector.end();
@@ -270,13 +215,14 @@ void CriticalImagesFinder::ExtractCriticalImagesSet(
       if (track_stats) {
         critical_images_valid_count_->Add(1);
       }
-      return;
+      return critical_images;
     } else if (track_stats) {
       critical_images_expired_count_->Add(1);
     }
   } else if (track_stats) {
     critical_images_not_found_count_->Add(1);
   }
+  return NULL;
 }
 
 }  // namespace net_instaweb

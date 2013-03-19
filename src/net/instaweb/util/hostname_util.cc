@@ -26,18 +26,12 @@
 #include <windows.h>
 #include <winsock2.h>
 #define HOST_NAME_MAX (MAX_COMPUTERNAME_LENGTH+1)
-#else
-// Some Linux environments require this, although not all, but it's benign.
-#if defined(unix)
-#include <unistd.h>
-#endif  // unix
 // MacOS does not defined HOST_NAME_MAX so fall back to the POSIX value.
 // We are supposed to use sysconf(_SC_HOST_NAME_MAX) but we use this value
 // to size an automatic array and we can't portably use variables for that.
-#if !defined(HOST_NAME_MAX)
+#elif !defined(HOST_NAME_MAX)
 #define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
-#endif  // HOST_NAME_MAX
-#endif  // WIN32
+#endif
 
 #include "base/logging.h"
 #include "net/instaweb/util/public/string.h"

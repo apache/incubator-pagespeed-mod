@@ -485,37 +485,57 @@ TEST_F(PropertyCacheTest, IsCacheValidTwoCohorts) {
 TEST_F(PropertyCacheTest, DeleteProperty) {
   ReadWriteInitial(kCacheKey1, "Value1");
   {
-    {
-      MockPropertyPage page(thread_system_.get(), property_cache_, kCacheKey1);
-      property_cache_.Read(&page);
-      EXPECT_TRUE(page.valid());
-      EXPECT_TRUE(page.called());
-      // Deletes a property which already exists.
-      PropertyValue* property = page.GetProperty(cohort_, kPropertyName1);
-      EXPECT_STREQ("Value1", property->value());
+    MockPropertyPage page(thread_system_.get(), property_cache_, kCacheKey1);
+    property_cache_.Read(&page);
+    EXPECT_TRUE(page.valid());
+    EXPECT_TRUE(page.called());
+    // Deletes a property which already exists.
+    PropertyValue* property = page.GetProperty(cohort_, kPropertyName1);
+    EXPECT_STREQ("Value1", property->value());
+    page.DeleteProperty(cohort_, kPropertyName1);
+    property_cache_.WriteCohort(cohort_, &page);
 
-      page.DeleteProperty(cohort_, kPropertyName1);
-      property_cache_.WriteCohort(cohort_, &page);
-    }
-    {
-      MockPropertyPage page(thread_system_.get(), property_cache_, kCacheKey1);
-      property_cache_.Read(&page);
-      PropertyValue* property = page.GetProperty(cohort_, kPropertyName1);
-      EXPECT_FALSE(property->has_value());
+    property_cache_.Read(&page);
+    property = page.GetProperty(cohort_, kPropertyName1);
+    EXPECT_FALSE(property->has_value());
 
-      // Deletes a property which does not exist.
-      property = page.GetProperty(cohort_, kPropertyName2);
-      EXPECT_FALSE(property->has_value());
-      page.DeleteProperty(cohort_, kPropertyName2);
-      property = page.GetProperty(cohort_, kPropertyName2);
-      EXPECT_FALSE(property->has_value());
+    // Deletes a property which does not exist.
+    property = page.GetProperty(cohort_, kPropertyName2);
+    EXPECT_FALSE(property->has_value());
+    page.DeleteProperty(cohort_, kPropertyName2);
+    property = page.GetProperty(cohort_, kPropertyName2);
+    EXPECT_FALSE(property->has_value());
 
-      // Unknown Cohort. No crashes.
-      scoped_ptr<PropertyCache::Cohort> unknown_cohort(
-          new PropertyCache::Cohort("unknown_cohort", NULL));
-      page.DeleteProperty(cohort_, kPropertyName2);
-      EXPECT_TRUE(page.valid());
-    }
+    // Unknown Cohort. No crashes.
+    scoped_ptr<PropertyCache::Cohort> unknown_cohort(
+        new PropertyCache::Cohort("unknown_cohort", NULL));
+    page.DeleteProperty(cohort_, kPropertyName2);
+    EXPECT_TRUE(page.valid());
+  }
+}
+
+TEST_F(PropertyCacheTest, MultiRead) {
+  ReadWriteInitial(kCacheKey1, "Value1");
+  ReadWriteInitial(kCacheKey2, "Value2");
+  {
+    PropertyPageStarVector pages;
+    MockPropertyPage page1(thread_system_.get(), property_cache_, kCacheKey1);
+    MockPropertyPage page2(thread_system_.get(), property_cache_, kCacheKey2);
+
+    pages.push_back(&page1);
+    pages.push_back(&page2);
+
+    property_cache_.MultiRead(&pages);
+    // Check for Page1.
+    EXPECT_TRUE(page1.valid());
+    EXPECT_TRUE(page1.called());
+    PropertyValue* property_page1 = page1.GetProperty(cohort_, kPropertyName1);
+    EXPECT_STREQ("Value1", property_page1->value());
+    // Check for Page2.
+    EXPECT_TRUE(page2.valid());
+    EXPECT_TRUE(page2.called());
+    PropertyValue* property_page2 = page2.GetProperty(cohort_, kPropertyName1);
+    EXPECT_STREQ("Value2", property_page2->value());
   }
 }
 
@@ -609,16 +629,9 @@ TEST_F(PropertyCacheTest, MultiReadWithCohorts) {
   // hit.
   {
     MockPropertyPage page(thread_system_.get(), property_cache_, kCacheKey1);
-    PropertyCache::CohortVector cohort_list;
-    cohort_list.push_back(cohort2);
-    const PropertyPageInfo& page_info_before_read =
-        page.log_record()->logging_info()->property_page_info();
-    EXPECT_EQ(0, page_info_before_read.cohort_info_size());
-    property_cache_.ReadWithCohorts(cohort_list, &page);
-    const PropertyPageInfo& page_info =
-        page.log_record()->logging_info()->property_page_info();
-    EXPECT_EQ(1, page_info.cohort_info_size());
-    EXPECT_STREQ(kCohortName2, page_info.cohort_info(0).name());
+    StringVector cohort_name_list;
+    cohort_name_list.push_back(kCohortName2);
+    property_cache_.ReadWithCohorts(&page, cohort_name_list);
     EXPECT_EQ(0, lru_cache_.num_hits()) << "cohort1";
     EXPECT_EQ(1, lru_cache_.num_misses()) << "cohort2";
     PropertyValue* p2 = page.GetProperty(cohort2, kPropertyName2);
@@ -630,27 +643,42 @@ TEST_F(PropertyCacheTest, MultiReadWithCohorts) {
   }
 
   lru_cache_.ClearStats();
-  // Now a second read will get one hit, no misses, and only one data element
-  // is present.
+  // Now a second read will get one hits, no misses, and only one data element
+  // presents.
   {
     MockPropertyPage page(thread_system_.get(), property_cache_, kCacheKey1);
-    PropertyCache::CohortVector cohort_list;
-    cohort_list.push_back(cohort2);
-    property_cache_.ReadWithCohorts(cohort_list, &page);
+    StringVector cohort_name_list;
+    cohort_name_list.push_back(kCohortName2);
+    property_cache_.ReadWithCohorts(&page, cohort_name_list);
 
     EXPECT_EQ(1, lru_cache_.num_hits()) << "cohort2";
     EXPECT_EQ(0, lru_cache_.num_misses());
     PropertyValue* p2 = page.GetProperty(cohort2, kPropertyName2);
     EXPECT_TRUE(p2->was_read());
     EXPECT_TRUE(p2->has_value());
+    PropertyValue* p1 = page.GetProperty(cohort_, kPropertyName1);
+    EXPECT_TRUE(p1->was_read());
+    EXPECT_FALSE(p1->has_value());
 
     const PropertyPageInfo& page_info =
         page.log_record()->logging_info()->property_page_info();
-    EXPECT_EQ(1, page_info.cohort_info_size());
-    const PropertyCohortInfo& info = page_info.cohort_info(0);
-    EXPECT_STREQ(info.name(), kCohortName2);
-    EXPECT_EQ(MockPropertyPage::kMockDeviceType, info.device_type());
-    EXPECT_EQ(MockPropertyPage::kMockCacheType, info.cache_type());
+    EXPECT_EQ(2, page_info.cohort_info_size());
+    bool found_cohort_1 = false;
+    bool found_cohort_2 = false;
+    for (int i = 0; i < page_info.cohort_info_size(); i++) {
+      const PropertyCohortInfo& info = page_info.cohort_info(i);
+      if (info.name() == kCohortName1) {
+        found_cohort_1 = true;
+        EXPECT_NE(MockPropertyPage::kMockDeviceType, info.device_type());
+        EXPECT_NE(MockPropertyPage::kMockCacheType, info.cache_type());
+      } else if (info.name() == kCohortName2) {
+        found_cohort_2 = true;
+        EXPECT_EQ(MockPropertyPage::kMockDeviceType, info.device_type());
+        EXPECT_EQ(MockPropertyPage::kMockCacheType, info.cache_type());
+      }
+    }
+    EXPECT_TRUE(found_cohort_1);
+    EXPECT_TRUE(found_cohort_2);
   }
 
   lru_cache_.ClearStats();
@@ -673,10 +701,10 @@ TEST_F(PropertyCacheTest, MultiReadWithCohorts) {
     const PropertyCohortInfo& cohort_info_1 = page_info.cohort_info(0);
     const PropertyCohortInfo& cohort_info_2 = page_info.cohort_info(1);
     if (cohort_info_1.name() == kCohortName1) {
-      EXPECT_STREQ(kCohortName2, cohort_info_2.name());
+      EXPECT_EQ(kCohortName2, cohort_info_2.name());
     } else {
-      EXPECT_STREQ(kCohortName2, cohort_info_1.name());
-      EXPECT_STREQ(kCohortName1, cohort_info_2.name());
+      EXPECT_EQ(kCohortName2, cohort_info_1.name());
+      EXPECT_EQ(kCohortName1, cohort_info_2.name());
     }
     // Test Read log setup here
     EXPECT_EQ(MockPropertyPage::kMockDeviceType, cohort_info_1.device_type());
@@ -685,22 +713,6 @@ TEST_F(PropertyCacheTest, MultiReadWithCohorts) {
     EXPECT_EQ(MockPropertyPage::kMockCacheType, cohort_info_2.cache_type());
   }
 }
-
-TEST_F(PropertyCacheTest, ReadWithEmptyCohort) {
-  ReadWriteInitial(kCacheKey1, "Value1");
-  ReadWriteInitial(kCacheKey2, "Value2");
-  {
-    MockPropertyPage page1(thread_system_.get(), property_cache_, kCacheKey1);
-
-    PropertyCache::CohortVector cohort_list;
-    property_cache_.ReadWithCohorts(cohort_list, &page1);
-
-    // Check for Page1.
-    EXPECT_FALSE(page1.valid());
-    EXPECT_TRUE(page1.called());
-  }
-}
-
 }  // namespace
 
 }  // namespace net_instaweb

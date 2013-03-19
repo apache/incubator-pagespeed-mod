@@ -485,11 +485,7 @@ Value* Parser::ParseNumber() {
   while (!Done() && isdigit(*in_)) {
     in_++;
   }
-  // CSS Spec tokenizes numbers as:
-  //   num     [0-9]+|[0-9]*\.[0-9]+
-  // Therefore we must have at least one digit after the dot.
-  // If there isn't, then dot is not part of the number.
-  if (in_ + 1 < end_ && in_[0] == '.' && isdigit(in_[1])) {
+  if (!Done() && *in_ == '.') {
     in_++;
 
     while (!Done() && isdigit(*in_)) {
@@ -561,20 +557,9 @@ HtmlColor Parser::ParseColor() {
   // We also do not want rrggbb (without #) to be accepted in non-quirks mode,
   // but HtmlColor will happily accept it anyway. Do a sanity check here.
   if (i == 3 || i == 6) {
-    if (!Done() && (*in_ == '%' || StartsIdent(*in_))) {
+    if (!rgb_valid ||
+        (!Done() && (*in_ == '%' || StartsIdent(*in_))))
       return HtmlColor("", 0);
-    } else {
-      if (!rgb_valid) {
-        if (preservation_mode_) {
-          // In preservation mode, we want to preserve quirks-mode colors
-          // (even if we are not parsing in quirks-mode). By reporting an
-          // error, we make sure that preservation-mode will preserve the
-          // original bytes and pass them through verbatim.
-          ReportParsingError(kValueError, "Quirks-mode color encountered");
-        }
-        return HtmlColor("", 0);
-      }
-    }
   }
 
   if (i == 3) {
@@ -1434,7 +1419,8 @@ Declarations* Parser::ParseRawDeclarations() {
     bool ignore_this_decl = false;
     switch (*in_) {
       case ';':
-        // Note: We check below that all declarations end with ';' or '}'.
+        // TODO(sligocki): Is there any way declarations might not be separated
+        // by ';' in the current code? We don't explicitly check.
         in_++;
         break;
       case '}':
@@ -1507,28 +1493,11 @@ Declarations* Parser::ParseRawDeclarations() {
           in_++;
           SkipSpace();
           UnicodeText ident = ParseIdent();
-          if (StringCaseEquals(ident, "important")) {
+          if (StringCaseEquals(ident, "important"))
             important = true;
-          } else {
-            ReportParsingError(kDeclarationError, StringPrintf(
-                "Unexpected !-identifier: !%s",
-                UnicodeTextToUTF8(ident).c_str()));
-            ignore_this_decl = true;
-            break;
-          }
         }
-        SkipSpace();
-        // Don't add Declaration if it is not ended with a ';' or '}'.
-        // For example: "foo: bar !important really;" is not valid.
-        if (Done() || *in_ == ';' || *in_ == '}') {
-          declarations->push_back(
-              new Declaration(prop, vals.release(), important));
-        } else {
-          ReportParsingError(kDeclarationError, StringPrintf(
-              "Unexpected char %c at end of declaration", *in_));
-          ignore_this_decl = true;
-          break;
-        }
+        declarations->push_back(
+            new Declaration(prop, vals.release(), important));
       }
     }
     SkipSpace();
@@ -2434,7 +2403,7 @@ Stylesheet* Parser::ParseStylesheet() {
 }
 
 //
-// Some destructors that need STLDeleteElements() from stl_util.h
+// Some destructors that need STLDeleteElements() from stl_util-inl.h
 //
 
 Declarations::~Declarations() { STLDeleteElements(this); }

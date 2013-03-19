@@ -18,8 +18,6 @@ syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
 
-import "net/instaweb/rewriter/image_types.proto";
-
 package net_instaweb;
 
 
@@ -90,41 +88,12 @@ message BlinkInfo {
   optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
-// This proto stores information related to metadata cache lookups and
-// rewriting.
-// Next id for MetadataCacheInfo: 10
+// This proto stores information related to metadata cache lookups.
+// Next id for MetadataCacheInfo: 4
 message MetadataCacheInfo {
-  // Number of hits.
   optional int32 num_hits = 1;
-  // Number of "can revalidates".
   optional int32 num_revalidates = 2;
-  // Number of misses.
   optional int32 num_misses = 3;
-
-  // The following fields are only for rewriting from HTML parse flow.
-
-  // The number of times we successfully revalidated an expired metadata within
-  // the rewrite deadline.  This will be 0 if
-  // metadata_cache_staleness_threshold_ms is >0.  Will be <= num_revalidates
-  optional int32 num_successful_revalidates = 4;
-  // The number of times we successfully fetched and rewrote a resource (when
-  // metadata cache gave a miss) within the rewrite deadline.  Will be <=
-  // num_misses.
-  optional int32 num_successful_rewrites_on_miss = 5;
-  // The number of times an expired resource metadata was used (as stale).  This
-  // will be 0 unless metadata_cache_staleness_threshold_ms flag has a value >0.
-  // Will be <= num_hits.
-  optional int32 num_stale_rewrites = 6;
-  // Total number of rewrites that were completed in the rewrite deadline.
-  optional int32 num_rewrites_completed = 7;
-  // Number of rewrites that were disabled and hence no cache lookps were done.
-  optional int32 num_disabled_rewrites = 8;
-  // Number of rewrites that were repeats and hence a previous result was used
-  // (no cache lookps were done).
-  optional int32 num_repeated_rewrites = 9;
-}
-
-message RewritingInfo {
 }
 
 // This proto stores all information related to split_html.
@@ -199,35 +168,8 @@ message FlushEarlyResourceInfo {
   optional bool in_head = 4;
 }
 
-// This proto stores all Cache Html flow requests related information.
-// Next id for CacheHtmlLoggingInfo : 6
-message CacheHtmlLoggingInfo {
-  enum CacheHtmlRequestFlow {
-    CACHE_HTML_HIT = 1;
-    CACHE_HTML_MISS_FOUND_RESOURCE = 2;
-    CACHE_HTML_MISS_FETCH_NON_OK = 3;
-    CACHE_HTML_MISS_TRIGGERED_REWRITE = 4;
-    FOUND_MALFORMED_HTML = 5;
-    FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 6;
-  };
-  // Tracks the flow of a cache html rewriter request.
-  optional CacheHtmlRequestFlow cache_html_request_flow = 1;
-
-  // The event id of the user request for which cache html flow was triggered.
-  optional string request_event_id_time_usec = 2;
-
-  // Tracks whether html change detection full-diff found a match or not.
-  optional bool html_match = 3;
-
-  // Tracks whether html change detection smart-diff found a match or not.
-  optional bool html_smart_diff_match = 4;
-
-  // URL of the request.
-  optional string url = 5;
-}
-
 // Information that applies to a resource.
-// Next id for RewriteResourceInfo: 6
+// Next id for RewriteResourceInfo: 4
 message RewriteResourceInfo {
   // True if we inlined the resource.
   optional bool is_inlined = 1 [ default = false ];
@@ -235,11 +177,6 @@ message RewriteResourceInfo {
   optional bool is_critical = 2 [ default = false ];
   // True if the resource has a pagespeed_no_defer attribute.
   optional bool has_pagespeed_no_defer = 3 [ default = false ];
-  // True if the resource is blacklisted.
-  optional bool is_blacklisted = 4 [ default = false ];
-   // Index of the original resource url in resource url info.
-  optional int32 original_resource_url_index = 5;
-
 }
 
 // Information related to each resource considered by the image rewrite filter.
@@ -254,7 +191,7 @@ message ImageRewriteResourceInfo {
 
 // This proto stores information describing each rewriter's activity in a
 // request.
-// Next id for RewriterInfo: 5
+// Next id for RewriterInfo: 6
 message RewriterInfo {
   enum RewriterApplicationStatus {
     UNKNOWN_STATUS = 0;
@@ -274,14 +211,8 @@ message RewriterInfo {
   optional ImageRewriteResourceInfo image_rewrite_resource_info = 5;
 }
 
-// This proto stores all information which related to resource urls.
-// Next id for ResourceUrlInfo: 2
-message ResourceUrlInfo {
-  repeated string url = 1;
-}
-
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 21
+// Next id for LoggingInfo: 16
 message LoggingInfo {
   // Used to track time taken by various components of page speed service
   // processing.
@@ -314,18 +245,4 @@ message LoggingInfo {
   optional FlushEarlyFlowInfo flush_early_flow_info = 14;
   // Whether the size limit for rewriter_info was exceeded.
   optional bool rewriter_info_size_limit_exceeded = 15 [ default = false ];
-  // Whether the request is for a pagespeed resource.
-  optional bool is_pagespeed_resource = 16 [ default = false ];
-  // Information about the resource urls seen on this page.
-  optional ResourceUrlInfo resource_url_info = 17;
-  // Stores all Cache Html flow related information.
-  optional CacheHtmlLoggingInfo cache_html_logging_info = 18;
-  // Number of critical images on the page. The default is -1 to easily
-  // differentiate between the field being unset and there being no critical
-  // images.
-  optional int32 num_html_critical_images = 19 [ default = -1 ];
-  // Number of critical images in CSS referenced by the page. The default is -1
-  // to easily differentiate between the field being unset and there being no
-  // critical images.
-  optional int32 num_css_critical_images = 20 [ default = -1 ];
 }

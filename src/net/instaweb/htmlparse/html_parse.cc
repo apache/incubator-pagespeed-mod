@@ -435,6 +435,31 @@ size_t HtmlParse::GetEventQueueSize() {
   return queue_.size();
 }
 
+void HtmlParse::AppendEventsToQueue(HtmlEventList* extra_events) {
+  queue_.splice(queue_.end(), *extra_events);
+}
+
+HtmlEvent* HtmlParse::SplitQueueOnFirstEventInSet(
+    const ConstHtmlEventSet& event_set,
+    HtmlEventList* tail) {
+  for (HtmlEventListIterator it = queue_.begin(); it != queue_.end(); ++it) {
+    if (event_set.find(*it) != event_set.end()) {
+      tail->splice(tail->end(), queue_, it, queue_.end());
+      return *it;
+    }
+  }
+  return NULL;
+}
+
+HtmlEvent* HtmlParse::GetEndElementEvent(const HtmlElement* element) {
+  DCHECK(element != NULL);
+  if (element->end() == queue_.end()) {
+    return NULL;
+  } else {
+    return *(element->end());
+  }
+}
+
 void HtmlParse::InsertElementBeforeElement(const HtmlNode* existing_node,
                                            HtmlNode* new_node) {
   // begin() == queue_.end() -> this is an invalid element.
@@ -489,10 +514,9 @@ void HtmlParse::InsertElementBeforeCurrent(HtmlNode* new_node) {
       // The node pointed to by Current will be our new sibling, so
       // we should grab its parent.
       HtmlNode* node = current_event->GetNode();
-      // 'node' can be null when the current event is EndDocument.
-      if (node != NULL) {
-        new_node->set_parent(node->parent());
-      }
+      message_handler_->Check(node != NULL,
+                              "Cannot compute parent for new node");
+      new_node->set_parent(node->parent());
     }
   }
   InsertElementBeforeEvent(current_, new_node);

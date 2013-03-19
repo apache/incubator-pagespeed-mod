@@ -24,6 +24,8 @@
 
 namespace net_instaweb {
 
+class Hasher;
+
 // This manages system configuration options for platform supports classes that
 // the pagespeed optimization library comes bundled with.
 class SystemRewriteOptions : public RewriteOptions {
@@ -69,6 +71,9 @@ class SystemRewriteOptions : public RewriteOptions {
   }
   void set_use_shared_mem_locking(bool x) {
     set_option(x, &use_shared_mem_locking_);
+  }
+  const GoogleString& use_shared_mem_metadata_cache() const {
+    return use_shared_mem_metadata_cache_.value();
   }
   bool statistics_enabled() const {
     return statistics_enabled_.value();
@@ -158,14 +163,16 @@ class SystemRewriteOptions : public RewriteOptions {
 
   // Adds an option to system_properties_.
   //
+  // TODO(jmarantz): rename this to avoid coinciding with private
+  // method RewriteOptions::add_option.  This is done for now so
+  // review-diffs are readable, at the cost of a small non-functional
+  // follow-up refactor.
   template<class RewriteOptionsSubclass, class OptionClass>
-  static void AddSystemProperty(typename OptionClass::ValueType default_value,
-                                OptionClass RewriteOptionsSubclass::*offset,
-                                const char* id,
-                                OptionEnum option_enum,
-                                const char* help) {
-    AddProperty(default_value, offset, id, option_enum, kServerScope, help,
-                system_properties_);
+  static void add_option(typename OptionClass::ValueType default_value,
+                         OptionClass RewriteOptionsSubclass::*offset,
+                         const char* id,
+                         OptionEnum option_enum) {
+    AddProperty(default_value, offset, id, option_enum, system_properties_);
   }
 
   static void AddProperties();
@@ -180,6 +187,10 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<GoogleString> statistics_logging_charts_css_;
   Option<GoogleString> statistics_logging_charts_js_;
   Option<GoogleString> cache_flush_filename_;
+
+  // Empty string if not on, otherwise should correspond to a name passed to
+  // CreateShmMetadataCache().
+  Option<GoogleString> use_shared_mem_metadata_cache_;
 
   Option<bool> statistics_enabled_;
   Option<bool> statistics_logging_enabled_;

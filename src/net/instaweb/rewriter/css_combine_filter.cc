@@ -29,7 +29,6 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -67,8 +66,10 @@ const char CssCombineFilter::kCssFileCountReduction[] =
 class CssCombineFilter::CssCombiner : public ResourceCombiner {
  public:
   CssCombiner(RewriteDriver* driver,
+              CssTagScanner* css_tag_scanner,
               CssCombineFilter* filter)
-      : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1, filter) {
+      : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1, filter),
+        css_tag_scanner_(css_tag_scanner) {
     Statistics* stats = server_context_->statistics();
     css_file_count_reduction_ = stats->GetVariable(kCssFileCountReduction);
   }
@@ -119,9 +120,8 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
   void AddFileCountReduction(int num_files) {
     css_file_count_reduction_->Add(num_files);
     if (num_files >= 1) {
-      rewrite_driver_->log_record()->SetRewriterLoggingStatus(
-          RewriteOptions::FilterId(RewriteOptions::kCombineCss),
-          RewriterInfo::APPLIED_OK);
+      rewrite_driver_->log_record()->LogAppliedRewriter(
+          RewriteOptions::FilterId(RewriteOptions::kCombineCss));
     }
   }
 
@@ -135,15 +135,17 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
                           MessageHandler* handler);
 
   GoogleString media_;
+  CssTagScanner* css_tag_scanner_;
   Variable* css_file_count_reduction_;
 };
 
 class CssCombineFilter::Context : public RewriteContext {
  public:
-  Context(RewriteDriver* driver, CssCombineFilter* filter)
+  Context(RewriteDriver* driver, CssTagScanner* scanner,
+          CssCombineFilter* filter)
       : RewriteContext(driver, NULL, NULL),
         filter_(filter),
-        combiner_(driver, filter),
+        combiner_(driver, scanner, filter),
         new_combination_(true) {
   }
 
@@ -186,7 +188,7 @@ class CssCombineFilter::Context : public RewriteContext {
       bool add_input = false;
       ResourcePtr resource(slot(i)->resource());
 
-      if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
+      if (resource->IsSafeToRewrite()) {
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           // This new element works in the existing partition.
           add_input = true;
@@ -350,56 +352,41 @@ void CssCombineFilter::EndDocument() {
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  int num_nonstandard_attributes;
   if (element->keyword() == HtmlName::kStyle) {
     // We can't reorder styles on a page, so if we are only combining <link>
     // tags, we can't combine them across a <style> tag.
     // TODO(sligocki): Maybe we should just combine <style>s too?
     // We can run outline_css first for now to make all <style>s into <link>s.
     NextCombination("css_combine: inline style");
-    return;
-  }
-  if (driver_->HasChildrenInFlushWindow(element)) {
+  } else if (driver_->HasChildrenInFlushWindow(element)) {
     // TODO(jmarantz): Call NextCombination here to avoid combining across
     // a malformed link.
     if (DebugMode() &&
-        css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                         &num_nonstandard_attributes)) {
+        css_tag_scanner_.ParseCssElement(element, &href, &media)) {
       driver_->InsertComment("css_combine: children in flush window");
     }
-    return;
-  }
-  if (!css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                        &num_nonstandard_attributes) ||
-      num_nonstandard_attributes > 0) {
-    // Not a CSS link, or involved with alternate stylesheets, or contains
-    // non-standard attributes.
-    // TODO(jmaessen): allow more attributes.  This is the place it's riskiest:
-    // we can't combine multiple elements with an id, for example, so we'd need
-    // to explicitly catch and handle that case.
-    return;
-  }
-  // We cannot combine with a link in <noscript> tag and we cannot combine
-  // over a link in a <noscript> tag, so this is a barrier.
-  if (noscript_element() != NULL) {
-    NextCombination("css_combine: noscript");
-    return;
-  }
-  // Figure out if media types match.
-  if (context_->new_combination()) {
-    context_->SetMedia(media);
-  } else if (combiner()->media() != media) {
-    // After the first CSS file, subsequent CSS files must have matching
-    // media.
-    // TODO(jmarantz): do media='' and media='display mean the same
-    // thing?  sligocki thinks mdsteele looked into this and it
-    // depended on HTML version.  In one display was default, in the
-    // other screen was IIRC.
-    NextCombination("css_combine: media mismatch");
-    context_->SetMedia(media);
-  }
-  if (!context_->AddElement(element, href)) {
-    NextCombination("css_combine: resource not rewriteable");
+  } else if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
+    // We cannot combine with a link in <noscript> tag and we cannot combine
+    // over a link in a <noscript> tag, so this is a barrier.
+    if (noscript_element() != NULL) {
+      NextCombination("css_combine: noscript");
+    } else {
+      if (context_->new_combination()) {
+        context_->SetMedia(media);
+      } else if (combiner()->media() != media) {
+        // After the first CSS file, subsequent CSS files must have matching
+        // media.
+        // TODO(jmarantz): do media='' and media='display mean the same
+        // thing?  sligocki thinks mdsteele looked into this and it
+        // depended on HTML version.  In one display was default, in the
+        // other screen was IIRC.
+        NextCombination("css_combine: media mismatch");
+        context_->SetMedia(media);
+      }
+      if (!context_->AddElement(element, href)) {
+        NextCombination("css_combine: resource not rewriteable");
+      }
+    }
   }
 }
 
@@ -458,7 +445,7 @@ CssCombineFilter::CssCombiner* CssCombineFilter::combiner() {
 }
 
 CssCombineFilter::Context* CssCombineFilter::MakeContext() {
-  return new Context(driver_, this);
+  return new Context(driver_, &css_tag_scanner_, this);
 }
 
 RewriteContext* CssCombineFilter::MakeRewriteContext() {

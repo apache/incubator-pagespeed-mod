@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <map>
-#include <utility>
-
-#include "base/logging.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/re2.h"
+#include "net/instaweb/util/public/fast_wildcard_group.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "third_party/instaweb/util/fast_wildcard_group.h"
 
 namespace net_instaweb {
-
-class RequestHeaders;
-
 // These are the user-agents of browsers/mobile devices which support
 // image-inlining. The data is from "Latest WURFL Repository"(mobile devices)
 // and "Web Patch"(browsers) on http://wurfl.sourceforge.net
@@ -340,7 +332,11 @@ UserAgentMatcher::BlinkRequestType UserAgentMatcher::GetBlinkRequestType(
 }
 
 UserAgentMatcher::PrefetchMechanism UserAgentMatcher::GetPrefetchMechanism(
-    const StringPiece& user_agent) const {
+    const StringPiece& user_agent,
+    const RequestHeaders* request_headers) const {
+  if (IsMobileRequest(user_agent, request_headers)) {
+    return kPrefetchNotSupported;
+  }
   if (supports_prefetch_link_rel_subresource_.Match(user_agent, false)) {
     return kPrefetchLinkRelSubresource;
   } else if (supports_prefetch_image_tag_.Match(user_agent, false)) {
@@ -411,6 +407,8 @@ bool UserAgentMatcher::SupportsSplitHtml(const StringPiece& user_agent,
 
 UserAgentMatcher::DeviceType UserAgentMatcher::GetDeviceTypeForUA(
     const StringPiece& user_agent) const {
+  // TODO(ksimbili): Pass in device property page once changes related to device
+  // property cache are submitted.
   if (IsMobileUserAgent(user_agent)) {
     return kMobile;
   }
@@ -448,35 +446,6 @@ bool UserAgentMatcher::GetScreenResolution(
     return true;
   }
   return false;
-}
-
-bool UserAgentMatcher::UserAgentExceedsChromeAndroidBuildAndPatch(
-    const StringPiece& user_agent, int required_build,
-    int required_patch) const {
-  // By default user agent sniffing is disabled.
-  if (required_build == -1 && required_patch == -1) {
-    return false;
-  }
-  // Verify if this is an Android user agent.
-  if (!IsAndroidUserAgent(user_agent)) {
-    return false;
-  }
-  int major = -1;
-  int minor = -1;
-  int parsed_build = -1;
-  int parsed_patch = -1;
-  if (!GetChromeBuildNumber(user_agent, &major, &minor,
-                            &parsed_build, &parsed_patch)) {
-    return false;
-  }
-
-  if (parsed_build < required_build) {
-    return false;
-  } else if (parsed_build == required_build && parsed_patch < required_patch) {
-    return false;
-  }
-
-  return true;
 }
 
 }  // namespace net_instaweb

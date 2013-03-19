@@ -91,8 +91,6 @@ class WebpOptimizer {
   // Return true on success.
   bool CreateOptimizedWebp(const GoogleString& original_jpeg,
                            int configured_quality,
-                           WebpProgressHook progress_hook,
-                           void* progress_hook_data,
                            GoogleString* compressed_webp);
 
  private:
@@ -113,21 +111,13 @@ class WebpOptimizer {
                       const GoogleString& original_jpeg);
   bool WebPImportYUV(WebPPicture* const picture);
 
-  // The function to be called by libwebp's progress hook (with 'this'
-  // as the user data), which in turn will call the user-supplied function
-  // in progress_hook_, passing it progress_hook_data_.
-  static int ProgressHook(int percent, const WebPPicture* picture);
-
   // Structure for jpeg decompression
   pagespeed::image_compression::JpegReader reader_;
   uint8* pixels_;
   uint8** rows_;  // Holds offsets into pixels_ during decompression
   unsigned int width_, height_;  // Type-compatible with libjpeg.
   size_t row_stride_;
-
   // Structures for webp recompression
-  WebpProgressHook progress_hook_;
-  void* progress_hook_data_;
 
   DISALLOW_COPY_AND_ASSIGN(WebpOptimizer);
 };  // class WebpOptimizer
@@ -137,9 +127,7 @@ WebpOptimizer::WebpOptimizer()
       rows_(NULL),
       width_(0),
       height_(0),
-      row_stride_(0),
-      progress_hook_(NULL),
-      progress_hook_data_(NULL) { }
+      row_stride_(0) { }
 WebpOptimizer::~WebpOptimizer() {
   delete[] pixels_;
   DCHECK(rows_ == NULL);
@@ -316,20 +304,10 @@ bool WebpOptimizer::WebPImportYUV(WebPPicture* const picture) {
   return true;
 }
 
-int WebpOptimizer::ProgressHook(int percent, const WebPPicture* picture) {
-  const WebpOptimizer* webp_optimizer =
-      static_cast<WebpOptimizer*>(picture->user_data);
-  return webp_optimizer->progress_hook_(percent,
-                                        webp_optimizer->progress_hook_data_);
-}
-
 // Main body of transcode.
 bool WebpOptimizer::CreateOptimizedWebp(
     const GoogleString& original_jpeg,
-    int configured_quality,
-    WebpProgressHook progress_hook,
-    void* progress_hook_data,
-    GoogleString* compressed_webp) {
+    int configured_quality, GoogleString* compressed_webp) {
   // Begin by making sure we can create a webp image at all:
   WebPPicture picture;
   WebPConfig config;
@@ -361,18 +339,8 @@ bool WebpOptimizer::CreateOptimizedWebp(
   if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, output_quality)) {
     // Couldn't use the default preset.
     return false;
-  } else {
-    // Set WebP compression method to 3 (4 is the default). From
-    // third_party/libwebp/v0_2/src/webp/encode.h, the method determines the
-    // 'quality/speed trade-off (0=fast, 6=slower-better). On a representative
-    // set of images, we see a 26% improvement in the 75th percentile
-    // compression time, even greater improvements further along the tail, and
-    // no increase in file size. Method 2 incurs a prohibitive 10% increase in
-    // file size, which is not worth the compression time savings.
-    config.method = 3;
-    if (!WebPValidateConfig(&config)) {
-      return false;
-    }
+  } else if (!WebPValidateConfig(&config)) {
+    return false;
   }
 
   J_COLOR_SPACE color_space = kUseYUV ? JCS_YCbCr : JCS_RGB;
@@ -389,12 +357,6 @@ bool WebpOptimizer::CreateOptimizedWebp(
   picture.custom_ptr = static_cast<void*>(compressed_webp);
   picture.width = width_;
   picture.height = height_;
-  if (progress_hook != NULL) {
-    picture.progress_hook = ProgressHook;
-    picture.user_data = this;
-    progress_hook_ = progress_hook;
-    progress_hook_data_ = progress_hook_data;
-  }
 
   if (kUseYUV) {
     // pixels_ are YUV at full resolution; WebP requires us to downsample the U
@@ -423,11 +385,9 @@ bool WebpOptimizer::CreateOptimizedWebp(
 }  // namespace
 
 bool OptimizeWebp(const GoogleString& original_jpeg, int configured_quality,
-                  WebpProgressHook progress_hook, void* progress_hook_data,
                   GoogleString* compressed_webp) {
   WebpOptimizer optimizer;
   return optimizer.CreateOptimizedWebp(original_jpeg, configured_quality,
-                                       progress_hook, progress_hook_data,
                                        compressed_webp);
 }
 

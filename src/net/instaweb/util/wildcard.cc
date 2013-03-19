@@ -15,11 +15,9 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 //         jmaessen@google.com (Jan-Willem Maessen)
 
-#include "third_party/instaweb/util/wildcard.h"
-
 #include <cstddef>
-
 #include "base/logging.h"
+#include "net/instaweb/util/public/wildcard.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 

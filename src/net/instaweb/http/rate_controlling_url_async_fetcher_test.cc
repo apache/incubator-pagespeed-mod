@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/rate_controller.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -45,9 +44,8 @@ namespace {
 
 class MockFetch : public AsyncFetch {
  public:
-  explicit MockFetch(const RequestContextPtr& ctx, bool is_background_fetch)
-      : AsyncFetch(ctx),
-        is_background_fetch_(is_background_fetch),
+  explicit MockFetch(bool is_background_fetch)
+      : is_background_fetch_(is_background_fetch),
         done_(false),
         success_(false) {}
   virtual ~MockFetch() {}
@@ -139,8 +137,7 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
 };
 
 TEST_F(RateControllingUrlAsyncFetcherTest, SingleUrlWorks) {
-  MockFetch fetch(
-      RequestContext::NewTestRequestContext(thread_system_.get()), true);
+  MockFetch fetch(true);
   rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, &fetch);
   // Call callback immediately.
   wait_fetcher_->CallCallbacks();
@@ -156,8 +153,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
 
   // Trigger 100 background requests all for the same domain.
   for (int i = 0; i < 100; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
@@ -216,16 +212,14 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
 
   // Trigger 100 user-facing requests all for the same domain.
   for (int i = 0; i < 100; ++i) {
-    MockFetch* fetch = new MockFetch(  // User-facing requests.
-        RequestContext::NewTestRequestContext(thread_system_.get()), false);
+    MockFetch* fetch = new MockFetch(false);  // User-facing requests.
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
 
   // Trigger 200 background requests all for the same domain.
   for (int i = 0; i < 200; ++i) {
-    MockFetch* fetch = new MockFetch(  // Background requests.
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);  // Background requests.
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
@@ -303,12 +297,10 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   // Trigger a total of 100 requests, alternately for domain1 and domain2.
   // For each domain, 2 fetches get triggered while 4 get queued up.
   for (int i = 0; i < 50; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
-    fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain2_url1_, &handler_, fetch);
   }
@@ -316,8 +308,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   // Send another 10 requests for domain3. 2 fetches get triggered, 2 get
   // enqueued and 6 get dropped.
   for (int i = 0; i < 10; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain3_url1_, &handler_, fetch);
   }

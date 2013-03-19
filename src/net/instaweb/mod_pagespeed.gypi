@@ -35,7 +35,6 @@
     'apache/apache_rewrite_driver_factory.cc',
     'apache/apache_server_context.cc',
     'apache/apache_slurp.cc',
-    'apache/apache_writer.cc',
     'apache/header_util.cc',
     'apache/in_place_resource_recorder.cc',
     'apache/instaweb_context.cc',

@@ -257,7 +257,8 @@ void ProxyInterface::Fetch(const GoogleString& requested_url_string,
     async_fetch->Done(false);
   } else {
     // Try to handle this as a .pagespeed. resource.
-    if (is_get_or_head && server_context_->IsPagespeedResource(requested_url)) {
+    if (server_context_->IsPagespeedResource(requested_url) &&
+        is_get_or_head) {
       pagespeed_requests_->IncBy(1);
       LOG(INFO) << "Serving URL as pagespeed resource: "
                 << requested_url.Spec();
@@ -327,18 +328,14 @@ ProxyFetchPropertyCallbackCollector*
   }
   StringPiece user_agent =
       async_fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
-  UserAgentMatcher::DeviceType device_type =
-      server_context_->user_agent_matcher()->GetDeviceTypeForUA(user_agent);
-
   scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
       new ProxyFetchPropertyCallbackCollector(
           server_context_, request_url.Spec(), request_ctx, options,
-          device_type));
+          user_agent));
   bool added_callback = false;
   PropertyPageStarVector property_callbacks;
 
   ProxyFetchPropertyCallback* client_callback = NULL;
-  ProxyFetchPropertyCallback* property_callback = NULL;
   PropertyCache* page_property_cache = server_context_->page_property_cache();
   PropertyCache* client_property_cache =
       server_context_->client_property_cache();
@@ -349,16 +346,24 @@ ProxyFetchPropertyCallbackCollector*
     if (options != NULL) {
       server_context_->ComputeSignature(options);
     }
-    AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
-    const StringPiece& device_type_suffix =
-        UserAgentMatcher::DeviceTypeSuffix(device_type);
-    GoogleString page_key = server_context_->GetPagePropertyCacheKey(
-        request_url.Spec(), options, device_type_suffix);
-    property_callback = new ProxyFetchPropertyCallback(
-        ProxyFetchPropertyCallback::kPagePropertyCache,
-        *page_property_cache, page_key, device_type,
-        callback_collector.get(), mutex);
-    callback_collector->AddCallback(property_callback);
+    for (int i = 0;
+         i < static_cast<int>(UserAgentMatcher::kEndOfDeviceType);
+         ++i) {
+      UserAgentMatcher::DeviceType device_type =
+          static_cast<UserAgentMatcher::DeviceType>(i);
+      AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
+      const StringPiece& device_type_suffix =
+          UserAgentMatcher::DeviceTypeSuffix(device_type);
+      GoogleString page_key = server_context_->GetPagePropertyCacheKey(
+          request_url.Spec(), options, device_type_suffix);
+      ProxyFetchPropertyCallback* property_callback =
+          new ProxyFetchPropertyCallback(
+              ProxyFetchPropertyCallback::kPagePropertyCache,
+              *page_property_cache,
+              page_key, device_type, callback_collector.get(), mutex);
+      property_callbacks.push_back(property_callback);
+      callback_collector->AddCallback(property_callback);
+    }
     added_callback = true;
     if (added_page_property_callback != NULL) {
       *added_page_property_callback = true;
@@ -384,8 +389,8 @@ ProxyFetchPropertyCallbackCollector*
   }
 
   // All callbacks need to be registered before Reads to avoid race.
-  if (property_callback != NULL) {
-    page_property_cache->Read(property_callback);
+  if (!property_callbacks.empty()) {
+    page_property_cache->MultiRead(&property_callbacks);
   }
   if (client_callback != NULL) {
     client_property_cache->Read(client_callback);
@@ -437,12 +442,6 @@ void ProxyInterface::ProxyRequestCallback(
   // Note: We preserve the User-Agent and Cookies so that the origin servers
   // send us the correct HTML. We will need to consider this for caching HTML.
 
-  LogRecord* log_record = async_fetch->request_context()->log_record();
-  {
-    ScopedMutex lock(log_record->mutex());
-    log_record->logging_info()->set_is_pagespeed_resource(is_resource_fetch);
-  }
-
   // Start fetch and rewrite.  If GetCustomOptions found options for us,
   // the RewriteDriver created by StartNewProxyFetch will take ownership.
   if (is_resource_fetch) {
@@ -487,6 +486,7 @@ void ProxyInterface::ProxyRequestCallback(
         &page_callback_added));
     if (options != NULL) {
       server_context_->ComputeSignature(options);
+      LogRecord* log_record = async_fetch->request_context()->log_record();
       {
         ScopedMutex lock(log_record->mutex());
         log_record->logging_info()->set_options_signature_hash(

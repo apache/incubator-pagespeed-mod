@@ -21,9 +21,6 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -117,19 +114,8 @@ void JsDisableFilter::StartElement(HtmlElement* element) {
     if (script_tag_scanner_.ParseScriptElement(element, &src) ==
         ScriptTagScanner::kJavaScript) {
       if (element->FindAttribute(HtmlName::kPagespeedNoDefer)) {
-        rewrite_driver_->log_record()->LogJsDisableFilter(
-            RewriteOptions::FilterId(RewriteOptions::kDisableJavascript),
-            RewriterInfo::APPLIED_OK, true);
         return;
       }
-
-      // TODO(rahulbansal): Add a separate bool to track the inline
-      // scripts till first external script which aren't deferred.1
-      rewrite_driver_->log_record()->LogJsDisableFilter(
-          RewriteOptions::FilterId(RewriteOptions::kDisableJavascript),
-          RewriterInfo::APPLIED_OK, false);
-
-      // TODO(rahulbansal): Add logging for prioritize scripts
       if (src != NULL) {
         src->set_name(rewrite_driver_->MakeName(HtmlName::kPagespeedOrigSrc));
       } else if (index_ == 0 &&

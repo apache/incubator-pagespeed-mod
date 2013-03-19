@@ -20,12 +20,10 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_LOG_RECORD_H_
 
 #include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 
 // If your .cc file needs to use the types declared in logging_proto.h,
 // you must also include net/instaweb/http/public/logging_proto_impl.h
@@ -59,6 +57,10 @@ class LogRecord  {
   explicit LogRecord(AbstractMutex* mutex);
   virtual ~LogRecord();
 
+  // Log a rewriter (identified by an id string) as having been sucessfully
+  // applied to the request being logged.
+  void LogAppliedRewriter(const char* rewriter_id);
+
   // For compatibility with older logging methods, returns a comma-joined string
   // concatenating the sorted coalesced rewriter ids of APPLIED_OK entries in
   // the rewriter_info array. Each id will appear once in the string if any
@@ -71,16 +73,9 @@ class LogRecord  {
   // responsibility to handle this safely.
   RewriterInfo* NewRewriterInfo(const char* rewriter_id);
 
-  // Creates a new rewriter logging submessage for |rewriter_id|,
-  // and sets status it.
-  void SetRewriterLoggingStatus(
-      const char* rewriter_id, RewriterInfo::RewriterApplicationStatus status);
-
-  // Creates a new rewriter logging submessage for |rewriter_id|,
-  // sets status and the url index.
-  void SetRewriterLoggingStatus(
-      const char* rewriter_id, const GoogleString& url,
-      RewriterInfo::RewriterApplicationStatus status);
+  // Sets status on a RewriterInfo with updates to AppliedRewriters.
+  // Calling code must lock mutex().
+  void SetRewriterLoggingStatus(RewriterInfo* rewriter_info, int status);
 
   // Return the LoggingInfo proto wrapped by this class. Calling code must
   // guard any reads and writes to this using mutex().
@@ -109,7 +104,6 @@ class LogRecord  {
   // if a single-field update to a logging proto occurs multiple times, it
   // should be factored out into a method on this class.
   void SetBlinkRequestFlow(int flow);
-  void SetCacheHtmlRequestFlow(int flow);
   void SetIsOriginalResourceCacheable(bool cacheable);
   void SetTimingRequestStartMs(int64 ms);
   void SetTimingHeaderFetchMs(int64 ms);
@@ -127,27 +121,15 @@ class LogRecord  {
   // Override SetBlinkInfoImpl if necessary.
   void SetBlinkInfo(const GoogleString& user_agent);
 
-  // Override SetCacheHtmlInfoImpl if necessary.
-  void SetCacheHtmlLoggingInfo(const GoogleString& user_agent);
-
   // Log a RewriterInfo for the image rewrite filter.
   void LogImageRewriteActivity(
       const char* id,
-      const GoogleString& url,
-      RewriterInfo::RewriterApplicationStatus status,
+      int status,
       bool is_image_inlined,
       bool is_critical_image,
       bool try_low_res_src_insertion,
       bool low_res_src_inserted,
       int low_res_data_size);
-
-  void LogJsDisableFilter(const char* id,
-                          RewriterInfo::RewriterApplicationStatus status,
-                          bool has_pagespeed_no_defer);
-
-  void LogLazyloadFilter(const char* id,
-                         RewriterInfo::RewriterApplicationStatus status,
-                         bool is_blacklisted, bool is_critical);
 
   // Mutex-guarded log-writing operations. Derived classes should override
   // *Impl methods. Returns false if the log write attempt failed.
@@ -161,16 +143,6 @@ class LogRecord  {
   // the LoggingInfo proto wrapped by this class.
   void SetRewriterInfoMaxSize(int x);
 
-  // Sets whether urls should be logged. This could potentially generate a lot
-  // of logs data, so this should be switched on only for debugging.
-  void SetAllowLoggingUrls(bool allow_logging_urls);
-
-  // Sets the number of critical images in HTML.
-  void SetNumHtmlCriticalImages(int num_html_critical_images);
-
-  // Sets the number of critical images in CSS.
-  void SetNumCssCriticalImages(int num_css_critical_images);
-
  protected:
   // Non-initializing default constructor for subclasses. Subclasses that invoke
   // this constructor should implement and call their own initializer that
@@ -180,11 +152,13 @@ class LogRecord  {
 
   void set_mutex(AbstractMutex* m);
 
+  // Implementation methods for subclasses to override.
+  // Implements logging an applied rewriter.
+  virtual void LogAppliedRewriterImpl(const char* rewriter_id);
+  virtual RewriterInfo* NewRewriterInfoImpl(
+      const char* rewriter_id, int status);
   // Implements setting Blink-specific log information; base impl is a no-op.
   virtual void SetBlinkInfoImpl(const GoogleString& user_agent) {}
-
-  // Implements setting CacheHtml-specific log information
-  void SetCacheHtmlInfoImpl(const GoogleString& user_agent) {}
   // Implements writing a log, base implementation is a no-op. Returns false if
   // writing failed.
   virtual bool WriteLogImpl() { return true; }
@@ -192,9 +166,6 @@ class LogRecord  {
  private:
   // Called on construction.
   void InitLogging();
-
-  void PopulateUrl(
-      const GoogleString& url, RewriteResourceInfo* rewrite_resource_info);
 
   scoped_ptr<LoggingInfo> logging_info_;
 
@@ -204,12 +175,6 @@ class LogRecord  {
 
   // The maximum number of rewrite info logs stored for a single request.
   int rewriter_info_max_size_;
-
-  // Allow urls to be logged.
-  bool allow_logging_urls_;
-
-  // Map which maintains the url to index for logging urls.
-  StringIntMap url_index_map_;
 
   DISALLOW_COPY_AND_ASSIGN(LogRecord);
 };

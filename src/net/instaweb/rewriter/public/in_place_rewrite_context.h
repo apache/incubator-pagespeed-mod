@@ -39,13 +39,13 @@
 
 namespace net_instaweb {
 
-class CacheUrlAsyncFetcher;
 class InputInfo;
 class MessageHandler;
 class ResourceContext;
 class RewriteDriver;
 class RewriteFilter;
 class Statistics;
+class UrlAsyncFetcher;
 class Variable;
 
 // A resource-slot created for an in-place rewrite. This has an empty render
@@ -76,7 +76,6 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   // stream (due to a large resource) when Options->in_place_wait_for_optimized
   // is true.
   static const char kInPlaceOversizedOptStream[];
-  static const char kInPlaceUncacheableRewrites[];
 
   InPlaceRewriteContext(RewriteDriver* driver, const StringPiece& url);
   virtual ~InPlaceRewriteContext();
@@ -97,8 +96,8 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 
   static void InitStats(Statistics* statistics);
 
-  bool proxy_mode() const { return proxy_mode_; }
-  void set_proxy_mode(bool x) { proxy_mode_ = x; }
+  bool perform_http_fetch() const { return perform_http_fetch_; }
+  void set_perform_http_fetch(bool x) { perform_http_fetch_ = x; }
 
   virtual int64 GetRewriteDeadlineAlarmMs() const;
 
@@ -147,18 +146,10 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 
-  scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
+  scoped_ptr<UrlAsyncFetcher> cache_fetcher_;
 
-  // Are we in proxy mode?
-  //
-  // True means that we are acting as a proxy and the user is depending on us
-  // to serve them the resource, thus we will fetch the contents over HTTP if
-  // not found in cache and ignore kRecentFetchNotCacheable and
-  // kRecentFetchFailed since we'll have to fetch the resource for users anyway.
-  //
-  // False means we are running on the origin, so we respect kRecent* messages
-  // and let the origin itself serve the resource.
-  bool proxy_mode_;
+  // Should we fetch the contents if cache lookup fails?
+  bool perform_http_fetch_;
 
   DISALLOW_COPY_AND_ASSIGN(InPlaceRewriteContext);
 };
@@ -191,23 +182,17 @@ class RecordingFetch : public SharedAsyncFetch {
   // By default RecordingFetch streams back the original content to the browser.
   // If this returns false then the RecordingFetch should cache the original
   // content but not stream it.
-  bool ShouldStream() const;
+  bool ShouldStream();
 
   MessageHandler* handler_;
   ResourcePtr resource_;
   InPlaceRewriteContext* context_;
-
-  // True if resource is of rewritable type and is cacheable or if we're forcing
-  // rewriting of uncacheable resources.
   bool can_in_place_rewrite_;
-
-  // True if we're streaming data as it is being fetched.
   bool streaming_;
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
   ResponseHeaders saved_headers_;
   Variable* in_place_oversized_opt_stream_;
-  Variable* in_place_uncacheable_rewrites_;
   DISALLOW_COPY_AND_ASSIGN(RecordingFetch);
 };
 

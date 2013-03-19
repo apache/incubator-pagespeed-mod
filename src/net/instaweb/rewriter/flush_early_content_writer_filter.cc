@@ -19,7 +19,6 @@
 
 #include <set>
 
-#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/device_properties.h"
@@ -122,15 +121,15 @@ void LogFilterAction(RewriterInfo::RewriterApplicationStatus status,
   if (rewriter_info == NULL) {
     return;
   }
-
-  ScopedMutex lock(log_record->mutex());
-  rewriter_info->set_status(status);
   FlushEarlyResourceInfo* flush_early_resource_info =
       rewriter_info->mutable_flush_early_resource_info();
   flush_early_resource_info->set_content_type(content_type);
   flush_early_resource_info->set_resource_type(resource_type);
   flush_early_resource_info->set_is_bandwidth_affected(is_bandwidth_affected);
   flush_early_resource_info->set_in_head(in_head);
+
+  ScopedMutex lock(log_record->mutex());
+  log_record->SetRewriterLoggingStatus(rewriter_info, status);
 }
 
 // Returns the ContentType enum value for a given semantic_type.
@@ -161,9 +160,8 @@ void FlushEarlyContentWriterFilter::StartDocument() {
   // write whatever we need to original_writer_.
   original_writer_ = driver_->writer();
   set_writer(&null_writer_);
-  DCHECK(driver_->request_headers() != NULL);
   prefetch_mechanism_ = driver_->user_agent_matcher()->GetPrefetchMechanism(
-      driver_->user_agent());
+      driver_->user_agent(), driver_->request_headers());
   current_element_ = NULL;
   FlushEarlyInfoFinder* finder =
       driver_->server_context()->flush_early_info_finder();
@@ -193,11 +191,6 @@ void FlushEarlyContentWriterFilter::StartDocument() {
   time_consumed_ms_ = kDnsTimeMs + kTimeToConnectMs + kTtfbMs;
   defer_javascript_enabled_ =
       driver_->options()->Enabled(RewriteOptions::kDeferJavascript);
-  // TODO(ksimbili): Enable flush_more_resources_early_if_time_permits after
-  // tuning the RTT, bandwidth numbers for mobile.
-  flush_more_resources_early_if_time_permits_ =
-      driver_->options()->flush_more_resources_early_if_time_permits() &&
-      !driver_->user_agent_matcher()->IsMobileUserAgent(driver_->user_agent());
 }
 
 void FlushEarlyContentWriterFilter::EndDocument() {
@@ -254,7 +247,7 @@ void FlushEarlyContentWriterFilter::TryFlushingDeferJavascriptEarly() {
       defer_javascript_enabled_ &&
       driver_->device_properties()->SupportsJsDefer(
           driver_->options()->enable_aggressive_rewriters_for_mobile()) &&
-      flush_more_resources_early_if_time_permits_;
+      options->flush_more_resources_early_if_time_permits();
   if (should_try_flushing_early_js_defer_script) {
     StaticAssetManager* static_asset_manager =
         driver_->server_context()->static_asset_manager();
@@ -309,10 +302,10 @@ void FlushEarlyContentWriterFilter::StartElement(HtmlElement* element) {
       // Don't flush javascript resources if defer_javascript is enabled.
       // TOOD(nikhilmadan): Check if the User-Agent supports defer_javascript.
       GoogleUrl gurl;
-      if (flush_more_resources_early_if_time_permits_ &&
+      if (driver_->options()->flush_more_resources_early_if_time_permits() &&
           ExtractUrl(attr, driver_, &gurl)) {
         bool is_pagespeed_resource =
-            driver_->server_context()->IsNonStalePagespeedResource(gurl);
+            driver_->server_context()->IsPagespeedResource(gurl);
         // Scripts can be flushed for kPrefetchLinkScriptTag prefetch
         // mechanism only if defer_javascript is disabled and
         // flush_more_resources_in_ie_and_firefox is enabled.
@@ -375,7 +368,7 @@ void FlushEarlyContentWriterFilter::StartElement(HtmlElement* element) {
               size / (kConnectionSpeedBytesPerMs * kGzipMultiplier);
         }
         bool is_pagespeed_resource =
-            driver_->server_context()->IsNonStalePagespeedResource(gurl);
+            driver_->server_context()->IsPagespeedResource(gurl);
         if (call_flush_resources &&
             IsFlushable(gurl, is_pagespeed_resource)) {
           StringPiece url(attr->DecodedValueOrNull());
@@ -420,7 +413,6 @@ void FlushEarlyContentWriterFilter::Clear() {
   STLDeleteElements(&js_resources_info_);
   defer_javascript_enabled_ = false;
   flush_early_content_.clear();
-  flush_more_resources_early_if_time_permits_ = false;
 }
 
 bool FlushEarlyContentWriterFilter::IsFlushable(

@@ -26,10 +26,6 @@ CacheInterface::~CacheInterface() {
 CacheInterface::Callback::~Callback() {
 }
 
-CacheInterface* CacheInterface::Backend() {
-  return this;
-}
-
 void CacheInterface::ValidateAndReportResult(const GoogleString& key,
                                              KeyState state,
                                              Callback* callback) {

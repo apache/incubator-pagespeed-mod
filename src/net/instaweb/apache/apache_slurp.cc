@@ -41,12 +41,10 @@
 
 #include "base/logging.h"
 #include "net/instaweb/apache/apache_server_context.h"
-#include "net/instaweb/apache/apache_writer.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -64,10 +62,12 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/writer.h"
 
 // The Apache headers must be after instaweb headers.  Otherwise, the
 // compiler will complain
 //   "strtoul_is_not_a_portable_function_use_strtol_instead".
+#include "apr_strings.h"  // for apr_pstrdup
 #include "http_protocol.h"
 #include "httpd.h"
 
@@ -89,6 +89,82 @@ void SlurpDefaultHandler(request_rec* r) {
   r->status = HttpStatus::kNotFound;
   r->status_line = "Not Found";
 }
+
+// TODO(jmarantz): The ApacheWriter defined below is much more
+// efficient than the mechanism we are currently using, which is to
+// buffer the entire response in a string and then send it later.
+// For some reason, this did not work when I tried it, but it's
+// worth another look.
+
+class ApacheWriter : public Writer {
+ public:
+  explicit ApacheWriter(request_rec* r) : request_(r), headers_out_(false) {}
+
+  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+    DCHECK(headers_out_);
+    ap_rwrite(str.data(), str.size(), request_);
+    return true;
+  }
+
+  virtual bool Flush(MessageHandler* handler) {
+    DCHECK(headers_out_);
+    ap_rflush(request_);
+    return true;
+  }
+
+  void OutputHeaders(ResponseHeaders* response_headers) {
+    DCHECK(!headers_out_);
+    if (headers_out_) {
+      return;
+    }
+    headers_out_ = true;
+
+    // Apache2 defaults to set the status line as HTTP/1.1.  If the
+    // original content was HTTP/1.0, we need to force the server to use
+    // HTTP/1.0.  I'm not sure why/whether we need to do this; it was in
+    // mod_static from the sdpy project, which is where I copied this
+    // code from.
+    if ((response_headers->major_version() == 1) &&
+        (response_headers->minor_version() == 0)) {
+      apr_table_set(request_->subprocess_env, "force-response-1.0", "1");
+    }
+
+    char* content_type = NULL;
+    ConstStringStarVector v;
+    CHECK(response_headers->headers_complete());
+    if (response_headers->Lookup(HttpAttributes::kContentType, &v)) {
+      CHECK(!v.empty());
+      // ap_set_content_type does not make a copy of the string, we need
+      // to duplicate it.  Note that we will update the content type below,
+      // after transforming the headers.
+      const GoogleString* last = v[v.size() - 1];
+      content_type = apr_pstrdup(request_->pool,
+                                 (last == NULL) ? NULL : last->c_str());
+    }
+    response_headers->RemoveAll(HttpAttributes::kTransferEncoding);
+    response_headers->RemoveAll(HttpAttributes::kContentLength);
+
+    // We always disable downstream header filters when sending out
+    // pagespeed resources, since we've captured them from the origin
+    // in the fetch we did to write the slurp.
+    ResponseHeadersToApacheRequest(*response_headers,
+                                   true,  // disable downstream headers filters.
+                                   request_);
+    if (content_type != NULL) {
+      ap_set_content_type(request_, content_type);
+    }
+
+    // Recompute the content-length, because the content is decoded.
+    // TODO(lsong): We don't know the content size, do we?
+    // ap_set_content_length(request_, contents.size());
+  }
+
+ private:
+  request_rec* request_;
+  bool headers_out_;
+
+  DISALLOW_COPY_AND_ASSIGN(ApacheWriter);
+};
 
 // Remove any mod-pagespeed-specific modifiers before we go to our slurped
 // fetcher.
@@ -143,10 +219,8 @@ class StrippingFetch : public StringAsyncFetch {
                  const DomainLawyer* lawyer,
                  UrlAsyncFetcher* fetcher,
                  ThreadSystem* thread_system,
-                 const RequestContextPtr& ctx,
                  MessageHandler* message_handler)
-      : StringAsyncFetch(ctx),
-        fetcher_(fetcher),
+      : fetcher_(fetcher),
         lawyer_(lawyer),
         url_(url_input),
         message_handler_(message_handler),
@@ -255,19 +329,12 @@ void SlurpUrl(ApacheServerContext* manager, request_rec* r) {
   }
 
   MessageHandler* handler = manager->message_handler();
-  RequestContextPtr request_context(
-      new RequestContext(manager->thread_system()->NewMutex()));
   StrippingFetch fetch(stripped_url, manager->config()->domain_lawyer(),
-                       fetcher, manager->thread_system(), request_context,
-                       handler);
+                       fetcher, manager->thread_system(), handler);
   ApacheRequestToRequestHeaders(*r, fetch.request_headers());
 
   if (fetch.Fetch()) {
-    // We always disable downstream header filters when sending out
-    // slurped resources, since we've captured them from the origin
-    // in the fetch we did to write the slurp.
     ApacheWriter apache_writer(r);
-    apache_writer.set_disable_downstream_header_filters(true);
     ChunkingWriter chunking_writer(&apache_writer,
                                    manager->config()->slurp_flush_limit());
     apache_writer.OutputHeaders(fetch.response_headers());

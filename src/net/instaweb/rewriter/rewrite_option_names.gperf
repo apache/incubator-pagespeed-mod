@@ -26,7 +26,6 @@ struct OptionName {
 };
 %%
 "AddOptionsToUrls",                      RewriteOptions::kAddOptionsToUrls
-"AllowLoggingUrlsInLogRecord",           RewriteOptions::kAllowLoggingUrlsInLogRecord
 "AlwaysRewriteCss",                      RewriteOptions::kAlwaysRewriteCss
 "AnalyticsID",                           RewriteOptions::kAnalyticsID
 "AvoidRenamingIntrospectiveJavascript",  RewriteOptions::kAvoidRenamingIntrospectiveJavascript
@@ -45,8 +44,6 @@ struct OptionName {
 "CssOutlineMinBytes",                    RewriteOptions::kCssOutlineMinBytes
 "CssPreserveURLs",                       RewriteOptions::kCssPreserveURLs
 "DefaultCacheHtml",                      RewriteOptions::kDefaultCacheHtml
-"DistributedRewriteServers",             RewriteOptions::kDistributedRewriteServers
-"DistributedRewriteTimeoutMs",           RewriteOptions::kDistributedRewriteTimeoutMs
 "DomainShardCount",                      RewriteOptions::kDomainShardCount
 "EnableAggressiveRewritersForMobile",    RewriteOptions::kEnableAggressiveRewritersForMobile
 "EnableBlinkCriticalLine",               RewriteOptions::kEnableBlinkCriticalLine
@@ -77,7 +74,6 @@ struct OptionName {
 "ImageRetainColorSampling",              RewriteOptions::kImageRetainColorSampling
 "ImageRetainExifData",                   RewriteOptions::kImageRetainExifData
 "ImageWebpRecompressionQuality",         RewriteOptions::kImageWebpRecompressionQuality
-"ImageWebpRecompressionQualityForSmallScreens", RewriteOptions::kImageWebpRecompressionQualityForSmallScreens
 "ImageWebpTimeoutMs",                    RewriteOptions::kImageWebpTimeoutMs
 "ImplicitCacheTtlMs",                    RewriteOptions::kImplicitCacheTtlMs
 "InPlacePreemptiveRewriteCss",           RewriteOptions::kInPlacePreemptiveRewriteCss
@@ -90,7 +86,6 @@ struct OptionName {
 "IncreaseSpeedTracking",                 RewriteOptions::kIncreaseSpeedTracking
 "InlineOnlyCriticalImages",              RewriteOptions::kInlineOnlyCriticalImages
 "JpegRecompressionQuality",              RewriteOptions::kImageJpegRecompressionQuality
-"JpegRecompressionQualityForSmallScreens", RewriteOptions::kImageJpegRecompressionQualityForSmallScreens
 "JsInlineMaxBytes",                      RewriteOptions::kJsInlineMaxBytes
 "JsOutlineMinBytes",                     RewriteOptions::kJsOutlineMinBytes
 "JsPreserveURLs",                        RewriteOptions::kJsPreserveURLs
@@ -112,11 +107,9 @@ struct OptionName {
 "MemcachedServers",                      RewriteOptions::kMemcachedServers
 "MemcachedThreads",                      RewriteOptions::kMemcachedThreads
 "MemcachedTimeoutUs",                    RewriteOptions::kMemcachedTimeoutUs
-"MetadataCacheStalenessThresholdMs",     RewriteOptions::kMetadataCacheStalenessThresholdMs
 "MinImageSizeLowResolutionBytes",        RewriteOptions::kMinImageSizeLowResolutionBytes
 "MinResourceCacheTimeToRewriteMs",       RewriteOptions::kMinResourceCacheTimeToRewriteMs
 "ModifyCachingHeaders",                  RewriteOptions::kModifyCachingHeaders
-"ObliviousPagespeedUrls",                RewriteOptions::kObliviousPagespeedUrls
 "OverrideCachingTtlMs",                  RewriteOptions::kOverrideCachingTtlMs
 "OverrideIeDocumentMode",                RewriteOptions::kOverrideIeDocumentMode
 "ProgressiveJpegMinBytes",               RewriteOptions::kProgressiveJpegMinBytes
@@ -127,10 +120,10 @@ struct OptionName {
 "RespectXForwardedProto",                RewriteOptions::kRespectXForwardedProto
 "RewriteDeadlinePerFlushMs",             RewriteOptions::kRewriteDeadlineMs
 "RewriteLevel",                          RewriteOptions::kRewriteLevel
-"RewriteUncacheableResources",           RewriteOptions::kRewriteUncacheableResources
 "RunExperiment",                         RewriteOptions::kRunningFurious
 "ServeStaleIfFetchError",                RewriteOptions::kServeStaleIfFetchError
 "SupportNoScriptEnabled",                RewriteOptions::kSupportNoScriptEnabled
+"UseFixedUserAgentForBlinkCacheMisses",  RewriteOptions::kUseFixedUserAgentForBlinkCacheMisses
 "UseSmartDiffInBlink",                   RewriteOptions::kUseSmartDiffInBlink
 "XHeaderValue",                          RewriteOptions::kXModPagespeedHeaderValue
 #
@@ -138,7 +131,6 @@ struct OptionName {
 "Allow",                                 RewriteOptions::kAllow
 "DisableFilters",                        RewriteOptions::kDisableFilters
 "Disallow",                              RewriteOptions::kDisallow
-"DistributableFilters",                  RewriteOptions::kDistributableFilters
 "Domain",                                RewriteOptions::kDomain
 "EnableFilters",                         RewriteOptions::kEnableFilters
 "ExperimentVariable",                    RewriteOptions::kExperimentVariable
@@ -191,6 +183,7 @@ struct OptionName {
 "StatisticsLoggingIntervalMs",           RewriteOptions::kStatisticsLoggingIntervalMs
 "TestProxy",                             RewriteOptions::kTestProxy
 "TestProxySlurp",                        RewriteOptions::kTestProxySlurp
+"UseSharedMemoryMetadataCache",          RewriteOptions::kUseSharedMemMetadataCache
 %%
 
 RewriteOptions::OptionEnum RewriteOptions::LookupOption(

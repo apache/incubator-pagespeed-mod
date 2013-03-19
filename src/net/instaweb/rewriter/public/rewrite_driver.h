@@ -25,25 +25,25 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/scan_filter.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/printf_format.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -57,7 +57,6 @@ class AsyncFetch;
 class CacheUrlAsyncFetcher;
 class CommonFilter;
 class CriticalLineInfo;
-class CriticalSelectorSet;
 class DebugFilter;
 class DeviceProperties;
 class DomainRewriteFilter;
@@ -65,6 +64,7 @@ class FileSystem;
 class FlushEarlyInfo;
 class FlushEarlyRenderInfo;
 class Function;
+class HtmlEvent;
 class HtmlFilter;
 class HtmlWriterFilter;
 class LogRecord;
@@ -244,6 +244,7 @@ class RewriteDriver : public HtmlParse {
   }
 
   const RequestHeaders* request_headers() const {
+    DCHECK(request_headers_ != NULL);
     return request_headers_;
   }
 
@@ -331,18 +332,15 @@ class RewriteDriver : public HtmlParse {
   // Initiates an In-Place Resource Optimization (IPRO) fetch (A resource which
   // is served under the original URL, but is still able to be rewritten).
   //
-  // proxy_mode indicates whether we are running as a proxy where users
-  // depend on us to send contents. When set true, we will perform HTTP fetches
-  // to get contents if not in cache and will ignore kRecentFetchNotCacheable
-  // and kRecentFetchFailed since we'll have to fetch the resource for users
-  // anyway. Origin implementations (like mod_pagespeed) should set this to
-  // false and let the serve serve the resource if it's not in cache.
+  // perform_http_fetch indicates whether or not an HTTP fetch should be done
+  // to get the resource if a cache lookup fails. Proxy implementations will
+  // want to set this to true because there is no other way to get the content.
+  // However, origin implementations will want to set this to false so that
+  // they can fall back to locally serving the contents.
   //
-  // If proxy_mode is false and the resource could not be found in HTTP cache,
-  // async_fetch->Done(false) will be called and async_fetch->status_code()
-  // will be CacheUrlAsyncFetcher::kNotInCacheStatus (to distinguish this
-  // from a different reason for failure, like kRecentFetchNotCacheable).
-  void FetchInPlaceResource(const GoogleUrl& gurl, bool proxy_mode,
+  // async_fetch->Done(false) will be called if perform_http_fetch is false
+  // and the resource could not be found in HTTP cache.
+  void FetchInPlaceResource(const GoogleUrl& gurl, bool perform_http_fetch,
                             AsyncFetch* async_fetch);
 
   // See FetchResource.  There are two differences:
@@ -384,12 +382,6 @@ class RewriteDriver : public HtmlParse {
   // fetcher, and will keep it around until Clear(), even if further calls
   // to this method are made.
   void SetSessionFetcher(UrlAsyncFetcher* f);
-
-  UrlAsyncFetcher* distributed_fetcher() { return distributed_async_fetcher_; }
-  // Does not take ownership.
-  void set_distributed_fetcher(UrlAsyncFetcher* fetcher) {
-    distributed_async_fetcher_ = fetcher;
-  }
 
   // Creates a cache fetcher that uses the driver's fetcher and its options.
   // Note: this means the driver's fetcher must survive as long as this does.
@@ -437,6 +429,28 @@ class RewriteDriver : public HtmlParse {
   // As above, but asynchronous. Note that the RewriteDriver may already be
   // deleted at the point the callback is invoked.
   void FinishParseAsync(Function* callback);
+
+  // Prevent the EndElementEvent for element from flushing.  If it has already
+  // flushed, this has no effect.  Should only be called from an event listener.
+  // Useful for giving an active filter time to complete an RPC that provides
+  // data to append to element.
+  void InhibitEndElement(const HtmlElement* element);
+
+  // Permits the EndElementEvent for element to flush.  If it was not previously
+  // prevented from doing so by InhibitEndElement, this has no effect.  Should
+  // only be called from an active filter, in coordination with an event
+  // listener that called InhibitEndElement.  If we are currently flushing,
+  // another flush will be scheduled as soon as this one finishes.  If we are
+  // not, another flush will be scheduled immediately.
+  void UninhibitEndElement(const HtmlElement* element);
+
+  // Returns true if the EndElementEvent for element is inhibited from flushing.
+  bool EndElementIsInhibited(const HtmlElement* element);
+
+  // Will return true if the EndElementEvent of element is inhibited from
+  // flushing, and that event determined the size of the current flush.  Will
+  // return false if a flush is not currently in progress.
+  bool EndElementIsStoppingFlush(const HtmlElement* element);
 
   // Report error message with description of context's location
   // (such as filenames and line numbers). context may be NULL, in which case
@@ -755,8 +769,10 @@ class RewriteDriver : public HtmlParse {
   virtual void Flush();
 
   // Initiates an asynchronous Flush.  done->Run() will be called when
-  // the flush is complete.  Further calls to ParseText should be deferred until
-  // the callback is called.
+  // the flush is complete.  The inhibits_mutex_ will be held while the callback
+  // is running, so the callback should not attempt to inhibit or uninhibit
+  // an element.  Further calls to ParseText should be deferred until the
+  // callback is called.
   void FlushAsync(Function* done);
 
   // Queues up a task to run on the (high-priority) rewrite thread.
@@ -840,23 +856,28 @@ class RewriteDriver : public HtmlParse {
   void set_critical_line_info(CriticalLineInfo* critical_line_info);
 
   // Used by ImageRewriteFilter for identifying critical images.
-  CriticalImagesInfo* critical_images_info() const {
-    return critical_images_info_.get();
+  const StringSet* critical_images() const {
+    return critical_images_.get();
   }
 
   // Inserts the critical images present on the requested html page. It takes
-  // ownership of critical_images_info. This should only be called by the
-  // CriticalImagesFinder, normal users should just be using the automatic
-  // management of critical_images_info that CriticalImagesFinder provides.
-  void set_critical_images_info(CriticalImagesInfo* critical_images_info) {
-    critical_images_info_.reset(critical_images_info);
+  // the ownership of critical_images.
+  void set_critical_images(StringSet* critical_images) {
+    critical_images_.reset(critical_images);
   }
 
-  // Returns computed critical selector set for this page, or NULL
-  // if not available. Should only be called from HTML-safe thread context.
-  // (parser threar or Render() callbacks). The returned value is owned by
-  // the rewrite driver.
-  CriticalSelectorSet* CriticalSelectors();
+  const StringSet* css_critical_images() const {
+    return css_critical_images_.get();
+  }
+
+  // Inserts the critical images present in the css. It takes the ownership of
+  // css_critical_images.
+  void set_css_critical_images(StringSet* css_critical_images) {
+    css_critical_images_.reset(css_critical_images);
+  }
+
+  bool updated_critical_images() const { return updated_critical_images_; }
+  void set_updated_critical_images(bool x) { updated_critical_images_ = x; }
 
   // We expect to this method to be called on the HTML parser thread.
   // Returns the number of images whose low quality images are inlined in the
@@ -894,19 +915,18 @@ class RewriteDriver : public HtmlParse {
   bool flushed_cached_html() { return flushed_cached_html_; }
 
   void set_flushing_cached_html(bool x) { flushing_cached_html_ = x; }
-  bool flushing_cached_html() const { return flushing_cached_html_; }
+  bool flushing_cached_html() { return flushing_cached_html_; }
 
   void set_flushed_early(bool x) { flushed_early_ = x; }
-  bool flushed_early() const { return flushed_early_; }
+  bool flushed_early() { return flushed_early_; }
 
   void set_flushing_early(bool x) { flushing_early_ = x; }
-  bool flushing_early() const { return flushing_early_; }
+  bool flushing_early() { return flushing_early_; }
 
   void set_is_lazyload_script_flushed(bool x) {
     is_lazyload_script_flushed_ = x;
   }
-  bool is_lazyload_script_flushed() const {
-    return is_lazyload_script_flushed_; }
+  bool is_lazyload_script_flushed() { return is_lazyload_script_flushed_; }
 
   // This method is not thread-safe. Call it only from the html parser thread.
   FlushEarlyInfo* flush_early_info();
@@ -938,7 +958,7 @@ class RewriteDriver : public HtmlParse {
 
   // Determines whether the system is healthy enough to rewrite resources.
   // Currently, systems get sick based on the health of the metadata cache.
-  bool can_rewrite_resources() const { return can_rewrite_resources_; }
+  bool can_rewrite_resources() { return can_rewrite_resources_; }
 
   // Sets the is_nested property on the driver.
   void set_is_nested(bool n) { is_nested_ = n; }
@@ -1067,6 +1087,12 @@ class RewriteDriver : public HtmlParse {
   void AddPreRenderFilters();
   void AddPostRenderFilters();
 
+  // After removing an inhibition, finish the parse if necessary.
+  void UninhibitFlushDone(Function* user_callback);
+
+  // Move anything on queue_ after the first inhibited event to deferred_queue_.
+  void SplitQueueIfNecessary();
+
   // Helper function to decode the pagespeed url.
   bool DecodeOutputResourceNameHelper(const GoogleUrl& url,
                                       ResourceNamer* name_out,
@@ -1188,6 +1214,15 @@ class RewriteDriver : public HtmlParse {
   // this.
   bool write_property_cache_dom_cohort_;
 
+  scoped_ptr<AbstractMutex> inhibits_mutex_;
+  typedef std::set <const HtmlElement*> ConstHtmlElementSet;
+  ConstHtmlElementSet end_elements_inhibited_;  // protected by inhibits_mutex_
+  HtmlEventList deferred_queue_;                // protected by inhibits_mutex_
+  Function* finish_parse_on_hold_;              // protected by inhibits_mutex_
+  HtmlEvent* inhibiting_event_;                 // protected by inhibits_mutex_
+  bool flush_in_progress_;                      // protected by inhibits_mutex_
+  bool uninhibit_reflush_requested_;            // protected by inhibits_mutex_
+
   // Tracks the number of RewriteContexts that have been completed,
   // but not yet deleted.  Once RewriteComplete has been called,
   // rewrite_context->Propagate() is called to render slots (if not
@@ -1270,11 +1305,6 @@ class RewriteDriver : public HtmlParse {
   // This is either owned externally or via owned_url_async_fetchers_.
   UrlAsyncFetcher* url_async_fetcher_;
 
-  // This is the fetcher that is used to distribute rewrites if enabled. This
-  // can be NULL if distributed rewriting is not configured. This is owned
-  // externally.
-  UrlAsyncFetcher* distributed_async_fetcher_;
-
   // A list of all the UrlAsyncFetchers that we own, as set with
   // SetSessionFetcher.
   std::vector<UrlAsyncFetcher*> owned_url_async_fetchers_;
@@ -1336,12 +1366,14 @@ class RewriteDriver : public HtmlParse {
 
   scoped_ptr<CriticalLineInfo> critical_line_info_;
 
-  // Stores all the critical image info for the current URL.
-  scoped_ptr<CriticalImagesInfo> critical_images_info_;
+  // Stores all the critical images for the current URL.
+  scoped_ptr<StringSet> critical_images_;
 
-  // We lazy-initialize critical_selector_info_ from the finder.
-  bool critical_selector_info_computed_;
-  scoped_ptr<CriticalSelectorSet> critical_selector_info_;
+  // Stores all the critical images for the current URL present in css.
+  scoped_ptr<StringSet> css_critical_images_;
+
+  // Indicates if the critical images were updated here.
+  bool updated_critical_images_;
 
   // Memoized computation of whether the current doc has an XHTML mimetype.
   bool xhtml_mimetype_computed_;

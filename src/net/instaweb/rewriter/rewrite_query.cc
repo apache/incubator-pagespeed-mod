@@ -75,14 +75,10 @@ static struct Int64QueryParam int64_query_params_[] = {
     &RewriteOptions::set_domain_shard_count },
   { "ModPagespeedJpegRecompressionQuality",
     &RewriteOptions::set_image_jpeg_recompress_quality },
-  { "ModPagespeedJpegRecompressionQualityForSmallScreens",
-      &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
   { "ModPagespeedImageRecompressionQuality",
     &RewriteOptions::set_image_recompress_quality },
   { "ModPagespeedWebpRecompressionQuality",
     &RewriteOptions::set_image_webp_recompress_quality },
-  { "ModPagespeedWebpRecompressionQualityForSmallScreens",
-    &RewriteOptions::set_image_webp_recompress_quality_for_small_screens },
   { "ModPagespeedWebpTimeoutMs",
     &RewriteOptions::set_image_webp_timeout_ms },
 };
@@ -413,7 +409,7 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
             RewriteOptions::LookupOptionEnumById(name_value[0]);
         if ((option_enum != RewriteOptions::kEndOfOptions) &&
             std::binary_search(opts, opts + num_options, option_enum) &&
-            (options->SetOptionFromEnum(option_enum, name_value[1])
+            (options->SetOptionFromEnum(option_enum, name_value[1].as_string())
              == RewriteOptions::kOptionOk)) {
           status = kSuccess;
         } else {

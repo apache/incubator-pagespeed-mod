@@ -26,11 +26,8 @@
 #include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
@@ -97,16 +94,12 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
     finder->UpdateFlushEarlyInfoInDriver(flush_early_driver);
   }
 
-  // Because we are resetting the property page at the end of this function, we
-  // need to make sure the CriticalImageFinder state is updated here. We don't
-  // have a public interface for updating the state in the driver, so perform a
-  // throwaway critical image query here, which will in turn cause the state
-  // that CriticalImageFinder keeps in RewriteDriver to be updated.
-  // TODO(jud): Remove this when the CriticalImageFinder is held in the
-  // RewriteDriver, instead of ServerContext.
-  flush_early_driver->server_context()->critical_images_finder()->
-      GetHtmlCriticalImages(flush_early_driver);
-
+  // Populating critical images from css in flush early driver.
+  CriticalImagesFinder* critical_images_finder =
+      flush_early_driver->server_context()->critical_images_finder();
+  if (critical_images_finder->IsMeaningful(flush_early_driver)) {
+    critical_images_finder->UpdateCriticalImagesSetInDriver(flush_early_driver);
+  }
   flush_early_driver->set_unowned_property_page(NULL);
 }
 
@@ -362,10 +355,6 @@ FlushEarlyFlow::FlushEarlyFlow(
   flush_early_rewrite_latency_ms_ = stats->GetHistogram(
       kFlushEarlyRewriteLatencyMs);
   driver_->increment_async_events_count();
-  // Do not flush preconnects on mobile as it can potentially block useful
-  // connections to resources.
-  should_flush_preconnects_ =
-      !driver_->device_properties()->IsMobileUserAgent();
 }
 
 FlushEarlyFlow::~FlushEarlyFlow() {
@@ -441,9 +430,8 @@ void FlushEarlyFlow::FlushEarly() {
         new_driver->SetUserAgent(driver_->user_agent());
         new_driver->StartParse(url_);
 
-        new_driver->log_record()->SetRewriterLoggingStatus(
-            RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-            RewriterInfo::APPLIED_OK);
+        new_driver->log_record()->LogAppliedRewriter(
+            RewriteOptions::FilterId(RewriteOptions::kFlushSubresources));
 
         InitFlushEarlyDriverWithPropertyCacheValues(new_driver, page);
         if (flush_early_info.has_average_fetch_latency_ms()) {
@@ -463,13 +451,14 @@ void FlushEarlyFlow::FlushEarly() {
         new_driver->ParseText(flush_early_info.pre_head());
         new_driver->ParseText(flush_early_info.resource_html());
 
-        const StringSet& css_critical_images = new_driver->server_context()->
-            critical_images_finder()->GetCssCriticalImages(new_driver);
+        const StringSet* css_critical_images =
+            new_driver->css_critical_images();
         if (new_driver->options()->
-            flush_more_resources_early_if_time_permits()) {
+            flush_more_resources_early_if_time_permits() &&
+            css_critical_images != NULL) {
           // Critical images inside css.
-          StringSet::iterator it = css_critical_images.begin();
-          for (; it != css_critical_images.end(); ++it) {
+          StringSet::iterator it = css_critical_images->begin();
+          for (; it != css_critical_images->end(); ++it) {
             new_driver->ParseText("<img src='");
             GoogleString escaped_url;
             HtmlKeywords::Escape(*it, &escaped_url);
@@ -518,7 +507,7 @@ void FlushEarlyFlow::FlushEarlyRewriteDone(int64 start_time_ms,
     }
   }
 
-  if (should_flush_preconnects_ && max_preconnect_attempts > 0 &&
+  if (max_preconnect_attempts > 0 &&
       !flush_early_driver->options()->pre_connect_url().empty() &&
       average_fetch_time_ > kMinLatencyForPreconnectMs) {
     for (int index = 0; index < max_preconnect_attempts; ++index) {
@@ -553,14 +542,6 @@ void FlushEarlyFlow::GenerateResponseHeaders(
   }
   response_headers->SetDateAndCaching(manager_->timer()->NowMs(), 0,
                                       ", private, no-cache");
-
-  if ((driver_->options()->Enabled(RewriteOptions::kDeferJavascript) ||
-       driver_->options()->Enabled(RewriteOptions::kSplitHtml)) &&
-      driver_->user_agent_matcher()->IsIe(driver_->user_agent()) &&
-      !response_headers->Has(HttpAttributes::kXUACompatible)) {
-    response_headers->Add(HttpAttributes::kXUACompatible, "IE=edge");
-  }
-
   response_headers->ComputeCaching();
   base_fetch_->HeadersComplete();
 }

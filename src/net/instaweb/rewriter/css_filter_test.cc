@@ -127,7 +127,6 @@ class CssFilterTest : public CssRewriteTestBase {
     // in the CSS parser.
     Css::Parser parser(css_input);
     parser.set_preservation_mode(true);
-    parser.set_quirks_mode(false);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
     EXPECT_TRUE(parser.errors_seen_mask() == Css::Parser::kNoError);
     EXPECT_EQ(expect_unparseable_section,
@@ -529,15 +528,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
 
     // Invalid font declaration.
     "a{font: menu foobar }",
-
-    // Do not remove . between 1 and em, this needs to be lexed as:
-    // INT(1) DELIM(.) IDENT(em)
-    "a{padding-top: 1.em }",
-
-    // Unexpected ! uses in declarations.
-    "a{color: red !ie }",
-    "a{color: !important red }",
-    "a{color: red !important blue }",
 
     // Things from Alexa-100 that we get parsing errors for. Most are illegal
     // syntax/typos. Some are CSS3 constructs.
@@ -1220,7 +1210,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
     // Don't "fix" quirks-mode colors.
     // Note: DECAFB is not converted to a more correct #decafb.
-    { "body { color: DECAFB }", "body{color: DECAFB }" },
+    { "body { color: DECAFB }", "body{color:DECAFB}" },
 
     { "#post_content, #post_content p{\n"
       " font-family:Helvetica;\n"
@@ -1249,32 +1239,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // https://code.google.com/p/modpagespeed/issues/detail?id=614
     { "td { line-height: 0.8em; margin: -0.9in; }",
       "td{line-height:.8em;margin:-.9in}" },
-
-    // ::- in selectors
-    { "::-moz-selection {background: #f36921 ; color: #fff ; text-shadow:none}",
-      "::-moz-selection{background:#f36921;color:#fff;text-shadow:none}" },
-
-    // Sloppy color syntax
-    // Note that according to the CSS spec: 0000ff should be parsed as
-    // DIM(0, ff) and then serialized as 0ff, but browsers will parse both
-    // of these values as quirks-mode colors and thus we would be changing
-    // the links from blue to cyan.
-    // https://code.google.com/p/modpagespeed/issues/detail?id=639
-    { "A:link, A:visited { color: 0000ff }",
-      "A:link,A:visited{color: 0000ff }" },
-
-    // Unexpected ! uses in declarations.
-    { ".filehistory a img,#file img:hover{background:white url(data:image/png;"
-      "base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/"
-      "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
-      "background:white url(http://static.uncyc.org/skins/common/images/Checke"
-      "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}",
-
-      ".filehistory a img,#file img:hover{background:#fff url(data:image/png;"
-      "base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/"
-      "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
-      "background:white url(http://static.uncyc.org/skins/common/images/Checke"
-      "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1302,54 +1266,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
     "-webkit-background-size:776px 18px;background-size:776px 18px;}"
     ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}",
-
-    // Things discovered in the wild by shanemc:
-
-    // No space between "and" and "(".
-    "@media all and(-webkit-max-device-pixel-ratio:10000),\n"
-    "   not all and(-webkit-min-device-pixel-ratio:0) {\n"
-    "\n"
-    "\t:root .RadTreeView_rtl .rtPlus,\n"
-    "\t:root .RadTreeView_rtl .rtMinus\n"
-    "\t{\n"
-    "\t\tposition: relative;\n"
-    "\t\tmargin-left: 2px;\n"
-    "\t\tmargin-right: -13px;\n"
-    "\t\tright: -15px;\n"
-    "\t}\n"
-    "}\n",
-
-    // Ignoring chars at end of function.
-    "* html #profilePhoto {\n"
-    "  height: expression((this.flag == undefined) ? (this.scrollHeight > 500) "
-    "? this.flag = '500px' : 'auto' : '');\n"
-    "}",
-
-    // Zero width space <U+200B> = \xE2\x80\x8B
-    // http://zenpencils.com/wp-content/plugins/zpcustomselectmenu/ddSlick.css
-    "   .dd-container { \n"
-    "           position:relative; \n"
-    "           margin:0px;\n"
-    "   }\xE2\x80\x8B \n"
-    "   .dd-selected-text { \n"
-    "           font-weight:bold;\n"
-    "           cursor:pointer !important;\n"
-    "   }\xE2\x80\x8B",
-
-    // Nonsense: (rgba(...)) (last line).
-    // From http://yandex.st/www/1.473/touch-bem/pages-touch/index/_index.css
-    ".b-search__button{position:relative;min-width:50px;margin:0 0 0 -1px;"
-    "padding:1px 0 1px 1px;-webkit-border-top-left-radius:2px;"
-    "border-top-left-radius:2px;-webkit-border-bottom-left-radius:2px;"
-    "border-bottom-left-radius:2px;background:-webkit-gradient(linear,0 0,"
-    "0 100%,from(rgba(192,192,192,.6)),to(rgba(49,49,49,.3)));"
-    "background:-o-linear-gradient(top,(rgba(192,192,192,.6)),"
-    "(rgba(49,49,49,.3)))}",
-
-    // !important in selectors.
-    // From http://mstatic.allegrostatic.pl/allegro/touch/css/style.min.css
-    "-moz-appearance:none!important;html{height:100%}",
-    "-moz-foo { -webkit-bar: -ie-quuz }",
   };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {

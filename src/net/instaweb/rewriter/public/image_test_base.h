@@ -23,7 +23,6 @@
 
 #include "net/instaweb/rewriter/public/image.h"
 
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -55,7 +54,7 @@ class ImageTestBase : public testing::Test {
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ImageFromString(ImageType output_type,
+  Image* ImageFromString(Image::Type output_type,
                          const GoogleString& name,
                          const GoogleString& contents,
                          bool progressive);
@@ -68,7 +67,7 @@ class ImageTestBase : public testing::Test {
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ReadImageFromFile(ImageType output_type,
+  Image* ReadImageFromFile(Image::Type output_type,
                            const char* filename, GoogleString* buffer,
                            bool progressive);
 

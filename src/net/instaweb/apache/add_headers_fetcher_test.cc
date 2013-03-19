@@ -27,7 +27,6 @@
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/thread_system.h"  // for ThreadSystem
 
 namespace net_instaweb {
 
@@ -35,8 +34,7 @@ namespace {
 
 class AddHeadersFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
  public:
-  AddHeadersFetcherTest()
-    : thread_system_(ThreadSystem::CreateThreadSystem()) {
+  AddHeadersFetcherTest() {
     options_.AddCustomFetchHeader("Custom", "custom-header");
     options_.AddCustomFetchHeader("Extra", "extra-header");
     add_headers_fetcher_.reset(new AddHeadersFetcher(
@@ -48,12 +46,10 @@ class AddHeadersFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
   GoogleMessageHandler handler_;
   RewriteOptions options_;
   ReflectingTestFetcher reflecting_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
 };
 
 TEST_F(AddHeadersFetcherTest, AddsHeaders) {
-  ExpectStringAsyncFetch dest(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch dest(true);
   add_headers_fetcher_->Fetch("http://example.com/path", &handler_, &dest);
   EXPECT_STREQ("http://example.com/path", dest.buffer());
   EXPECT_STREQ("custom-header", dest.response_headers()->Lookup1("Custom"));
@@ -62,8 +58,7 @@ TEST_F(AddHeadersFetcherTest, AddsHeaders) {
 
 TEST_F(AddHeadersFetcherTest, ReplacesHeaders) {
   RequestHeaders request_headers;
-  ExpectStringAsyncFetch dest(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch dest(true);
   request_headers.Add("Custom", "original");
   request_headers.Add("AlsoCustom", "original");
   dest.set_request_headers(&request_headers);

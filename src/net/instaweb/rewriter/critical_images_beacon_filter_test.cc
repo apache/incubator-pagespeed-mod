@@ -18,18 +18,17 @@
 
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 
+#include <set>
+
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
@@ -124,13 +123,9 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     EscapeToJsStringLiteral(rewrite_driver()->google_url().Spec(), false, &url);
     StringPiece beacon_url = https_mode_ ? options()->beacon_url().https :
         options()->beacon_url().http;
-    GoogleString options_signature_hash =
-        rewrite_driver()->server_context()->hasher()->Hash(
-            rewrite_driver()->options()->signature());
     GoogleString str = "pagespeed.criticalImagesBeaconInit(";
     StrAppend(&str, "'", beacon_url, "', ");
-    StrAppend(&str, "'", url, "', ");
-    StrAppend(&str, "'", options_signature_hash, "');");
+    StrAppend(&str, "'", url, "');");
     return str;
   }
 
@@ -156,9 +151,10 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   // URI has the correct hash. We need to add the image hash to the critical
   // image set to make sure that the image is inlined.
   GoogleString hash_str = ImageUrlHash(kChefGifFile);
-  StringSet* crit_img_set = server_context()->critical_images_finder()->
-      mutable_html_critical_images(rewrite_driver());
+  scoped_ptr<StringSet> crit_img_set(new StringSet);
   crit_img_set->insert(hash_str);
+  rewrite_driver()->set_critical_images(crit_img_set.release());
+  rewrite_driver()->set_updated_critical_images(true);
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->EnableFilter(RewriteOptions::kInlineImages);
@@ -170,8 +166,6 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
 
   EXPECT_TRUE(output_buffer_.find("data:") != GoogleString::npos);
   EXPECT_TRUE(output_buffer_.find(hash_str) != GoogleString::npos);
-  EXPECT_EQ(-1, logging_info()->num_html_critical_images());
-  EXPECT_EQ(-1, logging_info()->num_css_critical_images());
 }
 
 TEST_F(CriticalImagesBeaconFilterTest, UnsupportedUserAgent) {

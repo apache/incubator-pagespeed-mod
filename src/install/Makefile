@@ -45,7 +45,6 @@ APACHE_DOC_ROOT       = /var/www
 #APACHE_DOMAIN        = localhost:8080  # For test-server.
 APACHE_DOMAIN         = localhost
 APACHE_HTTPS_DOMAIN   = localhost
-APACHE_PORT           = 80
 APACHE_SECONDARY_PORT = 8084
 
 # These are set via command-line when run via 'ubuntu.sh', 'centos.sh',
@@ -424,14 +423,14 @@ stop :
 	sudo ./stop_apache.sh $(APACHE_CONTROL_PROGRAM) \
 			      $(APACHE_PIDFILE) \
 			      $(APACHE_PROGRAM) \
-			      $(APACHE_STOP_COMMAND) \
-			      $(APACHE_PORT)
+			      $(APACHE_STOP_COMMAND)
 
 # To run a complete iteration, stopping Apache, reconfiguring
 # it, and and restarting it, you can run 'make restart [args...]
 restart : stop
 	$(MAKE) staging
 	sudo $(MAKE) install \
+	    APACHE_ROOT=$(APACHE_ROOT) \
 	    APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	    STAGING_DIR=$(STAGING_DIR) \
 	    APACHE_CONF=$(APACHE_CONF) \
@@ -522,6 +521,7 @@ apache_debug_leak_test :
 apache_debug_proxy_test :
 apache_debug_slurp_test :
 
+APACHE_DEBUG_PORT=80
 APACHE_HTTPS_PORT=
 APACHE_DEBUG_PAGESPEED_CONF=$(APACHE_CONF)/pagespeed.conf
 INSTALL_DATA_DIR=.

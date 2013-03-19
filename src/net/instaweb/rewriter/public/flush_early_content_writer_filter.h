@@ -102,7 +102,6 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
   ResourceInfoList js_resources_info_;
   bool defer_javascript_enabled_;
   GoogleString flush_early_content_;
-  bool flush_more_resources_early_if_time_permits_;
 
   DISALLOW_COPY_AND_ASSIGN(FlushEarlyContentWriterFilter);
 };

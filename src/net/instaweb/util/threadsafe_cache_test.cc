@@ -184,8 +184,4 @@ TEST_F(ThreadsafeCacheTest, SpamCacheWithDeletionsAndEvictions) {
   TestHelper(true, true, "value%d");
 }
 
-TEST_F(ThreadsafeCacheTest, Backend) {
-  EXPECT_EQ(lru_cache_, threadsafe_cache_.Backend());
-}
-
 }  // namespace net_instaweb

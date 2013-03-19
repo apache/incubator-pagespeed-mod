@@ -14,6 +14,7 @@
 
 #include "net/instaweb/http/public/bot_checker.h"
 #include "net/instaweb/http/public/device_properties.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -115,8 +116,9 @@ bool DeviceProperties::SupportsSplitHtml(bool allow_mobile) const {
   return (supports_split_html_ == kTrue);
 }
 
-bool DeviceProperties::CanPreloadResources() const {
-  return ua_matcher_->GetPrefetchMechanism(user_agent_) !=
+bool DeviceProperties::CanPreloadResources(
+    const RequestHeaders* req_hdrs) const {
+  return ua_matcher_->GetPrefetchMechanism(user_agent_, req_hdrs) !=
       UserAgentMatcher::kPrefetchNotSupported;
 }
 

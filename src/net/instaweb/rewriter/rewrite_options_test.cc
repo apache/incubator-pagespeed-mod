@@ -80,11 +80,11 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
       bool expected = (expected_result == RewriteOptions::kOptionOk);
       EXPECT_EQ(
           expected,
-          options_.SetOptionFromNameAndLog(name, value, handler));
+          options_.SetOptionFromNameAndLog(name, value.as_string(), handler));
     } else {
       GoogleString msg;
       EXPECT_EQ(expected_result,
-                options_.SetOptionFromName(name, value, &msg));
+                options_.SetOptionFromName(name, value.as_string(), &msg));
       // Should produce a message exactly when not OK.
       EXPECT_EQ(expected_result != RewriteOptions::kOptionOk, !msg.empty())
           << msg;
@@ -438,21 +438,6 @@ TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampTwoLarger) {
   EXPECT_EQ(22222222, options_.cache_invalidation_timestamp());
 }
 
-TEST_F(RewriteOptionsTest, MergeDistributed) {
-  RewriteOptions one, two;
-  EXPECT_FALSE(options_.Distributable(RewriteOptions::kOutlineCss));
-  EXPECT_FALSE(options_.Distributable(RewriteOptions::kLeftTrimUrls));
-  EXPECT_FALSE(options_.Distributable(RewriteOptions::kOutlineJavascript));
-
-  one.DistributeFilter(RewriteOptions::kOutlineCss);
-  two.DistributeFilter(RewriteOptions::kOutlineJavascript);
-  MergeOptions(one, two);
-
-  EXPECT_TRUE(options_.Distributable(RewriteOptions::kOutlineCss));
-  EXPECT_TRUE(options_.Distributable(RewriteOptions::kOutlineJavascript));
-  EXPECT_FALSE(options_.Distributable(RewriteOptions::kLeftTrimUrls));
-}
-
 TEST_F(RewriteOptionsTest, Allow) {
   options_.Allow("*.css");
   EXPECT_TRUE(options_.IsAllowed("abcd.css"));
@@ -717,13 +702,10 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // kEndOfOptions explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
-  EXPECT_EQ(168, RewriteOptions::kEndOfOptions);
+  EXPECT_EQ(160, RewriteOptions::kEndOfOptions);
   EXPECT_STREQ("AddOptionsToUrls",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kAddOptionsToUrls));
-  EXPECT_STREQ("AllowLoggingUrlsInLogRecord",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kAllowLoggingUrlsInLogRecord));
   EXPECT_STREQ("AlwaysRewriteCss",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kAlwaysRewriteCss));
@@ -778,12 +760,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("DefaultCacheHtml",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kDefaultCacheHtml));
-  EXPECT_STREQ("DistributedRewriteServers",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kDistributedRewriteServers));
-  EXPECT_STREQ("DistributedRewriteTimeoutMs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kDistributedRewriteTimeoutMs));
   EXPECT_STREQ("DomainRewriteHyperlinks",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kDomainRewriteHyperlinks));
@@ -826,9 +802,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("FlushHtml",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kFlushHtml));
-  EXPECT_STREQ("ObliviousPagespeedUrls",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kObliviousPagespeedUrls));
   EXPECT_STREQ("FlushMoreResourcesEarlyIfTimePermits",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits));
@@ -877,10 +850,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("ImageWebpRecompressionQuality",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageWebpRecompressionQuality));
-  EXPECT_STREQ("ImageWebpRecompressionQualityForSmallScreens",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::
-                   kImageWebpRecompressionQualityForSmallScreens));
   EXPECT_STREQ("ImageWebpTimeoutMs",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageWebpTimeoutMs));
@@ -914,10 +883,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("JpegRecompressionQuality",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kImageJpegRecompressionQuality));
-  EXPECT_STREQ("JpegRecompressionQualityForSmallScreens",
-                 RewriteOptions::LookupOptionEnum(
-                     RewriteOptions::
-                     kImageJpegRecompressionQualityForSmallScreens));
   EXPECT_STREQ("JsInlineMaxBytes",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kJsInlineMaxBytes));
@@ -960,9 +925,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("MaxUrlSize",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kMaxUrlSize));
-  EXPECT_STREQ("MetadataCacheStalenessThresholdMs",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kMetadataCacheStalenessThresholdMs));
   EXPECT_STREQ("MinImageSizeLowResolutionBytes",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kMinImageSizeLowResolutionBytes));
@@ -999,9 +961,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("RewriteLevel",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kRewriteLevel));
-  EXPECT_STREQ("RewriteUncacheableResources",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kRewriteUncacheableResources));
   EXPECT_STREQ("RunExperiment",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kRunningFurious));
@@ -1011,6 +970,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("SupportNoScriptEnabled",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kSupportNoScriptEnabled));
+  EXPECT_STREQ("UseFixedUserAgentForBlinkCacheMisses",
+               RewriteOptions::LookupOptionEnum(
+                   RewriteOptions::kUseFixedUserAgentForBlinkCacheMisses));
   EXPECT_STREQ("UseSmartDiffInBlink",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kUseSmartDiffInBlink));
@@ -1028,9 +990,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("Disallow",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kDisallow));
-  EXPECT_STREQ("DistributableFilters",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kDistributableFilters));
   EXPECT_STREQ("Domain",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kDomain));
@@ -1181,6 +1140,9 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("TestProxySlurp",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kTestProxySlurp));
+  EXPECT_STREQ("UseSharedMemoryMetadataCache",
+               RewriteOptions::LookupOptionEnum(
+                    RewriteOptions::kUseSharedMemMetadataCache));
   // End Apache-specific option tests (so please don't add tests for generic
   // options here).
 }

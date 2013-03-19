@@ -228,9 +228,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     http_cache_->UpdateStats(result,
                              !callback_->fallback_http_value()->Empty(),
                              elapsed_us);
-    if (callback_->log_timing()) {
-      callback_->SetTimingMs(elapsed_us/1000);
-    }
+
+    callback_->SetTimingMs(elapsed_us/1000);
     if (result != HTTPCache::kFound) {
       headers->Clear();
       callback_->http_value()->Clear();
@@ -475,10 +474,8 @@ LogRecord* HTTPCache::Callback::log_record() {
 void HTTPCache::Callback::SetTimingMs(int64 timing_value_ms) {
   DCHECK(request_context().get() != NULL);
   ScopedMutex lock(log_record()->mutex());
-  TimingInfo* timing_info = log_record()->logging_info()->mutable_timing_info();
-  if (!timing_info->has_cache1_ms()) {
-    timing_info->set_cache1_ms(timing_value_ms);
-  }
+  log_record()->logging_info()->mutable_timing_info()->
+      set_cache1_ms(timing_value_ms);
 }
 
 }  // namespace net_instaweb

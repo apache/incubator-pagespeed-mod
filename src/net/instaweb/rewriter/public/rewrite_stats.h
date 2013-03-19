@@ -37,9 +37,6 @@ class Waveform;
 // Collects a few specific statistics variables related to Rewriting.
 class RewriteStats {
  public:
-  static const char kNumResourceFetchSuccesses[];
-  static const char kNumResourceFetchFailures[];
-
   RewriteStats(Statistics* stats, ThreadSystem* thread_system, Timer* timer);
   ~RewriteStats();
 
@@ -72,10 +69,6 @@ class RewriteStats {
   }
   Variable* num_conditional_refreshes() { return num_conditional_refreshes_; }
 
-  Variable* ipro_served() { return ipro_served_; }
-  Variable* ipro_not_in_cache() { return ipro_not_in_cache_; }
-  Variable* ipro_not_rewritable() { return ipro_not_rewritable_; }
-
   Histogram* beacon_timings_ms_histogram() {
     return beacon_timings_ms_histogram_;
   }
@@ -103,6 +96,7 @@ class RewriteStats {
   Variable* cached_output_misses_;
   Variable* cached_resource_fetches_;
   Variable* failed_filter_resource_fetches_;
+  Variable* failed_filter_resource_fetches__;
   Variable* num_flushes_;
   Variable* page_load_count_;
   Variable* resource_404_count_;
@@ -112,9 +106,6 @@ class RewriteStats {
   Variable* total_page_load_ms_;
   Variable* fallback_responses_served_;
   Variable* num_conditional_refreshes_;
-  Variable* ipro_served_;
-  Variable* ipro_not_in_cache_;
-  Variable* ipro_not_rewritable_;
 
   Histogram* beacon_timings_ms_histogram_;
   Histogram* fetch_latency_histogram_;

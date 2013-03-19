@@ -20,7 +20,6 @@
 
 #include <locale.h>
 #include <cstddef>
-#include <set>
 #include <vector>
 
 #include "net/instaweb/util/public/basictypes.h"
@@ -262,13 +261,13 @@ TEST_F(SplitStringTest, TestSplitMultiSeparator) {
 
 TEST_F(SplitStringTest, TestPieceAfterEquals) {
   GoogleString piece("Test=1");
-  ASSERT_EQ("1", PieceAfterEquals(piece));
+  ASSERT_EQ(PieceAfterEquals(piece), "1");
   GoogleString piece2("TestingWithNoEquals");
-  ASSERT_EQ("", PieceAfterEquals(piece2));
+  ASSERT_EQ(PieceAfterEquals(piece2), "");
   GoogleString piece3("    TestingWithSpace =     45     ");
-  ASSERT_EQ("45", PieceAfterEquals(piece3));
+  ASSERT_EQ(PieceAfterEquals(piece3), "45");
   GoogleString piece4("Test1=1;Test2=2");
-  ASSERT_EQ("1;Test2=2", PieceAfterEquals(piece4));
+  ASSERT_EQ(PieceAfterEquals(piece4), "1;Test2=2");
 }
 
 TEST(StringCaseTest, TestStringCaseEqual) {
@@ -385,48 +384,10 @@ TEST(ParseShellLikeStringTest, UnclosedQuoteAndBackslash) {
 class BasicUtilsTest : public testing::Test {
 };
 
-TEST(BasicUtilsTest, TrimLeadingWhitespaceTest) {
-  StringPiece trimmed("Mary had a little lamb.  ");
-  // Whitespace at both ends
-  StringPiece test_piece1("\r\n\f\t Mary had a little lamb.  ");
-  EXPECT_TRUE(TrimLeadingWhitespace(&test_piece1));
-  EXPECT_EQ(trimmed, test_piece1);
-  // No whitespace to trim
-  StringPiece test_piece2(trimmed);
-  EXPECT_FALSE(TrimLeadingWhitespace(&test_piece2));
-  EXPECT_EQ(trimmed, test_piece2);
-}
-
-TEST(BasicUtilsTest, TrimTrailingWhitespaceTest) {
-  StringPiece trimmed("  Mary had a little lamb.");
-  // Whitespace at both ends
-  StringPiece test_piece1("  Mary had a little lamb.  \r\n\f\t");
-  EXPECT_TRUE(TrimTrailingWhitespace(&test_piece1));
-  EXPECT_EQ(trimmed, test_piece1);
-  // No whitespace to trim
-  StringPiece test_piece2(trimmed);
-  EXPECT_FALSE(TrimTrailingWhitespace(&test_piece2));
-  EXPECT_EQ(trimmed, test_piece2);
-}
-
 TEST(BasicUtilsTest, TrimWhitespaceTest) {
-  StringPiece trimmed("Mary had a little lamb.");
-  // Whitespace at both ends
-  StringPiece test_piece1("\t Mary had a little lamb.\n \r ");
-  EXPECT_TRUE(TrimWhitespace(&test_piece1));
-  EXPECT_EQ(trimmed, test_piece1);
-  // No whitespace to trim
-  StringPiece test_piece2(trimmed);
-  EXPECT_FALSE(TrimWhitespace(&test_piece2));
-  EXPECT_EQ(trimmed, test_piece2);
-  // Whitespace to left
-  StringPiece test_piece3("\f Mary had a little lamb.");
-  EXPECT_TRUE(TrimWhitespace(&test_piece3));
-  EXPECT_EQ(trimmed, test_piece3);
-  // Whitespace to right
-  StringPiece test_piece4("Mary had a little lamb.\r\n");
-  EXPECT_TRUE(TrimWhitespace(&test_piece4));
-  EXPECT_EQ(trimmed, test_piece4);
+  StringPiece test_piece("\t Mary had a little lamb.\n \r ");
+  TrimWhitespace(&test_piece);
+  EXPECT_EQ("Mary had a little lamb.", test_piece);
 }
 
 TEST(BasicUtilsTest, CountSubstringTest) {
@@ -485,37 +446,37 @@ TEST(BasicUtilsTest, JoinStringStar) {
   EXPECT_STREQ("bar, , # , #, ", JoinStringStar(blah, ", "));
 }
 
-TEST(BasicUtilsTest, JoinCollection) {
+TEST(BasicUtilsTest, JoinStringPieces) {
   const GoogleString foo = "foo";
   const GoogleString bar = "bar";
   const GoogleString empty = "";
   const GoogleString symbols = "# , #";
 
   StringPieceVector nothing, single, foobar, barfoobar, blah;
-  EXPECT_STREQ("", JoinCollection(nothing, ""));
-  EXPECT_STREQ("", JoinCollection(nothing, ", "));
+  EXPECT_STREQ("", JoinStringPieces(nothing, ""));
+  EXPECT_STREQ("", JoinStringPieces(nothing, ", "));
 
   single.push_back(foo);
-  EXPECT_STREQ("foo", JoinCollection(single, ""));
-  EXPECT_STREQ("foo", JoinCollection(single, ", "));
+  EXPECT_STREQ("foo", JoinStringPieces(single, ""));
+  EXPECT_STREQ("foo", JoinStringPieces(single, ", "));
 
   foobar.push_back(foo);
   foobar.push_back(bar);
-  EXPECT_STREQ("foobar", JoinCollection(foobar, ""));
-  EXPECT_STREQ("foo, bar", JoinCollection(foobar, ", "));
+  EXPECT_STREQ("foobar", JoinStringPieces(foobar, ""));
+  EXPECT_STREQ("foo, bar", JoinStringPieces(foobar, ", "));
 
   barfoobar.push_back(bar);
   barfoobar.push_back(foo);
   barfoobar.push_back(bar);
-  EXPECT_STREQ("barfoobar", JoinCollection(barfoobar, ""));
-  EXPECT_STREQ("bar##foo##bar", JoinCollection(barfoobar, "##"));
+  EXPECT_STREQ("barfoobar", JoinStringPieces(barfoobar, ""));
+  EXPECT_STREQ("bar##foo##bar", JoinStringPieces(barfoobar, "##"));
 
   blah.push_back(bar);
   blah.push_back(empty);
   blah.push_back(symbols);
   blah.push_back(empty);
-  EXPECT_STREQ("bar# , #", JoinCollection(blah, ""));
-  EXPECT_STREQ("bar, , # , #, ", JoinCollection(blah, ", "));
+  EXPECT_STREQ("bar# , #", JoinStringPieces(blah, ""));
+  EXPECT_STREQ("bar, , # , #, ", JoinStringPieces(blah, ", "));
 }
 
 TEST(BasicUtilsTest, CEscape) {
@@ -556,66 +517,6 @@ TEST(BasicUtilsTest, SplitStringUsingSubstr3) {
 TEST(BasicUtilsTest, StringPieceFindWithNull) {
   StringPiece null_piece(NULL, 0);
   EXPECT_EQ(StringPiece::npos, null_piece.find("not found"));
-}
-
-class JoinCollectionTest : public testing::Test {
- public:
-  JoinCollectionTest() { }
-  virtual ~JoinCollectionTest() { }
- protected:
-  template <typename C>
-  void CheckAppendJoinCollection(
-      const StringPiece expected,
-      const C& collection,
-      const StringPiece sep) {
-    const char kJoinInit[] = "= ";
-    GoogleString join_expected = StrCat(kJoinInit, expected);
-    GoogleString join_result(kJoinInit);
-    AppendJoinCollection(&join_result, collection, sep);
-    EXPECT_STREQ(join_expected, join_result);
-    EXPECT_STREQ(expected, JoinCollection(collection, sep));
-  }
- private:
-  DISALLOW_COPY_AND_ASSIGN(JoinCollectionTest);
-};
-
-TEST_F(JoinCollectionTest, BasicSequence) {
-  // For set we rely on the fact that the following is already sorted.  If set's
-  // iterator isn't lexicographically sorted that's a bug with set!
-  const char* kInputs[] = { "", "a", "b", "c", "duck", "elephant" };
-  const char kExpected[] = ", a, b, c, duck, elephant";
-  StringVector string_vector;
-  StringPieceVector stringpiece_vector;
-  StringSet string_set;
-  for (int i = 0; i < arraysize(kInputs); ++i) {
-    string_vector.push_back(kInputs[i]);
-    stringpiece_vector.push_back(kInputs[i]);
-    string_set.insert(kInputs[i]);
-  }
-  CheckAppendJoinCollection(kExpected, string_vector, ", ");
-  CheckAppendJoinCollection(kExpected, stringpiece_vector, ", ");
-  CheckAppendJoinCollection(kExpected, string_set, ", ");
-}
-
-TEST_F(JoinCollectionTest, Empty) {
-  StringVector string_vector;
-  StringPieceVector stringpiece_vector;
-  StringSet string_set;
-  CheckAppendJoinCollection("", string_vector, ", ");
-  CheckAppendJoinCollection("", stringpiece_vector, ", ");
-  CheckAppendJoinCollection("", string_set, ", ");
-}
-
-TEST_F(JoinCollectionTest, SingletonEmpty) {
-  StringVector string_vector;
-  StringPieceVector stringpiece_vector;
-  StringSet string_set;
-  string_vector.push_back("");
-  stringpiece_vector.push_back("");
-  string_set.insert("");
-  CheckAppendJoinCollection("", string_vector, ", ");
-  CheckAppendJoinCollection("", stringpiece_vector, ", ");
-  CheckAppendJoinCollection("", string_set, ", ");
 }
 
 class TrimQuoteTest : public testing::Test {

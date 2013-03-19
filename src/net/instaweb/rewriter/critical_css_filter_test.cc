@@ -18,10 +18,10 @@
 
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
 
-#include "net/instaweb/rewriter/critical_css.pb.h"
+#include <utility>
+
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -46,34 +46,18 @@ class MockCriticalCssFinder : public CriticalCssFinder {
  public:
   explicit MockCriticalCssFinder(RewriteDriver* driver, Statistics* stats)
       : CriticalCssFinder(stats),
-        driver_(driver) {
+        driver_(driver),
+        critical_css_map_(new StringStringMap()) {
   }
 
-  void AddCriticalCss(const StringPiece& url, const StringPiece& rules,
-                      int original_size) {
-    if (critical_css_result_.get() == NULL) {
-      critical_css_result_.reset(new CriticalCssResult());
-    }
-    CriticalCssResult_LinkRules* link_rules =
-        critical_css_result_->add_link_rules();
-    link_rules->set_link_url(url.as_string());
-    link_rules->set_critical_rules(rules.as_string());
-    link_rules->set_original_size(original_size);
-  }
-
-  void SetCriticalCssStats(
-      int exception_count, int import_count, int link_count) {
-    if (critical_css_result_.get() == NULL) {
-      critical_css_result_.reset(new CriticalCssResult());
-    }
-    critical_css_result_->set_exception_count(exception_count);
-    critical_css_result_->set_import_count(import_count);
-    critical_css_result_->set_link_count(link_count);
+  void AddCriticalCss(const StringPiece& url, const StringPiece& critical_css) {
+    critical_css_map_->insert(
+        std::make_pair(url.as_string(), critical_css.as_string()));
   }
 
   // Mock to avoid dealing with property cache.
-  CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver) {
-    return critical_css_result_.release();
+  StringStringMap* CriticalCssMap(RewriteDriver* driver) {
+    return critical_css_map_;
   }
 
   void ComputeCriticalCss(StringPiece url, RewriteDriver* driver) {}
@@ -81,7 +65,7 @@ class MockCriticalCssFinder : public CriticalCssFinder {
 
  private:
   RewriteDriver* driver_;
-  scoped_ptr<CriticalCssResult> critical_css_result_;
+  StringStringMap* critical_css_map_;
 };
 
 }  // namespace
@@ -103,8 +87,6 @@ class CriticalCssFilterTest : public RewriteTestBase {
     rewrite_driver()->AddFilter(filter_.get());
 
     ResetDriver();
-
-    options_->DisableFilter(RewriteOptions::kDebug);
   }
 
   void ResetDriver() {
@@ -119,7 +101,7 @@ class CriticalCssFilterTest : public RewriteTestBase {
   }
 
   scoped_ptr<CriticalCssFilter> filter_;
-  MockCriticalCssFinder* finder_;  // owned by server_context
+  MockCriticalCssFinder* finder_;
 };
 
 TEST_F(CriticalCssFilterTest, UnchangedWhenPcacheEmpty) {
@@ -155,7 +137,7 @@ TEST_F(CriticalCssFilterTest, InlineAndMove) {
       "  <link rel='stylesheet' href='c.css' type='text/css'>\n"
       "</body>\n";
 
-  GoogleString expected_html = StrCat(
+  static const char expected_html[] =
       "<head>\n"
       "  <title>Example</title>\n"
       "</head>\n"
@@ -167,19 +149,14 @@ TEST_F(CriticalCssFilterTest, InlineAndMove) {
       "  World!\n"
       "  <style>c_used {color: cyan }</style>\n"
       "</body>\n"
-      "<noscript id=\"psa_add_styles\">"
       "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
       "<link rel='stylesheet' href='b.css' type='text/css'>"
       "<style type='text/css'>t {color: turquoise }</style>"
-      "<link rel='stylesheet' href='c.css' type='text/css'>"
-      "</noscript>"
-      "<script type=\"text/javascript\">//<![CDATA[\n",
-      CriticalCssFilter::kAddStylesScript,
-      "\n//]]></script>");
+      "<link rel='stylesheet' href='c.css' type='text/css'>";
 
-  finder_->AddCriticalCss("http://test.com/a.css", "a_used {color: azure }", 1);
-  finder_->AddCriticalCss("http://test.com/b.css", "b_used {color: blue }", 2);
-  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }", 3);
+  finder_->AddCriticalCss("http://test.com/a.css", "a_used {color: azure }");
+  finder_->AddCriticalCss("http://test.com/b.css", "b_used {color: blue }");
+  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }");
 
   ValidateExpected("inline_and_move", input_html, expected_html);
 }
@@ -196,7 +173,7 @@ TEST_F(CriticalCssFilterTest, InvalidUrl) {
       "  <link rel='stylesheet' href='c.css' type='text/css'>\n"
       "</body>\n";
 
-  GoogleString expected_html = StrCat(
+  static const char expected_html[] =
       "<head>\n"
       "  <title>Example</title>\n"
       "</head>\n"
@@ -206,17 +183,12 @@ TEST_F(CriticalCssFilterTest, InvalidUrl) {
       "  World!\n"
       "  <style>c_used {color: cyan }</style>\n"
       "</body>\n"
-      "<noscript id=\"psa_add_styles\">"
       "<link rel='stylesheet' href='Hi there!' type='text/css'>"
-      "<link rel='stylesheet' href='c.css' type='text/css'>"
-      "</noscript>"
-      "<script type=\"text/javascript\">//<![CDATA[\n",
-      CriticalCssFilter::kAddStylesScript,
-      "\n//]]></script>");
+      "<link rel='stylesheet' href='c.css' type='text/css'>";
 
-  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }", 33);
+  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }");
 
-  ValidateExpected("invalid_url", input_html, expected_html);
+  ValidateExpected("inline_and_move", input_html, expected_html);
 }
 
 TEST_F(CriticalCssFilterTest, NullAndEmptyCriticalRules) {
@@ -233,7 +205,7 @@ TEST_F(CriticalCssFilterTest, NullAndEmptyCriticalRules) {
       "  <link rel='stylesheet' href='c.css' type='text/css'>\n"
       "</body>\n";
 
-  GoogleString expected_html = StrCat(
+  static const char expected_html[] =
       "<head>\n"
       "  <title>Example</title>\n"
       "</head>\n"
@@ -245,98 +217,20 @@ TEST_F(CriticalCssFilterTest, NullAndEmptyCriticalRules) {
       "  World!\n"
       "  <style>c_used {color: cyan }</style>\n"
       "</body>\n"
-      "<noscript id=\"psa_add_styles\">"
       "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
       "<link rel='stylesheet' href='b.css' type='text/css'>"
       "<style type='text/css'>t {color: turquoise }</style>"
-      "<link rel='stylesheet' href='c.css' type='text/css'>"
-      "</noscript>"
-      "<script type=\"text/javascript\">//<![CDATA[\n",
-      CriticalCssFilter::kAddStylesScript,
-      "\n//]]></script>");
+      "<link rel='stylesheet' href='c.css' type='text/css'>";
 
   // Skip adding a critical CSS for a.css.
   //     In the filtered html, the original link is left in place and
   //     a duplicate link is added to the full set of CSS at the bottom
   //     to make sure CSS rules are applied in the correct order.
 
-  finder_->AddCriticalCss("http://test.com/b.css", "", 4);  // no critical rules
-  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }", 6);
+  finder_->AddCriticalCss("http://test.com/b.css", "");  // no critical rules
+  finder_->AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }");
 
-  ValidateExpected("null_and_empty_critical_rules", input_html, expected_html);
-}
-
-TEST_F(CriticalCssFilterTest, DebugFilterAddsStats) {
-  options_->ForceEnableFilter(RewriteOptions::kDebug);
-  static const char input_html[] =
-      "<head>\n"
-      "  <title>Example</title>\n"
-      "</head>\n"
-      "<body>\n"
-      "  Hello,\n"
-      "  <link rel='stylesheet' href='a.css' type='text/css' media='print'>"
-      "<link rel='stylesheet' href='b.css' type='text/css'>\n"
-      "  <style type='text/css'>t {color: turquoise }</style>\n"
-      "  World!\n"
-      "  <link rel='stylesheet' href='c.css' type='text/css'>\n"
-      "</body>\n";
-
-  GoogleString expected_html = StrCat(
-      "<head>\n"
-      "  <title>Example</title>\n"
-      "</head>\n"
-      "<body>\n"
-      "  Hello,\n"
-      "  <link rel='stylesheet' href='a.css' type='text/css' media='print'>"
-      "<style></style>"
-      "<!--Critical CSS applied:\n"
-      "critical_size=0\n"
-      "original_size=222\n"
-      "original_src=http://test.com/b.css\n"
-      "-->\n"
-      "  <style type='text/css'>t {color: turquoise }</style>\n"
-      "  World!\n"
-      "  <style>c_used {color:cyan}</style>"
-      "<!--Critical CSS applied:\n"
-      "critical_size=19\n"
-      "original_size=333\n"
-      "original_src=http://test.com/c.css\n"
-      "-->\n"
-      "</body>\n"
-      "<!--Summary Critical CSS stats:\n"
-      "total_critical_inlined_size=19\n"
-      "total_original_external_size=555\n"
-      "\n"
-      "num_delayed_links=3\n"
-      "num_repeated_style_blocks=1\n"
-      "repeated_style_blocks_size=21\n"
-      "\n"
-      "unhandled_import_count=8\n"
-      "unhandled_link_count=11\n"
-      "exception_count=5\n"
-      "-->"
-      "<noscript id=\"psa_add_styles\">"
-      "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
-      "<link rel='stylesheet' href='b.css' type='text/css'>"
-      "<style type='text/css'>t {color: turquoise }</style>"
-      "<link rel='stylesheet' href='c.css' type='text/css'>"
-      "</noscript>"
-      "<script type=\"text/javascript\">//<![CDATA[\n",
-      CriticalCssFilter::kAddStylesScript,
-      "\n//]]></script>");
-
-  // Skip adding a critical CSS for a.css.
-  //     In the filtered html, the original link is left in place and
-  //     a duplicate link is added to the full set of CSS at the bottom
-  //     to make sure CSS rules are applied in the correct order.
-
-  finder_->AddCriticalCss("http://test.com/b.css",
-                          "", 222);  // no critical rules
-  finder_->AddCriticalCss("http://test.com/c.css",
-                          "c_used {color:cyan}", 333);
-  finder_->SetCriticalCssStats(5, 8, 11);
-
-  ValidateExpected("stats_flag_adds_stats", input_html, expected_html);
+  ValidateExpected("inline_and_move", input_html, expected_html);
 }
 
 }  // namespace net_instaweb

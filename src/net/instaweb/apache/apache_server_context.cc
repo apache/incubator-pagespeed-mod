@@ -24,7 +24,6 @@
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/loopback_route_fetcher.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
-#include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -32,7 +31,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_pool.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/system/public/system_caches.h"
+#include "net/instaweb/system/public/system_cache_path.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
@@ -208,7 +207,9 @@ void ApacheServerContext::ChildInit() {
   DCHECK(!initialized_);
   if (!initialized_) {
     initialized_ = true;
-    set_lock_manager(apache_factory_->caches()->GetLockManager(config()));
+    SystemCachePath* cache = apache_factory_->GetCache(config());
+
+    set_lock_manager(cache->lock_manager());
     UrlAsyncFetcher* fetcher = apache_factory_->GetFetcher(config());
     set_default_system_fetcher(fetcher);
 
@@ -405,10 +406,6 @@ void ApacheServerContext::ApplySessionFetchers(
     driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
                                                     driver->async_fetcher()));
   }
-}
-
-void ApacheServerContext::InitProxyFetchFactory() {
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(this));
 }
 
 }  // namespace net_instaweb

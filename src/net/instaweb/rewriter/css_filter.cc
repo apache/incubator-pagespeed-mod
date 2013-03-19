@@ -727,6 +727,10 @@ CssFilter::CssFilter(RewriteDriver* driver,
 
 CssFilter::~CssFilter() {}
 
+int CssFilter::FilterCacheFormatVersion() const {
+  return 1;
+}
+
 void CssFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(CssFilter::kBlocksRewritten);
   statistics->AddVariable(CssFilter::kParseFailures);
