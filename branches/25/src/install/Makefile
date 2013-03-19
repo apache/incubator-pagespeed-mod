@@ -430,6 +430,7 @@ stop :
 restart : stop
 	$(MAKE) staging
 	sudo $(MAKE) install \
+	    APACHE_ROOT=$(APACHE_ROOT) \
 	    APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	    STAGING_DIR=$(STAGING_DIR) \
 	    APACHE_CONF=$(APACHE_CONF) \

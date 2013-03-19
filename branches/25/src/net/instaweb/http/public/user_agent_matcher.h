@@ -82,6 +82,7 @@ class UserAgentMatcher {
   bool IsIe9(const StringPiece& user_agent) const;
 
   virtual bool SupportsImageInlining(const StringPiece& user_agent) const;
+  bool SupportsLazyloadImages(StringPiece user_agent) const;
 
   // Returns the request type for the given request. The return type currently
   // supports desktop, mobile and not supported.
@@ -131,6 +132,7 @@ class UserAgentMatcher {
 
  private:
   FastWildcardGroup supports_image_inlining_;
+  FastWildcardGroup supports_lazyload_images_;
   FastWildcardGroup blink_desktop_whitelist_;
   FastWildcardGroup blink_desktop_blacklist_;
   FastWildcardGroup blink_mobile_whitelist_;

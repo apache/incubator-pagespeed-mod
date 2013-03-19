@@ -16,6 +16,7 @@
 
 // Author: nikhilmadan@google.com (Nikhil Madan)
 
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -392,6 +393,28 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySliderAfterHead) {
       "<img src=\"1.jpg\"/>"
       "</body>";
   ValidateNoChanges("abort_script_inserted", input_html);
+}
+
+TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kBlackBerryOS5UserAgent);
+  InitLazyloadImagesFilter(false);
+  GoogleString input_html = "<head>"
+      "</head>"
+      "<body>"
+      "<img src=\"1.jpg\"/>"
+      "</body>";
+  ValidateNoChanges("blackberry_useragent", input_html);
+}
+
+TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForGooglebot) {
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kGooglebotUserAgent);
+  InitLazyloadImagesFilter(false);
+  GoogleString input_html = "<head>"
+      "</head>"
+      "<body>"
+      "<img src=\"1.jpg\"/>"
+      "</body>";
+  ValidateNoChanges("googlebot_useragent", input_html);
 }
 
 }  // namespace net_instaweb
