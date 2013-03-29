@@ -37,7 +37,6 @@
 #include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/critical_images.pb.h"
-#include "net/instaweb/rewriter/critical_selectors.pb.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
@@ -375,9 +374,7 @@ class ServerContextTest : public RewriteTestBase {
   // property cache entry for critical images was updated correctly.
   void TestBeacon(const StringSet* critical_image_hashes,
                   const StringSet* critical_css_selectors,
-                  StringPiece user_agent,
-                  GoogleString* critical_images_property_value,
-                  GoogleString* critical_css_selectors_property_value) {
+                  StringPiece user_agent) {
     // Setup the beacon_url and pass to HandleBeacon.
     GoogleString options_hash = "1234";
     GoogleString beacon_url = StrCat(
@@ -432,14 +429,15 @@ class ServerContextTest : public RewriteTestBase {
       PropertyValue* property = page->GetProperty(
           cohort, CriticalImagesFinder::kCriticalImagesPropertyName);
       EXPECT_TRUE(property->has_value());
-      property->value().CopyToString(critical_images_property_value);
+      GoogleString hash = CreateCriticalImagePropertyCacheValue(
+          critical_image_hashes);
+      EXPECT_EQ(hash, property->value());
     }
 
     if (critical_css_selectors != NULL) {
       PropertyValue* property = page->GetProperty(
           cohort, CriticalSelectorFinder::kCriticalSelectorsPropertyName);
       EXPECT_TRUE(property->has_value());
-      property->value().CopyToString(critical_css_selectors_property_value);
     }
   }
 };
@@ -1087,54 +1085,21 @@ TEST_F(ServerContextTest, TestHandleBeaconCritImages) {
   GoogleString hash2 = IntegerToString(
       HashString<CasePreserve, int>(img2.c_str(), img2.size()));
 
-  CriticalImages proto;
-  GoogleString critical_images_property_value,
-               critical_css_selectors_property_value;
 
   StringSet critical_image_hashes;
   critical_image_hashes.insert(hash1);
-  proto.add_html_critical_images(hash1);
-  proto.add_html_critical_images_sets()->add_critical_images(hash1);
-  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent,
-      &critical_images_property_value, &critical_css_selectors_property_value);
-  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value);
-
+  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent);
   critical_image_hashes.insert(hash2);
-  proto.add_html_critical_images(hash2);
-  // proto.add_html_critical_images_sets()->add_critical_images(hash1);
-  CriticalImages::CriticalImageSet* field =
-      proto.add_html_critical_images_sets();
-  field->add_critical_images(hash1);
-  field->add_critical_images(hash2);
-  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent,
-      &critical_images_property_value, &critical_css_selectors_property_value);
-  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value);
-
+  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent);
   critical_image_hashes.clear();
   critical_image_hashes.insert(hash1);
-  proto.clear_html_critical_images();
-  proto.add_html_critical_images(hash1);
-  proto.add_html_critical_images_sets()->add_critical_images(hash1);
-  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent,
-      &critical_images_property_value, &critical_css_selectors_property_value);
-  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value);
-
-  proto.clear_html_critical_images_sets();
-  proto.add_html_critical_images_sets()->add_critical_images(hash1);
-  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kIPhoneUserAgent,
-      &critical_images_property_value, &critical_css_selectors_property_value);
-  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value);
+  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kChromeUserAgent);
+  TestBeacon(&critical_image_hashes, NULL, UserAgentStrings::kIPhoneUserAgent);
 
   StringSet critical_css_selector;
   critical_css_selector.insert(".foo");
   critical_css_selector.insert("#bar");
-  CriticalSelectorSet css_selector_proto;
-  css_selector_proto.add_critical_selectors("#bar");
-  css_selector_proto.add_critical_selectors(".foo");
-  TestBeacon(NULL, &critical_css_selector, UserAgentStrings::kChromeUserAgent,
-      &critical_images_property_value, &critical_css_selectors_property_value);
-  EXPECT_STREQ(css_selector_proto.SerializeAsString(),
-               critical_css_selectors_property_value);
+  TestBeacon(NULL, &critical_css_selector, UserAgentStrings::kChromeUserAgent);
 }
 
 TEST_F(ServerContextTest, TestNotGenerated) {

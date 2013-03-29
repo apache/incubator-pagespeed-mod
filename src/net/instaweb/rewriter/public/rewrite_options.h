@@ -257,7 +257,6 @@ class RewriteOptions {
     kLazyloadImagesAfterOnload,
     kLazyloadImagesBlankUrl,
     kLogRewriteTiming,
-    kLogUrlIndices,
     kLowercaseHtmlNames,
     kMaxCacheableResponseContentLength,
     kMaxCombinedJsBytes,
@@ -389,6 +388,9 @@ class RewriteOptions {
   // options->set_default.
   static const int kOptionsVersion = 13;
 
+  static const char kCacheExtenderId[];
+  static const char kCollectFlushEarlyContentFilterId[];
+
   // Determines the scope at which an option is evaluated.  In Apache,
   // for example, kDirectoryScope indicates it can be changed via .htaccess
   // files, which is the only way that sites using shared hosting can change
@@ -399,8 +401,6 @@ class RewriteOptions {
     kProcessScope,    // customized at process level only (command-line flags)
   };
 
-  static const char kCacheExtenderId[];
-  static const char kCollectFlushEarlyContentFilterId[];
   static const char kCssCombinerId[];
   static const char kCssFilterId[];
   static const char kCssImportFlattenerId[];
@@ -1430,11 +1430,6 @@ class RewriteOptions {
     set_option(x, &log_rewrite_timing_);
   }
   bool log_rewrite_timing() const { return log_rewrite_timing_.value(); }
-
-  void set_log_url_indices(bool x) {
-    set_option(x, &log_url_indices_);
-  }
-  bool log_url_indices() const { return log_url_indices_.value(); }
 
   void set_lowercase_html_names(bool x) {
     set_option(x, &lowercase_html_names_);
@@ -2861,7 +2856,6 @@ class RewriteOptions {
   Option<bool> in_place_preemptive_rewrite_javascript_;
   Option<bool> combine_across_paths_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
-  Option<bool> log_url_indices_;
   Option<bool> lowercase_html_names_;
   Option<bool> always_rewrite_css_;  // For tests/debugging.
   Option<bool> respect_vary_;

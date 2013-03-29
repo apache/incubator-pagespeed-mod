@@ -286,7 +286,7 @@ bool RewriteQuery::MayHaveCustomOptions(
   for (int i = 0, n = params.size(); i < n; ++i) {
     StringPiece name(params.name(i));
     if (name.starts_with(kModPagespeed) ||
-        StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+        name == HttpAttributes::kXPsaClientOptions) {
       return true;
     }
   }
@@ -339,7 +339,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     } else {
       status = kInvalid;
     }
-  } else if (StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+  } else if (name == HttpAttributes::kXPsaClientOptions) {
     if (UpdateRewriteOptionsWithClientOptions(
         value, device_properties, options)) {
       status = kSuccess;

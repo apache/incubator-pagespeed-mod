@@ -60,16 +60,14 @@
 #include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
 #include "net/instaweb/rewriter/public/collect_flush_early_content_filter.h"
 #include "net/instaweb/rewriter/public/compute_visible_text_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
-#include "net/instaweb/rewriter/public/critical_selector_filter.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_combine_filter.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
+#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
+#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
@@ -274,8 +272,6 @@ void RewriteDriver::set_request_context(const RequestContextPtr& x) {
         options()->max_rewrite_info_log_size());
     request_context_->log_record()->SetAllowLoggingUrls(
         options()->allow_logging_urls_in_log_record());
-    request_context_->log_record()->SetLogUrlIndices(
-        options()->log_url_indices());
   }
 }
 
@@ -702,7 +698,6 @@ void RewriteDriver::Initialize() {
 void RewriteDriver::InitStats(Statistics* statistics) {
   AddInstrumentationFilter::InitStats(statistics);
   CacheExtender::InitStats(statistics);
-  CriticalCssBeaconFilter::InitStats(statistics);
   CriticalImagesBeaconFilter::InitStats(statistics);
   CssCombineFilter::InitStats(statistics);
   CssFilter::InitStats(statistics);
@@ -889,8 +884,7 @@ void RewriteDriver::AddPreRenderFilters() {
     AppendOwnedPreRenderFilter(new CssInlineImportToLinkFilter(this,
                                                                statistics()));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
-      !server_context()->factory()->UseBeaconResultsInFilters()) {
+  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss)) {
     // If we're inlining styles that resolved initially, skip outlining
     // css since that works against this.
     // TODO(slamm): Figure out if move_css_to_head needs to be disabled.
@@ -925,13 +919,6 @@ void RewriteDriver::AddPreRenderFilters() {
       EnableRewriteFilter(RewriteOptions::kCssFilterId);
     }
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
-      server_context()->factory()->UseBeaconResultsInFilters()) {
-    // Add both the instrumentation and rewriting filter, in that order.
-    AppendOwnedPreRenderFilter(new CriticalCssBeaconFilter(this));
-    AppendOwnedPreRenderFilter(new CriticalSelectorFilter(this));
-  }
-  // TODO(jmaessen): Should prioritizing critical css disable inline css?
   if (rewrite_options->Enabled(RewriteOptions::kInlineCss)) {
     // Inline small CSS files.  Give CSS minification and flattening a chance to
     // run before we decide what counts as "small".

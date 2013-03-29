@@ -74,7 +74,7 @@ const char SplitHtmlFilter::kSplitSuffixJsFormatString[] =
       "pagespeed.panelLoaderInit();"
       "pagespeed.panelLoader.invokedFromSplit();"
       "pagespeed.panelLoader.loadCriticalData({});"
-      "pagespeed.panelLoader.bufferNonCriticalData(%s, %s);"
+      "pagespeed.panelLoader.bufferNonCriticalData(%s);"
     "</script>\n</body></html>\n";
 
 // At StartElement, if element is panel instance push a new json to capture
@@ -168,8 +168,7 @@ void SplitHtmlFilter::ServeNonCriticalPanelContents(const Json::Value& json) {
       kSplitSuffixJsFormatString,
       num_low_res_images_inlined_,
       GetBlinkJsUrl(options_, static_asset_manager_).c_str(),
-      non_critical_json.c_str(),
-      rewrite_driver_->flushing_cached_html() ? "true" : "false"));
+      non_critical_json.c_str()));
   if (!json.empty()) {
     rewrite_driver_->log_record()->SetRewriterLoggingStatus(
         RewriteOptions::FilterId(RewriteOptions::kSplitHtml),
