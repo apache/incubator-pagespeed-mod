@@ -605,9 +605,8 @@ class Parser {
   FRIEND_TEST(ParserTest, ruleset_starts_with_combinator);
   FRIEND_TEST(ParserTest, atrules);
   FRIEND_TEST(ParserTest, percentage_colors);
-  FRIEND_TEST(ParserTest, SkipBlock);
-  FRIEND_TEST(ParserTest, SkippedTokenError);
   FRIEND_TEST(ParserTest, ValueError);
+  FRIEND_TEST(ParserTest, SkippedTokenError);
   friend void ParseFontFamily(Parser* parser);
   friend class MediaAppliesToScreenTest;
 

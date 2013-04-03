@@ -21,7 +21,7 @@
 #include "net/instaweb/rewriter/public/critical_selector_filter.h"
 
 #include <algorithm>
-#include <set>
+#include <map>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
@@ -38,7 +38,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -51,6 +50,8 @@ namespace net_instaweb {
 
 namespace {
 
+const char kSummarizedCssProperty[] = "selector_summarized_css";
+
 // Helper that takes a std::vector-like collection, and compacts
 // any null holes in it.
 template<typename VectorType> void Compact(VectorType* cl) {
@@ -61,9 +62,6 @@ template<typename VectorType> void Compact(VectorType* cl) {
 }
 
 }  // namespace
-
-const char CriticalSelectorFilter::kSummarizedCssProperty[] =
-    "selector_summarized_css";
 
 // TODO(ksimbili): Move this to appropriate event instead of 'onload'.
 const char CriticalSelectorFilter::kAddStylesScript[] =
@@ -150,11 +148,9 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
   for (int ruleset_index = 0, num_rulesets = stylesheet->rulesets().size();
        ruleset_index < num_rulesets; ++ruleset_index) {
     Css::Ruleset* r = stylesheet->mutable_rulesets().at(ruleset_index);
-    if (r->type() == Css::Ruleset::UNPARSED_REGION) {
-      // Couldn't parse this as a rule, leave unaltered. Hopefully it's not
-      // too big..
-      continue;
-    }
+
+    // TODO(morlovich): Make sure we're sufficiently careful with unparseable
+    // stuff.
 
     // TODO(morlovich): This does a lot of repeated work as the same media
     // entries are repeated for tons of rulesets.
@@ -176,16 +172,12 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
     bool any_selectors_apply = false;
     if (any_media_apply) {
       // See which of the selectors for given declaration apply.
-      // Note that in some partial parse errors we will get 0 selectors here,
-      // in which case we retain things to be conservative.
-      any_selectors_apply = r->selectors().empty();
       for (int selector_index = 0, num_selectors = r->selectors().size();
           selector_index < num_selectors; ++selector_index) {
         Css::Selector* s = r->mutable_selectors().at(selector_index);
         GoogleString portion_to_compare = css_util::JsDetectableSelector(*s);
-        if (portion_to_compare.empty() ||
-            critical_selectors_.find(portion_to_compare)
-                != critical_selectors_.end()) {
+        if (critical_selectors_.find(portion_to_compare)
+            != critical_selectors_.end()) {
           any_selectors_apply = true;
         } else {
           delete s;
@@ -219,38 +211,7 @@ void CriticalSelectorFilter::SummariesDone() {
   for (int i = 0; i < NumStyles(); ++i) {
     const SummaryInfo& fragment = GetSummaryForStyle(i);
     if (fragment.state == kSummaryOk) {
-      CriticalSelectorSummarizedCss::ResourceSummary* out_fragment =
-          summary.add_summary();
-      out_fragment->set_content(fragment.data);
-
-      StringVector all_media;
-      css_util::VectorizeMediaAttribute(fragment.media_from_html, &all_media);
-
-      // If the input fragment has media, copy those that affect the screen
-      // to the output fragment; if that's none we also mark it as having
-      // no screen affecting media (to distinguish from the case of having no
-      // media at all).
-      if (!all_media.empty()) {
-        StringVector relevant_media;
-        for (int i = 0, n = all_media.size(); i < n; ++i) {
-          const GoogleString& medium = all_media[i];
-          if (css_util::CanMediaAffectScreen(medium)) {
-            relevant_media.push_back(medium);
-          }
-        }
-
-        if (!relevant_media.empty()) {
-          out_fragment->set_media(
-              css_util::StringifyMediaVector(relevant_media));
-        } else {
-          out_fragment->set_all_media_non_screen(true);
-        }
-      }
-
-      if (fragment.is_external) {
-        out_fragment->set_external(true);
-        out_fragment->set_base(fragment.base);
-      }
+      StrAppend(summary.mutable_content(), fragment.data);
     } else {
       all_ok = false;
     }
@@ -291,10 +252,6 @@ void CriticalSelectorFilter::NotifyExternalCss(HtmlElement* link) {
   }
 }
 
-GoogleString CriticalSelectorFilter::CacheKeySuffix() const {
-  return cache_key_suffix_;
-}
-
 void CriticalSelectorFilter::StartDocumentImpl() {
   CssSummarizerBase::StartDocumentImpl();
 
@@ -306,10 +263,6 @@ void CriticalSelectorFilter::StartDocumentImpl() {
       critical_selectors_.insert(pcache_selectors->critical_selectors(i));
     }
   }
-
-  GoogleString all_selectors = JoinCollection(critical_selectors_, ",");
-  cache_key_suffix_ =
-      driver_->server_context()->lock_hasher()->Hash(all_selectors);
 
   // Read critical css info from pcache.
   PropertyCacheDecodeResult status;
@@ -368,20 +321,6 @@ void CriticalSelectorFilter::EndElementImpl(HtmlElement* element) {
   }
 }
 
-void CriticalSelectorFilter::DetermineEnabled() {
-  bool can_run = (driver_->CriticalSelectors() != NULL);
-  set_is_enabled(can_run);
-  if (can_run) {
-    driver_->set_write_property_cache_dom_cohort(true);
-  }
-}
-
-bool CriticalSelectorFilter::UsesPropertyCacheDomCohort() const {
-  // This technically isn't needed since we override
-  // RewriteFilter::DetermineEnabled, but let's make things clear.
-  return true;
-}
-
 void CriticalSelectorFilter::InsertCriticalCssIfNeeded(
     HtmlElement* insert_before) {
   if (critical_css_.get() == NULL || inserted_critical_css_) {
@@ -392,49 +331,17 @@ void CriticalSelectorFilter::InsertCriticalCssIfNeeded(
     return;
   }
 
-  HtmlCharactersNode* prev_content = NULL;
-  bool prev_has_media = false;
-  GoogleString prev_media;
-
-  for (int i = 0, n = critical_css_->summary_size(); i < n; ++i) {
-    const CriticalSelectorSummarizedCss::ResourceSummary& summary =
-        critical_css_->summary(i);
-    if (summary.all_media_non_screen()) {
-      continue;
-    }
-
-    // TODO(morlovich): This is unsafe inside <noscript>. Actually, what should
-    // the summarizer do with <noscript>?
-
-    // TODO(morlovich): Resolve relative URLs for external CSS if needed.
-
-    // Coalesce this into the previous element if possible.
-    if ((prev_content != NULL) &&
-        (prev_has_media == summary.has_media()) &&
-        (prev_media == summary.media())) {
-      prev_content->Append(summary.content());
-    } else {
-      // Otherwise we need a separate <style> node.
-      HtmlElement* style_element = driver_->NewElement(NULL, HtmlName::kStyle);
-      if (insert_before != NULL) {
-        driver_->InsertElementBeforeElement(insert_before, style_element);
-      } else {
-        driver_->InsertElementBeforeCurrent(style_element);
-      }
-
-      HtmlCharactersNode* content =
-          driver_->NewCharactersNode(style_element, summary.content());
-      driver_->AppendChild(style_element, content);
-
-      if (summary.has_media()) {
-        driver_->AddAttribute(style_element, HtmlName::kMedia, summary.media());
-      }
-
-      prev_content = content;
-      prev_has_media = summary.has_media();
-      prev_media = summary.media();
-    }
+  HtmlElement* style_element = driver_->NewElement(NULL, HtmlName::kStyle);
+  // TODO(morlovich): This is unsafe inside <noscript>. Actually, what should
+  // the summarizer do with <noscript>?
+  if (insert_before != NULL) {
+    driver_->InsertElementBeforeElement(insert_before, style_element);
+  } else {
+    driver_->InsertElementBeforeCurrent(style_element);
   }
+  driver_->AppendChild(
+      style_element, driver_->NewCharactersNode(style_element,
+                                                critical_css_->content()));
   inserted_critical_css_ = true;
 }
 

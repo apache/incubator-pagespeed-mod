@@ -68,7 +68,6 @@ struct OptionName {
 "IdleFlushTimeMs",                       RewriteOptions::kIdleFlushTimeMs
 "ImageInlineMaxBytes",                   RewriteOptions::kImageInlineMaxBytes
 "ImageJpegNumProgressiveScans",          RewriteOptions::kImageJpegNumProgressiveScans
-"ImageJpegNumProgressiveScansForSmallScreens", RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens
 "ImageLimitOptimizedPercent",            RewriteOptions::kImageLimitOptimizedPercent
 "ImageLimitResizeAreaPercent",           RewriteOptions::kImageLimitResizeAreaPercent
 "ImageMaxRewritesAtOnce",                RewriteOptions::kImageMaxRewritesAtOnce
@@ -121,7 +120,6 @@ struct OptionName {
 "ObliviousPagespeedUrls",                RewriteOptions::kObliviousPagespeedUrls
 "OverrideCachingTtlMs",                  RewriteOptions::kOverrideCachingTtlMs
 "OverrideIeDocumentMode",                RewriteOptions::kOverrideIeDocumentMode
-"PersistBlinkBlacklist",                 RewriteOptions::kPersistBlinkBlacklist
 "ProgressiveJpegMinBytes",               RewriteOptions::kProgressiveJpegMinBytes
 "RejectBlacklisted",                     RewriteOptions::kRejectBlacklisted
 "RejectBlacklistedStatusCode",           RewriteOptions::kRejectBlacklistedStatusCode

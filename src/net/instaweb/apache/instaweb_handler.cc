@@ -21,6 +21,7 @@
 #include <set>
 #include <vector>
 
+#include "base/logging.h"
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_message_handler.h"
 #include "net/instaweb/apache/apache_request_context.h"
@@ -149,9 +150,6 @@ class ApacheProxyFetch : public AsyncFetchUsingWriter {
     status_ok_ = (status_code != 0) && (status_code < 400);
     if (handle_error_ || status_ok_) {
       // TODO(sligocki): Add X-Mod-Pagespeed header.
-      if (content_length_known()) {
-        apache_writer_.set_content_length(content_length());
-      }
       apache_writer_.OutputHeaders(response_headers());
     }
   }
@@ -474,9 +472,10 @@ bool handle_as_resource(ApacheServerContext* server_context,
     return false;
   }
 
-  // Flushing the cache mutates global_options, so this has to happen before we
-  // construct the options that we use to decide whether IPRO is enabled.
-  server_context->FlushCacheIfNecessary();
+  // We must potentially poll for cache.flush (which can mutate global_options)
+  // before constructing the options that we use to decide whether IPRO is
+  // enabled.
+  server_context->PollFilesystemForCacheFlush();
 
   ApacheRequestContext* apache_request_context = new ApacheRequestContext(
       server_context->thread_system()->NewMutex(), request);
@@ -551,9 +550,15 @@ void write_handler_response(const StringPiece& output,
   send_out_headers_and_body(request, response_headers, output.as_string());
 }
 
+void write_handler_response(const StringPiece& output,
+                            request_rec* request,
+                            ContentType content_type) {
+  write_handler_response(output, request, kContentTypeHtml,
+                         HttpAttributes::kNoCache);
+}
+
 void write_handler_response(const StringPiece& output, request_rec* request) {
-  write_handler_response(output, request,
-                         kContentTypeHtml, HttpAttributes::kNoCache);
+  write_handler_response(output, request, kContentTypeHtml);
 }
 
 // Returns request URL if it was a .pagespeed. rewritten resource URL.
@@ -810,8 +815,7 @@ apr_status_t instaweb_statistics_handler(
   }
 
   if (json) {
-    write_handler_response(output, request,
-                           kContentTypeJson, HttpAttributes::kNoCache);
+    write_handler_response(output, request, kContentTypeJson);
   } else {
     write_handler_response(output, request);
   }

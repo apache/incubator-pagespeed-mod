@@ -23,8 +23,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -32,7 +30,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
@@ -328,7 +326,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
   // TODO(marq): Make this not necessary by folding log validation into
   // ValidateWithStats().
   RequestContextPtr rctx = rewrite_driver()->request_context();
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}", kExpectSuccess);
   int inserts_before = lru_cache()->num_inserts();
   EXPECT_EQ(1, num_blocks_rewritten_->Get());  // for factory_
@@ -337,12 +334,9 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
   ResetStats();
 
   rctx.reset(rewrite_driver()->request_context());
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectSuccess | kNoStatCheck);
   int inserts_after = lru_cache()->num_inserts();
@@ -354,8 +348,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
 }
 
 // Make sure we do not reparse external CSS when we know it already has
@@ -591,9 +583,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // Mismatched {}s that are acceptable because they do not fail to close {s,
     // but instead have stray }s that would not be parsed as closing previous {s
     "a[}]{color:red}",
-
-    // Don't "fix" font properties.
-    "a{font:12px,clean}",
   };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
@@ -1286,12 +1275,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
       "background:white url(http://static.uncyc.org/skins/common/images/Checke"
       "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}" },
-
-    { "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial !important}",
-
-      "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial!important}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {

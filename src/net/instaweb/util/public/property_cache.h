@@ -280,8 +280,6 @@ class PropertyCache {
   // Returns timer pointer.
   Timer* timer() const { return timer_; }
 
-  ThreadSystem* thread_system() const { return thread_system_; }
-
   // TODO(jmarantz): add some statistics tracking for stomps, stability, etc.
 
  private:
@@ -376,12 +374,6 @@ class PropertyPage {
   // Adds logs for the given PropertyPage to the specified cohort info index.
   virtual void LogPageCohortInfo(LogRecord* log_record, int cohort_index) {}
 
-  // Read the property page from cache.
-  void Read(const PropertyCache::CohortVector& cohort_list);
-
-  // Abort the reading of PropertyPage.
-  void Abort();
-
  protected:
   // The Page takes ownership of the mutex.
   PropertyPage(const StringPiece& key,
@@ -400,6 +392,7 @@ class PropertyPage {
   class CallbackCollector;
   friend class CallbackCollector;
   friend class PropertyCache::CacheInterfaceCallback;
+  friend class PropertyCache;
 
   void SetupCohorts(const PropertyCache::CohortVector& cohort_list);
 

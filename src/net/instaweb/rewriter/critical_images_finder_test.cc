@@ -18,13 +18,11 @@
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 
@@ -49,22 +47,6 @@ class CriticalImagesFinderMock : public CriticalImagesFinder {
   }
  private:
   static const char kCriticalImagesCohort[];
-};
-
-// Mock class for testing a critical image finder like the beacon finder that
-// stores a history of previous critical image sets.
-class CriticalImagesHistoryFinderMock : public CriticalImagesFinderMock {
- public:
-  explicit CriticalImagesHistoryFinderMock(Statistics* stats)
-      : CriticalImagesFinderMock(stats) {}
-
-  virtual int PercentSeenForCritical() const {
-    return 80;
-  }
-
-  virtual int NumSetsToKeep() const {
-    return 10;
-  }
 };
 
 const char CriticalImagesFinderMock::kCriticalImagesCohort[] =
@@ -92,19 +74,7 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
   }
 
  private:
-  friend class CriticalImagesHistoryFinderTest;
-
   scoped_ptr<CriticalImagesFinderMock> finder_;
-};
-
-class CriticalImagesHistoryFinderTest : public CriticalImagesFinderTest {
- protected:
-  virtual void SetUp() {
-    CriticalImagesFinderTestBase::SetUp();
-    finder_.reset(new CriticalImagesHistoryFinderMock(statistics()));
-    SetupCohort(page_property_cache(), finder()->GetCriticalImagesCohort());
-    ResetDriver();
-  }
 };
 
 TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySuccess) {
@@ -116,18 +86,6 @@ TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySuccess) {
   EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
       rewrite_driver(), critical_images_set, css_critical_images_set));
   EXPECT_TRUE(GetCriticalImagesUpdatedValue()->has_value());
-
-  // Verify that when NumSetsToKeep() is 1, we only update the *_critical_images
-  // field, and not *_critical_images_sets. Storing history in this case just
-  // causes an increased cache size.
-  ArrayInputStream input(GetCriticalImagesUpdatedValue()->value().data(),
-                         GetCriticalImagesUpdatedValue()->value().size());
-  CriticalImages parsed_proto;
-  parsed_proto.ParseFromZeroCopyStream(&input);
-  EXPECT_EQ(1, parsed_proto.html_critical_images_size());
-  EXPECT_EQ(1, parsed_proto.css_critical_images_size());
-  EXPECT_EQ(0, parsed_proto.html_critical_images_sets_size());
-  EXPECT_EQ(0, parsed_proto.css_critical_images_sets_size());
 }
 
 TEST_F(CriticalImagesFinderTest,
@@ -175,7 +133,7 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   // Calling IsHtmlCriticalImage should update the CriticalImagesInfo in
   // RewriteDriver.
   finder()->IsHtmlCriticalImage("imageA.jpg", rewrite_driver());
-  // We should get 1 miss for the critical images value.
+  // We should get 2 misses, 1 for the html and 1 for css.
   CheckCriticalImageFinderStats(0, 0, 1);
   EXPECT_EQ(0, logging_info()->num_html_critical_images());
   EXPECT_EQ(0, logging_info()->num_css_critical_images());
@@ -209,7 +167,7 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   EXPECT_EQ(1, logging_info()->num_css_critical_images());
   ClearStats();
 
-  // GetCriticalImages() updates critical_images set in RewriteDriver().
+  // GetCriticalImages() upates critical_images set in RewriteDriver().
   EXPECT_TRUE(rewrite_driver()->critical_images_info() != NULL);
   // EXPECT_EQ(2, GetCriticalImages(rewrite_driver()).size());
   EXPECT_TRUE(finder()->IsHtmlCriticalImage("imageA.jpeg", rewrite_driver()));
@@ -246,116 +204,6 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   CheckCriticalImageFinderStats(0, 1, 0);
   EXPECT_EQ(0, logging_info()->num_html_critical_images());
   EXPECT_EQ(0, logging_info()->num_css_critical_images());
-}
-
-TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
-  const PropertyCache::Cohort* cohort = page_property_cache()->GetCohort(
-      finder()->GetCriticalImagesCohort());
-
-  // Verify that storing multiple critical images, like we do with the beacon
-  // critical image finder, works correctly.
-
-  // Write images to property cache, ensuring that they are critical images, and
-  // verify that we have only stored up to NumSetsToKeep() sets at the end.
-  for (int i = 0; i < finder()->NumSetsToKeep() * 2; ++i) {
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgA.jpeg");
-    critical_images_set->insert("imgB.jpeg");
-    StringSet* css_critical_images_set = new StringSet;
-    css_critical_images_set->insert("imgD.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, css_critical_images_set));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsCssCriticalImage("imgA.jpeg", rewrite_driver()));
-  }
-
-  // Verify that we are only storing NumSetsToKeep() sets.
-  ArrayInputStream input(GetCriticalImagesUpdatedValue()->value().data(),
-                         GetCriticalImagesUpdatedValue()->value().size());
-  CriticalImages parsed_proto;
-  parsed_proto.ParseFromZeroCopyStream(&input);
-  EXPECT_EQ(finder()->NumSetsToKeep(),
-            parsed_proto.html_critical_images_sets_size());
-
-  // Now, write just imgA twice. Since our limit is set to 80%, B should still
-  // be critical afterwards.
-  for (int i = 0; i < 2; ++i) {
-    ResetDriver();
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgA.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, NULL));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-  }
-
-  // Continue writing imgA, but now imgB should be below our threshold.
-  for (int i = 0; i < finder()->NumSetsToKeep(); ++i) {
-    ResetDriver();
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgA.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, NULL));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    // We didn't write CSS critical images, so imgD should still be critical.
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-  }
-
-  // Write imgC twice. imgA should still be critical, and C should not.
-  for (int i = 0; i < 2; ++i) {
-    ResetDriver();
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgC.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, NULL));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgC.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-  }
-
-  // Continue writing imgC, but A should no longer be critical.
-  for (int i = 0; i < 5; ++i) {
-    ResetDriver();
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgC.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, NULL));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgC.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-  }
-
-  // And finally, write imgC, making sure it is critical.
-  for (int i = 0; i < finder()->NumSetsToKeep(); ++i) {
-    ResetDriver();
-    StringSet* critical_images_set = new StringSet;
-    critical_images_set->insert("imgC.jpeg");
-    EXPECT_TRUE(CallUpdateCriticalImagesCacheEntry(
-        rewrite_driver(), critical_images_set, NULL));
-    rewrite_driver()->property_page()->WriteCohort(cohort);
-    ResetDriver();
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgA.jpeg", rewrite_driver()));
-    EXPECT_FALSE(finder()->IsHtmlCriticalImage("imgB.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsHtmlCriticalImage("imgC.jpeg", rewrite_driver()));
-    EXPECT_TRUE(finder()->IsCssCriticalImage("imgD.jpeg", rewrite_driver()));
-  }
 }
 
 }  // namespace net_instaweb

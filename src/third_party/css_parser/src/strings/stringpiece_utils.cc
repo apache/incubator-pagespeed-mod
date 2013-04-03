@@ -18,7 +18,7 @@
 #include <vector>
 #include "strings/ascii_ctype.h"
 
-namespace strings {
+namespace StringPieceUtils {
 
 int RemoveLeadingWhitespace(StringPiece* text) {
   int count = 0;
@@ -47,9 +47,6 @@ int RemoveWhitespaceContext(StringPiece* text) {
   return (RemoveLeadingWhitespace(text) + RemoveTrailingWhitespace(text));
 }
 
-}  // namespace strings
-
-namespace StringPieceUtils {
 
 template <typename DelimType>
 static void SplitInternal(const StringPiece& full, DelimType delim,

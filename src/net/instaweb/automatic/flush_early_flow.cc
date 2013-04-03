@@ -365,7 +365,8 @@ FlushEarlyFlow::FlushEarlyFlow(
   // If mobile, do not flush preconnects as it can potentially block useful
   // connections to resources. This is also used to determine whether to
   // flush early the lazy load js snippet.
-  is_mobile_user_agent_ = driver_->device_properties()->IsMobile();
+  is_mobile_user_agent_ =
+      driver_->device_properties()->IsMobileUserAgent();
 }
 
 FlushEarlyFlow::~FlushEarlyFlow() {
@@ -423,8 +424,7 @@ void FlushEarlyFlow::FlushEarly() {
         if (lazyload_property_value->has_value() &&
             StringCaseEqual(lazyload_property_value->value(), "1") &&
             options->Enabled(RewriteOptions::kLazyloadImages) &&
-            (LazyloadImagesFilter::ShouldApply(driver_) ==
-                RewriterStats::ACTIVE) &&
+            LazyloadImagesFilter::ShouldApply(driver_) &&
             !is_mobile_user_agent_) {
           driver_->set_is_lazyload_script_flushed(true);
           should_flush_early_lazyload_script_ = true;

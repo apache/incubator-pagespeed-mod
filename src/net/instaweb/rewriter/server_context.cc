@@ -24,7 +24,6 @@
 
 #include "base/logging.h"               // for operator<<, etc
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
@@ -104,15 +103,13 @@ const char* kExcludedAttributes[] = {
   HttpAttributes::kVary
 };
 
-StringSet* CommaSeparatedStringToSet(StringPiece str) {
+void CommaSeparatedStringToSet(StringPiece str, StringSet* set) {
   StringPieceVector str_values;
   SplitStringPieceToVector(str, ",", &str_values, true);
-  StringSet* set = new StringSet();
   for (StringPieceVector::const_iterator it = str_values.begin();
        it != str_values.end(); ++it) {
     set->insert(it->as_string());
   }
-  return set;
 }
 
 // Track a property cache lookup triggered from a beacon response. When
@@ -763,15 +760,17 @@ bool ServerContext::HandleBeacon(StringPiece params,
   scoped_ptr<StringSet> css_critical_images_set;
   query_param_str = query_params.Lookup1(kBeaconCriticalImagesQueryParam);
   if (query_param_str != NULL) {
-    html_critical_images_set.reset(
-        CommaSeparatedStringToSet(*query_param_str));
+    html_critical_images_set.reset(new StringSet);
+    CommaSeparatedStringToSet(*query_param_str,
+                              html_critical_images_set.get());
   }
 
   scoped_ptr<StringSet> critical_css_selector_set;
   query_param_str = query_params.Lookup1(kBeaconCriticalCssQueryParam);
   if (query_param_str != NULL) {
-    critical_css_selector_set.reset(
-        CommaSeparatedStringToSet(*query_param_str));
+    critical_css_selector_set.reset(new StringSet);
+    CommaSeparatedStringToSet(*query_param_str,
+                              critical_css_selector_set.get());
   }
 
   // Store the critical information in the property cache. This is done by
@@ -1065,6 +1064,7 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     if (custom_options == NULL) {
       custom_options.reset(options->Clone());
     }
+    custom_options->DisableFilter(RewriteOptions::kLazyloadImages);
     custom_options->DisableFilter(RewriteOptions::kDelayImages);
     custom_options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
     custom_options->DisableFilter(RewriteOptions::kDeferJavascript);
@@ -1173,15 +1173,6 @@ RewriteDriverPool* ServerContext::SelectDriverPool(bool using_spdy) {
 
 void ServerContext::ApplySessionFetchers(const RequestContextPtr& req,
                                          RewriteDriver* driver) {
-}
-
-DeviceProperties* ServerContext::NewDeviceProperties() {
-  DeviceProperties* device_properties =
-      new DeviceProperties(user_agent_matcher());
-  device_properties->SetPreferredImageQualities(
-      factory_->preferred_webp_qualities(),
-      factory_->preferred_jpeg_qualities());
-  return device_properties;
 }
 
 }  // namespace net_instaweb

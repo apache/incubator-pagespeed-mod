@@ -81,14 +81,6 @@ DEFINE_int32(image_jpeg_recompress_quality_for_small_screens,
              "for small screens. This should be in the range [0,100]. 100 "
              "refers to the highest quality. If -1 or not set, "
              "image_jpeg_recompress_quality will be used.");
-DEFINE_int32(image_jpeg_num_progressive_scans,
-             net_instaweb::RewriteOptions::kDefaultImageJpegNumProgressiveScans,
-             "The number of scans, [0,10] to serve for jpeg images that "
-             "are encoded as ten-scan progressive jpegs.");
-DEFINE_int32(image_jpeg_num_progressive_scans_for_small_screens,
-             net_instaweb::RewriteOptions::kDefaultImageJpegNumProgressiveScans,
-             "The number of scans, [0,10], to serve to small-screen devices "
-             "for jpeg images that are encoded as ten-scan progressive jpegs.");
 DEFINE_int32(image_webp_recompress_quality,
              net_instaweb::RewriteOptions::kDefaultImageWebpRecompressQuality,
              "Quality parameter to use while recompressing webp images. "
@@ -173,11 +165,7 @@ DEFINE_int32(
     net_instaweb::RewriteOptions::kDefaultFuriousCookieDurationMs,
     "Duration after which the furious cookie used for A/B experiments "
     "should expire on the user's browser.");
-DEFINE_bool(log_background_rewrites, false,
-            "Log rewriting that cannot finish in the line-of-request.");
 DEFINE_bool(log_rewrite_timing, false, "Log time taken by rewrite filters.");
-DEFINE_bool(log_url_indices, false, "Log URL indices for every rewriter "
-            "application.");
 DEFINE_int64(max_html_cache_time_ms,
              net_instaweb::RewriteOptions::kDefaultMaxHtmlCacheTimeMs,
              "Default Cache-Control TTL for HTML. "
@@ -358,24 +346,13 @@ DEFINE_int64(
     net_instaweb::RewriteOptions::kDefaultBlinkHtmlChangeDetectionTimeMs,
     "Time after which we should try to detect if publisher html has changed");
 
-DEFINE_bool(enable_blink_html_change_detection, false,
-            "If enabled automatically detect publisher changes in html in "
-            "blink.");
-
 DEFINE_bool(enable_blink_html_change_detection_logging, false,
             "If enabled, html change detection is applied to all blink sites"
             " and the results are logged. Critical line recomputation is not"
             " triggered in case of mismatch.");
 
-DEFINE_bool(use_smart_diff_in_blink, false,
-            "If enabled use smart diff to detect publisher changes in html "
-            "in blink");
-
 DEFINE_bool(enable_lazyload_in_blink, false,
     "If it is set to true, don't force disable lazyload in blink");
-
-DEFINE_bool(persist_blink_blacklist, false,
-            "Persist the blink blacklist by writing to kansas.");
 
 DEFINE_bool(enable_prioritizing_scripts, false,
     "If it is set to true, defer javascript will prioritize scripts with"
@@ -492,14 +469,8 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_image_max_rewrites_at_once(
         FLAGS_image_max_rewrites_at_once);
   }
-  if (WasExplicitlySet("log_background_rewrites")) {
-    options->set_log_background_rewrites(FLAGS_log_background_rewrites);
-  }
   if (WasExplicitlySet("log_rewrite_timing")) {
     options->set_log_rewrite_timing(FLAGS_log_rewrite_timing);
-  }
-  if (WasExplicitlySet("log_url_indices")) {
-    options->set_log_url_indices(FLAGS_log_url_indices);
   }
   if (WasExplicitlySet("max_html_cache_time_ms")) {
     options->set_max_html_cache_time_ms(FLAGS_max_html_cache_time_ms);
@@ -535,14 +506,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("image_jpeg_recompress_quality_for_small_screens")) {
       options->set_image_jpeg_recompress_quality_for_small_screens(
           FLAGS_image_jpeg_recompress_quality_for_small_screens);
-  }
-  if (WasExplicitlySet("image_jpeg_num_progressive_scans")) {
-    options->set_image_jpeg_num_progressive_scans(
-        FLAGS_image_jpeg_num_progressive_scans);
-  }
-  if (WasExplicitlySet("image_jpeg_num_progressive_scans_for_small_screens")) {
-    options->set_image_jpeg_num_progressive_scans_for_small_screens(
-        FLAGS_image_jpeg_num_progressive_scans_for_small_screens);
   }
   if (WasExplicitlySet("image_webp_recompress_quality")) {
     options->set_image_webp_recompress_quality(
@@ -684,16 +647,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_blink_html_change_detection_time_ms(
         FLAGS_blink_html_change_detection_time_ms);
   }
-  if (WasExplicitlySet("enable_blink_html_change_detection")) {
-    options->set_enable_blink_html_change_detection(
-        FLAGS_enable_blink_html_change_detection);
-  }
   if (WasExplicitlySet("enable_blink_html_change_detection_logging")) {
     options->set_enable_blink_html_change_detection_logging(
         FLAGS_enable_blink_html_change_detection_logging);
-  }
-  if (WasExplicitlySet("use_smart_diff_in_blink")) {
-    options->set_use_smart_diff_in_blink(FLAGS_use_smart_diff_in_blink);
   }
   if (WasExplicitlySet("max_image_bytes_for_webp_in_css")) {
     options->set_max_image_bytes_for_webp_in_css(
@@ -702,10 +658,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("enable_lazyload_in_blink")) {
     options->set_enable_lazyload_in_blink(
         FLAGS_enable_lazyload_in_blink);
-  }
-  if (WasExplicitlySet("persist_blink_blacklist")) {
-    options->set_persist_blink_blacklist(
-        FLAGS_persist_blink_blacklist);
   }
   if (WasExplicitlySet("enable_prioritizing_scripts")) {
     options->set_enable_prioritizing_scripts(
@@ -874,7 +826,7 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   return FLAGS_lru_cache_size_bytes;
 }
 
-bool RewriteGflags::WasExplicitlySet(const char* name) {
+bool RewriteGflags::WasExplicitlySet(const char* name) const {
   CommandLineFlagInfo flag_info;
   CHECK(GetCommandLineFlagInfo(name, &flag_info));
   return !flag_info.is_default;

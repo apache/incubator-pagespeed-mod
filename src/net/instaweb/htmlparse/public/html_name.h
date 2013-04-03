@@ -145,7 +145,6 @@ class HtmlName {
     kName,
     kNav,
     kNoembed,
-    kNoframes,
     kNohref,
     kNoresize,
     kNoscript,

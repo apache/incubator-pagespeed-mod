@@ -39,6 +39,8 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -81,7 +83,7 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
   // Calls to finish initialization for given rewrite type; should be called
   // soon after construction.
   void SetupInlineRewrite();
-  void SetupExternalRewrite();
+  void SetupExternalRewrite(const GoogleUrl& base_gurl);
 
  protected:
   virtual void Render();
@@ -102,6 +104,9 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
 
   int pos_;  // our position in the list of all styles in the page.
   CssSummarizerBase* filter_;
+
+  // Base URL against which CSS in here is resolved.
+  GoogleUrl css_base_gurl_;
 
   // True if we're rewriting a <style> block, false if it's a <link>
   bool rewrite_inline_;
@@ -130,10 +135,16 @@ void CssSummarizerBase::InjectSummaryData(HtmlNode* data) {
 }
 
 void CssSummarizerBase::Context::SetupInlineRewrite() {
+  // To handle nested rewrites of inline CSS, we internally handle it
+  // as a rewrite of a data: URL.
+  css_base_gurl_.Reset(filter_->decoded_base_url());
+  DCHECK(css_base_gurl_.is_valid());
   rewrite_inline_ = true;
 }
 
-void CssSummarizerBase::Context::SetupExternalRewrite() {
+void CssSummarizerBase::Context::SetupExternalRewrite(
+    const GoogleUrl& base_gurl) {
+  css_base_gurl_.Reset(base_gurl);
   rewrite_inline_ = false;
 }
 
@@ -228,7 +239,19 @@ bool CssSummarizerBase::Context::Partition(OutputPartitions* partitions,
 }
 
 GoogleString CssSummarizerBase::Context::CacheKeySuffix() const {
-  return filter_->CacheKeySuffix();
+  GoogleString suffix;
+  if (rewrite_inline_) {
+    // Incorporate the base path of the HTML as part of the key --- it
+    // matters for inline CSS since resources are resolved against
+    // that (while it doesn't for external CSS, since that uses the
+    // stylesheet as the base).
+    // TODO(morlovich): this doesn't actually matter for what we use this for,
+    // though?
+    const Hasher* hasher = FindServerContext()->lock_hasher();
+    StrAppend(&suffix, "_@", hasher->Hash(css_base_gurl_.AllExceptLeaf()));
+  }
+
+  return suffix;
 }
 
 CssSummarizerBase::CssSummarizerBase(RewriteDriver* driver)
@@ -239,10 +262,6 @@ CssSummarizerBase::CssSummarizerBase(RewriteDriver* driver)
 
 CssSummarizerBase::~CssSummarizerBase() {
   Clear();
-}
-
-GoogleString CssSummarizerBase::CacheKeySuffix() const {
-  return GoogleString();
 }
 
 void CssSummarizerBase::NotifyInlineCss(HtmlElement* style_element,
@@ -297,7 +316,7 @@ void CssSummarizerBase::Characters(HtmlCharactersNode* characters_node) {
     // per <style> block even if it is split by a flush.
     // TODO(morlovich): Validate media
     injection_point_ = NULL;
-    StartInlineRewrite(style_element_, characters_node);
+    StartInlineRewrite(characters_node);
     NotifyInlineCss(style_element_, characters_node);
   } else if (injection_point_ != NULL &&
              !OnlyWhitespace(characters_node->contents())) {
@@ -388,13 +407,9 @@ void CssSummarizerBase::ReportSummariesDone() {
   SummariesDone();
 }
 
-void CssSummarizerBase::StartInlineRewrite(
-    HtmlElement* style, HtmlCharactersNode* text) {
+void CssSummarizerBase::StartInlineRewrite(HtmlCharactersNode* text) {
   ResourceSlotPtr slot(MakeSlotForInlineCss(text->contents()));
-  Context* context =
-      CreateContextAndSummaryInfo(style, false /* not external */,
-                                  slot, slot->LocationString(),
-                                  driver_->decoded_base());
+  Context* context = CreateContextForSlot(slot, slot->LocationString());
   context->SetupInlineRewrite();
   driver_->InitiateRewrite(context);
 }
@@ -418,10 +433,9 @@ void CssSummarizerBase::StartExternalRewrite(
     return;
   }
   ResourceSlotPtr slot(driver_->GetSlot(input_resource, link, src));
-  Context* context = CreateContextAndSummaryInfo(
-      link, true /* external*/, slot, input_resource->url() /* location*/,
-      input_resource->url() /* base */);
-  context->SetupExternalRewrite();
+  Context* context = CreateContextForSlot(slot, input_resource->url());
+  GoogleUrl input_resource_gurl(input_resource->url());
+  context->SetupExternalRewrite(input_resource_gurl);
   driver_->InitiateRewrite(context);
 }
 
@@ -437,22 +451,11 @@ ResourceSlot* CssSummarizerBase::MakeSlotForInlineCss(
   return new InlineCssSlot(input_resource, driver_->UrlLine());
 }
 
-CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(
-    const HtmlElement* element, bool external, const ResourceSlotPtr& slot,
-    const GoogleString& location, StringPiece base_for_resources) {
+CssSummarizerBase::Context* CssSummarizerBase::CreateContextForSlot(
+    const ResourceSlotPtr& slot, const GoogleString& location) {
   int id = summaries_.size();
   summaries_.push_back(SummaryInfo());
-  SummaryInfo& new_summary = summaries_.back();
-  new_summary.location = location;
-  base_for_resources.CopyToString(&new_summary.base);
-  const HtmlElement::Attribute* media_attribute =
-        element->FindAttribute(HtmlName::kMedia);
-  if (media_attribute != NULL &&
-      media_attribute->DecodedValueOrNull() != NULL) {
-    new_summary.media_from_html = media_attribute->DecodedValueOrNull();
-  }
-  new_summary.is_external = external;
-
+  summaries_.back().location = location;
   ++outstanding_rewrites_;
 
   Context* context = new Context(id, this, driver_);

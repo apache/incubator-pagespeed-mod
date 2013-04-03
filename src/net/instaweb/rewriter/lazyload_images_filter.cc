@@ -24,7 +24,6 @@
 #include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -67,12 +66,17 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
 void LazyloadImagesFilter::DetermineEnabled() {
-  RewriterStats::RewriterHtmlStatus should_apply = ShouldApply(driver());
-  set_is_enabled(should_apply == RewriterStats::ACTIVE);
-  if (!driver()->flushing_early()) {
-    driver()->log_record()->LogRewriterHtmlStatus(
+  bool should_apply = ShouldApply(driver());
+  set_is_enabled(should_apply);
+  LogRecord* log_record = driver()->log_record();
+  if (should_apply) {
+    log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-        should_apply);
+        RewriterStats::ACTIVE);
+  } else if (!driver()->flushing_early()) {
+    log_record->LogRewriterHtmlStatus(
+        RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
+        RewriterStats::USER_AGENT_NOT_SUPPORTED);
   }
 }
 
@@ -94,17 +98,9 @@ void LazyloadImagesFilter::Clear() {
   num_images_lazily_loaded_ = 0;
 }
 
-RewriterStats::RewriterHtmlStatus LazyloadImagesFilter::ShouldApply(
-    RewriteDriver* driver) {
-  if (!driver->device_properties()->SupportsLazyloadImages()) {
-    return RewriterStats::USER_AGENT_NOT_SUPPORTED;
-  }
-  if (driver->flushing_early() ||
-      (driver->request_headers() != NULL &&
-       driver->request_headers()->IsXmlHttpRequest())) {
-    return RewriterStats::DISABLED;
-  }
-  return RewriterStats::ACTIVE;
+bool LazyloadImagesFilter::ShouldApply(RewriteDriver* driver) {
+  return (!driver->flushing_early() &&
+          driver->device_properties()->SupportsLazyloadImages());
 }
 
 void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
@@ -254,7 +250,10 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
         return;
       }
     }
-    if (!main_script_inserted_) {
+    if (!main_script_inserted_ &&
+        // Split HTML filter sends the lazyload script after critical
+        // images are sent.
+        !driver_->options()->Enabled(RewriteOptions::kSplitHtml)) {
       InsertLazyloadJsCode(element);
      }
     // Replace the src with pagespeed_lazy_src.
@@ -282,7 +281,6 @@ void LazyloadImagesFilter::InsertLazyloadJsCode(HtmlElement* element) {
     GoogleString lazyload_js = GetLazyloadJsSnippet(
         driver()->options(), static_asset_manager);
     static_asset_manager->AddJsToElement(lazyload_js, script, driver());
-    driver()->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
   }
   main_script_inserted_ = true;
 }

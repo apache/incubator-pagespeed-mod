@@ -36,7 +36,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
   virtual bool HandleWrite(const StringPiece& content,
                            MessageHandler* handler) {
     counter_->byte_count_ += content.size();
-    return SharedAsyncFetch::HandleWrite(content, handler);
+    return base_fetch()->Write(content, handler);
   }
 
   virtual void HandleDone(bool success) {
@@ -45,7 +45,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
     if (!success) {
       ++counter_->failure_count_;
     }
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
     delete this;
   }
 

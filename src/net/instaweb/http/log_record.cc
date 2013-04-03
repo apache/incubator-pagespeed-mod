@@ -32,7 +32,6 @@ namespace net_instaweb {
 const char kRewriterIdSeparator[] = ",";
 
 LogRecord::LogRecord(AbstractMutex* mutex) : mutex_(mutex) {
-  // TODO(gee): Remove multiple initialization methods.
   InitLogging();
 }
 
@@ -41,14 +40,12 @@ LogRecord::LogRecord()
     : logging_info_(NULL),
       mutex_(NULL),
       rewriter_info_max_size_(-1),
-      allow_logging_urls_(false),
-      log_url_indices_(false) {}
+      allow_logging_urls_(false) {}
 
 void LogRecord::InitLogging() {
   logging_info_.reset(new LoggingInfo);
   rewriter_info_max_size_ = -1;
   allow_logging_urls_ = false;
-  log_url_indices_ = false;
 }
 
 LogRecord::~LogRecord() {
@@ -139,7 +136,7 @@ void LogRecord::SetRewriterLoggingStatus(
   }
 
   ScopedMutex lock(mutex_.get());
-  if ((allow_logging_urls_ || log_url_indices_) && url != "") {
+  if (allow_logging_urls_ && url != "") {
     PopulateUrl(url, rewriter_info->mutable_rewrite_resource_info());
   }
 
@@ -275,37 +272,6 @@ void LogRecord::SetAllowLoggingUrls(bool allow_logging_urls) {
   allow_logging_urls_ = allow_logging_urls;
 }
 
-void LogRecord::SetLogUrlIndices(bool log_url_indices) {
-  ScopedMutex lock(mutex_.get());
-  log_url_indices_ = log_url_indices;
-}
-
-void LogRecord::LogFlushEarlyActivity(
-    const char* id,
-    const GoogleString& url,
-    RewriterInfo::RewriterApplicationStatus status,
-    FlushEarlyResourceInfo::ContentType content_type,
-    FlushEarlyResourceInfo::ResourceType resource_type,
-    bool is_bandwidth_affected,
-    bool in_head) {
-  RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
-    return;
-  }
-
-  ScopedMutex lock(mutex_.get());
-  if ((allow_logging_urls_ || log_url_indices_) && url != "") {
-    PopulateUrl(url, rewriter_info->mutable_rewrite_resource_info());
-  }
-  rewriter_info->set_status(status);
-  FlushEarlyResourceInfo* flush_early_resource_info =
-      rewriter_info->mutable_flush_early_resource_info();
-  flush_early_resource_info->set_content_type(content_type);
-  flush_early_resource_info->set_resource_type(resource_type);
-  flush_early_resource_info->set_is_bandwidth_affected(is_bandwidth_affected);
-  flush_early_resource_info->set_in_head(in_head);
-}
-
 void LogRecord::LogImageRewriteActivity(
     const char* id,
     const GoogleString& url,
@@ -325,7 +291,7 @@ void LogRecord::LogImageRewriteActivity(
   ScopedMutex lock(mutex_.get());
   RewriteResourceInfo* rewrite_resource_info =
       rewriter_info->mutable_rewrite_resource_info();
-  if ((allow_logging_urls_ || log_url_indices_) && url != "") {
+  if (allow_logging_urls_ && url != "") {
     PopulateUrl(url, rewrite_resource_info);
   }
 
@@ -380,17 +346,14 @@ void LogRecord::LogLazyloadFilter(
 
 void LogRecord::PopulateUrl(
     const GoogleString& url, RewriteResourceInfo* rewrite_resource_info) {
-  mutex()->DCheckLocked();
   std::pair<StringIntMap::iterator, bool> result = url_index_map_.insert(
       std::make_pair(url, 0));
   StringIntMap::iterator iter = result.first;
   if (result.second) {
-    iter->second = url_index_map_.size() - 1;
-    if (allow_logging_urls_) {
-      ResourceUrlInfo* resource_url_info =
-          logging_info()->mutable_resource_url_info();
-      resource_url_info->add_url(url);
-    }
+    ResourceUrlInfo* resource_url_info =
+        logging_info()->mutable_resource_url_info();
+    resource_url_info->add_url(url);
+    iter->second =  resource_url_info->url_size() - 1;
   }
 
   rewrite_resource_info->set_original_resource_url_index(iter->second);
@@ -425,11 +388,11 @@ void LogRecord::SetCriticalCssInfo(int critical_inlined_bytes,
 
 void LogRecord::PopulateRewriterStatusCounts() {
   mutex_->DCheckLocked();
-  if (logging_info() == NULL) {
+  if (logging_info_.get() == NULL) {
     return;
   }
 
-  if (logging_info()->rewriter_stats_size() > 0) {
+  if (logging_info_->rewriter_stats_size() > 0) {
     DLOG(FATAL) <<  "PopulateRewriterStatusCounts should be called only once";
     return;
   }
@@ -439,7 +402,7 @@ void LogRecord::PopulateRewriterStatusCounts() {
        ++iter) {
     const GoogleString& rewriter_id = iter->first;
     const RewriterStatsInternal& stats = iter->second;
-    RewriterStats* stats_proto = logging_info()->add_rewriter_stats();
+    RewriterStats* stats_proto = logging_info_->add_rewriter_stats();
     stats_proto->set_id(rewriter_id);
     stats_proto->set_html_status(stats.html_status);
     for (std::map<int, int>::const_iterator iter = stats.status_counts.begin();
@@ -455,92 +418,6 @@ void LogRecord::PopulateRewriterStatusCounts() {
       status_count->set_count(count);
     }
   }
-}
-
-void LogRecord::LogDeviceInfo(
-    int device_type,
-    bool supports_image_inlining,
-    bool supports_lazyload_images,
-    bool supports_critical_images_beacon,
-    bool supports_deferjs,
-    bool supports_webp,
-    bool supports_webplossless_alpha,
-    bool is_bot,
-    bool supports_split_html,
-    bool can_preload_resources) {
-  ScopedMutex lock(mutex_.get());
-  DeviceInfo* device_info = logging_info()->mutable_device_info();
-  device_info->set_device_type(device_type);
-  device_info->set_supports_image_inlining(supports_image_inlining);
-  device_info->set_supports_lazyload_images(supports_lazyload_images);
-  device_info->set_supports_critical_images_beacon(
-      supports_critical_images_beacon);
-  device_info->set_supports_deferjs(supports_deferjs);
-  device_info->set_supports_webp(supports_webp);
-  device_info->set_supports_webplossless_alpha(supports_webplossless_alpha);
-  device_info->set_is_bot(is_bot);
-  device_info->set_supports_split_html(supports_split_html);
-  device_info->set_can_preload_resources(can_preload_resources);
-}
-
-void LogRecord::LogImageBackgroundRewriteActivity(
-    RewriterInfo::RewriterApplicationStatus status,
-    const GoogleString& url,
-    const char* id,
-    int original_size,
-    int optimized_size,
-    bool is_recompressed,
-    ImageType original_image_type,
-    ImageType optimized_image_type,
-    bool is_resized) {
-  RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
-    return;
-  }
-
-  ScopedMutex lock(mutex());
-  RewriteResourceInfo* rewrite_resource_info =
-      rewriter_info->mutable_rewrite_resource_info();
-
-  // Log the URL and URL indices if rewriting failed and if logging them
-  // are enabled.
-  if ((status != RewriterInfo::APPLIED_OK) &&
-      (allow_logging_urls_ || log_url_indices_) && !url.empty()) {
-    PopulateUrl(url, rewrite_resource_info);
-  }
-
-  rewriter_info->set_id(id);
-  rewriter_info->set_status(status);
-
-  rewrite_resource_info->set_original_size(original_size);
-  // Size of the optimized image is logged when it is different from that of
-  // the original image.
-  if (original_size != optimized_size) {
-    rewrite_resource_info->set_optimized_size(optimized_size);
-  }
-  rewrite_resource_info->set_is_recompressed(is_recompressed);
-
-  ImageRewriteResourceInfo* image_rewrite_resource_info =
-      rewriter_info->mutable_image_rewrite_resource_info();
-  image_rewrite_resource_info->set_original_image_type(
-      original_image_type);
-  // Type of the optimized image is logged when it is different from that of
-  // the original image.
-  if (original_image_type != optimized_image_type) {
-    image_rewrite_resource_info->set_optimized_image_type(
-        optimized_image_type);
-  }
-
-  image_rewrite_resource_info->set_is_resized(is_resized);
-}
-
-void LogRecord::SetBackgroundRewriteInfo(
-    bool log_urls,
-    bool log_url_indices,
-    int max_rewrite_info_log_size) {
-  SetAllowLoggingUrls(log_urls);
-  SetLogUrlIndices(log_url_indices);
-  SetRewriterInfoMaxSize(max_rewrite_info_log_size);
 }
 
 }  // namespace net_instaweb

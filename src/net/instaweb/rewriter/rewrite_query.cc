@@ -88,11 +88,7 @@ static struct Int64QueryParam int64_query_params_[] = {
   { "ModPagespeedJpegRecompressionQuality",
     &RewriteOptions::set_image_jpeg_recompress_quality },
   { "ModPagespeedJpegRecompressionQualityForSmallScreens",
-    &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
-  { "ModPagespeedJpegNumProgressiveScans",
-    &RewriteOptions::set_image_jpeg_num_progressive_scans },
-  { "ModPagespeedJpegNumProgressiveScansForSmallScreens",
-      &RewriteOptions::set_image_jpeg_num_progressive_scans_for_small_screens },
+      &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
   { "ModPagespeedImageRecompressionQuality",
     &RewriteOptions::set_image_recompress_quality },
   { "ModPagespeedWebpRecompressionQuality",
@@ -201,7 +197,8 @@ RewriteQuery::Status RewriteQuery::Scan(
 
   scoped_ptr<DeviceProperties> device_properties;
   if (request_headers != NULL) {
-    device_properties.reset(server_context->NewDeviceProperties());
+    device_properties.reset(
+        new DeviceProperties(server_context->user_agent_matcher()));
     device_properties->set_user_agent(
         request_headers->Lookup1(HttpAttributes::kUserAgent));
   }
@@ -289,7 +286,7 @@ bool RewriteQuery::MayHaveCustomOptions(
   for (int i = 0, n = params.size(); i < n; ++i) {
     StringPiece name(params.name(i));
     if (name.starts_with(kModPagespeed) ||
-        StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+        name == HttpAttributes::kXPsaClientOptions) {
       return true;
     }
   }
@@ -342,7 +339,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     } else {
       status = kInvalid;
     }
-  } else if (StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+  } else if (name == HttpAttributes::kXPsaClientOptions) {
     if (UpdateRewriteOptionsWithClientOptions(
         value, device_properties, options)) {
       status = kSuccess;
@@ -489,15 +486,14 @@ bool RewriteQuery::ParseProxyMode(
 }
 
 bool RewriteQuery::ParseImageQualityPreference(
-    const GoogleString* preference_value,
-    DeviceProperties::ImageQualityPreference* preference) {
+    const GoogleString* preference_name, ImageQualityPreference* preference) {
   int value = 0;
-  if (preference_value != NULL &&
-      !preference_value->empty() &&
-      StringToInt(*preference_value, &value) &&
-      value >= DeviceProperties::kImageQualityDefault &&
-      value <= DeviceProperties::kImageQualityHigh) {
-    *preference = static_cast<DeviceProperties::ImageQualityPreference>(value);
+  if (preference_name != NULL &&
+      !preference_name->empty() &&
+      StringToInt(*preference_name, &value) &&
+      value >= kImageQualityDefault &&
+      value <= kImageQualityHigh) {
+    *preference = static_cast<ImageQualityPreference>(value);
     return true;
   }
   return false;
@@ -505,7 +501,7 @@ bool RewriteQuery::ParseImageQualityPreference(
 
 bool RewriteQuery::ParseClientOptions(
     const StringPiece& client_options, ProxyMode* proxy_mode,
-    DeviceProperties::ImageQualityPreference* image_quality_preference) {
+    ImageQualityPreference* image_quality_preference) {
   StringMultiMapSensitive options;
   options.AddFromNameValuePairs(
       client_options, kProxyOptionSeparator, kProxyOptionValueSeparator,
@@ -517,7 +513,7 @@ bool RewriteQuery::ParseClientOptions(
   if (version_value != NULL &&
       *version_value == kProxyOptionValidVersionValue) {
     *proxy_mode = kProxyModeDefault;
-    *image_quality_preference = DeviceProperties::kImageQualityDefault;
+    *image_quality_preference = kImageQualityDefault;
     ParseProxyMode(options.Lookup1(kProxyOptionMode), proxy_mode);
 
     if (*proxy_mode == kProxyModeDefault) {
@@ -531,20 +527,16 @@ bool RewriteQuery::ParseClientOptions(
 }
 
 bool RewriteQuery::SetEffectiveImageQualities(
-    DeviceProperties::ImageQualityPreference quality_preference,
+    ImageQualityPreference quality_preference,
     DeviceProperties* device_properties,
     RewriteOptions* options) {
-  if (quality_preference == DeviceProperties::kImageQualityDefault ||
+  if (quality_preference == kImageQualityDefault ||
       device_properties == NULL) {
     return false;
   }
-  int webp = -1, jpeg = -1;
-  if (device_properties->GetPreferredImageQualities(
-      quality_preference, &webp, &jpeg)) {
-    options->set_image_webp_recompress_quality(webp);
-    options->set_image_jpeg_recompress_quality(jpeg);
-    return true;
-  }
+  // TODO(bolian): Set jpeg and webp image qualities based on screen
+  // resolution and client hint options.
+  // For now, do nothing and keep using default values.
   return false;
 }
 
@@ -552,8 +544,7 @@ bool RewriteQuery::UpdateRewriteOptionsWithClientOptions(
     const GoogleString& client_options, DeviceProperties* device_properties,
     RewriteOptions* options) {
   ProxyMode proxy_mode = kProxyModeDefault;
-  DeviceProperties::ImageQualityPreference quality_preference =
-      DeviceProperties::kImageQualityDefault;
+  ImageQualityPreference quality_preference = kImageQualityDefault;
   if (!ParseClientOptions(client_options, &proxy_mode, &quality_preference)) {
     return false;
   }

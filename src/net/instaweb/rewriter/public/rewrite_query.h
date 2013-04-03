@@ -15,7 +15,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 
-#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -23,6 +22,7 @@
 
 namespace net_instaweb {
 
+class DeviceProperties;
 class GoogleUrl;
 class MessageHandler;
 class QueryParams;
@@ -112,7 +112,6 @@ class RewriteQuery {
   FRIEND_TEST(RewriteQueryTest, ClientOptionsMultipleHeaders);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsOrder1);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsOrder2);
-  FRIEND_TEST(RewriteQueryTest, ClientOptionsCaseInsensitive);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsNonDefaultProxyMode);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsValidVersionBadOptions);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsInvalidVersion);
@@ -125,6 +124,17 @@ class RewriteQuery {
     // Client prefers that no resource be transformed.
     // This is equivalent to "?ModPagespeedFilters=" in the request URL.
     kProxyModeNoTransform,
+  };
+
+  enum ImageQualityPreference {
+    // Client prefers that the server uses its own default image quality.
+    kImageQualityDefault,
+    // Client prefers lows image quality.
+    kImageQualityLow,
+    // Client prefers medium image quality.
+    kImageQualityMedium,
+    // Client prefers high image quality.
+    kImageQualityHigh,
   };
 
   // Returns true if the params/headers look like they might have some
@@ -155,12 +165,12 @@ class RewriteQuery {
   static bool ParseClientOptions(
       const StringPiece& client_options,
       ProxyMode* proxy_mode,
-      DeviceProperties::ImageQualityPreference* image_quality);
+      ImageQualityPreference* image_quality);
 
   // Set image qualities in options.
   // Returns true if any option is explicitly set.
   static bool SetEffectiveImageQualities(
-      DeviceProperties::ImageQualityPreference quality_preference,
+      ImageQualityPreference quality_preference,
       DeviceProperties* device_properties,
       RewriteOptions* options);
 
@@ -174,8 +184,7 @@ class RewriteQuery {
 
   // Returns true if a valid ImageQualityPreference parsed and returned.
   static bool ParseImageQualityPreference(
-      const GoogleString* preference_name,
-      DeviceProperties::ImageQualityPreference* preference);
+      const GoogleString* preference_name, ImageQualityPreference* preference);
 };
 
 }  // namespace net_instaweb

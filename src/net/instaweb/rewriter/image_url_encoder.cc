@@ -277,7 +277,7 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
 
   if (options->NeedLowResImages() &&
       options->Enabled(RewriteOptions::kResizeMobileImages) &&
-      driver.device_properties()->IsMobile()) {
+      driver.device_properties()->IsMobileUserAgent()) {
     context->set_mobile_user_agent(true);
   }
 }

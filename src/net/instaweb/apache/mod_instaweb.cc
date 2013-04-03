@@ -374,7 +374,9 @@ InstawebContext* build_context_for_request(request_rec* request) {
   const RewriteOptions* options = host_options;
   bool use_custom_options = false;
 
-  manager->FlushCacheIfNecessary();
+  // TODO(jmarantz): ASAP, add polling to instaweb_handler.cc so we don't
+  // serve stale resources from alternate servers.
+  manager->PollFilesystemForCacheFlush();
 
   if ((directory_options != NULL) && directory_options->modified()) {
     custom_options.reset(factory->NewRewriteOptions());

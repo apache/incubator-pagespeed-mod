@@ -457,8 +457,8 @@ class FakeBlinkCriticalLineDataFinder : public BlinkCriticalLineDataFinder {
   }
 
   virtual bool UpdateDiffInfo(
-      bool is_diff, int64 now_ms, LogRecord* blink_log_record,
-      RewriteDriver* rewrite_driver, RewriteDriverFactory* factory) {
+      bool is_diff, int64 now_ms, RewriteDriver* rewrite_driver,
+      RewriteDriverFactory* factory) {
     EXPECT_EQ(expect_diff_update_mismatch_, is_diff);
     return false;
   }
@@ -639,7 +639,7 @@ class BlinkFlowCriticalLineTest : public RewriteTestBase {
     noblink_output_with_lazy_load_ = StringPrintf(kLazyLoadHtml,
         StringPrintf(kNoScriptRedirectFormatter,
                      kNoScriptTextUrl, kNoScriptTextUrl).c_str(),
-        StrCat("<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
+        StrCat("<script type=\"text/javascript\">",
                lazyload_js_code, "\npagespeed.lazyLoadInit(false, \"",
                blank_gif_url,
                "\");\n</script>").c_str());
@@ -804,9 +804,9 @@ class BlinkFlowCriticalLineTest : public RewriteTestBase {
                                        ResponseHeaders* headers_out,
                                        GoogleString* user_agent_out,
                                        bool wait_for_background_computation) {
-    FetchFromProxy(url, expect_success, request_headers, string_out,
-                   headers_out, user_agent_out,
-                   wait_for_background_computation);
+  FetchFromProxy(url, expect_success, request_headers, string_out,
+                 headers_out, user_agent_out,
+                 wait_for_background_computation);
   }
 
   void VerifyNonBlinkResponse(ResponseHeaders* response_headers) {
@@ -2221,34 +2221,6 @@ TEST_F(BlinkFlowCriticalLineTest,
       BlinkFlowCriticalLine::kNumBlinkHtmlCacheHits)->Get());
   VerifyBlinkInfo(BlinkInfo::BLINK_CACHE_HIT, false,
                   "http://test.com/flaky.html");
-}
-
-TEST_F(BlinkFlowCriticalLineTest, TestBlinkBlacklisted) {
-  options_->ClearSignatureForTesting();
-  options_->set_blink_blacklist_end_timestamp_ms(timer()->NowMs() + 100);
-  server_context()->ComputeSignature(options_.get());
-  GoogleString text;
-  ResponseHeaders response_headers;
-
-  FetchFromProxy("noblink_text.html", true, &text, &response_headers, false);
-  EXPECT_STREQ(noblink_output_, text);
-  // No blink flow should have happened.
-  EXPECT_EQ(0, statistics()->FindVariable(
-      ProxyInterface::kBlinkCriticalLineRequestCount)->Get());
-  EXPECT_EQ(BlinkInfo::BLINK_BLACKLISTED,
-            logging_info()->blink_info().blink_request_flow());
-  ClearStats();
-
-  // Advance time beyond the blacklist end point.
-  AdvanceTimeMs(101);
-
-  FetchFromProxy("noblink_text.html", true, &text, &response_headers, true);
-  EXPECT_STREQ(kHtmlInputForNoBlink, text);
-  // Blink flow should have happened.
-  EXPECT_EQ(1, statistics()->FindVariable(
-      ProxyInterface::kBlinkCriticalLineRequestCount)->Get());
-  VerifyBlinkInfo(BlinkInfo::BLINK_CACHE_MISS_TRIGGERED_REWRITE,
-                  "http://test.com/noblink_text.html");
 }
 
 }  // namespace net_instaweb

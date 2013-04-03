@@ -77,19 +77,6 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     page_ = NewMockPage(kRequestUrl);
     rewrite_driver()->set_property_page(page_);
     pcache_->Read(page_);
-    SetHtmlMimetype();  // Don't wrap scripts in <![CDATA[ ]]>
-  }
-
-  GoogleString LoadRestOfCss(StringPiece orig_css) {
-    return StrCat("<noscript id=\"psa_add_styles\">", orig_css, "</noscript>",
-                  StrCat("<script type=\"text/javascript\">",
-                         CriticalSelectorFilter::kAddStylesScript,
-                         "</script>"));
-  }
-
-  GoogleString CssLinkHrefMedia(StringPiece url, StringPiece media) {
-    return StrCat("<link rel=stylesheet href=", url,
-                  " media=\"", media, "\">");
   }
 
   virtual bool AddHtmlTags() const { return false; }
@@ -123,153 +110,11 @@ TEST_F(CriticalSelectorFilterTest, BasicOperation) {
   ValidateExpected(
       "foo", html,
       StrCat("<head><style>", critical_css, "</style></head>",
-             "<body><div>Stuff</div></body>",
-             LoadRestOfCss(css)));
-}
-
-TEST_F(CriticalSelectorFilterTest, Media) {
-  GoogleString css = StrCat(
-      "<style media=screen,print>*,p {display: none; } "
-          "span {display: inline; }</style>",
-      CssLinkHrefMedia("a.css", "screen"),
-      CssLinkHrefMedia("b.css", "screen and (color), aural"));
-
-  GoogleString critical_css =
-      "<style media=\"screen\">"
-          "*{display:none}"  // from the inline
-          "div,*::first-letter{display:block}"  // from a.css
-      "</style>"
-      "<style media=\"screen and (color)\">"
-          "@media screen{*{margin:0px}}"  // from b.css
-      "</style>";
-
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
-
-  // First run just collects the result into pcache.
-  ValidateNoChanges("foo", html);
-
-  ResetDriver();
-  ValidateExpected(
-      "foo", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div></body>",
-             LoadRestOfCss(css)));
-}
-
-TEST_F(CriticalSelectorFilterTest, NonScreenMedia) {
-  GoogleString css = StrCat(
-      "<style media=print>*,p {display: none; } "
-          "span {display: inline; }</style>",
-      CssLinkHrefMedia("a.css", "screen"),
-      CssLinkHrefMedia("b.css", "screen and (color), aural"));
-
-  GoogleString critical_css =
-      "<style media=\"screen\">"
-          "div,*::first-letter{display:block}"  // from a.css
-      "</style>"
-      "<style media=\"screen and (color)\">"
-          "@media screen{*{margin:0px}}"  // from b.css
-      "</style>";
-
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
-
-  // First run just collects the result into pcache.
-  ValidateNoChanges("foo", html);
-
-  ResetDriver();
-  ValidateExpected(
-      "foo", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div></body>",
-             LoadRestOfCss(css)));
-}
-
-TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
-  // We should not reuse results for same CSS when selectors are different.
-  GoogleString css = "<style>div,span { display: inline-block; }</style>";
-
-  GoogleString critical_css_div = "div{display:inline-block}";
-  GoogleString critical_css_span = "span{display:inline-block}";
-
-  // Check what we compute for a page with div.
-  ValidateNoChanges("with_div", StrCat(css, "<div>Foo</div>"));
-  ResetDriver();
-  ValidateExpected("with_div", StrCat(css, "<div>Foo</div>"),
-                   StrCat("<style>", critical_css_div, "</style>",
-                          "<div>Foo</div>", LoadRestOfCss(css)));
-
-  // Now do it on a page with spans, with selector list updated appropriately.
-  // We also clear the property cache entry for our result, which is needed
-  // because the test harness not really keying the pcache by the URL like
-  // the real system would.
-  StringSet selectors;
-  selectors.insert("span");
-  server_context()->critical_selector_finder()->
-      WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
-  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
-  page_->DeleteProperty(
-      pcache_->GetCohort(RewriteDriver::kDomCohort),
-      CriticalSelectorFilter::kSummarizedCssProperty);
-  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kDomCohort));
-
-  ResetDriver();
-
-  ValidateNoChanges("with_span", StrCat(css, "<span>Foo</span>"));
-  ResetDriver();
-  ValidateExpected("width_span", StrCat(css, "<span>Foo</span>"),
-                   StrCat("<style>", critical_css_span, "</style>",
-                          "<span>Foo</span>", LoadRestOfCss(css)));
-}
-
-TEST_F(CriticalSelectorFilterTest, RetainPseudoOnly) {
-  // Make sure we handle things like :hover OK.
-  GoogleString css = ":hover { border: 2px solid red; }";
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                css, 100);
-  ValidateNoChanges("hover", CssLinkHref("c.css"));
-  ResetDriver();
-  ValidateExpected("hover", CssLinkHref("c.css"),
-                   StrCat("<style>:hover{border:2px solid red}</style>",
-                          LoadRestOfCss(CssLinkHref("c.css"))));
-}
-
-TEST_F(CriticalSelectorFilterTest, RetainUnparseable) {
-  // Make sure we keep unparseable fragments around, particularly when
-  // the problem is with the selector, as well as with the entire region.
-  GoogleString css = "!huh! {background: white; } @huh { display: block; }";
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                css, 100);
-  ValidateNoChanges("partly_unparseable", CssLinkHref("c.css"));
-  ResetDriver();
-  ValidateExpected(
-      "partly_unparseable", CssLinkHref("c.css"),
-      StrCat("<style>!huh! {background:#fff}@huh { display: block; }</style>",
-             LoadRestOfCss(CssLinkHref("c.css"))));
-}
-
-TEST_F(CriticalSelectorFilterTest, NoSelectorInfo) {
-  // Particular CSS doesn't matter here, just want some.
-  GoogleString css = "<style>div,span { display: inline-block; }</style>";
-
-  // We shouldn't change things when there is no info on selectors available.
-  page_->DeleteProperty(
-      pcache_->GetCohort(RewriteDriver::kBeaconCohort),
-      CriticalSelectorFinder::kCriticalSelectorsPropertyName);
-  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
-
-  ResetDriver();
-  ValidateNoChanges("no_sel_info", StrCat(css, "<div>Foo</div>"));
-
-  ResetDriver();
-  ValidateNoChanges("no_sel_info", StrCat(css, "<div>Foo</div>"));
+              "<body><div>Stuff</div></body>",
+              "<noscript id=\"psa_add_styles\">", css, "</noscript>",
+              StrCat("<script type=\"text/javascript\">//<![CDATA[\n",
+                     CriticalSelectorFilter::kAddStylesScript,
+                     "\n//]]></script>")));
 }
 
 }  // namespace

@@ -22,7 +22,6 @@
 #include <map>
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -99,23 +98,6 @@ class LogRecord  {
   // guard any reads and writes to this using mutex().
   virtual LoggingInfo* logging_info();
 
-  // TODO(huibao): Rename LogImageBackgroundRewriteActivity() to make it clear
-  // that it will log even when the rewriting finishes in the line-of-request.
-
-  // Log image rewriting activity, which may not finish when the request
-  // processing is done. The outcome is a new log record with request type
-  // set to "BACKGROUND_REWRITE".
-  void LogImageBackgroundRewriteActivity(
-      RewriterInfo::RewriterApplicationStatus status,
-      const GoogleString& url,
-      const char* id,
-      int original_size,
-      int optimized_size,
-      bool is_recompressed,
-      ImageType original_image_type,
-      ImageType optimized_image_type,
-      bool is_resized);
-
   // Atomically sets is_html_response in the logging proto.
   void SetIsHtml(bool is_html);
 
@@ -160,16 +142,6 @@ class LogRecord  {
   // Override SetCacheHtmlInfoImpl if necessary.
   void SetCacheHtmlLoggingInfo(const GoogleString& user_agent);
 
-  // Log a RewriterInfo for the flush early filter.
-  void LogFlushEarlyActivity(
-      const char* id,
-      const GoogleString& url,
-      RewriterInfo::RewriterApplicationStatus status,
-      FlushEarlyResourceInfo::ContentType content_type,
-      FlushEarlyResourceInfo::ResourceType resource_type,
-      bool is_bandwidth_affected,
-      bool in_head);
-
   // Log a RewriterInfo for the image rewrite filter.
   void LogImageRewriteActivity(
       const char* id,
@@ -204,10 +176,6 @@ class LogRecord  {
   // of logs data, so this should be switched on only for debugging.
   void SetAllowLoggingUrls(bool allow_logging_urls);
 
-  // Sets whether URL indices should be logged for every rewriter application
-  // or not.
-  void SetLogUrlIndices(bool log_url_indices);
-
   // Sets the number of critical images in HTML.
   void SetNumHtmlCriticalImages(int num_html_critical_images);
 
@@ -221,26 +189,6 @@ class LogRecord  {
   void SetCriticalCssInfo(int critical_inlined_bytes,
                           int original_external_bytes,
                           int overhead_bytes);
-
-  // Log information related to the user agent and device making the request.
-  void LogDeviceInfo(
-      int device_type,
-      bool supports_image_inlining,
-      bool supports_lazyload_images,
-      bool supports_critical_images_beacon,
-      bool supports_deferjs,
-      bool supports_webp,
-      bool supports_webplossless_alpha,
-      bool is_bot,
-      bool supports_split_html,
-      bool can_preload_resources);
-
-  // Sets initial information for background rewrite log.
-  virtual void SetBackgroundRewriteInfo(
-    bool log_urls,
-    bool log_url_indices,
-    int max_rewrite_info_log_size);
-
 
  protected:
   // Non-initializing default constructor for subclasses. Subclasses that invoke
@@ -282,9 +230,6 @@ class LogRecord  {
 
   // Allow urls to be logged.
   bool allow_logging_urls_;
-
-  // Allow url indices to be logged.
-  bool log_url_indices_;
 
   // Map which maintains the url to index for logging urls.
   StringIntMap url_index_map_;

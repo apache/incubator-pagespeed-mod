@@ -30,7 +30,6 @@ struct FilterMap {
 "add_base_tag",                      RewriteOptions::kAddBaseTag
 "add_head",                          RewriteOptions::kAddHead
 "add_instrumentation",               RewriteOptions::kAddInstrumentation
-"cache_partial_html",                RewriteOptions::kCachePartialHtml
 "canonicalize_javascript_libraries", RewriteOptions::kCanonicalizeJavascriptLibraries
 "collapse_whitespace",               RewriteOptions::kCollapseWhitespace
 "combine_css",                       RewriteOptions::kCombineCss
@@ -53,6 +52,7 @@ struct FilterMap {
 "disable_javascript",                RewriteOptions::kDisableJavascript
 "div_structure",                     RewriteOptions::kDivStructure
 "elide_attributes",                  RewriteOptions::kElideAttributes
+"experiment_spdy",                   RewriteOptions::kExperimentSpdy
 "explicit_close_tags",               RewriteOptions::kExplicitCloseTags
 "extend_cache_css",                  RewriteOptions::kExtendCacheCss
 "extend_cache_images",               RewriteOptions::kExtendCacheImages

@@ -40,12 +40,11 @@
 namespace net_instaweb {
 
 // RewriteFilter prefixes
-const char RewriteOptions::kCacheExtenderId[] = "ce";
-const char RewriteOptions::kCollectFlushEarlyContentFilterId[] = "fe";
 const char RewriteOptions::kCssCombinerId[] = "cc";
 const char RewriteOptions::kCssFilterId[] = "cf";
 const char RewriteOptions::kCssImportFlattenerId[] = "if";
 const char RewriteOptions::kCssInlineId[] = "ci";
+const char RewriteOptions::kCacheExtenderId[] = "ce";
 const char RewriteOptions::kImageCombineId[] = "is";
 const char RewriteOptions::kImageCompressionId[] = "ic";
 const char RewriteOptions::kInPlaceRewriteId[] = "aj";  // Comes from ajax.
@@ -53,6 +52,7 @@ const char RewriteOptions::kJavascriptCombinerId[] = "jc";
 const char RewriteOptions::kJavascriptMinId[] = "jm";
 const char RewriteOptions::kJavascriptInlineId[] = "ji";
 const char RewriteOptions::kLocalStorageCacheId[] = "ls";
+const char RewriteOptions::kCollectFlushEarlyContentFilterId[] = "fe";
 const char RewriteOptions::kPanelCommentPrefix[] = "GooglePanel";
 const char RewriteOptions::kPrioritizeCriticalCssId[] = "pr";
 
@@ -132,8 +132,8 @@ const int64 RewriteOptions::kDefaultImagesRecompressQuality = -1;
 const int64 RewriteOptions::kDefaultImageJpegRecompressQuality = -1;
 
 // Number of scans to output for jpeg images when using progressive mode. If set
-// to -1, we do not produce progressive jpegs.
-const int64 RewriteOptions::kDefaultImageJpegNumProgressiveScans = -1;
+// to -1, we ignore this setting.
+const int RewriteOptions::kDefaultImageJpegNumProgressiveScans = -1;
 
 // Percentage savings in order to retain rewritten images; these default
 // to 100% so that we always attempt to resize downsized images, and
@@ -265,7 +265,7 @@ const RewriteOptions::Filter kTestFilterSet[] = {
 
 // Note: These filters should not be included even if the level is "All".
 const RewriteOptions::Filter kDangerousFilterSet[] = {
-  RewriteOptions::kCachePartialHtml,
+  RewriteOptions::kCacheHtml,
   RewriteOptions::kCanonicalizeJavascriptLibraries,
   RewriteOptions::kComputeVisibleText,  // internal, enabled conditionally
   RewriteOptions::kDeferIframe,
@@ -275,6 +275,7 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kDeterministicJs,   // used for measurement
   RewriteOptions::kDisableJavascript,
   RewriteOptions::kDivStructure,
+  RewriteOptions::kExperimentSpdy,
   RewriteOptions::kExplicitCloseTags,
   RewriteOptions::kLazyloadImages,
   RewriteOptions::kPrioritizeCriticalCss,
@@ -292,7 +293,7 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
 // SupportNoscriptFilter::IsAnyFilterRequiringScriptExecutionEnabled() method
 // if you update this list.
 const RewriteOptions::Filter kRequiresScriptExecutionFilterSet[] = {
-  RewriteOptions::kCachePartialHtml,
+  RewriteOptions::kCacheHtml,
   RewriteOptions::kDeferIframe,
   RewriteOptions::kDeferJavascript,
   RewriteOptions::kDelayImages,
@@ -304,9 +305,6 @@ const RewriteOptions::Filter kRequiresScriptExecutionFilterSet[] = {
   // We do not include kPrioritizeVisibleContent since we do not want to attach
   // SupportNoscriptFilter in the case of blink pcache miss pass-through, since
   // this response will not have any custom script inserted.
-  // Do the various critical css filters belong here?  Arguably not, since even
-  // if we transform a page based on beacon results we'll enclose the necessary
-  // in a noscript block and the page will still load / function normally.
 };
 
 // Array of mappings from Filter enum to corresponding filter id and name,
@@ -327,8 +325,8 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ai", "Add Instrumentation" },
   { RewriteOptions::kComputeStatistics,
     "ca", "Compute HTML statistics" },
-  { RewriteOptions::kCachePartialHtml,
-    "ct", "Cache Partial Html" },
+  { RewriteOptions::kCacheHtml,
+    "ct", "Cache Html" },
   { RewriteOptions::kCanonicalizeJavascriptLibraries,
     "ij", "Canonicalize Javascript library URLs" },
   { RewriteOptions::kCollapseWhitespace,
@@ -378,6 +376,8 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ds", "Div Structure" },
   { RewriteOptions::kElideAttributes,
     "ea", "Elide Attributes" },
+  { RewriteOptions::kExperimentSpdy,
+    "xs", "SPDY Resources Experiment" },
   { RewriteOptions::kExplicitCloseTags,
     "xc", "Explicit Close Tags" },
   { RewriteOptions::kExtendCacheCss,
@@ -485,7 +485,7 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
 const RewriteOptions::Filter kImagePreserveUrlForbiddenFilters[] = {
     // TODO(jkarlin): Remove kResizeImages from the forbid list and allow image
     // squashing prefetching in HTML path (but don't allow resizing based on
-    // HTML attributes).
+    // HTML attributes.
   RewriteOptions::kDelayImages,
   RewriteOptions::kExtendCacheImages,
   RewriteOptions::kInlineImages,
@@ -554,10 +554,6 @@ const char* RewriteOptions::FilterId(Filter filter) {
   }
   LOG(DFATAL) << "Unknown filter code: " << filter;
   return "UF";
-}
-
-int RewriteOptions::NumFilterIds() {
-  return arraysize(kFilterVectorStaticInitializer);
 }
 
 bool RewriteOptions::ParseRewriteLevel(
@@ -926,20 +922,10 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "How often (in seconds) to reinstrument pages with beacons.");
   AddBaseProperty(
-      false, &RewriteOptions::log_background_rewrites_, "lbr",
-      kLogBackgroundRewrite,
-      kServerScope,
-      NULL);  // TODO(huibao): write help & doc for mod_pagespeed.
-  AddBaseProperty(
       false, &RewriteOptions::log_rewrite_timing_, "lr",
       kLogRewriteTiming,
       kDirectoryScope,
       "Whether or not to report timing information about HtmlParse.");
-  AddBaseProperty(
-      false, &RewriteOptions::log_url_indices_, "lui",
-      kLogUrlIndices,
-      kDirectoryScope,
-      "Whether or not to log URL indices for rewriter applications.");
   AddBaseProperty(
       false, &RewriteOptions::lowercase_html_names_, "lh",
       kLowercaseHtmlNames,
@@ -1192,19 +1178,7 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
       kImageJpegNumProgressiveScans,
       kDirectoryScope,
-      "Number of progressive scans [1,10] to emit when rewriting images as "
-      "ten-scan progressive jpegs. A value of -1 disables rewriting as "
-      "progressive jpegs.");
-  // Use kDefaultImageJpegNumProgressiveScans as default.
-  AddBaseProperty(
-      kDefaultImageJpegNumProgressiveScans,
-      &RewriteOptions::image_jpeg_num_progressive_scans_for_small_screens_,
-      "ijpst",
-      kImageJpegNumProgressiveScansForSmallScreens,
-      kDirectoryScope,
-      "Number of progressive scans [1,10] to emit when rewriting images as"
-      "ten-scan progressive jpegs for small screens. A value of -1 falls "
-      "back to kImageJpegNumProgressiveScans.");
+      NULL);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::cache_small_images_unrewritten_, "csiu",
       kCacheSmallImagesUnrewritten,
@@ -1411,14 +1385,7 @@ void RewriteOptions::AddProperties() {
       "Allows defer_javascript and defer_iframe for mobile browsers");
 
   AddRequestProperty(
-      -1, &RewriteOptions::blink_blacklist_end_timestamp_ms_, "bbet");
-  AddBaseProperty(
-      false,
-      &RewriteOptions::persist_blink_blacklist_,
-      "pbb", kPersistBlinkBlacklist,
-      kDirectoryScope,
-      NULL);  // Not applicable for mod_pagespeed.
-
+      false, &RewriteOptions::is_blink_auto_blacklisted_, "ibab");
   AddBaseProperty(
       false, &RewriteOptions::allow_logging_urls_in_log_record_,
       "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
@@ -1455,9 +1422,7 @@ void RewriteOptions::AddProperties() {
   // infrastructure.
   //
   // in_place_rewriting_enabled_.DoNotUseForSignatureComputation();
-  // log_background_rewrites_.DoNotUseForSignatureComputation();
   // log_rewrite_timing_.DoNotUseForSignatureComputation();
-  // log_url_indices_.DoNotUseForSignatureComputation();
   // serve_stale_if_fetch_error_.DoNotUseForSignatureComputation();
   // enable_defer_js_experimental_.DoNotUseForSignatureComputation();
   // enable_blink_critical_line_.DoNotUseForSignatureComputation();
@@ -1772,32 +1737,45 @@ bool RewriteOptions::ForbidFiltersByCommaSeparatedList(
 
 void RewriteOptions::DisableAllFilters() {
   DCHECK(!frozen_);
-  modified_ = true;
   enabled_filters_.clear();
   SetRewriteLevel(RewriteOptions::kPassThrough);
-  disabled_filters_.SetAll();
+  // Note: Disabling all filters is not efficient for subsequent merges.
+  // We do that for now to make the disabled filters survive subsequent merges.
+  // This is something we'd like to improve later.
+  for (int f = kFirstFilter; f != kEndOfFilters; ++f) {
+    DisableFilter(static_cast<Filter>(f));
+  }
 }
 
 void RewriteOptions::DisableAllFiltersNotExplicitlyEnabled() {
-  modified_ |= disabled_filters_.MergeInverted(enabled_filters_);
+  for (int f = kFirstFilter; f != kEndOfFilters; ++f) {
+    Filter filter = static_cast<Filter>(f);
+    if (enabled_filters_.find(filter) == enabled_filters_.end()) {
+      DisableFilter(filter);
+    }
+  }
 }
 
 void RewriteOptions::EnableFilter(Filter filter) {
   DCHECK(!frozen_);
-  modified_ |= enabled_filters_.Insert(filter);
+  std::pair<FilterSet::iterator, bool> inserted =
+      enabled_filters_.insert(filter);
+  modified_ |= inserted.second;
 }
 
 void RewriteOptions::ForceEnableFilter(Filter filter) {
   DCHECK(!frozen_);
 
   // insert into set of enabled filters.
-  modified_ |= enabled_filters_.Insert(filter);
+  std::pair<FilterSet::iterator, bool> inserted =
+      enabled_filters_.insert(filter);
+  modified_ |= inserted.second;
 
   // remove from set of disabled filters.
-  modified_ |= disabled_filters_.Erase(filter);
+  modified_ |= disabled_filters_.erase(filter);
 
   // remove from set of forbidden filters.
-  modified_ |= forbidden_filters_.Erase(filter);
+  modified_ |= forbidden_filters_.erase(filter);
 }
 
 void RewriteOptions::DistributeFiltersByCommaSeparatedList(
@@ -1830,27 +1808,40 @@ void RewriteOptions::EnableExtendCacheFilters() {
 
 void RewriteOptions::DisableFilter(Filter filter) {
   DCHECK(!frozen_);
-  modified_ |= disabled_filters_.Insert(filter);
+  std::pair<FilterSet::iterator, bool> inserted =
+      disabled_filters_.insert(filter);
+  modified_ |= inserted.second;
 }
 
 void RewriteOptions::ForbidFilter(Filter filter) {
   DCHECK(!frozen_);
-  modified_ |= forbidden_filters_.Insert(filter);
+  std::pair<FilterSet::iterator, bool> inserted =
+      forbidden_filters_.insert(filter);
+  modified_ |= inserted.second;
 }
 
 void RewriteOptions::EnableFilters(
     const RewriteOptions::FilterSet& filter_set) {
-  modified_ |= enabled_filters_.Merge(filter_set);
+  for (RewriteOptions::FilterSet::const_iterator iter = filter_set.begin();
+       iter != filter_set.end(); ++iter) {
+    EnableFilter(*iter);
+  }
 }
 
 void RewriteOptions::DisableFilters(
     const RewriteOptions::FilterSet& filter_set) {
-  modified_ |= disabled_filters_.Merge(filter_set);
+  for (RewriteOptions::FilterSet::const_iterator iter = filter_set.begin();
+       iter != filter_set.end(); ++iter) {
+    DisableFilter(*iter);
+  }
 }
 
 void RewriteOptions::ForbidFilters(
     const RewriteOptions::FilterSet& filter_set) {
-  modified_ |= forbidden_filters_.Merge(filter_set);
+  for (RewriteOptions::FilterSet::const_iterator iter = filter_set.begin();
+       iter != filter_set.end(); ++iter) {
+    ForbidFilter(*iter);
+  }
 }
 
 void RewriteOptions::ClearFilters() {
@@ -1942,36 +1933,36 @@ bool RewriteOptions::AddByNameToFilterSet(
     // here will be invokable by outside people, so they better not crash
     // if that happens!
     if (option == "rewrite_images") {
-      set->Insert(kConvertGifToPng);
-      set->Insert(kConvertJpegToProgressive);
-      set->Insert(kInlineImages);
-      set->Insert(kJpegSubsampling);
-      set->Insert(kRecompressJpeg);
-      set->Insert(kRecompressPng);
-      set->Insert(kRecompressWebp);
-      set->Insert(kResizeImages);
-      set->Insert(kStripImageMetaData);
-      set->Insert(kStripImageColorProfile);
+      set->insert(kConvertGifToPng);
+      set->insert(kConvertJpegToProgressive);
+      set->insert(kInlineImages);
+      set->insert(kJpegSubsampling);
+      set->insert(kRecompressJpeg);
+      set->insert(kRecompressPng);
+      set->insert(kRecompressWebp);
+      set->insert(kResizeImages);
+      set->insert(kStripImageMetaData);
+      set->insert(kStripImageColorProfile);
     } else if (option == "recompress_images") {
-      set->Insert(kConvertGifToPng);
-      set->Insert(kConvertJpegToProgressive);
-      set->Insert(kJpegSubsampling);
-      set->Insert(kRecompressJpeg);
-      set->Insert(kRecompressPng);
-      set->Insert(kRecompressWebp);
-      set->Insert(kStripImageMetaData);
-      set->Insert(kStripImageColorProfile);
+      set->insert(kConvertGifToPng);
+      set->insert(kConvertJpegToProgressive);
+      set->insert(kJpegSubsampling);
+      set->insert(kRecompressJpeg);
+      set->insert(kRecompressPng);
+      set->insert(kRecompressWebp);
+      set->insert(kStripImageMetaData);
+      set->insert(kStripImageColorProfile);
     } else if (option == "extend_cache") {
-      set->Insert(kExtendCacheCss);
-      set->Insert(kExtendCacheImages);
-      set->Insert(kExtendCacheScripts);
+      set->insert(kExtendCacheCss);
+      set->insert(kExtendCacheImages);
+      set->insert(kExtendCacheScripts);
     } else if (option == "testing") {
       for (int i = 0, n = arraysize(kTestFilterSet); i < n; ++i) {
-        set->Insert(kTestFilterSet[i]);
+        set->insert(kTestFilterSet[i]);
       }
     } else if (option == "core") {
       for (int i = 0, n = arraysize(kCoreFilterSet); i < n; ++i) {
-        set->Insert(kCoreFilterSet[i]);
+        set->insert(kCoreFilterSet[i]);
       }
     } else {
       if (handler != NULL) {
@@ -1981,10 +1972,10 @@ bool RewriteOptions::AddByNameToFilterSet(
       ret = false;
     }
   } else {
-    set->Insert(filter);
+    set->insert(filter);
     // kResizeMobileImages requires kDelayImages.
     if (filter == kResizeMobileImages) {
-      set->Insert(kDelayImages);
+      set->insert(kDelayImages);
     }
   }
   return ret;
@@ -2377,10 +2368,10 @@ bool RewriteOptions::ParseFromString(const GoogleString& value_string,
 }
 
 bool RewriteOptions::Enabled(Filter filter) const {
-  if (disabled_filters_.IsSet(filter)) {
+  if (disabled_filters_.find(filter) != disabled_filters_.end()) {
     return false;
   }
-  if (forbidden_filters_.IsSet(filter)) {
+  if (forbidden_filters_.find(filter) != forbidden_filters_.end()) {
     return false;
   }
   switch (level_.value()) {
@@ -2403,18 +2394,16 @@ bool RewriteOptions::Enabled(Filter filter) const {
     case kPassThrough:
       break;
   }
-  return enabled_filters_.IsSet(filter);
+  return enabled_filters_.find(filter) != enabled_filters_.end();
 }
 
 bool RewriteOptions::Forbidden(StringPiece filter_id) const {
   // It's forbidden if it's expressly forbidden or if it's disabled and all
   //  disabled filters are forbidden.
   RewriteOptions::Filter filter = RewriteOptions::LookupFilterById(filter_id);
-  // TODO(jmarantz): handle "ce" which is not indexed as a single filter.
-  return ((filter != kEndOfFilters) &&
-          (forbidden_filters_.IsSet(filter) ||
-           (forbid_all_disabled_filters() &&
-            disabled_filters_.IsSet(filter))));
+  return (forbidden_filters_.find(filter) != forbidden_filters_.end() ||
+          (forbid_all_disabled_filters() &&
+           disabled_filters_.find(filter) != disabled_filters_.end()));
 }
 
 int64 RewriteOptions::ImageInlineMaxBytes() const {
@@ -2512,11 +2501,11 @@ void RewriteOptions::AddBlinkCacheableFamily(
 }
 
 void RewriteOptions::GetEnabledFiltersRequiringScriptExecution(
-    RewriteOptions::FilterVector* filters) const {
+    FilterSet* filter_set) const {
   for (int i = 0, n = arraysize(kRequiresScriptExecutionFilterSet); i < n;
        ++i) {
     if (Enabled(kRequiresScriptExecutionFilterSet[i])) {
-      filters->push_back(kRequiresScriptExecutionFilterSet[i]);
+      filter_set->insert(kRequiresScriptExecutionFilterSet[i]);
     }
   }
 }
@@ -2546,21 +2535,36 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   // filter that isn't already enabled, meaning the filters enabled in 'src'
   // cannot be enabled in 'this'.
   if (!forbid_all_disabled_filters()) {
-    // Enabled filters in src override disabled filters in this.
-    disabled_filters_.EraseSet(src.enabled_filters_);
+    for (FilterSet::const_iterator p = src.enabled_filters_.begin(),
+             e = src.enabled_filters_.end(); p != e; ++p) {
+      Filter filter = *p;
+      // A filter forbidden in 'this' cannot be enabled by 'src',
+      // but otherwise enabling in 'src' trumps disabling in 'this'.
+      if (forbidden_filters_.find(filter) == forbidden_filters_.end()) {
+        disabled_filters_.erase(filter);
+        enabled_filters_.insert(filter);
+      } else {
+        LOG(WARNING) << "Filter is forbidden: " << FilterName(filter);
+      }
+    }
   }
 
-  modified_ |= enabled_filters_.Merge(src.enabled_filters_);
-  modified_ |= disabled_filters_.Merge(src.disabled_filters_);
+  for (FilterSet::const_iterator p = src.disabled_filters_.begin(),
+           e = src.disabled_filters_.end(); p != e; ++p) {
+    Filter filter = *p;
+    // Disabling in 'src' trumps enabling in 'this'.
+    disabled_filters_.insert(filter);
+    enabled_filters_.erase(filter);
+  }
 
-  // Clean up enabled filters list to make debugging easier.
-  enabled_filters_.EraseSet(disabled_filters_);
-
-  // Forbidden filters strictly merge, with no exclusions.  E.g. You can never
-  // enable a filter in an .htaccess file that was forbidden above.
-  modified_ |= forbidden_filters_.Merge(src.forbidden_filters_);
-
-  enabled_filters_.EraseSet(forbidden_filters_);
+  for (FilterSet::const_iterator p = src.forbidden_filters_.begin(),
+           e = src.forbidden_filters_.end(); p != e; ++p) {
+    Filter filter = *p;
+    // Forbidding in 'src' trumps enabling in 'this'.
+    forbidden_filters_.insert(filter);
+    disabled_filters_.insert(filter);
+    enabled_filters_.erase(filter);
+  }
 
   for (FilterIdSet::const_iterator p = src.distributable_filters_.begin(),
            e = src.distributable_filters_.end(); p != e; ++p) {
@@ -2831,18 +2835,6 @@ GoogleString RewriteOptions::ToString(const BeaconUrl& beacon_url) {
   return result;
 }
 
-GoogleString RewriteOptions::FilterSetToString(
-    const FilterSet& filter_set) const {
-  GoogleString output;
-  for (int i = kFirstFilter; i != kEndOfFilters; ++i) {
-    Filter filter = static_cast<Filter>(i);
-    if (filter_set.IsSet(filter)) {
-      StrAppend(&output, FilterId(filter), "\t", FilterName(filter), "\n");
-    }
-  }
-  return output;
-}
-
 GoogleString RewriteOptions::OptionsToString() const {
   GoogleString output;
   StrAppend(&output, "Version: ", IntegerToString(kOptionsVersion), "\n\n");
@@ -3063,8 +3055,14 @@ RewriteOptions::FuriousSpec::FuriousSpec(int id)
 RewriteOptions::FuriousSpec::~FuriousSpec() { }
 
 void RewriteOptions::FuriousSpec::Merge(const FuriousSpec& spec) {
-  enabled_filters_.Merge(spec.enabled_filters_);
-  disabled_filters_.Merge(spec.disabled_filters_);
+  for (FilterSet::const_iterator iter = spec.enabled_filters_.begin();
+       iter != spec.enabled_filters_.end(); ++iter) {
+    enabled_filters_.insert(*iter);
+  }
+  for (FilterSet::const_iterator iter = spec.disabled_filters_.begin();
+       iter != spec.disabled_filters_.end(); ++iter) {
+    disabled_filters_.insert(*iter);
+  }
   for (OptionSet::const_iterator iter = spec.filter_options_.begin();
        iter != spec.filter_options_.end(); ++iter) {
     filter_options_.insert(*iter);

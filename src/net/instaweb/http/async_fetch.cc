@@ -39,8 +39,7 @@ AsyncFetch::AsyncFetch()
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
+      headers_complete_(false) {
 }
 
 AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
@@ -51,8 +50,7 @@ AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
+      headers_complete_(false) {
   DCHECK(request_ctx_.get() != NULL);
 }
 
@@ -237,17 +235,6 @@ SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
 SharedAsyncFetch::~SharedAsyncFetch() {
 }
 
-void SharedAsyncFetch::PropagateContentLength() {
-  if (content_length_known()) {
-    base_fetch_->set_content_length(content_length());
-  }
-}
-
-void SharedAsyncFetch::HandleHeadersComplete() {
-  PropagateContentLength();
-  base_fetch_->HeadersComplete();
-}
-
 const char FallbackSharedAsyncFetch::kStaleWarningHeaderValue[] =
     "110 Response is stale";
 
@@ -275,19 +262,18 @@ void FallbackSharedAsyncFetch::HandleHeadersComplete() {
     // Add a warning header indicating that the response is stale.
     response_headers()->Add(HttpAttributes::kWarning, kStaleWarningHeaderValue);
     response_headers()->ComputeCaching();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     fallback_.ExtractContents(&contents);
-    set_content_length(contents.size());
-    SharedAsyncFetch::HandleHeadersComplete();
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     if (fallback_responses_served_ != NULL) {
       fallback_responses_served_->Add(1);
     }
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -296,18 +282,18 @@ bool FallbackSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool FallbackSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void FallbackSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_fallback_ || success);
+  base_fetch()->Done(serving_fallback_ || success);
   delete this;
 }
 
@@ -369,18 +355,18 @@ void ConditionalSharedAsyncFetch::HandleHeadersComplete() {
       response_headers()->SetCacheControlMaxAge(implicit_cache_ttl_ms);
       response_headers()->ComputeCaching();
     }
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     cached_value_.ExtractContents(&contents);
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
     if (num_conditional_refreshes_ != NULL) {
       num_conditional_refreshes_->Add(1);
     }
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -389,18 +375,18 @@ bool ConditionalSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool ConditionalSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void ConditionalSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_cached_value_ || success);
+  base_fetch()->Done(serving_cached_value_ || success);
   delete this;
 }
 

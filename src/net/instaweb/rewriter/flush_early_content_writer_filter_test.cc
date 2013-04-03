@@ -42,16 +42,6 @@ const char kPrefetchScript[] =
     " = Number(new Date());window.mod_pagespeed_num_resources_prefetched"
     " = %d</script>";
 
-const char kHtmlInputPublicCacheableResources[] =
-    "<!DOCTYPE html>"
-    "<html>"
-    "<head>"
-      "<link type=\"text/css\" rel=\"stylesheet\" href=\"f.css\"/>"
-      "<script src=\"g.js\"></script>"
-      "<script src=\"http://www.test.com/h.js.pagespeed.jm.%s.js\"></script>"
-    "</head>"
-    "<body></body></html>";
-
 const char kHtmlInputPrivateCacheableResources[] =
     "<!DOCTYPE html>"
     "<html>"
@@ -85,13 +75,11 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
     rewrite_driver()->SetWriter(&writer_);
     server_context()->set_flush_early_info_finder(
         new MeaningfulFlushEarlyInfoFinder);
-    rewrite_driver_->log_record()->SetLogUrlIndices(true);
   }
 
   virtual void Clear() {
     ClearRewriteDriver();
     rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(190);
-    rewrite_driver_->log_record()->SetLogUrlIndices(true);
     rewrite_driver()->set_request_headers(&request_headers_);
     output_.clear();
   }
@@ -126,7 +114,6 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
 
   void ExpectLogRecord(int index,
                        RewriterInfo::RewriterApplicationStatus status,
-                       int resource_index,
                        FlushEarlyResourceInfo::ContentType content_type,
                        FlushEarlyResourceInfo::ResourceType resource_type,
                        bool is_bandwidth_affected,
@@ -137,13 +124,6 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
         rewriter_info.flush_early_resource_info();
     EXPECT_EQ("fs", rewriter_info.id());
     EXPECT_EQ(status, rewriter_info.status());
-    if (resource_index >= 0) {
-      EXPECT_TRUE(rewriter_info.has_rewrite_resource_info());
-      EXPECT_EQ(resource_index,
-          rewriter_info.rewrite_resource_info().original_resource_url_index());
-    } else {
-      EXPECT_FALSE(rewriter_info.has_rewrite_resource_info());
-    }
     EXPECT_EQ(content_type, resource_info.content_type());
     EXPECT_EQ(resource_type, resource_info.resource_type());
     EXPECT_EQ(is_bandwidth_affected, resource_info.is_bandwidth_affected());
@@ -158,14 +138,7 @@ class FlushEarlyContentWriterFilterTest : public RewriteTestBase {
     rewrite_driver()->set_flush_early_render_info(info);
   }
 
-  void SetPublicCacheableUrls() {
-    FlushEarlyRenderInfo* info =  new FlushEarlyRenderInfo;
-    info->add_public_cacheable_url("http://test.com/f.css");
-    info->add_public_cacheable_url("http://test.com/g.js");
-    rewrite_driver()->set_flush_early_render_info(info);
-  }
-
-  GoogleString GetOutputWithHash(StringPiece format) {
+  GoogleString GetOutputWithHash(StringPiece format, int n) {
     GoogleString output(format.data(), format.size());
     GlobalReplaceSubstring("%s", kMockHashValue, &output);
     return output;
@@ -206,7 +179,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "pagespeed_size=\"1000\"></script>"
       "<script src=\"e.js.pagespeed.ce.%s.js\" "
       "pagespeed_size=\"100000\"></script>"
-      "</body></html>");
+      "</body></html>", 6);
   GoogleString html_output;
 
   // First test with no User-Agent.
@@ -221,7 +194,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // user-agent.
   ExpectLogRecord(0,
                   RewriterInfo::NOT_APPLIED,
-                  -1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::DEFERJS_SCRIPT,
                   false /* not affected by bandwidth */,
@@ -235,7 +207,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "\"http://www.test.com/c.js.pagespeed.jm.%s.js\"/>\n"
       "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.%s.css\"/>\n"
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
-      "<link rel=\"prefetch\" href=\"//test1.com\">");
+      "<link rel=\"prefetch\" href=\"//test1.com\">", 2);
 
   Parse("prefetch_link_rel_subresource", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
@@ -244,7 +216,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // a.css is non-rewritten CSS.
   ExpectLogRecord(0,
                   RewriterInfo::NOT_APPLIED,
-                  0,
                   FlushEarlyResourceInfo::CSS,
                   FlushEarlyResourceInfo::NON_PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -252,7 +223,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // b.js is non-rewritten JS.
   ExpectLogRecord(1,
                   RewriterInfo::NOT_APPLIED,
-                  1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::NON_PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -260,7 +230,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // c.js is rewritten JS.
   ExpectLogRecord(2,
                   RewriterInfo::APPLIED_OK,
-                  2,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -268,7 +237,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // d.css is rewritten CSS.
   ExpectLogRecord(3,
                   RewriterInfo::APPLIED_OK,
-                  3,
                   FlushEarlyResourceInfo::CSS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -277,7 +245,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // images.
   ExpectLogRecord(4,
                   RewriterInfo::NOT_APPLIED,
-                  4,
                   FlushEarlyResourceInfo::IMAGE,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -286,7 +253,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // images.
   ExpectLogRecord(5,
                   RewriterInfo::NOT_APPLIED,
-                  5,
                   FlushEarlyResourceInfo::IMAGE,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -294,7 +260,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // d.js is JS in the body.
   ExpectLogRecord(6,
                   RewriterInfo::NOT_APPLIED,
-                  6,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -302,7 +267,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // e.js is JS in the body.
   ExpectLogRecord(7,
                   RewriterInfo::NOT_APPLIED,
-                  7,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -312,7 +276,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
   // disabled.
   ExpectLogRecord(8,
                   RewriterInfo::NOT_APPLIED,
-                  -1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::DEFERJS_SCRIPT,
                   false /* not affected by bandwidth */,
@@ -331,7 +294,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "<link rel=\"stylesheet\" href=\"d.css.pagespeed.cf.%s.css\" "
       "media=\"print\" disabled=\"true\"/>\n"
       "<script type=\"psa_prefetch\" src=\"d.js.pagespeed.ce.%s.js\">"
-      "</script>\n");
+      "</script>\n", 4);
 
   Parse("prefetch_link_script_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
@@ -348,7 +311,8 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
       "<link rel=\"prefetch\" href=\"//test1.com\">"
       "<script type=\"text/javascript\">"
-      "(function(){new Image().src=\"d.js.pagespeed.ce.%s.js\";})()</script>");
+      "(function(){new Image().src=\"d.js.pagespeed.ce.%s.js\";})()</script>",
+      4);
 
   Parse("prefetch_image_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
@@ -371,7 +335,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "(function(){"
       "new Image().src=\"http://www.test.com/c.js.pagespeed.jm.%s.js\";"
       "new Image().src=\"d.js.pagespeed.ce.%s.js\";})()"
-      "</script>");
+      "</script>", 4);
 
   Parse("defer_javasript", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 4), output_);
@@ -386,7 +350,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, TestDifferentBrowsers) {
       "<link rel=\"dns-prefetch\" href=\"//test.com\">"
       "<link rel=\"prefetch\" href=\"//test1.com\">"
       "<link rel=\"stylesheet\" href=\"d.css.pagespeed.cf.%s.css\" "
-      "media=\"print\" disabled=\"true\"/>\n");
+      "media=\"print\" disabled=\"true\"/>\n", 2);
 
   Parse("prefetch_link_script_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
@@ -422,46 +386,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, NoResourcesToFlush) {
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
 }
 
-TEST_F(FlushEarlyContentWriterFilterTest, CombinedRewrittenUrl) {
-  Clear();
-  GoogleString html_input =
-      "<!DOCTYPE html>"
-      "<html>"
-      "<head>"
-      "<link type=\"text/css\" rel=\"stylesheet\" "
-      "href=\"http://www.test.com/I.e.css+f.css.pagespeed.cc.0.css\" "
-      "media=\"print\"/>"
-      "</head>"
-      "<body>"
-      "</body></html>";
-  GoogleString html_output;
-
-  // Set the User-Agent to prefetch_link_rel_subresource.
-  rewrite_driver()->SetUserAgent("prefetch_link_rel_subresource");
-  Parse("prefetch_link_rel_subresource", html_input);
-
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
-  ExpectNumLogRecords(2);
-
-  // Since flush-early does not handle combined URLs, we see this combined
-  // URL not getting flushed and appearing as a non-pagespeed resource
-  // in our logs.
-  ExpectLogRecord(0,
-                  RewriterInfo::NOT_APPLIED,
-                  0,
-                  FlushEarlyResourceInfo::CSS,
-                  FlushEarlyResourceInfo::NON_PAGESPEED,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  ExpectLogRecord(1,
-                  RewriterInfo::NOT_APPLIED,
-                  -1,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::DEFERJS_SCRIPT,
-                  false /* affected by bandwidth */,
-                  false /* not in HEAD */);
-}
-
 TEST_F(FlushEarlyContentWriterFilterTest, TooManyRewriterInfoRecords) {
   Clear();
   GoogleString html_input = GetOutputWithHash(
@@ -474,11 +398,11 @@ TEST_F(FlushEarlyContentWriterFilterTest, TooManyRewriterInfoRecords) {
           "href=\"b.css.pagespeed.cf.%s.css\">"
         "<link type=\"text/css\" rel=\"stylesheet\" "
           "href=\"c.css.pagespeed.cf.%s.css\">"
-      "</head><body></body></html>");
+      "</head><body></body></html>", 3);
   GoogleString html_output = GetOutputWithHash(
       "<link rel=\"subresource\" href=\"a.css.pagespeed.cf.%s.css\"/>\n"
       "<link rel=\"subresource\" href=\"b.css.pagespeed.cf.%s.css\"/>\n"
-      "<link rel=\"subresource\" href=\"c.css.pagespeed.cf.%s.css\"/>\n");
+      "<link rel=\"subresource\" href=\"c.css.pagespeed.cf.%s.css\"/>\n", 3);
 
   rewrite_driver()->SetUserAgent("prefetch_link_rel_subresource");
   rewrite_driver_->log_record()->SetRewriterInfoMaxSize(2);
@@ -508,7 +432,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, FlushDeferJsEarlyIfTimePermits) {
   ExpectAvailableTimeMs(0);
   ExpectLogRecord(0,
                   RewriterInfo::NOT_APPLIED,
-                  -1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::DEFERJS_SCRIPT,
                   true /* affected by bandwidth */,
@@ -527,7 +450,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, FlushDeferJsEarlyIfTimePermits) {
   ExpectAvailableTimeMs(200);
   ExpectLogRecord(0,
                   RewriterInfo::APPLIED_OK,
-                  -1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::DEFERJS_SCRIPT,
                   true /* affected by bandwidth */,
@@ -537,7 +459,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, FlushDeferJsEarlyIfTimePermits) {
 TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources1) {
   SetPrivateCacheableUrls();
   GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPrivateCacheableResources);
+      kHtmlInputPrivateCacheableResources, 2);
   GoogleString html_output;
 
   // First test with no User-Agent.
@@ -546,10 +468,9 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources1) {
 }
 
 TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
-  Clear();
   SetPrivateCacheableUrls();
   GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPrivateCacheableResources);
+      kHtmlInputPrivateCacheableResources, 2);
   GoogleString html_output;
 
   // Set the User-Agent to prefetch_link_rel_subresource.
@@ -558,7 +479,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
       "<link rel=\"subresource\" href=\"a.css\"/>\n"
       "<link rel=\"subresource\" href="
       "\"http://www.test.com/c.js.pagespeed.jm.%s.js\"/>\n"
-      "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.%s.css\"/>\n");
+      "<link rel=\"subresource\" href=\"d.css.pagespeed.cf.%s.css\"/>\n", 2);
 
   Parse("prefetch_link_rel_subresource", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 3), output_);
@@ -566,7 +487,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
   // a.css is private cacheable CSS.
   ExpectLogRecord(0,
                   RewriterInfo::APPLIED_OK,
-                  0,
                   FlushEarlyResourceInfo::CSS,
                   FlushEarlyResourceInfo::PRIVATE_CACHEABLE,
                   false /* not affected by bandwidth */,
@@ -574,7 +494,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
   // b.js is non-rewritten JS.
   ExpectLogRecord(1,
                   RewriterInfo::NOT_APPLIED,
-                  1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::NON_PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -582,7 +501,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
   // c.js is rewritten JS.
   ExpectLogRecord(2,
                   RewriterInfo::APPLIED_OK,
-                  2,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -590,7 +508,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
   // d.css is rewritten CSS.
   ExpectLogRecord(3,
                   RewriterInfo::APPLIED_OK,
-                  3,
                   FlushEarlyResourceInfo::CSS,
                   FlushEarlyResourceInfo::PAGESPEED,
                   false /* not affected by bandwidth */,
@@ -598,7 +515,6 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
   // defer_javascript is not enabled.
   ExpectLogRecord(4,
                   RewriterInfo::NOT_APPLIED,
-                  -1,
                   FlushEarlyResourceInfo::JS,
                   FlushEarlyResourceInfo::DEFERJS_SCRIPT,
                   false /* not affected by bandwidth */,
@@ -608,7 +524,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources2) {
 TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources3) {
   SetPrivateCacheableUrls();
   GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPrivateCacheableResources);
+      kHtmlInputPrivateCacheableResources, 2);
   GoogleString html_output;
 
   // Set the User-Agent to prefetch_image_tag.
@@ -618,7 +534,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources3) {
       "new Image().src=\"a.css\";"
       "new Image().src=\"http://www.test.com/c.js.pagespeed.jm.%s.js\";"
       "new Image().src=\"d.css.pagespeed.cf.%s.css\";})()"
-      "</script>");
+      "</script>", 2);
 
   Parse("prefetch_image_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 3), output_);
@@ -627,7 +543,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources3) {
 TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources4) {
   SetPrivateCacheableUrls();
   GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPrivateCacheableResources);
+      kHtmlInputPrivateCacheableResources, 2);
   GoogleString html_output;
 
   // Enable defer_javasript. We don't flush JS resources now.
@@ -640,7 +556,7 @@ TEST_F(FlushEarlyContentWriterFilterTest, CacheablePrivateResources4) {
       "<script type=\"text/javascript\">(function(){"
       "new Image().src=\"a.css\";"
       "new Image().src=\"d.css.pagespeed.cf.%s.css\";})()"
-      "</script>");
+      "</script>", 1);
 
   Parse("prefetch_image_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
@@ -662,7 +578,7 @@ TEST_F(FlushEarlyContentWriterFilterTest,
         "href=\"d.css.pagespeed.cf.0.css\" pagespeed_size=\"1000\"/>"
       "</head>"
       "<body>"
-      "</body></html>");
+      "</body></html>", 1);
   GoogleString html_output;
 
   Clear();
@@ -671,124 +587,10 @@ TEST_F(FlushEarlyContentWriterFilterTest,
   // of rewriting.
   html_output = GetOutputWithHash(
       "<link rel=\"stylesheet\" href=\"a.css.pagespeed.cf.%s.css\" "
-      "media=\"print\" disabled=\"true\"/>\n");
+      "media=\"print\" disabled=\"true\"/>\n", 1);
 
   Parse("prefetch_link_script_tag", html_input);
   EXPECT_EQ(RewrittenOutputWithResources(html_output, 1), output_);
-}
-
-TEST_F(FlushEarlyContentWriterFilterTest, CacheablePublicResources1) {
-  SetPublicCacheableUrls();
-  GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPublicCacheableResources);
-  GoogleString html_output;
-
-  // First test with no User-Agent.
-  Parse("no_user_agent", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 0), output_);
-}
-
-TEST_F(FlushEarlyContentWriterFilterTest,
-       CacheablePublicResourcesBlacklistedUA) {
-  Clear();
-  SetPublicCacheableUrls();
-  GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPublicCacheableResources);
-  GoogleString html_output;
-
-  // Disallow one of the public cacheable resources.
-  options()->Disallow("*f.css*");
-  rewrite_driver()->SetUserAgent("prefetch_link_rel_subresource");
-  html_output = GetOutputWithHash(
-      "<link rel=\"subresource\" href=\"f.css\"/>\n"
-      "<link rel=\"subresource\" "
-      "href=\"http://www.test.com/h.js.pagespeed.jm.%s.js\"/>\n");
-
-  Parse("prefetch_link_rel_subresource", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 2), output_);
-  ExpectNumLogRecords(4);
-  // f.css is public cacheable CSS and flush early is applied.
-  ExpectLogRecord(0,
-                  RewriterInfo::APPLIED_OK,
-                  0,
-                  FlushEarlyResourceInfo::CSS,
-                  FlushEarlyResourceInfo::PUBLIC_CACHEABLE,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // g.js is non-rewritten JS.
-  ExpectLogRecord(1,
-                  RewriterInfo::NOT_APPLIED,
-                  1,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::PUBLIC_CACHEABLE,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // h.js is rewritten JS.
-  ExpectLogRecord(2,
-                  RewriterInfo::APPLIED_OK,
-                  2,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::PAGESPEED,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // defer_javascript is not enabled.
-  ExpectLogRecord(3,
-                  RewriterInfo::NOT_APPLIED,
-                  -1,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::DEFERJS_SCRIPT,
-                  false /* not affected by bandwidth */,
-                  false /* not in HEAD */);
-}
-TEST_F(FlushEarlyContentWriterFilterTest,
-       CacheablePublicResourcesNotBlacklistedUA) {
-  Clear();
-  SetPublicCacheableUrls();
-  GoogleString html_input = GetOutputWithHash(
-      kHtmlInputPublicCacheableResources);
-  GoogleString html_output;
-
-  // Set the User-Agent to prefetch_link_rel_subresource.
-  rewrite_driver()->SetUserAgent("prefetch_link_rel_subresource");
-  html_output = GetOutputWithHash(
-      "<link rel=\"subresource\" "
-      "href=\"http://www.test.com/h.js.pagespeed.jm.%s.js\"/>\n");
-
-  Parse("prefetch_link_rel_subresource", html_input);
-  EXPECT_EQ(RewrittenOutputWithResources(html_output, 1), output_);
-  ExpectNumLogRecords(4);
-  // f.css is public cacheable CSS.
-  ExpectLogRecord(0,
-                  RewriterInfo::NOT_APPLIED,
-                  0,
-                  FlushEarlyResourceInfo::CSS,
-                  FlushEarlyResourceInfo::PUBLIC_CACHEABLE,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // g.js is non-rewritten JS.
-  ExpectLogRecord(1,
-                  RewriterInfo::NOT_APPLIED,
-                  1,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::PUBLIC_CACHEABLE,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // h.js is rewritten JS.
-  ExpectLogRecord(2,
-                  RewriterInfo::APPLIED_OK,
-                  2,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::PAGESPEED,
-                  false /* not affected by bandwidth */,
-                  true /* in HEAD */);
-  // defer_javascript is not enabled.
-  ExpectLogRecord(3,
-                  RewriterInfo::NOT_APPLIED,
-                  -1,
-                  FlushEarlyResourceInfo::JS,
-                  FlushEarlyResourceInfo::DEFERJS_SCRIPT,
-                  false /* not affected by bandwidth */,
-                  false /* not in HEAD */);
 }
 
 }  // namespace net_instaweb

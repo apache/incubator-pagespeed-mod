@@ -60,16 +60,14 @@
 #include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
 #include "net/instaweb/rewriter/public/collect_flush_early_content_filter.h"
 #include "net/instaweb/rewriter/public/compute_visible_text_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
-#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
-#include "net/instaweb/rewriter/public/critical_selector_filter.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_combine_filter.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
+#include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
+#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
@@ -113,7 +111,6 @@
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
@@ -275,8 +272,6 @@ void RewriteDriver::set_request_context(const RequestContextPtr& x) {
         options()->max_rewrite_info_log_size());
     request_context_->log_record()->SetAllowLoggingUrls(
         options()->allow_logging_urls_in_log_record());
-    request_context_->log_record()->SetLogUrlIndices(
-        options()->log_url_indices());
   }
 }
 
@@ -377,10 +372,7 @@ void RewriteDriver::Clear() {
   serve_blink_non_critical_ = false;
   is_blink_request_ = false;
   can_rewrite_resources_ = true;
-  if (request_context_.get() != NULL) {
-    request_context_->WriteBackgroundRewriteLog();
-    request_context_.reset(NULL);
-  }
+  request_context_.reset(NULL);
   start_time_ms_ = 0;
   is_nested_ = false;
 
@@ -706,7 +698,6 @@ void RewriteDriver::Initialize() {
 void RewriteDriver::InitStats(Statistics* statistics) {
   AddInstrumentationFilter::InitStats(statistics);
   CacheExtender::InitStats(statistics);
-  CriticalCssBeaconFilter::InitStats(statistics);
   CriticalImagesBeaconFilter::InitStats(statistics);
   CssCombineFilter::InitStats(statistics);
   CssFilter::InitStats(statistics);
@@ -893,8 +884,7 @@ void RewriteDriver::AddPreRenderFilters() {
     AppendOwnedPreRenderFilter(new CssInlineImportToLinkFilter(this,
                                                                statistics()));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
-      !server_context()->factory()->UseBeaconResultsInFilters()) {
+  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss)) {
     // If we're inlining styles that resolved initially, skip outlining
     // css since that works against this.
     // TODO(slamm): Figure out if move_css_to_head needs to be disabled.
@@ -929,13 +919,6 @@ void RewriteDriver::AddPreRenderFilters() {
       EnableRewriteFilter(RewriteOptions::kCssFilterId);
     }
   }
-  if (rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
-      server_context()->factory()->UseBeaconResultsInFilters()) {
-    // Add both the instrumentation and rewriting filter, in that order.
-    AppendOwnedPreRenderFilter(new CriticalCssBeaconFilter(this));
-    AppendOwnedPreRenderFilter(new CriticalSelectorFilter(this));
-  }
-  // TODO(jmaessen): Should prioritizing critical css disable inline css?
   if (rewrite_options->Enabled(RewriteOptions::kInlineCss)) {
     // Inline small CSS files.  Give CSS minification and flattening a chance to
     // run before we decide what counts as "small".
@@ -1070,7 +1053,7 @@ void RewriteDriver::AddPostRenderFilters() {
     AddOwnedPostRenderFilter(new DeferIframeFilter(this));
     AddOwnedPostRenderFilter(new JsDisableFilter(this));
   } else if (rewrite_options->Enabled(RewriteOptions::kDeferJavascript) ||
-             rewrite_options->Enabled(RewriteOptions::kCachePartialHtml)) {
+             rewrite_options->Enabled(RewriteOptions::kCacheHtml)) {
     // Defers javascript download and execution to post onload. This filter
     // should be applied before JsDisableFilter and JsDeferFilter.
     // kDeferIframe filter should never be turned on when either defer_js
@@ -1225,7 +1208,7 @@ void RewriteDriver::SetWriter(Writer* writer) {
   if (html_writer_filter_ == NULL) {
     if (options()->Enabled(RewriteOptions::kServeNonCacheableNonCritical)) {
       html_writer_filter_.reset(new BlinkFilter(this));
-    } else if (options()->Enabled(RewriteOptions::kCachePartialHtml) &&
+    } else if (options()->Enabled(RewriteOptions::kCacheHtml) &&
                flushed_cached_html_) {
       html_writer_filter_.reset(new CacheHtmlFilter(this));
     } else if (options()->Enabled(RewriteOptions::kFlushSubresources) &&
@@ -1495,7 +1478,7 @@ class FilterFetch : public SharedAsyncFetch {
     } else {
       stats->failed_filter_resource_fetches()->Add(1);
     }
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
     driver_->FetchComplete();
     delete this;
   }
@@ -2294,19 +2277,6 @@ void RewriteDriver::LogStats() {
     log_record()->SetImageStats(logging_filter_->num_img_tags(),
                                 logging_filter_->num_inlined_img_tags());
   }
-  log_record()->LogDeviceInfo(
-      device_properties_->GetDeviceType(),
-      device_properties_->SupportsImageInlining(),
-      device_properties_->SupportsLazyloadImages(),
-      device_properties_->SupportsCriticalImagesBeacon(),
-      device_properties_->SupportsJsDefer(
-          options()->enable_aggressive_rewriters_for_mobile()),
-      device_properties_->SupportsWebp(),
-      device_properties_->SupportsWebpLosslessAlpha(),
-      device_properties_->IsBot(),
-      device_properties_->SupportsSplitHtml(
-          options()->enable_aggressive_rewriters_for_mobile()),
-      device_properties_->CanPreloadResources());
 }
 
 void RewriteDriver::FinishParse() {

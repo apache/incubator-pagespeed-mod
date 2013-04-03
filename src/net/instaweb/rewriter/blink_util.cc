@@ -26,16 +26,14 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 namespace BlinkUtil {
@@ -62,7 +60,8 @@ bool IsAllIncludedIn(const StringPieceVector& spec_vector,
   return true;
 }
 
-// Checks whether the user agent is allowed to go into the blink flow.
+}  // namespace
+
 bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
                                 const RewriteOptions* options,
                                 const char* user_agent,
@@ -98,26 +97,12 @@ bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
   return false;
 }
 
-bool IsBlinkBlacklistActive(int64 now_ms,
-                            int64 blink_blacklist_end_timestamp_ms,
-                            LogRecord* log_record) {
-  bool is_blacklisted = blink_blacklist_end_timestamp_ms >= now_ms;
-  if (is_blacklisted) {
-    ScopedMutex lock(log_record->mutex());
-    log_record->logging_info()->mutable_blink_info()->set_blink_request_flow(
-        BlinkInfo::BLINK_BLACKLISTED);
-  }
-  return is_blacklisted;
-}
-
-}  // namespace
-
 // TODO(rahulbansal): Add tests for this.
 bool IsBlinkRequest(const GoogleUrl& url,
                     AsyncFetch* async_fetch,
                     const RewriteOptions* options,
                     const char* user_agent,
-                    const ServerContext* server_context,
+                    UserAgentMatcher* user_agent_matcher,
                     RewriteOptions::Filter filter) {
   if (options != NULL &&
       // Is rewriting enabled?
@@ -133,13 +118,8 @@ bool IsBlinkRequest(const GoogleUrl& url,
       // Does url match a cacheable family pattern specified in config?
       options->IsInBlinkCacheableFamily(url) &&
       // Is the user agent allowed to enter the blink flow?
-      IsUserAgentAllowedForBlink(
-          async_fetch, options, user_agent,
-          server_context->user_agent_matcher()) &&
-      // Ensure there is no blink blacklist for this domain.
-      !IsBlinkBlacklistActive(server_context->timer()->NowMs(),
-                              options->blink_blacklist_end_timestamp_ms(),
-                              async_fetch->log_record())) {
+      IsUserAgentAllowedForBlink(async_fetch, options,
+                                 user_agent, user_agent_matcher)) {
     // Is the request a HTTP request?
     if (url.SchemeIs("http")) {
       return true;
@@ -153,12 +133,12 @@ bool IsBlinkRequest(const GoogleUrl& url,
 }
 
 bool ShouldApplyBlinkFlowCriticalLine(
-    const ServerContext* server_context,
+    const ServerContext* manager,
     const RewriteOptions* options) {
   return options != NULL &&
       // Blink flow critical line is enabled in rewrite options.
       options->enable_blink_critical_line() &&
-      server_context->blink_critical_line_data_finder() != NULL;
+      manager->blink_critical_line_data_finder() != NULL;
 }
 
 bool IsJsonEmpty(const Json::Value& json) {

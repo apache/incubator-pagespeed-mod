@@ -24,7 +24,6 @@
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/http/http.pb.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -42,7 +41,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/split_html_filter.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
@@ -676,7 +674,7 @@ void CacheHtmlFlow::CacheHtmlHit(PropertyPage* page) {
   cache_html_log_helper_->SetCacheHtmlRequestFlow(
       CacheHtmlLoggingInfo::CACHE_HTML_HIT);
   cache_html_log_helper_->LogAppliedRewriter(
-            RewriteOptions::FilterId(RewriteOptions::kCachePartialHtml));
+            RewriteOptions::FilterId(RewriteOptions::kCacheHtml));
 
   ResponseHeaders* response_headers = base_fetch_->response_headers();
   response_headers->SetStatusAndReason(HttpStatus::kOK);
@@ -716,27 +714,20 @@ void CacheHtmlFlow::CacheHtmlHit(PropertyPage* page) {
 
   InitDriverWithPropertyCacheValues(new_driver, page);
 
-  bool flushed_split_js =
-      new_driver->options()->Enabled(RewriteOptions::kSplitHtml) &&
-      new_driver->device_properties()->SupportsSplitHtml(
-          new_driver->options()->enable_aggressive_rewriters_for_mobile());
   new_driver->ParseText(cached_html);
   new_driver->FinishParseAsync(
-      MakeFunction(this, &CacheHtmlFlow::CacheHtmlRewriteDone,
-                   flushed_split_js));
+      MakeFunction(this, &CacheHtmlFlow::CacheHtmlRewriteDone));
 }
 
-void CacheHtmlFlow::CacheHtmlRewriteDone(bool flushed_split_js) {
+void CacheHtmlFlow::CacheHtmlRewriteDone() {
   rewrite_driver_->set_flushed_cached_html(true);
 
   StaticAssetManager* static_asset_manager =
       server_context_->static_asset_manager();
-  if (!flushed_split_js) {
-    base_fetch_->Write(StringPrintf(kBlinkJsString,
-        static_asset_manager->GetAssetUrl(
-            StaticAssetManager::kBlinkJs, options_).c_str()), handler_);
-    base_fetch_->Write(kCacheHtmlSuffixJsString, handler_);
-  }
+  base_fetch_->Write(StringPrintf(kBlinkJsString,
+      static_asset_manager->GetAssetUrl(
+          StaticAssetManager::kBlinkJs, options_).c_str()), handler_);
+  base_fetch_->Write(kCacheHtmlSuffixJsString, handler_);
   const char* user_ip = base_fetch_->request_headers()->Lookup1(
       HttpAttributes::kXForwardedFor);
   if (user_ip != NULL && server_context_->factory()->IsDebugClient(user_ip) &&
@@ -778,8 +769,8 @@ void CacheHtmlFlow::TriggerProxyFetch() {
     // PassThrough case.
     // This flow has side effect that DeferJs is applied in passthrough case
     // even when it is not explicitly enabled since it is added in
-    // RewriteDriver::AddPostRenderFilters() if
-    // RewriteOptions::kCachePartialHtml is enabled.
+    // RewriteDriver::AddPostRenderFilters() if RewriteOptions::kCacheHtml is
+    // enabled.
     fetch = base_fetch_;
   }
   if (cache_html_computation_fetch == NULL) {
