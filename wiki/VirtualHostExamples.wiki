@@ -1,2 +1,1 @@
 This page has moved to [https://developers.google.com/speed/docs/mod_pagespeed/configuration#virtual-hosts developers.google.com].
-<wiki:comment>Test edit</wiki:comment>
