@@ -78,12 +78,6 @@ serf_bucket_t* serf_request_bucket_request_create_for_host(
     serf_bucket_alloc_t *allocator, const char* host);
 
 int serf_connection_is_in_error_state(serf_connection_t* connection);
-
-  // Declares new functions added in instaweb_ssl_buckets.c
-apr_status_t serf_ssl_set_certificates_directory(serf_ssl_context_t *ssl_ctx,
-                                                 const char* path);
-apr_status_t serf_ssl_set_certificates_file(serf_ssl_context_t *ssl_ctx,
-                                            const char* file);
 }  // extern "C"
 
 namespace net_instaweb {
@@ -175,23 +169,19 @@ class SerfFetch : public PoolElement<SerfFetch> {
   // HandleResponse multiple times on the same object.
   //
   // This must be called while holding SerfUrlAsyncFetcher's mutex_.
-  //
-  // Note that when there are SSL error messages, we immediately call
-  // CallCallback, which is robust against duplicate calls in that case.
   void CallCallback(bool success) {
     if (ssl_error_message_ != NULL) {
       success = false;
     }
 
-    if (async_fetch_ != NULL) {
-      fetch_end_ms_ = timer_->NowMs();
-      fetcher_->ReportCompletedFetchStats(this);
-      CallbackDone(success);
-      fetcher_->FetchComplete(this);
-    } else if (ssl_error_message_ == NULL) {
+    if (async_fetch_ == NULL) {
       LOG(FATAL) << "BUG: Serf callback called more than once on same fetch "
                  << str_url() << " (" << this << ").  Please report this "
                  << "at http://code.google.com/p/modpagespeed/issues/";
+    } else {
+      CallbackDone(success);
+      fetch_end_ms_ = timer_->NowMs();
+      fetcher_->FetchComplete(this);
     }
   }
 
@@ -265,7 +255,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
       void* setup_baton, apr_pool_t* pool) {
     SerfFetch* fetch = static_cast<SerfFetch*>(setup_baton);
     *read_bkt = serf_bucket_socket_create(socket, fetch->bucket_alloc_);
-    apr_status_t status = APR_SUCCESS;
 #if SERF_HTTPS_FETCHING
     if (fetch->using_https_) {
       *read_bkt = serf_bucket_ssl_decrypt_create(*read_bkt,
@@ -273,31 +262,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
                                                  fetch->bucket_alloc_);
       if (fetch->ssl_context_ == NULL) {
         fetch->ssl_context_ = serf_bucket_ssl_decrypt_context_get(*read_bkt);
-        if (fetch->ssl_context_ == NULL) {
-          status = APR_EGENERAL;
-        } else {
-          SerfUrlAsyncFetcher* fetcher = fetch->fetcher_;
-          const GoogleString& certs_dir = fetcher->ssl_certificates_dir();
-          const GoogleString& certs_file = fetcher->ssl_certificates_file();
-
-          if (!certs_file.empty()) {
-            status = serf_ssl_set_certificates_file(
-                fetch->ssl_context_, certs_file.c_str());
-          }
-          if ((status == APR_SUCCESS) && !certs_dir.empty()) {
-            status = serf_ssl_set_certificates_directory(fetch->ssl_context_,
-                                                         certs_dir.c_str());
-          }
-
-          // If no explicit file or directory is specified, then use the
-          // compiled-in default.
-          if (certs_dir.empty() && certs_file.empty()) {
-            status = serf_ssl_use_default_certificates(fetch->ssl_context_);
-          }
-        }
-        if (status != APR_SUCCESS) {
-          return status;
-        }
       }
 
       serf_ssl_server_cert_callback_set(fetch->ssl_context_, SSLCertError,
@@ -402,14 +366,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
     } else if (errors & SERF_SSL_CERT_UNKNOWN_FAILURE) {
       ssl_error_message_ = "SSL certificate has an unknown error";
     }
-
-    // Immediately call the fetch callback on a cert error.  Note that
-    // HandleSSLCertErrors is called multiple times when there is an error,
-    // so check async_fetch before CallCallback.
-    if ((ssl_error_message_ != NULL) && (async_fetch_ != NULL)) {
-      fetcher_->cert_errors_->Add(1);
-      CallCallback(false);  // sets async_fetch_ to null.
-    }
+    // Fall-through here implies success.
 
     // TODO(jmarantz): I think the design of this system indicates
     // that we should be returning APR_EGENERAL on failure.  However I
@@ -540,6 +497,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
             response_headers->set_status_code(HttpStatus::kNotFound);
             message_handler_->Message(kInfo, "%s: %s", str_url_.c_str(),
                                       ssl_error_message_);
+            fetcher_->cert_errors_->Add(1);
             has_saved_byte_ = false;
           }
 
@@ -1046,6 +1004,7 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       failure_count_(NULL),
       cert_errors_(NULL),
       timeout_ms_(timeout_ms),
+      force_threaded_(false),
       shutdown_(false),
       list_outstanding_urls_on_error_(false),
       track_original_content_length_(false),
@@ -1083,6 +1042,7 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
       failure_count_(parent->failure_count_),
       cert_errors_(parent->cert_errors_),
       timeout_ms_(parent->timeout_ms()),
+      force_threaded_(parent->force_threaded_),
       shutdown_(false),
       list_outstanding_urls_on_error_(parent->list_outstanding_urls_on_error_),
       track_original_content_length_(parent->track_original_content_length_),
@@ -1185,12 +1145,18 @@ void SerfUrlAsyncFetcher::Fetch(const GoogleString& url,
   SerfFetch* fetch = new SerfFetch(url, async_fetch, message_handler, timer_);
 
   request_count_->Add(1);
-  message_handler->Message(kInfo, "Initiating async fetch for %s",
-                           url.c_str());
-  threaded_fetcher_->InitiateFetch(fetch);
-
-  // TODO(morlovich): There is quite a bit of code related to doing work
-  // both on 'this' and threaded_fetcher_ that could use cleaning up.
+  if (force_threaded_ || async_fetch->EnableThreaded()) {
+    message_handler->Message(kInfo, "Initiating async fetch for %s",
+                             url.c_str());
+    threaded_fetcher_->InitiateFetch(fetch);
+  } else {
+    message_handler->Message(kInfo, "Initiating blocking fetch for %s",
+                             url.c_str());
+    {
+      ScopedMutex mutex(mutex_);
+      StartFetch(fetch);
+    }
+  }
 }
 
 void SerfUrlAsyncFetcher::PrintActiveFetches(
@@ -1217,6 +1183,7 @@ int SerfUrlAsyncFetcher::Poll(int64 max_wait_ms) {
       // This relies on the insertion-ordering guarantee
       // provided by the Pool iterator.
       int64 stale_cutoff = timer_->NowMs() - timeout_ms_;
+      int timeouts = 0;
       // This loop calls Cancel, which deletes a fetch and thus invalidates
       // iterators; we thus rely on retrieving oldest().
       while (!active_fetches_.empty()) {
@@ -1230,12 +1197,13 @@ int SerfUrlAsyncFetcher::Poll(int64 max_wait_ms) {
             fetch->str_url(),
             static_cast<long>(active_fetches_.size()),  // NOLINT
             static_cast<long>(max_wait_ms));            // NOLINT
+        timeouts++;
         // Note that canceling the fetch will ultimately call FetchComplete and
         // delete it from the pool.
-        if (timeout_count_ != NULL) {
-          timeout_count_->Add(1);
-        }
         fetch->Cancel();
+      }
+      if ((timeouts > 0) && (timeout_count_ != NULL)) {
+        timeout_count_->Add(timeouts);
       }
     }
     bool success = ((status == APR_SUCCESS) || APR_STATUS_IS_TIMEUP(status));
@@ -1290,9 +1258,6 @@ void SerfUrlAsyncFetcher::FetchComplete(SerfFetch* fetch) {
   completed_fetches_.Add(fetch);
   fetch->message_handler()->Message(kInfo, "Fetch complete: %s",
                                     fetch->str_url());
-}
-
-void SerfUrlAsyncFetcher::ReportCompletedFetchStats(SerfFetch* fetch) {
   if (time_duration_ms_) {
     time_duration_ms_->Add(fetch->TimeDuration());
   }
@@ -1443,20 +1408,6 @@ bool SerfUrlAsyncFetcher::SetHttpsOptions(StringPiece directive) {
     threaded_fetcher_->set_https_options(https_options_);
   }
   return true;
-}
-
-void SerfUrlAsyncFetcher::SetSslCertificatesDir(StringPiece dir) {
-  dir.CopyToString(&ssl_certificates_dir_);
-  if (threaded_fetcher_ != NULL) {
-    threaded_fetcher_->SetSslCertificatesDir(dir);
-  }
-}
-
-void SerfUrlAsyncFetcher::SetSslCertificatesFile(StringPiece file) {
-  file.CopyToString(&ssl_certificates_file_);
-  if (threaded_fetcher_ != NULL) {
-    threaded_fetcher_->SetSslCertificatesFile(file);
-  }
 }
 
 bool SerfUrlAsyncFetcher::allow_https() const {

@@ -316,7 +316,8 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
   const char* request_etag = async_fetch()->request_headers()->Lookup1(
       HttpAttributes::kIfNoneMatch);
   if (request_etag != NULL && !hash.empty() &&
-      (HTTPCache::FormatEtag(StrCat(id(), "-", hash)) == request_etag)) {
+      (StringPrintf(HTTPCache::kEtagFormat,
+                    StrCat(id(), "-",  hash).c_str()) == request_etag)) {
     // Serve out a 304.
     async_fetch()->response_headers()->Clear();
     async_fetch()->response_headers()->SetStatusAndReason(
@@ -342,9 +343,9 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
 void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (is_rewritten_) {
     if (!rewritten_hash_.empty()) {
-      headers->Replace(
-          HttpAttributes::kEtag,
-          HTTPCache::FormatEtag(StrCat(id(), "-", rewritten_hash_).c_str()));
+      headers->Replace(HttpAttributes::kEtag, StringPrintf(
+          HTTPCache::kEtagFormat,
+          StrCat(id(), "-", rewritten_hash_).c_str()));
     }
     if (ShouldAddVaryUserAgent()) {
       headers->Replace(HttpAttributes::kVary, HttpAttributes::kUserAgent);

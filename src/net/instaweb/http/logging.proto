@@ -80,7 +80,7 @@ message TimingInfo {
 
 // This proto stores all Blink requests related information.  These are logged
 // in the blink log record.
-// Next id for BlinkInfo : 8
+// Next id for BlinkInfo : 9
 message BlinkInfo {
   enum BlinkRequestFlow {
     BLINK_CACHE_HIT = 1;
@@ -252,7 +252,7 @@ message CriticalCssInfo {
 }
 
 // This proto stores all Cache Html flow requests related information.
-// Next id for CacheHtmlLoggingInfo : 8
+// Next id for CacheHtmlLoggingInfo : 6
 message CacheHtmlLoggingInfo {
   enum CacheHtmlRequestFlow {
     CACHE_HTML_HIT = 1;
@@ -261,9 +261,6 @@ message CacheHtmlLoggingInfo {
     CACHE_HTML_MISS_TRIGGERED_REWRITE = 4;
     FOUND_MALFORMED_HTML = 5;
     FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 6;
-    // The following is only set in the main log record and not in the cache
-    // html info log record.
-    CACHE_HTML_BLACKLISTED = 7;  // Diff mismatch based blacklist active.
   };
   // Tracks the flow of a cache html rewriter request.
   optional CacheHtmlRequestFlow cache_html_request_flow = 1;
@@ -279,21 +276,6 @@ message CacheHtmlLoggingInfo {
 
   // URL of the request.
   optional string url = 5;
-
-  enum UserAgent {
-    NOT_SET = 0;
-    CACHE_HTML_DESKTOP_WHITELIST = 1;
-    CACHE_HTML_DESKTOP_BLACKLIST = 2;
-    CACHE_HTML_MOBILE = 3;
-    NULL_OR_EMPTY = 4;
-    NOT_SUPPORT_CACHE_HTML = 5;
-  };
-  // user agent which initiated the cache html request.
-  // This is set only in main log record and not in cache html info log record.
-  optional UserAgent cache_html_user_agent = 6;
-
-  // Tracks whether we hit the #mismatches threshold for blacklisting.
-  optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
 // Information that applies to a resource.
@@ -414,7 +396,7 @@ message DeviceInfo {
 }
 
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 26
+// Next id for LoggingInfo: 25
 message LoggingInfo {
   // Used to track time taken by various components of page speed service
   // processing.
@@ -443,7 +425,7 @@ message LoggingInfo {
   optional bool is_url_disallowed = 11 [ default = false ];
   // RewriteOptions signature hash.
   optional int64 options_signature_hash = 12;
-  // Whether request is disabled like PageSpeed=off.
+  // Whether request is disabled like ModPagespeed=off.
   optional bool is_request_disabled = 13 [ default = false ];
   // Information about flush subresources filter.
   optional FlushEarlyFlowInfo flush_early_flow_info = 14;
@@ -469,6 +451,4 @@ message LoggingInfo {
   optional CriticalCssInfo critical_css_info = 23;
   // Information about the device making the request.
   optional DeviceInfo device_info = 24;
-  // Is the request an XmlHttpRequest.
-  optional bool is_xhr = 25;
 }

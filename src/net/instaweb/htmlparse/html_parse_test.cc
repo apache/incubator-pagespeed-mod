@@ -1170,44 +1170,44 @@ TEST_F(EventListManipulationTest, TestReplace) {
   CheckExpected("2");
 }
 
-TEST_F(EventListManipulationTest, TestInsertNodeBeforeNode) {
+TEST_F(EventListManipulationTest, TestInsertElementBeforeElement) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  html_parse_.InsertNodeBeforeNode(node1_, node2_);
+  html_parse_.InsertElementBeforeElement(node1_, node2_);
   CheckExpected("21");
-  html_parse_.InsertNodeBeforeNode(node1_, node3_);
+  html_parse_.InsertElementBeforeElement(node1_, node3_);
   CheckExpected("231");
 }
 
-TEST_F(EventListManipulationTest, TestInsertNodeAfterNode) {
+TEST_F(EventListManipulationTest, TestInsertElementAfterElement) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  html_parse_.InsertNodeAfterNode(node1_, node2_);
+  html_parse_.InsertElementAfterElement(node1_, node2_);
   CheckExpected("12");
-  html_parse_.InsertNodeAfterNode(node1_, node3_);
+  html_parse_.InsertElementAfterElement(node1_, node3_);
   CheckExpected("132");
 }
 
-TEST_F(EventListManipulationTest, TestInsertNodeBeforeCurrent) {
+TEST_F(EventListManipulationTest, TestInsertElementBeforeCurrent) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  html_parse_.InsertNodeBeforeCurrent(node2_);
+  html_parse_.InsertElementBeforeCurrent(node2_);
   // Current is left at queue_.end() after the AddEvent.
   CheckExpected("12");
 
   HtmlTestingPeer::SetCurrent(&html_parse_, node1_);
-  html_parse_.InsertNodeBeforeCurrent(node3_);
+  html_parse_.InsertElementBeforeCurrent(node3_);
   CheckExpected("312");
 }
 
-TEST_F(EventListManipulationTest, TestInsertNodeAfterCurrent) {
+TEST_F(EventListManipulationTest, TestInsertElementAfterCurrent) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::SetCurrent(&html_parse_, node1_);
-  html_parse_.InsertNodeAfterCurrent(node2_);
+  html_parse_.InsertElementAfterCurrent(node2_);
   // Note that if we call CheckExpected here it will mutate current_.
-  html_parse_.InsertNodeAfterCurrent(node3_);
+  html_parse_.InsertElementAfterCurrent(node3_);
   CheckExpected("123");
 }
 
 TEST_F(EventListManipulationTest, TestDeleteOnly) {
-  html_parse_.DeleteNode(node1_);
+  html_parse_.DeleteElement(node1_);
   CheckExpected("");
 }
 
@@ -1215,11 +1215,11 @@ TEST_F(EventListManipulationTest, TestDeleteFirst) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  html_parse_.DeleteNode(node1_);
+  html_parse_.DeleteElement(node1_);
   CheckExpected("23");
-  html_parse_.DeleteNode(node2_);
+  html_parse_.DeleteElement(node2_);
   CheckExpected("3");
-  html_parse_.DeleteNode(node3_);
+  html_parse_.DeleteElement(node3_);
   CheckExpected("");
 }
 
@@ -1227,11 +1227,11 @@ TEST_F(EventListManipulationTest, TestDeleteLast) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  html_parse_.DeleteNode(node3_);
+  html_parse_.DeleteElement(node3_);
   CheckExpected("12");
-  html_parse_.DeleteNode(node2_);
+  html_parse_.DeleteElement(node2_);
   CheckExpected("1");
-  html_parse_.DeleteNode(node1_);
+  html_parse_.DeleteElement(node1_);
   CheckExpected("");
 }
 
@@ -1239,7 +1239,7 @@ TEST_F(EventListManipulationTest, TestDeleteMiddle) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  html_parse_.DeleteNode(node2_);
+  html_parse_.DeleteElement(node2_);
   CheckExpected("13");
 }
 
@@ -1270,7 +1270,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
 TEST_F(EventListManipulationTest, TestPrependChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.InsertNodeBeforeCurrent(div);
+  html_parse_.InsertElementBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
   html_parse_.PrependChild(div, node2_);
@@ -1284,7 +1284,7 @@ TEST_F(EventListManipulationTest, TestPrependChild) {
 TEST_F(EventListManipulationTest, TestAppendChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
-  html_parse_.InsertNodeBeforeCurrent(div);
+  html_parse_.InsertElementBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
   html_parse_.AppendChild(div, node2_);
@@ -1311,7 +1311,7 @@ TEST_F(EventListManipulationTest, TestDeleteGroup) {
   HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
-  html_parse_.DeleteNode(div);
+  html_parse_.DeleteElement(div);
   CheckExpected("");
 }
 
@@ -1390,7 +1390,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnAdd) {
   // this will coalesce node1 and node2 togethers.  So there is only
   // one node1_="12", and node2_ is gone.  Deleting node1_ will now
   // leave us empty
-  html_parse_.DeleteNode(node1_);
+  html_parse_.DeleteElement(node1_);
   CheckExpected("");
 }
 
@@ -1411,7 +1411,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
 
   // At this point, node1, node2, and node3 are automatically coalesced.
   // This means when we remove node1, all the content will disappear.
-  html_parse_.DeleteNode(node1_);
+  html_parse_.DeleteElement(node1_);
   CheckExpected("");
 }
 
@@ -1430,7 +1430,7 @@ TEST_F(EventListManipulationTest, TestHasChildren) {
 
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
   EXPECT_TRUE(html_parse_.HasChildrenInFlushWindow(div));
-  EXPECT_TRUE(html_parse_.DeleteNode(node2_));
+  EXPECT_TRUE(html_parse_.DeleteElement(node2_));
   EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
 }
 
@@ -1535,22 +1535,19 @@ TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInLargeCharactersBlock) {
   SetupWriter();
   html_parse_.StartParse("http://test.com/blank_flush.html");
   html_parse_.ParseText("<style>bytes:");
-  // This should be inserted before <style>.
-  EXPECT_TRUE(html_parse_.InsertComment("FLUSH1"));
   html_parse_.Flush();
   html_parse_.ParseText(":more:");
   html_parse_.Flush();
   html_parse_.ParseText(":still more:");
-  // We are inside a literal block, so it's not safe to insert a comment here.
-  // This should not show up in output_buffer_.
-  EXPECT_FALSE(html_parse_.InsertComment("FLUSH2"));
+  html_parse_.InsertComment("FLUSH");
   html_parse_.Flush();
   html_parse_.ParseText(":final bytes:</style>");
-  EXPECT_TRUE(html_parse_.InsertComment("FLUSH3"));
   html_parse_.FinishParse();
 
-  EXPECT_EQ("<!--FLUSH1--><style>bytes::more::still more::final bytes:</style>"
-            "<!--FLUSH3-->",
+  // Note that the large comment block gets buffered by the Lexer and doesn't
+  // actually get Flushed until we finally see the </style>, so FLUSH comment
+  // gets inserted *before* all the bytes in the characters blocks.
+  EXPECT_EQ("<style><!--FLUSH-->bytes::more::still more::final bytes:</style>",
             output_buffer_);
 }
 
@@ -1718,7 +1715,7 @@ TEST_F(AttributeManipulationTest, CloneElement) {
                 " selected />");
 
   // Looks sane when added.
-  html_parse_.InsertNodeBeforeNode(node_, clone);
+  html_parse_.InsertElementBeforeElement(node_, clone);
   CheckExpected("<a href=\"http://www.google.com/\" id=38 class='search!'"
                 " selected />"
                 "<a href=\"http://www.google.com/\" id=37 class='search!'"

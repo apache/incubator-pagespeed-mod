@@ -68,7 +68,7 @@ void CleanupWhitespaceScriptBody(RewriteDriver* driver,
       return;
     }
   }
-  bool deleted = driver->DeleteNode(node);
+  bool deleted = driver->DeleteElement(node);
   DCHECK(deleted);
 }
 

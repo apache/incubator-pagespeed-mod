@@ -156,12 +156,6 @@ void InitDriverWithPropertyCacheValues(
     css_finder->UpdateCriticalCssInfoInDriver(cache_html_driver);
   }
 
-  CacheHtmlInfoFinder* cache_html_finder =
-      cache_html_driver->server_context()->cache_html_info_finder();
-  if (cache_html_finder != NULL) {
-    cache_html_finder->UpdateSplitInfoInDriver(cache_html_driver);
-  }
-
   cache_html_driver->set_unowned_fallback_property_page(NULL);
 }
 
@@ -293,10 +287,9 @@ class CacheHtmlComputationFetch : public AsyncFetch {
       cache_html_log_helper_->SetCacheHtmlRequestFlow(
           CacheHtmlLoggingInfo::CACHE_HTML_MISS_TRIGGERED_REWRITE);
     }
-    if ((rewrite_driver_->options()->enable_blink_html_change_detection() ||
-         rewrite_driver_->options()->
-         enable_blink_html_change_detection_logging()) &&
-        server_context_->cache_html_info_finder() != NULL) {
+    if (rewrite_driver_->options()->enable_blink_html_change_detection() ||
+        rewrite_driver_->options()->
+        enable_blink_html_change_detection_logging()) {
       // We do diff mismatch detection in cache miss case also so that we can
       // update the content hash and smart text hash in CacheHtmlInfo in pcache.
       CreateHtmlChangeDetectionDriverAndRewrite();
@@ -471,7 +464,10 @@ class CacheHtmlComputationFetch : public AsyncFetch {
 
     int64 now_ms = server_context_->timer()->NowMs();
     PropertyPage* page = rewrite_driver_->property_page();
-    const PropertyCache::Cohort* cohort = server_context_->blink_cohort();
+    PropertyCache* property_cache =
+        rewrite_driver_->server_context()->page_property_cache();
+    const PropertyCache::Cohort* cohort =
+        property_cache->GetCohort(BlinkUtil::kBlinkCohort);
     bool diff_info_updated =
         server_context_->cache_html_info_finder()->UpdateDiffInfo(
             compute_cache_html_info, now_ms, cache_html_log_record_.get(),
@@ -487,8 +483,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
           url_,
           rewrite_driver_->options()->furious_id(),
           rewrite_driver_->device_type());
-      page->DeleteProperty(
-          cohort, BlinkUtil::kCacheHtmlRewriterInfo);
+      page->DeleteProperty(cohort, BlinkUtil::kCacheHtmlRewriterInfo);
       page->WriteCohort(cohort);
       CreateCacheHtmlComputationDriverAndRewrite();
     } else if (options_->enable_blink_html_change_detection() ||
@@ -511,7 +506,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
     cache_html_info_->set_hash_smart_diff(computed_hash_smart_diff_);
 
     UpdateInPropertyCache(*cache_html_info_, rewrite_driver_,
-                          server_context_->blink_cohort(),
+                          BlinkUtil::kBlinkCohort,
                           BlinkUtil::kCacheHtmlRewriterInfo,
                           true /* write_cohort*/);
   }

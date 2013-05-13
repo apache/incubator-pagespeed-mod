@@ -62,7 +62,6 @@
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/statistics_logger.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
@@ -200,6 +199,12 @@ class ApacheProxyFetch : public AsyncFetchUsingWriter {
     }
   }
 
+  // Returning true here tells Serf to use the threaded fetcher.  We can
+  // also consider returning false here and polling the fetcher.
+  //
+  // TODO(jmarantz): delete the non-threaded fetcher support in Serf.
+  virtual bool EnableThreaded() const { return true; }
+
   bool status_ok() const { return status_ok_; }
 
  private:
@@ -301,7 +306,6 @@ RewriteOptions* get_custom_options(ApacheServerContext* server_context,
   if ((directory_options != NULL) && directory_options->modified()) {
     custom_options = server_context->apache_factory()->NewRewriteOptions();
     custom_options->Merge(*global_options);
-    directory_options->Freeze();
     custom_options->Merge(*directory_options);
   }
 
@@ -313,7 +317,7 @@ RewriteOptions* get_custom_options(ApacheServerContext* server_context,
       server_context->GetQueryOptions(gurl, request_headers, NULL);
   if (!query_options_success.second) {
     server_context->message_handler()->Message(
-        kWarning, "Invalid PageSpeed query params or headers for "
+        kWarning, "Invalid ModPagespeed query params or headers for "
         "request %s. Serving with default options.", gurl->spec_c_str());
   }
   if (query_options_success.first != NULL) {
@@ -438,11 +442,12 @@ bool handle_as_proxy(ApacheServerContext* server_context,
                      RewriteOptions* options,
                      scoped_ptr<RewriteOptions>* custom_options) {
   bool handled = false;
-  // Consider Issue 609: proxying an external CSS file via MapProxyDomain, and
-  // the CSS file makes reference to a font file, which mod_pagespeed does not
-  // know anything about, and does not know how to absolutify.  We need to
-  // handle the request for the external font file here, even if IPRO (in place
-  // resource optimization) is off.
+  // Consider Issue 609: proxying an external CSS file via
+  // ModPagespeedMapProxyDomain, and the CSS file makes reference to
+  // a font file, which mod_pagespeed does not know anything about, and
+  // does not know how to absolutify.  We need to handle the request for
+  // the external font file here, even if IPRO (in place resource
+  // optimization) is off.
   bool is_proxy = false;
   GoogleString mapped_url;
   if (options->domain_lawyer()->MapOriginUrl(*gurl, &mapped_url, &is_proxy) &&
@@ -686,6 +691,7 @@ apr_status_t instaweb_statistics_handler(
 
   int64 start_time, end_time, granularity_ms;
   std::set<GoogleString> var_titles;
+  std::set<GoogleString> hist_titles;
   if (general_stats_request && !factory->use_per_vhost_statistics()) {
     global_stats_request = true;
   }
@@ -728,6 +734,16 @@ apr_status_t instaweb_statistics_handler(
         for (size_t i = 0; i < variable_names.size(); ++i) {
           var_titles.insert(variable_names[i].as_string());
         }
+      } else if (strcmp(name, "hist_titles") == 0) {
+        std::vector<StringPiece> histogram_names;
+        SplitStringPieceToVector(value, ",", &histogram_names, true);
+        for (size_t i = 0; i < histogram_names.size(); ++i) {
+          // TODO(morlovich): Cleanup & publicize UrlToFileNameEncoder::Unescape
+          // and use it here, instead of this GlobalReplaceSubstring hack.
+          GoogleString name = histogram_names[i].as_string();
+          GlobalReplaceSubstring("%20", " ", &(name));
+          hist_titles.insert(name);
+        }
       } else if (strcmp(name, "granularity") == 0) {
         StringToInt64(value, &granularity_ms);
       }
@@ -744,9 +760,10 @@ apr_status_t instaweb_statistics_handler(
   GoogleString output;
   StringWriter writer(&output);
   if (json) {
-    statistics->console_logger()->DumpJSON(var_titles, start_time, end_time,
-                                           granularity_ms, &writer,
-                                           message_handler);
+    statistics->console_logger()->DumpJSON(var_titles, hist_titles,
+                                            start_time, end_time,
+                                            granularity_ms, &writer,
+                                            message_handler);
   } else {
     // Generate some navigational links to the right to help
     // our users get to other modes.
@@ -951,8 +968,6 @@ apr_status_t instaweb_beacon_handler(request_rec* request,
   StringPiece user_agent = apr_table_get(request->headers_in,
                                          HttpAttributes::kUserAgent);
   server_context->HandleBeacon(data, user_agent, request_context);
-  apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
-                HttpAttributes::kNoCache);
   return HTTP_NO_CONTENT;
 }
 
@@ -1024,7 +1039,7 @@ apr_status_t instaweb_handler(request_rec* request) {
     ret = OK;
 
   } else if (request_handler_str == kLogRequestHeadersHandler) {
-    // For testing CustomFetchHeader.
+    // For testing ModPagespeedCustomFetchHeader.
     GoogleString output;
     StringWriter writer(&output);
     HeaderLoggingData header_logging_data(&writer, message_handler);
@@ -1040,19 +1055,19 @@ apr_status_t instaweb_handler(request_rec* request) {
     // headers_out and/or err_headers_out to test handling of parameters in
     // those resources.
     if (strstr(request->parsed_uri.query, "headers_out") != NULL) {
-      apr_table_add(request->headers_out, "PageSpeed", "off");
+      apr_table_add(request->headers_out, "ModPagespeed", "off");
     } else if (strstr(request->parsed_uri.query, "headers_errout") != NULL) {
-      apr_table_add(request->err_headers_out, "PageSpeed", "off");
+      apr_table_add(request->err_headers_out, "ModPagespeed", "off");
     } else if (strstr(request->parsed_uri.query, "headers_override") != NULL) {
-      apr_table_add(request->headers_out, "PageSpeed", "off");
-      apr_table_add(request->headers_out, "PageSpeedFilters",
+      apr_table_add(request->headers_out, "ModPagespeed", "off");
+      apr_table_add(request->headers_out, "ModPagespeedFilters",
                     "-remove_comments");
-      apr_table_add(request->err_headers_out, "PageSpeed", "on");
-      apr_table_add(request->err_headers_out, "PageSpeedFilters",
+      apr_table_add(request->err_headers_out, "ModPagespeed", "on");
+      apr_table_add(request->err_headers_out, "ModPagespeedFilters",
                     "+remove_comments");
     } else if (strstr(request->parsed_uri.query, "headers_combine") != NULL) {
-      apr_table_add(request->headers_out, "PageSpeed", "on");
-      apr_table_add(request->err_headers_out, "PageSpeedFilters",
+      apr_table_add(request->headers_out, "ModPagespeed", "on");
+      apr_table_add(request->err_headers_out, "ModPagespeedFilters",
                     "+remove_comments");
     }
 

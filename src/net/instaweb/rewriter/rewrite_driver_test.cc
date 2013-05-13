@@ -22,6 +22,7 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
@@ -434,17 +435,15 @@ TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlAllInvalidation) {
   ClearStats();
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
-  // Set a URL cache invalidation entry for output URL.  Original input URL is
-  // not affected.  Also invalidate all metadata (the
-  // ignores_metadata_and_pcache argument being false below).
+  // Set a URL cache invalidation entry for output URL.  This is a no-op.
   options()->AddUrlCacheInvalidationEntry(
       css_minified_url, now_ms, false /* ignores_metadata_and_pcache */);
   options()->ComputeSignature();
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect:  a new rewrite entry (its version # changed), and identical
   // output.
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(1, lru_cache()->num_identical_reinserts());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(2, lru_cache()->num_identical_reinserts());
 }
 
 TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlOnlyInvalidation) {
@@ -558,7 +557,7 @@ TEST_F(RewriteDriverTest, TestCacheUseOnTheFly) {
 // Verifies that the computed rewrite delay agrees with expectations
 // depending on the configuration of constituent delay variables.
 TEST_F(RewriteDriverTest, TestComputeCurrentFlushWindowRewriteDelayMs) {
-  options()->set_rewrite_deadline_ms(1000);
+  rewrite_driver()->set_rewrite_deadline_ms(1000);
 
   // "Start" a parse to configure the start time in the driver.
   ASSERT_TRUE(rewrite_driver()->StartParseId("http://site.com/",
@@ -964,8 +963,7 @@ TEST_F(RewriteDriverTest, DiagnosticsWithPercent) {
 // Tests that we reject https URLs quickly.
 TEST_F(RewriteDriverTest, RejectHttpsQuickly) {
   // Need to expressly authorize https even though we don't support it.
-  options()->WriteableDomainLawyer()->AddDomain("https://*/",
-                                                message_handler());
+  options()->domain_lawyer()->AddDomain("https://*/", message_handler());
   AddFilter(RewriteOptions::kRewriteJavascript);
 
   // When we don't support https then we fail quickly and cleanly.

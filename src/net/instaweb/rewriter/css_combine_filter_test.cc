@@ -27,7 +27,6 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -520,7 +519,7 @@ TEST_F(CssCombineFilterCustomOptions, CssPreserveURLs) {
 // local files but they should have been after mapping into the same domain.
 TEST_F(CssCombineFilterCustomOptions, CssCombineAcrossProxyDomains) {
   // Proxy http://kProxyMapDomain/ onto http://kTestDomain/proxied/
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   GoogleString proxy_target = StrCat(kTestDomain, "proxied/");
   ASSERT_TRUE(lawyer->AddProxyDomainMapping(proxy_target,
                                             kProxyMapDomain,
@@ -608,9 +607,6 @@ TEST_F(CssCombineFilterCustomOptions, CssDoNotCombineAcrossNotProxiedDomains) {
 TEST_F(CssCombineFilterTest, CombineCssRecombine) {
   SetHtmlMimetype();
   UseMd5Hasher();
-  RequestHeaders request_headers;
-  rewrite_driver()->set_request_headers(&request_headers);
-
   CombineCss("combine_css_recombine", "", "", false);
   int inserts_before = lru_cache()->num_inserts();
 
@@ -1215,7 +1211,8 @@ TEST_F(CssCombineFilterTest, DoRewriteForDifferentDir) {
 
 TEST_F(CssCombineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  AddShard(kTestDomain, "shard1.com,shard2.com");
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddShard(kTestDomain, "shard1.com,shard2.com", &message_handler_);
 
   CssLink::Vector css_in, css_out;
   css_in.Add("1.css", ".yellow {background-image: url('1.png');}\n", "", true);
@@ -1276,7 +1273,8 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsDisallowed) {
 
 TEST_F(CssCombineFilterTest, CrossMappedDomain) {
   CssLink::Vector css_in, css_out;
-  AddRewriteDomainMapping("a.com", "b.com");
+  DomainLawyer* laywer = options()->domain_lawyer();
+  laywer->AddRewriteDomainMapping("a.com", "b.com", &message_handler_);
   bool supply_mock = false;
   css_in.Add("http://a.com/1.css", kYellow, "", supply_mock);
   css_in.Add("http://b.com/2.css", kBlue, "", supply_mock);
@@ -1300,8 +1298,9 @@ TEST_F(CssCombineFilterTest, CrossMappedDomain) {
 // the domain mapping.
 TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
   CssLink::Vector css_in, css_out;
-  AddDomain("a.com");
-  AddDomain("b.com");
+  DomainLawyer* laywer = options()->domain_lawyer();
+  laywer->AddDomain("a.com", &message_handler_);
+  laywer->AddDomain("b.com", &message_handler_);
   bool supply_mock = false;
   const char kUrl1[] = "http://a.com/1.css";
   const char kUrl2[] = "http://b.com/2.css";

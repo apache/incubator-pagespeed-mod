@@ -33,7 +33,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/delay_cache.h"
@@ -123,14 +122,15 @@ const char TestRewriteDriverFactory::kUrlNamerScheme[] = "URL_NAMER_SCHEME";
 
 TestRewriteDriverFactory::TestRewriteDriverFactory(
     const StringPiece& temp_dir, MockUrlFetcher* mock_fetcher,
-    TestDistributedFetcher* test_distributed_fetcher)
+    MockUrlFetcher* mock_distributed_fetcher)
     : RewriteDriverFactory(Platform::CreateThreadSystem()),
       mock_timer_(NULL),
       mock_scheduler_(NULL),
       delay_cache_(NULL),
+      lru_cache_(NULL),
       proxy_url_fetcher_(NULL),
       mock_url_fetcher_(mock_fetcher),
-      test_distributed_fetcher_(test_distributed_fetcher),
+      mock_distributed_fetcher_(mock_distributed_fetcher),
       counting_url_async_fetcher_(NULL),
       counting_distributed_async_fetcher_(NULL),
       mem_file_system_(NULL),
@@ -188,8 +188,10 @@ UrlAsyncFetcher* TestRewriteDriverFactory::DefaultAsyncUrlFetcher() {
 
 UrlAsyncFetcher* TestRewriteDriverFactory::DefaultDistributedUrlFetcher() {
   DCHECK(counting_distributed_async_fetcher_ == NULL);
+  mock_distributed_async_fetcher_.reset(
+      new FakeUrlAsyncFetcher(mock_distributed_fetcher_));
   counting_distributed_async_fetcher_ = new CountingUrlAsyncFetcher(
-      test_distributed_fetcher_);
+      mock_distributed_async_fetcher_.get());
   return counting_distributed_async_fetcher_;
 }
 
@@ -309,10 +311,10 @@ void TestRewriteDriverFactory::AdvanceTimeMs(int64 delta_ms) {
   mock_scheduler_->AdvanceTimeMs(delta_ms);
 }
 
-const PropertyCache::Cohort* TestRewriteDriverFactory::SetupCohort(
-    PropertyCache* cache, const GoogleString& cohort_name) {
+void TestRewriteDriverFactory::SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort_name) {
   PropertyCache::InitCohortStats(cohort_name, statistics());
-  return cache->AddCohort(cohort_name);
+  cache->AddCohort(cohort_name);
 }
 
 TestRewriteDriverFactory::CreateFilterCallback::~CreateFilterCallback() {

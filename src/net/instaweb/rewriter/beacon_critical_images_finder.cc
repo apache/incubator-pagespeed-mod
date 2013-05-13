@@ -23,10 +23,8 @@
 
 namespace net_instaweb {
 
-BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(
-    const PropertyCache::Cohort* cohort, Statistics* stats)
-    : CriticalImagesFinder(stats),
-      cohort_(cohort) {}
+BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(Statistics* stats)
+    : CriticalImagesFinder(stats) {}
 
 BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {
 }
@@ -37,6 +35,10 @@ bool BeaconCriticalImagesFinder::IsHtmlCriticalImage(
       image_url.c_str(), image_url.size());
   GoogleString hash_str = UintToString(hash_val);
   return CriticalImagesFinder::IsHtmlCriticalImage(hash_str, driver);
+}
+
+void BeaconCriticalImagesFinder::ComputeCriticalImages(
+    StringPiece url, RewriteDriver* driver) {
 }
 
 }  // namespace net_instaweb

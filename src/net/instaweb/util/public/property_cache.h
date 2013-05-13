@@ -178,6 +178,7 @@ class PropertyCache {
  public:
   // Property cache key prefixes.
   static const char kPagePropertyCacheKeyPrefix[];
+  static const char kClientPropertyCacheKeyPrefix[];
   static const char kDevicePropertyCacheKeyPrefix[];
 
   class CacheInterfaceCallback;
@@ -312,7 +313,7 @@ class AbstractPropertyPage {
   // mutated, prior to the PropertyPage being written back to the cache.
   virtual PropertyValue* GetProperty(
       const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) = 0;
+      const StringPiece& property_name) const = 0;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
@@ -341,13 +342,6 @@ class AbstractPropertyPage {
 // extensive comment for PropertyPage above.
 class PropertyPage : public AbstractPropertyPage {
  public:
-  // The cache type associated with this callback.
-  enum PageType {
-    kPropertyCachePage,
-    kPropertyCacheFallbackPage,
-    kDevicePropertyCachePage,
-  };
-
   virtual ~PropertyPage();
 
   // Gets a property given the property name.  The property can then be
@@ -367,7 +361,7 @@ class PropertyPage : public AbstractPropertyPage {
   // batching to do so on the read.  However, properties are written back to
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
   virtual PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
-                                     const StringPiece& property_name);
+                                     const StringPiece& property_name) const;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
@@ -416,6 +410,10 @@ class PropertyPage : public AbstractPropertyPage {
     return request_context_->log_record();
   }
 
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(AbstractLogRecord* log_record,
+                                 int cohort_index) {}
+
   // Read the property page from cache.
   void Read(const PropertyCache::CohortVector& cohort_list);
 
@@ -424,8 +422,7 @@ class PropertyPage : public AbstractPropertyPage {
 
  protected:
   // The Page takes ownership of the mutex.
-  PropertyPage(PageType page_type,
-               const StringPiece& key,
+  PropertyPage(const StringPiece& key,
                const RequestContextPtr& request_context,
                AbstractMutex* mutex,
                PropertyCache* property_cache);
@@ -463,12 +460,14 @@ class PropertyPage : public AbstractPropertyPage {
   typedef std::map<GoogleString, PropertyValue*> PropertyMap;
 
   struct PropertyMapStruct {
-    explicit PropertyMapStruct(AbstractLogRecord* log)
+    PropertyMapStruct(AbstractLogRecord* log, int index)
         : has_deleted_property(false),
-          log_record(log) {}
+          log_record(log),
+          cohort_index(index) {}
     PropertyMap pmap;
     bool has_deleted_property;
     AbstractLogRecord* log_record;
+    int cohort_index;
     CacheInterface::KeyState cache_state;
   };
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
@@ -479,7 +478,6 @@ class PropertyPage : public AbstractPropertyPage {
   RequestContextPtr request_context_;
   bool was_read_;
   PropertyCache* property_cache_;  // Owned by the caller.
-  PageType page_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyPage);
 };

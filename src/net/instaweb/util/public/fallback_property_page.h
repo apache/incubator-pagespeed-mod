@@ -44,13 +44,7 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   // from fallback property cache if actual property page has no value.
   virtual PropertyValue* GetProperty(
       const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name);
-
-  // Gets the property from property page with fallback values. It can return
-  // NULL if property page with fallback values is NULL.
-  PropertyValue* GetFallbackProperty(
-        const PropertyCache::Cohort* cohort,
-        const StringPiece& property_name);
+      const StringPiece& property_name) const;
 
   // Updates the value of a property for both actual property page and fallback
   // property page.
@@ -65,10 +59,6 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   // Gets the cache state for the actual property page.
   virtual CacheInterface::KeyState GetCacheState(
       const PropertyCache::Cohort* cohort);
-
-  // Gets the cache state of the property page with fallback values.
-  virtual CacheInterface::KeyState GetFallbackCacheState(
-        const PropertyCache::Cohort* cohort);
 
   // Deletes a property given the property name from both the pages.
   virtual void DeleteProperty(const PropertyCache::Cohort* cohort,

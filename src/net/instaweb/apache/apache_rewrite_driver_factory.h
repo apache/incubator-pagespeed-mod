@@ -57,6 +57,7 @@ class SystemCaches;
 class Timer;
 class UrlAsyncFetcher;
 class UrlFetcher;
+class UrlPollableAsyncFetcher;
 
 // Creates an Apache RewriteDriver.
 class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
@@ -69,6 +70,13 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   virtual ~ApacheRewriteDriverFactory();
 
   virtual Hasher* NewHasher();
+
+  // Returns the fetcher that will be used by the filters to load any
+  // resources they need. This either matches the resource manager's
+  // async fetcher or is NULL in case we are configured in a way that
+  // all fetches will succeed immediately. Must be called after the fetchers
+  // have been computed
+  UrlPollableAsyncFetcher* SubResourceFetcher();
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
 
@@ -109,11 +117,14 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   // Build global shared-memory statistics.  This is invoked if at least
   // one server context (global or VirtualHost) enables statistics.
-  Statistics* MakeGlobalSharedMemStatistics(const ApacheConfig* options);
+  Statistics* MakeGlobalSharedMemStatistics(bool logging,
+                                            int64 logging_interval_ms,
+                                            const GoogleString& logging_file);
 
   // Creates and ::Initializes a shared memory statistics object.
   SharedMemStatistics* AllocateAndInitSharedMemStatistics(
-      const StringPiece& name, const ApacheConfig* options);
+      const StringPiece& name, const bool logging,
+      const int64 logging_interval_ms, const GoogleString& logging_file);
 
   virtual ApacheServerContext* MakeApacheServerContext(server_rec* server);
   ServerContext* NewServerContext();

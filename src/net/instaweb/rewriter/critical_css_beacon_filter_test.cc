@@ -18,7 +18,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -160,7 +160,7 @@ TEST_F(CriticalCssBeaconFilterTest, ExtractFromInlineStyle) {
 }
 
 TEST_F(CriticalCssBeaconFilterTest, DisabledForIE) {
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIe7UserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIe7UserAgent);
   GoogleString input_html = StringPrintf(kHtmlTemplate, kInlineStyle, "");
   ValidateNoChanges(kTestDomain, input_html);
 }
@@ -313,16 +313,12 @@ class CriticalCssBeaconOnlyTest : public CriticalCssBeaconFilterTestBase {
 // Right now we never beacon if there's valid pcache data, even if that data
 // corresponds to an earlier version of the page.
 TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
-  // Set up pcache for page.
-  const PropertyCache::Cohort* cohort =
-      SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
-  server_context()->set_beacon_cohort(cohort);
   // Set up and register a beacon finder.
   CriticalSelectorFinder* finder =
-      new CriticalSelectorFinder(server_context()->beacon_cohort(),
-                                 statistics());
+      new CriticalSelectorFinder(RewriteDriver::kBeaconCohort, statistics());
   server_context()->set_critical_selector_finder(finder);
-
+  // Set up pcache for page.
+  SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
   PropertyPage* page = NewMockPage(kTestDomain);
   rewrite_driver()->set_property_page(page);
   page_property_cache()->Read(page);
@@ -333,7 +329,8 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
   selectors.insert("span");  // Doesn't occur in our CSS
   finder->WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
   // Force cohort to persist.
-  page->WriteCohort(server_context()->beacon_cohort());
+  page->WriteCohort(
+      page_property_cache()->GetCohort(RewriteDriver::kBeaconCohort));
   // Check injection
   EXPECT_TRUE(rewrite_driver()->CriticalSelectors() != NULL);
   // Now do the test.

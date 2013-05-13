@@ -51,8 +51,7 @@ class StatsMaker {
         threads_(Platform::CreateThreadSystem()),
         fs_(threads_.get(), &timer_),
         mem_runtime_(new InProcessSharedMem(threads_.get())),
-        stats_(new SharedMemStatistics(3000 /* log dump interval */,
-                                       100000 /* max log size kb */,
+        stats_(new SharedMemStatistics(3000 /* log dump interval*/,
                                        "/stats.log", false /* no log */,
                                        "in_mem", mem_runtime_.get(),
                                        &message_handler_, &fs_, &timer_)) {

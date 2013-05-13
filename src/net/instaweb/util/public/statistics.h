@@ -20,7 +20,7 @@
 #define NET_INSTAWEB_UTIL_PUBLIC_STATISTICS_H_
 
 #include <map>
-
+#include <set>
 #include "base/logging.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -31,7 +31,6 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class StatisticsLogger;
 class Writer;
 
 class Variable {
@@ -56,7 +55,6 @@ class Variable {
 
   // Adds 'delta' to the variable's value, returning the result.  This
   // is virtual so that subclasses can add platform-specific atomicity.
-  // TODO(sligocki): s/int/int64/
   virtual int64 Add(int delta) {
     int64 value = Get() + delta;
     Set(value);
@@ -66,37 +64,17 @@ class Variable {
   void Clear() { Set(0); }
 };
 
-// Variable protected by a mutex. Mutex must fully protect access to underlying
-// variable. For example, in mod_pagespeed and ngx_pagespeed, variables are
-// stored in shared memory and accessible from any process on a machine, so
-// the mutex must provide protection across separate processes.
-//
-// StatisticsLogger depends upon these mutexes being cross-process so that
-// several processes using the same file system don't clobber each others logs.
-class MutexedVariable : public Variable {
+// Class that manages dumping statistics periodically to a file.
+class ConsoleStatisticsLogger {
  public:
-  virtual ~MutexedVariable();
-
-  // Subclasses should not define these methods, instead define the *LockHeld()
-  // methods below.
-  virtual int64 Get() const;
-  virtual void Set(int64 value);
-  virtual int64 SetReturningPreviousValue(int64 value);
-  virtual int64 Add(int delta);
-
- protected:
-  friend class StatisticsLogger;
-
-  virtual AbstractMutex* mutex() const = 0;
-
-  // Get/Setters that may only be called if you already hold the mutex.
-  virtual int64 GetLockHeld() const = 0;
-  virtual int64 SetReturningPreviousValueLockHeld(int64 value) = 0;
-
-  // These are implemented based on GetLockHeld() and
-  // SetReturningPreviousLockHeld().
-  void SetLockHeld(int64 value);
-  int64 AddLockHeld(int delta);
+  virtual ~ConsoleStatisticsLogger();
+  // Writes the data from the logfile in JSON format for the given variables,
+  // filtered with the given parameters.
+  virtual void DumpJSON(const std::set<GoogleString>& var_titles,
+                        const std::set<GoogleString>& hist_titles,
+                        int64 start_time, int64 end_time, int64 granularity_ms,
+                        Writer* writer,
+                        MessageHandler* message_handler) const = 0;
 };
 
 class Histogram {
@@ -380,8 +358,8 @@ class Statistics {
   // This is implemented as NULL here because most Statistics don't
   // need it. In the context in which it is needed we only have access to a
   // Statistics*, rather than the specific subclass, hence its being here.
-  // Return the StatisticsLogger associated with this Statistics.
-  virtual StatisticsLogger* console_logger() { return NULL; }
+  // Return the ConsoleStatisticsLogger associated with this Statistics.
+  virtual ConsoleStatisticsLogger* console_logger() { return NULL; }
 
  protected:
   // A helper for subclasses that do not fully implement timed variables.

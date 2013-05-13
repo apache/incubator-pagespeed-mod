@@ -30,6 +30,7 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/rewriter/public/blink_critical_line_data_finder.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
@@ -49,6 +50,7 @@
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -70,6 +72,7 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class RewriteFilter;
 
 namespace {
@@ -126,7 +129,7 @@ class BeaconPropertyCallback : public PropertyPage {
       StringSet* html_critical_images_set,
       StringSet* css_critical_images_set,
       StringSet* critical_css_selector_set)
-      : PropertyPage(kPropertyCachePage, key, request_context,
+      : PropertyPage(key, request_context,
                      server_context->thread_system()->NewMutex(),
                      server_context->page_property_cache()),
         server_context_(server_context),
@@ -146,8 +149,14 @@ class BeaconPropertyCallback : public PropertyPage {
   virtual ~BeaconPropertyCallback() {}
 
   virtual void Done(bool success) {
+    const PropertyCache::Cohort* cohort =
+        server_context_->page_property_cache()->GetCohort(
+            RewriteDriver::kBeaconCohort);
+
     server_context_->critical_images_finder()->UpdateCriticalImagesCacheEntry(
-        html_critical_images_set_.get(), css_critical_images_set_.get(), this);
+        this, server_context_->page_property_cache(),
+        html_critical_images_set_.release(),
+        css_critical_images_set_.release());
     if (critical_css_selector_set_ != NULL) {
       server_context_->critical_selector_finder()->
           WriteCriticalSelectorsToPropertyCache(
@@ -156,12 +165,16 @@ class BeaconPropertyCallback : public PropertyPage {
               server_context_->message_handler());
     }
 
-    WriteCohort(server_context_->beacon_cohort());
+    WriteCohort(cohort);
     delete this;
   }
 
  private:
   ServerContext* server_context_;
+  // Note that currently CriticalImagesFinder::UpdateCriticalImagesCacheEntry
+  // will take onwership of the StringSet* passed to it, while
+  // CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache does not.
+  // There is a TODO outstanding in CriticalImagesFinder to not take ownership.
   scoped_ptr<StringSet> html_critical_images_set_;
   scoped_ptr<StringSet> css_critical_images_set_;
   scoped_ptr<StringSet> critical_css_selector_set_;
@@ -257,9 +270,6 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       enable_property_cache_(true),
       lock_manager_(NULL),
       message_handler_(NULL),
-      dom_cohort_(NULL),
-      blink_cohort_(NULL),
-      beacon_cohort_(NULL),
       available_rewrite_drivers_(new GlobalOptionsRewriteDriverPool(this)),
       trying_to_cleanup_rewrite_drivers_(false),
       factory_(factory),
@@ -1036,7 +1046,6 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   if (scoped_domain_options.get() != NULL) {
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
-    scoped_domain_options->Freeze();
     custom_options->Merge(*scoped_domain_options);
     options = custom_options.get();
   }
@@ -1050,7 +1059,6 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     scoped_ptr<RewriteOptions> options_buffer(custom_options.release());
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
-    query_options->Freeze();
     custom_options->Merge(*query_options);
     // Don't run any experiments if this is a special query-params request.
     custom_options->set_running_furious_experiment(false);
@@ -1069,8 +1077,10 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     if (custom_options == NULL) {
       custom_options.reset(options->Clone());
     }
-    custom_options->DisableFiltersRequiringScriptExecution();
-    custom_options->DisableFilter(RewriteOptions::kPrioritizeCriticalCss);
+    custom_options->DisableFilter(RewriteOptions::kDelayImages);
+    custom_options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
+    custom_options->DisableFilter(RewriteOptions::kDeferJavascript);
+    custom_options->DisableFilter(RewriteOptions::kLocalStorageCache);
   }
 
   url_namer()->ConfigureCustomOptions(*request_headers, custom_options.get());
@@ -1123,6 +1133,9 @@ void ServerContext::set_enable_property_cache(bool enabled) {
   if (page_property_cache_.get() != NULL) {
     page_property_cache_->set_enabled(enabled);
   }
+  if (client_property_cache_.get() != NULL) {
+    client_property_cache_->set_enabled(enabled);
+  }
 }
 
 // TODO(jmarantz): simplify the cache ownership model so that the layered
@@ -1132,6 +1145,9 @@ void ServerContext::MakePropertyCaches(CacheInterface* backend_cache) {
   // this data can get stale quickly.
   page_property_cache_.reset(MakePropertyCache(
       PropertyCache::kPagePropertyCacheKeyPrefix, backend_cache));
+  client_property_cache_.reset(MakePropertyCache(
+      PropertyCache::kClientPropertyCacheKeyPrefix, backend_cache));
+  client_property_cache_->AddCohort(ClientState::kClientStateCohort);
 }
 
 PropertyCache* ServerContext::MakePropertyCache(
@@ -1142,6 +1158,14 @@ PropertyCache* ServerContext::MakePropertyCache(
   return pcache;
 }
 
+AbstractClientState* RewriteDriverFactory::NewClientState() {
+  return new ClientState();
+}
+
+void ServerContext::set_blink_critical_line_data_finder(
+    BlinkCriticalLineDataFinder* finder) {
+  blink_critical_line_data_finder_.reset(finder);
+}
 
 void ServerContext::set_cache_html_info_finder(CacheHtmlInfoFinder* finder) {
   cache_html_info_finder_.reset(finder);

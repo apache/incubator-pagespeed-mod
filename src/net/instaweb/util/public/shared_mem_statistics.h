@@ -11,14 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Author: morlovich@google.com (Maksim Orlovich)
 
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SHARED_MEM_STATISTICS_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SHARED_MEM_STATISTICS_H_
 
 #include <cstddef>
+#include <map>
 #include <set>
+#include <utility>
+#include <vector>
 
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/abstract_shared_mem.h"
@@ -28,12 +29,13 @@
 #include "net/instaweb/util/public/statistics_template.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/gtest_prod.h"  // for FRIEND_TEST
 
 namespace net_instaweb {
 
-class FileSystem;
 class MessageHandler;
-class StatisticsLogger;
+class SharedMemConsoleStatisticsLogger;
 class Timer;
 class Writer;
 
@@ -55,17 +57,18 @@ class Writer;
 // warning message will be logged).  If the variable fails to initialize in the
 // process that happens to serve a statistics page, then the variable will show
 // up with value -1.
-class SharedMemVariable : public MutexedVariable {
+class SharedMemVariable : public Variable {
  public:
   virtual ~SharedMemVariable() {}
+  int64 Get() const;
+  virtual int64 SetReturningPreviousValue(int64 new_value);  // Atomic
+  virtual void Set(int64 new_value);
+  virtual int64 Add(int delta);
   virtual StringPiece GetName() const { return name_; }
-
- protected:
-  virtual AbstractMutex* mutex() const;
-  virtual int64 GetLockHeld() const;
-  virtual int64 SetReturningPreviousValueLockHeld(int64 value);
+  AbstractMutex* mutex();
 
  private:
+  friend class SharedMemConsoleStatisticsLogger;
   friend class SharedMemStatistics;
   friend class SharedMemTimedVariable;
 
@@ -78,6 +81,17 @@ class SharedMemVariable : public MutexedVariable {
   // share some state with parent.
   void Reset();
 
+  void SetConsoleStatisticsLogger(SharedMemConsoleStatisticsLogger* logger);
+
+  // Set the variable assuming that the lock is already held. Also, doesn't call
+  // ConsoleStatisticsLogger::UpdateAndDumpIfRequired. (This method is intended
+  // for use from within ConsoleStatisticsLogger::UpdateAndDumpIfRequired, so
+  // the lock is already held and updating again would introduce a loop.)
+  void SetLockHeldNoUpdate(int64 newValue);
+
+  // Get the variable's value assuming that the lock is already held.
+  int64 GetLockHeld() const;
+
   // The name of this variable.
   const GoogleString name_;
 
@@ -87,7 +101,110 @@ class SharedMemVariable : public MutexedVariable {
   // The data...
   volatile int64* value_ptr_;
 
+  // The object used to log updates to a file. Owned by Statistics object, with
+  // a copy shared with every Variable. Note that this may be NULL if
+  // SetConsoleStatisticsLogger has not yet been called.
+  SharedMemConsoleStatisticsLogger* console_logger_;
+
   DISALLOW_COPY_AND_ASSIGN(SharedMemVariable);
+};
+
+// Handles reading the logfile created by SharedMemConsoleStatisticsLogger.
+class ConsoleStatisticsLogfileReader {
+ public:
+  ConsoleStatisticsLogfileReader(FileSystem::InputFile* file, int64 start_time,
+                                 int64 end_time, int64 granularity_ms,
+                                 MessageHandler* message_handler);
+  ~ConsoleStatisticsLogfileReader();
+  // Reads the next timestamp in the file to timestamp and the corresponding
+  // chunk of data to data. Returns true if new data has been read.
+  bool ReadNextDataBlock(int64* timestamp, GoogleString* data);
+  int64 end_time() { return end_time_; }
+
+ private:
+  size_t BufferFind(const char* search_for, size_t start_at);
+  int FeedBuffer();
+
+  FileSystem::InputFile* file_;
+  int64 start_time_;
+  int64 end_time_;
+  int64 granularity_ms_;
+  MessageHandler* message_handler_;
+  GoogleString buffer_;
+
+  DISALLOW_COPY_AND_ASSIGN(ConsoleStatisticsLogfileReader);
+};
+
+class SharedMemConsoleStatisticsLogger : public ConsoleStatisticsLogger {
+ public:
+  SharedMemConsoleStatisticsLogger(
+      const int64 update_interval_ms, const StringPiece& log_file,
+      SharedMemVariable* var, MessageHandler* message_handler,
+      Statistics* stats, FileSystem *file_system, Timer* timer);
+  virtual ~SharedMemConsoleStatisticsLogger();
+
+  // Writes filtered variable and histogram data in JSON format to the given
+  // writer. Variable data is a time series collected from with data points from
+  // start_time to end_time, whereas histograms are aggregated histogram data as
+  // of the given end_time. Granularity is the minimum time difference between
+  // each successive data point.
+  virtual void DumpJSON(const std::set<GoogleString>& var_titles,
+                        const std::set<GoogleString>& hist_titles,
+                        int64 start_time, int64 end_time, int64 granularity_ms,
+                        Writer* writer, MessageHandler* message_handler) const;
+
+  // If it's been longer than kStatisticsDumpIntervalMs, update the
+  // timestamp to now and dump the current state of the Statistics.
+  void UpdateAndDumpIfRequired();
+
+ private:
+  friend class SharedMemStatisticsTestBase;
+  FRIEND_TEST(SharedMemStatisticsTestBase, TestNextDataBlock);
+  FRIEND_TEST(SharedMemStatisticsTestBase, TestParseVarData);
+  FRIEND_TEST(SharedMemStatisticsTestBase, TestParseHistData);
+  FRIEND_TEST(SharedMemStatisticsTestBase, TestPrintJSONResponse);
+  FRIEND_TEST(SharedMemStatisticsTestBase, TestParseDataFromReader);
+
+  typedef std::vector<GoogleString> VariableInfo;
+  typedef std::map<GoogleString, VariableInfo> VarMap;
+  typedef std::pair<GoogleString, GoogleString> HistBounds;
+  typedef std::pair<HistBounds, GoogleString> HistBarInfo;
+  typedef std::vector<HistBarInfo> HistInfo;
+  typedef std::map<GoogleString, HistInfo> HistMap;
+  void ParseDataFromReader(const std::set<GoogleString>& var_titles,
+                           const std::set<GoogleString>& hist_titles,
+                           ConsoleStatisticsLogfileReader* reader,
+                           std::vector<int64>* list_of_timestamps,
+                           VarMap* parsed_var_data, HistMap* parsed_hist_data)
+                           const;
+  void ParseVarDataIntoMap(StringPiece logfile_var_data,
+                           const std::set<GoogleString>& var_titles,
+                           VarMap* parsed_var_data) const;
+  HistMap ParseHistDataIntoMap(StringPiece logfile_hist_data,
+                               const std::set<GoogleString>& hist_titles) const;
+  void PrintVarDataAsJSON(const VarMap& parsed_var_data, Writer* writer,
+                          MessageHandler* message_handler) const;
+  void PrintHistDataAsJSON(const HistMap* parsed_hist_data, Writer* writer,
+                           MessageHandler* message_handler) const;
+  void PrintTimestampListAsJSON(const std::vector<int64>& list_of_timestamps,
+                                Writer* writer,
+                                MessageHandler* message_handler) const;
+  void PrintJSON(const std::vector<int64> & list_of_timestamps,
+                 const VarMap& parsed_var_data, const HistMap& parsed_hist_data,
+                 Writer* writer, MessageHandler* message_handler) const;
+
+  // The last_dump_timestamp not only contains the time of the last dump,
+  // it also controls locking so that multiple threads can't dump at once.
+  SharedMemVariable* last_dump_timestamp_;
+  MessageHandler* message_handler_;
+  Statistics* statistics_;  // Needed so we can dump the stats contained here.
+  // file_system_ and timer_ are owned by someone who called the constructor
+  // (usually Apache's ServerContext).
+  FileSystem* file_system_;
+  Timer* timer_;    // Used to retrieve timestamps
+  const int64 update_interval_ms_;
+  GoogleString logfile_name_;
+  DISALLOW_COPY_AND_ASSIGN(SharedMemConsoleStatisticsLogger);
 };
 
 class SharedMemHistogram : public Histogram {
@@ -183,7 +300,6 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
     SharedMemHistogram, FakeTimedVariable> {
  public:
   SharedMemStatistics(int64 logging_interval_ms,
-                      int64 max_logfile_size_kb,
                       const StringPiece& logging_file, bool logging,
                       const GoogleString& filename_prefix,
                       AbstractSharedMem* shm_runtime,
@@ -205,8 +321,7 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
   // no further children are expected to start.
   void GlobalCleanup(MessageHandler* message_handler);
 
-  // TODO(sligocki): Rename to statistics_logger().
-  virtual StatisticsLogger* console_logger() {
+  SharedMemConsoleStatisticsLogger* console_logger() {
     return console_logger_.get();
   }
 
@@ -229,14 +344,11 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
   // counting the mutex, for each variable.
   bool InitMutexes(size_t per_var, MessageHandler* message_handler);
 
-  friend class SharedMemStatisticsTestBase;
-
   AbstractSharedMem* shm_runtime_;
   GoogleString filename_prefix_;
   scoped_ptr<AbstractSharedMemSegment> segment_;
   bool frozen_;
-  // TODO(sligocki): Rename.
-  scoped_ptr<StatisticsLogger> console_logger_;
+  scoped_ptr<SharedMemConsoleStatisticsLogger> console_logger_;
   // The variables that we're interested in displaying on the console.
   std::set<GoogleString> important_variables_;
 

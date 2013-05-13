@@ -20,13 +20,15 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_SELECTOR_FINDER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class CriticalSelectorSet;
 class MessageHandler;
+class PropertyCache;
+class PropertyPage;
 class RewriteDriver;
 class Statistics;
 class TimedVariable;
@@ -40,25 +42,14 @@ class CriticalSelectorFinder {
   static const char kCriticalSelectorsNotFoundCount[];
   static const char kCriticalSelectorsPropertyName[];
 
-  CriticalSelectorFinder(
-      const PropertyCache::Cohort* cohort, Statistics* stats);
+  CriticalSelectorFinder(StringPiece cohort, Statistics* stats);
   virtual ~CriticalSelectorFinder();
 
   static void InitStats(Statistics* statistics);
 
-  // Reads the recorded selector set from the property cache, and unmarshals it
-  // into *critical_selectors.  Abstracts away the handling of multiple beacon
-  // results.  Call this in preference to the method below.  Returns false and
-  // empties *critical_selectors if no valid critical image set is available.
-  static bool GetCriticalSelectorsFromPropertyCache(
-      RewriteDriver* driver, StringSet* critical_selectors);
-
   // Reads the recorded selector set from the property cache, and demarshals it.
-  // Allocates a fresh object, transferring ownership of it to the caller.  May
-  // return NULL if no currently valid set is available.  This is used
-  // internally by RewriteDriver to lazily initialize critical selector data
-  // from the pcache; don't call it, call GetCriticalSelectorsFromPropertyCache
-  // instead.
+  // Allocates a fresh object, transferring ownership of it to the caller.
+  // May return NULL if no currently valid set is available.
   CriticalSelectorSet* DecodeCriticalSelectorsFromPropertyCache(
       RewriteDriver* driver);
 
@@ -87,12 +78,6 @@ class CriticalSelectorFinder {
   // samples it will take to get stable results.
   static const int kDefaultNumSetsToKeep = 10;
 
-  // Compute a simple critical selector set for the given pcache_selectors and
-  // record it in *critical_selectors.
-  static void ConvertCriticalSelectorsToSet(
-      const CriticalSelectorSet& pcache_selectors,
-      StringSet* critical_selectors);
-
   // Merge the given set into the existing critical selector sets by adding the
   // new set to the history of sets, discarding the oldest if we exceed
   // NumSetsToKeep(), then recalculating the critical selectors as the union of
@@ -100,7 +85,7 @@ class CriticalSelectorFinder {
   void UpdateCriticalSelectorSet(
     const StringSet& new_set, CriticalSelectorSet* set);
 
-  const PropertyCache::Cohort* cohort_;
+  GoogleString cohort_;
 
   TimedVariable* critical_selectors_valid_count_;
   TimedVariable* critical_selectors_expired_count_;

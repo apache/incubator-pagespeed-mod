@@ -41,23 +41,17 @@ class Timer;
 // will result in a fatal error.
 class NullThreadSystem : public ThreadSystem {
  public:
-  NullThreadSystem() : thread_id_(1) {}
+  NullThreadSystem() {}
   virtual ~NullThreadSystem();
   virtual CondvarCapableMutex* NewMutex();
   virtual RWLock* NewRWLock();
   virtual Timer* NewTimer();
-  virtual ThreadId* GetThreadId() const;
-
-  // Provide injection/observation of current thread IDs.
-  void set_current_thread(int id) { thread_id_ = id; }
-  int current_thread() const { return thread_id_; }
+  virtual int64 ThreadId() const;
 
  private:
   virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
 
  private:
-  int thread_id_;
-
   DISALLOW_COPY_AND_ASSIGN(NullThreadSystem);
 };
 

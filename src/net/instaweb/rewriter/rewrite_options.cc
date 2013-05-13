@@ -165,9 +165,6 @@ const int64 RewriteOptions::kDefaultMaxCacheableResponseContentLength = -1;
 // Apache.  See http://code.google.com/p/modpagespeed/issues/detail?id=176
 const int RewriteOptions::kDefaultMaxUrlSegmentSize = 1024;
 
-// Maximum JS elements to prefetch early when defer JS filter is enabled.
-const int RewriteOptions::kDefaultMaxPrefetchJsElements = 0;
-
 #ifdef NDEBUG
 const int RewriteOptions::kDefaultRewriteDeadlineMs = 10;
 #else
@@ -282,6 +279,10 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kExplicitCloseTags,
   RewriteOptions::kLazyloadImages,
   RewriteOptions::kPrioritizeCriticalCss,
+  RewriteOptions::kProcessBlinkInBackground,  // internal,
+                                              // enabled conditionally
+  RewriteOptions::kServeNonCacheableNonCritical,  // internal,
+                                                  // enabled conditionally
   RewriteOptions::kSplitHtml,  // internal, enabled conditionally
   RewriteOptions::kStripNonCacheable,  // internal, enabled conditionally
   RewriteOptions::kStripScripts,
@@ -436,6 +437,10 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "pc", "Add pedantic types" },
   { RewriteOptions::kPrioritizeCriticalCss,
     RewriteOptions::kPrioritizeCriticalCssId, "Prioritize Critical Css" },
+  { RewriteOptions::kPrioritizeVisibleContent,
+    "pv", "Prioritize Visible Content" },
+  { RewriteOptions::kProcessBlinkInBackground,
+    "bb", "Blink Background Processing" },
   { RewriteOptions::kRecompressJpeg,
     "rj", "Recompress Jpeg" },
   { RewriteOptions::kRecompressPng,
@@ -460,6 +465,8 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "cs", "Rewrite Style Attributes" },
   { RewriteOptions::kRewriteStyleAttributesWithUrl,
     "cu", "Rewrite Style Attributes With Url" },
+  { RewriteOptions::kServeNonCacheableNonCritical,
+    "sn", "Serve Non Cacheable and Non Critical Content" },
   { RewriteOptions::kSplitHtml,
     "sh", "Split Html" },
   { RewriteOptions::kSpriteImages,
@@ -611,7 +618,7 @@ bool RewriteOptions::ImageOptimizationEnabled() const {
           this->Enabled(RewriteOptions::kConvertToWebpLossless));
 }
 
-RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
+RewriteOptions::RewriteOptions()
     : modified_(false),
       frozen_(false),
       initialized_options_(0),
@@ -619,8 +626,7 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
       need_to_store_experiment_data_(false),
       furious_id_(furious::kFuriousNotSet),
       furious_percent_(0),
-      hasher_(kHashBytes),
-      thread_system_(thread_system) {
+      hasher_(kHashBytes) {
   url_cache_invalidation_map_.set_empty_key("");
   url_cache_invalidation_map_.set_deleted_key("-");
 
@@ -653,10 +659,6 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
   // potentially add this much more latency.
   if (RunningOnValgrind()) {
     set_rewrite_deadline_ms(kValgrindWaitForRewriteMs);
-    modified_ = false;
-#ifndef NDEBUG
-    last_thread_id_.reset();
-#endif
   }
 
   InitializeOptions(properties_);
@@ -1003,13 +1005,6 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::flush_more_resources_in_ie_and_firefox_,
       "fmrief");
   AddBaseProperty(
-      kDefaultMaxPrefetchJsElements,
-      &RewriteOptions::max_prefetch_js_elements_, "mpje",
-      kMaxPrefetchJsElements,
-      kDirectoryScope,
-      "Set number of JS elements to download without executing. This is useful"
-      "for prefetching script elements when defer JS filter is enabled.");
-  AddBaseProperty(
       false, &RewriteOptions::enable_defer_js_experimental_, "edje",
       kEnableDeferJsExperimental,
       kDirectoryScope,
@@ -1020,6 +1015,11 @@ void RewriteOptions::AddProperties() {
       kServerScope,
       "Allows individual resources to be flushed; adding some overhead to "
       "the metadata cache");
+  AddBaseProperty(
+      false, &RewriteOptions::enable_inline_preview_images_experimental_,
+      "eipie", kEnableInlinePreviewImagesExperimental,
+      kDirectoryScope,
+      NULL);  // TODO(jmarantz): eliminate experiment or document.
   AddBaseProperty(
       false, &RewriteOptions::lazyload_highres_images_,
       "elhr", kEnableLazyLoadHighResImages,
@@ -1325,12 +1325,6 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "Support for clients with no script support, in filters that "
       "insert new javascript.");
-  AddBaseProperty(
-      false, &RewriteOptions::enable_extended_instrumentation_, "eei",
-      kEnableExtendedInstrumentation,
-      kDirectoryScope,
-      "If set to true, addition instrumentation js is added to that page that "
-      "the beacon can collect more information.");
   AddBaseProperty(
       kDefaultMaxCombinedJsBytes,
       &RewriteOptions::max_combined_js_bytes_, "xcj",
@@ -1776,7 +1770,7 @@ void RewriteOptions::DisallowResourcesForProxy() {
   // regexps only after a match has been found.  Alternatively, since we're
   // setting up a binary choice here, consider using RE2 to make the yes/no
   // decision.
-  Disallow("*//ajax.googleapis.com/ajax/libs/*.js*");
+  Disallow("*//ajax.googleapis.com/ajax/libs/*");
   Disallow("*//pagead2.googlesyndication.com/pagead/show_ads.js*");
   Disallow("*//partner.googleadservices.com/gampad/google_service.js*");
   Disallow("*//platform.twitter.com/widgets.js*");
@@ -1928,7 +1922,7 @@ bool RewriteOptions::AdjustFiltersByCommaSeparatedList(
       (enabled_filters_.size() + disabled_filters_.size());
 
   // Default to false unless no filters are specified.
-  // "PageSpeedFilters=" -> disable all filters.
+  // "ModPagespeedFilters=" -> disable all filters.
   bool non_incremental = names.empty();
   for (int i = 0, n = names.size(); i < n; ++i) {
     StringPiece& option = names[i];
@@ -2186,7 +2180,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum1(
       break;
     }
     case kDomain:
-      WriteableDomainLawyer()->AddDomain(arg, handler);
+      domain_lawyer()->AddDomain(arg, handler);
       break;
     case kEnableFilters: {
       bool ok = EnableFiltersByCommaSeparatedList(arg, handler);
@@ -2198,7 +2192,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum1(
     }
     case kExperimentVariable: {
       int slot;
-      bool ok = StringToInt(arg, &slot);
+      bool ok = StringToInt(arg.as_string().c_str(), &slot);
       if (!ok || slot < 1 || slot > 5) {
         *msg = "must be an integer between 1 and 5";
         return RewriteOptions::kOptionValueInvalid;
@@ -2265,16 +2259,16 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum2(
       break;
     }
     case kMapOriginDomain:
-      WriteableDomainLawyer()->AddOriginDomainMapping(arg1, arg2, handler);
+      domain_lawyer()->AddOriginDomainMapping(arg1, arg2, handler);
       break;
     case  kMapProxyDomain:
-      WriteableDomainLawyer()->AddProxyDomainMapping(arg1, arg2, "", handler);
+      domain_lawyer()->AddProxyDomainMapping(arg1, arg2, "", handler);
       break;
     case kMapRewriteDomain:
-      WriteableDomainLawyer()->AddRewriteDomainMapping(arg1, arg2, handler);
+      domain_lawyer()->AddRewriteDomainMapping(arg1, arg2, handler);
       break;
     case kShardDomain:
-      WriteableDomainLawyer()->AddShard(arg1, arg2, handler);
+      domain_lawyer()->AddShard(arg1, arg2, handler);
       break;
     default:
       return RewriteOptions::kOptionNameUnknown;
@@ -2306,7 +2300,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum3(
       // Examples:
       //   Library 43567 5giEj_jl-Ag5G8 http://www.example.com/url.js
       int64 bytes;
-      if (!StringToInt64(arg1, &bytes) || bytes < 0) {
+      if (!StringToInt64(arg1.as_string(), &bytes) || bytes < 0) {
         *msg = "Library size must be a positive 64-bit integer";
         return RewriteOptions::kOptionValueInvalid;
       }
@@ -2318,7 +2312,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromEnum3(
       break;
     }
     case kMapProxyDomain: {
-      WriteableDomainLawyer()->AddProxyDomainMapping(arg1, arg2, arg3, handler);
+      domain_lawyer()->AddProxyDomainMapping(arg1, arg2, arg3, handler);
       break;
     }
     default:
@@ -2480,7 +2474,7 @@ bool RewriteOptions::IsRequestDeclined(
 }
 
 int64 RewriteOptions::ImageInlineMaxBytes() const {
-  if (Enabled(kInlineImages)) {
+  if (Enabled(kInlineImages) || Enabled(kProcessBlinkInBackground)) {
     return image_inline_max_bytes_.value();
   } else {
     return 0;
@@ -2593,22 +2587,12 @@ void RewriteOptions::DisableFiltersRequiringScriptExecution() {
   }
 }
 
-DomainLawyer* RewriteOptions::WriteableDomainLawyer() {
-  Modify();
-  return domain_lawyer_.MakeWriteable();
-}
-
 void RewriteOptions::Merge(const RewriteOptions& src) {
   DCHECK(!frozen_);
-#ifndef NDEBUG
-  CHECK(src.MergeOK());  // DCHECK outside of the #ifndef does not link.
-#endif
-
-  bool modify = src.modified_;
-
   DCHECK_EQ(all_options_.size(), src.all_options_.size());
   DCHECK_EQ(initialized_options_, src.initialized_options_);
   DCHECK_EQ(initialized_options_, all_options_.size());
+  modified_ |= src.modified_;
 
   // If this.forbid_all_disabled_filters() is true
   // but src.forbid_all_disabled_filters() is false,
@@ -2625,15 +2609,15 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
     disabled_filters_.EraseSet(src.enabled_filters_);
   }
 
-  modify |= enabled_filters_.Merge(src.enabled_filters_);
-  modify |= disabled_filters_.Merge(src.disabled_filters_);
+  modified_ |= enabled_filters_.Merge(src.enabled_filters_);
+  modified_ |= disabled_filters_.Merge(src.disabled_filters_);
 
   // Clean up enabled filters list to make debugging easier.
   enabled_filters_.EraseSet(disabled_filters_);
 
   // Forbidden filters strictly merge, with no exclusions.  E.g. You can never
   // enable a filter in an .htaccess file that was forbidden above.
-  modify |= forbidden_filters_.Merge(src.forbidden_filters_);
+  modified_ |= forbidden_filters_.Merge(src.forbidden_filters_);
 
   enabled_filters_.EraseSet(forbidden_filters_);
 
@@ -2688,13 +2672,7 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
     insert_result.first->second->AppendFrom(*it->second);
   }
 
-  if (!src.domain_lawyer_->empty()) {
-    if (domain_lawyer_->empty()) {
-      domain_lawyer_ = src.domain_lawyer_;
-    } else {
-      WriteableDomainLawyer()->Merge(*src.domain_lawyer());
-    }
-  }
+  domain_lawyer_.Merge(src.domain_lawyer_);
   file_load_policy_.Merge(src.file_load_policy_);
   allow_resources_.AppendFrom(src.allow_resources_);
   retain_comments_.AppendFrom(src.retain_comments_);
@@ -2758,10 +2736,6 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
       src.forbid_all_disabled_filters_.was_set()) {
     set_forbid_all_disabled_filters(new_forbid_all_disabled);
   }
-
-  if (modify) {
-    Modify();
-  }
 }
 
 RewriteOptions::MutexedOptionInt64MergeWithMax::MutexedOptionInt64MergeWithMax()
@@ -2792,15 +2766,11 @@ void RewriteOptions::MutexedOptionInt64MergeWithMax::Merge(
 }
 
 RewriteOptions* RewriteOptions::Clone() const {
-  RewriteOptions* options = NewOptions();
+  RewriteOptions* options = new RewriteOptions;
   options->Merge(*this);
   options->frozen_ = false;
   options->modified_ = false;
   return options;
-}
-
-RewriteOptions* RewriteOptions::NewOptions() const {
-  return new RewriteOptions(thread_system_);
 }
 
 GoogleString RewriteOptions::OptionSignature(const GoogleString& x,
@@ -2850,13 +2820,6 @@ void RewriteOptions::ResolveConflicts() {
   ForbidFiltersForPreserveUrl();
 }
 
-void RewriteOptions::Freeze() {
-  if (!frozen_) {
-    frozen_ = true;
-    signature_.clear();
-  }
-}
-
 void RewriteOptions::ComputeSignature() {
   if (frozen_) {
     return;
@@ -2896,7 +2859,7 @@ void RewriteOptions::ComputeSignature() {
     javascript_library_identification()->AppendSignature(&signature_);
     StrAppend(&signature_, "_");
   }
-  StrAppend(&signature_, domain_lawyer_->Signature(), "_");
+  StrAppend(&signature_, domain_lawyer_.Signature(), "_");
   StrAppend(&signature_, "AR:", allow_resources_.Signature(), "_");
   StrAppend(&signature_, "RC:", retain_comments_.Signature(), "_");
   StrAppend(&signature_, "LDC:", lazyload_enabled_classes_.Signature(), "_");
@@ -2926,14 +2889,6 @@ void RewriteOptions::ComputeSignature() {
   // TODO(jmarantz): Incorporate signature from file_load_policy.  However, the
   // changes made here make our system strictly more correct than it was before,
   // using an ad-hoc signature in css_filter.cc.
-}
-
-void RewriteOptions::ClearSignatureWithCaution() {
-  frozen_ = false;
-#ifndef NDEBUG
-  last_thread_id_.reset();
-#endif
-  signature_.clear();
 }
 
 bool RewriteOptions::IsEqual(const RewriteOptions& that) const {
@@ -3002,7 +2957,7 @@ GoogleString RewriteOptions::OptionsToString() const {
     }
   }
   output += "\nDomain Lawyer\n";
-  StrAppend(&output, domain_lawyer_->ToString("  "));
+  StrAppend(&output, domain_lawyer_.ToString("  "));
   // TODO(mmohabey): Incorporate ToString() from the file_load_policy,
   // allow_resources, and retain_comments.
   if (!url_cache_invalidation_entries_.empty()) {
@@ -3076,34 +3031,7 @@ GoogleString RewriteOptions::ToExperimentDebugString() const {
 void RewriteOptions::Modify() {
   DCHECK(!frozen_);
   modified_ = true;
-
-  // The data in last_thread_id_ is currently only examined in DCHECKs so
-  // there's no need to pay the cost of populating it in produciton.
-#ifndef NDEBUG
-  if (thread_system_ != NULL) {
-    if (last_thread_id_.get() == NULL) {
-      last_thread_id_.reset(thread_system_->GetThreadId());
-    } else {
-      DCHECK(ModificationOK());
-    }
-  }
-#endif
 }
-
-// These method implementations are only in debug builds for asserting that
-// the usage patterns are safe.  In fact we don't even have last_thread_id_
-// compiled into the class in non-debug compiles.
-#ifndef NDEBUG
-bool RewriteOptions::ModificationOK() const {
-  return ((last_thread_id_.get() == NULL) ||
-          (last_thread_id_->IsCurrentThread()));
-}
-
-bool RewriteOptions::MergeOK() const {
-  return frozen_ || (last_thread_id_.get() == NULL) ||
-      last_thread_id_->IsCurrentThread();
-}
-#endif
 
 void RewriteOptions::AddCustomFetchHeader(const StringPiece& name,
                                           const StringPiece& value) {
@@ -3264,7 +3192,7 @@ void RewriteOptions::FuriousSpec::Initialize(const StringPiece& spec,
     TrimWhitespace(&piece);
     if (StringCaseStartsWith(piece, "id")) {
       StringPiece id = PieceAfterEquals(piece);
-      if (id.length() > 0 && !StringToInt(id, &id_)) {
+      if (id.length() > 0 && !StringToInt(id.as_string(), &id_)) {
         // If we failed to turn this string into an int, then
         // set the id_ to kFuriousNotSet so we don't end up adding
         // in this spec.
@@ -3275,7 +3203,7 @@ void RewriteOptions::FuriousSpec::Initialize(const StringPiece& spec,
       use_default_ = true;
     } else if (StringCaseStartsWith(piece, "percent")) {
       StringPiece percent = PieceAfterEquals(piece);
-      StringToInt(percent, &percent_);
+      StringToInt(percent.as_string(), &percent_);
     } else if (StringCaseStartsWith(piece, "ga")) {
       StringPiece ga = PieceAfterEquals(piece);
       if (ga.length() > 0) {
@@ -3284,7 +3212,7 @@ void RewriteOptions::FuriousSpec::Initialize(const StringPiece& spec,
     } else if (StringCaseStartsWith(piece, "slot")) {
       StringPiece slot = PieceAfterEquals(piece);
       int stored_id = ga_variable_slot_;
-      StringToInt(slot, &ga_variable_slot_);
+      StringToInt(slot.as_string(), &ga_variable_slot_);
       // Valid custom variable slots are 1-5 inclusive.
       if (ga_variable_slot_ < 1 || ga_variable_slot_ > 5) {
         LOG(INFO) << "Invalid custom variable slot.";
@@ -3313,17 +3241,17 @@ void RewriteOptions::FuriousSpec::Initialize(const StringPiece& spec,
     } else if (StringCaseStartsWith(piece, "inline_css")) {
       StringPiece max_bytes = PieceAfterEquals(piece);
       if (max_bytes.length() > 0) {
-        StringToInt64(max_bytes, &css_inline_max_bytes_);
+        StringToInt64(max_bytes.as_string(), &css_inline_max_bytes_);
       }
     } else if (StringCaseStartsWith(piece, "inline_images")) {
       StringPiece max_bytes = PieceAfterEquals(piece);
       if (max_bytes.length() > 0) {
-        StringToInt64(max_bytes, &image_inline_max_bytes_);
+        StringToInt64(max_bytes.as_string(), &image_inline_max_bytes_);
       }
     } else if (StringCaseStartsWith(piece, "inline_js")) {
       StringPiece max_bytes = PieceAfterEquals(piece);
       if (max_bytes.length() > 0) {
-        StringToInt64(max_bytes, &js_inline_max_bytes_);
+        StringToInt64(max_bytes.as_string(), &js_inline_max_bytes_);
       }
     }
   }
@@ -3408,8 +3336,7 @@ void RewriteOptions::PurgeUrl(StringPiece url, int64 timestamp_ms) {
 void RewriteOptions::AddUrlCacheInvalidationEntry(
     StringPiece url_pattern, int64 timestamp_ms,
     bool ignores_metadata_and_pcache) {
-  if (enable_cache_purge() &&
-      !ignores_metadata_and_pcache &&
+  if (!ignores_metadata_and_pcache &&
       (url_pattern.find('*') == StringPiece::npos)) {
     // We could use Wildcard::IsSimple but let's define ? to mean in this
     // context a literal '?' because query-params are way more common than
@@ -3439,9 +3366,6 @@ bool RewriteOptions::UpdateCacheInvalidationTimestampMs(int64 timestamp_ms) {
   if (cache_invalidation_timestamp_.value() < timestamp_ms) {
     bool recompute_signature = frozen_;
     frozen_ = false;
-#ifndef NDEBUG
-    last_thread_id_.reset();
-#endif
     cache_invalidation_timestamp_.checked_set(timestamp_ms);
     Modify();
     if (recompute_signature) {

@@ -22,8 +22,8 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
+#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -35,6 +35,31 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class Statistics;
+
+// By default, CriticalImagesFinder does not return meaningful results. However,
+// this test manually manages the critical image set, so CriticalImagesFinder
+// can return useful information for testing this filter.
+class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
+ public:
+  explicit MeaningfulCriticalImagesFinder(Statistics* stats)
+      : CriticalImagesFinder(stats) {}
+  virtual ~MeaningfulCriticalImagesFinder() {}
+  virtual bool IsMeaningful(const RewriteDriver* driver) const {
+    return true;
+  }
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver) {}
+  virtual const char* GetCriticalImagesCohort() const {
+    return kCriticalImagesCohort;
+  }
+ private:
+  static const char kCriticalImagesCohort[];
+};
+
+const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
+    "critical_images";
 
 class LazyloadImagesFilterTest : public RewriteTestBase {
  protected:
@@ -197,15 +222,15 @@ TEST_F(LazyloadImagesFilterTest, Blacklist) {
 
 TEST_F(LazyloadImagesFilterTest, CriticalImages) {
   InitLazyloadImagesFilter(false);
-  MockCriticalImagesFinder* finder = new MockCriticalImagesFinder(statistics());
-  server_context()->set_critical_images_finder(finder);
+  server_context()->set_critical_images_finder(
+      new MeaningfulCriticalImagesFinder(statistics()));
 
-  StringSet* critical_images = new StringSet;
+  StringSet* critical_images = server_context()->critical_images_finder()->
+      mutable_html_critical_images(rewrite_driver());
   critical_images->insert("http://www.1.com/critical");
   critical_images->insert("www.1.com/critical2");
   critical_images->insert("http://test.com/critical3");
   critical_images->insert("http://test.com/critical4.jpg");
-  finder->set_critical_images(critical_images);
 
   GoogleString rewritten_url = Encode(
       "http://test.com/", "ce", "HASH", "critical4.jpg", "jpg");
@@ -430,8 +455,7 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySliderAfterHead) {
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
-  rewrite_driver()->SetUserAgent(
-      UserAgentMatcherTestBase::kBlackBerryOS5UserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kBlackBerryOS5UserAgent);
   InitLazyloadImagesFilter(false);
   GoogleString input_html = "<head>"
       "</head>"
@@ -442,7 +466,7 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForGooglebot) {
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kGooglebotUserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kGooglebotUserAgent);
   InitLazyloadImagesFilter(false);
   GoogleString input_html = "<head>"
       "</head>"
@@ -482,8 +506,6 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForXHR) {
         logging_info->rewriter_stats(i).has_html_status()) {
       EXPECT_EQ(RewriterHtmlApplication::DISABLED,
                 logging_info->rewriter_stats(i).html_status());
-      EXPECT_TRUE(logging_info->has_is_xhr());
-      EXPECT_TRUE(logging_info->is_xhr());
       return;
     }
   }

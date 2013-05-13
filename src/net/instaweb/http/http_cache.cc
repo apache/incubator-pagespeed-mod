@@ -68,6 +68,8 @@ const char HTTPCache::kCacheInserts[] = "cache_inserts";
 const char HTTPCache::kCacheDeletes[] = "cache_deletes";
 // This used for doing prefix match for etag in fetcher code.
 const char HTTPCache::kEtagPrefix[] = "W/\"PSA-";
+const char HTTPCache::kEtagFormat[] = "W/\"PSA-%s\"";
+
 
 HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
                      Statistics* stats)
@@ -338,7 +340,8 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
       content = &new_content;
     }
     hash = hasher_->Hash(*content);
-    headers->Add(HttpAttributes::kEtag, FormatEtag(hash.c_str()));
+    headers->Add(HttpAttributes::kEtag,
+                 StringPrintf(kEtagFormat, hash.c_str()));
     headers_mutated = true;
   }
 
@@ -461,10 +464,6 @@ void HTTPCache::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCacheExpirations);
   statistics->AddVariable(kCacheInserts);
   statistics->AddVariable(kCacheDeletes);
-}
-
-GoogleString HTTPCache::FormatEtag(StringPiece hash) {
-  return StrCat(kEtagPrefix, hash, "\"");
 }
 
 HTTPCache::Callback::~Callback() {

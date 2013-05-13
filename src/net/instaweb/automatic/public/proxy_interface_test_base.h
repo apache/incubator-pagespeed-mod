@@ -36,7 +36,8 @@
 
 namespace net_instaweb {
 
-class MockCriticalImagesFinder;
+class AbstractClientState;
+class CriticalImagesFinder;
 class GoogleUrl;
 class HtmlElement;
 class HtmlFilter;
@@ -71,7 +72,7 @@ class ProxyUrlNamer : public UrlNamer {
                              const RequestHeaders& request_headers,
                              Callback* callback,
                              MessageHandler* handler) const {
-    callback->Run((options_ == NULL) ? NULL : options_->Clone());
+    callback->Done((options_ == NULL) ? NULL : options_->Clone());
   }
 
   void set_authorized(bool authorized) { authorized_ = authorized; }
@@ -94,7 +95,8 @@ class MockFilter : public EmptyHtmlFilter {
   explicit MockFilter(RewriteDriver* driver)
       : driver_(driver),
         num_elements_(0),
-        num_elements_property_(NULL) {
+        num_elements_property_(NULL),
+        client_state_(NULL) {
   }
 
   virtual void StartDocument();
@@ -110,6 +112,7 @@ class MockFilter : public EmptyHtmlFilter {
   int num_elements_;
   PropertyValue* num_elements_property_;
   GoogleString client_id_;
+  AbstractClientState* client_state_;
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
@@ -241,7 +244,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
  private:
   friend class FilterCallback;
 
-  MockCriticalImagesFinder* mock_critical_images_finder_;
+  CriticalImagesFinder* fake_critical_images_finder_;
 };
 
 }  // namespace net_instaweb

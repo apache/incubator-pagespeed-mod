@@ -462,7 +462,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   scoped_ptr<RequestHeaders> request_headers(new RequestHeaders);
   ResponseHeaders response_headers;
   {
-    // TODO(mmohabey): Add a hook which strips off the PageSpeed* query
+    // TODO(mmohabey): Add a hook which strips off the ModPagespeed* query
     // (instead of stripping them here) params before content generation.
     GoogleUrl gurl(absolute_url);
     ApacheRequestToRequestHeaders(*request, request_headers.get());
@@ -480,7 +480,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
                                         &response_headers);
     if (!query_options_success.second) {
       ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, request,
-                    "Request not rewritten because PageSpeed "
+                    "Request not rewritten because ModPagespeed "
                     "query-params or headers are invalid.");
       return NULL;
     }
@@ -501,7 +501,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
       options = merged_options;
 
       if (gurl.is_valid()) {
-        // Set final url to gurl which has PageSpeed* query params
+        // Set final url to gurl which has ModPagespeed* query params
         // stripped.
         final_url = gurl.Spec().as_string();
       }
@@ -532,13 +532,12 @@ InstawebContext* build_context_for_request(request_rec* request) {
           // write them both back. This should be a rare case and could be
           // optimized a bit if we find that we're spending time here.
           ResponseHeaders tmp_err_resp_headers, tmp_resp_headers;
-          ThreadSystem* thread_system = server_context->thread_system();
-          ApacheConfig unused_opts1(thread_system), unused_opts2(thread_system);
+          RewriteOptions unused_opts1, unused_opts2;
 
           ApacheRequestToResponseHeaders(*request, &tmp_resp_headers,
                                          &tmp_err_resp_headers);
 
-          // Use ScanHeader's parsing logic to find and strip the PageSpeed
+          // Use ScanHeader's parsing logic to find and strip the ModPagespeed
           // options from the headers. Use NULL for device_properties as no
           // device property information is needed for the stripping.
           RewriteQuery::ScanHeader(
@@ -564,16 +563,16 @@ InstawebContext* build_context_for_request(request_rec* request) {
   }
 
   // TODO(sligocki): Move inside PSOL.
-  // Is PageSpeed turned off? We check after parsing query params so that
+  // Is ModPagespeed turned off? We check after parsing query params so that
   // they can override .conf settings.
   if (!options->enabled()) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
-                  "Request not rewritten because: PageSpeed is off");
+                  "Request not rewritten because: ModPagespeed off");
     return NULL;
   }
 
   // TODO(sligocki): Move inside PSOL.
-  // Do Disallow statements restrict us from rewriting this URL?
+  // Do ModPagespeedDisallow statements restrict us from rewriting this URL?
   if (!options->IsAllowed(final_url)) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                   "Request not rewritten because: ModPagespeedDisallow");
@@ -730,7 +729,7 @@ apr_status_t instaweb_out_filter(ap_filter_t* filter, apr_bucket_brigade* bb) {
 // by the call to ap_add_output_filter(kModPagespeedFixHeadersName...)
 // in build_context_for_request.
 //
-// NOTE: This is disabled if users set "ModifyCachingHeaders false".
+// NOTE: This is disabled if users set "ModPagespeedModifyCachingHeaders false".
 apr_status_t instaweb_fix_headers_filter(
     ap_filter_t* filter, apr_bucket_brigade* bb) {
   request_rec* request = filter->r;
@@ -982,7 +981,10 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
       // allows statistics to work if mod_pagespeed gets turned on via
       // .htaccess or query param.
       if ((statistics == NULL) && config->statistics_enabled()) {
-        statistics = factory->MakeGlobalSharedMemStatistics(config);
+        statistics = factory->MakeGlobalSharedMemStatistics(
+            config->statistics_logging_enabled(),
+            config->statistics_logging_interval_ms(),
+            config->statistics_logging_file());
       }
 
       // If config has statistics on and we have per-vhost statistics on
@@ -1161,10 +1163,10 @@ void mod_pagespeed_register_hooks(apr_pool_t* pool) {
 apr_status_t pagespeed_child_exit(void* data) {
   ApacheServerContext* server_context = static_cast<ApacheServerContext*>(data);
   if (server_context->PoolDestroyed()) {
-    // When the last server context is destroyed, it's important that we also
-    // clean up the factory, so we don't end up with dangling pointers in case
-    // we are not unloaded fully on a config check (e.g. on Ubuntu 11).
-    apache_process_context.factory_.reset(NULL);
+      // When the last server context is destroyed, it's important that we also
+      // clean up the factory, so we don't end up with dangling pointers in case
+      // we are not unloaded fully on a config check (e.g. on Ubuntu 11).
+      apache_process_context.factory_.reset(NULL);
   }
   return APR_SUCCESS;
 }
@@ -1854,9 +1856,7 @@ void* create_dir_config(apr_pool_t* pool, char* dir) {
   if (dir == NULL) {
     return NULL;
   }
-  ThreadSystem* thread_system =
-      apache_process_context.factory_->thread_system();
-  ApacheConfig* config = new ApacheConfig(dir, thread_system);
+  ApacheConfig* config = new ApacheConfig(dir);
   config->SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   apr_pool_cleanup_register(pool, config, delete_config, apr_pool_cleanup_null);
   return config;
@@ -1868,25 +1868,15 @@ void* create_dir_config(apr_pool_t* pool, char* dir) {
 // new_conf is the directory structure currently being processed.
 // This function returns the new per-directory structure created
 void* merge_dir_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
-  ApacheConfig* dir1 = static_cast<ApacheConfig*>(base_conf);
-  ApacheConfig* dir2 = static_cast<ApacheConfig*>(new_conf);
+  const ApacheConfig* dir1 = static_cast<const ApacheConfig*>(base_conf);
+  const ApacheConfig* dir2 = static_cast<const ApacheConfig*>(new_conf);
 
   // To make it easier to debug the merged configurations, we store
   // the name of both input configurations as the description for
   // the merged configuration.
-  ApacheConfig* dir3 = new ApacheConfig(
-      StrCat(
-          "Combine(", dir1->description(), ", ", dir2->description(), ")"),
-      dir1->thread_system());
-
-  // Apache does not notify us when it is done adding directives to a
-  // configuration, so we don't have a good opportunity to Freeze it
-  // until it use used as a merge source.  We don't want to do this in
-  // Merge because, for C++ cleanliness/readability, we want to let
-  // Merge take a const RewrieOptions&, so we must Freeze at the call site.
-  dir1->Freeze();
+  ApacheConfig* dir3 = new ApacheConfig(StrCat(
+      "Combine(", dir1->description(), ", ", dir2->description(), ")"));
   dir3->Merge(*dir1);
-  dir2->Freeze();
   dir3->Merge(*dir2);
   apr_pool_cleanup_register(pool, dir3, delete_config, apr_pool_cleanup_null);
   return dir3;
@@ -1967,13 +1957,7 @@ namespace net_instaweb {
 // install the Apache command-table in the module-record before Apache
 // initializes the module.
 void ApacheProcessContext::InstallCommands() {
-  // Similar to the instantiation in ApacheConfig::AddProperties(), we
-  // instantiate an ApacheConfig with a null thread system as we
-  // are only using it to populate a static table which must be
-  // established very early when mod_pagespeed.so is dynamically loaded,
-  // to build the Apache directives parse-table before Apache attempts
-  // to initialize our module.
-  ApacheConfig config_template(NULL);
+  ApacheConfig config_template;
   const RewriteOptions::OptionBaseVector& v = config_template.all_options();
   int num_cmds = arraysize(net_instaweb::mod_pagespeed_filter_cmds);
 

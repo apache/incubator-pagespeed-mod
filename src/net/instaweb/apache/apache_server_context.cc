@@ -130,8 +130,7 @@ ApacheConfig* ApacheServerContext::config() {
 
 ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
   if (spdy_config_overlay_.get() == NULL) {
-    spdy_config_overlay_.reset(new ApacheConfig(
-        "spdy_overlay", thread_system()));
+    spdy_config_overlay_.reset(new ApacheConfig());
     // We want to copy any implicit rewrite level from the parent,
     // so we don't end up overriding it with passthrough. It's also OK
     // to forward explicit one to an implicit one here, since an implicit
@@ -143,8 +142,7 @@ ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
 
 ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
   if (non_spdy_config_overlay_.get() == NULL) {
-    non_spdy_config_overlay_.reset(new ApacheConfig(
-        "non_spdy_overlay", thread_system()));
+    non_spdy_config_overlay_.reset(new ApacheConfig());
     // See ::SpdyConfigOverlay for explanation.
     non_spdy_config_overlay_->SetDefaultRewriteLevel(config()->level());
   }
@@ -183,7 +181,10 @@ void ApacheServerContext::CreateLocalStatistics(
     Statistics* global_statistics) {
   local_statistics_ =
       apache_factory_->AllocateAndInitSharedMemStatistics(
-          hostname_identifier(), config());
+          hostname_identifier(),
+          config()->statistics_logging_enabled(),
+          config()->statistics_logging_interval_ms(),
+          config()->statistics_logging_file());
   split_statistics_.reset(new SplitStatistics(
       apache_factory_->thread_system(), local_statistics_, global_statistics));
   // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,

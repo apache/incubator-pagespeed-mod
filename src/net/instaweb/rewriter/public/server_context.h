@@ -32,7 +32,6 @@
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -42,8 +41,10 @@
 namespace net_instaweb {
 
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
 class CacheInterface;
+class ContentType;
 class CriticalCssFinder;
 class CriticalImagesFinder;
 class CriticalSelectorFinder;
@@ -58,6 +59,7 @@ class Hasher;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
+class PropertyCache;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
@@ -75,7 +77,6 @@ class UrlAsyncFetcher;
 class UrlNamer;
 class UsageDataReporter;
 class UserAgentMatcher;
-struct ContentType;
 
 typedef RefCountedPtr<OutputResource> OutputResourcePtr;
 typedef std::vector<OutputResourcePtr> OutputResourceVector;
@@ -206,15 +207,9 @@ class ServerContext {
   PropertyCache* page_property_cache() const {
     return page_property_cache_.get();
   }
-
-  const PropertyCache::Cohort* dom_cohort() const { return dom_cohort_; }
-  void set_dom_cohort(const PropertyCache::Cohort* c) { dom_cohort_ = c; }
-
-  const PropertyCache::Cohort* blink_cohort() const { return blink_cohort_; }
-  void set_blink_cohort(const PropertyCache::Cohort* c) { blink_cohort_ = c; }
-
-  const PropertyCache::Cohort* beacon_cohort() const { return beacon_cohort_; }
-  void set_beacon_cohort(const PropertyCache::Cohort* c) { beacon_cohort_ = c; }
+  PropertyCache* client_property_cache() const {
+    return client_property_cache_.get();
+  }
 
   // Cache for storing file system metadata. It must be private to a server,
   // preferably but not necessarily shared between its processes, and is
@@ -258,6 +253,13 @@ class ServerContext {
     return user_agent_matcher_;
   }
   void set_user_agent_matcher(UserAgentMatcher* n) { user_agent_matcher_ = n; }
+
+  BlinkCriticalLineDataFinder* blink_critical_line_data_finder() const {
+    return blink_critical_line_data_finder_.get();
+  }
+
+  void set_blink_critical_line_data_finder(
+      BlinkCriticalLineDataFinder* finder);
 
   CacheHtmlInfoFinder* cache_html_info_finder() const {
     return cache_html_info_finder_.get();
@@ -624,6 +626,7 @@ class ServerContext {
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
+  scoped_ptr<BlinkCriticalLineDataFinder> blink_critical_line_data_finder_;
   scoped_ptr<CacheHtmlInfoFinder> cache_html_info_finder_;
   scoped_ptr<FlushEarlyInfoFinder> flush_early_info_finder_;
 
@@ -640,6 +643,7 @@ class ServerContext {
 
   scoped_ptr<HTTPCache> http_cache_;
   scoped_ptr<PropertyCache> page_property_cache_;
+  scoped_ptr<PropertyCache> client_property_cache_;
   CacheInterface* filesystem_metadata_cache_;
   CacheInterface* metadata_cache_;
 
@@ -649,10 +653,6 @@ class ServerContext {
 
   NamedLockManager* lock_manager_;
   MessageHandler* message_handler_;
-
-  const PropertyCache::Cohort* dom_cohort_;
-  const PropertyCache::Cohort* blink_cohort_;
-  const PropertyCache::Cohort* beacon_cohort_;
 
   // RewriteDrivers that were previously allocated, but have
   // been released with ReleaseRewriteDriver, and are ready

@@ -21,7 +21,7 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -50,18 +50,13 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     filter_ = new CriticalSelectorFilter(rewrite_driver());
     rewrite_driver()->AppendOwnedPreRenderFilter(filter_);
     server_context()->ComputeSignature(options());
+    server_context()->set_critical_selector_finder(
+        new CriticalSelectorFinder(RewriteDriver::kBeaconCohort, statistics()));
+
     // Setup pcache.
     pcache_ = rewrite_driver()->server_context()->page_property_cache();
-    const PropertyCache::Cohort* beacon_cohort =
-        SetupCohort(pcache_, RewriteDriver::kBeaconCohort);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(pcache_, RewriteDriver::kDomCohort);
-    server_context()->set_dom_cohort(dom_cohort);
-    server_context()->set_beacon_cohort(beacon_cohort);
-    server_context()->set_critical_selector_finder(
-        new CriticalSelectorFinder(server_context()->beacon_cohort(),
-                                   statistics()));
-
+    SetupCohort(pcache_, RewriteDriver::kBeaconCohort);
+    SetupCohort(pcache_, RewriteDriver::kDomCohort);
     ResetDriver();
 
     // Write out some initial critical selectors for us to work with.
@@ -70,7 +65,7 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     selectors.insert("*");
     server_context()->critical_selector_finder()->
         WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
-    page_->WriteCohort(server_context()->beacon_cohort());
+    page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
 
     // Some weird but valid CSS.
     SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
@@ -162,7 +157,7 @@ TEST_F(CriticalSelectorFilterTest, EmptyBlock) {
 }
 
 TEST_F(CriticalSelectorFilterTest, DisabledForIE) {
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIe7UserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIe7UserAgent);
   GoogleString css = StrCat(
       "<style>*,p {display: none; } span {display: inline; }</style>",
       CssLinkHref("a.css"),
@@ -307,11 +302,11 @@ TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
   selectors.insert("span");
   CriticalSelectorFinder* finder = server_context()->critical_selector_finder();
   finder->WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
-  page_->WriteCohort(server_context()->beacon_cohort());
+  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
   page_->DeleteProperty(
-      server_context()->dom_cohort(),
+      pcache_->GetCohort(RewriteDriver::kDomCohort),
       CriticalSelectorFilter::kSummarizedCssProperty);
-  page_->WriteCohort(server_context()->dom_cohort());
+  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kDomCohort));
 
   // Note that calling ResetDriver() just resets the state in the
   // driver. Whatever has been written to the property & metadata caches so far
@@ -327,11 +322,11 @@ TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
   for (int i = 0; i < finder->NumSetsToKeep(); ++i) {
     finder->WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
   }
-  page_->WriteCohort(server_context()->beacon_cohort());
+  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
   page_->DeleteProperty(
-      server_context()->dom_cohort(),
+      pcache_->GetCohort(RewriteDriver::kDomCohort),
       CriticalSelectorFilter::kSummarizedCssProperty);
-  page_->WriteCohort(server_context()->dom_cohort());
+  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kDomCohort));
   ResetDriver();
   ValidateExpected("with_span", StrCat(css, "<span>Foo</span>"),
                    StrCat("<style>", critical_css_span, "</style>",
@@ -366,9 +361,9 @@ TEST_F(CriticalSelectorFilterTest, NoSelectorInfo) {
 
   // We shouldn't change things when there is no info on selectors available.
   page_->DeleteProperty(
-      server_context()->beacon_cohort(),
+      pcache_->GetCohort(RewriteDriver::kBeaconCohort),
       CriticalSelectorFinder::kCriticalSelectorsPropertyName);
-  page_->WriteCohort(server_context()->beacon_cohort());
+  page_->WriteCohort(pcache_->GetCohort(RewriteDriver::kBeaconCohort));
 
   ResetDriver();
   ValidateNoChanges("no_sel_info", StrCat(css, "<div>Foo</div>"));
@@ -453,29 +448,6 @@ TEST_F(CriticalSelectorWithCombinerFilterTest, Interaction) {
                                      MultiUrl("a.css", "b.css"), "css");
 
   ValidateExpected("with_combiner",
-                   css,
-                   StrCat(critical_css,
-                          LoadRestOfCss(CssLinkHref(combined_url))));
-}
-
-TEST_F(CriticalSelectorWithCombinerFilterTest, ResolveWhenCombineAcrossPaths) {
-  // Make sure we get proper URL resolution when doing combine-across-paths.
-  SetResponseWithDefaultHeaders("dir/a.css", kContentTypeCss,
-                                "* { background-image: url(/dir/d.png); }",
-                                100);
-  GoogleString css = StrCat(
-      CssLinkHref("dir/a.css"),
-      CssLinkHref("b.css"));
-
-    // Only one <style> element since combine_css ran before us.
-  GoogleString critical_css =
-      "<style>*{background-image:url(dir/d.png)}"  // from dir/a.css
-      "@media screen{*{margin:0px}}</style>";  // from b.css
-
-  GoogleString combined_url =
-      StrCat(kTestDomain, "dir,_a.css+b.css.pagespeed.cc.0.css");
-
-  ValidateExpected("with_combiner_rel",
                    css,
                    StrCat(critical_css,
                           LoadRestOfCss(CssLinkHref(combined_url))));

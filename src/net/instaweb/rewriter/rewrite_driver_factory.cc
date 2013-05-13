@@ -42,6 +42,7 @@
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/cache_batcher.h"
 #include "net/instaweb/util/public/checking_thread_system.h"
+#include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
 #include "net/instaweb/util/public/filename_encoder.h"
@@ -50,6 +51,7 @@
 #include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -339,28 +341,26 @@ CriticalCssFinder* RewriteDriverFactory::DefaultCriticalCssFinder() {
   return NULL;
 }
 
-CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder(
-    ServerContext* server_context) {
-  // TODO(pulkitg): Don't create BeaconCriticalImagesFinder if beacon cohort is
-  // not added.
-  return new BeaconCriticalImagesFinder(
-      server_context->beacon_cohort(), statistics());
+CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder() {
+  return new BeaconCriticalImagesFinder(statistics());
 }
 
-CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
-    ServerContext* server_context) {
-  // TODO(pulkitg): Don't create CriticalSelectorFinder if beacon cohort is
-  // not added.
-  return new CriticalSelectorFinder(
-      server_context->beacon_cohort(), statistics());
+CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder() {
+  return new CriticalSelectorFinder(RewriteDriver::kBeaconCohort, statistics());
 }
 
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
   return NULL;
 }
 
+BlinkCriticalLineDataFinder*
+RewriteDriverFactory::DefaultBlinkCriticalLineDataFinder(
+    PropertyCache* pcache) {
+  return NULL;
+}
+
 CacheHtmlInfoFinder* RewriteDriverFactory::DefaultCacheHtmlInfoFinder(
-    PropertyCache* cache, ServerContext* server_context) {
+    PropertyCache* cache) {
   return NULL;
 }
 
@@ -481,13 +481,14 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_static_asset_manager(static_asset_manager());
   PropertyCache* pcache = server_context->page_property_cache();
   server_context->set_critical_css_finder(DefaultCriticalCssFinder());
-  server_context->set_critical_images_finder(
-      DefaultCriticalImagesFinder(server_context));
+  server_context->set_critical_images_finder(DefaultCriticalImagesFinder());
   server_context->set_critical_selector_finder(
-      DefaultCriticalSelectorFinder(server_context));
+      DefaultCriticalSelectorFinder());
   server_context->set_flush_early_info_finder(DefaultFlushEarlyInfoFinder());
+  server_context->set_blink_critical_line_data_finder(
+      DefaultBlinkCriticalLineDataFinder(pcache));
   server_context->set_cache_html_info_finder(
-      DefaultCacheHtmlInfoFinder(pcache, server_context));
+      DefaultCacheHtmlInfoFinder(pcache));
   server_context->set_hostname(hostname_);
   server_context->InitWorkersAndDecodingDriver();
   server_contexts_.insert(server_context);
@@ -657,6 +658,7 @@ void RewriteDriverFactory::InitStats(Statistics* statistics) {
   CriticalImagesFinder::InitStats(statistics);
   CriticalCssFinder::InitStats(statistics);
   CriticalSelectorFinder::InitStats(statistics);
+  PropertyCache::InitCohortStats(ClientState::kClientStateCohort, statistics);
 }
 
 void RewriteDriverFactory::Initialize() {
@@ -681,7 +683,7 @@ RewriteStats* RewriteDriverFactory::rewrite_stats() {
 }
 
 RewriteOptions* RewriteDriverFactory::NewRewriteOptions() {
-  return new RewriteOptions(thread_system());
+  return new RewriteOptions;
 }
 
 RewriteOptions* RewriteDriverFactory::NewRewriteOptionsForQuery() {

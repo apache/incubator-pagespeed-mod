@@ -72,31 +72,26 @@ bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
           user_agent, async_fetch->request_headers());
   {
     ScopedMutex lock(async_fetch->log_record()->mutex());
-    CacheHtmlLoggingInfo* cache_html_logging_info =
-        async_fetch->log_record()->logging_info()->
-        mutable_cache_html_logging_info();
+    // TODO(mmohabey): When called by IsCacheHtmlRequest logging should be done
+    // differently.
+    BlinkInfo* blink_info =
+        async_fetch->log_record()->logging_info()->mutable_blink_info();
     switch (request_type) {
       case UserAgentMatcher::kBlinkWhiteListForDesktop:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_DESKTOP_WHITELIST);
-        return true;
-      case UserAgentMatcher::kBlinkWhiteListForMobile:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_MOBILE);
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_WHITELIST);
         return true;
       case UserAgentMatcher::kDoesNotSupportBlink:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::NOT_SUPPORT_CACHE_HTML);
+        blink_info->set_blink_user_agent(BlinkInfo::NOT_SUPPORT_BLINK);
         return false;
       case UserAgentMatcher::kBlinkBlackListForDesktop:
-        FALLTHROUGH_INTENDED;
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_BLACKLIST);
+        return false;
+      case UserAgentMatcher::kBlinkWhiteListForMobile:
       case UserAgentMatcher::kDoesNotSupportBlinkForMobile:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_DESKTOP_BLACKLIST);
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_MOBILE);
         return false;
       case UserAgentMatcher::kNullOrEmpty:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::NULL_OR_EMPTY);
+        blink_info->set_blink_user_agent(BlinkInfo::NULL_OR_EMPTY);
         return false;
     }
   }
@@ -109,9 +104,8 @@ bool IsBlinkBlacklistActive(int64 now_ms,
   bool is_blacklisted = blink_blacklist_end_timestamp_ms >= now_ms;
   if (is_blacklisted) {
     ScopedMutex lock(log_record->mutex());
-    log_record->logging_info()->mutable_cache_html_logging_info()->
-        set_cache_html_request_flow(
-            CacheHtmlLoggingInfo::CACHE_HTML_BLACKLISTED);
+    log_record->logging_info()->mutable_blink_info()->set_blink_request_flow(
+        BlinkInfo::BLINK_BLACKLISTED);
   }
   return is_blacklisted;
 }
@@ -137,8 +131,7 @@ bool IsBlinkRequest(const GoogleUrl& url,
       // (ProxyFetch).  Should we combine these?
       options->IsAllowed(url.Spec()) &&
       // Does url match a cacheable family pattern specified in config?
-      (filter == RewriteOptions::kCachePartialHtml ||
-       options->IsInBlinkCacheableFamily(url)) &&
+      options->IsInBlinkCacheableFamily(url) &&
       // Is the user agent allowed to enter the blink flow?
       IsUserAgentAllowedForBlink(
           async_fetch, options, user_agent,
@@ -157,6 +150,15 @@ bool IsBlinkRequest(const GoogleUrl& url,
     }
   }
   return false;
+}
+
+bool ShouldApplyBlinkFlowCriticalLine(
+    const ServerContext* server_context,
+    const RewriteOptions* options) {
+  return options != NULL &&
+      // Blink flow critical line is enabled in rewrite options.
+      options->enable_blink_critical_line() &&
+      server_context->blink_critical_line_data_finder() != NULL;
 }
 
 bool IsJsonEmpty(const Json::Value& json) {

@@ -21,7 +21,6 @@
 #include <limits.h>
 #include <utility>
 
-#include <algorithm>                    // for min
 #include "base/logging.h"               // for CHECK, etc
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
@@ -66,27 +65,6 @@
 namespace net_instaweb {
 
 class UrlSegmentEncoder;
-
-namespace {
-
-// Determines the image options to be used for the given image. If neither
-// of large screen and small screen values are set, use the base value. If
-// any of them are set explicity, use the set value depending on the size of
-// the screen. The only exception is if the image is being compressed for a
-// small screen and the quality for small screen is set to a higher value.
-// In this case, use the value that is explicitly set to be lower of the two.
-int64 DetermineImageOptions(
-    int64 base_value, int64 large_screen_value, int64 small_screen_value,
-    bool is_small_screen) {
-  int64 quality = (large_screen_value == -1) ? base_value : large_screen_value;
-  if (is_small_screen && small_screen_value != -1) {
-    quality = (quality == -1) ? small_screen_value :
-        std::min(quality, small_screen_value);
-  }
-  return quality;
-}
-
-}  // namespace
 
 // Expose kRelatedFilters and kRelatedOptions as class variables for the benefit
 // of static-init-time merging in css_filter.cc.
@@ -546,20 +524,34 @@ Image::CompressionOptions* ImageRewriteFilter::ImageOptionsForLoadedResource(
                               &webp_conversion_variables_,
                               image_options);
   }
-  image_options->jpeg_quality =
-      DetermineImageOptions(options->image_recompress_quality(),
-          options->image_jpeg_recompress_quality(),
-          options->image_jpeg_recompress_quality_for_small_screens(),
-          resource_context.use_small_screen_quality());
-  image_options->webp_quality =
-      DetermineImageOptions(options->image_recompress_quality(),
-          options->image_webp_recompress_quality(),
-          options->image_webp_recompress_quality_for_small_screens(),
-          resource_context.use_small_screen_quality());
+  image_options->jpeg_quality = options->image_recompress_quality();
+  if (options->image_jpeg_recompress_quality() != -1) {
+    // if jpeg quality is explicitly set, it takes precedence over generic image
+    // quality.
+    image_options->jpeg_quality = options->image_jpeg_recompress_quality();
+  }
+
+  if (options->image_jpeg_recompress_quality_for_small_screens() != -1 &&
+      resource_context.use_small_screen_quality()) {
+    image_options->jpeg_quality =
+        options->image_jpeg_recompress_quality_for_small_screens();
+  }
+  image_options->webp_quality = options->image_recompress_quality();
+  if (options->image_webp_recompress_quality() != -1) {
+    image_options->webp_quality = options->image_webp_recompress_quality();
+  }
+  if (options->image_webp_recompress_quality_for_small_screens() != -1 &&
+      resource_context.use_small_screen_quality()) {
+    image_options->webp_quality =
+        options->image_webp_recompress_quality_for_small_screens();
+  }
   image_options->jpeg_num_progressive_scans =
-      DetermineImageOptions(-1, options->image_jpeg_num_progressive_scans(),
-          options->image_jpeg_num_progressive_scans_for_small_screens(),
-          resource_context.use_small_screen_quality());
+      options->image_jpeg_num_progressive_scans();
+  if (options->image_jpeg_num_progressive_scans_for_small_screens() != -1 &&
+      resource_context.use_small_screen_quality()) {
+    image_options->jpeg_num_progressive_scans =
+        options->image_jpeg_num_progressive_scans_for_small_screens();
+  }
   image_options->progressive_jpeg =
       options->Enabled(RewriteOptions::kConvertJpegToProgressive) &&
       input_size >= options->progressive_jpeg_min_bytes();
@@ -652,7 +644,7 @@ bool ImageRewriteFilter::ShouldResize(const ResourceContext& resource_context,
       ImageUrlEncoder::HasValidDimensions(image_dim) &&
       (image->content_type()->type() != ContentType::kGif ||
        options->Enabled(RewriteOptions::kConvertGifToPng) ||
-       options->Enabled(RewriteOptions::kDelayImages))) {
+       options->NeedLowResImages())) {
     if (!desired_dim->has_width()) {
       // Fill in a missing page height:
       //   page_height * (image_width / image_height),
@@ -844,8 +836,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
     }
 
     int64 image_size = static_cast<int64>(image->output_size());
-    if (options->Enabled(RewriteOptions::kDelayImages) &&
-        !rewrite_context->in_noscript_element_ &&
+    if (options->NeedLowResImages() && !rewrite_context->in_noscript_element_ &&
         !cached->has_low_resolution_inlined_data() &&
         image_size >= options->min_image_size_low_resolution_bytes() &&
         image_size <= options->max_image_size_low_resolution_bytes()) {
@@ -1214,8 +1205,18 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
     DCHECK(!options->cache_small_images_unrewritten())
         << "Modifying a URL slot despite "
         << "image_inlining_identify_and_cache_without_rewriting set.";
-    src->SetValue(data_url);
-    DeleteMatchingImageDimsAfterInline(cached, element);
+    if (options->Enabled(RewriteOptions::kProcessBlinkInBackground)) {
+      // kPagespeedInlineSrc attribute is added to record data urls for
+      // directly-inlined-images in the blink background processing flow.
+      // In case the image lies above the critical line, this attribute
+      // is used to replace the original src value with the data url.
+      element->AddAttribute(driver_->MakeName(HtmlName::kPagespeedInlineSrc),
+                            data_url,
+                            HtmlElement::DOUBLE_QUOTE);
+    } else {
+      src->SetValue(data_url);
+      DeleteMatchingImageDimsAfterInline(cached, element);
+    }
     // Note the use of the ORIGINAL url not the data url.
     LocalStorageCacheFilter::AddLscAttributes(src_value, *cached,
                                               driver_, element);
@@ -1252,7 +1253,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
 
   bool low_res_src_inserted = false;
   bool try_low_res_src_insertion = false;
-  if (options->Enabled(RewriteOptions::kDelayImages) &&
+  if (options->NeedLowResImages() &&
       (element->keyword() == HtmlName::kImg ||
        element->keyword() == HtmlName::kInput)) {
     try_low_res_src_insertion = true;
@@ -1317,14 +1318,20 @@ bool ImageRewriteFilter::StoreUrlInPropertyCache(const StringPiece& url) {
   if (url.length() == 0) {
     return true;
   }
+  PropertyCache* pcache = server_context_->page_property_cache();
+  if (pcache == NULL) {
+    LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
+                 << "without property cache enabled.";
+    return false;
+  }
   PropertyPage* property_page = driver()->property_page();
   if (property_page == NULL) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without PropertyPage.";
     return false;
   }
-  const PropertyCache::Cohort* cohort =
-      driver()->server_context()->dom_cohort();
+  const PropertyCache::Cohort* cohort = pcache->GetCohort(
+      RewriteDriver::kDomCohort);
   if (cohort == NULL) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without configured DOM cohort.";

@@ -26,11 +26,12 @@ namespace net_instaweb {
 
 const PropertyValue* DecodeFromPropertyCacheHelper(
     const PropertyCache* cache,
-    AbstractPropertyPage* page,
-    const PropertyCache::Cohort* cohort,
+    const PropertyPage* page,
+    StringPiece cohort_name,
     StringPiece property_name,
     int64 cache_ttl_ms,
     PropertyCacheDecodeResult* status) {
+  const PropertyCache::Cohort* cohort = cache->GetCohort(cohort_name);
   if (cohort == NULL || page == NULL) {
     *status = kPropertyCacheDecodeNotFound;
     return NULL;
@@ -50,12 +51,16 @@ const PropertyValue* DecodeFromPropertyCacheHelper(
 }
 
 PropertyCacheUpdateResult UpdateInPropertyCache(
-    const protobuf::MessageLite& value,
-    const PropertyCache::Cohort* cohort,
-    StringPiece property_name,
-    bool write_cohort,
-    AbstractPropertyPage* page) {
+    const protobuf::MessageLite& value, const PropertyCache* cache,
+    StringPiece cohort_name, StringPiece property_name, bool write_cohort,
+    PropertyPage* page) {
+  const PropertyCache::Cohort* cohort = cache->GetCohort(cohort_name);
   if (cohort == NULL || page == NULL) {
+    return kPropertyCacheUpdateNotFound;
+  }
+
+  PropertyValue* property_value = page->GetProperty(cohort, property_name);
+  if (property_value == NULL) {
     return kPropertyCacheUpdateNotFound;
   }
 

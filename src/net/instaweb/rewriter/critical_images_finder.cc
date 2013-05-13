@@ -28,9 +28,9 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -87,7 +87,7 @@ CriticalImagesInfo* CriticalImagesInfoFromPropertyValue(
 }
 
 void UpdateCriticalImagesSetInProto(
-    const StringSet& html_critical_images_set,
+    const StringSet& critical_images_set,
     int max_set_size,
     int percent_needed_for_critical,
     protobuf::RepeatedPtrField<CriticalImages::CriticalImageSet>* set_field,
@@ -99,8 +99,8 @@ void UpdateCriticalImagesSetInProto(
   // responses.
   if (max_set_size == 1) {
     critical_images_field->Clear();
-    for (StringSet::const_iterator it = html_critical_images_set.begin();
-         it != html_critical_images_set.end(); ++it) {
+    for (StringSet::const_iterator it = critical_images_set.begin();
+         it != critical_images_set.end(); ++it) {
       *critical_images_field->Add() = *it;
     }
     return;
@@ -121,8 +121,8 @@ void UpdateCriticalImagesSetInProto(
     new_set = set_field->Add();
   }
 
-  for (StringSet::iterator i = html_critical_images_set.begin();
-       i != html_critical_images_set.end(); ++i) {
+  for (StringSet::iterator i = critical_images_set.begin();
+       i != critical_images_set.end(); ++i) {
     new_set->add_critical_images(*i);
   }
 
@@ -252,7 +252,10 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
     return;
   }
   CriticalImagesInfo* info = NULL;
-  const PropertyCache::Cohort* cohort = GetCriticalImagesCohort();
+  PropertyCache* page_property_cache =
+      driver->server_context()->page_property_cache();
+  const PropertyCache::Cohort* cohort =
+      page_property_cache->GetCohort(GetCriticalImagesCohort());
   // Fallback properties can be used for critical images.
   AbstractPropertyPage* page = driver->fallback_property_page();
   if (page != NULL && cohort != NULL) {
@@ -274,26 +277,31 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
   driver->set_critical_images_info(info);
 }
 
+// TODO(pulkitg): Change all instances of critical_images_set to
+// html_critical_images_set.
 bool CriticalImagesFinder::UpdateCriticalImagesCacheEntryFromDriver(
-    const StringSet* html_critical_images_set,
-    const StringSet* css_critical_images_set,
-    RewriteDriver* driver) {
+    RewriteDriver* driver, StringSet* critical_images_set,
+    StringSet* css_critical_images_set) {
   // Update property cache if above the fold critical images are successfully
   // determined.
   // Fallback properties will be updated for critical images.
   AbstractPropertyPage* page = driver->fallback_property_page();
+  PropertyCache* page_property_cache =
+      driver->server_context()->page_property_cache();
   return UpdateCriticalImagesCacheEntry(
-      html_critical_images_set, css_critical_images_set, page);
+      page, page_property_cache, critical_images_set, css_critical_images_set);
 }
 
 bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-    const StringSet* html_critical_images_set,
-    const StringSet* css_critical_images_set,
-    AbstractPropertyPage* page) {
+    AbstractPropertyPage* page, PropertyCache* page_property_cache,
+    StringSet* html_critical_images_set, StringSet* css_critical_images_set) {
   // Update property cache if above the fold critical images are successfully
   // determined.
-  if (page != NULL) {
-    const PropertyCache::Cohort* cohort = GetCriticalImagesCohort();
+  scoped_ptr<StringSet> html_critical_images(html_critical_images_set);
+  scoped_ptr<StringSet> css_critical_images(css_critical_images_set);
+  if (page_property_cache != NULL && page != NULL) {
+    const PropertyCache::Cohort* cohort =
+        page_property_cache->GetCohort(GetCriticalImagesCohort());
     if (cohort != NULL) {
       PropertyValue* property_value = page->GetProperty(
           cohort, kCriticalImagesPropertyName);
@@ -302,7 +310,7 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
       CriticalImages critical_images;
       PopulateCriticalImagesFromPropertyValue(property_value, &critical_images);
       bool updated = UpdateCriticalImages(
-          html_critical_images_set, css_critical_images_set,
+          html_critical_images.get(), css_critical_images.get(),
           &critical_images);
       if (updated) {
         GoogleString buf;
@@ -315,8 +323,7 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
           if (buf.empty()) {
             buf = kEmptyValuePlaceholder;
           }
-          page->UpdateValue(
-              GetCriticalImagesCohort(), kCriticalImagesPropertyName, buf);
+          page->UpdateValue(cohort, kCriticalImagesPropertyName, buf);
         } else {
           LOG(WARNING) << "Serialization of critical images protobuf failed.";
           return false;

@@ -29,6 +29,7 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -45,9 +46,9 @@ const char CriticalSelectorFinder::kCriticalSelectorsExpiredCount[] =
 const char CriticalSelectorFinder::kCriticalSelectorsNotFoundCount[] =
     "critical_selectors_not_found_count";
 
-CriticalSelectorFinder::CriticalSelectorFinder(
-    const PropertyCache::Cohort* cohort, Statistics* statistics) {
-  cohort_ = cohort;
+CriticalSelectorFinder::CriticalSelectorFinder(StringPiece cohort,
+                                               Statistics* statistics) {
+  cohort.CopyToString(&cohort_);
 
   critical_selectors_valid_count_ = statistics->GetTimedVariable(
       kCriticalSelectorsValidCount);
@@ -97,25 +98,6 @@ CriticalSelectorFinder::DecodeCriticalSelectorsFromPropertyCache(
   return NULL;
 }
 
-void CriticalSelectorFinder::ConvertCriticalSelectorsToSet(
-    const CriticalSelectorSet& pcache_selectors,
-    StringSet* critical_selectors) {
-  for (int i = 0; i < pcache_selectors.critical_selectors_size(); ++i) {
-    critical_selectors->insert(pcache_selectors.critical_selectors(i));
-  }
-}
-
-bool CriticalSelectorFinder::GetCriticalSelectorsFromPropertyCache(
-    RewriteDriver* driver, StringSet* critical_selectors) {
-  CriticalSelectorSet* pcache_selectors = driver->CriticalSelectors();
-  critical_selectors->clear();
-  if (pcache_selectors == NULL) {
-    return false;
-  }
-  ConvertCriticalSelectorsToSet(*pcache_selectors, critical_selectors);
-  return true;
-}
-
 void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
   const StringSet& selector_set, RewriteDriver* driver) {
   WriteCriticalSelectorsToPropertyCache(
@@ -129,6 +111,7 @@ void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
     const StringSet& selector_set,
     const PropertyCache* cache, PropertyPage* page,
     MessageHandler* message_handler) {
+
   // We can't do anything here if page is NULL, so bail out early.
   if (page == NULL) {
     return;
@@ -152,7 +135,7 @@ void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
       // the former, bail out since there is no use trying to update the
       // property cache if it is not setup. For the later, create a new
       // CriticalSelectorSet, since we just haven't written a value before.
-      if (cohort_ == NULL) {
+      if (cache->GetCohort(cohort_) == NULL) {
         return;
       }
       FALLTHROUGH_INTENDED;
@@ -167,7 +150,7 @@ void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
 
   PropertyCacheUpdateResult result =
       UpdateInPropertyCache(
-          *critical_selectors, cohort_, kCriticalSelectorsPropertyName,
+          *critical_selectors, cache, cohort_, kCriticalSelectorsPropertyName,
           false /* don't write cohort*/, page);
   switch (result) {
     case kPropertyCacheUpdateNotFound:

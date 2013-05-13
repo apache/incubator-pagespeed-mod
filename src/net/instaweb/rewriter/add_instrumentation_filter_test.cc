@@ -20,7 +20,6 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -31,7 +30,6 @@
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
 
 namespace net_instaweb {
 
@@ -82,13 +80,19 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
 
   GoogleString CreateInitString(StringPiece beacon_url,
                                 StringPiece event,
-                                StringPiece extra_params) {
+                                StringPiece headers_fetch_time,
+                                StringPiece time_to_first_byte,
+                                StringPiece fetch_time,
+                                StringPiece expt_id_param) {
     GoogleString url;
     EscapeToJsStringLiteral(rewrite_driver()->google_url().Spec(), false, &url);
     GoogleString str = "pagespeed.addInstrumentationInit(";
     StrAppend(&str, "'", beacon_url, "', ");
     StrAppend(&str, "'", event, "', ");
-    StrAppend(&str, "'", extra_params, "', ");
+    StrAppend(&str, "'", headers_fetch_time, "', ");
+    StrAppend(&str, "'", time_to_first_byte, "', ");
+    StrAppend(&str, "'", fetch_time, "', ");
+    StrAppend(&str, "'", expt_id_param, "', ");
     StrAppend(&str, "'", url, "');");
     return str;
   }
@@ -103,7 +107,8 @@ TEST_F(AddInstrumentationFilterTest, ScriptInjection) {
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().http, "load", "")) !=
+          options()->beacon_url().http, "load",
+          "", "", "", "")) !=
               GoogleString::npos);
 }
 
@@ -112,7 +117,8 @@ TEST_F(AddInstrumentationFilterTest, ScriptInjectionWithNavigation) {
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().http, "beforeunload", "")) !=
+          options()->beacon_url().http, "beforeunload",
+          "", "", "", "")) !=
               GoogleString::npos);
 }
 
@@ -123,7 +129,8 @@ TEST_F(AddInstrumentationFilterTest,
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().https, "load", "")) !=
+          options()->beacon_url().https, "load",
+          "", "", "", "")) !=
               GoogleString::npos);
 }
 
@@ -136,7 +143,8 @@ TEST_F(AddInstrumentationFilterTest,
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().https, "beforeunload", "")) !=
+          options()->beacon_url().https, "beforeunload",
+          "", "", "", "")) !=
               GoogleString::npos);
 }
 
@@ -152,44 +160,23 @@ TEST_F(AddInstrumentationFilterTest,
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().http, "load", "&exptid=2")) !=
-              GoogleString::npos);
-}
-
-// Test that extended instrumentation is injected properly.
-TEST_F(AddInstrumentationFilterTest, TestExtendedInstrumentation) {
-  options()->set_enable_extended_instrumentation(true);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(
-          options()->beacon_url().http, "load", "")) !=
-              GoogleString::npos);
-  EXPECT_TRUE(output_buffer_.find("getResourceTimingData=function()") !=
+          options()->beacon_url().http, "load",
+          "", "", "", "2")) !=
               GoogleString::npos);
 }
 
 // Test that headers fetch timing reporting is done correctly.
 TEST_F(AddInstrumentationFilterTest, TestHeadersFetchTimingReporting) {
+  NullMessageHandler handler;
   logging_info()->mutable_timing_info()->set_header_fetch_ms(200);
   logging_info()->mutable_timing_info()->set_time_to_first_byte_ms(300);
   logging_info()->mutable_timing_info()->set_fetch_ms(500);
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(
       CreateInitString(
-          options()->beacon_url().http, "load", "&hft=200&ft=500&s_ttfb=300"))
-              != GoogleString::npos);
-}
-
-// Test that header referer reporting is done correctly.
-TEST_F(AddInstrumentationFilterTest, TestHeadersReferer) {
-  RequestHeaders headers;
-  headers.Add(HttpAttributes::kReferer, "www.abc.com");
-  rewrite_driver()->set_request_headers(&headers);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(
-          options()->beacon_url().http, "load", "&ref=www.abc.com"))
-              != GoogleString::npos);
+          options()->beacon_url().http, "load",
+          "200", "300", "500", "")) !=
+              GoogleString::npos);
 }
 
 

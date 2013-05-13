@@ -27,13 +27,13 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class Hasher;
 class HtmlElement;
 class MessageHandler;
 class RewriteDriver;
 class RewriteOptions;
 class UrlNamer;
-struct ContentType;
 
 
 // Composes URLs for the javascript files injected by the various PSA filters.
@@ -59,7 +59,6 @@ class StaticAssetManager {
     kLazyloadImagesJs,
     kDetectReflowJs,
     kLocalStorageCacheJs,
-    kExtendedInstrumentationJs,
     kEndOfModules,  // Keep this as the last enum value.
   };
 
@@ -87,7 +86,7 @@ class StaticAssetManager {
 
   // Add a CharacterNode to an already created script element, properly escaping
   // the text with CDATA tags is necessary. The script element should be added
-  // already, say with a call to InsertNodeBeforeNode.
+  // already, say with a call to InsertElementBeforeElement.
   void AddJsToElement(StringPiece js, HtmlElement* script,
                       RewriteDriver* driver) const;
 

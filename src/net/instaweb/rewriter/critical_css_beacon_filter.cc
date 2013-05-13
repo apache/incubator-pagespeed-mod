@@ -113,7 +113,7 @@ GoogleString CriticalCssBeaconFilter::BeaconBoilerplate() {
   const GoogleString& script_url = static_asset_manager->GetAssetUrl(
       StaticAssetManager::kCriticalCssBeaconJs, driver()->options());
   HtmlElement* external_script = driver()->NewElement(NULL, HtmlName::kScript);
-  InsertNodeAtBodyEnd(external_script);
+  InjectSummaryData(external_script);
   driver()->AddAttribute(external_script, HtmlName::kSrc, script_url);
   StrAppend(&script, "pagespeed.criticalCssBeaconInit('", beacon_url, "','");
   EscapeToJsStringLiteral(driver()->google_url().Spec(),
@@ -199,7 +199,7 @@ void CriticalCssBeaconFilter::SummariesDone() {
   AppendJoinCollection(&script, selectors, ",");
   StrAppend(&script, "]);");
   HtmlElement* script_element = driver()->NewElement(NULL, HtmlName::kScript);
-  InsertNodeAtBodyEnd(script_element);
+  InjectSummaryData(script_element);
   StaticAssetManager* static_asset_manager =
       driver()->server_context()->static_asset_manager();
   static_asset_manager->AddJsToElement(script, script_element, driver_);

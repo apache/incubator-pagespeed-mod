@@ -23,7 +23,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/string.h"
@@ -46,12 +45,12 @@ class MockScheduler;
 class MockTimer;
 class MockTimeCache;
 class MockUrlFetcher;
+class PropertyCache;
 class ServerContext;
 class RewriteDriver;
 class RewriteFilter;
 class RewriteOptions;
 class Scheduler;
-class TestDistributedFetcher;
 class ThreadsafeCache;
 class Timer;
 class UrlAsyncFetcher;
@@ -98,7 +97,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
 
   TestRewriteDriverFactory(const StringPiece& temp_dir,
                            MockUrlFetcher* mock_fetcher,
-                           TestDistributedFetcher* test_distributed_fetcher);
+                           MockUrlFetcher* mock_distributed_fetcher);
   virtual ~TestRewriteDriverFactory();
 
   DelayCache* delay_cache() { return delay_cache_; }
@@ -188,8 +187,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   void AdvanceTimeMs(int64 delta_ms);
 
   // Sets up the cohort in the PropertyCache provided.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort_name);
+  void SetupCohort(PropertyCache* cache, const GoogleString& cohort_name);
 
  protected:
   virtual Hasher* NewHasher();
@@ -215,8 +213,9 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   scoped_ptr<LRUCache> lru_cache_;
   UrlFetcher* proxy_url_fetcher_;
   MockUrlFetcher* mock_url_fetcher_;
-  TestDistributedFetcher* test_distributed_fetcher_;
+  MockUrlFetcher* mock_distributed_fetcher_;
   scoped_ptr<FakeUrlAsyncFetcher> mock_url_async_fetcher_;
+  scoped_ptr<FakeUrlAsyncFetcher> mock_distributed_async_fetcher_;
   CountingUrlAsyncFetcher* counting_url_async_fetcher_;
   CountingUrlAsyncFetcher* counting_distributed_async_fetcher_;
   scoped_ptr<WaitUrlAsyncFetcher> wait_url_async_fetcher_;

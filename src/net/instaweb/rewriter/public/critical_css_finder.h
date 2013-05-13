@@ -20,14 +20,16 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_CSS_FINDER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class CriticalCssResult;
+class PropertyValue;
 class RewriteDriver;
 class Statistics;
 class TimedVariable;
+
 
 // Finds critical CSS rules (i.e. CSS needed for the initial page load).
 class CriticalCssFinder {
@@ -46,8 +48,8 @@ class CriticalCssFinder {
   // Ownership of the result is passed to the caller.
   virtual CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver);
 
-  // Compute the critical css for the driver's url.
-  virtual void ComputeCriticalCss(RewriteDriver* driver) = 0;
+  // Compute the critical css for |url|.
+  virtual void ComputeCriticalCss(StringPiece url, RewriteDriver* driver) = 0;
 
   // Copy |critical_css_map| into property cache. Returns true on success.
   virtual bool UpdateCache(RewriteDriver* driver,
@@ -64,7 +66,10 @@ class CriticalCssFinder {
   // released and it stays with the driver.
   virtual CriticalCssResult* GetCriticalCss(RewriteDriver* driver);
 
-  virtual const PropertyCache::Cohort* GetCohort() const = 0;
+  virtual const char* GetCohort() const = 0;
+
+ protected:
+  PropertyValue* GetPropertyValue(RewriteDriver* driver);
 
  private:
   TimedVariable* critical_css_valid_count_;

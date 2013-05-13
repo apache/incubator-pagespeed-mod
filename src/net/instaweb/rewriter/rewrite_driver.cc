@@ -32,8 +32,10 @@
 #include "net/instaweb/htmlparse/public/html_filter.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/htmlparse/public/logging_html_filter.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
@@ -52,6 +54,8 @@
 #include "net/instaweb/rewriter/public/add_head_filter.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 #include "net/instaweb/rewriter/public/base_tag_filter.h"
+#include "net/instaweb/rewriter/public/blink_background_filter.h"
+#include "net/instaweb/rewriter/public/blink_filter.h"
 #include "net/instaweb/rewriter/public/cache_html_filter.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
@@ -76,7 +80,6 @@
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
 #include "net/instaweb/rewriter/public/detect_reflow_js_defer_filter.h"
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
-#include "net/instaweb/rewriter/public/dom_stats_filter.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/elide_attributes_filter.h"
@@ -127,10 +130,10 @@
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
@@ -139,13 +142,11 @@
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/statistics_logger.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/writer.h"
-#include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
 
@@ -222,7 +223,7 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       url_async_fetcher_(default_url_async_fetcher_),
       distributed_async_fetcher_(NULL),
       add_instrumentation_filter_(NULL),
-      dom_stats_filter_(NULL),
+      logging_filter_(NULL),
       scan_filter_(this),
       controlling_pool_(NULL),
       html_worker_(NULL),
@@ -232,6 +233,7 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       fallback_property_page_(NULL),
       owns_property_page_(false),
       device_type_(UserAgentMatcher::kDesktop),
+      critical_css_result_(NULL),
       critical_selector_info_computed_(false),
       xhtml_mimetype_computed_(false),
       xhtml_status_(kXhtmlUnknown),
@@ -242,9 +244,9 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       serve_blink_non_critical_(false),
       is_blink_request_(false),
       can_rewrite_resources_(true),
-      is_nested_(false),
       request_context_(NULL),
-      start_time_ms_(0)
+      start_time_ms_(0),
+      is_nested_(false)
       // NOTE:  Be sure to clear per-request member variables in Clear()
 { // NOLINT  -- I want the initializer-list to end with that comment.
   // The Scan filter always goes first so it can find base-tags.
@@ -304,24 +306,20 @@ RewriteDriver* RewriteDriver::Clone() {
   RewriteDriver* result;
   RewriteDriverPool* pool = controlling_pool();
   if (pool == NULL) {
-    // TODO(jmarantz): when used with SetParent, it should not be
-    // necessary to clone the options here.  Once we set the child's
-    // parent to this, the child will reference this->options() and
-    // ignores its self_options_.  To exploit that, we'd need to
-    // make a different entry-point for CloneAndSetParent.
     RewriteOptions* options_copy = options()->Clone();
-    options_copy->ComputeSignature();
+    server_context_->ComputeSignature(options_copy);
     result =
         server_context_->NewCustomRewriteDriver(options_copy, request_context_);
-    result->is_nested_ = true;
   } else {
     result = server_context_->NewRewriteDriverFromPool(pool, request_context_);
   }
+  result->set_is_nested(true);
   return result;
 }
 
 void RewriteDriver::Clear() {
   DCHECK(!flush_requested_);
+  WriteDomCohortIntoPropertyCache();
   cleanup_on_fetch_complete_ = false;
   release_driver_ = false;
   write_property_cache_dom_cohort_ = false;
@@ -346,6 +344,7 @@ void RewriteDriver::Clear() {
   xhtml_mimetype_computed_ = false;
   xhtml_status_ = kXhtmlUnknown;
 
+  client_state_.reset(NULL);
   should_skip_parsing_ = kNotSet;
   pending_async_events_ = 0;
   max_page_processing_delay_ms_ = -1;
@@ -376,13 +375,12 @@ void RewriteDriver::Clear() {
   serve_blink_non_critical_ = false;
   is_blink_request_ = false;
   can_rewrite_resources_ = true;
-  is_nested_ = false;
-
   if (request_context_.get() != NULL) {
     request_context_->WriteBackgroundRewriteLog();
     request_context_.reset(NULL);
   }
   start_time_ms_ = 0;
+  is_nested_ = false;
 
   critical_images_info_.reset(NULL);
   critical_line_info_.reset(NULL);
@@ -695,16 +693,14 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
   callback->CallRun();
 }
 
-const char* RewriteDriver::kPassThroughRequestAttributes[7] = {
+const char* RewriteDriver::kPassThroughRequestAttributes[5] = {
   HttpAttributes::kIfModifiedSince,
   HttpAttributes::kReferer,
   HttpAttributes::kUserAgent,
   // Note: These headers are listed so that the headers we see contain them,
   // but should immediately be detected and removed by RewriteQuery::Scan().
   RewriteQuery::kModPagespeed,
-  RewriteQuery::kPageSpeed,
   RewriteQuery::kModPagespeedFilters,
-  RewriteQuery::kPageSpeedFilters
 };
 
 const char RewriteDriver::kDomCohort[] = "dom";
@@ -846,8 +842,8 @@ void RewriteDriver::AddPreRenderFilters() {
   }
 
   if (rewrite_options->Enabled(RewriteOptions::kComputeStatistics)) {
-    dom_stats_filter_ = new DomStatsFilter(this);
-    AddOwnedEarlyPreRenderFilter(dom_stats_filter_);
+    logging_filter_ = new LoggingFilter;
+    AddOwnedEarlyPreRenderFilter(logging_filter_);
   }
 
   if (rewrite_options->Enabled(RewriteOptions::kDecodeRewrittenUrls)) {
@@ -1008,7 +1004,7 @@ void RewriteDriver::AddPreRenderFilters() {
       rewrite_options->Enabled(RewriteOptions::kJpegSubsampling) ||
       rewrite_options->Enabled(RewriteOptions::kStripImageColorProfile) ||
       rewrite_options->Enabled(RewriteOptions::kStripImageMetaData) ||
-      rewrite_options->Enabled(RewriteOptions::kDelayImages)) {
+      rewrite_options->NeedLowResImages()) {
     // Since AddFilters only applies to the HTML rewrite path, we check here
     // if IPRO preemptive rewrites are disabled and skip the filter if so.
     if (!rewrite_options->image_preserve_urls() ||
@@ -1073,19 +1069,13 @@ void RewriteDriver::AddPostRenderFilters() {
     AddUnownedPostRenderFilter(url_trim_filter_.get());
   }
   if (rewrite_options->Enabled(RewriteOptions::kFlushSubresources) &&
-      !options()->pre_connect_url().empty()) {
+      !options_->pre_connect_url().empty()) {
     AddOwnedPostRenderFilter(new RewrittenContentScanningFilter(this));
   }
   if (rewrite_options->Enabled(RewriteOptions::kInsertDnsPrefetch)) {
     InsertDnsPrefetchFilter* insert_dns_prefetch_filter =
         new InsertDnsPrefetchFilter(this);
     AddOwnedPostRenderFilter(insert_dns_prefetch_filter);
-  }
-  if (rewrite_options->Enabled(RewriteOptions::kAddInstrumentation)) {
-    // Inject javascript to instrument loading-time. This should run before
-    // defer js so that its onload handler can fire before JS starts executing.
-    add_instrumentation_filter_ = new AddInstrumentationFilter(this);
-    AddOwnedPostRenderFilter(add_instrumentation_filter_);
   }
   if (rewrite_options->Enabled(RewriteOptions::kSplitHtml)) {
     AddOwnedPostRenderFilter(new DeferIframeFilter(this));
@@ -1111,6 +1101,11 @@ void RewriteDriver::AddPostRenderFilters() {
   }
   if (rewrite_options->Enabled(RewriteOptions::kDeterministicJs)) {
     AddOwnedPostRenderFilter(new DeterministicJsFilter(this));
+  }
+  if (rewrite_options->Enabled(RewriteOptions::kAddInstrumentation)) {
+    // Inject javascript to instrument loading-time.
+    add_instrumentation_filter_ = new AddInstrumentationFilter(this);
+    AddOwnedPostRenderFilter(add_instrumentation_filter_);
   }
   if (rewrite_options->Enabled(RewriteOptions::kConvertMetaTags)) {
     AddOwnedPostRenderFilter(new MetaTagFilter(this));
@@ -1145,6 +1140,11 @@ void RewriteDriver::AddPostRenderFilters() {
 
   if (rewrite_options->Enabled(RewriteOptions::kStripNonCacheable)) {
     StripNonCacheableFilter* filter = new StripNonCacheableFilter(this);
+    AddOwnedPostRenderFilter(filter);
+  }
+
+  if (rewrite_options->Enabled(RewriteOptions::kProcessBlinkInBackground)) {
+    BlinkBackgroundFilter* filter = new BlinkBackgroundFilter(this);
     AddOwnedPostRenderFilter(filter);
   }
 
@@ -1234,7 +1234,9 @@ void RewriteDriver::RegisterRewriteFilter(RewriteFilter* filter) {
 void RewriteDriver::SetWriter(Writer* writer) {
   writer_ = writer;
   if (html_writer_filter_ == NULL) {
-    if (options()->Enabled(RewriteOptions::kCachePartialHtml) &&
+    if (options()->Enabled(RewriteOptions::kServeNonCacheableNonCritical)) {
+      html_writer_filter_.reset(new BlinkFilter(this));
+    } else if (options()->Enabled(RewriteOptions::kCachePartialHtml) &&
                flushed_cached_html_) {
       html_writer_filter_.reset(new CacheHtmlFilter(this));
     } else if (options()->Enabled(RewriteOptions::kFlushSubresources) &&
@@ -1302,7 +1304,7 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
   // In forward proxy in preserve-URLs mode we want to fetch .pagespeed.
   // resource, i.e. do not decode and and do not fetch original (especially
   // that encoded one will never be cached internally).
-  if (options() != NULL && options()->oblivious_pagespeed_urls()) {
+  if (options_.get() != NULL && options_->oblivious_pagespeed_urls()) {
     return false;
   }
 
@@ -1655,10 +1657,6 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
     // FetchInPlaceResource when that is what they want.
     FetchInPlaceResource(gurl, true /* proxy_mode */, async_fetch);
   }
-
-  // Note: "this" may have been deleted by this point. It is not safe to
-  // reference data members.
-
   return handled;
 }
 
@@ -1679,11 +1677,6 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
   fetch_queued_ = true;
   InPlaceRewriteContext* context = new InPlaceRewriteContext(this, gurl.Spec());
   context->set_proxy_mode(proxy_mode);
-
-  // Save pointer to stats_logger before "this" is deleted.
-  StatisticsLogger* stats_logger =
-      server_context_->statistics()->console_logger();
-
   if (!context->Fetch(output_resource, async_fetch, message_handler())) {
     // RewriteContext::Fetch can fail if the input URLs are undecodeable
     // or unfetchable. There is no decoding in this case, but unfetchability
@@ -1692,14 +1685,6 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
     // and cleanup.
     async_fetch->Done(false);
     FetchComplete();
-  }
-
-  // Note: "this" may have been deleted by this point. It is not safe to
-  // reference data members.
-
-  // Update statistics log.
-  if (stats_logger != NULL) {
-    stats_logger->UpdateAndDumpIfRequired();
   }
 }
 
@@ -1716,9 +1701,6 @@ bool RewriteDriver::FetchOutputResource(
   // that's in the browser's cache must be correct.
   bool queued = false;
   ConstStringStarVector values;
-  // Save pointer to stats_logger before "this" is deleted.
-  StatisticsLogger* stats_logger =
-      server_context_->statistics()->console_logger();
   if (async_fetch->request_headers()->Lookup(HttpAttributes::kIfModifiedSince,
                                              &values)) {
     async_fetch->response_headers()->SetStatusAndReason(
@@ -1745,12 +1727,6 @@ bool RewriteDriver::FetchOutputResource(
       queued = true;
     }
   }
-
-  // Update statistics log.
-  if (stats_logger != NULL) {
-    stats_logger->UpdateAndDumpIfRequired();
-  }
-
   return queued;
 }
 
@@ -2140,50 +2116,63 @@ void RewriteDriver::WriteDomCohortIntoPropertyCache() {
 
   PropertyPage* page = property_page();
   // Dont update property cache value if we are flushing early.
-  // TODO(jud): Is this the best place to check for shutting down? It might
-  // make more sense for this check to be done at the property cache or
-  // lower level.
-  if (server_context_->shutting_down() ||
-      page == NULL ||
-      !owns_property_page_) {
-    return;
+  if (page != NULL && owns_property_page_) {
+    PropertyCache* pcache = server_context_->page_property_cache();
+    const PropertyCache::Cohort* dom_cohort = pcache->GetCohort(kDomCohort);
+    if (dom_cohort != NULL) {
+      // Update the timestamp of the last request.
+      UpdatePropertyValueInDomCohort(
+          kLastRequestTimestamp,
+          Integer64ToString(server_context()->timer()->NowMs()));
+      // Update the status code of the last request.
+      if (status_code_ != HttpStatus::kUnknownStatusCode) {
+        UpdatePropertyValueInDomCohort(kStatusCodePropertyName,
+                                       IntegerToString(status_code_));
+      }
+      if (options()->max_html_parse_bytes() > 0) {
+        // Update whether the page exceeded the html parse size limit.
+        UpdatePropertyValueInDomCohort(
+            kParseSizeLimitExceeded,
+            num_bytes_in_ > options()->max_html_parse_bytes() ? "1" : "0");
+      }
+      if (flush_early_info_.get() != NULL) {
+        GoogleString value;
+        flush_early_info_->SerializeToString(&value);
+        UpdatePropertyValueInDomCohort(kSubresourcesPropertyName, value);
+      }
+      // Page cannot be cleared yet because other cohorts may still need to be
+      // written.
+      // TODO(jud): Is this the best place to check for shutting down? It might
+      // make more sense for this check to be done at the property cache or
+      // lower level.
+      if (!server_context_->shutting_down()) {
+        page->WriteCohort(dom_cohort);
+      }
+    }
   }
-  // Update the timestamp of the last request in both actual property page
-  // and property page with fallback values.
-  UpdatePropertyValueInDomCohort(
-    fallback_property_page(),
-    kLastRequestTimestamp,
-    Integer64ToString(server_context()->timer()->NowMs()));
-  // Update the status code of the last request.
-  if (status_code_ != HttpStatus::kUnknownStatusCode) {
-    UpdatePropertyValueInDomCohort(
-        page, kStatusCodePropertyName, IntegerToString(status_code_));
-  }
-  if (options()->max_html_parse_bytes() > 0) {
-    // Update whether the page exceeded the html parse size limit.
-    UpdatePropertyValueInDomCohort(
-        page, kParseSizeLimitExceeded,
-        num_bytes_in_ > options()->max_html_parse_bytes() ? "1" : "0");
-  }
-  if (flush_early_info_.get() != NULL) {
-    GoogleString value;
-    flush_early_info_->SerializeToString(&value);
-    UpdatePropertyValueInDomCohort(page, kSubresourcesPropertyName, value);
-  }
-  // Write dom cohort for both actual property page and property page with
-  // fallback values.
-  fallback_property_page()->WriteCohort(server_context()->dom_cohort());
 }
 
-void RewriteDriver::UpdatePropertyValueInDomCohort(
-    AbstractPropertyPage* page,
-    StringPiece property_name,
-    StringPiece property_value) {
-  if (page == NULL || !owns_property_page_) {
+void RewriteDriver::WriteClientStateIntoPropertyCache() {
+  if (client_state_.get() != NULL) {
+    client_state_->WriteBackToPropertyCache();
+  }
+}
+
+void RewriteDriver::UpdatePropertyValueInDomCohort(StringPiece property_name,
+                                                   StringPiece property_value) {
+  if (!owns_property_page_) {
     return;
   }
-  page->UpdateValue(
-      server_context()->dom_cohort(), property_name, property_value);
+  PropertyCache* pcache = server_context_->page_property_cache();
+  if (pcache == NULL || property_page() == NULL) {
+    return;
+  }
+  const PropertyCache::Cohort* dom = pcache->GetCohort(kDomCohort);
+  if (dom == NULL) {
+    LOG(DFATAL) << "dom cohort is not available.";
+    return;
+  }
+  property_page()->UpdateValue(dom, property_name, property_value);
 }
 
 void RewriteDriver::Cleanup() {
@@ -2296,7 +2285,7 @@ GoogleString RewriteDriver::ToString(bool show_detached_contexts) {
     AppendBool(&out, "serve_blink_non_critical", serve_blink_non_critical_);
     AppendBool(&out, "is_blink_request", is_blink_request_);
     AppendBool(&out, "can_rewrite_resources", can_rewrite_resources_);
-    AppendBool(&out, "is_nested", is_nested());
+    AppendBool(&out, "is_nested", is_nested_);
   }
   return out;
 }
@@ -2311,12 +2300,9 @@ void RewriteDriver::PrintStateToErrorLog(bool show_detached_contexts) {
 }
 
 void RewriteDriver::LogStats() {
-  if (dom_stats_filter_ != NULL && log_record() != NULL) {
-    log_record()->SetImageStats(dom_stats_filter_->num_img_tags(),
-                                dom_stats_filter_->num_inlined_img_tags(),
-                                dom_stats_filter_->num_critical_images_used());
-    log_record()->SetResourceCounts(dom_stats_filter_->num_external_css(),
-                                    dom_stats_filter_->num_scripts());
+  if (logging_filter_ != NULL && log_record() != NULL) {
+    log_record()->SetImageStats(logging_filter_->num_img_tags(),
+                                logging_filter_->num_inlined_img_tags());
   }
   log_record()->LogDeviceInfo(
       device_properties_->GetDeviceType(),
@@ -2331,15 +2317,13 @@ void RewriteDriver::LogStats() {
       device_properties_->SupportsSplitHtml(
           options()->enable_aggressive_rewriters_for_mobile()),
       device_properties_->CanPreloadResources());
-  bool is_xhr = request_headers() != NULL &&
-      request_headers()->IsXmlHttpRequest();
-  log_record()->LogIsXhr(is_xhr);
 }
 
 void RewriteDriver::FinishParse() {
-  SchedulerBlockingFunction wait(scheduler_);
-  FinishParseAsync(&wait);
-  wait.Block();
+  HtmlParse::FinishParse();
+  LogStats();
+  WriteClientStateIntoPropertyCache();
+  Cleanup();
 }
 
 void RewriteDriver::FinishParseAsync(Function* callback) {
@@ -2359,20 +2343,13 @@ void RewriteDriver::FinishParseAfterFlush(Function* user_callback) {
   DCHECK_EQ(0U, GetEventQueueSize());
   HtmlParse::EndFinishParse();
   LogStats();
-  WriteDomCohortIntoPropertyCache();
+  WriteClientStateIntoPropertyCache();
 
   // Update stats.
   RewriteStats* stats = server_context_->rewrite_stats();
   stats->rewrite_latency_histogram()->Add(
       server_context_->timer()->NowMs() - start_time_ms_);
   stats->total_rewrite_count()->IncBy(1);
-
-  // Update statistics log.
-  StatisticsLogger* stats_logger =
-      server_context_->statistics()->console_logger();
-  if (stats_logger != NULL) {
-    stats_logger->UpdateAndDumpIfRequired();
-  }
 
   Cleanup();
   if (user_callback != NULL) {
@@ -2812,7 +2789,7 @@ FlushEarlyInfo* RewriteDriver::flush_early_info() {
   if (flush_early_info_.get() == NULL) {
     PropertyCacheDecodeResult status;
     flush_early_info_.reset(DecodeFromPropertyCache<FlushEarlyInfo>(
-        this, server_context()->dom_cohort(), kSubresourcesPropertyName,
+        this, RewriteDriver::kDomCohort, kSubresourcesPropertyName,
         -1 /* no ttl checking*/, &status));
     if (status != kPropertyCacheDecodeOk) {
       flush_early_info_.reset(new FlushEarlyInfo);

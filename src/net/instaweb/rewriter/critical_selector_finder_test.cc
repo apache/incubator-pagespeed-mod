@@ -29,6 +29,7 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -40,10 +41,9 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
  protected:
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    const PropertyCache::Cohort* beacon_cohort =
-        SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
-    server_context()->set_beacon_cohort(beacon_cohort);
-    finder_.reset(new CriticalSelectorFinder(beacon_cohort, statistics()));
+    finder_.reset(new CriticalSelectorFinder(
+        RewriteDriver::kBeaconCohort, statistics()));
+    SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
     ResetDriver();
   }
 
@@ -97,8 +97,10 @@ TEST_F(CriticalSelectorFinderTest, StoreRestore) {
   selectors.insert("#bar");
 
   finder_->WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
-  rewrite_driver()->property_page()->WriteCohort(
-      server_context()->beacon_cohort());
+
+  const PropertyCache::Cohort* cohort =
+      page_property_cache()->GetCohort(RewriteDriver::kBeaconCohort);
+  rewrite_driver()->property_page()->WriteCohort(cohort);
 
   ResetDriver();
 

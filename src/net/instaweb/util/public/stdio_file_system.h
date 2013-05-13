@@ -19,7 +19,73 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_STDIO_FILE_SYSTEM_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_STDIO_FILE_SYSTEM_H_
 
-// TODO(huibao): Remove this forwarding header and update references.
-#include "pagespeed/kernel/base/stdio_file_system.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/string_util.h"
+
+struct stat;
+
+namespace net_instaweb {
+
+class MessageHandler;
+class Timer;
+
+class StdioFileSystem : public FileSystem {
+ public:
+  StdioFileSystem() {}
+  virtual ~StdioFileSystem();
+
+  virtual int MaxPathLength(const StringPiece& base) const;
+
+  virtual InputFile* OpenInputFile(const char* filename,
+                                   MessageHandler* message_handler);
+  virtual OutputFile* OpenOutputFileHelper(const char* filename,
+                                           bool append,
+                                           MessageHandler* message_handler);
+  virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
+                                         MessageHandler* message_handle);
+
+  virtual bool ListContents(const StringPiece& dir, StringVector* files,
+                            MessageHandler* handler);
+  virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
+  virtual bool RemoveDir(const char* directory_path, MessageHandler* handler);
+  virtual bool RemoveFile(const char* filename, MessageHandler* handler);
+  virtual bool RenameFileHelper(const char* old_file, const char* new_file,
+                                MessageHandler* handler);
+
+  virtual bool Atime(const StringPiece& path, int64* timestamp_sec,
+                     MessageHandler* handler);
+  virtual bool Mtime(const StringPiece& path, int64* timestamp_sec,
+                     MessageHandler* handler);
+  // Report the disk utilization of the file specified by path. Note that disk
+  // utilization could differ from the apparent size of the file as it depends
+  // on the underlying file system and default block size.
+  virtual bool Size(const StringPiece& path, int64* size,
+                    MessageHandler* handler);
+  virtual BoolOrError Exists(const char* path, MessageHandler* handler);
+  virtual BoolOrError IsDir(const char* path, MessageHandler* handler);
+
+  virtual BoolOrError TryLock(const StringPiece& lock_name,
+                              MessageHandler* handler);
+  virtual BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
+                                         int64 timeout_ms,
+                                         const Timer* timer,
+                                         MessageHandler* handler);
+
+  virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
+
+  InputFile* Stdin();
+  OutputFile* Stdout();
+  OutputFile* Stderr();
+
+ private:
+  // Used by *time and Size methods to get file info.
+  bool Stat(const StringPiece& path, struct stat* statbuf,
+            MessageHandler* handler);
+
+  DISALLOW_COPY_AND_ASSIGN(StdioFileSystem);
+};
+
+}  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_STDIO_FILE_SYSTEM_H_

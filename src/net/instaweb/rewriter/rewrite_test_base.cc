@@ -56,7 +56,6 @@
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
@@ -83,34 +82,32 @@ namespace net_instaweb {
 class MessageHandler;
 class RequestHeaders;
 
-const char RewriteTestBase::kTestData[] = "/net/instaweb/rewriter/testdata/";
+const char RewriteTestBase::kTestData[] =
+    "/net/instaweb/rewriter/testdata/";
 
 RewriteTestBase::RewriteTestBase()
-    : test_distributed_fetcher_(this),
-      statistics_(new SimpleStats()),
+    : statistics_(new SimpleStats()),
       factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                             &mock_url_fetcher_,
-                                            &test_distributed_fetcher_)),
+                                            &mock_distributed_fetcher_)),
       other_factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                                   &mock_url_fetcher_,
-                                                  &test_distributed_fetcher_)),
+                                                  &mock_distributed_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
-      other_options_(other_factory_->NewRewriteOptions()),
-      kEtag0(HTTPCache::FormatEtag("0")) {
+      other_options_(other_factory_->NewRewriteOptions()) {
   Init();
 }
 
 // Takes ownership of the statistics.
 RewriteTestBase::RewriteTestBase(Statistics* statistics)
-    : test_distributed_fetcher_(this),
-      statistics_(statistics),
+    : statistics_(statistics),
       factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                             &mock_url_fetcher_,
-                                            &test_distributed_fetcher_)),
+                                            &mock_distributed_fetcher_)),
       other_factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                                   &mock_url_fetcher_,
-                                                  &test_distributed_fetcher_)),
+                                                  &mock_distributed_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()) {
@@ -119,8 +116,7 @@ RewriteTestBase::RewriteTestBase(Statistics* statistics)
 
 RewriteTestBase::RewriteTestBase(
     std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*> factories)
-    : test_distributed_fetcher_(this),
-      statistics_(new SimpleStats()),
+    : statistics_(new SimpleStats()),
       factory_(factories.first),
       other_factory_(factories.second),
       use_managed_rewrite_drivers_(false),
@@ -281,7 +277,7 @@ void RewriteTestBase::ServeResourceFromManyContextsWithUA(
 
 TestRewriteDriverFactory* RewriteTestBase::MakeTestFactory() {
   return new TestRewriteDriverFactory(GTestTempDir(), &mock_url_fetcher_,
-                                      &test_distributed_fetcher_);
+                                      &mock_distributed_fetcher_);
 }
 
 // Test that a resource can be served from a new server that has not yet
@@ -823,8 +819,6 @@ void RewriteTestBase::ClearStats() {
   }
   counting_url_async_fetcher()->Clear();
   counting_distributed_fetcher()->Clear();
-  other_factory_->counting_url_async_fetcher()->Clear();
-  other_factory_->counting_distributed_async_fetcher()->Clear();
   file_system()->ClearStats();
   rewrite_driver()->set_request_context(CreateRequestContext());
 }
@@ -832,8 +826,6 @@ void RewriteTestBase::ClearStats() {
 void RewriteTestBase::ClearRewriteDriver() {
   rewrite_driver()->Clear();
   rewrite_driver()->set_request_context(CreateRequestContext());
-  other_rewrite_driver()->Clear();
-  other_rewrite_driver()->set_request_context(CreateRequestContext());
 }
 
 void RewriteTestBase::SetCacheDelayUs(int64 delay_us) {
@@ -946,13 +938,6 @@ void RewriteTestBase::SetMimetype(const StringPiece& mimetype) {
   response_headers_.ComputeCaching();
 }
 
-void RewriteTestBase::SetupSharedCache() {
-  other_server_context_->set_http_cache(
-      new HTTPCache(factory_->delay_cache(), factory_->timer(),
-                    factory_->hasher(), factory_->statistics()));
-  other_server_context_->set_metadata_cache(factory_->delay_cache());
-}
-
 void RewriteTestBase::CheckFetchFromHttpCache(
     StringPiece url,
     StringPiece expected_contents,
@@ -1018,6 +1003,7 @@ GoogleString RewriteTestBase::AppliedRewriterStringFromLog() {
     log_record()->AppliedRewritersString();
 }
 
+
 void RewriteTestBase::VerifyRewriterInfoEntry(
     AbstractLogRecord* log_record, const GoogleString& id, int url_index,
     int rewriter_info_index, int rewriter_info_size, int url_list_size,
@@ -1035,48 +1021,6 @@ void RewriteTestBase::VerifyRewriterInfoEntry(
             log_record->logging_info()->resource_url_info().url_size());
   EXPECT_EQ(url,
       log_record->logging_info()->resource_url_info().url(url_index));
-}
-
-bool RewriteTestBase::AddDomain(StringPiece domain) {
-  bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddDomain(
-      domain, message_handler());
-  if (frozen) {
-    server_context()->ComputeSignature(options_);
-  }
-  return ret;
-}
-
-bool RewriteTestBase::AddOriginDomainMapping(StringPiece to_domain,
-                                             StringPiece from_domain) {
-  bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddOriginDomainMapping(
-      to_domain, from_domain, message_handler());
-  if (frozen) {
-    server_context()->ComputeSignature(options_);
-  }
-  return ret;
-}
-
-bool RewriteTestBase::AddRewriteDomainMapping(StringPiece to_domain,
-                                              StringPiece from_domain) {
-  bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddRewriteDomainMapping(
-      to_domain, from_domain, message_handler());
-  if (frozen) {
-    server_context()->ComputeSignature(options_);
-  }
-  return ret;
-}
-
-bool RewriteTestBase::AddShard(StringPiece domain, StringPiece shards) {
-  bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddShard(
-      domain, shards, message_handler());
-  if (frozen) {
-    server_context()->ComputeSignature(options_);
-  }
-  return ret;
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

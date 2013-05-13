@@ -34,7 +34,6 @@
 #include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
-#include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
@@ -119,12 +118,6 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
       flush_early_driver->server_context()->critical_css_finder();
   if (css_finder != NULL) {
     css_finder->UpdateCriticalCssInfoInDriver(flush_early_driver);
-  }
-
-  CacheHtmlInfoFinder* cache_html_finder =
-      flush_early_driver->server_context()->cache_html_info_finder();
-  if (cache_html_finder != NULL) {
-    cache_html_finder->UpdateSplitInfoInDriver(flush_early_driver);
   }
 
   flush_early_driver->set_unowned_fallback_property_page(NULL);
@@ -289,7 +282,6 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   void SendRedirectToPsaOff() {
     num_flush_early_requests_redirected_->IncBy(1);
     GoogleUrl gurl(url_);
-    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
     scoped_ptr<GoogleUrl> url_with_psa_off(gurl.CopyAndAddQueryParam(
         RewriteQuery::kModPagespeed, RewriteQuery::kNoscriptValue));
     GoogleString escaped_url;

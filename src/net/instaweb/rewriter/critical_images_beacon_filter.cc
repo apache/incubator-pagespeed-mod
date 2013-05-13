@@ -70,9 +70,11 @@ void CriticalImagesBeaconFilter::DetermineEnabled() {
   // RewriteOptions::beacon_reinstrument_time().
   const PropertyCache* page_property_cache =
       driver_->server_context()->page_property_cache();
-  const PropertyCache::Cohort* cohort = finder->GetCriticalImagesCohort();
-  PropertyPage* page = driver_->property_page();
-  if (!page_property_cache->enabled() || (page == NULL) || (cohort == NULL)) {
+  const PropertyCache::Cohort* cohort =
+      page_property_cache->GetCohort(finder->GetCriticalImagesCohort());
+  const PropertyPage* page = driver_->property_page();
+  if (!driver_->server_context()->page_property_cache()->enabled() ||
+      (page == NULL) || (cohort == NULL)) {
     return;
   }
   const PropertyValue* property_value = page->GetProperty(
@@ -131,7 +133,7 @@ void CriticalImagesBeaconFilter::EndElement(HtmlElement* element) {
     StrAppend(&js, "'", options_signature_hash, "');");
 
     HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
-    driver_->InsertNodeBeforeCurrent(script);
+    driver_->InsertElementBeforeCurrent(script);
     static_asset_manager->AddJsToElement(js, script, driver_);
 
     added_script_ = true;

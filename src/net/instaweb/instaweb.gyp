@@ -74,34 +74,6 @@
       ]
     },
     {
-      'target_name': 'instaweb_extended_instrumentation_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/rewriter',
-        'var_name': 'extended_instrumentation',
-      },
-      'sources': [
-        'rewriter/extended_instrumentation.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
-      'target_name': 'instaweb_extended_instrumentation_opt_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/genfiles/rewriter',
-        'var_name': 'extended_instrumentation_opt',
-      },
-      'sources': [
-        'genfiles/rewriter/extended_instrumentation_opt.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
       'target_name': 'instaweb_client_domain_rewriter_data2c',
       'variables': {
         'instaweb_data2c_subdir': 'net/instaweb/rewriter',
@@ -533,6 +505,21 @@
       ],
     },
     {
+      'target_name': 'instaweb_blink_critical_line_data_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/rewriter',
+      },
+      'sources': [
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/blink_critical_line_data.pb.cc',
+        'rewriter/blink_critical_line_data.proto',
+      ],
+      'dependencies': [
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
+    },
+    {
       'target_name': 'instaweb_critical_css_pb',
       'variables': {
         'instaweb_protoc_subdir': 'net/instaweb/rewriter',
@@ -625,6 +612,19 @@
       ],
     },
     {
+      'target_name': 'instaweb_clientstate_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/util',
+      },
+      'sources': [
+        'util/client_state.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/client_state.pb.cc',
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
+    },
+    {
       'target_name': 'instaweb_propcache_pb',
       'variables': {
         'instaweb_protoc_subdir': 'net/instaweb/util',
@@ -687,6 +687,7 @@
         'instaweb_core.gyp:instaweb_util_core',
         'instaweb_http',
         'instaweb_http_gperf',
+        'instaweb_clientstate_pb',
         'instaweb_logging_pb',
         'instaweb_propcache_pb',
         '<(instaweb_root)/third_party/base64/base64.gyp:base64',
@@ -713,6 +714,7 @@
         'http/http_value_writer.cc',
         'http/inflating_fetch.cc',
         'http/log_record.cc',
+        'http/meta_data.cc',
         'http/rate_controller.cc',
         'http/rate_controlling_url_async_fetcher.cc',
         'http/request_context.cc',
@@ -721,26 +723,33 @@
         'http/url_async_fetcher.cc',
         'http/url_async_fetcher_stats.cc',
         'http/url_fetcher.cc',
+        'http/url_pollable_async_fetcher.cc',
         'http/user_agent_matcher.cc',
         'http/wait_url_async_fetcher.cc',
         'http/wget_url_fetcher.cc',
         'http/write_through_http_cache.cc',
 
+        'util/abstract_mutex.cc',
         'util/abstract_shared_mem.cc',
         'util/async_cache.cc',
         'util/cache_batcher.cc',
         'util/cache_interface.cc',
         'util/cache_stats.cc',
+        'util/checking_thread_system.cc',
         'util/chunking_writer.cc',
         'util/circular_buffer.cc',
+        'util/client_state.cc',
         'util/compressed_cache.cc',
+        'util/condvar.cc',
         'util/console_suggestions.cc',
         'util/data_url.cc',
+        'util/debug.cc',
         'util/delegating_cache_callback.cc',
         'util/escaping.cc',
         'util/fallback_cache.cc',
         'util/fallback_property_page.cc',
         'util/file_cache.cc',
+        'util/file_system.cc',
         'util/file_system_lock_manager.cc',
         'util/file_writer.cc',
         'util/filename_encoder.cc',
@@ -754,6 +763,7 @@
         'util/lru_cache.cc',
         'util/md5_hasher.cc',
         'util/mock_hasher.cc',
+        'util/mock_message_handler.cc',
         'util/mock_property_page.cc',
         'util/named_lock_manager.cc',
         'util/null_message_handler.cc',
@@ -783,11 +793,13 @@
         'util/split_statistics.cc',
         'util/split_writer.cc',
         'util/statistics.cc',
-        'util/statistics_logger.cc',
         'util/statistics_work_bound.cc',
+        'util/stdio_file_system.cc',
         'util/thread.cc',
         'util/thread_synchronizer.cc',
+        'util/thread_system.cc',
         'util/threadsafe_cache.cc',
+        'util/time_util.cc',
         'util/url_escaper.cc',
         'util/url_multipart_encoder.cc',
         'util/url_to_filename_encoder.cc',
@@ -933,6 +945,7 @@
       ],
       'sources': [
         'rewriter/beacon_critical_images_finder.cc',
+        'rewriter/blink_critical_line_data_finder.cc',
         'rewriter/cache_html_info_finder.cc',
         'rewriter/critical_images_finder.cc',
         'rewriter/domain_lawyer.cc',
@@ -1099,6 +1112,7 @@
       'dependencies': [
         'instaweb_add_instrumentation_data2c',
         'instaweb_add_instrumentation_opt_data2c',
+        'instaweb_blink_critical_line_data_pb',
         'instaweb_cache_html_info_pb',
         'instaweb_client_domain_rewriter_data2c',
         'instaweb_client_domain_rewriter_opt_data2c',
@@ -1121,9 +1135,8 @@
         'instaweb_detect_reflow_opt_data2c',
         'instaweb_deterministic_data2c',
         'instaweb_deterministic_opt_data2c',
-        'instaweb_extended_instrumentation_data2c',
-        'instaweb_extended_instrumentation_opt_data2c',
         'instaweb_flush_early_pb',
+        'instaweb_htmlparse',
         'instaweb_http',
         'instaweb_js_defer_data2c',
         'instaweb_js_defer_opt_data2c',
@@ -1145,6 +1158,8 @@
         'rewriter/add_head_filter.cc',
         'rewriter/add_instrumentation_filter.cc',
         'rewriter/base_tag_filter.cc',
+        'rewriter/blink_background_filter.cc',
+        'rewriter/blink_filter.cc',
         'rewriter/blink_util.cc',
         'rewriter/cache_extender.cc',
         'rewriter/cache_html_filter.cc',
@@ -1169,7 +1184,6 @@
         'rewriter/delay_images_filter.cc',
         'rewriter/detect_reflow_js_defer_filter.cc',
         'rewriter/deterministic_js_filter.cc',
-        'rewriter/dom_stats_filter.cc',
         'rewriter/domain_rewrite_filter.cc',
         'rewriter/file_input_resource.cc',
         'rewriter/file_load_mapping.cc',
@@ -1295,6 +1309,7 @@
       'target_name': 'instaweb_automatic',
       'type': '<(library)',
       'dependencies': [
+        'instaweb_blink_critical_line_data_pb',
         'instaweb_cache_html_info_pb',
         'instaweb_critical_css_pb',
         'instaweb_critical_line_info_pb',
@@ -1307,6 +1322,7 @@
         '<(DEPTH)/pagespeed/kernel.gyp:jsminify',
       ],
       'sources': [
+        'automatic/blink_flow_critical_line.cc',
         'automatic/cache_html_flow.cc',
         'automatic/flush_early_flow.cc',
         'automatic/html_detector.cc',

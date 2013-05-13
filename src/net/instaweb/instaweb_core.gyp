@@ -26,8 +26,7 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
+        '<(DEPTH)/pagespeed/kernel.gyp:util',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
@@ -35,11 +34,16 @@
         'util/charset_util.cc',
         'util/countdown_timer.cc',
         'util/file_message_handler.cc',
+        'util/google_message_handler.cc',
         'util/google_url.cc',
+        'util/message_handler.cc',
         'util/print_message_handler.cc',
         'util/query_params.cc',
         'util/string_convert.cc',
+        'util/string_writer.cc',
         'util/symbol_table.cc',
+        'util/timer.cc',
+        'util/writer.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -76,7 +80,6 @@
         'http_core',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
-        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'sources': [
@@ -111,9 +114,10 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        'instaweb_util_core',
+        'instaweb_core.gyp:instaweb_util_core',
       ],
       'sources': [
+        'http/content_type.cc',
         'http/semantic_type.cc',
       ],
       'include_dirs': [
@@ -203,8 +207,7 @@
                 #
                 # Note: these must be in dependency order to work; you can't
                 # sort this list alphabetically.
-                '<(LIB_DIR)/pagespeed/libpagespeed_base.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_http.a',
+                '<(LIB_DIR)/pagespeed/libbase.a',
                 '<(LIB_DIR)/net/instaweb/libinstaweb_rewriter_html.a',
                 '<(LIB_DIR)/net/instaweb/libinstaweb_htmlparse_core.a',
                 '<(LIB_DIR)/net/instaweb/libhttp_core.a',

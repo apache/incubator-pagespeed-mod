@@ -25,7 +25,6 @@
 
 namespace net_instaweb {
 
-class HtmlElement;
 class RewriteDriver;
 class Timer;
 
@@ -53,8 +52,6 @@ class DebugFilter : public EmptyHtmlFilter {
   void EndParse();
   void StartRender();
   void EndRender();
-
-  virtual void EndElement(HtmlElement* element);
 
   // Formats Flush/EndOfDocument messages that will be easy to read from
   // View->PageSource in a browser.
@@ -102,10 +99,6 @@ class DebugFilter : public EmptyHtmlFilter {
   Event parse_;              // Tracks how much time is spent parsing.
   Event render_;             // Tracks how much time is spent rendering.
   Event idle_;               // Tracks how much time is spent waiting.
-
-  // The buffered flush messages this filter generates for a flush in a literal
-  // tag.
-  GoogleString flush_messages_;
 
   DISALLOW_COPY_AND_ASSIGN(DebugFilter);
 };

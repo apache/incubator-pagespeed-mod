@@ -321,7 +321,6 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-const int64 RewriteContextTestBase::kRewriteDeadlineMs;
 
 RewriteContextTestBase::~RewriteContextTestBase() {
 }
@@ -331,15 +330,15 @@ void RewriteContextTestBase::SetUp() {
   other_trim_filter_ = NULL;
   combining_filter_ = NULL;
   nested_filter_ = NULL;
+
+  RewriteTestBase::SetUp();
+
   // The default deadline set in RewriteDriver is dependent on whether
   // the system was compiled for debug, or is being run under valgrind.
   // However, the unit-tests here use mock-time so we want to set the
   // deadline explicitly.
-  options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  other_options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  RewriteTestBase::SetUp();
-  EXPECT_EQ(kRewriteDeadlineMs, rewrite_driver()->rewrite_deadline_ms());
-  EXPECT_EQ(kRewriteDeadlineMs, other_rewrite_driver()->rewrite_deadline_ms());
+  rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
+  other_rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
 }
 
 void RewriteContextTestBase::TearDown() {

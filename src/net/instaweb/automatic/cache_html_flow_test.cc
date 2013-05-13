@@ -26,6 +26,7 @@
 #include "net/instaweb/automatic/public/proxy_interface.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -33,23 +34,22 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/blink_util.h"
+#include "net/instaweb/rewriter/critical_css.pb.h"
+#include "net/instaweb/rewriter/public/blink_critical_line_data_finder.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
+#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
-#include "net/instaweb/rewriter/public/mock_critical_css_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/delay_cache.h"
-#include "net/instaweb/util/public/dynamic_annotations.h"
-#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
@@ -58,25 +58,23 @@
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/null_mutex.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_synchronizer.h"
-#include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/worker_test_base.h"
-#include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/util/wildcard.h"
 
 namespace net_instaweb {
 
 class AbstractMutex;
-class AsyncFetch;
+class Function;
+class GoogleUrl;
 class MessageHandler;
-class ProxyFetchPropertyCallbackCollector;
 
 namespace {
 
@@ -164,8 +162,8 @@ const char kHtmlInputWithMinifiedJs[] =
           "</div>"
       "</div>"
     "</div>"
-    "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
-    "</body></html>";
+    "</body></html>"
+    "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>";
 
 const char kHtmlInputWithExtraCommentAndNonCacheable[] =
     "<html>"
@@ -355,17 +353,17 @@ class FakeUrlNamer : public UrlNamer {
                              const RequestHeaders& request_headers,
                              Callback* callback,
                              MessageHandler* handler) const {
-    callback->Run((options_ == NULL) ? NULL : options_->Clone());
+    callback->Done((options_ == NULL) ? NULL : options_->Clone());
   }
 
   virtual void PrepareRequest(const RewriteOptions* rewrite_options,
                               GoogleString* url,
                               RequestHeaders* request_headers,
-                              Callback1<bool>* callback,
-                              MessageHandler* handler) {
+                              bool* success,
+                              Function* func, MessageHandler* handler) {
     num_prepare_request_calls_->Add(1);
-    UrlNamer::PrepareRequest(
-        rewrite_options, url, request_headers, callback, handler);
+    UrlNamer::PrepareRequest(rewrite_options, url, request_headers, success,
+                             func, handler);
   }
 
   void set_options(RewriteOptions* options) { options_ = options; }
@@ -402,7 +400,7 @@ class ProxyInterfaceWithDelayCache : public ProxyInterface {
     }
     PropertyCache* pcache = manager_->page_property_cache();
     const PropertyCache::Cohort* cohort =
-        pcache->GetCohort(BlinkUtil::kBlinkCohort);
+        pcache->GetCohort(BlinkCriticalLineDataFinder::kBlinkCohort);
     key_ = pcache->CacheKey(key_base, cohort);
     delay_cache_->DelayKey(key_);
     if (added_page_property_callback != NULL) {
@@ -439,6 +437,59 @@ class FlakyFakeUrlNamer : public FakeUrlNamer {
                             const RewriteOptions& options) const {
     return false;
   }
+};
+
+class MockCriticalCssFinder : public CriticalCssFinder {
+ public:
+  explicit MockCriticalCssFinder(RewriteDriver* driver, Statistics* stats)
+      : CriticalCssFinder(stats),
+        driver_(driver) {
+  }
+
+  void AddCriticalCss(const StringPiece& url, const StringPiece& rules,
+                      int original_size) {
+    if (critical_css_result_.get() == NULL) {
+      critical_css_result_.reset(new CriticalCssResult());
+    }
+
+    CriticalCssResult_LinkRules* link_rules =
+        critical_css_result_->add_link_rules();
+    link_rules->set_link_url(url.as_string());
+    link_rules->set_critical_rules(rules.as_string());
+    link_rules->set_original_size(original_size);
+  }
+
+  void SetCriticalCssStats(
+      int exception_count, int import_count, int link_count) {
+    if (critical_css_result_.get() == NULL) {
+      critical_css_result_.reset(new CriticalCssResult());
+    }
+
+    critical_css_result_->set_exception_count(exception_count);
+    critical_css_result_->set_import_count(import_count);
+    critical_css_result_->set_link_count(link_count);
+  }
+
+  // Mock to avoid dealing with property cache.
+  CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver) {
+    CriticalCssResult* result = critical_css_result_.release();
+    // Add back the rules so the second driver can find it also.
+    AddCriticalCssRules();
+    return result;
+  }
+
+  void AddCriticalCssRules() {
+    AddCriticalCss("http://test.com/a.css", "a_used {color: azure }", 1);
+    AddCriticalCss("http://test.com/b.css", "b_used {color: blue }", 2);
+    AddCriticalCss("http://test.com/c.css", "c_used {color: cyan }", 3);
+  }
+
+  void ComputeCriticalCss(StringPiece url, RewriteDriver* driver) {}
+  const char* GetCohort() const { return "critical_css"; }
+
+ private:
+  RewriteDriver* driver_;
+  scoped_ptr<CriticalCssResult> critical_css_result_;
 };
 
 }  // namespace
@@ -514,10 +565,8 @@ class CacheHtmlFlowTest : public ProxyInterfaceTestBase {
   }
 
   virtual void SetUp() {
-    const PropertyCache::Cohort* blink_cohort =
-        SetupCohort(server_context_->page_property_cache(),
-                    BlinkUtil::kBlinkCohort);
-    server_context_->set_blink_cohort(blink_cohort);
+    SetupCohort(page_property_cache(),
+                BlinkCriticalLineDataFinder::kBlinkCohort);
     server_context_->set_enable_property_cache(true);
     UseMd5Hasher();
     ThreadSynchronizer* sync = server_context()->thread_synchronizer();
@@ -1067,12 +1116,7 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithCriticalCss) {
       statistics());
   server_context_->set_critical_css_finder(critical_css_finder_);
 
-  critical_css_finder_->AddCriticalCss("http://test.com/a.css",
-                                       "a_used {color: azure }", 1);
-  critical_css_finder_->AddCriticalCss("http://test.com/b.css",
-                                       "b_used {color: blue }", 2);
-  critical_css_finder_->AddCriticalCss("http://test.com/c.css",
-                                       "c_used {color: cyan }", 3);
+  critical_css_finder_->AddCriticalCssRules();
 
   const char kInputHtml[] =
       "<html>\n"
@@ -1280,9 +1324,9 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlOverThreshold) {
 
   GoogleString SmallHtmlOutput =
       StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-             "</head><body>A small test html."
-             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
-             "</script></body></html>");
+             "</head><body>A small test html.</body></html>",
+             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">",
+             "</script>");
   EXPECT_STREQ(SmallHtmlOutput, text);
   VerifyCacheHtmlLoggingInfo(
       CacheHtmlLoggingInfo::FOUND_CONTENT_LENGTH_OVER_THRESHOLD,
@@ -1410,9 +1454,6 @@ TEST_F(CacheHtmlFlowTest, NonHtmlContent) {
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithWebp) {
-  if (RunningOnValgrind()) {
-    return;
-  }
   rewrite_driver_->server_context()->set_hasher(factory_->mock_hasher());
   AddFileToMockFetcher(StrCat(kTestDomain, "image1"), "Puzzle.jpg",
                        kContentTypeJpeg, 100);
@@ -1453,9 +1494,9 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithHttpsUrl) {
                  &text, &response_headers, false);
   EXPECT_STREQ(
       StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-             "</head><body>"
-             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
-             "</script></body></html>"), text);
+             "</head><body></body></html>",
+             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">",
+             "</script>"), text);
   EXPECT_EQ(0, statistics()->FindVariable(
       ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
@@ -1482,7 +1523,7 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlushSubresources) {
                           "prefetch_link_rel_subresource");
   ResponseHeaders response_headers;
   FetchFromProxy("http://test.com/flush_subresources.html"
-                 "?PageSpeedFilters=+extend_cache_css,-inline_css", true,
+                 "?ModPagespeedFilters=+extend_cache_css,-inline_css", true,
                  request_headers, &text, &response_headers, NULL, false);
   VerifyNonCacheHtmlResponse(response_headers);
   EXPECT_EQ(0, statistics()->FindVariable(
@@ -1492,7 +1533,7 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlushSubresources) {
   flush_early_info_finder_->Clear();
   response_headers.Clear();
   FetchFromProxy("http://test.com/flush_subresources.html"
-                 "?PageSpeedFilters=+extend_cache_css,-inline_css", true,
+                 "?ModPagespeedFilters=+extend_cache_css,-inline_css", true,
                  request_headers, &text, &response_headers, NULL, false);
   VerifyFlushSubresourcesResponse(text, true);
   EXPECT_EQ(0, statistics()->FindVariable(
@@ -1518,12 +1559,12 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowUrlCacheInvalidation) {
           "</div>"
       "</div>"
     "</div>"
-    "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
     "</body></html>";
 
   FetchFromProxyWaitForBackground("text.html", true, &text, &response_headers);
   EXPECT_STREQ(StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-                      "</head>", htmlOutput), text);
+                      "</head>", htmlOutput, "<script type=\"text/javascript\"",
+                      " src=\"/psajs/js_defer.0.js\">", "</script>"), text);
 
   // Cache lookup for original plain text and Blink Cohort
   // all miss.
@@ -1579,7 +1620,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowUrlCacheInvalidation) {
   FetchFromProxyWaitForBackground("text.html", true, &text, &response_headers);
 
   EXPECT_STREQ(StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-                      "</head>", htmlOutput), text);
+                      "</head>", htmlOutput, "<script type=\"text/javascript\"",
+                      " src=\"/psajs/js_defer.0.js\">", "</script>"), text);
   // 1 Miss for original plain text
   EXPECT_EQ(1, lru_cache()->num_misses());
   EXPECT_EQ(1, lru_cache()->num_hits());
@@ -1630,11 +1672,11 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowDataMissDelayCache) {
           "</div>"
       "</div>"
     "</div>"
-    "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
     "</body></html>";
 
   EXPECT_STREQ(StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-                      "</head>", htmlOutput), text);
+                      "</head>", htmlOutput, "<script type=\"text/javascript\"",
+                      " src=\"/psajs/js_defer.0.js\">", "</script>"), text);
 
   EXPECT_STREQ("text/html; charset=utf-8",
                response_headers.Lookup1(HttpAttributes::kContentType));
@@ -1669,11 +1711,11 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
                  &response_headers, false);
   EXPECT_STREQ(
       StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-             "</head><body>"
-             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
-             "</script></body></html>"), text);
+             "</head><body></body></html>",
+             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">",
+             "</script>"), text);
   EXPECT_EQ(0, statistics()->FindVariable(
-      ProxyInterface::kCacheHtmlRequestCount)->Get());
+      ProxyInterface::kBlinkCriticalLineRequestCount)->Get());
   ClearStats();
 
   // Empty User Agent.
@@ -1682,34 +1724,27 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
                  &response_headers, false);
   EXPECT_STREQ(
       StrCat("<html><head>", GetJsDisableScriptSnippet(options_.get()),
-             "</head><body>"
-             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
-             "</script></body></html>"), text);
+             "</head><body></body></html>",
+             "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">",
+             "</script>"), text);
   EXPECT_EQ(0, statistics()->FindVariable(
-      ProxyInterface::kCacheHtmlRequestCount)->Get());
+      ProxyInterface::kBlinkCriticalLineRequestCount)->Get());
   ClearStats();
 
   // Mobile User Agent.
-  request_headers.Clear();
-  request_headers.Add(
-      HttpAttributes::kUserAgent,
-      UserAgentMatcherTestBase::kIPhone4Safari);  // Mobile Request.
-  request_headers.Add(HttpAttributes::kXForwardedFor, "127.0.0.1");
-
-  FetchFromProxy("text.html", true, request_headers, &text, &response_headers,
-                 true);
-  VerifyNonCacheHtmlResponse(response_headers);
-  EXPECT_EQ(1, statistics()->FindVariable(
+  GoogleString user_agent;
+  options_->ClearSignatureForTesting();
+  options_->set_enable_aggressive_rewriters_for_mobile(true);
+  server_context()->ComputeSignature(options_.get());
+  request_headers.Add(HttpAttributes::kUserAgent,
+                      UserAgentStrings::kIPhone4Safari);  // Mobile Request.
+  FetchFromProxy("plain.html", true, request_headers, &text,
+                 &response_headers, &user_agent, false);
+  EXPECT_STREQ(kHtmlInput, text);
+  // TODO(poojatandon): Check why max-age is 1 here.
+  VerifyBlacklistUserAgent(response_headers);
+  EXPECT_EQ(0, statistics()->FindVariable(
       ProxyInterface::kCacheHtmlRequestCount)->Get());
-
-  ClearStats();
-  // Hit case.
-  response_headers.Clear();
-  FetchFromProxy("text.html", true, request_headers, &text, &response_headers,
-                 false);
-  VerifyCacheHtmlResponse(response_headers);
-  UnEscapeString(&text);
-  EXPECT_STREQ(blink_output_, text);
 }
 
 }  // namespace net_instaweb

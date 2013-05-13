@@ -31,13 +31,8 @@ check_from "$OUT" fgrep "_GFURIOUS="
 start_test mod_pagespeed_test must not have a .htaccess file.
 check_not test -f $TEST_ROOT_FILE_DIR/.htaccess
 
-start_test PageSpeedFilters query param should disable experiments.
-OUT=$($WGET_DUMP '$EXTEND_CACHE?PageSpeed=on&PageSpeedFilters=rewrite_css')
-check_not_from "$OUT" fgrep '_GFURIOUS='
-
-start_test ModPagespeedFilters query param should also disable experiments.
-OUT=$($WGET_DUMP \
-  '$EXTEND_CACHE?ModPagespeed=on&ModPagespeedFilters=rewrite_css')
+start_test ModPagespeedFilters query param should disable experiments.
+OUT=$($WGET_DUMP '$EXTEND_CACHE?ModPagespeed=on&ModPagespeedFilters=rewrite_css')
 check_not_from "$OUT" fgrep '_GFURIOUS='
 
 start_test If the user is already assigned, no need to assign them again.
@@ -47,9 +42,9 @@ check_not_from "$OUT" fgrep '_GFURIOUS='
 
 start_test The beacon should include the experiment id.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=2' $EXTEND_CACHE)
-check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '&exptid=2', 'http://localhost[:0-9]*/mod_pagespeed_example/extend_cache.html');"
+check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', '', '', '2', 'http://localhost[:0-9]*/mod_pagespeed_example/extend_cache.html');"
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=7' $EXTEND_CACHE)
-check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '&exptid=7', 'http://localhost[:0-9]*/mod_pagespeed_example/extend_cache.html');"
+check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', '', '', '7', 'http://localhost[:0-9]*/mod_pagespeed_example/extend_cache.html');"
 
 start_test The no-experiment group beacon should not include an experiment id.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=0' $EXTEND_CACHE)

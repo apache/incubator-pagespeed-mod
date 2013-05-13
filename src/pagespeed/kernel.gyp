@@ -15,59 +15,19 @@
 {
   'targets': [
     {
-      'target_name': 'pagespeed_base',
-      # xcode build names libraries just based on the target_name, so
-      # if this were merely base then its libbase.a would clash with
-      # Chromium libbase.a
+      'target_name': 'base',
       'type': '<(library)',
       'sources': [
-        'kernel/base/abstract_mutex.cc',
-        'kernel/base/condvar.cc',
-        'kernel/base/debug.cc',
-        'kernel/base/file_system.cc',
-        'kernel/base/message_handler.cc',
-        'kernel/base/google_message_handler.cc',
-        'kernel/base/stdio_file_system.cc',
         'kernel/base/string_util.cc',
-        'kernel/base/string_writer.cc',
-        'kernel/base/time_util.cc',
-        'kernel/base/timer.cc',
-        'kernel/base/thread_system.cc',
-        'kernel/base/writer.cc',
       ],
       'include_dirs': [
         '<(DEPTH)',
-        '<(DEPTH)/third_party/chromium/src/base/third_party/nspr',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/base/base.gyp:base'
-      ],
-    },
-    {
-      'target_name': 'pagespeed_base_test_infrastructure',
-      'type': '<(library)',
-      'sources': [
-        'kernel/base/mock_message_handler.cc',
-        'kernel/base/platform.cc',
-      ],
-      'include_dirs': [
-        '<(DEPTH)',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/base/base.gyp:base'
       ],
     },
     {
       'target_name': 'base_test_util',
       'type': '<(library)',
       'sources': [
-        'kernel/base/file_system_test_base.cc',
         'kernel/base/gtest.cc',
       ],
       'all_dependent_settings': {
@@ -84,18 +44,6 @@
       ],
     },
     {
-      'target_name': 'pagespeed_http',
-      'type': '<(library)',
-      'sources': [
-        'kernel/http/caching_headers.cc',
-        'kernel/http/content_type.cc',
-        'kernel/http/http_names.cc',
-      ],
-      'dependencies': [
-        'pagespeed_base',
-      ],
-    },
-    {
       'target_name': 'jsminify',
       'type': '<(library)',
       'sources': [
@@ -107,7 +55,7 @@
         '<(DEPTH)',
       ],
       'dependencies': [
-        'pagespeed_base',
+        'base',
         'pagespeed_javascript_gperf',
       ],
     },
@@ -130,7 +78,6 @@
       'target_name': 'util',
       'type': '<(library)',
       'sources': [
-        'kernel/util/checking_thread_system.cc',
         'kernel/util/fast_wildcard_group.cc',
         'kernel/util/rolling_hash.cc',
         'kernel/util/wildcard.cc',
@@ -139,7 +86,7 @@
         '<(DEPTH)',
       ],
       'dependencies': [
-        'pagespeed_base',
+        'base',
         '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
         '<(DEPTH)/third_party/re2/re2.gyp:re2',
       ],

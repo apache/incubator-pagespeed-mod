@@ -23,9 +23,10 @@
 
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
+#include "net/instaweb/rewriter/critical_css.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
-#include "net/instaweb/rewriter/public/mock_critical_css_finder.h"
+#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -47,6 +48,54 @@ const char kRequestUrl[] = "http://test.com";
 }  // namespace
 
 namespace net_instaweb {
+
+class Statistics;
+
+namespace {
+
+class MockCriticalCssFinder : public CriticalCssFinder {
+ public:
+  explicit MockCriticalCssFinder(RewriteDriver* driver, Statistics* stats)
+      : CriticalCssFinder(stats),
+        driver_(driver) {
+  }
+
+  void AddCriticalCss(const StringPiece& url, const StringPiece& rules,
+                      int original_size) {
+    if (critical_css_result_.get() == NULL) {
+      critical_css_result_.reset(new CriticalCssResult());
+    }
+    CriticalCssResult_LinkRules* link_rules =
+        critical_css_result_->add_link_rules();
+    link_rules->set_link_url(url.as_string());
+    link_rules->set_critical_rules(rules.as_string());
+    link_rules->set_original_size(original_size);
+  }
+
+  void SetCriticalCssStats(
+      int exception_count, int import_count, int link_count) {
+    if (critical_css_result_.get() == NULL) {
+      critical_css_result_.reset(new CriticalCssResult());
+    }
+    critical_css_result_->set_exception_count(exception_count);
+    critical_css_result_->set_import_count(import_count);
+    critical_css_result_->set_link_count(link_count);
+  }
+
+  // Mock to avoid dealing with property cache.
+  CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver) {
+    return critical_css_result_.release();
+  }
+
+  void ComputeCriticalCss(StringPiece url, RewriteDriver* driver) {}
+  const char* GetCohort() const { return "critical_css"; }
+
+ private:
+  RewriteDriver* driver_;
+  scoped_ptr<CriticalCssResult> critical_css_result_;
+};
+
+}  // namespace
 
 class CriticalCssFilterTest : public RewriteTestBase {
  public:
@@ -74,9 +123,7 @@ class CriticalCssFilterTest : public RewriteTestBase {
   void ResetDriver() {
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_dom_cohort(dom_cohort);
+    SetupCohort(pcache, finder_->GetCohort());
 
     MockPropertyPage* page = NewMockPage(kRequestUrl);
     rewrite_driver()->set_property_page(page);
@@ -167,7 +214,7 @@ TEST_F(CriticalCssFilterTest, UnchangedWithNoCriticalRules) {
 
 TEST_F(CriticalCssFilterTest, DisabledForIE) {
   // Critical CSS is disabed in IE (awaiting conditional comment support).
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIe7UserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIe7UserAgent);
   static const char input_html[] =
       "<head>\n"
       "  <title>Example</title>\n"
@@ -371,7 +418,7 @@ TEST_F(CriticalCssFilterTest, InlineAndAddStyleForFlushingEarly) {
       "  <link rel='stylesheet' href='c.css' type='text/css'>\n"
       "</body>\n";
 
-  static const char expected_html[] =
+  GoogleString expected_html = StrCat(
       "<head>\n"
       "  <title>Example</title>\n"
       "</head>\n"
@@ -383,7 +430,24 @@ TEST_F(CriticalCssFilterTest, InlineAndAddStyleForFlushingEarly) {
       "  <style type='text/css'>t {color: turquoise }</style>\n"
       "  World!\n"
       "  <style data-pagespeed-flush-style=\"*\">c_used {color: cyan }"
-      "</style>\n</body>\n";
+      "</style>\n</body>\n"
+      "<noscript id=\"psa_add_styles\">"
+      "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
+      "<link rel='stylesheet' href='b.css' type='text/css'>"
+      "<style type='text/css'>t {color: turquoise }</style>"
+      "<link rel='stylesheet' href='c.css' type='text/css'>"
+      "</noscript>"
+      "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
+      CriticalCssFilter::kAddStylesScript,
+      "window['pagespeed'] = window['pagespeed'] || {};"
+      "window['pagespeed']['criticalCss'] = {"
+      "  'total_critical_inlined_size': 64,"
+      "  'total_original_external_size': 6,"
+      "  'total_overhead_size': 85,"
+      "  'num_replaced_links': 3,"
+      "  'num_unreplaced_links': 0"
+      "};"
+      "</script>");
 
   finder_->AddCriticalCss("http://test.com/a.css", "a_used {color: azure }", 1);
   finder_->AddCriticalCss("http://test.com/b.css", "b_used {color: blue }", 2);
@@ -395,6 +459,19 @@ TEST_F(CriticalCssFilterTest, InlineAndAddStyleForFlushingEarly) {
   GoogleString full_html = doctype_string_ + AddHtmlBody(expected_html);
   EXPECT_TRUE(Wildcard(full_html).Match(output_buffer_)) <<
       "Expected:\n" << full_html << "\n\n Got:\n" << output_buffer_;
+
+  ExpApplicationVector exp_application_counts;
+  exp_application_counts.push_back(
+      make_pair(RewriterApplication::APPLIED_OK, 3));
+  ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE,
+                          exp_application_counts);
+
+  // Validate logging.
+  const CriticalCssInfo& info =
+      rewrite_driver()->log_record()->logging_info()->critical_css_info();
+  ASSERT_EQ(64, info.critical_inlined_bytes());
+  ASSERT_EQ(6, info.original_external_bytes());
+  ASSERT_EQ(85, info.overhead_bytes());
 }
 
 TEST_F(CriticalCssFilterTest, InlineFlushEarly) {

@@ -31,7 +31,9 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
 class CriticalCssFinder;
 class CriticalImagesFinder;
@@ -281,6 +283,11 @@ class RewriteDriverFactory {
     return false;
   }
 
+  // Creates a new AbstractClientState object that must be populated.
+  // Subclasses can override this to create an appropriate AbstractClientState
+  // subclass if the default isn't acceptable.
+  virtual AbstractClientState* NewClientState();
+
   // Creates a FuriousMatcher, which is used to match clients or sessions to
   // a specific furious experiment.
   virtual FuriousMatcher* NewFuriousMatcher();
@@ -331,14 +338,16 @@ class RewriteDriverFactory {
   virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher() { return NULL; }
 
   virtual CriticalCssFinder* DefaultCriticalCssFinder();
-  virtual CriticalImagesFinder* DefaultCriticalImagesFinder(
-      ServerContext* server_context);
-  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder(
-      ServerContext* server_context);
+  virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
+  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder();
+
+  // Default implementation returns NULL.
+  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual CacheHtmlInfoFinder* DefaultCacheHtmlInfoFinder(
-      PropertyCache* cache, ServerContext* server_context);
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();

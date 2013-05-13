@@ -30,7 +30,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -54,21 +53,14 @@
 
 namespace net_instaweb {
 
-// TODO(ksimbili): Replace textContent with something which have similar
-// functionality as it is not supported in IE8 and older browsers.
-// TODO(ksimbili): Fix window.onload = addAllStyles call site as it will
-// override the existing onload function.
+// TODO(ksimbili): Move this to appropriate event instead of 'onload'.
 const char CriticalCssFilter::kAddStylesScript[] =
-    "var stylesAdded = false;"
     "var addAllStyles = function() {"
-    "  if (stylesAdded) return;"
-    "  stylesAdded = true;"
     "  var div = document.createElement(\"div\");"
     "  div.innerHTML = document.getElementById(\"psa_add_styles\").textContent;"
     "  document.body.appendChild(div);"
     "};"
     "if (window.addEventListener) {"
-    "  document.addEventListener(\"DOMContentLoaded\", addAllStyles, false);"
     "  window.addEventListener(\"load\", addAllStyles, false);"
     "} else if (window.attachEvent) {"
     "  window.attachEvent(\"onload\", addAllStyles);"
@@ -239,13 +231,13 @@ void CriticalCssFilter::StartDocument() {
 }
 
 void CriticalCssFilter::EndDocument() {
-  // Don't add link/style tags here, if we are in flushing early driver. We'll
-  // get chance to collect and add them again through flushed early driver.
-  if (num_replaced_links_ > 0 && !driver_->flushing_early()) {
+  if (num_replaced_links_ > 0) {
+    // Comment all the style, link tags so that look-ahead parser cannot find
+    // them.
     HtmlElement* noscript_element =
         driver_->NewElement(NULL, HtmlName::kNoscript);
     driver_->AddAttribute(noscript_element, HtmlName::kId, kNoscriptStylesId);
-    driver_->InsertNodeBeforeCurrent(noscript_element);
+    driver_->InsertElementBeforeCurrent(noscript_element);
     // Write the full set of CSS elements (critical and non-critical rules).
     for (CssElementVector::iterator it = css_elements_.begin(),
          end = css_elements_.end(); it != end; ++it) {
@@ -254,7 +246,7 @@ void CriticalCssFilter::EndDocument() {
 
     HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
     driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-    driver_->InsertNodeBeforeCurrent(script);
+    driver_->InsertElementBeforeCurrent(script);
     int num_unreplaced_links_ = num_links_ - num_replaced_links_;
     int total_overhead_size =
         total_critical_size_ + repeated_style_blocks_size_;
@@ -365,15 +357,13 @@ void CriticalCssFilter::EndElement(HtmlElement* element) {
 
   const GoogleString& style_id = driver_->server_context()->hasher()->Hash(url);
 
-  GoogleString escaped_url;
-  HtmlKeywords::Escape(url, &escaped_url);
   // If the resource has already been flushed early, just apply it here. This
   // can be checked by looking up the url in the DOM cohort. If the url is
   // present in the DOM cohort, it is guaranteed to have been flushed early.
   if (driver_->flushed_early() &&
       driver_->options()->enable_flush_early_critical_css() &&
       driver_->flush_early_info() != NULL &&
-      driver_->flush_early_info()->resource_html().find(escaped_url) !=
+      driver_->flush_early_info()->resource_html().find(url) !=
           GoogleString::npos) {
     // In this case we have already added the CSS rules to the head as
     // part of flushing early. Now, find the rule, remove the disabled tag
@@ -387,7 +377,7 @@ void CriticalCssFilter::EndElement(HtmlElement* element) {
           driver_->NewElement(element->parent(), HtmlName::kScript);
       driver_->AddAttribute(script, HtmlName::kId, kMoveScriptId);
       driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-      driver_->InsertNodeBeforeNode(element, script);
+      driver_->InsertElementBeforeElement(element, script);
       driver_->server_context()->static_asset_manager()->AddJsToElement(
           kMoveAndApplyLinkScriptTemplate, script, driver_);
     }

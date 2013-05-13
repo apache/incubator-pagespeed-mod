@@ -17,6 +17,8 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SHARED_MEM_STATISTICS_TEST_BASE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SHARED_MEM_STATISTICS_TEST_BASE_H_
 
+#include <set>
+
 #include "net/instaweb/util/public/abstract_shared_mem.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -26,25 +28,28 @@
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_mem_statistics.h"
 #include "net/instaweb/util/public/shared_mem_test_base.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
-
-class StatisticsLogger;
-
 class SharedMemStatisticsTestBase : public testing::Test {
  protected:
   typedef void (SharedMemStatisticsTestBase::*TestMethod)();
-
-  static const int64 kLogIntervalMs;
-  static const int64 kMaxLogfileSizeKb;
 
   explicit SharedMemStatisticsTestBase(SharedMemTestEnv* test_env);
   SharedMemStatisticsTestBase() : testing::Test() {}
 
   virtual void SetUp();
   virtual void TearDown();
+  GoogleString CreateHistogramDataResponse(
+      const GoogleString & histogram_name, bool is_long_response);
+  GoogleString CreateVariableDataResponse(
+      bool has_unused_variable, bool first);
+  GoogleString CreateFakeLogfile(GoogleString* var_data,
+                                 GoogleString* hist_data,
+                                 std::set<GoogleString>* var_titles,
+                                 std::set<GoogleString>* hist_titles);
   bool CreateChild(TestMethod method);
 
   void TestCreate();
@@ -58,11 +63,6 @@ class SharedMemStatisticsTestBase : public testing::Test {
   void TestHistogramExtremeBuckets();
   void TestTimedVariableEmulation();
   void TestConsoleStatisticsLogger();
-  void TestLogfileTrimming();
-
-  StatisticsLogger* console_logger() const {
-    return stats_->console_logger_.get();
-  }
 
   MockMessageHandler handler_;
   scoped_ptr<MemFileSystem> file_system_;
@@ -146,11 +146,6 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
 TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestConsoleStatisticsLogger) {
   SharedMemStatisticsTestBase::TestConsoleStatisticsLogger();
 }
-
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestLogfileTrimming) {
-  SharedMemStatisticsTestBase::TestLogfileTrimming();
-}
-
 REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
                            TestSet, TestClear, TestAdd,
                            TestSetReturningPrevious,
@@ -158,8 +153,7 @@ REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
                            TestHistogramNoExtraClear,
                            TestHistogramExtremeBuckets,
                            TestTimedVariableEmulation,
-                           TestConsoleStatisticsLogger,
-                           TestLogfileTrimming);
+                           TestConsoleStatisticsLogger);
 
 }  // namespace net_instaweb
 

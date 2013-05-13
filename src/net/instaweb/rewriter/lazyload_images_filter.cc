@@ -32,7 +32,6 @@
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -83,7 +82,6 @@ void LazyloadImagesFilter::StartDocumentImpl() {
 
 void LazyloadImagesFilter::EndDocument() {
   driver()->UpdatePropertyValueInDomCohort(
-      driver()->property_page(),
       kIsLazyloadScriptInsertedPropertyName,
       main_script_inserted_ ? "1" : "0");
 }
@@ -170,7 +168,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
       driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
       HtmlNode* script_code = driver()->NewCharactersNode(
           script, kLoadAllImages);
-      driver()->InsertNodeAfterNode(element, script);
+      driver()->InsertElementAfterElement(element, script);
       driver()->AppendChild(script, script_code);
       abort_script_inserted_ = true;
     }
@@ -233,31 +231,42 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
     return;
   }
 
-  CriticalImagesFinder* finder =
-      driver()->server_context()->critical_images_finder();
-  // Note that if the platform lacks a CriticalImageFinder
-  // implementation, we consider all images to be non-critical and try
-  // to lazily load them.
-  if (finder->IsMeaningful(driver())) {
-    // Decode the url since the critical images in the finder are not
-    // rewritten.
-    if (finder->IsHtmlCriticalImage(full_url.data(), driver())) {
-      log_record->LogLazyloadFilter(
-          RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-          RewriterApplication::NOT_APPLIED, false, true);
-      // Do not try to lazily load this image since it is critical.
-      return;
+  // Critical Images are required only if it is not a blink request as
+  // blink automatically decides critical images.
+  // Lazyload script will only be inserted if it is not a blink request.
+  // Blink sends the lazyload script after critical images are sent.
+  if (!driver_->options()->Enabled(
+      RewriteOptions::kProcessBlinkInBackground)) {
+    CriticalImagesFinder* finder =
+        driver()->server_context()->critical_images_finder();
+    // Note that if the platform lacks a CriticalImageFinder
+    // implementation, we consider all images to be non-critical and try
+    // to lazily load them.
+    if (finder->IsMeaningful(driver())) {
+      // Decode the url since the critical images in the finder are not
+      // rewritten.
+      if (finder->IsHtmlCriticalImage(full_url.data(), driver())) {
+        log_record->LogLazyloadFilter(
+            RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
+            RewriterApplication::NOT_APPLIED, false, true);
+        // Do not try to lazily load this image since it is critical.
+        return;
+      }
     }
+    if (!main_script_inserted_) {
+      InsertLazyloadJsCode(element);
+     }
+    // Replace the src with pagespeed_lazy_src.
+    driver()->SetAttributeName(src, HtmlName::kPagespeedLazySrc);
+    driver()->AddAttribute(element, HtmlName::kSrc, blank_image_url_);
+    log_record->LogLazyloadFilter(
+        RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
+        RewriterApplication::APPLIED_OK, false, false);
+  } else {
+    // Add pagespeed_blank_src as the blank image.
+    driver()->AddAttribute(
+        element, HtmlName::kPagespeedBlankSrc, blank_image_url_);
   }
-  if (!main_script_inserted_) {
-    InsertLazyloadJsCode(element);
-  }
-  // Replace the src with pagespeed_lazy_src.
-  driver()->SetAttributeName(src, HtmlName::kPagespeedLazySrc);
-  driver()->AddAttribute(element, HtmlName::kSrc, blank_image_url_);
-  log_record->LogLazyloadFilter(
-      RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-      RewriterApplication::APPLIED_OK, false, false);
   // Set the onload appropriately.
   driver()->AddAttribute(element, HtmlName::kOnload, kImageOnloadCode);
   ++num_images_lazily_loaded_;
@@ -266,7 +275,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
 void LazyloadImagesFilter::InsertLazyloadJsCode(HtmlElement* element) {
   if (!driver()->is_lazyload_script_flushed()) {
     HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
-    driver()->InsertNodeBeforeNode(element, script);
+    driver()->InsertElementBeforeElement(element, script);
     StaticAssetManager* static_asset_manager =
         driver()->server_context()->static_asset_manager();
     GoogleString lazyload_js = GetLazyloadJsSnippet(
@@ -286,7 +295,7 @@ void LazyloadImagesFilter::InsertOverrideAttributesScript(
     HtmlNode* script_code = driver()->NewCharactersNode(
         script, kOverrideAttributeFunctions);
     if (is_before_script) {
-      driver()->InsertNodeBeforeNode(element, script);
+      driver()->InsertElementBeforeElement(element, script);
     } else {
       driver()->AppendChild(element, script);
     }

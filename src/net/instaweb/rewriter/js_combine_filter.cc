@@ -362,7 +362,8 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* combine_element =
         Driver()->NewElement(NULL,  // no parent yet.
                              HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
+    Driver()->InsertElementBeforeElement(first_slot->element(),
+                                         combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
                            partition->url());
   }
@@ -376,7 +377,8 @@ class JsCombineFilter::Context : public RewriteContext {
     // original element had.
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(original, element);
+    Driver()->InsertElementBeforeElement(original, element);
+    //    Driver()->DeleteElement(original);
     GoogleString var_name = filter_->VarName(
         FindServerContext(), html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(

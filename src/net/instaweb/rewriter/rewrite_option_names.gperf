@@ -57,7 +57,6 @@ struct OptionName {
 "EnableCachePurge",                      RewriteOptions::kEnableCachePurge
 "EnableDeferJsExperimental",             RewriteOptions::kEnableDeferJsExperimental
 "EnableFixReflow",                       RewriteOptions::kEnableFixReflow,
-"EnableExtendedInstrumentation",          RewriteOptions::kEnableExtendedInstrumentation
 "EnableFlushSubresourcesExperimental",   RewriteOptions::kEnableFlushSubresourcesExperimental
 "EnableLazyloadInBlink",                 RewriteOptions::kEnableLazyloadInBlink
 "EnablePrioritizingScripts",             RewriteOptions::kEnablePrioritizingScripts
@@ -109,7 +108,6 @@ struct OptionName {
 "MaxInlinedPreviewImagesIndex",          RewriteOptions::kMaxInlinedPreviewImagesIndex
 # TODO(sligocki): Put names in agreement. MaxSegmentLength is the
 # mod_pagespeed config name, MaxUrlSegmentSize is the name used in code.
-"MaxPrefetchJsElements",                 RewriteOptions::kMaxPrefetchJsElements
 "MaxRewriteInfoLogSize",                 RewriteOptions::kMaxRewriteInfoLogSize
 "MaxSegmentLength",                      RewriteOptions::kMaxUrlSegmentSize
 "MaxUrlSize",                            RewriteOptions::kMaxUrlSize
@@ -188,15 +186,12 @@ struct OptionName {
 "SlurpDirectory",                        RewriteOptions::kSlurpDirectory
 "SlurpFlushLimit",                       RewriteOptions::kSlurpFlushLimit
 "SlurpReadOnly",                         RewriteOptions::kSlurpReadOnly
-"SslCertDirectory",                      RewriteOptions::kSslCertDirectory
-"SslCertFile",                           RewriteOptions::kSslCertFile
 "Statistics",                            RewriteOptions::kStatisticsEnabled
 "StatisticsLogging",                     RewriteOptions::kStatisticsLoggingEnabled
 "StatisticsLoggingChartsCSS",            RewriteOptions::kStatisticsLoggingChartsCSS
 "StatisticsLoggingChartsJS",             RewriteOptions::kStatisticsLoggingChartsJS
 "StatisticsLoggingFile",                 RewriteOptions::kStatisticsLoggingFile
 "StatisticsLoggingIntervalMs",           RewriteOptions::kStatisticsLoggingIntervalMs
-"StatisticsLoggingMaxFileSizeKb",        RewriteOptions::kStatisticsLoggingMaxFileSizeKb
 "TestProxy",                             RewriteOptions::kTestProxy
 "TestProxySlurp",                        RewriteOptions::kTestProxySlurp
 %%

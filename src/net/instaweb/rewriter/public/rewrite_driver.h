@@ -26,6 +26,7 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
@@ -37,7 +38,9 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/printf_format.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
@@ -47,7 +50,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
 
@@ -64,14 +66,13 @@ class CriticalSelectorSet;
 class DebugFilter;
 class DeviceProperties;
 class DomainRewriteFilter;
-class DomStatsFilter;
-class FallbackPropertyPage;
 class FileSystem;
 class FlushEarlyInfo;
 class FlushEarlyRenderInfo;
 class Function;
 class HtmlFilter;
 class HtmlWriterFilter;
+class LoggingFilter;
 class MessageHandler;
 class OutputResource;
 class PropertyPage;
@@ -133,7 +134,7 @@ class RewriteDriver : public HtmlParse {
   // Headers not in this list will be ignored so there is no need to
   // copy them over.
   // TODO(sligocki): Use these in ProxyInterface flow.
-  static const char* kPassThroughRequestAttributes[7];
+  static const char* kPassThroughRequestAttributes[5];
 
   // This string identifies, for the PropertyCache, a group of properties
   // that are computed from the DOM, and thus can, if desired, be rewritten
@@ -697,7 +698,13 @@ class RewriteDriver : public HtmlParse {
   // We expect to this method to be called on the Rewrite thread.
   void DeleteRewriteContext(RewriteContext* rewrite_context);
 
-  int rewrite_deadline_ms() { return options()->rewrite_deadline_ms(); }
+  // Explicitly sets the number of milliseconds to wait for Rewrites to complete
+  // while HTML parsing, overriding a default value which is dependent on
+  // whether the system is compiled for debug or release, or whether it's been
+  // detected as running on valgrind at runtime. Note that this delegates to
+  // options_, so make sure that options_ is not locked when calling this.
+  void set_rewrite_deadline_ms(int x) { options_->set_rewrite_deadline_ms(x); }
+  int rewrite_deadline_ms() { return options_->rewrite_deadline_ms(); }
 
   // Sets a maximum amount of time to process a page across all flush
   // windows; i.e., the entire lifecycle of this driver during a given pageload.
@@ -816,10 +823,19 @@ class RewriteDriver : public HtmlParse {
   // cache or dom cohort is not available, more so since the value payload has
   // to be serialised before calling this function.  Hence this function will
   // DFATAL if property cache or dom cohort is not available.
-  void UpdatePropertyValueInDomCohort(
-      AbstractPropertyPage* page,
-      StringPiece property_name,
-      StringPiece property_value);
+  void UpdatePropertyValueInDomCohort(StringPiece property_name,
+                                      StringPiece property_value);
+
+  // Sets the pointer to the client state associated with this driver.
+  // RewriteDriver takes ownership of the provided AbstractClientState object.
+  void set_client_state(AbstractClientState* client_state) {
+      client_state_.reset(client_state);
+  }
+
+  // Return a pointer to the client state associated with this request.
+  // This may be NULL if the request does not have an associated client id, or
+  // if the retrieval of client state fails.
+  AbstractClientState* client_state() const { return client_state_.get(); }
 
   void set_client_id(const StringPiece& id) { client_id_ = id.as_string(); }
   const GoogleString& client_id() const { return client_id_; }
@@ -831,7 +847,7 @@ class RewriteDriver : public HtmlParse {
   // with the current URL and fallback URL (i.e. without query params). This
   // should be used where a property is interested in fallback values if
   // actual values are not present.
-  FallbackPropertyPage* fallback_property_page() const {
+  AbstractPropertyPage* fallback_property_page() const {
     return fallback_property_page_;
   }
   // Takes ownership of page.
@@ -972,15 +988,12 @@ class RewriteDriver : public HtmlParse {
   // by the rewrite_driver's request context.
   AbstractLogRecord* log_record();
 
-  DomStatsFilter* dom_stats_filter() const {
-    return dom_stats_filter_;
-  }
-
   // Determines whether the system is healthy enough to rewrite resources.
   // Currently, systems get sick based on the health of the metadata cache.
   bool can_rewrite_resources() const { return can_rewrite_resources_; }
 
-  // Determine whether this driver is nested inside another.
+  // Sets the is_nested property on the driver.
+  void set_is_nested(bool n) { is_nested_ = n; }
   bool is_nested() const { return is_nested_; }
 
   // Writes the specified contents into the output resource, and marks it
@@ -1127,6 +1140,10 @@ class RewriteDriver : public HtmlParse {
   // a RewriteFilter, should override
   // RewriteFilter::UsesPropertyCacheDomCohort() to return true.
   void WriteDomCohortIntoPropertyCache();
+
+  // When HTML parsing is complete, write back client state, if it exists,
+  // to the property cache.
+  void WriteClientStateIntoPropertyCache();
 
   void FinalizeFilterLogging();
 
@@ -1324,7 +1341,7 @@ class RewriteDriver : public HtmlParse {
   std::vector<UrlAsyncFetcher*> owned_url_async_fetchers_;
 
   AddInstrumentationFilter* add_instrumentation_filter_;
-  DomStatsFilter* dom_stats_filter_;
+  LoggingFilter* logging_filter_;
   scoped_ptr<HtmlWriterFilter> html_writer_filter_;
 
   ScanFilter scan_filter_;
@@ -1339,7 +1356,6 @@ class RewriteDriver : public HtmlParse {
   HtmlResourceSlotSet slots_;
 
   scoped_ptr<RewriteOptions> options_;
-
   RewriteDriverPool* controlling_pool_;  // or NULL if this has custom options.
 
   // The default resource encoder
@@ -1363,6 +1379,9 @@ class RewriteDriver : public HtmlParse {
 
   // Stores a client identifier associated with this request, if any.
   GoogleString client_id_;
+
+  // Stores the AbstractClientState object associated with the client, if any.
+  scoped_ptr<AbstractClientState> client_state_;
 
   // Stores any cached properties associated with the current URL and fallback
   // URL (i.e. without query params).
@@ -1415,7 +1434,6 @@ class RewriteDriver : public HtmlParse {
   // Is this a blink request?
   bool is_blink_request_;
   bool can_rewrite_resources_;
-  bool is_nested_;
 
   // Additional request context that may outlive this RewriteDriver. (Thus,
   // the context is reference counted.)
@@ -1423,6 +1441,12 @@ class RewriteDriver : public HtmlParse {
 
   // Start time for HTML requests. Used for statistics reporting.
   int64 start_time_ms_;
+
+  // True if this driver has been cloned from another to execute subordinate
+  // rewrites. Some logging operations aren't executed on nested rewrite
+  // drivers, and timeout policies are changed. Note that this is totally
+  // distinct from nested rewrite contexts.
+  bool is_nested_;
 
   scoped_ptr<DeviceProperties> device_properties_;
 

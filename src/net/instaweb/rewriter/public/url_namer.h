@@ -21,10 +21,10 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/callback.h"
 
 namespace net_instaweb {
 
+class Function;
 class GoogleUrl;
 class OutputResource;
 class MessageHandler;
@@ -43,7 +43,18 @@ class UrlNamer {
     kUnsharded
   };
 
-  typedef Callback1<RewriteOptions*> Callback;
+  class Callback {
+   public:
+    Callback() {}
+    virtual ~Callback();
+    // Provide the Callback function which will be executed once we have
+    // rewrite_options. It is the responsibility of Done() function to
+    // delete the Callback.
+    virtual void Done(RewriteOptions* rewrite_options) = 0;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Callback);
+  };
   UrlNamer();
   virtual ~UrlNamer();
 
@@ -82,15 +93,12 @@ class UrlNamer {
                              Callback* callback,
                              MessageHandler* handler) const;
 
-  // Modifies the request prior to dispatch to the underlying fetcher.  Invokes
-  // "callback" once preparation has finished with a boolean argument
-  // representing success.  "url" may be modified by PrepareRequest, but should
-  // be owned by the caller.
+  // Modifies the request prior to dispatch to the underlying fetcher.
   virtual void PrepareRequest(const RewriteOptions* rewrite_options,
                               GoogleString* url,
                               RequestHeaders* request_headers,
-                              Callback1<bool>* callback,
-                              MessageHandler* handler);
+                              bool* success,
+                              Function* func, MessageHandler* handler);
 
   // Configure custom options. Note that options may be NULL.
   virtual void ConfigureCustomOptions(const RequestHeaders& request_headers,

@@ -53,6 +53,39 @@ void AbstractLogRecord::SetIsHtml(bool is_html) {
   logging_info()->set_is_html_response(true);
 }
 
+int AbstractLogRecord::AddPropertyCohortInfo(const GoogleString& cohort) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->add_cohort_info();
+  cohort_info->set_name(cohort);
+  return logging_info()->property_page_info().cohort_info_size() - 1;
+}
+
+void AbstractLogRecord::AddFoundPropertyToCohortInfo(
+    int index, const GoogleString& property) {
+  ScopedMutex lock(mutex_.get());
+  logging_info()->mutable_property_page_info()->mutable_cohort_info(index)->
+      add_properties_found(property);
+}
+
+void AbstractLogRecord::SetCacheStatusForCohortInfo(
+    int index, bool found, int key_state) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->mutable_cohort_info(index);
+  cohort_info->set_is_cache_hit(found);
+  cohort_info->set_cache_key_state(key_state);
+}
+
+void AbstractLogRecord::SetDeviceAndCacheTypeForCohortInfo(
+    int index, int device_type, int cache_type) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->mutable_cohort_info(index);
+  cohort_info->set_device_type(device_type);
+  cohort_info->set_cache_type(cache_type);
+}
+
 RewriterInfo* AbstractLogRecord::NewRewriterInfo(const char* rewriter_id) {
   ScopedMutex lock(mutex_.get());
   if (rewriter_info_max_size_ != -1 &&
@@ -311,6 +344,14 @@ void AbstractLogRecord::SetNumCssCriticalImages(int num_css_critical_images) {
   logging_info()->set_num_css_critical_images(num_css_critical_images);
 }
 
+void AbstractLogRecord::SetImageStats(int num_img_tags,
+                                      int num_inlined_img_tags) {
+  ScopedMutex lock(mutex_.get());
+  logging_info()->mutable_image_stats()->set_num_img_tags(num_img_tags);
+  logging_info()->mutable_image_stats()
+      ->set_num_inlined_img_tags(num_inlined_img_tags);
+}
+
 void AbstractLogRecord::SetCriticalCssInfo(int critical_inlined_bytes,
                                    int original_external_bytes,
                                    int overhead_bytes) {
@@ -379,11 +420,6 @@ void AbstractLogRecord::LogDeviceInfo(
   device_info->set_is_bot(is_bot);
   device_info->set_supports_split_html(supports_split_html);
   device_info->set_can_preload_resources(can_preload_resources);
-}
-
-void AbstractLogRecord::LogIsXhr(bool is_xhr) {
-  ScopedMutex lock(mutex_.get());
-  logging_info()->set_is_xhr(is_xhr);
 }
 
 void AbstractLogRecord::LogImageBackgroundRewriteActivity(

@@ -25,7 +25,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/null_thread_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -34,9 +33,6 @@ namespace net_instaweb {
 class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
  protected:
   typedef RewriteOptions::FilterSet FilterSet;
-
-  RewriteOptionsTest() : options_(&thread_system_) {
-  }
 
   bool NoneEnabled() {
     FilterSet s;
@@ -96,7 +92,6 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
 
   void TestSetOptionFromName(bool test_log_variant);
 
-  NullThreadSystem thread_system_;
   RewriteOptions options_;
   MockHasher hasher_;
 };
@@ -255,7 +250,7 @@ TEST_F(RewriteOptionsTest, ParseRewriteLevel) {
 }
 
 TEST_F(RewriteOptionsTest, IsRequestDeclined) {
-  RewriteOptions one(&thread_system_);
+  RewriteOptions one;
   one.AddRejectedUrlWildcard("*blocked*");
   one.AddRejectedHeaderWildcard(HttpAttributes::kUserAgent,
                                 "*blocked UA*");
@@ -279,7 +274,7 @@ TEST_F(RewriteOptionsTest, IsRequestDeclined) {
 }
 
 TEST_F(RewriteOptionsTest, IsRequestDeclinedMerge) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   RequestHeaders headers;
   one.AddRejectedUrlWildcard("http://www.a.com/b/*");
   EXPECT_TRUE(one.IsRequestDeclined("http://www.a.com/b/sdsd123", &headers));
@@ -303,20 +298,20 @@ TEST_F(RewriteOptionsTest, IsRequestDeclinedMerge) {
 
 
 TEST_F(RewriteOptionsTest, MergeLevelsDefault) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   MergeOptions(one, two);
   EXPECT_EQ(RewriteOptions::kPassThrough, options_.level());
 }
 
 TEST_F(RewriteOptionsTest, MergeLevelsOneCore) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   MergeOptions(one, two);
   EXPECT_EQ(RewriteOptions::kCoreFilters, options_.level());
 }
 
 TEST_F(RewriteOptionsTest, MergeLevelsOneCoreTwoPass) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   two.SetRewriteLevel(RewriteOptions::kPassThrough);  // overrides default
   MergeOptions(one, two);
@@ -324,7 +319,7 @@ TEST_F(RewriteOptionsTest, MergeLevelsOneCoreTwoPass) {
 }
 
 TEST_F(RewriteOptionsTest, MergeLevelsOnePassTwoCore) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kPassThrough);  // overrides default
   two.SetRewriteLevel(RewriteOptions::kCoreFilters);  // overrides one
   MergeOptions(one, two);
@@ -332,7 +327,7 @@ TEST_F(RewriteOptionsTest, MergeLevelsOnePassTwoCore) {
 }
 
 TEST_F(RewriteOptionsTest, MergeLevelsBothCore) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   two.SetRewriteLevel(RewriteOptions::kCoreFilters);
   MergeOptions(one, two);
@@ -340,27 +335,27 @@ TEST_F(RewriteOptionsTest, MergeLevelsBothCore) {
 }
 
 TEST_F(RewriteOptionsTest, MergeFilterPassThrough) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   MergeOptions(one, two);
   EXPECT_FALSE(options_.Enabled(RewriteOptions::kAddHead));
 }
 
 TEST_F(RewriteOptionsTest, MergeFilterEnaOne) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.EnableFilter(RewriteOptions::kAddHead);
   MergeOptions(one, two);
   EXPECT_TRUE(options_.Enabled(RewriteOptions::kAddHead));
 }
 
 TEST_F(RewriteOptionsTest, MergeFilterEnaTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   two.EnableFilter(RewriteOptions::kAddHead);
   MergeOptions(one, two);
   EXPECT_TRUE(options_.Enabled(RewriteOptions::kAddHead));
 }
 
 TEST_F(RewriteOptionsTest, MergeFilterEnaOneDisTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.EnableFilter(RewriteOptions::kAddHead);
   two.DisableFilter(RewriteOptions::kAddHead);
   MergeOptions(one, two);
@@ -368,7 +363,7 @@ TEST_F(RewriteOptionsTest, MergeFilterEnaOneDisTwo) {
 }
 
 TEST_F(RewriteOptionsTest, MergeFilterDisOneEnaTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.DisableFilter(RewriteOptions::kAddHead);
   two.EnableFilter(RewriteOptions::kAddHead);
   MergeOptions(one, two);
@@ -376,14 +371,14 @@ TEST_F(RewriteOptionsTest, MergeFilterDisOneEnaTwo) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilter) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   MergeOptions(one, two);
   EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheCss));
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilterEnaOne) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   one.EnableFilter(RewriteOptions::kExtendCacheCss);
   MergeOptions(one, two);
@@ -391,7 +386,7 @@ TEST_F(RewriteOptionsTest, MergeCoreFilterEnaOne) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilterEnaTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   two.EnableFilter(RewriteOptions::kExtendCacheCss);
   MergeOptions(one, two);
@@ -399,7 +394,7 @@ TEST_F(RewriteOptionsTest, MergeCoreFilterEnaTwo) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilterEnaOneDisTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   one.EnableFilter(RewriteOptions::kExtendCacheImages);
   two.DisableFilter(RewriteOptions::kExtendCacheImages);
@@ -408,7 +403,7 @@ TEST_F(RewriteOptionsTest, MergeCoreFilterEnaOneDisTwo) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilterDisOne) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   one.DisableFilter(RewriteOptions::kExtendCacheCss);
   MergeOptions(one, two);
@@ -416,7 +411,7 @@ TEST_F(RewriteOptionsTest, MergeCoreFilterDisOne) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCoreFilterDisOneEnaTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   one.DisableFilter(RewriteOptions::kExtendCacheScripts);
   two.EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -425,28 +420,28 @@ TEST_F(RewriteOptionsTest, MergeCoreFilterDisOneEnaTwo) {
 }
 
 TEST_F(RewriteOptionsTest, MergeThresholdDefault) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   MergeOptions(one, two);
   EXPECT_EQ(RewriteOptions::kDefaultCssInlineMaxBytes,
             options_.css_inline_max_bytes());
 }
 
 TEST_F(RewriteOptionsTest, MergeThresholdOne) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.set_css_inline_max_bytes(5);
   MergeOptions(one, two);
   EXPECT_EQ(5, options_.css_inline_max_bytes());
 }
 
 TEST_F(RewriteOptionsTest, MergeThresholdTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   two.set_css_inline_max_bytes(6);
   MergeOptions(one, two);
   EXPECT_EQ(6, options_.css_inline_max_bytes());
 }
 
 TEST_F(RewriteOptionsTest, MergeThresholdOverride) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.set_css_inline_max_bytes(5);
   two.set_css_inline_max_bytes(6);
   MergeOptions(one, two);
@@ -454,28 +449,28 @@ TEST_F(RewriteOptionsTest, MergeThresholdOverride) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampDefault) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   MergeOptions(one, two);
   EXPECT_EQ(RewriteOptions::kDefaultCacheInvalidationTimestamp,
             options_.cache_invalidation_timestamp());
 }
 
 TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampOne) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.set_cache_invalidation_timestamp(11111111);
   MergeOptions(one, two);
   EXPECT_EQ(11111111, options_.cache_invalidation_timestamp());
 }
 
 TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampTwo) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   two.set_cache_invalidation_timestamp(22222222);
   MergeOptions(one, two);
   EXPECT_EQ(22222222, options_.cache_invalidation_timestamp());
 }
 
 TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampOneLarger) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.set_cache_invalidation_timestamp(33333333);
   two.set_cache_invalidation_timestamp(22222222);
   MergeOptions(one, two);
@@ -483,7 +478,7 @@ TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampOneLarger) {
 }
 
 TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampTwoLarger) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.set_cache_invalidation_timestamp(11111111);
   two.set_cache_invalidation_timestamp(22222222);
   MergeOptions(one, two);
@@ -491,7 +486,7 @@ TEST_F(RewriteOptionsTest, MergeCacheInvalidationTimeStampTwoLarger) {
 }
 
 TEST_F(RewriteOptionsTest, MergeDistributed) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   EXPECT_FALSE(options_.Distributable(RewriteOptions::kCacheExtenderId));
   EXPECT_FALSE(options_.Distributable(RewriteOptions::kImageCompressionId));
   EXPECT_FALSE(options_.Distributable(RewriteOptions::kCssFilterId));
@@ -517,7 +512,7 @@ TEST_F(RewriteOptionsTest, Allow) {
 }
 
 TEST_F(RewriteOptionsTest, MergeAllow) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.Allow("*.css");
   EXPECT_TRUE(one.IsAllowed("abcd.css"));
   one.Disallow("a*.css");
@@ -536,7 +531,7 @@ TEST_F(RewriteOptionsTest, MergeAllow) {
 }
 
 TEST_F(RewriteOptionsTest, DisableAllFilters) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.EnableFilter(RewriteOptions::kAddHead);
   two.EnableFilter(RewriteOptions::kExtendCacheCss);
   two.DisableAllFilters();  // Should disable both.
@@ -548,7 +543,7 @@ TEST_F(RewriteOptionsTest, DisableAllFilters) {
 }
 
 TEST_F(RewriteOptionsTest, DisableAllFiltersNotExplicitlyEnabled) {
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.EnableFilter(RewriteOptions::kAddHead);
   two.EnableFilter(RewriteOptions::kExtendCacheCss);
   two.DisableAllFiltersNotExplicitlyEnabled();  // Should disable AddHead.
@@ -582,7 +577,7 @@ TEST_F(RewriteOptionsTest, ForbidFilter) {
 
   // Forbid a filter, then try to merge in an enablement: it won't take.
   // At the same time, merge in a new "forbiddenment": it will take.
-  RewriteOptions one(&thread_system_), two(&thread_system_);
+  RewriteOptions one, two;
   one.SetRewriteLevel(RewriteOptions::kCoreFilters);
   one.ForbidFilter(RewriteOptions::kExtendCacheCss);
   two.SetRewriteLevel(RewriteOptions::kCoreFilters);
@@ -648,7 +643,7 @@ TEST_F(RewriteOptionsTest, PlusAndMinus) {
 
 TEST_F(RewriteOptionsTest, SetDefaultRewriteLevel) {
   NullMessageHandler handler;
-  RewriteOptions new_options(&thread_system_);
+  RewriteOptions new_options;
   new_options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
 
   EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheCss));
@@ -752,7 +747,7 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // kEndOfOptions explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
-  EXPECT_EQ(178, RewriteOptions::kEndOfOptions);
+  EXPECT_EQ(174, RewriteOptions::kEndOfOptions);
   EXPECT_STREQ("AddOptionsToUrls",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kAddOptionsToUrls));
@@ -849,9 +844,6 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("EnableDeferJsExperimental",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kEnableDeferJsExperimental));
-  EXPECT_STREQ("EnableExtendedInstrumentation",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kEnableExtendedInstrumentation));
   EXPECT_STREQ("EnableFixReflow",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kEnableFixReflow));
@@ -1212,21 +1204,18 @@ TEST_F(RewriteOptionsTest, LookupOptionEnumTest) {
   EXPECT_STREQ("StatisticsLogging",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kStatisticsLoggingEnabled));
-  EXPECT_STREQ("StatisticsLoggingChartsCSS",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kStatisticsLoggingChartsCSS));
-  EXPECT_STREQ("StatisticsLoggingChartsJS",
-               RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kStatisticsLoggingChartsJS));
   EXPECT_STREQ("StatisticsLoggingFile",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kStatisticsLoggingFile));
   EXPECT_STREQ("StatisticsLoggingIntervalMs",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kStatisticsLoggingIntervalMs));
-  EXPECT_STREQ("StatisticsLoggingMaxFileSizeKb",
+  EXPECT_STREQ("StatisticsLoggingChartsCSS",
                RewriteOptions::LookupOptionEnum(
-                   RewriteOptions::kStatisticsLoggingMaxFileSizeKb));
+                   RewriteOptions::kStatisticsLoggingChartsCSS));
+  EXPECT_STREQ("StatisticsLoggingChartsJS",
+               RewriteOptions::LookupOptionEnum(
+                   RewriteOptions::kStatisticsLoggingChartsJS));
   EXPECT_STREQ("TestProxy",
                RewriteOptions::LookupOptionEnum(
                    RewriteOptions::kTestProxy));
@@ -1476,7 +1465,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromEnum2) {
   EXPECT_EQ("/example/images/a.jpeg", file_out);
 
   // Domain lawyer options.
-  scoped_ptr<RewriteOptions> options2(new RewriteOptions(&thread_system_));
+  scoped_ptr<RewriteOptions> options2(new RewriteOptions);
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options2->ParseAndSetOptionFromEnum2(
                 RewriteOptions::kMapOriginDomain,
@@ -1487,7 +1476,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromEnum2) {
                 "OriginDomain:http://localhost/example/\n",
             options2->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options3(new RewriteOptions(&thread_system_));
+  scoped_ptr<RewriteOptions> options3(new RewriteOptions);
   // This is an option 2 or 3, so test 2 here and 3 below.
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options3->ParseAndSetOptionFromEnum3(
@@ -1500,7 +1489,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromEnum2) {
                 "ProxyDomain:http://mainsite.com/static/\n",
             options3->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options4(new RewriteOptions(&thread_system_));
+  scoped_ptr<RewriteOptions> options4(new RewriteOptions);
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options4->ParseAndSetOptionFromEnum2(
                 RewriteOptions::kMapRewriteDomain,
@@ -1510,7 +1499,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromEnum2) {
             "http://cdn.example.com/ Auth\n",
             options4->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options5(new RewriteOptions(&thread_system_));
+  scoped_ptr<RewriteOptions> options5(new RewriteOptions);
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options5->ParseAndSetOptionFromEnum2(
                 RewriteOptions::kShardDomain,
@@ -1566,7 +1555,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName3) {
   EXPECT_EQ("Invalid resource category: nonsense", msg);
 
   // Domain lawyer.
-  scoped_ptr<RewriteOptions> options(new RewriteOptions(&thread_system_));
+  scoped_ptr<RewriteOptions> options(new RewriteOptions);
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options->ParseAndSetOptionFromEnum3(
                 RewriteOptions::kMapProxyDomain,
@@ -1635,7 +1624,7 @@ TEST_F(RewriteOptionsTest, PrioritizeVisibleContentFamily) {
             options_.GetBlinkNonCacheableElementsFor(gurl_one));
   EXPECT_EQ("all1", options_.GetBlinkNonCacheableElementsFor(gurl_two));
 
-  RewriteOptions options1(&thread_system_);
+  RewriteOptions options1;
   options1.AddBlinkCacheableFamily("http://www.test.org/two*", 20, "something");
   options1.set_blink_non_cacheables_for_all_families("all2");
   options_.Merge(options1);
@@ -1655,7 +1644,7 @@ TEST_F(RewriteOptionsTest, PrioritizeVisibleContentFamily) {
   EXPECT_EQ(120000, options1.GetBlinkCacheTimeFor(gurl_two));
 
   options_.set_blink_non_cacheables_for_all_families("all3");
-  RewriteOptions options2(&thread_system_);
+  RewriteOptions options2;
   options2.AddBlinkCacheableFamily("http://www.test.org/two*", 40, "");
   options_.Merge(options2);
   EXPECT_EQ(40, options_.GetBlinkCacheTimeFor(gurl_two));
@@ -1949,7 +1938,7 @@ TEST_F(RewriteOptionsTest, ComputeSignatureOptionEffect) {
 }
 
 TEST_F(RewriteOptionsTest, IsEqual) {
-  RewriteOptions a(&thread_system_), b(&thread_system_);
+  RewriteOptions a, b;
   a.ComputeSignature();
   b.ComputeSignature();
   EXPECT_TRUE(a.IsEqual(b));
@@ -1971,7 +1960,7 @@ TEST_F(RewriteOptionsTest, ComputeSignatureEmptyIdempotent) {
   options_.ClearSignatureForTesting();
 
   // Merging in empty RewriteOptions should not change the signature.
-  RewriteOptions options2(&thread_system_);
+  RewriteOptions options2;
   options_.Merge(options2);
   options_.ComputeSignature();
   EXPECT_EQ(signature1, options_.signature());
@@ -2021,7 +2010,7 @@ TEST_F(RewriteOptionsTest, UrlCacheInvalidationTest) {
   options_.AddUrlCacheInvalidationEntry("four", 40L, false);
   options_.AddUrlCacheInvalidationEntry("five", 50L, false);
   options_.AddUrlCacheInvalidationEntry("six", 60L, false);
-  RewriteOptions options1(&thread_system_);
+  RewriteOptions options1;
   options1.AddUrlCacheInvalidationEntry("one*", 20L, true);
   options1.AddUrlCacheInvalidationEntry("three*", 23L, false);
   options1.AddUrlCacheInvalidationEntry("three*", 30L, true);
@@ -2062,7 +2051,7 @@ TEST_F(RewriteOptionsTest, UrlCacheInvalidationSignatureTest) {
 }
 
 TEST_F(RewriteOptionsTest, EnabledFiltersRequiringJavaScriptTest) {
-  RewriteOptions foo(&thread_system_);
+  RewriteOptions foo;
   foo.ClearFilters();
   foo.EnableFilter(RewriteOptions::kDeferJavascript);
   foo.EnableFilter(RewriteOptions::kResizeImages);
@@ -2071,7 +2060,7 @@ TEST_F(RewriteOptionsTest, EnabledFiltersRequiringJavaScriptTest) {
   EXPECT_FALSE(foo_fs.empty());
   EXPECT_EQ(1, foo_fs.size());
 
-  RewriteOptions bar(&thread_system_);
+  RewriteOptions bar;
   bar.ClearFilters();
   bar.EnableFilter(RewriteOptions::kResizeImages);
   bar.EnableFilter(RewriteOptions::kConvertPngToJpeg);
@@ -2189,51 +2178,6 @@ TEST_F(RewriteOptionsTest, AccessOptionByIdAndEnum) {
   EXPECT_STREQ("63", value);
 
   EXPECT_FALSE(options_.OptionValue(kBogusOptionEnum, &id, &was_set, &value));
-}
-
-TEST_F(RewriteOptionsTest, AccessAcrossThreads) {
-#ifndef NDEBUG  // Depends on bits set in rewrite_options.cc under debug
-  NullThreadSystem null_thread_system;
-
-  null_thread_system.set_current_thread(5);
-
-  RewriteOptions options(&null_thread_system);
-  // We can continue to modify in the same thread.
-  EXPECT_TRUE(options.ModificationOK());
-
-  // Unmodified, we could switch to a different thread.
-  null_thread_system.set_current_thread(6);
-  EXPECT_TRUE(options.ModificationOK());
-  null_thread_system.set_current_thread(5);
-
-  // Now make a modification.  We can continue to modify in the same thread.
-  options.set_enabled(RewriteOptions::kEnabledOff);
-  EXPECT_TRUE(options.ModificationOK());
-
-  // But from a different thread we must not modify.
-  null_thread_system.set_current_thread(4);
-  EXPECT_FALSE(options.ModificationOK());
-
-  // Back in thread 5 we can modify.
-  null_thread_system.set_current_thread(5);
-  EXPECT_TRUE(options.ModificationOK());
-
-  // We can merge from the same thread, but not from a different one.
-  EXPECT_TRUE(options.MergeOK());
-  null_thread_system.set_current_thread(4);
-  EXPECT_FALSE(options.MergeOK());
-
-  // Clearing the signature gets us on a clean slate and we can take over
-  // from thread 4.
-  options.ClearSignatureWithCaution();
-  EXPECT_TRUE(options.MergeOK());
-
-  // Once we freeze it we can merge from it.
-  options.Freeze();
-  EXPECT_TRUE(options.MergeOK());
-  null_thread_system.set_current_thread(5);
-  EXPECT_TRUE(options.MergeOK());
-#endif
 }
 
 }  // namespace net_instaweb

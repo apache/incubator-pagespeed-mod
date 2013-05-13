@@ -48,9 +48,11 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_automatic.a \
+  net/instaweb/libinstaweb_blink_critical_line_data_pb.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
+  net/instaweb/libinstaweb_clientstate_pb.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
@@ -69,9 +71,8 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_detect_reflow_opt_data2c.a \
   net/instaweb/libinstaweb_deterministic_data2c.a \
   net/instaweb/libinstaweb_deterministic_opt_data2c.a \
-  net/instaweb/libinstaweb_extended_instrumentation_data2c.a \
-  net/instaweb/libinstaweb_extended_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_flush_early_pb.a \
+  net/instaweb/libinstaweb_htmlparse.a \
   net/instaweb/libinstaweb_htmlparse_core.a \
   net/instaweb/libinstaweb_htmlparse_core_gperf.a \
   net/instaweb/libinstaweb_http.a \
@@ -104,9 +105,7 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_util_enums_pb.a \
   net/instaweb/libprocess_context.a \
   net/instaweb/libtest_infrastructure.a \
-  pagespeed/libpagespeed_http.a \
-  pagespeed/libpagespeed_base.a \
-  pagespeed/libpagespeed_base_test_infrastructure.a \
+  pagespeed/libbase.a \
   pagespeed/libutil.a \
   pagespeed/libjsminify.a \
   pagespeed/libpagespeed_javascript_gperf.a \

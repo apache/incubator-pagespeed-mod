@@ -77,6 +77,10 @@ const int64 kRewriteDelayMs = 47;
 class RewriteContextTest : public RewriteContextTestBase {
  protected:
   RewriteContextTest() {
+    rewrite_failures_ = statistics()->GetVariable(
+        RewriteContext::kNumDistributedRewriteFailures);
+    rewrite_successes_ = statistics()->GetVariable(
+        RewriteContext::kNumDistributedRewriteSuccesses);
     fetch_failures_ = statistics()->GetVariable(
         RewriteStats::kNumResourceFetchFailures);
     fetch_successes_ = statistics()->GetVariable(
@@ -120,9 +124,9 @@ class RewriteContextTest : public RewriteContextTestBase {
   }
 
   void EnableFastUrlInvalidation() {
-    options()->ClearSignatureForTesting();
-    options()->set_enable_cache_purge(true);
-    options()->ComputeSignature();
+    server_context()->global_options()->ClearSignatureForTesting();
+    server_context()->global_options()->set_enable_cache_purge(true);
+    server_context()->global_options()->ComputeSignature();
   }
 
   void FetchAndValidateMetadata(StringPiece input_url,
@@ -213,9 +217,174 @@ class RewriteContextTest : public RewriteContextTestBase {
 
   Variable* fetch_failures_;
   Variable* fetch_successes_;
+  Variable* rewrite_failures_;
+  Variable* rewrite_successes_;
 };
 
 }  // namespace
+
+TEST_F(RewriteContextTest, IngressDistributedRewriteFetch) {
+  // Distribute a .pagespeed. reconstruction.
+  options_->DistributeFilter("tw");
+  options()->set_distributed_rewrite_servers("example.com:80");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  // Mock the optimized .pagespeed. response from the rewrite task.
+  GoogleString dist_url = Encode(kTestDomain, "tw", "0", "distributed.css",
+                                 "css");
+  ResponseHeaders response_headers;
+  int64 ttl_ms = 100000000;
+  DefaultResponseHeaders(kContentTypeJavascript, ttl_ms, &response_headers);
+  mock_distributed_fetcher()->SetResponse(dist_url, response_headers,
+                                          "distributed");
+
+  // Fetch the .pagespeed. resource and ensure that the rewrite was distributed.
+  GoogleString content;
+  response_headers.Clear();
+  RequestHeaders request_headers;
+  EXPECT_TRUE(FetchResourceUrl(dist_url, &request_headers, &content,
+                               &response_headers));
+  EXPECT_EQ("distributed", content);
+  // Make sure the ttl wasn't touched.
+  EXPECT_EQ(ttl_ms, response_headers.cache_ttl_ms() / Timer::kSecondMs);
+  // We miss the http cache twice (we check it twice) and the metadata cache and
+  // then distribute the rewrite, not storing the results. This means that
+  // distributed .pagespeed. requests have the overhead of 2 http cache misses
+  // and 1 metadata miss plus the RPC. This could probably be reduced in the
+  // future.
+  EXPECT_EQ(1, rewrite_successes_->Get());
+  EXPECT_EQ(0, rewrite_failures_->Get());
+  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(2, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(3, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, trim_filter_->num_rewrites());
+}
+
+TEST_F(RewriteContextTest, IngressDistributedRewriteNotFoundFetch) {
+  // If the distributed fetcher returns a 404 then that's what should be
+  // returned.
+  options_->DistributeFilter("tw");
+  options()->set_distributed_rewrite_servers("example.com:80");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  // Mock the optimized .pagespeed. response from the rewrite task.
+  GoogleString dist_url = Encode(kTestDomain, "tw", "0", "distributed.css",
+                                 "css");
+  ResponseHeaders response_headers;
+  DefaultResponseHeaders(kContentTypeJavascript, 100, &response_headers);
+  response_headers.SetStatusAndReason(HttpStatus::kNotFound);
+  mock_distributed_fetcher()->SetResponse(dist_url, response_headers,
+                                          StringPiece());
+
+  // Fetch the .pagespeed. resource and ensure that the rewrite gets
+  // distributed.
+  GoogleString content;
+  response_headers.Clear();
+  RequestHeaders request_headers;
+  EXPECT_TRUE(FetchResourceUrl(dist_url, &request_headers, &content,
+                               &response_headers));
+  EXPECT_EQ(HttpStatus::kNotFound, response_headers.status_code());
+  // We miss the http cache twice (we check it twice) and the metadata cache and
+  // then distribute the rewrite, not storing the results.
+  EXPECT_EQ(1, rewrite_successes_->Get());
+  EXPECT_EQ(0, rewrite_failures_->Get());
+  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(2, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(3, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, trim_filter_->num_rewrites());
+}
+
+TEST_F(RewriteContextTest, IngressDistributedRewriteFailFallbackFetch) {
+  // If the distributed fetch fails mid-stream then the unoptimized resource
+  // should be returned.
+  options_->DistributeFilter("tw");
+  options()->set_distributed_rewrite_servers("example.com:80");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  // Simulate distributed fetch failure and ensure that we fall back to the
+  // original.
+  mock_distributed_fetcher()->set_fail_after_headers(true);
+
+  // Mock the optimized .pagespeed. response from the rewrite task.
+  GoogleString dist_url = Encode(kTestDomain, "tw", "0", "a.css", "css");
+  ResponseHeaders response_headers;
+  DefaultResponseHeaders(kContentTypeJavascript, 100, &response_headers);
+  mock_distributed_fetcher()->SetResponse(dist_url, response_headers,
+                                          StringPiece());
+
+  GoogleString content;
+  response_headers.Clear();
+  RequestHeaders request_headers;
+  EXPECT_TRUE(FetchResourceUrl(dist_url, &request_headers, &content,
+                               &response_headers));
+
+  EXPECT_STREQ(" a ", content);
+
+  // We miss the http cache twice, then the metadata, then distribute the
+  // rewrite but that fails so fetch the original (after a cache check), cache
+  // it, and return it.
+  EXPECT_EQ(0, rewrite_successes_->Get());
+  EXPECT_EQ(1, rewrite_failures_->Get());
+  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(3, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(4, lru_cache()->num_misses());
+  // HTTP resource is inserted but no metadata is stored.
+  EXPECT_EQ(1, lru_cache()->num_inserts());
+  EXPECT_EQ(0, trim_filter_->num_rewrites());
+}
+
+TEST_F(RewriteContextTest, RewriteTaskDistributedRewriteFetch) {
+  // Tests the rewrite end of a distributed rewrite computation.  It should
+  // be the standard .pagespeed. path with no distributed dispatch.
+  options_->DistributeFilter("tw");
+  options()->set_distributed_rewrite_servers("example.com:80");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  GoogleString content;
+  ResponseHeaders response_headers;
+  RequestHeaders request_headers;
+
+  GoogleString a_url = Encode(kTestDomain, "tw", "0", "a.css", "css");
+  // This is the header that a distributed task would receive.
+  request_headers.Add(HttpAttributes::kXPsaDistributedRewriteFetch, "");
+  EXPECT_TRUE(
+      FetchResourceUrl(a_url, &request_headers, &content, &response_headers));
+
+  // This should be a normal .pagespeed. fetch.  Two http cache misses at first,
+  // then a metadata miss, then an input http miss, then input fetch and store,
+  // then rewrite and store of metadata and output.
+  EXPECT_STREQ("a", content);
+  EXPECT_EQ(0, rewrite_successes_->Get());
+  EXPECT_EQ(0, rewrite_failures_->Get());
+  EXPECT_EQ(0, counting_distributed_fetcher()->fetch_count());
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(3, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(4, lru_cache()->num_misses());
+  // HTTP resource is inserted but no metadata is stored.
+  EXPECT_EQ(3, lru_cache()->num_inserts());
+  EXPECT_EQ(1, trim_filter_->num_rewrites());
+}
 
 TEST_F(RewriteContextTest, ReturnMetadataOnRequest) {
   // Sends a fetch that asks for metadata in the response headers and checks
@@ -758,15 +927,15 @@ TEST_F(RewriteContextTest, TrimOnTheFlyNonOptimizableUrlCacheInvalidation) {
   ClearStats();
 
   // The third time we do a 'non-strict' (includes metadata) invalidation of
-  // the cache for some URL other than 'b.css', invalidating just the
+  // the cache for some URL other than 'b.css', invalidationg just the
   // metadata for foo.bar, which has no effect.
   SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar"), false);
   ValidateNoChanges("no_trimmable", CssLinkHref("b.css"));
-  // Since enable_cache_purge is not true, the above invalidation results in a
-  // signature change for metadata cache key.  Hence metadata is invalidated.
-  EXPECT_EQ(1, lru_cache()->num_hits());     // http cache
-  EXPECT_EQ(1, lru_cache()->num_misses());   // metadata
-  EXPECT_EQ(1, lru_cache()->num_inserts());  // metadata
+  // The above invalidation of foo.bar is completely irrelevant to the
+  // lookup for b.css, so it's all cache-hits, no inserts/rewrites/fetches.
+  EXPECT_EQ(1, lru_cache()->num_hits());  // metadata (valid)
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
 }
 
@@ -4141,7 +4310,7 @@ TEST_F(RewriteContextTest, BlockingRewrite) {
 TEST_F(RewriteContextTest, CssCdnMapToDifferentOrigin) {
   int64 start_time_ms = timer()->NowMs();
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   InitNestedFilter(true);
   InitResources();
   lawyer->AddRewriteDomainMapping("test.com", "static.test.com",
@@ -4186,7 +4355,7 @@ TEST_F(RewriteContextTest, CssCdnMapToDifferentOrigin) {
 TEST_F(RewriteContextTest, CssCdnMapToDifferentOriginSharded) {
   int64 start_time_ms = timer()->NowMs();
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   InitNestedFilter(true);
   InitResources();
 

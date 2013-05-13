@@ -196,7 +196,7 @@ TEST_F(CssInlineFilterTest, NoRewriteUrlsSameDir) {
 
 TEST_F(CssInlineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   lawyer->AddShard("www.example.com", "shard1.com,shard2.com",
                    &message_handler_);
 

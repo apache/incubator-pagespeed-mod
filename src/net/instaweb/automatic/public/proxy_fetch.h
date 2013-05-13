@@ -43,6 +43,8 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
+class AbstractLogRecord;
 class AbstractMutex;
 class CacheUrlAsyncFetcher;
 class Function;
@@ -120,6 +122,14 @@ class ProxyFetchFactory {
 // to complete.
 class ProxyFetchPropertyCallback : public PropertyPage {
  public:
+  // The cache type associated with this callback.
+  enum PageType {
+    kPropertyCachePage,
+    kPropertyCacheFallbackPage,
+    kClientPropertyCachePage,
+    kDevicePropertyCachePage,
+  };
+
   ProxyFetchPropertyCallback(PageType page_type,
                              PropertyCache* property_cache,
                              const StringPiece& key,
@@ -135,6 +145,10 @@ class ProxyFetchPropertyCallback : public PropertyPage {
   virtual bool IsCacheValid(int64 write_timestamp_ms) const;
 
   virtual void Done(bool success);
+
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(AbstractLogRecord* log_record,
+                                 int cohort_index);
 
  private:
   PageType page_type_;
@@ -309,6 +323,13 @@ class ProxyFetch : public SharedAsyncFetch {
   virtual void PropertyCacheComplete(
       ProxyFetchPropertyCallbackCollector* collector);
 
+  // Returns the AbstractClientState object carried by the property cache
+  // callback collector, if any. Returns NULL if no AbstractClientState
+  // is found. This method assumes that the property cache is enabled and
+  // the client state property cache lookup has completed.
+  AbstractClientState* GetClientState(
+      ProxyFetchPropertyCallbackCollector* collector);
+
   // If cross_domain is true, we're requested under a domain different from
   // the underlying host, using proxy mode in UrlNamer.
   ProxyFetch(const GoogleString& url,
@@ -338,9 +359,7 @@ class ProxyFetch : public SharedAsyncFetch {
   void StartFetch();
 
   // Actually do the fetch, called from callback of StartFetch.
-  // "prepare_success" represents whether the request was prepared successfully
-  // by the UrlNamer.
-  void DoFetch(bool prepare_success);
+  void DoFetch();
 
   // Handles buffered HTML writes, flushes, and done calls
   // in the QueuedWorkerPool::Sequence sequence_.
@@ -457,6 +476,9 @@ class ProxyFetch : public SharedAsyncFetch {
   QueuedAlarm* idle_alarm_;
 
   ProxyFetchFactory* factory_;
+
+  // Whether PrepareRequest() to url_namer succeeded.
+  bool prepare_success_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetch);
 };

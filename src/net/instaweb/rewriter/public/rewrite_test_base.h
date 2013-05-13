@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/response_headers.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
 #include "net/instaweb/rewriter/public/resource.h"
@@ -36,7 +35,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/md5_hasher.h"
@@ -46,7 +44,6 @@
 #include "net/instaweb/util/public/mock_property_page.h"
 // We need to include mock_timer.h to allow upcast to Timer*.
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -65,6 +62,7 @@ class HtmlWriterFilter;
 class LRUCache;
 class MessageHandler;
 class MockScheduler;
+class PropertyCache;
 class RequestHeaders;
 class ResourceNamer;
 class RewriteFilter;
@@ -85,6 +83,7 @@ class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
 class RewriteTestBase : public RewriteOptionsTestBase {
  public:
   static const char kTestData[];    // Testdata directory.
+
   // Specifies which server should be "active" in that rewrites and fetches
   // will use it. The data members affected are those returned by:
   // - factory() / other_factory()
@@ -365,22 +364,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
 
-  // Authorizes a domain to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddDomain(StringPiece domain);
-
-  // Adds an origin domain mapping to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddOriginDomainMapping(StringPiece to_domain, StringPiece from_domain);
-
-  // Adds a rewrite domain mapping to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddRewriteDomainMapping(StringPiece to_domain, StringPiece from_domain);
-
-  // Adds a shard to options()->domain_lawyer(), recomputing the options
-  // signature if necessary.
-  bool AddShard(StringPiece domain, StringPiece shards);
-
   // Helper method to test all manner of resource serving from a filter.
   void TestServeFiles(const ContentType* content_type,
                       const StringPiece& filter_id,
@@ -453,8 +436,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   MockUrlFetcher* mock_url_fetcher() {
     return &mock_url_fetcher_;
   }
-  TestDistributedFetcher* test_distributed_fetcher() {
-    return &test_distributed_fetcher_;
+  MockUrlFetcher* mock_distributed_fetcher() {
+    return &mock_distributed_fetcher_;
   }
   Hasher* hasher() { return server_context_->hasher(); }
   DelayCache* delay_cache() { return factory_->delay_cache(); }
@@ -577,20 +560,23 @@ class RewriteTestBase : public RewriteOptionsTestBase {
       int64 expected_expiration_ms);
 
   // Setup statistics for the given cohort and add it to the give PropertyCache.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort) {
-    return factory()->SetupCohort(cache, cohort);
+  void SetupCohort(PropertyCache* cache, const GoogleString& cohort) {
+    factory()->SetupCohort(cache, cohort);
   }
-
-  // Configure the other_server_context_ to use the same LRU cache as the
-  // primary server context.
-  void SetupSharedCache();
 
   // Returns a new mock property page for the page property cache.
   MockPropertyPage* NewMockPage(const StringPiece& key) {
     return new MockPropertyPage(
         server_context_->thread_system(),
         server_context_->page_property_cache(),
+        key);
+  }
+
+  // Returns a new mock property page for the client property cache.
+  MockPropertyPage* NewMockClientPage(const StringPiece& key) {
+    return new MockPropertyPage(
+        server_context_->thread_system(),
+        server_context_->client_property_cache(),
         key);
   }
 
@@ -659,7 +645,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // The mock fetchers & stats are global across all Factories used in the
   // tests.
   MockUrlFetcher mock_url_fetcher_;
-  TestDistributedFetcher test_distributed_fetcher_;
+  MockUrlFetcher mock_distributed_fetcher_;
   scoped_ptr<Statistics> statistics_;
 
   // We have two independent RewriteDrivers representing two completely
@@ -683,7 +669,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   RewriteOptions* other_options_;  // owned by other_rewrite_driver_.
   UrlSegmentEncoder default_encoder_;
   ResponseHeaders response_headers_;
-  const GoogleString kEtag0;  // Etag with a 0 hash.
 };
 
 }  // namespace net_instaweb

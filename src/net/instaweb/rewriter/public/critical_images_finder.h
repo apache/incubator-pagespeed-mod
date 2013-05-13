@@ -20,13 +20,15 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_FINDER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class CriticalImages;
+class AbstractPropertyPage;
+class PropertyCache;
+class PropertyValue;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -38,7 +40,7 @@ class Variable;
 // TODO(jud): Instead of a separate CriticalImagesInfo that gets populated from
 // the CriticalImages protobuf value, we could just store the protobuf value in
 // RewriteDriver and eliminate CriticalImagesInfo. Revisit this when updating
-// this class to support multiple beacon response.
+// this class to support multiple beacon responese.
 struct CriticalImagesInfo {
   StringSet html_critical_images;
   StringSet css_critical_images;
@@ -105,30 +107,34 @@ class CriticalImagesFinder {
   StringSet* mutable_html_critical_images(RewriteDriver* driver);
   StringSet* mutable_css_critical_images(RewriteDriver* driver);
 
-  // Compute the critical images for the driver's url.
-  virtual void ComputeCriticalImages(RewriteDriver* driver) = 0;
+  // Compute the critical images for the given url.
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver) = 0;
 
   // Identifies which cohort in the PropertyCache the critical image information
   // is located in.
-  virtual const PropertyCache::Cohort* GetCriticalImagesCohort() const = 0;
+  virtual const char* GetCriticalImagesCohort() const = 0;
 
-  // Updates the critical images property cache entry. Returns whether the
-  // update succeeded or not. Note that this base implementation does not call
-  // WriteCohort. This should be called in the subclass if the cohort is not
-  // written elsewhere. NULL is permitted for the critical image sets if only
-  // one of the html or css sets is being updated, but not the other.
+  // Updates the critical images property cache entry. This will take the
+  // ownership of the critical_images_set. Returns whether the update succeeded
+  // or not. Note that this base implementation does not call WriteCohort. This
+  // should be called in the subclass if the cohort is not written elsewhere.
   bool UpdateCriticalImagesCacheEntryFromDriver(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      RewriteDriver* driver);
+      RewriteDriver* driver,
+      StringSet* critical_images_set,
+      StringSet* css_critical_images_set);
 
   // Alternative interface to update the critical images cache entry. This is
   // useful in contexts like the beacon handler where the RewriteDriver for the
-  // original request no longer exists.
+  // original request no longer exists. This will take ownership of
+  // critical_images_set.
+  // TODO(jud): Modify to not take ownership of the sets. This will make the
+  // memory management of BeaconPropertyCallback clearer.
   bool UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      AbstractPropertyPage* page);
+      AbstractPropertyPage* page,
+      PropertyCache* page_property_cache,
+      StringSet* critical_images_set,
+      StringSet* css_critical_images_set);
 
  protected:
   // Gets critical images if present in the property cache and updates the

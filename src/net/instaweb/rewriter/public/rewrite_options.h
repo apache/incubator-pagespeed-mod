@@ -39,7 +39,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "pagespeed/kernel/util/copy_on_write.h"
 #include "pagespeed/kernel/util/dense_hash_map.h"
 #include "pagespeed/kernel/util/fast_wildcard_group.h"
 #include "pagespeed/kernel/util/wildcard.h"
@@ -138,6 +137,8 @@ class RewriteOptions {
     kOutlineJavascript,
     kPedantic,
     kPrioritizeCriticalCss,
+    kPrioritizeVisibleContent,
+    kProcessBlinkInBackground,
     kRecompressJpeg,
     kRecompressPng,
     kRecompressWebp,
@@ -150,6 +151,7 @@ class RewriteOptions {
     kRewriteJavascript,
     kRewriteStyleAttributes,
     kRewriteStyleAttributesWithUrl,
+    kServeNonCacheableNonCritical,
     kSplitHtml,
     kSpriteImages,
     kSquashImagesForMobileScreen,
@@ -211,8 +213,8 @@ class RewriteOptions {
     kEnableCachePurge,
     kEnableFlushEarlyCriticalCss,
     kEnableFixReflow,
-    kEnableExtendedInstrumentation,
     kEnableFlushSubresourcesExperimental,
+    kEnableInlinePreviewImagesExperimental,
     kEnableLazyLoadHighResImages,
     kEnableLazyloadInBlink,
     kEnablePrioritizingScripts,
@@ -266,7 +268,6 @@ class RewriteOptions {
     kMaxImageBytesForWebpInCss,
     kMaxImageSizeLowResolutionBytes,
     kMaxInlinedPreviewImagesIndex,
-    kMaxPrefetchJsElements,
     kMaxRewriteInfoLogSize,
     kMaxUrlSegmentSize,
     kMaxUrlSize,
@@ -348,15 +349,12 @@ class RewriteOptions {
     kSlurpDirectory,
     kSlurpFlushLimit,
     kSlurpReadOnly,
-    kSslCertDirectory,
-    kSslCertFile,
     kStatisticsEnabled,
-    kStatisticsLoggingChartsCSS,
-    kStatisticsLoggingChartsJS,
     kStatisticsLoggingEnabled,
     kStatisticsLoggingFile,
     kStatisticsLoggingIntervalMs,
-    kStatisticsLoggingMaxFileSizeKb,
+    kStatisticsLoggingChartsCSS,
+    kStatisticsLoggingChartsJS,
     kTestProxy,
     kTestProxySlurp,
     kUseSharedMemLocking,
@@ -600,7 +598,6 @@ class RewriteOptions {
   static const int kDefaultDomainShardCount;
   static const int64 kDefaultBlinkHtmlChangeDetectionTimeMs;
   static const int64 kDefaultOverrideBlinkCacheTimeMs;
-  static const int kDefaultMaxPrefetchJsElements;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
@@ -820,7 +817,7 @@ class RewriteOptions {
   // kConvertJpegToWebp, kConvertPngToJpeg, and kConvertToWebpLossless.
   bool ImageOptimizationEnabled() const;
 
-  explicit RewriteOptions(ThreadSystem* thread_system);
+  RewriteOptions();
   virtual ~RewriteOptions();
 
   // Static initialization of members.  Calls to Initialize and
@@ -828,24 +825,6 @@ class RewriteOptions {
   // Initialize call and the last Terminate call.
   static bool Initialize();
   static bool Terminate();
-
-#ifndef NDEBUG
-  // Determines whether it's OK to modify the RewriteOptions in the
-  // current thread.  Note that this is stricter than necessary, but
-  // makes it easier to reason about potential thread safety issues
-  // for copy-on-write sharing of substructures.
-  //
-  // This is exposed as an external API for ease of unit testing.
-  bool ModificationOK() const;
-
-  // Determines whether it's OK to merge from the RewriteOptions object
-  // in the current thread.  Note that this is stricter than necessary, but
-  // makes it easier to reason about potential thread safety issues
-  // for copy-on-write sharing of substructures.
-  //
-  // This is exposed as an external API for ease of unit testing.
-  bool MergeOK() const;
-#endif
 
   // Initializes the Options objects in a RewriteOptions instance
   // based on the supplied Properties vector.  Note that subclasses
@@ -1780,13 +1759,6 @@ class RewriteOptions {
     return flush_more_resources_in_ie_and_firefox_.value();
   }
 
-  void set_max_prefetch_js_elements(int x) {
-    set_option(x, &max_prefetch_js_elements_);
-  }
-  int max_prefetch_js_elements() const {
-    return max_prefetch_js_elements_.value();
-  }
-
   void set_enable_defer_js_experimental(bool x) {
     set_option(x, &enable_defer_js_experimental_);
   }
@@ -1799,6 +1771,13 @@ class RewriteOptions {
   }
   bool enable_cache_purge() const {
     return enable_cache_purge_.value();
+  }
+
+  void set_enable_inline_preview_images_experimental(bool x) {
+    set_option(x, &enable_inline_preview_images_experimental_);
+  }
+  bool enable_inline_preview_images_experimental() const {
+    return enable_inline_preview_images_experimental_.value();
   }
 
   void set_lazyload_highres_images(bool x) {
@@ -2026,13 +2005,6 @@ class RewriteOptions {
     set_option(x, &support_noscript_enabled_);
   }
 
-  bool enable_extended_instrumentation() const {
-    return enable_extended_instrumentation_.value();
-  }
-  void set_enable_extended_instrumentation(bool x) {
-    set_option(x, &enable_extended_instrumentation_);
-  }
-
   void set_max_combined_js_bytes(int64 x) {
     set_option(x, &max_combined_js_bytes_);
   }
@@ -2130,28 +2102,8 @@ class RewriteOptions {
   // not currently called by mod_pagespeed.
   virtual void DisallowResourcesForProxy();
 
-  // When someone asks for a readonly lawyer, we can return a pointer to
-  // the potentially shared DomainLawyer* object.  But if you want a mutable
-  // one, we clone whatever Lawyer we had and detach it from the shared
-  // group.  Here are several scenarios.
-  //   1. We are setting up the global_options() for a ServerContext on
-  //      startup.  There will be no concurrent access, and at this point
-  //      there will be no sharing with other RewriteOptions.
-  //   2. We are merging down global_options() based on the
-  //      vhost/directory/.htaccess data and need to update (among
-  //      other things) the settings.  This may happen concurrently for
-  //      several different server-scoped, directory-scoped, or request-scoped
-  //      RewriteOptions objects.  Those will all be attached to their
-  //      parent when the options get created.  However writing to these
-  //      will effectively detach them.
-  // One case that would be problematic is a mutation of a parent
-  // RewriteOptions->WriteableDomainLawyer() concurrent with instantiating
-  // a new child RewriteOptions.  However this does not occur in our system.
-  //
-  // The only similar place this does occur is cache_invalidation_timestamp_
-  // which can be mutated when there are active children.
-  const DomainLawyer* domain_lawyer() const { return domain_lawyer_.get(); }
-  DomainLawyer* WriteableDomainLawyer();
+  DomainLawyer* domain_lawyer() { return &domain_lawyer_; }
+  const DomainLawyer* domain_lawyer() const { return &domain_lawyer_; }
 
   FileLoadPolicy* file_load_policy() { return &file_load_policy_; }
   const FileLoadPolicy* file_load_policy() const { return &file_load_policy_; }
@@ -2232,9 +2184,6 @@ class RewriteOptions {
   // a frozen state.
   virtual RewriteOptions* Clone() const;
 
-  // Make an empty options object of the same type as this.
-  virtual RewriteOptions* NewOptions() const;
-
   // Computes a signature for the RewriteOptions object, including all
   // contained classes (DomainLawyer, FileLoadPolicy, WildCardGroups).
   //
@@ -2242,29 +2191,21 @@ class RewriteOptions {
   // to modify a RewriteOptions after freezing will DCHECK.
   void ComputeSignature();
 
-  // Freeze a RewriteOptions so we can't modify it anymore and thus
-  // know that it's safe to read it from multiple threads, but don't
-  // bother calculating its signature since we will only be using this
-  // instance for merging and cloning.
-  void Freeze();
-
   // Clears the computed signature, unfreezing the options object.
   // Warning: Please note that using this method is extremely risky and should
   // be avoided as much as possible. If you are planning to use this, please
   // discuss this with your team-mates and ensure that you clearly understand
   // its implications. Also, please do repeat this warning at every place you
   // use this method.
-  void ClearSignatureWithCaution();
-
-  bool frozen() const { return frozen_; }
+  void ClearSignatureWithCaution() {
+    frozen_ = false;
+    signature_.clear();
+  }
 
   // Clears a computed signature, unfreezing the options object.  This
-  // is intended for testing.  Returns whether the options were frozen
-  // in the first place.
-  bool ClearSignatureForTesting() {
-    bool frozen = frozen_;
+  // is intended for testing.
+  void ClearSignatureForTesting() {
     ClearSignatureWithCaution();
-    return frozen;
   }
 
   // Returns the computed signature.
@@ -2278,7 +2219,6 @@ class RewriteOptions {
     // only time we Write is if someone flushes the cache.
     ThreadSystem::ScopedReader lock(cache_invalidation_timestamp_.mutex());
     DCHECK(frozen_);
-    DCHECK(!signature_.empty());
     return signature_;
   }
 
@@ -2293,6 +2233,11 @@ class RewriteOptions {
   // experiment. Primarily used for tagging Google Analytics data.  This format
   // is not at all specific to Google Analytics, however.
   virtual GoogleString ToExperimentDebugString() const;
+
+  // Returns true if generation low res images is required.
+  virtual bool NeedLowResImages() const {
+    return Enabled(kDelayImages);
+  }
 
   // Convert an id string like "ah" to a Filter enum like kAddHead.
   // Returns kEndOfFilters if the id isn't known.
@@ -2324,8 +2269,6 @@ class RewriteOptions {
 
   // Returns the hasher used for signatures and URLs to purge.
   const Hasher* hasher() const { return &hasher_; }
-
-  ThreadSystem* thread_system() const { return thread_system_; }
 
  protected:
   // Type-specific class of Property.  This subclass of PropertyBase
@@ -3080,10 +3023,6 @@ class RewriteOptions {
   // Flush more resources in IE and Firefox.
   Option<bool> flush_more_resources_in_ie_and_firefox_;
 
-  // Number of script elements to prefetch early. Applicable when defer_js
-  // filter is enabled.
-  Option<int> max_prefetch_js_elements_;
-
   // Enables experimental code in defer js.
   Option<bool> enable_defer_js_experimental_;
 
@@ -3097,6 +3036,9 @@ class RewriteOptions {
   // AddUrlCacheInvalidationEntry) or will not invalidate the metadata
   // cache entries at all (ignores_metadata_and_pcache==false).
   Option<bool> enable_cache_purge_;
+
+  // Enables experimental code in inline preview images.
+  Option<bool> enable_inline_preview_images_experimental_;
 
   // Enables the code to lazy load high res images.
   Option<bool> lazyload_highres_images_;
@@ -3169,8 +3111,8 @@ class RewriteOptions {
   // Option for the prioritize_visible_content filter.
   //
   // Represents the following information:
-  // "<url family wildcard 1>;<cache time 1>;<comma separated list of non-cacheable elements 1>",  // NOLINT
-  // "<url family wildcard 2>;<cache time 2>;<comma separated list of non-cacheable elements 2>",  // NOLINT
+  // "<url family wildcard 1>;<cache time 1>;<comma separated list of non-cacheable elements 1>",
+  // "<url family wildcard 2>;<cache time 2>;<comma separated list of non-cacheable elements 2>",
   //  ...
   std::vector<PrioritizeVisibleContentFamily*>
       prioritize_visible_content_families_;
@@ -3244,10 +3186,6 @@ class RewriteOptions {
   // enabled.
   Option<bool> support_noscript_enabled_;
 
-  // If this set to true, we add additional instrumentation code to page that
-  // reports more information in the beacon.
-  Option<bool> enable_extended_instrumentation_;
-
   // Maximum size allowed for the combined js resource.
   // Negative value will bypass the size check.
   Option<int64> max_combined_js_bytes_;
@@ -3320,7 +3258,7 @@ class RewriteOptions {
 
   JavascriptLibraryIdentification javascript_library_identification_;
 
-  CopyOnWrite<DomainLawyer> domain_lawyer_;
+  DomainLawyer domain_lawyer_;
   FileLoadPolicy file_load_policy_;
 
   FastWildcardGroup allow_resources_;
@@ -3334,22 +3272,6 @@ class RewriteOptions {
 
   GoogleString signature_;
   MD5Hasher hasher_;  // Used to compute named signatures.
-
-  ThreadSystem* thread_system_;
-
-  // When compiled for debug, keep track of the last thread to modify
-  // this object.  If cloned or merged from prior to
-  // ComputeSignature(), we check that the thread doing the Merge is
-  // in the same thread that modified it.
-  //
-  // We also ensure that only one thread modifies a RewriteOptions
-  // object.
-  //
-  // Note: we don't ifdef the member variable declaration as having the
-  // structure-size dependent on debug-ifdef seems dangerous when used
-  // as a library against externally compiled code.  We do ifdef its
-  // usage within the class implementation, however.
-  scoped_ptr<ThreadSystem::ThreadId> last_thread_id_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteOptions);
 };

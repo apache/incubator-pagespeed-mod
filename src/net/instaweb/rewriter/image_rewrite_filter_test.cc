@@ -37,12 +37,11 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
-#include "net/instaweb/rewriter/public/dom_stats_filter.h"
+#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/image.h"
-#include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
@@ -87,10 +86,6 @@ const char kChefDims[] = " width=\"192\" height=\"256\"";
 // Size of a 1x1 image.
 const char kPixelDims[] = " width='1' height='1'";
 
-// If the expected value of a size is set to -1, this size will be ignored in
-// the test.
-const int kIgnoreSize = -1;
-
 // A callback for HTTP cache that stores body and string representation
 // of headers into given strings.
 class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
@@ -124,6 +119,36 @@ class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
   bool found_;
   DISALLOW_COPY_AND_ASSIGN(HTTPCacheStringCallback);
 };
+
+// By default, CriticalImagesFinder does not return meaningful results. However,
+// this test manually manages the critical image set, so CriticalImagesFinder
+// can return useful information for testing this filter.
+class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
+ public:
+  explicit MeaningfulCriticalImagesFinder(Statistics* stats)
+      : CriticalImagesFinder(stats),
+        compute_calls_(0) {}
+  virtual ~MeaningfulCriticalImagesFinder() {}
+  virtual bool IsMeaningful(const RewriteDriver* driver) const {
+    return true;
+  }
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver) {
+    ++compute_calls_;
+  }
+  int num_compute_calls() { return compute_calls_; }
+  virtual const char* GetCriticalImagesCohort() const {
+    return kCriticalImagesCohort;
+  }
+
+ private:
+  static const char kCriticalImagesCohort[];
+  int compute_calls_;
+  DISALLOW_COPY_AND_ASSIGN(MeaningfulCriticalImagesFinder);
+};
+
+const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
+    "critical_images";
 
 }  // namespace
 
@@ -164,9 +189,7 @@ class ImageRewriteTest : public RewriteTestBase {
   virtual void SetUp() {
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_dom_cohort(cohort);
+    SetupCohort(pcache, RewriteDriver::kDomCohort);
     RewriteTestBase::SetUp();
     MockPropertyPage* page = NewMockPage(kTestDomain);
     pcache->set_enabled(true);
@@ -727,8 +750,6 @@ class ImageRewriteTest : public RewriteTestBase {
         Count());
   }
 
-  // Verify log for background image rewriting. To skip url, pass in an empty
-  // string. To skip original_size or optimized_size,  pass in kIgnoreSize.
   void TestBackgroundRewritingLog(
       int rewrite_info_size,
       int rewrite_info_index,
@@ -762,13 +783,8 @@ class ImageRewriteTest : public RewriteTestBase {
     ASSERT_TRUE(rewriter_info.has_rewrite_resource_info());
     const RewriteResourceInfo& resource_info =
         rewriter_info.rewrite_resource_info();
-
-    if (original_size != kIgnoreSize) {
-      EXPECT_EQ(original_size, resource_info.original_size());
-    }
-    if (optimized_size != kIgnoreSize) {
-      EXPECT_EQ(optimized_size, resource_info.optimized_size());
-    }
+    EXPECT_EQ(original_size, resource_info.original_size());
+    EXPECT_EQ(optimized_size, resource_info.optimized_size());
     EXPECT_EQ(is_recompressed, resource_info.is_recompressed());
 
     ASSERT_TRUE(rewriter_info.has_image_rewrite_resource_info());
@@ -795,7 +811,7 @@ TEST_F(ImageRewriteTest, ImgTag) {
 }
 
 TEST_F(ImageRewriteTest, ImgTagWithDeviceTypeLogging) {
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhoneUserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIPhoneUserAgent);
   RewriteImage("img", kContentTypeJpeg);
   EXPECT_EQ(UserAgentMatcher::kMobile,
             logging_info()->device_info().device_type());
@@ -813,8 +829,8 @@ TEST_F(ImageRewriteTest, ImgTagWithDeviceTypeLogging) {
 TEST_F(ImageRewriteTest, ImgTagWithComputeStatistics) {
   options()->EnableFilter(RewriteOptions::kComputeStatistics);
   RewriteImage("img", kContentTypeJpeg);
-  EXPECT_EQ(1, rewrite_driver()->dom_stats_filter()->num_img_tags());
-  EXPECT_EQ(0, rewrite_driver()->dom_stats_filter()->num_inlined_img_tags());
+  EXPECT_EQ(1, logging_info()->image_stats().num_img_tags());
+  EXPECT_EQ(0, logging_info()->image_stats().num_inlined_img_tags());
 }
 
 TEST_F(ImageRewriteTest, ImgTagWithRewriterStatsChecking) {
@@ -1022,7 +1038,7 @@ TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlag) {
       IMAGE_PNG, /* original_type */
       IMAGE_WEBP_LOSSLESS_OR_ALPHA, /* optimized_type */
       26548, /* original_size */
-      kIgnoreSize, /* optimized_size */
+      17534, /* optimized_size */
       true, /* is_recompressed */
       false /* is_resized */);
 }
@@ -1628,8 +1644,8 @@ TEST_F(ImageRewriteTest, DimensionStripAfterInline) {
 }
 
 TEST_F(ImageRewriteTest, InlineCriticalOnly) {
-  MockCriticalImagesFinder* finder =
-      new MockCriticalImagesFinder(statistics());
+  MeaningfulCriticalImagesFinder* finder =
+      new MeaningfulCriticalImagesFinder(statistics());
   server_context()->set_critical_images_finder(finder);
   options()->set_image_inline_max_bytes(30000);
   options()->EnableFilter(RewriteOptions::kInlineImages);
@@ -1642,10 +1658,9 @@ TEST_F(ImageRewriteTest, InlineCriticalOnly) {
   EXPECT_EQ(-1, logging_info()->num_css_critical_images());
 
   // Image not present in critical set should not be inlined.
-  StringSet* critical_images = new StringSet;
+  StringSet* critical_images = server_context()->critical_images_finder()->
+      mutable_html_critical_images(rewrite_driver());
   critical_images->insert(StrCat(kTestDomain, "other_image.png"));
-  finder->set_critical_images(critical_images);
-
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", "", false, false);
   EXPECT_EQ(-1, logging_info()->num_html_critical_images());
@@ -2156,8 +2171,7 @@ TEST_F(ImageRewriteTest, SquashImagesForMobileScreen) {
   int screen_height;
   ImageUrlEncoder::GetNormalizedScreenResolution(
       100, 80, &screen_width, &screen_height);
-  rewrite_driver()->SetUserAgent(
-      UserAgentMatcherTestBase::kAndroidNexusSUserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kAndroidNexusSUserAgent);
 
   TestSquashImagesForMobileScreen(
       rewrite_driver(), screen_width, screen_height);
@@ -2291,18 +2305,6 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
   EXPECT_EQ(70, img_options->jpeg_quality);
   EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Min of small screen and desktop
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  options()->ClearSignatureForTesting();
-  options()->set_image_jpeg_recompress_quality_for_small_screens(70);
-  options()->set_image_jpeg_recompress_quality(60);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(60, img_options->jpeg_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
 }
 
 TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
@@ -2404,27 +2406,13 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
 
   // Mobile UA
   rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  ctx.Clear();
   options()->ClearSignatureForTesting();
-  options()->set_image_webp_recompress_quality_for_small_screens(70);
+  options()->set_image_jpeg_recompress_quality_for_small_screens(70);
   rewrite_driver()->set_custom_options(options());
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
   img_options.reset(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(70, img_options->webp_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Min of desktop and mobile quality
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  ctx.Clear();
-  options()->ClearSignatureForTesting();
-  options()->set_image_webp_recompress_quality_for_small_screens(70);
-  options()->set_image_webp_recompress_quality(55);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(55, img_options->webp_quality);
+  EXPECT_EQ(70, img_options->jpeg_quality);
   EXPECT_TRUE(ctx.use_small_screen_quality());
 }
 
@@ -2533,13 +2521,6 @@ TEST_F(ImageRewriteTest, JpegProgressiveScansForSmallScreens) {
                    &image_rewrite_filter, &ctx, &img_options);
   EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
   EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Mobile UA - use min of default and small screen values
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  SetNumberOfScans(2, 8, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
 }
 
 TEST_F(ImageRewriteTest, ProgressiveJpegThresholds) {

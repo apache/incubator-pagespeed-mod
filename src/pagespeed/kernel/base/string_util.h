@@ -100,7 +100,6 @@ inline bool StringToInt64(const GoogleString& in, int64* out) {
   return base::StringToInt64(in, out);
 }
 
-
 // Returns the part of the piece after the first '=', trimming any
 // white space found at the beginning or end of the resulting piece.
 // Returns an empty string if '=' was not found.
@@ -327,6 +326,10 @@ void ParseShellLikeString(const StringPiece& input,
 // disjoint occurrences of the substring.
 // For example: "aaa" appears in "aaaaa" 3 times, not once
 int CountSubstring(const StringPiece& text, const StringPiece& substring);
+
+// Returns true if the string contains a character that is not legal
+// in an http header.
+bool HasIllicitTokenCharacter(const StringPiece& str);
 
 // Appends new empty string to a StringVector and returns a pointer to it.
 inline GoogleString* StringVectorAdd(StringVector* v) {

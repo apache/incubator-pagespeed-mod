@@ -285,13 +285,11 @@ DEFINE_int32(property_cache_http_status_stability_threshold,
              "The number of requests for which the status code should remain "
              "same so that we consider it to be stable.");
 
-DEFINE_int32(max_prefetch_js_elements,
-             net_instaweb::RewriteOptions::kDefaultMaxPrefetchJsElements,
-             "The number of JS elements to prefetch and download when defer "
-             "Javascript filter is enabled.");
-
 DEFINE_bool(enable_defer_js_experimental, false,
             "Enables experimental defer js.");
+
+DEFINE_bool(enable_inline_preview_images_experimental, false,
+            "Enables experimental inline preview images.");
 
 DEFINE_bool(lazyload_highres_images, false,
             "Enables experimental lazy load of high res images.");
@@ -328,10 +326,6 @@ DEFINE_string(experiment_specs, "",
 DEFINE_bool(passthrough_blink_for_last_invalid_response_code, false,
             "Pass-through blink request if we got a non-200 response from "
             "origin on the last fetch.");
-
-DEFINE_bool(enable_extended_instrumentation, false,
-            "If set to true, additional instrumentation js added to that "
-            "page that adds more information to the beacon.");
 
 DEFINE_bool(apply_blink_if_no_families, false,
             "If prioritize_visible_content_families_ is empty, apply "
@@ -651,9 +645,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("implicit_cache_ttl_ms")) {
     options->set_implicit_cache_ttl_ms(FLAGS_implicit_cache_ttl_ms);
   }
-  if (WasExplicitlySet("max_prefetch_js_elements")) {
-    options->set_max_prefetch_js_elements(FLAGS_max_prefetch_js_elements);
-  }
   if (WasExplicitlySet("enable_defer_js_experimental")) {
     options->set_enable_defer_js_experimental(
         FLAGS_enable_defer_js_experimental);
@@ -666,6 +657,10 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("flush_more_resources_in_ie_and_firefox")) {
     options->set_flush_more_resources_in_ie_and_firefox(
         FLAGS_flush_more_resources_in_ie_and_firefox);
+  }
+  if (WasExplicitlySet("enable_inline_preview_images_experimental")) {
+    options->set_enable_inline_preview_images_experimental(
+        FLAGS_enable_inline_preview_images_experimental);
   }
   if (WasExplicitlySet("lazyload_highres_images")) {
     options->set_lazyload_highres_images(FLAGS_lazyload_highres_images);
@@ -827,42 +822,32 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
 
   StringPieceVector domains;
   SplitStringPieceToVector(FLAGS_domains, ",", &domains, true);
-  if (!domains.empty()) {
-    DomainLawyer* lawyer = options->WriteableDomainLawyer();
-    for (int i = 0, n = domains.size(); i < n; ++i) {
-      if (!lawyer->AddDomain(domains[i], handler)) {
-        LOG(ERROR) << "Invalid domain: " << domains[i];
-        ret = false;
-      }
+  DomainLawyer* lawyer = options->domain_lawyer();
+  for (int i = 0, n = domains.size(); i < n; ++i) {
+    if (!lawyer->AddDomain(domains[i], handler)) {
+      LOG(ERROR) << "Invalid domain: " << domains[i];
+      ret = false;
     }
   }
 
   if (WasExplicitlySet("rewrite_domain_map")) {
-    ret &= AddDomainMap(FLAGS_rewrite_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_rewrite_domain_map, lawyer,
                         &DomainLawyer::AddRewriteDomainMapping, handler);
   }
 
   if (WasExplicitlySet("shard_domain_map")) {
-    ret &= AddDomainMap(FLAGS_shard_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_shard_domain_map, lawyer,
                         &DomainLawyer::AddShard, handler);
   }
 
   if (WasExplicitlySet("origin_domain_map")) {
-    ret &= AddDomainMap(FLAGS_origin_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_origin_domain_map, lawyer,
                         &DomainLawyer::AddOriginDomainMapping, handler);
   }
   if (WasExplicitlySet("passthrough_blink_for_last_invalid_response_code")) {
     options->set_passthrough_blink_for_last_invalid_response_code(
         FLAGS_passthrough_blink_for_last_invalid_response_code);
   }
-  if (WasExplicitlySet("enable_extended_instrumentation")) {
-    options->set_enable_extended_instrumentation(
-        FLAGS_enable_extended_instrumentation);
-  }
-
   if (WasExplicitlySet("apply_blink_if_no_families")) {
     options->set_apply_blink_if_no_families(FLAGS_apply_blink_if_no_families);
   }
@@ -875,7 +860,7 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     int i = 0;
     for (int max = library_specs.size() - 2; i < max; i += 3) {
       int64 bytes;
-      if (!StringToInt64(library_specs[i], &bytes)) {
+      if (!StringToInt64(library_specs[i].as_string(), &bytes)) {
         LOG(ERROR) << "Invalid library size in bytes; skipping: " <<
             library_specs[i];
         continue;
