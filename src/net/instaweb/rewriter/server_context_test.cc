@@ -37,6 +37,7 @@
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/critical_images.pb.h"
+#include "net/instaweb/rewriter/critical_selectors.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
@@ -1051,12 +1052,6 @@ class BeaconTest : public ServerContextTest {
         new BeaconCriticalImagesFinder(beacon_cohort, statistics()));
     server_context()->set_critical_selector_finder(
         new CriticalSelectorFinder(beacon_cohort, statistics()));
-    ResetDriver();
-  }
-
-  void ResetDriver() {
-    rewrite_driver()->Clear();
-    rewrite_driver()->StartParse("http://www.example.com");
   }
 
   // Send a beacon through ServerContext::HandleBeacon and verify that the
@@ -1071,12 +1066,24 @@ class BeaconTest : public ServerContextTest {
         "&oh=", kOptionsHash);
     if (critical_image_hashes != NULL) {
       StrAppend(&beacon_url, "&ci=");
-      AppendJoinCollection(&beacon_url, *critical_image_hashes, ",");
+      for (StringSet::const_iterator it = critical_image_hashes->begin();
+           it != critical_image_hashes->end(); ++it) {
+        if (it != critical_image_hashes->begin()) {
+          StrAppend(&beacon_url, ",");
+        }
+        StrAppend(&beacon_url, *it);
+      }
     }
 
     if (critical_css_selectors != NULL) {
       StrAppend(&beacon_url, "&cs=");
-      AppendJoinCollection(&beacon_url, *critical_css_selectors, ",");
+      for (StringSet::const_iterator it = critical_css_selectors->begin();
+           it != critical_css_selectors->end(); ++it) {
+        if (it != critical_css_selectors->begin()) {
+          StrAppend(&beacon_url, ",");
+        }
+        StrAppend(&beacon_url, *it);
+      }
     }
 
     EXPECT_TRUE(server_context()->HandleBeacon(
@@ -1108,20 +1115,18 @@ class BeaconTest : public ServerContextTest {
     }
 
     if (critical_css_selectors != NULL) {
-      rewrite_driver()->set_property_page(page.release());
-      EXPECT_EQ(critical_css_selectors->empty(),
-                rewrite_driver()->CriticalSelectors() == NULL);
-      server_context()->critical_selector_finder()->
-          GetCriticalSelectorsFromPropertyCache(rewrite_driver(),
-                                                &critical_css_selectors_);
+      PropertyValue* property = page->GetProperty(
+          cohort, CriticalSelectorFinder::kCriticalSelectorsPropertyName);
+      EXPECT_TRUE(property->has_value());
+      property->value().CopyToString(&critical_css_selectors_property_value_);
     }
   }
 
   PropertyCache* property_cache_;
-  // This field holds a serialized protobuf from pcache after a BeaconTest call.
+  // These fields hold serialized protobuf data from pcache after a BeaconTest
+  // call.
   GoogleString critical_images_property_value_;
-  // This field holds data deserialized from the pcache after a BeaconTest call.
-  StringSet critical_css_selectors_;
+  GoogleString critical_css_selectors_property_value_;
 };
 
 TEST_F(BeaconTest, BasicPcacheSetup) {
@@ -1191,28 +1196,42 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   StringSet critical_css_selector;
   critical_css_selector.insert("#foo");
   critical_css_selector.insert(".bar");
+  // Setup expected protobuf value.
+  CriticalSelectorSet css_selector_proto;
+  css_selector_proto.add_critical_selectors("#foo");
+  css_selector_proto.add_critical_selectors(".bar");
+  CriticalSelectorSet::BeaconResponse* set =
+      css_selector_proto.add_selector_set_history();
+  set->add_selectors("#foo");
+  set->add_selectors(".bar");
   TestBeacon(NULL, &critical_css_selector,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_STREQ("#foo,.bar",
-               JoinCollection(critical_css_selectors_, ","));
+  EXPECT_STREQ(css_selector_proto.SerializeAsString(),
+               critical_css_selectors_property_value_);
 
   // Send another beacon response, and make sure we are storing a history of
   // responses.
-  ResetDriver();
   critical_css_selector.clear();
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("img");
+  css_selector_proto.add_critical_selectors("img");
+  set = css_selector_proto.add_selector_set_history();
+  set->add_selectors(".bar");
+  set->add_selectors("img");
   TestBeacon(NULL, &critical_css_selector,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_STREQ("#foo,.bar,img",
-               JoinCollection(critical_css_selectors_, ","));
+  EXPECT_STREQ(css_selector_proto.SerializeAsString(),
+               critical_css_selectors_property_value_);
 }
 
 TEST_F(BeaconTest, EmptyCriticalCss) {
   StringSet empty_critical_selectors;
+  CriticalSelectorSet empty_selector_proto;
+  empty_selector_proto.add_selector_set_history();
   TestBeacon(NULL, &empty_critical_selectors,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_TRUE(critical_css_selectors_.empty());
+  EXPECT_STREQ(empty_selector_proto.SerializeAsString(),
+               critical_css_selectors_property_value_);
 }
 
 class ResourceFreshenTest : public ServerContextTest {

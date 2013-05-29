@@ -22,7 +22,6 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -77,8 +76,7 @@ class TestDistributedFetcher::TestDistributedFetch : public SharedAsyncFetch {
 TestDistributedFetcher::TestDistributedFetcher(
     RewriteTestBase* rewrite_test_base)
     : rewrite_test_base_(rewrite_test_base),
-      fail_after_headers_(false),
-      blocking_fetch_(true) {
+      fail_after_headers_(false) {
 }
 
 TestDistributedFetcher::~TestDistributedFetcher() {}
@@ -92,16 +90,12 @@ void TestDistributedFetcher::Fetch(const GoogleString& url,
   TestRewriteDriverFactory* other_factory = rewrite_test_base_->other_factory();
   TestDistributedFetch* test_fetch = new TestDistributedFetch(fetch);
   test_fetch->set_fail_after_headers(fail_after_headers_);
-  other_driver->SetRequestHeaders(*fetch->request_headers());
-
   other_driver->FetchResource(url, test_fetch);
-  if (blocking_fetch_) {
-    // Simulate instantaneous response. Otherwise we don't know when an object
-    // is committed to the shared cache in testing, making it impossible to
-    // properly count cache hits/misses.
-    other_driver->WaitForShutDown();
-    other_factory->mock_scheduler()->AwaitQuiescence();
-  }
+  // Simulate instantaneous response. Otherwise we don't know when an object is
+  // committed to the shared cache in testing, making it impossible to properly
+  // count cache hits/misses.
+  other_driver->WaitForShutDown();
+  other_factory->mock_scheduler()->AwaitQuiescence();
 }
 
 }  // namespace net_instaweb

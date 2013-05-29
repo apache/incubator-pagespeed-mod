@@ -2711,7 +2711,6 @@ bool RewriteDriver::InitiateRewrite(RewriteContext* rewrite_context) {
   // (StartParseId), so that we don't decide in the middle of an HTML
   // rewrite that we won't be able to initialize the resource, thus leaving
   // us with a partially constructed slot-graph.
-  DCHECK(!fetch_queued_);
   if (!can_rewrite_resources_) {
     if (rewrites_.empty()) {
       rewrite_context->DetachSlots();
@@ -2904,12 +2903,6 @@ CriticalSelectorSet* RewriteDriver::CriticalSelectors() {
   return critical_selector_info_.get();
 }
 
-void RewriteDriver::SetCriticalSelectors(CriticalSelectorSet* selectors) {
-  DCHECK(server_context_->critical_selector_finder() != NULL);
-  critical_selector_info_.reset(selectors);
-  critical_selector_info_computed_ = true;
-}
-
 void RewriteDriver::increment_async_events_count() {
   ScopedMutex lock(rewrite_mutex());
   ++pending_async_events_;
@@ -2928,13 +2921,11 @@ void RewriteDriver::decrement_async_events_count() {
     // and a .pagespeed. request is being handled via a fully async path.
     should_wakeup = WaitForPendingAsyncEvents(waiting_) &&
         (pending_async_events_ == 0) && (waiting_ != kNoWait);
-    if (should_wakeup) {
-      scheduler_->Signal();
-      DCHECK(!should_release);
-      return;
-    }
   }
-  if (should_release) {
+  if (should_wakeup) {
+    ScopedMutex lock(rewrite_mutex());
+    scheduler_->Signal();
+  } else if (should_release) {
     PossiblyPurgeCachedResponseAndReleaseDriver();
   }
 }

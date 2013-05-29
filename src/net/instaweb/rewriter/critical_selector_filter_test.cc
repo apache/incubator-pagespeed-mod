@@ -33,7 +33,6 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 
@@ -319,12 +318,9 @@ TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
                    StrCat("<style>", critical_css_div_span, "</style>",
                           "<span>Foo</span>", LoadRestOfCss(css)));
 
-  // Now send enough beacons to eliminate support for div; only span should be
-  // left.
-  for (int i = 0; i < finder->SupportInterval(); ++i) {
-    factory()->mock_timer()->AdvanceMs(
-        CriticalSelectorFinder::kMinBeaconIntervalMs);
-    EXPECT_TRUE(finder->MustBeaconForCandidates(selectors, rewrite_driver()));
+  // Now send enough beacons to clear div from the critical selector set, so
+  // only span should be left.
+  for (int i = 0; i < finder->NumSetsToKeep(); ++i) {
     finder->WriteCriticalSelectorsToPropertyCache(selectors, rewrite_driver());
   }
   page_->WriteCohort(server_context()->beacon_cohort());
