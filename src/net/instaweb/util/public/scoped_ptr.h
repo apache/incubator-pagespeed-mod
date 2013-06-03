@@ -19,7 +19,10 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_SCOPED_PTR_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_SCOPED_PTR_H_
 
-// TODO(jmarantz): Remove this forwarding header and change all references.
-#include "pagespeed/kernel/base/scoped_ptr.h"
+
+// Chromium has moved scoped_ptr.h from base directory to base/memory.
+// Thankfully, even older version we built against had it available in
+// base/memory, just with the compatibility alias still available.
+#include "base/memory/scoped_ptr.h"
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_SCOPED_PTR_H_

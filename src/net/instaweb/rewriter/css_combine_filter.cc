@@ -29,6 +29,7 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -41,7 +42,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
@@ -58,9 +58,7 @@ namespace net_instaweb {
 class HtmlIEDirectiveNode;
 class UrlSegmentEncoder;
 
-// Names for Statistics variables.
-const char CssCombineFilter::kCssCombineOpportunities[] =
-    "css_combine_opportunities";
+// names for Statistics variables.
 const char CssCombineFilter::kCssFileCountReduction[] =
     "css_file_count_reduction";
 
@@ -123,7 +121,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     if (num_files >= 1) {
       rewrite_driver_->log_record()->SetRewriterLoggingStatus(
           RewriteOptions::FilterId(RewriteOptions::kCombineCss),
-          RewriterApplication::APPLIED_OK);
+          RewriterInfo::APPLIED_OK);
     }
   }
 
@@ -330,33 +328,23 @@ class CssCombineFilter::Context : public RewriteContext {
 CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       css_tag_scanner_(driver_),
-      end_document_found_(false),
-      css_links_(0),
-      css_combine_opportunities_(driver->statistics()->GetVariable(
-          kCssCombineOpportunities)) {
+      end_document_found_(false) {
 }
 
 CssCombineFilter::~CssCombineFilter() {
 }
 
 void CssCombineFilter::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kCssCombineOpportunities);
   statistics->AddVariable(kCssFileCountReduction);
 }
 
 void CssCombineFilter::StartDocumentImpl() {
   context_.reset(MakeContext());
   end_document_found_ = false;
-  css_links_ = 0;
 }
 
 void CssCombineFilter::EndDocument() {
   end_document_found_ = true;
-  if (css_links_ > 1) {
-    // There are only opportunities to combine if there was more than one
-    // css <link> in original HTML.
-    css_combine_opportunities_->Add(css_links_ - 1);
-  }
 }
 
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
@@ -368,54 +356,57 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     // tags, we can't combine them across a <style> tag.
     // TODO(sligocki): Maybe we should just combine <style>s too?
     // We can run outline_css first for now to make all <style>s into <link>s.
-    NextCombination("inline style");
+    NextCombination("css_combine: inline style");
     return;
-  } else if (css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                              &num_nonstandard_attributes)) {
-    ++css_links_;
-    // Element is a <link rel="stylesheet" ...>.
-    if (driver_->HasChildrenInFlushWindow(element)) {
-      LOG(DFATAL) << "HTML lexer allowed children in <link>.";
-      NextCombination("children in flush window");
-      return;
+  }
+  if (driver_->HasChildrenInFlushWindow(element)) {
+    // TODO(jmarantz): Call NextCombination here to avoid combining across
+    // a malformed link.
+    if (DebugMode() &&
+        css_tag_scanner_.ParseCssElement(element, &href, &media,
+                                         &num_nonstandard_attributes)) {
+      driver_->InsertComment("css_combine: children in flush window");
     }
-    if (num_nonstandard_attributes > 0) {
-      // TODO(jmaessen): allow more attributes.  This is the place it's
-      // riskiest:  we can't combine multiple elements with an id, for
-      // example, so we'd need to explicitly catch and handle that case.
-      NextCombination("non-standard attributes");
-      return;
-    }
-    // We cannot combine with a link in <noscript> tag and we cannot combine
-    // over a link in a <noscript> tag, so this is a barrier.
-    if (noscript_element() != NULL) {
-      NextCombination("noscript");
-      return;
-    }
-    // Figure out if media types match.
-    if (context_->new_combination()) {
-      context_->SetMedia(media);
-    } else if (combiner()->media() != media) {
-      // After the first CSS file, subsequent CSS files must have matching
-      // media.
-      // TODO(jmarantz): do media='' and media='display' mean the same
-      // thing?  sligocki thinks mdsteele looked into this and it
-      // depended on HTML version.  In one display was default, in the
-      // other screen was IIRC.
-      NextCombination("media mismatch");
-      context_->SetMedia(media);
-    }
-    if (!context_->AddElement(element, href)) {
-      NextCombination("resource not rewritable");
-    }
+    return;
+  }
+  if (!css_tag_scanner_.ParseCssElement(element, &href, &media,
+                                        &num_nonstandard_attributes) ||
+      num_nonstandard_attributes > 0) {
+    // Not a CSS link, or involved with alternate stylesheets, or contains
+    // non-standard attributes.
+    // TODO(jmaessen): allow more attributes.  This is the place it's riskiest:
+    // we can't combine multiple elements with an id, for example, so we'd need
+    // to explicitly catch and handle that case.
+    return;
+  }
+  // We cannot combine with a link in <noscript> tag and we cannot combine
+  // over a link in a <noscript> tag, so this is a barrier.
+  if (noscript_element() != NULL) {
+    NextCombination("css_combine: noscript");
+    return;
+  }
+  // Figure out if media types match.
+  if (context_->new_combination()) {
+    context_->SetMedia(media);
+  } else if (combiner()->media() != media) {
+    // After the first CSS file, subsequent CSS files must have matching
+    // media.
+    // TODO(jmarantz): do media='' and media='display mean the same
+    // thing?  sligocki thinks mdsteele looked into this and it
+    // depended on HTML version.  In one display was default, in the
+    // other screen was IIRC.
+    NextCombination("css_combine: media mismatch");
+    context_->SetMedia(media);
+  }
+  if (!context_->AddElement(element, href)) {
+    NextCombination("css_combine: resource not rewriteable");
   }
 }
 
-void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
+void CssCombineFilter::NextCombination(const char* debug_help) {
   if (!context_->empty()) {
-    if (DebugMode() && !debug_failure_reason.empty()) {
-      driver_->InsertComment(StrCat("combine_css: Could not combine over "
-                                    "barrier: ", debug_failure_reason));
+    if (DebugMode()) {
+      driver_->InsertComment(debug_help);
     }
     driver_->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
@@ -428,13 +419,13 @@ void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
 void CssCombineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   // TODO(sligocki): Figure out how to safely parse IEDirectives, for now we
   // just consider them black boxes / solid barriers.
-  NextCombination("IE directive");
+  NextCombination("css_combine: ie directive");
 }
 
 void CssCombineFilter::Flush() {
-  // Note: We only want to log a debug comment on normal flushes, not the
-  // end of document (which is not really a barrier).
-  NextCombination(end_document_found_ ? "" : "flush");
+  NextCombination(end_document_found_
+                  ? "css_combine: end_document"
+                  : "css_combine: flush");
 }
 
 bool CssCombineFilter::CssCombiner::WritePiece(

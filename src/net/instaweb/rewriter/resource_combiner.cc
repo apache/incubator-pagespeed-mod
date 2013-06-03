@@ -46,6 +46,7 @@
 #include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
 
+
 namespace net_instaweb {
 
 ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
@@ -68,8 +69,7 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
       filter_(filter) {
   // This CHECK is here because RewriteDriver is constructed with its
   // server_context_ == NULL.
-  // TODO(sligocki): Construct RewriteDriver with a ServerContext, to avoid
-  // worrying about it not getting initialized.
+  // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
   CHECK(server_context_ != NULL);
 }
 

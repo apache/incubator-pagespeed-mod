@@ -49,9 +49,6 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
   int fetch_count() const { return fetch_count_; }
   int byte_count() const { return byte_count_; }
   int failure_count() const { return failure_count_; }
-  GoogleString most_recent_fetched_url() const {
-    return most_recent_fetched_url_;
-  }
 
   void Clear();
 
@@ -63,7 +60,6 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
   int fetch_count_;
   int byte_count_;
   int failure_count_;
-  GoogleString most_recent_fetched_url_;
 
   DISALLOW_COPY_AND_ASSIGN(CountingUrlAsyncFetcher);
 };

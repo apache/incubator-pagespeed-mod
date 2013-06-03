@@ -19,11 +19,7 @@
 #include <cstddef>
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
-#include "net/instaweb/util/public/simple_random.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/stack_buffer.h"
 
 namespace net_instaweb {
 
@@ -40,18 +36,6 @@ class GzipInflaterTestPeer {
 };
 
 namespace {
-
-class GzipInflaterTest : public testing::Test {
- protected:
-  void TestInflateDeflate(StringPiece payload) {
-    GoogleString deflated, inflated;
-    StringWriter deflate_writer(&deflated);
-    EXPECT_TRUE(GzipInflater::Deflate(payload, &deflate_writer));
-    StringWriter inflate_writer(&inflated);
-    EXPECT_TRUE(GzipInflater::Inflate(deflated, &inflate_writer));
-    EXPECT_STREQ(payload, inflated);
-  }
-};
 
 const char kBasic[] = "Hello\n";
 
@@ -80,83 +64,83 @@ void AssertInflate(GzipInflater::InflateType type,
                    const unsigned char* in,
                    size_t in_size) {
   std::string buf;
-  buf.resize(kBufSize);
+  buf.reserve(kBufSize);
   GzipInflater inflater(type);
   inflater.Init();
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.SetInput(in, in_size));
-  EXPECT_TRUE(inflater.HasUnconsumedInput());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_TRUE(inflater.SetInput(in, in_size));
+  ASSERT_TRUE(inflater.HasUnconsumedInput());
   int num_inflated_bytes = inflater.InflateBytes(&buf[0], kBufSize);
   ASSERT_EQ(strlen(kBasic), static_cast<size_t>(num_inflated_bytes));
   // null-terminate the buffer
   buf[num_inflated_bytes] = '\0';
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.finished());
-  EXPECT_FALSE(inflater.error());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_TRUE(inflater.finished());
+  ASSERT_FALSE(inflater.error());
   inflater.ShutDown();
-  EXPECT_STREQ(kBasic, buf.c_str());
+  ASSERT_STREQ(kBasic, buf.c_str());
 }
 
 void AssertInflateOneByteAtATime(GzipInflater::InflateType type,
                                  const unsigned char* in,
                                  size_t in_size) {
   std::string buf;
-  buf.resize(kBufSize);
+  buf.reserve(kBufSize);
   GzipInflater inflater(type);
   inflater.Init();
   int num_inflated_bytes = 0;
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
   for (size_t input_offset = 0;
        input_offset < in_size;
        ++input_offset) {
-    EXPECT_TRUE(inflater.SetInput(in + input_offset, 1));
-    EXPECT_TRUE(inflater.HasUnconsumedInput());
+    ASSERT_TRUE(inflater.SetInput(in + input_offset, 1));
+    ASSERT_TRUE(inflater.HasUnconsumedInput());
     num_inflated_bytes +=
         inflater.InflateBytes(&buf[num_inflated_bytes],
                               kBufSize - num_inflated_bytes);
-    EXPECT_FALSE(inflater.error());
+    ASSERT_FALSE(inflater.error());
   }
   ASSERT_EQ(strlen(kBasic), static_cast<size_t>(num_inflated_bytes));
   // null-terminate the buffer
   buf[num_inflated_bytes] = '\0';
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.finished());
-  EXPECT_FALSE(inflater.error());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_TRUE(inflater.finished());
+  ASSERT_FALSE(inflater.error());
   inflater.ShutDown();
-  EXPECT_STREQ(kBasic, buf.c_str());
+  ASSERT_STREQ(kBasic, buf.c_str());
 }
 
-TEST_F(GzipInflaterTest, Gzip) {
+TEST(GzipInflaterTest, Gzip) {
   AssertInflate(GzipInflater::kGzip,
                 kCompressed,
                 sizeof(kCompressed));
 }
 
-TEST_F(GzipInflaterTest, GzipOneByteAtATime) {
+TEST(GzipInflaterTest, GzipOneByteAtATime) {
   AssertInflateOneByteAtATime(GzipInflater::kGzip,
                               kCompressed,
                               sizeof(kCompressed));
 }
 
-TEST_F(GzipInflaterTest, ZlibStream) {
+TEST(GzipInflaterTest, ZlibStream) {
   AssertInflate(GzipInflater::kDeflate,
                 kCompressedZlibStream,
                 sizeof(kCompressedZlibStream));
 }
 
-TEST_F(GzipInflaterTest, ZlibStreamOneByteAtATime) {
+TEST(GzipInflaterTest, ZlibStreamOneByteAtATime) {
   AssertInflateOneByteAtATime(GzipInflater::kDeflate,
                               kCompressedZlibStream,
                               sizeof(kCompressedZlibStream));
 }
 
-TEST_F(GzipInflaterTest, RawDeflate) {
+TEST(GzipInflaterTest, RawDeflate) {
   AssertInflate(GzipInflater::kDeflate,
                 kCompressedRawDeflate,
                 sizeof(kCompressedRawDeflate));
 }
 
-TEST_F(GzipInflaterTest, RawDeflateOneByteAtATime) {
+TEST(GzipInflaterTest, RawDeflateOneByteAtATime) {
   AssertInflateOneByteAtATime(GzipInflater::kDeflate,
                               kCompressedRawDeflate,
                               sizeof(kCompressedRawDeflate));
@@ -172,68 +156,34 @@ TEST_F(GzipInflaterTest, RawDeflateOneByteAtATime) {
 // well. Unfortunately I am not able to produce such a deflate stream,
 // which is why we need this special case flow with the
 // GzipInflaterTest here.
-TEST_F(GzipInflaterTest, RawDeflateBypassFirstByteCheck) {
+TEST(GzipInflaterTest, RawDeflateBypassFirstByteCheck) {
   std::string buf;
-  buf.resize(kBufSize);
+  buf.reserve(kBufSize);
   GzipInflater inflater(GzipInflater::kDeflate);
   inflater.Init();
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
   // Normally, calling SetInput() will attempt to do stream type
   // detection on the first byte of input. We want to bypass that so
   // that we can exercise the failure path in InflateBytes that
   // attempts to fall back to raw deflate format.
   GzipInflaterTestPeer::SetInputBypassFirstByteCheck(
       &inflater, kCompressedRawDeflate, sizeof(kCompressedRawDeflate));
-  EXPECT_TRUE(inflater.HasUnconsumedInput());
+  ASSERT_TRUE(inflater.HasUnconsumedInput());
   // We expect the inflater to be in zlib stream format going into the
   // invocation of InflateBytes.
-  EXPECT_TRUE(GzipInflaterTestPeer::FormatIsZlibStream(inflater));
+  ASSERT_TRUE(GzipInflaterTestPeer::FormatIsZlibStream(inflater));
   // InflateBytes should have detected that this was not a valid zlib
   // stream and switched the format to raw deflate.
   int num_inflated_bytes = inflater.InflateBytes(&buf[0], kBufSize);
-  EXPECT_FALSE(GzipInflaterTestPeer::FormatIsZlibStream(inflater));
+  ASSERT_FALSE(GzipInflaterTestPeer::FormatIsZlibStream(inflater));
   ASSERT_EQ(strlen(kBasic), static_cast<size_t>(num_inflated_bytes));
   // null-terminate the buffer
   buf[num_inflated_bytes] = '\0';
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.finished());
-  EXPECT_FALSE(inflater.error());
+  ASSERT_FALSE(inflater.HasUnconsumedInput());
+  ASSERT_TRUE(inflater.finished());
+  ASSERT_FALSE(inflater.error());
   inflater.ShutDown();
-  EXPECT_STREQ(kBasic, buf.c_str());  // buf.size() is 0 here, so we use c_str
-}
-
-TEST_F(GzipInflaterTest, InflateDeflate) {
-  TestInflateDeflate("The quick brown fox jumps over the lazy dog");
-}
-
-TEST_F(GzipInflaterTest, InflateDeflateLargeDataHighEntropy) {
-  SimpleRandom random;
-  GoogleString value = random.GenerateHighEntropyString(5 * kStackBufferSize);
-  TestInflateDeflate(value);
-}
-
-TEST_F(GzipInflaterTest, IncrementalInflateOfOneShotDeflate) {
-  const char kPayload[] = "The quick brown fox jumps over the lazy dog";
-  GoogleString deflated, inflated;
-  StringWriter deflate_writer(&deflated);
-  EXPECT_TRUE(GzipInflater::Deflate(kPayload, &deflate_writer));
-
-  char buf[STATIC_STRLEN(kPayload) + 1];
-  const char kDontTouchMarker = 0xf;
-  buf[STATIC_STRLEN(kPayload)] = kDontTouchMarker;
-  GzipInflater inflater(GzipInflater::kDeflate);
-  inflater.Init();
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.SetInput(deflated.data(), deflated.size()));
-  EXPECT_TRUE(inflater.HasUnconsumedInput());
-  int num_inflated_bytes = inflater.InflateBytes(buf, sizeof(buf));
-  EXPECT_EQ(STATIC_STRLEN(kPayload), static_cast<size_t>(num_inflated_bytes));
-  EXPECT_EQ(kDontTouchMarker, buf[STATIC_STRLEN(kPayload)]);
-  EXPECT_FALSE(inflater.HasUnconsumedInput());
-  EXPECT_TRUE(inflater.finished());
-  EXPECT_FALSE(inflater.error());
-  inflater.ShutDown();
-  EXPECT_STREQ(kPayload, StringPiece(buf, num_inflated_bytes));
+  ASSERT_STREQ(kBasic, buf.c_str());
 }
 
 }  // namespace

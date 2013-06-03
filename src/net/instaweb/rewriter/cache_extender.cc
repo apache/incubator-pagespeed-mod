@@ -23,6 +23,7 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -38,7 +39,6 @@
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -216,9 +216,7 @@ void CacheExtender::Context::Render() {
         }
         // TODO(anupama): Log cache extension for pdfs etc.
         driver_->log_record()->SetRewriterLoggingStatus(
-            filter_id,
-            slot(0)->resource()->url(),
-            RewriterApplication::APPLIED_OK);
+            filter_id, RewriterInfo::APPLIED_OK);
       }
     }
   }
@@ -239,7 +237,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
   bool ok = false;
   const ContentType* output_type = NULL;
   if (!server_context_->http_cache()->force_caching() &&
-      !headers->IsProxyCacheable()) {
+      !(headers->IsCacheable() && headers->IsProxyCacheable())) {
     // Note: RewriteContextTest.PreserveNoCacheWithFailedRewrites
     // relies on CacheExtender failing rewrites in this case.
     // If you change this behavior that test MUST be updated as it covers

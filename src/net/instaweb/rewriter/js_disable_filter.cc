@@ -19,18 +19,14 @@
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/enums.pb.h"
-#include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -45,18 +41,13 @@ const char JsDisableFilter::kDisableJsExperimental[] =
     "    window.localStorage[\'defer_js_experimental\']) {"
     "  window.localStorage.removeItem(\'defer_js_experimental\');"
     "}";
-const char JsDisableFilter::kElementOnloadCode[] =
-    "var elem=this;"
-    "if (this==window) elem=document.body;"
-    "elem.setAttribute('data-pagespeed-loaded', 1)";
 
 JsDisableFilter::JsDisableFilter(RewriteDriver* driver)
     : rewrite_driver_(driver),
       script_tag_scanner_(driver),
       index_(0),
       defer_js_experimental_script_written_(false),
-      ie_meta_tag_written_(false),
-      max_prefetch_js_elements_(0) {
+      ie_meta_tag_written_(false) {
 }
 
 JsDisableFilter::~JsDisableFilter() {
@@ -65,15 +56,15 @@ JsDisableFilter::~JsDisableFilter() {
 void JsDisableFilter::DetermineEnabled() {
   bool should_apply = JsDeferDisabledFilter::ShouldApply(rewrite_driver_);
   set_is_enabled(should_apply);
-  AbstractLogRecord* log_record = rewrite_driver_->log_record();
+  LogRecord* log_record = rewrite_driver_->log_record();
   if (should_apply) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDisableJavascript),
-        RewriterHtmlApplication::ACTIVE);
+        RewriterStats::ACTIVE);
   } else if (!rewrite_driver_->flushing_early()) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDisableJavascript),
-        RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED);
+        RewriterStats::USER_AGENT_NOT_SUPPORTED);
   }
 }
 
@@ -81,15 +72,6 @@ void JsDisableFilter::StartDocument() {
   index_ = 0;
   defer_js_experimental_script_written_ = false;
   ie_meta_tag_written_ = false;
-  should_look_for_prefetch_js_elements_ = false;
-  prefetch_js_elements_.clear();
-  prefetch_js_elements_count_ = 0;
-  max_prefetch_js_elements_ =
-      rewrite_driver_->options()->max_prefetch_js_elements();
-  prefetch_mechanism_ =
-      rewrite_driver_->user_agent_matcher()->GetPrefetchMechanism(
-          rewrite_driver_->user_agent());
-  prefetch_image_template_ = GetImagePrefetchTemplate();
 }
 
 void JsDisableFilter::InsertJsDeferExperimentalScript(HtmlElement* element) {
@@ -130,34 +112,16 @@ void JsDisableFilter::InsertMetaTagForIE(HtmlElement* element) {
 }
 
 void JsDisableFilter::StartElement(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kHead) {
-    if (!ie_meta_tag_written_) {
-      InsertMetaTagForIE(element);
-    }
-    should_look_for_prefetch_js_elements_ = true;
-  } else if (element->keyword() == HtmlName::kBody) {
-    if (!defer_js_experimental_script_written_) {
-      HtmlElement* head_node =
-          rewrite_driver_->NewElement(element->parent(), HtmlName::kHead);
-      rewrite_driver_->InsertNodeBeforeCurrent(head_node);
-      InsertJsDeferExperimentalScript(head_node);
-      InsertMetaTagForIE(head_node);
-    }
-    if (prefetch_js_elements_count_ != 0 &&
-        prefetch_mechanism_ != UserAgentMatcher::kPrefetchImageTag) {
-      // We have collected some script elements that can be downloaded early.
-      // Add them to the iFrame element here.
-      should_look_for_prefetch_js_elements_ = false;
-      HtmlElement* iframe =
-          rewrite_driver_->NewElement(element, HtmlName::kIframe);
-      GoogleString encoded_uri;
-      DataUrl(kContentTypeHtml, BASE64, prefetch_js_elements_, &encoded_uri);
-      rewrite_driver_->AddAttribute(iframe, HtmlName::kSrc, encoded_uri);
-      rewrite_driver_->AddAttribute(iframe, HtmlName::kClass,
-                                    "psa_prefetch_container");
-      rewrite_driver_->AddAttribute(iframe, HtmlName::kStyle, "display:none");
-      rewrite_driver_->PrependChild(element, iframe);
-    }
+  if (element->keyword() == HtmlName::kHead && !ie_meta_tag_written_) {
+    InsertMetaTagForIE(element);
+  }
+  if (element->keyword() == HtmlName::kBody &&
+      !defer_js_experimental_script_written_) {
+    HtmlElement* head_node =
+        rewrite_driver_->NewElement(element->parent(), HtmlName::kHead);
+    rewrite_driver_->InsertElementBeforeCurrent(head_node);
+    InsertJsDeferExperimentalScript(head_node);
+    InsertMetaTagForIE(head_node);
   } else {
     HtmlElement::Attribute* src;
     if (script_tag_scanner_.ParseScriptElement(element, &src) ==
@@ -175,29 +139,11 @@ void JsDisableFilter::StartElement(HtmlElement* element) {
 
       // TODO(rahulbansal): Add logging for prioritize scripts
       if (src != NULL) {
-        if (should_look_for_prefetch_js_elements_ &&
-            prefetch_js_elements_count_ < max_prefetch_js_elements_) {
-          GoogleString escaped_source;
-          HtmlKeywords::Escape(src->DecodedValueOrNull(), &escaped_source);
-          if (prefetch_mechanism_ == UserAgentMatcher::kPrefetchImageTag) {
-            HtmlElement* script = rewrite_driver_->NewElement(element,
-                HtmlName::kScript);
-            rewrite_driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer,
-                                          "");
-            GoogleString script_data = StringPrintf(
-                prefetch_image_template_.c_str(), escaped_source.c_str());
-            rewrite_driver_->InsertNodeBeforeNode(element, script);
-            HtmlNode* script_code = rewrite_driver_->NewCharactersNode(
-                script, script_data);
-            rewrite_driver_->AppendChild(script, script_code);
-          } else {
-            StrAppend(&prefetch_js_elements_, StringPrintf(
-                      FlushEarlyContentWriterFilter::kPrefetchScriptTagHtml,
-                      escaped_source.c_str()));
-          }
-          prefetch_js_elements_count_++;
-        }
         src->set_name(rewrite_driver_->MakeName(HtmlName::kPagespeedOrigSrc));
+      } else if (index_ == 0 &&
+                 rewrite_driver_->options()->Enabled(
+                     RewriteOptions::kDeferJavascript)) {
+        return;
       }
       HtmlElement::Attribute* type = element->FindAttribute(HtmlName::kType);
       if (type != NULL) {
@@ -226,16 +172,16 @@ void JsDisableFilter::StartElement(HtmlElement* element) {
   }
 
   HtmlElement::Attribute* onload = element->FindAttribute(HtmlName::kOnload);
-  if (onload != NULL) {
+  if ((onload != NULL) && (onload->DecodedValueOrNull() != NULL)) {
     // The onload value can be any script. It's not necessary that it is
     // always javascript. But we don't have any way of identifying it.
     // For now let us assume it is JS, which is the case in majority.
     // TODO(ksimbili): Try fixing not adding non-Js code, if we can.
-    // TODO(ksimbili): Call onloads on elements in the same order as they are
-    // triggered.
-    onload->set_name(rewrite_driver_->MakeName("data-pagespeed-onload"));
-    rewrite_driver_->AddEscapedAttribute(element, HtmlName::kOnload,
-                                         kElementOnloadCode);
+    GoogleString deferred_onload = StrCat(
+        "this.setAttribute('pagespeed_onload','",
+        onload->escaped_value(),
+        "');");
+    onload->SetEscapedValue(deferred_onload);
   }
 }
 
@@ -243,9 +189,6 @@ void JsDisableFilter::EndElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kHead &&
       !defer_js_experimental_script_written_) {
     InsertJsDeferExperimentalScript(element);
-  }
-  if (element->keyword() == HtmlName::kHead) {
-    should_look_for_prefetch_js_elements_ = false;
   }
 }
 
@@ -260,12 +203,6 @@ GoogleString JsDisableFilter::GetJsDisableScriptSnippet(
   bool defer_js_experimental = options->enable_defer_js_experimental();
   return defer_js_experimental ? JsDisableFilter::kEnableJsExperimental :
       JsDisableFilter::kDisableJsExperimental;
-}
-
-GoogleString JsDisableFilter::GetImagePrefetchTemplate() {
-  GoogleString image_prefetch_template = StrCat("(function(){",
-      FlushEarlyContentWriterFilter::kPrefetchImageTagHtml, "})()");
-  return image_prefetch_template;
 }
 
 }  // namespace net_instaweb

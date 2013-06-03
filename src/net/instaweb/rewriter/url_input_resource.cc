@@ -36,6 +36,7 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
@@ -44,7 +45,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/callback.h"
 
 namespace net_instaweb {
 
@@ -69,7 +69,7 @@ bool IsValidAndCacheableImpl(HTTPCache* http_cache,
     // cookie.
     cacheable = headers.VaryCacheable(true);
   } else {
-    cacheable = headers.IsProxyCacheable();
+    cacheable = headers.IsCacheable();
   }
   // If we are setting a TTL for HTML, we cannot rewrite any resource
   // with a shorter TTL.
@@ -88,17 +88,17 @@ bool IsValidAndCacheableImpl(HTTPCache* http_cache,
 bool CheckAndUpdateInputInfo(const ResponseHeaders& headers,
                              const HTTPValue& value,
                              const RewriteOptions& options,
-                             const ServerContext& server_context,
+                             const ServerContext& manager,
                              Resource::FreshenCallback* callback) {
   InputInfo* input_info = callback->input_info();
   if (input_info != NULL && input_info->has_input_content_hash() &&
-      IsValidAndCacheableImpl(server_context.http_cache(),
+      IsValidAndCacheableImpl(manager.http_cache(),
                               options.min_resource_cache_time_to_rewrite_ms(),
                               options.respect_vary(),
                               headers)) {
     StringPiece content;
     if (value.ExtractContents(&content)) {
-      GoogleString new_hash = server_context.contents_hasher()->Hash(content);
+      GoogleString new_hash = manager.contents_hasher()->Hash(content);
       // TODO(nikhilmadan): Consider using the Etag / Last-Modified header to
       // validate if the resource has changed instead of computing the hash.
       if (new_hash == input_info->input_content_hash()) {
@@ -125,7 +125,6 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
       respect_vary_(rewrite_options_->respect_vary()) {
   response_headers()->set_implicit_cache_ttl_ms(
       options->implicit_cache_ttl_ms());
-  set_enable_cache_purge(options->enable_cache_purge());
 }
 
 UrlInputResource::~UrlInputResource() {
@@ -142,6 +141,7 @@ class UrlResourceFetchCallback : public AsyncFetch {
         server_context_(server_context),
         rewrite_options_(rewrite_options),
         message_handler_(NULL),
+        success_(false),
         no_cache_ok_(false),
         fetcher_(NULL),
         respect_vary_(rewrite_options->respect_vary()),
@@ -192,11 +192,9 @@ class UrlResourceFetchCallback : public AsyncFetch {
 
     fetcher_ = fetcher;
 
-    url_namer->PrepareRequest(
-        rewrite_options_,
-        &fetch_url_,
-        request_headers(),
-        NewCallback(this, &UrlResourceFetchCallback::StartFetchInternal),
+    url_namer->PrepareRequest(rewrite_options_, &fetch_url_, request_headers(),
+        &success_,
+        MakeFunction(this, &UrlResourceFetchCallback::StartFetchInternal),
         message_handler_);
     return true;
   }
@@ -232,12 +230,10 @@ class UrlResourceFetchCallback : public AsyncFetch {
     return false;
   }
 
-  void StartFetchInternal(bool success) {
-    if (!success) {
-      // TODO(gee): Will this hang the state machine?
+  void StartFetchInternal() {
+    if (!success_) {
       return;
     }
-
     AsyncFetch* fetch = this;
     if (rewrite_options_->serve_stale_if_fetch_error() &&
         !fallback_value_.Empty()) {
@@ -327,6 +323,10 @@ class UrlResourceFetchCallback : public AsyncFetch {
   // TODO(abliss): unit test this
   virtual bool should_yield() = 0;
 
+  // Indicate that it's OK for the callback to be executed on a different
+  // thread, as it only populates the cache, which is thread-safe.
+  virtual bool EnableThreaded() const { return true; }
+
   void set_no_cache_ok(bool x) { no_cache_ok_ = x; }
 
  protected:
@@ -341,6 +341,7 @@ class UrlResourceFetchCallback : public AsyncFetch {
   // TODO(jmarantz): consider request_headers.  E.g. will we ever
   // get different resources depending on user-agent?
   HTTPValue fallback_value_;
+  bool success_;
 
   // If this is true, loading of non-cacheable resources will succeed.
   bool no_cache_ok_;
@@ -421,13 +422,13 @@ class FreshenFetchCallback : public UrlResourceFetchCallback {
 class FreshenHttpCacheCallback : public OptionsAwareHTTPCacheCallback {
  public:
   FreshenHttpCacheCallback(const GoogleString& url,
-                           ServerContext* server_context,
+                           ServerContext* manager,
                            RewriteDriver* driver,
                            const RewriteOptions* options,
                            Resource::FreshenCallback* callback)
       : OptionsAwareHTTPCacheCallback(options, driver->request_context()),
         url_(url),
-        server_context_(server_context),
+        manager_(manager),
         driver_(driver),
         options_(options),
         callback_(callback) {}
@@ -438,14 +439,14 @@ class FreshenHttpCacheCallback : public OptionsAwareHTTPCacheCallback {
     if (find_result == HTTPCache::kNotFound) {
       // Not found in cache. Invoke the fetcher.
       FreshenFetchCallback* cb = new FreshenFetchCallback(
-          url_, server_context_->http_cache(), server_context_, driver_,
-          options_, fallback_http_value(), callback_);
-      cb->Fetch(driver_->async_fetcher(), server_context_->message_handler());
+          url_, manager_->http_cache(), manager_, driver_, options_,
+          fallback_http_value(), callback_);
+      cb->Fetch(driver_->async_fetcher(), manager_->message_handler());
     } else {
       if (callback_ != NULL) {
         bool success = (find_result == HTTPCache::kFound) &&
             CheckAndUpdateInputInfo(*response_headers(), *http_value(),
-                                    *options_, *server_context_, callback_);
+                                    *options_, *manager_, callback_);
         callback_->Done(true, success);
       }
       driver_->decrement_async_events_count();
@@ -459,12 +460,12 @@ class FreshenHttpCacheCallback : public OptionsAwareHTTPCacheCallback {
   virtual bool IsFresh(const ResponseHeaders& headers) {
     int64 date_ms = headers.date_ms();
     int64 expiry_ms = headers.CacheExpirationTimeMs();
-    return !server_context_->IsImminentlyExpiring(date_ms, expiry_ms);
+    return !manager_->IsImminentlyExpiring(date_ms, expiry_ms);
   }
 
  private:
   GoogleString url_;
-  ServerContext* server_context_;
+  ServerContext* manager_;
   RewriteDriver* driver_;
   const RewriteOptions* options_;
   Resource::FreshenCallback* callback_;
@@ -572,6 +573,7 @@ class UrlReadAsyncFetchCallback : public UrlResourceFetchCallback {
     callback_->Done(lock_failure, resource_ok);
   }
 
+  virtual bool EnableThreaded() const { return callback_->EnableThreaded(); }
   virtual bool IsBackgroundFetch() const {
     return resource_->is_background_fetch();
   }

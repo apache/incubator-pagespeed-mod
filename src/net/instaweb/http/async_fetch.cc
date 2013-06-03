@@ -21,10 +21,12 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
@@ -37,8 +39,7 @@ AsyncFetch::AsyncFetch()
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
+      headers_complete_(false) {
 }
 
 AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
@@ -49,8 +50,7 @@ AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
+      headers_complete_(false) {
   DCHECK(request_ctx_.get() != NULL);
 }
 
@@ -66,7 +66,7 @@ AsyncFetch::~AsyncFetch() {
   }
 }
 
-AbstractLogRecord* AsyncFetch::log_record() {
+LogRecord* AsyncFetch::log_record() {
   CHECK(request_context().get() != NULL);
   return request_context()->log_record();
 }
@@ -184,25 +184,27 @@ void AsyncFetch::set_extra_response_headers(ResponseHeaders* headers) {
 }
 
 GoogleString AsyncFetch::LoggingString() {
+  ScopedMutex lock(log_record()->mutex());
   GoogleString logging_info_str;
-
-  if (NULL == request_ctx_.get()) {
-    return logging_info_str;
-  }
-
-  int64 latency;
-  const RequestContext::TimingInfo& timing_info = request_ctx_->timing_info();
-  if (timing_info.GetHTTPCacheLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "c1:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetL2HTTPCacheLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "c2:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetFetchHeaderLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "hf:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetFetchLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "f:", Integer64ToString(latency), ";");
+  if (log_record()->logging_info()->has_timing_info()) {
+    const TimingInfo timing_info =
+        log_record()->logging_info()->timing_info();
+    if (timing_info.has_cache1_ms()) {
+      StrAppend(&logging_info_str, "c1:",
+                Integer64ToString(timing_info.cache1_ms()), ";");
+    }
+    if (timing_info.has_cache2_ms()) {
+      StrAppend(&logging_info_str, "c2:",
+                Integer64ToString(timing_info.cache2_ms()), ";");
+    }
+    if (timing_info.has_header_fetch_ms()) {
+      StrAppend(&logging_info_str, "hf:",
+                Integer64ToString(timing_info.header_fetch_ms()), ";");
+    }
+    if (timing_info.has_fetch_ms()) {
+      StrAppend(&logging_info_str, "f:",
+                Integer64ToString(timing_info.fetch_ms()), ";");
+    }
   }
   return logging_info_str;
 }
@@ -233,17 +235,6 @@ SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
 SharedAsyncFetch::~SharedAsyncFetch() {
 }
 
-void SharedAsyncFetch::PropagateContentLength() {
-  if (content_length_known()) {
-    base_fetch_->set_content_length(content_length());
-  }
-}
-
-void SharedAsyncFetch::HandleHeadersComplete() {
-  PropagateContentLength();
-  base_fetch_->HeadersComplete();
-}
-
 const char FallbackSharedAsyncFetch::kStaleWarningHeaderValue[] =
     "110 Response is stale";
 
@@ -271,19 +262,18 @@ void FallbackSharedAsyncFetch::HandleHeadersComplete() {
     // Add a warning header indicating that the response is stale.
     response_headers()->Add(HttpAttributes::kWarning, kStaleWarningHeaderValue);
     response_headers()->ComputeCaching();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     fallback_.ExtractContents(&contents);
-    set_content_length(contents.size());
-    SharedAsyncFetch::HandleHeadersComplete();
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     if (fallback_responses_served_ != NULL) {
       fallback_responses_served_->Add(1);
     }
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -292,18 +282,18 @@ bool FallbackSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool FallbackSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void FallbackSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_fallback_ || success);
+  base_fetch()->Done(serving_fallback_ || success);
   delete this;
 }
 
@@ -365,18 +355,18 @@ void ConditionalSharedAsyncFetch::HandleHeadersComplete() {
       response_headers()->SetCacheControlMaxAge(implicit_cache_ttl_ms);
       response_headers()->ComputeCaching();
     }
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     cached_value_.ExtractContents(&contents);
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
     if (num_conditional_refreshes_ != NULL) {
       num_conditional_refreshes_->Add(1);
     }
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -385,18 +375,18 @@ bool ConditionalSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool ConditionalSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void ConditionalSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_cached_value_ || success);
+  base_fetch()->Done(serving_cached_value_ || success);
   delete this;
 }
 

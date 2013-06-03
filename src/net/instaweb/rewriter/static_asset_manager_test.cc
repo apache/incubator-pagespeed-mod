@@ -61,7 +61,7 @@ class StaticAssetManagerTest : public RewriteTestBase {
       if (element->keyword() == HtmlName::kBr) {
         HtmlElement* script = driver_->NewElement(element->parent(),
                                                   HtmlName::kScript);
-        driver_->InsertNodeBeforeNode(element, script);
+        driver_->InsertElementBeforeElement(element, script);
         driver_->server_context()->static_asset_manager()->
             AddJsToElement(kScript, script, driver_);
       }
@@ -84,8 +84,7 @@ TEST_F(StaticAssetManagerTest, TestBlinkHandler) {
 
 TEST_F(StaticAssetManagerTest, TestBlinkGstatic) {
   manager_->set_serve_asset_from_gstatic(true);
-  manager_->set_gstatic_hash(
-      StaticAssetManager::kBlinkJs, StaticAssetManager::kGStaticBase, "1");
+  manager_->set_gstatic_hash(StaticAssetManager::kBlinkJs, "1");
   const char blink_url[] =
       "//www.gstatic.com/psa/static/1-blink.js";
   EXPECT_STREQ(blink_url, manager_->GetAssetUrl(StaticAssetManager::kBlinkJs,
@@ -94,8 +93,7 @@ TEST_F(StaticAssetManagerTest, TestBlinkGstatic) {
 
 TEST_F(StaticAssetManagerTest, TestBlinkDebug) {
   manager_->set_serve_asset_from_gstatic(true);
-  manager_->set_gstatic_hash(
-      StaticAssetManager::kBlinkJs, StaticAssetManager::kGStaticBase, "1");
+  manager_->set_gstatic_hash(StaticAssetManager::kBlinkJs, "1");
   options_->EnableFilter(RewriteOptions::kDebug);
   const char blink_url[] = "http://proxy-domain/psajs/blink.js";
   EXPECT_STREQ(blink_url, manager_->GetAssetUrl(StaticAssetManager::kBlinkJs,
@@ -104,8 +102,7 @@ TEST_F(StaticAssetManagerTest, TestBlinkDebug) {
 
 TEST_F(StaticAssetManagerTest, TestDeferJsGstatic) {
   manager_->set_serve_asset_from_gstatic(true);
-  manager_->set_gstatic_hash(
-      StaticAssetManager::kDeferJs, StaticAssetManager::kGStaticBase, "1");
+  manager_->set_gstatic_hash(StaticAssetManager::kDeferJs, "1");
   const char defer_js_url[] =
       "//www.gstatic.com/psa/static/1-js_defer.js";
   EXPECT_STREQ(defer_js_url, manager_->GetAssetUrl(
@@ -114,8 +111,7 @@ TEST_F(StaticAssetManagerTest, TestDeferJsGstatic) {
 
 TEST_F(StaticAssetManagerTest, TestDeferJsDebug) {
   manager_->set_serve_asset_from_gstatic(true);
-  manager_->set_gstatic_hash(
-      StaticAssetManager::kDeferJs, StaticAssetManager::kGStaticBase, "1");
+  manager_->set_gstatic_hash(StaticAssetManager::kDeferJs, "1");
   options_->EnableFilter(RewriteOptions::kDebug);
   const char defer_js_debug_url[] =
       "http://proxy-domain/psajs/js_defer_debug.0.js";

@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"  // for ThreadSystem
@@ -50,10 +49,8 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
  public:
   LoopbackRouteFetcherTest()
       : pool_(NULL),
-        thread_system_(Platform::CreateThreadSystem()),
-        options_(thread_system_.get()),
-        loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_) {
-  }
+        loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_),
+        thread_system_(ThreadSystem::CreateThreadSystem()) {}
 
   static void SetUpTestCase() {
     apr_initialize();
@@ -77,10 +74,10 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
 
   apr_pool_t* pool_;
   GoogleMessageHandler handler_;
-  ReflectingTestFetcher reflecting_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
   RewriteOptions options_;
+  ReflectingTestFetcher reflecting_fetcher_;
   LoopbackRouteFetcher loopback_route_fetcher_;
+  scoped_ptr<ThreadSystem> thread_system_;
 };
 
 TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
@@ -95,7 +92,7 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
                dest.response_headers()->Lookup1("Host"));
 
   // Now make somehost.com known, as well as somehost.cdn.com
-  options_.WriteableDomainLawyer()->AddOriginDomainMapping(
+  options_.domain_lawyer()->AddOriginDomainMapping(
       "somehost.cdn.com", "somehost.com", &handler_);
 
   ExpectStringAsyncFetch dest2(

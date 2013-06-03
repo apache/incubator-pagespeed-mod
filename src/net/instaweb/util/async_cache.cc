@@ -25,14 +25,16 @@
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/key_value_codec.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_string.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 AsyncCache::AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool)
-    : cache_(cache) {
+    : cache_(cache),
+      name_(StrCat("AsyncCache using ", cache_->Name())) {
   CHECK(cache->IsBlocking());
   sequence_ = pool->NewSequence();
   sequence_->set_max_queue_size(kMaxQueueSize);
@@ -40,10 +42,6 @@ AsyncCache::AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool)
 
 AsyncCache::~AsyncCache() {
   DCHECK_EQ(0, outstanding_operations());
-}
-
-GoogleString AsyncCache::FormatName(StringPiece cache) {
-  return StrCat("Async(", cache, ")");
 }
 
 void AsyncCache::Get(const GoogleString& key, Callback* callback) {
@@ -174,7 +172,7 @@ void AsyncCache::ShutDown() {
   // So we can't Disable it until it quiesces.  The only way out from a
   // completely wedged system is kill -9.  Other solutions likely cause
   // core dumps.
-  sequence_->Add(MakeFunction(cache_, &CacheInterface::ShutDown));
+  sequence_->Add(MakeFunction(cache_.get(), &CacheInterface::ShutDown));
 }
 
 }  // namespace net_instaweb

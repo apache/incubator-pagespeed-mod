@@ -47,9 +47,6 @@ APACHE_DOMAIN         = localhost
 APACHE_HTTPS_DOMAIN   = localhost
 APACHE_PORT           = 80
 APACHE_SECONDARY_PORT = 8084
-APACHE_TERTIARY_PORT  = 8085
-SSL_CERT_DIR          = /etc/ssl/certs
-SSL_CERT_FILE_COMMAND =
 
 # These are set via command-line when run via 'ubuntu.sh', 'centos.sh',
 # or 'opensuse.sh'.  However during development we use this Makefile
@@ -60,11 +57,6 @@ APACHE_START             = $(APACHE_CONTROL_PROGRAM) start
 APACHE_STOP_COMMAND      = stop
 APACHE_PIDFILE           = /var/run/apache2.pid
 APACHE_PROGRAM           = /usr/sbin/apache2
-
-# For testing proxying of an external domain, this represents the domain we
-# are proxying from.
-TEST_PROXY_ORIGIN ?= modpagespeed.com
-export TEST_PROXY_ORIGIN
 
 # The installation directory for executables
 BINDIR = /usr/bin
@@ -243,28 +235,12 @@ else
   MEMCACHED_TEST_SED_PATTERN=^\#MEMCACHED.*\n
 endif
 
-ifeq ($(IPRO_PRESERVE_COVERAGE_TEST),1)
-  # remove prefix
-  IPRO_PRESERVE_COVERAGE_TEST_SED_PATTERN=^\#IPRO_PRESERVE_COVERAGE
-else
-  # remove whole line
-  IPRO_PRESERVE_COVERAGE_TEST_SED_PATTERN=^\#IPRO_PRESERVE_COVERAGE.*\n
-endif
-
 ifeq ($(MEMCACHE_COVERAGE_TEST),1)
   # remove prefix
   MEMCACHE_COVERAGE_TEST_SED_PATTERN=^\#MEMCACHE_COVERAGE
 else
   # remove whole line
   MEMCACHE_COVERAGE_TEST_SED_PATTERN=^\#MEMCACHE_COVERAGE.*\n
-endif
-
-ifeq ($(PURGING_COVERAGE_TEST),1)
-  # remove prefix
-  PURGING_COVERAGE_TEST_SED_PATTERN=^\#PURGING_COVERAGE
-else
-  # remove whole line
-  PURGING_COVERAGE_TEST_SED_PATTERN=^\#PURGING_COVERAGE.*\n
 endif
 
 ifeq ($(SPELING_TEST),1)
@@ -291,20 +267,20 @@ else
   GZIP_TEST_SED_PATTERN=^\#GZIP.*\n
 endif
 
-ifeq ($(EXPERIMENT_GA_TEST),1)
+ifeq ($(FURIOUS_GA_TEST),1)
   # remove prefix
-  EXPERIMENT_GA_TEST_SED_PATTERN=^\#EXPERIMENT_GA
+  FURIOUS_GA_TEST_SED_PATTERN=^\#FURIOUS_GA
 else
   # remove whole line
-  EXPERIMENT_GA_TEST_SED_PATTERN=^\#EXPERIMENT_GA.*\n
+  FURIOUS_GA_TEST_SED_PATTERN=^\#FURIOUS_GA.*\n
 endif
 
-ifeq ($(EXPERIMENT_NO_GA_TEST),1)
+ifeq ($(FURIOUS_NO_GA_TEST),1)
   # remove prefix
-  EXPERIMENT_NO_GA_TEST_SED_PATTERN=^\#EXPERIMENT_NO_GA
+  FURIOUS_NO_GA_TEST_SED_PATTERN=^\#FURIOUS_NO_GA
 else
   # remove whole line
-  EXPERIMENT_NO_GA_TEST_SED_PATTERN=^\#EXPERIMENT_NO_GA.*\n
+  FURIOUS_NO_GA_TEST_SED_PATTERN=^\#FURIOUS_NO_GA.*\n
 endif
 
 ifeq ($(HTTPS_TEST),1)
@@ -356,12 +332,8 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s!@@APACHE_HTTPS_DOMAIN@@!$(APACHE_HTTPS_DOMAIN)!g" \
 	    -e "s!@@APACHE_MODULES@@!$(APACHE_MODULES)!g" \
 	    -e "s!@@APACHE_SECONDARY_PORT@@!$(APACHE_SECONDARY_PORT)!g" \
-	    -e "s!@@APACHE_TERTIARY_PORT@@!$(APACHE_TERTIARY_PORT)!g" \
-	    -e "s!@@TEST_PROXY_ORIGIN@@!$(TEST_PROXY_ORIGIN)!g" \
 	    -e "s!@@MOD_PAGESPEED_CACHE@@!$(MOD_PAGESPEED_CACHE)!g" \
 	    -e "s!@@MOD_PAGESPEED_STATS_LOG@@!$(MOD_PAGESPEED_STATS_LOG)!g" \
-	    -e "s!@@SSL_CERT_DIR@@!$(SSL_CERT_DIR)!g" \
-	    -e "s!@@SSL_CERT_FILE_COMMAND@@!$(SSL_CERT_FILE_COMMAND)!g" \
 	    -e "s@# ModPagespeedSlurpDirectory ...@$(APACHE_SLURP_DIR_COMMAND)@g" \
 	    -e "s@# ModPagespeedSlurpReadOnly on@$(APACHE_SLURP_READ_ONLY_COMMAND)@g" \
 	    -e "s|@@TMP_SLURP_DIR@@|$(TMP_SLURP_DIR)|g" \
@@ -373,13 +345,11 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s@$(SHARED_MEM_LOCK_TEST_SED_PATTERN)@@" \
 	    -e "s@$(SPELING_TEST_SED_PATTERN)@@" \
 	    -e "s@$(MEMCACHED_TEST_SED_PATTERN)@@" \
-	    -e "s@$(IPRO_PRESERVE_COVERAGE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(MEMCACHE_COVERAGE_TEST_SED_PATTERN)@@" \
-	    -e "s@$(PURGING_COVERAGE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(GZIP_TEST_SED_PATTERN)@@" \
 	    -e "s@$(HTTPS_TEST_SED_PATTERN)@@" \
-	    -e "s@$(EXPERIMENT_GA_TEST_SED_PATTERN)@@" \
-	    -e "s@$(EXPERIMENT_NO_GA_TEST_SED_PATTERN)@@" \
+	    -e "s@$(FURIOUS_GA_TEST_SED_PATTERN)@@" \
+	    -e "s@$(FURIOUS_NO_GA_TEST_SED_PATTERN)@@" \
 	    -e "s@$(ALL_DIRECTIVES_TEST_SED_PATTERN)@@" \
 	    -e "s@$(PER_VHOST_STATS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(NO_PER_VHOST_STATS_TEST_SED_PATTERN)@@" \
@@ -486,17 +456,15 @@ apache_install_conf :
 	    $(OPT_PROXY_TEST) \
 	    $(OPT_SLURP_TEST) \
 	    $(OPT_MEMCACHED_TEST) \
-	    $(OPT_IPRO_PRESERVE_COVERAGE_TEST) \
 	    $(OPT_MEMCACHE_COVERAGE_TEST) \
-	    $(OPT_PURGING_COVERAGE_TEST) \
 	    $(OPT_SPELING_TEST) \
 	    $(OPT_COVERAGE_TRACE_TEST) \
 	    $(OPT_STRESS_TEST) \
 	    $(OPT_HTTPS_TEST) \
 	    $(OPT_SHARED_MEM_LOCK_TEST) \
 	    $(OPT_GZIP_TEST) \
-	    $(OPT_EXPERIMENT_GA_TEST) \
-	    $(OPT_EXPERIMENT_NO_GA_TEST) \
+	    $(OPT_FURIOUS_GA_TEST) \
+	    $(OPT_FURIOUS_NO_GA_TEST) \
 	    $(OPT_ALL_DIRECTIVES_TEST) \
 	    $(OPT_PER_VHOST_STATS_TEST) \
 	    $(OPT_NO_PER_VHOST_STATS_TEST) \
@@ -506,17 +474,15 @@ apache_install_conf :
 	    $(OPT_PROXY_TEST) \
 	    $(OPT_SLURP_TEST) \
 	    $(OPT_MEMCACHED_TEST) \
-	    $(OPT_IPRO_PRESERVE_COVERAGE_TEST) \
 	    $(OPT_MEMCACHE_COVERAGE_TEST) \
-	    $(OPT_PURGING_COVERAGE_TEST) \
 	    $(OPT_SPELING_TEST) \
 	    $(OPT_COVERAGE_TRACE_TEST) \
 	    $(OPT_STRESS_TEST) \
 	    $(OPT_HTTPS_TEST) \
 	    $(OPT_SHARED_MEM_LOCK_TEST) \
 	    $(OPT_GZIP_TEST) \
-	    $(OPT_EXPERIMENT_GA_TEST) \
-	    $(OPT_EXPERIMENT_NO_GA_TEST) \
+	    $(OPT_FURIOUS_GA_TEST) \
+	    $(OPT_FURIOUS_NO_GA_TEST) \
 	    $(OPT_ALL_DIRECTIVES_TEST) \
 	    $(OPT_PER_VHOST_STATS_TEST) \
 	    $(OPT_NO_PER_VHOST_STATS_TEST) \

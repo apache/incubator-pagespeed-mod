@@ -30,7 +30,7 @@
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/util/wildcard.h"
+#include "third_party/instaweb/util/wildcard.h"
 
 namespace net_instaweb {
 
@@ -285,7 +285,7 @@ class DomainLawyer::Domain {
 };
 
 DomainLawyer::~DomainLawyer() {
-  Clear();
+  STLDeleteValues(&domain_map_);
 }
 
 bool DomainLawyer::AddDomain(const StringPiece& domain_name,
@@ -957,12 +957,6 @@ GoogleString DomainLawyer::ToString(StringPiece line_prefix) const {
     StrAppend(&output, line_prefix, iterator->second->ToString(), "\n");
   }
   return output;
-}
-
-void DomainLawyer::Clear() {
-  STLDeleteValues(&domain_map_);
-  can_rewrite_domains_ = false;
-  wildcarded_domains_.clear();
 }
 
 }  // namespace net_instaweb

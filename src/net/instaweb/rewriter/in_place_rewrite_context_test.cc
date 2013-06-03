@@ -18,7 +18,6 @@
 
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
@@ -29,19 +28,23 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/fake_filter.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
+#include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
+#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/worker_test_base.h"
@@ -49,9 +52,145 @@
 
 namespace net_instaweb {
 
+class HtmlElement;
 class MessageHandler;
 
 namespace {
+
+const char kTestUserAgentWebP[] = "test-user-agent-webp";
+// Note that this must no contain the substring "webp".
+const char kTestUserAgentNoWebP[] = "test-user-agent-no";
+
+// A filter that that appends ':id' to the input contents and counts the number
+// of rewrites it has performed. It also has the ability to simulate a long
+// rewrite to test exceeding the rewrite deadline.
+class FakeFilter : public RewriteFilter {
+ public:
+  class Context : public SingleRewriteContext {
+   public:
+    Context(FakeFilter* filter, RewriteDriver* driver,
+            RewriteContext* parent, ResourceContext* resource_context)
+        : SingleRewriteContext(driver, parent, resource_context),
+          filter_(filter) {}
+    virtual ~Context() {}
+
+    void RewriteSingle(const ResourcePtr& input,
+                       const OutputResourcePtr& output) {
+      if (filter_->exceed_deadline()) {
+        int64 wakeup_us = Driver()->scheduler()->timer()->NowUs() +
+            (1000 * GetRewriteDeadlineAlarmMs());
+        Function* closure = MakeFunction(this, &Context::DoRewriteSingle,
+                                         input, output);
+        Driver()->scheduler()->AddAlarm(wakeup_us, closure);
+      } else {
+        DoRewriteSingle(input, output);
+      }
+    }
+
+    void DoRewriteSingle(const ResourcePtr input,
+                         OutputResourcePtr output) {
+      RewriteResult result = kRewriteFailed;
+      GoogleString rewritten;
+
+      if (filter_->enabled()) {
+        // TODO(jkarlin): Writing to the filter from a context is not thread
+        // safe.
+        filter_->IncRewrites();
+        StrAppend(&rewritten, input->contents(), ":", filter_->id());
+
+        // Set the output type here to make sure that the CachedResult url
+        // field has the correct extension for the type.
+        const ContentType* output_type = &kContentTypeText;
+        if (filter_->output_content_type() != NULL) {
+          output_type = filter_->output_content_type();
+        } else if (input->type() != NULL) {
+          output_type = input->type();
+        }
+        ResourceVector rv = ResourceVector(1, input);
+        if (Driver()->Write(rv, rewritten, output_type,
+                            input->charset(), output.get())) {
+          result = kRewriteOk;
+        }
+      }
+
+      RewriteDone(result, 0);
+    }
+    GoogleString UserAgentCacheKey(
+        const ResourceContext* resource_context) const {
+      if (resource_context != NULL) {
+        return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
+      }
+      return "";
+    }
+
+    virtual const char* id() const { return filter_->id(); }
+    virtual OutputResourceKind kind() const { return filter_->kind(); }
+
+   private:
+    FakeFilter* filter_;
+  };
+
+  FakeFilter(const char* id, RewriteDriver* rewrite_driver)
+      : RewriteFilter(rewrite_driver), id_(id), exceed_deadline_(false),
+        enabled_(true), num_rewrites_(0), output_content_type_(NULL),
+        num_encode_user_agent_(0) {}
+
+  virtual ~FakeFilter() {}
+
+  virtual void StartDocumentImpl() {}
+  virtual void EndElementImpl(HtmlElement* element) {}
+  virtual void StartElementImpl(HtmlElement* element) {}
+  virtual RewriteContext* MakeRewriteContext() {
+    return new FakeFilter::Context(this, driver_, NULL, NULL);
+  }
+  virtual RewriteContext* MakeNestedRewriteContext(
+      RewriteContext* parent, const ResourceSlotPtr& slot) {
+    ResourceContext* resource_context = new ResourceContext;
+    if (parent != NULL && parent->resource_context() != NULL) {
+      resource_context->CopyFrom(*parent->resource_context());
+    }
+    RewriteContext* context = new FakeFilter::Context(
+        this, NULL, parent, resource_context);
+    context->AddSlot(slot);
+    return context;
+  }
+  int num_rewrites() const { return num_rewrites_; }
+  int num_encode_user_agent() const { return num_encode_user_agent_; }
+  void ClearStats() {
+    num_rewrites_ = 0;
+    num_encode_user_agent_ = 0;
+  }
+  void set_enabled(bool x) { enabled_ = x; }
+  bool enabled() { return enabled_; }
+  bool exceed_deadline() { return exceed_deadline_; }
+  void set_exceed_deadline(bool x) { exceed_deadline_ = x; }
+  void IncRewrites() { ++num_rewrites_; }
+  void set_output_content_type(const ContentType* type) {
+    output_content_type_ = type;
+  }
+  const ContentType* output_content_type() { return output_content_type_; }
+  virtual void EncodeUserAgentIntoResourceContext(
+      ResourceContext* context) const {
+    if (driver_->user_agent() == kTestUserAgentWebP) {
+      context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
+    }
+    ++num_encode_user_agent_;
+  }
+
+ protected:
+  virtual const char* id() const { return id_; }
+  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  virtual const char* Name() const { return "MockFilter"; }
+  virtual bool ComputeOnTheFly() const { return false; }
+
+ private:
+  const char* id_;
+  bool exceed_deadline_;
+  bool enabled_;
+  int num_rewrites_;
+  const ContentType* output_content_type_;
+  mutable int num_encode_user_agent_;
+};
 
 class FakeFetch : public AsyncFetch {
  public:
@@ -103,7 +242,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
   static const bool kTransform = false;
   InPlaceRewriteContextTest()
       : img_filter_(NULL),
-        other_img_filter_(NULL),
         js_filter_(NULL),
         css_filter_(NULL),
         cache_html_url_("http://www.example.com/cacheable.html"),
@@ -130,9 +268,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         ttl_ms_(Timer::kHourMs), etag_("W/\"PSA-aj-0\""),
         original_etag_("original_etag"),
         exceed_deadline_(false), optimize_for_browser_(false),
-        oversized_stream_(NULL), in_place_uncacheable_rewrites_(NULL),
-        distributed_rewrite_failures_(NULL),
-        distributed_rewrite_successes_(NULL) {}
+        oversized_stream_(NULL), in_place_uncacheable_rewrites_(NULL) {}
 
   virtual void Init() {
     SetTimeMs(start_time_ms());
@@ -199,6 +335,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     rewrite_driver()->AppendRewriteFilter(img_filter_);
     rewrite_driver()->AppendRewriteFilter(js_filter_);
     rewrite_driver()->AppendRewriteFilter(css_filter_);
+
     options()->ClearSignatureForTesting();
     AddRecompressImageFilters();
     options()->EnableFilter(RewriteOptions::kRewriteJavascript);
@@ -216,10 +353,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         InPlaceRewriteContext::kInPlaceOversizedOptStream);
     in_place_uncacheable_rewrites_ = statistics()->GetVariable(
         InPlaceRewriteContext::kInPlaceUncacheableRewrites);
-    distributed_rewrite_failures_ = statistics()->GetVariable(
-        RewriteContext::kNumDistributedRewriteFailures);
-    distributed_rewrite_successes_ = statistics()->GetVariable(
-        RewriteContext::kNumDistributedRewriteSuccesses);
   }
 
   void AddResponse(const GoogleString& url, const ContentType& content_type,
@@ -267,9 +400,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
                              int64 date_ms) {
     js_filter_->set_exceed_deadline(exceed_deadline_);
     img_filter_->set_exceed_deadline(exceed_deadline_);
-    if (other_img_filter_ != NULL) {
-      other_img_filter_->set_exceed_deadline(exceed_deadline_);
-    }
     css_filter_->set_exceed_deadline(exceed_deadline_);
 
     WorkerTestBase::SyncPoint sync(server_context()->thread_system());
@@ -281,7 +411,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     if (!user_agent_.empty()) {
       rewrite_driver()->SetUserAgent(user_agent_);
     }
-    rewrite_driver()->SetRequestHeaders(request_headers_);
+
     rewrite_driver()->FetchResource(url, &mock_fetch);
     // If we're testing if the rewrite takes too long, we need to push
     // time forward here.
@@ -306,9 +436,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     request_headers_.Clear();
     response_headers_.Clear();
     img_filter_->ClearStats();
-    if (other_img_filter_ != NULL) {
-      other_img_filter_->ClearStats();
-    }
     js_filter_->ClearStats();
     css_filter_->ClearStats();
     RewriteTestBase::ClearStats();
@@ -326,41 +453,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     EXPECT_EQ(0, js_filter_->num_rewrites()) << id;
     EXPECT_EQ(0, css_filter_->num_rewrites()) << id;
     EXPECT_EQ(0, oversized_stream_->Get()) << id;
-  }
-
-  void SetupDistributedTest(const StringPiece& distributed_filter) {
-    SetupSharedCache();
-    other_img_filter_ = new FakeFilter(RewriteOptions::kImageCompressionId,
-                                      other_rewrite_driver());
-    other_rewrite_driver()->AppendRewriteFilter(other_img_filter_);
-    options()->ClearSignatureForTesting();
-    other_options()->ClearSignatureForTesting();
-    AddRecompressImageFilters();
-    options()->EnableFilter(RewriteOptions::kRewriteJavascript);
-    options()->EnableFilter(RewriteOptions::kRewriteCss);
-    options_->DistributeFilter(distributed_filter);
-    options_->set_distributed_rewrite_servers("example.com:80");
-    options_->set_distributed_rewrite_key("1234123");
-    Init();
-    other_options()->Merge(*options());
-    other_server_context()->ComputeSignature(other_options());
-  }
-
-  void CheckDistributedFetch(int distributed_fetch_success_count,
-                             int distributed_fetch_failure_count,
-                             int local_fetch_required, int rewritten) {
-    EXPECT_EQ(distributed_fetch_success_count + distributed_fetch_failure_count,
-              counting_distributed_fetcher()->fetch_count());
-    EXPECT_EQ(local_fetch_required,
-              counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(
-        0, other_factory_->counting_distributed_async_fetcher()->fetch_count());
-    EXPECT_EQ(distributed_fetch_success_count,
-              distributed_rewrite_successes_->Get());
-    EXPECT_EQ(distributed_fetch_failure_count,
-              distributed_rewrite_failures_->Get());
-    EXPECT_EQ(rewritten,
-              img_filter_->num_rewrites() + other_img_filter_->num_rewrites());
   }
 
   void ExpectInPlaceImageSuccessFlow(const GoogleString& url) {
@@ -415,7 +507,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
   void set_optimize_for_browser(bool x) { optimize_for_browser_ = x; }
 
   FakeFilter* img_filter_;
-  FakeFilter* other_img_filter_;
   FakeFilter* js_filter_;
   FakeFilter* css_filter_;
 
@@ -455,320 +546,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
 
   Variable* oversized_stream_;
   Variable* in_place_uncacheable_rewrites_;
-  Variable* distributed_rewrite_failures_;
-  Variable* distributed_rewrite_successes_;
 };
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedRewrite) {
-  // Distribute an image rewrite (the response of the rewrite task is mocked).
-  SetupDistributedTest(RewriteOptions::kInPlaceRewriteId);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, NULL,
-                        start_time_ms());
-  CheckDistributedFetch(1,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        1);     // number of rewrites
-
-  // We miss the In-Place Resource Optimizaiton (IPRO) metadata cache and then
-  // distribute the rewrite and write nothing back to cache (the rewrite task
-  // writes to shared cache). This means that distributed IPRO requests have the
-  // overhead of 1 metadata miss plus the RPC.
-  // Ingress task misses metadata once and distributes.
-  // Rewrite task misses metadata, misses http, fetches, writes original,
-  // misses ic metadata, writes optimized, and writes metadata for ipro and ic.
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(4, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  ResetHeadersAndStats();
-  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
-                        start_time_ms());
-
-  // Ingress task hits ipro metadata and associated http resource.
-  EXPECT_EQ(0, counting_distributed_fetcher()->fetch_count());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteImage) {
-  // Distribute the nested image task instead of the in_place_rewrite filter.
-  SetupDistributedTest(RewriteOptions::kImageCompressionId);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, NULL,
-                        start_time_ms());
-  CheckDistributedFetch(1,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        1,      // number of ingress fetches
-                        1);     // number of rewrites
-
-  // Ingress task: misses IPRO metadata, fetches the resource (miss and insert)
-  // misses ic metadata, and distributes, eventually writing IPRO metadata.
-  // Rewrite task: misses ic metadata, hits http, writes optimized, and ic.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(4, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  ResetHeadersAndStats();
-  SetTimeMs((start_time_ms() + ttl_ms_/2));
-  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
-                        start_time_ms() + ttl_ms_ / 2);
-
-  // Ingress task hits ipro metadata and associated http resource.
-  EXPECT_EQ(0, counting_distributed_fetcher()->fetch_count());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedNestedWaitForOptimized) {
-  // Like IngressDistributedNested but this time we want to wait for the
-  // optimized result, which causes a distributed GET request and the returned
-  // content is fed into the nested context's output_ for IPRO's Harvest.
-  options_->set_in_place_wait_for_optimized(true);
-  SetupDistributedTest(RewriteOptions::kImageCompressionId);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
-                        start_time_ms());
-
-  // Ingress task fetches in IPRO and then distributes the nested image rewrite.
-  CheckDistributedFetch(1,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        1,      // number of ingress fetches
-                        1);     // number of rewrites
-
-  // Ingress task: IPRO misses metadata and http original resource then fetches
-  // and inserts http original resource. Ingress then starts nested image
-  // rewriter which skips metadata check (force_rewrite) and distributes. IPRO
-  // writes its metadata.
-  // Distributed task: Misses image metadata, hits the original resource, and
-  // stores the new metadata and optimized resource.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  ResetHeadersAndStats();
-  SetTimeMs((start_time_ms() + ttl_ms_/2));
-  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
-                        start_time_ms() + ttl_ms_ / 2);
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-  // Ingress task hits ipro metadata and associated http resource.
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest,
-       IngressDistributedNestedWaitForOptimizedFail) {
-  // Wait for an optimized result but the fetcher breaks after the headers are
-  // written. Fall back to the original resource.
-  options_->set_in_place_wait_for_optimized(true);
-  SetupDistributedTest(RewriteOptions::kImageCompressionId);
-  test_distributed_fetcher()->set_fail_after_headers(true);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, NULL,
-                        start_time_ms());
-
-  // Ingress task fetches in IPRO and then distributes the nested image rewrite.
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        1,      // unsuccessful distributed fetches
-                        1,      // number of ingress fetches
-                        1);     // number of rewrites
-
-  // Ingress task: IPRO misses metadata and http original resource,
-  // fetches and inserts http original resource. Then starts nested image
-  // rewriter which skips the metadata lookup (force_rewrite) and distributes.
-  // Distributed task: Misses image metadata, hits the original resource, and
-  // stores the new metadata and optimized resource.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  ResetHeadersAndStats();
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, kEtag0.c_str(),
-                        start_time_ms());
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-  // Ingress task hits ipro metadata and associated http resource.
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
-  // If the distributed fetcher returns a 404 then that's what should be
-  // returned.
-  SetupDistributedTest(RewriteOptions::kInPlaceRewriteId);
-
-  GoogleString orig_url = StrCat(kTestDomain, "fourofour.png");
-  SetFetchResponse404(orig_url);
-
-  FetchAndCheckResponse(orig_url, "", false, ServerContext::kGeneratedMaxAgeMs,
-                        ServerContext::kResourceEtagValue, start_time_ms());
-  EXPECT_EQ(HttpStatus::kNotFound, response_headers_.status_code());
-
-  // The distributed fetcher should have run once on the ingress task and the
-  // url fetcher should have run once on the rewrite task.  The result goes to
-  // shared cache.
-  CheckDistributedFetch(1,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-
-  // Ingress task misses on metadata lookup and returns the 404 it gets back.
-  // Rewrite task misses metadata and http, writes 404 http and returns.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(3, lru_cache()->num_misses());
-  EXPECT_EQ(1, lru_cache()->num_inserts());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
-
-  // Ingress task misses ipro metadata and distributes.
-  // Rewrite task misses ipro metadata but hits http, and returns that.
-  ResetHeadersAndStats();
-  FetchAndCheckResponse(orig_url, "", false, ServerContext::kGeneratedMaxAgeMs,
-                        ServerContext::kResourceEtagValue, start_time_ms());
-  CheckDistributedFetch(1,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteFailFallback) {
-  // If the distributed fetch fails mid-stream then the unoptimized resource
-  // should be returned.
-  SetupDistributedTest(RewriteOptions::kInPlaceRewriteId);
-
-  // Simulate distributed fetch failure and ensure that we fall back to the
-  // original.
-  test_distributed_fetcher()->set_fail_after_headers(true);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, kEtag0.c_str(),
-                        start_time_ms());
-  // Note that we didn't need to fetch the original resource at the ingress task
-  // because the distributed task already fetched it and put it in shared cache.
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        1,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        1);     // number of rewrites
-  // Ingress task: Misses ipro metadata, distributes which fails, hits http, and
-  // serves it.
-  // Rewrite task: Misses ipro metadata, misses http, fetches and inserts http,
-  // misses image compression metadata, writes optimized http and 2 metadata,
-  // returns.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(4, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  // Fetch again but we'll hit the cache this time.
-  ResetHeadersAndStats();
-  SetTimeMs((start_time_ms() + ttl_ms_ / 2));
-  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_ / 2, etag_,
-                        start_time_ms() + ttl_ms_ / 2);
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
-
-TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteFailFallbackImage) {
-  // If the distributed fetch fails mid-stream then the unoptimized resource
-  // should be returned. This time image compression is distributed but not IPRO
-  // itself.
-  SetupDistributedTest(RewriteOptions::kImageCompressionId);
-
-  // Simulate distributed fetch failure and ensure that we fall back to the
-  // original.
-  test_distributed_fetcher()->set_fail_after_headers(true);
-
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, NULL,
-                        start_time_ms());
-  // Note that we didn't need to fetch the original resource at the ingress task
-  // because the distributed task already fetched it and put it in shared cache.
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        1,      // unsuccessful distributed fetches
-                        1,      // number of ingress fetches
-                        1);     // number of rewrites
-  // Ingress task: Misses ipro metadata, fetches and inserts input resource,
-  // misses ic metadata, distributes. Upon distributed failure, aborts nested
-  // rewrite and IPRO records the failure.
-  // Rewrite task: Misses ic metadata, hits input resources, writes optimized
-  // resource and ic metadata, then returns.
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(4, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  // On the first attempt IPRO failed to rewrite the image due to its nested
-  // task's distribution failure.  On the second attempt, IPRO remembers that
-  // the first attempt failed and returns the original resource.
-
-  ResetHeadersAndStats();
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, kEtag0.c_str(),
-                        start_time_ms());
-  CheckDistributedFetch(0,      // successful distributed fetches
-                        0,      // unsuccessful distributed fetches
-                        0,      // number of ingress fetches
-                        0);     // number of rewrites
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-}
 
 TEST_F(InPlaceRewriteContextTest, CacheableHtmlUrlNoRewriting) {
   // All these entries find no in-place rewrite metadata and no rewriting
@@ -891,10 +669,6 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeWithDisabledFilter) {
   ResetHeadersAndStats();
   // The second time we get the cached original, which should have an md5'd
   // etag.
-
-  // TODO(jkarlin): Note that if we advance time here, we'd expect the TTL of
-  // the cached resource to decrease on the second fetch, but that doesn't
-  // happen. That should be fixed.
   GoogleString expected_etag = StrCat("W/\"PSA-", hasher()->Hash(cache_body_),
                                       "\"");
   FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_,
@@ -921,7 +695,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeNoTransform) {
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());  // original + ipro metadata
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // original resource + aj metadata
   EXPECT_EQ(0, img_filter_->num_rewrites());
   EXPECT_EQ(0, js_filter_->num_rewrites());
   EXPECT_EQ(0, css_filter_->num_rewrites());
@@ -933,7 +707,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeNoTransform) {
 
   // Don't rewrite since it's no-transform.
   FetchAndCheckResponse(cache_jpg_notransform_url_, cache_body_, true,
-                        ttl_ms_, kEtag0.c_str(), start_time_ms());
+                        ttl_ms_, "W/\"PSA-0\"", start_time_ms());
   // The second fetch should return the cached original after seeing that it
   // can't be rewritten.
   CheckWarmCache("second_fetch_4");
@@ -1088,8 +862,9 @@ TEST_F(InPlaceRewriteContextTest, CacheableJpgUrlRewritingSucceeds) {
   // Original resource is served with the date set to start time.
   // The ETag we check for here is the ETag HTTPCache synthesized for
   // the original resource.
-  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, kEtag0.c_str(),
-                        start_time_ms());
+  FetchAndCheckResponse(
+      cache_jpg_url_, "good", true, ttl_ms_,
+      StringPrintf(HTTPCache::kEtagFormat, "0").c_str(), start_time_ms());
   // We find the metadata in cache, but don't find the rewritten resource.
   // Hence, we reconstruct the resource and insert it into cache. We see 2
   // identical reinserts - one for the image rewrite filter metadata and one for
@@ -1169,7 +944,10 @@ TEST_F(InPlaceRewriteContextTest, CacheablePngUrlRewritingSucceedsWithShards) {
   Init();
   const char kShard1[] = "http://s1.example.com/";
   const char kShard2[] = "http://s2.example.com/";
-  AddShard("http://www.example.com", StrCat(kShard1, ",", kShard2));
+
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddShard("http://www.example.com", StrCat(kShard1, ",", kShard2),
+                   message_handler());
   ExpectInPlaceImageSuccessFlow(cache_png_url_);
 }
 
@@ -1341,7 +1119,8 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlIfCssRewritingDisabled) {
   // The ETag we check for here is the ETag HTTPCache synthesized for
   // the original resource.
   FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_,
-                        kEtag0.c_str(), start_time_ms());
+                        StringPrintf(HTTPCache::kEtagFormat, "0").c_str(),
+                        start_time_ms());
 
   // Second fetch hits the metadata cache, finds that the result is not
   // optimizable. It then looks up cache for the original and finds it.
@@ -1440,7 +1219,7 @@ TEST_F(InPlaceRewriteContextTest, NonCacheableUrlRewriting) {
                         etag_, timer()->NowMs());
 
   // Shouldn't be cacheable at all.
-  EXPECT_FALSE(response_headers_.IsBrowserCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
 
   // First fetch misses initial cache lookup, succeeds at fetch and we don't
@@ -1477,7 +1256,7 @@ TEST_F(InPlaceRewriteContextTest, PrivateCacheableUrlRewriting) {
                         true /* success */, 1000 /* ttl (s) */, etag_,
                         timer()->NowMs());
   // Should be cacheable.
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
 
   // But only in a private way.
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
@@ -1656,7 +1435,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserRewriting) {
   // First fetch with kTestUserAgentWebP. This will miss everything (metadata
   // lookup, original content, and rewritten content).
   // Vary: User-Agent header should be added.
-  user_agent_ = UserAgentMatcher::kTestUserAgentWebP;
+  user_agent_ = kTestUserAgentWebP;
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
                         start_time_ms());
 
@@ -1680,7 +1459,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserRewriting) {
   // Vary: User-Agent header should be be added.
   ResetHeadersAndStats();
   SetTimeMs((start_time_ms() + ttl_ms_/2));
-  user_agent_ = UserAgentMatcher::kTestUserAgentNoWebP;
+  user_agent_ = kTestUserAgentNoWebP;
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
                         start_time_ms() + ttl_ms_/2);
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
@@ -1713,7 +1492,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserRewriting) {
   // Vary: User-Agent header should be added.
   ResetHeadersAndStats();
   SetTimeMs((start_time_ms() + ttl_ms_/2));
-  user_agent_ = UserAgentMatcher::kTestUserAgentWebP;
+  user_agent_ = kTestUserAgentWebP;
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
                         start_time_ms() + ttl_ms_/2);
   CheckWarmCache("back_to_webp");
@@ -1727,14 +1506,14 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserNegative) {
   Init();
 
   // Vary: User-Agent header should not be added no matter the user-agent.
-  user_agent_ = UserAgentMatcher::kTestUserAgentWebP;
+  user_agent_ = kTestUserAgentWebP;
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
                         start_time_ms());
   EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
 
   ResetHeadersAndStats();
   SetTimeMs((start_time_ms() + ttl_ms_/2));
-  user_agent_ = UserAgentMatcher::kTestUserAgentNoWebP;
+  user_agent_ = kTestUserAgentNoWebP;
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
                         start_time_ms() + ttl_ms_/2);
   EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
@@ -1813,9 +1592,9 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(2, lru_cache()->num_hits());  // ipro-metadata, metadata
+  EXPECT_EQ(2, lru_cache()->num_hits());  // ajax-metadata, metadata
   EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(3, lru_cache()->num_inserts());  // http, metadata, ipro-metadata
+  EXPECT_EQ(3, lru_cache()->num_inserts());  // http, metadata, ajax-metadata
   EXPECT_EQ(0, img_filter_->num_rewrites());
   EXPECT_EQ(1, js_filter_->num_rewrites());
   EXPECT_EQ(0, css_filter_->num_rewrites());
@@ -1836,9 +1615,9 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(2, lru_cache()->num_hits());  // ipro-metadata, metadata
+  EXPECT_EQ(2, lru_cache()->num_hits());  // ajax-metadata, metadata
   EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(3, lru_cache()->num_inserts());  // http, metadata, ipro-metadata
+  EXPECT_EQ(3, lru_cache()->num_inserts());  // http, metadata, ajax-metadata
   EXPECT_EQ(0, img_filter_->num_rewrites());
   EXPECT_EQ(1, js_filter_->num_rewrites());
   EXPECT_EQ(0, css_filter_->num_rewrites());

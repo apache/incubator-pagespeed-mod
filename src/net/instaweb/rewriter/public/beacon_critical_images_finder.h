@@ -20,12 +20,9 @@
 
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -33,23 +30,14 @@ class Statistics;
 
 // Support critical (above the fold) image detection through a javascript beacon
 // on the client.
+// TODO(jud): This class is not yet implemented.
 class BeaconCriticalImagesFinder : public CriticalImagesFinder {
  public:
-  BeaconCriticalImagesFinder(
-      const PropertyCache::Cohort* cohort, Statistics* stats);
+  explicit BeaconCriticalImagesFinder(Statistics* stats);
   virtual ~BeaconCriticalImagesFinder();
 
   virtual bool IsMeaningful(const RewriteDriver* driver) const {
-    return (driver->options()->critical_images_beacon_enabled() &&
-            driver->server_context()->factory()->UseBeaconResultsInFilters());
-  }
-
-  virtual int PercentSeenForCritical() const {
-    return kBeaconPercentSeenForCritical;
-  }
-
-  virtual int NumSetsToKeep() const {
-    return kBeaconNumSetsToKeep;
+    return driver->options()->critical_images_beacon_enabled();
   }
 
   // Checks whether the requested image is present in the critical set or not.
@@ -57,29 +45,14 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
   // this computes the same hash on image_url and checks if it is stored in the
   // critical image set.
   virtual bool IsHtmlCriticalImage(const GoogleString& image_url,
-                                   RewriteDriver* driver);
+                               RewriteDriver* driver);
 
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {}
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver);
 
-  virtual const PropertyCache::Cohort* GetCriticalImagesCohort() const {
-    return cohort_;
+  virtual const char* GetCriticalImagesCohort() const {
+    return RewriteDriver::kBeaconCohort;
   }
-
-  // Update the critical image entry in the property cache. This is meant to be
-  // called in the beacon handler, where there is no RewriteDriver available.
-  static bool UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page);
-
- private:
-  // 80% is a guess at a reasonable value for this param.
-  static const int kBeaconPercentSeenForCritical = 80;
-  // This is a guess for how many samples we need to get stable data.
-  static const int kBeaconNumSetsToKeep = 10;
-
-  const PropertyCache::Cohort* cohort_;
 };
 
 }  // namespace net_instaweb

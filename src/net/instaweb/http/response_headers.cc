@@ -34,7 +34,10 @@
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/writer.h"
-#include "pagespeed/kernel/http/caching_headers.h"
+#include "pagespeed/core/resource.h"
+#include "pagespeed/core/resource_cache_computer.h"
+#include "pagespeed/core/resource_util.h"
+#include "pagespeed/proto/resource.pb.h"
 
 namespace net_instaweb {
 
@@ -151,7 +154,7 @@ void ResponseHeaders::CopyFrom(const ResponseHeaders& other) {
 void ResponseHeaders::Clear() {
   Headers<HttpResponseHeaders>::Clear();
 
-  proto_->set_browser_cacheable(false);
+  proto_->set_cacheable(false);
   proto_->set_proxy_cacheable(false);   // accurate only if !cache_fields_dirty_
   proto_->clear_expiration_time_ms();
   proto_->clear_date_ms();
@@ -357,13 +360,12 @@ bool ResponseHeaders::WriteAsHttp(Writer* writer, MessageHandler* handler)
 
 // Specific information about cache.  This is all embodied in the
 // headers but is centrally parsed so we can try to get it right.
-bool ResponseHeaders::IsBrowserCacheable() const {
+bool ResponseHeaders::IsCacheable() const {
   // We do not compute caching from accessors so that the
   // accessors can be easier to call from multiple threads
   // without mutexing.
-  DCHECK(!cache_fields_dirty_)
-      << "Call ComputeCaching() before IsBrowserCacheable()";
-  return proto_->browser_cacheable();
+  DCHECK(!cache_fields_dirty_) << "Call ComputeCaching() before IsCacheable()";
+  return proto_->cacheable();
 }
 
 bool ResponseHeaders::IsProxyCacheable() const {
@@ -441,7 +443,7 @@ void ResponseHeaders::GetSanitizedProto(HttpResponseHeaders* proto) const {
 }
 
 bool ResponseHeaders::VaryCacheable(bool request_has_cookie) const {
-  if (IsProxyCacheable()) {
+  if (IsCacheable()) {
     if (force_cache_ttl_ms_ > 0) {
       // If we've been asked to force cache a request, then we always consider
       // it as VaryCacheable.
@@ -482,18 +484,27 @@ namespace {
 //     for us.
 //
 // This also abstracts away the pagespeed::Resource/ResponseHeaders distinction.
-class InstawebCacheComputer : public CachingHeaders {
+class InstawebCacheComputer : public pagespeed::ResourceCacheComputer {
  public:
-  explicit InstawebCacheComputer(const ResponseHeaders& headers)
-      : CachingHeaders(headers.status_code()),
-        response_headers_(headers) {
+  static InstawebCacheComputer* NewComputer(const ResponseHeaders& headers) {
+    pagespeed::Resource* resource = new pagespeed::Resource;
+    for (int i = 0, n = headers.NumAttributes(); i < n; ++i) {
+      resource->AddResponseHeader(headers.Name(i), headers.Value(i));
+    }
+    resource->SetResponseStatusCode(headers.status_code());
+    return new InstawebCacheComputer(resource);
   }
 
   virtual ~InstawebCacheComputer() {}
 
+  virtual bool IsLikelyStaticResourceType() {
+    // TODO(sligocki): Change how we treat HTML based on an option.
+    return pagespeed::ResourceCacheComputer::IsLikelyStaticResourceType();
+  }
+
   // Which status codes are cacheable by default.
-  virtual bool IsCacheableResourceStatusCode() const {
-    switch (status_code()) {
+  virtual bool IsCacheableResourceStatusCode() {
+    switch (resource_->GetResponseStatusCode()) {
       // For our purposes, only a few status codes are cacheable.
       // Others like 203, 206 and 304 depend upon input headers and other state.
       case HttpStatus::kOK:
@@ -522,30 +533,17 @@ class InstawebCacheComputer : public CachingHeaders {
     // for redirects they actually want cached.
   }
 
-  virtual bool IsLikelyStaticResourceType() const {
-    if (IsRedirectStatusCode()) {
-      return true;  // redirects are cacheable
-    }
-    const ContentType* type = response_headers_.DetermineContentType();
-    return (type != NULL) && type->IsLikelyStaticResource();
-  }
-
-  virtual bool Lookup(const GoogleString& key, StringPieceVector* values) {
-    ConstStringStarVector value_strings;
-    bool ret = response_headers_.Lookup(key, &value_strings);
-    if (ret) {
-      values->resize(value_strings.size());
-      for (int i = 0, n = value_strings.size(); i < n; ++i) {
-        (*values)[i] = *value_strings[i];
-      }
-    } else {
-      values->clear();
-    }
-    return ret && !values->empty();
+  pagespeed::ResourceType GetResourceType() const {
+    return resource_->GetResourceType();
   }
 
  private:
-  const ResponseHeaders& response_headers_;
+  // Takes ownership of resource (used by NewComputer).
+  explicit InstawebCacheComputer(pagespeed::Resource* resource)
+      : ResourceCacheComputer(resource), resource_(resource) {}
+
+  scoped_ptr<pagespeed::Resource> resource_;
+
   DISALLOW_COPY_AND_ASSIGN(InstawebCacheComputer);
 };
 
@@ -565,16 +563,13 @@ void ResponseHeaders::ComputeCaching() {
   }
 
   // Computes caching info.
-  InstawebCacheComputer computer(*this);
+  scoped_ptr<InstawebCacheComputer> computer(
+      InstawebCacheComputer::NewComputer(*this));
 
   // Can we force cache this response?
-  bool force_caching_enabled = false;
-
-  const ContentType* type = DetermineContentType();
-  if ((force_cache_ttl_ms_) > 0 &&
-      (status_code() == HttpStatus::kOK)) {
-    force_caching_enabled = (type == NULL) || !type->IsHtmlLike();
-  }
+  bool force_caching_enabled = force_cache_ttl_ms_ > 0 &&
+      status_code() == HttpStatus::kOK &&
+      computer->GetResourceType() != pagespeed::HTML;
 
   // Note: Unlike pagespeed algorithm, we are very conservative about calling
   // a resource cacheable. Many status codes are technically cacheable but only
@@ -582,12 +577,11 @@ void ResponseHeaders::ComputeCaching() {
   // only allow a few hand-picked status codes to be cacheable at all.
   // Note that if force caching is enabled, we consider a privately cacheable
   // resource as cacheable.
-  bool is_browser_cacheable = computer.IsCacheable();
-  proto_->set_browser_cacheable(
-      has_date &&
-      computer.IsAllowedCacheableStatusCode() &&
-      (force_caching_enabled || is_browser_cacheable));
-  if (proto_->browser_cacheable()) {
+  bool is_cacheable = computer->IsCacheable();
+  proto_->set_cacheable(has_date &&
+                        computer->IsAllowedCacheableStatusCode() &&
+                        (force_caching_enabled || is_cacheable));
+  if (proto_->cacheable()) {
     // TODO(jmarantz): check "Age" resource and use that to reduce
     // the expiration_time_ms_.  This is, says, bmcquade@google.com,
     // typically use to indicate how long a resource has been sitting
@@ -597,14 +591,15 @@ void ResponseHeaders::ComputeCaching() {
     //
     // Implicitly cached items stay alive in our system for the specified
     // implicit ttl ms.
-    bool is_proxy_cacheable = computer.IsProxyCacheable();
+    bool is_proxy_cacheable = computer->IsProxyCacheable();
     int64 cache_ttl_ms = implicit_cache_ttl_ms();
-    if (computer.IsExplicitlyCacheable()) {
+    if (computer->IsExplicitlyCacheable()) {
       // TODO(sligocki): Do we care about the return value.
-      computer.GetFreshnessLifetimeMillis(&cache_ttl_ms);
+      computer->GetFreshnessLifetimeMillis(&cache_ttl_ms);
     }
     if (force_caching_enabled &&
-        (force_cache_ttl_ms_ > cache_ttl_ms || !is_proxy_cacheable)) {
+        (force_cache_ttl_ms_ > cache_ttl_ms ||
+         !is_cacheable || !is_proxy_cacheable)) {
       // We consider the response to have been force cached only if force
       // caching was enabled and the forced cache TTL is larger than the
       // original TTL or the original response wasn't cacheable.
@@ -620,15 +615,14 @@ void ResponseHeaders::ComputeCaching() {
     // Do not cache HTML with Set-Cookie / Set-Cookie2 headers even though it
     // has explicit caching directives. This is to prevent the caching of user
     // sensitive data due to misconfigured caching headers.
-    if ((type != NULL) &&
-        type->IsHtmlLike() &&
+    if (computer->GetResourceType() == pagespeed::HTML &&
         (Lookup1(HttpAttributes::kSetCookie) != NULL ||
          Lookup1(HttpAttributes::kSetCookie2) != NULL)) {
       proto_->set_proxy_cacheable(false);
     }
 
     if (proto_->proxy_cacheable() &&
-        !computer.IsExplicitlyCacheable() && !force_cached_) {
+        !computer->IsExplicitlyCacheable() && !force_cached_) {
       // If the resource is proxy cacheable but it does not have explicit
       // caching headers and is not force cached, explicitly set the caching
       // headers.
@@ -668,7 +662,7 @@ void ResponseHeaders::SetStatusAndReason(HttpStatus::Code code) {
 }
 
 bool ResponseHeaders::ParseTime(const char* time_str, int64* time_ms) {
-  return ConvertStringToTime(time_str, time_ms);
+  return pagespeed::resource_util::ParseTimeValuedHeader(time_str, time_ms);
 }
 
 // Content-coding values are case-insensitive:
@@ -836,8 +830,7 @@ void ResponseHeaders::DebugPrint() const {
             Integer64ToString(proto_->date_ms()).c_str());
     fprintf(stderr, "cache_ttl_ms_ = %s\n",
             Integer64ToString(proto_->cache_ttl_ms()).c_str());
-    fprintf(stderr, "browser_cacheable_ = %s\n",
-            BoolToString(proto_->browser_cacheable()));
+    fprintf(stderr, "cacheable_ = %s\n", BoolToString(proto_->cacheable()));
     fprintf(stderr, "proxy_cacheable_ = %s\n",
             BoolToString(proto_->proxy_cacheable()));
   }

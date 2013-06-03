@@ -28,27 +28,22 @@ AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER application/xhtml+xml
 # rewritten before being flushed to the client.
 ModPagespeedBlockingRewriteKey psatest
 
-# By default we test without image beaconing, and use a separate vhost to
-# enable image beaconing explicitly.
-ModPagespeedCriticalImagesBeaconEnabled false
-
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/max_html_parse_size" >
   ModPagespeedMaxHtmlParseBytes 5000
 </Directory>
 
 # This will cause an error report in the startup log if mod_pagespeed is not
 # built with ssl, but otherwise will cause no trouble.
-ModPagespeedFetchHttps enable
+ModPagespeedFetchHttps enable,allow_self_signed
 
 # Test proxying of non-.pagespeed. resources.
 ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/modpagespeed_http \
-                           http://@@TEST_PROXY_ORIGIN@@/do_not_modify
+                           http://modpagespeed.com/do_not_modify
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/https_fetch" >
-  ModPagespeedDisableFilters inline_images
-  ModPagespeedDomain https://@@TEST_PROXY_ORIGIN@@
-  ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/https_gstatic_dot_com \
-      https://www.gstatic.com/psa/static
+  ModPagespeedDomain https://modpagespeed.com
+  ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/modpagespeed_dot_com \
+                             https://modpagespeed.com/do_not_modify
 </Directory>
 
 # These caching headers are set up for the document root, and
@@ -105,7 +100,7 @@ ModPagespeedEnableFilters add_instrumentation
     AllowOverride All
     # Some versions of mod_rewrite will refuse to do any work if
     # symlink handling is off.
-    Options +FollowSymLinks
+    Options +SymLinksIfOwnerMatch
 </Directory>
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/close_connection/" >
@@ -142,15 +137,6 @@ ModPagespeedEnableFilters add_instrumentation
 # Set Webp Quality
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/image_rewriting" >
     ModPagespeedImageWebpRecompressionQuality 65
-</Directory>
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cachable_rewritten_html" >
-    ModPagespeedRewriteDeadlinePerFlushMs 1
-    ModPagespeedDownstreamCacheLifetimeMs 100
-    ModPagespeedDownstreamCachePurgePathPrefix "/mypurgepath"
-    ModPagespeedDownstreamCachePurgeMethod "GET"
-    ModPagespeedRewriteLevel PassThrough
-    ModPagespeedEnableFilters collapse_whitespace,extend_cache,recompress_images
 </Directory>
 
 # This Directory does not even exist, but by setting some options in that
@@ -194,8 +180,8 @@ ModPagespeedEnableFilters add_instrumentation
 #      be confusing to demo a Proxying when the origin was the
 #      same as the proxy.
 #   2. A system-test of the feature to be run with our usual testing.
-ModPagespeedMapProxyDomain @@APACHE_DOMAIN@@/gstatic_images \
-                           http://www.gstatic.com/psa/static
+ModPagespeedMapProxyDomain @@APACHE_DOMAIN@@/pss_images \
+                           http://ref.pssdemos.com/filter/images
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/forbid_all_disabled/disabled" >
     # Prevent the enabling of these filters for files in this directory
@@ -276,12 +262,6 @@ ModPagespeedCustomFetchHeader x-other False
   SetHandler mod_pagespeed_log_request_headers
 </Location>
 
-# Enable console handler in debug.conf so that we can use it without exposing
-# the config to users in pagespeed.conf.template.
-<Location /mod_pagespeed_console>
-  SetHandler mod_pagespeed_console
-</Location>
-
 ModPagespeedInPlaceResourceOptimization on
 
 ModPagespeedRespectXForwardedProto on
@@ -289,8 +269,6 @@ ModPagespeedRespectXForwardedProto on
 <Location ~ "/mod_pagespeed_test/response_headers.html*">
   SetHandler mod_pagespeed_response_options_handler
 </Location>
-
-ModPagespeedCompressMetadataCache true
 
 # Another VirtualHost can be enabled by default as it does no harm.  This can
 # be used for testing alternate configuration settings in system tests without
@@ -308,11 +286,9 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeed on
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/_secondary/"
-  ModPagespeedCompressMetadataCache false
 
-  ModPagespeedMapProxyDomain secondary.example.com/gstatic_images \
-                             http://www.gstatic.com/psa/static
-
+  ModPagespeedMapProxyDomain secondary.example.com/pss_images \
+                             http://ref.pssdemos.com/filter/images
   # This is the same memcached instance as the root configuration,
   # but with a different file-cache path.
 #MEMCACHED  ModPagespeedMemcachedServers localhost:6765
@@ -590,12 +566,6 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedRewriteLevel PassThrough
   ModPagespeedEnableFilters lazyload_images
   ModPagespeedCriticalImagesBeaconEnabled true
-
-  # add_instrumention tests beacon handling with no handler specified, while
-  # here we test it with a handler (that should do nothing).
-  <Location /mod_pagespeed_beacon>
-    SetHandler mod_pagespeed_beacon
-  </Location>
 </VirtualHost>
 
 # Test host for shared memory cache.
@@ -606,22 +576,12 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@/with_shm" 8
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/with_shm"
 
   ModPagespeedEnableFilters rewrite_images
-  ModPagespeedCriticalImagesBeaconEnabled false
 </VirtualHost>
 
 #PER_VHOST_STATS ModPagespeedUsePerVHostStatistics on
 #PER_VHOST_STATS # Make sure we behave OK with this on, too.
 #PER_VHOST_STATS ModPagespeedFetchWithGzip on
-#NO_PER_VHOST_STATS # Overrides "ModPagespeedUsePerVHostStatistics on" above.
 #NO_PER_VHOST_STATS ModPagespeedUsePerVHostStatistics off
-
-# TODO(sligocki): Turn this on once we enforce max size of logging file.
-ModPagespeedStatisticsLogging off
-ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
-# TODO(sligocki): Get rid of this once this is integrated into console.
-<Location /mod_pagespeed_temp_statistics_graphs>
-    SetHandler mod_pagespeed_temp_statistics_graphs
-</Location>
 
 #STATS_LOGGING ModPagespeedStatistics on
 #STATS_LOGGING ModPagespeedStatisticsLogging on
@@ -669,16 +629,9 @@ ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
 #COVERAGE   # Proxy using SERF
 #COVERAGE   ModPagespeedTestProxy on
 #COVERAGE   ModPagespeedFetchProxy "127.0.0.1:8081"
-#IPRO_PRESERVE_COVERAGE ModPagespeedInPlaceResourceOptimization on
-#IPRO_PRESERVE_COVERAGE ModPagespeedCssPreserveURLs on
-#IPRO_PRESERVE_COVERAGE ModPagespeedImagePreserveURLs on
-#IPRO_PRESERVE_COVERAGE ModPagespeedJsPreserveURLS on
 #COVERAGE
 #MEMCACHE_COVERAGE   ModPagespeedMemcachedServers localhost:6765
-#PURGING_COVERAGE    ModPagespeedEnableUrlCacheInvalidation on
-#PURGING_COVERAGE    ModPagespeedCompressMetadataCache on
 #COVERAGE   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
-#COVERAGE   ModPagespeedCompressMetadataCache true
 #COVERAGE   ModPagespeedRewriteLevel AllFilters
 #COVERAGE   ModPagespeedEnableFilters elide_attributes
 #COVERAGE   ModPagespeedDomain *
@@ -698,6 +651,9 @@ ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
 #COVERAGE   ModPagespeedJpegRecompressionQuality   -1
 #COVERAGE   ModPagespeedImageLimitOptimizedPercent  100
 #COVERAGE   ModPagespeedImageLimitResizeAreaPercent 100
+#COVERAGE   <Location /mod_pagespeed_beacon>
+#COVERAGE       SetHandler mod_pagespeed_beacon
+#COVERAGE   </Location>
 #COVERAGE   <Location /mod_pagespeed_statistics>
 #COVERAGE       Order allow,deny
 #COVERAGE       Allow from localhost
@@ -814,23 +770,22 @@ ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
 #HTTPS SSLRandomSeed connect builtin
 #HTTPS ModPagespeedMapOriginDomain http://@@APACHE_DOMAIN@@ https://@@APACHE_HTTPS_DOMAIN@@
 
-#EXPERIMENT_GA # This is used for testing the experiment framework.
-#EXPERIMENT_GA ModPagespeedRunExperiment on
-#EXPERIMENT_GA ModPagespeedAnalyticsID "123-45-6734"
-#EXPERIMENT_GA ModPagespeedExperimentVariable 2
-#EXPERIMENT_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images;disable=convert_jpeg_to_progressive;percent=50"
-#EXPERIMENT_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images;percent=50"
+#FURIOUS_GA # This is used for testing the Furious experiment framework.
+#FURIOUS_GA ModPagespeedRunExperiment on
+#FURIOUS_GA ModPagespeedAnalyticsID "123-45-6734"
+#FURIOUS_GA ModPagespeedExperimentVariable 2
+#FURIOUS_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images;disable=convert_jpeg_to_progressive;percent=50"
+#FURIOUS_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images;percent=50"
 
-#EXPERIMENT_NO_GA # This is used for testing the experiment framework still
-#EXPERIMENT_NO_GA # works when no analytics ID is specified.  It should assign
-#EXPERIMENT_NO_GA # users to experiments and use appropriate experimental
-#EXPERIMENT_NO_GA # options but not report back to Google Analytics.  The
-#EXPERIMENT_NO_GA # instrumentation beacon, however, will still contain the
-#EXPERIMENT_NO_GA # experiment id.
-#EXPERIMENT_NO_GA ModPagespeedRunExperiment on
-#EXPERIMENT_NO_GA ModPagespeedExperimentVariable 2
-#EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images;disable=convert_jpeg_to_progressive;percent=50"
-#EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images;percent=50"
+#FURIOUS_NO_GA # This is used for testing the Furious experiment framework still
+#FURIOUS_NO_GA # works when no analytics ID is specified.  It should assign
+#FURIOUS_NO_GA # users to experiments and use appropriate experimental options,
+#FURIOUS_NO_GA # but not report back to Google Analytics.  The instrumentation
+#FURIOUS_NO_GA # beacon, however, will still contain the experiment id.
+#FURIOUS_NO_GA ModPagespeedRunExperiment on
+#FURIOUS_NO_GA ModPagespeedExperimentVariable 2
+#FURIOUS_NO_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images;disable=convert_jpeg_to_progressive;percent=50"
+#FURIOUS_NO_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images;percent=50"
 
 # Support for embedded configurations, where image flags in the
 # VirtualHost serving HTML is not the same as the one serving resources,
@@ -884,12 +839,11 @@ ModPagespeedStatisticsLoggingFile "@@MOD_PAGESPEED_STATS_LOG@@"
 
 # For testing where we do our loopback routing. Note that this is listening
 # on an unusual loopback IP.
-Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
-<VirtualHost 127.0.0.2:@@APACHE_TERTIARY_PORT@@>
+Listen 127.0.0.2:8085
+<VirtualHost 127.0.0.2:8085>
   ServerName loopbackfetch.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@/loopbackfetch/"
-  ModPagespeedCriticalImagesBeaconEnabled false
 </VirtualHost>
 
 #ALL_DIRECTIVES # Invoke all ModPagespeed* directives to make sure they work:
@@ -903,7 +857,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedClientDomainRewrite false
 #ALL_DIRECTIVES ModPagespeedCollectRefererStatistics false
 #ALL_DIRECTIVES ModPagespeedCombineAcrossPaths true
-#ALL_DIRECTIVES ModPagespeedCompressMetadataCache true
 #ALL_DIRECTIVES ModPagespeedCriticalImagesBeaconEnabled true
 #ALL_DIRECTIVES ModPagespeedCreateSharedMemoryMetadataCache config 10000
 #ALL_DIRECTIVES ModPagespeedCssFlattenMaxBytes 2000

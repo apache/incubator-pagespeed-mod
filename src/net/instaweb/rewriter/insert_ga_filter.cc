@@ -25,7 +25,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -43,11 +43,11 @@ const char kInsertedGaSnippets[] = "inserted_ga_snippets";
 
 namespace net_instaweb {
 
-// Google Analytics snippet for setting experiment related variables.
-extern const char kGAExperimentSnippet[] =
+// Google Analytics snippet for setting furious-experiment related variables.
+extern const char kGAFuriousSnippet[] =
     "var _gaq = _gaq || [];"
     "%s"  // %s is the optional snippet to increase site speed tracking.
-    "%s";  // %s is the snippet for experiments.
+    "%s";  // %s is the Furious Snippet for experiments.
 
 // Google Analytics async snippet along with the _trackPageView call.
 extern const char kGAJsSnippet[] =
@@ -74,14 +74,14 @@ extern const char kGASpeedTracking[] =
 // The %u is for the variable slot (defaults to 1).
 // The %s is for the Experiment spec string.
 // This defaults to being a page-scoped variable.
-const char kExperimentSnippetFmt[] =
-    "_gaq.push(['_setCustomVar', %u, 'ExperimentState', '%s']);";
+const char kFuriousSnippetFmt[] =
+    "_gaq.push(['_setCustomVar', %u, 'FuriousState', '%s']);";
 
 InsertGAFilter::InsertGAFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
       script_element_(NULL),
       added_analytics_js_(false),
-      added_experiment_snippet_(false),
+      added_furious_snippet_(false),
       ga_id_(rewrite_driver->options()->ga_id()),
       found_snippet_(false),
       increase_speed_tracking_(
@@ -101,31 +101,31 @@ void InsertGAFilter::StartDocumentImpl() {
   found_snippet_ = false;
   script_element_ = NULL;
   added_analytics_js_ = false;
-  added_experiment_snippet_ = false;
+  added_furious_snippet_ = false;
   buffer_.clear();
-  if (driver_->options()->running_experiment()) {
+  if (driver_->options()->running_furious()) {
     driver_->message_handler()->Message(
         kInfo, "run_experiment: %s",
         driver_->options()->ToExperimentDebugString().c_str());
   }
 }
 
-// Add the experiment js snippet at the beginning of <head> and then
+// Add the furious js snippet at the beginning of <head> and then
 // start looking for ga snippet.
 void InsertGAFilter::StartElementImpl(HtmlElement* element) {
-  if (!added_experiment_snippet_) {
+  if (!added_furious_snippet_) {
     if (element->keyword() == HtmlName::kHead) {
-      added_experiment_snippet_ = true;
-      // This will be empty if we're not running experiment.
-      GoogleString experiment = ConstructExperimentSnippet();
+      added_furious_snippet_ = true;
+      // This will be empty if we're not running furious.
+      GoogleString furious = ConstructFuriousSnippet();
       // Increase the percentage of traffic for which we track page load time.
       GoogleString speed_snippet = "";
-      if (!experiment.empty() || increase_speed_tracking_) {
+      if (!furious.empty() || increase_speed_tracking_) {
         speed_snippet = kGASpeedTracking;
       }
       GoogleString snippet_text = StringPrintf(
-          kGAExperimentSnippet,
-          speed_snippet.c_str(), experiment.c_str());
+          kGAFuriousSnippet,
+          speed_snippet.c_str(), furious.c_str());
       AddScriptNode(element, snippet_text, true);
     }
   }
@@ -149,21 +149,21 @@ bool InsertGAFilter::FoundSnippetInBuffer() const {
         buffer_.find(".google-analytics.com/urchin.js") != GoogleString::npos));
 }
 
-// Running an experiment: add in the information as the slot 1 custom variable.
+// Running furious: add in the information as the slot 1 custom variable.
 // TODO(nforman): Change this to be a label on track_timings
 // data when the track_timings api goes live (maybe).
-GoogleString InsertGAFilter::ConstructExperimentSnippet() const {
-  GoogleString experiment = "";
-  if (driver_->options()->running_experiment()) {
-    int experiment_state = driver_->options()->experiment_id();
-    if (experiment_state != experiment::kExperimentNotSet &&
-        experiment_state != experiment::kNoExperiment) {
-      experiment = StringPrintf(kExperimentSnippetFmt,
-          driver_->options()->experiment_ga_slot(),
+GoogleString InsertGAFilter::ConstructFuriousSnippet() const {
+  GoogleString furious = "";
+  if (driver_->options()->running_furious()) {
+    int furious_state = driver_->options()->furious_id();
+    if (furious_state != furious::kFuriousNotSet &&
+        furious_state != furious::kFuriousNoExperiment) {
+      furious = StringPrintf(kFuriousSnippetFmt,
+          driver_->options()->furious_ga_slot(),
           driver_->options()->ToExperimentString().c_str());
     }
   }
-  return experiment;
+  return furious;
 }
 
 void InsertGAFilter::AddScriptNode(HtmlElement* current_element,
@@ -177,20 +177,20 @@ void InsertGAFilter::AddScriptNode(HtmlElement* current_element,
   HtmlNode* snippet =
       driver_->NewCharactersNode(script_element, text);
   if (insert_immediately_after_current) {
-    driver_->InsertNodeAfterCurrent(script_element);
+    driver_->InsertElementAfterCurrent(script_element);
   } else {
     driver_->AppendChild(current_element, script_element);
   }
   driver_->AppendChild(script_element, snippet);
 }
 
-GoogleString InsertGAFilter::MakeFullExperimentSnippet() const {
-  GoogleString experiment = ConstructExperimentSnippet();
-  if (!experiment.empty()) {
-    // Always increase speed tracking to 100% for experiments.
-    StrAppend(&experiment, kGASpeedTracking);
+GoogleString InsertGAFilter::MakeFullFuriousSnippet() const {
+  GoogleString furious = ConstructFuriousSnippet();
+  if (!furious.empty()) {
+    // Always increase speed tracking to 100% for Furious.
+    StrAppend(&furious, kGASpeedTracking);
   }
-  return experiment;
+  return furious;
 }
 
 // Handle the end of a body tag.

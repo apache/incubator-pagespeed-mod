@@ -27,13 +27,13 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class Hasher;
 class HtmlElement;
 class MessageHandler;
 class RewriteDriver;
 class RewriteOptions;
 class UrlNamer;
-struct ContentType;
 
 
 // Composes URLs for the javascript files injected by the various PSA filters.
@@ -51,7 +51,6 @@ class StaticAssetManager {
     kClientDomainRewriter,
     kCriticalCssBeaconJs,
     kCriticalImagesBeaconJs,
-    kDedupInlinedImagesJs,
     kDeferIframe,
     kDeferJs,
     kDelayImagesJs,
@@ -60,7 +59,6 @@ class StaticAssetManager {
     kLazyloadImagesJs,
     kDetectReflowJs,
     kLocalStorageCacheJs,
-    kExtendedInstrumentationJs,
     kEndOfModules,  // Keep this as the last enum value.
   };
 
@@ -88,16 +86,14 @@ class StaticAssetManager {
 
   // Add a CharacterNode to an already created script element, properly escaping
   // the text with CDATA tags is necessary. The script element should be added
-  // already, say with a call to InsertNodeBeforeNode.
+  // already, say with a call to InsertElementBeforeElement.
   void AddJsToElement(StringPiece js, HtmlElement* script,
                       RewriteDriver* driver) const;
 
 
   // If set_serve_asset_from_gstatic is true, update the URL for module to use
   // gstatic.
-  void set_gstatic_hash(const StaticAsset& module,
-                        const GoogleString& gstatic_base,
-                        const GoogleString& hash);
+  void set_gstatic_hash(const StaticAsset& module, const GoogleString& hash);
 
   // Set serve_asset_from_gstatic_ to serve the files from gstatic. Note that
   // files won't actually get served from gstatic until you also call

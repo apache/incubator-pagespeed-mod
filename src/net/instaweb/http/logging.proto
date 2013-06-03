@@ -19,19 +19,20 @@ syntax = "proto2";
 option optimize_for = LITE_RUNTIME;
 
 import "net/instaweb/rewriter/image_types.proto";
-import "net/instaweb/util/enums.proto";
 
 package net_instaweb;
 
-// DEPRECATED.
-message TimingInfo {
-  // Local HTTP cache lookup time in ms.
+
+// This proto stores all information related to latency.
+// Next id for TimingInfo : 10
+message TimingInfo  {
+  // Local cache lookup time in ms.
   optional int64 cache1_ms = 1;
-  // Remote HTTP cache lookup time in ms.
+  // Remote cache lookup time in ms.
   optional int64 cache2_ms = 2;
   // Time taken to fetch the http header.
   optional int64 header_fetch_ms = 3;
-  // Time taken by fastnet to fetch the entire resource.
+  // Time taken to fetch the resource from the source.
   optional int64 fetch_ms = 4;
   // Time taken to send the first byte back to the client.
   optional int64 time_to_first_byte_ms = 5;
@@ -43,19 +44,11 @@ message TimingInfo {
   // Time from the start of the request to when the fetch is triggered. Note
   // that this is only set for requests that require a fetch.
   optional int64 time_to_start_fetch_ms = 8;
-  // Time for processing the request, i.e. wall time when the response is fully
-  // generated - request_start_ms - fetch_ms.
+  // Time for processing the request.
   optional int64 processing_time_ms = 9;
-  // Time from start of request till we begin processing it.
-  optional int64 time_to_start_processing_ms = 10;
-  // Time from start of request till pcache lookup is started.
-  optional int64 time_to_pcache_lookup_start_ms = 11;
-  // Time from start of request till pcache lookup is completed.
-  optional int64 time_to_pcache_lookup_end_ms = 12;
 }
 
-// This proto stores all Blink requests related information.  These are logged
-// in the blink log record.
+// This proto stores all Blink related information.
 // Next id for BlinkInfo : 8
 message BlinkInfo {
   enum BlinkRequestFlow {
@@ -66,16 +59,11 @@ message BlinkInfo {
     FOUND_MALFORMED_HTML = 5;
     FOUND_LAST_STATUS_CODE_NON_OK = 6;
     FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 7;
-    // The following is only set in the main log record and not in the blink log
-    // record.
-    BLINK_BLACKLISTED = 8;  // Diff mismatch based blacklist active.
   };
-  // Tracks the flow of a Blink request.  Set in main log record also.
+  // Tracks the flow of a Blink request.
   optional BlinkRequestFlow blink_request_flow = 1;
 
   // The event id of the user request for which blink flow was triggered.
-  // To parse this field, refer:
-  // net/instaweb/util/public/string_util.h#StringToInt64
   optional string request_event_id_time_usec = 2;
 
   // Tracks whether html change detection full-diff found a match or not.
@@ -89,14 +77,13 @@ message BlinkInfo {
     NULL_OR_EMPTY = 4;
     NOT_SUPPORT_BLINK = 5;
   };
-  // user agent which initiated the blink request.  This is set only in main log
-  // record and not in blink log record.
+
   optional UserAgent blink_user_agent = 4;
 
-  // URL of the request.
+  // Url of the request.
   optional string url = 5;
 
-  // Tracks whether html change detection smart-diff found a match or not.
+  // Tracks whether html change detection smart_diff found a match or not.
   optional bool html_smart_diff_match = 6;
 
   // Tracks whether we hit the #mismatches threshold for blacklisting.
@@ -193,7 +180,6 @@ message FlushEarlyResourceInfo {
     NON_PAGESPEED = 2;
     PRIVATE_CACHEABLE = 3;
     DEFERJS_SCRIPT = 4;
-    PUBLIC_CACHEABLE = 5;
   }
 
   enum ContentType {
@@ -228,7 +214,7 @@ message CriticalCssInfo {
 }
 
 // This proto stores all Cache Html flow requests related information.
-// Next id for CacheHtmlLoggingInfo : 8
+// Next id for CacheHtmlLoggingInfo : 6
 message CacheHtmlLoggingInfo {
   enum CacheHtmlRequestFlow {
     CACHE_HTML_HIT = 1;
@@ -237,9 +223,6 @@ message CacheHtmlLoggingInfo {
     CACHE_HTML_MISS_TRIGGERED_REWRITE = 4;
     FOUND_MALFORMED_HTML = 5;
     FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 6;
-    // The following is only set in the main log record and not in the cache
-    // html info log record.
-    CACHE_HTML_BLACKLISTED = 7;  // Diff mismatch based blacklist active.
   };
   // Tracks the flow of a cache html rewriter request.
   optional CacheHtmlRequestFlow cache_html_request_flow = 1;
@@ -255,25 +238,10 @@ message CacheHtmlLoggingInfo {
 
   // URL of the request.
   optional string url = 5;
-
-  enum UserAgent {
-    NOT_SET = 0;
-    CACHE_HTML_DESKTOP_WHITELIST = 1;
-    CACHE_HTML_DESKTOP_BLACKLIST = 2;
-    CACHE_HTML_MOBILE = 3;
-    NULL_OR_EMPTY = 4;
-    NOT_SUPPORT_CACHE_HTML = 5;
-  };
-  // user agent which initiated the cache html request.
-  // This is set only in main log record and not in cache html info log record.
-  optional UserAgent cache_html_user_agent = 6;
-
-  // Tracks whether we hit the #mismatches threshold for blacklisting.
-  optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
 // Information that applies to a resource.
-// Next id for RewriteResourceInfo: 9
+// Next id for RewriteResourceInfo: 6
 message RewriteResourceInfo {
   // True if we inlined the resource.
   optional bool is_inlined = 1 [ default = false ];
@@ -284,43 +252,37 @@ message RewriteResourceInfo {
   // True if the resource is blacklisted.
   optional bool is_blacklisted = 4 [ default = false ];
    // Index of the original resource url in resource url info.
-  optional int32 original_resource_url_index = 5 [ default = -1 ];
-  // Size (in bytes) of the original resource.
-  optional int32 original_size = 6 [ default = 0 ];
-  // Size (in bytes) of the optimized resource.
-  optional int32 optimized_size = 7 [ default = 0 ];
-  // True if the resource has been recompressed.
-  optional bool is_recompressed = 8 [ default = false ];
+  optional int32 original_resource_url_index = 5;
+
 }
 
 // Information related to each resource considered by the image rewrite filter.
-// Next id for ImageRewriteResourceInfo: 6
+// Next id for ImageRewriteResourceInfo: 2
 message ImageRewriteResourceInfo {
   // True if the low_res_src html attribute was inserted.
   optional bool is_low_res_src_inserted = 1 [ default = false ];
   // Size of the low resolution image. If it is zero, the low res image was not
   // found.
   optional int32 low_res_size = 2 [ default = 0 ];
-  // Type of the original image.
-  optional net_instaweb.ImageType original_image_type = 3
-      [ default = IMAGE_UNKNOWN ];
-  // Type of the optimized image.
-  optional net_instaweb.ImageType optimized_image_type = 4
-      [ default = IMAGE_UNKNOWN ];
-  // True if the image has been resized.
-  optional bool is_resized = 5 [ default = false ];
 }
 
 // This proto stores information describing each rewriter's activity in a
 // request.
 // Next id for RewriterInfo: 5
 message RewriterInfo {
+  enum RewriterApplicationStatus {
+    UNKNOWN_STATUS = 0;
+    APPLIED_OK = 1;
+    NOT_APPLIED = 2;
+    PROPERTY_NOT_FOUND = 3;
+    INPUT_URL_INVALID = 4;
+    REPLACE_FAILED = 5;
+  }
+
   // The rewriter's id.
   optional string id = 1;
   // Status of this rewriter application.
-  // TODO(gee): Remove this package hack.  This is only necessary for the
-  // logging_non_lite_proto build rule.
-  optional net_instaweb.RewriterApplication.Status status = 2;
+  optional RewriterApplicationStatus status = 2;
   // Flush subresources specific information.
   optional FlushEarlyResourceInfo flush_early_resource_info = 3;
   // Information about a resource.
@@ -345,8 +307,8 @@ message ImageStats {
 }
 
 message RewriteStatusCount {
-  // Application status.
-  optional net_instaweb.RewriterApplication.Status application_status = 1;
+  // RewriterInfo::RewriterApplicationStatus
+  optional int32 application_status = 1;
   // Count for status.
   optional int32 count = 2;
 }
@@ -357,41 +319,28 @@ message RewriterStats {
   // proxying the HTML page.
   optional string id = 1;
 
-  // Status of rewriter at the Html page level.
-  optional net_instaweb.RewriterHtmlApplication.Status html_status = 2;
+  // Status of rewriter at the HTML level.  This would include failure reasons
+  // such as the rewriter being disabled, the url being blacklisted, or missing
+  // the property cache (for those rewriters which rely on properties).
+  enum RewriterHtmlStatus {
+    UNKNOWN_STATUS = 0;
+    ACTIVE = 1;
+    DISABLED = 2;
+    PROPERTY_CACHE_MISS = 3;
+    USER_AGENT_NOT_SUPPORTED = 4;
+  }
+  optional RewriterHtmlStatus html_status = 2;
 
   // Status of rewriter applications on resources.
   repeated RewriteStatusCount status_counts = 3;
 }
 
-// Information about the device making the request.
-// Next id for DeviceInfo: 11
-message DeviceInfo {
-  // Refer to UserAgentMatcher::DeviceType to interpret this field.
-  optional int32 device_type = 1;
-  // Is image inlining supported.
-  optional bool supports_image_inlining = 2;
-  // Is lazyload images supported.
-  optional bool supports_lazyload_images = 3;
-  // Is critical images beacon supported.
-  optional bool supports_critical_images_beacon = 4;
-  // Is defer javascript supported.
-  optional bool supports_deferjs = 5;
-  // Is webp supported.
-  optional bool supports_webp = 6;
-  // Is webp lossless with alpha supported.
-  optional bool supports_webplossless_alpha = 7;
-  // Is the useragent a bot.
-  optional bool is_bot = 8;
-  // Is split html supported.
-  optional bool supports_split_html = 9;
-  // Is flush early supported.
-  optional bool can_preload_resources = 10;
-}
-
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 26
+// Next id for LoggingInfo: 24
 message LoggingInfo {
+  // Used to track time taken by various components of page speed service
+  // processing.
+  optional TimingInfo timing_info = 1;
   // Stores all Blink related information.
   optional BlinkInfo blink_info = 2;
   // Sorted list of applied rewriter ids separated by comma.
@@ -400,8 +349,8 @@ message LoggingInfo {
   optional MetadataCacheInfo metadata_cache_info = 4;
   // Whether the original resource is cacheable.
   optional bool is_original_resource_cacheable = 5 [ default = true ];
-  // Experiment ID used for this request.
-  optional int32 experiment_id = 6;
+  // Furious ID used for this request.
+  optional int32 furious_id = 6;
   // All information related to split_html.
   optional SplitHtmlInfo split_html_info = 7;
   // All information related to the pcache lookup.
@@ -416,7 +365,7 @@ message LoggingInfo {
   optional bool is_url_disallowed = 11 [ default = false ];
   // RewriteOptions signature hash.
   optional int64 options_signature_hash = 12;
-  // Whether request is disabled like PageSpeed=off.
+  // Whether request is disabled like ModPagespeed=off.
   optional bool is_request_disabled = 13 [ default = false ];
   // Information about flush subresources filter.
   optional FlushEarlyFlowInfo flush_early_flow_info = 14;
@@ -440,11 +389,4 @@ message LoggingInfo {
   optional ImageStats image_stats = 21;
   // Critical CSS info for this request.
   optional CriticalCssInfo critical_css_info = 23;
-  // Information about the device making the request.
-  optional DeviceInfo device_info = 24;
-  // Is the request an XmlHttpRequest.
-  optional bool is_xhr = 25;
-
-  // --- DEPRECATED FIELDS FOLLOW ---
-  optional TimingInfo deprecated_timing_info = 1;
 }

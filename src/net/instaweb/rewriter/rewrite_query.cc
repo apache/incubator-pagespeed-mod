@@ -56,11 +56,7 @@ const char kProxyOptionValidVersionValue[] = "1";
 namespace net_instaweb {
 
 const char RewriteQuery::kModPagespeed[] = "ModPagespeed";
-const char RewriteQuery::kPageSpeed[] = "PageSpeed";
-
 const char RewriteQuery::kModPagespeedFilters[] = "ModPagespeedFilters";
-const char RewriteQuery::kPageSpeedFilters[] = "PageSpeedFilters";
-
 const char RewriteQuery::kNoscriptValue[] = "noscript";
 
 // static array of query params that have setters taking a single int64 arg.
@@ -74,35 +70,32 @@ struct Int64QueryParam {
 };
 
 static struct Int64QueryParam int64_query_params_[] = {
-  { "CssFlattenMaxBytes",
+  { "ModPagespeedCssFlattenMaxBytes",
     &RewriteOptions::set_css_flatten_max_bytes },
-  { "CssInlineMaxBytes",
+  { "ModPagespeedCssInlineMaxBytes",
     &RewriteOptions::set_css_inline_max_bytes },
-  // Note: If ImageInlineMaxBytes is specified, and CssImageInlineMaxBytes is
-  // not set explicitly, both the thresholds get set to ImageInlineMaxBytes.
-  { "ImageInlineMaxBytes",
+  // Note: If ModPagespeedImageInlineMaxBytes is specified, and
+  // ModPagespeedCssImageInlineMaxBytes is not set explicitly, both the
+  // thresholds get set to ModPagespeedImageInlineMaxBytes.
+  { "ModPagespeedImageInlineMaxBytes",
     &RewriteOptions::set_image_inline_max_bytes },
-  { "CssImageInlineMaxBytes",
+  { "ModPagespeedCssImageInlineMaxBytes",
     &RewriteOptions::set_css_image_inline_max_bytes },
-  { "JsInlineMaxBytes",
+  { "ModPagespeedJsInlineMaxBytes",
     &RewriteOptions::set_js_inline_max_bytes },
-  { "DomainShardCount",
+  { "ModPagespeedDomainShardCount",
     &RewriteOptions::set_domain_shard_count },
-  { "JpegRecompressionQuality",
+  { "ModPagespeedJpegRecompressionQuality",
     &RewriteOptions::set_image_jpeg_recompress_quality },
-  { "JpegRecompressionQualityForSmallScreens",
-    &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
-  { "JpegNumProgressiveScans",
-    &RewriteOptions::set_image_jpeg_num_progressive_scans },
-  { "JpegNumProgressiveScansForSmallScreens",
-      &RewriteOptions::set_image_jpeg_num_progressive_scans_for_small_screens },
-  { "ImageRecompressionQuality",
+  { "ModPagespeedJpegRecompressionQualityForSmallScreens",
+      &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
+  { "ModPagespeedImageRecompressionQuality",
     &RewriteOptions::set_image_recompress_quality },
-  { "WebpRecompressionQuality",
+  { "ModPagespeedWebpRecompressionQuality",
     &RewriteOptions::set_image_webp_recompress_quality },
-  { "WebpRecompressionQualityForSmallScreens",
+  { "ModPagespeedWebpRecompressionQualityForSmallScreens",
     &RewriteOptions::set_image_webp_recompress_quality_for_small_screens },
-  { "WebpTimeoutMs",
+  { "ModPagespeedWebpTimeoutMs",
     &RewriteOptions::set_image_webp_timeout_ms },
 };
 
@@ -122,15 +115,13 @@ RewriteQuery::Status RewriteQuery::ScanHeader(
   HeaderT headers_to_remove;
 
   for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
-    const StringPiece name(headers->Name(i));
-    const GoogleString& value = headers->Value(i);
-    switch (ScanNameValue(name, value, device_properties, options, handler)) {
+    switch (ScanNameValue(
+        headers->Name(i), headers->Value(i), device_properties, options,
+        handler)) {
       case kNoneFound:
         break;
       case kSuccess:
-        if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
-          headers_to_remove.Add(name, value);
-        }
+        headers_to_remove.Add(headers->Name(i), headers->Value(i));
         status = kSuccess;
         break;
       case kInvalid:
@@ -206,7 +197,8 @@ RewriteQuery::Status RewriteQuery::Scan(
 
   scoped_ptr<DeviceProperties> device_properties;
   if (request_headers != NULL) {
-    device_properties.reset(server_context->NewDeviceProperties());
+    device_properties.reset(
+        new DeviceProperties(server_context->user_agent_matcher()));
     device_properties->set_user_agent(
         request_headers->Lookup1(HttpAttributes::kUserAgent));
   }
@@ -232,7 +224,7 @@ RewriteQuery::Status RewriteQuery::Scan(
     }
   }
   if (status == kSuccess) {
-    // Remove the ModPagespeed* or PageSpeed* for url.
+    // Remove the ModPagespeed* for url.
     GoogleString temp_params = temp_query_params.empty() ? "" :
         StrCat("?", temp_query_params.ToString());
     request_url->Reset(StrCat(request_url->AllExceptQuery(), temp_params,
@@ -265,7 +257,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   // Set a default rewrite level in case the mod_pagespeed server has no
   // rewriting options configured.
   // Note that if any filters are explicitly set with
-  // PageSpeedFilters=..., then the call to
+  // ModPagespeedFilters=..., then the call to
   // DisableAllFiltersNotExplicitlyEnabled() below will make the 'level'
   // irrelevant.
   if (status == kSuccess) {
@@ -280,8 +272,7 @@ bool RewriteQuery::HeadersMayHaveCustomOptions(const QueryParams& params,
                                                const HeaderT* headers) {
   if (headers != NULL) {
     for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
-      StringPiece name = headers->Name(i);
-      if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
+      if (StringPiece(headers->Name(i)).starts_with(kModPagespeed)) {
         return true;
       }
     }
@@ -294,8 +285,8 @@ bool RewriteQuery::MayHaveCustomOptions(
     const ResponseHeaders* resp_headers) {
   for (int i = 0, n = params.size(); i < n; ++i) {
     StringPiece name(params.name(i));
-    if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed) ||
-        StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+    if (name.starts_with(kModPagespeed) ||
+        name == HttpAttributes::kXPsaClientOptions) {
       return true;
     }
   }
@@ -306,8 +297,7 @@ bool RewriteQuery::MayHaveCustomOptions(
     return true;
   }
   if (req_headers != NULL &&
-      (req_headers->Lookup1(HttpAttributes::kXPsaClientOptions) != NULL ||
-       req_headers->Lookup1(HttpAttributes::kCacheControl) != NULL)) {
+      req_headers->Lookup1(HttpAttributes::kXPsaClientOptions) != NULL) {
     return true;
   }
   return false;
@@ -318,7 +308,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     DeviceProperties* device_properties, RewriteOptions* options,
     MessageHandler* handler) {
   Status status = kNoneFound;
-  if (name == kModPagespeed || name == kPageSpeed) {
+  if (name == kModPagespeed) {
     RewriteOptions::EnabledEnum enabled;
     if (RewriteOptions::ParseFromString(value, &enabled)) {
       options->set_enabled(enabled);
@@ -326,6 +316,10 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     } else if (value == kNoscriptValue) {
       // Disable filters that depend on custom script execution.
       options->DisableFiltersRequiringScriptExecution();
+      // Blink cache hit response will also redirect to "?Noscript=" and hence
+      // we need to disable blink.  Otherwise we will enter
+      // blink_flow_critical_line (causing a redirect loop).
+      options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
       options->EnableFilter(RewriteOptions::kHandleNoscriptRedirect);
       status = kSuccess;
     } else {
@@ -337,45 +331,24 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
                        value.c_str());
       status = kInvalid;
     }
-  } else if (name == kModPagespeedFilters || name == kPageSpeedFilters) {
-    // When using PageSpeedFilters query param, only the specified filters
-    // should be enabled.
+  } else if (name == kModPagespeedFilters) {
+    // When using ModPagespeedFilters query param, only the
+    // specified filters should be enabled.
     if (options->AdjustFiltersByCommaSeparatedList(value, handler)) {
       status = kSuccess;
     } else {
       status = kInvalid;
     }
-  } else if (StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
+  } else if (name == HttpAttributes::kXPsaClientOptions) {
     if (UpdateRewriteOptionsWithClientOptions(
         value, device_properties, options)) {
       status = kSuccess;
     }
     // We don't want to return kInvalid, which causes 405 (kMethodNotAllowed)
     // returned to client.
-  } else if (StringCaseEqual(name, HttpAttributes::kCacheControl)) {
-    StringPieceVector pairs;
-    SplitStringPieceToVector(value, ",", &pairs, true /* omit_empty_strings */);
-    for (int i = 0, n = pairs.size(); i < n; ++i) {
-      if (pairs[i] == "no-transform") {
-        // TODO(jmarantz): A .pagespeed resource should return un-optimized
-        // content with "Cache-Control: no-transform".
-        options->set_enabled(RewriteOptions::kEnabledOff);
-        status = kSuccess;
-        break;
-      }
-    }
-  } else if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
-    // Remove the initial ModPagespeed or PageSpeed.
-    StringPiece name_suffix = name;
-    stringpiece_ssize_type prefix_len;
-    if (name.starts_with(kModPagespeed)) {
-      prefix_len = sizeof(kModPagespeed)-1;
-    } else {
-      prefix_len = sizeof(kPageSpeed)-1;
-    }
-    name_suffix.remove_prefix(prefix_len);
+  } else {
     for (unsigned i = 0; i < arraysize(int64_query_params_); ++i) {
-      if (name_suffix == int64_query_params_[i].name_) {
+      if (name == int64_query_params_[i].name_) {
         int64 int_val;
         if (StringToInt64(value, &int_val)) {
           RewriteOptionsInt64PMF method = int64_query_params_[i].method_;
@@ -383,13 +356,14 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
           status = kSuccess;
         } else {
           handler->Message(kWarning, "Invalid integer value for %s: %s",
-                           name_suffix.as_string().c_str(), value.c_str());
+                           name.as_string().c_str(), value.c_str());
           status = kInvalid;
         }
         break;
       }
     }
   }
+
   return status;
 }
 
@@ -512,15 +486,14 @@ bool RewriteQuery::ParseProxyMode(
 }
 
 bool RewriteQuery::ParseImageQualityPreference(
-    const GoogleString* preference_value,
-    DeviceProperties::ImageQualityPreference* preference) {
+    const GoogleString* preference_name, ImageQualityPreference* preference) {
   int value = 0;
-  if (preference_value != NULL &&
-      !preference_value->empty() &&
-      StringToInt(*preference_value, &value) &&
-      value >= DeviceProperties::kImageQualityDefault &&
-      value <= DeviceProperties::kImageQualityHigh) {
-    *preference = static_cast<DeviceProperties::ImageQualityPreference>(value);
+  if (preference_name != NULL &&
+      !preference_name->empty() &&
+      StringToInt(*preference_name, &value) &&
+      value >= kImageQualityDefault &&
+      value <= kImageQualityHigh) {
+    *preference = static_cast<ImageQualityPreference>(value);
     return true;
   }
   return false;
@@ -528,7 +501,7 @@ bool RewriteQuery::ParseImageQualityPreference(
 
 bool RewriteQuery::ParseClientOptions(
     const StringPiece& client_options, ProxyMode* proxy_mode,
-    DeviceProperties::ImageQualityPreference* image_quality_preference) {
+    ImageQualityPreference* image_quality_preference) {
   StringMultiMapSensitive options;
   options.AddFromNameValuePairs(
       client_options, kProxyOptionSeparator, kProxyOptionValueSeparator,
@@ -540,7 +513,7 @@ bool RewriteQuery::ParseClientOptions(
   if (version_value != NULL &&
       *version_value == kProxyOptionValidVersionValue) {
     *proxy_mode = kProxyModeDefault;
-    *image_quality_preference = DeviceProperties::kImageQualityDefault;
+    *image_quality_preference = kImageQualityDefault;
     ParseProxyMode(options.Lookup1(kProxyOptionMode), proxy_mode);
 
     if (*proxy_mode == kProxyModeDefault) {
@@ -554,20 +527,16 @@ bool RewriteQuery::ParseClientOptions(
 }
 
 bool RewriteQuery::SetEffectiveImageQualities(
-    DeviceProperties::ImageQualityPreference quality_preference,
+    ImageQualityPreference quality_preference,
     DeviceProperties* device_properties,
     RewriteOptions* options) {
-  if (quality_preference == DeviceProperties::kImageQualityDefault ||
+  if (quality_preference == kImageQualityDefault ||
       device_properties == NULL) {
     return false;
   }
-  int webp = -1, jpeg = -1;
-  if (device_properties->GetPreferredImageQualities(
-      quality_preference, &webp, &jpeg)) {
-    options->set_image_webp_recompress_quality(webp);
-    options->set_image_jpeg_recompress_quality(jpeg);
-    return true;
-  }
+  // TODO(bolian): Set jpeg and webp image qualities based on screen
+  // resolution and client hint options.
+  // For now, do nothing and keep using default values.
   return false;
 }
 
@@ -575,8 +544,7 @@ bool RewriteQuery::UpdateRewriteOptionsWithClientOptions(
     const GoogleString& client_options, DeviceProperties* device_properties,
     RewriteOptions* options) {
   ProxyMode proxy_mode = kProxyModeDefault;
-  DeviceProperties::ImageQualityPreference quality_preference =
-      DeviceProperties::kImageQualityDefault;
+  ImageQualityPreference quality_preference = kImageQualityDefault;
   if (!ParseClientOptions(client_options, &proxy_mode, &quality_preference)) {
     return false;
   }

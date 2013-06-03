@@ -275,9 +275,9 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
   // it avoids writing two metadata cache keys for same output.
   SetLibWebpLevel(*driver.device_properties(), context);
 
-  if (options->Enabled(RewriteOptions::kDelayImages) &&
+  if (options->NeedLowResImages() &&
       options->Enabled(RewriteOptions::kResizeMobileImages) &&
-      driver.device_properties()->IsMobile()) {
+      driver.device_properties()->IsMobileUserAgent()) {
     context->set_mobile_user_agent(true);
   }
 }
@@ -285,15 +285,9 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
 void ImageUrlEncoder::SetSmallScreen(const RewriteDriver& driver,
     ResourceContext* context) {
   int width = 0, height = 0;
-  if (driver.device_properties()->GetScreenResolution(&width, &height)) {
-    if (width * height <= kSmallScreenSizeThresholdArea) {
-      context->set_use_small_screen_quality(true);
-    }
-  } else {
-    // If we did not find the screen resolution in kKnownScreenDimensions,
-    // default to the IsMobile() check to set the small screen quality.
-    context->set_use_small_screen_quality(
-        driver.device_properties()->IsMobile());
+  if (driver.device_properties()->GetScreenResolution(&width, &height) &&
+      width * height <= kSmallScreenSizeThresholdArea) {
+    context->set_use_small_screen_quality(true);
   }
 }
 

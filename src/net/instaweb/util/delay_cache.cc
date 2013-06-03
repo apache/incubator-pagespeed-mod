@@ -79,16 +79,13 @@ class DelayCache::DelayCallback : public CacheInterface::Callback {
 
 DelayCache::DelayCache(CacheInterface* cache, ThreadSystem* thread_system)
     : cache_(cache),
-      mutex_(thread_system->NewMutex()) {
+      mutex_(thread_system->NewMutex()),
+      name_(StrCat("DelayCache using ", cache_->Name())) {
 }
 
 DelayCache::~DelayCache() {
   CHECK(delay_requests_.empty());
   CHECK(delay_map_.empty());
-}
-
-GoogleString DelayCache::FormatName(StringPiece name) {
-  return StrCat("DelayCache(", name, ")");
 }
 
 void DelayCache::LookupComplete(DelayCallback* callback) {

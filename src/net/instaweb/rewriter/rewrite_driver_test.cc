@@ -19,18 +19,14 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/fake_url_async_fetcher.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
@@ -57,6 +53,10 @@
 
 namespace net_instaweb {
 
+namespace {
+const char kBikePngFile[] = "BikeCrashIcn.png";
+}
+
 class RewriteFilter;
 
 class RewriteDriverTest : public RewriteTestBase {
@@ -81,70 +81,9 @@ class RewriteDriverTest : public RewriteTestBase {
     return rewrite_driver()->ComputeCurrentFlushWindowRewriteDelayMs();
   }
 
-  bool IsDone(RewriteDriver::WaitMode wait_mode, bool deadline_reached) {
-    return rewrite_driver()->IsDone(wait_mode, deadline_reached);
-  }
-
-  void IncrementAsyncEventsCount() {
-    rewrite_driver()->increment_async_events_count();
-  }
-
-  void DecrementAsyncEventsCount() {
-    rewrite_driver()->decrement_async_events_count();
-  }
-
-  // Helper method used by various DownstreamCache*Test
-  // test classes to setup options related to downstream cache handling.
-  void SetUpOptionsForDownstreamCacheTesting(
-      int downstream_cache_lifetime_ms,
-      const StringPiece& downstream_cache_purge_method,
-      const StringPiece& downstream_cache_purge_path_prefix) {
-    options()->ClearSignatureForTesting();
-    options()->set_downstream_cache_rewritten_percentage_threshold(95);
-    options()->set_downstream_cache_lifetime_ms(downstream_cache_lifetime_ms);
-    options()->set_downstream_cache_purge_method(downstream_cache_purge_method);
-    options()->set_downstream_cache_purge_path_prefix(
-        downstream_cache_purge_path_prefix);
-    options()->ComputeSignature();
-  }
-
-  void SetupResponsesForDownstreamCacheTesting() {
-    // Setup responses for the resources.
-    const char kCss[] = "* { display: none; }";
-    SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCss, 100);
-    SetResponseWithDefaultHeaders("test/b.css", kContentTypeCss, kCss, 100);
-
-    // Setup a fake response for the expected purge path.
-    SetResponseWithDefaultHeaders("abcdefg/", kContentTypeCss, "", 100);
-  }
-
-  void ProcessHtmlForDownstreamCacheTesting() {
-    GoogleString input_html(
-        StrCat(CssLinkHref("a.css"), "  ", CssLinkHref("test/b.css")));
-    ParseUrl(kTestDomain, input_html);
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverTest);
 };
-
-namespace {
-
-const char kBikePngFile[] = "BikeCrashIcn.png";
-
-const char kNonRewrittenCachableHtml[] =
-    "<html>\n<link rel=stylesheet href=a.css>  "
-    "<link rel=stylesheet href=test/b.css>\n</html>";
-
-const char kRewrittenCachableHtmlWithCacheExtension[] =
-    "<html>\n"
-    "<link rel=stylesheet href=http://test.com/a.css.pagespeed.ce.0.css>  "
-    "<link rel=stylesheet href=http://test.com/test/b.css.pagespeed.ce.0.css>"
-    "\n</html>";
-
-const char kRewrittenCachableHtmlWithCollapseWhitespace[] =
-    "<html>\n<link rel=stylesheet href=a.css> "
-    "<link rel=stylesheet href=test/b.css>\n</html>";
 
 TEST_F(RewriteDriverTest, NoChanges) {
   ValidateNoChanges("no_changes",
@@ -373,7 +312,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithInvalidation) {
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
   options()->set_cache_invalidation_timestamp(now_ms);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect: identical input a new rname entry (its version # changed),
   // and the output which may not may not auto-advance due to MockTimer
@@ -414,7 +353,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithUrlPatternAllInvalidation) {
   // Set cache invalidation (to now) for all URLs with "a.css" and also
   // invalidate all metadata (the last 'false' argument below).
   options()->AddUrlCacheInvalidationEntry("*a.css*", now_ms, false);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect: identical input, a new rewrite entry (its version # changed),
   // and the output which may not may not auto-advance due to MockTimer black
@@ -455,7 +394,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithUrlPatternOnlyInvalidation) {
   // Set cache invalidation (to now) for all URLs with "a.css". Does not
   // invalidate any metadata (the last 'true' argument below).
   options()->AddUrlCacheInvalidationEntry("*a.css*", now_ms, true);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // The output rewritten URL is invalidated, the input is also invalidated, and
   // fetched again.  The rewrite entry does not change, and gets reinserted.
@@ -494,11 +433,10 @@ TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlAllInvalidation) {
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
   // Set a URL cache invalidation entry for output URL.  Original input URL is
-  // not affected.  Also invalidate all metadata (the
-  // ignores_metadata_and_pcache argument being false below).
-  options()->AddUrlCacheInvalidationEntry(
-      css_minified_url, now_ms, false /* ignores_metadata_and_pcache */);
-  options()->ComputeSignature();
+  // not affected.  Also invalidate all metadata (the last 'false' argument
+  // below).
+  options()->AddUrlCacheInvalidationEntry(css_minified_url, now_ms, false);
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect:  a new rewrite entry (its version # changed), and identical
   // output.
@@ -539,7 +477,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithRewrittenUrlOnlyInvalidation) {
   // affected.  Does not invalidate any metadata (the last 'true' argument
   // below).
   options()->AddUrlCacheInvalidationEntry(css_minified_url, now_ms, true);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect:  identical rewrite entry and output.
   EXPECT_EQ(0, lru_cache()->num_inserts());
@@ -581,7 +519,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithOriginalUrlInvalidation) {
   // immaterial in this test.
   options()->AddUrlCacheInvalidationEntry("http://test.com/a.css", now_ms,
                                           false);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
@@ -617,7 +555,7 @@ TEST_F(RewriteDriverTest, TestCacheUseOnTheFly) {
 // Verifies that the computed rewrite delay agrees with expectations
 // depending on the configuration of constituent delay variables.
 TEST_F(RewriteDriverTest, TestComputeCurrentFlushWindowRewriteDelayMs) {
-  options()->set_rewrite_deadline_ms(1000);
+  rewrite_driver()->set_rewrite_deadline_ms(1000);
 
   // "Start" a parse to configure the start time in the driver.
   ASSERT_TRUE(rewrite_driver()->StartParseId("http://site.com/",
@@ -683,7 +621,7 @@ TEST_F(RewriteDriverTest, TestCacheUseOnTheFlyWithInvalidation) {
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
   options()->set_cache_invalidation_timestamp(now_ms);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   EXPECT_TRUE(TryFetchResource(cache_extended_url));
   // We expect: input re-insert, new metadata key
   EXPECT_EQ(1, lru_cache()->num_inserts());
@@ -744,33 +682,6 @@ TEST_F(RewriteDriverTest, InvalidBaseTag) {
   rewrite_driver()->ParseText("<base href='http://example.com/absolute/'>");
   rewrite_driver()->Flush();
   EXPECT_EQ("http://example.com/absolute/", BaseUrlSpec());
-}
-
-// The TestUrlNamer produces a url like below which is too long.
-// http://cdn.com/http/base.example.com/http/unmapped.example.com/dir/test.jpg.pagespeed.xy.#.     NOLINT
-TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
-  SetUseTestUrlNamer(true);
-  OutputResourcePtr resource;
-
-  options()->set_max_url_size(94);
-  resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      "http://mapped.example.com/dir/",
-      "http://unmapped.example.com/dir/",
-      "http://base.example.com/dir/",
-      "xy",
-      "test.jpg",
-      kRewrittenResource));
-  EXPECT_TRUE(NULL == resource.get());
-
-  options()->set_max_url_size(95);
-  resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-      "http://mapped.example.com/dir/",
-      "http://unmapped.example.com/dir/",
-      "http://base.example.com/dir/",
-      "xy",
-      "test.jpg",
-      kRewrittenResource));
-  EXPECT_TRUE(NULL != resource.get());
 }
 
 TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
@@ -1019,6 +930,8 @@ TEST_F(RewriteDriverTest, ResolveAnchorUrl) {
   rewrite_driver()->FinishParse();
 }
 
+namespace {
+
 // A rewrite context that's not actually capable of rewriting -- we just need
 // one to pass in to InfoAt in test below.
 class MockRewriteContext : public SingleRewriteContext {
@@ -1031,6 +944,8 @@ class MockRewriteContext : public SingleRewriteContext {
   virtual const char* id() const { return "mock"; }
   virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
 };
+
+}  // namespace
 
 TEST_F(RewriteDriverTest, DiagnosticsWithPercent) {
   // Regression test for crash in InfoAt where location has %stuff in it.
@@ -1050,8 +965,7 @@ TEST_F(RewriteDriverTest, DiagnosticsWithPercent) {
 // Tests that we reject https URLs quickly.
 TEST_F(RewriteDriverTest, RejectHttpsQuickly) {
   // Need to expressly authorize https even though we don't support it.
-  options()->WriteableDomainLawyer()->AddDomain("https://*/",
-                                                message_handler());
+  options()->domain_lawyer()->AddDomain("https://*/", message_handler());
   AddFilter(RewriteOptions::kRewriteJavascript);
 
   // When we don't support https then we fail quickly and cleanly.
@@ -1077,6 +991,8 @@ TEST_F(RewriteDriverTest, RejectDataResourceGracefully) {
   ResourcePtr resource(rewrite_driver()->CreateInputResource(dataUrl));
   EXPECT_TRUE(resource.get() == NULL);
 }
+
+namespace {
 
 class ResponseHeadersCheckingFilter : public EmptyHtmlFilter {
  public:
@@ -1144,6 +1060,8 @@ class DetermineEnabledCheckingFilter : public EmptyHtmlFilter {
   bool start_document_called_;
   bool enabled_value_;
 };
+
+}  // namespace
 
 TEST_F(RewriteDriverTest, DetermineEnabledTest) {
   RewriteDriver* driver = rewrite_driver();
@@ -1498,257 +1416,5 @@ TEST_F(RewriteDriverTest, DecodeMultiUrlsEncodesCorrectly) {
   EXPECT_EQ(multi_url, css_urls[0]);
 }
 
-// Records URL of the last img element it sees at point of RenderDone().
-class RenderDoneCheckingFilter : public EmptyHtmlFilter {
- public:
-  RenderDoneCheckingFilter() : element_(NULL) {}
-  virtual ~RenderDoneCheckingFilter() {}
-  const GoogleString& src() const { return src_; }
-
- protected:
-  virtual void StartElement(HtmlElement* element) {
-    if (element->keyword() == HtmlName::kImg) {
-      element_ = element;
-    }
-  }
-
-  virtual void RenderDone() {
-    if (element_ != NULL) {
-      const char* val = element_->AttributeValue(HtmlName::kSrc);
-      src_ = (val != NULL ? val : "");
-    }
-  }
-
-  virtual const char* Name() const { return "RenderDoneCheckingFilter"; }
-
- private:
-  HtmlElement* element_;
-  GoogleString src_;
-  DISALLOW_COPY_AND_ASSIGN(RenderDoneCheckingFilter);
-};
-
-TEST_F(RewriteDriverTest, RenderDoneTest) {
-  // Test to make sure RenderDone sees output of a pre-render filter.
-  RewriteDriver* driver = rewrite_driver();
-  RenderDoneCheckingFilter* filter =
-      new RenderDoneCheckingFilter();
-  driver->AddOwnedEarlyPreRenderFilter(filter);
-  SetResponseWithDefaultHeaders("a.png", kContentTypePng, "PNGkinda", 100);
-  AddFilter(RewriteOptions::kExtendCacheImages);
-
-  driver->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<img src=\"a.png\">");
-  driver->FinishParse();
-  EXPECT_EQ(Encode(kTestDomain, RewriteOptions::kCacheExtenderId, "0",
-                   "a.png", "png"),
-            filter->src());
-}
-
-TEST_F(RewriteDriverTest, PendingAsyncEventsTest) {
-  RewriteDriver* driver = rewrite_driver();
-  driver->set_fully_rewrite_on_flush(true);
-
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForCompletion, false));
-
-  IncrementAsyncEventsCount();
-  EXPECT_FALSE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_FALSE(IsDone(RewriteDriver::kWaitForCompletion, false));
-  DecrementAsyncEventsCount();
-
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForCompletion, false));
-
-  driver->set_fully_rewrite_on_flush(false);
-
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForCompletion, false));
-
-  IncrementAsyncEventsCount();
-  EXPECT_FALSE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForCompletion, false));
-  DecrementAsyncEventsCount();
-
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForShutDown, false));
-  EXPECT_TRUE(IsDone(RewriteDriver::kWaitForCompletion, false));
-
-  // Make sure we properly cleanup as well.
-  RewriteDriver* other_driver =
-    server_context()->NewRewriteDriver(CreateRequestContext());
-  other_driver->increment_async_events_count();
-  other_driver->Cleanup();
-  other_driver->decrement_async_events_count();
-  EXPECT_EQ(0, server_context()->num_active_rewrite_drivers());
-
-  RewriteDriver* other_driver2 =
-    server_context()->NewRewriteDriver(CreateRequestContext());
-  other_driver2->set_fully_rewrite_on_flush(true);
-  other_driver2->increment_async_events_count();
-  other_driver2->Cleanup();
-  other_driver2->decrement_async_events_count();
-  EXPECT_EQ(0, server_context()->num_active_rewrite_drivers());
-}
-
-// Test classes created for using a managed rewrite driver, so that downstream
-// caching behavior (especially cache purging) can be tested. Since managed
-// rewrite drivers need their filters to be setup before the custom rewrite
-// driver is constructed, we need these classes with specific SetUp methods
-// for configuring the options.
-
-// This class has ExtendCacheCss filter enabled and has possibility of
-// purge requests for the html because of the resources not being
-// rewritten in the very first go.
-class DownstreamCacheWithPossiblePurgeTest : public RewriteDriverTest {
- protected:
-  void SetUp() {
-    options()->EnableFilter(RewriteOptions::kExtendCacheCss);
-    SetUseManagedRewriteDrivers(true);
-    RewriteDriverTest::SetUp();
-  }
-};
-
-// This class has CollapseWhitespace filter enabled and has no possibility of
-// purge requests for the html because the html will always get fully rewritten
-// in the very first go.
-class DownstreamCacheWithNoPossiblePurgeTest : public RewriteDriverTest {
- protected:
-  void SetUp() {
-    options()->EnableFilter(RewriteOptions::kCollapseWhitespace);
-    SetUseManagedRewriteDrivers(true);
-    RewriteDriverTest::SetUp();
-  }
-};
-
-TEST_F(DownstreamCacheWithPossiblePurgeTest, DownstreamCacheEnabled) {
-  SetUpOptionsForDownstreamCacheTesting(100, "GET", "/abcdefg");
-  // Use a wait fetcher so that the response does not get a chance to get
-  // rewritten.
-  SetupWaitFetcher();
-  SetupResponsesForDownstreamCacheTesting();
-  // Setup request headers since the subsequent purge request needs this.
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  ProcessHtmlForDownstreamCacheTesting();
-  EXPECT_STREQ(kNonRewrittenCachableHtml, output_buffer_);
-  // Since the response would now have been generated (without any rewriting,
-  // because neither of the 2 resource fetches for a.css and b.css
-  // would have completed), we allow the fetches to complete now.
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  // The purge-request-fetch can be allowed to complete without any waiting.
-  // Hence, we set the pass-through-mode to true.
-  factory()->wait_url_async_fetcher()->SetPassThroughMode(true);
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  // We need to initate the shut-down so that the purge-request-fetch is
-  // processed fully, and available for the checks below.
-  factory()->ShutDown();
-  EXPECT_EQ(3, counting_url_async_fetcher()->fetch_count());
-  EXPECT_STREQ("http://test.com/abcdefg/",
-               counting_url_async_fetcher()->most_recent_fetched_url());
-}
-
-TEST_F(DownstreamCacheWithPossiblePurgeTest, DownstreamCacheDisabled) {
-  SetUpOptionsForDownstreamCacheTesting(0, "GET", "/abcdefg");
-  // Use a wait fetcher so that the response does not get a chance to get
-  // rewritten.
-  SetupWaitFetcher();
-  SetupResponsesForDownstreamCacheTesting();
-  // Setup request headers since the subsequent purge request needs this.
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  ProcessHtmlForDownstreamCacheTesting();
-  EXPECT_STREQ(kNonRewrittenCachableHtml, output_buffer_);
-  // Since the response would now have been generated (without any rewriting,
-  // because neither of the 2 resource fetches for a.css and b.css
-  // would have completed), we allow the fetches to complete now.
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  // The purge-request-fetch can be allowed to complete without any waiting.
-  // Hence, we set the pass-through-mode to true.
-  factory()->wait_url_async_fetcher()->SetPassThroughMode(true);
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  // We need to initate the shut-down so that the purge-request-fetch, if any,
-  // is processed fully, and available for the checks below.
-  factory()->ShutDown();
-  // We expect no purges in this flow.
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  EXPECT_STREQ("http://test.com/test/b.css",
-               counting_url_async_fetcher()->most_recent_fetched_url());
-}
-
-TEST_F(DownstreamCacheWithPossiblePurgeTest,
-       DownstreamCache100PercentRewritten) {
-  SetUpOptionsForDownstreamCacheTesting(100, "GET", "/abcdefg");
-  // Do not use a wait fetcher here because we want both the fetches (for a.css
-  // and b.css) and their rewrites to finish before the response is served out.
-  SetupResponsesForDownstreamCacheTesting();
-  // Setup request headers since the subsequent purge request needs this.
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  ProcessHtmlForDownstreamCacheTesting();
-  EXPECT_STREQ(kRewrittenCachableHtmlWithCacheExtension, output_buffer_);
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  // We need to initate the shut-down so that the purge-request-fetch, if any,
-  // is processed fully, and available for the checks below.
-  factory()->ShutDown();
-  // We expect no purges in this flow.
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  EXPECT_STREQ("http://test.com/test/b.css",
-               counting_url_async_fetcher()->most_recent_fetched_url());
-}
-
-TEST_F(DownstreamCacheWithPossiblePurgeTest,
-       DownstreamCacheEmptyPurgePathPrefix) {
-  SetUpOptionsForDownstreamCacheTesting(100, "GET", "");
-  // Use a wait fetcher so that the response does not get a chance to get
-  // rewritten.
-  SetupWaitFetcher();
-  SetupResponsesForDownstreamCacheTesting();
-  // Setup request headers since the subsequent purge request needs this.
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  ProcessHtmlForDownstreamCacheTesting();
-  EXPECT_STREQ(kNonRewrittenCachableHtml, output_buffer_);
-  // Since the response would now have been generated (without any rewriting,
-  // because neither of the 2 resource fetches for a.css and b.css would
-  // have completed), we allow the fetches to complete now.
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  // Set up a fake response for the expected purge URL which happens to be
-  // the original html URL.
-  SetResponseWithDefaultHeaders("", kContentTypeCss, "", 100);
-  // The purge-request-fetch can be allowed to complete without any waiting.
-  // Hence, we set the pass-through-mode to true.
-  factory()->wait_url_async_fetcher()->SetPassThroughMode(true);
-  factory()->CallFetcherCallbacksForDriver(rewrite_driver());
-  // We need to initate the shut-down so that the purge-request-fetch is
-  // processed fully, and available for the checks below.
-  factory()->ShutDown();
-  EXPECT_EQ(3, counting_url_async_fetcher()->fetch_count());
-  EXPECT_STREQ("http://test.com/",
-               counting_url_async_fetcher()->most_recent_fetched_url());
-}
-
-TEST_F(DownstreamCacheWithNoPossiblePurgeTest, DownstreamCacheNoInitRewrites) {
-  SetUpOptionsForDownstreamCacheTesting(100, "GET", "/abcdefg");
-  // Use a wait fetcher so that the response does not get a chance to get
-  // rewritten.
-  SetupWaitFetcher();
-  SetupResponsesForDownstreamCacheTesting();
-  // Setup request headers since the subsequent purge request needs this.
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  ProcessHtmlForDownstreamCacheTesting();
-  EXPECT_STREQ(kRewrittenCachableHtmlWithCollapseWhitespace, output_buffer_);
-  // Since only collapse-whitespace is enabled in this test, we do not expect
-  // any fetches (or fetch callbacks for the wait fetcher) here.
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  // We need to initate the shut-down so that the purge-request-fetch, if any,
-  // is processed fully, and available for the checks below.
-  factory()->ShutDown();
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-}
-
-}  // namespace
 
 }  // namespace net_instaweb

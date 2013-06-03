@@ -21,13 +21,11 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -58,25 +56,23 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     CriticalImagesBeaconFilter::InitStats(statistics());
     // Enable a filter that uses critical images, which in turn will enable
     // beacon insertion.
-    factory()->set_use_beacon_results_in_filters(true);
     options()->EnableFilter(RewriteOptions::kLazyloadImages);
+    options()->set_critical_images_beacon_enabled(true);
     RewriteTestBase::SetUp();
     https_mode_ = false;
+
+    const CriticalImagesFinder* finder =
+        rewrite_driver()->server_context()->critical_images_finder();
+
     // Setup the property cache. The DetermineEnable logic for the
     // CriticalIMagesBeaconFinder will only inject the beacon if the property
     // cache is enabled, since beaconed results are intended to be stored in the
     // pcache.
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* beacon_cohort =
-        SetupCohort(pcache, RewriteDriver::kBeaconCohort);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_beacon_cohort(beacon_cohort);
-    server_context()->set_dom_cohort(dom_cohort);
+    SetupCohort(pcache, finder->GetCriticalImagesCohort());
+    SetupCohort(pcache, RewriteDriver::kDomCohort);
 
-    server_context()->set_critical_images_finder(
-        new BeaconCriticalImagesFinder(beacon_cohort, statistics()));
     MockPropertyPage* page = NewMockPage("http://example.com");
     rewrite_driver()->set_property_page(page);
     pcache->set_enabled(true);

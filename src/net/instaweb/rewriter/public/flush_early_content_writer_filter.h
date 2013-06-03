@@ -34,7 +34,6 @@
 namespace net_instaweb {
 
 class GoogleUrl;
-class HtmlCharactersNode;
 class HtmlElement;
 class RewriteDriver;
 class TimedVariable;
@@ -54,7 +53,6 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
   static const char kNumResourcesFlushedEarly[];
   static const char kPrefetchScriptTagHtml[];
   static const char kPrefetchLinkTagHtml[];
-  static const char kFlushEarlyStyleTemplate[];
 
   explicit FlushEarlyContentWriterFilter(RewriteDriver* driver);
 
@@ -64,8 +62,6 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
 
-  virtual void Characters(HtmlCharactersNode* characters_node);
-
  protected:
   virtual void Clear();
 
@@ -74,8 +70,7 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
   void WriteToOriginalWriter(const GoogleString& in);
 
   // Check whether resource can be flushed or not.
-  bool IsFlushable(const GoogleUrl& gurl,
-                   const FlushEarlyResourceInfo::ResourceType& resource_type);
+  bool IsFlushable(const GoogleUrl& gurl, bool is_pagespeed_resource);
 
   // Flush the resource and update time_consumed_ms_ based on time_to_download.
   void FlushResources(
@@ -84,9 +79,7 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
       bool is_pagespeed_resource,
       semantic_type::Category category);
 
-  void FlushDeferJavascriptEarly();
-  void UpdateStats(int64 time_to_download, bool is_pagespeed_resource);
-  GoogleString ComputeFlushEarlyCriticalCss(const GoogleString& style_id);
+  void TryFlushingDeferJavascriptEarly();
 
   // Returns the type of resource based on the url.
   FlushEarlyResourceInfo::ResourceType GetResourceType(
@@ -103,15 +96,11 @@ class FlushEarlyContentWriterFilter : public HtmlWriterFilter {
   HtmlElement* current_element_;
   UserAgentMatcher::PrefetchMechanism prefetch_mechanism_;
   scoped_ptr<StringSet> private_cacheable_resources_;
-  scoped_ptr<StringSet> public_cacheable_resources_;
   int64 time_consumed_ms_;
   int64 max_available_time_ms_;
   typedef std::list<ResourceInfo*> ResourceInfoList;
   ResourceInfoList js_resources_info_;
   bool defer_javascript_enabled_;
-  bool split_html_enabled_;
-  bool is_flushing_critical_style_element_;
-  GoogleString css_output_content_;
   GoogleString flush_early_content_;
   bool flush_more_resources_early_if_time_permits_;
 

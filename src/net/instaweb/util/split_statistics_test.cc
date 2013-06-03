@@ -23,7 +23,6 @@
 #include "net/instaweb/util/public/inprocess_shared_mem.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_mem_statistics.h"
 #include "net/instaweb/util/public/string.h"
@@ -43,7 +42,7 @@ const char kTimedVar[] = "tv";
 class SplitStatisticsTest : public testing::Test {
  public:
   SplitStatisticsTest()
-      : threads_(Platform::CreateThreadSystem()),
+      : threads_(ThreadSystem::CreateThreadSystem()),
         timer_(MockTimer::kApr_5_2010_ms),
         fs_(threads_.get(), &timer_),
         global_(MakeInMemory(&global_store_)),
@@ -94,7 +93,6 @@ class SplitStatisticsTest : public testing::Test {
   SharedMemStatistics* MakeInMemory(InProcessSharedMem** mem_runtime_out) {
     *mem_runtime_out = new InProcessSharedMem(threads_.get());
     return new SharedMemStatistics(3000,
-                                   100000,
                                    "/usr/local/apache2/logs/stats.log",
                                    true,
                                    "in_mem",

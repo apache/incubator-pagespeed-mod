@@ -19,13 +19,12 @@
 
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(
-    const PropertyCache::Cohort* cohort, Statistics* stats)
-    : CriticalImagesFinder(stats),
-      cohort_(cohort) {}
+BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(Statistics* stats)
+    : CriticalImagesFinder(stats) {}
 
 BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {
 }
@@ -38,17 +37,8 @@ bool BeaconCriticalImagesFinder::IsHtmlCriticalImage(
   return CriticalImagesFinder::IsHtmlCriticalImage(hash_str, driver);
 }
 
-bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page) {
-  return CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      html_critical_images_set,
-      css_critical_images_set,
-      kBeaconNumSetsToKeep,
-      kBeaconPercentSeenForCritical,
-      cohort, page);
+void BeaconCriticalImagesFinder::ComputeCriticalImages(
+    StringPiece url, RewriteDriver* driver) {
 }
 
 }  // namespace net_instaweb

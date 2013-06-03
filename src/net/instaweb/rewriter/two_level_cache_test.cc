@@ -34,6 +34,7 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_copy.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -43,9 +44,7 @@
 
 namespace net_instaweb {
 
-class CacheInterface;
 class MockUrlFetcher;
-class TestDistributedFetcher;
 
 namespace {
 
@@ -60,7 +59,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
  public:
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
       MakeFactories(MockUrlFetcher* mock_url_fetcher,
-                    TestDistributedFetcher* mock_distributed_fetcher) {
+                    MockUrlFetcher* mock_distributed_fetcher) {
     CustomRewriteDriverFactory* factory1 = new CustomRewriteDriverFactory(
         mock_url_fetcher, mock_distributed_fetcher,
         true /* Use write through cache */, 1000);
@@ -75,11 +74,10 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     server_context->set_http_cache(
         new HTTPCache(cache1_, timer(), hasher(), statistics()));
     if (use_write_through_cache_) {
-      CacheInterface* write_through = new WriteThroughCache(cache1_, cache2_);
-      server_context->set_metadata_cache(write_through);
-      server_context->DeleteCacheOnDestruction(write_through);
+      server_context->set_metadata_cache(new WriteThroughCache(cache1_,
+                                                               cache2_));
     } else {
-      server_context->set_metadata_cache(cache2_);
+      server_context->set_metadata_cache(new CacheCopy(cache2_));
     }
     server_context->MakePropertyCaches(cache2_);
     server_context->set_enable_property_cache(false);
@@ -97,7 +95,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
 
  private:
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             TestDistributedFetcher* distributed_fetcher,
+                             MockUrlFetcher* distributed_fetcher,
                              bool use_write_through_cache,
                              int cache_size)
       : TestRewriteDriverFactory(GTestTempDir(), url_fetcher,
@@ -111,7 +109,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
   }
 
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             TestDistributedFetcher* distributed_fetcher,
+                             MockUrlFetcher* distributed_fetcher,
                              bool use_write_through_cache,
                              LRUCache* cache1, LRUCache* cache2)
       : TestRewriteDriverFactory(GTestTempDir(), url_fetcher,
@@ -139,7 +137,7 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
       : RewriteContextTestBase(
           CustomRewriteDriverFactory::MakeFactories(
               &mock_url_fetcher_,
-              &test_distributed_fetcher_)) {}
+              &mock_distributed_fetcher_)) {}
 
   // These must be run prior to the calls to 'new CustomRewriteDriverFactory'
   // in the constructor initializer above.  Thus the calls to Initialize() in

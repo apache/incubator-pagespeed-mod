@@ -19,16 +19,11 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/re2.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/util/fast_wildcard_group.h"
+#include "third_party/instaweb/util/fast_wildcard_group.h"
 
 namespace net_instaweb {
-
-const char UserAgentMatcher::kTestUserAgentWebP[] = "test-user-agent-webp";
-// Note that this must not contain the substring "webp".
-const char UserAgentMatcher::kTestUserAgentNoWebP[] = "test-user-agent-no";
 
 class RequestHeaders;
 
@@ -38,10 +33,6 @@ class RequestHeaders;
 // The user-agent string for Opera could be in the form of "Opera 7" or
 // "Opera/7", we use the wildcard pattern "Opera?7" for this case.
 namespace {
-
-const char kGooglePlusUserAgent[] =
-    "*Google (+https://developers.google.com/+/web/snippet/)*";
-
 const char* kImageInliningWhitelist[] = {
   "*Android*",
   "*Chrome/*",
@@ -69,16 +60,14 @@ const char* kImageInliningBlacklist[] = {
   "*MSIE 6.*",
   "*MSIE 7.*",
   "*Opera?5*",
-  "*Opera?6*",
-  kGooglePlusUserAgent
+  "*Opera?6*"
 };
 
 // Exclude BlackBerry OS 5.0 and older. See
 // http://supportforums.blackberry.com/t5/Web-and-WebWorks-Development/How-to-detect-the-BlackBerry-Browser/ta-p/559862
 // for details on BlackBerry UAs.
 const char* kLazyloadImagesBlacklist[] = {
-  "BlackBerry*CLDC*",
-  kGooglePlusUserAgent
+  "BlackBerry*CLDC*"
 };
 
 // For Panels and deferJs the list is same as of now.
@@ -181,41 +170,16 @@ const char* kInsertDnsPrefetchBlacklist[] = {
   "*MSIE 8.*",
 };
 
-// Whitelist used for doing the tablet-user-agent check, which also feeds
-// into the device type used for storing properties in the property cache.
-const char* kTabletUserAgentWhitelist[] = {
-  "*Android*",  // Android tablet has "Android" but not "Mobile". Regexp
-                // checks for UserAgents should first check the mobile
-                // whitelists and blacklists and only then check the tablet
-                // whitelist for correct results.
-  "*iPad*",
-  "*TouchPad*",
-  "*Silk-Accelerated*",
-  "*Kindle Fire*"
-};
-
-// Whitelist used for doing the mobile-user-agent check, which also feeds
-// into the device type used for storing properties in the property cache.
+// Only a few user agents are supported at this point.
+// This is currently used only by kResizeMobileImages and
+// kSquashImagesForMobileScreento deliver smaller images to mobile devices.
+// We treat tablets like desktops as they have big enough screen (relative
+// to phones).
+// TODO(bolian): Add more mobile user agents.
 const char* kMobileUserAgentWhitelist[] = {
-  "*Mozilla*Android*Mobile*",
-  "*iPhone*",
-  "*BlackBerry*",
-  "*Opera Mobi*",
-  "*Opera Mini*",
-  "*SymbianOS*",
-  "*UP.Browser*",
-  "*J-PHONE*",
-  "*Profile/MIDP*",
-  "*profile/MIDP*",
-  "*portalmmm*",
-  "*DoCoMo*",
-  "*Obigo*"
-};
-
-// Blacklist used for doing the mobile-user-agent check.
-const char* kMobileUserAgentBlacklist[] = {
-  "*Mozilla*Android*Silk*Mobile*",
-  "*Mozilla*Android*Kindle Fire*Mobile*"
+  "*Android*Mobile Safari*",
+  "*iPhone OS*",
+  "*BlackBerry88*",
 };
 
 const char* kSupportsPrefetchLinkRelSubresource[] = {
@@ -226,7 +190,6 @@ const char* kSupportsPrefetchLinkRelSubresource[] = {
 // TODO(mmohabey): Tune this to include more browsers.
 const char* kSupportsPrefetchImageTag[] = {
   "*Chrome/*",
-  "*Safari/*",
   // User agent used only for internal testing
   "prefetch_image_tag",
 };
@@ -238,32 +201,26 @@ const char* kSupportsPrefetchLinkScriptTag[] = {
   "prefetch_link_script_tag",
 };
 
-// Match either 'CriOS' (iOS Chrome) or 'Chrome'. ':?' marks a non-capturing
-// group.
-const char* kChromeVersionPattern =
-    "(?:Chrome|CriOS)/(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)";
+const char* kChromeVersionPattern = "Chrome/(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)";
 
 // Device strings must not include wildcards.
-struct Dimension {
-  const char* device_name;
-  int width;
-  int height;
+const pair<GoogleString, pair<int, int> > kKnownScreenDimensions[] = {
+  make_pair("Galaxy Nexus", make_pair(720, 1280)),
+  make_pair("GT-I9300", make_pair(720, 1280)),
+  make_pair("GT-N7100", make_pair(720, 1280)),
+  make_pair("HTC One", make_pair(720, 1280)),
+  make_pair("Nexus 4", make_pair(768, 1280)),
+  make_pair("Nexus 7", make_pair(800, 1280)),
+  make_pair("Nexus 10", make_pair(1600, 2560)),
+  make_pair("Nexus S", make_pair(480, 800)),
+  make_pair("Xoom", make_pair(800, 1280)),
+  make_pair("XT907", make_pair(540, 960))
 };
-
-const Dimension kKnownScreenDimensions[] = {
-  {"Galaxy Nexus", 720, 1280},
-  {"GT-I9300", 720, 1280},
-  {"GT-N7100", 720, 1280},
-  {"HTC One", 720, 1280},
-  {"Nexus 4", 768, 1280},
-  {"Nexus 7", 800, 1280},
-  {"Nexus 10", 1600, 2560},
-  {"Nexus S", 480, 800},
-  {"Xoom", 800, 1280},
-  {"XT907", 540, 960},
-};
-
 }  // namespace
+
+const char UserAgentMatcher::kDevicePropertiesCohort[] = "deviceproperties";
+const char UserAgentMatcher::kScreenWidth[] = "screen_width";
+const char UserAgentMatcher::kScreenHeight[] = "screen_height";
 
 UserAgentMatcher::UserAgentMatcher()
     : chrome_version_pattern_(kChromeVersionPattern) {
@@ -300,6 +257,10 @@ UserAgentMatcher::UserAgentMatcher()
   for (int i = 0, n = arraysize(kWebpLosslessAlphaBlacklist); i < n; ++i) {
     supports_webp_lossless_alpha_.Disallow(kWebpLosslessAlphaBlacklist[i]);
   }
+
+  for (int i = 0, n = arraysize(kMobileUserAgentWhitelist); i < n; ++i) {
+    mobile_user_agents_.Allow(kMobileUserAgentWhitelist[i]);
+  }
   for (int i = 0, n = arraysize(kSupportsPrefetchLinkRelSubresource); i < n;
        ++i) {
     supports_prefetch_link_rel_subresource_.Allow(
@@ -317,24 +278,14 @@ UserAgentMatcher::UserAgentMatcher()
   for (int i = 0, n = arraysize(kInsertDnsPrefetchBlacklist); i < n; ++i) {
     supports_dns_prefetch_.Disallow(kInsertDnsPrefetchBlacklist[i]);
   }
-
-  for (int i = 0, n = arraysize(kMobileUserAgentWhitelist); i < n; ++i) {
-    mobile_user_agents_.Allow(kMobileUserAgentWhitelist[i]);
-  }
-  for (int i = 0, n = arraysize(kMobileUserAgentBlacklist); i < n; ++i) {
-    mobile_user_agents_.Disallow(kMobileUserAgentBlacklist[i]);
-  }
-  for (int i = 0, n = arraysize(kTabletUserAgentWhitelist); i < n; ++i) {
-    tablet_user_agents_.Allow(kTabletUserAgentWhitelist[i]);
-  }
   GoogleString known_devices_pattern_string = "(";
   for (int i = 0, n = arraysize(kKnownScreenDimensions); i < n; ++i) {
-    const Dimension& dim = kKnownScreenDimensions[i];
-    screen_dimensions_map_[dim.device_name] = make_pair(dim.width, dim.height);
+    screen_dimensions_map_[kKnownScreenDimensions[i].first] =
+        kKnownScreenDimensions[i].second;
     if (i != 0) {
       StrAppend(&known_devices_pattern_string, "|");
     }
-    StrAppend(&known_devices_pattern_string, dim.device_name);
+    StrAppend(&known_devices_pattern_string, kKnownScreenDimensions[i].first);
   }
   StrAppend(&known_devices_pattern_string, ")");
   known_devices_pattern_.reset(new RE2(known_devices_pattern_string));
@@ -376,7 +327,7 @@ UserAgentMatcher::BlinkRequestType UserAgentMatcher::GetBlinkRequestType(
   if (user_agent == NULL || user_agent[0] == '\0') {
     return kNullOrEmpty;
   }
-  if (GetDeviceTypeForUAAndHeaders(user_agent, request_headers) != kDesktop) {
+  if (IsMobileRequest(user_agent, request_headers)) {
     if (blink_mobile_whitelist_.Match(user_agent, false)) {
       return kBlinkWhiteListForMobile;
     }
@@ -411,7 +362,7 @@ bool UserAgentMatcher::SupportsDnsPrefetch(
 bool UserAgentMatcher::SupportsJsDefer(const StringPiece& user_agent,
                                        bool allow_mobile) const {
   // TODO(ksimbili): Use IsMobileRequest?
-  if (GetDeviceTypeForUA(user_agent) != kDesktop) {
+  if (IsMobileUserAgent(user_agent)) {
     return allow_mobile && blink_mobile_whitelist_.Match(user_agent, false);
   }
   return user_agent.empty() ||
@@ -430,19 +381,18 @@ bool UserAgentMatcher::SupportsWebpLosslessAlpha(
   return supports_webp_lossless_alpha_.Match(user_agent, false);
 }
 
-UserAgentMatcher::DeviceType UserAgentMatcher::GetDeviceTypeForUAAndHeaders(
+bool UserAgentMatcher::IsMobileUserAgent(const StringPiece& user_agent) const {
+  return mobile_user_agents_.Match(user_agent, false);
+}
+
+bool UserAgentMatcher::IsMobileRequest(
     const StringPiece& user_agent,
     const RequestHeaders* request_headers) const {
-  return GetDeviceTypeForUA(user_agent);
+  return IsMobileUserAgent(user_agent);
 }
 
 bool UserAgentMatcher::IsAndroidUserAgent(const StringPiece& user_agent) const {
   return user_agent.find("Android") != GoogleString::npos;
-}
-
-bool UserAgentMatcher::IsiOSUserAgent(const StringPiece& user_agent) const {
-  return user_agent.find("iPhone") != GoogleString::npos ||
-      user_agent.find("iPad") != GoogleString::npos;
 }
 
 bool UserAgentMatcher::GetChromeBuildNumber(const StringPiece& user_agent,
@@ -462,15 +412,10 @@ bool UserAgentMatcher::SupportsSplitHtml(const StringPiece& user_agent,
   return SupportsJsDefer(user_agent, allow_mobile);
 }
 
-// TODO(bharathbhushan): Make sure GetDeviceTypeForUA is called only once per
-// http request.
 UserAgentMatcher::DeviceType UserAgentMatcher::GetDeviceTypeForUA(
     const StringPiece& user_agent) const {
-  if (mobile_user_agents_.Match(user_agent, false)) {
+  if (IsMobileUserAgent(user_agent)) {
     return kMobile;
-  }
-  if (tablet_user_agents_.Match(user_agent, false)) {
-    return kTablet;
   }
   return kDesktop;
 }
@@ -508,33 +453,15 @@ bool UserAgentMatcher::GetScreenResolution(
   return false;
 }
 
-bool UserAgentMatcher::UserAgentExceedsChromeiOSBuildAndPatch(
-    const StringPiece& user_agent, int required_build,
-    int required_patch) const {
-  // Verify if this is an iOS user agent.
-  if (!IsiOSUserAgent(user_agent)) {
-    return false;
-  }
-  return UserAgentExceedsChromeBuildAndPatch(
-      user_agent, required_build, required_patch);
-}
-
 bool UserAgentMatcher::UserAgentExceedsChromeAndroidBuildAndPatch(
-    const StringPiece& user_agent, int required_build,
-    int required_patch) const {
-  // Verify if this is an Android user agent.
-  if (!IsAndroidUserAgent(user_agent)) {
-    return false;
-  }
-  return UserAgentExceedsChromeBuildAndPatch(
-      user_agent, required_build, required_patch);
-}
-
-bool UserAgentMatcher::UserAgentExceedsChromeBuildAndPatch(
     const StringPiece& user_agent, int required_build,
     int required_patch) const {
   // By default user agent sniffing is disabled.
   if (required_build == -1 && required_patch == -1) {
+    return false;
+  }
+  // Verify if this is an Android user agent.
+  if (!IsAndroidUserAgent(user_agent)) {
     return false;
   }
   int major = -1;
@@ -554,4 +481,5 @@ bool UserAgentMatcher::UserAgentExceedsChromeBuildAndPatch(
 
   return true;
 }
+
 }  // namespace net_instaweb

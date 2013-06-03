@@ -25,7 +25,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -49,7 +48,6 @@ void RewrittenContentScanningFilter::StartDocument() {
 void RewrittenContentScanningFilter::EndDocument() {
   // Update number of rewritten resources in the property cahce.
   driver_->UpdatePropertyValueInDomCohort(
-      driver_->property_page(),
       kNumProxiedRewrittenResourcesProperty,
       IntegerToString(num_proxied_rewritten_resources_));
 }

@@ -83,7 +83,7 @@ class UrlPartnershipTest : public RewriteTestBase {
     return GoogleString(spec.data(), spec.size());
   }
 
-  DomainLawyer* domain_lawyer() { return options()->WriteableDomainLawyer(); }
+  DomainLawyer* domain_lawyer() { return options()->domain_lawyer(); }
   scoped_ptr<UrlPartnership> partnership_;
   GoogleString styles_path_;
   GoogleString r_path_;

@@ -22,6 +22,7 @@
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -39,7 +40,7 @@ class Variable;
 // can be measured independently.
 class CacheStats : public CacheInterface {
  public:
-  // Doees not takes ownership of the cache, timer, or statistics.
+  // Takes ownership of the cache.
   CacheStats(StringPiece prefix,
              CacheInterface* cache,
              Timer* timer,
@@ -53,7 +54,8 @@ class CacheStats : public CacheInterface {
   virtual void MultiGet(MultiGetRequest* request);
   virtual void Put(const GoogleString& key, SharedString* value);
   virtual void Delete(const GoogleString& key);
-  virtual CacheInterface* Backend() { return cache_; }
+  virtual const char* Name() const { return name_.c_str(); }
+  virtual CacheInterface* Backend() { return cache_.get(); }
   virtual bool IsBlocking() const { return cache_->IsBlocking(); }
 
   virtual bool IsHealthy() const {
@@ -65,16 +67,11 @@ class CacheStats : public CacheInterface {
     cache_->ShutDown();
   }
 
-  virtual GoogleString Name() const {
-    return FormatName(prefix_, cache_->Name());
-  }
-  static GoogleString FormatName(StringPiece prefix, StringPiece cache);
-
  private:
   class StatsCallback;
   friend class StatsCallback;
 
-  CacheInterface* cache_;
+  scoped_ptr<CacheInterface> cache_;
   Timer* timer_;
   Histogram* get_count_histogram_;
   Histogram* hit_latency_us_histogram_;
@@ -85,7 +82,7 @@ class CacheStats : public CacheInterface {
   Variable* hits_;
   Variable* inserts_;
   Variable* misses_;
-  GoogleString prefix_;
+  GoogleString name_;
   AtomicBool shutdown_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheStats);

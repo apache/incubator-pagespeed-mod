@@ -18,6 +18,7 @@
 #include "net/instaweb/apache/instaweb_context.h"
 
 #include "base/logging.h"
+#include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
@@ -27,12 +28,13 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
+#include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/condvar.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -51,8 +53,7 @@ const int kRequestChainLimit = 5;
 PropertyCallback::PropertyCallback(RewriteDriver* driver,
                                    ThreadSystem* thread_system,
                                    const StringPiece& key)
-    : PropertyPage(PropertyPage::kPropertyCachePage,
-                   key, driver->request_context(),
+    : PropertyPage(key, driver->request_context(),
                    thread_system->NewMutex(),
                    driver->server_context()->page_property_cache()),
   driver_(driver),
@@ -93,15 +94,16 @@ InstawebContext::InstawebContext(request_rec* request,
       content_type_(content_type),
       server_context_(server_context),
       string_writer_(&output_),
+      inflater_(NULL),
       absolute_url_(absolute_url),
       request_headers_(request_headers),
       started_parse_(false),
       sent_headers_(false),
       populated_headers_(false),
       modify_caching_headers_(true) {
-  if (options.running_experiment()) {
-    // The experiment framework requires custom options because it has to make
-    // changes based on what ExperimentSpec the user should be seeing.
+  if (options.running_furious()) {
+    // Furious requires custom options because it has to make changes based on
+    // what ExperimentSpec the user should be seeing.
     use_custom_options = true;
   }
   if (use_custom_options) {
@@ -112,10 +114,10 @@ InstawebContext::InstawebContext(request_rec* request,
     // domain lawyer and other options.
     RewriteOptions* custom_options = options.Clone();
 
-    // If we're running an experiment, determine the state of this request and
-    // reset the options accordingly.
-    if (custom_options->running_experiment()) {
-      SetExperimentStateAndCookie(request, custom_options);
+    // If we're running a Furious experiment, determine the state of this
+    // request and reset the options accordingly.
+    if (custom_options->running_furious()) {
+      SetFuriousStateAndCookie(request, custom_options);
     }
     server_context_->ComputeSignature(custom_options);
     rewrite_driver_ = server_context_->NewCustomRewriteDriver(
@@ -159,7 +161,7 @@ InstawebContext::InstawebContext(request_rec* request,
   }
 
   // Make the entire request headers available to filters.
-  rewrite_driver_->SetRequestHeaders(*request_headers_.get());
+  rewrite_driver_->set_request_headers(request_headers_.get());
 
   response_headers_.Clear();
   rewrite_driver_->set_response_headers_ptr(&response_headers_);
@@ -401,21 +403,21 @@ const char* InstawebContext::MakeRequestUrl(const RewriteOptions& options,
   return url;
 }
 
-void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
-                                                  RewriteOptions* options) {
+void InstawebContext::SetFuriousStateAndCookie(request_rec* request,
+                                               RewriteOptions* options) {
   // If we didn't get a valid (i.e. currently-running experiment) value from
   // the cookie, determine which experiment this request should end up in
   // and set the cookie accordingly.
-  bool need_cookie = server_context_->experiment_matcher()->
+  bool need_cookie = server_context_->furious_matcher()->
       ClassifyIntoExperiment(*request_headers_, options);
   if (need_cookie) {
     ResponseHeaders resp_headers;
     AprTimer timer;
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
-    int experiment_value = options->experiment_id();
-    server_context_->experiment_matcher()->StoreExperimentData(
-        experiment_value, url,
-        timer.NowMs() + options->experiment_cookie_duration_ms(),
+    int furious_value = options->furious_id();
+    server_context_->furious_matcher()->StoreExperimentData(
+        furious_value, url,
+        timer.NowMs() + options->furious_cookie_duration_ms(),
         &resp_headers);
     AddResponseHeadersToRequest(&resp_headers, NULL,
                                 options->modify_caching_headers(), request);

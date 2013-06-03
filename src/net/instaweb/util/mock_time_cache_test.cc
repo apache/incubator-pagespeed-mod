@@ -28,7 +28,6 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -46,7 +45,7 @@ class MockTimeCacheTest : public CacheTestBase {
  protected:
   MockTimeCacheTest()
       : timer_(kStartTime),
-        thread_system_(Platform::CreateThreadSystem()),
+        thread_system_(ThreadSystem::CreateThreadSystem()),
         scheduler_(thread_system_.get(), &timer_),
         lru_cache_(kMaxSize),
         cache_(&scheduler_, &lru_cache_) {

@@ -42,7 +42,7 @@ void DeterministicJsFilter::StartElement(HtmlElement* element) {
   if (!found_head_ && element->keyword() == HtmlName::kHead) {
     found_head_ = true;
     HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
-    driver_->InsertNodeAfterCurrent(script);
+    driver_->InsertElementAfterCurrent(script);
     StaticAssetManager* static_asset_manager =
         driver_->server_context()->static_asset_manager();
     StringPiece deterministic_js =

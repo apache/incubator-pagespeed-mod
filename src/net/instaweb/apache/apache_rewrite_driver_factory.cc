@@ -19,6 +19,7 @@
 
 #include <unistd.h>
 
+#include <cstddef>
 #include <algorithm>
 #include <utility>
 
@@ -48,6 +49,9 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/system/public/system_caches.h"
 #include "net/instaweb/util/public/abstract_shared_mem.h"
+#ifndef NDEBUG
+#include "net/instaweb/util/public/checking_thread_system.h"
+#endif
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/md5_hasher.h"
@@ -78,13 +82,20 @@ const char ApacheRewriteDriverFactory::kStaticAssetPrefix[] =
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     server_rec* server, const StringPiece& version)
-    : SystemRewriteDriverFactory(new ApacheThreadSystem),
+    : SystemRewriteDriverFactory(
+#ifdef NDEBUG
+        new ApacheThreadSystem
+#else
+        new CheckingThreadSystem(new ApacheThreadSystem)
+#endif
+                           ),
       server_rec_(server),
 #ifdef PAGESPEED_SUPPORT_POSIX_SHARED_MEM
       shared_mem_runtime_(new PthreadSharedMem()),
 #else
       shared_mem_runtime_(new NullSharedMem()),
 #endif
+      shared_circular_buffer_(NULL),
       version_(version.data(), version.size()),
       statistics_frozen_(false),
       is_root_process_(true),
@@ -138,13 +149,13 @@ ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
   apr_pool_destroy(pool_);
 
   // We still have registered a pool deleter here, right?  This seems risky...
-  STLDeleteElements(&uninitialized_server_contexts_);
+  STLDeleteElements(&uninitialized_managers_);
 
   shared_mem_statistics_.reset(NULL);
 }
 
 FileSystem* ApacheRewriteDriverFactory::DefaultFileSystem() {
-  return new StdioFileSystem;
+  return new StdioFileSystem(timer());
 }
 
 Hasher* ApacheRewriteDriverFactory::NewHasher() {
@@ -167,13 +178,12 @@ void ApacheRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
   caches_->SetupCaches(server_context);
   server_context->set_enable_property_cache(enable_property_cache());
   PropertyCache* pcache = server_context->page_property_cache();
-
-  const PropertyCache::Cohort* cohort =
-      pcache->AddCohort(RewriteDriver::kBeaconCohort);
-  server_context->set_beacon_cohort(cohort);
-
-  cohort = pcache->AddCohort(RewriteDriver::kDomCohort);
-  server_context->set_dom_cohort(cohort);
+  if (pcache->GetCohort(RewriteDriver::kBeaconCohort) == NULL) {
+    pcache->AddCohort(RewriteDriver::kBeaconCohort);
+  }
+  if (pcache->GetCohort(RewriteDriver::kDomCohort) == NULL) {
+    pcache->AddCohort(RewriteDriver::kDomCohort);
+  }
 
   // TODO(jmarantz): It would make more sense to have the base ServerContext
   // own the ProxyFetchFactory, but that would create a cyclic directory
@@ -344,27 +354,16 @@ UrlAsyncFetcher* ApacheRewriteDriverFactory::GetFetcher(ApacheConfig* config) {
   return iter->second;
 }
 
-// TODO(jmarantz): move this to a new class in system/system_fetches.cc that can
-// be shared with ngx_pagespeed.
 SerfUrlAsyncFetcher* ApacheRewriteDriverFactory::GetSerfFetcher(
     ApacheConfig* config) {
   // Since we don't do slurping a this level, our key is just the proxy setting.
-  GoogleString cache_key = StrCat(
-      list_outstanding_urls_on_error_ ? "list_errors\n" : "no_errors\n",
-      config->fetcher_proxy(), "\n",
-      fetch_with_gzip_ ? "fetch_with_gzip\n": "no_gzip\n",
-      track_original_content_length_ ? "track_content_length\n" : "no_track\n"
-      "timeout: ", Integer64ToString(config->blocking_fetch_timeout_ms()));
-  StrAppend(&cache_key,
-            "\nhttps: ", https_options_,
-            "\ncert_dir: ", config->ssl_cert_directory(),
-            "\ncert_file: ", config->ssl_cert_file());
+  const GoogleString& proxy = config->fetcher_proxy();
   std::pair<SerfFetcherMap::iterator, bool> result = serf_fetcher_map_.insert(
-      std::make_pair(cache_key, static_cast<SerfUrlAsyncFetcher*>(NULL)));
+      std::make_pair(proxy, static_cast<SerfUrlAsyncFetcher*>(NULL)));
   SerfFetcherMap::iterator iter = result.first;
   if (result.second) {
     SerfUrlAsyncFetcher* serf = new SerfUrlAsyncFetcher(
-        config->fetcher_proxy().c_str(),
+        proxy.c_str(),
         NULL,  // Do not use the Factory pool so we can control deletion.
         thread_system(), statistics(), timer(),
         config->blocking_fetch_timeout_ms(),
@@ -373,8 +372,6 @@ SerfUrlAsyncFetcher* ApacheRewriteDriverFactory::GetSerfFetcher(
     serf->set_fetch_with_gzip(fetch_with_gzip_);
     serf->set_track_original_content_length(track_original_content_length_);
     serf->SetHttpsOptions(https_options_);
-    serf->SetSslCertificatesDir(config->ssl_cert_directory());
-    serf->SetSslCertificatesFile(config->ssl_cert_file());
     iter->second = serf;
   }
   return iter->second;
@@ -418,9 +415,8 @@ void ApacheRewriteDriverFactory::RootInit() {
 
   // Let SystemCaches know about the various paths we have in configuration
   // first, as well as the memcached instances.
-  for (ApacheServerContextSet::iterator
-           p = uninitialized_server_contexts_.begin(),
-           e = uninitialized_server_contexts_.end(); p != e; ++p) {
+  for (ApacheServerContextSet::iterator p = uninitialized_managers_.begin(),
+           e = uninitialized_managers_.end(); p != e; ++p) {
     ApacheServerContext* server_context = *p;
     caches_->RegisterConfig(server_context->config());
   }
@@ -442,13 +438,12 @@ void ApacheRewriteDriverFactory::ChildInit() {
 
   caches_->ChildInit();
 
-  for (ApacheServerContextSet::iterator
-           p = uninitialized_server_contexts_.begin(),
-           e = uninitialized_server_contexts_.end(); p != e; ++p) {
+  for (ApacheServerContextSet::iterator p = uninitialized_managers_.begin(),
+           e = uninitialized_managers_.end(); p != e; ++p) {
     ApacheServerContext* server_context = *p;
     server_context->ChildInit();
   }
-  uninitialized_server_contexts_.clear();
+  uninitialized_managers_.clear();
 
   mod_spdy_fetch_controller_.reset(
       new ModSpdyFetchController(max_mod_spdy_fetch_threads_, thread_system(),
@@ -510,10 +505,11 @@ void ApacheRewriteDriverFactory::ShutDown() {
 // help with the settings if needed.
 // Note: does not call set_statistics() on the factory.
 Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
-    const ApacheConfig* options) {
+    bool logging, int64 logging_interval_ms,
+    const GoogleString& logging_file_base) {
   if (shared_mem_statistics_.get() == NULL) {
     shared_mem_statistics_.reset(AllocateAndInitSharedMemStatistics(
-        "global", options));
+        "global", logging, logging_interval_ms, logging_file_base));
   }
   DCHECK(!statistics_frozen_);
   statistics_frozen_ = true;
@@ -523,7 +519,9 @@ Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
 
 SharedMemStatistics* ApacheRewriteDriverFactory::
     AllocateAndInitSharedMemStatistics(
-        const StringPiece& name, const ApacheConfig* options) {
+        const StringPiece& name, const bool logging,
+        const int64 logging_interval_ms,
+        const GoogleString& logging_file_base) {
   // Note that we create the statistics object in the parent process, and
   // it stays around in the kids but gets reinitialized for them
   // inside ChildInit(), called from pagespeed_child_init.
@@ -532,12 +530,9 @@ SharedMemStatistics* ApacheRewriteDriverFactory::
   // established at the time of this construction, calling into question
   // whether we are naming our shared-memory segments correctly.
   SharedMemStatistics* stats = new SharedMemStatistics(
-      options->statistics_logging_interval_ms(),
-      options->statistics_logging_max_file_size_kb(),
-      StrCat(options->statistics_logging_file_prefix(), name),
-      options->statistics_logging_enabled(),
-      StrCat(filename_prefix(), name), shared_mem_runtime(),
-      message_handler(), file_system(), timer());
+      logging_interval_ms, StrCat(logging_file_base, name), logging,
+      StrCat(filename_prefix(), name), shared_mem_runtime(), message_handler(),
+      file_system(), timer());
   InitStats(stats);
   stats->Init(true, message_handler());
   return stats;
@@ -572,10 +567,9 @@ void ApacheRewriteDriverFactory::Terminate() {
 
 ApacheServerContext* ApacheRewriteDriverFactory::MakeApacheServerContext(
     server_rec* server) {
-  ApacheServerContext* server_context =
-      new ApacheServerContext(this, server, version_);
-  uninitialized_server_contexts_.insert(server_context);
-  return server_context;
+  ApacheServerContext* rm = new ApacheServerContext(this, server, version_);
+  uninitialized_managers_.insert(rm);
+  return rm;
 }
 
 ServerContext* ApacheRewriteDriverFactory::NewServerContext() {
@@ -583,10 +577,9 @@ ServerContext* ApacheRewriteDriverFactory::NewServerContext() {
   return NULL;
 }
 
-bool ApacheRewriteDriverFactory::PoolDestroyed(
-    ApacheServerContext* server_context) {
-  if (uninitialized_server_contexts_.erase(server_context) == 1) {
-    delete server_context;
+bool ApacheRewriteDriverFactory::PoolDestroyed(ApacheServerContext* rm) {
+  if (uninitialized_managers_.erase(rm) == 1) {
+    delete rm;
   }
 
   // Returns true if all the ServerContexts known by the factory and its
@@ -595,16 +588,16 @@ bool ApacheRewriteDriverFactory::PoolDestroyed(
   // are partially constructed.  RewriteDriverFactory keeps track of
   // ServerContexts that are already serving requests.  We need to clean
   // all of them out before we can terminate the driver.
-  bool no_active_server_contexts = TerminateServerContext(server_context);
-  return (no_active_server_contexts && uninitialized_server_contexts_.empty());
+  bool no_active_resource_managers = TerminateServerContext(rm);
+  return (no_active_resource_managers && uninitialized_managers_.empty());
 }
 
 RewriteOptions* ApacheRewriteDriverFactory::NewRewriteOptions() {
-  return new ApacheConfig(hostname_identifier_, thread_system());
+  return new ApacheConfig(hostname_identifier_);
 }
 
 RewriteOptions* ApacheRewriteDriverFactory::NewRewriteOptionsForQuery() {
-  return new ApacheConfig("query", thread_system());
+  return new ApacheConfig("query");
 }
 
 }  // namespace net_instaweb

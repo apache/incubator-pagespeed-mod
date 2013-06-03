@@ -26,7 +26,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -41,7 +40,7 @@ class DelayCacheTest : public CacheTestBase {
  protected:
   DelayCacheTest()
       : lru_cache_(kMaxSize),
-        thread_system_(Platform::CreateThreadSystem()),
+        thread_system_(ThreadSystem::CreateThreadSystem()),
         cache_(&lru_cache_, thread_system_.get()) {}
 
   virtual CacheInterface* Cache() { return &cache_; }
@@ -111,7 +110,7 @@ TEST_F(DelayCacheTest, DelayOpsNotFound) {
 }
 
 TEST_F(DelayCacheTest, DelayOpsFoundInSequence) {
-  scoped_ptr<ThreadSystem> thread_system(Platform::CreateThreadSystem());
+  scoped_ptr<ThreadSystem> thread_system(ThreadSystem::CreateThreadSystem());
   QueuedWorkerPool pool(1, "test", thread_system.get());
   QueuedWorkerPool::Sequence* sequence = pool.NewSequence();
   WorkerTestBase::SyncPoint sync_point(thread_system.get());

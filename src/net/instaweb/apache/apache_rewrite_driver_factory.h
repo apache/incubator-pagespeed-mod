@@ -57,6 +57,8 @@ class SystemCaches;
 class Timer;
 class UrlAsyncFetcher;
 class UrlFetcher;
+class UrlPollableAsyncFetcher;
+class Writer;
 
 // Creates an Apache RewriteDriver.
 class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
@@ -69,6 +71,13 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   virtual ~ApacheRewriteDriverFactory();
 
   virtual Hasher* NewHasher();
+
+  // Returns the fetcher that will be used by the filters to load any
+  // resources they need. This either matches the resource manager's
+  // async fetcher or is NULL in case we are configured in a way that
+  // all fetches will succeed immediately. Must be called after the fetchers
+  // have been computed
+  UrlPollableAsyncFetcher* SubResourceFetcher();
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
 
@@ -109,11 +118,14 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   // Build global shared-memory statistics.  This is invoked if at least
   // one server context (global or VirtualHost) enables statistics.
-  Statistics* MakeGlobalSharedMemStatistics(const ApacheConfig* options);
+  Statistics* MakeGlobalSharedMemStatistics(bool logging,
+                                            int64 logging_interval_ms,
+                                            const GoogleString& logging_file);
 
   // Creates and ::Initializes a shared memory statistics object.
   SharedMemStatistics* AllocateAndInitSharedMemStatistics(
-      const StringPiece& name, const ApacheConfig* options);
+      const StringPiece& name, const bool logging,
+      const int64 logging_interval_ms, const GoogleString& logging_file);
 
   virtual ApacheServerContext* MakeApacheServerContext(server_rec* server);
   ServerContext* NewServerContext();
@@ -198,12 +210,6 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   SystemCaches* caches() { return caches_.get(); }
 
-  // mod_pagespeed uses a beacon handler to collect data for critical images,
-  // css, etc., so filters should be configured accordingly.
-  virtual bool UseBeaconResultsInFilters() const {
-    return true;
-  }
-
   // Finds a fetcher for the settings in this config, sharing with
   // existing fetchers if possible, otherwise making a new one (and
   // its required thread).
@@ -256,7 +262,7 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   virtual MessageHandler* DefaultMessageHandler();
   virtual FileSystem* DefaultFileSystem();
   virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
+  virtual void SetupCaches(ServerContext* resource_manager);
   virtual NamedLockManager* DefaultLockManager();
   virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
                                              StringPiece name);
@@ -334,10 +340,10 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   // managed by the RewriteDriverFactory.  But in the root Apache process
   // the ServerContexts will never be initialized.  We track these here
   // so that ApacheRewriteDriverFactory::ChildInit can iterate over all
-  // the server contexts that need to be ChildInit'd, and so that we can free
-  // them in the Root process that does not run ChildInit.
+  // the managers that need to be ChildInit'd, and so that we can free
+  // the managers in the Root process that were never ChildInit'd.
   typedef std::set<ApacheServerContext*> ApacheServerContextSet;
-  ApacheServerContextSet uninitialized_server_contexts_;
+  ApacheServerContextSet uninitialized_managers_;
 
   // If true, we'll have a separate statistics object for each vhost
   // (along with a global aggregate), rather than just a single object

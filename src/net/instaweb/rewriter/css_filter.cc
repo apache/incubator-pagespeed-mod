@@ -28,7 +28,7 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/association_transformer.h"
@@ -53,7 +53,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/data_url.h"
@@ -254,9 +253,8 @@ void CssFilter::Context::Render() {
     } else if (rewrite_inline_attribute_ != NULL) {
       rewrite_inline_attribute_->SetValue(result.inlined_data());
     } else {
-      // External css.
-      driver_->log_record()->SetRewriterLoggingStatus(
-          id(), slot(0)->resource()->url(), RewriterApplication::APPLIED_OK);
+      // Log only when we rewrite external css.
+      filter_->LogFilterModifiedContent();
     }
     filter_->num_uses_->Add(1);
   }
@@ -353,7 +351,7 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
   // Create a stylesheet even if given declarations so that we don't need
   // two versions of everything, though they do need to handle a stylesheet
   // with no selectors in it, which they currently do.
-  scoped_ptr<Css::Stylesheet> stylesheet;
+  scoped_ptr<Css::Stylesheet> stylesheet(NULL);
   if (text_is_declarations) {
     Css::Declarations* declarations = parser.ParseRawDeclarations();
     if (declarations != NULL) {
@@ -560,9 +558,9 @@ void CssFilter::Context::Harvest() {
 
   if (ok) {
     if (rewrite_inline_element_ == NULL) {
-      ServerContext* server_context = FindServerContext();
-      server_context->MergeNonCachingResponseHeaders(input_resource_,
-                                                     output_resource_);
+      ServerContext* manager = FindServerContext();
+      manager->MergeNonCachingResponseHeaders(input_resource_,
+                                              output_resource_);
       ok = driver_->Write(ResourceVector(1, input_resource_),
                           out_text,
                           &kContentTypeCss,
@@ -1068,8 +1066,9 @@ const UrlSegmentEncoder* CssFilter::encoder() const {
 
 void CssFilter::EncodeUserAgentIntoResourceContext(
     ResourceContext* context) const {
-  // Use the same encoding as the image rewrite filter.
-  image_rewrite_filter_->EncodeUserAgentIntoResourceContext(context);
+  context->set_inline_images(
+      driver_->device_properties()->SupportsImageInlining());
+  ImageUrlEncoder::SetLibWebpLevel(*driver_->device_properties(), context);
 }
 
 const UrlSegmentEncoder* CssFilter::Context::encoder() const {

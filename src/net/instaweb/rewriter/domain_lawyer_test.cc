@@ -21,7 +21,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -41,8 +40,7 @@ class DomainLawyerTest : public testing::Test {
   DomainLawyerTest()
       : orig_request_("http://www.nytimes.com/index.html"),
         port_request_("http://www.nytimes.com:8080/index.html"),
-        https_request_("https://www.nytimes.com/index.html"),
-        message_handler_(new NullMutex) {
+        https_request_("https://www.nytimes.com/index.html") {
   }
 
   // Syntactic sugar to map a request.

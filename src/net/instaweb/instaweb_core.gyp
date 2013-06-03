@@ -22,14 +22,30 @@
   },
   'targets': [
     {
-      # TODO(morlovich): This is a compatibility target and should get removed
-      # eventually.
       'target_name': 'instaweb_util_core',
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
+        '<(DEPTH)/third_party/google-sparsehash/google-sparsehash.gyp:include',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'sources': [
+        'util/atom.cc',
+        'util/charset_util.cc',
+        'util/countdown_timer.cc',
+        'util/file_message_handler.cc',
+        'util/google_message_handler.cc',
+        'util/google_url.cc',
+        'util/message_handler.cc',
+        'util/print_message_handler.cc',
+        'util/query_params.cc',
+        'util/rolling_hash.cc',
+        'util/string_convert.cc',
+        'util/string_util.cc',
+        'util/string_writer.cc',
+        'util/symbol_table.cc',
+        'util/timer.cc',
+        'util/writer.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -41,15 +57,58 @@
           '<(DEPTH)',
         ],
       },
+      'export_dependent_settings': [
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+    },
+    {
+      'target_name': 'instaweb_htmlparse_core_gperf',
+      'variables': {
+        'instaweb_gperf_subdir': 'net/instaweb/htmlparse',
+      },
+      'sources': [
+        'htmlparse/html_name.gperf',
+      ],
+      'includes': [
+        'gperf.gypi',
+      ],
     },
     {
       'target_name': 'instaweb_htmlparse_core',
       'type': '<(library)',
       'dependencies': [
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_html',
+        'instaweb_util_core',
+        'instaweb_htmlparse_core_gperf',
+        'http_core',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
+      'sources': [
+        'htmlparse/doctype.cc',
+        'htmlparse/empty_html_filter.cc',
+        'htmlparse/explicit_close_tag.cc',
+        'htmlparse/html_element.cc',
+        'htmlparse/html_event.cc',
+        'htmlparse/html_filter.cc',
+        'htmlparse/html_keywords.cc',
+        'htmlparse/html_lexer.cc',
+        'htmlparse/html_node.cc',
+        'htmlparse/html_parse.cc',
+        'htmlparse/html_writer_filter.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
       'export_dependent_settings': [
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_html',
+        'instaweb_util_core',
       ],
     },
     {
@@ -57,9 +116,10 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        'instaweb_util_core',
+        'instaweb_core.gyp:instaweb_util_core',
       ],
       'sources': [
+        'http/content_type.cc',
         'http/semantic_type.cc',
       ],
       'include_dirs': [
@@ -146,14 +206,11 @@
                 # Only the following dependencies are allowed. If you
                 # find yourself needing to add additional dependencies,
                 # please check with bmcquade first.
-                #
-                # Note: these must be in dependency order to work; you can't
-                # sort this list alphabetically.
                 '<(LIB_DIR)/net/instaweb/libinstaweb_rewriter_html.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_html.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_html_gperf.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_http.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_base_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_htmlparse_core.a',
+                '<(LIB_DIR)/net/instaweb/libhttp_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_util_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_htmlparse_core_gperf.a',
                 '<(LIB_DIR)/build/temp_gyp/libgoogleurl.a',
                 '<(LIB_DIR)/base/libbase.a',
                 '<(LIB_DIR)/base/libbase_static.a',

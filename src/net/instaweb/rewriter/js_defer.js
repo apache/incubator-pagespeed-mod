@@ -400,7 +400,7 @@ deferJsNs.DeferJs.PSA_ORIG_INDEX = 'orig_index';
  * Name of the deferred onload attribute.
  * @const {string}
  */
-deferJsNs.DeferJs.PAGESPEED_ONLOAD = 'data-pagespeed-onload';
+deferJsNs.DeferJs.PAGESPEED_ONLOAD = 'pagespeed_onload';
 
 /**
  * Add to defer_logs if logs are enabled.
@@ -1299,7 +1299,7 @@ deferJsNs.DeferJs.prototype.addDeferredOnloadListeners = function() {
   var onloadDeferredElements;
   if (document.querySelectorAll) {
     onloadDeferredElements = document.querySelectorAll(
-        '[' + deferJsNs.DeferJs.PAGESPEED_ONLOAD + '][data-pagespeed-loaded]');
+        '[' + deferJsNs.DeferJs.PAGESPEED_ONLOAD + ']');
   }
   for (var i = 0; i < onloadDeferredElements.length; i++) {
     var elem = onloadDeferredElements.item(i);
@@ -1421,17 +1421,14 @@ var psaAddEventListener = function(elem, eventName, func, opt_capture,
     return;
   }
   var deferJsEvent;
-  var deferJsEventName;
 
   if (deferJs.eventState_ < deferJsNs.DeferJs.EVENT.DOM_READY &&
      (eventName == 'DOMContentLoaded' || eventName == 'readystatechange' ||
       eventName == 'onDOMContentLoaded' || eventName == 'onreadystatechange')) {
     deferJsEvent = deferJsNs.DeferJs.EVENT.DOM_READY;
-    deferJsEventName = 'DOMContentLoaded';
   } else if (deferJs.eventState_ < deferJsNs.DeferJs.EVENT.LOAD &&
             (eventName == 'load' || eventName == 'onload')) {
     deferJsEvent = deferJsNs.DeferJs.EVENT.LOAD;
-    deferJsEventName = 'load';
   } else if (eventName == 'onbeforescripts') {
     deferJsEvent = deferJsNs.DeferJs.EVENT.BEFORE_SCRIPTS;
   } else if (eventName == 'onafterscripts') {
@@ -1442,25 +1439,20 @@ var psaAddEventListener = function(elem, eventName, func, opt_capture,
     }
     return;
   }
-  var eventListenerClosure = function() {
+  var loadEvent;
+  // TODO(ksimbili): Fix for IE8 too.
+  if (deferJsEvent == deferJsNs.DeferJs.EVENT.LOAD &&
+      !(deferJs.getIEVersion() <= 8)) {
     // HACK HACK: This is specifically to solve for jquery libraries, who try
     // to read the event being passed.
     // Note we are not setting any of the other params in event. We don't see
     // them as a need for now.
-    // This is set based on documentation from
-    // https://developer.mozilla.org/en-US/docs/DOM/Mozilla_event_reference/DOMContentLoaded#Cross-browser_fallback
-    var customEvent = {};
-    customEvent['bubbles'] = false;
-    customEvent['cancelable'] = false;
-    customEvent['eventPhase'] = 2;  // Event.AT_TARGET
-    customEvent['timeStamp'] = new Date().getTime();
-    customEvent['type'] = deferJsEventName;
-    // event.target has to be some element in DOM. It can never be window.
-    customEvent['target'] = (elem != window) ? elem : document;
-    // This can be safely 'elem' because the two events "DOMContentLoaded' and
-    // 'load' cannot bubble.
-    customEvent['currentTarget'] = elem;
-    func.call(elem, customEvent);
+    loadEvent = document.createEvent('HTMLEvents');
+    loadEvent.initEvent('load', false, false);
+  }
+
+  var eventListenerClosure = function() {
+    func.call(elem, loadEvent);
   }
   if (!deferJs.eventListernersMap_[deferJsEvent]) {
     deferJs.eventListernersMap_[deferJsEvent] = [];

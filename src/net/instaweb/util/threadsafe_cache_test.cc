@@ -26,7 +26,6 @@
 #include "net/instaweb/util/public/dynamic_annotations.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_string.h"
 #include "net/instaweb/util/public/string.h"
@@ -111,8 +110,8 @@ class ThreadsafeCacheTest : public testing::Test {
  protected:
   ThreadsafeCacheTest()
       : lru_cache_(new LRUCache(kMaxSize)),
-        thread_runtime_(Platform::CreateThreadSystem()),
-        threadsafe_cache_(lru_cache_.get(), thread_runtime_->NewMutex()) {
+        thread_runtime_(ThreadSystem::CreateThreadSystem()),
+        threadsafe_cache_(lru_cache_, thread_runtime_->NewMutex()) {
   }
 
   void TestHelper(bool expecting_evictions, bool do_deletes,
@@ -123,7 +122,7 @@ class ThreadsafeCacheTest : public testing::Test {
     for (int i = 0; i < kNumThreads; ++i) {
       spammers[i] = new CacheSpammer(
           thread_runtime_.get(), ThreadSystem::kJoinable,
-          &threadsafe_cache_,  // lru_cache_.get() will make this fail.
+          &threadsafe_cache_,  // &lru_cache_ will make this fail.
           expecting_evictions, do_deletes, value_pattern, i);
     }
 
@@ -140,7 +139,7 @@ class ThreadsafeCacheTest : public testing::Test {
     lru_cache_->SanityCheck();
   }
 
-  scoped_ptr<LRUCache> lru_cache_;
+  LRUCache* lru_cache_;
   scoped_ptr<ThreadSystem> thread_runtime_;
   ThreadsafeCache threadsafe_cache_;
 
@@ -186,7 +185,7 @@ TEST_F(ThreadsafeCacheTest, SpamCacheWithDeletionsAndEvictions) {
 }
 
 TEST_F(ThreadsafeCacheTest, Backend) {
-  EXPECT_EQ(lru_cache_.get(), threadsafe_cache_.Backend());
+  EXPECT_EQ(lru_cache_, threadsafe_cache_.Backend());
 }
 
 }  // namespace net_instaweb

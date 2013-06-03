@@ -27,7 +27,6 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -63,12 +62,6 @@ const char kCCssBody[] = ".c3 {\n font-weight: bold;\n}\n";
 
 class CssCombineFilterTest : public RewriteTestBase {
  protected:
-  CssCombineFilterTest()
-      : css_combine_opportunities_(statistics()->GetVariable(
-            CssCombineFilter::kCssCombineOpportunities)),
-        css_file_count_reduction_(statistics()->GetVariable(
-            CssCombineFilter::kCssFileCountReduction)) {}
-
   virtual void SetUp() {
     RewriteTestBase::SetUp();
     AddFilter(RewriteOptions::kCombineCss);
@@ -149,7 +142,9 @@ class CssCombineFilterTest : public RewriteTestBase {
 
     SetupCssResources(a_css_name, b_css_name);
 
-    int orig_file_count_reduction = css_file_count_reduction_->Get();
+    Variable* css_file_count_reduction =
+        statistics()->GetVariable(CssCombineFilter::kCssFileCountReduction);
+    int orig_file_count_reduction = css_file_count_reduction->Get();
 
     ParseUrl(html_url, html_input);
 
@@ -180,7 +175,7 @@ class CssCombineFilterTest : public RewriteTestBase {
       expected_file_count_reduction = 0;
     }
 
-    EXPECT_EQ(expected_file_count_reduction, css_file_count_reduction_->Get());
+    EXPECT_EQ(expected_file_count_reduction, css_file_count_reduction->Get());
     if (expected_file_count_reduction > 0) {
       EXPECT_STREQ(RewriteOptions::kCssCombinerId,
                    AppliedRewriterStringFromLog());
@@ -204,6 +199,7 @@ class CssCombineFilterTest : public RewriteTestBase {
         "</body>\n")));
     if (!debug_text.empty()) {
       StrAppend(&expected_output,
+                "<!--css_combine: end_document-->"
                 "<!--",
                 DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0),
                 "-->");
@@ -466,9 +462,6 @@ class CssCombineFilterTest : public RewriteTestBase {
     EXPECT_EQ(StrCat(kACssBody, kBCssBody), content);
   }
 
-  Variable* css_combine_opportunities_;
-  Variable* css_file_count_reduction_;
-
  private:
   GoogleString combined_headers_;
 };
@@ -526,7 +519,7 @@ TEST_F(CssCombineFilterCustomOptions, CssPreserveURLs) {
 // local files but they should have been after mapping into the same domain.
 TEST_F(CssCombineFilterCustomOptions, CssCombineAcrossProxyDomains) {
   // Proxy http://kProxyMapDomain/ onto http://kTestDomain/proxied/
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   GoogleString proxy_target = StrCat(kTestDomain, "proxied/");
   ASSERT_TRUE(lawyer->AddProxyDomainMapping(proxy_target,
                                             kProxyMapDomain,
@@ -614,9 +607,6 @@ TEST_F(CssCombineFilterCustomOptions, CssDoNotCombineAcrossNotProxiedDomains) {
 TEST_F(CssCombineFilterTest, CombineCssRecombine) {
   SetHtmlMimetype();
   UseMd5Hasher();
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-
   CombineCss("combine_css_recombine", "", "", false);
   int inserts_before = lru_cache()->num_inserts();
 
@@ -696,7 +686,7 @@ TEST_F(CssCombineFilterTest, XhtmlCombineLinkClosed) {
                    StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
 }
 
-TEST_F(CssCombineFilterTest, IEDirectiveBarrier) {
+TEST_F(CssCombineFilterTest, CombineCssWithIEDirective) {
   SetHtmlMimetype();
   GoogleString ie_directive_barrier(StrCat(
       "<!--[if IE]>\n",
@@ -716,7 +706,7 @@ class CssCombineFilterWithDebugTest : public CssCombineFilterTest {
   }
 };
 
-TEST_F(CssCombineFilterWithDebugTest, IEDirectiveBarrier) {
+TEST_F(CssCombineFilterWithDebugTest, CombineCssWithIEDirectiveDebug) {
   SetHtmlMimetype();
   GoogleString ie_directive_barrier(StrCat(
       "<!--[if IE]>\n",
@@ -724,27 +714,25 @@ TEST_F(CssCombineFilterWithDebugTest, IEDirectiveBarrier) {
       "\n<![endif]-->"));
   UseMd5Hasher();
   CombineCss("combine_css_ie", ie_directive_barrier,
-             "<!--combine_css: Could not combine over barrier: IE directive-->",
-             true);
+             "<!--css_combine: ie directive-->", true);
 }
 
-TEST_F(CssCombineFilterTest, StyleBarrier) {
+TEST_F(CssCombineFilterTest, CombineCssWithStyle) {
   SetHtmlMimetype();
   const char style_barrier[] = "<style>a { color: red }</style>\n";
   UseMd5Hasher();
   CombineCss("combine_css_style", style_barrier, "", true);
 }
 
-TEST_F(CssCombineFilterWithDebugTest, StyleBarrier) {
+TEST_F(CssCombineFilterWithDebugTest, CombineCssWithStyleDebug) {
   SetHtmlMimetype();
   const char style_barrier[] = "<style>a { color: red }</style>\n";
   UseMd5Hasher();
   CombineCss("combine_css_style", style_barrier,
-             "<!--combine_css: Could not combine over barrier: inline style-->",
-             true);
+             "<!--css_combine: inline style-->", true);
 }
 
-TEST_F(CssCombineFilterTest, BogusLinkBarrier) {
+TEST_F(CssCombineFilterTest, CombineCssWithBogusLink) {
   SetHtmlMimetype();
   const char bogus_barrier[] = "<link rel='stylesheet' "
       "href='crazee://big/blue/fake' type='text/css'>\n";
@@ -752,42 +740,13 @@ TEST_F(CssCombineFilterTest, BogusLinkBarrier) {
   CombineCss("combine_css_bogus_link", bogus_barrier, "",  true);
 }
 
-TEST_F(CssCombineFilterWithDebugTest, BogusLinkBarrier) {
+TEST_F(CssCombineFilterWithDebugTest, CombineCssWithBogusLink) {
   SetHtmlMimetype();
   const char bogus_barrier[] = "<link rel='stylesheet' "
       "href='crazee://big/blue/fake' type='text/css'>\n";
   UseMd5Hasher();
   CombineCss("combine_css_bogus_link", bogus_barrier,
-             "<!--combine_css: Could not combine over barrier: "
-             "resource not rewritable-->",  true);
-}
-
-TEST_F(CssCombineFilterTest, AlternateStylesheetBarrier) {
-  SetHtmlMimetype();
-  const char barrier[] =
-      "<link rel='alternate stylesheet' type='text/css' href='a.css'>";
-  UseMd5Hasher();
-  // TODO(sligocki): This should actually be a barrier: s/false/true/
-  // Add CssCombineFilterWithDebugTest version as well when it is.
-  CombineCss("alternate_stylesheet_barrier", barrier, "", false);
-}
-
-TEST_F(CssCombineFilterTest, NonStandardAttributesBarrier) {
-  SetHtmlMimetype();
-  const char barrier[] =
-      "<link rel='stylesheet' type='text/css' href='a.css' foo='bar'>";
-  UseMd5Hasher();
-  CombineCss("non_standard_attributes_barrier", barrier, "", true);
-}
-
-TEST_F(CssCombineFilterWithDebugTest, NonStandardAttributesBarrier) {
-  SetHtmlMimetype();
-  const char barrier[] =
-      "<link rel='stylesheet' type='text/css' href='a.css' foo='bar'>";
-  UseMd5Hasher();
-  CombineCss("non_standard_attributes_barrier", barrier,
-             "<!--combine_css: Could not combine over barrier: "
-             "non-standard attributes-->", true);
+             "<!--css_combine: resource not rewriteable-->",  true);
 }
 
 TEST_F(CssCombineFilterTest, CombineCssWithImportInFirst) {
@@ -1252,7 +1211,8 @@ TEST_F(CssCombineFilterTest, DoRewriteForDifferentDir) {
 
 TEST_F(CssCombineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  AddShard(kTestDomain, "shard1.com,shard2.com");
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddShard(kTestDomain, "shard1.com,shard2.com", &message_handler_);
 
   CssLink::Vector css_in, css_out;
   css_in.Add("1.css", ".yellow {background-image: url('1.png');}\n", "", true);
@@ -1313,7 +1273,8 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsDisallowed) {
 
 TEST_F(CssCombineFilterTest, CrossMappedDomain) {
   CssLink::Vector css_in, css_out;
-  AddRewriteDomainMapping("a.com", "b.com");
+  DomainLawyer* laywer = options()->domain_lawyer();
+  laywer->AddRewriteDomainMapping("a.com", "b.com", &message_handler_);
   bool supply_mock = false;
   css_in.Add("http://a.com/1.css", kYellow, "", supply_mock);
   css_in.Add("http://b.com/2.css", kBlue, "", supply_mock);
@@ -1337,8 +1298,9 @@ TEST_F(CssCombineFilterTest, CrossMappedDomain) {
 // the domain mapping.
 TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
   CssLink::Vector css_in, css_out;
-  AddDomain("a.com");
-  AddDomain("b.com");
+  DomainLawyer* laywer = options()->domain_lawyer();
+  laywer->AddDomain("a.com", &message_handler_);
+  laywer->AddDomain("b.com", &message_handler_);
   bool supply_mock = false;
   const char kUrl1[] = "http://a.com/1.css";
   const char kUrl2[] = "http://b.com/2.css";
@@ -1490,87 +1452,6 @@ TEST_F(CssCombineFilterTest, AlternateStylesheets) {
       "alternate_same",
       "<link rel='alternate stylesheet' href='a.css' title='foo'>"
       "<link rel='alternate stylesheet' href='b.css' title='foo'>");
-}
-
-TEST_F(CssCombineFilterTest, Stats) {
-  Parse("stats_no_link", "");
-  // 0 opportunities with 0 links.
-  EXPECT_EQ(0, css_combine_opportunities_->Get());
-  EXPECT_EQ(0, css_file_count_reduction_->Get());
-  ClearStats();
-
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
-                                ".a { color: red; }", 100);
-  Parse("stats_one_link", Link("a.css"));
-  // 0 opportunities with 1 link.
-  EXPECT_EQ(0, css_combine_opportunities_->Get());
-  EXPECT_EQ(0, css_file_count_reduction_->Get());
-  ClearStats();
-
-  SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                ".b { color: green; }", 100);
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                ".c { color: blue; }", 100);
-  Parse("stats_3_links", StrCat(Link("a.css"), Link("b.css"), Link("c.css")));
-  // 2 opportunity with 3 links.
-  EXPECT_EQ(2, css_combine_opportunities_->Get());
-  EXPECT_EQ(2, css_file_count_reduction_->Get());
-  ClearStats();
-
-  Parse("stats_partial", StrCat(Link("a.css"), Link("b.css"),
-                                // media="print" so that it can't be combined.
-                                Link("c.css", "print", false)));
-  // 2 opportunities, but only one reduction because last is not combinable.
-  EXPECT_EQ(2, css_combine_opportunities_->Get());
-  EXPECT_EQ(1, css_file_count_reduction_->Get());
-  ClearStats();
-}
-
-TEST_F(CssCombineFilterTest, StatsWithDelay) {
-  SetupWaitFetcher();
-
-  // Setup CSS files.
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
-                                ".a { color: red; }", 100);
-  SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                ".b { color: green; }", 100);
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                ".c { color: blue; }", 100);
-
-  GoogleString input_html = StrCat(Link("a.css"), Link("b.css"), Link("c.css"));
-
-  // We have a wait fetcher, so this won't be rewritten on the first run.
-  Parse("stats1", input_html);
-  // All opportunities for combining will be missed.
-  EXPECT_EQ(2, css_combine_opportunities_->Get());
-  EXPECT_EQ(0, css_file_count_reduction_->Get());
-  ClearStats();
-
-  // Calling callbacks will cause async rewrite to happen, but will not
-  // affect stats (which measure actual HTML usage).
-  CallFetcherCallbacks();
-  EXPECT_EQ(0, css_combine_opportunities_->Get());
-  EXPECT_EQ(0, css_file_count_reduction_->Get());
-  ClearStats();
-
-  // This time result is rewritten.
-  Parse("stats2", input_html);
-  // All opportunities for combining will be taken.
-  EXPECT_EQ(2, css_combine_opportunities_->Get());
-  EXPECT_EQ(2, css_file_count_reduction_->Get());
-  ClearStats();
-
-  // Nothing happens here.
-  CallFetcherCallbacks();
-  EXPECT_EQ(0, css_combine_opportunities_->Get());
-  EXPECT_EQ(0, css_file_count_reduction_->Get());
-  ClearStats();
-
-  // Same as second load.
-  Parse("stats3", input_html);
-  EXPECT_EQ(2, css_combine_opportunities_->Get());
-  EXPECT_EQ(2, css_file_count_reduction_->Get());
-  ClearStats();
 }
 
 class CssCombineAndCacheExtendTest : public CssCombineFilterTest {

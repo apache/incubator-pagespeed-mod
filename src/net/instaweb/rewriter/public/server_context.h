@@ -31,8 +31,8 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -42,22 +42,23 @@
 namespace net_instaweb {
 
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
-class CacheInterface;
+class ContentType;
 class CriticalCssFinder;
 class CriticalImagesFinder;
 class CriticalSelectorFinder;
-class DeviceProperties;
-class ExperimentMatcher;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class Function;
+class FuriousMatcher;
 class GoogleUrl;
 class Hasher;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
+class PropertyCache;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
@@ -75,7 +76,6 @@ class UrlAsyncFetcher;
 class UrlNamer;
 class UsageDataReporter;
 class UserAgentMatcher;
-struct ContentType;
 
 typedef RefCountedPtr<OutputResource> OutputResourcePtr;
 typedef std::vector<OutputResourcePtr> OutputResourceVector;
@@ -142,7 +142,7 @@ class ServerContext {
   ThreadSynchronizer* thread_synchronizer() {
     return thread_synchronizer_.get();
   }
-  ExperimentMatcher* experiment_matcher() { return experiment_matcher_.get(); }
+  FuriousMatcher* furious_matcher() { return furious_matcher_.get(); }
 
   // Computes the most restrictive Cache-Control intersection of the input
   // resources, and the provided headers, and sets that cache-control on the
@@ -206,33 +206,38 @@ class ServerContext {
   PropertyCache* page_property_cache() const {
     return page_property_cache_.get();
   }
-
-  const PropertyCache::Cohort* dom_cohort() const { return dom_cohort_; }
-  void set_dom_cohort(const PropertyCache::Cohort* c) { dom_cohort_ = c; }
-
-  const PropertyCache::Cohort* blink_cohort() const { return blink_cohort_; }
-  void set_blink_cohort(const PropertyCache::Cohort* c) { blink_cohort_ = c; }
-
-  const PropertyCache::Cohort* beacon_cohort() const { return beacon_cohort_; }
-  void set_beacon_cohort(const PropertyCache::Cohort* c) { beacon_cohort_ = c; }
+  PropertyCache* client_property_cache() const {
+    return client_property_cache_.get();
+  }
 
   // Cache for storing file system metadata. It must be private to a server,
   // preferably but not necessarily shared between its processes, and is
   // required if using load-from-file and memcached (or any cache shared
-  // between servers). This class does not take ownership.
+  // between servers). This class takes ownership.
   CacheInterface* filesystem_metadata_cache() const {
-    return filesystem_metadata_cache_;
+    return filesystem_metadata_cache_.get();
   }
   void set_filesystem_metadata_cache(CacheInterface* x) {
-    filesystem_metadata_cache_ = x;
+    filesystem_metadata_cache_.reset(x);
   }
 
-  // Cache for small non-HTTP objects. This class does not take ownership.
+  // Cache for small non-HTTP objects. This class takes ownership.
   //
   // Note that this might share namespace with the HTTP cache, so make sure
   // your key names do not start with http://.
-  CacheInterface* metadata_cache() const { return metadata_cache_; }
-  void set_metadata_cache(CacheInterface* x) { metadata_cache_ = x; }
+  CacheInterface* metadata_cache() const { return metadata_cache_.get(); }
+  void set_metadata_cache(CacheInterface* x) { metadata_cache_.reset(x); }
+
+  // Release the metadata_cache and return the released pointer. For tests only.
+  CacheInterface* release_metadata_cache() { return metadata_cache_.release(); }
+
+  // If a CacheInterface* was created on behalf of this server context,
+  // then we can ensure its timely destruction by setting it here.  Note
+  // that ownership of the filesystem_metadata_cache and metadata_cache are
+  // also transferred to this class.
+  void set_owned_cache(CacheInterface* owned_cache) {
+    owned_cache_.reset(owned_cache);
+  }
 
   CriticalCssFinder* critical_css_finder() const {
     return critical_css_finder_.get();
@@ -254,10 +259,17 @@ class ServerContext {
   }
   void set_flush_early_info_finder(FlushEarlyInfoFinder* finder);
 
-  UserAgentMatcher* user_agent_matcher() const {
+  UserAgentMatcher* user_agent_matcher() {
     return user_agent_matcher_;
   }
   void set_user_agent_matcher(UserAgentMatcher* n) { user_agent_matcher_ = n; }
+
+  BlinkCriticalLineDataFinder* blink_critical_line_data_finder() const {
+    return blink_critical_line_data_finder_.get();
+  }
+
+  void set_blink_critical_line_data_finder(
+      BlinkCriticalLineDataFinder* finder);
 
   CacheHtmlInfoFinder* cache_html_info_finder() const {
     return cache_html_info_finder_.get();
@@ -372,14 +384,6 @@ class ServerContext {
   GoogleString GetPagePropertyCacheKey(StringPiece url,
                                        StringPiece options_signature_hash,
                                        StringPiece device_type_suffix);
-
-  // Returns the page property cache key for the page containing fallback
-  // values (i.e. wihtout query params or without leaf) to be used for the proxy
-  // interface flow.
-  // Options are expected to be frozen.
-  GoogleString GetFallbackPagePropertyCacheKey(const GoogleUrl& request_url,
-                                               const RewriteOptions* options,
-                                               StringPiece device_type_suffix);
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -511,7 +515,7 @@ class ServerContext {
   // and NewRewriteDriver, but not via NewUnmanagedRewriteDriver.
   size_t num_active_rewrite_drivers();
 
-  // A ServerContext may be created in one phase, and later populated
+  // A ResourceManager may be created in one phase, and later populated
   // with all its dependencies.  This populates the worker threads and
   // a RewriteDriver used just for quickly decoding (but not serving) URLs.
   void InitWorkersAndDecodingDriver();
@@ -582,13 +586,6 @@ class ServerContext {
   // for HTML.
   virtual bool ProxiesHtml() const = 0;
 
-  // Makes a new DeviceProperties.
-  DeviceProperties* NewDeviceProperties();
-
-  // Puts the cache on a list to be destroyed at the last phase of system
-  // shutdown.
-  void DeleteCacheOnDestruction(CacheInterface* cache);
-
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
   // appropriate spot during shutdown.
@@ -625,6 +622,7 @@ class ServerContext {
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
+  scoped_ptr<BlinkCriticalLineDataFinder> blink_critical_line_data_finder_;
   scoped_ptr<CacheHtmlInfoFinder> cache_html_info_finder_;
   scoped_ptr<FlushEarlyInfoFinder> flush_early_info_finder_;
 
@@ -641,8 +639,9 @@ class ServerContext {
 
   scoped_ptr<HTTPCache> http_cache_;
   scoped_ptr<PropertyCache> page_property_cache_;
-  CacheInterface* filesystem_metadata_cache_;
-  CacheInterface* metadata_cache_;
+  scoped_ptr<PropertyCache> client_property_cache_;
+  scoped_ptr<CacheInterface> filesystem_metadata_cache_;
+  scoped_ptr<CacheInterface> metadata_cache_;
 
   bool store_outputs_in_file_system_;
   bool response_headers_finalized_;
@@ -650,10 +649,6 @@ class ServerContext {
 
   NamedLockManager* lock_manager_;
   MessageHandler* message_handler_;
-
-  const PropertyCache::Cohort* dom_cohort_;
-  const PropertyCache::Cohort* blink_cohort_;
-  const PropertyCache::Cohort* beacon_cohort_;
 
   // RewriteDrivers that were previously allocated, but have
   // been released with ReleaseRewriteDriver, and are ready
@@ -717,10 +712,12 @@ class ServerContext {
   // of controlling thread interleaving to test code for possible races.
   scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
 
-  // Used to match clients or sessions to a specific experiment.
-  scoped_ptr<ExperimentMatcher> experiment_matcher_;
+  // Used to match clients or sessions to a specific furious experiment.
+  scoped_ptr<FuriousMatcher> furious_matcher_;
 
   UsageDataReporter* usage_data_reporter_;
+
+  scoped_ptr<CacheInterface> owned_cache_;
 
   // A convenient central place to store the hostname we're running on.
   GoogleString hostname_;

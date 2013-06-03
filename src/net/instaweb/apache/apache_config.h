@@ -25,7 +25,7 @@
 
 namespace net_instaweb {
 
-class ThreadSystem;
+class Hasher;
 
 // Establishes a context for VirtualHosts and directory-scoped
 // options, either via .htaccess or <Directory>...</Directory>.
@@ -34,8 +34,8 @@ class ApacheConfig : public SystemRewriteOptions {
   static void Initialize();
   static void Terminate();
 
-  ApacheConfig(const StringPiece& dir, ThreadSystem* thread_system);
-  explicit ApacheConfig(ThreadSystem* thread_system);
+  explicit ApacheConfig(const StringPiece& dir);
+  ApacheConfig();
   ~ApacheConfig() {}
 
   // Human-readable description of what this configuration is for.  This
@@ -102,9 +102,6 @@ class ApacheConfig : public SystemRewriteOptions {
 
   // Make an identical copy of these options and return it.
   virtual ApacheConfig* Clone() const;
-
-  // Make a new empty set of options.
-  virtual ApacheConfig* NewOptions() const;
 
   // Returns a suitably down cast version of 'instance' if it is an instance
   // of this class, NULL if not.

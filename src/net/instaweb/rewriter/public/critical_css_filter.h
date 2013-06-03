@@ -34,9 +34,9 @@
 #include <vector>
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "net/instaweb/rewriter/critical_css.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
@@ -56,13 +56,8 @@ class CriticalCssFilter : public EmptyHtmlFilter {
 
   static const char kAddStylesScript[];
   static const char kStatsScriptTemplate[];
-  static const char kNoscriptStylesId[];
-  static const char kMoveScriptId[];
-  static const char kApplyFlushEarlyCssTemplate[];
-  static const char kInvokeFlushEarlyCssTemplate[];
 
   // Overridden from EmptyHtmlFilter:
-  virtual void DetermineEnabled();
   virtual void StartDocument();
   virtual void EndDocument();
   virtual void StartElement(HtmlElement* element);
@@ -89,21 +84,18 @@ class CriticalCssFilter : public EmptyHtmlFilter {
   CssTagScanner css_tag_scanner_;
   CriticalCssFinder* finder_;
 
-  CriticalCssResult* critical_css_result_;
-  HtmlElement* noscript_element_;
+  scoped_ptr<CriticalCssResult> critical_css_result_;
 
   // Map link URLs to indexes in the critical CSS result.
   typedef std::map<GoogleString, int> UrlIndexes;
   UrlIndexes url_indexes_;
-
-  bool has_critical_css_;
-  bool is_move_link_script_added_;
 
   class CssElement;
   class CssStyleElement;
   typedef std::vector<CssElement*> CssElementVector;
   CssElementVector css_elements_;
   CssStyleElement* current_style_element_;
+  bool has_critical_css_;
 
   // TODO(slamm): Are these just for logging, or do you want to export these
   // to varz as well.  Just in general, I think someone intimately familiar with

@@ -44,9 +44,7 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
       factory_(factory),
       shm_runtime_(shm_runtime),
       lock_manager_(NULL),
-      file_cache_backend_(NULL),
-      lru_cache_(NULL),
-      file_cache_(NULL) {
+      file_cache_backend_(NULL) {
   if (config->use_shared_mem_locking()) {
     shared_mem_lock_manager_.reset(new SharedMemLockManager(
         shm_runtime, LockManagerSegmentName(),
@@ -66,15 +64,13 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
       config->file_cache_path(), factory->file_system(), NULL,
       factory->filename_encoder(), policy, factory->statistics(),
       factory->message_handler());
-  factory->TakeOwnership(file_cache_backend_);
-  file_cache_ = new CacheStats(kFileCache, file_cache_backend_,
-                               factory->timer(), factory->statistics());
-  factory->TakeOwnership(file_cache_);
+  file_cache_.reset(
+      new CacheStats(kFileCache, file_cache_backend_,
+                     factory->timer(), factory->statistics()));
 
   if (config->lru_cache_kb_per_process() != 0) {
     LRUCache* lru_cache = new LRUCache(
         config->lru_cache_kb_per_process() * 1024);
-    factory->TakeOwnership(lru_cache);
 
     // We only add the threadsafe-wrapper to the LRUCache.  The FileCache
     // is naturally thread-safe because it's got no writable member variables.
@@ -82,13 +78,11 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
     // cause contention.
     ThreadsafeCache* ts_cache =
         new ThreadsafeCache(lru_cache, factory->thread_system()->NewMutex());
-    factory->TakeOwnership(ts_cache);
 #if CACHE_STATISTICS
-    lru_cache_ = new CacheStats(kLruCache, ts_cache, factory->timer(),
-                                factory->statistics());
-    factory->TakeOwnership(lru_cache_);
+    lru_cache_.reset(new CacheStats(kLruCache, ts_cache, factory->timer(),
+                                    factory->statistics()));
 #else
-    lru_cache_ = ts_cache;
+    lru_cache_.reset(ts_cache);
 #endif
   }
 }

@@ -25,12 +25,14 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/util/public/base64_util.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/write_through_http_cache.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
@@ -99,79 +101,50 @@ class RewriteContextTest : public RewriteContextTestBase {
 
   void SetCacheInvalidationTimestamp() {
     options()->ClearSignatureForTesting();
-    // Make sure the time is different, since otherwise we may end up with
-    // re-fetches resulting in re-inserts rather than inserts.
-    AdvanceTimeMs(Timer::kSecondMs);
     options()->set_cache_invalidation_timestamp(timer()->NowMs());
-    options()->ComputeSignature();
+    options()->ComputeSignature(hasher());
   }
 
   void SetCacheInvalidationUrlTimestamp(
-      StringPiece url, bool ignores_metadata_and_pcache) {
+      StringPiece url, bool is_strict) {
     options()->ClearSignatureForTesting();
-    // Make sure the time is different, since otherwise we may end up with
-    // re-fetches resulting in re-inserts rather than inserts.
-    AdvanceTimeMs(Timer::kSecondMs);
-    options()->AddUrlCacheInvalidationEntry(url, timer()->NowMs(),
-                                            ignores_metadata_and_pcache);
-    options()->ComputeSignature();
+    options()->AddUrlCacheInvalidationEntry(url, timer()->NowMs(), is_strict);
+    options()->ComputeSignature(hasher());
   }
 
-  void EnableFastUrlInvalidation() {
-    options()->ClearSignatureForTesting();
-    options()->set_enable_cache_purge(true);
-    options()->ComputeSignature();
-  }
+  void FetchAndValidateMetadata(StringPiece input_url,
+                                StringPiece correct_url,
+                                bool expect_metadata,
+                                bool head_request) {
+    GoogleString output;
+    ResponseHeaders response_headers;
+    RequestHeaders req_headers;
+    req_headers.Add(HttpAttributes::kXPsaRequestMetadata, "");
+    if (head_request) {
+      req_headers.set_method(RequestHeaders::kHead);
+    }
+    rewrite_driver()->set_request_headers(&req_headers);
+    EXPECT_TRUE(FetchResourceUrl(input_url, &req_headers, &output,
+                                 &response_headers));
+    // Check if we do or don't have metadata, as expected.
+    EXPECT_EQ(expect_metadata, response_headers.Has(
+        HttpAttributes::kXPsaResponseMetadata));
 
-  void TrimOnTheFlyStart(GoogleString* input_html, GoogleString* output_html) {
-    InitTrimFilters(kOnTheFlyResource);
-    InitResources();
+    // Check if the metadata is valid.
+    if (expect_metadata) {
+      GoogleString encoded_serialized = response_headers.Lookup1(
+          HttpAttributes::kXPsaResponseMetadata);
+      GoogleString decoded_serialized;
+      Mime64Decode(encoded_serialized, &decoded_serialized);
+      OutputPartitions partitions;
+      EXPECT_TRUE(partitions.ParseFromString(decoded_serialized));
+      EXPECT_STREQ(correct_url, partitions.partition(0).url());
+    }
 
-    // The first rewrite was successful because we got an 'instant' url
-    // fetch, not because we did any cache lookups.
-    *input_html = CssLinkHref("a.css");
-    *output_html = CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css"));
-    ValidateExpected("trimmable", *input_html, *output_html);
-    EXPECT_EQ(0, lru_cache()->num_hits());
-    EXPECT_EQ(2, lru_cache()->num_misses());   // Metadata + input-resource.
-    // We expect 2 inserts because it's an kOnTheFlyResource.
-    EXPECT_EQ(2, lru_cache()->num_inserts());  // Metadata + input-resource.
-    EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
-    EXPECT_EQ(1, fetch_successes_->Get());
-    EXPECT_EQ(0, fetch_failures_->Get());
-    EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-    EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-    EXPECT_EQ(1, metadata_cache_info().num_misses());
-    EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-    EXPECT_EQ(0, metadata_cache_info().num_hits());
-    EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-    EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-    EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-    EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
-    ClearStats();
-
-    // The second time we request this URL, we should find no additional
-    // cache inserts or fetches.  The rewrite should complete using a
-    // single cache hit for the metadata.  No cache misses will occur.
-    ValidateExpected("trimmable", *input_html, *output_html);
-    EXPECT_EQ(1, lru_cache()->num_hits());
-    EXPECT_EQ(0, lru_cache()->num_misses());
-    EXPECT_EQ(0, lru_cache()->num_inserts());
-    EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
-    EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-    EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-    EXPECT_EQ(0, metadata_cache_info().num_misses());
-    EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-    EXPECT_EQ(1, metadata_cache_info().num_hits());
-    EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-    EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-    EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-    EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
-    EXPECT_EQ(0, fetch_successes_->Get());  // no more fetches.
-    EXPECT_EQ(0, fetch_failures_->Get());
-    ClearStats();
+    // If we did a HEAD request we don't expect any output
+    if (head_request) {
+      EXPECT_STREQ("", output);
+    }
   }
 
   Variable* fetch_failures_;
@@ -180,9 +153,164 @@ class RewriteContextTest : public RewriteContextTestBase {
 
 }  // namespace
 
+TEST_F(RewriteContextTest, ReturnMetadataOnRequest) {
+  // Sends a fetch that asks for metadata in the response headers and checks
+  // that it's in the response.
+
+  // We need to make distributed_rewrite_servers != "" in order to return
+  // metedata.
+  options()->set_distributed_rewrite_servers("example.com");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  GoogleString encoded_url = Encode(kTestDomain, "tw", "0", "a.css", "css");
+  GoogleString bad_encoded_url = Encode(kTestDomain, "tw", "1", "a.css", "css");
+
+  // Note that the .pagespeed. path with metadata request headers do not
+  // check the http cache up front.  If they did that and hit they would
+  // not have metadata to return.  Therefore the tests below have fewer
+  // cache misses than you might have expected.
+
+  // The first .pagespeed. request.  It should hit the reconstruction path.
+  // We'll miss on the metadata and the input resource.  Then fetch once
+  // and put optimized resource, input resource, and metadata in cache.
+  FetchAndValidateMetadata(encoded_url, encoded_url, true, false);
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(3, lru_cache()->num_inserts());
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+
+  // We should get metadata even though the optimized output is cached.
+  ClearStats();
+  FetchAndValidateMetadata(encoded_url, encoded_url, true, false);
+  EXPECT_EQ(2, lru_cache()->num_hits());  // 1 metadata and 1 http
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+
+  // If we use the wrong encoding the metadata + subsequent HTTP cache will hit,
+  // following the fallback path.
+  ClearStats();
+  FetchAndValidateMetadata(bad_encoded_url, encoded_url, true, false);
+  // Expect the bad url to miss twice (RewriteDriver::CacheCallback tries
+  // twice). We should then hit the metadata and good http url.
+  EXPECT_EQ(2, lru_cache()->num_hits());     // 1 metadata and 1 http
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+
+  // If we clear the caches and use the wrong URL it should use the
+  // reconstruction path and return the right URL and the metadata.
+  ClearStats();
+  lru_cache()->Clear();
+  http_cache()->Delete(encoded_url);
+  FetchAndValidateMetadata(bad_encoded_url, encoded_url, true, false);
+  // We should fetch once and insert the input, optimized, and metadata into
+  // cache.
+  EXPECT_EQ(0, lru_cache()->num_hits());     // 1 metadata and 1 http
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(3, lru_cache()->num_inserts());
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+}
+
+TEST_F(RewriteContextTest, NoMetadataWithoutRewriteOption) {
+  // Ensure that we don't return metadata if we're not configured
+  // to run with distributed rewrites.
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  GoogleString encoded_url = Encode(kTestDomain, "tw", "0", "a.css", "css");
+
+  // We didn't set rewrite tasks in options, so we shouldn't get any metadata.
+  FetchAndValidateMetadata(encoded_url, encoded_url, false, false);
+}
+
+TEST_F(RewriteContextTest, HeadMetadata) {
+  // Verify that a HEAD request that asks for metadata returns the metadata
+  // but not the content.  We don't check cache hit/miss numbers because that
+  // would be redundant with RewriteContextTest.ReturnMetadataOnRequest.
+
+  // We need to make distributed_rewrite_servers != "" in order to return
+  // metedata.
+  options()->set_distributed_rewrite_servers("example.com");
+  InitTrimFilters(kRewrittenResource);
+  InitResources();
+
+  GoogleString encoded_url = Encode(kTestDomain, "tw", "0", "a.css", "css");
+  GoogleString bad_encoded_url = Encode(kTestDomain, "tw", "1", "a.css", "css");
+
+  // Reconstruction path.
+  FetchAndValidateMetadata(encoded_url, encoded_url, true, true);
+
+  // Second fetch, verify that we skip the initial http cache check and do
+  // return metadata.
+  FetchAndValidateMetadata(encoded_url, encoded_url, true, true);
+
+  // Bad .pagespeed. hash but still gets resolved.
+  FetchAndValidateMetadata(bad_encoded_url, encoded_url, true, true);
+
+  // Bad .pagespeed. hash and empty cache but should still reconstruct properly.
+  lru_cache()->Clear();
+  http_cache()->Delete(encoded_url);
+  FetchAndValidateMetadata(bad_encoded_url, encoded_url, true, true);
+}
+
 TEST_F(RewriteContextTest, TrimOnTheFlyOptimizable) {
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
+
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should need two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  GoogleString input_html(CssLinkHref("a.css"));
+  GoogleString output_html(CssLinkHref(
+      Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  ValidateExpected("trimmable", input_html, output_html);
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
+  EXPECT_EQ(1, fetch_successes_->Get());
+  EXPECT_EQ(0, fetch_failures_->Get());
+  const MetadataCacheInfo* metadata_cache_info =
+      logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  ValidateExpected("trimmable", input_html, output_html);
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
+  EXPECT_EQ(0, fetch_successes_->Get());  // no more fetches.
+  EXPECT_EQ(0, fetch_failures_->Get());
+  ClearStats();
 
   // The third time we request this URL, we've advanced time so that the origin
   // resource TTL has expired.  The data will be re-fetched, and the Date
@@ -196,15 +324,16 @@ TEST_F(RewriteContextTest, TrimOnTheFlyOptimizable) {
   EXPECT_EQ(2, lru_cache()->num_inserts());  // re-inserts after expiration.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(1, http_cache()->cache_expirations()->Get());
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(1, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(1, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(1, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
   EXPECT_EQ(1, fetch_successes_->Get());  // Must freshen.
   EXPECT_EQ(0, fetch_failures_->Get());
   ClearStats();
@@ -218,15 +347,16 @@ TEST_F(RewriteContextTest, TrimOnTheFlyOptimizable) {
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
   EXPECT_EQ(0, fetch_successes_->Get());  // no more fetches.
   EXPECT_EQ(0, fetch_failures_->Get());
   ClearStats();
@@ -236,22 +366,23 @@ TEST_F(RewriteContextTest, TrimOnTheFlyOptimizable) {
   // successfully rewrite, but we will not need to re-fetch.
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   ValidateExpected("trimmable_flushed_metadata", input_html, output_html);
   EXPECT_EQ(1, lru_cache()->num_hits());     // resource
   EXPECT_EQ(1, lru_cache()->num_misses());   // metadata
   EXPECT_EQ(1, lru_cache()->num_inserts());  // metadata
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_expirations()->Get());
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
   ClearStats();
   EXPECT_EQ(0, fetch_successes_->Get());  // no more fetches.
   EXPECT_EQ(0, fetch_failures_->Get());
@@ -280,79 +411,81 @@ TEST_F(RewriteContextTest, UnhealthyCacheNoHtmlRewrites) {
 
 
 TEST_F(RewriteContextTest, TrimOnTheFlyOptimizableCacheInvalidation) {
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
+
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should need two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
 
   // The third time we invalidate the cache and then request the URL.
   SetCacheInvalidationTimestamp();
-  ValidateExpected("trimmable", input_html, output_html);
-
-  rewrite_driver()->WaitForShutDown();
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
   // Setting the cache invalidation timestamp causes the partition key to change
   // and hence we get a cache miss (and insert) on the metadata.  The HTTPCache
-  // is also invalidated and hence we have a fetch + insert of a.css.
+  // is also invalidated and hence we have a fetch.
   EXPECT_EQ(1, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-}
-
-TEST_F(RewriteContextTest, CacheInvalidatingOneOfTwoCssFiles) {
-  EnableFastUrlInvalidation();
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
-
-  // Also include 'b.css' to input & output HTML.
-  StrAppend(&input_html, CssLinkHref("b.css"));
-  StrAppend(&output_html, CssLinkHref("b.css"));  // 'b.css' is not optimizable.
-
-  // Invalidate the whole cache & re-run, generating metadata cache entries for
-  // a.css and b.css.
-  SetCacheInvalidationTimestamp();
-  ValidateExpected("trimmable", input_html, output_html);
-  ClearStats();
-
-  // Wipe out a.css, but b.css's metadata stays intact.
-  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("a.css"),
-                                   false /* ignores_metadata_and_pcache */);
-  ValidateExpected("trimmable", input_html, output_html);
-
-  // The invalidation of a.css does not actually change the cache key or remove
-  // it from the cache; the metadata is invalidated after the cache hit.  Then
-  // we must re-fetch a.css, which results in an cache hit HTTP cache hit.
-  // There are no physical cache misses, but we do re-insert the same value
-  // in the lru-cache after re-fetching a.css and seeing it didn't change.
-  EXPECT_EQ(3, lru_cache()->num_hits());  // a.css, b.css, re-fetch of a.css.
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());  // a.css was invalidated.
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());
-  EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
-  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-
-  // Zooming into the metadata cache, we see a miss at this level due to
-  // the invalidation record we wrote.
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(2, metadata_cache_info().num_rewrites_completed());
 }
 
 TEST_F(RewriteContextTest,
-       TrimOnTheFlyOptimizableThisUrlCacheInvalidationIgnoringMetadataCache) {
-  EnableFastUrlInvalidation();
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
+       TrimOnTheFlyOptimizableThisStrictUrlCacheInvalidation) {
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
+
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should store two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
 
   // The third time we do a 'strict' invalidation of cache for some other URL
   // and then request the URL.  This means we do not invalidate the metadata,
   // nor the HTTP cache entry for 'a.css'.
-  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar"),
-                                   true /* ignores_metadata_and_pcache */);
+  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar"), true);
   ValidateExpected("trimmable", CssLinkHref("a.css"),
                    CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
   // We get a cache hit on the metadata.
@@ -368,8 +501,7 @@ TEST_F(RewriteContextTest,
   // Note:  Strict invalidation does not make sense for resources, since one
   // almost always wants to invalidate metadata for resources.  This test is for
   // completeness.
-  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("a.css"),
-                                   true /* ignores_metadata_and_pcache */);
+  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("a.css"), true);
   ValidateExpected("trimmable", CssLinkHref("a.css"),
                    CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
   // We get a cache hit on the metadata.
@@ -380,9 +512,33 @@ TEST_F(RewriteContextTest,
 }
 
 TEST_F(RewriteContextTest, TrimOnTheFlyOptimizableThisUrlCacheInvalidation) {
-  EnableFastUrlInvalidation();
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
+
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should need two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
 
   // The third time we do a 'strict' invalidation of cache for some other URL
   // and then request the URL.  This means we do not invalidate the metadata,
@@ -399,36 +555,52 @@ TEST_F(RewriteContextTest, TrimOnTheFlyOptimizableThisUrlCacheInvalidation) {
 
   // The fourth time we do a 'complete' invalidation of cache for 'a.css' and
   // then request the URL.  This means in addition to invalidating the HTTP
-  // cache entry for 'a.css', the metadata for that item is also invalidated,
-  // though the metadata for 'b.css' is not disturbed.
-  ResponseHeaders default_css_header;
-  SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
-  int64 now_ms = http_cache()->timer()->NowMs();
-  default_css_header.SetDateAndCaching(now_ms, kOriginTtlMs);
-  default_css_header.ComputeCaching();
-  SetFetchResponse(StrCat(kTestDomain, "a.css"), default_css_header, " new_a ");
-  AdvanceTimeMs(1);
+  // cache entry for 'a.css', all metadata are also invalidated.
   SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("a.css"), false);
   ValidateExpected("trimmable", CssLinkHref("a.css"),
                    CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
-  // The above invalidation did not cause the partition key to change, and so
-  // we get an LRU cache hit.  However, the InputInfo is invalid because we
-  // purged the cache, so we'll do a fetch, rewrite, and -reinsert.
-  EXPECT_EQ(2, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());  // metadata & http
+  // The above invalidation causes the partition key to change and hence
+  // we get a cache miss (and insert) on the metadata.  The HTTPCache is also
+  // invalidated and hence we have a fetch.
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
 }
 
 TEST_F(RewriteContextTest, TrimOnTheFlyOptimizableUrlCacheInvalidation) {
-  EnableFastUrlInvalidation();
-  GoogleString input_html, output_html;
-  TrimOnTheFlyStart(&input_html, &output_html);
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
+
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should need two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(0, lru_cache()->num_hits());
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  ValidateExpected("trimmable", CssLinkHref("a.css"),
+                   CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(0, lru_cache()->num_misses());
+  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  ClearStats();
 
   // The third time we do a 'complete' invalidation of cache for some other URL
   // and then request the URL.  This means all metadata is invalidated, but the
   // HTTP cache entry for 'a.css' is not.
-  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar*"), false);
+  SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar"), false);
   ValidateExpected("trimmable", CssLinkHref("a.css"),
                    CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")));
   // The above invalidation causes the partition key to change and hence
@@ -487,10 +659,10 @@ TEST_F(RewriteContextTest, TrimOnTheFlyNonOptimizableCacheInvalidation) {
   ValidateNoChanges("no_trimmable", CssLinkHref("b.css"));
   // Setting the cache invalidation timestamp causes the partition key to change
   // and hence we get a cache miss (and insert) on the metadata.  The HTTPCache
-  // is also invalidated and hence we have a fetch, and re-insert of b.css
+  // is also invalidated and hence we have a fetch.
   EXPECT_EQ(1, lru_cache()->num_hits());
   EXPECT_EQ(1, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
 }
 
@@ -546,7 +718,6 @@ TEST_F(RewriteContextTest,
 
 TEST_F(RewriteContextTest,
        TrimOnTheFlyNonOptimizableThisRefUrlCacheInvalidation) {
-  EnableFastUrlInvalidation();
   InitTrimFilters(kOnTheFlyResource);
   InitResources();
 
@@ -584,16 +755,12 @@ TEST_F(RewriteContextTest,
   // then request the URL.
   SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("b.css"), false);
   ValidateNoChanges("no_trimmable", CssLinkHref("b.css"));
-  // The above invalidation does not cause the partition key to
-  // change, so we get an LRU cache hit, but we detect that it's
-  // invalid and then re-insert the metadata.  The HTTPCache is also
-  // invalidated and hence we have a fetch and new insert of b.css
-  EXPECT_EQ(2, lru_cache()->num_hits());  // metadata (invalid) + b.css.
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());
+  // The above invalidation causes the partition key to change and hence
+  // we get a cache miss (and insert) on the metadata.  The HTTPCache is also
+  // invalidated and hence we have a fetch.
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
 }
 
@@ -618,16 +785,17 @@ TEST_F(RewriteContextTest, TrimOnTheFlyNonOptimizableUrlCacheInvalidation) {
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   ClearStats();
 
-  // The third time we do a 'non-strict' (includes metadata) invalidation of
-  // the cache for some URL other than 'b.css', invalidating just the
-  // metadata for foo.bar, which has no effect.
+  // The third time we do a 'non-strict' invalidation of the cache for some URL
+  // other than 'b.css', also invalidationg all metadata in the process. We then
+  // request the URL.
   SetCacheInvalidationUrlTimestamp(AbsolutifyUrl("foo.bar"), false);
   ValidateNoChanges("no_trimmable", CssLinkHref("b.css"));
-  // Since enable_cache_purge is not true, the above invalidation results in a
-  // signature change for metadata cache key.  Hence metadata is invalidated.
-  EXPECT_EQ(1, lru_cache()->num_hits());     // http cache
-  EXPECT_EQ(1, lru_cache()->num_misses());   // metadata
-  EXPECT_EQ(1, lru_cache()->num_inserts());  // metadata
+  // The above invalidation causes the partition key to change and hence
+  // we get a cache miss (and insert) on the metadata.  The HTTPCache is also
+  // invalidated and hence we have a fetch.
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
 }
 
@@ -707,15 +875,17 @@ TEST_F(RewriteContextTest, TrimRepeatedOptimizableDelayed) {
   // First time nothing happens by deadline.
   ValidateNoChanges("trimable2_notyet",
                     StrCat(CssLinkHref("a.css"), CssLinkHref("a.css")));
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_rewrites_completed());
+  const MetadataCacheInfo* metadata_cache_info =
+      logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_rewrites_completed());
 
   CallFetcherCallbacks();
   // Second time we get both rewritten right.
@@ -724,17 +894,16 @@ TEST_F(RewriteContextTest, TrimRepeatedOptimizableDelayed) {
       StrCat(CssLinkHref("a.css"), CssLinkHref("a.css")),
       StrCat(CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css")),
              CssLinkHref(Encode(kTestDomain, "tw", "0", "a.css", "css"))));
-  EXPECT_EQ(0, metadata_cache_info().num_disabled_rewrites());
-  // It's not deterministic whether the 2nd rewrite will get handled as
-  // a hit or repeated rewrite of same content.
-  EXPECT_EQ(2, (metadata_cache_info().num_repeated_rewrites() +
-                metadata_cache_info().num_hits()));
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(2, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(2, metadata_cache_info->num_rewrites_completed());
 
   EXPECT_EQ(1, trim_filter_->num_rewrites());
 }
@@ -948,6 +1117,7 @@ TEST_F(RewriteContextTest, TrimFetchRewritten) {
   // Make sure headers are nice and long.
   EXPECT_EQ(Timer::kYearMs, headers.cache_ttl_ms());
   EXPECT_TRUE(headers.IsProxyCacheable());
+  EXPECT_TRUE(headers.IsCacheable());
 }
 
 TEST_F(RewriteContextTest, TrimFetchSeedsCache) {
@@ -1743,7 +1913,7 @@ TEST_F(RewriteContextTest, TrimFetchWrongHash) {
   // Make sure the TTL is correct, and the result is private.
   EXPECT_EQ(ResponseHeaders::kImplicitCacheTtlMs, headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
+  EXPECT_TRUE(headers.IsCacheable());
 }
 
 TEST_F(RewriteContextTest, TrimFetchWrongHashColdCache) {
@@ -1761,7 +1931,7 @@ TEST_F(RewriteContextTest, TrimFetchWrongHashColdCache) {
   // Make sure the TTL is correct (short), and the result is private.
   EXPECT_EQ(ResponseHeaders::kImplicitCacheTtlMs, headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
+  EXPECT_TRUE(headers.IsCacheable());
 }
 
 TEST_F(RewriteContextTest, TrimFetchHashFailed) {
@@ -1789,7 +1959,7 @@ TEST_F(RewriteContextTest, TrimFetchHashFailed) {
   // Make sure the TTL is correct, and the result is private.
   EXPECT_EQ(ResponseHeaders::kImplicitCacheTtlMs, headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
+  EXPECT_TRUE(headers.IsCacheable());
 }
 
 TEST_F(RewriteContextTest, TrimFetchHashFailedShortTtl) {
@@ -1806,7 +1976,7 @@ TEST_F(RewriteContextTest, TrimFetchHashFailedShortTtl) {
   EXPECT_STREQ("d", contents);
   EXPECT_EQ(kLowOriginTtlMs, headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
+  EXPECT_TRUE(headers.IsCacheable());
 }
 
 TEST_F(RewriteContextTest, FetchColdCacheRewritten) {
@@ -2191,71 +2361,6 @@ TEST_F(RewriteContextTest, NestedChained) {
             rewritten_contents);
 }
 
-TEST_F(RewriteContextTest, Cancel) {
-  // Make sure Cancel is called properly when disable_further_processing()
-  // is invoked.
-  RewriteDriver* driver = rewrite_driver();
-  CombiningFilter* combining_filter1 =
-      new CombiningFilter(driver, mock_scheduler(), 0 /* no delay*/);
-  CombiningFilter* combining_filter2 =
-      new CombiningFilter(driver, mock_scheduler(), 0 /* no delay*/);
-  driver->AppendRewriteFilter(combining_filter1);
-  driver->AppendRewriteFilter(combining_filter2);
-  server_context()->ComputeSignature(options());
-  InitResources();
-  GoogleString combined_url =
-      Encode(kTestDomain, CombiningFilter::kFilterId, "0",
-             MultiUrl("a.css", "b.css"), "css");
-
-  ValidateExpected("cancel", StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")),
-                   CssLinkHref(combined_url));
-  EXPECT_EQ(0, combining_filter1->num_cancel());
-  // Element getting deleted disables further processing.
-  EXPECT_EQ(1, combining_filter2->num_cancel());
-}
-
-TEST_F(RewriteContextTest, WillNotRewrite) {
-  // Make sure WillNotRewrite is called properly when filter misses the
-  // deadline.
-  RewriteDriver* driver = rewrite_driver();
-  TrimWhitespaceRewriter* trimmer =
-      new TrimWhitespaceRewriter(kRewrittenResource);
-  rewrite_driver()->AppendRewriteFilter(
-      new SimpleTextFilter(trimmer, rewrite_driver()));
-  CombiningFilter* combining_filter =
-      new CombiningFilter(driver, mock_scheduler(), 100 /* delay, ms */);
-  driver->AppendRewriteFilter(combining_filter);
-  server_context()->ComputeSignature(options());
-
-  GoogleString out_url_a = Encode(kTestDomain,
-                                  TrimWhitespaceRewriter::kFilterId,
-                                  "0", "a.css", "css");
-  GoogleString out_url_c = Encode(kTestDomain,
-                                  TrimWhitespaceRewriter::kFilterId,
-                                  "0", "c.css", "css");
-  InitResources();
-  ValidateExpected(
-      "will_not_rewrite",
-      StrCat(CssLinkHref("a.css"), CssLinkHref("c.css")),
-      StrCat(CssLinkHref(out_url_a), CssLinkHref(out_url_c)));
-  EXPECT_EQ(0, combining_filter->num_render());
-  EXPECT_EQ(1, combining_filter->num_will_not_render());
-}
-
-TEST_F(RewriteContextTest, RewritePartitionFailed) {
-  // PartitionFailed still calls Rewrite., as documented.
-  RewriteDriver* driver = rewrite_driver();
-  CombiningFilter* combining_filter =
-      new CombiningFilter(driver, mock_scheduler(), 0 /* delay, ms */);
-  driver->AppendRewriteFilter(combining_filter);
-  server_context()->ComputeSignature(options());
-  SetFetchResponse404("404.css");
-  ValidateNoChanges("will_not_rewrite_partition_failed",
-                    StrCat(CssLinkHref("404.css"), CssLinkHref("404.css")));
-  EXPECT_EQ(1, combining_filter->num_render());
-  EXPECT_EQ(0, combining_filter->num_will_not_render());
-}
-
 TEST_F(RewriteContextTest, DisableFurtherProcessing) {
   // Make sure that set_disable_further_processing() done in the combiner
   // prevents later rewrites from running. To test this, we add the combiner
@@ -2286,15 +2391,17 @@ TEST_F(RewriteContextTest, DisableFurtherProcessing) {
   // disable_further_processing, since the framework may avoid
   // the issue by reusing the rewrite.
   EXPECT_EQ(1, trimmer->num_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(1, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(2, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(2, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(3, metadata_cache_info().num_rewrites_completed());
+  const MetadataCacheInfo* metadata_cache_info =
+      logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(1, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(2, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(2, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(3, metadata_cache_info->num_rewrites_completed());
   ClearStats();
 
   // Now prevent trim from running. Should not see it in the URL.
@@ -2309,15 +2416,16 @@ TEST_F(RewriteContextTest, DisableFurtherProcessing) {
       CssLinkHref(combined_url));
 
   EXPECT_EQ(1, trimmer->num_rewrites());  // unchanged.
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(2, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(3, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(2, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(3, metadata_cache_info->num_rewrites_completed());
   ClearStats();
 
   // Cached, too.
@@ -2327,15 +2435,16 @@ TEST_F(RewriteContextTest, DisableFurtherProcessing) {
       CssLinkHref(combined_url));
 
   EXPECT_EQ(1, trimmer->num_rewrites());  // unchanged.
-  EXPECT_EQ(0, metadata_cache_info().num_repeated_rewrites());
-  EXPECT_EQ(2, metadata_cache_info().num_disabled_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(3, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_repeated_rewrites());
+  EXPECT_EQ(2, metadata_cache_info->num_disabled_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(3, metadata_cache_info->num_rewrites_completed());
   ClearStats();
 }
 
@@ -3633,7 +3742,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
   // and are unable to serve the rewritten resource.
   options()->ClearSignatureForTesting();
   options()->set_serve_stale_if_fetch_error(false);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
 
   ClearStats();
   lru_cache()->Delete(rewritten_url);
@@ -3654,7 +3763,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
 TEST_F(RewriteContextTest, TestOriginalImplicitCacheTtl) {
   options()->ClearSignatureForTesting();
   options()->set_metadata_cache_staleness_threshold_ms(0);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
 
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
@@ -3702,7 +3811,7 @@ TEST_F(RewriteContextTest, TestModifiedImplicitCacheTtl) {
   options()->ClearSignatureForTesting();
   options()->set_implicit_cache_ttl_ms(500 * Timer::kSecondMs);
   options()->set_metadata_cache_staleness_threshold_ms(0);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
 
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
@@ -3769,7 +3878,7 @@ TEST_F(RewriteContextTest, TestModifiedImplicitCacheTtlWith304) {
   options()->ClearSignatureForTesting();
   options()->set_implicit_cache_ttl_ms(500 * Timer::kSecondMs);
   options()->set_metadata_cache_staleness_threshold_ms(0);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
 
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
@@ -3817,7 +3926,7 @@ TEST_F(RewriteContextTest, TestModifiedImplicitCacheTtlWith304) {
   // Modify the implicit cache ttl.
   options()->ClearSignatureForTesting();
   options()->set_implicit_cache_ttl_ms(1000 * Timer::kSecondMs);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
   FetcherUpdateDateHeaders();
 
   SetupWaitFetcher();
@@ -3905,7 +4014,7 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
 
   options()->ClearSignatureForTesting();
   options()->set_metadata_cache_staleness_threshold_ms(kTtlMs / 2);
-  options()->ComputeSignature();
+  options()->ComputeSignature(hasher());
 
   // Start with non-zero time, and init our resource..
   AdvanceTimeMs(kTtlMs / 2);
@@ -3919,13 +4028,15 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
                    CssLinkHref(kOriginalRewriteUrl));
   EXPECT_EQ(1, trim_filter_->num_rewrites());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  const MetadataCacheInfo* metadata_cache_info =
+      logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(1, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
 
   // Change the resource.
   SetResponseWithDefaultHeaders(kPath, kContentTypeCss, kNewDataIn,
@@ -3943,13 +4054,14 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
   ValidateExpected("stale",
                    CssLinkHref(kPath),
                    CssLinkHref(kStaleRewriteUrl));
-  EXPECT_EQ(0, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_hits());
-  EXPECT_EQ(1, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(0, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_hits());
+  EXPECT_EQ(1, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
 
   CallFetcherCallbacks();
   EXPECT_EQ(0, trim_filter_->num_rewrites());
@@ -3964,13 +4076,14 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
                    CssLinkHref(kPath),
                    CssLinkHref(Encode(kTestDomain, "tw", "nnVv_VJ4Xn",
                                       "test.css", "css")));
-  EXPECT_EQ(1, metadata_cache_info().num_misses());
-  EXPECT_EQ(0, metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, metadata_cache_info().num_hits());
-  EXPECT_EQ(0, metadata_cache_info().num_stale_rewrites());
-  EXPECT_EQ(0, metadata_cache_info().num_successful_revalidates());
-  EXPECT_EQ(1, metadata_cache_info().num_successful_rewrites_on_miss());
-  EXPECT_EQ(1, metadata_cache_info().num_rewrites_completed());
+  metadata_cache_info = logging_info()->mutable_metadata_cache_info();
+  EXPECT_EQ(1, metadata_cache_info->num_misses());
+  EXPECT_EQ(0, metadata_cache_info->num_revalidates());
+  EXPECT_EQ(0, metadata_cache_info->num_hits());
+  EXPECT_EQ(0, metadata_cache_info->num_stale_rewrites());
+  EXPECT_EQ(0, metadata_cache_info->num_successful_revalidates());
+  EXPECT_EQ(1, metadata_cache_info->num_successful_rewrites_on_miss());
+  EXPECT_EQ(1, metadata_cache_info->num_rewrites_completed());
   CallFetcherCallbacks();
   EXPECT_EQ(1, trim_filter_->num_rewrites());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
@@ -4001,7 +4114,7 @@ TEST_F(RewriteContextTest, BlockingRewrite) {
 TEST_F(RewriteContextTest, CssCdnMapToDifferentOrigin) {
   int64 start_time_ms = timer()->NowMs();
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   InitNestedFilter(true);
   InitResources();
   lawyer->AddRewriteDomainMapping("test.com", "static.test.com",
@@ -4046,7 +4159,7 @@ TEST_F(RewriteContextTest, CssCdnMapToDifferentOrigin) {
 TEST_F(RewriteContextTest, CssCdnMapToDifferentOriginSharded) {
   int64 start_time_ms = timer()->NowMs();
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   InitNestedFilter(true);
   InitResources();
 

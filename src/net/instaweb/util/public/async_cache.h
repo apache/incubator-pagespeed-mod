@@ -24,8 +24,8 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -53,7 +53,7 @@ class AsyncCache : public CacheInterface {
   // time we encounter a page then I think we may need to bump this up.
   static const int64 kMaxQueueSize = 2000;
 
-  // Does not takes ownership of the synchronous cache that is passed in.
+  // Takes ownership of the synchronous cache that is passed in.
   // Does not take ownership of the pool, which might be shared with
   // other users.
   //
@@ -67,8 +67,7 @@ class AsyncCache : public CacheInterface {
   virtual void Put(const GoogleString& key, SharedString* value);
   virtual void Delete(const GoogleString& key);
   virtual void MultiGet(MultiGetRequest* request);
-  static GoogleString FormatName(StringPiece cache);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  virtual const char* Name() const { return name_.c_str(); }
   virtual bool IsBlocking() const { return false; }
 
   // Prevent the AsyncCache from issuing any more Gets.  Any subsequent
@@ -111,7 +110,8 @@ class AsyncCache : public CacheInterface {
 
   void MultiGetReportNotFound(MultiGetRequest* request);
 
-  CacheInterface* cache_;
+  scoped_ptr<CacheInterface> cache_;
+  GoogleString name_;
   QueuedWorkerPool::Sequence* sequence_;
   AtomicBool stopped_;
   AtomicInt32 outstanding_operations_;

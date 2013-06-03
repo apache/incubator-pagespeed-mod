@@ -24,7 +24,6 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/mock_timer.h"
@@ -70,8 +69,8 @@ const char kHtmlInput[] =
 
 const char kExpectedOutput[] =
     "<script>pagespeed.panelLoader.loadCookies([\"helo=world; path=/\"]);</script>"  // NOLINT
-    "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.0\":{\"instance_html\":\"__psa_lt;div CLASS=\\\"An \\t \\r \\n item\\\"__psa_gt;__psa_lt;/div__psa_gt;\",\"xpath\":\"//div[2]\"}}\n);</script>"  // NOLINT
-    "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.1\":{\"instance_html\":\"__psa_lt;span class=\\\"Item again\\\"__psa_gt;__psa_lt;/span__psa_gt;\",\"xpath\":\"//div[3]/span[1]\"}}\n);</script>"  // NOLINT
+    "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.0\":{\"instance_html\":\"__psa_lt;div CLASS=\\\"An \\t \\r \\n item\\\"__psa_gt;__psa_lt;/div__psa_gt;\",\"xpath\":\"//div[1]\"}}\n);</script>"  // NOLINT
+    "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.1\":{\"instance_html\":\"__psa_lt;span class=\\\"Item again\\\"__psa_gt;__psa_lt;/span__psa_gt;\",\"xpath\":\"//div[2]/span[1]\"}}\n);</script>"  // NOLINT
     "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.2\":{\"instance_html\":\"__psa_lt;span class=\\\"item\\\"__psa_gt;__psa_lt;/span__psa_gt;\",\"xpath\":\"//div[@id=\\\"container\\\"]/div[1]/span[1]\"}}\n);</script>"  // NOLINT
     "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-1.0\":{\"instance_html\":\"__psa_lt;h2 Id=\\\"beforeItems\\\"__psa_gt; This is before Items __psa_lt;/h2__psa_gt;\",\"xpath\":\"//div[@id=\\\"container\\\"]/h2[2]\"}}\n);</script>"  // NOLINT
     "<script>pagespeed.panelLoader.loadNonCacheableObject({\"panel-id-0.3\":{\"instance_html\":\"__psa_lt;div class=\\\"another item here\\\"__psa_gt;__psa_lt;img src=\\\"image1\\\"__psa_gt;__psa_lt;img src=\\\"image2\\\"__psa_gt;__psa_lt;/div__psa_gt;\",\"xpath\":\"//div[@id=\\\"container\\\"]/div[3]\"}}\n);</script>"  // NOLINT
@@ -86,7 +85,7 @@ class CacheHtmlFilterTest : public RewriteTestBase {
 
   virtual void SetUp() {
     delete options_;
-    options_ = new RewriteOptions(factory()->thread_system());
+    options_ = new RewriteOptions();
     options_->DisableFilter(RewriteOptions::kHtmlWriterFilter);
 
     RewriteTestBase::SetUp();
@@ -140,14 +139,16 @@ class CacheHtmlFilterTest : public RewriteTestBase {
 };
 
 TEST_F(CacheHtmlFilterTest, SendNonCacheable) {
-  options_->set_non_cacheables_for_cache_partial_html(
-      "class=\"item\",id='beforeItems'");
+  options_->AddBlinkCacheableFamily(
+      "http://www.test.com/", kCacheTimeMs, "class=\"item\",id='beforeItems'");
   Validate(kRequestUrl, kHtmlInput, kExpectedOutput);
 }
 
 TEST_F(CacheHtmlFilterTest, SendNonCacheableWithMultipleFamilies) {
-  options_->set_non_cacheables_for_cache_partial_html(
-      "class=item,id=beforeItems");
+  options_->AddBlinkCacheableFamily(
+      "http://www.test.com/", kCacheTimeMs, "id=random");
+  options_->AddBlinkCacheableFamily(
+      "http://www.test.com/path", kCacheTimeMs, "class=item,id=beforeItems");
   Validate(kRequestUrlWithPath, kHtmlInput, kExpectedOutput);
 }
 

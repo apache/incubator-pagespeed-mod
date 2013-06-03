@@ -34,7 +34,6 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -43,9 +42,11 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class AbstractMutex;
 class CacheUrlAsyncFetcher;
 class Function;
+class LogRecord;
 class MessageHandler;
 class ProxyFetch;
 class ProxyFetchPropertyCallbackCollector;
@@ -60,7 +61,7 @@ class Timer;
 // ProxyFetches it creates.
 class ProxyFetchFactory {
  public:
-  explicit ProxyFetchFactory(ServerContext* server_context);
+  explicit ProxyFetchFactory(ServerContext* manager);
   ~ProxyFetchFactory();
 
   // Convenience method that calls CreateNewProxyFetch and then StartFetch() on
@@ -100,7 +101,7 @@ class ProxyFetchFactory {
   void RegisterNewFetch(ProxyFetch* proxy_fetch);
   void RegisterFinishedFetch(ProxyFetch* proxy_fetch);
 
-  ServerContext* server_context_;
+  ServerContext* manager_;
   Timer* timer_;
   MessageHandler* handler_;
 
@@ -120,14 +121,21 @@ class ProxyFetchFactory {
 // to complete.
 class ProxyFetchPropertyCallback : public PropertyPage {
  public:
-  ProxyFetchPropertyCallback(PageType page_type,
+  // The cache type associated with this callback.
+  enum CacheType {
+    kPagePropertyCache,
+    kClientPropertyCache,
+    kDevicePropertyCache
+  };
+
+  ProxyFetchPropertyCallback(CacheType cache_type,
                              PropertyCache* property_cache,
                              const StringPiece& key,
                              UserAgentMatcher::DeviceType device_type,
                              ProxyFetchPropertyCallbackCollector* collector,
                              AbstractMutex* mutex);
 
-  PageType page_type() const { return page_type_; }
+  CacheType cache_type() const { return cache_type_; }
 
   UserAgentMatcher::DeviceType device_type() const { return device_type_; }
 
@@ -136,8 +144,11 @@ class ProxyFetchPropertyCallback : public PropertyPage {
 
   virtual void Done(bool success);
 
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(LogRecord* log_record, int cohort_index);
+
  private:
-  PageType page_type_;
+  CacheType cache_type_;
   UserAgentMatcher::DeviceType device_type_;
   ProxyFetchPropertyCallbackCollector* collector_;
   GoogleString url_;
@@ -147,7 +158,7 @@ class ProxyFetchPropertyCallback : public PropertyPage {
 // Tracks a collection of property-cache lookups occuring in parallel.
 class ProxyFetchPropertyCallbackCollector {
  public:
-  ProxyFetchPropertyCallbackCollector(ServerContext* server_context,
+  ProxyFetchPropertyCallbackCollector(ServerContext* manager,
                                       const StringPiece& url,
                                       const RequestContextPtr& req_ctx,
                                       const RewriteOptions* options,
@@ -174,26 +185,15 @@ class ProxyFetchPropertyCallbackCollector {
   // RewriteDriver::kStatusCodeUnknown.
   void Detach(HttpStatus::Code status_code);
 
-  // Returns the actual property page.
-  PropertyPage* property_page() {
-    return fallback_property_page_ == NULL ?
-        NULL : fallback_property_page_->actual_property_page();
-  }
-
-  // Returns the fallback property page.
-  FallbackPropertyPage* fallback_property_page() {
-    return fallback_property_page_.get();
-  }
-
-  // Returns the collected PropertyPage with the corresponding page_type.
+  // Returns the collected PropertyPage with the corresponding cache_type.
   // Ownership of the object is transferred to the caller.
-  PropertyPage* ReleasePropertyPage(
-      ProxyFetchPropertyCallback::PageType page_type);
+  PropertyPage* GetPropertyPage(
+      ProxyFetchPropertyCallback::CacheType cache_type);
 
-  // Releases the ownership of fallback property page.
-  FallbackPropertyPage* ReleaseFallbackPropertyPage() {
-    return fallback_property_page_.release();
-  }
+  // Returns the collected PropertyPage with the corresponding cache_type.
+  // Ownership of the object is retained by collector.
+  PropertyPage* GetPropertyPageWithoutOwnership(
+      ProxyFetchPropertyCallback::CacheType cache_type);
 
   // In our flow, property-page will be available via RewriteDriver only after
   // ProxyFetch is set. But there may be instances where the result may be
@@ -212,7 +212,7 @@ class ProxyFetchPropertyCallbackCollector {
   bool IsCacheValid(int64 write_timestamp_ms) const;
 
   // Called by a ProxyFetchPropertyCallback when the former is complete.
-  void Done(ProxyFetchPropertyCallback* callback);
+  void Done(ProxyFetchPropertyCallback* callback, bool success);
 
   // Updates the status code of response in property cache.
   void UpdateStatusCodeInPropertyCache();
@@ -224,7 +224,7 @@ class ProxyFetchPropertyCallbackCollector {
 
  private:
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
-  std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
+  std::map<ProxyFetchPropertyCallback::CacheType, PropertyPage*>
   property_pages_;
   scoped_ptr<AbstractMutex> mutex_;
   ServerContext* server_context_;
@@ -233,12 +233,12 @@ class ProxyFetchPropertyCallbackCollector {
   UserAgentMatcher::DeviceType device_type_;
   bool detached_;             // protected by mutex_.
   bool done_;                 // protected by mutex_.
+  bool success_;              // protected by mutex_; accessed after quiescence.
   ProxyFetch* proxy_fetch_;   // protected by mutex_.
   // protected by mutex_.
   scoped_ptr<std::vector<Function*> > post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
   HttpStatus::Code status_code_;  // status_code_ of the response.
-  scoped_ptr<FallbackPropertyPage> fallback_property_page_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchPropertyCallbackCollector);
 };
@@ -307,6 +307,13 @@ class ProxyFetch : public SharedAsyncFetch {
   // Called by ProxyFetchPropertyCallbackCollector when all property-cache
   // fetches are complete.  This function takes ownership of collector.
   virtual void PropertyCacheComplete(
+      bool success, ProxyFetchPropertyCallbackCollector* collector);
+
+  // Returns the AbstractClientState object carried by the property cache
+  // callback collector, if any. Returns NULL if no AbstractClientState
+  // is found. This method assumes that the property cache is enabled and
+  // the client state property cache lookup has completed.
+  AbstractClientState* GetClientState(
       ProxyFetchPropertyCallbackCollector* collector);
 
   // If cross_domain is true, we're requested under a domain different from
@@ -317,7 +324,7 @@ class ProxyFetch : public SharedAsyncFetch {
              AsyncFetch* async_fetch,
              AsyncFetch* original_content_fetch,
              RewriteDriver* driver,
-             ServerContext* server_context,
+             ServerContext* manager,
              Timer* timer,
              ProxyFetchFactory* factory);
   virtual ~ProxyFetch();
@@ -338,9 +345,7 @@ class ProxyFetch : public SharedAsyncFetch {
   void StartFetch();
 
   // Actually do the fetch, called from callback of StartFetch.
-  // "prepare_success" represents whether the request was prepared successfully
-  // by the UrlNamer.
-  void DoFetch(bool prepare_success);
+  void DoFetch();
 
   // Handles buffered HTML writes, flushes, and done calls
   // in the QueuedWorkerPool::Sequence sequence_.
@@ -458,8 +463,8 @@ class ProxyFetch : public SharedAsyncFetch {
 
   ProxyFetchFactory* factory_;
 
-  // Set to true if this proxy_fetch is the result of a distributed fetch.
-  bool distributed_fetch_;
+  // Whether PrepareRequest() to url_namer succeeded.
+  bool prepare_success_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetch);
 };

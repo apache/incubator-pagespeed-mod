@@ -32,23 +32,19 @@
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/enum_set.h"
 #include "net/instaweb/util/public/gtest_prod.h"
-#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "pagespeed/kernel/base/dense_hash_map.h"
-#include "pagespeed/kernel/util/copy_on_write.h"
-#include "pagespeed/kernel/util/fast_wildcard_group.h"
-#include "pagespeed/kernel/util/wildcard.h"
+#include "third_party/instaweb/util/fast_wildcard_group.h"
+#include "third_party/instaweb/util/wildcard.h"
 
 namespace net_instaweb {
 
+class GoogleUrl;
 class Hasher;
 class MessageHandler;
-class RequestHeaders;
 
 // Defines a set of customizations that can be applied to any Rewrite.  There
 // are multiple categories of customizations:
@@ -83,7 +79,7 @@ class RewriteOptions {
     kAddHead,
     kAddInstrumentation,
     kComputeStatistics,
-    kCachePartialHtml,
+    kCacheHtml,
     kCanonicalizeJavascriptLibraries,
     kCollapseWhitespace,
     kCollectFlushEarlyContentFilter,
@@ -100,7 +96,6 @@ class RewriteOptions {
     kConvertToWebpLossless,
     kDebug,
     kDecodeRewrittenUrls,
-    kDedupInlinedImages,
     kDeferIframe,
     kDeferJavascript,
     kDelayImages,
@@ -109,6 +104,7 @@ class RewriteOptions {
     kDisableJavascript,
     kDivStructure,
     kElideAttributes,
+    kExperimentSpdy,  // Temporary and will be removed soon.
     kExplicitCloseTags,
     kExtendCacheCss,
     kExtendCacheImages,
@@ -138,6 +134,8 @@ class RewriteOptions {
     kOutlineJavascript,
     kPedantic,
     kPrioritizeCriticalCss,
+    kPrioritizeVisibleContent,
+    kProcessBlinkInBackground,
     kRecompressJpeg,
     kRecompressPng,
     kRecompressWebp,
@@ -145,12 +143,12 @@ class RewriteOptions {
     kRemoveQuotes,
     kResizeImages,
     kResizeMobileImages,
-    kResizeToRenderedImageDimensions,
     kRewriteCss,
     kRewriteDomains,
     kRewriteJavascript,
     kRewriteStyleAttributes,
     kRewriteStyleAttributesWithUrl,
+    kServeNonCacheableNonCritical,
     kSplitHtml,
     kSpriteImages,
     kSquashImagesForMobileScreen,
@@ -174,6 +172,10 @@ class RewriteOptions {
 
   // Any new Option added, should have a corresponding enum here and this should
   // be passed in when Add*Property is called in AddProperties().
+  //
+  // TODO(satyanarayana): Deprecate kImageRetainColorProfile,
+  // kImageRetainExifData and kImageRetainColorSampling as they are now
+  // converted to filters.
   enum OptionEnum {
     kAddOptionsToUrls,
     kAllowLoggingUrlsInLogRecord,
@@ -182,12 +184,13 @@ class RewriteOptions {
     kAvoidRenamingIntrospectiveJavascript,
     kBeaconReinstrumentTimeSec,
     kBeaconUrl,
+    kBlinkDesktopUserAgent,
     kBlinkMaxHtmlSizeRewritable,
+    kBlinkNonCacheablesForAllFamilies,
     kCacheInvalidationTimestamp,
     kCacheSmallImagesUnrewritten,
     kClientDomainRewrite,
     kCombineAcrossPaths,
-    kCompressMetadataCache,
     kCriticalImagesBeaconEnabled,
     kCriticalLineConfig,
     kCssFlattenMaxBytes,
@@ -196,49 +199,45 @@ class RewriteOptions {
     kCssOutlineMinBytes,
     kCssPreserveURLs,
     kDefaultCacheHtml,
-    kDistributedRewriteKey,
     kDistributedRewriteServers,
     kDistributedRewriteTimeoutMs,
     kDomainRewriteHyperlinks,
     kDomainShardCount,
-    kDownstreamCacheLifetimeMs,
-    kDownstreamCachePurgeMethod,
-    kDownstreamCachePurgePathPrefix,
-    kDownstreamCacheRewrittenPercentageThreshold,
     kEnableAggressiveRewritersForMobile,
+    kEnableBlinkCriticalLine,
     kEnableBlinkDashboard,
+    kEnableBlinkForMobileDevices,
     kEnableBlinkHtmlChangeDetection,
     kEnableBlinkHtmlChangeDetectionLogging,
     kEnableDeferJsExperimental,
-    kEnableCachePurge,
-    kEnableFlushEarlyCriticalCss,
-    kEnableFixReflow,
-    kEnableExtendedInstrumentation,
     kEnableFlushSubresourcesExperimental,
+    kEnableInlinePreviewImagesExperimental,
     kEnableLazyLoadHighResImages,
+    kEnableLazyloadInBlink,
     kEnablePrioritizingScripts,
     kEnabled,
-    kExperimentCookieDurationMs,
-    kExperimentSlot,
     kFinderPropertiesCacheExpirationTimeMs,
     kFinderPropertiesCacheRefreshTimeMs,
     kFlushBufferLimitBytes,
     kFlushHtml,
     kFlushMoreResourcesEarlyIfTimePermits,
     kForbidAllDisabledFilters,
+    kFuriousCookieDurationMs,
+    kFuriousSlot,
     kIdleFlushTimeMs,
     kImageInlineMaxBytes,
     kImageJpegNumProgressiveScans,
-    kImageJpegNumProgressiveScansForSmallScreens,
     kImageJpegRecompressionQuality,
     kImageJpegRecompressionQualityForSmallScreens,
     kImageLimitOptimizedPercent,
-    kImageLimitRenderedAreaPercent,
     kImageLimitResizeAreaPercent,
     kImageMaxRewritesAtOnce,
     kImagePreserveURLs,
     kImageRecompressionQuality,
     kImageResolutionLimitBytes,
+    kImageRetainColorProfile,
+    kImageRetainColorSampling,
+    kImageRetainExifData,
     kImageWebpRecompressionQuality,
     kImageWebpRecompressionQualityForSmallScreens,
     kImageWebpTimeoutMs,
@@ -257,9 +256,7 @@ class RewriteOptions {
     kJsPreserveURLs,
     kLazyloadImagesAfterOnload,
     kLazyloadImagesBlankUrl,
-    kLogBackgroundRewrite,
     kLogRewriteTiming,
-    kLogUrlIndices,
     kLowercaseHtmlNames,
     kMaxCacheableResponseContentLength,
     kMaxCombinedJsBytes,
@@ -268,7 +265,6 @@ class RewriteOptions {
     kMaxImageBytesForWebpInCss,
     kMaxImageSizeLowResolutionBytes,
     kMaxInlinedPreviewImagesIndex,
-    kMaxPrefetchJsElements,
     kMaxRewriteInfoLogSize,
     kMaxUrlSegmentSize,
     kMaxUrlSize,
@@ -276,11 +272,11 @@ class RewriteOptions {
     kMinImageSizeLowResolutionBytes,
     kMinResourceCacheTimeToRewriteMs,
     kModifyCachingHeaders,
-    kNonCacheablesForCachePartialHtml,
     kObliviousPagespeedUrls,
+    kOverrideBlinkCacheTimeMs,
     kOverrideCachingTtlMs,
     kOverrideIeDocumentMode,
-    kPersistBlinkBlacklist,
+    kPassthroughBlinkForInvalidResponseCode,
     kProgressiveJpegMinBytes,
     kPropagateBlinkCacheDeletes,
     kRejectBlacklisted,
@@ -291,12 +287,9 @@ class RewriteOptions {
     kRewriteDeadlineMs,
     kRewriteLevel,
     kRewriteUncacheableResources,
-    kRewriteRequestUrlsEarly,
-    kRunningExperiment,
+    kRunningFurious,
     kServeStaleIfFetchError,
     kSupportNoScriptEnabled,
-    kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss,
-    kUseFallbackPropertyCacheValues,
     kUseSmartDiffInBlink,
     kXModPagespeedHeaderValue,
     kXPsaBlockingRewrite,
@@ -349,15 +342,12 @@ class RewriteOptions {
     kSlurpDirectory,
     kSlurpFlushLimit,
     kSlurpReadOnly,
-    kSslCertDirectory,
-    kSslCertFile,
     kStatisticsEnabled,
-    kStatisticsLoggingChartsCSS,
-    kStatisticsLoggingChartsJS,
     kStatisticsLoggingEnabled,
     kStatisticsLoggingFile,
     kStatisticsLoggingIntervalMs,
-    kStatisticsLoggingMaxFileSizeKb,
+    kStatisticsLoggingChartsCSS,
+    kStatisticsLoggingChartsJS,
     kTestProxy,
     kTestProxySlurp,
     kUseSharedMemLocking,
@@ -398,8 +388,8 @@ class RewriteOptions {
   // options->set_default.
   static const int kOptionsVersion = 13;
 
-  // Number of bytes used for signature hashing.
-  static const int kHashBytes = 20;
+  static const char kCacheExtenderId[];
+  static const char kCollectFlushEarlyContentFilterId[];
 
   // Determines the scope at which an option is evaluated.  In Apache,
   // for example, kDirectoryScope indicates it can be changed via .htaccess
@@ -411,8 +401,6 @@ class RewriteOptions {
     kProcessScope,    // customized at process level only (command-line flags)
   };
 
-  static const char kCacheExtenderId[];
-  static const char kCollectFlushEarlyContentFilterId[];
   static const char kCssCombinerId[];
   static const char kCssFilterId[];
   static const char kCssImportFlattenerId[];
@@ -436,15 +424,11 @@ class RewriteOptions {
   // URLs.
   static const char* FilterId(Filter filter);
 
-  // Returns the number of filter ids. This is used to loop over all filter ids
-  // using the FilterId() method.
-  static int NumFilterIds();
-
   // Used for enumerating over all entries in the Filter enum.
   static const Filter kFirstFilter = kAddBaseTag;
 
-  typedef EnumSet<Filter, kEndOfFilters> FilterSet;
-  typedef std::vector<Filter> FilterVector;
+  // Convenience name for a set of rewrite filters.
+  typedef std::set<Filter> FilterSet;
 
   // Convenience name for a set of rewrite filter ids.
   typedef std::set<GoogleString> FilterIdSet;
@@ -584,10 +568,6 @@ class RewriteOptions {
   static const int64 kDefaultMaxImageBytesForWebpInCss;
   static const int64 kDefaultMetadataInputErrorsCacheTtlMs;
   static const int64 kDefaultMinResourceCacheTimeToRewriteMs;
-  static const int64 kDefaultDownstreamCacheLifetimeMs;
-  static const char kDefaultDownstreamCachePurgeMethod[];
-  static const char kDefaultDownstreamCachePurgePathPrefix[];
-  static const int64 kDefaultDownstreamCacheRewrittenPercentageThreshold;
   static const int64 kDefaultCacheInvalidationTimestamp;
   static const int64 kDefaultIdleFlushTimeMs;
   static const int64 kDefaultFlushBufferLimitBytes;
@@ -596,16 +576,17 @@ class RewriteOptions {
   static const char kDefaultBeaconUrl[];
   static const int64 kDefaultImagesRecompressQuality;
   static const int64 kDefaultImageJpegRecompressQuality;
+  static const int64 kDefaultImageJpegRecompressQualityForSmallScreens;
   static const int kDefaultImageLimitOptimizedPercent;
-  static const int kDefaultImageLimitRenderedAreaPercent;
   static const int kDefaultImageLimitResizeAreaPercent;
   static const int64 kDefaultImageResolutionLimitBytes;
-  static const int64 kDefaultImageJpegNumProgressiveScans;
+  static const int kDefaultImageJpegNumProgressiveScans;
   static const int64 kDefaultImageWebpRecompressQuality;
+  static const int64 kDefaultImageWebpRecompressQualityForSmallScreens;
   static const int64 kDefaultImageWebpTimeoutMs;
   static const int kDefaultDomainShardCount;
   static const int64 kDefaultBlinkHtmlChangeDetectionTimeMs;
-  static const int kDefaultMaxPrefetchJsElements;
+  static const int64 kDefaultOverrideBlinkCacheTimeMs;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
@@ -639,9 +620,9 @@ class RewriteOptions {
   // Default cache refresh value for finder properties in pcache.
   static const int64 kDefaultFinderPropertiesCacheRefreshTimeMs;
 
-  // Default duration after which the experiment cookie will expire on the
-  // user's browser.
-  static const int64 kDefaultExperimentCookieDurationMs;
+  // Default duration after which the furious experiment cookie will expire
+  // on the user's browser.
+  static const int64 kDefaultFuriousCookieDurationMs;
 
   // Default time in milliseconds for which a metadata cache entry may be used
   // after expiry.
@@ -650,9 +631,9 @@ class RewriteOptions {
   // Default maximum size of the combined js resource generated by JsCombiner.
   static const int64 kDefaultMaxCombinedJsBytes;
 
-  static const int kDefaultExperimentTrafficPercent;
-  // Default Custom Variable slot in which to put Experiment information.
-  static const int kDefaultExperimentSlot;
+  static const int kDefaultFuriousTrafficPercent;
+  // Default Custom Variable slot in which to put Furious information.
+  static const int kDefaultFuriousSlot;
 
   static const char kDefaultBlockingRewriteKey[];
 
@@ -662,31 +643,32 @@ class RewriteOptions {
 
   static const int kDefaultMaxRewriteInfoLogSize;
 
-  // This class is a separate subset of options for running an experiment.
+  // This class is a separate subset of options for running a furious
+  // experiment.
   // These options can be specified by a spec string that looks like:
   // "id=<number greater than 0>;level=<rewrite level>;enabled=
   // <comma-separated-list of filters to enable>;disabled=
   // <comma-separated-list of filters to disable>;css_inline_threshold=
   // <max size of css to inline>;image_inline_threshold=<max size of
   // image to inline>;js_inline_threshold=<max size of js to inline>.
-  class ExperimentSpec {
+  class FuriousSpec {
    public:
-    // Creates a ExperimentSpec parsed from spec.
+    // Creates a FuriousSpec parsed from spec.
     // If spec doesn't have an id, then id_ will be set to
-    // experiment::kExperimentNotSet.  These ExperimentSpecs will then be
-    // rejected by AddExperimentSpec().
-    ExperimentSpec(const StringPiece& spec, RewriteOptions* options,
-                   MessageHandler* handler);
+    // furious::kFuriousNotSet.  These FuriousSpecs will then be rejected
+    // by AddFuriousSpec().
+    FuriousSpec(const StringPiece& spec, RewriteOptions* options,
+                MessageHandler* handler);
 
-    // Creates a ExperimentSpec with id_=id.  All other variables
+    // Creates a FuriousSpec with id_=id.  All other variables
     // are initialized to 0.
     // This is primarily used for setting up the control and for cloning.
-    explicit ExperimentSpec(int id);
+    explicit FuriousSpec(int id);
 
-    virtual ~ExperimentSpec();
+    virtual ~FuriousSpec();
 
-    // Return a ExperimentSpec with all the same information as this one.
-    virtual ExperimentSpec* Clone();
+    // Return a FuriousSpec with all the same information as this one.
+    virtual FuriousSpec* Clone();
 
     bool is_valid() const { return id_ >= 0; }
 
@@ -708,10 +690,10 @@ class RewriteOptions {
     // Merges a spec into this. This follows the same semantics as
     // RewriteOptions. Specifically, filter/options list get unioned, and
     // vars get overwritten, except ID.
-    void Merge(const ExperimentSpec& spec);
+    void Merge(const FuriousSpec& spec);
 
    private:
-    FRIEND_TEST(RewriteOptionsTest, ExperimentMergeTest);
+    FRIEND_TEST(RewriteOptionsTest, FuriousMergeTest);
 
     // Initialize parses spec and sets the FilterSets, rewrite level,
     // inlining thresholds, and OptionSets accordingly.
@@ -731,7 +713,7 @@ class RewriteOptions {
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
-    DISALLOW_COPY_AND_ASSIGN(ExperimentSpec);
+    DISALLOW_COPY_AND_ASSIGN(FuriousSpec);
   };
 
   // Represents the content type of user-defined url-valued attributes.
@@ -824,7 +806,7 @@ class RewriteOptions {
   // kConvertJpegToWebp, kConvertPngToJpeg, and kConvertToWebpLossless.
   bool ImageOptimizationEnabled() const;
 
-  explicit RewriteOptions(ThreadSystem* thread_system);
+  RewriteOptions();
   virtual ~RewriteOptions();
 
   // Static initialization of members.  Calls to Initialize and
@@ -832,24 +814,6 @@ class RewriteOptions {
   // Initialize call and the last Terminate call.
   static bool Initialize();
   static bool Terminate();
-
-#ifndef NDEBUG
-  // Determines whether it's OK to modify the RewriteOptions in the
-  // current thread.  Note that this is stricter than necessary, but
-  // makes it easier to reason about potential thread safety issues
-  // for copy-on-write sharing of substructures.
-  //
-  // This is exposed as an external API for ease of unit testing.
-  bool ModificationOK() const;
-
-  // Determines whether it's OK to merge from the RewriteOptions object
-  // in the current thread.  Note that this is stricter than necessary, but
-  // makes it easier to reason about potential thread safety issues
-  // for copy-on-write sharing of substructures.
-  //
-  // This is exposed as an external API for ease of unit testing.
-  bool MergeOK() const;
-#endif
 
   // Initializes the Options objects in a RewriteOptions instance
   // based on the supplied Properties vector.  Note that subclasses
@@ -885,49 +849,47 @@ class RewriteOptions {
 
   // Returns the spec with the id_ that matches id.  Returns NULL if no
   // spec matches.
-  ExperimentSpec* GetExperimentSpec(int id) const;
+  FuriousSpec* GetFuriousSpec(int id) const;
 
   // Returns false if id is negative, or if the id is reserved
   // for NoExperiment or NotSet, or if we already have an experiment
   // with that id.
-  bool AvailableExperimentId(int id);
+  bool AvailableFuriousId(int id);
 
-  // Creates a ExperimentSpec from spec and adds it to the configuration.
+  // Creates a FuriousSpec from spec and adds it to the configuration.
   // Returns true if it was added successfully.
-  virtual bool AddExperimentSpec(const StringPiece& spec,
-                                 MessageHandler* handler);
+  virtual bool AddFuriousSpec(const StringPiece& spec, MessageHandler* handler);
 
   // Sets which side of the experiment these RewriteOptions are on.
   // Cookie-setting must be done separately.
-  // experiment::kExperimentNotSet indicates it hasn't been set.
-  // experiment::kNoExperiment indicates this request shouldn't be
+  // furious::kFuriousNotSet indicates it hasn't been set.
+  // furious::kFuriousNoExperiment indicates this request shouldn't be
   // in any experiment.
   // Then sets the rewriters to match the experiment indicated by id.
   // Returns true if succeeded in setting state.
-  virtual bool SetExperimentState(int id);
+  virtual bool SetFuriousState(int id);
 
   // We encode experiment information in urls as an experiment index: the first
   // ExperimentSpec is a, the next is b, and so on.  Empty string or an invalid
-  // letter means kNoExperiment.
-  void SetExperimentStateStr(const StringPiece& experiment_index);
+  // letter means kFuriousNoExperiment.
+  void SetFuriousStateStr(const StringPiece& experiment_index);
 
-  int experiment_id() const { return experiment_id_; }
+  int furious_id() const { return furious_id_; }
 
-  int experiment_spec_id(int i) const {
-    return experiment_specs_[i]->id();
+  int furious_spec_id(int i) const {
+    return furious_specs_[i]->id();
   }
 
-  // Returns a string representation of experiment_id() suitable for consumption
-  // by SetExperimentStateStr(), encoding the index of the current experiment
-  // (not its id).  If we're not running an experiment, returns the empty
-  // string.
-  GoogleString GetExperimentStateStr() const;
+  // Returns a string representation of furious_id() suitable for consumption by
+  // SetFuriousStateStr(), encoding the index of the current experiment (not its
+  // id).  If we're not running furious, returns the empty string.
+  GoogleString GetFuriousStateStr() const;
 
-  ExperimentSpec* experiment_spec(int i) const {
-    return experiment_specs_[i];
+  FuriousSpec* furious_spec(int i) const {
+    return furious_specs_[i];
   }
 
-  int num_experiments() const { return experiment_specs_.size(); }
+  int num_furious_experiments() const { return furious_specs_.size(); }
 
   // Store that when we see <element attribute=X> we should treat X as a URL
   // pointing to a resource of the type indicated by category.  For example,
@@ -962,7 +924,7 @@ class RewriteOptions {
   // Store size, md5 hash and canonical url for library recognition.
   bool RegisterLibrary(
       uint64 bytes, StringPiece md5_hash, StringPiece canonical_url) {
-    return WriteableJavascriptLibraryIdentification()->RegisterLibrary(
+    return javascript_library_identification_.RegisterLibrary(
         bytes, md5_hash, canonical_url);
   }
 
@@ -971,7 +933,7 @@ class RewriteOptions {
   const JavascriptLibraryIdentification* javascript_library_identification()
       const {
     if (Enabled(kCanonicalizeJavascriptLibraries)) {
-      return javascript_library_identification_.get();
+      return &javascript_library_identification_;
     } else {
       return NULL;
     }
@@ -1049,11 +1011,10 @@ class RewriteOptions {
   void EnableExtendCacheFilters();
 
   bool Enabled(Filter filter) const;
-  bool Forbidden(Filter filter) const;
   bool Forbidden(StringPiece filter_id) const;
 
   // Returns the set of enabled filters that require JavaScript for execution.
-  void GetEnabledFiltersRequiringScriptExecution(FilterVector* filters) const;
+  void GetEnabledFiltersRequiringScriptExecution(FilterSet* filter_set) const;
 
   // Disables all filters that depend on executing custom javascript.
   void DisableFiltersRequiringScriptExecution();
@@ -1267,18 +1228,11 @@ class RewriteOptions {
     set_option(x, &override_ie_document_mode_);
   }
 
-  int64 blink_blacklist_end_timestamp_ms() const {
-    return blink_blacklist_end_timestamp_ms_.value();
+  bool is_blink_auto_blacklisted() const {
+    return is_blink_auto_blacklisted_.value();
   }
-  void set_blink_blacklist_end_timestamp_ms(int64 x) {
-    set_option(x, &blink_blacklist_end_timestamp_ms_);
-  }
-
-  bool persist_blink_blacklist() const {
-    return persist_blink_blacklist_.value();
-  }
-  void set_persist_blink_blacklist(bool x) {
-    set_option(x, &persist_blink_blacklist_);
+  void set_is_blink_auto_blacklisted(bool x) {
+    set_option(x, &is_blink_auto_blacklisted_);
   }
 
   // Returns false if there is an entry in url_cache_invalidation_entries_ with
@@ -1286,33 +1240,13 @@ class RewriteOptions {
   // true.
   bool IsUrlCacheValid(StringPiece url, int64 time_ms) const;
 
-  // Returns true if PurgeCacheUrl has been called on url with a timestamp
-  // earlier than time_ms.  Note: this is not a wildcard check but an
-  // exact lookup.
-  bool IsUrlPurged(StringPiece url, int64 time_ms) const;
-
   // If timestamp_ms greater than or equal to the last timestamp in
   // url_cache_invalidation_entries_, then appends an UrlCacheInvalidationEntry
   // with 'timestamp_ms' and 'url_pattern' to url_cache_invalidation_entries_.
   // Else does nothing.
-  //
-  // Also see PurgeCacheUrl.  AddUrlCacheInvalidationEntry with a non-wildcard
-  // pattern and ignores_metadata_and_pcache==false is equivalent to
-  // PurgeCacheUrl.
-  //
-  // If ignores_metadata_and_pcache is true, metadata is not
-  // invalidated and property cache is invalidated of URLs matching
-  // url_pattern.  If false, metadata cache and property cache entries
-  // may be invalidated, depending on whether there are wildcards in
-  // the pattern, and whether enable_cache_purge() is true.  Note that
-  // HTTP cache invalidation is always exactly for the URLs matching
-  // url_pattern.
   void AddUrlCacheInvalidationEntry(StringPiece url_pattern,
                                     int64 timestamp_ms,
-                                    bool ignores_metadata_and_pcache);
-
-  // Purge a cache entry for an exact URL, not a wildcard.
-  void PurgeUrl(StringPiece url, int64 timestamp_ms);
+                                    bool is_strict);
 
   // Checks if url_cache_invalidation_entries_ is in increasing order of
   // timestamp.  For testing.
@@ -1348,7 +1282,8 @@ class RewriteOptions {
   //
   // This function ignores requests to move the invalidation timestamp
   // backwards.  It returns true if the timestamp was actually changed.
-  bool UpdateCacheInvalidationTimestampMs(int64 timestamp_ms);
+  bool UpdateCacheInvalidationTimestampMs(int64 timestamp_ms,
+                                          const Hasher* hasher);
 
   // How much inactivity of HTML input will result in PSA introducing a flush.
   // Values <= 0 disable the feature.
@@ -1398,13 +1333,6 @@ class RewriteOptions {
   }
   void set_test_instant_fetch_rewrite_deadline(bool x) {
     set_option(x, &test_instant_fetch_rewrite_deadline_);
-  }
-
-  void set_test_only_prioritize_critical_css_dont_apply_original_css(bool x) {
-    set_option(x, &test_only_prioritize_critical_css_dont_apply_original_css_);
-  }
-  bool test_only_prioritize_critical_css_dont_apply_original_css() const {
-    return test_only_prioritize_critical_css_dont_apply_original_css_.value();
   }
 
   int domain_shard_count() const { return domain_shard_count_.value(); }
@@ -1498,22 +1426,10 @@ class RewriteOptions {
   }
   bool combine_across_paths() const { return combine_across_paths_.value(); }
 
-  void set_log_background_rewrites(bool x) {
-    set_option(x, &log_background_rewrites_);
-  }
-  bool log_background_rewrites() const {
-    return log_background_rewrites_.value();
-  }
-
   void set_log_rewrite_timing(bool x) {
     set_option(x, &log_rewrite_timing_);
   }
   bool log_rewrite_timing() const { return log_rewrite_timing_.value(); }
-
-  void set_log_url_indices(bool x) {
-    set_option(x, &log_url_indices_);
-  }
-  bool log_url_indices() const { return log_url_indices_.value(); }
 
   void set_lowercase_html_names(bool x) {
     set_option(x, &lowercase_html_names_);
@@ -1547,11 +1463,11 @@ class RewriteOptions {
     return serve_stale_if_fetch_error_.value();
   }
 
-  void set_enable_flush_early_critical_css(bool x) {
-    set_option(x, &enable_flush_early_critical_css_);
+  void set_enable_blink_critical_line(bool x) {
+    set_option(x, &enable_blink_critical_line_);
   }
-  bool enable_flush_early_critical_css() const {
-    return enable_flush_early_critical_css_.value();
+  bool enable_blink_critical_line() const {
+    return enable_blink_critical_line_.value();
   }
 
   void set_default_cache_html(bool x) { set_option(x, &default_cache_html_); }
@@ -1620,11 +1536,11 @@ class RewriteOptions {
     return max_image_size_low_resolution_bytes_.value();
   }
 
-  void set_experiment_cookie_duration_ms(int64 x) {
-    set_option(x, &experiment_cookie_duration_ms_);
+  void set_furious_cookie_duration_ms(int64 x) {
+    set_option(x, &furious_cookie_duration_ms_);
   }
-  int64 experiment_cookie_duration_ms() const {
-    return experiment_cookie_duration_ms_.value();
+  int64 furious_cookie_duration_ms() const {
+    return furious_cookie_duration_ms_.value();
   }
 
   void set_finder_properties_cache_expiration_time_ms(int64 x) {
@@ -1661,11 +1577,25 @@ class RewriteOptions {
     set_option(x, &js_preserve_urls_);
   }
 
-  bool rewrite_request_urls_early() const {
-    return rewrite_request_urls_early_.value();
+  bool image_retain_color_profile() const {
+    return image_retain_color_profile_.value();
   }
-  void set_rewrite_request_urls_early(bool x) {
-    set_option(x, &rewrite_request_urls_early_);
+  void set_image_retain_color_profile(bool x) {
+    set_option(x, &image_retain_color_profile_);
+  }
+
+  bool image_retain_color_sampling() const {
+    return image_retain_color_sampling_.value();
+  }
+  void set_image_retain_color_sampling(bool x) {
+    set_option(x, &image_retain_color_sampling_);
+  }
+
+  bool image_retain_exif_data() const {
+    return image_retain_exif_data_.value();
+  }
+  void set_image_retain_exif_data(bool x) {
+    set_option(x, &image_retain_exif_data_);
   }
 
   void set_metadata_cache_staleness_threshold_ms(int64 x) {
@@ -1680,34 +1610,6 @@ class RewriteOptions {
   }
   int64 metadata_input_errors_cache_ttl_ms() const {
     return metadata_input_errors_cache_ttl_ms_.value();
-  }
-
-  void set_downstream_cache_lifetime_ms(int64 x) {
-    set_option(x, &downstream_cache_lifetime_ms_);
-  }
-  int64 downstream_cache_lifetime_ms() const {
-    return downstream_cache_lifetime_ms_.value();
-  }
-
-  const GoogleString& downstream_cache_purge_method() const {
-    return downstream_cache_purge_method_.value();
-  }
-  void set_downstream_cache_purge_method(const StringPiece& p) {
-    set_option(p.as_string(), &downstream_cache_purge_method_);
-  }
-
-  const GoogleString& downstream_cache_purge_path_prefix() const {
-    return downstream_cache_purge_path_prefix_.value();
-  }
-  void set_downstream_cache_purge_path_prefix(const StringPiece& p) {
-    set_option(p.as_string(), &downstream_cache_purge_path_prefix_);
-  }
-
-  void set_downstream_cache_rewritten_percentage_threshold(int64 x) {
-    set_option(x, &downstream_cache_rewritten_percentage_threshold_);
-  }
-  int64 downstream_cache_rewritten_percentage_threshold() const {
-    return downstream_cache_rewritten_percentage_threshold_.value();
   }
 
   const BeaconUrl& beacon_url() const { return beacon_url_.value(); }
@@ -1752,25 +1654,11 @@ class RewriteOptions {
     set_option(x, &image_limit_resize_area_percent_);
   }
 
-  int image_limit_rendered_area_percent() const {
-    return image_limit_rendered_area_percent_.value();
-  }
-  void set_image_limit_rendered_area_percent(int x) {
-    set_option(x, &image_limit_rendered_area_percent_);
-  }
-
-  int64 image_jpeg_num_progressive_scans() const {
+  int image_jpeg_num_progressive_scans() const {
     return image_jpeg_num_progressive_scans_.value();
   }
-  void set_image_jpeg_num_progressive_scans(int64 x) {
+  void set_image_jpeg_num_progressive_scans(int x) {
     set_option(x, &image_jpeg_num_progressive_scans_);
-  }
-
-  int64 image_jpeg_num_progressive_scans_for_small_screens() const {
-    return image_jpeg_num_progressive_scans_for_small_screens_.value();
-  }
-  void set_image_jpeg_num_progressive_scans_for_small_screens(int64 x) {
-    set_option(x, &image_jpeg_num_progressive_scans_for_small_screens_);
   }
 
   int64 image_webp_recompress_quality() const {
@@ -1821,13 +1709,6 @@ class RewriteOptions {
     return flush_more_resources_in_ie_and_firefox_.value();
   }
 
-  void set_max_prefetch_js_elements(int x) {
-    set_option(x, &max_prefetch_js_elements_);
-  }
-  int max_prefetch_js_elements() const {
-    return max_prefetch_js_elements_.value();
-  }
-
   void set_enable_defer_js_experimental(bool x) {
     set_option(x, &enable_defer_js_experimental_);
   }
@@ -1835,11 +1716,11 @@ class RewriteOptions {
     return enable_defer_js_experimental_.value();
   }
 
-  void set_enable_cache_purge(bool x) {
-    set_option(x, &enable_cache_purge_);
+  void set_enable_inline_preview_images_experimental(bool x) {
+    set_option(x, &enable_inline_preview_images_experimental_);
   }
-  bool enable_cache_purge() const {
-    return enable_cache_purge_.value();
+  bool enable_inline_preview_images_experimental() const {
+    return enable_inline_preview_images_experimental_.value();
   }
 
   void set_lazyload_highres_images(bool x) {
@@ -1877,11 +1758,11 @@ class RewriteOptions {
     return use_smart_diff_in_blink_.value();
   }
 
-  void set_use_fallback_property_cache_values(bool x) {
-    set_option(x, &use_fallback_property_cache_values_);
+  void set_enable_lazyload_in_blink(bool x) {
+    set_option(x, &enable_lazyload_in_blink_);
   }
-  bool use_fallback_property_cache_values() const {
-    return use_fallback_property_cache_values_.value();
+  bool enable_lazyload_in_blink() const {
+    return enable_lazyload_in_blink_.value();
   }
 
   void set_enable_prioritizing_scripts(bool x) {
@@ -1896,6 +1777,21 @@ class RewriteOptions {
   }
   int64 blink_html_change_detection_time_ms() const {
     return blink_html_change_detection_time_ms_.value();
+  }
+
+  void set_override_blink_cache_time_ms(int64 x) {
+    set_option(x, &override_blink_cache_time_ms_);
+  }
+  int64 override_blink_cache_time_ms() const {
+    return override_blink_cache_time_ms_.value();
+  }
+
+  void set_blink_non_cacheables_for_all_families(const StringPiece& p) {
+    set_option(GoogleString(p.data(), p.size()),
+               &blink_non_cacheables_for_all_families_);
+  }
+  const GoogleString& blink_non_cacheables_for_all_families() const {
+    return blink_non_cacheables_for_all_families_.value();
   }
 
   const GoogleString& blocking_rewrite_key() const {
@@ -1913,19 +1809,40 @@ class RewriteOptions {
     set_option(x, &rewrite_uncacheable_resources_);
   }
 
-  void set_running_experiment(bool x) {
-    set_option(x, &running_experiment_);
+  // Does url match a cacheable family pattern?  Returns true if url matches a
+  // url_pattern in prioritize_visible_content_families_.
+  bool IsInBlinkCacheableFamily(const GoogleUrl& gurl) const;
+
+  // Get the cache time for gurl for prioritize_visible_content filter.  In case
+  // gurl matches a url_pattern in prioritize_visible_content_families_ we
+  // return the corresponding cache_time_ms field, else we return
+  // kDefaultPrioritizeVisibleContentCacheTimeMs.
+  int64 GetBlinkCacheTimeFor(const GoogleUrl& gurl) const;
+
+  // Get elements to be treated as non-cacheable for gurl.  In case
+  // gurl matches a url_pattern in prioritize_visible_content_families_ we
+  // return the corresponding non_cacheable_elements field, else we return empty
+  // string.
+  GoogleString GetBlinkNonCacheableElementsFor(const GoogleUrl& gurl) const;
+
+  // Create and add a PrioritizeVisibleContentFamily object the given fields.
+  void AddBlinkCacheableFamily(const StringPiece url_pattern,
+                               int64 cache_time_ms,
+                               const StringPiece non_cacheable_elements);
+
+  void set_running_furious_experiment(bool x) {
+    set_option(x, &running_furious_);
   }
-  bool running_experiment() const {
-    return running_experiment_.value();
+  bool running_furious() const {
+    return running_furious_.value();
   }
 
   // x should be between 1 and 5 inclusive.
-  void set_experiment_ga_slot(int x) {
-    set_option(x, &experiment_ga_slot_);
+  void set_furious_ga_slot(int x) {
+    set_option(x, &furious_ga_slot_);
   }
 
-  int experiment_ga_slot() const { return experiment_ga_slot_.value(); }
+  int furious_ga_slot() const { return furious_ga_slot_.value(); }
 
   void set_report_unload_time(bool x) {
     set_option(x, &report_unload_time_);
@@ -1946,13 +1863,6 @@ class RewriteOptions {
   }
   const GoogleString& x_header_value() const {
     return x_header_value_.value();
-  }
-
-  void set_distributed_rewrite_key(const StringPiece& p) {
-      set_option(p.as_string(), &distributed_rewrite_key_);
-  }
-  const GoogleString& distributed_rewrite_key() const {
-    return distributed_rewrite_key_.value();
   }
 
   void set_distributed_rewrite_servers(const StringPiece& p) {
@@ -1976,11 +1886,25 @@ class RewriteOptions {
     return avoid_renaming_introspective_javascript_.value();
   }
 
+  void set_passthrough_blink_for_last_invalid_response_code(bool x) {
+    set_option(x, &passthrough_blink_for_last_invalid_response_code_);
+  }
+  bool passthrough_blink_for_last_invalid_response_code() const {
+    return passthrough_blink_for_last_invalid_response_code_.value();
+  }
+
   int64 blink_max_html_size_rewritable() const {
     return blink_max_html_size_rewritable_.value();
   }
   void set_blink_max_html_size_rewritable(int64 x) {
     set_option(x, &blink_max_html_size_rewritable_);
+  }
+
+  void set_apply_blink_if_no_families(bool x) {
+    set_option(x, &apply_blink_if_no_families_);
+  }
+  bool apply_blink_if_no_families() const {
+    return apply_blink_if_no_families_.value();
   }
 
   void set_critical_line_config(const StringPiece& p) {
@@ -2015,13 +1939,6 @@ class RewriteOptions {
   }
   void set_support_noscript_enabled(bool x) {
     set_option(x, &support_noscript_enabled_);
-  }
-
-  bool enable_extended_instrumentation() const {
-    return enable_extended_instrumentation_.value();
-  }
-  void set_enable_extended_instrumentation(bool x) {
-    set_option(x, &enable_extended_instrumentation_);
   }
 
   void set_max_combined_js_bytes(int64 x) {
@@ -2063,20 +1980,6 @@ class RewriteOptions {
   }
   bool allow_logging_urls_in_log_record() const {
     return allow_logging_urls_in_log_record_.value();
-  }
-
-  void set_non_cacheables_for_cache_partial_html(const StringPiece& p) {
-    set_option(p.as_string(), &non_cacheables_for_cache_partial_html_);
-  }
-  const GoogleString& non_cacheables_for_cache_partial_html() const {
-    return non_cacheables_for_cache_partial_html_.value();
-  }
-
-  void set_enable_fix_reflow(bool x) {
-    set_option(x, &enable_fix_reflow_);
-  }
-  bool enable_fix_reflow() const {
-    return enable_fix_reflow_.value();
   }
 
   // Merge src into 'this'.  Generally, options that are explicitly
@@ -2121,28 +2024,8 @@ class RewriteOptions {
   // not currently called by mod_pagespeed.
   virtual void DisallowResourcesForProxy();
 
-  // When someone asks for a readonly lawyer, we can return a pointer to
-  // the potentially shared DomainLawyer* object.  But if you want a mutable
-  // one, we clone whatever Lawyer we had and detach it from the shared
-  // group.  Here are several scenarios.
-  //   1. We are setting up the global_options() for a ServerContext on
-  //      startup.  There will be no concurrent access, and at this point
-  //      there will be no sharing with other RewriteOptions.
-  //   2. We are merging down global_options() based on the
-  //      vhost/directory/.htaccess data and need to update (among
-  //      other things) the settings.  This may happen concurrently for
-  //      several different server-scoped, directory-scoped, or request-scoped
-  //      RewriteOptions objects.  Those will all be attached to their
-  //      parent when the options get created.  However writing to these
-  //      will effectively detach them.
-  // One case that would be problematic is a mutation of a parent
-  // RewriteOptions->WriteableDomainLawyer() concurrent with instantiating
-  // a new child RewriteOptions.  However this does not occur in our system.
-  //
-  // The only similar place this does occur is cache_invalidation_timestamp_
-  // which can be mutated when there are active children.
-  const DomainLawyer* domain_lawyer() const { return domain_lawyer_.get(); }
-  DomainLawyer* WriteableDomainLawyer();
+  DomainLawyer* domain_lawyer() { return &domain_lawyer_; }
+  const DomainLawyer* domain_lawyer() const { return &domain_lawyer_; }
 
   FileLoadPolicy* file_load_policy() { return &file_load_policy_; }
   const FileLoadPolicy* file_load_policy() const { return &file_load_policy_; }
@@ -2213,31 +2096,30 @@ class RewriteOptions {
     insert_result.first->second->Allow(wildcard);
   }
 
-  // Determine if the request url needs to be declined based on the url,
-  // request headers and rewrite options.
-  bool IsRequestDeclined(const GoogleString& url,
-                         const RequestHeaders* request_headers) const;
+  bool IsRejectedUrl(const GoogleString& url) const {
+    return IsRejectedRequest(kRejectedRequestUrlKeyName, url);
+  }
 
+  bool IsRejectedRequest(const StringPiece& header_name,
+                         const StringPiece& value) const {
+    FastWildcardGroupMap::const_iterator it = rejected_request_map_.find(
+        header_name);
+    if (it != rejected_request_map_.end()) {
+      return it->second->Match(value, false);
+    }
+    return false;
+  }
   // Make an identical copy of these options and return it.  This does
   // *not* copy the signature, and the returned options are not in
   // a frozen state.
   virtual RewriteOptions* Clone() const;
-
-  // Make an empty options object of the same type as this.
-  virtual RewriteOptions* NewOptions() const;
 
   // Computes a signature for the RewriteOptions object, including all
   // contained classes (DomainLawyer, FileLoadPolicy, WildCardGroups).
   //
   // Computing a signature "freezes" the class instance.  Attempting
   // to modify a RewriteOptions after freezing will DCHECK.
-  void ComputeSignature();
-
-  // Freeze a RewriteOptions so we can't modify it anymore and thus
-  // know that it's safe to read it from multiple threads, but don't
-  // bother calculating its signature since we will only be using this
-  // instance for merging and cloning.
-  void Freeze();
+  void ComputeSignature(const Hasher* hasher);
 
   // Clears the computed signature, unfreezing the options object.
   // Warning: Please note that using this method is extremely risky and should
@@ -2245,17 +2127,15 @@ class RewriteOptions {
   // discuss this with your team-mates and ensure that you clearly understand
   // its implications. Also, please do repeat this warning at every place you
   // use this method.
-  void ClearSignatureWithCaution();
-
-  bool frozen() const { return frozen_; }
+  void ClearSignatureWithCaution() {
+    frozen_ = false;
+    signature_.clear();
+  }
 
   // Clears a computed signature, unfreezing the options object.  This
-  // is intended for testing.  Returns whether the options were frozen
-  // in the first place.
-  bool ClearSignatureForTesting() {
-    bool frozen = frozen_;
+  // is intended for testing.
+  void ClearSignatureForTesting() {
     ClearSignatureWithCaution();
-    return frozen;
   }
 
   // Returns the computed signature.
@@ -2269,21 +2149,24 @@ class RewriteOptions {
     // only time we Write is if someone flushes the cache.
     ThreadSystem::ScopedReader lock(cache_invalidation_timestamp_.mutex());
     DCHECK(frozen_);
-    DCHECK(!signature_.empty());
     return signature_;
   }
 
   virtual GoogleString OptionsToString() const;
-  GoogleString FilterSetToString(const FilterSet& filter_set) const;
 
-  // Returns a string identifying the currently running experiment to be used in
-  // tagging Google Analytics data.
+  // Returns a string identifying the currently running Furious experiment to
+  // be used in tagging Google Analytics data.
   virtual GoogleString ToExperimentString() const;
 
-  // Returns a string with more information about the currently running
+  // Returns a string with more information about the currently running furious
   // experiment. Primarily used for tagging Google Analytics data.  This format
   // is not at all specific to Google Analytics, however.
   virtual GoogleString ToExperimentDebugString() const;
+
+  // Returns true if generation low res images is required.
+  virtual bool NeedLowResImages() const {
+    return Enabled(kDelayImages);
+  }
 
   // Convert an id string like "ah" to a Filter enum like kAddHead.
   // Returns kEndOfFilters if the id isn't known.
@@ -2307,16 +2190,6 @@ class RewriteOptions {
   const OptionBaseVector& all_options() const {
     return all_options_;
   }
-
-  // Determines whether this and that are the same.  Uses the signature() to
-  // short-cut most of the deep comparisons, but then compares directly some
-  // options and other fields that are omitted from the signature.
-  bool IsEqual(const RewriteOptions& that) const;
-
-  // Returns the hasher used for signatures and URLs to purge.
-  const Hasher* hasher() const { return &hasher_; }
-
-  ThreadSystem* thread_system() const { return thread_system_; }
 
  protected:
   // Type-specific class of Property.  This subclass of PropertyBase
@@ -2559,7 +2432,7 @@ class RewriteOptions {
     // anything.  This is because we generally initialize
     // RewriteOptions from only one thread, and thereafter do only
     // reads.  However, one exception is the cache-invalidation
-    // timestamp in the global_options for Apache ServerContexts,
+    // timestamp in the global_options for Apache ResourceManagers,
     // which can be written from any thread handling a request,
     // particularly with the Worker MPM.  So we install a real RWLock*
     // for Apache's global_options.
@@ -2650,18 +2523,17 @@ class RewriteOptions {
     x_header_value_.set_global_default(x_header_value.as_string());
   }
 
-  // Enable/disable filters and set options according to the current
-  // ExperimentSpec that experiment_id_ matches. Returns true if the state was
-  // set successfully.
-  bool SetupExperimentRewriters();
+  // Enable/disable filters and set options according to the current FuriousSpec
+  // that furious_id_ matches. Returns true if the state was set successfully.
+  bool SetupFuriousRewriters();
 
-  // Enables filters needed by Experiment regardless of experiment.
-  virtual void SetRequiredExperimentFilters();
+  // Enables filters needed by Furious regardless of experiment.
+  virtual void SetRequiredFuriousFilters();
 
-  // Helper method to add pre-configured ExperimentSpec objects to the internal
-  // vector of ExperimentSpec's. Returns true if the experiment was added
+  // Helper method to add pre-configured FuriousSpec objects to the internal
+  // vector of FuriousSpec's. Returns true if the experiment was added
   // successfully. Takes ownership of (and may delete) spec.
-  bool InsertExperimentSpecInVector(ExperimentSpec* spec);
+  bool InsertFuriousSpecInVector(FuriousSpec* spec);
 
   // Protected option values so that derived class can modify.
   Option<BeaconUrl> beacon_url_;
@@ -2675,29 +2547,8 @@ class RewriteOptions {
   static Properties* properties_;          // from RewriteOptions only
   static Properties* all_properties_;      // includes subclass properties
 
-  FRIEND_TEST(RewriteOptionsTest, ExperimentMergeTest);
-
-  // Helper functions to check if given header need to be blocked.
-  bool HasRejectedHeader(const StringPiece& header_name,
-                         const RequestHeaders* request_headers) const;
-
-  bool IsRejectedUrl(const GoogleString& url) const {
-    return IsRejectedRequest(kRejectedRequestUrlKeyName, url);
-  }
-
-  bool IsRejectedRequest(const StringPiece& header_name,
-                         const StringPiece& value) const {
-    FastWildcardGroupMap::const_iterator it = rejected_request_map_.find(
-        header_name);
-    if (it != rejected_request_map_.end()) {
-      return it->second->Match(value, false);
-    }
-    return false;
-  }
-
-  // Makes sure that javascript_library_identification_ points to an object
-  // owned only by us, so that we can modify it; and returns the pointer to it.
-  JavascriptLibraryIdentification* WriteableJavascriptLibraryIdentification();
+  FRIEND_TEST(RewriteOptionsTest, FuriousMergeTest);
+  typedef std::vector<Filter> FilterVector;
 
   // A family of urls for which prioritize_visible_content filter can be
   // applied.  url_pattern represents the actual set of urls,
@@ -2740,18 +2591,18 @@ class RewriteOptions {
   struct UrlCacheInvalidationEntry {
     UrlCacheInvalidationEntry(StringPiece url_pattern_in,
                               int64 timestamp_ms_in,
-                              bool ignores_metadata_and_pcache_in)
+                              bool is_strict_in)
         : url_pattern(url_pattern_in),
           timestamp_ms(timestamp_ms_in),
-          ignores_metadata_and_pcache(ignores_metadata_and_pcache_in) {}
+          is_strict(is_strict_in) {}
 
     UrlCacheInvalidationEntry* Clone() const {
       return new UrlCacheInvalidationEntry(
-          url_pattern.spec(), timestamp_ms, ignores_metadata_and_pcache);
+          url_pattern.spec(), timestamp_ms, is_strict);
     }
 
     GoogleString ComputeSignature() const {
-      if (ignores_metadata_and_pcache) {
+      if (is_strict) {
         return "";
       }
       return StrCat(url_pattern.spec(), "@", Integer64ToString(timestamp_ms));
@@ -2759,19 +2610,17 @@ class RewriteOptions {
 
     GoogleString ToString() const {
       return StrCat(
-          url_pattern.spec(), ", ",
-          (ignores_metadata_and_pcache ? "STRICT" : "REFERENCE"), " @ ",
+          url_pattern.spec(), ", ", (is_strict ? "STRICT" : "REFERENCE"), " @ ",
           Integer64ToString(timestamp_ms));
     }
 
     Wildcard url_pattern;
     int64 timestamp_ms;
-    bool ignores_metadata_and_pcache;
+    bool is_strict;
   };
 
   typedef std::vector<UrlCacheInvalidationEntry*>
       UrlCacheInvalidationEntryVector;
-  typedef dense_hash_map<GoogleString, int64> UrlCacheInvalidationMap;
 
   // Private methods to help add properties to
   // RewriteOptions::properties_.  Subclasses define their own
@@ -2910,12 +2759,9 @@ class RewriteOptions {
   // we don't really care we'll try to keep the code structured better.
   Option<RewriteLevel> level_;
 
-  // List of URL wildcard patterns and timestamp for which it should be
-  // invalidated.  In increasing order of timestamp.
+  // List of URL patterns and timestamp for which it should be invalidated.  In
+  // increasing order of timestamp.
   UrlCacheInvalidationEntryVector url_cache_invalidation_entries_;
-
-  // Map of exact URLs to be invalidated; no wildcards.
-  UrlCacheInvalidationMap url_cache_invalidation_map_;
 
   MutexedOptionInt64MergeWithMax cache_invalidation_timestamp_;
   Option<int64> css_flatten_max_bytes_;
@@ -2930,10 +2776,6 @@ class RewriteOptions {
   Option<bool> css_preserve_urls_;
   Option<bool> js_preserve_urls_;
   Option<bool> image_preserve_urls_;
-
-  // Option to rewrite the request to origin url before we start processing
-  // the request.
-  Option<bool> rewrite_request_urls_early_;
 
   Option<int64> image_inline_max_bytes_;
   Option<int64> js_inline_max_bytes_;
@@ -2963,13 +2805,14 @@ class RewriteOptions {
   // Options related to jpeg compression.
   Option<int64> image_jpeg_recompress_quality_;
   Option<int64> image_jpeg_recompress_quality_for_small_screens_;
-  Option<int64> image_jpeg_num_progressive_scans_;
-  Option<int64> image_jpeg_num_progressive_scans_for_small_screens_;
+  Option<int> image_jpeg_num_progressive_scans_;
+  Option<bool> image_retain_color_profile_;
+  Option<bool> image_retain_color_sampling_;
+  Option<bool> image_retain_exif_data_;
 
   // Options governing when to retain optimized images vs keep original
   Option<int> image_limit_optimized_percent_;
   Option<int> image_limit_resize_area_percent_;
-  Option<int> image_limit_rendered_area_percent_;
 
   // Options related to webp compression.
   Option<int64> image_webp_recompress_quality_;
@@ -3012,9 +2855,7 @@ class RewriteOptions {
   // when IPRO of JS is enabled.
   Option<bool> in_place_preemptive_rewrite_javascript_;
   Option<bool> combine_across_paths_;
-  Option<bool> log_background_rewrites_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
-  Option<bool> log_url_indices_;
   Option<bool> lowercase_html_names_;
   Option<bool> always_rewrite_css_;  // For tests/debugging.
   Option<bool> respect_vary_;
@@ -3023,8 +2864,8 @@ class RewriteOptions {
   // Should we serve stale responses if the fetch results in a server side
   // error.
   Option<bool> serve_stale_if_fetch_error_;
-  // Whether to flush the inlined critical css rules early.
-  Option<bool> enable_flush_early_critical_css_;
+  // Whether blink critical line flow should be enabled.
+  Option<bool> enable_blink_critical_line_;
   // When default_cache_html_ is false (default) we do not cache
   // input HTML which lacks Cache-Control headers. But, when set true,
   // we will cache those inputs for the implicit lifetime just like we
@@ -3055,12 +2896,13 @@ class RewriteOptions {
   // Indicates whether the DomainRewriteFilter should rewrite all tags,
   // including <a href> and <form action>.
   Option<bool> domain_rewrite_hyperlinks_;
-  // Are we running the A/B experiment framework that uses cookies and Google
-  // Analytics to track page speed statistics with multiple sets of rewriters?
-  Option<bool> running_experiment_;
-  // The experiment framework reports to Google Analytice in a custom variable
-  // slot.  Specify which one to use.
-  Option<int> experiment_ga_slot_;
+
+  // Furious is the A/B experiment framework that uses cookies
+  // and Google Analytics to track page speed statistics with
+  // multiple sets of rewriters.
+  Option<bool> running_furious_;
+
+  Option<int> furious_ga_slot_;
 
   // Increase the percentage of hits to 10% (current max) that have
   // site speed tracking in Google Analytics.
@@ -3077,23 +2919,11 @@ class RewriteOptions {
   // Flush more resources in IE and Firefox.
   Option<bool> flush_more_resources_in_ie_and_firefox_;
 
-  // Number of script elements to prefetch early. Applicable when defer_js
-  // filter is enabled.
-  Option<int> max_prefetch_js_elements_;
-
   // Enables experimental code in defer js.
   Option<bool> enable_defer_js_experimental_;
 
-  // Enables the Cache Purge API.  This is not on by default because
-  // it requires saving input URLs to each metadata cache entry to
-  // facilitate fast URL cache invalidation.
-  //
-  // Note that in the absence of this API, purging URLs can still
-  // work, but it will invalidate either the entire metadata cache
-  // (ignores_metadata_and_pcache==false in the call to
-  // AddUrlCacheInvalidationEntry) or will not invalidate the metadata
-  // cache entries at all (ignores_metadata_and_pcache==false).
-  Option<bool> enable_cache_purge_;
+  // Enables experimental code in inline preview images.
+  Option<bool> enable_inline_preview_images_experimental_;
 
   // Enables the code to lazy load high res images.
   Option<bool> lazyload_highres_images_;
@@ -3107,11 +2937,6 @@ class RewriteOptions {
 
   // Test-only flag to get fetch deadlines to trigger instantly.
   Option<bool> test_instant_fetch_rewrite_deadline_;
-
-  // Indicates whether the prioritize_critical_css filter should invoke its
-  // JavaScript function to load all the "hidden" CSS files at onload.
-  // Intended for testing only.
-  Option<bool> test_only_prioritize_critical_css_dont_apply_original_css_;
 
   // Enables blocking rewrite of html. RewriteDriver provides a flag
   // fully_rewrite_on_flush which makes sure that all rewrites are done before
@@ -3144,9 +2969,9 @@ class RewriteOptions {
   // refreshed when their age is larger than the specified value. However, the
   // property will be used until finder_properties_cache_expiration_time_ms_.
   Option<int64> finder_properties_cache_refresh_time_ms_;
-  // Duration after which the experiment cookie will expire on the user's
-  // browser (in msec).
-  Option<int64> experiment_cookie_duration_ms_;
+  // Duration after which the furious experiment cookie will expire on the
+  // user's browser (in msec).
+  Option<int64> furious_cookie_duration_ms_;
 
   // The maximum time beyond expiry for which a metadata cache entry may be
   // used.
@@ -3154,27 +2979,6 @@ class RewriteOptions {
 
   // The metadata cache ttl for input resources which are 4xx errors.
   Option<int64> metadata_input_errors_cache_ttl_ms_;
-
-  // The lifetime for responses which are stored in the downstream cache.
-  // TODO(anupama): This is right now used to only detect whether the
-  // rewritten-caching feature is enabled. Provide support for
-  // caches to respect this value by communicating them via headers
-  // to external caching layers.
-  Option<int64> downstream_cache_lifetime_ms_;
-
-  // The HTTP method to use ("PURGE", "GET" etc.) for purge requests sent to
-  // downstream caches (e.g. proxy_cache, Varnish).
-  Option<GoogleString> downstream_cache_purge_method_;
-
-  // The path prefix to be used for purging the cached responses.
-  Option<GoogleString> downstream_cache_purge_path_prefix_;
-
-  // Threshold for amount of rewriting finished before the response was served
-  // out (expressed as a percentage) and simultaneously stored in the downstream
-  // cache  beyond which the response will not be purged from the cache even if
-  // more rewriting is possible now. If the threshold is exceeded, this means
-  // that the version in the cache is good enough and hence need not be purged.
-  Option<int64> downstream_cache_rewritten_percentage_threshold_;
 
   // The number of milliseconds of cache TTL we assign to resources that
   // are "likely cacheable" (e.g. images, js, css, not html) and have no
@@ -3184,17 +2988,31 @@ class RewriteOptions {
   // Maximum length (in bytes) of response content.
   Option<int64> max_cacheable_response_content_length_;
 
-  // The timestamp when blink blacklist expires.
-  Option<int64> blink_blacklist_end_timestamp_ms_;
-  // Persist blink blacklist.
-  Option<bool> persist_blink_blacklist_;
+  // Option for the prioritize_visible_content filter.
+  //
+  // Represents the following information:
+  // "<url family wildcard 1>;<cache time 1>;<comma separated list of non-cacheable elements 1>",
+  // "<url family wildcard 2>;<cache time 2>;<comma separated list of non-cacheable elements 2>",
+  //  ...
+  std::vector<PrioritizeVisibleContentFamily*>
+      prioritize_visible_content_families_;
+
+  Option<bool> is_blink_auto_blacklisted_;
 
   Option<GoogleString> ga_id_;
 
+  // Pass-through request in prioritize_visible_content filter, if we got a
+  // non-200 response from origin on the last fetch.
+  Option<bool> passthrough_blink_for_last_invalid_response_code_;
+  // Sets limit for max html size that is rewritten in Blink.
   Option<int64> blink_max_html_size_rewritable_;
   // Time after which we should try to detect if publisher html in blink
   // has changed.
   Option<int64> blink_html_change_detection_time_ms_;
+  // If prioritize_visible_content_families_ is empty and the following is true,
+  // then prioritize_visible_content applies on all URLs (with default cache
+  // time and no non-cacheables).
+  Option<bool> apply_blink_if_no_families_;
   // Show the blink debug dashboard.
   Option<bool> enable_blink_debug_dashboard_;
   // Enable automatic detection of publisher changes in html in blink.
@@ -3203,17 +3021,19 @@ class RewriteOptions {
   Option<bool> enable_blink_html_change_detection_logging_;
   // Use smart diff to detect publisher changes in html in blink.
   Option<bool> use_smart_diff_in_blink_;
-  // Use fallback values from property cache.
-  Option<bool> use_fallback_property_cache_values_;
+  // Don't force disable lazyload in blink;
+  Option<bool> enable_lazyload_in_blink_;
   // Enable Prioritizing of scripts in defer javascript.
   Option<bool> enable_prioritizing_scripts_;
   // Enables rewriting of uncacheable resources.
   Option<bool> rewrite_uncacheable_resources_;
+  // Override cache-time for cacheable resources in blink.
+  Option<int64> override_blink_cache_time_ms_;
+  // Non-cacheables to be used for all families in
+  // prioritize_visible_content_families_.
+  Option<GoogleString> blink_non_cacheables_for_all_families_;
   // Specification for critical line.
   Option<GoogleString> critical_line_config_;
-  // The user-provided key used to authenticate requests from one rewrite task
-  // to another.  Right now only used to validate meta-data headers.
-  Option<GoogleString> distributed_rewrite_key_;
   // A comma delimited list of hosts that can be used to rewrite resources.
   Option<GoogleString> distributed_rewrite_servers_;
   // Time to wait for a distributed rewrite to complete before giving up on the
@@ -3241,10 +3061,6 @@ class RewriteOptions {
   // enabled.
   Option<bool> support_noscript_enabled_;
 
-  // If this set to true, we add additional instrumentation code to page that
-  // reports more information in the beacon.
-  Option<bool> enable_extended_instrumentation_;
-
   // Maximum size allowed for the combined js resource.
   // Negative value will bypass the size check.
   Option<int64> max_combined_js_bytes_;
@@ -3266,12 +3082,6 @@ class RewriteOptions {
 
   // Whether to allow logging urls as part of LogRecord.
   Option<bool> allow_logging_urls_in_log_record_;
-
-  // Non cacheables used when partial HTML is cached.
-  Option<GoogleString> non_cacheables_for_cache_partial_html_;
-
-  // Fix reflows due to defer js.
-  Option<bool> enable_fix_reflow_;
 
   // Be sure to update constructor if when new fields is added so that they
   // are added to all_options_, which is used for Merge, and eventually,
@@ -3301,10 +3111,12 @@ class RewriteOptions {
   // mixed debug/opt object files in an executable.
   bool options_uniqueness_checked_;
 
+  // Do we need to store experiment data for Furious?
   bool need_to_store_experiment_data_;
-  int experiment_id_;  // Which experiment configuration are we in?
-  int experiment_percent_;  // Total traffic going through experiments.
-  std::vector<ExperimentSpec*> experiment_specs_;
+  // Which experiment configuration are we in?
+  int furious_id_;
+  int furious_percent_;         // Total traffic going through experiments.
+  std::vector<FuriousSpec*> furious_specs_;
 
   // Headers to add to subresource requests.
   std::vector<NameValue*> custom_fetch_headers_;
@@ -3313,10 +3125,9 @@ class RewriteOptions {
   // interpreted as containing urls.
   scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
 
-  CopyOnWrite<JavascriptLibraryIdentification>
-      javascript_library_identification_;
+  JavascriptLibraryIdentification javascript_library_identification_;
 
-  CopyOnWrite<DomainLawyer> domain_lawyer_;
+  DomainLawyer domain_lawyer_;
   FileLoadPolicy file_load_policy_;
 
   FastWildcardGroup allow_resources_;
@@ -3329,23 +3140,6 @@ class RewriteOptions {
   FastWildcardGroupMap rejected_request_map_;
 
   GoogleString signature_;
-  MD5Hasher hasher_;  // Used to compute named signatures.
-
-  ThreadSystem* thread_system_;
-
-  // When compiled for debug, keep track of the last thread to modify
-  // this object.  If cloned or merged from prior to
-  // ComputeSignature(), we check that the thread doing the Merge is
-  // in the same thread that modified it.
-  //
-  // We also ensure that only one thread modifies a RewriteOptions
-  // object.
-  //
-  // Note: we don't ifdef the member variable declaration as having the
-  // structure-size dependent on debug-ifdef seems dangerous when used
-  // as a library against externally compiled code.  We do ifdef its
-  // usage within the class implementation, however.
-  scoped_ptr<ThreadSystem::ThreadId> last_thread_id_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteOptions);
 };

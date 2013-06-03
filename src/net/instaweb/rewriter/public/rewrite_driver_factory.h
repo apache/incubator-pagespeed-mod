@@ -31,7 +31,9 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
 class CriticalCssFinder;
 class CriticalImagesFinder;
@@ -39,7 +41,7 @@ class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
-class ExperimentMatcher;
+class FuriousMatcher;
 class Hasher;
 class MessageHandler;
 class NamedLockManager;
@@ -79,6 +81,9 @@ class RewriteDriverFactory {
 
   // Takes ownership of thread_system.
   explicit RewriteDriverFactory(ThreadSystem* thread_system);
+
+  // Initializes thread_system_ using ThreadSystem::ComputeThreadSystem().
+  RewriteDriverFactory();
 
   // Initializes default options we want to hard-code into the
   // base-class to get consistency across deployments.  Subclasses
@@ -186,11 +191,6 @@ class RewriteDriverFactory {
   // MakePropertyCaches.
   virtual void SetupCaches(ServerContext* server_context) = 0;
 
-  // Returns true if this platform uses beacon-based measurements to make
-  // run-time decisions.  This is used to determine how to configure various
-  // beacon-based filters.
-  virtual bool UseBeaconResultsInFilters() const = 0;
-
   // Provides an optional hook for adding rewrite passes to the HTML filter
   // chain.  This should be used for filters that are specific to a particular
   // RewriteDriverFactory implementation.
@@ -249,9 +249,9 @@ class RewriteDriverFactory {
   void AddCreatedDirectory(const GoogleString& dir);
 
   // Creates a new empty RewriteOptions object, with no default settings.
-  // Generally configurations go factory's default_options() ->
-  // ServerContext::global_options() -> RewriteDriveFactory,
-  // but this method just provides a blank set of options.
+  // Note that InitResourceManager() will copy the factory's default_options()
+  // into the server context's global_options(), but this method just provides
+  // a blank set of options.
   virtual RewriteOptions* NewRewriteOptions();
 
   // Creates a new empty RewriteOptions object meant for use for
@@ -270,57 +270,39 @@ class RewriteDriverFactory {
   // may be useful for object deletion cleanups.
   void defer_cleanup(Function* f) { deferred_cleanups_.push_back(f); }
 
-  // Queues an object for deletion at the last phase of RewriteDriverFactory
-  // destruction.
-  template<class T> void TakeOwnership(T* obj) {
-    defer_cleanup(new RewriteDriverFactory::Deleter<T>(obj));
-  }
-
   // Base method that returns true if the given ip is a debug ip.
   virtual bool IsDebugClient(const GoogleString& ip) const {
     return false;
   }
 
-  // Creates an ExperimentMatcher, which is used to match clients or sessions to
-  // a specific experiment.
-  virtual ExperimentMatcher* NewExperimentMatcher();
+  // Creates a new AbstractClientState object that must be populated.
+  // Subclasses can override this to create an appropriate AbstractClientState
+  // subclass if the default isn't acceptable.
+  virtual AbstractClientState* NewClientState();
 
-  // Returns the preferred webp image quality vector for client options.
-  const std::vector<int>* preferred_webp_qualities() {
-    return &preferred_webp_qualities_;
-  }
-
-  // Returns the preferred jpeg image quality vector for client options.
-  const std::vector<int>* preferred_jpeg_qualities() {
-    return &preferred_jpeg_qualities_;
-  }
-
-  // Returns true if the correct number of WebP qualities are parsed and set.
-  bool SetPreferredWebpQualities(const StringPiece& qualities);
-
-  // Returns true if the correct number of JPEG qualities are parsed and set.
-  bool SetPreferredJpegQualities(const StringPiece& qualities);
+  // Creates a FuriousMatcher, which is used to match clients or sessions to
+  // a specific furious experiment.
+  virtual FuriousMatcher* NewFuriousMatcher();
 
  protected:
   bool FetchersComputed() const;
   virtual void StopCacheActivity();
   StringPiece filename_prefix();
 
-  // Used by subclasses to indicate that a ServerContext has been
+  // Used by subclasses to indicate that a ResourceManager has been
   // terminated.  Returns true if this was the last server context
   // known to this factory.
-  bool TerminateServerContext(ServerContext* server_context);
+  bool TerminateServerContext(ServerContext* rm);
 
   // Implementors of RewriteDriverFactory must supply default definitions
   // for each of these methods, although they may be overridden via set_
-  // methods above.  These methods all instantiate objects and transfer
-  // ownership to the caller.
+  // methods above.
   virtual UrlFetcher* DefaultUrlFetcher() = 0;
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher() = 0;
   virtual MessageHandler* DefaultHtmlParseMessageHandler() = 0;
   virtual MessageHandler* DefaultMessageHandler() = 0;
   virtual FileSystem* DefaultFileSystem() = 0;
-  virtual Timer* DefaultTimer();
+  virtual Timer* DefaultTimer() = 0;
 
   virtual Hasher* NewHasher() = 0;
 
@@ -331,14 +313,16 @@ class RewriteDriverFactory {
   virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher() { return NULL; }
 
   virtual CriticalCssFinder* DefaultCriticalCssFinder();
-  virtual CriticalImagesFinder* DefaultCriticalImagesFinder(
-      ServerContext* server_context);
-  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder(
-      ServerContext* server_context);
+  virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
+  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder();
+
+  // Default implementation returns NULL.
+  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual CacheHtmlInfoFinder* DefaultCacheHtmlInfoFinder(
-      PropertyCache* cache, ServerContext* server_context);
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();
@@ -454,13 +438,6 @@ class RewriteDriverFactory {
 
   // The hostname we're running on. Used to set the same field in ServerContext.
   GoogleString hostname_;
-
-  // Image qualities used for client options.
-  // Each vector contains 5 integers used as recompression qualities for
-  // quality preference and screen resolution combinations.
-  // Note that the default values cannot be changed in Apache currently.
-  std::vector<int> preferred_webp_qualities_;
-  std::vector<int> preferred_jpeg_qualities_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverFactory);
 };

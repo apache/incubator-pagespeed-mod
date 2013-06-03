@@ -20,10 +20,6 @@
     # by the apache user (as specified by the User directive).
     ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@/"
 
-    # The locations of SSL Certificates is distribution-dependent.
-    ModPagespeedSslCertDirectory "@@SSL_CERT_DIR@@"
-    @@SSL_CERT_FILE_COMMAND@@
-
     # If you want, you can use one or more memcached servers as the store for
     # the mod_pagespeed cache.
     # ModPagespeedMemcachedServers localhost:11211
@@ -214,7 +210,7 @@
     # Additional library configuration can be found in
     # pagespeed_libraries.conf included in the distribution.  You should add
     # new entries here, though, so that file can be automatically upgraded.
-    # ModPagespeedLibrary 43 1o978_K0_LNE5_ystNklf http://www.modpagespeed.com/rewrite_javascript.js
+    ModPagespeedLibrary 43 1o978_K0_LNE5_ystNklf http://www.modpagespeed.com/rewrite_javascript.js
 
     # Explicitly tell mod_pagespeed to load some resources from disk.
     # This will speed up load time and update frequency.
@@ -248,6 +244,14 @@
     # Uncomment the following line so that ModPagespeed will not cache or
     # rewrite resources with Vary: in the header, e.g. Vary: User-Agent.
     # ModPagespeedRespectVary on
+
+    # This handles the client-side instrumentation callbacks which are injected
+    # by the add_instrumentation filter.
+    # You can use a different location by adding the ModPagespeedBeaconUrl
+    # directive; see the documentation on add_instrumentation.
+    <Location /mod_pagespeed_beacon>
+          SetHandler mod_pagespeed_beacon
+    </Location>
 
     # Uncomment the following line if you want to disable statistics entirely.
     #

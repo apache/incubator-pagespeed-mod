@@ -24,8 +24,7 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -68,7 +67,7 @@ class CacheBatcher : public CacheInterface {
   // requests, calling the callback immediately with kNotFound.
   static const size_t kDefaultMaxQueueSize = 1000;
 
-  // Does not take ownership of the cache. Takes ownership of the mutex.
+  // Takes ownership of the cache and mutex.
   CacheBatcher(CacheInterface* cache, AbstractMutex* mutex,
                Statistics* statistics);
   virtual ~CacheBatcher();
@@ -81,8 +80,7 @@ class CacheBatcher : public CacheInterface {
   virtual void Get(const GoogleString& key, Callback* callback);
   virtual void Put(const GoogleString& key, SharedString* value);
   virtual void Delete(const GoogleString& key);
-  virtual GoogleString Name() const;
-  static GoogleString FormatName(StringPiece cache, int parallelism, int max);
+  virtual const char* Name() const { return name_.c_str(); }
 
   // Note: CacheBatcher cannot do any batching if given a blocking cache,
   // however it is still functional so pass on the bit.
@@ -104,8 +102,9 @@ class CacheBatcher : public CacheInterface {
   void GroupComplete();
   bool CanIssueGet() const;  // must be called with mutex_ held.
 
-  CacheInterface* cache_;
+  scoped_ptr<CacheInterface> cache_;
   scoped_ptr<AbstractMutex> mutex_;
+  GoogleString name_;
   MultiGetRequest queue_;
   int last_batch_size_;
   int pending_;

@@ -36,27 +36,27 @@ class SharedString;
 // the thread safety of the cache itself, not the callbacks.
 class ThreadsafeCache : public CacheInterface {
  public:
-  // Does not takes ownership of cache.  Takes ownership of mutex.
+  // Takes ownership of the cache and mutex that's passed in.
   ThreadsafeCache(CacheInterface* cache, AbstractMutex* mutex)
       : cache_(cache),
-        mutex_(mutex) {
+        mutex_(mutex),
+        name_(StrCat("ThreadsafeCache using ", cache_->Name())) {
   }
   virtual ~ThreadsafeCache();
 
   virtual void Get(const GoogleString& key, Callback* callback);
   virtual void Put(const GoogleString& key, SharedString* value);
   virtual void Delete(const GoogleString& key);
-  virtual CacheInterface* Backend() { return cache_; }
+  virtual const char* Name() const { return name_.c_str(); }
+  virtual CacheInterface* Backend() { return cache_.get(); }
   virtual bool IsBlocking() const { return cache_->IsBlocking(); }
   virtual bool IsHealthy() const;
   virtual void ShutDown();
 
-  static GoogleString FormatName(StringPiece cache);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
-
  private:
-  CacheInterface* cache_;
+  scoped_ptr<CacheInterface> cache_;
   scoped_ptr<AbstractMutex> mutex_;
+  GoogleString name_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadsafeCache);
 };

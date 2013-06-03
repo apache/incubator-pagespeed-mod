@@ -101,7 +101,7 @@ class ResponseHeadersTest : public testing::Test {
                      status_code, start_time_string_.c_str(), content_type);
     response_headers_.Clear();
     ParseHeaders(header_text);
-    bool cacheable = response_headers_.IsProxyCacheable();
+    bool cacheable = response_headers_.IsCacheable();
     if (!cacheable) {
       EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kCacheControl));
       EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kExpires));
@@ -248,14 +248,14 @@ TEST_F(ResponseHeadersTest, TestSizeEstimate) {
 TEST_F(ResponseHeadersTest, TestCachingNeedDate) {
   ParseHeaders("HTTP/1.0 200 OK\r\n"
                "Cache-control: max-age=300\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
 }
 
 // Make sure we deal correctly when we have no Date or Cache-Control headers.
 TEST_F(ResponseHeadersTest, TestNoHeaders) {
   ParseHeaders("HTTP/1.0 200 OK\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
 }
 
@@ -263,7 +263,7 @@ TEST_F(ResponseHeadersTest, TestNoHeaders) {
 TEST_F(ResponseHeadersTest, TestNoContentTypeNoDate) {
   ParseHeaders("HTTP/1.0 200 OK\r\n"
                "Content-Type: text/css\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
 }
 
@@ -271,7 +271,7 @@ TEST_F(ResponseHeadersTest, TestNoContentTypeCacheNoDate) {
   ParseHeaders("HTTP/1.0 200 OK\r\n"
                "Content-Type: text/css\r\n"
                "Cache-Control: max-age=301\r\n\r\n");
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_EQ(0, response_headers_.CacheExpirationTimeMs());
 }
 
@@ -282,7 +282,7 @@ TEST_F(ResponseHeadersTest, TestCachingPublic) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n\r\n"));
 
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
   EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
@@ -296,7 +296,7 @@ TEST_F(ResponseHeadersTest, TestCachingPrivate) {
   ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: private, max-age=10\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
   EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
@@ -310,7 +310,7 @@ TEST_F(ResponseHeadersTest, TestCachingDefault) {
   ParseHeaders(StrCat("HTTP/1.0 200 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=100\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheableGivenRequest(with_auth_));
   EXPECT_TRUE(response_headers_.IsProxyCacheableGivenRequest(without_auth_));
@@ -324,7 +324,7 @@ TEST_F(ResponseHeadersTest, TestCachingDefaultPermRedirect) {
   ParseHeaders(StrCat("HTTP/1.1 301 Moved Permanently\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "\r\n"));
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
 }
 
 // Even when explicitly set, don't cache temporary redirects.
@@ -333,7 +333,7 @@ TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect302) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=300\r\n"
                       "\r\n"));
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
 }
 
 TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect307) {
@@ -341,7 +341,7 @@ TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect307) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=300\r\n"
                       "\r\n"));
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
 }
 
 // Test that we don't erroneously cache a 204 even though it is marked
@@ -352,7 +352,7 @@ TEST_F(ResponseHeadersTest, TestCachingInvalidStatus) {
   ParseHeaders(StrCat("HTTP/1.0 204 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
 }
 
 // Test that we don't erroneously cache a 304.
@@ -363,7 +363,7 @@ TEST_F(ResponseHeadersTest, TestCachingNotModified) {
   ParseHeaders(StrCat("HTTP/1.0 304 OK\r\n"
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
-  EXPECT_FALSE(response_headers_.IsBrowserCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
 }
 
@@ -434,7 +434,7 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForHtml) {
                       "Date: ", start_time_string_, "\r\n"
                       "Content-Type: text/html\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
 
   response_headers_.Clear();
@@ -445,7 +445,7 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForHtml) {
                       "Content-Type: text/html\r\n"
                       "Set-Cookie: cookie\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
 
   response_headers_.Clear();
@@ -456,7 +456,7 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForHtml) {
                       "Content-Type: text/html\r\n"
                       "Set-Cookie2: cookie\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsBrowserCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
 }
 
@@ -467,6 +467,7 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForNonHtml) {
                       "Date: ", start_time_string_, "\r\n"
                       "Content-Type: text/css\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
 
   response_headers_.Clear();
@@ -476,6 +477,7 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityForNonHtml) {
                       "Content-Type: text/css\r\n"
                       "Set-Cookie: cookie\r\n"
                       "Cache-control: max-age=300\r\n\r\n"));
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.IsProxyCacheable());
 }
 
@@ -716,7 +718,7 @@ TEST_F(ResponseHeadersTest, TestCachingVaryStar) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: *\r\n\r\n\r\n"));
-  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  EXPECT_FALSE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.VaryCacheable(true));
   EXPECT_FALSE(response_headers_.VaryCacheable(false));
 }
@@ -726,7 +728,7 @@ TEST_F(ResponseHeadersTest, TestCachingVaryCookie) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: Cookie\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.VaryCacheable(true));
   EXPECT_TRUE(response_headers_.VaryCacheable(false));
 }
@@ -736,7 +738,7 @@ TEST_F(ResponseHeadersTest, TestCachingVaryCookieUserAgent) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: Cookie,User-Agent\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.VaryCacheable(true));
   EXPECT_FALSE(response_headers_.VaryCacheable(false));
 }
@@ -746,7 +748,7 @@ TEST_F(ResponseHeadersTest, TestCachingVaryAcceptEncoding) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: Accept-Encoding\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_TRUE(response_headers_.VaryCacheable(true));
   EXPECT_TRUE(response_headers_.VaryCacheable(false));
 }
@@ -756,7 +758,7 @@ TEST_F(ResponseHeadersTest, TestCachingVaryAcceptEncodingCookie) {
                       "Date: ", start_time_string_, "\r\n"
                       "Cache-control: public, max-age=300\r\n"
                       "Vary: Accept-Encoding,Cookie\r\n\r\n\r\n"));
-  EXPECT_TRUE(response_headers_.IsProxyCacheable());
+  EXPECT_TRUE(response_headers_.IsCacheable());
   EXPECT_FALSE(response_headers_.VaryCacheable(true));
   EXPECT_TRUE(response_headers_.VaryCacheable(false));
 }

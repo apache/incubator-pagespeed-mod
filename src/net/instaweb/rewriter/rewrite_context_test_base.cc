@@ -52,7 +52,7 @@ TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {
 bool TrimWhitespaceRewriter::RewriteText(const StringPiece& url,
                                          const StringPiece& in,
                                          GoogleString* out,
-                                         ServerContext* server_context) {
+                                         ServerContext* resource_manager) {
   LOG(INFO) << "Trimming whitespace.";
   ++num_rewrites_;
   TrimWhitespace(in, out);
@@ -180,10 +180,6 @@ CombiningFilter::CombiningFilter(RewriteDriver* driver,
                                  int64 rewrite_delay_ms)
     : RewriteFilter(driver),
       scheduler_(scheduler),
-      num_rewrites_(0),
-      num_render_(0),
-      num_will_not_render_(0),
-      num_cancel_(0),
       rewrite_delay_ms_(rewrite_delay_ms),
       rewrite_block_on_(NULL),
       rewrite_signal_on_(NULL),
@@ -212,20 +208,14 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
   MessageHandler* handler = Driver()->message_handler();
   CachedResult* partition = partitions->add_partition();
   for (int i = 0, n = num_slots(); i < n; ++i) {
+    slot(i)->resource()->AddInputInfoToPartition(
+        Resource::kIncludeInputHash, i, partition);
     if (!slot(i)->resource()->IsSafeToRewrite(rewrite_uncacheable()) ||
         !combiner_.AddResourceNoFetch(slot(i)->resource(), handler).value) {
       return false;
     }
-    // This should be called after checking IsSafeToRewrite, since
-    // AddInputInfoToPartition requires the resource to be loaded()
-    slot(i)->resource()->AddInputInfoToPartition(
-        Resource::kIncludeInputHash, i, partition);
   }
   OutputResourcePtr combination(combiner_.MakeOutput());
-  // MakeOutput can fail if for example there is only one input resource.
-  if (combination.get() == NULL) {
-    return false;
-  }
 
   // ResourceCombiner provides us with a pre-populated CachedResult,
   // so we need to copy it over to our CachedResult.  This is
@@ -280,20 +270,11 @@ void CombiningFilter::Context::DoRewrite(int partition_index,
 }
 
 void CombiningFilter::Context::Render() {
-  ++filter_->num_render_;
   // Slot 0 will be replaced by the combined resource as part of
   // rewrite_context.cc.  But we still need to delete slots 1-N.
   for (int p = 0, np = num_output_partitions(); p < np; ++p) {
     DisableRemovedSlots(output_partition(p));
   }
-}
-
-void CombiningFilter::Context::WillNotRender() {
-  ++filter_->num_will_not_render_;
-}
-
-void CombiningFilter::Context::Cancel() {
-  ++filter_->num_cancel_;
 }
 
 void CombiningFilter::Context::DisableRemovedSlots(CachedResult* partition) {
@@ -321,7 +302,6 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-const int64 RewriteContextTestBase::kRewriteDeadlineMs;
 
 RewriteContextTestBase::~RewriteContextTestBase() {
 }
@@ -331,15 +311,15 @@ void RewriteContextTestBase::SetUp() {
   other_trim_filter_ = NULL;
   combining_filter_ = NULL;
   nested_filter_ = NULL;
+
+  RewriteTestBase::SetUp();
+
   // The default deadline set in RewriteDriver is dependent on whether
   // the system was compiled for debug, or is being run under valgrind.
   // However, the unit-tests here use mock-time so we want to set the
   // deadline explicitly.
-  options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  other_options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  RewriteTestBase::SetUp();
-  EXPECT_EQ(kRewriteDeadlineMs, rewrite_driver()->rewrite_deadline_ms());
-  EXPECT_EQ(kRewriteDeadlineMs, other_rewrite_driver()->rewrite_deadline_ms());
+  rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
+  other_rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
 }
 
 void RewriteContextTestBase::TearDown() {

@@ -250,38 +250,6 @@ TEST_F(CssTagScannerTest, TestHasImport) {
       "@import url('http://foo.com');\n", &message_handler_));
 }
 
-TEST_F(CssTagScannerTest, IsStylesheetOrAlternate) {
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("canonical stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate(" stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate(" styleSheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("alternate stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate"));
-  EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate canonical"));
-  EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("StyleshEet alternAte canoNical "));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("alternate"));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("prev"));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate(""));
-}
-
-TEST_F(CssTagScannerTest, IsAlternateStylesheet) {
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("canonical stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(" stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(" styleSheet"));
-  EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("alternate stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("stylesheet alternate"));
-  EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("stylesheet alternate canonical"));
-  EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("StyleshEet alternAte canoNical "));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("alternate"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("prev"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(""));
-}
-
 class RewriteDomainTransformerTest : public RewriteTestBase {
  public:
   RewriteDomainTransformerTest()

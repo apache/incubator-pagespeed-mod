@@ -13,6 +13,7 @@
 # NO_VHOST_MERGE=on can be passed to tell tests to assume
 # that ModPagespeedInheritVHostConfig has been turned off.
 
+
 if [ -z $APACHE_DEBUG_PAGESPEED_CONF ]; then
   APACHE_DEBUG_PAGESPEED_CONF=/usr/local/apache2/conf/pagespeed.conf
 fi
@@ -31,9 +32,6 @@ CACHE_FLUSH_TEST=${CACHE_FLUSH_TEST:-off}
 NO_VHOST_MERGE=${NO_VHOST_MERGE:-off}
 SUDO=${SUDO:-}
 SECONDARY_HOSTNAME=${SECONDARY_HOSTNAME:-}
-# TODO(jkarlin): Should we just use a vhost instead?  If so, remember to update
-# all scripts that use TEST_PROXY_ORIGIN.
-TEST_PROXY_ORIGIN=${TEST_PROXY_ORIGIN:-modpagespeed.com}
 
 # Run General system tests.
 this_dir=$(dirname $0)
@@ -79,60 +77,24 @@ fi
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
 
-statistics_enabled="0"
-statistics_logging_enabled="0"
-if egrep -q "^    # ModPagespeedStatistics off$" \
-    $APACHE_DEBUG_PAGESPEED_CONF; then
-  statistics_enabled="1"
-  echo STATS is ON
-  if egrep -q "^ ModPagespeedStatisticsLogging on$" \
-     $APACHE_DEBUG_PAGESPEED_CONF; then
-    statistics_logging_enabled="1"
-  fi
-fi
-
 # Grab a timestamp now so that we can check that logging works.
 # Also determine where the log file is.
-if [ $statistics_logging_enabled = "1" ]; then
-  MOD_PAGESPEED_STATS_PREFIX="$(\
-    sed -n 's/^ ModPagespeedStatisticsLoggingFile //p' \
-    $APACHE_DEBUG_PAGESPEED_CONF)"
-  MOD_PAGESPEED_STATS_PREFIX="$(\
-    echo $MOD_PAGESPEED_STATS_PREFIX | sed -n 's/\"//gp')"
+if egrep -q "^    # ModPagespeedStatistics off$" $APACHE_DEBUG_PAGESPEED_CONF &&
+   egrep -q "^ ModPagespeedStatisticsLogging on$" $APACHE_DEBUG_PAGESPEED_CONF;
+   then
+  MOD_PAGESPEED_STATS_LOG=$(sed -n 's/^ ModPagespeedStatisticsLoggingFile //p' \
+      $APACHE_DEBUG_PAGESPEED_CONF)
+  MOD_PAGESPEED_STATS_LOG=$(echo $MOD_PAGESPEED_STATS_LOG | sed -n 's/\"//gp')
   # Wipe the logs so we get a clean start.
-  rm $MOD_PAGESPEED_STATS_PREFIX*
-  # The specific log file that the console will use.
-  # If per-vhost stats is enabled, this is the main vhost suffix ":0".
-  # If per-vhost stats is not enabled, this is the global suffix "global".
-  MOD_PAGESPEED_STATS_LOG="${MOD_PAGESPEED_STATS_PREFIX}:0"
+  rm $MOD_PAGESPEED_STATS_LOG*
   START_TIME=$(date +%s)000 # We need this in milliseconds.
   sleep 2; # Make sure we're around long enough to log stats.
+  statistics_enabled="1"
+else
+  statistics_enabled="0"
 fi
 
 # General system tests
-
-if ${FIRST_RUN:-false}; then
-  CACHABLE_HTML_LOC="${HOSTNAME}/mod_pagespeed_test/cachable_rewritten_html"
-  STATS_URL="${HOSTNAME}/mod_pagespeed_statistics"
-
-  # Number of downstream cache purges should be 0 here.
-  CURRENT_STATS=$($WGET_DUMP $STATS_URL)
-  check_from "$CURRENT_STATS" egrep -q "downstream_cache_purges:\s*0"
-
-  start_test Check for case where rewritten cache should get purged.
-  OUT=$($WGET_DUMP $CACHABLE_HTML_LOC/rewrite_images.html)
-  check_not_from "$OUT" egrep -q "pagespeed.ic"
-  fetch_until $STATS_URL 'grep -c downstream_cache_purges:\s*1' 1
-
-  start_test Check for case where rewritten cache should not get purged.
-  WGET_ARGS="--header=X-PSA-Blocking-Rewrite:psatest"
-  OUT=$($WGET_DUMP $WGET_ARGS $CACHABLE_HTML_LOC/rewrite_images.html)
-  check_from "$OUT" egrep -q "pagespeed.ic"
-
-  # Number of downstream cache purges should still be 1.
-  CURRENT_STATS=$($WGET_DUMP $STATS_URL)
-  check_from "$CURRENT_STATS" egrep -q "downstream_cache_purges:\s*1"
-fi
 
 start_test Check for correct default X-Mod-Pagespeed header format.
 OUT=$($WGET_DUMP $EXAMPLE_ROOT/combine_css.html)
@@ -181,15 +143,13 @@ fi
 
 
 # Test that loopback route fetcher works with vhosts not listening on
-# 127.0.0.1  Only run this during CACHE_FLUSH_TEST as that is when
-# APACHE_TERTIARY_PORT is set.
-if [ "${APACHE_TERTIARY_PORT:-}" != "" ]; then
-  start_test IP choice for loopback fetches.
-  HOST_NAME="loopbackfetch.example.com"
-  URL="$HOST_NAME/mod_pagespeed_example/rewrite_images.html"
-  http_proxy=127.0.0.2:$APACHE_TERTIARY_PORT \
+# 127.0.0.1
+start_test IP choice for loopback fetches.
+HOST_NAME="loopbackfetch.example.com"
+URL="$HOST_NAME/mod_pagespeed_example/rewrite_images.html"
+http_proxy=127.0.0.2:8085 \
     fetch_until $URL 'grep -c .pagespeed.ic' 2
-fi
+
 # Test /mod_pagespeed_message exists.
 start_test Check if /mod_pagespeed_message page exists.
 OUT=$($WGET --save-headers -q -O - $MESSAGE_URL | head -1)
@@ -200,13 +160,13 @@ check_from "$OUT" fgrep "HTTP/1.1 200 OK"
 # This tests whether fetching "/" gets you "/index.html".  With async
 # rewriting, it is not deterministic whether inline css gets
 # rewritten.  That's not what this is trying to test, so we use
-# ?PageSpeed=off.
+# ?ModPagespeed=off.
 start_test directory is mapped to index.html.
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
-check $WGET -q "$EXAMPLE_ROOT/?PageSpeed=off" \
+check $WGET -q "$EXAMPLE_ROOT/?ModPagespeed=off" \
   -O $OUTDIR/mod_pagespeed_example
-check $WGET -q "$EXAMPLE_ROOT/index.html?PageSpeed=off" -O $OUTDIR/index.html
+check $WGET -q "$EXAMPLE_ROOT/index.html?ModPagespeed=off" -O $OUTDIR/index.html
 check diff $OUTDIR/index.html $OUTDIR/mod_pagespeed_example
 
 start_test Request Headers affect MPS options
@@ -229,16 +189,15 @@ function response_header_test() {
       "$TEST_ROOT/response_headers.html?$query" >& $OUTDIR/header_out
 
     # Make sure that any MPS option headers were stripped
-    check_not grep -q ^PageSpeed: $OUTDIR/header_out
     check_not grep -q ^ModPagespeed: $OUTDIR/header_out
 
     # Verify if MPS is on or off
     if [ $mps_on = "no" ]; then
-      # Verify that PageSpeed was off
+      # Verify that ModPagespeed was off
       check_not fgrep -q 'X-Mod-Pagespeed:' $OUTDIR/header_out
       check_not fgrep -q '<script' $OUTDIR/header_out
     else
-      # Verify that PageSpeed was on
+      # Verify that ModPagespeed was on
       check fgrep -q 'X-Mod-Pagespeed:' $OUTDIR/header_out
       check fgrep -q '<script' $OUTDIR/header_out
     fi
@@ -277,7 +236,7 @@ response_header_test headers_combine yes yes
 
 start_test Respect X-Forwarded-Proto when told to
 FETCHED=$OUTDIR/x_forwarded_proto
-URL=$TEST_ROOT/?PageSpeedFilters=add_base_tag
+URL=$TEST_ROOT/?ModPagespeedFilters=add_base_tag
 check $WGET_DUMP -O $FETCHED --header="X-Forwarded-Proto: https" $URL
 # When enabled, we respect X-Forwarded-Proto and thus list base as https.
 check fgrep -q '<base href="https://' $FETCHED
@@ -289,7 +248,6 @@ check fgrep -q '<base href="https://' $FETCHED
 test_filter add_instrumentation beacons load.
 check run_wget_with_args http://$HOSTNAME/mod_pagespeed_beacon?ets=load:13
 check fgrep -q "204 No Content" $WGET_OUTPUT
-check fgrep -q 'Cache-Control: max-age=0, no-cache' $WGET_OUTPUT
 
 test_filter combine_css combines 4 CSS files into 1.
 fetch_until $URL 'grep -c text/css' 1
@@ -347,7 +305,7 @@ fetch_until $URL 'egrep -c big.css.pagespeed.' 1
 # Check that introspection.js was inlined.
 fetch_until $URL 'grep -c document\.write(\"External' 1
 # Check that the image was optimized.
-fetch_until $URL 'grep -c BikeCrashIcn\.png\.pagespeed\.' 1
+fetch_until $URL 'grep -c BikeCrashIcn\.png\.pagespeed\.' 2
 
 # TODO(jkarlin): When ajax rewriting is in MPS check that it works with
 # MPS.
@@ -387,7 +345,7 @@ fetch_until $URL 'grep -c "pagespeed_no_transform"' 0 \
 check run_wget_with_args $URL
 check_file_size "$OUTDIR/xBikeCrashIcn*" -lt 25000     # re-encoded
 check_file_size "$OUTDIR/*256x192*Puzzle*" -lt 24126   # resized
-URL=$EXAMPLE_ROOT"/rewrite_images.html?PageSpeedFilters=rewrite_images"
+URL=$EXAMPLE_ROOT"/rewrite_images.html?ModPagespeedFilters=rewrite_images"
 IMG_URL=$(egrep -o http://.*.pagespeed.*.jpg $FETCHED | head -n1)
 check [ x"$IMG_URL" != x ]
 start_test headers for rewritten image
@@ -415,12 +373,12 @@ check_from "$IMG_HEADERS" fgrep -qi 'X-Extra-Header'
 start_test Last-modified is present.
 check_from "$IMG_HEADERS" fgrep -qi 'Last-Modified'
 
-IMAGES_QUALITY="PageSpeedImageRecompressionQuality"
-JPEG_QUALITY="PageSpeedJpegRecompressionQuality"
-WEBP_QUALITY="PageSpeedImageWebpRecompressionQuality"
+IMAGES_QUALITY="ModPagespeedImageRecompressionQuality"
+JPEG_QUALITY="ModPagespeedJpegRecompressionQuality"
+WEBP_QUALITY="ModPagespeedImageWebpRecompressionQuality"
 start_test quality of jpeg output images with generic quality flag
 IMG_REWRITE=$TEST_ROOT"/image_rewriting/rewrite_images.html"
-REWRITE_URL=$IMG_REWRITE"?PageSpeedFilters=rewrite_images"
+REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL"&"$IMAGES_QUALITY"=75"
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
 # This filter produces different images on 32 vs 64 bit builds. On 32 bit, the
@@ -436,7 +394,7 @@ check_file_size "$OUTDIR/*256x192*Puzzle*" -le 8157   # resized
 
 start_test quality of jpeg output images
 IMG_REWRITE=$TEST_ROOT"/jpeg_rewriting/rewrite_images.html"
-REWRITE_URL=$IMG_REWRITE"?PageSpeedFilters=rewrite_images"
+REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",recompress_jpeg&"$IMAGES_QUALITY"=85&"$JPEG_QUALITY"=70"
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
 #
@@ -450,28 +408,26 @@ start_test quality of webp output images
 rm -rf $OUTDIR
 mkdir $OUTDIR
 IMG_REWRITE=$TEST_ROOT"/webp_rewriting/rewrite_images.html"
-REWRITE_URL=$IMG_REWRITE"?PageSpeedFilters=rewrite_images"
+REWRITE_URL=$IMG_REWRITE"?ModPagespeedFilters=rewrite_images"
 URL=$REWRITE_URL",convert_jpeg_to_webp&"$IMAGES_QUALITY"=75&"$WEBP_QUALITY"=65"
-check run_wget_with_args \
-  --header 'X-PSA-Blocking-Rewrite: psatest' --user-agent=webp $URL
-check_file_size "$OUTDIR/*256x192*Puzzle*webp" -le 6516   # resized, webp'd
+check run_wget_with_args --header 'X-PSA-Blocking-Rewrite: psatest' $URL
+check_file_size "$OUTDIR/*webp*" -le 1784   # resized, optimized to webp
 
 # Depends upon "Header append Vary User-Agent" and ModPagespeedRespectVary.
 start_test respect vary user-agent
-URL=$TEST_ROOT/vary/index.html?PageSpeedFilters=inline_css
+URL=$TEST_ROOT/vary/index.html?ModPagespeedFilters=inline_css
 echo $WGET_DUMP $URL
 OUT=$($WGET_DUMP $URL)
 check_not_from "$OUT" fgrep "<style>"
 
 start_test ModPagespeedShardDomain directive in .htaccess file
-test_filter extend_cache
 fetch_until -save $TEST_ROOT/shard/shard.html 'grep -c \.pagespeed\.' 4
 check [ $(grep -ce href=\"http://shard1 $FETCH_FILE) = 2 ];
 check [ $(grep -ce href=\"http://shard2 $FETCH_FILE) = 2 ];
 WGET_ARGS=""
 
 start_test server-side includes
-fetch_until -save $TEST_ROOT/ssi/ssi.shtml?PageSpeedFilters=combine_css \
+fetch_until -save $TEST_ROOT/ssi/ssi.shtml?ModPagespeedFilters=combine_css \
     'grep -c \.pagespeed\.' 1
 check [ $(grep -ce $combine_css_filename $FETCH_FILE) = 1 ];
 
@@ -481,7 +437,7 @@ check \
   [ $(grep -ce "href=\"/mod_pagespeed_test/" $OUTDIR/redirect_php.html) = 2 ];
 
 start_test ModPagespeedLoadFromFile
-URL=$TEST_ROOT/load_from_file/index.html?PageSpeedFilters=inline_css
+URL=$TEST_ROOT/load_from_file/index.html?ModPagespeedFilters=inline_css
 fetch_until $URL 'grep -c blue' 1
 
 # The "httponly" directory is disallowed.
@@ -495,7 +451,7 @@ fetch_until $URL 'fgrep -c web.example.ssp.css' 1
 fetch_until $URL 'fgrep -c file.exception.ssp.css' 1
 
 start_test ModPagespeedLoadFromFileMatch
-URL=$TEST_ROOT/load_from_file_match/index.html?PageSpeedFilters=inline_css
+URL=$TEST_ROOT/load_from_file_match/index.html?ModPagespeedFilters=inline_css
 fetch_until $URL 'grep -c blue' 1
 
 start_test Custom headers remain on HTML, but cache should be disabled.
@@ -524,34 +480,34 @@ check_from "$OUT" grep -q "Last-Modified:"
 
 test_filter combine_javascript combines 2 JS files into 1.
 start_test combine_javascript with long URL still works
-URL=$TEST_ROOT/combine_js_very_many.html?PageSpeedFilters=combine_javascript
+URL=$TEST_ROOT/combine_js_very_many.html?ModPagespeedFilters=combine_javascript
 fetch_until $URL 'grep -c src=' 4
 
 start_test aris disables js combining for introspective js and only i-js
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__on/?\
-PageSpeedFilters=combine_javascript"
+ModPagespeedFilters=combine_javascript"
 fetch_until $URL 'grep -c src=' 2
 
 start_test aris disables js combining only when enabled
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__off.html?\
-PageSpeedFilters=combine_javascript"
+ModPagespeedFilters=combine_javascript"
 fetch_until $URL 'grep -c src=' 1
 
 test_filter inline_javascript inlines a small JS file
 start_test aris disables js inlining for introspective js and only i-js
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__on/?\
-PageSpeedFilters=inline_javascript"
+ModPagespeedFilters=inline_javascript"
 fetch_until $URL 'grep -c src=' 1
 
 start_test aris disables js inlining only when enabled
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__off.html?\
-PageSpeedFilters=inline_javascript"
+ModPagespeedFilters=inline_javascript"
 fetch_until $URL 'grep -c src=' 0
 
 test_filter rewrite_javascript minifies JavaScript and saves bytes.
 start_test aris disables js cache extention for introspective js and only i-js
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__on/?\
-PageSpeedFilters=rewrite_javascript"
+ModPagespeedFilters=rewrite_javascript"
 # first check something that should get rewritten to know we're done with
 # rewriting
 fetch_until -save $URL 'grep -c "src=\"../normal.js\""' 0
@@ -559,7 +515,7 @@ check [ $(grep -c "src=\"../introspection.js\"" $FETCH_FILE) = 1 ]
 
 start_test aris disables js cache extension only when enabled
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__off.html?\
-PageSpeedFilters=rewrite_javascript"
+ModPagespeedFilters=rewrite_javascript"
 fetch_until -save $URL 'grep -c src=\"normal.js\"' 0
 check [ $(grep -c src=\"introspection.js\" $FETCH_FILE) = 0 ]
 
@@ -567,7 +523,7 @@ check [ $(grep -c src=\"introspection.js\" $FETCH_FILE) = 0 ]
 # avoid_renaming_introspective_javascript is on
 start_test aris disables url modification for introspective js
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__on/?\
-PageSpeedFilters=testing,core"
+ModPagespeedFilters=testing,core"
 # first check something that should get rewritten to know we're done with
 # rewriting
 fetch_until -save $URL 'grep -c src=\"../normal.js\"' 0
@@ -575,32 +531,25 @@ check [ $(grep -c src=\"../introspection.js\" $FETCH_FILE) = 1 ]
 
 start_test aris disables url modification only when enabled
 URL="$TEST_ROOT/avoid_renaming_introspective_javascript__off.html?\
-PageSpeedFilters=testing,core"
+ModPagespeedFilters=testing,core"
 fetch_until -save $URL 'grep -c src=\"normal.js\"' 0
 check [ $(grep -c src=\"introspection.js\" $FETCH_FILE) = 0 ]
 
 start_test HTML add_instrumentation lacks '&amp;' and contains CDATA
 $WGET -O $WGET_OUTPUT $TEST_ROOT/add_instrumentation.html\
-?PageSpeedFilters=add_instrumentation
+?ModPagespeedFilters=add_instrumentation
 check [ $(grep -c "\&amp;" $WGET_OUTPUT) = 0 ]
 check [ $(grep -c '//<\!\[CDATA\[' $WGET_OUTPUT) = 1 ]
 
 start_test XHTML add_instrumentation also lacks '&amp;' and contains CDATA
 $WGET -O $WGET_OUTPUT $TEST_ROOT/add_instrumentation.xhtml\
-?PageSpeedFilters=add_instrumentation
+?ModPagespeedFilters=add_instrumentation
 check [ $(grep -c "\&amp;" $WGET_OUTPUT) = 0 ]
 check [ $(grep -c '//<\!\[CDATA\[' $WGET_OUTPUT) = 1 ]
 
-start_test cache_partial_html enabled has no effect
-$WGET -O $WGET_OUTPUT $TEST_ROOT/add_instrumentation.html\
-?PageSpeedFilters=cache_partial_html
-check [ $(grep -c '<html>' $WGET_OUTPUT) = 1 ]
-check [ $(grep -c '<body>' $WGET_OUTPUT) = 1 ]
-check [ $(grep -c 'pagespeed.panelLoader' $WGET_OUTPUT) = 0 ]
-
 start_test flush_subresources rewriter is not applied
 URL="$TEST_ROOT/flush_subresources.html?\
-PageSpeedFilters=flush_subresources,extend_cache_css,\
+ModPagespeedFilters=flush_subresources,extend_cache_css,\
 extend_cache_scripts"
 # Fetch once with X-PSA-Blocking-Rewrite so that the resources get rewritten and
 # property cache is updated with them.
@@ -612,7 +561,7 @@ check [ `wget -O - $URL | grep -o 'link rel="subresource"' | wc -l` = 0 ]
 rm -f $TEMPDIR/flush.$$
 
 # Note: This tests will fail with default
-# WGET_ARGS="--header=PageSpeedFilters:rewrite_javascript"
+# WGET_ARGS="--header=ModPagespeedFilters:rewrite_javascript"
 WGET_ARGS=""
 start_test Respect custom options on resources.
 IMG_NON_CUSTOM="$EXAMPLE_ROOT/images/xPuzzle.jpg.pagespeed.ic.fakehash.jpg"
@@ -653,9 +602,10 @@ fi
 
 start_test ModPagespeedMapProxyDomain
 URL=$EXAMPLE_ROOT/proxy_external_resource.html
-echo Rewrite HTML with reference to a proxyable image
-fetch_until -save -recursive $URL?PageSpeedFilters=-inline_images \
-    'grep -c 1.gif.pagespeed' 1
+echo Rewrite HTML with reference to a proxyable image.
+fetch_until -save -recursive $URL \
+    'grep -c pss_images/xPuzzle\.jpg\.pagespeed\.ic' 1
+check_file_size "$OUTDIR/xPuzzle*" -lt 60000
 
 # To make sure that we can reconstruct the proxied content by going back
 # to the origin, we must avoid hitting the output cache.
@@ -665,19 +615,19 @@ fetch_until -save -recursive $URL?PageSpeedFilters=-inline_images \
 # virtual host attached to a different cache.
 if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # With the proper hash, we'll get a long cache lifetime.
-  SECONDARY_HOST="http://secondary.example.com/gstatic_images"
-  PROXIED_IMAGE="$SECONDARY_HOST/$(basename $OUTDIR/*1.gif.pagespeed*)"
+  SECONDARY_HOST="http://secondary.example.com/pss_images"
+  PROXIED_IMAGE="$SECONDARY_HOST/$(basename $OUTDIR/xPuzzle*)"
   WGET_ARGS="--save-headers"
 
-  start_test $PROXIED_IMAGE expecting one year cache.
+  echo $PROXIED_IMAGE expecting one year cache.
   http_proxy=$SECONDARY_HOSTNAME fetch_until $PROXIED_IMAGE \
       "grep -c max-age=31536000" 1
 
   # With the wrong hash, we'll get a short cache lifetime (and also no output
   # cache hit.
   WRONG_HASH="0"
-  PROXIED_IMAGE="$SECONDARY_HOST/1.gif.pagespeed.ce.$WRONG_HASH.jpg"
-  start_test Fetching $PROXIED_IMAGE expecting short private cache.
+  PROXIED_IMAGE="$SECONDARY_HOST/xPuzzle.jpg.pagespeed.ic.$WRONG_HASH.jpg"
+  echo Fetching $PROXIED_IMAGE expecting short private cache.
   http_proxy=$SECONDARY_HOSTNAME fetch_until $PROXIED_IMAGE \
       "grep -c max-age=300,private" 1
 
@@ -688,7 +638,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # Issue 582 this used to fail with a 403 (Forbidden).
   start_test Reverse proxy a pagespeed URL.
 
-  PROXY_PATH="http://$TEST_PROXY_ORIGIN/mod_pagespeed_example/styles"
+  PROXY_PATH="http://modpagespeed.com/styles"
   ORIGINAL="${PROXY_PATH}/yellow.css"
   FILTERED="${PROXY_PATH}/A.yellow.css.pagespeed.cf.KM5K8SbHQL.css"
   WGET_ARGS="--save-headers"
@@ -703,7 +653,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   check_from "$OUT" fgrep " 200 OK"
 
   if [ "$NO_VHOST_MERGE" = "on" ]; then
-    start_test PageSpeed Unplugged and Off
+    start_test ModPagespeed Unplugged and Off
     SPROXY="http://localhost:$APACHE_SECONDARY_PORT"
     VHOST_MPS_OFF="http://mpsoff.example.com"
     VHOST_MPS_UNPLUGGED="http://mpsunplugged.example.com"
@@ -711,19 +661,19 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
     ORIGINAL="$SITE/styles/yellow.css"
     FILTERED="$SITE/styles/A.yellow.css.pagespeed.cf.KM5K8SbHQL.css"
 
-    # PageSpeed unplugged does not serve .pagespeed. resources.
+    # ModPagespeed unplugged does not serve .pagespeed. resources.
     http_proxy=$SPROXY check_not $WGET -O /dev/null \
         $VHOST_MPS_UNPLUGGED/$FILTERED
-    # PageSpeed off does serve .pagespeed. resources.
+    # ModPagespeed off does serve .pagespeed. resources.
     http_proxy=$SPROXY check $WGET -O /dev/null $VHOST_MPS_OFF/$FILTERED
 
-    # PageSpeed unplugged doesn't rewrite HTML, even when asked via query.
+    # ModPagespeed unplugged doesn't rewrite HTML, even when asked via query.
     OUT=$(http_proxy=$SPROXY check $WGET -S -O - \
-    $VHOST_MPS_UNPLUGGED/$SITE/?PageSpeed=on 2>&1)
+    $VHOST_MPS_UNPLUGGED/$SITE/?ModPagespeed=on 2>&1)
     check_not_from "$OUT" grep "X-Mod-Pagespeed:"
-    # PageSpeed off does rewrite HTML if asked.
+    # ModPagespeed off does rewrite HTML if asked.
     OUT=$(http_proxy=$SPROXY check $WGET -S -O - \
-    $VHOST_MPS_OFF/$SITE/?PageSpeed=on 2>&1)
+    $VHOST_MPS_OFF/$SITE/?ModPagespeed=on 2>&1)
     check_from "$OUT" grep "X-Mod-Pagespeed:"
   fi
 
@@ -767,7 +717,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   EMBED_CONFIGURATION_IMAGE_TAIL=$(ls $OUTDIR | grep 256x192xPuz | grep iq=)
   EMBED_CONFIGURATION_IMAGE+="$EMBED_CONFIGURATION_IMAGE_TAIL"
   EMBED_CONFIGURATION_IMAGE_LENGTH=$( \
-    extract_headers "$OUTDIR/$EMBED_CONFIGURATION_IMAGE_TAIL" | \
+    head -10 "$OUTDIR/$EMBED_CONFIGURATION_IMAGE_TAIL" | \
     scrape_content_length)
 
   # Grab the URL for the CSS file.
@@ -829,7 +779,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   mkdir -p $PDT_STATSDIR
   PDT_OLDSTATS=$PDT_STATSDIR/blocking_rewrite_stats.old
   PDT_NEWSTATS=$PDT_STATSDIR/blocking_rewrite_stats.new
-  PDT_PROXY_STATS_URL=http://proxy.pm.example.com/mod_pagespeed_statistics?PageSpeed=off
+  PDT_PROXY_STATS_URL=http://proxy.pm.example.com/mod_pagespeed_statistics?ModPagespeed=off
   http_proxy=$SECONDARY_HOSTNAME \
     $WGET_DUMP $PDT_PROXY_STATS_URL > $PDT_OLDSTATS
 
@@ -849,7 +799,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
     fetch_until -save -recursive $URL 'fgrep -c CDATA' 1
 
   # Save the image URL so we can try to reconstruct it later.
-  PDT_IMG_URL=`egrep -o \"[^\"]*xPuzzle[^\"]*\.pagespeed[^\"]*\" $FETCH_FILE | \
+  PDT_IMG_URL=`egrep -o \".*xPuzzle.*\.pagespeed.*\" $FETCH_FILE | \
     sed -e 's/\"//g'`
 
   # This function will be called after the cache is flushed to test
@@ -879,18 +829,18 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   start_test add_instrumentation has added unload handler with \
       ModPagespeedReportUnloadTime enabled in APACHE_SECONDARY_PORT.
   URL="$SECONDARY_TEST_ROOT/add_instrumentation.html\
-?PageSpeedFilters=add_instrumentation"
+?ModPagespeedFilters=add_instrumentation"
   echo http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
   http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
   check [ $(grep -o "<script" $WGET_OUTPUT|wc -l) = 3 ]
-  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'beforeunload', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
-  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
+  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'beforeunload', '', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
+  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
 
   if [ "$NO_VHOST_MERGE" = "on" ]; then
     start_test When ModPagespeedMaxHtmlParseBytes is not set, we do not insert \
         a redirect.
     $WGET -O $WGET_OUTPUT \
-        $SECONDARY_TEST_ROOT/large_file.html?PageSpeedFilters=
+        $SECONDARY_TEST_ROOT/large_file.html?ModPagespeedFilters=
     check [ $(grep -c "window.location=" $WGET_OUTPUT) = 0 ]
   fi
 
@@ -914,7 +864,7 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   $SUDO touch ${MOD_PAGESPEED_CACHE}/_secondary/cache.flush
   sleep 1
 
-  URL_PATH=cache_flush_test.html?PageSpeedFilters=inline_css
+  URL_PATH=cache_flush_test.html?ModPagespeedFilters=inline_css
   URL=$TEST_ROOT/$URL_PATH
   CSS_FILE=$APACHE_DOC_ROOT/mod_pagespeed_test/update.css
   TMP_CSS_FILE=$TEMPDIR/update.css.$$
@@ -998,7 +948,7 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
 
     # Monitor the Apache log starting now.  tail -F will catch log rotations.
     SERF_REFUSED_PATH=$TEMPDIR/instaweb_apache_serf_refused.$$
-    rm -f $SERF_REFUSED_PATH
+    rm $SERF_REFUSED_PATH
     echo APACHE_LOG = $APACHE_LOG
     tail --sleep-interval=0.1 -F $APACHE_LOG > $SERF_REFUSED_PATH &
     TAIL_PID=$!
@@ -1047,7 +997,7 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
     # rewrite than the rewrite deadline and it is not already accessed by
     # another request earlier.
     BLOCKING_REWRITE_URL="$TEST_ROOT/blocking_rewrite.html?\
-PageSpeedFilters=rewrite_images"
+ModPagespeedFilters=rewrite_images"
     OUTFILE=$OUTDIR/blocking_rewrite.out.html
     OLDSTATS=$OUTDIR/blocking_rewrite_stats.old
     NEWSTATS=$OUTDIR/blocking_rewrite_stats.new
@@ -1066,7 +1016,7 @@ PageSpeedFilters=rewrite_images"
 
     start_test Blocking rewrite enabled using wrong key.
     BLOCKING_REWRITE_URL="$SECONDARY_TEST_ROOT/\
-blocking_rewrite_another.html?PageSpeedFilters=rewrite_images"
+blocking_rewrite_another.html?ModPagespeedFilters=rewrite_images"
     OUTFILE=$OUTDIR/blocking_rewrite.out.html
     http_proxy=$SECONDARY_HOSTNAME check $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: junk' \
       $BLOCKING_REWRITE_URL > $OUTFILE
@@ -1120,11 +1070,11 @@ blocking_rewrite_another.html?PageSpeedFilters=rewrite_images"
   start_test ModPagespeedForbidFilters baseline check.
   test_forbid_filters "" ""
   start_test ModPagespeedForbidFilters query parameters check.
-  QUERYP="?PageSpeedFilters="
-  QUERYP="${QUERYP}+remove_quotes,+remove_comments,+collapse_whitespace"
+  QUERYP="?ModPagespeedFilters="
+  QUERYP="${QUERYP}+remove_quotes,+remove_comments,+collapse_whitespace
   test_forbid_filters $QUERYP ""
-  start_test "ModPagespeedForbidFilters request headers check."
-  HEADER="--header=PageSpeedFilters:"
+  start_test ModPagespeedForbidFilters request headers check."
+  HEADER="--header=ModPagespeedFilters:"
   HEADER="${HEADER}+remove_quotes,+remove_comments,+collapse_whitespace"
   test_forbid_filters "" $HEADER
 
@@ -1156,13 +1106,13 @@ blocking_rewrite_another.html?PageSpeedFilters=rewrite_images"
 
   # TODO(sligocki): Cache flushing appears to be broken and not actually
   # flushing input resources. Remove this if clause once this is fixed.
-  if ${FIRST_RUN:-false}; then
+  if [ "${FIRST_RUN:-false}" == true ]; then
     start_test IPRO flow uses cache as expected.
     # TODO(sligocki): Use separate VHost instead to separate stats.
     STATS=$OUTDIR/blocking_rewrite_stats
     IPRO_ROOT=http://ipro.example.com/mod_pagespeed_test/ipro
     URL=$IPRO_ROOT/test_image_dont_reuse2.png
-    IPRO_STATS_URL=http://ipro.example.com/mod_pagespeed_statistics?PageSpeed=off
+    IPRO_STATS_URL=http://ipro.example.com/mod_pagespeed_statistics?ModPagespeed=off
 
     # Initial stats.
     http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $IPRO_STATS_URL > $STATS.0
@@ -1285,40 +1235,38 @@ check_from "$WGET_OUT" grep "$PLAIN_HEADER"
 check_from "$WGET_OUT" grep "$X_OTHER_HEADER"
 
 start_test Send custom fetch headers on resource subfetches.
-URL=$TEST_ROOT/custom_fetch_headers.html?PageSpeedFilters=inline_javascript
+URL=$TEST_ROOT/custom_fetch_headers.html?ModPagespeedFilters=inline_javascript
 fetch_until -save $URL 'grep -c header=value' 1
 check_from "$(cat $FETCH_FILE)" grep "$X_OTHER_HEADER"
 
 # Check that statistics logging was functional during these tests
 # if it was enabled.
-if [ $statistics_logging_enabled = "1" ]; then
+if egrep -q "^    # ModPagespeedStatistics off$" $APACHE_DEBUG_PAGESPEED_CONF &&
+   egrep -q "^ ModPagespeedStatisticsLogging on$" $APACHE_DEBUG_PAGESPEED_CONF;
+   then
   start_test Statistics logging works.
-  check ls $MOD_PAGESPEED_STATS_LOG
-  check [ $(grep "timestamp: " $MOD_PAGESPEED_STATS_LOG | wc -l) -ge 1 ]
+  check [ $(grep "timestamp: " $MOD_PAGESPEED_STATS_LOG* | wc -l) -ge 1 ]
   # An array of all the timestamps that were logged.
-  TIMESTAMPS=($(sed -n '/timestamp: /s/[^0-9]*//gp' $MOD_PAGESPEED_STATS_LOG))
+  TIMESTAMPS=($(sed -n '/timestamp: /s/[^0-9]*//gp' $MOD_PAGESPEED_STATS_LOG*))
   check [ ${#TIMESTAMPS[@]} -ge 1 ]
   for T in ${TIMESTAMPS[@]}; do
     check [ $T -ge $START_TIME ]
   done
   # Check a few arbitrary statistics to make sure logging is taking place.
-  check [ $(grep "num_flushes: " $MOD_PAGESPEED_STATS_LOG | wc -l) -ge 1 ]
-  # We are not outputing histograms.
-  check [ $(grep "histogram#" $MOD_PAGESPEED_STATS_LOG | wc -l) -eq 0 ]
-  check [ $(grep "image_ongoing_rewrites: " $MOD_PAGESPEED_STATS_LOG | wc -l) \
-    -ge 1 ]
+  check [ $(grep "num_flushes: " $MOD_PAGESPEED_STATS_LOG* | wc -l) -ge 1 ]
+  check [ $(grep "histogram#" $MOD_PAGESPEED_STATS_LOG* | wc -l) -ge 1 ]
+  check [ $(grep "image_ongoing_rewrites: " $MOD_PAGESPEED_STATS_LOG* | wc -l) \
+      -ge 1 ]
 
   start_test Statistics logging JSON handler works.
   JSON=$OUTDIR/console_json.json
-  # $STATISTICS_URL ends in ?PageSpeed=off, so we need & for now.
-  # If we remove the query from $STATISTICS_URL, s/&/?/.
-  STATS_JSON_URL="$STATISTICS_URL&json&granularity=0&var_titles=num_\
-flushes,image_ongoing_rewrites"
-  echo "$WGET_DUMP $STATS_JSON_URL > $JSON"
+  STATS_JSON_URL="$(echo $STATISTICS_URL)?json&granularity=0&var_titles=num_\
+flushes,image_ongoing_rewrites&hist_titles=Html%20Time%20us%20Histogram"
   $WGET_DUMP $STATS_JSON_URL > $JSON
   # Each variable we ask for should show up once.
   check [ $(grep "\"num_flushes\": " $JSON | wc -l) -eq 1 ]
   check [ $(grep "\"image_ongoing_rewrites\": " $JSON | wc -l) -eq 1 ]
+  check [ $(grep "\"Html Time us Histogram\": " $JSON | wc -l) -eq 1 ]
   check [ $(grep "\"timestamps\": " $JSON | wc -l) -eq 1 ]
   # An array of all the timestamps that the JSON handler returned.
   JSON_TIMESTAMPS=($(sed -rn 's/^\{"timestamps": \[(([0-9]+, )*[0-9]*)\].*}$/\1/;/^[0-9]+/s/,//gp' $JSON))
@@ -1381,7 +1329,7 @@ function test_forbid_all_disabled() {
   if [ -n "$QUERYP" ]; then
     INLINE_CSS=",-inline_css"
   else
-    INLINE_CSS="?PageSpeedFilters=-inline_css"
+    INLINE_CSS="?ModPagespeedFilters=-inline_css"
   fi
   WGET_ARGS="--header=X-PSA-Blocking-Rewrite:psatest"
   URL1=$TEST_ROOT/forbid_all_disabled/forbidden.html
@@ -1420,11 +1368,11 @@ function test_forbid_all_disabled() {
 start_test ModPagespeedForbidAllDisabledFilters baseline check.
 test_forbid_all_disabled "" ""
 start_test ModPagespeedForbidAllDisabledFilters query parameters check.
-QUERYP="?PageSpeedFilters="
+QUERYP="?ModPagespeedFilters="
 QUERYP="${QUERYP}+remove_quotes,+remove_comments,+collapse_whitespace"
 test_forbid_all_disabled $QUERYP ""
 start_test ModPagespeedForbidAllDisabledFilters request headers check.
-HEADER="--header=PageSpeedFilters:"
+HEADER="--header=ModPagespeedFilters:"
 HEADER="${HEADER}+remove_quotes,+remove_comments,+collapse_whitespace"
 test_forbid_all_disabled "" $HEADER
 
@@ -1535,7 +1483,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   TEST="$HOST_NAME/mod_pagespeed_test"
   REWRITE_DOMAINS="$TEST/rewrite_domains.html"
   UVA_EXTEND_CACHE="$TEST/url_valued_attribute_extend_cache.html"
-  UVA_EXTEND_CACHE+="?PageSpeedFilters=core,+left_trim_urls"
+  UVA_EXTEND_CACHE+="?ModPagespeedFilters=core,+left_trim_urls"
 
   start_test Rewrite domains in dynamically defined url-valued attributes.
 
@@ -1593,9 +1541,9 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # Send a beacon response using POST indicating that Puzzle.jpg is a critical
   # image.
   BEACON_URL="$HOST_NAME/mod_pagespeed_beacon"
-  BEACON_URL+="?url=http%3A%2F%2Fimagebeacon.example.com%2Fmod_pagespeed_test%2F"
-  BEACON_URL+="image_rewriting%2Frewrite_images.html"
-  BEACON_DATA="oh=$OPTIONS_HASH&ci=2932493096"
+  BEACON_DATA="url=http%3A%2F%2Fimagebeacon.example.com%2Fmod_pagespeed_test%2F"
+  BEACON_DATA+="image_rewriting%2Frewrite_images.html"
+  BEACON_DATA+="&oh=$OPTIONS_HASH&ci=2932493096"
   OUT=$(env http_proxy=$SECONDARY_HOSTNAME \
     $WGET_DUMP --post-data "$BEACON_DATA" "$BEACON_URL")
   check_from "$OUT" egrep -q "HTTP/1[.]. 204"
@@ -1611,45 +1559,11 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # params for the GET.
   BEACON_DATA+=",2644480723"
   OUT=$(env http_proxy=$SECONDARY_HOSTNAME \
-    $WGET_DUMP "$BEACON_URL&$BEACON_DATA")
+    $WGET_DUMP "$BEACON_URL?$BEACON_DATA")
   check_from "$OUT" egrep -q "HTTP/1[.]. 204"
   # Now only BikeCrashIcn.png should be lazyloaded.
   http_proxy=$SECONDARY_HOSTNAME \
     fetch_until -save -recursive $URL 'fgrep -c pagespeed_lazy_src=' 1
-
-  # Test critical CSS beacon injection, beacon return, and computation.  This
-  # requires UseBeaconResultsInFilters() to be true in rewrite_driver_factory.
-  # NOTE: must occur after cache flush, which is why it's in this embedded
-  # block.  The flush removes pre-existing beacon results from the pcache.
-  test_filter \
-    prioritize_critical_css,rewrite_css,inline_import_to_link,flatten_css_imports
-  fetch_until -save $URL 'fgrep -c pagespeed.criticalCssBeaconInit' 1
-  check [ $(fgrep -o ".very_large_class_name_" $FETCH_FILE | wc -l) -eq 36 ]
-  CALL_PAT=".*criticalCssBeaconInit("
-  SKIP_ARG="[^,]*,"
-  CAPTURE_ARG="'\([^']*\)'.*"
-  BEACON_PATH=$(sed -n "s/${CALL_PAT}${CAPTURE_ARG}/\1/p" $FETCH_FILE)
-  ESCAPED_URL=$( \
-    sed -n "s/${CALL_PAT}${SKIP_ARG}${CAPTURE_ARG}/\1/p" $FETCH_FILE)
-  OPTIONS_HASH=$( \
-    sed -n "s/${CALL_PAT}${SKIP_ARG}${SKIP_ARG}${CAPTURE_ARG}/\1/p" $FETCH_FILE)
-  BEACON_URL="http://${HOSTNAME}${BEACON_PATH}?url=${ESCAPED_URL}"
-  BEACON_DATA="oh=${OPTIONS_HASH}&cs=.big,.blue,.bold,.foo"
-  run_wget_with_args --post-data "$BEACON_DATA" "$BEACON_URL"
-  # Now make sure we see the correct critical css rules.
-  fetch_until $URL \
-    'grep -c <style>[.]blue{[^}]*}</style>' 1
-  fetch_until $URL \
-    'grep -c <style>[.]big{[^}]*}</style>' 1
-  fetch_until $URL \
-    'grep -c <style>[.]blue{[^}]*}[.]bold{[^}]*}</style>' 1
-  fetch_until -save $URL \
-    'grep -c <style>[.]foo{[^}]*}</style>' 1
-  # The last one should also have the other 3, too.
-  check [ `grep -c '<style>[.]blue{[^}]*}</style>' $FETCH_UNTIL_OUTFILE` = 1 ]
-  check [ `grep -c '<style>[.]big{[^}]*}</style>' $FETCH_UNTIL_OUTFILE` = 1 ]
-  check [ `grep -c '<style>[.]blue{[^}]*}[.]bold{[^}]*}</style>' \
-    $FETCH_UNTIL_OUTFILE` = 1 ]
 
   if [ -n "$APACHE_LOG" ]; then
     start_test Encoded absolute urls are not respected
@@ -1688,17 +1602,17 @@ fi
 
 WGET_ARGS=""
 start_test Issue 609 -- proxying non-.pagespeed content, and caching it locally
-URL="http://$HOSTNAME/modpagespeed_http/small_javascript.js"
+URL="http://$HOSTNAME/modpagespeed_http/not_really_a_font.woff"
 echo $WGET_DUMP $URL ....
-OUT1=$($WGET_DUMP $URL)
-check_from "$OUT1" egrep -q "hello world"
+OUT1=$(wget -O - --save-headers $URL)
+check_from "$OUT1" egrep -q "This is not really font data"
 if [ $statistics_enabled = "1" ]; then
   OLDSTATS=$OUTDIR/proxy_fetch_stats.old
   NEWSTATS=$OUTDIR/proxy_fetch_stats.new
   $WGET_DUMP $STATISTICS_URL > $OLDSTATS
 fi
 OUT2=$($WGET_DUMP $URL)
-check_from "$OUT2" egrep -q "hello world"
+check_from "$OUT2" egrep -q "This is not really font data"
 if [ $statistics_enabled = "1" ]; then
   $WGET_DUMP $STATISTICS_URL > $NEWSTATS
   check_stat $OLDSTATS $NEWSTATS cache_hits 1
@@ -1717,24 +1631,18 @@ fetch_until -save $URL "wc -c" 230000 "--save-headers" "-lt"
 # and descend as time expires from when we strobed the image.  However, we
 # provide a non-trivial etag with the content hash, but we'll just match the
 # common prefix.
-check_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" fgrep -q 'Etag: W/"PSA-aj-'
-
-# Ideally this response should not have a 'chunked' encoding, because
-# once we were able to optimize it, we know its length.
-check_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" fgrep -q 'Content-Length:'
-check_not_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" \
-    fgrep -q 'Transfer-Encoding: chunked'
+check_from "$(head $FETCH_UNTIL_OUTFILE)" fgrep -q 'Etag: W/"PSA-aj-'
 
 # Now add set jpeg compression to 75 and we expect 73238, but will test for 90k.
 # Note that wc -c will include the headers.
 start_test Proxying image from another domain, customizing image compression.
-URL+="?PageSpeedJpegRecompressionQuality=75"
+URL+="?ModPagespeedJpegRecompressionQuality=75"
 fetch_until -save $URL "wc -c" 90000 "--save-headers" "-lt"
-check_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" fgrep -q 'Etag: W/"PSA-aj-'
+check_from "$(head $FETCH_UNTIL_OUTFILE)" fgrep -q 'Etag: W/"PSA-aj-'
 
 echo Ensure that rewritten images strip cookies present at origin
-check_not_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" fgrep -c 'Set-Cookie'
-ORIGINAL_HEADERS=$($WGET_DUMP http://$TEST_PROXY_ORIGIN/do_not_modify/Puzzle.jpg \
+check_not_from "$(head $FETCH_UNTIL_OUTFILE)" fgrep -c 'Set-Cookie'
+ORIGINAL_HEADERS=$($WGET_DUMP http://modpagespeed.com/do_not_modify/Puzzle.jpg \
     | head)
 check_from "$ORIGINAL_HEADERS" fgrep -c 'Set-Cookie'
 
@@ -1745,21 +1653,13 @@ check [ $? = 8 ]
 check_not_from "$OUT" fgrep -q 'Set-Cookie:'
 
 start_test Fetching the HTML directly from the origin is fine including cookie.
-URL="http://$TEST_PROXY_ORIGIN/do_not_modify/evil.html"
+URL="http://modpagespeed.com/do_not_modify/evil.html"
 OUT=$($WGET_DUMP $URL)
 check_from "$OUT" fgrep -q 'Set-Cookie: test-cookie'
 
-start_test IPRO-optimized resources should have fixed size, not chunked.
-URL="$EXAMPLE_ROOT/images/Puzzle.jpg"
-URL+="?PageSpeedJpegRecompressionQuality=75"
-fetch_until -save $URL "wc -c" 90000 "--save-headers" "-lt"
-check_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" fgrep -q 'Content-Length:'
-check_not_from "$(extract_headers $FETCH_UNTIL_OUTFILE)" \
-    fgrep -q 'Transfer-Encoding: chunked'
-
 # Test handling of large HTML files. We first test with a cold cache, and verify
 # that we bail out of parsing and insert a script redirecting to
-# ?PageSpeed=off. This should also insert an entry into the property cache so
+# ?ModPagespeed=off. This should also insert an entry into the property cache so
 # that the next time we fetch the file it will not be parsed at all.
 echo TEST: Handling of large files.
 # Add a timestamp to the URL to ensure it's not in the property cache.
@@ -1767,7 +1667,7 @@ FILE="max_html_parse_size/large_file.html?value=$(date +%s)"
 URL=$TEST_ROOT/$FILE
 # Enable a filter that will modify something on this page, since we testing that
 # this page should not be rewritten.
-WGET_ARGS="--header=PageSpeedFilters:rewrite_images"
+WGET_ARGS="--header=ModPagespeedFilters:rewrite_images"
 WGET_EC="$WGET_DUMP $WGET_ARGS"
 echo $WGET_EC $URL
 LARGE_OUT=$($WGET_EC $URL)
@@ -1780,40 +1680,7 @@ check_from "$LARGE_OUT" grep -q window.location=".*&ModPagespeed=off"
 fetch_until -save $URL 'grep -c window.location=".*&ModPagespeed=off"' 0
 check_not fgrep -q pagespeed.ic $FETCH_FILE
 
-# Simple test just to make sure the console loads and has some generated
-# content on it (for example, if you have a typo in a statistics name, that
-# will only fail at runtime when the console is loaded).
-start_test mod_pagespeed_console
-OUT=$($WGET_DUMP http://$HOSTNAME/mod_pagespeed_console)
-check_from "$OUT" grep -q "Resources not loaded because of fetch failure"
-
-function scrape_secondary_stat {
-  http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP \
-    http://secondary.example.com/mod_pagespeed_statistics/ | \
-    egrep "^$1:? " | awk '{print $2}'
-}
-
-if [ $statistics_enabled = "1" ]; then
-  start_test CompressedCache is racking up savings on the root vhost
-  original_size=$(scrape_stat compressed_cache_original_size)
-  compressed_size=$(scrape_stat compressed_cache_compressed_size)
-  echo original_size=$original_size compressed_size=$compressed_size
-  check [ "$compressed_size" -lt "$original_size" ];
-  check [ "$compressed_size" -gt 0 ];
-  check [ "$original_size" -gt 0 ];
-
-  if [ "$SECONDARY_HOSTNAME" != "" ]; then
-    start_test CompressedCache is turned off for the secondary vhost
-    original_size=$(scrape_secondary_stat compressed_cache_original_size)
-    compressed_size=$(scrape_secondary_stat compressed_cache_compressed_size)
-    check [ "$compressed_size" -eq 0 ];
-    check [ "$original_size" -eq 0 ];
-  fi
-else
-  echo skipping CompressedCache test because stats is $statistics_enabled
-fi
-
-# TODO(matterbury): Uncomment these lines when the test is fixed.
+# TODO(matterbury): Uncomment these lines then the test is fixed.
 :<< COMMENTING_BLOCK
 start_test ModPagespeedIf application
 # Without SPDY, we should combine things

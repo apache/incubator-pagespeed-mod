@@ -95,9 +95,7 @@ class AprMemCache : public CacheInterface {
   // failed to return status.
   bool GetStatus(GoogleString* status_string);
 
-  static GoogleString FormatName() { return "AprMemCache"; }
-  virtual GoogleString Name() const { return FormatName(); }
-
+  virtual const char* Name() const { return "AprMemCache"; }
   virtual bool IsBlocking() const { return true; }
 
   // Records in statistics that a system error occurred, helping it detect

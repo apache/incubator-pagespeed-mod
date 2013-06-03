@@ -23,7 +23,7 @@
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/util/fast_wildcard_group.h"
+#include "third_party/instaweb/util/fast_wildcard_group.h"
 
 using std::pair;
 using std::make_pair;
@@ -42,10 +42,6 @@ class RequestHeaders;
 // clients.
 class UserAgentMatcher {
  public:
-  static const char kTestUserAgentWebP[];  // webp user agent
-  // Note that this must not contain the substring "webp".
-  static const char kTestUserAgentNoWebP[];  // non-webp user agent
-
   enum BlinkRequestType {
     kBlinkWhiteListForDesktop,
     kBlinkBlackListForDesktop,
@@ -72,6 +68,11 @@ class UserAgentMatcher {
     kPrefetchLinkScriptTag,
   };
 
+  // Cohort descriptors for PropertyCache lookups of device objects.
+  static const char kDevicePropertiesCohort[];
+  static const char kScreenWidth[];
+  static const char kScreenHeight[];
+
   UserAgentMatcher();
   virtual ~UserAgentMatcher();
 
@@ -95,13 +96,7 @@ class UserAgentMatcher {
   PrefetchMechanism GetPrefetchMechanism(const StringPiece& user_agent) const;
 
   // Returns the DeviceType for the given user agent string.
-  virtual DeviceType GetDeviceTypeForUA(const StringPiece& user_agent) const;
-
-  // Returns the DeviceType using the given user agent string and request
-  // headers.
-  virtual DeviceType GetDeviceTypeForUAAndHeaders(
-      const StringPiece& user_agent,
-      const RequestHeaders* request_headers) const;
+  DeviceType GetDeviceTypeForUA(const StringPiece& user_agent) const;
 
   // Returns the suffix for the given device_type.
   static StringPiece DeviceTypeSuffix(DeviceType device_type);
@@ -117,8 +112,12 @@ class UserAgentMatcher {
   bool SupportsDnsPrefetchUsingRelPrefetch(const StringPiece& user_agent) const;
   bool SupportsDnsPrefetch(const StringPiece& user_agent) const;
 
+  virtual bool IsMobileUserAgent(const StringPiece& user_agent) const;
+  virtual bool IsMobileRequest(
+      const StringPiece& user_agent,
+      const RequestHeaders* request_headers) const;
+
   virtual bool IsAndroidUserAgent(const StringPiece& user_agent) const;
-  virtual bool IsiOSUserAgent(const StringPiece& user_agent) const;
 
   // Returns false if this is not a Chrome user agent, or parsing the
   // string build number fails.
@@ -136,14 +135,6 @@ class UserAgentMatcher {
       const StringPiece& user_agent, int required_build,
       int required_patch) const;
 
-  bool UserAgentExceedsChromeiOSBuildAndPatch(
-      const StringPiece& user_agent, int required_build,
-      int required_patch) const;
-
-  bool UserAgentExceedsChromeBuildAndPatch(
-      const StringPiece& user_agent, int required_build,
-      int required_patch) const;
-
  private:
   FastWildcardGroup supports_image_inlining_;
   FastWildcardGroup supports_lazyload_images_;
@@ -152,12 +143,11 @@ class UserAgentMatcher {
   FastWildcardGroup blink_mobile_whitelist_;
   FastWildcardGroup supports_webp_;
   FastWildcardGroup supports_webp_lossless_alpha_;
+  FastWildcardGroup mobile_user_agents_;
   FastWildcardGroup supports_prefetch_link_rel_subresource_;
   FastWildcardGroup supports_prefetch_image_tag_;
   FastWildcardGroup supports_prefetch_link_script_tag_;
   FastWildcardGroup supports_dns_prefetch_;
-  FastWildcardGroup mobile_user_agents_;
-  FastWildcardGroup tablet_user_agents_;
 
   const RE2 chrome_version_pattern_;
   scoped_ptr<RE2> known_devices_pattern_;

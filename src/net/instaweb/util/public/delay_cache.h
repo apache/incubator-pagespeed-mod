@@ -72,9 +72,7 @@ class DelayCache : public CacheInterface {
   void ReleaseKeyInSequence(const GoogleString& key,
                             QueuedWorkerPool::Sequence* sequence);
 
-  static GoogleString FormatName(StringPiece name);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
-
+  virtual const char* Name() const { return name_.c_str(); }
   virtual bool IsBlocking() const { return false; }
   virtual bool IsHealthy() const { return cache_->IsHealthy(); }
   virtual void ShutDown() { cache_->ShutDown(); }
@@ -91,6 +89,7 @@ class DelayCache : public CacheInterface {
   scoped_ptr<AbstractMutex> mutex_;
   StringSet delay_requests_;
   DelayMap delay_map_;
+  GoogleString name_;
 
   DISALLOW_COPY_AND_ASSIGN(DelayCache);
 };

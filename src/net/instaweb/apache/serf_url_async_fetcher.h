@@ -21,7 +21,7 @@
 #include <set>
 #include <vector>
 
-#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_pollable_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/pool.h"
 #include "net/instaweb/util/public/string.h"
@@ -30,16 +30,16 @@
 
 // To enable HTTPS fetching with serf, we must link against OpenSSL,
 // which is a a large library with licensing restrictions not known to
-// be wholly inline with the Apache license.  To disable HTTPS fetching:
-//   1. Set SERF_HTTPS_FETCHING to 0 here
-//   2. Comment out the references to openssl.gyp and ssl_buckets.c in
+// be wholly inline with the Apache license.  To enable HTTPS fetching:
+//   1. Set SERF_HTTPS_FETCHING to 1 here
+//   2. Uncomment the references to openssl.gyp and ssl_buckets.c in
 //      src/third_party/serf/serf.gyp.
-//   3. Comment out all references to openssl in src/DEPS.
+//   3. Uncomment both references to openssl in src/DEPS.
 //
 // If this is enabled, then the HTTPS fetching can be tested with
 //    install/apache_https_fetch_test.sh
 #ifndef SERF_HTTPS_FETCHING
-#define SERF_HTTPS_FETCHING 1
+#define SERF_HTTPS_FETCHING 0
 #endif
 
 struct apr_pool_t;
@@ -54,7 +54,6 @@ class SerfFetch;
 class SerfThreadedFetcher;
 class Timer;
 class Variable;
-struct ContentType;
 
 struct SerfStats {
   static const char kSerfFetchRequestCount[];
@@ -81,7 +80,7 @@ struct SerfStats {
 //   (1) It does not attempt to fall-back to IPv4 if IPv6 connection fails;
 //   (2) It may not correctly signal failure, which causes the incoming
 //       connection to hang.
-class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
+class SerfUrlAsyncFetcher : public UrlPollableAsyncFetcher {
  public:
   enum WaitChoice {
     kThreadedOnly,
@@ -107,8 +106,8 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   virtual void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* callback);
-  // TODO(morlovich): Make private once non-thread mode concept removed.
-  int Poll(int64 max_wait_ms);
+
+  virtual int Poll(int64 max_wait_ms);
 
   bool WaitForActiveFetches(int64 max_milliseconds,
                             MessageHandler* message_handler,
@@ -117,16 +116,20 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   // Remove the completed fetch from the active fetch set, and put it into a
   // completed fetch list to be cleaned up.
   void FetchComplete(SerfFetch* fetch);
-
-  // Update the statistics object with results of the (completed) fetch.
-  void ReportCompletedFetchStats(SerfFetch* fetch);
-
   apr_pool_t* pool() const { return pool_; }
   serf_context_t* serf_context() const { return serf_context_; }
 
   void PrintActiveFetches(MessageHandler* handler) const;
   virtual int64 timeout_ms() { return timeout_ms_; }
   ThreadSystem* thread_system() { return thread_system_; }
+
+  // By default, the Serf fetcher will call
+  // UrlAsyncFetcher::Callback::EnableThreaded() to determine whether
+  // a particular URL fetch should be executed in the fetcher thread.
+  //
+  // Setting this variable causes the fetches to be threaded independent
+  // of the value of UrlAsyncFetcher::Callback::EnableThreaded().
+  void set_force_threaded(bool x) { force_threaded_ = x; }
 
   // Indicates that Serf should enumerate failing URLs whenever the underlying
   // Serf library reports an error.
@@ -161,16 +164,6 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
                                    GoogleString* error_message) {
     uint32 options;
     return ParseHttpsOptions(directive, &options, error_message);
-  }
-
-  void SetSslCertificatesDir(StringPiece dir);
-  const GoogleString& ssl_certificates_dir() const {
-    return ssl_certificates_dir_;
-  }
-
-  void SetSslCertificatesFile(StringPiece file);
-  const GoogleString& ssl_certificates_file() const {
-    return ssl_certificates_file_;
   }
 
  protected:
@@ -249,13 +242,12 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   Variable* failure_count_;
   Variable* cert_errors_;
   const int64 timeout_ms_;
+  bool force_threaded_;
   bool shutdown_;
   bool list_outstanding_urls_on_error_;
   bool track_original_content_length_;
   uint32 https_options_;  // Composed of HttpsOptions ORed together.
   MessageHandler* message_handler_;
-  GoogleString ssl_certificates_dir_;
-  GoogleString ssl_certificates_file_;
 
   // Set of content types that will not be inflated, when passing through
   // inflating fetch.

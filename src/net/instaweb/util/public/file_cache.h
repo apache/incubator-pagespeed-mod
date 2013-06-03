@@ -66,9 +66,7 @@ class FileCache : public CacheInterface {
   void set_worker(SlowWorker* worker) { worker_ = worker; }
   SlowWorker* worker() { return worker_; }
 
-  static GoogleString FormatName() { return "FileCache"; }
-  virtual GoogleString Name() const { return FormatName(); }
-
+  virtual const char* Name() const { return "FileCache"; }
   virtual bool IsBlocking() const { return true; }
   virtual bool IsHealthy() const { return true; }
   virtual void ShutDown() {}  // TODO(jmarantz): implement.

@@ -17,11 +17,11 @@
 // Author: sligocki@google.com (Shawn Ligocki)
 //         jmarantz@google.com (Joshua Marantz)
 //
-// Resources are created by a RewriteDriver.  Input resources are
+// Resources are created by a ResourceManager.  Input resources are
 // read from URLs or the file system.  Output resources are constructed
 // programatically, usually by transforming one or more existing
 // resources.  Both input and output resources inherit from this class
-// so they can be used interchangeably in successive rewrite passes.
+// so they can be used interchangably in successive rewrite passes.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
@@ -168,6 +168,10 @@ class Resource : public RefCounted<Resource> {
 
     const ResourcePtr& resource() { return resource_; }
 
+    // Override this to return true if this callback is safe to invoke from
+    // thread other than the main html parse/http request serving thread.
+    virtual bool EnableThreaded() const { return false; }
+
    private:
     ResourcePtr resource_;
     DISALLOW_COPY_AND_ASSIGN(AsyncCallback);
@@ -230,9 +234,9 @@ class Resource : public RefCounted<Resource> {
   virtual ~Resource();
   REFCOUNT_FRIEND_DECLARATION(Resource);
   friend class ServerContext;
-  friend class ReadAsyncHttpCacheCallback;  // uses LoadAndCallback
   friend class RewriteDriver;  // for ReadIfCachedWithStatus
   friend class UrlReadAsyncFetchCallback;
+  friend class ResourceManagerHttpCallback;
 
   // Load the resource asynchronously, storing ResponseHeaders and
   // contents in object.  Calls 'callback' when finished.  The
@@ -246,8 +250,6 @@ class Resource : public RefCounted<Resource> {
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                AsyncCallback* callback,
                                MessageHandler* message_handler) = 0;
-
-  void set_enable_cache_purge(bool x) { enable_cache_purge_ = x; }
 
   ServerContext* server_context_;
 
@@ -271,8 +273,6 @@ class Resource : public RefCounted<Resource> {
   // background and is not user-facing unless we explicitly set
   // is_background_fetch_ to false.
   bool is_background_fetch_;
-  bool enable_cache_purge_;
-
   DISALLOW_COPY_AND_ASSIGN(Resource);
 };
 

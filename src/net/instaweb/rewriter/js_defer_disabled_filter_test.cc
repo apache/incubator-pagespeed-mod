@@ -18,7 +18,7 @@
 
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -73,9 +73,9 @@ TEST_F(JsDeferDisabledFilterTest, DeferScript) {
              "src='http://www.google.com/javascript/ajax_apis.js'></script>"
              "<script type='text/psajs'"
              "> func();</script>"
-             "</head><body>Hello, world!",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             "</head><body>Hello, world!"
+             "</body></html>",
+             kDeferJsCodeNonGStatic));
 }
 
 TEST_F(JsDeferDisabledFilterTest, JsDeferPreserveURLsOn) {
@@ -107,9 +107,8 @@ TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
              "<script type='text/psajs'> func(); </script>"
              "</head><body>Hello, world!"
              "</body><body><script type='text/psajs'> func2(); "
-             "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             "</script></body></html>",
+             kDeferJsCodeNonGStatic));
 }
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptOptimized) {
@@ -144,7 +143,7 @@ TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
 
 TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
   InitJsDeferDisabledFilter(false);
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIPhone4Safari);
   const char script[] = "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
@@ -152,14 +151,14 @@ TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
       "> func();</script>"
       "</head><body>Hello, world!</body>";
 
-  GoogleString expected = StrCat("<head>"
+  GoogleString expected = "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
       "> func();</script></head><body>"
-      "Hello, world!",
-      kDeferJsCodeNonGStatic,
-      "</body>");
+      "Hello, world!</body>"
+      "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
+      "</script>";
 
   ValidateExpected("defer_script", script, expected);
 }
@@ -168,7 +167,7 @@ TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
   InitJsDeferDisabledFilter(false);
   options_->ClearSignatureForTesting();
   options_->set_enable_aggressive_rewriters_for_mobile(false);
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kIPhone4Safari);
   const char script[] = "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
@@ -185,8 +184,7 @@ TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
                                           server_context()->hasher(),
                                           server_context()->message_handler());
   static_asset_manager.set_serve_asset_from_gstatic(true);
-  static_asset_manager.set_gstatic_hash(
-      StaticAssetManager::kDeferJs, StaticAssetManager::kGStaticBase, "1");
+  static_asset_manager.set_gstatic_hash(StaticAssetManager::kDeferJs, "1");
 
   server_context()->set_static_asset_manager(&static_asset_manager);
 
@@ -197,10 +195,10 @@ TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
       "<script type='text/psajs'> func2(); </script></body></html>",
       "<html><body>Hello, world!"
       "</body><body><script type='text/psajs'> func2(); "
-      "</script>"
+      "</script></body></html>"
       "<script type=\"text/javascript\" "
       "src=\"//www.gstatic.com/psa/static/1-js_defer.js\">"
-      "</script></body></html>");
+      "</script>");
 }
 
 TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromNonGStatic) {
@@ -212,9 +210,8 @@ TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromNonGStatic) {
       "<script type='text/psajs'> func2(); </script></body></html>",
       StrCat("<html><body>Hello, world!",
              "</body><body><script type='text/psajs'> func2(); "
-             "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             "</script></body></html>",
+             kDeferJsCodeNonGStatic));
 }
 
 }  // namespace net_instaweb

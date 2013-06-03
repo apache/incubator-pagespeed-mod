@@ -26,6 +26,7 @@
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
@@ -33,10 +34,10 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/printf_format.h"
@@ -47,31 +48,27 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
 class AbstractMutex;
-class AbstractPropertyPage;
 class AddInstrumentationFilter;
 class AsyncFetch;
 class CacheUrlAsyncFetcher;
 class CommonFilter;
-class CriticalCssResult;
 class CriticalLineInfo;
 class CriticalSelectorSet;
 class DebugFilter;
 class DeviceProperties;
 class DomainRewriteFilter;
-class DomStatsFilter;
-class FallbackPropertyPage;
 class FileSystem;
 class FlushEarlyInfo;
 class FlushEarlyRenderInfo;
 class Function;
 class HtmlFilter;
 class HtmlWriterFilter;
+class LoggingFilter;
+class LogRecord;
 class MessageHandler;
 class OutputResource;
 class PropertyPage;
@@ -133,7 +130,7 @@ class RewriteDriver : public HtmlParse {
   // Headers not in this list will be ignored so there is no need to
   // copy them over.
   // TODO(sligocki): Use these in ProxyInterface flow.
-  static const char* kPassThroughRequestAttributes[7];
+  static const char* kPassThroughRequestAttributes[5];
 
   // This string identifies, for the PropertyCache, a group of properties
   // that are computed from the DOM, and thus can, if desired, be rewritten
@@ -178,9 +175,9 @@ class RewriteDriver : public HtmlParse {
   static void Initialize();
   static void Terminate();
 
-  // Sets a server context enabling the rewriting of
-  // resources. This will replace any previous server context.
-  void SetServerContext(ServerContext* server_context);
+  // Adds a server context enabling the rewriting of
+  // resources. This will replace any previous resource managers.
+  void SetResourceManager(ServerContext* resource_manager);
 
   // Returns true if we may cache extend Css, Images, PDFs, or Scripts
   // respectively.
@@ -189,6 +186,7 @@ class RewriteDriver : public HtmlParse {
   bool MayCacheExtendPdfs() const;
   bool MayCacheExtendScripts() const;
 
+  void RememberResource(const StringPiece& url, const ResourcePtr& resource);
   const GoogleString& user_agent() const { return user_agent_; }
 
   void SetUserAgent(const StringPiece& user_agent_string);
@@ -244,21 +242,20 @@ class RewriteDriver : public HtmlParse {
     response_headers_ = headers;
   }
 
-  // Reinitializes request_headers_ (a scoped ptr) with a copy of the original
-  // request headers. Note that the fetches associated with the driver could
-  // be using a modified version of the original request headers.
-  // There MUST be at most 1 call to this method after a rewrite driver object
-  // has been constructed or recycled.
-  void SetRequestHeaders(const RequestHeaders& headers);
+  void set_request_headers(const RequestHeaders* headers) {
+    request_headers_ = headers;
+  }
 
-  RequestHeaders* request_headers() const {
-    return request_headers_.get();
+  const RequestHeaders* request_headers() const {
+    return request_headers_;
   }
 
   UserAgentMatcher* user_agent_matcher() const {
     DCHECK(server_context() != NULL);
     return server_context()->user_agent_matcher();
   }
+
+  bool SupportsFlushEarly() const;
 
   // Adds the filters from the options, specified by name in enabled_filters.
   // This must be called explicitly after object construction to provide an
@@ -332,9 +329,6 @@ class RewriteDriver : public HtmlParse {
   // will not be called.  If the callback -is- called, then this should be the
   // 'final word' on this request, whether it was called with success=true or
   // success=false.
-  //
-  // Note that if the request headers have not yet been set on the driver then
-  // they'll be taken from the fetch.
   bool FetchResource(const StringPiece& url, AsyncFetch* fetch);
 
   // Initiates an In-Place Resource Optimization (IPRO) fetch (A resource which
@@ -351,9 +345,6 @@ class RewriteDriver : public HtmlParse {
   // async_fetch->Done(false) will be called and async_fetch->status_code()
   // will be CacheUrlAsyncFetcher::kNotInCacheStatus (to distinguish this
   // from a different reason for failure, like kRecentFetchNotCacheable).
-  //
-  // Note that if the request headers have not yet been set on the driver then
-  // they'll be taken from the fetch.
   void FetchInPlaceResource(const GoogleUrl& gurl, bool proxy_mode,
                             AsyncFetch* async_fetch);
 
@@ -486,7 +477,7 @@ class RewriteDriver : public HtmlParse {
   //    $(PATH)/$(NAME).pagespeed[.$EXPERIMENT].$(FILTER_PREFIX).
   //        $(HASH).$(CONTENT_TYPE_EXT)
   //
-  // EXPERIMENT is set only when there is an active experiment_spec.
+  // EXPERIMENT is set only when there is an active furious_spec.
   //
   // Could be private since you should use one of the versions below but put
   // here with the rest like it and for documentation clarity.
@@ -564,9 +555,6 @@ class RewriteDriver : public HtmlParse {
   // for the HTML file and is used for printing html syntax errors.
   const GoogleUrl& base_url() const { return base_url_; }
 
-  // The URL that was requested if FetchResource was called.
-  StringPiece fetch_url() const { return fetch_url_; }
-
   // Returns the decoded version of base_gurl() in case it was encoded by a
   // non-default UrlNamer (for the default UrlNamer this returns the same value
   // as base_url()).  Required when fetching a resource by its encoded name.
@@ -613,7 +601,7 @@ class RewriteDriver : public HtmlParse {
 
   // Provides a mechanism for a RewriteContext to notify a
   // RewriteDriver that it is complete, to allow the RewriteDriver
-  // to delete itself or return it back to a free pool in the ServerContext.
+  // to delete itself or return it back to a free pool in the ResourceManager.
   //
   // This will also call back into RewriteContext::Propagate, letting it
   // know whether the context is still attached to the HTML DOM
@@ -629,7 +617,7 @@ class RewriteDriver : public HtmlParse {
   void ReportSlowRewrites(int num);
 
   // If there are not outstanding references to this RewriteDriver,
-  // delete it or recycle it to a free pool in the ServerContext.
+  // delete it or recycle it to a free pool in the ResourceManager.
   // If this is a fetch, calling this also signals to the system that you
   // are no longer interested in its results.
   void Cleanup();
@@ -667,11 +655,6 @@ class RewriteDriver : public HtmlParse {
     fully_rewrite_on_flush_ = x;
   }
 
-  // Returns if this response has a blocking rewrite or not.
-  bool fully_rewrite_on_flush() const {
-    return fully_rewrite_on_flush_;
-  }
-
   // If the value of X-PSA-Blocking-Rewrite request header matches the blocking
   // rewrite key, set fully_rewrite_on_flush flag.
   void EnableBlockingRewrite(RequestHeaders* request_headers);
@@ -705,7 +688,13 @@ class RewriteDriver : public HtmlParse {
   // We expect to this method to be called on the Rewrite thread.
   void DeleteRewriteContext(RewriteContext* rewrite_context);
 
-  int rewrite_deadline_ms() { return options()->rewrite_deadline_ms(); }
+  // Explicitly sets the number of milliseconds to wait for Rewrites to complete
+  // while HTML parsing, overriding a default value which is dependent on
+  // whether the system is compiled for debug or release, or whether it's been
+  // detected as running on valgrind at runtime. Note that this delegates to
+  // options_, so make sure that options_ is not locked when calling this.
+  void set_rewrite_deadline_ms(int x) { options_->set_rewrite_deadline_ms(x); }
+  int rewrite_deadline_ms() { return options_->rewrite_deadline_ms(); }
 
   // Sets a maximum amount of time to process a page across all flush
   // windows; i.e., the entire lifecycle of this driver during a given pageload.
@@ -824,30 +813,27 @@ class RewriteDriver : public HtmlParse {
   // cache or dom cohort is not available, more so since the value payload has
   // to be serialised before calling this function.  Hence this function will
   // DFATAL if property cache or dom cohort is not available.
-  void UpdatePropertyValueInDomCohort(
-      AbstractPropertyPage* page,
-      StringPiece property_name,
-      StringPiece property_value);
+  void UpdatePropertyValueInDomCohort(StringPiece property_name,
+                                      StringPiece property_value);
+
+  // Sets the pointer to the client state associated with this driver.
+  // RewriteDriver takes ownership of the provided AbstractClientState object.
+  void set_client_state(AbstractClientState* client_state) {
+      client_state_.reset(client_state);
+  }
+
+  // Return a pointer to the client state associated with this request.
+  // This may be NULL if the request does not have an associated client id, or
+  // if the retrieval of client state fails.
+  AbstractClientState* client_state() const { return client_state_.get(); }
 
   void set_client_id(const StringPiece& id) { client_id_ = id.as_string(); }
   const GoogleString& client_id() const { return client_id_; }
 
-  // Returns the property page which contains the cached properties associated
-  // with the current URL.
-  PropertyPage* property_page() const;
-  // Returns the property page which contains the cached properties associated
-  // with the current URL and fallback URL (i.e. without query params). This
-  // should be used where a property is interested in fallback values if
-  // actual values are not present.
-  FallbackPropertyPage* fallback_property_page() const {
-    return fallback_property_page_;
-  }
-  // Takes ownership of page.
-  void set_property_page(PropertyPage* page);
-  // Takes ownership of page.
-  void set_fallback_property_page(FallbackPropertyPage* page);
+  PropertyPage* property_page() const { return property_page_; }
+  void set_property_page(PropertyPage* page);  // Takes ownership of page.
   // Does not take the ownership of the page.
-  void set_unowned_fallback_property_page(FallbackPropertyPage* page);
+  void set_unowned_property_page(PropertyPage* page);
 
   // Used by ImageRewriteFilter for identifying critical images.
   const CriticalLineInfo* critical_line_info() const;
@@ -856,20 +842,9 @@ class RewriteDriver : public HtmlParse {
   // the ownership of critical_line_info.
   void set_critical_line_info(CriticalLineInfo* critical_line_info);
 
-  CriticalCssResult* critical_css_result() const;
-  // Sets the Critical CSS rules info in the driver and the ownership of
-  // the rules stays with the driver.
-  void set_critical_css_result(CriticalCssResult* critical_css_rules);
-
   // Used by ImageRewriteFilter for identifying critical images.
   CriticalImagesInfo* critical_images_info() const {
     return critical_images_info_.get();
-  }
-
-  // Indicate whether critical_images_info was set explicitly by a call
-  // to set_critical_images_info.
-  bool critical_images_info_was_set() const {
-    return critical_images_info_was_set_;
   }
 
   // Inserts the critical images present on the requested html page. It takes
@@ -878,37 +853,13 @@ class RewriteDriver : public HtmlParse {
   // management of critical_images_info that CriticalImagesFinder provides.
   void set_critical_images_info(CriticalImagesInfo* critical_images_info) {
     critical_images_info_.reset(critical_images_info);
-    critical_images_info_was_set_ = true;
-  }
-
-  // Return true if we must prioritize critical selectors, and we should
-  // therefore enable its prerequisite filters as well.
-  bool CriticalSelectorsEnabled() const {
-    return (options()->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
-            server_context()->factory()->UseBeaconResultsInFilters());
-  }
-
-  // Return true if we must flatten css imports, either because the filter is
-  // enabled explicitly or because it is enabled by CriticalSelectorsEnabled.
-  bool FlattenCssImportsEnabled() const {
-    return (options()->Enabled(RewriteOptions::kFlattenCssImports) ||
-            (!options()->Forbidden(RewriteOptions::kFlattenCssImports) &&
-             CriticalSelectorsEnabled()));
   }
 
   // Returns computed critical selector set for this page, or NULL
   // if not available. Should only be called from HTML-safe thread context.
-  // (parser thread or Render() callbacks). The returned value is owned by
+  // (parser threar or Render() callbacks). The returned value is owned by
   // the rewrite driver.
   CriticalSelectorSet* CriticalSelectors();
-
-  // Sets computed critical selector set for this page.  Should only be called
-  // from HTML-safe thread context.  Ownership transfers to the rewrite_driver.
-  // Caller is reponsible for updating the property cache.  NOTE: should only be
-  // called from the CriticalSelectorFinder or from test code.
-  // TODO(jmaessen): refactor this away when critical selector finder resides in
-  // the rewrite_driver and keeps its own state.
-  void SetCriticalSelectors(CriticalSelectorSet* selectors);
 
   // We expect to this method to be called on the HTML parser thread.
   // Returns the number of images whose low quality images are inlined in the
@@ -984,25 +935,17 @@ class RewriteDriver : public HtmlParse {
   // be used in subsequent request.
   void SaveOriginalHeaders(const ResponseHeaders& response_headers);
 
-  // log_record() always returns a pointer to a valid AbstractLogRecord, owned
-  // by the rewrite_driver's request context.
-  AbstractLogRecord* log_record();
-
-  DomStatsFilter* dom_stats_filter() const {
-    return dom_stats_filter_;
-  }
+  // log_record() always returns a pointer to a valid LogRecord, owned by the
+  // rewrite_driver's request context.
+  LogRecord* log_record();
 
   // Determines whether the system is healthy enough to rewrite resources.
   // Currently, systems get sick based on the health of the metadata cache.
   bool can_rewrite_resources() const { return can_rewrite_resources_; }
 
-  // Determine whether this driver is nested inside another.
+  // Sets the is_nested property on the driver.
+  void set_is_nested(bool n) { is_nested_ = n; }
   bool is_nested() const { return is_nested_; }
-
-  // Determines whether metadata was requested in the response headers and
-  // verifies that the key in the header is the same as the expected key. An
-  // empty expected key returns false.
-  bool MetadataRequested(const RequestHeaders& request_headers) const;
 
   // Writes the specified contents into the output resource, and marks it
   // as optimized. 'inputs' described the input resources that were used
@@ -1021,9 +964,6 @@ class RewriteDriver : public HtmlParse {
              const ContentType* type,
              StringPiece charset,
              OutputResource* output);
-
- protected:
-  virtual void DetermineEnabledFilters();
 
  private:
   friend class RewriteContext;
@@ -1054,12 +994,6 @@ class RewriteDriver : public HtmlParse {
 
   // Termination predicate for above; assumes locks held.
   bool IsDone(WaitMode wait_mode, bool deadline_reached);
-
-  // Always wait for pending async events during shutdown or while waiting for
-  // the completion of all rewriting.
-  bool WaitForPendingAsyncEvents(WaitMode wait_mode) {
-    return wait_mode == kWaitForShutDown || fully_rewrite_on_flush_;
-  }
 
   // Portion of flush that happens asynchronously off the scheduler
   // once the rendering is complete. Calls back to 'callback' after its
@@ -1155,37 +1089,16 @@ class RewriteDriver : public HtmlParse {
   // RewriteFilter::UsesPropertyCacheDomCohort() to return true.
   void WriteDomCohortIntoPropertyCache();
 
+  // When HTML parsing is complete, write back client state, if it exists,
+  // to the property cache.
+  void WriteClientStateIntoPropertyCache();
+
   void FinalizeFilterLogging();
 
   // Used by CreateCacheFetcher() and CreateCacheOnlyFetcher().
   CacheUrlAsyncFetcher* CreateCustomCacheFetcher(UrlAsyncFetcher* base_fetcher);
 
-  // Just before releasing the rewrite driver, check if the feature for storing
-  // rewritten responses (e.g. html) in cache is enabled. If yes, purge the
-  // old response if significant amount of rewriting happened after this
-  // response was stored in the cache. If not, release the rewrite driver. If a
-  // purge fetch request is issued, the rewrite driver will be released after
-  // this async fetch request is completed.
-  void PossiblyPurgeCachedResponseAndReleaseDriver();
-
-  // Check rewrite options specified for downstream caching behavior and
-  // amount of rewriting initiated and completed to decide whether the
-  // fully rewritten response is significantly better than the stored
-  // version and whether the currently stored version ought to be purged.
-  bool ShouldPurgeRewrittenResponse();
-
-  // Construct the purge URL and decide on the purge HTTP method (GET, PURGE
-  // etc.) based on the rewrite options.
-  static bool GetPurgeUrl(const GoogleUrl& google_url,
-                          const RewriteOptions* options,
-                          GoogleString* purge_url,
-                          GoogleString* purge_method);
-
-  // Initiates a purge request fetch.
-  void PurgeDownstreamCache(const GoogleString& purge_url,
-                            const GoogleString& purge_method);
-
-  // Log statistics to the AbstractLogRecord.
+  // Log statistics to the LogRecord.
   void LogStats();
 
   // Only the first base-tag is significant for a document -- any subsequent
@@ -1299,22 +1212,15 @@ class RewriteDriver : public HtmlParse {
   // of the original (un-rewritten) resource.
   GoogleUrl decoded_base_url_;
 
-  // This is the URL that is being fetched in a fetch path (not valid in HTML
-  // path).
-  GoogleString fetch_url_;
-
   GoogleString user_agent_;
 
   LazyBool should_skip_parsing_;
+  mutable LazyBool supports_flush_early_;
 
   StringFilterMap resource_filter_map_;
 
   ResponseHeaders* response_headers_;
-
-  // request_headers_ is a copy of the Fetch's request headers, and it
-  // stays alive until the rewrite driver is recycled or deleted.
-  scoped_ptr<RequestHeaders> request_headers_;
-
+  const RequestHeaders* request_headers_;
   int status_code_;  // Status code of response for this request.
 
   // This group of rewrite-context-related variables is accessed
@@ -1334,9 +1240,6 @@ class RewriteDriver : public HtmlParse {
   // one the rewrite_deadline_ms has passed.
   RewriteContextSet initiated_rewrites_;  // protected by rewrite_mutex()
 
-  // Number of total initiated rewrites for the request.
-  int64 num_initiated_rewrites_;          // protected by rewrite_mutex()
-
   // Contains the RewriteContext* that were still running at the deadline.
   // They are said to be in a "detached" state although the RewriteContexts
   // themselves don't know that.  They will continue performing their
@@ -1345,10 +1248,6 @@ class RewriteDriver : public HtmlParse {
   // or deleted.  WaitForCompletion() blocks until all detached_rewrites
   // have been retired.
   RewriteContextSet detached_rewrites_;   // protected by rewrite_mutex()
-
-  // Number of total detached rewrites for the request, i.e. rewrites whose
-  // results did not make it to the response.
-  int64 num_detached_rewrites_;           // protected by rewrite_mutex()
 
   // The number of rewrites that have been requested, and not yet
   // completed.  This can actually be derived, more or less, from
@@ -1387,12 +1286,16 @@ class RewriteDriver : public HtmlParse {
   std::vector<UrlAsyncFetcher*> owned_url_async_fetchers_;
 
   AddInstrumentationFilter* add_instrumentation_filter_;
-  DomStatsFilter* dom_stats_filter_;
+  LoggingFilter* logging_filter_;
   scoped_ptr<HtmlWriterFilter> html_writer_filter_;
 
   ScanFilter scan_filter_;
   scoped_ptr<DomainRewriteFilter> domain_rewriter_;
   scoped_ptr<UrlLeftTrimFilter> url_trim_filter_;
+
+  // Maps encoded URLs to output URLs.
+  typedef std::map<GoogleString, ResourcePtr> ResourceMap;
+  ResourceMap resource_map_;
 
   // Maps rewrite context partition keys to the context responsible for
   // rewriting them, in case a URL occurs more than once.
@@ -1402,7 +1305,6 @@ class RewriteDriver : public HtmlParse {
   HtmlResourceSlotSet slots_;
 
   scoped_ptr<RewriteOptions> options_;
-
   RewriteDriverPool* controlling_pool_;  // or NULL if this has custom options.
 
   // The default resource encoder
@@ -1427,9 +1329,11 @@ class RewriteDriver : public HtmlParse {
   // Stores a client identifier associated with this request, if any.
   GoogleString client_id_;
 
-  // Stores any cached properties associated with the current URL and fallback
-  // URL (i.e. without query params).
-  FallbackPropertyPage* fallback_property_page_;
+  // Stores the AbstractClientState object associated with the client, if any.
+  scoped_ptr<AbstractClientState> client_state_;
+
+  // Stores any cached properties associated with the current URL.
+  PropertyPage* property_page_;
 
   // Boolean value which tells whether property page is owned by driver or not.
   bool owns_property_page_;
@@ -1441,12 +1345,6 @@ class RewriteDriver : public HtmlParse {
 
   // Stores all the critical image info for the current URL.
   scoped_ptr<CriticalImagesInfo> critical_images_info_;
-
-  // Indicate whether critical_images_info_ has been set explicitly.  This
-  // distinguishes the default NULL value from an explicitly-set NULL value.
-  bool critical_images_info_was_set_;
-
-  scoped_ptr<CriticalCssResult> critical_css_result_;
 
   // We lazy-initialize critical_selector_info_ from the finder.
   bool critical_selector_info_computed_;
@@ -1478,7 +1376,6 @@ class RewriteDriver : public HtmlParse {
   // Is this a blink request?
   bool is_blink_request_;
   bool can_rewrite_resources_;
-  bool is_nested_;
 
   // Additional request context that may outlive this RewriteDriver. (Thus,
   // the context is reference counted.)
@@ -1486,6 +1383,12 @@ class RewriteDriver : public HtmlParse {
 
   // Start time for HTML requests. Used for statistics reporting.
   int64 start_time_ms_;
+
+  // True if this driver has been cloned from another to execute subordinate
+  // rewrites. Some logging operations aren't executed on nested rewrite
+  // drivers, and timeout policies are changed. Note that this is totally
+  // distinct from nested rewrite contexts.
+  bool is_nested_;
 
   scoped_ptr<DeviceProperties> device_properties_;
 

@@ -21,6 +21,7 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/public/global_constants.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -28,6 +29,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -148,9 +150,8 @@ class LocalStorageCacheTest : public RewriteTestBase,
         out_wrapper_format.c_str(), head_html_out.c_str(), url.c_str(),
         url.c_str(), body_html_out.c_str()));
 
-    // Clear request_headers and set them afresh for every test.
-    ClearRewriteDriver();
-    rewrite_driver()->SetRequestHeaders(request_headers_);
+    // Set this for every test.
+    rewrite_driver()->set_request_headers(&request_headers_);
 
     Parse(case_id, html_in);
     GoogleString expected_out = doctype_string_ + AddHtmlBody(html_out);
@@ -198,7 +199,7 @@ TEST_F(LocalStorageCacheTest, LinkUrlTransormationFails) {
   // The CSS rewriting fails so the local storage cache attributes are omitted
   // but because the CSS rewriting is asynchronous we still insert the JS even
   // though it ends up not being used. C'est la vie!
-  AddDomain("example.com");
+  options()->domain_lawyer()->AddDomain("example.com", message_handler());
   TestLocalStorage("link_url_transormation_fails",
                    "<link rel='stylesheet' href='http://example.com/junk.css'>",
                    InsertScriptBefore(
@@ -336,7 +337,7 @@ TEST_F(LocalStorageCacheTest, RepeatViews) {
 
   // The JavaScript would set these cookies for the next request.
   GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=", "Fe1SLPZ14c", "!", "du_OhARrJl");
+                               "=Fe1SLPZ14c,du_OhARrJl");
   request_headers_.Add(HttpAttributes::kCookie, cookie);
 
   // Third view will not send the inlined data and will send scripts in place
@@ -418,7 +419,7 @@ TEST_F(LocalStorageCacheTest, RepeatViewsWithOtherAttributes) {
 
   // The JavaScript would set these cookies for the next request.
   GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=", "Fe1SLPZ14c", "!", "du_OhARrJl");
+                               "=Fe1SLPZ14c,du_OhARrJl");
   request_headers_.Add(HttpAttributes::kCookie, cookie);
 
   // Third view will not send the inlined data and will send scripts in place

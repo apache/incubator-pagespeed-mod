@@ -21,21 +21,18 @@
 #include <algorithm>
 #include <set>
 
-#include "base/logging.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
-#include "net/instaweb/rewriter/public/cache_html_info_finder.h"
-#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
@@ -45,9 +42,7 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/property_cache.h"
@@ -87,15 +82,12 @@ class StaticAssetManager;
 namespace {
 
 void InitFlushEarlyDriverWithPropertyCacheValues(
-    RewriteDriver* flush_early_driver, FallbackPropertyPage* page) {
+    RewriteDriver* flush_early_driver, PropertyPage* page) {
   // Reading Flush early flow info from Property Page. After reading,
   // property page in new_driver is set to NULL, so that no one writes to
   // property cache while flushing early. Also property page isn't guaranteed to
   // exist in flush_early_driver lifetime.
-  // TODO(pulkitg): Change the functions GetHtmlCriticalImages and
-  // UpdateFlushEarlyInfoInDriver to take AbstractPropertyPage as a parameter so
-  // that set_unowned_fallback_property_page function call can be removed.
-  flush_early_driver->set_unowned_fallback_property_page(page);
+  flush_early_driver->set_unowned_property_page(page);
   // Populates all fields which are needed from property_page as property_page
   // will be set to NULL afterwards.
   flush_early_driver->flush_early_info();
@@ -115,19 +107,7 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
   flush_early_driver->server_context()->critical_images_finder()->
       GetHtmlCriticalImages(flush_early_driver);
 
-  CriticalCssFinder* css_finder =
-      flush_early_driver->server_context()->critical_css_finder();
-  if (css_finder != NULL) {
-    css_finder->UpdateCriticalCssInfoInDriver(flush_early_driver);
-  }
-
-  CacheHtmlInfoFinder* cache_html_finder =
-      flush_early_driver->server_context()->cache_html_info_finder();
-  if (cache_html_finder != NULL) {
-    cache_html_finder->UpdateSplitInfoInDriver(flush_early_driver);
-  }
-
-  flush_early_driver->set_unowned_fallback_property_page(NULL);
+  flush_early_driver->set_unowned_property_page(NULL);
 }
 
 }  // namespace
@@ -289,7 +269,6 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   void SendRedirectToPsaOff() {
     num_flush_early_requests_redirected_->IncBy(1);
     GoogleUrl gurl(url_);
-    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
     scoped_ptr<GoogleUrl> url_with_psa_off(gurl.CopyAndAddQueryParam(
         RewriteQuery::kModPagespeed, RewriteQuery::kNoscriptValue));
     GoogleString escaped_url;
@@ -319,29 +298,12 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(FlushEarlyAsyncFetch);
 };
 
-void FlushEarlyFlow::TryStart(
+void FlushEarlyFlow::Start(
     const GoogleString& url,
     AsyncFetch** base_fetch,
     RewriteDriver* driver,
     ProxyFetchFactory* factory,
     ProxyFetchPropertyCallbackCollector* property_cache_callback) {
-  if (!driver->options()->Enabled(RewriteOptions::kFlushSubresources)) {
-    return;
-  }
-  if (driver->request_headers() == NULL ||
-      driver->request_headers()->method() != RequestHeaders::kGet) {
-    driver->log_record()->LogRewriterHtmlStatus(
-        RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-        RewriterHtmlApplication::DISABLED);
-    return;
-  }
-  if (!driver->device_properties()->CanPreloadResources()) {
-    driver->log_record()->LogRewriterHtmlStatus(
-        RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-        RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED);
-    return;
-  }
-
   FlushEarlyAsyncFetch* flush_early_fetch = new FlushEarlyAsyncFetch(
       *base_fetch, driver->server_context()->thread_system()->NewMutex(),
       driver->server_context()->message_handler(), url,
@@ -386,11 +348,11 @@ FlushEarlyFlow::FlushEarlyFlow(
       flush_early_fetch_(flush_early_fetch),
       driver_(driver),
       factory_(factory),
-      server_context_(driver->server_context()),
+      manager_(driver->server_context()),
       property_cache_callback_(property_cache_callback),
       should_flush_early_lazyload_script_(false),
       handler_(driver_->server_context()->message_handler()) {
-  Statistics* stats = server_context_->statistics();
+  Statistics* stats = manager_->statistics();
   num_requests_flushed_early_ = stats->GetTimedVariable(
       kNumRequestsFlushedEarly);
   num_resources_flushed_early_ = stats->GetTimedVariable(
@@ -403,7 +365,8 @@ FlushEarlyFlow::FlushEarlyFlow(
   // If mobile, do not flush preconnects as it can potentially block useful
   // connections to resources. This is also used to determine whether to
   // flush early the lazy load js snippet.
-  is_mobile_user_agent_ = driver_->device_properties()->IsMobile();
+  is_mobile_user_agent_ =
+      driver_->device_properties()->IsMobileUserAgent();
 }
 
 FlushEarlyFlow::~FlushEarlyFlow() {
@@ -412,12 +375,11 @@ FlushEarlyFlow::~FlushEarlyFlow() {
 
 void FlushEarlyFlow::FlushEarly() {
   const RewriteOptions* options = driver_->options();
-  const PropertyCache::Cohort* cohort = server_context_->dom_cohort();
-  PropertyPage* page = property_cache_callback_->property_page();
-  AbstractPropertyPage* fallback_page =
-      property_cache_callback_->fallback_property_page();
-  DCHECK(page != NULL);
-  bool property_cache_miss = true;
+  const PropertyCache::Cohort* cohort = manager_->page_property_cache()->
+      GetCohort(RewriteDriver::kDomCohort);
+  PropertyPage* page =
+      property_cache_callback_->GetPropertyPageWithoutOwnership(
+          ProxyFetchPropertyCallback::kPagePropertyCache);
   if (page != NULL && cohort != NULL) {
     PropertyValue* num_rewritten_resources_property_value = page->GetProperty(
         cohort,
@@ -441,15 +403,15 @@ void FlushEarlyFlow::FlushEarly() {
       num_flush_early_http_status_code_deemed_unstable_->IncBy(1);
     }
 
-    PropertyValue* property_value = fallback_page->GetProperty(
+    PropertyValue* property_value = page->GetProperty(
         cohort, RewriteDriver::kSubresourcesPropertyName);
     if (property_value != NULL && property_value->has_value()) {
-      property_cache_miss = false;
       FlushEarlyInfo flush_early_info;
       ArrayInputStream value(property_value->value().data(),
                              property_value->value().size());
       flush_early_info.ParseFromZeroCopyStream(&value);
-      if (flush_early_info.has_resource_html() &&
+      if (!flush_early_info.http_only_cookie_present() &&
+          flush_early_info.has_resource_html() &&
           !flush_early_info.resource_html().empty() &&
           flush_early_info.response_headers().status_code() ==
           HttpStatus::kOK && status_code_property_value_recently_constant) {
@@ -462,32 +424,30 @@ void FlushEarlyFlow::FlushEarly() {
         if (lazyload_property_value->has_value() &&
             StringCaseEqual(lazyload_property_value->value(), "1") &&
             options->Enabled(RewriteOptions::kLazyloadImages) &&
-            (LazyloadImagesFilter::ShouldApply(driver_) ==
-             RewriterHtmlApplication::ACTIVE) &&
+            LazyloadImagesFilter::ShouldApply(driver_) &&
             !is_mobile_user_agent_) {
           driver_->set_is_lazyload_script_flushed(true);
           should_flush_early_lazyload_script_ = true;
         }
 
-        int64 now_ms = server_context_->timer()->NowMs();
+        int64 now_ms = manager_->timer()->NowMs();
         // Clone the RewriteDriver which is used rewrite the HTML that we are
         // trying to flush early.
         RewriteDriver* new_driver = driver_->Clone();
         new_driver->increment_async_events_count();
         new_driver->set_response_headers_ptr(base_fetch_->response_headers());
-        new_driver->SetRequestHeaders(*base_fetch_->request_headers());
+        new_driver->set_request_headers(base_fetch_->request_headers());
         new_driver->set_flushing_early(true);
+
         new_driver->SetWriter(base_fetch_);
         new_driver->SetUserAgent(driver_->user_agent());
         new_driver->StartParse(url_);
 
         new_driver->log_record()->SetRewriterLoggingStatus(
             RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-            RewriterApplication::APPLIED_OK);
+            RewriterInfo::APPLIED_OK);
 
-        // Allow the usage of fallback properties for critical images.
-        InitFlushEarlyDriverWithPropertyCacheValues(
-            new_driver, property_cache_callback_->fallback_property_page());
+        InitFlushEarlyDriverWithPropertyCacheValues(new_driver, page);
         if (flush_early_info.has_average_fetch_latency_ms()) {
           average_fetch_time_ = flush_early_info.average_fetch_latency_ms();
         }
@@ -505,10 +465,10 @@ void FlushEarlyFlow::FlushEarly() {
         new_driver->ParseText(flush_early_info.pre_head());
         new_driver->ParseText(flush_early_info.resource_html());
 
+        const StringSet& css_critical_images = new_driver->server_context()->
+            critical_images_finder()->GetCssCriticalImages(new_driver);
         if (new_driver->options()->
             flush_more_resources_early_if_time_permits()) {
-          const StringSet& css_critical_images = new_driver->server_context()->
-              critical_images_finder()->GetCssCriticalImages(new_driver);
           // Critical images inside css.
           StringSet::iterator it = css_critical_images.begin();
           for (; it != css_critical_images.end(); ++it) {
@@ -520,9 +480,6 @@ void FlushEarlyFlow::FlushEarly() {
           }
         }
         driver_->set_flushed_early(true);
-        driver_->log_record()->LogRewriterHtmlStatus(
-            RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-            RewriterHtmlApplication::ACTIVE);
         // Keep driver alive till the FlushEarlyFlow is completed.
         num_requests_flushed_early_->IncBy(1);
 
@@ -534,11 +491,6 @@ void FlushEarlyFlow::FlushEarly() {
       }
     }
   }
-  driver_->log_record()->LogRewriterHtmlStatus(
-      RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
-      (property_cache_miss ?
-       RewriterHtmlApplication::PROPERTY_CACHE_MISS :
-       RewriterHtmlApplication::DISABLED));
   flush_early_fetch_->set_flush_early_flow_done(driver_->flushed_early());
   delete this;
 }
@@ -558,7 +510,7 @@ void FlushEarlyFlow::FlushEarlyRewriteDone(int64 start_time_ms,
   if (should_flush_early_lazyload_script_) {
     // Flush Lazyload filter script content.
     StaticAssetManager* static_asset_manager =
-          server_context_->static_asset_manager();
+          manager_->static_asset_manager();
     GoogleString script_content = LazyloadImagesFilter::GetLazyloadJsSnippet(
         driver_->options(), static_asset_manager);
     base_fetch_->Write(StringPrintf(kJavascriptInline,
@@ -582,7 +534,7 @@ void FlushEarlyFlow::FlushEarlyRewriteDone(int64 start_time_ms,
   flush_early_driver->decrement_async_events_count();
   base_fetch_->Flush(handler_);
   flush_early_rewrite_latency_ms_->Add(
-      server_context_->timer()->NowMs() - start_time_ms);
+      manager_->timer()->NowMs() - start_time_ms);
   // We delete FlushEarlyFlow first to prevent the race conditon where
   // tests finish before the destructor of FlushEarlyFlow gets called
   // and hence decrement async events on the driver doesn't happen.
@@ -601,7 +553,7 @@ void FlushEarlyFlow::GenerateResponseHeaders(
     response_headers->Add(
         kPsaRewriterHeader, driver_->log_record()->AppliedRewritersString());
   }
-  response_headers->SetDateAndCaching(server_context_->timer()->NowMs(), 0,
+  response_headers->SetDateAndCaching(manager_->timer()->NowMs(), 0,
                                       ", private, no-cache");
 
   if ((driver_->options()->Enabled(RewriteOptions::kDeferJavascript) ||

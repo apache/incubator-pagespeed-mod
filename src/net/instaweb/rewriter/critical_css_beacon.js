@@ -46,6 +46,8 @@ pagespeed.CriticalCssBeacon = function(beaconUrl, htmlUrl, optionsHash,
   this.htmlUrl_ = htmlUrl;
   this.optionsHash_ = optionsHash;
   this.selectors_ = selectors;
+  this.windowSize_ = this.getWindowSize_();
+  this.imgLocations_ = {};
 };
 
 /**
@@ -75,16 +77,7 @@ pagespeed.CriticalCssBeacon.prototype.sendBeacon_ = function(data) {
     return false;
   }
 
-  // We send the page url in the query param instead of the POST body to assist
-  // load balancers or other systems that want to route the beacon based on the
-  // originating page.
-  // TODO(jud): Handle long URLs correctly. We should send a signal back to the
-  // server indicating that we couldn't send the beacon because the URL was too
-  // long, so that the server will stop instrumenting pages.
-  var query_param_char = this.beaconUrl_.indexOf('?') == -1 ? '?' : '&';
-  var url = this.beaconUrl_ + query_param_char + 'url=' +
-      encodeURIComponent(this.htmlUrl_);
-  httpRequest.open('POST', url);
+  httpRequest.open('POST', this.beaconUrl_);
   httpRequest.setRequestHeader(
       'Content-Type', 'application/x-www-form-urlencoded');
   httpRequest.send(data);
@@ -120,11 +113,11 @@ pagespeed.CriticalCssBeacon.prototype.checkCssSelectors_ = function() {
       continue;
     }
   }
-  var data = 'oh=' + this.optionsHash_;
-  data += '&cs=';
-  for (var i = 0; i < critical_selectors.length; ++i) {
-    var tmp = (i > 0) ? ',' : '';
-    tmp += encodeURIComponent(critical_selectors[i]);
+  var data = 'url=' + encodeURIComponent(this.htmlUrl_);
+  data += '&oh=' + this.optionsHash_;
+  data += '&cs=' + encodeURIComponent(critical_selectors[0]);
+  for (var i = 1; i < critical_selectors.length; ++i) {
+    var tmp = ',' + encodeURIComponent(critical_selectors[i]);
     // TODO(jud): Don't truncate the critical selectors list if we exceed
     // MAX_DATA_LEN. Either send a signal back that we exceeded the limit, or
     // send multiple beacons back with all the data.

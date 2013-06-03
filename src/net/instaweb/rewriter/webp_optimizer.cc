@@ -25,8 +25,7 @@
 #include "base/logging.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/image/jpeg_reader.h"
-#include "pagespeed/kernel/image/jpeg_utils.h"
+#include "pagespeed/image_compression/jpeg_reader.h"
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
 #include "jpeglib.h"
@@ -39,6 +38,7 @@ extern "C" {
 #else
 #include "third_party/libwebp/webp/encode.h"
 #include "third_party/libwebp/webp/decode.h"
+#include "pagespeed/image_compression/jpeg_utils.h"
 #endif
 // TODO(jmaessen): open source imports & build of libwebp.
 }

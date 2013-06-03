@@ -18,8 +18,8 @@
 
 #include "net/instaweb/automatic/public/proxy_interface.h"
 
-#include "base/callback.h"
 #include "base/logging.h"
+#include "net/instaweb/automatic/public/blink_flow_critical_line.h"
 #include "net/instaweb/automatic/public/cache_html_flow.h"
 #include "net/instaweb/automatic/public/flush_early_flow.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
@@ -33,17 +33,16 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
+#include "net/instaweb/rewriter/public/furious_matcher.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_fetch.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/hostname_util.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/request_trace.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -54,15 +53,19 @@
 
 namespace net_instaweb {
 
+class AbstractMutex;
 class MessageHandler;
 
-const char ProxyInterface::kCacheHtmlRequestCount[] =
-    "cache-html-requests";
+const char ProxyInterface::kBlinkRequestCount[] = "blink-requests";
+const char ProxyInterface::kBlinkCriticalLineRequestCount[] =
+    "blink-critical-line-requests";
+
 namespace {
 
 // Names for Statistics variables.
 const char kTotalRequestCount[] = "all-requests";
 const char kPagespeedRequestCount[] = "pagespeed-requests";
+const char kBlinkRequestCount[] = "blink-requests";
 const char kRejectedRequestCount[] = "publisher-rejected-requests";
 const char kRejectedRequestHtmlResponse[] = "Unable to serve "
     "content as the content is blocked by the administrator of the domain.";
@@ -107,10 +110,23 @@ bool UrlMightHavePropertyCacheEntry(const GoogleUrl& url) {
   return false;
 }
 
+bool HasRejectedHeader(const StringPiece& header_name,
+                       const RequestHeaders* request_headers,
+                       const RewriteOptions* options) {
+  ConstStringStarVector header_values;
+  if (request_headers->Lookup(header_name, &header_values)) {
+    for (int i = 0, n = header_values.size(); i < n; ++i) {
+      if (options->IsRejectedRequest(header_name, *header_values[i])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Provides a callback whose Done() function is executed once we have
 // rewrite options.
-// TODO(gee): Use MemberCallback_1_1 once it's available.
-class ProxyInterfaceUrlNamerCallback {
+class ProxyInterfaceUrlNamerCallback : public UrlNamer::Callback {
  public:
   ProxyInterfaceUrlNamerCallback(
       bool is_resource_fetch,
@@ -150,20 +166,21 @@ class ProxyInterfaceUrlNamerCallback {
 }  // namespace
 
 ProxyInterface::ProxyInterface(const StringPiece& hostname, int port,
-                               ServerContext* server_context,
+                               ServerContext* manager,
                                Statistics* stats)
-    : server_context_(server_context),
+    : server_context_(manager),
       fetcher_(NULL),
       timer_(NULL),
-      handler_(server_context->message_handler()),
+      handler_(manager->message_handler()),
       hostname_(hostname.as_string()),
       port_(port),
       all_requests_(stats->GetTimedVariable(kTotalRequestCount)),
       pagespeed_requests_(stats->GetTimedVariable(kPagespeedRequestCount)),
-      cache_html_flow_requests_(
-          stats->GetTimedVariable(kCacheHtmlRequestCount)),
+      blink_requests_(stats->GetTimedVariable(kBlinkRequestCount)),
+      blink_critical_line_requests_(
+          stats->GetTimedVariable(kBlinkCriticalLineRequestCount)),
       rejected_requests_(stats->GetTimedVariable(kRejectedRequestCount)) {
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context));
+  proxy_fetch_factory_.reset(new ProxyFetchFactory(manager));
 }
 
 ProxyInterface::~ProxyInterface() {
@@ -174,10 +191,13 @@ void ProxyInterface::InitStats(Statistics* statistics) {
                                ServerContext::kStatisticsGroup);
   statistics->AddTimedVariable(kPagespeedRequestCount,
                                ServerContext::kStatisticsGroup);
-  statistics->AddTimedVariable(kCacheHtmlRequestCount,
+  statistics->AddTimedVariable(kBlinkRequestCount,
+                               ServerContext::kStatisticsGroup);
+  statistics->AddTimedVariable(kBlinkCriticalLineRequestCount,
                                ServerContext::kStatisticsGroup);
   statistics->AddTimedVariable(kRejectedRequestCount,
                                ServerContext::kStatisticsGroup);
+  BlinkFlowCriticalLine::InitStats(statistics);
   CacheHtmlFlow::InitStats(statistics);
   FlushEarlyFlow::InitStats(statistics);
 }
@@ -263,7 +283,7 @@ void ProxyInterface::ProxyRequest(bool is_resource_fetch,
   scoped_ptr<GoogleUrl> gurl(new GoogleUrl);
   gurl->Reset(request_url);
 
-  // Stripping PageSpeed query params before the property cache lookup to
+  // Stripping ModPagespeed query params before the property cache lookup to
   // make cache key consistent for both lookup and storing in cache.
   ServerContext::OptionsBoolPair query_options_success =
       server_context_->GetQueryOptions(gurl.get(),
@@ -287,11 +307,9 @@ void ProxyInterface::ProxyRequest(bool is_resource_fetch,
                                          async_fetch, this,
                                          query_options_success.first, handler);
 
-    server_context_->url_namer()->DecodeOptions(
+  server_context_->url_namer()->DecodeOptions(
       *released_gurl, *async_fetch->request_headers(),
-      NewCallback(proxy_interface_url_namer_callback,
-                  &ProxyInterfaceUrlNamerCallback::Done),
-      handler);
+      proxy_interface_url_namer_callback, handler);
 }
 
 ProxyFetchPropertyCallbackCollector*
@@ -300,7 +318,6 @@ ProxyFetchPropertyCallbackCollector*
     const GoogleUrl& request_url,
     RewriteOptions* options,
     AsyncFetch* async_fetch,
-    const bool requires_blink_cohort,
     bool* added_page_property_callback) {
   RequestContextPtr request_ctx = async_fetch->request_context();
   DCHECK(request_ctx.get() != NULL);
@@ -320,9 +337,11 @@ ProxyFetchPropertyCallbackCollector*
   bool added_callback = false;
   PropertyPageStarVector property_callbacks;
 
+  ProxyFetchPropertyCallback* client_callback = NULL;
   ProxyFetchPropertyCallback* property_callback = NULL;
-  ProxyFetchPropertyCallback* fallback_property_callback = NULL;
   PropertyCache* page_property_cache = server_context_->page_property_cache();
+  PropertyCache* client_property_cache =
+      server_context_->client_property_cache();
   if (!is_resource_fetch &&
       server_context_->page_property_cache()->enabled() &&
       UrlMightHavePropertyCacheEntry(request_url) &&
@@ -336,7 +355,7 @@ ProxyFetchPropertyCallbackCollector*
     GoogleString page_key = server_context_->GetPagePropertyCacheKey(
         request_url.Spec(), options, device_type_suffix);
     property_callback = new ProxyFetchPropertyCallback(
-        ProxyFetchPropertyCallback::kPropertyCachePage,
+        ProxyFetchPropertyCallback::kPagePropertyCache,
         page_property_cache, page_key, device_type,
         callback_collector.get(), mutex);
     callback_collector->AddCallback(property_callback);
@@ -344,73 +363,38 @@ ProxyFetchPropertyCallbackCollector*
     if (added_page_property_callback != NULL) {
       *added_page_property_callback = true;
     }
-    // Trigger property cache lookup for the requests which contains query param
-    // as cache key without query params. The result of this lookup will be used
-    // if actual property page does not contains property value.
-    if (options != NULL &&
-        options->use_fallback_property_cache_values()) {
-      GoogleString fallback_page_key;
-      if (request_url.PathAndLeaf() != "/" &&
-          !request_url.PathAndLeaf().empty()) {
-        // Don't bother looking up fallback properties for the root, "/", since
-        // there is nothing to fall back to.
-        fallback_page_key = server_context_->GetFallbackPagePropertyCacheKey(
-            request_url, options, device_type_suffix);
-      }
+  }
 
-      if (!fallback_page_key.empty()) {
-        fallback_property_callback =
-            new ProxyFetchPropertyCallback(
-                ProxyFetchPropertyCallback::kPropertyCacheFallbackPage,
-                page_property_cache, fallback_page_key, device_type,
-                callback_collector.get(),
-                server_context_->thread_system()->NewMutex());
-        callback_collector->AddCallback(fallback_property_callback);
+  // Initiate client property cache lookup.
+  if (async_fetch != NULL) {
+    const char* client_id = async_fetch->request_headers()->Lookup1(
+        HttpAttributes::kXGooglePagespeedClientId);
+    if (client_id != NULL) {
+      if (client_property_cache->enabled()) {
+        AbstractMutex* mutex = server_context_->thread_system()->NewMutex();
+        client_callback = new ProxyFetchPropertyCallback(
+            ProxyFetchPropertyCallback::kClientPropertyCache,
+            client_property_cache, client_id,
+            UserAgentMatcher::kEndOfDeviceType,
+            callback_collector.get(), mutex);
+        callback_collector->AddCallback(client_callback);
+        added_callback = true;
       }
     }
   }
 
   // All callbacks need to be registered before Reads to avoid race.
-  PropertyCache::CohortVector cohort_list_without_blink = GetCohortList(false);
   if (property_callback != NULL) {
-    page_property_cache->ReadWithCohorts(
-        requires_blink_cohort ?
-            GetCohortList(true) : cohort_list_without_blink,
-        property_callback);
+    page_property_cache->Read(property_callback);
+  }
+  if (client_callback != NULL) {
+    client_property_cache->Read(client_callback);
   }
 
-  if (fallback_property_callback != NULL) {
-    // Always read property page with fallback values without blink as there is
-    // no property in BlinkCohort which can used fallback values.
-    page_property_cache->ReadWithCohorts(cohort_list_without_blink,
-                                         fallback_property_callback);
-  }
-
-  if (added_callback) {
-    request_ctx->mutable_timing_info()->PropertyCacheLookupStarted();
-  } else {
+  if (!added_callback) {
     callback_collector.reset(NULL);
   }
   return callback_collector.release();
-}
-
-PropertyCache::CohortVector ProxyInterface::GetCohortList(
-    bool requires_blink_cohort) const {
-  PropertyCache* page_property_cache = server_context_->page_property_cache();
-  const PropertyCache::CohortVector cohort_list =
-      page_property_cache->GetAllCohorts();
-  if (requires_blink_cohort) {
-    return cohort_list;
-  }
-
-  PropertyCache::CohortVector cohort_list_without_blink;
-  for (int i = 0, m = cohort_list.size(); i < m; ++i) {
-    if (cohort_list[i]->name() == BlinkUtil::kBlinkCohort) {
-      continue;
-    }
-    cohort_list_without_blink.push_back(cohort_list[i]);
-  }
-  return cohort_list_without_blink;
 }
 
 void ProxyInterface::ProxyRequestCallback(
@@ -426,8 +410,12 @@ void ProxyInterface::ProxyRequestCallback(
   GoogleString url_string;
   RequestHeaders* request_headers = async_fetch->request_headers();
   request_url->Spec().CopyToString(&url_string);
-  if (options != NULL &&
-      options->IsRequestDeclined(url_string, request_headers)) {
+  if ((options != NULL) &&
+      (options->IsRejectedUrl(url_string) ||
+       HasRejectedHeader(
+           HttpAttributes::kUserAgent, request_headers, options) ||
+       HasRejectedHeader(
+           HttpAttributes::kXForwardedFor, request_headers, options))) {
     rejected_requests_->IncBy(1);
     ResponseHeaders* response_headers = async_fetch->response_headers();
     response_headers->SetStatusAndReason(HttpStatus::kProxyDeclinedRequest);
@@ -441,18 +429,7 @@ void ProxyInterface::ProxyRequestCallback(
     return;
   }
 
-  if (options != NULL && options->rewrite_request_urls_early()) {
-    const UrlNamer* url_namer = server_context_->url_namer();
-    StringPiece referer(async_fetch->request_headers()->Lookup1(
-        HttpAttributes::kReferer));
-    if (url_namer->ResolveToOriginUrl(
-        *options, referer, request_url.get())) {
-      // Update the headers accordingly if the request url changes.
-      async_fetch->request_headers()->Replace(
-          HttpAttributes::kHost, request_url->Origin());
-      request_url->Spec().CopyToString(&url_string);
-    }
-  }
+  scoped_ptr<ProxyFetchPropertyCallbackCollector> property_callback;
 
   // Update request_headers.
   // We deal with encodings. So strip the users Accept-Encoding headers.
@@ -460,9 +437,7 @@ void ProxyInterface::ProxyRequestCallback(
   // Note: We preserve the User-Agent and Cookies so that the origin servers
   // send us the correct HTML. We will need to consider this for caching HTML.
 
-  async_fetch->request_context()->mutable_timing_info()->ProcessingStarted();
-
-  AbstractLogRecord* log_record =  async_fetch->request_context()->log_record();
+  LogRecord* log_record = async_fetch->request_context()->log_record();
   {
     ScopedMutex lock(log_record->mutex());
     log_record->logging_info()->set_is_pagespeed_resource(is_resource_fetch);
@@ -479,49 +454,37 @@ void ProxyInterface::ProxyRequestCallback(
                          server_context_, async_fetch);
   } else {
     // TODO(nforman): If we are not running an experiment, remove the
-    // experiment cookie.
-    // If we don't already have custom options, and the global options say we're
-    // running an experiment, then clone them into custom_options so we can
-    // manipulate custom options without affecting the global options.
+    // furious cookie.
+    // If we don't already have custom options, and the global options
+    // say we're running furious, then clone them into custom_options so we
+    // can manipulate custom options without affecting the global options.
     if (options == NULL) {
       RewriteOptions* global_options = server_context_->global_options();
-      if (global_options->running_experiment()) {
+      if (global_options->running_furious()) {
         options = global_options->Clone();
       }
     }
-    // TODO(anupama): Adapt the experiment logic below for the FlushEarlyFlow as
-    // well.
+    // TODO(anupama): Adapt the below furious experiment logic for
+    // FlushEarlyFlow as well.
     bool need_to_store_experiment_data = false;
-    if (options != NULL && options->running_experiment()) {
-      need_to_store_experiment_data = server_context_->experiment_matcher()->
+    if (options != NULL && options->running_furious()) {
+      need_to_store_experiment_data = server_context_->furious_matcher()->
           ClassifyIntoExperiment(*async_fetch->request_headers(), options);
       options->set_need_to_store_experiment_data(need_to_store_experiment_data);
     }
     const char* user_agent = async_fetch->request_headers()->Lookup1(
         HttpAttributes::kUserAgent);
+    bool is_blink_request = BlinkUtil::IsBlinkRequest(
+        *request_url, async_fetch, options, user_agent,
+        server_context_->user_agent_matcher(),
+        RewriteOptions::kPrioritizeVisibleContent);
+    bool apply_blink_critical_line =
+        BlinkUtil::ShouldApplyBlinkFlowCriticalLine(server_context_,
+                                                    options);
     bool page_callback_added = false;
-
-    // Whether it's a cache html request should not change despite the fact
-    // a new driver is created later on.
-    const bool is_cache_html_request = BlinkUtil::IsBlinkRequest(
-        *request_url, async_fetch, options,
-        user_agent, server_context_,
-        RewriteOptions::kCachePartialHtml);
-
-    ProxyFetchPropertyCallbackCollector* property_callback = NULL;
-
-    if (options == NULL ||
-        (options->enabled() && options->IsAllowed(request_url->Spec()))) {
-      // Ownership of "property_callback" is eventually assumed by either
-      // CacheHtmlFlow or ProxyFetch.
-      property_callback = InitiatePropertyCacheLookup(is_resource_fetch,
-                                                      *request_url,
-                                                      options,
-                                                      async_fetch,
-                                                      is_cache_html_request,
-                                                      &page_callback_added);
-    }
-
+    property_callback.reset(InitiatePropertyCacheLookup(
+        is_resource_fetch, *request_url, options, async_fetch,
+        &page_callback_added));
     if (options != NULL) {
       server_context_->ComputeSignature(options);
       {
@@ -532,56 +495,79 @@ void ProxyInterface::ProxyRequestCallback(
       }
     }
 
-    RewriteDriver* driver = NULL;
-    RequestContextPtr request_ctx = async_fetch->request_context();
-    DCHECK(request_ctx.get() != NULL) << "Async fetch must have a request"
-                                      << "context but does not.";
-    if (options == NULL) {
-      driver = server_context_->NewRewriteDriver(request_ctx);
+    if (is_blink_request && apply_blink_critical_line && page_callback_added) {
+      // In blink flow, we have to modify RewriteOptions after the
+      // property cache read is completed. Hence, we clear the signature to
+      // unfreeze RewriteOptions, which was frozen during signature computation
+      // for generating key for property cache read.
+      // Warning: Please note that using this method is extremely risky and
+      // should be avoided as much as possible. If you are planning to use
+      // this, please discuss this with your team-mates and ensure that you
+      // clearly understand its implications. Also, please do repeat this
+      // warning at every place you use this method.
+      options->ClearSignatureWithCaution();
+
+      // TODO(rahulbansal): Remove this LOG once we expect to have
+      // a lot of such requests.
+      LOG(INFO) << "Triggering Blink flow critical line for url "
+                << url_string;
+      blink_critical_line_requests_->IncBy(1);
+      BlinkFlowCriticalLine::Start(url_string, async_fetch, options,
+                                   proxy_fetch_factory_.get(),
+                                   server_context_,
+                                   property_callback.release());
     } else {
-      // NewCustomRewriteDriver takes ownership of custom_options_.
-      driver = server_context_->NewCustomRewriteDriver(options, request_ctx);
-    }
-
-    // TODO(mmohabey): Remove duplicate setting of user agent and
-    // request headers for different flows.
-    if (user_agent != NULL) {
-      VLOG(1) << "Setting user-agent to " << user_agent;
-      driver->SetUserAgent(user_agent);
-    } else {
-      VLOG(1) << "User-agent empty";
-    }
-    driver->SetRequestHeaders(*async_fetch->request_headers());
-    // TODO(mmohabey): Factor out the below checks so that they are not
-    // repeated in BlinkUtil::IsBlinkRequest().
-
-    if (driver->options() != NULL && driver->options()->enabled() &&
-        property_callback != NULL &&
-        driver->options()->IsAllowed(url_string)) {
-      if (is_cache_html_request) {
-        cache_html_flow_requests_->IncBy(1);
-        CacheHtmlFlow::Start(url_string,
-                             async_fetch,
-                             driver,
-                             proxy_fetch_factory_.get(),
-                             // Takes ownership of property_callback.
-                             property_callback);
-
-        return;
+      RewriteDriver* driver = NULL;
+      RequestContextPtr request_ctx = async_fetch->request_context();
+      DCHECK(request_ctx.get() != NULL) << "Async fetch must have a request"
+                                        << "context but does not.";
+      if (options == NULL) {
+        driver = server_context_->NewRewriteDriver(request_ctx);
+      } else {
+        // NewCustomRewriteDriver takes ownership of custom_options_.
+        driver = server_context_->NewCustomRewriteDriver(options, request_ctx);
       }
-      // NOTE: The FlushEarly flow will run in parallel with the ProxyFetch,
-      // but will not begin (FlushEarlyFlwow::FlushEarly) until the
-      // PropertyCache lookup has completed.
-      // Also it does NOT take ownership of property_callback.
-      // FlushEarlyFlow might not start if the request is not GET or if the
-      // useragent is unsupported etc.
-      FlushEarlyFlow::TryStart(url_string, &async_fetch, driver,
+
+      // TODO(mmohabey): Remove duplicate setting of user agent and
+      // request headers for different flows.
+      if (user_agent != NULL) {
+        VLOG(1) << "Setting user-agent to " << user_agent;
+        driver->SetUserAgent(user_agent);
+      } else {
+        VLOG(1) << "User-agent empty";
+      }
+      driver->set_request_headers(async_fetch->request_headers());
+      // TODO(mmohabey): Factor out the below checks so that they are not
+      // repeated in BlinkUtil::IsBlinkRequest().
+      if (driver->options() != NULL && driver->options()->enabled() &&
+          property_callback != NULL &&
+          driver->options()->IsAllowed(url_string)) {
+        bool is_cache_html_request = BlinkUtil::IsBlinkRequest(
+            *request_url, async_fetch, driver->options(),
+            driver->user_agent().c_str(),
+            server_context_->user_agent_matcher(), RewriteOptions::kCacheHtml);
+        if (is_cache_html_request) {
+          CacheHtmlFlow::Start(url_string, async_fetch, driver,
                                proxy_fetch_factory_.get(),
-                               property_callback);
+                               property_callback.release());
+
+          return;
+        }
+        if (driver->SupportsFlushEarly()) {
+          FlushEarlyFlow::Start(url_string, &async_fetch, driver,
+                                proxy_fetch_factory_.get(),
+                                property_callback.get());
+        }
+      }
+      proxy_fetch_factory_->StartNewProxyFetch(
+          url_string, async_fetch, driver, property_callback.release(), NULL);
     }
-    // Takes ownership of property_callback.
-    proxy_fetch_factory_->StartNewProxyFetch(
-        url_string, async_fetch, driver, property_callback, NULL);
+  }
+
+  if (property_callback.get() != NULL) {
+    // If management of the callback was not transferred to proxy fetch,
+    // then we must detach it so it deletes itself when complete.
+    property_callback.release()->Detach(HttpStatus::kUnknownStatusCode);
   }
 }
 

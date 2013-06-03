@@ -29,7 +29,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/shared_string.h"
@@ -49,17 +48,16 @@ class CacheStatsTest : public testing::Test {
  protected:
   CacheStatsTest()
       : lru_cache_(kMaxSize),
-        thread_system_(Platform::CreateThreadSystem()),
+        thread_system_(ThreadSystem::CreateThreadSystem()),
         delay_cache_(new DelayCache(&lru_cache_, thread_system_.get())),
         timer_(MockTimer::kApr_5_2010_ms) {
     CacheStats::InitStats("test", &stats_);
-    cache_stats_.reset(new CacheStats("test", delay_cache_.get(), &timer_,
-                                      &stats_));
+    cache_stats_.reset(new CacheStats("test", delay_cache_, &timer_, &stats_));
   }
 
   LRUCache lru_cache_;
   scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<DelayCache> delay_cache_;
+  DelayCache* delay_cache_;
   MockTimer timer_;
   SimpleStats stats_;
   scoped_ptr<CacheStats> cache_stats_;
@@ -101,7 +99,7 @@ TEST_F(CacheStatsTest, BasicOperation) {
 }
 
 TEST_F(CacheStatsTest, Backend) {
-  EXPECT_EQ(delay_cache_.get(), cache_stats_->Backend());
+  EXPECT_EQ(delay_cache_, cache_stats_->Backend());
 }
 
 }  // namespace net_instaweb

@@ -24,19 +24,18 @@
 
 #include "base/logging.h"               // for operator<<, etc
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
+#include "net/instaweb/rewriter/public/blink_critical_line_data_finder.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
-#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
+#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
+#include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -50,6 +49,7 @@
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -71,6 +71,7 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class RewriteFilter;
 
 namespace {
@@ -83,8 +84,6 @@ const char kBeaconCriticalImagesQueryParam[] = "ci";
 const char kBeaconCriticalCssQueryParam[] = "cs";
 
 const int64 kRefreshExpirePercent = 80;
-
-const char kFallbackPageCacheKeySuffix[] = "@";
 
 // Attributes that should not be automatically copied from inputs to outputs
 const char* kExcludedAttributes[] = {
@@ -104,15 +103,13 @@ const char* kExcludedAttributes[] = {
   HttpAttributes::kVary
 };
 
-StringSet* CommaSeparatedStringToSet(StringPiece str) {
+void CommaSeparatedStringToSet(StringPiece str, StringSet* set) {
   StringPieceVector str_values;
   SplitStringPieceToVector(str, ",", &str_values, true);
-  StringSet* set = new StringSet();
   for (StringPieceVector::const_iterator it = str_values.begin();
        it != str_values.end(); ++it) {
-    set->insert(UrlToFilenameEncoder::Unescape(it->as_string()));
+    set->insert(it->as_string());
   }
-  return set;
 }
 
 // Track a property cache lookup triggered from a beacon response. When
@@ -127,7 +124,7 @@ class BeaconPropertyCallback : public PropertyPage {
       StringSet* html_critical_images_set,
       StringSet* css_critical_images_set,
       StringSet* critical_css_selector_set)
-      : PropertyPage(kPropertyCachePage, key, request_context,
+      : PropertyPage(key, request_context,
                      server_context->thread_system()->NewMutex(),
                      server_context->page_property_cache()),
         server_context_(server_context),
@@ -136,20 +133,17 @@ class BeaconPropertyCallback : public PropertyPage {
         critical_css_selector_set_(critical_css_selector_set) {
   }
 
-  const PropertyCache::CohortVector CohortList() {
-    PropertyCache::CohortVector cohort_list;
-    cohort_list.push_back(
-         server_context_->page_property_cache()->GetCohort(
-             RewriteDriver::kBeaconCohort));
-    return cohort_list;
-  }
-
   virtual ~BeaconPropertyCallback() {}
 
   virtual void Done(bool success) {
-    BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-        html_critical_images_set_.get(), css_critical_images_set_.get(),
-        server_context_->beacon_cohort(), this);
+    const PropertyCache::Cohort* cohort =
+        server_context_->page_property_cache()->GetCohort(
+            RewriteDriver::kBeaconCohort);
+
+    server_context_->critical_images_finder()->UpdateCriticalImagesCacheEntry(
+        this, server_context_->page_property_cache(),
+        html_critical_images_set_.release(),
+        css_critical_images_set_.release());
     if (critical_css_selector_set_ != NULL) {
       server_context_->critical_selector_finder()->
           WriteCriticalSelectorsToPropertyCache(
@@ -158,12 +152,16 @@ class BeaconPropertyCallback : public PropertyPage {
               server_context_->message_handler());
     }
 
-    WriteCohort(server_context_->beacon_cohort());
+    WriteCohort(cohort);
     delete this;
   }
 
  private:
   ServerContext* server_context_;
+  // Note that currently CriticalImagesFinder::UpdateCriticalImagesCacheEntry
+  // will take onwership of the StringSet* passed to it, while
+  // CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache does not.
+  // There is a TODO outstanding in CriticalImagesFinder to not take ownership.
   scoped_ptr<StringSet> html_critical_images_set_;
   scoped_ptr<StringSet> css_critical_images_set_;
   scoped_ptr<StringSet> critical_css_selector_set_;
@@ -207,21 +205,21 @@ const char ServerContext::kCacheKeyResourceNamePrefix[] = "rname/";
 // alters them.
 const char ServerContext::kResourceEtagValue[] = "W/\"0\"";
 
-class ReadAsyncHttpCacheCallback : public OptionsAwareHTTPCacheCallback {
+class ResourceManagerHttpCallback : public OptionsAwareHTTPCacheCallback {
  public:
-  ReadAsyncHttpCacheCallback(
+  ResourceManagerHttpCallback(
       Resource::NotCacheablePolicy not_cacheable_policy,
       Resource::AsyncCallback* resource_callback,
-      ServerContext* server_context,
+      ServerContext* resource_manager,
       const RequestContextPtr& request_context);
-  virtual ~ReadAsyncHttpCacheCallback();
+  virtual ~ResourceManagerHttpCallback();
   virtual void Done(HTTPCache::FindResult find_result);
 
  private:
   Resource::AsyncCallback* resource_callback_;
   ServerContext* server_context_;
   Resource::NotCacheablePolicy not_cacheable_policy_;
-  DISALLOW_COPY_AND_ASSIGN(ReadAsyncHttpCacheCallback);
+  DISALLOW_COPY_AND_ASSIGN(ResourceManagerHttpCallback);
 };
 
 class GlobalOptionsRewriteDriverPool : public RewriteDriverPool {
@@ -249,19 +247,15 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       default_system_fetcher_(NULL),
       default_distributed_fetcher_(NULL),
       hasher_(NULL),
-      lock_hasher_(RewriteOptions::kHashBytes),
+      blink_critical_line_data_finder_(NULL),
+      lock_hasher_(20),
       contents_hasher_(21),
       statistics_(NULL),
-      filesystem_metadata_cache_(NULL),
-      metadata_cache_(NULL),
       store_outputs_in_file_system_(false),
       response_headers_finalized_(true),
       enable_property_cache_(true),
       lock_manager_(NULL),
       message_handler_(NULL),
-      dom_cohort_(NULL),
-      blink_cohort_(NULL),
-      beacon_cohort_(NULL),
       available_rewrite_drivers_(new GlobalOptionsRewriteDriverPool(this)),
       trying_to_cleanup_rewrite_drivers_(false),
       factory_(factory),
@@ -271,7 +265,7 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       low_priority_rewrite_workers_(NULL),
       static_asset_manager_(NULL),
       thread_synchronizer_(new ThreadSynchronizer(thread_system_)),
-      experiment_matcher_(factory_->NewExperimentMatcher()),
+      furious_matcher_(factory_->NewFuriousMatcher()),
       usage_data_reporter_(factory_->usage_data_reporter()) {
   // Make sure the excluded-attributes are in abc order so binary_search works.
   // Make sure to use the same comparator that we pass to the binary_search.
@@ -418,7 +412,7 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
                                            ResponseHeaders* headers) {
   headers->ComputeCaching();
   bool proxy_cacheable = headers->IsProxyCacheable();
-  bool browser_cacheable = headers->IsBrowserCacheable();
+  bool cacheable = headers->IsCacheable();
   bool no_store = headers->HasValue(HttpAttributes::kCacheControl,
                                     "no-store");
   int64 max_age = headers->cache_ttl_ms();
@@ -431,12 +425,12 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
         max_age = input_headers->cache_ttl_ms();
       }
       proxy_cacheable &= input_headers->IsProxyCacheable();
-      browser_cacheable &= input_headers->IsBrowserCacheable();
+      cacheable &= input_headers->IsCacheable();
       no_store |= input_headers->HasValue(HttpAttributes::kCacheControl,
                                           "no-store");
     }
   }
-  if (browser_cacheable) {
+  if (cacheable) {
     if (proxy_cacheable) {
       return;
     } else {
@@ -546,23 +540,23 @@ void ServerContext::RefreshIfImminentlyExpiring(
   }
 }
 
-ReadAsyncHttpCacheCallback::ReadAsyncHttpCacheCallback(
+ResourceManagerHttpCallback::ResourceManagerHttpCallback(
     Resource::NotCacheablePolicy not_cacheable_policy,
     Resource::AsyncCallback* resource_callback,
-    ServerContext* server_context,
+    ServerContext* resource_manager,
     const RequestContextPtr& request_context)
     : OptionsAwareHTTPCacheCallback(
           resource_callback->resource()->rewrite_options(),
           request_context),
       resource_callback_(resource_callback),
-      server_context_(server_context),
+      server_context_(resource_manager),
       not_cacheable_policy_(not_cacheable_policy) {
 }
 
-ReadAsyncHttpCacheCallback::~ReadAsyncHttpCacheCallback() {
+ResourceManagerHttpCallback::~ResourceManagerHttpCallback() {
 }
 
-void ReadAsyncHttpCacheCallback::Done(HTTPCache::FindResult find_result) {
+void ResourceManagerHttpCallback::Done(HTTPCache::FindResult find_result) {
   ResourcePtr resource(resource_callback_->resource());
   MessageHandler* handler = server_context_->message_handler();
 
@@ -636,16 +630,15 @@ void ServerContext::ReadAsync(
     RefreshIfImminentlyExpiring(resource.get(), message_handler_);
     callback->Done(false /* lock_failure */, true /* resource_ok */);
   } else if (resource->UseHttpCache()) {
-    ReadAsyncHttpCacheCallback* read_async_http_cache_callback =
-        new ReadAsyncHttpCacheCallback(not_cacheable_policy,
-                                       callback,
-                                       this,
-                                       request_context);
+    ResourceManagerHttpCallback* resource_manager_callback =
+        new ResourceManagerHttpCallback(not_cacheable_policy,
+                                        callback,
+                                        this,
+                                        request_context);
     // Don't log timing for background-fetched resources.
-    read_async_http_cache_callback->set_is_background(
-        resource->is_background_fetch());
+    resource_manager_callback->set_log_timing(!resource->is_background_fetch());
     http_cache_->Find(resource->url(), message_handler_,
-                      read_async_http_cache_callback);
+                      resource_manager_callback);
   } else {
     resource->LoadAndCallback(not_cacheable_policy, callback,
                               message_handler_);
@@ -767,15 +760,17 @@ bool ServerContext::HandleBeacon(StringPiece params,
   scoped_ptr<StringSet> css_critical_images_set;
   query_param_str = query_params.Lookup1(kBeaconCriticalImagesQueryParam);
   if (query_param_str != NULL) {
-    html_critical_images_set.reset(
-        CommaSeparatedStringToSet(*query_param_str));
+    html_critical_images_set.reset(new StringSet);
+    CommaSeparatedStringToSet(*query_param_str,
+                              html_critical_images_set.get());
   }
 
   scoped_ptr<StringSet> critical_css_selector_set;
   query_param_str = query_params.Lookup1(kBeaconCriticalCssQueryParam);
   if (query_param_str != NULL) {
-    critical_css_selector_set.reset(
-        CommaSeparatedStringToSet(*query_param_str));
+    critical_css_selector_set.reset(new StringSet);
+    CommaSeparatedStringToSet(*query_param_str,
+                              critical_css_selector_set.get());
   }
 
   // Store the critical information in the property cache. This is done by
@@ -794,14 +789,11 @@ bool ServerContext::HandleBeacon(StringPiece params,
         url_query_param.Spec(),
         *options_hash_param,
         device_type_suffix);
-
-    BeaconPropertyCallback* beacon_property_cb = new BeaconPropertyCallback(
+    page_property_cache()->Read(new BeaconPropertyCallback(
         this, key, request_context,
         html_critical_images_set.release(),
         css_critical_images_set.release(),
-        critical_css_selector_set.release());
-    page_property_cache()->ReadWithCohorts(beacon_property_cb->CohortList(),
-                                           beacon_property_cb);
+        critical_css_selector_set.release()));
   }
 
   return status;
@@ -847,7 +839,7 @@ RewriteDriver* ServerContext::NewUnmanagedRewriteDriver(
   RewriteDriver* rewrite_driver = new RewriteDriver(
       message_handler_, file_system_, default_system_fetcher_);
   rewrite_driver->set_options_for_pool(pool, options);
-  rewrite_driver->SetServerContext(this);
+  rewrite_driver->SetResourceManager(this);
   rewrite_driver->ClearDeviceProperties();
   rewrite_driver->set_request_context(request_ctx);
   if (has_default_distributed_fetcher()) {
@@ -868,6 +860,9 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
   RewriteDriver* rewrite_driver = NULL;
 
   RewriteOptions* options = pool->TargetOptions();
+  // Note that options->signature() takes a reader-lock so it's thread-safe
+  // even if another thread is concurrently handling a cache-flush request.
+  GoogleString expected_signature = options->signature();
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     while ((rewrite_driver = pool->PopDriver()) != NULL) {
@@ -882,7 +877,7 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
       // signature, and revisit the issue of pulling options out if we
       // find we are having poor hit-rate in the metadata cache during
       // operations.
-      if (rewrite_driver->options()->IsEqual(*options)) {
+      if (rewrite_driver->options()->signature() == expected_signature) {
         break;
       } else {
         delete rewrite_driver;
@@ -962,7 +957,7 @@ void ServerContext::ShutDownDrivers() {
     // the start of this function; this code is relying on redundant
     // BoundedWaitForCompletion and Cleanup being safe when
     // trying_to_cleanup_rewrite_drivers_ is true.
-    // ServerContextTest.ShutDownAssumptions() exists to cover this scenario.
+    // ResourceManagerTest.ShutDownAssumptions() exists to cover this scenario.
     RewriteDriver* active = *i;
     int64 timeout_ms = Timer::kSecondMs;
     if (RunningOnValgrind()) {
@@ -1038,7 +1033,6 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   if (scoped_domain_options.get() != NULL) {
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
-    scoped_domain_options->Freeze();
     custom_options->Merge(*scoped_domain_options);
     options = custom_options.get();
   }
@@ -1052,10 +1046,9 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     scoped_ptr<RewriteOptions> options_buffer(custom_options.release());
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
-    query_options->Freeze();
     custom_options->Merge(*query_options);
     // Don't run any experiments if this is a special query-params request.
-    custom_options->set_running_experiment(false);
+    custom_options->set_running_furious_experiment(false);
   }
 
   if (request_headers->IsXmlHttpRequest()) {
@@ -1071,8 +1064,11 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     if (custom_options == NULL) {
       custom_options.reset(options->Clone());
     }
-    custom_options->DisableFiltersRequiringScriptExecution();
-    custom_options->DisableFilter(RewriteOptions::kPrioritizeCriticalCss);
+    custom_options->DisableFilter(RewriteOptions::kLazyloadImages);
+    custom_options->DisableFilter(RewriteOptions::kDelayImages);
+    custom_options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
+    custom_options->DisableFilter(RewriteOptions::kDeferJavascript);
+    custom_options->DisableFilter(RewriteOptions::kLocalStorageCache);
   }
 
   url_namer()->ConfigureCustomOptions(*request_headers, custom_options.get());
@@ -1103,30 +1099,8 @@ GoogleString ServerContext::GetPagePropertyCacheKey(
   return result;
 }
 
-GoogleString ServerContext::GetFallbackPagePropertyCacheKey(
-    const GoogleUrl& request_url, const RewriteOptions* options,
-    StringPiece device_type_suffix) {
-  GoogleString key;
-  if (request_url.has_query()) {
-    key = request_url.AllExceptQuery().as_string();
-  } else {
-    GoogleString url(request_url.spec_c_str());
-    int size = url.size();
-    if (url[size - 1] == '/') {
-      // It's common for site admins to canonicalize urls by redirecting "/a/b"
-      // to "/a/b/".  In order to more effectively share fallback properties, we
-      // strip the trailing '/' before dropping down a level.
-      url.resize(size - 1);
-    }
-    GoogleUrl gurl(url);
-    key = gurl.AllExceptLeaf().as_string();
-  }
-  return StrCat(GetPagePropertyCacheKey(key, options, device_type_suffix),
-                kFallbackPageCacheKeySuffix);
-}
-
 void ServerContext::ComputeSignature(RewriteOptions* rewrite_options) const {
-  rewrite_options->ComputeSignature();
+  rewrite_options->ComputeSignature(lock_hasher());
 }
 
 bool ServerContext::IsExcludedAttribute(const char* attribute) {
@@ -1140,15 +1114,19 @@ void ServerContext::set_enable_property_cache(bool enabled) {
   if (page_property_cache_.get() != NULL) {
     page_property_cache_->set_enabled(enabled);
   }
+  if (client_property_cache_.get() != NULL) {
+    client_property_cache_->set_enabled(enabled);
+  }
 }
 
-// TODO(jmarantz): simplify the cache ownership model so that the layered
-// caches don't own one another; the ServerContext owns all the caches.
 void ServerContext::MakePropertyCaches(CacheInterface* backend_cache) {
   // The property caches are L2-only.  We cannot use the L1 cache because
   // this data can get stale quickly.
   page_property_cache_.reset(MakePropertyCache(
       PropertyCache::kPagePropertyCacheKeyPrefix, backend_cache));
+  client_property_cache_.reset(MakePropertyCache(
+      PropertyCache::kClientPropertyCacheKeyPrefix, backend_cache));
+  client_property_cache_->AddCohort(ClientState::kClientStateCohort);
 }
 
 PropertyCache* ServerContext::MakePropertyCache(
@@ -1159,6 +1137,14 @@ PropertyCache* ServerContext::MakePropertyCache(
   return pcache;
 }
 
+AbstractClientState* RewriteDriverFactory::NewClientState() {
+  return new ClientState();
+}
+
+void ServerContext::set_blink_critical_line_data_finder(
+    BlinkCriticalLineDataFinder* finder) {
+  blink_critical_line_data_finder_.reset(finder);
+}
 
 void ServerContext::set_cache_html_info_finder(CacheHtmlInfoFinder* finder) {
   cache_html_info_finder_.reset(finder);
@@ -1187,19 +1173,6 @@ RewriteDriverPool* ServerContext::SelectDriverPool(bool using_spdy) {
 
 void ServerContext::ApplySessionFetchers(const RequestContextPtr& req,
                                          RewriteDriver* driver) {
-}
-
-DeviceProperties* ServerContext::NewDeviceProperties() {
-  DeviceProperties* device_properties =
-      new DeviceProperties(user_agent_matcher());
-  device_properties->SetPreferredImageQualities(
-      factory_->preferred_webp_qualities(),
-      factory_->preferred_jpeg_qualities());
-  return device_properties;
-}
-
-void ServerContext::DeleteCacheOnDestruction(CacheInterface* cache) {
-  factory_->TakeOwnership(cache);
 }
 
 }  // namespace net_instaweb

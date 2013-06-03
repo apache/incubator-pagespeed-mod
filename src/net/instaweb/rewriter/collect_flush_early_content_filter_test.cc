@@ -96,55 +96,6 @@ TEST_F(CollectFlushEarlyContentFilterTest, CollectFlushEarlyContentFilter) {
   EXPECT_STREQ(output_buffer_, html_input);
 }
 
-TEST_F(CollectFlushEarlyContentFilterTest, WithNoScriptCssAddStyles) {
-  GoogleString html_input =
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<noscript id=\"psa_add_styles\">"
-      "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
-      "</noscript></head>"
-      "<body>"
-      "<noscript id=\"psa_add_styles\">"
-      "<link rel='stylesheet' href='b.css' type='text/css'>"
-      "</noscript></body></html>";
-
-  GoogleString expected_output =
-       "<link type=\"text/css\" rel=\"stylesheet\" "
-       "href=\"http://test.com/a.css\"/>"
-       "<body>"
-       "<link type=\"text/css\" rel=\"stylesheet\" "
-       "href=\"http://test.com/b.css\"/>"
-       "</body>";
-
-  options()->ClearSignatureForTesting();
-  options()->set_enable_flush_early_critical_css(true);
-  server_context()->ComputeSignature(options());
-  Parse("noscript_styles_flushed", html_input);
-  FlushEarlyInfo* flush_early_info = rewrite_driver()->flush_early_info();
-  EXPECT_STREQ(expected_output, flush_early_info->resource_html());
-}
-
-TEST_F(CollectFlushEarlyContentFilterTest, WithNoScriptCssAndFlagDisabled) {
-  GoogleString html_input =
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-      "<noscript id=\"psa_add_styles\">"
-      "<link rel='stylesheet' href='a.css' type='text/css' media='print'>"
-      "</noscript></head>"
-      "<body>"
-      "<noscript id=\"psa_add_styles\">"
-      "<link rel='stylesheet' href='b.css' type='text/css'>"
-      "</noscript></body></html>";
-
-  GoogleString expected_output = "";
-
-  Parse("noscript_styles_not_flushed", html_input);
-  FlushEarlyInfo* flush_early_info = rewrite_driver()->flush_early_info();
-  EXPECT_STREQ(expected_output, flush_early_info->resource_html());
-}
-
 TEST_F(CollectFlushEarlyContentFilterTest, WithInlineInportToLinkFilter) {
   GoogleString html_input =
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
@@ -160,27 +111,6 @@ TEST_F(CollectFlushEarlyContentFilterTest, WithInlineInportToLinkFilter) {
   FlushEarlyInfo* flush_early_info = rewrite_driver()->flush_early_info();
   EXPECT_STREQ("<link rel=\"stylesheet\" "
                "href=\"http://test.com/assets/styles.css\"/><body></body>",
-               flush_early_info->resource_html());
-}
-
-TEST_F(CollectFlushEarlyContentFilterTest, RelativeUrlsWithBaseTag) {
-  GoogleString html_input =
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
-      "<html>"
-      "<head>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"a.css\"/>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"/b.css\"/>"
-        "<base href=\"http://test.com/path/\"/>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"/c.css\"/>"
-      "</head>"
-      "<body>"
-      "</body>"
-      "</html>";
-
-  Parse("not_flushed_early", html_input);
-  FlushEarlyInfo* flush_early_info = rewrite_driver()->flush_early_info();
-  EXPECT_STREQ("<link type=\"text/css\" rel=\"stylesheet\" "
-               "href=\"http://test.com/c.css\"/><body></body>",
                flush_early_info->resource_html());
 }
 

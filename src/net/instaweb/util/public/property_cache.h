@@ -105,8 +105,8 @@
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
 class AbstractMutex;
+class LogRecord;
 class PropertyValueProtobuf;
 class PropertyPage;
 class Statistics;
@@ -178,6 +178,7 @@ class PropertyCache {
  public:
   // Property cache key prefixes.
   static const char kPagePropertyCacheKeyPrefix[];
+  static const char kClientPropertyCacheKeyPrefix[];
   static const char kDevicePropertyCacheKeyPrefix[];
 
   class CacheInterfaceCallback;
@@ -207,7 +208,6 @@ class PropertyCache {
 
   typedef std::vector<const Cohort*> CohortVector;
 
-  // Does not take ownership of the cache, timer, stats, or threads objects.
   PropertyCache(const GoogleString& cache_key_prefix,
                 CacheInterface* cache, Timer* timer,
                 Statistics* stats, ThreadSystem* threads);
@@ -222,9 +222,6 @@ class PropertyCache {
   // cache, calling PropertyPage::Done when done.
   void ReadWithCohorts(const CohortVector& cohort_list,
                        PropertyPage* property_page) const;
-
-  // Returns all the cohorts from cache.
-  const CohortVector GetAllCohorts() const { return cohort_list_; }
 
   // Determines whether a value that was read is reasonably stable.
   bool IsStable(const PropertyValue* property) const {
@@ -283,8 +280,6 @@ class PropertyCache {
   // Returns timer pointer.
   Timer* timer() const { return timer_; }
 
-  ThreadSystem* thread_system() const { return thread_system_; }
-
   // TODO(jmarantz): add some statistics tracking for stomps, stability, etc.
 
  private:
@@ -304,50 +299,10 @@ class PropertyCache {
   DISALLOW_COPY_AND_ASSIGN(PropertyCache);
 };
 
-// Abstract interface for implementing a PropertyPage.
-class AbstractPropertyPage {
- public:
-  virtual ~AbstractPropertyPage();
-  // Gets a property given the property name.  The property can then be
-  // mutated, prior to the PropertyPage being written back to the cache.
-  virtual PropertyValue* GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) = 0;
-
-  // Updates the value of a property, tracking stability & discarding
-  // writes when the existing data is more up-to-date.
-  virtual void UpdateValue(
-     const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-     const StringPiece& value) = 0;
-
-  // Updates a Cohort of properties into the cache.  It is a
-  // programming error (dcheck-fail) to Write a PropertyPage that
-  // was not read first.  It is fine to Write after a failed Read.
-  virtual void WriteCohort(const PropertyCache::Cohort* cohort) = 0;
-
-  // This function returns the cache state for a given cohort.
-  virtual CacheInterface::KeyState GetCacheState(
-     const PropertyCache::Cohort* cohort) = 0;
-
-  // Deletes a property given the property name.
-  virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
-                              const StringPiece& property_name) = 0;
-
-  virtual const GoogleString& key() const = 0;
-};
-
-
 // Holds the property values associated with a single key.  See more
 // extensive comment for PropertyPage above.
-class PropertyPage : public AbstractPropertyPage {
+class PropertyPage {
  public:
-  // The cache type associated with this callback.
-  enum PageType {
-    kPropertyCachePage,
-    kPropertyCacheFallbackPage,
-    kDevicePropertyCachePage,
-  };
-
   virtual ~PropertyPage();
 
   // Gets a property given the property name.  The property can then be
@@ -367,7 +322,7 @@ class PropertyPage : public AbstractPropertyPage {
   // batching to do so on the read.  However, properties are written back to
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
   virtual PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
-                                     const StringPiece& property_name);
+                                     const StringPiece& property_name) const;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
@@ -412,20 +367,16 @@ class PropertyPage : public AbstractPropertyPage {
 
   const GoogleString& key() const { return key_; }
 
-  AbstractLogRecord* log_record() {
+  LogRecord* log_record() {
     return request_context_->log_record();
   }
 
-  // Read the property page from cache.
-  void Read(const PropertyCache::CohortVector& cohort_list);
-
-  // Abort the reading of PropertyPage.
-  void Abort();
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(LogRecord* log_record, int cohort_index) {}
 
  protected:
   // The Page takes ownership of the mutex.
-  PropertyPage(PageType page_type,
-               const StringPiece& key,
+  PropertyPage(const StringPiece& key,
                const RequestContextPtr& request_context,
                AbstractMutex* mutex,
                PropertyCache* property_cache);
@@ -441,6 +392,7 @@ class PropertyPage : public AbstractPropertyPage {
   class CallbackCollector;
   friend class CallbackCollector;
   friend class PropertyCache::CacheInterfaceCallback;
+  friend class PropertyCache;
 
   void SetupCohorts(const PropertyCache::CohortVector& cohort_list);
 
@@ -463,12 +415,14 @@ class PropertyPage : public AbstractPropertyPage {
   typedef std::map<GoogleString, PropertyValue*> PropertyMap;
 
   struct PropertyMapStruct {
-    explicit PropertyMapStruct(AbstractLogRecord* log)
+    PropertyMapStruct(LogRecord* log, int index)
         : has_deleted_property(false),
-          log_record(log) {}
+          log_record(log),
+          cohort_index(index) {}
     PropertyMap pmap;
     bool has_deleted_property;
-    AbstractLogRecord* log_record;
+    LogRecord* log_record;
+    int cohort_index;
     CacheInterface::KeyState cache_state;
   };
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
@@ -479,7 +433,6 @@ class PropertyPage : public AbstractPropertyPage {
   RequestContextPtr request_context_;
   bool was_read_;
   PropertyCache* property_cache_;  // Owned by the caller.
-  PageType page_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyPage);
 };

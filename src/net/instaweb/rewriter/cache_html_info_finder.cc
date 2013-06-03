@@ -21,16 +21,9 @@
 namespace net_instaweb {
 
 void CacheHtmlInfoFinder::PropagateCacheDeletes(
-    const GoogleString& url, int experiment_id,
+    const GoogleString& url, int furious_id,
     UserAgentMatcher::DeviceType device_type) {
   // Default interface is empty and derived classes can override.
-}
-
-bool CacheHtmlInfoFinder::UpdateDiffInfo(
-    bool is_diff, int64 now_ms, AbstractLogRecord* cache_html_log_record,
-    RewriteDriver* rewrite_driver, RewriteDriverFactory* factory) {
-  // Default interface is empty and derived classes can override.
-  return false;
 }
 
 }  // namespace net_instaweb

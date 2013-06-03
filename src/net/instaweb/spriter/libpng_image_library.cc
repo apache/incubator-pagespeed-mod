@@ -15,10 +15,9 @@
  */
 // Author: abliss@google.com (Adam Bliss)
 
-#include "net/instaweb/spriter/libpng_image_library.h"
-
 #include <errno.h>
-
+#include <png.h>
+#include "net/instaweb/spriter/libpng_image_library.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 

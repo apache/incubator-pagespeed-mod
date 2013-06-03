@@ -29,7 +29,6 @@
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -51,7 +50,7 @@ class Timer;
 class ProxyInterface : public UrlAsyncFetcher {
  public:
   ProxyInterface(const StringPiece& hostname, int port,
-                 ServerContext* server_context, Statistics* stats);
+                 ServerContext* manager, Statistics* stats);
   virtual ~ProxyInterface();
 
   // Initializes statistics variables associated with this class.
@@ -77,7 +76,8 @@ class ProxyInterface : public UrlAsyncFetcher {
   // Is this url_string well-formed enough to proxy through?
   bool IsWellFormedUrl(const GoogleUrl& url);
 
-  static const char kCacheHtmlRequestCount[];
+  static const char kBlinkRequestCount[];
+  static const char kBlinkCriticalLineRequestCount[];
 
   // Initiates the PropertyCache look up.
   virtual ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
@@ -85,8 +85,7 @@ class ProxyInterface : public UrlAsyncFetcher {
       const GoogleUrl& request_url,
       RewriteOptions* options,
       AsyncFetch* async_fetch,
-      const bool requires_blink_cohort,
-      bool* added_page_property_callback);
+      bool* added_page_property_callback = NULL);
 
  private:
   friend class ProxyInterfaceTest;
@@ -98,8 +97,6 @@ class ProxyInterface : public UrlAsyncFetcher {
                     const GoogleUrl& requested_url,
                     AsyncFetch* async_fetch,
                     MessageHandler* handler);
-
-  PropertyCache::CohortVector GetCohortList(bool requires_blink_cohort) const;
 
   // If the URL and port are for this server, don't proxy those (to avoid
   // infinite fetching loops). This might be the favicon or something...
@@ -122,8 +119,10 @@ class ProxyInterface : public UrlAsyncFetcher {
   TimedVariable* all_requests_;
   // Total Pagespeed requests.
   TimedVariable* pagespeed_requests_;
-  // Cache Html requests.
-  TimedVariable* cache_html_flow_requests_;
+  // Blink requests.
+  TimedVariable* blink_requests_;
+  // Blink requests in the critical line flow.
+  TimedVariable* blink_critical_line_requests_;
   // Rejected requests counter.
   TimedVariable* rejected_requests_;
 
