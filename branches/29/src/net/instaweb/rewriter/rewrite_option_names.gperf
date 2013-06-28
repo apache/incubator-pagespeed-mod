@@ -52,7 +52,6 @@ struct OptionName {
 "DistributedRewriteServers",             RewriteOptions::kDistributedRewriteServers
 "DistributedRewriteTimeoutMs",           RewriteOptions::kDistributedRewriteTimeoutMs
 "DomainShardCount",                      RewriteOptions::kDomainShardCount
-"DownstreamCacheLifetimeMs",             RewriteOptions::kDownstreamCacheLifetimeMs
 "DownstreamCachePurgeMethod",            RewriteOptions::kDownstreamCachePurgeMethod
 "DownstreamCacheRewrittenPercentageThreshold", RewriteOptions::kDownstreamCacheRewrittenPercentageThreshold
 "EnableAggressiveRewritersForMobile",    RewriteOptions::kEnableAggressiveRewritersForMobile

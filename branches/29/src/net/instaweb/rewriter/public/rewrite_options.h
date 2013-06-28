@@ -204,7 +204,6 @@ class RewriteOptions {
     kDistributedRewriteTimeoutMs,
     kDomainRewriteHyperlinks,
     kDomainShardCount,
-    kDownstreamCacheLifetimeMs,
     kDownstreamCachePurgeMethod,
     kDownstreamCacheRewrittenPercentageThreshold,
     kEnableAggressiveRewritersForMobile,
@@ -605,7 +604,6 @@ class RewriteOptions {
   static const int64 kDefaultMaxImageBytesForWebpInCss;
   static const int64 kDefaultMetadataInputErrorsCacheTtlMs;
   static const int64 kDefaultMinResourceCacheTimeToRewriteMs;
-  static const int64 kDefaultDownstreamCacheLifetimeMs;
   static const char kDefaultDownstreamCachePurgeMethod[];
   static const int64 kDefaultDownstreamCacheRewrittenPercentageThreshold;
   static const int64 kDefaultCacheInvalidationTimestamp;
