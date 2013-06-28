@@ -664,13 +664,13 @@
       ],
     },
     {
-      'target_name': 'instaweb_critical_keys_pb',
+      'target_name': 'instaweb_critical_selectors_pb',
       'variables': {
         'instaweb_protoc_subdir': 'net/instaweb/rewriter',
       },
       'sources': [
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/critical_keys.pb.cc',
-        'rewriter/critical_keys.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/critical_selectors.pb.cc',
+        'rewriter/critical_selectors.proto',
       ],
       'dependencies': [
       ],
@@ -760,6 +760,21 @@
       ],
       'dependencies': [
         '<(DEPTH)/pagespeed/kernel.gyp:util',
+      ],
+      'includes': [
+        'gperf.gypi',
+      ],
+    },
+    {
+      'target_name': 'instaweb_rewriter_html_option_gperf',
+      'variables': {
+        'instaweb_gperf_subdir': 'net/instaweb/rewriter',
+      },
+      'dependencies': [
+        '<(DEPTH)/pagespeed/kernel.gyp:util',
+      ],
+      'sources': [
+        'rewriter/rewrite_option_names.gperf',
       ],
       'includes': [
         'gperf.gypi',
@@ -948,6 +963,7 @@
         'instaweb_flush_early_pb',
         'instaweb_rendered_image_pb',
         'instaweb_rewriter_html_gperf',
+        'instaweb_rewriter_html_option_gperf',
         'instaweb_rewriter_pb',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_cache',
@@ -1128,8 +1144,8 @@
         'instaweb_critical_images_beacon_data2c',
         'instaweb_critical_images_beacon_opt_data2c',
         'instaweb_critical_images_pb',
-        'instaweb_critical_keys_pb',
         'instaweb_critical_line_info_pb',
+        'instaweb_critical_selectors_pb',
         'instaweb_dedup_inlined_images_data2c',
         'instaweb_dedup_inlined_images_opt_data2c',
         'instaweb_defer_iframe_data2c',
@@ -1177,7 +1193,6 @@
         'rewriter/critical_css_beacon_filter.cc',
         'rewriter/critical_css_filter.cc',
         'rewriter/critical_css_finder.cc',
-        'rewriter/critical_finder_support_util.cc',
         'rewriter/critical_images_beacon_filter.cc',
         'rewriter/critical_images_callback.cc',
         'rewriter/critical_selector_finder.cc',
@@ -1324,7 +1339,6 @@
       'dependencies': [
         'instaweb_cache_html_info_pb',
         'instaweb_critical_css_pb',
-        'instaweb_critical_keys_pb',
         'instaweb_critical_line_info_pb',
         'instaweb_flush_early_pb',
         'instaweb_http',

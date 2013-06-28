@@ -118,12 +118,9 @@ struct HttpAttributes {
   // is the serialized metadata.
   static const char kXPsaResponseMetadata[];
 
-  // This url param is set when request for the below the fold chunk of the
-  // split html response.
-  static const char kXSplit[];
-  // Values of kXSplit url param for requesting parts of the split html content.
-  static const char kXSplitAboveTheFold[];
-  static const char kXSplitBelowTheFold[];
+  // This header is set when request for the below the fold chunk of the split
+  // html response.
+  static const char kXPsaSplitBtf[];
 
   static const char kXRequestedWith[];
 

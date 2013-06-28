@@ -57,8 +57,8 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_critical_images_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_images_pb.a \
-  net/instaweb/libinstaweb_critical_keys_pb.a \
   net/instaweb/libinstaweb_critical_line_info_pb.a \
+  net/instaweb/libinstaweb_critical_selectors_pb.a \
   net/instaweb/libinstaweb_dedup_inlined_images_data2c.a \
   net/instaweb/libinstaweb_dedup_inlined_images_opt_data2c.a \
   net/instaweb/libinstaweb_defer_iframe_data2c.a \
@@ -95,6 +95,7 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_rewriter_css.a \
   net/instaweb/libinstaweb_rewriter_html.a \
   net/instaweb/libinstaweb_rewriter_html_gperf.a \
+  net/instaweb/libinstaweb_rewriter_html_option_gperf.a \
   net/instaweb/libinstaweb_rewriter_image.a \
   net/instaweb/libinstaweb_rewriter_javascript.a \
   net/instaweb/libinstaweb_rewriter_pb.a \
@@ -194,7 +195,6 @@ endif
 
 INCLUDE_PATH = \
     -I$(MOD_PAGESPEED_ROOT) \
-    -I$(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj/gen/protoc_out/instaweb \
     -I$(MOD_PAGESPEED_ROOT)/third_party/chromium/src \
     -I$(MOD_PAGESPEED_ROOT)/third_party/gflags/gen/$(INCLUDE_ARCH)/include \
     -I$(MOD_PAGESPEED_ROOT)/third_party/google-sparsehash/src \

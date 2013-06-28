@@ -75,11 +75,6 @@ class SplitHtmlHelperFilterTest : public RewriteTestBase {
     FAIL();
   }
 
-  void SetBtfRequest() {
-    rewrite_driver()->request_context()->set_split_request_type(
-        RequestContext::SPLIT_BELOW_THE_FOLD);
-  }
-
   RequestHeaders request_headers_;
 };
 
@@ -105,6 +100,8 @@ TEST_F(SplitHtmlHelperFilterTest, DisabledTest2) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequest) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
+
   ValidateExpected(
       "split_helper_atf",
       "<div id='a'><img src='1.jpeg'></div>"
@@ -119,6 +116,8 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequest) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestWithCriticalImages) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
+
   CriticalImagesInfo* critical_images_info = new CriticalImagesInfo;
   critical_images_info->html_critical_images.insert("http://test.com/1.jpeg");
   critical_images_info->html_critical_images.insert("http://test.com/4.jpeg");
@@ -139,7 +138,8 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestWithCriticalImages) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, BtfRequest) {
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
+
   CriticalImagesInfo* critical_images_info = new CriticalImagesInfo;
   critical_images_info->html_critical_images.insert("http://test.com/1.jpeg");
   rewrite_driver()->set_critical_images_info(critical_images_info);
@@ -154,6 +154,7 @@ TEST_F(SplitHtmlHelperFilterTest, BtfRequest) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestTwoXpaths) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[@id=\"b\"]:div[@id=\"d\"]");
 
@@ -177,6 +178,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestTwoXpaths) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestXPathWithChildCount) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]:div[4]");
 
@@ -198,6 +200,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestXPathWithChildCount) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestNoDeferCases) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]:div[4]");
 
@@ -227,6 +230,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestNoDeferCases) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestNonCountedChildren) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]");
 
@@ -253,7 +257,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestNonCountedChildren) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, BtfRequestConfigInHeader) {
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("");
   request_headers_.Add(HttpAttributes::kXPsaSplitConfig, "div[2]");

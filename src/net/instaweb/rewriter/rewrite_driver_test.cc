@@ -102,7 +102,7 @@ class RewriteDriverTest : public RewriteTestBase {
     options()->set_downstream_cache_rewritten_percentage_threshold(95);
     options()->set_downstream_cache_purge_method(downstream_cache_purge_method);
     GoogleString msg;
-    options()->ParseAndSetOptionFromName1(
+    options()->ParseAndSetOptionFromEnum1(
         RewriteOptions::kDownstreamCachePurgeLocationPrefix,
         downstream_cache_purge_location_prefix, &msg,
         message_handler());
