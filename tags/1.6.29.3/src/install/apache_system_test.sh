@@ -911,15 +911,15 @@ fi
 if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   WGET_ARGS=""
 
-  start_test add_instrumentation has added unload handler with \
-      ModPagespeedReportUnloadTime enabled in APACHE_SECONDARY_PORT.
-  URL="$SECONDARY_TEST_ROOT/add_instrumentation.html\
-?PageSpeedFilters=add_instrumentation"
-  echo http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
-  http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
-  check [ $(grep -o "<script" $WGET_OUTPUT|wc -l) = 3 ]
-  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'beforeunload', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
-  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
+#  start_test add_instrumentation has added unload handler with \
+#      ModPagespeedReportUnloadTime enabled in APACHE_SECONDARY_PORT.
+#  URL="$SECONDARY_TEST_ROOT/add_instrumentation.html\
+#?PageSpeedFilters=add_instrumentation"
+#  echo http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
+#  http_proxy=$SECONDARY_HOSTNAME $WGET -O $WGET_OUTPUT $URL
+#  check [ $(grep -o "<script" $WGET_OUTPUT|wc -l) = 3 ]
+#  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'beforeunload', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
+#  check [ $(grep -c "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon', 'load', '', '', 'http://secondary.example.com/mod_pagespeed_test/add_instrumentation.html');" $WGET_OUTPUT) = 1 ]
 
   if [ "$NO_VHOST_MERGE" = "on" ]; then
     start_test When ModPagespeedMaxHtmlParseBytes is not set, we do not insert \
