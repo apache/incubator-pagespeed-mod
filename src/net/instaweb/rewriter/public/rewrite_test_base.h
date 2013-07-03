@@ -366,9 +366,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
 
-  // Set the RewriteOptions to be returned by the RewriteOptionsManager.
-  void SetRewriteOptions(RewriteOptions* opts);
-
   // Authorizes a domain to options()->domain_lawyer(), recomputing
   // the options signature if necessary.
   bool AddDomain(StringPiece domain);

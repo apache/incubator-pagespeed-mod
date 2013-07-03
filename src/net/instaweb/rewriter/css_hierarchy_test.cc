@@ -21,19 +21,19 @@
 #include <algorithm>
 
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
-#include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
+#include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/null_mutex.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -70,7 +70,7 @@ static const char kTopChild2Child1Css[] =
 
 }  // namespace
 
-class CssHierarchyTest : public RewriteTestBase {
+class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
  protected:
   CssHierarchyTest()
       : handler_(new NullMutex),
@@ -545,8 +545,9 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
   ExpandHierarchy(&top);
 
   // Construct a resource without a charset.
-  ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", server_context()));
+  RewriteOptions options(thread_system_.get());
+  ResourcePtr resource(new UrlInputResource(NULL, &options, &kContentTypeCss,
+                                            top_url().Spec()));
   ResponseHeaders* response_headers = resource->response_headers();
 
   // First check that with no charsets anywhere we match.
@@ -569,8 +570,9 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   ExpandHierarchy(&top);
 
   // Construct a resource with an incompatible charset.
-  ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", server_context()));
+  RewriteOptions options(thread_system_.get());
+  ResourcePtr resource(new UrlInputResource(NULL, &options, &kContentTypeCss,
+                                            top_url().Spec()));
   ResponseHeaders* response_headers = resource->response_headers();
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=utf-8"));

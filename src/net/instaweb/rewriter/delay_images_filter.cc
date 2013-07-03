@@ -241,9 +241,7 @@ void DelayImagesFilter::DetermineEnabled() {
   }
   CriticalImagesFinder* finder =
       driver_->server_context()->critical_images_finder();
-  if (finder->IsMeaningful(driver_) &&
-      !finder->IsSetFromPcache(driver_) &&
-      !driver_->options()->Enabled(RewriteOptions::kSplitHtmlHelper)) {
+  if (finder->IsMeaningful(driver_) && !finder->IsSetFromPcache(driver_)) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDelayImages),
         RewriterHtmlApplication::PROPERTY_CACHE_MISS);

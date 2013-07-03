@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
@@ -296,10 +295,6 @@ StaticAssetManager* RewriteDriverFactory::static_asset_manager() {
   return static_asset_manager_.get();
 }
 
-RewriteOptionsManager* RewriteDriverFactory::NewRewriteOptionsManager() {
-  return new RewriteOptionsManager;
-}
-
 Scheduler* RewriteDriverFactory::scheduler() {
   if (scheduler_ == NULL) {
     scheduler_.reset(CreateScheduler());
@@ -354,9 +349,9 @@ CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
     ServerContext* server_context) {
   // TODO(pulkitg): Don't create CriticalSelectorFinder if beacon cohort is
   // not added.
-  return new BeaconCriticalSelectorFinder(server_context->beacon_cohort(),
-                                          timer(), nonce_generator(),
-                                          statistics());
+  return new CriticalSelectorFinder(
+      server_context->beacon_cohort(),
+      timer(), nonce_generator(), statistics());
 }
 
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
@@ -476,7 +471,6 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
     }
   }
   server_context->set_url_namer(url_namer());
-  server_context->SetRewriteOptionsManager(NewRewriteOptionsManager());
   server_context->set_user_agent_matcher(user_agent_matcher());
   server_context->set_filename_encoder(filename_encoder());
   server_context->set_file_system(file_system());

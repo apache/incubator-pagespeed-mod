@@ -36,7 +36,6 @@
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 
 namespace net_instaweb {
 
@@ -197,14 +196,12 @@ bool IsCriticalImage(const GoogleString& image_url,
 
 bool CriticalImagesFinder::IsHtmlCriticalImage(
     const GoogleString& image_url, RewriteDriver* driver) {
-  return IsCriticalImage(GetKeyForUrl(image_url),
-                         GetHtmlCriticalImages(driver));
+  return IsCriticalImage(image_url, GetHtmlCriticalImages(driver));
 }
 
 bool CriticalImagesFinder::IsCssCriticalImage(
     const GoogleString& image_url, RewriteDriver* driver) {
-  return IsCriticalImage(GetKeyForUrl(image_url),
-                         GetCssCriticalImages(driver));
+  return IsCriticalImage(image_url, GetCssCriticalImages(driver));
 }
 
 const StringSet& CriticalImagesFinder::GetHtmlCriticalImages(
@@ -438,12 +435,6 @@ CriticalImagesInfo* CriticalImagesFinder::ExtractCriticalImagesFromCache(
 bool CriticalImagesFinder::IsSetFromPcache(RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   return driver->critical_images_info()->is_set_from_pcache;
-}
-
-void CriticalImagesFinder::AddHtmlCriticalImage(
-    const GoogleString& url,
-    RewriteDriver* driver) {
-  mutable_html_critical_images(driver)->insert(GetKeyForUrl(url));
 }
 
 }  // namespace net_instaweb

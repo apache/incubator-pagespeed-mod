@@ -20,7 +20,6 @@
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/async_fetch_with_lock.h"
 #include "net/instaweb/http/public/http_value.h"
@@ -36,6 +35,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
@@ -119,8 +119,8 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
                                    const RewriteOptions* options,
                                    const ContentType* type,
                                    const StringPiece& url)
-    : CacheableResourceBase("url_input_resource",
-                            rewrite_driver->server_context(), type),
+    : CacheableResourceBase((rewrite_driver == NULL ? NULL :
+                            rewrite_driver->server_context()), type),
       url_(url.data(), url.size()),
       rewrite_driver_(rewrite_driver),
       rewrite_options_(options),
@@ -133,10 +133,6 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
 }
 
 UrlInputResource::~UrlInputResource() {
-}
-
-void UrlInputResource::InitStats(Statistics* stats) {
-  CacheableResourceBase::InitStats("url_input_resource", stats);
 }
 
 // Shared fetch callback, used by both LoadAndCallback and Freshen.
@@ -290,6 +286,7 @@ class UrlResourceFetchCallback : public AsyncFetchWithLock {
   virtual bool StartFetch(UrlAsyncFetcher* fetcher, MessageHandler* handler) {
     message_handler_ = handler;
     fetch_url_ = url();
+    UrlNamer* url_namer = server_context_->url_namer();
     fetcher_ = fetcher;
     if (!request_headers()->Has(HttpAttributes::kReferer)) {
       if (IsBackgroundFetch()) {
@@ -305,11 +302,12 @@ class UrlResourceFetchCallback : public AsyncFetchWithLock {
       }
     }
 
-    server_context_->rewrite_options_manager()->PrepareRequest(
+    url_namer->PrepareRequest(
         rewrite_options_,
         &fetch_url_,
         request_headers(),
-        NewCallback(this, &UrlResourceFetchCallback::StartFetchInternal));
+        NewCallback(this, &UrlResourceFetchCallback::StartFetchInternal),
+        message_handler_);
     return true;
   }
   // TODO(jmarantz): consider request_headers.  E.g. will we ever
@@ -463,8 +461,13 @@ void UrlInputResource::Freshen(Resource::FreshenCallback* callback,
   // For now this is much like Load(), except we do not
   // touch our value, but just the cache
   HTTPCache* http_cache = server_context()->http_cache();
-  // Ensure that the rewrite driver is alive until the freshen is completed.
-  rewrite_driver_->increment_async_events_count();
+  if (rewrite_driver_ != NULL) {
+    // Ensure that the rewrite driver is alive until the freshen is completed.
+    rewrite_driver_->increment_async_events_count();
+  } else {
+    LOG(DFATAL) << "rewrite_driver_ must be non-NULL while freshening";
+    return;
+  }
 
   FreshenHttpCacheCallback* freshen_callback = new FreshenHttpCacheCallback(
       url_, server_context(), rewrite_driver_, rewrite_options_, callback);
@@ -562,6 +565,8 @@ void UrlInputResource::LoadAndSaveToCache(NotCacheablePolicy no_cache_policy,
       "not be possible to determine when it's safe to delete the resource.";
   CHECK(this == callback->resource().get())
       << "The callback must keep a reference to the resource";
+  CHECK(rewrite_driver_ != NULL)
+      << "Must provide a RewriteDriver for resources that will get fetched.";
   DCHECK(!loaded()) << "Shouldn't get this far if already loaded.";
   UrlReadAsyncFetchCallback* cb =
       new UrlReadAsyncFetchCallback(callback,

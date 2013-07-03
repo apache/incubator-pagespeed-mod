@@ -1059,12 +1059,8 @@ deferJsNs.DeferJs.prototype.setUp = function() {
   if (document.querySelectorAll && !(me.getIEVersion() <= 8)) {
     // TODO(ksimbili): Support IE8
     document.getElementsByTagName = function(tagName) {
-      try {
       return document.querySelectorAll(
           tagName + ':not([' + me.psaNotProcessed_ + '])');
-      } catch (err) {
-        return me.origGetElementsByTagName_.call(document, tagName);
-      }
     }
   }
 
@@ -1662,7 +1658,11 @@ deferJsNs.deferInit = function() {
     return;
   }
 
-  deferJsNs.DeferJs.isExperimentalMode = pagespeed['defer_js_experimental'];
+  if (window.localStorage) {
+    deferJsNs.DeferJs.isExperimentalMode =
+        window.localStorage['defer_js_experimental'];
+  }
+
   pagespeed.highPriorityDeferJs = new deferJsNs.DeferJs();
   pagespeed.highPriorityDeferJs.setType(
     deferJsNs.DeferJs.PRIORITY_PSA_SCRIPT_TYPE);

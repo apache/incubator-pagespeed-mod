@@ -28,7 +28,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -58,9 +57,10 @@ class SplitHtmlHelperFilterTest : public RewriteTestBase {
   }
 
   void CheckCriticalImage(GoogleString url) {
-    CriticalImagesFinder* finder =
-        rewrite_driver()->server_context()->critical_images_finder();
-    EXPECT_TRUE(finder->IsHtmlCriticalImage(url, rewrite_driver()));
+    CriticalImagesInfo* critical_images_info =
+        rewrite_driver()->critical_images_info();
+    EXPECT_NE(critical_images_info->html_critical_images.end(),
+              critical_images_info->html_critical_images.find(url));
   }
 
   void CheckLoggingStatus(RewriterHtmlApplication::Status status) {
@@ -73,11 +73,6 @@ class SplitHtmlHelperFilterTest : public RewriteTestBase {
       }
     }
     FAIL();
-  }
-
-  void SetBtfRequest() {
-    rewrite_driver()->request_context()->set_split_request_type(
-        RequestContext::SPLIT_BELOW_THE_FOLD);
   }
 
   RequestHeaders request_headers_;
@@ -105,6 +100,8 @@ TEST_F(SplitHtmlHelperFilterTest, DisabledTest2) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequest) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
+
   ValidateExpected(
       "split_helper_atf",
       "<div id='a'><img src='1.jpeg'></div>"
@@ -119,6 +116,8 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequest) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestWithCriticalImages) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
+
   CriticalImagesInfo* critical_images_info = new CriticalImagesInfo;
   critical_images_info->html_critical_images.insert("http://test.com/1.jpeg");
   critical_images_info->html_critical_images.insert("http://test.com/4.jpeg");
@@ -138,23 +137,9 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestWithCriticalImages) {
   CheckLoggingStatus(RewriterHtmlApplication::ACTIVE);
 }
 
-TEST_F(SplitHtmlHelperFilterTest, AtfRequestWithNullCriticalImages) {
-  rewrite_driver()->set_critical_images_info(NULL);
-  ValidateExpected(
-      "split_helper_atf",
-      "<div id='a'><img src='1.jpeg'></div>"
-      "<div id='b'><img src='2.jpeg'></div>"
-      "<div id='c'><img src='3.jpeg'></div>",
-      "<div id='a'><img src='1.jpeg'></div>"
-      "<div id='b'><img src='2.jpeg' pagespeed_no_transform=></div>"
-      "<div id='c'><img src='3.jpeg' pagespeed_no_transform=></div>");
-  CheckNumCriticalImages(1);
-  CheckCriticalImage("http://test.com/1.jpeg");
-  CheckLoggingStatus(RewriterHtmlApplication::ACTIVE);
-}
-
 TEST_F(SplitHtmlHelperFilterTest, BtfRequest) {
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
+
   CriticalImagesInfo* critical_images_info = new CriticalImagesInfo;
   critical_images_info->html_critical_images.insert("http://test.com/1.jpeg");
   rewrite_driver()->set_critical_images_info(critical_images_info);
@@ -169,6 +154,7 @@ TEST_F(SplitHtmlHelperFilterTest, BtfRequest) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestTwoXpaths) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[@id=\"b\"]:div[@id=\"d\"]");
 
@@ -192,6 +178,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestTwoXpaths) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestXPathWithChildCount) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]:div[4]");
 
@@ -213,6 +200,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestXPathWithChildCount) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestNoDeferCases) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]:div[4]");
 
@@ -242,6 +230,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestNoDeferCases) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, AtfRequestNonCountedChildren) {
+  rewrite_driver()->request_context()->set_is_split_btf_request(false);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("div[2]");
 
@@ -268,7 +257,7 @@ TEST_F(SplitHtmlHelperFilterTest, AtfRequestNonCountedChildren) {
 }
 
 TEST_F(SplitHtmlHelperFilterTest, BtfRequestConfigInHeader) {
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   options()->ClearSignatureForTesting();
   options()->set_critical_line_config("");
   request_headers_.Add(HttpAttributes::kXPsaSplitConfig, "div[2]");
