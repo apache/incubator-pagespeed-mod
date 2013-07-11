@@ -23,7 +23,6 @@
 #include "net/instaweb/rewriter/public/split_html_helper_filter.h"
 
 #include <map>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -40,7 +39,6 @@
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/split_html_config.h"
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -106,11 +104,8 @@ void SplitHtmlHelperFilter::StartDocumentImpl() {
   if (critical_images_info != NULL) {
     critical_images_info->html_critical_images.clear();
     critical_images_info->css_critical_images.clear();
-  } else {
-    driver()->set_critical_images_info(new CriticalImagesInfo);
+    critical_images_info->is_set_from_pcache = false;
   }
-  driver()->critical_images_info()->is_critical_image_info_present = true;
-  driver()->critical_images_info()->is_set_from_split_html = true;
 
   // Push the base panel.
   StartPanelInstance(static_cast<HtmlElement*>(NULL), "");
@@ -203,23 +198,20 @@ void SplitHtmlHelperFilter::StartElementImpl(HtmlElement* element) {
       element, driver(), &category);
   if (category == semantic_type::kImage &&
       src != NULL && src->DecodedValueOrNull() != NULL &&
-      driver()->request_context()->split_request_type() !=
-      RequestContext::SPLIT_BELOW_THE_FOLD) {
+      !driver()->request_context()->is_split_btf_request()) {
     if (element_json_stack_.size() > 1) {
       // For a below-the-fold image, insert a pagespeed_no_transform attribute
       // to prevent inline-preview-images filter from doing any rewriting.
       element->AddAttribute(
           driver()->MakeName(HtmlName::kPagespeedNoTransform),
           "", HtmlElement::NO_QUOTE);
-    } else {
+    } else if (driver()->critical_images_info() != NULL) {
       // For an above-the-fold image, insert the url as a critical image.
       GoogleUrl image_gurl(driver()->base_url(),
                            src->DecodedValueOrNull());
       if (image_gurl.is_valid()) {
         GoogleString url(image_gurl.spec_c_str());
-        CriticalImagesFinder* finder =
-            driver()->server_context()->critical_images_finder();
-        finder->AddHtmlCriticalImage(url, driver());
+        driver()->critical_images_info()->html_critical_images.insert(url);
       }
     }
   }

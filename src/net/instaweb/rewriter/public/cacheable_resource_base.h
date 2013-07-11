@@ -30,83 +30,51 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 struct ContentType;
 class HTTPCache;
-class HTTPValue;
 class MessageHandler;
-class ResponseHeaders;
-class RewriteDriver;
 class RewriteOptions;
-class Statistics;
 class Timer;
-class Variable;
 
 class CacheableResourceBase : public Resource {
  public:
+  // Links the stale fallback value that can be used in case a fetch fails.
   // All subclasses of this use the HTTP cache.
   virtual bool UseHttpCache() const { return true; }
 
-  virtual bool IsValidAndCacheable() const;
+ protected:
+  class LoadHttpCacheCallback;
 
-  // Implementation of loading. This checks the cache, and fetches the resource
-  // if appropriate.
+  CacheableResourceBase(ServerContext* server_context, const ContentType* type)
+      : Resource(server_context, type) {}
+  virtual ~CacheableResourceBase();
+
+  virtual void RefreshIfImminentlyExpiring();
+
+  // Implementation of loading. This checks the cache, and calls
+  // LoadAndSaveToCache if appropriate.
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                const RequestContextPtr& request_context,
                                AsyncCallback* callback);
 
-  // Implementation of freshening.
-  virtual void Freshen(FreshenCallback* callback, MessageHandler* handler);
+  // Should be overridden by subclasses to actually fetch the resource and write
+  // it to the cache. LoadAndCallback is implemented in terms of this
+  virtual void LoadAndSaveToCache(NotCacheablePolicy not_cacheable_policy,
+                                  AsyncCallback* callback,
+                                  MessageHandler* message_handler) = 0;
 
-  // Overridden from Resource.
-  virtual void RefreshIfImminentlyExpiring();
-
- protected:
-  // Note: InitStats(stat_prefix) must have been called before.
-  CacheableResourceBase(StringPiece stat_prefix, RewriteDriver* rewrite_driver,
-                        const ContentType* type);
-  virtual ~CacheableResourceBase();
-
-  static void InitStats(StringPiece stat_prefix, Statistics* statistics);
-
-  // Required to be overridden by subclass to define cacheability policy.
-  virtual bool IsValidAndCacheableImpl(
-      const ResponseHeaders& headers) const = 0;
-
-  HTTPCache* http_cache() const { return server_context()->http_cache(); }
-  RewriteDriver* rewrite_driver() const { return rewrite_driver_; }
-  const RewriteOptions* rewrite_options() const;
+  // Obtain rewrite options for this. Used in cache invalidation.
+  virtual const RewriteOptions* rewrite_options() const = 0;
 
  private:
-  class FreshenHttpCacheCallback;
-  class LoadHttpCacheCallback;
-  class FetchCallbackBase;
-  class FreshenFetchCallback;
-  class LoadFetchCallback;
-  friend class CacheableResourceBaseTest;
-
-  // Extends callback->input_info() validity timeframe if the new state of the
-  // resource, as represented by headers and value, is consistent with what's
-  // recorded in input_info. Returns true if this extension was successful.
-  bool UpdateInputInfoForFreshen(const ResponseHeaders& headers,
-                                 const HTTPValue& value,
-                                 Resource::FreshenCallback* callback);
-
-
+  HTTPCache* http_cache() const { return server_context()->http_cache(); }
   Timer* timer() const { return server_context()->timer(); }
   MessageHandler* message_handler() const {
     return server_context()->message_handler();
   }
-
-  RewriteDriver* rewrite_driver_;
-  Variable* hits_;
-  Variable* recent_fetch_failures_;
-  Variable* recent_uncacheables_treated_as_miss_;
-  Variable* recent_uncacheables_treated_as_failure_;
-  Variable* misses_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheableResourceBase);
 };

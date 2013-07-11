@@ -38,7 +38,6 @@ using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::JpegCompressionOptions;
 using pagespeed::image_compression::JpegScanlineWriter;
 using pagespeed::image_compression::kPngSuiteTestDir;
-using pagespeed::image_compression::kPngTestDir;
 using pagespeed::image_compression::kResizedTestDir;
 using pagespeed::image_compression::PngScanlineReaderRaw;
 using pagespeed::image_compression::ReadTestFile;
@@ -57,8 +56,6 @@ const char* kValidImages[] = {
   "basi3p02",
   "basn6a16",
 };
-
-const char kImagePagespeed[] = "pagespeed-128";
 
 // Size of the output image [width, height]. The size of the input image
 // is 32-by-32. We would like to test resizing ratioes of both integers
@@ -104,8 +101,8 @@ bool ReadGoldImageToString(const char* file_name,
                            size_t width,
                            size_t height,
                            GoogleString* image_data) {
-  GoogleString gold_file_name = StringPrintf("%s_w%d_h%d", file_name,
-      static_cast<int>(width), static_cast<int>(height));
+  GoogleString gold_file_name = StringPrintf("%s_w%ld_h%ld", file_name,
+                                             width, height);
   return ReadTestFile(kResizedTestDir, gold_file_name.c_str(), "png",
                       image_data);
 }
@@ -304,25 +301,6 @@ TEST_F(ScanlineResizerTest, PartialRead) {
   // Read only 2 scanlines, although there are 20.
   EXPECT_TRUE(resizer_.ReadNextScanline(&scanline_));
   EXPECT_TRUE(resizer_.ReadNextScanline(&scanline_));
-}
-
-// Resize the image by non-integer ratios.
-TEST_F(ScanlineResizerTest, ResizeFractionalRatio) {
-  const int new_width = 11;
-  const int new_height = 19;
-  ASSERT_TRUE(ReadTestFile(kPngTestDir, kImagePagespeed, "png",
-                           &input_image_));
-
-  ASSERT_TRUE(reader_.Initialize(input_image_.data(),
-                                 input_image_.length()));
-  ASSERT_TRUE(resizer_.Initialize(&reader_, new_width, new_height));
-
-  int num_rows = 0;
-  while (resizer_.HasMoreScanLines()) {
-    ASSERT_TRUE(resizer_.ReadNextScanline(&scanline_));
-    ++num_rows;
-  }
-  EXPECT_EQ(new_height, num_rows);
 }
 
 }  // namespace

@@ -65,7 +65,6 @@ class RewriteDriver;
 class RewriteDriverFactory;
 class RewriteDriverPool;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
 class StaticAssetManager;
@@ -169,11 +168,6 @@ class ServerContext {
   void set_filename_encoder(FilenameEncoder* x) { filename_encoder_ = x; }
   UrlNamer* url_namer() const { return url_namer_; }
   void set_url_namer(UrlNamer* n) { url_namer_ = n; }
-  RewriteOptionsManager* rewrite_options_manager() const {
-    return rewrite_options_manager_.get();
-  }
-  // Takes ownership of RewriteOptionsManager.
-  void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
     return static_asset_manager_;
   }
@@ -345,13 +339,12 @@ class ServerContext {
                                   RequestHeaders* request_headers,
                                   ResponseHeaders* response_headers);
 
-  // Checks the url for the split html ATF/BTF query param. If present, it
-  // strips the param from the url, and sets a bit in the request context
-  // indicating which chunk of the split response was requested.
-  // Returns true if it found a query param.
-  static bool ScanSplitHtmlRequest(const RequestContextPtr& ctx,
+  // Checks the url for the split html BTF query param. If present, it strips
+  // the param from the url, and sets a bit in the request context indicating
+  // the request is for the split BTF chunk.
+  static void ScanSplitHtmlRequest(const RequestContextPtr& ctx,
                                    const RewriteOptions* options,
-                                   GoogleString* url);
+                                   GoogleUrl* url);
 
   // Returns any custom options required for this request, incorporating
   // any domain-specific options from the UrlNamer, options set in query-params,
@@ -608,7 +601,6 @@ class ServerContext {
   FileSystem* file_system_;
   FilenameEncoder* filename_encoder_;
   UrlNamer* url_namer_;
-  scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
   UserAgentMatcher* user_agent_matcher_;
   Scheduler* scheduler_;
   UrlAsyncFetcher* default_system_fetcher_;

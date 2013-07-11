@@ -52,7 +52,6 @@ const char HttpAttributes::kMaxAge[] = "max-age";
 const char HttpAttributes::kNoCache[] = "no-cache";
 const char HttpAttributes::kNoCacheMaxAge0[] = "max-age=0, no-cache";
 const char HttpAttributes::kNoStore[] = "no-store";
-const char HttpAttributes::kOrigin[] = "Origin";
 const char HttpAttributes::kPragma[] = "Pragma";
 const char HttpAttributes::kPrivate[] = "private";
 const char HttpAttributes::kProxyAuthorization[] = "Proxy-Authorization";
@@ -96,9 +95,7 @@ const char HttpAttributes::kXPsaRequestMetadata[] =
 // pagespeed servers.
 const char HttpAttributes::kXPsaResponseMetadata[] =
     "X-PSA-Response-Metadata";
-const char HttpAttributes::kXSplit[] = "x_split";
-const char HttpAttributes::kXSplitAboveTheFold[] = "atf";
-const char HttpAttributes::kXSplitBelowTheFold[] = "btf";
+const char HttpAttributes::kXPsaSplitBtf[] = "X-PSA-Split-Btf";
 const char HttpAttributes::kXRequestedWith[] = "X-Requested-With";
 const char HttpAttributes::kXUACompatible[] = "X-UA-Compatible";
 const char HttpAttributes::kXPsaSplitConfig[] = "X-PSA-Split-Config";

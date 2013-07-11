@@ -366,9 +366,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
 
-  // Set the RewriteOptions to be returned by the RewriteOptionsManager.
-  void SetRewriteOptions(RewriteOptions* opts);
-
   // Authorizes a domain to options()->domain_lawyer(), recomputing
   // the options signature if necessary.
   bool AddDomain(StringPiece domain);
@@ -603,10 +600,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Returns the MockLogRecord in the driver.
   MockLogRecord* mock_log_record();
-
-  // Helper methods to return js/html snippets related to lazyload images.
-  GoogleString GetLazyloadScriptHtml();
-  GoogleString GetLazyloadPostscriptHtml();
 
  protected:
   void Init();

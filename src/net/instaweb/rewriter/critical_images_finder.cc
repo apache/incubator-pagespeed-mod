@@ -36,7 +36,6 @@
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 
 namespace net_instaweb {
 
@@ -197,14 +196,12 @@ bool IsCriticalImage(const GoogleString& image_url,
 
 bool CriticalImagesFinder::IsHtmlCriticalImage(
     const GoogleString& image_url, RewriteDriver* driver) {
-  return IsCriticalImage(GetKeyForUrl(image_url),
-                         GetHtmlCriticalImages(driver));
+  return IsCriticalImage(image_url, GetHtmlCriticalImages(driver));
 }
 
 bool CriticalImagesFinder::IsCssCriticalImage(
     const GoogleString& image_url, RewriteDriver* driver) {
-  return IsCriticalImage(GetKeyForUrl(image_url),
-                         GetCssCriticalImages(driver));
+  return IsCriticalImage(image_url, GetCssCriticalImages(driver));
 }
 
 const StringSet& CriticalImagesFinder::GetHtmlCriticalImages(
@@ -269,7 +266,7 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
         cohort, kCriticalImagesPropertyName);
     info = ExtractCriticalImagesFromCache(driver, property_value);
     if (info != NULL) {
-      info->is_critical_image_info_present = true;
+      info->is_set_from_pcache = true;
       driver->log_record()->SetNumHtmlCriticalImages(
           info->html_critical_images.size());
       driver->log_record()->SetNumCssCriticalImages(
@@ -435,15 +432,9 @@ CriticalImagesInfo* CriticalImagesFinder::ExtractCriticalImagesFromCache(
   return critical_images_info;
 }
 
-bool CriticalImagesFinder::IsCriticalImageInfoPresent(RewriteDriver* driver) {
+bool CriticalImagesFinder::IsSetFromPcache(RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
-  return driver->critical_images_info()->is_critical_image_info_present;
-}
-
-void CriticalImagesFinder::AddHtmlCriticalImage(
-    const GoogleString& url,
-    RewriteDriver* driver) {
-  mutable_html_critical_images(driver)->insert(GetKeyForUrl(url));
+  return driver->critical_images_info()->is_set_from_pcache;
 }
 
 }  // namespace net_instaweb

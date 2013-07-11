@@ -31,7 +31,6 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
@@ -43,7 +42,6 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/json_writer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -51,26 +49,35 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/util/fast_wildcard_group.h"
 
 namespace net_instaweb {
+
+const char SplitHtmlFilter::kSplitInit[] =
+    "<script type=\"text/javascript\">"
+    "window[\"pagespeed\"] = window[\"pagespeed\"] || {};"
+    "var pagespeed = window[\"pagespeed\"];"
+    "pagespeed.splitOnload = function() {"
+    "pagespeed.num_high_res_images_loaded++;"
+    "if (pagespeed.panelLoader && pagespeed.num_high_res_images_loaded == "
+    "pagespeed.num_low_res_images_inlined) {"
+    "pagespeed.panelLoader.loadData();"
+    "}};"
+    "pagespeed.num_high_res_images_loaded=0;"
+    "</script>";
 
 // TODO(rahulbansal): We are sending an extra close body and close html tag.
 // Fix that.
 const char SplitHtmlFilter::kSplitSuffixJsFormatString[] =
+    "<script type=\"text/javascript\">"
+    "pagespeed.num_low_res_images_inlined=%d;</script>"
     "<script type=\"text/javascript\" src=\"%s\"></script>"
     "<script type=\"text/javascript\">"
-      "%s"
-      "pagespeed.lastScriptIndexBeforePanelStub=%d;"
       "pagespeed.panelLoaderInit();"
       "pagespeed.panelLoader.bufferNonCriticalData(%s, %s);"
     "</script>\n</body></html>\n";
 
 const char SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString[] =
     "<script type=\"text/javascript\">"
-    "if(document.body.scrollTop==0) {"
-    "  scrollTo(0, 1);"
-    "}"
     "function loadXMLDoc(url) {"
     "\n  if (!url) {"
     "\n    pagespeed['split_non_critical'] = {};"
@@ -95,49 +102,24 @@ const char SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString[] =
     "\n  xmlhttp.setRequestHeader('%s', '%s');"
     "\n  xmlhttp.send();"
     "\n}"
-    "function loadBTF() {"
-    "  if(window.psa_btf_loaded) return;"
-    "  window.psa_btf_loaded=true;"
-    "  loadXMLDoc(\"%s\");"
-    "  %s"
+    "loadXMLDoc(\"%s\");"
+    "pagespeed.num_low_res_images_inlined=%d;</script>"
+    "<script type=\"text/javascript\">"
+    "\nwindow.setTimeout(function() {"
     "  var blink_js = document.createElement('script');"
     "  blink_js.src=\"%s\";"
     "  blink_js.setAttribute('onload', \""
-    "    pagespeed.lastScriptIndexBeforePanelStub=%d;"
     "    pagespeed.panelLoaderInit();"
     "    if (pagespeed['split_non_critical']) {"
     "      pagespeed.panelLoader.bufferNonCriticalData("
     "          pagespeed['split_non_critical'], false);"
     "    }\");"
     "  document.body.appendChild(blink_js);"
-    "}"
-    "window.setTimeout(loadBTF, 300);"
-    "if (window.addEventListener) {"
-    "  window.addEventListener('load', function() {"
-    "      window.setTimeout(loadBTF,0);}, false);"
-    "} else {"
-    "  window.attachEvent('onload', function() {"
-    "      window.setTimeout(loadBTF,0);});"
-    "}"
-    "</script>\n"
+    "}, 300);"
+    "if(document.body.scrollTop==0) {"
+    "  scrollTo(0, 1);"
+    "}</script>\n"
     "</body></html>\n";
-
-const char SplitHtmlFilter::kLoadHiResImages[] =
-    "function psa_replace_high_res_for_tag(str) {"
-     "var images=document.getElementsByTagName(str);"
-     "for (var i=0;i<images.length;++i) {"
-      "var high_res_src=images[i].getAttribute('pagespeed_high_res_src');"
-      "var src=images[i].getAttribute('src');"
-      "if (high_res_src && src != high_res_src && src.indexOf('data:') != -1){"
-        "images[i].src=high_res_src;"
-      "}"
-     "}"
-    "};"
-    "psa_replace_high_res_for_tag('img');"
-    "psa_replace_high_res_for_tag('input');";
-
-const char SplitHtmlFilter::kMetaReferer[] =
-    "<meta name=\"referrer\" content=\"never\">";
 
 // At StartElement, if element is panel instance push a new json to capture
 // contents of instance to the json stack.
@@ -147,8 +129,6 @@ SplitHtmlFilter::SplitHtmlFilter(RewriteDriver* rewrite_driver)
     : SuppressPreheadFilter(rewrite_driver),
       rewrite_driver_(rewrite_driver),
       options_(rewrite_driver->options()),
-      last_script_index_before_panel_stub_(-1),
-      panel_seen_(false),
       current_panel_parent_element_(NULL),
       static_asset_manager_(NULL),
       script_tag_scanner_(rewrite_driver) {
@@ -157,24 +137,9 @@ SplitHtmlFilter::SplitHtmlFilter(RewriteDriver* rewrite_driver)
 SplitHtmlFilter::~SplitHtmlFilter() {
 }
 
-bool SplitHtmlFilter::IsAllowedCrossDomainRequest(StringPiece cross_origin) {
-  FastWildcardGroup wildcards;
-  if (!cross_origin.empty()) {
-    StringPieceVector allowed_cross_origins;
-    SplitStringPieceToVector(options_->access_control_allow_origins(), ", ",
-                             &allowed_cross_origins, true);
-    for (int i = 0, n = allowed_cross_origins.size(); i < n; ++i) {
-      wildcards.Allow(allowed_cross_origins[i]);
-    }
-  }
-  return wildcards.Match(cross_origin, false);
-}
-
 void SplitHtmlFilter::StartDocument() {
   element_json_stack_.clear();
   num_children_stack_.clear();
-  panel_seen_ = false;
-  last_script_index_before_panel_stub_ = -1;
 
   config_.reset(new SplitHtmlConfig(rewrite_driver_));
 
@@ -196,14 +161,11 @@ void SplitHtmlFilter::StartDocument() {
   // TODO(nikhilmadan): RewriteOptions::serve_split_html_in_two_chunks is
   // currently incompatible with cache html. Fix this.
   serve_response_in_two_chunks_ = options_->serve_split_html_in_two_chunks()
-      && !disable_filter_ &&
-      rewrite_driver_->request_context()->split_request_type() !=
-      RequestContext::SPLIT_FULL;
+      && !disable_filter_;
   if (serve_response_in_two_chunks_) {
     ResponseHeaders* response_headers =
         rewrite_driver_->mutable_response_headers();
-    if (rewrite_driver_->request_context()->split_request_type() ==
-        RequestContext::SPLIT_BELOW_THE_FOLD) {
+    if (rewrite_driver_->request_context()->is_split_btf_request()) {
       flush_head_enabled_ = false;
       original_writer_ = &null_writer_;
       set_writer(&null_writer_);
@@ -219,22 +181,18 @@ void SplitHtmlFilter::StartDocument() {
       response_headers->RemoveAll(HttpAttributes::kPragma);
       response_headers->ComputeCaching();
     }
-    if (rewrite_driver_->request_context()->split_request_type() !=
-        RequestContext::SPLIT_BELOW_THE_FOLD &&
+    if (!rewrite_driver_->request_context()->is_split_btf_request() &&
         options_->serve_xhr_access_control_headers()) {
-      const RequestHeaders* request_headers =
-          rewrite_driver_->request_headers();
-      if (request_headers != NULL) {
-        // Origin header should be seen if it is a cross-origin request.
-        StringPiece cross_origin =
-            request_headers->Lookup1(HttpAttributes::kOrigin);
-        if (IsAllowedCrossDomainRequest(cross_origin)) {
-          response_headers->Add(HttpAttributes::kAccessControlAllowOrigin,
-                                cross_origin);
-          response_headers->Add(HttpAttributes::kAccessControlAllowCredentials,
-                                "true");
-        }
+      // TODO(ksimbili): Do this only for XHR requests and only for the prefetch
+      // requests.
+      // Serve Access-Control headers only for ATF request.
+      StringPiece allow_origin = options_->access_control_allow_origin();
+      if (!allow_origin.empty()) {
+        response_headers->Add(HttpAttributes::kAccessControlAllowOrigin,
+                              allow_origin);
       }
+      response_headers->Add(HttpAttributes::kAccessControlAllowCredentials,
+                            "true");
     }
   }
   json_writer_.reset(new JsonWriter(original_writer_,
@@ -242,6 +200,7 @@ void SplitHtmlFilter::StartDocument() {
   current_panel_id_.clear();
   url_ = rewrite_driver_->google_url().Spec();
   script_written_ = false;
+  num_low_res_images_inlined_ = 0;
   current_panel_parent_element_ = NULL;
   inside_pagespeed_no_defer_script_ = false;
 
@@ -278,17 +237,15 @@ void SplitHtmlFilter::WriteString(const StringPiece& str) {
 
 void SplitHtmlFilter::ServeNonCriticalPanelContents(const Json::Value& json) {
   if (!serve_response_in_two_chunks_ ||
-      rewrite_driver_->request_context()->split_request_type() ==
-      RequestContext::SPLIT_BELOW_THE_FOLD) {
+      rewrite_driver_->request_context()->is_split_btf_request()) {
     GoogleString non_critical_json = fast_writer_.write(json);
     BlinkUtil::StripTrailingNewline(&non_critical_json);
     BlinkUtil::EscapeString(&non_critical_json);
     if (!serve_response_in_two_chunks_) {
       WriteString(StringPrintf(
           kSplitSuffixJsFormatString,
+          num_low_res_images_inlined_,
           GetBlinkJsUrl(options_, static_asset_manager_).c_str(),
-          kLoadHiResImages,
-          last_script_index_before_panel_stub_,
           non_critical_json.c_str(),
           rewrite_driver_->flushing_cached_html() ? "true" : "false"));
     } else {
@@ -305,17 +262,14 @@ void SplitHtmlFilter::ServeNonCriticalPanelContents(const Json::Value& json) {
   } else {
     scoped_ptr<GoogleUrl> gurl(
         rewrite_driver_->google_url().CopyAndAddQueryParam(
-            HttpAttributes::kXSplit, HttpAttributes::kXSplitBelowTheFold));
-    GoogleString escaped_url;
-    EscapeToJsStringLiteral(gurl->PathAndLeaf(), false, &escaped_url);
+            HttpAttributes::kXPsaSplitBtf, "1"));
     WriteString(StringPrintf(
         kSplitTwoChunkSuffixJsFormatString,
         HttpAttributes::kXPsaSplitConfig,
         GenerateCriticalLineConfigString().c_str(),
-        json.empty() ? "" : escaped_url.c_str(),
-        kLoadHiResImages,
-        GetBlinkJsUrl(options_, static_asset_manager_).c_str(),
-        last_script_index_before_panel_stub_));
+        json.empty() ? "" : gurl->PathAndLeaf().data(),
+        num_low_res_images_inlined_,
+        GetBlinkJsUrl(options_, static_asset_manager_).c_str()));
   }
   HtmlWriterFilter::Flush();
 }
@@ -365,13 +319,11 @@ void SplitHtmlFilter::StartPanelInstance(HtmlElement* element) {
   // Push new Json
   element_json_stack_.push_back(std::make_pair(element, new_json));
   if (element != NULL) {
-    panel_seen_ = true;
     current_panel_parent_element_ = element->parent();
     current_panel_id_ = GetPanelIdForInstance(element);
   }
   if (!serve_response_in_two_chunks_ ||
-      rewrite_driver_->request_context()->split_request_type() !=
-      RequestContext::SPLIT_BELOW_THE_FOLD) {
+      !rewrite_driver_->request_context()->is_split_btf_request()) {
     original_writer_ = rewrite_driver_->writer();
   }
   set_writer(json_writer_.get());
@@ -398,9 +350,6 @@ void SplitHtmlFilter::InsertSplitInitScripts(HtmlElement* element) {
   GoogleString defer_js_with_blink = "";
   if (include_head) {
     StrAppend(&defer_js_with_blink, "<head>");
-    if (options_->hide_referer_using_meta()) {
-      StrAppend(&defer_js_with_blink, kMetaReferer);
-    }
   }
 
   if (options_->serve_ghost_click_buster_with_split_html()) {
@@ -411,6 +360,7 @@ void SplitHtmlFilter::InsertSplitInitScripts(HtmlElement* element) {
     StrAppend(&defer_js_with_blink, ghost_click_buster_js);
     StrAppend(&defer_js_with_blink, "</script>");
   }
+  StrAppend(&defer_js_with_blink, kSplitInit);
   if (include_head) {
     StrAppend(&defer_js_with_blink, "</head>");
   }
@@ -427,20 +377,6 @@ void SplitHtmlFilter::StartElement(HtmlElement* element) {
     return;
   }
 
-  if (!panel_seen_ &&
-      element->keyword() == HtmlName::kScript) {
-    // Store the script index before panel stub for ATF script execution.
-    HtmlElement::Attribute* script_index_attr =
-        element->FindAttribute(HtmlName::kOrigIndex);
-    if (script_index_attr != NULL) {
-      StringPiece script_index_str = script_index_attr->DecodedValueOrNull();
-      int script_index = -1;
-      if (!script_index_str.empty() &&
-          StringToInt(script_index_str, &script_index)) {
-        last_script_index_before_panel_stub_ = script_index;
-      }
-    }
-  }
   if (element->FindAttribute(HtmlName::kPagespeedNoDefer) &&
       element_json_stack_.size() > 1 ) {
     HtmlElement::Attribute* src = NULL;
@@ -493,27 +429,21 @@ void SplitHtmlFilter::StartElement(HtmlElement* element) {
     // Suppress these bytes since they belong to a panel.
     HtmlWriterFilter::StartElement(element);
   } else {
-    if (element->keyword() == HtmlName::kImg ||
-        element->keyword() == HtmlName::kInput) {
+    if (element->keyword() == HtmlName::kImg) {
       HtmlElement::Attribute* pagespeed_high_res_src_attr =
-          element->FindAttribute(HtmlName::kPagespeedHighResSrc);
+          element->FindAttribute(HtmlName::HtmlName::kPagespeedHighResSrc);
       HtmlElement::Attribute* onload =
           element->FindAttribute(HtmlName::kOnload);
       if (pagespeed_high_res_src_attr != NULL &&
           pagespeed_high_res_src_attr->DecodedValueOrNull() != NULL &&
           onload != NULL && onload->DecodedValueOrNull() != NULL) {
-        element->DeleteAttribute(HtmlName::kOnload);
+        num_low_res_images_inlined_++;
+        GoogleString overridden_onload = StrCat("pagespeed.splitOnload();",
+            onload->DecodedValueOrNull());
+        onload->SetValue(overridden_onload);
       }
     }
     InvokeBaseHtmlFilterStartElement(element);
-    if (element->keyword() == HtmlName::kHead) {
-      // Add meta referer.
-      if (options_->hide_referer_using_meta()) {
-        HtmlCharactersNode* meta_node =
-            rewrite_driver_->NewCharactersNode(element, kMetaReferer);
-        Characters(meta_node);
-      }
-    }
   }
 }
 

@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
@@ -44,7 +43,6 @@
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
-#include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 #include "net/instaweb/rewriter/public/process_context.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -83,28 +81,6 @@
 #include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
-
-namespace {
-
-class TestRewriteOptionsManager : public RewriteOptionsManager {
- public:
-  TestRewriteOptionsManager()
-      : options_(NULL) {}
-
-  void GetRewriteOptions(const GoogleUrl& url,
-                         const RequestHeaders& headers,
-                         OptionsCallback* done) {
-    LOG(ERROR) << "Run with options: " << options_;
-    done->Run((options_ == NULL) ? NULL : options_->Clone());
-  }
-
-  void set_options(RewriteOptions* options) { options_ = options; }
-
- private:
-  RewriteOptions* options_;
-};
-
-}  // namespace
 
 class MessageHandler;
 class RequestHeaders;
@@ -388,8 +364,9 @@ void RewriteTestBase::DefaultResponseHeaders(
     const ContentType& content_type, int64 ttl_sec,
     ResponseHeaders* response_headers) {
   SetDefaultLongCacheHeaders(&content_type, response_headers);
-  response_headers->SetDateAndCaching(
-      timer()->NowMs(), ttl_sec * Timer::kSecondMs, ", public");
+  response_headers->Replace(HttpAttributes::kCacheControl,
+                           StrCat("public, max-age=",
+                                  Integer64ToString(ttl_sec)));
   response_headers->ComputeCaching();
 }
 
@@ -787,12 +764,6 @@ void RewriteTestBase::OtherCallFetcherCallbacks() {
   other_rewrite_driver_->set_request_context(CreateRequestContext());
 }
 
-void RewriteTestBase::SetRewriteOptions(RewriteOptions* opts) {
-  TestRewriteOptionsManager* trom = new TestRewriteOptionsManager();
-  trom->set_options(opts);
-  server_context()->SetRewriteOptionsManager(trom);
-}
-
 void RewriteTestBase::SetUseManagedRewriteDrivers(
     bool use_managed_rewrite_drivers) {
   use_managed_rewrite_drivers_ = use_managed_rewrite_drivers;
@@ -1144,21 +1115,6 @@ void RewriteTestBase::SetMockLogRecord() {
 
 MockLogRecord* RewriteTestBase::mock_log_record() {
   return dynamic_cast<MockLogRecord*>(rewrite_driver_->log_record());
-}
-
-GoogleString RewriteTestBase::GetLazyloadScriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-      LazyloadImagesFilter::GetLazyloadJsSnippet(
-          options(), server_context()->static_asset_manager()),
-      "</script>");
-}
-
-GoogleString RewriteTestBase::GetLazyloadPostscriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-        LazyloadImagesFilter::kOverrideAttributeFunctions,
-      "</script>");
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

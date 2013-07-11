@@ -42,13 +42,10 @@ class Variable;
 // RewriteDriver and eliminate CriticalImagesInfo. Revisit this when updating
 // this class to support multiple beacon response.
 struct CriticalImagesInfo {
-  CriticalImagesInfo()
-      : is_critical_image_info_present(false),
-        is_set_from_split_html(false) {}
+  CriticalImagesInfo() : is_set_from_pcache(false) {}
   StringSet html_critical_images;
   StringSet css_critical_images;
-  bool is_critical_image_info_present;
-  bool is_set_from_split_html;
+  bool is_set_from_pcache;
 };
 
 
@@ -95,11 +92,11 @@ class CriticalImagesFinder {
   // implementation of this function returns meaningful results and provide a
   // default behavior if it does not.  If no critical set value has been
   // obtained, returns false (not critical).
-  bool IsHtmlCriticalImage(const GoogleString& image_url,
-                           RewriteDriver* driver);
+  virtual bool IsHtmlCriticalImage(const GoogleString& image_url,
+                                   RewriteDriver* driver);
 
-  bool IsCssCriticalImage(const GoogleString& image_url,
-                          RewriteDriver* driver);
+  virtual bool IsCssCriticalImage(const GoogleString& image_url,
+                                  RewriteDriver* driver);
 
   // Get the critical image sets. Returns an empty set if there is no critical
   // image information.
@@ -143,17 +140,13 @@ class CriticalImagesFinder {
       const PropertyCache::Cohort* cohort,
       AbstractPropertyPage* page);
 
-  // Returns true if the critical images are available, false otherwise. This is
-  // virtual only to be overridden in tests.
-  virtual bool IsCriticalImageInfoPresent(RewriteDriver* driver);
+  // Returns true if the critical images have been extracted from pcache,
+  // false otherwise. This is virtual only to be overridden in tests.
+  virtual bool IsSetFromPcache(RewriteDriver* driver);
 
   // Extracts rendered dimensions from property cache.
   virtual RenderedImages* ExtractRenderedImageDimensionsFromCache(
       RewriteDriver* driver);
-
-  // Adds the given url to the html critical image set for the driver.
-  void AddHtmlCriticalImage(const GoogleString& url,
-                            RewriteDriver* driver);
 
  protected:
   // Gets critical images if present in the property cache and updates the
@@ -161,10 +154,6 @@ class CriticalImagesFinder {
   // override this method, driver->critical_images_info() must not return NULL
   // after this function has been called.
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
-
-  virtual GoogleString GetKeyForUrl(const GoogleString& url) {
-    return url;
-  }
 
   // Extracts the critical images from the given property_value into
   // critical_images_info, after checking if the property value is still valid

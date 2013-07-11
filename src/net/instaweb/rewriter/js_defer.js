@@ -1033,6 +1033,9 @@ deferJsNs.DeferJs.prototype.setUp = function() {
     }
   }
 
+  if (this.queue_.length > 0) {
+    this.setNotProcessedAttributeForNodes();
+  }
   // override AddEventListeners.
   this.overrideAddEventListeners();
 
@@ -1056,12 +1059,8 @@ deferJsNs.DeferJs.prototype.setUp = function() {
   if (document.querySelectorAll && !(me.getIEVersion() <= 8)) {
     // TODO(ksimbili): Support IE8
     document.getElementsByTagName = function(tagName) {
-      try {
       return document.querySelectorAll(
           tagName + ':not([' + me.psaNotProcessed_ + '])');
-      } catch (err) {
-        return me.origGetElementsByTagName_.call(document, tagName);
-      }
     }
   }
 
@@ -1659,18 +1658,20 @@ deferJsNs.deferInit = function() {
     return;
   }
 
-  deferJsNs.DeferJs.isExperimentalMode = pagespeed['defer_js_experimental'];
+  if (window.localStorage) {
+    deferJsNs.DeferJs.isExperimentalMode =
+        window.localStorage['defer_js_experimental'];
+  }
+
   pagespeed.highPriorityDeferJs = new deferJsNs.DeferJs();
   pagespeed.highPriorityDeferJs.setType(
     deferJsNs.DeferJs.PRIORITY_PSA_SCRIPT_TYPE);
   pagespeed.highPriorityDeferJs.setPsaNotProcessed(
     deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED);
-  pagespeed.highPriorityDeferJs.setNotProcessedAttributeForNodes();
   pagespeed.lowPriorityDeferJs = new deferJsNs.DeferJs();
   pagespeed.lowPriorityDeferJs.setType(deferJsNs.DeferJs.PSA_SCRIPT_TYPE);
   pagespeed.lowPriorityDeferJs.setPsaNotProcessed(
     deferJsNs.DeferJs.PSA_NOT_PROCESSED);
-  pagespeed.lowPriorityDeferJs.setNotProcessedAttributeForNodes();
   pagespeed.deferJs = pagespeed.highPriorityDeferJs;
 
   pagespeed.deferJs.noDeferCreateElementOverride();

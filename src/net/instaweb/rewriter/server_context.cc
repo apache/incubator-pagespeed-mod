@@ -23,7 +23,6 @@
 #include <set>
 
 #include "base/logging.h"               // for operator<<, etc
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -149,18 +148,15 @@ class BeaconPropertyCallback : public PropertyPage {
   virtual ~BeaconPropertyCallback() {}
 
   virtual void Done(bool success) {
-    // TODO(jud): Clean up the call to UpdateCriticalImagesCacheEntry with a
-    // struct to nicely package up all of the pcache arguments.
     BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
         html_critical_images_set_.get(), css_critical_images_set_.get(),
         server_context_->beacon_cohort(), this);
     if (critical_css_selector_set_ != NULL) {
-      BeaconCriticalSelectorFinder::
-          WriteCriticalSelectorsToPropertyCacheFromBeacon(
+      server_context_->critical_selector_finder()->
+          WriteCriticalSelectorsToPropertyCache(
               *critical_css_selector_set_, nonce_,
-              server_context_->page_property_cache(),
-              server_context_->beacon_cohort(), this,
-              server_context_->message_handler(), server_context_->timer());
+              server_context_->page_property_cache(), this,
+              server_context_->message_handler());
     }
 
     WriteCohort(server_context_->beacon_cohort());
@@ -309,7 +305,6 @@ ServerContext::~ServerContext() {
   decoding_driver_.reset(NULL);
 }
 
-// TODO(gee): These methods are out of order with respect to the .h #tech-debt
 void ServerContext::InitWorkersAndDecodingDriver() {
   html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
   rewrite_workers_ = factory_->WorkerPool(
@@ -859,34 +854,24 @@ ServerContext::OptionsBoolPair ServerContext::GetQueryOptions(
   return OptionsBoolPair(query_options.release(), success);
 }
 
-bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
+void ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
                                          const RewriteOptions* options,
-                                         GoogleString* url) {
+                                         GoogleUrl* url) {
   if (options == NULL || !options->Enabled(RewriteOptions::kSplitHtml)) {
-    return false;
+    return;
   }
-  GoogleUrl gurl(*url);
   QueryParams query_params;
-  // TODO(bharathbhushan): Can we use the results of any earlier query parse?
-  query_params.Parse(gurl.Query());
+  query_params.Parse(url->Query());
 
-  const GoogleString* value = query_params.Lookup1(HttpAttributes::kXSplit);
-  if (value == NULL) {
-    return false;
+  if (query_params.RemoveAll(HttpAttributes::kXPsaSplitBtf)) {
+    ctx->set_is_split_btf_request(true);
+    GoogleString query_string = query_params.empty() ? "" :
+          StrCat("?", query_params.ToString());
+    url->Reset(
+        StrCat(url->AllExceptQuery(), query_string, url->AllAfterQuery()));
   }
-  if (HttpAttributes::kXSplitBelowTheFold == (*value)) {
-    ctx->set_split_request_type(RequestContext::SPLIT_BELOW_THE_FOLD);
-  } else if (HttpAttributes::kXSplitAboveTheFold == (*value)) {
-    ctx->set_split_request_type(RequestContext::SPLIT_ABOVE_THE_FOLD);
-  }
-  query_params.RemoveAll(HttpAttributes::kXSplit);
-  GoogleString query_string = query_params.empty() ? "" :
-        StrCat("?", query_params.ToString());
-  *url = StrCat(gurl.AllExceptQuery(), query_string, gurl.AllAfterQuery());
-  return true;
 }
 
-// TODO(gee): Seems like this should all be in RewriteOptionsManager.
 RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
                                                 RewriteOptions* domain_options,
                                                 RewriteOptions* query_options) {
@@ -988,10 +973,6 @@ GoogleString ServerContext::GetFallbackPagePropertyCacheKey(
 
 void ServerContext::ComputeSignature(RewriteOptions* rewrite_options) const {
   rewrite_options->ComputeSignature();
-}
-
-void ServerContext::SetRewriteOptionsManager(RewriteOptionsManager* rom) {
-  rewrite_options_manager_.reset(rom);
 }
 
 bool ServerContext::IsExcludedAttribute(const char* attribute) {

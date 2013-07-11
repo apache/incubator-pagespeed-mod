@@ -465,10 +465,9 @@ DEFINE_bool(serve_ghost_click_buster_with_split_html, false,
 DEFINE_bool(serve_xhr_access_control_headers, false,
             "If set to true, adds access control headers to response headers.");
 
-DEFINE_string(access_control_allow_origins, "",
-              "Comma seperated list of origins that are allowed to make "
-              "cross-origin requests. These domain requests are served with "
-              "Access-Control-Allow-Origin header.");
+DEFINE_string(access_control_allow_origin, "",
+              "Origin to be mentioned with 'Access-Control-Allow-Origin' "
+              "response header.");
 
 namespace net_instaweb {
 
@@ -874,9 +873,8 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_serve_xhr_access_control_headers(
         FLAGS_serve_xhr_access_control_headers);
   }
-  if (WasExplicitlySet("access_control_allow_origins")) {
-    options->set_access_control_allow_origins(
-        FLAGS_access_control_allow_origins);
+  if (WasExplicitlySet("access_control_allow_origin")) {
+    options->set_access_control_allow_origin(FLAGS_access_control_allow_origin);
   }
 
   MessageHandler* handler = factory->message_handler();

@@ -31,7 +31,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
@@ -809,11 +808,11 @@ class RewriteContext::DistributedRewriteFetch : public AsyncFetch {
 
  private:
   void DispatchHelper() {
-    RewriteOptionsManager* rewrite_options_manager =
-        rewrite_context_->FindServerContext()->rewrite_options_manager();
-    rewrite_options_manager->PrepareRequest(
+    UrlNamer* url_namer = rewrite_context_->FindServerContext()->url_namer();
+    url_namer->PrepareRequest(
         rewrite_context_->Options(), &url_, request_headers(),
-        NewCallback(this, &DistributedRewriteFetch::StartFetch));
+        NewCallback(this, &DistributedRewriteFetch::StartFetch),
+        message_handler_);
   }
 
   void StartFetch(bool success) {

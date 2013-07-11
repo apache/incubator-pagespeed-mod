@@ -186,9 +186,9 @@ class SystemRewriteOptions : public RewriteOptions {
   static void AddSystemProperty(typename OptionClass::ValueType default_value,
                                 OptionClass RewriteOptionsSubclass::*offset,
                                 const char* id,
-                                StringPiece option_name,
+                                OptionEnum option_enum,
                                 const char* help) {
-    AddProperty(default_value, offset, id, option_name, kServerScope, help,
+    AddProperty(default_value, offset, id, option_enum, kServerScope, help,
                 system_properties_);
   }
 

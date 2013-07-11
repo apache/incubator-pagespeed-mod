@@ -24,14 +24,12 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/split_html_helper_filter.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -48,8 +46,7 @@ const char kRequestUrl[] = "http://www.test.com";
 const char kHtmlInputPart1[] =
     "<html>"
     "<head>\n"
-    "<script orig_index=1>blah</script>"
-    "<script orig_index=2>blah2</script>"
+    "<script>blah</script>"
     "</head>\n"
     "<body>\n"
     "<div id=\"header\"> This is the header </div>"
@@ -62,7 +59,7 @@ const char kHtmlInputPart1[] =
       "</div>"
       "<span id=\"between\"> This is in between </span>"
       "<div id=\"inspiration\">"
-         "<script orig_index=3></script>"
+         "<script></script>"
          "<img src=\"image11\">"
       "</div>";
 
@@ -78,8 +75,7 @@ const char kHtmlInputPart2[] =
 
 const char kSplitHtmlPrefix[] =
     "<html><head>"
-    "\n<script orig_index=1>blah</script>"
-    "<script orig_index=2>blah2</script>";
+    "\n<script>blah</script>";
 
 const char kSplitHtmlMiddle[] =
     "</head>\n"
@@ -88,7 +84,8 @@ const char kSplitHtmlMiddle[] =
     "<div id=\"container\" class>"
       "<h2 id=\"beforeItems\"> This is before Items </h2>"
       "<div id=\"item\">"
-        "<img src=\"image1\" pagespeed_high_res_src=\"image1_high_res\">"
+        "<img src=\"image1\" pagespeed_high_res_src=\"image1_high_res\""
+          " onload=\"pagespeed.splitOnload();func\">"
         "<img src=\"image2\" pagespeed_high_res_src=\"image2_high_res\">"
       "</div>"
       "<span id=\"between\"> This is in between </span>"
@@ -108,17 +105,18 @@ const char kSplitHtmlMiddleWithoutPanelStubs[] =
     "<div id=\"container\" class>"
       "<h2 id=\"beforeItems\"> This is before Items </h2>"
       "<div id=\"item\">"
-         "<img src=\"image1\" pagespeed_high_res_src=\"image1_high_res\">"
+         "<img src=\"image1\" pagespeed_high_res_src=\"image1_high_res\""
+           " onload=\"pagespeed.splitOnload();func\">"
          "<img src=\"image2\" pagespeed_high_res_src=\"image2_high_res\">"
       "</div>"
       "<span id=\"between\"> This is in between </span>"
       "<div id=\"inspiration\">"
-         "<script orig_index=3></script>"
+         "<script></script>"
          "<img src=\"image11\">"
       "</div>";
 
 const char kSplitHtmlBelowTheFoldData[] =
-       "{\"panel-id.0\":[{\"instance_html\":\"<div id=\\\"inspiration\\\" panel-id=\\\"panel-id.0\\\"><script orig_index=3><\\/script><img src=\\\"image11\\\"></div><h3 id=\\\"afterInspirations\\\" panel-id=\\\"panel-id.0\\\"> This is after Inspirations </h3>\"}],"
+       "{\"panel-id.0\":[{\"instance_html\":\"<div id=\\\"inspiration\\\" panel-id=\\\"panel-id.0\\\"><script><\\/script><img src=\\\"image11\\\"></div><h3 id=\\\"afterInspirations\\\" panel-id=\\\"panel-id.0\\\"> This is after Inspirations </h3>\"}],"
        "\"panel-id.1\":[{\"instance_html\":\"<img id=\\\"image\\\" src=\\\"image_panel.1\\\" panel-id=\\\"panel-id.1\\\">\"}]}";
 
 const char kHtmlInputForLazyload[] = "<html><head></head><body></body></html>";
@@ -132,7 +130,7 @@ const char kHtmlExpectedOutputForIgnoreScript1[] =
     "</body></html>%s";
 
 const char kHtmlExpectedOutputForIgnoreScript2[] =
-    "<html><head></head><body>%s"
+    "<html><head>%s</head><body>%s"
     "<!--GooglePanel begin panel-id.0--><!--GooglePanel end panel-id.0-->"
     "</body></html>%s";
 
@@ -149,13 +147,12 @@ class SplitHtmlFilterTest : public RewriteTestBase {
     options_->DisableFilter(RewriteOptions::kHtmlWriterFilter);
     RewriteTestBase::SetUp();
 
+    rewrite_driver()->SetUserAgent("");
     rewrite_driver()->SetWriter(&writer_);
     SplitHtmlFilter* filter = new SplitHtmlFilter(rewrite_driver());
     html_writer_filter_.reset(filter);
     html_writer_filter_->set_writer(&writer_);
     rewrite_driver()->AddFilter(html_writer_filter_.get());
-    rewrite_driver()->SetUserAgent(
-        UserAgentMatcherTestBase::kChrome18UserAgent);
 
     response_headers_.set_status_code(HttpStatus::kOK);
     response_headers_.SetDateAndCaching(
@@ -185,16 +182,6 @@ class SplitHtmlFilterTest : public RewriteTestBase {
     EXPECT_EQ(expected_size, actual_size);
   }
 
-  void SetBtfRequest() {
-    rewrite_driver()->request_context()->set_split_request_type(
-        RequestContext::SPLIT_BELOW_THE_FOLD);
-  }
-
-  void SetAtfRequest() {
-    rewrite_driver()->request_context()->set_split_request_type(
-        RequestContext::SPLIT_ABOVE_THE_FOLD);
-  }
-
   GoogleString output_;
   RequestHeaders request_headers_;
   const char* blink_js_url_;
@@ -217,37 +204,9 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithDriverHavingCriticalLineInfo) {
 
   Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages, 2,
+                                   1, blink_js_url_,
                                    kSplitHtmlBelowTheFoldData, "false"));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
-                   kSplitHtmlMiddle, suffix),
-            output_);
-  VerifyAppliedRewriters(
-      RewriteOptions::FilterId(RewriteOptions::kSplitHtml));
-  VerifyJsonSize(strlen(kSplitHtmlBelowTheFoldData));
-}
-
-TEST_F(SplitHtmlFilterTest, SplitHtmlAddMetaReferer) {
-  rewrite_driver()->SetRequestHeaders(request_headers_);
-  options_->set_hide_referer_using_meta(true);
-  CriticalLineInfo* config = new CriticalLineInfo;
-  Panel* panel = config->add_panels();
-  panel->set_start_xpath("div[@id = \"container\"]/div[4]");
-  panel = config->add_panels();
-  panel->set_start_xpath("img[3]");
-  panel->set_end_marker_xpath("h1[@id = \"footer\"]");
-  rewrite_driver()->set_critical_line_info(config);
-
-  Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
-  GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages, 2,
-                                   kSplitHtmlBelowTheFoldData, "false"));
-  EXPECT_EQ(StrCat("<html><head>",
-                   SplitHtmlFilter::kMetaReferer,
-                   "\n<script orig_index=1>blah</script>"
-                   "<script orig_index=2>blah2</script>",
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   VerifyAppliedRewriters(
@@ -259,7 +218,6 @@ TEST_F(SplitHtmlFilterTest,
        SplitTwoChunksHtmlWithDriverHavingCriticalLineInfoATF) {
   rewrite_driver()->SetRequestHeaders(request_headers_);
   options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
   CriticalLineInfo* config = new CriticalLineInfo;
   Panel* panel = config->add_panels();
   panel->set_start_xpath("div[@id = \"container\"]/div[4]");
@@ -267,20 +225,16 @@ TEST_F(SplitHtmlFilterTest,
   panel->set_start_xpath("img[3]");
   panel->set_end_marker_xpath("h1[@id = \"footer\"]");
   rewrite_driver()->set_critical_line_info(config);
-  rewrite_driver()->AddOwnedEarlyPreRenderFilter(
-      new SplitHtmlHelperFilter(rewrite_driver()));
 
-  Parse("split_with_pcache?\"test",
-        StrCat(kHtmlInputPart1, kHtmlInputPart2));
+  Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString suffix(
       StringPrintf(
           SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
           HttpAttributes::kXPsaSplitConfig,
           "div[@id = \"container\"]/div[4],img[3]:h1[@id = \"footer\"],",
-          "/split_with_pcache?%22test.html&x_split=btf",
-          SplitHtmlFilter::kLoadHiResImages,
-          blink_js_url_, 2));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
+          "/split_with_pcache.html?X-PSA-Split-Btf=1",
+          1, blink_js_url_));
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   EXPECT_STREQ("1000", response_headers_.Lookup1(HttpAttributes::kAge));
@@ -295,7 +249,6 @@ TEST_F(SplitHtmlFilterTest,
   rewrite_driver()->SetRequestHeaders(request_headers_);
   options_->set_max_html_cache_time_ms(30000);
   options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
   CriticalLineInfo* config = new CriticalLineInfo;
   Panel* panel = config->add_panels();
   panel->set_start_xpath("div[@id = \"container\"]/div[4]");
@@ -310,10 +263,9 @@ TEST_F(SplitHtmlFilterTest,
           SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
           HttpAttributes::kXPsaSplitConfig,
           "div[@id = \"container\"]/div[4],img[3]:h1[@id = \"footer\"],",
-          "/split_with_pcache.html?x_split=btf",
-          SplitHtmlFilter::kLoadHiResImages,
-          blink_js_url_, 2));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
+          "/split_with_pcache.html?X-PSA-Split-Btf=1",
+          1, blink_js_url_));
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   EXPECT_EQ(NULL, response_headers_.Lookup1(
@@ -329,7 +281,6 @@ TEST_F(SplitHtmlFilterTest,
 
 TEST_F(SplitHtmlFilterTest, SplitTwoChunksHtmlATFAndNoBTF) {
   options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
   CriticalLineInfo* config = new CriticalLineInfo;
   Panel* panel = config->add_panels();
   // Use a non-existent xpath.
@@ -341,51 +292,19 @@ TEST_F(SplitHtmlFilterTest, SplitTwoChunksHtmlATFAndNoBTF) {
   GoogleString suffix(
       StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
                    HttpAttributes::kXPsaSplitConfig,
-                   "div[@id = \"abcd\"]/div[4],", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
+                   "div[@id = \"abcd\"]/div[4],", "", 1, blink_js_url_));
+  StrAppend(&expected_output, SplitHtmlFilter::kSplitInit,
             kSplitHtmlMiddleWithoutPanelStubs,
             kHtmlInputPart2, suffix);
 
   EXPECT_EQ(expected_output, output_);
 }
 
-TEST_F(SplitHtmlFilterTest, SplitTwoChunksHtmlATFWithFlushAndHelper) {
+TEST_F(SplitHtmlFilterTest,
+       SplitTwoChunksHtmlATFWithAccessControlHeaders) {
   options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
-  options_->set_critical_line_config("div[@id = \"abcd\"]/div[4]");
-  rewrite_driver()->AddOwnedEarlyPreRenderFilter(
-      new SplitHtmlHelperFilter(rewrite_driver()));
-
-  html_parse()->SetWriter(&write_to_string_);
-  html_parse()->StartParse("http://example.com");
-  html_parse()->ParseText(kHtmlInputPart1);
-  html_parse()->Flush();
-  html_parse()->ParseText(kHtmlInputPart2);
-  html_parse()->FinishParse();
-
-  GoogleString expected_output(kSplitHtmlPrefix);
-  GoogleString suffix(
-      StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
-                   HttpAttributes::kXPsaSplitConfig,
-                   "div[@id = \"abcd\"]/div[4],", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
-            kSplitHtmlMiddleWithoutPanelStubs,
-            kHtmlInputPart2, suffix);
-
-  EXPECT_EQ(expected_output, output_buffer_);
-}
-
-TEST_F(SplitHtmlFilterTest, ATFHeadersWithAllowAllOrigins) {
-  request_headers_.Add(HttpAttributes::kOrigin, "abc.com");
-  rewrite_driver()->SetRequestHeaders(request_headers_);
-  options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
   options_->set_serve_xhr_access_control_headers(true);
-  options_->set_access_control_allow_origins("*");
+  options_->set_access_control_allow_origin("google.com");
   CriticalLineInfo* config = new CriticalLineInfo;
   rewrite_driver()->set_critical_line_info(config);
 
@@ -393,72 +312,14 @@ TEST_F(SplitHtmlFilterTest, ATFHeadersWithAllowAllOrigins) {
   GoogleString expected_output(kSplitHtmlPrefix);
   GoogleString suffix(
       StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
-                   HttpAttributes::kXPsaSplitConfig, "", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
+                   HttpAttributes::kXPsaSplitConfig, "", "", 1, blink_js_url_));
+  StrAppend(&expected_output, SplitHtmlFilter::kSplitInit,
             kSplitHtmlMiddleWithoutPanelStubs,
             kHtmlInputPart2, suffix);
   EXPECT_EQ(expected_output, output_);
-  EXPECT_STREQ("abc.com", response_headers_.Lookup1(
+  EXPECT_STREQ("google.com", response_headers_.Lookup1(
       HttpAttributes::kAccessControlAllowOrigin));
   EXPECT_STREQ("true", response_headers_.Lookup1(
-      HttpAttributes::kAccessControlAllowCredentials));
-}
-
-TEST_F(SplitHtmlFilterTest, ATFHeadersCrossOriginAllowed) {
-  request_headers_.Add(HttpAttributes::kOrigin, "http://cross-domain.com");
-  rewrite_driver()->SetRequestHeaders(request_headers_);
-  options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
-  options_->set_serve_xhr_access_control_headers(true);
-  options_->set_access_control_allow_origins(
-      "example.com, *cross-domain.com, abc.com");
-  CriticalLineInfo* config = new CriticalLineInfo;
-  rewrite_driver()->set_critical_line_info(config);
-
-  Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
-  GoogleString expected_output(kSplitHtmlPrefix);
-  GoogleString suffix(
-      StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
-                   HttpAttributes::kXPsaSplitConfig, "", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
-            kSplitHtmlMiddleWithoutPanelStubs,
-            kHtmlInputPart2, suffix);
-  EXPECT_EQ(expected_output, output_);
-  EXPECT_STREQ("http://cross-domain.com", response_headers_.Lookup1(
-      HttpAttributes::kAccessControlAllowOrigin));
-  EXPECT_STREQ("true", response_headers_.Lookup1(
-      HttpAttributes::kAccessControlAllowCredentials));
-}
-
-TEST_F(SplitHtmlFilterTest, ATFHeadersCrossOriginDisAllowed) {
-  request_headers_.Add(HttpAttributes::kOrigin, "disallowed-domain.com");
-  rewrite_driver()->SetRequestHeaders(request_headers_);
-  options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
-  options_->set_serve_xhr_access_control_headers(true);
-  options_->set_access_control_allow_origins(
-      "example.com, cross-domain.com, http://disallowed-domain.com, abc.com");
-  CriticalLineInfo* config = new CriticalLineInfo;
-  rewrite_driver()->set_critical_line_info(config);
-
-  Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
-  GoogleString expected_output(kSplitHtmlPrefix);
-  GoogleString suffix(
-      StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
-                   HttpAttributes::kXPsaSplitConfig, "", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
-            kSplitHtmlMiddleWithoutPanelStubs,
-            kHtmlInputPart2, suffix);
-  EXPECT_EQ(expected_output, output_);
-  EXPECT_EQ(NULL, response_headers_.Lookup1(
-      HttpAttributes::kAccessControlAllowOrigin));
-  EXPECT_STREQ(NULL, response_headers_.Lookup1(
       HttpAttributes::kAccessControlAllowCredentials));
 }
 
@@ -466,7 +327,7 @@ TEST_F(SplitHtmlFilterTest,
        SplitTwoChunksHtmlWithDriverHavingCriticalLineInfoBTF) {
   rewrite_driver()->SetRequestHeaders(request_headers_);
   options_->set_serve_split_html_in_two_chunks(true);
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   CriticalLineInfo* config = new CriticalLineInfo;
   Panel* panel = config->add_panels();
   panel->set_start_xpath("div[@id = \"container\"]/div[4]");
@@ -482,7 +343,7 @@ TEST_F(SplitHtmlFilterTest,
 TEST_F(SplitHtmlFilterTest,
        SplitTwoChunksHtmlWithRequestHeaderDriverHavingNoCriticalLineInfoBTF) {
   options_->set_serve_split_html_in_two_chunks(true);
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   rewrite_driver()->set_critical_line_info(NULL);
   request_headers_.Add(
       HttpAttributes::kXPsaSplitConfig,
@@ -495,7 +356,7 @@ TEST_F(SplitHtmlFilterTest,
 TEST_F(SplitHtmlFilterTest,
        SplitTwoChunksHtmlWithRequestHeaderDriverHavingCriticalLineInfoBTF) {
   options_->set_serve_split_html_in_two_chunks(true);
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   CriticalLineInfo* config = new CriticalLineInfo;
   Panel* panel = config->add_panels();
   panel->set_start_xpath("div[@id = \"blah\"]/div[5]");
@@ -506,7 +367,7 @@ TEST_F(SplitHtmlFilterTest,
   rewrite_driver()->SetRequestHeaders(request_headers_);
 
   Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
-  EXPECT_EQ("{}", output_);
+  EXPECT_EQ(kSplitHtmlBelowTheFoldData, output_);
 }
 
 TEST_F(SplitHtmlFilterTest, SplitHtmlWithFlushingCachedHtml) {
@@ -522,10 +383,9 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithFlushingCachedHtml) {
 
   Parse("split_with_pcache", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages, 2,
+                                   1, blink_js_url_,
                                    kSplitHtmlBelowTheFoldData, "true"));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   VerifyAppliedRewriters(
@@ -540,10 +400,9 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithOptions) {
       "img[3]:h1[@id = \"footer\"]");
   Parse("split_with_options", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages, 2,
+                                   1, blink_js_url_,
                                    kSplitHtmlBelowTheFoldData, "false"));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   VerifyAppliedRewriters(
@@ -562,10 +421,9 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithFlushes) {
   html_parse()->ParseText(kHtmlInputPart2);
   html_parse()->FinishParse();
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages, 2,
+                                   1, blink_js_url_,
                                    kSplitHtmlBelowTheFoldData, "false"));
-  EXPECT_EQ(StrCat(kSplitHtmlPrefix,
+  EXPECT_EQ(StrCat(kSplitHtmlPrefix, SplitHtmlFilter::kSplitInit,
                    kSplitHtmlMiddle, suffix),
             output_);
   VerifyAppliedRewriters(
@@ -588,12 +446,11 @@ TEST_F(SplitHtmlFilterTest, FlushEarlyHeadSuppress) {
       "</head>"
       "<body></body></html>";
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages,
-                                   -1, "{}", "false"));
+                                   0, blink_js_url_, "{}", "false"));
   GoogleString post_head_output = StrCat(
       "<link type=\"text/css\" rel=\"stylesheet\" href=\"a.css\"/>"
       "<script src=\"b.js\"></script>",
+      SplitHtmlFilter::kSplitInit,
       "</head><body></body></html>", suffix);
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
 
@@ -647,10 +504,8 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlNoXpaths) {
   Parse("split_without_xpaths", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString expected_output(kSplitHtmlPrefix);
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages,
-                                   3, "{}", "false"));
-  StrAppend(&expected_output,
+                                   1, blink_js_url_, "{}", "false"));
+  StrAppend(&expected_output, SplitHtmlFilter::kSplitInit,
             kSplitHtmlMiddleWithoutPanelStubs,
             kHtmlInputPart2, suffix);
   EXPECT_EQ(expected_output, output_);
@@ -664,15 +519,13 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlNoXpathsTwoChunksATF) {
   rewrite_driver()->set_critical_line_info(info);
   options_->set_critical_line_config("");
   options_->set_serve_split_html_in_two_chunks(true);
-  SetAtfRequest();
   Parse("split_without_xpaths", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   GoogleString expected_output(kSplitHtmlPrefix);
   GoogleString suffix(
       StringPrintf(SplitHtmlFilter::kSplitTwoChunkSuffixJsFormatString,
                    HttpAttributes::kXPsaSplitConfig, "", "",
-                   SplitHtmlFilter::kLoadHiResImages,
-                   blink_js_url_, 3));
-  StrAppend(&expected_output,
+                   1, blink_js_url_));
+  StrAppend(&expected_output, SplitHtmlFilter::kSplitInit,
             kSplitHtmlMiddleWithoutPanelStubs,
             kHtmlInputPart2, suffix);
   EXPECT_EQ(expected_output, output_);
@@ -680,12 +533,13 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlNoXpathsTwoChunksATF) {
   VerifyJsonSize(0);
 }
 
+
 TEST_F(SplitHtmlFilterTest, SplitHtmlNoXpathsTwoChunksBTF) {
   rewrite_driver()->SetRequestHeaders(request_headers_);
   CriticalLineInfo* info = new CriticalLineInfo;
   rewrite_driver()->set_critical_line_info(info);
   options_->set_critical_line_config("");
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   options_->set_serve_split_html_in_two_chunks(true);
   Parse("split_without_xpaths", StrCat(kHtmlInputPart1, kHtmlInputPart2));
   EXPECT_EQ("{}", output_);
@@ -707,7 +561,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlNoInfoTwoChunksATF) {
 TEST_F(SplitHtmlFilterTest, SplitHtmlNoInfoTwoChunksBTF) {
   rewrite_driver()->SetRequestHeaders(request_headers_);
   rewrite_driver()->set_critical_line_info(NULL);
-  SetBtfRequest();
+  rewrite_driver()->request_context()->set_is_split_btf_request(true);
   options_->set_serve_split_html_in_two_chunks(true);
   const GoogleString html(StrCat(kHtmlInputPart1, kHtmlInputPart2));
   Parse("split_cache_miss", html);
@@ -723,10 +577,8 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlNoInfo) {
   Parse("split_cache_miss", html);
   GoogleString expected_output(kSplitHtmlPrefix);
   GoogleString suffix(StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                                   blink_js_url_,
-                                   SplitHtmlFilter::kLoadHiResImages,
-                                   3, "{}", "false"));
-  StrAppend(&expected_output,
+                                   1, blink_js_url_, "{}", "false"));
+  StrAppend(&expected_output, SplitHtmlFilter::kSplitInit,
             kSplitHtmlMiddleWithoutPanelStubs,
             kHtmlInputPart2, suffix);
   EXPECT_EQ(expected_output, output_);
@@ -751,15 +603,13 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript1) {
   options_->set_critical_line_config("h1[2]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>\"}]}", "false"));
   GoogleString input(StringPrintf(kHtmlInputForIgnoreScript, "", ""));
   Parse("split_ignore_script1", input);
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript1,
-                         "", "", "",
+                         SplitHtmlFilter::kSplitInit, "", "",
                          expected_output_suffix.c_str()).c_str(), output_);
   VerifyAppliedRewriters("sh");
 }
@@ -769,16 +619,14 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript2) {
   options_->set_critical_line_config("h1[2]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>\"}]}", "false"));
   GoogleString input = StringPrintf(kHtmlInputForIgnoreScript, "",
                                     "<script></script><noscript></noscript>");
   Parse("split_ignore_script2", input);
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript1,
-                         "", "",
+                         SplitHtmlFilter::kSplitInit, "",
                          "<script></script><noscript></noscript>",
                          expected_output_suffix.c_str()).c_str(), output_);
   VerifyAppliedRewriters("sh");
@@ -789,9 +637,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript3) {
   options_->set_critical_line_config("h1[2]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>\"}]}", "false"));
   GoogleString input = StringPrintf(kHtmlInputForIgnoreScript,
@@ -799,7 +645,8 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript3) {
                                     "<script></script><noscript></noscript>");
   Parse("split_ignore_script3", input);
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript1,
-                         "", "<script></script><noscript></noscript>",
+                         SplitHtmlFilter::kSplitInit,
+                         "<script></script><noscript></noscript>",
                          "<script></script><noscript></noscript>",
                          expected_output_suffix.c_str()).c_str(), output_);
   VerifyAppliedRewriters("sh");
@@ -810,9 +657,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript4) {
   options_->set_critical_line_config("h1[1]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>"
                    "<h1 panel-id=\\\"panel-id.0\\\">"
@@ -820,7 +665,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript4) {
   GoogleString input = StringPrintf(kHtmlInputForIgnoreScript, "", "");
   Parse("split_ignore_script4", input);
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript2,
-                         "",
+                         SplitHtmlFilter::kSplitInit, "",
                          expected_output_suffix.c_str()).c_str(), output_);
   VerifyAppliedRewriters("sh");
 }
@@ -830,9 +675,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript5) {
   options_->set_critical_line_config("h1[1]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>"
                    "<h1 panel-id=\\\"panel-id.0\\\">"
@@ -843,6 +686,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlIgnoreScriptNoscript5) {
       "<style></style><link href=\"http://a.com/\">", "");
       Parse("split_ignore_script5", input);
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript2,
+                         SplitHtmlFilter::kSplitInit,
                          "<script></script><noscript></noscript>"
                          "<style></style><link href=\"http://a.com/\">",
                          expected_output_suffix.c_str()).c_str(), output_);
@@ -856,9 +700,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithGhostClickBuster) {
   options_->set_critical_line_config("h1[2]");
   GoogleString expected_output_suffix(
       StringPrintf(SplitHtmlFilter::kSplitSuffixJsFormatString,
-                   blink_js_url_,
-                   SplitHtmlFilter::kLoadHiResImages, -1,
-                   "{\"panel-id.0\":[{\"instance_html\":"
+                   0, blink_js_url_, "{\"panel-id.0\":[{\"instance_html\":"
                    "\"<h1 panel-id=\\\"panel-id.0\\\">"
                    "</h1>\"}]}", "false"));
   GoogleString input(StringPrintf(kHtmlInputForIgnoreScript, "", ""));
@@ -870,7 +712,8 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithGhostClickBuster) {
                          StrCat("<script type=\"text/javascript\">",
                                 static_asset_manager->GetAsset(
                                     StaticAssetManager::kGhostClickBusterJs,
-                                    options_), "</script>").c_str(),
+                                    options_), "</script>",
+                                SplitHtmlFilter::kSplitInit).c_str(),
                          "", "",
                          expected_output_suffix.c_str()).c_str(), output_);
   VerifyAppliedRewriters("sh");

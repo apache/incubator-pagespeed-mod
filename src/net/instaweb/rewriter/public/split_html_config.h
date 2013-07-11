@@ -32,8 +32,6 @@ class Panel;
 class RewriteDriver;
 
 struct XpathUnit {
-  XpathUnit() : child_number(0) {}
-
   GoogleString tag_name;
   GoogleString attribute_value;
   int child_number;
@@ -54,17 +52,9 @@ class SplitHtmlConfig {
   explicit SplitHtmlConfig(RewriteDriver* driver);
   ~SplitHtmlConfig();
 
-  // Initialize & Terminate must be paired.
-  static void Initialize();
-  static void Terminate();
-
   const CriticalLineInfo* critical_line_info() {
     return critical_line_info_;
   }
-
-  // Updates the critical line info in the driver based on the RequestHeaders /
-  // RewriteOptions in the driver.
-  static void UpdateCriticalLineInfoInDriver(RewriteDriver* driver);
 
   XpathMap* xpath_map() { return &xpath_map_; }
   PanelIdToSpecMap* panel_id_to_spec() { return &panel_id_to_spec_; }
