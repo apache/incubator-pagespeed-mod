@@ -94,9 +94,11 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
     server_context()->set_beacon_cohort(cohort);
     page_property_cache()->Read(rewrite_driver()->property_page());
     // Set up and register a beacon finder.
-    CriticalSelectorFinder* finder = new BeaconCriticalSelectorFinder(
-        server_context()->beacon_cohort(), server_context()->timer(),
-        factory()->nonce_generator(), statistics());
+    CriticalSelectorFinder* finder =
+        new CriticalSelectorFinder(server_context()->beacon_cohort(),
+                                   server_context()->timer(),
+                                   factory()->nonce_generator(),
+                                   statistics());
     server_context()->set_critical_selector_finder(finder);
     // Set up contents of CSS files.
     SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
@@ -316,8 +318,8 @@ TEST_F(CriticalCssBeaconFilterTest, FalseBeaconResultsGivesEmptyBeaconUrl) {
 // selector filter injecting a lot of stuff in the output.
 class CriticalCssBeaconOnlyTest : public CriticalCssBeaconFilterTestBase {
  public:
-  CriticalCssBeaconOnlyTest() {}
-  virtual ~CriticalCssBeaconOnlyTest() {}
+  CriticalCssBeaconOnlyTest() { }
+  virtual ~CriticalCssBeaconOnlyTest() { LOG(INFO) << "Destructor"; }
 
  protected:
   virtual void SetUp() {
@@ -353,8 +355,10 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
   EXPECT_EQ(ExpectedNonce(), nonce);
   finder->WriteCriticalSelectorsToPropertyCache(selectors, nonce, driver);
   // Force cohort to persist.
-  rewrite_driver()->property_page()
-      ->WriteCohort(server_context()->beacon_cohort());
+  rewrite_driver()->property_page()->WriteCohort(
+      server_context()->beacon_cohort());
+  // Check injection
+  EXPECT_TRUE(rewrite_driver()->CriticalSelectors() != NULL);
   // Now do the test.
 
   GoogleString input_html = InputHtml(
@@ -363,6 +367,7 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
       StrCat(CssLinkHref("a.css"), kInlineStyle, CssLinkHrefOpt("b.css")),
       kSelectorsInlineAB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
+  LOG(INFO) << "Test complete";
 }
 
 class CriticalCssBeaconWithCombinerFilterTest

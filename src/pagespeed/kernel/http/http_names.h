@@ -57,7 +57,6 @@ struct HttpAttributes {
   static const char kNoCache[];
   static const char kNoCacheMaxAge0[];
   static const char kNoStore[];
-  static const char kOrigin[];
   static const char kPragma[];
   static const char kPrivate[];
   static const char kProxyAuthorization[];
@@ -119,12 +118,9 @@ struct HttpAttributes {
   // is the serialized metadata.
   static const char kXPsaResponseMetadata[];
 
-  // This url param is set when request for the below the fold chunk of the
-  // split html response.
-  static const char kXSplit[];
-  // Values of kXSplit url param for requesting parts of the split html content.
-  static const char kXSplitAboveTheFold[];
-  static const char kXSplitBelowTheFold[];
+  // This header is set when request for the below the fold chunk of the split
+  // html response.
+  static const char kXPsaSplitBtf[];
 
   static const char kXRequestedWith[];
 
@@ -194,10 +190,6 @@ enum Code {
   kProxyConfigurationFailure = 522,
   kProxyDeclinedRequest = 523,
   kProxyDnsLookupFailure = 524,
-
-  // PSOL-specific response code to indiciate that a distributed connection
-  // failed.
-  kDistributedConnectionFailure = 550,
 
   // Instaweb-specific response codes: these are intentionally chosen to be
   // outside the normal HTTP range, but we consider these response codes

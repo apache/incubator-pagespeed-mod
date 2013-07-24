@@ -35,7 +35,6 @@ class AbstractMutex;
 class CacheHtmlInfoFinder;
 class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalLineInfoFinder;
 class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
@@ -50,7 +49,6 @@ class QueuedWorkerPool;
 class ServerContext;
 class RewriteDriver;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
 class StaticAssetManager;
@@ -149,7 +147,6 @@ class RewriteDriverFactory {
   UserAgentMatcher* user_agent_matcher();
   StaticAssetManager* static_asset_manager();
   RewriteOptions* default_options() { return default_options_.get(); }
-  virtual RewriteOptionsManager* NewRewriteOptionsManager();
 
   // These accessors are *not* thread-safe.  They must be called once prior
   // to forking threads, e.g. via ComputeUrlAsyncFetcher().
@@ -348,9 +345,6 @@ class RewriteDriverFactory {
 
   // Default implementation returns NULL.
   virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();
-
-  // Default implementation returns a valid CriticalSelectorFinder.
-  virtual CriticalLineInfoFinder* DefaultCriticalLineInfoFinder();
 
   // They may also supply a custom lock manager. The default implementation
   // will use the file system.

@@ -452,6 +452,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
   // computation.
   void ProcessDiffResult() {
     if (computed_hash_.empty()) {
+      LOG(WARNING) << "Computed hash is empty for url " << url_;
       delete this;
       return;
     }

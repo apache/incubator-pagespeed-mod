@@ -485,6 +485,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
     ServerContext::OptionsBoolPair query_options_success =
         server_context->GetQueryOptions(&gurl, request_headers.get(),
                                         &response_headers);
+    ServerContext::ScanSplitHtmlRequest(request_context, options, &gurl);
 
     if (!query_options_success.second) {
       ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, request,
@@ -570,7 +571,6 @@ InstawebContext* build_context_for_request(request_rec* request) {
   if (final_url.empty()) {
     final_url = absolute_url;
   }
-  ServerContext::ScanSplitHtmlRequest(request_context, options, &final_url);
 
   // TODO(sligocki): Move inside PSOL.
   // Is PageSpeed turned off? We check after parsing query params so that
@@ -2063,7 +2063,8 @@ void ApacheProcessContext::InstallCommands() {
     if (option->help_text() != NULL) {
       // Store the fully-qualified option name in a string-array that
       // lasts until the module is destructed.
-      StrAppend(&cmd_names_[i], "ModPagespeed", option->option_name());
+      StrAppend(&cmd_names_[i], "ModPagespeed",
+                RewriteOptions::LookupOptionEnum(option->option_enum()));
       cmd->name = cmd_names_[i].c_str();
       cmd->func = reinterpret_cast<const char*(*)()>(ParseDirective);
       cmd->cmd_data = NULL;

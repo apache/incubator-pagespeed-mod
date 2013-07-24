@@ -35,8 +35,8 @@ class NamedLock;
 class NamedLockManager;
 class UrlAsyncFetcher;
 
-// AsyncFetch object which tries to acquire lock before fetching content.
-// Start() will returns false, if it fails to acquire lock.
+// Creates an AsyncFetch object which tries to acquire lock before fetching
+// content. Start() will returns false, if it fails to acquire lock.
 // Note that acquiring a lock will fail if same resource is fetching somewhere
 // else.
 // Caller will call the Start() which will try to acquire a lock and internally
@@ -63,21 +63,21 @@ class AsyncFetchWithLock : public AsyncFetch {
   AsyncFetchWithLock(const Hasher* hasher,
                      const RequestContextPtr& request_context,
                      const GoogleString& url,
-                     const GoogleString& cache_key,
                      NamedLockManager* lock_manager,
                      MessageHandler* message_handler);
   virtual ~AsyncFetchWithLock();
 
   // This will first try to acquire lock and triggers fetch by calling
   // StartFetch() if successful.
-  // Returns false, if it fails to acquire lock and deletes this.
-  bool Start(UrlAsyncFetcher* fetcher);
+  // Returns false, if it fails to acquire lock and deletes the
+  // async_fetch_with_lock.
+  static bool Start(
+      UrlAsyncFetcher* fetcher,
+      AsyncFetchWithLock* async_fetch_with_lock,
+      MessageHandler* handler);
 
   // Url to be fetched.
   const GoogleString& url() const { return url_; }
-
-  // Cache key to be locked.
-  const GoogleString& cache_key() const { return cache_key_; }
 
  protected:
   // If someone is already fetching this resource, should we yield to them and
@@ -111,11 +111,13 @@ class AsyncFetchWithLock : public AsyncFetch {
   // Makes a lock used for fetching.
   NamedLock* MakeInputLock(const GoogleString& url);
 
+  // Set the lock which is acquired during the fetch.
+  void set_lock(NamedLock* lock) { lock_.reset(lock); }
+
   NamedLockManager* lock_manager_;  // Owned by server_context.
   scoped_ptr<NamedLock> lock_;
   const Hasher* lock_hasher_;  // Used to compute named lock names.
   GoogleString url_;
-  GoogleString cache_key_;
   MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncFetchWithLock);

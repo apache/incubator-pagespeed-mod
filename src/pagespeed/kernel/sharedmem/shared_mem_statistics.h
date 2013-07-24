@@ -18,6 +18,7 @@
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_H_
 
 #include <cstddef>
+#include <set>
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
@@ -34,6 +35,7 @@ class FileSystem;
 class MessageHandler;
 class StatisticsLogger;
 class Timer;
+class Writer;
 
 // An implementation of Statistics using our shared memory infrastructure.
 // These statistics will be shared amongst all processes and threads
@@ -197,26 +199,22 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
   // The root process (the one that starts all the other child
   // threads and processes) must be the first one to make the call, with
   // parent = true, with all other calling it with = false.
-  //
-  // Returns true if successful.
-  bool Init(bool parent, MessageHandler* message_handler);
+  void Init(bool parent, MessageHandler* message_handler);
 
   // This should be called from the root process as it is about to exit, when
   // no further children are expected to start.
   void GlobalCleanup(MessageHandler* message_handler);
 
-  // Like above, but can be done after object got cleaned up, by passing
-  // a saved SegmentName(). Precondition: init must have returned 'true'.
-  static void GlobalCleanup(AbstractSharedMem* shm_runtime,
-                            const GoogleString& segment_name,
-                            MessageHandler* message_handler);
-
-  GoogleString SegmentName() const;
-
   // TODO(sligocki): Rename to statistics_logger().
   virtual StatisticsLogger* console_logger() {
     return console_logger_.get();
   }
+
+  virtual void DumpConsoleVarsToWriter(int64 current_time_ms, Writer* writer,
+                                       MessageHandler* message_handler);
+  // Return whether to ignore the variable with a given name as unneeded by the
+  // console.
+  bool IsIgnoredVariable(const GoogleString& var_name);
 
  protected:
   virtual SharedMemVariable* NewVariable(const StringPiece& name, int index);
@@ -225,6 +223,8 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
                                               int index);
 
  private:
+  GoogleString SegmentName() const;
+
   // Create mutexes in the segment, with per_var bytes being used,
   // counting the mutex, for each variable.
   bool InitMutexes(size_t per_var, MessageHandler* message_handler);
@@ -237,6 +237,8 @@ class SharedMemStatistics : public StatisticsTemplate<SharedMemVariable,
   bool frozen_;
   // TODO(sligocki): Rename.
   scoped_ptr<StatisticsLogger> console_logger_;
+  // The variables that we're interested in displaying on the console.
+  std::set<GoogleString> important_variables_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatistics);
 };

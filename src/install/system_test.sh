@@ -632,17 +632,15 @@ run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$BLANKGIFSRC
 check fgrep "200 OK" $WGET_OUTPUT
 check fgrep "Cache-Control: max-age=31536000" $WGET_OUTPUT
 
-# Checks that lazyload_images,debug injects non-optimized javascript from
-# lazyload_images.js. The debug JS will still have comments stripped, since we
-# run it through the closure compiler to resolve any uses of goog.require.
+# Checks that lazyload_images,debug injects non compiled javascript from
+# lazyload_images.js
 test_filter lazyload_images,debug debug mode
 FILE=lazyload_images.html?PageSpeedFilters=$FILTER_NAME
 URL=$EXAMPLE_ROOT/$FILE
 FETCHED=$OUTDIR/$FILE
 check run_wget_with_args "$URL"
 check grep -q pagespeed.lazyLoad $FETCHED
-check_not grep -q '/\*' $FETCHED
-check_not grep -q 'goog.require' $FETCHED
+check grep -q '/\*' $FETCHED
 check grep -q "ModPagespeed=noscript" $FETCHED
 
 # Checks that inline_preview_images injects compiled javascript
@@ -697,8 +695,7 @@ check [ $(grep -c ' pagespeed_lsc_url=' $FETCHED) = 2 ]
 check grep -q "yellow {background-color: yellow" $FETCHED
 check grep -q "<img src=\"data:image/png;base64" $FETCHED
 check grep -q "<img .* alt=\"A cup of joe\"" $FETCHED
-check_not grep -q "/\*" $FETCHED
-check_not grep -q "goog.require" $FETCHED
+check grep -q "/\*" $FETCHED
 check grep -q "ModPagespeed=noscript" $FETCHED
 
 # Checks that local_storage_cache doesn't send the inlined data for a resource

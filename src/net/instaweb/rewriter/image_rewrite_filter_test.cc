@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
-#include <memory>
-
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -39,6 +37,7 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
@@ -178,6 +177,10 @@ class ImageRewriteTest : public RewriteTestBase {
     pcache->set_enabled(true);
     rewrite_driver()->set_property_page(page);
     pcache->Read(page);
+  }
+
+  const DeviceInfo& device_info() {
+    return logging_info()->device_info();
   }
 
   void RewriteImageFromHtml(const GoogleString& tag_string,
@@ -742,12 +745,7 @@ class ImageRewriteTest : public RewriteTestBase {
       int original_size,
       int optimized_size,
       bool is_recompressed,
-      bool is_resized,
-      int original_width,
-      int original_height,
-      bool is_resized_using_rendered_dimensions,
-      int resized_width,
-      int resized_height) {
+      bool is_resized) {
     // Check URL.
     net_instaweb::ResourceUrlInfo* url_info =
         logging_info_.mutable_resource_url_info();
@@ -784,20 +782,11 @@ class ImageRewriteTest : public RewriteTestBase {
     EXPECT_EQ(original_type, image_info.original_image_type());
     EXPECT_EQ(optimized_type, image_info.optimized_image_type());
     EXPECT_EQ(is_resized, image_info.is_resized());
-    EXPECT_EQ(original_width, image_info.original_width());
-    EXPECT_EQ(original_height, image_info.original_height());
-    EXPECT_EQ(is_resized_using_rendered_dimensions,
-              image_info.is_resized_using_rendered_dimensions());
-    EXPECT_EQ(resized_width, image_info.resized_width());
-    EXPECT_EQ(resized_height, image_info.resized_height());
   }
 
   void TestForRenderedDimensions(MockCriticalImagesFinder* finder,
                                  int width, int height,
-                                 int expected_width, int expected_height,
-                                 const char* dimensions_attribute,
-                                 const GoogleString& expected_rewritten_url,
-                                 int num_rewrites_using_rendered_dimensions) {
+                                 int expected_width, int expected_height) {
     RenderedImages* rendered_images = new RenderedImages;
     RenderedImages_Image* images = rendered_images->add_image();
     images->set_src(StrCat(kTestDomain, kChefGifFile));
@@ -807,18 +796,26 @@ class ImageRewriteTest : public RewriteTestBase {
     if (height != 0) {
       images->set_rendered_height(height);
     }
-
     // Original size of kChefGifFile is 192x256
     finder->set_rendered_images(rendered_images);
     TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                      dimensions_attribute, dimensions_attribute, true, false);
-
+                      "", "", true, false);
     // Check for single image file in the rewritten page.
     StringVector image_urls;
     CollectImgSrcs(kChefGifFile, output_buffer_, &image_urls);
     EXPECT_EQ(1, image_urls.size());
     const GoogleString& rewritten_url = image_urls[0];
-
+    GoogleString expected_rewritten_url;
+    if (width == 0 || height == 0) {
+      // If width or height are 0, we would have cleared the desired
+      // dimensions.
+      expected_rewritten_url = StrCat(
+          kTestDomain, "x", kChefGifFile, ".pagespeed.ic.0.png");
+    } else {
+      expected_rewritten_url = StrCat(
+          kTestDomain, UintToString(width), "x", UintToString(height), "x",
+          kChefGifFile, ".pagespeed.ic.0.png");
+    }
     EXPECT_STREQ(rewritten_url, expected_rewritten_url);
     GoogleString output_png;
     EXPECT_TRUE(FetchResourceUrl(rewritten_url, &output_png));
@@ -833,8 +830,11 @@ class ImageRewriteTest : public RewriteTestBase {
     EXPECT_EQ(expected_height, image_dim.height());
     Variable* resized_using_rendered_dimensions = statistics()->GetVariable(
         ImageRewriteFilter::kImageResizedUsingRenderedDimensions);
-    EXPECT_EQ(num_rewrites_using_rendered_dimensions,
-              resized_using_rendered_dimensions->Get());
+    if (width == 0 || height == 0) {
+      EXPECT_EQ(0, resized_using_rendered_dimensions->Get());
+    } else {
+      EXPECT_EQ(1, resized_using_rendered_dimensions->Get());
+    }
     resized_using_rendered_dimensions->Clear();
   }
 
@@ -849,6 +849,24 @@ class ImageRewriteTest : public RewriteTestBase {
 
 TEST_F(ImageRewriteTest, ImgTag) {
   RewriteImage("img", kContentTypeJpeg);
+  EXPECT_EQ(UserAgentMatcher::kDesktop,
+            logging_info()->device_info().device_type());
+}
+
+TEST_F(ImageRewriteTest, ImgTagWithDeviceTypeLogging) {
+  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhoneUserAgent);
+  RewriteImage("img", kContentTypeJpeg);
+  EXPECT_EQ(UserAgentMatcher::kMobile,
+            logging_info()->device_info().device_type());
+  EXPECT_TRUE(device_info().supports_image_inlining());
+  EXPECT_TRUE(device_info().supports_lazyload_images());
+  EXPECT_TRUE(device_info().supports_critical_images_beacon());
+  EXPECT_FALSE(device_info().supports_deferjs());
+  EXPECT_FALSE(device_info().supports_webp());
+  EXPECT_FALSE(device_info().supports_webplossless_alpha());
+  EXPECT_FALSE(device_info().is_bot());
+  EXPECT_FALSE(device_info().supports_split_html());
+  EXPECT_FALSE(device_info().can_preload_resources());
 }
 
 TEST_F(ImageRewriteTest, ImgTagWithComputeStatistics) {
@@ -1052,12 +1070,7 @@ TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlag) {
       26548, /* original_size */
       kIgnoreSize, /* optimized_size */
       true, /* is_recompressed */
-      false, /* is_resized */
-      100, /* original width */
-      100, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      -1, /* resized_width */
-      -1 /* resized_height */);
+      false /* is_resized */);
 }
 
 TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlagTimesOut) {
@@ -1780,12 +1793,7 @@ TEST_F(ImageRewriteTest, InlineTestWithoutOptimize) {
       24941, /* original_size */
       0, /* optimized_size */
       false, /* is_recompressed */
-      false, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      -1, /* resized_width */
-      -1 /* resized_height */);
+      false /* is_resized */);
 }
 
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
@@ -1818,12 +1826,7 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
       24941, /* original_size */
       5733, /* optimized_size */
       true, /* is_recompressed */
-      true, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      48, /* resized_width */
-      64 /* resized_height */);
+      true /* is_resized */);
 }
 
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
@@ -2995,50 +2998,12 @@ TEST_F(ImageRewriteTest, ResizeUsingRenderedDimensions) {
       new MockCriticalImagesFinder(statistics());
   server_context()->set_critical_images_finder(finder);
   options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
-  options()->set_log_background_rewrites(true);
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
   rewrite_driver()->AddFilters();
-
-  GoogleString expected_rewritten_url =
-      StrCat(kTestDomain, UintToString(100) , "x", UintToString(70), "x",
-      kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 100, 70, 100, 70, "",
-                            expected_rewritten_url, 1);
-  TestBackgroundRewritingLog(
-      1, /* rewrite_info_size */
-      0, /* rewrite_info_index */
-      RewriterApplication::APPLIED_OK, /* status */
-      "ic", /* ID */
-      "", /* URL */
-      IMAGE_GIF, /* original_type */
-      IMAGE_PNG, /* optimized_type */
-      24941, /* original_size */
-      11491, /* optimized_size */
-      true, /* is_recompressed */
-      true, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      true, /* is_resized_using_rendered_dimensions */
-      100, /* resized_width */
-      70 /* resized_height */);
-
-  expected_rewritten_url =
-      StrCat(kTestDomain, "x", kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 100, 0, 192, 256, "",
-                            expected_rewritten_url, 0);
-  TestForRenderedDimensions(finder, 0, 70, 192, 256, "",
-                            expected_rewritten_url, 0);
-  TestForRenderedDimensions(finder, 0, 0, 192, 256, "",
-                            expected_rewritten_url, 0);
-
-  // Test if rendered dimensions is more than the width and height attribute,
-  // not to resize the image using rendered dimensions.
-  expected_rewritten_url =
-      StrCat(kTestDomain, UintToString(100), "x", UintToString(100), "x",
-             kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 400, 400, 100, 100,
-                            " width=\"100\" height=\"100\"",
-                            expected_rewritten_url, 0);
+  TestForRenderedDimensions(finder, 100, 70, 100, 70);
+  TestForRenderedDimensions(finder, 100, 0, 192, 256);
+  TestForRenderedDimensions(finder, 0, 70, 192, 256);
+  TestForRenderedDimensions(finder, 0, 0, 192, 256);
 }
 
 }  // namespace net_instaweb

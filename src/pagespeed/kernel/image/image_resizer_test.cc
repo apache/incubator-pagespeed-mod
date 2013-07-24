@@ -16,6 +16,7 @@
 
 // Author: Huibao Lin
 
+#include <setjmp.h>
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
@@ -23,7 +24,6 @@
 #include "pagespeed/kernel/image/image_resizer.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
-#include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/test_utils.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
 
@@ -38,7 +38,6 @@ using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::JpegCompressionOptions;
 using pagespeed::image_compression::JpegScanlineWriter;
 using pagespeed::image_compression::kPngSuiteTestDir;
-using pagespeed::image_compression::kPngTestDir;
 using pagespeed::image_compression::kResizedTestDir;
 using pagespeed::image_compression::PngScanlineReaderRaw;
 using pagespeed::image_compression::ReadTestFile;
@@ -57,8 +56,6 @@ const char* kValidImages[] = {
   "basi3p02",
   "basn6a16",
 };
-
-const char kImagePagespeed[] = "pagespeed-128";
 
 // Size of the output image [width, height]. The size of the input image
 // is 32-by-32. We would like to test resizing ratioes of both integers
@@ -104,8 +101,8 @@ bool ReadGoldImageToString(const char* file_name,
                            size_t width,
                            size_t height,
                            GoogleString* image_data) {
-  GoogleString gold_file_name = StringPrintf("%s_w%d_h%d", file_name,
-      static_cast<int>(width), static_cast<int>(height));
+  GoogleString gold_file_name = StringPrintf("%s_w%ld_h%ld", file_name,
+                                             width, height);
   return ReadTestFile(kResizedTestDir, gold_file_name.c_str(), "png",
                       image_data);
 }
@@ -117,21 +114,35 @@ ScanlineWriterInterface* CreateWriter(PixelFormat pixel_format,
                                       GoogleString* image_data,
                                       GoogleString* file_ext) {
   if (pixel_format == GRAY_8) {
-    *file_ext = "jpg";
-    JpegCompressionOptions jpeg_config;
-    jpeg_config.lossy = true;
-    jpeg_config.lossy_options.quality = 100;
-    return reinterpret_cast<ScanlineWriterInterface*>(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_JPEG,
-                             pixel_format, width, height, &jpeg_config,
-                             image_data));
+    JpegScanlineWriter* jpeg_writer = new JpegScanlineWriter();
+    if (jpeg_writer != NULL) {
+      JpegCompressionOptions jpeg_options;
+      jpeg_options.lossy = true;
+      jpeg_options.lossy_options.quality = 100;
+
+      jmp_buf env;
+      if (setjmp(env)) {
+        // This code is run only when libjpeg hit an error, and called
+        // longjmp(env).
+        jpeg_writer->AbortWrite();
+      } else {
+        jpeg_writer->SetJmpBufEnv(&env);
+        jpeg_writer->Init(width, height, pixel_format);
+        jpeg_writer->SetJpegCompressParams(jpeg_options);
+        jpeg_writer->InitializeWrite(image_data);
+      }
+      *file_ext = "jpg";
+    }
+    return reinterpret_cast<ScanlineWriterInterface*>(jpeg_writer);
   } else {
-    *file_ext = "webp";
-    WebpConfiguration webp_config;  // Use lossless by default
-    return reinterpret_cast<ScanlineWriterInterface*>(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_WEBP,
-                             pixel_format, width, height, &webp_config,
-                             image_data));
+    WebpScanlineWriter* webp_writer = new WebpScanlineWriter();
+    if (webp_writer != NULL) {
+      WebpConfiguration webp_config;  // Use lossless by default
+      webp_writer->Init(width, height, pixel_format);
+      webp_writer->InitializeWrite(webp_config, image_data);
+      *file_ext = "webp";
+    }
+    return reinterpret_cast<ScanlineWriterInterface*>(webp_writer);
   }
 }
 
@@ -290,25 +301,6 @@ TEST_F(ScanlineResizerTest, PartialRead) {
   // Read only 2 scanlines, although there are 20.
   EXPECT_TRUE(resizer_.ReadNextScanline(&scanline_));
   EXPECT_TRUE(resizer_.ReadNextScanline(&scanline_));
-}
-
-// Resize the image by non-integer ratios.
-TEST_F(ScanlineResizerTest, ResizeFractionalRatio) {
-  const int new_width = 11;
-  const int new_height = 19;
-  ASSERT_TRUE(ReadTestFile(kPngTestDir, kImagePagespeed, "png",
-                           &input_image_));
-
-  ASSERT_TRUE(reader_.Initialize(input_image_.data(),
-                                 input_image_.length()));
-  ASSERT_TRUE(resizer_.Initialize(&reader_, new_width, new_height));
-
-  int num_rows = 0;
-  while (resizer_.HasMoreScanLines()) {
-    ASSERT_TRUE(resizer_.ReadNextScanline(&scanline_));
-    ++num_rows;
-  }
-  EXPECT_EQ(new_height, num_rows);
 }
 
 }  // namespace

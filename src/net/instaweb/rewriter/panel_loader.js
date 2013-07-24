@@ -23,6 +23,7 @@ var pagespeed = window['pagespeed'];
  */
 pagespeed.PanelLoader = function() {
   this.readyToLoadNonCritical = false;
+  this.lowResImagesCount = 0;
 
   this.delayedNonCriticalData = null;
   this.nonCriticalData = {};
@@ -39,6 +40,36 @@ pagespeed.PanelLoader = function() {
 };
 
 /**
+ * Inlines images.
+ * @param {string} pushedContentMap
+ * @param {Object.<string, Array.<Element>>} criticalImages
+ * @param {function()} cb
+ */
+pagespeed.PanelLoader.prototype.inlineImages = function(pushedContentMap,
+                                                        criticalImages, cb) {
+  for (var hiResUrl in criticalImages) {
+    if (!criticalImages.hasOwnProperty(hiResUrl)) {
+      continue;
+    }
+    var imageArray = criticalImages[hiResUrl];
+    var dataUrl = pushedContentMap[hiResUrl];
+
+    // If not inline pushed, load hi res version.
+    var loResUrl = dataUrl || hiResUrl;
+
+    // Add an onload handler for all critical images.
+    for (var i = 0; i < imageArray.length; i++) {
+      var image = imageArray[i];
+      if (image.getAttribute('src') != hiResUrl) {
+        // Ignore image if already hi res is set.
+        image.onload = image.onerror = cb;
+        image.src = loResUrl;
+      }
+    }
+  }
+};
+
+/**
  * Main state machine for loading panels.
  * NOTE: This function assumes the following order of calls:
  * Critical data --> Critical images --> Callback for critical low res
@@ -47,7 +78,8 @@ pagespeed.PanelLoader = function() {
 pagespeed.PanelLoader.prototype.loadData = function() {
   if (this.nonCriticalDataPresent && this.readyToLoadNonCritical &&
       this.state != NON_CRITICAL_LOADED) {
-      this.pageManager.instantiatePage(this.nonCriticalData);
+      var nonCriticalImages = this.pageManager.instantiatePage(
+        this.nonCriticalData);
     // Remove 'DONT_BIND' in all non-cacheable objects.
     for (var panelId in this.nonCacheablePanelInstances) {
       if (!this.nonCacheablePanelInstances.hasOwnProperty(panelId)) continue;
@@ -61,20 +93,7 @@ pagespeed.PanelLoader.prototype.loadData = function() {
 
     this.changePageLoadState(NON_CRITICAL_LOADED);
 
-    // Scroll to the hash fragment when it is given, as it can be found
-    // in Non-Critical panels loaded just now.
-    var hash = window.location.hash;
-    if (hash && hash[0] == '#') {
-      // Make sure the hash fragment refers to an element, since it can
-      // be "parameters" of Ajax applications.
-      if (document.getElementById(hash.slice(1))) {
-        // Use window.location.replace() here rather than a more popular
-        // technique <element>.scrollIntoView() to let browsers track on
-        // the element even if it gets moved/resized later on by scripts,
-        // such as deferJs and window.setTimeout().
-        window.location.replace(hash);
-      }
-    }
+    this.inlineImages('', nonCriticalImages, function() {});
 
     if (window.pagespeed && window.pagespeed.deferJs) {
       window.pagespeed.deferJs.registerScriptTags();
@@ -284,9 +303,15 @@ pagespeed.PanelLoader.prototype.bufferNonCriticalData = function(
   if (this.state == NON_CRITICAL_LOADED) {
     return;
   }
+  if (this.state == CRITICAL_DATA_LOADED) {
+    this.readyToLoadNonCritical = true;
+  }
   this.nonCriticalData = data;
   this.nonCriticalDataPresent = true;
-  this.loadData();
+  if (pagespeed.num_high_res_images_loaded ==
+      pagespeed.num_low_res_images_inlined) {
+    this.loadData();
+  }
 };
 pagespeed.PanelLoader.prototype['bufferNonCriticalData'] =
     pagespeed.PanelLoader.prototype.bufferNonCriticalData;
@@ -295,11 +320,11 @@ pagespeed.PanelLoader.prototype['bufferNonCriticalData'] =
  * Iniitialize the panel loader.
  */
 pagespeed.panelLoaderInit = function() {
-  if (pagespeed['panelLoader']) {
+  if (pagespeed.panelLoader) {
     return;
   }
-  var ctx = new pagespeed.PanelLoader();
-  pagespeed['panelLoader'] = ctx;
-  ctx.executeATFScripts();
+  pagespeed.panelLoader = new pagespeed.PanelLoader();
+  pagespeed['panelLoader'] = pagespeed.panelLoader;
+  pagespeed.panelLoader.executeATFScripts();
 };
 pagespeed['panelLoaderInit'] = pagespeed.panelLoaderInit;

@@ -22,7 +22,6 @@
 #include <cstddef>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -186,20 +185,14 @@ void ProxyFetchFactory::RegisterFinishedFetch(ProxyFetch* fetch) {
 ProxyFetchPropertyCallback::ProxyFetchPropertyCallback(
     PageType page_type,
     PropertyCache* property_cache,
-    const StringPiece& url,
-    const StringPiece& options_signature_hash,
+    const StringPiece& key,
     UserAgentMatcher::DeviceType device_type,
     ProxyFetchPropertyCallbackCollector* collector,
     AbstractMutex* mutex)
     : PropertyPage(
-          page_type,
-          url,
-          options_signature_hash,
-          device_type,
-          collector->request_context(),
-          mutex,
-          property_cache),
+          page_type, key, collector->request_context(), mutex, property_cache),
       page_type_(page_type),
+      device_type_(device_type),
       collector_(collector) {
 }
 
@@ -501,12 +494,10 @@ ProxyFetch::ProxyFetch(
 
   driver_->EnableBlockingRewrite(request_headers());
 
-  // Set the implicit cache ttl and the min cache ttl for the response headers
-  // based on the value specified in the options.
+  // Set the implicit cache ttl for the response headers based on the value
+  // specified in the options.
   response_headers()->set_implicit_cache_ttl_ms(
       Options()->implicit_cache_ttl_ms());
-  response_headers()->set_min_cache_ttl_ms(
-      Options()->min_cache_ttl_ms());
 
   VLOG(1) << "Attaching RewriteDriver " << driver_
           << " to HtmlRewriter " << this;
@@ -688,11 +679,12 @@ void ProxyFetch::SetupForHtml() {
 }
 
 void ProxyFetch::StartFetch() {
-  factory_->server_context_->rewrite_options_manager()->PrepareRequest(
+  factory_->server_context_->url_namer()->PrepareRequest(
       Options(),
       &url_,
       request_headers(),
-      NewCallback(this, &ProxyFetch::DoFetch));
+      NewCallback(this, &ProxyFetch::DoFetch),
+      factory_->handler_);
 }
 
 void ProxyFetch::DoFetch(bool prepare_success) {
@@ -1258,21 +1250,18 @@ ProxyFetchPropertyCallbackCollector*
       server_context->page_property_cache()->enabled() &&
       UrlMightHavePropertyCacheEntry(request_url) &&
       async_fetch->request_headers()->method() == RequestHeaders::kGet) {
-    GoogleString options_signature_hash;
     if (options != NULL) {
       server_context->ComputeSignature(options);
-      options_signature_hash =
-          server_context->GetRewriteOptionsSignatureHash(options);
     }
     AbstractMutex* mutex = server_context->thread_system()->NewMutex();
+    const StringPiece& device_type_suffix =
+        UserAgentMatcher::DeviceTypeSuffix(device_type);
+    GoogleString page_key = server_context->GetPagePropertyCacheKey(
+        request_url.Spec(), options, device_type_suffix);
     property_callback = new ProxyFetchPropertyCallback(
         ProxyFetchPropertyCallback::kPropertyCachePage,
-        page_property_cache,
-        request_url.Spec(),
-        options_signature_hash,
-        device_type,
-        callback_collector.get(),
-        mutex);
+        page_property_cache, page_key, device_type,
+        callback_collector.get(), mutex);
     callback_collector->AddCallback(property_callback);
     added_callback = true;
     if (added_page_property_callback != NULL) {
@@ -1283,23 +1272,20 @@ ProxyFetchPropertyCallbackCollector*
     // if actual property page does not contains property value.
     if (options != NULL &&
         options->use_fallback_property_cache_values()) {
-      GoogleString fallback_page_url;
+      GoogleString fallback_page_key;
       if (request_url.PathAndLeaf() != "/" &&
           !request_url.PathAndLeaf().empty()) {
         // Don't bother looking up fallback properties for the root, "/", since
         // there is nothing to fall back to.
-        fallback_page_url =
-            FallbackPropertyPage::GetFallbackPageUrl(request_url);
+        fallback_page_key = server_context->GetFallbackPagePropertyCacheKey(
+            request_url, options, device_type_suffix);
       }
 
-      if (!fallback_page_url.empty()) {
+      if (!fallback_page_key.empty()) {
         fallback_property_callback =
             new ProxyFetchPropertyCallback(
                 ProxyFetchPropertyCallback::kPropertyCacheFallbackPage,
-                page_property_cache,
-                fallback_page_url,
-                options_signature_hash,
-                device_type,
+                page_property_cache, fallback_page_key, device_type,
                 callback_collector.get(),
                 server_context->thread_system()->NewMutex());
         callback_collector->AddCallback(fallback_property_callback);

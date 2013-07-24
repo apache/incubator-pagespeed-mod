@@ -26,13 +26,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
-#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -103,39 +101,6 @@ const char CriticalSelectorFilter::kAddStylesInvocation[] =
     "  window.onload = addAllStyles;"
     "}";
 
-// When flush early filter is enabled, critical css rules are flushed early
-// as innerHTML of a script element. When the CSS element appears in the
-// document, find the previously flushed style data and copy it to the style
-// element so it can be applied. This script is used for that.
-const char CriticalSelectorFilter::kApplyFlushEarlyCss[] =
-    "var applyFlushedCriticalCss = function(script_id, mediaString) {"
-    "  var scripts = document.getElementsByTagName('script');"
-    "  var styleScript = document.getElementById(script_id);"
-    "  if (styleScript == null) {"
-    "    return;"
-    "  }"
-    "  var cssText = styleScript.innerHTML || styleScript.textContent || "
-    "                styleScript.data || \"\";"
-    "  var styleElem = document.createElement('style');"
-    "  styleElem.type = 'text/css';"
-    "  if (styleElem.styleSheet) {"
-    "    styleElem.styleSheet.cssText = cssText;"
-    "  } else {"
-    "    styleElem.appendChild(document.createTextNode(cssText));"
-    "  }"
-    "  if (mediaString) {"
-    "    styleElem.setAttribute(\"media\", mediaString);"
-    "  }"
-    "  var currentScript = scripts[scripts.length-1];"
-    "  currentScript.parentNode.insertBefore(styleElem, currentScript);"
-    "};";
-
-const char CriticalSelectorFilter::kInvokeFlushEarlyCssTemplate[] =
-    "applyFlushedCriticalCss(\"%s\", \"%s\");";
-
-const char CriticalSelectorFilter::kMoveScriptId[] = "psa_flush_style_early";
-const char CriticalSelectorFilter::kNoscriptStylesClass[] = "psa_add_styles";
-
 // TODO(morlovich): Check charset like CssInlineFilter::ShouldInline().
 
 // Wrap CSS elements to move them later in the document.
@@ -200,8 +165,7 @@ class CriticalSelectorFilter::CssStyleElement
 CriticalSelectorFilter::CriticalSelectorFilter(RewriteDriver* driver)
     : CssSummarizerBase(driver),
       saw_end_document_(false),
-      any_rendered_(false),
-      is_flush_script_added_(false) {
+      any_rendered_(false) {
 }
 
 CriticalSelectorFilter::~CriticalSelectorFilter() {
@@ -348,18 +312,6 @@ void CriticalSelectorFilter::RenderSummary(
 
   if (drop_entire_element) {
     driver_->DeleteNode(element);
-  } else if (char_node == NULL) {
-    const GoogleString& url = summary.location;
-    if (IsCssFlushedEarly(url)) {
-      ApplyCssFlushedEarly(element,
-                           driver_->server_context()->hasher()->Hash(url),
-                           element->AttributeValue(HtmlName::kMedia));
-    } else if (driver_->flushing_early()) {
-      // Add an attribute so the flush early filter can flush these
-      // elements early.
-      driver_->AddAttribute(element, HtmlName::kDataPagespeedFlushStyle,
-                            driver_->server_context()->hasher()->Hash(url));
-    }
   }
 
   // We've altered the CSS, so we should generate code to load the entire thing.
@@ -381,8 +333,8 @@ void CriticalSelectorFilter::StartDocumentImpl() {
   ServerContext* context = driver()->server_context();
 
   // Read critical selector info from pcache.
-  critical_selectors_ =
-      context->critical_selector_finder()->GetCriticalSelectors(driver());
+  context->critical_selector_finder()->GetCriticalSelectorsFromPropertyCache(
+      driver(), &critical_selectors_);
 
   // Compute corresponding cache key suffix
   GoogleString all_selectors = JoinCollection(critical_selectors_, ",");
@@ -392,7 +344,6 @@ void CriticalSelectorFilter::StartDocumentImpl() {
   DCHECK(css_elements_.empty());
   saw_end_document_ = false;
   any_rendered_ = false;
-  is_flush_script_added_ = false;
 }
 
 void CriticalSelectorFilter::EndDocument() {
@@ -409,7 +360,7 @@ void CriticalSelectorFilter::RenderDone() {
     return;
   }
 
-  if (!css_elements_.empty() && any_rendered_ && !driver_->flushing_early()) {
+  if (!css_elements_.empty() && any_rendered_) {
     HtmlElement* noscript_element = NULL;
     Compact(&css_elements_);
     for (int i = 0, n = css_elements_.size(); i < n; ++i) {
@@ -430,7 +381,7 @@ void CriticalSelectorFilter::RenderDone() {
         noscript_element = driver_->NewElement(NULL, HtmlName::kNoscript);
         if (!css_elements_[i]->inside_noscript()) {
           driver_->AddAttribute(noscript_element, HtmlName::kClass,
-                                kNoscriptStylesClass);
+                                "psa_add_styles");
         }
         InsertNodeAtBodyEnd(noscript_element);
       }
@@ -438,7 +389,6 @@ void CriticalSelectorFilter::RenderDone() {
     }
 
     HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
-    driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
     InsertNodeAtBodyEnd(script);
     if (driver_->options()
         ->test_only_prioritize_critical_css_dont_apply_original_css()) {
@@ -463,10 +413,8 @@ void CriticalSelectorFilter::DetermineEnabled() {
   // X-UA-Compatible, which can come in both meta and header flavors. Once we
   // have a good way of detecting this case, we can enable us for strict IE10.
   // Note: the UA logic should be the same in CriticalCssBeaconFilter.
-  const StringSet& critical_selectors = driver_->server_context()
-      ->critical_selector_finder()->GetCriticalSelectors(driver_);
   bool is_ie = driver_->user_agent_matcher()->IsIe(driver_->user_agent());
-  bool can_run = !is_ie && !critical_selectors.empty();
+  bool can_run = !is_ie && driver_->CriticalSelectors() != NULL;
   driver_->log_record()->LogRewriterHtmlStatus(
       RewriteOptions::FilterId(RewriteOptions::kPrioritizeCriticalCss),
       (can_run ?
@@ -498,53 +446,6 @@ void CriticalSelectorFilter::RememberFullCss(
     save = new CssElement(driver_, element, noscript);
   }
   css_elements_[pos] = save;
-}
-
-bool CriticalSelectorFilter::IsCssFlushedEarly(const GoogleString& url) const {
-  if (!driver_->flushed_early() ||
-      !driver_->options()->enable_flush_early_critical_css() ||
-      driver_->flush_early_info() == NULL) {
-    return false;
-  }
-
-  // If the url is present in the DOM cohort, it is guaranteed to have
-  // been flushed early.
-  GoogleString escaped_url;
-  HtmlKeywords::Escape(url, &escaped_url);
-  // TODO(slamm): Replace with cheaper and more robust solution.
-  return (driver_->flush_early_info()->resource_html().find(
-      StrCat("\"", escaped_url, "\"")) != GoogleString::npos);
-}
-
-void CriticalSelectorFilter::ApplyCssFlushedEarly(
-    HtmlElement* element, const GoogleString& style_id, const char* media) {
-  // In this case we have already added the CSS rules to the head as
-  // part of flushing early. Now, find the rule, remove the disabled tag
-  // and move it here.
-
-  // Add the JS function definition that moves and applies the flushed early
-  // CSS rules, if it has not already been added.
-  if (!is_flush_script_added_) {
-    is_flush_script_added_ = true;
-    HtmlElement* script =
-        driver_->NewElement(element->parent(), HtmlName::kScript);
-    driver_->AddAttribute(script, HtmlName::kId, kMoveScriptId);
-    driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-    driver_->InsertNodeBeforeNode(element, script);
-    driver_->server_context()->static_asset_manager()->AddJsToElement(
-        kApplyFlushEarlyCss, script, driver_);
-  }
-
-  HtmlElement* script_element =
-      driver_->NewElement(element->parent(), HtmlName::kScript);
-  driver_->AddAttribute(script_element, HtmlName::kPagespeedNoDefer, "");
-  driver_->ReplaceNode(element, script_element);
-
-  GoogleString js_data = StringPrintf(kInvokeFlushEarlyCssTemplate,
-                                      style_id.c_str(),
-                                      (media != NULL ? media : ""));
-  driver_->server_context()->static_asset_manager()->AddJsToElement(
-      js_data, script_element, driver_);
 }
 
 }  // namespace net_instaweb

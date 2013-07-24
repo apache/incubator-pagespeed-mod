@@ -98,15 +98,6 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
          e = path_cache_map_.end(); p != e; ++p) {
       p->second->GlobalCleanup(message_handler);
     }
-
-    // And all the SHM caches.
-    for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-         e = metadata_shm_caches_.end(); p != e; ++p) {
-      if (p->second->cache_backend != NULL && p->second->initialized) {
-        MetadataShmCache::GlobalCleanup(shared_mem_runtime_, p->second->segment,
-                                        message_handler);
-      }
-    }
   }
 }
 
@@ -220,11 +211,10 @@ bool SystemCaches::CreateShmMetadataCache(
     } else {
       cache_info = new MetadataShmCacheInfo;
       factory_->TakeOwnership(cache_info);
-      cache_info->segment = StrCat(name, "/metadata_cache");
       cache_info->cache_backend =
           new SharedMemCache<64>(
               shared_mem_runtime_,
-              cache_info->segment,
+              StrCat(name, "/metadata_cache"),
               factory_->timer(),
               factory_->hasher(),
               kSectors,
@@ -368,18 +358,15 @@ void SystemCaches::SetupCaches(ServerContext* server_context) {
   // even without this flag, but we should do it differently, storing
   // only the content compressed and putting in content-encoding:gzip
   // so that mod_gzip doesn't have to recompress on every request.
-  CacheInterface* property_store_cache = NULL;
   if (config->compress_metadata_cache()) {
     metadata_cache = new CompressedCache(metadata_cache, stats);
     server_context->DeleteCacheOnDestruction(metadata_cache);
     CacheInterface* compressed_l2 = new CompressedCache(metadata_l2, stats);
     server_context->DeleteCacheOnDestruction(compressed_l2);
-    property_store_cache = compressed_l2;
+    server_context->MakePropertyCaches(compressed_l2);
   } else {
-    property_store_cache = metadata_l2;
+    server_context->MakePropertyCaches(metadata_l2);
   }
-  server_context->MakePagePropertyCache(
-      server_context->CreatePropertyStore(property_store_cache));
   server_context->set_metadata_cache(metadata_cache);
 }
 
@@ -395,7 +382,6 @@ void SystemCaches::RootInit() {
            e = metadata_shm_caches_.end(); p != e; ++p) {
     MetadataShmCacheInfo* cache_info = p->second;
     if (cache_info->cache_backend->Initialize()) {
-      cache_info->initialized = true;
       cache_info->cache_to_use =
           new CacheStats(kShmCache, cache_info->cache_backend,
                          factory_->timer(), factory_->statistics());

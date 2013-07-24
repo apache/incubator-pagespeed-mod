@@ -166,10 +166,10 @@ void ApacheRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
   PropertyCache* pcache = server_context->page_property_cache();
 
   const PropertyCache::Cohort* cohort =
-      server_context->AddCohort(RewriteDriver::kBeaconCohort, pcache);
+      pcache->AddCohort(RewriteDriver::kBeaconCohort);
   server_context->set_beacon_cohort(cohort);
 
-  cohort = server_context->AddCohort(RewriteDriver::kDomCohort, pcache);
+  cohort = pcache->AddCohort(RewriteDriver::kDomCohort);
   server_context->set_dom_cohort(cohort);
 
   // TODO(jmarantz): It would make more sense to have the base ServerContext
@@ -480,15 +480,6 @@ void ApacheRewriteDriverFactory::ShutDown() {
     if (shared_mem_statistics_.get() != NULL) {
       shared_mem_statistics_->GlobalCleanup(message_handler());
     }
-
-    // Likewise for local ones. We no longer have the objects here
-    // (since SplitStats destroyed them), but we saved the segment names.
-    for (int i = 0, n = local_shm_stats_segment_names_.size(); i < n; ++i) {
-      SharedMemStatistics::GlobalCleanup(shared_mem_runtime_.get(),
-                                         local_shm_stats_segment_names_[i],
-                                         message_handler());
-    }
-
     // Cleanup SharedCircularBuffer.
     // Use GoogleMessageHandler instead of ApacheMessageHandler.
     // As we are cleaning SharedCircularBuffer, we do not want to write to its
@@ -507,7 +498,7 @@ Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
     const ApacheConfig* options) {
   if (shared_mem_statistics_.get() == NULL) {
     shared_mem_statistics_.reset(AllocateAndInitSharedMemStatistics(
-        false /* not local */, "global", options));
+        "global", options));
   }
   DCHECK(!statistics_frozen_);
   statistics_frozen_ = true;
@@ -517,7 +508,7 @@ Statistics* ApacheRewriteDriverFactory::MakeGlobalSharedMemStatistics(
 
 SharedMemStatistics* ApacheRewriteDriverFactory::
     AllocateAndInitSharedMemStatistics(
-        bool local, const StringPiece& name, const ApacheConfig* options) {
+        const StringPiece& name, const ApacheConfig* options) {
   // Note that we create the statistics object in the parent process, and
   // it stays around in the kids but gets reinitialized for them
   // inside ChildInit(), called from pagespeed_child_init.
@@ -538,10 +529,7 @@ SharedMemStatistics* ApacheRewriteDriverFactory::
       StrCat(filename_prefix(), name), shared_mem_runtime(),
       message_handler(), file_system(), timer());
   InitStats(stats);
-  bool init_ok = stats->Init(true, message_handler());
-  if (local && init_ok) {
-    local_shm_stats_segment_names_.push_back(stats->SegmentName());
-  }
+  stats->Init(true, message_handler());
   return stats;
 }
 

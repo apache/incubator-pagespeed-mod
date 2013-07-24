@@ -139,7 +139,7 @@ const RewriteOptions::Filter kRelatedFilters[] = {
 };
 const int kRelatedFiltersSize = arraysize(kRelatedFilters);
 
-const char* const kRelatedOptions[] = {
+const RewriteOptions::OptionEnum kRelatedOptions[] = {
   RewriteOptions::kCssFlattenMaxBytes,
   RewriteOptions::kCssImageInlineMaxBytes,
   RewriteOptions::kCssPreserveURLs,
@@ -147,13 +147,14 @@ const char* const kRelatedOptions[] = {
   RewriteOptions::kMaxUrlSegmentSize,
   RewriteOptions::kMaxUrlSize,
 };
+const int kRelatedOptionsSize = arraysize(kRelatedOptions);
+
+const RewriteOptions::Filter* kMergedFilters = NULL;
+int merged_filters_size = 0;
+const RewriteOptions::OptionEnum* kMergedOptions = NULL;
+int merged_options_size = 0;
 
 }  // namespace
-
-const RewriteOptions::Filter* CssFilter::merged_filters_ = NULL;
-int CssFilter::merged_filters_size_ = 0;
-
-StringPieceVector* CssFilter::related_options_ = NULL;
 
 // Statistics variable names.
 const char CssFilter::kBlocksRewritten[] = "css_filter_blocks_rewritten";
@@ -784,24 +785,28 @@ T* MergeArrays(const T* a, int a_size, const T* b, int b_size, int* out_size) {
 void CssFilter::Initialize() {
   InitializeAtExitManager();
 
-  CHECK(merged_filters_ == NULL);
+  CHECK(kMergedFilters == NULL);
+  CHECK(kMergedOptions == NULL);
+
 #ifndef NDEBUG
   for (int i = 1; i < kRelatedFiltersSize; ++i) {
     CHECK_LT(kRelatedFilters[i - 1], kRelatedFilters[i])
         << "kRelatedFilters not in enum-value order";
   }
+  for (int i = 1; i < kRelatedOptionsSize; ++i) {
+    CHECK_LT(kRelatedOptions[i - 1], kRelatedOptions[i])
+        << "kRelatedOptions not in enum-value order";
+  }
 #endif
 
-  merged_filters_ = MergeArrays(ImageRewriteFilter::kRelatedFilters,
-                                ImageRewriteFilter::kRelatedFiltersSize,
-                                kRelatedFilters, kRelatedFiltersSize,
-                                &merged_filters_size_);
-
-  CHECK(related_options_ == NULL);
-  related_options_ = new StringPieceVector;
-  ImageRewriteFilter::AddRelatedOptions(related_options_);
-  CssFilter::AddRelatedOptions(related_options_);
-  std::sort(related_options_->begin(), related_options_->end());
+  kMergedFilters = MergeArrays(ImageRewriteFilter::kRelatedFilters,
+                               ImageRewriteFilter::kRelatedFiltersSize,
+                               kRelatedFilters, kRelatedFiltersSize,
+                               &merged_filters_size);
+  kMergedOptions = MergeArrays(ImageRewriteFilter::kRelatedOptions,
+                               ImageRewriteFilter::kRelatedOptionsSize,
+                               kRelatedOptions, kRelatedOptionsSize,
+                               &merged_options_size);
 }
 
 void CssFilter::Terminate() {
@@ -811,18 +816,12 @@ void CssFilter::Terminate() {
     at_exit_manager = NULL;
   }
 
-  CHECK(merged_filters_ != NULL);
-  delete [] merged_filters_;
-  merged_filters_ = NULL;
-  CHECK(related_options_ != NULL);
-  delete related_options_;
-  related_options_ = NULL;
-}
-
-void CssFilter::AddRelatedOptions(StringPieceVector* target) {
-  for (int i = 0, n = arraysize(kRelatedOptions); i < n; ++i) {
-    target->push_back(kRelatedOptions[i]);
-  }
+  CHECK(kMergedFilters != NULL);
+  CHECK(kMergedOptions != NULL);
+  delete [] kMergedFilters;
+  delete [] kMergedOptions;
+  kMergedFilters = NULL;
+  kMergedOptions = NULL;
 }
 
 void CssFilter::InitializeAtExitManager() {
@@ -924,15 +923,12 @@ void CssFilter::StartInlineRewrite(HtmlCharactersNode* text) {
   }
   rewriter->SetupInlineRewrite(element, text);
 
-  // Get the applicable media and charset. As style elements can't have a
-  // charset attribute pass NULL to GetApplicableCharset instead of 'element'.
-  // If the resulting charset for the style element doesn't agree with that of
-  // the source page, we can't flatten (though that should be impossible since
-  // we only look at meta elements and headers in this case).
+  // Get the applicable media and charset. If the charset on the link doesn't
+  // agree with that of the source page, we can't flatten.
   CssHierarchy* hierarchy = rewriter->mutable_hierarchy();
   GetApplicableMedia(element, hierarchy->mutable_media());
   hierarchy->set_flattening_succeeded(
-      GetApplicableCharset(NULL, hierarchy->mutable_charset()));
+      GetApplicableCharset(element, hierarchy->mutable_charset()));
   if (!hierarchy->flattening_succeeded()) {
     num_flatten_imports_charset_mismatch_->Add(1);
   }
@@ -1102,6 +1098,18 @@ RewriteContext* CssFilter::MakeNestedFlatteningContextInNewSlot(
                                                          rewriter, hierarchy);
   context->AddSlot(slot);
   return context;
+}
+
+const RewriteOptions::Filter* CssFilter::RelatedFilters(
+    int* num_filters) const {
+  *num_filters = merged_filters_size;
+  return kMergedFilters;
+}
+
+const RewriteOptions::OptionEnum* CssFilter::RelatedOptions(
+    int* num_options) const {
+  *num_options = merged_options_size;
+  return kMergedOptions;
 }
 
 }  // namespace net_instaweb

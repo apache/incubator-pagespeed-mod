@@ -38,7 +38,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/cache_property_store.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -347,10 +346,9 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
     const PropertyCache::Cohort* cohort =
         pcache->GetCohort(RewriteDriver::kDomCohort);
     delay_http_cache_key = AbsolutifyUrl(url);
-    delay_pcache_key = factory()->cache_property_store()->CacheKey(
+    delay_pcache_key = pcache->CacheKey(StrCat(
         delay_http_cache_key,
-        "",
-        UserAgentMatcher::kDesktop,
+        UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop)),
         cohort);
     delay_cache()->DelayKey(delay_pcache_key);
     if (thread_pcache) {

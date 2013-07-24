@@ -103,7 +103,6 @@ void DelayImagesFilter::EndElement(HtmlElement* element) {
         category != semantic_type::kImage) {
       return;
     }
-    bool is_attribute_src = (src->keyword() == HtmlName::kSrc);
     HtmlElement::Attribute* low_res_src =
         element->FindAttribute(HtmlName::kPagespeedLowResSrc);
     if (low_res_src == NULL || low_res_src->DecodedValueOrNull() == NULL) {
@@ -115,22 +114,15 @@ void DelayImagesFilter::EndElement(HtmlElement* element) {
           RewriteOptions::FilterId(RewriteOptions::kDelayImages),
           RewriterApplication::APPLIED_OK);
       // High res src is added and original img src attribute is removed
-      // from img tag. Note that we only do this if the attribute we are
-      // rewriting is an src attribute.
-      if (is_attribute_src) {
-        driver_->SetAttributeName(src, HtmlName::kPagespeedHighResSrc);
-      }
-      if (!is_attribute_src || insert_low_res_images_inplace_) {
-        // Force inplace rewriting if we are not rewriting an src attribute.
+      // from img tag.
+      driver_->SetAttributeName(src, HtmlName::kPagespeedHighResSrc);
+      if (insert_low_res_images_inplace_) {
         // Set the src as the low resolution image.
         driver_->AddAttribute(element, HtmlName::kSrc,
                               low_res_src->DecodedValueOrNull());
-        if (is_attribute_src) {
-          // Add an onload function to set the high resolution image, and we are
-          // rewriting an src attribute.
-          driver_->AddEscapedAttribute(
-              element, HtmlName::kOnload, kOnloadFunction);
-        }
+        // Add an onload function to set the high resolution image.
+        driver_->AddEscapedAttribute(
+            element, HtmlName::kOnload, kOnloadFunction);
       } else {
         // Low res image data is collected in low_res_data_map_ map. This
         // low_res_src will be moved just after last low res image in the flush
@@ -249,9 +241,7 @@ void DelayImagesFilter::DetermineEnabled() {
   }
   CriticalImagesFinder* finder =
       driver_->server_context()->critical_images_finder();
-  if (finder->IsMeaningful(driver_) &&
-      !finder->IsCriticalImageInfoPresent(driver_) &&
-      !driver_->options()->Enabled(RewriteOptions::kSplitHtmlHelper)) {
+  if (finder->IsMeaningful(driver_) && !finder->IsSetFromPcache(driver_)) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDelayImages),
         RewriterHtmlApplication::PROPERTY_CACHE_MISS);

@@ -21,8 +21,6 @@
  * @author nikhilmadan@google.com (Nikhil Madan)
  */
 
-goog.require('pagespeedutils');
-
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
@@ -364,6 +362,30 @@ pagespeed.LazyloadImages.prototype.overrideAttributeFunctionsInternal_ =
 };
 
 /**
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with the DeferJs code.
+ */
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
+  }
+};
+
+/**
  * Initializes the lazyload module.
  * @param {boolean} loadAfterOnload If true, load images when the onload event.
  * @param {string} blankImageSrc The blank placeholder image used for images
@@ -385,7 +407,7 @@ pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
     context.buffer_ = 200;
     context.loadVisible_();
   };
-  pagespeedutils.addHandler(window, 'load', lazy_onload);
+  pagespeed.addHandler(window, 'load', lazy_onload);
 
   // Pre-load the blank image placeholder.
   if (blankImageSrc.indexOf('data') != 0) {
@@ -416,8 +438,8 @@ pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
       }, timeout_ms);
     }
   };
-  pagespeedutils.addHandler(window, 'scroll', lazy_onscroll);
-  pagespeedutils.addHandler(window, 'resize', lazy_onscroll);
+  pagespeed.addHandler(window, 'scroll', lazy_onscroll);
+  pagespeed.addHandler(window, 'resize', lazy_onscroll);
 };
 
 pagespeed['lazyLoadInit'] = pagespeed.lazyLoadInit;

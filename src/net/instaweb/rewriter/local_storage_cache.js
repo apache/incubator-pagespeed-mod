@@ -21,8 +21,6 @@
  * @author matterbury@google.com (Matt Atterbury)
  */
 
-goog.require('pagespeedutils');
-
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
@@ -221,6 +219,30 @@ pagespeed.LocalStorageCache.prototype.generateCookie_ = function() {
 };
 
 /**
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with all the other JS code.
+ */
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
+  }
+};
+
+/**
  * Initializes the local storage cache module.
  */
 pagespeed.localStorageCacheInit = function() {
@@ -228,11 +250,11 @@ pagespeed.localStorageCacheInit = function() {
   if (window.localStorage) {
     var temp = new pagespeed.LocalStorageCache();
     pagespeed['localStorageCache'] = temp;
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.saveInlinedData_();
                          });
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.generateCookie_();
                          });

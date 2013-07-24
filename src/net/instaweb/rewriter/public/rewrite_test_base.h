@@ -29,11 +29,10 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -367,9 +366,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
 
-  // Set the RewriteOptions to be returned by the RewriteOptionsManager.
-  void SetRewriteOptions(RewriteOptions* opts);
-
   // Authorizes a domain to options()->domain_lawyer(), recomputing
   // the options signature if necessary.
   bool AddDomain(StringPiece domain);
@@ -592,19 +588,11 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void SetupSharedCache();
 
   // Returns a new mock property page for the page property cache.
-  MockPropertyPage* NewMockPage(const StringPiece& url,
-                                const StringPiece& options_signature_hash,
-                                UserAgentMatcher::DeviceType device_type) {
+  MockPropertyPage* NewMockPage(const StringPiece& key) {
     return new MockPropertyPage(
         server_context_->thread_system(),
         server_context_->page_property_cache(),
-        url,
-        options_signature_hash,
-        device_type);
-  }
-
-  MockPropertyPage* NewMockPage(const StringPiece& url) {
-    return NewMockPage(url, "hash", UserAgentMatcher::kDesktop);
+        key);
   }
 
   // Sets MockLogRecord in the driver's request_context.
@@ -612,10 +600,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Returns the MockLogRecord in the driver.
   MockLogRecord* mock_log_record();
-
-  // Helper methods to return js/html snippets related to lazyload images.
-  GoogleString GetLazyloadScriptHtml();
-  GoogleString GetLazyloadPostscriptHtml();
 
  protected:
   void Init();

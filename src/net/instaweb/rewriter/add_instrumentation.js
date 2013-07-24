@@ -100,9 +100,8 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
       firstPaintTime = Math.floor(
           window['chrome']['loadTimes']()['firstPaintTime'] * 1000);
     }
-    firstPaintTime = firstPaintTime - requestStartTime;
-    if (firstPaintTime >= 0) {
-      url += '&fp=' + firstPaintTime;
+    if (firstPaintTime != -1) {
+      url += '&fp=' + (firstPaintTime - requestStartTime);
     }
   } else {
    url += traditionalPLT;

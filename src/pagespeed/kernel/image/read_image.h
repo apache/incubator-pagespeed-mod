@@ -19,32 +19,20 @@
 #ifndef PAGESPEED_KERNEL_IMAGE_READ_IMAGE_H_
 #define PAGESPEED_KERNEL_IMAGE_READ_IMAGE_H_
 
-#include <cstddef>
-#include "pagespeed/kernel/base/string.h"
+#include "base/basictypes.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 
 namespace pagespeed {
 
 namespace image_compression {
 
-// TODO(huibao): Add an overload function
-// CreateScanlineReader(const void* image_buffer, size_t buffer_length).
-
-// Return a scanline image reader. The following formats are supported:
-// IMAGE_PNG, IMAGE_GIF, IMAGE_JPEG, and IMAGE_WEBP.
-ScanlineReaderInterface* CreateScanlineReader(ImageFormat image_type,
-                                              const void* image_buffer,
-                                              size_t buffer_length);
-
-// Return a scanline image writer. The following formats are supported:
-// IMAGE_PNG, IMAGE_JPEG, and IMAGE_WEBP.
-ScanlineWriterInterface* CreateScanlineWriter(
-    ImageFormat image_type,     // Type of the image to write
-    PixelFormat pixel_format,   // Pixel format, RGB_888 etc
-    size_t width,               // Width, in pixels, of the image
-    size_t height,              // Height, in pixels, of the image
-    const void* config,         // Configuration for the output image
-    GoogleString* image_data);  // Output image
+enum ImageFormat {
+  IMAGE_UNKNOWN = 0,
+  IMAGE_JPEG,
+  IMAGE_PNG,
+  IMAGE_GIF,
+  IMAGE_WEBP
+};
 
 // Decode the image stream and return the image information. Use non-null
 // pointers to retrieve the informatin you need, and use null pointers to
@@ -60,6 +48,7 @@ ScanlineWriterInterface* CreateScanlineWriter(
 // the number of bytes between the starting points of adjacent rows. Garbage
 // bytes may be padded to the end of rows in order to make "stride" a multiplier
 // of 4.
+//
 bool ReadImage(ImageFormat image_type,
                const void* image_buffer,
                size_t buffer_length,

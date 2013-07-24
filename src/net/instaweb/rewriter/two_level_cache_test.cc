@@ -81,8 +81,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     } else {
       server_context->set_metadata_cache(cache2_);
     }
-    server_context->MakePagePropertyCache(
-        server_context->CreatePropertyStore(cache2_));
+    server_context->MakePropertyCaches(cache2_);
     server_context->set_enable_property_cache(false);
   }
 

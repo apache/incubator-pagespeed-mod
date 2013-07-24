@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_gflags.h"
 
-#include <memory>
-
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
@@ -193,17 +191,6 @@ DEFINE_int64(
     min_resource_cache_time_to_rewrite_ms,
     RewriteOptions::kDefaultMinResourceCacheTimeToRewriteMs,
     "No resources with Cache-Control TTL less than this will be rewritten.");
-DEFINE_int64(
-    max_low_res_image_size_bytes,
-    RewriteOptions::kDefaultMaxLowResImageSizeBytes,
-    "Maximum size (in bytes) of the low resolution image which will be "
-    "inline-previewed in html.");
-DEFINE_int32(
-    max_low_res_to_full_res_image_size_percentage,
-    RewriteOptions::kDefaultMaxLowResToFullResImageSizePercentage,
-    "The maximum ratio of the size of low-res image to its full-res image "
-    "when the image will be inline-previewed in html. This is an integer "
-    "ranging from 0 to 100 (inclusive).");
 
 DEFINE_string(origin_domain_map, "",
               "Semicolon-separated list of origin_domain maps. "
@@ -309,12 +296,6 @@ DEFINE_int64(implicit_cache_ttl_ms,
              "that are likely cacheable (e.g. images, js, css, not html) and "
              "have no explicit cache ttl or expiration date.");
 
-DEFINE_int64(min_cache_ttl_ms,
-             RewriteOptions::kDefaultMinCacheTtlMs,
-             "The minimum milliseconds of cache TTL for all resources that "
-             "are explicitly cacheable. This overrides the max-age even when "
-             "it is set on the Cache-Control headers.");
-
 DEFINE_int32(property_cache_http_status_stability_threshold,
              RewriteOptions::kDefaultPropertyCacheHttpStatusStabilityThreshold,
              "The number of requests for which the status code should remain "
@@ -327,9 +308,6 @@ DEFINE_int32(max_prefetch_js_elements,
 
 DEFINE_bool(enable_defer_js_experimental, false,
             "Enables experimental defer js.");
-
-DEFINE_bool(disable_background_fetches_for_bots, false,
-            "Disable pre-emptive background fetches on bot requests.");
 
 DEFINE_bool(disable_rewrite_on_no_transform, true,
             "Disable any rewrite optimizations if the header contains "
@@ -487,10 +465,9 @@ DEFINE_bool(serve_ghost_click_buster_with_split_html, false,
 DEFINE_bool(serve_xhr_access_control_headers, false,
             "If set to true, adds access control headers to response headers.");
 
-DEFINE_string(access_control_allow_origins, "",
-              "Comma seperated list of origins that are allowed to make "
-              "cross-origin requests. These domain requests are served with "
-              "Access-Control-Allow-Origin header.");
+DEFINE_string(access_control_allow_origin, "",
+              "Origin to be mentioned with 'Access-Control-Allow-Origin' "
+              "response header.");
 
 namespace net_instaweb {
 
@@ -718,9 +695,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("implicit_cache_ttl_ms")) {
     options->set_implicit_cache_ttl_ms(FLAGS_implicit_cache_ttl_ms);
   }
-  if (WasExplicitlySet("min_cache_ttl_ms")) {
-    options->set_min_cache_ttl_ms(FLAGS_min_cache_ttl_ms);
-  }
   if (WasExplicitlySet("max_prefetch_js_elements")) {
     options->set_max_prefetch_js_elements(FLAGS_max_prefetch_js_elements);
   }
@@ -731,10 +705,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("disable_rewrite_on_no_transform")) {
     options->set_disable_rewrite_on_no_transform(
         FLAGS_disable_rewrite_on_no_transform);
-  }
-  if (WasExplicitlySet("disable_background_fetches_for_bots")) {
-    options->set_disable_background_fetches_for_bots(
-        FLAGS_disable_background_fetches_for_bots);
   }
   if (WasExplicitlySet("flush_more_resources_early_if_time_permits")) {
     options->set_flush_more_resources_early_if_time_permits(
@@ -903,17 +873,8 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_serve_xhr_access_control_headers(
         FLAGS_serve_xhr_access_control_headers);
   }
-  if (WasExplicitlySet("access_control_allow_origins")) {
-    options->set_access_control_allow_origins(
-        FLAGS_access_control_allow_origins);
-  }
-  if (WasExplicitlySet("max_low_res_image_size_bytes")) {
-    options->set_max_low_res_image_size_bytes(
-        FLAGS_max_low_res_image_size_bytes);
-  }
-  if (WasExplicitlySet("max_low_res_to_full_res_image_size_percentage")) {
-    options->set_max_low_res_to_full_res_image_size_percentage(
-        FLAGS_max_low_res_to_full_res_image_size_percentage);
+  if (WasExplicitlySet("access_control_allow_origin")) {
+    options->set_access_control_allow_origin(FLAGS_access_control_allow_origin);
   }
 
   MessageHandler* handler = factory->message_handler();

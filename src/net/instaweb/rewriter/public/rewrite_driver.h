@@ -31,7 +31,6 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -61,9 +60,11 @@ class AsyncFetch;
 class CommonFilter;
 class CriticalCssResult;
 class CriticalLineInfo;
+class CriticalSelectorSet;
 class DebugFilter;
-class DomStatsFilter;
+class RequestProperties;
 class DomainRewriteFilter;
+class DomStatsFilter;
 class FallbackPropertyPage;
 class FileSystem;
 class FlushEarlyInfo;
@@ -75,7 +76,6 @@ class MessageHandler;
 class OutputResource;
 class PropertyPage;
 class RequestHeaders;
-class RequestProperties;
 class RequestTrace;
 class ResourceContext;
 class ResourceNamer;
@@ -84,7 +84,6 @@ class RewriteContext;
 class RewriteDriverPool;
 class RewriteFilter;
 class ScopedMutex;
-class SplitHtmlConfig;
 class Statistics;
 class UrlAsyncFetcher;
 class UrlLeftTrimFilter;
@@ -864,8 +863,6 @@ class RewriteDriver : public HtmlParse {
   // the ownership of critical_line_info.
   void set_critical_line_info(CriticalLineInfo* critical_line_info);
 
-  const SplitHtmlConfig* split_html_config();
-
   CriticalCssResult* critical_css_result() const;
   // Sets the Critical CSS rules info in the driver and the ownership of
   // the rules stays with the driver.
@@ -876,19 +873,10 @@ class RewriteDriver : public HtmlParse {
     return critical_images_info_.get();
   }
 
-  // This should only be called by the CriticalSelectorFinder. Normal users
-  // should call CriticalSelectorFinder::IsCriticalImage.
-  // TODO(jud): Remove when the finders reside in RewriteDriver and manage their
-  // own state.
-  CriticalSelectorInfo* critical_selector_info() {
-    return critical_selector_info_.get();
-  }
-
-  // This should only be called by the CriticalSelectorFinder.
-  // TODO(jud): Remove when the finders reside in RewriteDriver and manage their
-  // own state.
-  void set_critical_selector_info(CriticalSelectorInfo* info) {
-    critical_selector_info_.reset(info);
+  // Indicate whether critical_images_info was set explicitly by a call
+  // to set_critical_images_info.
+  bool critical_images_info_was_set() const {
+    return critical_images_info_was_set_;
   }
 
   // Inserts the critical images present on the requested html page. It takes
@@ -897,6 +885,7 @@ class RewriteDriver : public HtmlParse {
   // management of critical_images_info that CriticalImagesFinder provides.
   void set_critical_images_info(CriticalImagesInfo* critical_images_info) {
     critical_images_info_.reset(critical_images_info);
+    critical_images_info_was_set_ = true;
   }
 
   // Return true if we must prioritize critical selectors, and we should
@@ -914,6 +903,20 @@ class RewriteDriver : public HtmlParse {
              (CriticalSelectorsEnabled() ||
               options()->Enabled(RewriteOptions::kComputeCriticalCss))));
   }
+
+  // Returns computed critical selector set for this page, or NULL
+  // if not available. Should only be called from HTML-safe thread context.
+  // (parser thread or Render() callbacks). The returned value is owned by
+  // the rewrite driver.
+  CriticalSelectorSet* CriticalSelectors();
+
+  // Sets computed critical selector set for this page.  Should only be called
+  // from HTML-safe thread context.  Ownership transfers to the rewrite_driver.
+  // Caller is reponsible for updating the property cache.  NOTE: should only be
+  // called from the CriticalSelectorFinder or from test code.
+  // TODO(jmaessen): refactor this away when critical selector finder resides in
+  // the rewrite_driver and keeps its own state.
+  void SetCriticalSelectors(CriticalSelectorSet* selectors);
 
   // We expect to this method to be called on the HTML parser thread.
   // Returns the number of images whose low quality images are inlined in the
@@ -1009,9 +1012,6 @@ class RewriteDriver : public HtmlParse {
   // empty expected key returns false.
   bool MetadataRequested(const RequestHeaders& request_headers) const;
 
-  // Did the driver attempt to distribute the fetch?
-  bool tried_to_distribute_fetch() const { return tried_to_distribute_fetch_; }
-
   // Writes the specified contents into the output resource, and marks it
   // as optimized. 'inputs' described the input resources that were used
   // to construct the output, and is used to determine whether the
@@ -1034,30 +1034,12 @@ class RewriteDriver : public HtmlParse {
   virtual void DetermineEnabledFilters();
 
  private:
-  friend class DistributedRewriteContextTest;
   friend class RewriteContext;
   friend class RewriteDriverTest;
   friend class RewriteTestBase;
   friend class ServerContextTest;
 
   typedef std::map<GoogleString, RewriteFilter*> StringFilterMap;
-
-  // Returns true if the given fetch request should be distributed.
-  bool ShouldDistributeFetch(const StringPiece& filter_id);
-
-  // Distributes the fetch to another task if ShouldDistributeFetch allows it
-  // for the provided filter_id and streams the result to the provided fetch
-  // object.
-  //
-  // Returns true if an attempt to distribute was made. If the attempt fails
-  // before async_fetch was written to (before ResponseHeaders) it will call
-  // RewriteDriver::FetchResource() and skip distribution. If the attempt fails
-  // after writing to the ResponseHeaders then the fetch will ultimately fail
-  // and the client will get a broken resource.
-  //
-  // Returns false if ShouldDistributeFetch disallows the distribution.
-  bool DistributeFetch(const StringPiece& url, const StringPiece& filter_id,
-                       AsyncFetch* async_fetch);
 
   // Backend for both FetchComplete() and DetachedFetchComplete().
   // If 'signal' is true will wake up those waiting for completion on the
@@ -1478,14 +1460,18 @@ class RewriteDriver : public HtmlParse {
 
   scoped_ptr<CriticalLineInfo> critical_line_info_;
 
-  scoped_ptr<SplitHtmlConfig> split_html_config_;
-
-  // The critical image finder and critical selector finder will lazy-init these
-  // fields.
+  // Stores all the critical image info for the current URL.
   scoped_ptr<CriticalImagesInfo> critical_images_info_;
-  scoped_ptr<CriticalSelectorInfo> critical_selector_info_;
+
+  // Indicate whether critical_images_info_ has been set explicitly.  This
+  // distinguishes the default NULL value from an explicitly-set NULL value.
+  bool critical_images_info_was_set_;
 
   scoped_ptr<CriticalCssResult> critical_css_result_;
+
+  // We lazy-initialize critical_selector_info_ from the finder.
+  bool critical_selector_info_computed_;
+  scoped_ptr<CriticalSelectorSet> critical_selector_info_;
 
   // Memoized computation of whether the current doc has an XHTML mimetype.
   bool xhtml_mimetype_computed_;
@@ -1528,10 +1514,6 @@ class RewriteDriver : public HtmlParse {
   // once, allowing for multiple calls to RewriteDriver::Initialize as long
   // as they are matched to RewriteDriver::Terminate.
   static int initialized_count_;
-
-  // True if this RewriteDriver attempted to distribute the rewrite. This is
-  // used to prevent a second attempt in case the first errored out.
-  bool tried_to_distribute_fetch_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };

@@ -45,10 +45,8 @@ namespace net_instaweb {
 class AbstractMutex;
 class CacheHtmlInfoFinder;
 class CacheInterface;
-class CachePropertyStore;
 class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalLineInfoFinder;
 class CriticalSelectorFinder;
 class RequestProperties;
 class ExperimentMatcher;
@@ -61,14 +59,12 @@ class Hasher;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
-class PropertyStore;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
 class RewriteDriverFactory;
 class RewriteDriverPool;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
 class StaticAssetManager;
@@ -172,11 +168,6 @@ class ServerContext {
   void set_filename_encoder(FilenameEncoder* x) { filename_encoder_ = x; }
   UrlNamer* url_namer() const { return url_namer_; }
   void set_url_namer(UrlNamer* n) { url_namer_ = n; }
-  RewriteOptionsManager* rewrite_options_manager() const {
-    return rewrite_options_manager_.get();
-  }
-  // Takes ownership of RewriteOptionsManager.
-  void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
     return static_asset_manager_;
   }
@@ -199,12 +190,10 @@ class ServerContext {
 
   Timer* timer() const { return http_cache_->timer(); }
 
+  void MakePropertyCaches(CacheInterface* backend_cache);
+
   HTTPCache* http_cache() const { return http_cache_.get(); }
   void set_http_cache(HTTPCache* x) { http_cache_.reset(x); }
-
-  // Creates PagePropertyCache object with the provided PropertyStore object.
-  void MakePagePropertyCache(PropertyStore* property_store);
-
   PropertyCache* page_property_cache() const {
     return page_property_cache_.get();
   }
@@ -217,13 +206,6 @@ class ServerContext {
 
   const PropertyCache::Cohort* beacon_cohort() const { return beacon_cohort_; }
   void set_beacon_cohort(const PropertyCache::Cohort* c) { beacon_cohort_ = c; }
-
-  const PropertyCache::Cohort* critical_line_cohort() const {
-    return critical_line_cohort_;
-  }
-  void set_critical_line_cohort(const PropertyCache::Cohort* c) {
-    critical_line_cohort_ = c;
-  }
 
   // Cache for storing file system metadata. It must be private to a server,
   // preferably but not necessarily shared between its processes, and is
@@ -277,12 +259,6 @@ class ServerContext {
   }
 
   void set_cache_html_info_finder(CacheHtmlInfoFinder* finder);
-
-  CriticalLineInfoFinder* critical_line_info_finder() const {
-    return critical_line_info_finder_.get();
-  }
-
-  void set_critical_line_info_finder(CriticalLineInfoFinder* finder);
 
   // Whether or not dumps of rewritten resources should be stored to
   // the filesystem. This is meant for testing purposes only.
@@ -363,13 +339,12 @@ class ServerContext {
                                   RequestHeaders* request_headers,
                                   ResponseHeaders* response_headers);
 
-  // Checks the url for the split html ATF/BTF query param. If present, it
-  // strips the param from the url, and sets a bit in the request context
-  // indicating which chunk of the split response was requested.
-  // Returns true if it found a query param.
-  static bool ScanSplitHtmlRequest(const RequestContextPtr& ctx,
+  // Checks the url for the split html BTF query param. If present, it strips
+  // the param from the url, and sets a bit in the request context indicating
+  // the request is for the split BTF chunk.
+  static void ScanSplitHtmlRequest(const RequestContextPtr& ctx,
                                    const RewriteOptions* options,
-                                   GoogleString* url);
+                                   GoogleUrl* url);
 
   // Returns any custom options required for this request, incorporating
   // any domain-specific options from the UrlNamer, options set in query-params,
@@ -379,9 +354,23 @@ class ServerContext {
                                    RewriteOptions* domain_options,
                                    RewriteOptions* query_options);
 
-  // Returns the RewriteOptions signature hash.
-  // Returns empty string if RewriteOptions is NULL.
-  GoogleString GetRewriteOptionsSignatureHash(const RewriteOptions* options);
+  // Returns the page property cache key to be used for the proxy interface
+  // flow.  options is expected to be frozen.
+  GoogleString GetPagePropertyCacheKey(StringPiece url,
+                                       const RewriteOptions* options,
+                                       StringPiece device_type_suffix);
+
+  GoogleString GetPagePropertyCacheKey(StringPiece url,
+                                       StringPiece options_signature_hash,
+                                       StringPiece device_type_suffix);
+
+  // Returns the page property cache key for the page containing fallback
+  // values (i.e. wihtout query params or without leaf) to be used for the proxy
+  // interface flow.
+  // Options are expected to be frozen.
+  GoogleString GetFallbackPagePropertyCacheKey(const GoogleUrl& request_url,
+                                               const RewriteOptions* options,
+                                               StringPiece device_type_suffix);
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -543,6 +532,10 @@ class ServerContext {
     return available_rewrite_drivers_.get();
   }
 
+  // Builds a PropertyCache given a key prefix and a CacheInterface.
+  PropertyCache* MakePropertyCache(const GoogleString& cache_key_prefix,
+                                   CacheInterface* cache) const;
+
   // Returns the current server hostname.
   const GoogleString& hostname() const {
     return hostname_;
@@ -587,31 +580,6 @@ class ServerContext {
   // shutdown.
   void DeleteCacheOnDestruction(CacheInterface* cache);
 
-  void set_cache_property_store(CachePropertyStore* p);
-
-  // Creates CachePropertyStore object which will be used by PagePropertyCache.
-  PropertyStore* CreatePropertyStore(CacheInterface* cache_backend);
-
-  // Establishes a new Cohort for this property.
-  // This will also call CachePropertyStore::AddCohort() if CachePropertyStore
-  // is used.
-  const PropertyCache::Cohort* AddCohort(
-      const GoogleString& cohort_name,
-      PropertyCache* pcache);
-
-  // Establishes a new Cohort to be backed by the specified CacheInterface.
-  // NOTE: Does not take ownership of the CacheInterface object.
-  // This also calls CachePropertyStore::AddCohort() to set the cache backend
-  // for the given cohort.
-  const PropertyCache::Cohort* AddCohortWithCache(
-      const GoogleString& cohort_name,
-      CacheInterface* cache,
-      PropertyCache* pcache);
-
-  // Returns the cache backend associated with CachePropertyStore.
-  // Returns NULL if non-CachePropertyStore is used.
-  const CacheInterface* pcache_cache_backend();
-
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
   // appropriate spot during shutdown.
@@ -633,7 +601,6 @@ class ServerContext {
   FileSystem* file_system_;
   FilenameEncoder* filename_encoder_;
   UrlNamer* url_namer_;
-  scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
   UserAgentMatcher* user_agent_matcher_;
   Scheduler* scheduler_;
   UrlAsyncFetcher* default_system_fetcher_;
@@ -644,7 +611,6 @@ class ServerContext {
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
   scoped_ptr<CacheHtmlInfoFinder> cache_html_info_finder_;
   scoped_ptr<FlushEarlyInfoFinder> flush_early_info_finder_;
-  scoped_ptr<CriticalLineInfoFinder> critical_line_info_finder_;
 
   // hasher_ is often set to a mock within unit tests, but some parts of the
   // system will not work sensibly if the "hash algorithm" used always returns
@@ -672,7 +638,6 @@ class ServerContext {
   const PropertyCache::Cohort* dom_cohort_;
   const PropertyCache::Cohort* blink_cohort_;
   const PropertyCache::Cohort* beacon_cohort_;
-  const PropertyCache::Cohort* critical_line_cohort_;
 
   // RewriteDrivers that were previously allocated, but have
   // been released with ReleaseRewriteDriver, and are ready
@@ -747,8 +712,6 @@ class ServerContext {
   // A simple (and always seeded with the same default!) random number
   // generator.  Do not use for security purposes.
   SimpleRandom simple_random_;
-
-  scoped_ptr<CachePropertyStore> cache_property_store_;
 
   DISALLOW_COPY_AND_ASSIGN(ServerContext);
 };

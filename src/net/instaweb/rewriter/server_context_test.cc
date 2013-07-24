@@ -38,7 +38,6 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
@@ -656,57 +655,43 @@ TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
 TEST_F(ServerContextTest, ScanSplitHtmlRequestSplitEnabled) {
   options()->EnableFilter(RewriteOptions::kSplitHtml);
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_BELOW_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_TRUE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/", gurl.Spec());
 
-  url = "http://test.com/?a=b&x_split=btf";
+  gurl.Reset("http://test.com/?a=b&X-PSA-Split-Btf=2");
   ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_BELOW_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
-
-  url = "http://test.com/?a=b&x_split=atf";
-  ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_ABOVE_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
-
-  url = "http://test.com/?a=b&x_split=junk";
-  ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_TRUE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?a=b", gurl.Spec());
 
   ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?a=b", gurl.Spec());
 }
 
 TEST_F(ServerContextTest, ScanSplitHtmlRequestOptionsNull) {
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, NULL, &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?x_split=btf", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, NULL, &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?X-PSA-Split-Btf=1", gurl.Spec());
 }
 
 TEST_F(ServerContextTest, ScanSplitHtmlRequestSplitDisabled) {
   options()->DisableFilter(RewriteOptions::kSplitHtml);
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?x_split=btf", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?X-PSA-Split-Btf=1", gurl.Spec());
 }
 
 class MockRewriteFilter : public RewriteFilter {
@@ -1131,9 +1116,9 @@ class BeaconTest : public ServerContextTest {
         new BeaconCriticalImagesFinder(
             beacon_cohort, factory()->nonce_generator(), statistics()));
     server_context()->set_critical_selector_finder(
-        new BeaconCriticalSelectorFinder(beacon_cohort, timer(),
-                                         factory()->nonce_generator(),
-                                         statistics()));
+        new CriticalSelectorFinder(
+            beacon_cohort, timer(),
+            factory()->nonce_generator(), statistics()));
     ResetDriver();
     candidates_.insert("#foo");
     candidates_.insert(".bar");
@@ -1149,8 +1134,11 @@ class BeaconTest : public ServerContextTest {
     UserAgentMatcher::DeviceType device_type =
         server_context()->user_agent_matcher()->GetDeviceTypeForUA(
             user_agent);
-    MockPropertyPage* page = NewMockPage(
-        kUrlPrefix, kOptionsHash, device_type);
+    StringPiece device_type_suffix =
+        UserAgentMatcher::DeviceTypeSuffix(device_type);
+    GoogleString key = server_context()->GetPagePropertyCacheKey(
+        kUrlPrefix, kOptionsHash, device_type_suffix);
+    MockPropertyPage* page = NewMockPage(key);
     property_cache_->Read(page);
     return page;
   }
@@ -1158,9 +1146,11 @@ class BeaconTest : public ServerContextTest {
   void InsertCssBeacon(StringPiece user_agent) {
     // Simulate effects on pcache of CSS beacon insertion.
     rewrite_driver()->set_property_page(MockPageForUA(user_agent));
-    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
-    last_nonce_ = server_context()->critical_selector_finder()
-        ->PrepareForBeaconInsertion(candidates_, rewrite_driver());
+    factory()->mock_timer()->AdvanceMs(
+        CriticalSelectorFinder::kMinBeaconIntervalMs);
+    last_nonce_ =
+        server_context()->critical_selector_finder()->PrepareForBeaconInsertion(
+            candidates_, rewrite_driver());
     EXPECT_FALSE(last_nonce_.empty());
     rewrite_driver()->property_page()->WriteCohort(
         server_context()->beacon_cohort());
@@ -1207,8 +1197,9 @@ class BeaconTest : public ServerContextTest {
 
     if (critical_css_selectors != NULL) {
       rewrite_driver()->set_property_page(page.release());
-      critical_css_selectors_ = server_context()->critical_selector_finder()
-          ->GetCriticalSelectors(rewrite_driver());
+      server_context()->critical_selector_finder()->
+          GetCriticalSelectorsFromPropertyCache(rewrite_driver(),
+                                                &critical_css_selectors_);
     }
   }
 
@@ -1228,8 +1219,14 @@ TEST_F(BeaconTest, BasicPcacheSetup) {
   UserAgentMatcher::DeviceType device_type =
       server_context()->user_agent_matcher()->GetDeviceTypeForUA(
           UserAgentMatcherTestBase::kChromeUserAgent);
-  scoped_ptr<MockPropertyPage> page(
-      NewMockPage(kUrlPrefix, kOptionsHash, device_type));
+  StringPiece device_type_suffix =
+      UserAgentMatcher::DeviceTypeSuffix(device_type);
+  GoogleString key = server_context()->GetPagePropertyCacheKey(
+      kUrlPrefix,
+      kOptionsHash,
+      device_type_suffix);
+
+  scoped_ptr<MockPropertyPage> page(NewMockPage(key));
   property_cache_->Read(page.get());
   PropertyValue* property = page->GetProperty(cohort, "critical_images");
   EXPECT_FALSE(property->has_value());
@@ -1342,8 +1339,7 @@ TEST_F(ResourceFreshenTest, TestFreshenImminentlyExpiringResources) {
 
   // Make sure we don't try to insert non-cacheable resources
   // into the cache wastefully, but still fetch them well.
-  int max_age_sec =
-      ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
+  int max_age_sec = ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs;
   response_headers_.Add(HttpAttributes::kCacheControl,
                        StringPrintf("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "");
@@ -1411,8 +1407,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
   const GoogleString kContents = "ok";
   FetcherUpdateDateHeaders();
 
-  int max_age_sec =
-      ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs - 1;
+  int max_age_sec = ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs - 1;
   response_headers_.Add(HttpAttributes::kCacheControl,
                        StringPrintf("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "");
@@ -1686,6 +1681,20 @@ TEST_F(ServerContextTest, LoadFromFileReadAsync) {
   callback2.AssertCalled();
 }
 
+TEST_F(ServerContextTest, TestGetFallbackPagePropertyCacheKey) {
+  GoogleString fallback_path("http://www.abc.com/b/");
+  GoogleString device_type_suffix("0");
+  GoogleUrl url_query(StrCat(fallback_path, "?c=d"));
+  GoogleUrl url_base_path(StrCat(fallback_path, "c/"));
+
+  EXPECT_EQ(StrCat(fallback_path, device_type_suffix, "@"),
+            server_context()->GetFallbackPagePropertyCacheKey(
+                url_query, NULL, device_type_suffix));
+  EXPECT_EQ(StrCat(fallback_path, device_type_suffix, "#"),
+            server_context()->GetFallbackPagePropertyCacheKey(
+                url_base_path, NULL, device_type_suffix));
+}
+
 namespace {
 
 void CheckMatchesHeaders(const ResponseHeaders& headers,
@@ -1930,17 +1939,6 @@ TEST_F(ServerContextTest, TestRefererNonBackgroundFetchWithDriverRefer) {
   headers.Add(HttpAttributes::kReferer, kReferer);
   RefererTest(&headers, false);
   EXPECT_EQ(kReferer, mock_url_fetcher()->last_referer());
-}
-
-// Regression test for RewriteTestBase::DefaultResponseHeaders, which is based
-// on ServerContext methods. It used to not set 'Expires' correctly.
-TEST_F(ServerContextTest, RewriteTestBaseDefaultResponseHeaders) {
-  ResponseHeaders headers;
-  DefaultResponseHeaders(kContentTypeCss, 100 /* ttl_sec */, &headers);
-  int64 expire_time_ms = 0;
-  ASSERT_TRUE(
-      headers.ParseDateHeader(HttpAttributes::kExpires, &expire_time_ms));
-  EXPECT_EQ(timer()->NowMs() + 100 * Timer::kSecondMs, expire_time_ms);
 }
 
 }  // namespace net_instaweb
