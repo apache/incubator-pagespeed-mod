@@ -554,7 +554,7 @@ void write_handler_response(const StringPiece& output,
                             request_rec* request,
                             ContentType content_type) {
   write_handler_response(output, request, kContentTypeHtml,
-                         HttpAttributes::kNoCache);
+                         HttpAttributes::kNoCacheMaxAge0);
 }
 
 void write_handler_response(const StringPiece& output, request_rec* request) {
