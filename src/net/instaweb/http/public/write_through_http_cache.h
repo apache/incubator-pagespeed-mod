@@ -25,7 +25,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -101,10 +100,7 @@ class WriteThroughHTTPCache : public HTTPCache {
   void set_cache1_limit(size_t limit) { cache1_size_limit_ = limit; }
   size_t cache1_limit() const { return cache1_size_limit_; }
 
-  virtual GoogleString Name() const {
-    return FormatName(cache1_->Name(), cache2_->Name());
-  }
-  static GoogleString FormatName(StringPiece l1, StringPiece l2);
+  virtual const char* Name() const { return name_.c_str(); }
 
  protected:
   // Implements HTTPCache::PutInternal().

@@ -134,12 +134,14 @@ void VectorizeMediaAttribute(const StringPiece& input_media,
 }
 
 GoogleString StringifyMediaVector(const StringVector& input_media) {
-  GoogleString result;
   // Special case: inverse of the special rule in the vectorize function.
   if (input_media.empty()) {
-    result = kAllMedia;
-  } else {
-    AppendJoinCollection(&result, input_media, ",");
+    return kAllMedia;
+  }
+  // Hmm, we don't seem to have a useful 'join' function handy.
+  GoogleString result(input_media[0]);
+  for (int i = 1, n = input_media.size(); i < n; ++i) {
+    StrAppend(&result, ",", input_media[i]);
   }
   return result;
 }

@@ -28,7 +28,6 @@ namespace net_instaweb {
 
 class HtmlElement;
 class GoogleUrl;
-class ResponseHeaders;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -61,14 +60,8 @@ class DomainRewriteFilter : public CommonFilter {
   // kDomainUnchanged returned.
   RewriteResult Rewrite(const StringPiece& input_url,
                         const GoogleUrl& base_url,
-                        const RewriteDriver* driver,
                         bool apply_sharding,
-                        GoogleString* output_url) const;
-
-  // Update the url in the location header as per the rewrite rules configured
-  // for this domain.
-  void UpdateLocationHeader(const GoogleUrl& base_url, RewriteDriver* driver,
-                            ResponseHeaders* headers) const;
+                        GoogleString* output_url);
 
  private:
   // Stats on how much domain-rewriting we've done.

@@ -23,7 +23,6 @@
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
-#include "net/instaweb/rewriter/public/critical_selector_filter.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -113,33 +112,10 @@ void CollectFlushEarlyContentFilter::EndDocument() {
 }
 
 void CollectFlushEarlyContentFilter::StartElementImpl(HtmlElement* element) {
-  // Collect the link stylesheet tags inside the noscript element only if
-  // they are added by the Critical CSS filter. In this case, the link tags
-  // thus collected will be parsed by a subsequent run of the Critical CSS
-  // filter in flush early phase. In this phase, Critical CSS filter replaces
-  // link tags with style elements with critical CSS rules inlined and a
-  // special attribute added (kDataPagespeedFlushStyle). Flush early content
-  // filter in turn looks for the special attribute in the style tag and flush
-  // the content early as inlined CSS link tags.
-  // Note that this may cause the order of CSS elements stored in resource html
-  // to be different from the order in which elements are parsed in HTML. This
-  // can cause downloads to be in a different order too.
-  if (element == noscript_element()) {
-    if (driver()->options()->enable_flush_early_critical_css()) {
-      const char* cls = noscript_element()->AttributeValue(HtmlName::kClass);
-      if (cls != NULL &&
-          StringCaseEqual(cls, CriticalSelectorFilter::kNoscriptStylesClass)) {
-        should_collect_critical_css_ = true;
-      }
-    }
+  if (noscript_element() != NULL) {
+    // Do nothing.
     return;
   }
-
-  if (noscript_element() != NULL && !should_collect_critical_css_) {
-    // Do nothing
-    return;
-  }
-
   if (element->keyword() == HtmlName::kBody) {
     StrAppend(&resource_html_, "<body>");
     return;
@@ -154,30 +130,28 @@ void CollectFlushEarlyContentFilter::StartElementImpl(HtmlElement* element) {
   if (url.empty() || IsDataUrl(url)) {
     return;
   }
-  ResourcePtr resource = CreateInputResource(url);
-  if (resource.get() == NULL) {
-    return;
-  }
-
   if (driver()->flushing_early() &&
       driver()->options()->flush_more_resources_early_if_time_permits()) {
     if (category == semantic_type::kStylesheet ||
         category == semantic_type::kScript ||
         category == semantic_type::kImage) {
-      ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
-      Context* context = new Context(driver());
-      context->AddSlot(slot);
-      driver()->InitiateRewrite(context);
+      ResourcePtr resource = CreateInputResource(url);
+      if (resource.get() != NULL) {
+        ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
+        Context* context = new Context(driver());
+        context->AddSlot(slot);
+        driver()->InitiateRewrite(context);
+      }
     }
     return;
   }
   // Find javascript elements in the head, and css elements in the entire page.
   if ((category == semantic_type::kStylesheet ||
        (category == semantic_type::kScript))) {
-    // We need to always use the abosultified urls while flushing, else we might
-    // end up flushing wrong resources. Use the absolutified url that is
-    // computed in CreateInputResource call.
-    GoogleUrl gurl(resource->url());
+    // TODO(pulkitg): Collect images which can be flushed early.
+    // Absolutify the url before storing its value so that we handle
+    // <base> tags correctly.
+    GoogleUrl gurl(driver()->base_url(), url);
     if (gurl.is_valid()) {
       StringVector decoded_url;
       // Decode the url if it is encoded.
@@ -229,9 +203,7 @@ void CollectFlushEarlyContentFilter::AppendAttribute(
 
 void CollectFlushEarlyContentFilter::EndElementImpl(HtmlElement* element) {
   if (noscript_element() != NULL) {
-    if (element == noscript_element()) {
-      should_collect_critical_css_ = false;
-    }
+    // Do nothing.
   } else if (element->keyword() == HtmlName::kBody) {
     StrAppend(&resource_html_, "</body>");
   }
@@ -240,7 +212,6 @@ void CollectFlushEarlyContentFilter::EndElementImpl(HtmlElement* element) {
 void CollectFlushEarlyContentFilter::Clear() {
   resource_html_.clear();
   found_resource_ = false;
-  should_collect_critical_css_ = false;
 }
 
 }  // namespace net_instaweb

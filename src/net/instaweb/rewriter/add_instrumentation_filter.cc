@@ -22,20 +22,19 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -96,7 +95,7 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     // TODO(abliss): add an actual element instead, so other filters can
     // rewrite this JS
     HtmlCharactersNode* script = driver_->NewCharactersNode(NULL, kHeadScript);
-    driver_->InsertNodeBeforeCurrent(script);
+    driver_->InsertElementBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
   }
 }
@@ -116,8 +115,6 @@ void AddInstrumentationFilter::EndElement(HtmlElement* element) {
     // assured by add_head_filter.
     CHECK(found_head_) << "Reached end of document without finding <head>."
         "  Please turn on the add_head filter.";
-    // TODO(jud): Refactor to insert the tail script in EndDocument using
-    // CommonFilter::InsertNodeAtBodyEnd.
     AddScriptNode(element, kLoadTag);
     added_tail_script_ = true;
   } else if (found_head_ && element->keyword() == HtmlName::kHead) {
@@ -139,12 +136,8 @@ void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
       driver_->server_context()->static_asset_manager();
   // Only add the static JS once.
   if (!added_tail_script_ && !added_unload_script_) {
-    if (driver_->options()->enable_extended_instrumentation()) {
-      js = static_asset_manager->GetAsset(
-          StaticAssetManager::kExtendedInstrumentationJs, driver_->options());
-    }
-    StrAppend(&js, static_asset_manager->GetAsset(
-        StaticAssetManager::kAddInstrumentationJs, driver_->options()));
+    js = static_asset_manager->GetAsset(
+        StaticAssetManager::kAddInstrumentationJs, driver_->options());
   }
 
   GoogleString js_event = (event == kLoadTag) ? "load" : "beforeunload";
@@ -152,46 +145,35 @@ void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
   const RewriteOptions::BeaconUrl& beacons = driver_->options()->beacon_url();
   const GoogleString* beacon_url =
       driver_->IsHttps() ? &beacons.https : &beacons.http;
-  GoogleString extra_params;
-  if (driver_->options()->running_experiment()) {
-    int experiment_state = driver_->options()->experiment_id();
-    if (experiment_state != experiment::kExperimentNotSet &&
-        experiment_state != experiment::kNoExperiment) {
-      StrAppend(&extra_params, "&exptid=",
-                IntegerToString(driver_->options()->experiment_id()));
+  GoogleString expt_id_param;
+  if (driver_->options()->running_furious()) {
+    int furious_state = driver_->options()->furious_id();
+    if (furious_state != furious::kFuriousNotSet &&
+        furious_state != furious::kFuriousNoExperiment) {
+      expt_id_param = IntegerToString(driver_->options()->furious_id());
     }
   }
 
-  const RequestContext::TimingInfo& timing_info =
-      driver_->request_context()->timing_info();
-  int64 header_fetch_ms;
-  if (timing_info.GetFetchHeaderLatencyMs(&header_fetch_ms)) {
-    // If time taken to fetch the http header is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&hft=", Integer64ToString(header_fetch_ms));
-  }
-  int64 fetch_ms;
-  if (timing_info.GetFetchLatencyMs(&fetch_ms)) {
-    // If time taken to fetch the resource is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&ft=", Integer64ToString(fetch_ms));
-  }
-  int64 ttfb_ms;
-  if (timing_info.GetTimeToFirstByte(&ttfb_ms)) {
-    StrAppend(&extra_params, "&s_ttfb=", Integer64ToString(ttfb_ms));
-  }
-
-  // Append the http response code.
-  if (driver_->response_headers() != NULL &&
-      driver_->response_headers()->status_code() > 0 &&
-      driver_->response_headers()->status_code() != HttpStatus::kOK) {
-    StrAppend(&extra_params, "&rc=", IntegerToString(
-        driver_->response_headers()->status_code()));
-  }
-  // Append the request id.
-  if (driver_->request_context()->request_id() > 0) {
-    StrAppend(&extra_params, "&id=", Integer64ToString(
-        driver_->request_context()->request_id()));
+  GoogleString headers_fetch_time;
+  GoogleString fetch_time;
+  LogRecord* log_record = driver_->log_record();
+  {
+    ScopedMutex lock(log_record->mutex());
+    if (log_record->logging_info()->has_timing_info()) {
+      if (log_record->logging_info()->timing_info().has_header_fetch_ms()) {
+        int64 header_fetch_ms =
+            log_record->logging_info()->timing_info().header_fetch_ms();
+        // If time taken to fetch the http header is not set, then the response
+        // came from cache.
+        headers_fetch_time = Integer64ToString(header_fetch_ms);
+      }
+      if (log_record->logging_info()->timing_info().has_fetch_ms()) {
+        int64 fetch_ms = log_record->logging_info()->timing_info().fetch_ms();
+        // If time taken to fetch the resource is not set, then the response
+        // came from cache.
+        fetch_time = Integer64ToString(fetch_ms);
+      }
+    }
   }
 
   GoogleString html_url;
@@ -202,13 +184,14 @@ void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
   GoogleString init_js = "\npagespeed.addInstrumentationInit(";
   StrAppend(&init_js, "'", *beacon_url, "', ");
   StrAppend(&init_js, "'", js_event, "', ");
-  StrAppend(&init_js, "'", extra_params, "', ");
+  StrAppend(&init_js, "'", headers_fetch_time, "', ");
+  StrAppend(&init_js, "'", fetch_time, "', ");
+  StrAppend(&init_js, "'", expt_id_param, "', ");
   StrAppend(&init_js, "'", html_url, "');");
 
   StrAppend(&js, init_js);
   HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
-  driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-  driver_->InsertNodeBeforeCurrent(script);
+  driver_->InsertElementBeforeCurrent(script);
   static_asset_manager->AddJsToElement(js, script, driver_);
 }
 

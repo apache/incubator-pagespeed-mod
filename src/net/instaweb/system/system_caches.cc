@@ -32,9 +32,9 @@
 #include "net/instaweb/system/public/system_rewrite_options.h"
 #include "net/instaweb/util/public/async_cache.h"
 #include "net/instaweb/util/public/cache_batcher.h"
+#include "net/instaweb/util/public/cache_copy.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/cache_stats.h"
-#include "net/instaweb/util/public/compressed_cache.h"
 #include "net/instaweb/util/public/fallback_cache.h"
 #include "net/instaweb/util/public/file_cache.h"
 #include "net/instaweb/util/public/message_handler.h"
@@ -98,15 +98,27 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
          e = path_cache_map_.end(); p != e; ++p) {
       p->second->GlobalCleanup(message_handler);
     }
+  }
 
-    // And all the SHM caches.
-    for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-         e = metadata_shm_caches_.end(); p != e; ++p) {
-      if (p->second->cache_backend != NULL && p->second->initialized) {
-        MetadataShmCache::GlobalCleanup(shared_mem_runtime_, p->second->segment,
-                                        message_handler);
-      }
-    }
+  for (PathCacheMap::iterator p = path_cache_map_.begin(),
+           e = path_cache_map_.end(); p != e; ++p) {
+    SystemCachePath* cache = p->second;
+    factory_->defer_cleanup(
+        new RewriteDriverFactory::Deleter<SystemCachePath>(cache));
+  }
+
+  for (MemcachedMap::iterator p = memcached_map_.begin(),
+           e = memcached_map_.end(); p != e; ++p) {
+    CacheInterface* memcached = p->second;
+    factory_->defer_cleanup(
+        new RewriteDriverFactory::Deleter<CacheInterface>(memcached));
+  }
+
+  for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
+           e = metadata_shm_caches_.end(); p != e; ++p) {
+    MetadataShmCacheInfo* cache_info = p->second;
+    factory_->defer_cleanup(
+        new RewriteDriverFactory::Deleter<MetadataShmCacheInfo>(cache_info));
   }
 }
 
@@ -118,18 +130,14 @@ SystemCachePath* SystemCaches::GetCache(SystemRewriteOptions* config) {
   if (result.second) {
     iter->second =
         new SystemCachePath(path, config, factory_, shared_mem_runtime_);
-    factory_->TakeOwnership(iter->second);
   }
   return iter->second;
 }
 
 AprMemCache* SystemCaches::NewAprMemCache(const GoogleString& spec) {
-  AprMemCache* mem_cache =
-      new AprMemCache(spec, thread_limit_, &cache_hasher_,
-                      factory_->statistics(), factory_->timer(),
-                      factory_->message_handler());
-  factory_->TakeOwnership(mem_cache);
-  return mem_cache;
+  return new AprMemCache(spec, thread_limit_, &cache_hasher_,
+                         factory_->statistics(), factory_->timer(),
+                         factory_->message_handler());
 }
 
 CacheInterface* SystemCaches::GetMemcached(SystemRewriteOptions* config) {
@@ -152,14 +160,6 @@ CacheInterface* SystemCaches::GetMemcached(SystemRewriteOptions* config) {
 
       int num_threads = config->memcached_threads();
       if (num_threads != 0) {
-        if (num_threads != 1) {
-          factory_->message_handler()->Message(
-              kWarning, "ModPagespeedMemcachedThreads support for >1 thread "
-              "is not supported yet; changing to 1 thread (was %d)",
-              num_threads);
-          num_threads = 1;
-        }
-
         if (memcached_pool_.get() == NULL) {
           // Note -- we will use the first value of ModPagespeedMemCacheThreads
           // that we see in a VirtualHost, ignoring later ones.
@@ -167,8 +167,10 @@ CacheInterface* SystemCaches::GetMemcached(SystemRewriteOptions* config) {
               new QueuedWorkerPool(num_threads, "memcached",
                                    factory_->thread_system()));
         }
-        memcached = new AsyncCache(mem_cache, memcached_pool_.get());
-        factory_->TakeOwnership(memcached);
+        AsyncCache* async_cache = new AsyncCache(mem_cache,
+                                                 memcached_pool_.get());
+        async_caches_.push_back(async_cache);
+        memcached = async_cache;
       } else {
         memcached = mem_cache;
       }
@@ -178,12 +180,10 @@ CacheInterface* SystemCaches::GetMemcached(SystemRewriteOptions* config) {
 #if CACHE_STATISTICS
       memcached = new CacheStats(kMemcached, memcached,
                                  factory_->timer(), factory_->statistics());
-      factory_->TakeOwnership(memcached);
 #endif
       CacheBatcher* batcher = new CacheBatcher(
           memcached, factory_->thread_system()->NewMutex(),
           factory_->statistics());
-      factory_->TakeOwnership(batcher);
       if (num_threads != 0) {
         batcher->set_max_parallel_lookups(num_threads);
       }
@@ -219,19 +219,16 @@ bool SystemCaches::CreateShmMetadataCache(
       return false;
     } else {
       cache_info = new MetadataShmCacheInfo;
-      factory_->TakeOwnership(cache_info);
-      cache_info->segment = StrCat(name, "/metadata_cache");
       cache_info->cache_backend =
           new SharedMemCache<64>(
               shared_mem_runtime_,
-              cache_info->segment,
+              StrCat(name, "/metadata_cache"),
               factory_->timer(),
               factory_->hasher(),
               kSectors,
               entries,  /* entries per sector */
               blocks /* blocks per sector*/,
               factory_->message_handler());
-      factory_->TakeOwnership(cache_info->cache_backend);
       // We can't set cache_info->cache_to_use yet since statistics aren't ready
       // yet. It will happen in ::RootInit().
       result.first->second = cache_info;
@@ -255,7 +252,7 @@ CacheInterface* SystemCaches::GetShmMetadataCache(
   }
   MetadataShmCacheMap::iterator i = metadata_shm_caches_.find(name);
   if (i != metadata_shm_caches_.end()) {
-    return i->second->cache_to_use;
+    return i->second->cache_to_use.get();
   }
   return NULL;
 }
@@ -298,12 +295,12 @@ void SystemCaches::SetupCaches(ServerContext* server_context) {
     memcached = new FallbackCache(memcached, file_cache,
                                   AprMemCache::kValueSizeThreshold,
                                   factory_->message_handler());
-    server_context->DeleteCacheOnDestruction(memcached);
   }
 
   if (memcached != NULL) {
+    server_context->set_owned_cache(memcached);
     server_context->set_filesystem_metadata_cache(
-        GetFilesystemMetadataCache(config));
+        new CacheCopy(GetFilesystemMetadataCache(config)));
   }
   Statistics* stats = server_context->statistics();
 
@@ -352,35 +349,15 @@ void SystemCaches::SetupCaches(ServerContext* server_context) {
     metadata_l2 = http_l2;  // memcached or file.
   }
 
-  CacheInterface* metadata_cache;
-
   if (metadata_l1 != NULL) {
     WriteThroughCache* write_through_cache = new WriteThroughCache(
         metadata_l1, metadata_l2);
-    server_context->DeleteCacheOnDestruction(write_through_cache);
     write_through_cache->set_cache1_limit(l1_size_limit);
-    metadata_cache = write_through_cache;
+    server_context->set_metadata_cache(write_through_cache);
   } else {
-    metadata_cache = metadata_l2;
+    server_context->set_metadata_cache(new CacheCopy(metadata_l2));
   }
-
-  // TODO(jmarantz): We probably want to store HTTP cache compressed
-  // even without this flag, but we should do it differently, storing
-  // only the content compressed and putting in content-encoding:gzip
-  // so that mod_gzip doesn't have to recompress on every request.
-  CacheInterface* property_store_cache = NULL;
-  if (config->compress_metadata_cache()) {
-    metadata_cache = new CompressedCache(metadata_cache, stats);
-    server_context->DeleteCacheOnDestruction(metadata_cache);
-    CacheInterface* compressed_l2 = new CompressedCache(metadata_l2, stats);
-    server_context->DeleteCacheOnDestruction(compressed_l2);
-    property_store_cache = compressed_l2;
-  } else {
-    property_store_cache = metadata_l2;
-  }
-  server_context->MakePagePropertyCache(
-      server_context->CreatePropertyStore(property_store_cache));
-  server_context->set_metadata_cache(metadata_cache);
+  server_context->MakePropertyCaches(metadata_l2);
 }
 
 void SystemCaches::RegisterConfig(SystemRewriteOptions* config) {
@@ -395,17 +372,16 @@ void SystemCaches::RootInit() {
            e = metadata_shm_caches_.end(); p != e; ++p) {
     MetadataShmCacheInfo* cache_info = p->second;
     if (cache_info->cache_backend->Initialize()) {
-      cache_info->initialized = true;
-      cache_info->cache_to_use =
+      cache_info->cache_to_use.reset(
           new CacheStats(kShmCache, cache_info->cache_backend,
-                         factory_->timer(), factory_->statistics());
-      factory_->TakeOwnership(cache_info->cache_to_use);
+                         factory_->timer(), factory_->statistics()));
     } else {
       factory_->message_handler()->Message(
           kWarning, "Unable to initialize shared memory cache: %s.",
           p->first.c_str());
+      delete cache_info->cache_backend;
       cache_info->cache_backend = NULL;
-      cache_info->cache_to_use = NULL;
+      cache_info->cache_to_use.reset(NULL);
     }
   }
 
@@ -431,7 +407,7 @@ void SystemCaches::ChildInit() {
           p->first.c_str());
       delete cache_info->cache_backend;
       cache_info->cache_backend = NULL;
-      cache_info->cache_to_use = NULL;
+      cache_info->cache_to_use.reset(NULL);
     }
   }
 
@@ -471,7 +447,6 @@ void SystemCaches::InitStats(Statistics* statistics) {
   CacheStats::InitStats(SystemCachePath::kLruCache, statistics);
   CacheStats::InitStats(kShmCache, statistics);
   CacheStats::InitStats(kMemcached, statistics);
-  CompressedCache::InitStats(statistics);
 }
 
 void SystemCaches::PrintCacheStats(StatFlags flags, GoogleString* out) {

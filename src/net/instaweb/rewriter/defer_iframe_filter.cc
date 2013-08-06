@@ -21,7 +21,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -37,7 +37,7 @@ const char DeferIframeFilter::kDeferIframeIframeJs[] =
     "\npagespeed.deferIframe.convertToIframe();";
 
 DeferIframeFilter::DeferIframeFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
+    : driver_(driver),
       static_asset_manager_(
           driver->server_context()->static_asset_manager()),
       script_inserted_(false) {}
@@ -46,46 +46,40 @@ DeferIframeFilter::~DeferIframeFilter() {
 }
 
 void DeferIframeFilter::DetermineEnabled() {
-  set_is_enabled(driver()->request_properties()->SupportsJsDefer(
-      driver()->options()->enable_aggressive_rewriters_for_mobile()));
+  set_is_enabled(driver_->device_properties()->SupportsJsDefer(
+      driver_->options()->enable_aggressive_rewriters_for_mobile()));
 }
 
-void DeferIframeFilter::StartDocumentImpl() {
+void DeferIframeFilter::StartDocument() {
   script_inserted_ = false;
 }
 
-void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
-    return;
-  }
+void DeferIframeFilter::StartElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kIframe) {
     if (!script_inserted_) {
-      HtmlElement* script = driver()->NewElement(element->parent(),
+      HtmlElement* script = driver_->NewElement(element->parent(),
                                                 HtmlName::kScript);
-      driver()->InsertNodeBeforeNode(element, script);
+      driver_->InsertElementBeforeElement(element, script);
 
       GoogleString js = StrCat(
           static_asset_manager_->GetAsset(
-              StaticAssetManager::kDeferIframe, driver()->options()),
+              StaticAssetManager::kDeferIframe, driver_->options()),
               kDeferIframeInit);
-      static_asset_manager_->AddJsToElement(js, script, driver());
+      static_asset_manager_->AddJsToElement(js, script, driver_);
       script_inserted_ = true;
     }
     element->set_name(HtmlName(HtmlName::kPagespeedIframe, "pagespeed_iframe"));
   }
 }
 
-void DeferIframeFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
-    return;
-  }
+void DeferIframeFilter::EndElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kPagespeedIframe) {
-    HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
-    driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
-    HtmlCharactersNode* script_content = driver()->NewCharactersNode(
+    HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
+    driver_->AddAttribute(script, HtmlName::kType, "text/javascript");
+    HtmlCharactersNode* script_content = driver_->NewCharactersNode(
         script, kDeferIframeIframeJs);
-    driver()->AppendChild(element, script);
-    driver()->AppendChild(script, script_content);
+    driver_->AppendChild(element, script);
+    driver_->AppendChild(script, script_content);
   }
 }
 

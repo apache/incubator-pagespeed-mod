@@ -20,8 +20,8 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/css_url_extractor.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -30,7 +30,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/wildcard.h"
 
 namespace net_instaweb {
 
@@ -244,28 +243,8 @@ GoogleString CssRewriteTestBase::MakeMinifiedCssWithImage(
   return StrCat("body{background-image:url(", image_url, ")}");
 }
 
-GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
-    const GoogleString &in_css) {
-  const char css_template[] = "*{background-image:url(*)}*";
-  GoogleString image_url;
-  if (!Wildcard(css_template).Match(in_css)) {
-    return image_url;
-  }
-  StringVector extracted_urls;
-  CssUrlExtractor url_extractor;
-  url_extractor.ExtractUrl(in_css, &extracted_urls);
-  // Although the CssUrlExtractor returns a StringVector, we expect only one
-  // url in the input string.
-  if (extracted_urls.size() == 1) {
-    image_url = extracted_urls[0];
-  }
-
-  return image_url;
-}
-
 // Check that external CSS gets rewritten correctly.
 void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
-    const StringPiece& id,
     const StringPiece& css_url,
     const GoogleString& css_input,
     const GoogleString& expected_css_output,
@@ -293,7 +272,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
     html_output = html_input;
   }
 
-  ValidateWithStats(id, html_input, html_output,
+  ValidateWithStats(css_url, html_input, html_output,
                     css_input, expected_css_output, flags);
 
   // If we produced a new output resource, check it.
@@ -307,6 +286,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
 
     // Non-fallback CSS should have very long caching headers
     if (!FlagSet(flags, kExpectFallback)) {
+      EXPECT_TRUE(headers_out.IsCacheable());
       EXPECT_TRUE(headers_out.IsProxyCacheable());
       EXPECT_LE(Timer::kYearMs, headers_out.cache_ttl_ms());
     }

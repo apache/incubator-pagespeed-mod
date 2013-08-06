@@ -66,7 +66,8 @@ else
   echo WGET = $WGET
 fi
 
-if ! $WGET --version | head -1 | grep -q "1\.1[2-9]"; then
+$WGET --version | head -1 | grep -q "1\.1[2-9]"
+if [ $? != 0 ]; then
   echo "You have the wrong version of wget. >1.12 is required."
   exit 1
 fi
@@ -98,7 +99,7 @@ HOSTNAME=$1
 EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
 # TODO(sligocki): Should we be rewriting the statistics page by default?
 # Currently we are, so disable that so that it doesn't spoil our stats.
-STATISTICS_URL=http://$HOSTNAME/mod_pagespeed_statistics?PageSpeed=off
+STATISTICS_URL=http://$HOSTNAME/mod_pagespeed_statistics?ModPagespeed=off
 BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/W.bad.pagespeed.cf.hash.css
 MESSAGE_URL=http://$HOSTNAME/mod_pagespeed_message
 
@@ -115,22 +116,9 @@ REWRITTEN_TEST_ROOT=${REWRITTEN_TEST_ROOT:-$TEST_ROOT}
 HTTPS_HOST=${2:-}
 HTTPS_EXAMPLE_ROOT=https://$HTTPS_HOST/mod_pagespeed_example
 
-
-# Determines whether a variable is defined, even with set -u
-#   http://stackoverflow.com/questions/228544/
-#   how-to-tell-if-a-string-is-not-defined-in-a-bash-shell-script
-# albeit there are zero votes for that answer.
-function var_defined() {
-  local var_name=$1
-  set | grep "^${var_name}=" 1>/dev/null
-  return $?
-}
-
 # These are the root URLs for rewritten resources; by default, no change.
 REWRITTEN_ROOT=${REWRITTEN_ROOT:-$EXAMPLE_ROOT}
-if ! var_defined PROXY_DOMAIN; then
-  PROXY_DOMAIN="$HOSTNAME"
-fi
+PROXY_DOMAIN=${PROXY_DOMAIN:-$HOSTNAME}
 
 # Setup wget proxy information
 export http_proxy=${3:-}
@@ -423,10 +411,8 @@ function fetch_until() {
   done;
 }
 
-# Helper to set up most filter tests.  Alternate between using:
-#  1) query-params vs request-headers
-#  2) ModPagespeed... vs PageSpeed...
-# to enable the filter so we know all combinations work.
+# Helper to set up most filter tests.  Alternate between using query-params
+# and request-headers to enable the filter, so we know they both work.
 filter_spec_method="query_params"
 function test_filter() {
   rm -rf $OUTDIR
@@ -440,14 +426,7 @@ function test_filter() {
   if [ $filter_spec_method = "query_params" ]; then
     WGET_ARGS=""
     FILE="$FILE?ModPagespeedFilters=$FILTER_NAME"
-    filter_spec_method="query_params_pagespeed"
-  elif [ $filter_spec_method = "query_params_pagespeed" ]; then
-    WGET_ARGS=""
-    FILE="$FILE?PageSpeedFilters=$FILTER_NAME"
     filter_spec_method="headers"
-  elif [ $filter_spec_method = "headers" ]; then
-    WGET_ARGS="--header=ModPagespeedFilters:$FILTER_NAME"
-    filter_spec_method="headers_pagespeed"
   else
     WGET_ARGS="--header=ModPagespeedFilters:$FILTER_NAME"
     filter_spec_method="query_params"
@@ -483,11 +462,4 @@ function scrape_stat {
 # Scrapes HTTP headers from stdin for Content-Length and returns the value.
 function scrape_content_length {
   grep 'Content-Length' | awk '{print $2}' | tr -d '\r'
-}
-
-# Pulls the headers out of a 'wget --save-headers' dump.
-function extract_headers {
-  carriage_return=$(printf "\r")
-  last_line_number=$(grep --text -n \^${carriage_return}\$ $1 | cut -f1 -d:)
-  head --lines=$last_line_number "$1"
 }

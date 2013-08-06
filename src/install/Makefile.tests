@@ -8,11 +8,10 @@
 # Imports:
 #  apache_install_conf (should read OPT_REWRITE_TEST, OPT_PROXY_TEST,
 #                       OPT_SLURP_TEST, OPT_SPELING_TEST, OPT_MEMCACHED_TEST,
-#                       OPT_MEMCACHE_COVERAGE_TEST, OPT_PURGING_COVERAGE_TEST,
-#                       OPT_IPRO_PRESERVE_COVERAGE_TEST, OPT_HTTPS_TEST,
+#                       OPT_MEMCACHE_COVERAGE_TEST, OPT_HTTPS_TEST,
 #                       OPT_COVERAGE_TRACE_TEST, OPT_STRESS_TEST,
 #                       OPT_SHARED_MEM_LOCK_TEST, OPT_GZIP_TEST,
-#                       OPT_EXPERIMENT_GA_TEST, OPT_EXPERIMENT_NO_GA_TEST,
+#                       OPT_FURIOUS_GA_TEST, OPT_FURIOUS_NO_GA_TEST,
 #                       OPT_PER_VHOST_STATS_TEST, OPT_NO_PER_VHOST_STATS_TEST,
 #                       OPT_ALL_DIRECTIVES_TEST)
 #  stop, start  (to stop and start Apache)
@@ -46,12 +45,13 @@ apache_vm_system_tests :
 	$(MAKE) FAST_RESTART=1 apache_debug_slurp_test
 	$(MAKE) FAST_RESTART=1 apache_debug_speling_test
 	$(MAKE) FAST_RESTART=1 apache_debug_gzip_test
-	$(MAKE) FAST_RESTART=1 apache_debug_experiment_test
+	$(MAKE) FAST_RESTART=1 apache_debug_furious_test
 	$(MAKE) FAST_RESTART=1 apache_debug_vhost_only_test
 	$(MAKE) FAST_RESTART=1 apache_debug_global_off_test
 	$(MAKE) FAST_RESTART=1 apache_debug_shared_mem_lock_sanity_test
-	$(MAKE) apache_debug_https_fetch_test
-	$(MAKE) FAST_RESTART=1 apache_debug_stats_logging_test
+	# The stats logging test is disabled as it has permission issues
+	# when package building (issue 559).
+	# $(MAKE) FAST_RESTART=1 apache_debug_stats_logging_test
 	$(MAKE) FAST_RESTART=1 apache_debug_all_directives_test
 	$(MAKE) apache_install_conf
 # 'apache_install_conf' should always be last, to leave your debug
@@ -103,7 +103,6 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	$(MAKE) start
 	CACHE_FLUSH_TEST=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	FIRST_RUN=true \
 	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
@@ -112,7 +111,6 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	@echo '***' System-test with warm cache
 	CACHE_FLUSH_TEST=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
 	                                          $(APACHE_HTTPS_SERVER)
@@ -125,11 +123,8 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	grep ModPagespeedInheritVHostConfig $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) stop
 	$(MAKE) start
-	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
-	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	    $(INSTALL_DATA_DIR)/apache_system_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
+	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                          $(APACHE_HTTPS_SERVER)
 	#
 	# Now turn off ModPagespeedInheritVHostConfig, turn stats back on.
 	@echo '***' System-test without InheritVhostConfig, stats on.
@@ -143,7 +138,6 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	CACHE_FLUSH_TEST=on \
 	NO_VHOST_MERGE=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	    $(INSTALL_DATA_DIR)/apache_system_test.sh \
 	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
@@ -189,11 +183,6 @@ apache_debug_memcached_test : memcached_test_prepare apache_install_conf \
 	$(INSTALL_DATA_DIR)/run_program_with_memcached.sh -multi \
 	    $(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
 	        $(APACHE_HTTPS_SERVER) \; \
-	    env \
-	    CACHE_FLUSH_TEST=on \
-	    APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	    APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
-	    APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	    $(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
 	        $(APACHE_HTTPS_SERVER)
 	$(MAKE) apache_debug_stop
@@ -230,27 +219,27 @@ gzip_test_prepare :
 	$(eval OPT_GZIP_TEST="GZIP_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
-# Test to make sure the experiment framework is sending its headers.
+# Test to make sure Furious is sending its headers
 # TODO(nforman): Make this run multiple times and make sure we don't *always*
 # get the same result.
-apache_debug_experiment_test :
-	$(MAKE) apache_debug_experiment_ga_test
-	$(MAKE) apache_debug_experiment_no_ga_test
+apache_debug_furious_test :
+	$(MAKE) apache_debug_furious_ga_test
+	$(MAKE) apache_debug_furious_no_ga_test
 
-apache_debug_experiment_ga_test : experiment_ga_test_prepare \
+apache_debug_furious_ga_test : furious_ga_test_prepare apache_install_conf \
+    apache_debug_restart
+	$(INSTALL_DATA_DIR)/apache_furious_ga_test.sh $(APACHE_SERVER)
+
+apache_debug_furious_no_ga_test : furious_no_ga_test_prepare \
  apache_install_conf apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_experiment_ga_test.sh $(APACHE_SERVER)
+	$(INSTALL_DATA_DIR)/apache_furious_no_ga_test.sh $(APACHE_SERVER)
 
-apache_debug_experiment_no_ga_test : experiment_no_ga_test_prepare \
- apache_install_conf apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_experiment_no_ga_test.sh $(APACHE_SERVER)
-
-experiment_ga_test_prepare :
-	$(eval OPT_EXPERIMENT_GA_TEST="EXPERIMENT_GA_TEST=1")
+furious_ga_test_prepare :
+	$(eval OPT_FURIOUS_GA_TEST="FURIOUS_GA_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
-experiment_no_ga_test_prepare :
-	$(eval OPT_EXPERIMENT_NO_GA_TEST="EXPERIMENT_NO_GA_TEST=1")
+furious_no_ga_test_prepare :
+	$(eval OPT_FURIOUS_NO_GA_TEST="FURIOUS_NO_GA_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
 # Test to make sure we don't crash if we're off for global but on for vhosts.
@@ -284,25 +273,18 @@ apache_debug_global_off_test :
 	$(MAKE) apache_install_conf
 	echo 'ModPagespeed off' >> $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) apache_debug_restart
-	$(WGET_NO_PROXY) -O /dev/null --save-headers $(EXAMPLE)?PageSpeed=on 2>&1 \
+	$(WGET_NO_PROXY) -O /dev/null --save-headers $(EXAMPLE)?ModPagespeed=on 2>&1 \
 	  | head | grep "HTTP request sent, awaiting response... 200 OK"
-
-# Test to make sure HTTPS fetching works.
-apache_debug_https_fetch_test :
-	$(MAKE) apache_install_conf
-	$(MAKE) apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_https_fetch_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
 
 # Sanity-check that enabling shared-memory locks don't cause the
 # system to crash, and a rewrite does successfully happen.
 apache_debug_shared_mem_lock_sanity_test : shared_mem_lock_test_prepare \
     apache_install_conf apache_debug_restart
 	$(WGET_NO_PROXY) -q -O /dev/null \
-	    $(EXAMPLE_COMBINE_CSS)?PageSpeedFilters=combine_css
+	    $(EXAMPLE_COMBINE_CSS)?ModPagespeedFilters=combine_css
 	sleep 1
 	$(WGET_NO_PROXY) -q -O - \
-	    $(EXAMPLE_COMBINE_CSS)?PageSpeedFilters=combine_css \
+	    $(EXAMPLE_COMBINE_CSS)?ModPagespeedFilters=combine_css \
 	 | grep "\.pagespeed\.cc\."
 
 shared_mem_lock_test_prepare :
@@ -325,7 +307,7 @@ apache_debug_all_directives_test :
 STATS = mod_pagespeed_statistics
 GLOBAL_STATS = mod_pagespeed_global_statistics
 TRIM_PATH = \
-    "mod_pagespeed_example/trim_urls.html?PageSpeedFilters=trim_urls"
+    "mod_pagespeed_example/trim_urls.html?ModPagespeedFilters=trim_urls"
 
 apache_debug_per_vhost_stats_test :
 	$(MAKE) apache_install_conf \

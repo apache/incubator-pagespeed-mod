@@ -23,17 +23,18 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
+#include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/url_fetcher.h"  // for UrlFetcher
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
-#include "net/instaweb/util/public/cache_property_store.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mem_file_system.h"
@@ -42,7 +43,6 @@
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/mock_time_cache.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/util/public/string.h"
@@ -50,7 +50,6 @@
 #include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/util/mock_nonce_generator.h"
 
 namespace net_instaweb {
 
@@ -58,15 +57,48 @@ class FileSystem;
 class Hasher;
 class HtmlFilter;
 class MessageHandler;
-class NonceGenerator;
+class RequestHeaders;
+class ResponseHeaders;
 class RewriteFilter;
 class Scheduler;
 class UrlAsyncFetcher;
 class UrlNamer;
+class Writer;
 
 namespace {
 
 const int kCacheSize  = 10*1000*1000;
+
+// This class is used to paper-over an unfortunate design choice in
+// RewriteDriverFactory about fetcher ownership.  We'd like to share
+// the Mock Fetcher between multiple TestRewriteDriverFactory instances.
+// But this results in double-deletion problems on shutdown as each
+// factory keeps its fetcher in a scoped_ptr or has equivalent logic.
+//
+// This should be fixed properly but for now we can introduce the
+// right ownership semantics by interposing a transparent ProxyFetcher
+// which is allocated per-factory, but references a real fetcher.
+class ProxyUrlFetcher : public UrlFetcher {
+ public:
+  explicit ProxyUrlFetcher(UrlFetcher* fetcher) : fetcher_(fetcher) {}
+  virtual ~ProxyUrlFetcher() {}
+  virtual bool StreamingFetchUrl(const GoogleString& url,
+                                 const RequestHeaders& request_headers,
+                                 ResponseHeaders* response_headers,
+                                 Writer* response_writer,
+                                 MessageHandler* message_handler,
+                                 const RequestContextPtr& request_context) {
+    return fetcher_->StreamingFetchUrl(url,
+                                       request_headers,
+                                       response_headers,
+                                       response_writer,
+                                       message_handler,
+                                       request_context);
+  }
+
+ private:
+  UrlFetcher* fetcher_;
+};
 
 class TestServerContext : public ServerContext {
  public:
@@ -89,21 +121,23 @@ const char TestRewriteDriverFactory::kUrlNamerScheme[] = "URL_NAMER_SCHEME";
 
 TestRewriteDriverFactory::TestRewriteDriverFactory(
     const StringPiece& temp_dir, MockUrlFetcher* mock_fetcher,
-    TestDistributedFetcher* test_distributed_fetcher)
-    : RewriteDriverFactory(Platform::CreateThreadSystem()),
-      mock_timer_(NULL),
-      mock_scheduler_(NULL),
-      delay_cache_(NULL),
-      mock_url_fetcher_(mock_fetcher),
-      test_distributed_fetcher_(test_distributed_fetcher),
-      counting_url_async_fetcher_(NULL),
-      counting_distributed_async_fetcher_(NULL),
-      mem_file_system_(NULL),
-      mock_hasher_(NULL),
-      mock_message_handler_(NULL),
-      mock_html_message_handler_(NULL),
-      use_beacon_results_in_filters_(false),
-      add_platform_specific_decoding_passes_(true) {
+    MockUrlFetcher* mock_distributed_fetcher)
+  : mock_timer_(NULL),
+    mock_scheduler_(NULL),
+    delay_cache_(NULL),
+    lru_cache_(NULL),
+    proxy_url_fetcher_(NULL),
+    mock_url_fetcher_(mock_fetcher),
+    mock_distributed_fetcher_(mock_distributed_fetcher),
+    mock_url_async_fetcher_(NULL),
+    mock_distributed_async_fetcher_(NULL),
+    counting_url_async_fetcher_(NULL),
+    counting_distributed_async_fetcher_(NULL),
+    mem_file_system_(NULL),
+    mock_hasher_(NULL),
+    mock_message_handler_(NULL),
+    mock_html_message_handler_(NULL),
+    add_platform_specific_decoding_passes_(true) {
   set_filename_prefix(StrCat(temp_dir, "/"));
   use_test_url_namer_ = (getenv(kUrlNamerScheme) != NULL &&
                          strcmp(getenv(kUrlNamerScheme), "test") == 0);
@@ -133,21 +167,30 @@ void TestRewriteDriverFactory::CallFetcherCallbacksForDriver(
   // simulation of Rewrites, in which case we can do a TimedWait
   // according to the needs of the simulation.
   driver->WaitForCompletion();
-  // Await quiescence will wait for cache puts to finish.
-  mock_scheduler()->AwaitQuiescence();
   wait_url_async_fetcher_->SetPassThroughMode(pass_through_mode);
+  driver->Clear();
+}
+
+UrlFetcher* TestRewriteDriverFactory::DefaultUrlFetcher() {
+  DCHECK(proxy_url_fetcher_ == NULL);
+  proxy_url_fetcher_ = new ProxyUrlFetcher(mock_url_fetcher_);
+  return proxy_url_fetcher_;
 }
 
 UrlAsyncFetcher* TestRewriteDriverFactory::DefaultAsyncUrlFetcher() {
   DCHECK(counting_url_async_fetcher_ == NULL);
-  counting_url_async_fetcher_ = new CountingUrlAsyncFetcher(mock_url_fetcher_);
+  mock_url_async_fetcher_.reset(new FakeUrlAsyncFetcher(mock_url_fetcher_));
+  counting_url_async_fetcher_ = new CountingUrlAsyncFetcher(
+      mock_url_async_fetcher_.get());
   return counting_url_async_fetcher_;
 }
 
 UrlAsyncFetcher* TestRewriteDriverFactory::DefaultDistributedUrlFetcher() {
   DCHECK(counting_distributed_async_fetcher_ == NULL);
+  mock_distributed_async_fetcher_.reset(
+      new FakeUrlAsyncFetcher(mock_distributed_fetcher_));
   counting_distributed_async_fetcher_ = new CountingUrlAsyncFetcher(
-      test_distributed_fetcher_);
+      mock_distributed_async_fetcher_.get());
   return counting_distributed_async_fetcher_;
 }
 
@@ -158,37 +201,27 @@ FileSystem* TestRewriteDriverFactory::DefaultFileSystem() {
   return mem_file_system_;
 }
 
-NonceGenerator* TestRewriteDriverFactory::DefaultNonceGenerator() {
-  DCHECK(thread_system() != NULL);
-  return new MockNonceGenerator(thread_system()->NewMutex());
-}
-
 Timer* TestRewriteDriverFactory::DefaultTimer() {
   DCHECK(mock_timer_ == NULL);
   mock_timer_ = new MockTimer(kStartTimeMs);
   return mock_timer_;
 }
 
-void TestRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
+void TestRewriteDriverFactory::SetupCaches(ServerContext* resource_manager) {
   // TODO(jmarantz): Make the cache-ownership semantics consistent between
   // DelayCache and ThreadsafeCache.
   DCHECK(lru_cache_ == NULL);
-  lru_cache_.reset(new LRUCache(kCacheSize));
+  lru_cache_ = new LRUCache(kCacheSize);
   threadsafe_cache_.reset(
-      new ThreadsafeCache(lru_cache_.get(), thread_system()->NewMutex()));
+      new ThreadsafeCache(lru_cache_, thread_system()->NewMutex()));
   mock_time_cache_.reset(new MockTimeCache(scheduler(),
                                            threadsafe_cache_.get()));
   delay_cache_ = new DelayCache(mock_time_cache_.get(), thread_system());
   HTTPCache* http_cache = new HTTPCache(delay_cache_, timer(),
                                         hasher(), statistics());
-  server_context->set_http_cache(http_cache);
-  server_context->set_metadata_cache(delay_cache_);
-  cache_property_store_ =
-      new CachePropertyStore(
-          "test/", delay_cache_, timer(), statistics(), thread_system());
-  server_context->set_cache_property_store(cache_property_store_);
-  server_context->MakePagePropertyCache(cache_property_store_);
-  TakeOwnership(delay_cache_);
+  resource_manager->set_http_cache(http_cache);
+  resource_manager->set_metadata_cache(delay_cache_);
+  resource_manager->MakePropertyCaches(delay_cache_);
 }
 
 Hasher* TestRewriteDriverFactory::NewHasher() {
@@ -199,14 +232,13 @@ Hasher* TestRewriteDriverFactory::NewHasher() {
 
 MessageHandler* TestRewriteDriverFactory::DefaultMessageHandler() {
   DCHECK(mock_message_handler_ == NULL);
-  mock_message_handler_ = new MockMessageHandler(thread_system()->NewMutex());
+  mock_message_handler_ = new MockMessageHandler;
   return mock_message_handler_;
 }
 
 MessageHandler* TestRewriteDriverFactory::DefaultHtmlParseMessageHandler() {
   DCHECK(mock_html_message_handler_ == NULL);
-  mock_html_message_handler_ = new MockMessageHandler(
-      thread_system()->NewMutex());
+  mock_html_message_handler_ = new MockMessageHandler;
   return mock_html_message_handler_;
 }
 
@@ -277,11 +309,10 @@ void TestRewriteDriverFactory::AdvanceTimeMs(int64 delta_ms) {
   mock_scheduler_->AdvanceTimeMs(delta_ms);
 }
 
-const PropertyCache::Cohort* TestRewriteDriverFactory::SetupCohort(
-    PropertyCache* cache, const GoogleString& cohort_name) {
+void TestRewriteDriverFactory::SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort_name) {
   PropertyCache::InitCohortStats(cohort_name, statistics());
-  cache_property_store_->AddCohort(cohort_name);
-  return cache->AddCohort(cohort_name);
+  cache->AddCohort(cohort_name);
 }
 
 TestRewriteDriverFactory::CreateFilterCallback::~CreateFilterCallback() {

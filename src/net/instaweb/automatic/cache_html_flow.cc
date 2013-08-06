@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/html_detector.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
+#include "net/instaweb/http/http.pb.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
@@ -34,24 +35,16 @@
 #include "net/instaweb/rewriter/cache_html_info.pb.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
-#include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
-#include "net/instaweb/rewriter/public/property_cache_util.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
+#include "net/instaweb/rewriter/public/furious_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
-// TODO(pulkitg): Change the function GetHtmlCriticalImages to take
-// AbstractPropertyPage so that fallback_property_page.h dependency can be
-// removed.
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/null_mutex.h"
@@ -63,7 +56,6 @@
 #include "net/instaweb/util/public/thread_synchronizer.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/http/http.pb.h"
 
 namespace net_instaweb {
 
@@ -72,6 +64,8 @@ const char kBlinkJsString[] =
 const char kCacheHtmlSuffixJsString[] =
     "<script type=\"text/javascript\">"
     "pagespeed.panelLoaderInit();"
+    "pagespeed.panelLoader.invokedFromSplit();"
+    "pagespeed.panelLoader.loadCriticalData({});"
     "</script>\n";
 const char kCacheHtmlSetInternalIp[] =
     "<script type=\"text/javascript\">"
@@ -99,7 +93,7 @@ const char CacheHtmlFlow::kNumCacheHtmlSmartdiffMismatches[] =
 // Does not take ownership of the passed in log records.
 class CacheHtmlFlow::LogHelper {
  public:
-  LogHelper(AbstractLogRecord* log_record1, AbstractLogRecord* log_record2)
+  LogHelper(LogRecord* log_record1, LogRecord* log_record2)
       : log_record1_(log_record1), log_record2_(log_record2) {}
 
   void SetCacheHtmlRequestFlow(int32 cache_html_request_flow) {
@@ -108,15 +102,13 @@ class CacheHtmlFlow::LogHelper {
   }
 
   void LogAppliedRewriter(const char* filter_id) {
-    log_record1_->SetRewriterLoggingStatus(filter_id,
-                                           RewriterApplication::APPLIED_OK);
-    log_record2_->SetRewriterLoggingStatus(filter_id,
-                                           RewriterApplication::APPLIED_OK);
+    log_record1_->SetRewriterLoggingStatus(filter_id, RewriterInfo::APPLIED_OK);
+    log_record2_->SetRewriterLoggingStatus(filter_id, RewriterInfo::APPLIED_OK);
   }
 
  private:
-  AbstractLogRecord* log_record1_;
-  AbstractLogRecord* log_record2_;
+  LogRecord* log_record1_;
+  LogRecord* log_record2_;
 
   DISALLOW_COPY_AND_ASSIGN(LogHelper);
 };
@@ -129,15 +121,9 @@ namespace {
 // TODO(mmohabey): Move the logic of copying properties in rewrite_driver when
 // it is cloned.
 void InitDriverWithPropertyCacheValues(
-    RewriteDriver* cache_html_driver, FallbackPropertyPage* page) {
-  // TODO(pulkitg): Change the function GetHtmlCriticalImages to take
-  // AbstractPropertyPage as a parameter so that
-  // set_unowned_fallback_property_page function call can be removed. Also make
-  // the function take AbstractPropertyPage instead of FallbackPropertyPage.
-  cache_html_driver->set_unowned_fallback_property_page(page);
+    RewriteDriver* cache_html_driver, PropertyPage* page) {
+  cache_html_driver->set_unowned_property_page(page);
   // TODO(mmohabey): Critical line info should be populated here.
-
-  ServerContext* server_context = cache_html_driver->server_context();
 
   // Because we are resetting the property page at the end of this function, we
   // need to make sure the CriticalImageFinder state is updated here. We don't
@@ -146,27 +132,10 @@ void InitDriverWithPropertyCacheValues(
   // that CriticalImageFinder keeps in RewriteDriver to be updated.
   // TODO(jud): Remove this when the CriticalImageFinder is held in the
   // RewriteDriver, instead of ServerContext.
-  server_context->critical_images_finder()->
+  cache_html_driver->server_context()->critical_images_finder()->
       GetHtmlCriticalImages(cache_html_driver);
 
-  CriticalSelectorFinder* selector_finder =
-      server_context->critical_selector_finder();
-  if (selector_finder != NULL) {
-    selector_finder->GetCriticalSelectors(cache_html_driver);
-  } else {
-    CriticalCssFinder* css_finder = server_context->critical_css_finder();
-    if (css_finder != NULL) {
-      css_finder->UpdateCriticalCssInfoInDriver(cache_html_driver);
-    }
-  }
-
-  CacheHtmlInfoFinder* cache_html_finder =
-      cache_html_driver->server_context()->cache_html_info_finder();
-  if (cache_html_finder != NULL) {
-    cache_html_finder->UpdateSplitInfoInDriver(cache_html_driver);
-  }
-
-  cache_html_driver->set_unowned_fallback_property_page(NULL);
+  cache_html_driver->set_unowned_property_page(NULL);
 }
 
 class CacheHtmlComputationFetch : public AsyncFetch {
@@ -174,7 +143,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
   CacheHtmlComputationFetch(const GoogleString& url,
                             RewriteDriver* rewrite_driver,
                             CacheHtmlInfo* cache_html_info,
-                            AbstractLogRecord* cache_html_log_record,
+                            LogRecord* cache_html_log_record,
                             CacheHtmlFlow::LogHelper* cache_html_log_helper)
       : AsyncFetch(rewrite_driver->request_context()),
         url_(url),
@@ -297,10 +266,9 @@ class CacheHtmlComputationFetch : public AsyncFetch {
       cache_html_log_helper_->SetCacheHtmlRequestFlow(
           CacheHtmlLoggingInfo::CACHE_HTML_MISS_TRIGGERED_REWRITE);
     }
-    if ((rewrite_driver_->options()->enable_blink_html_change_detection() ||
-         rewrite_driver_->options()->
-         enable_blink_html_change_detection_logging()) &&
-        server_context_->cache_html_info_finder() != NULL) {
+    if (rewrite_driver_->options()->enable_blink_html_change_detection() ||
+        rewrite_driver_->options()->
+        enable_blink_html_change_detection_logging()) {
       // We do diff mismatch detection in cache miss case also so that we can
       // update the content hash and smart text hash in CacheHtmlInfo in pcache.
       CreateHtmlChangeDetectionDriverAndRewrite();
@@ -458,6 +426,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
   // computation.
   void ProcessDiffResult() {
     if (computed_hash_.empty()) {
+      LOG(WARNING) << "Computed hash is empty for url " << url_;
       delete this;
       return;
     }
@@ -471,28 +440,14 @@ class CacheHtmlComputationFetch : public AsyncFetch {
           (computed_hash_ !=
               cache_html_info_->hash());
     }
-
-    int64 now_ms = server_context_->timer()->NowMs();
-    PropertyPage* page = rewrite_driver_->property_page();
-    const PropertyCache::Cohort* cohort = server_context_->blink_cohort();
-    bool diff_info_updated =
-        server_context_->cache_html_info_finder()->UpdateDiffInfo(
-            compute_cache_html_info, now_ms, cache_html_log_record_.get(),
-            rewrite_driver_, server_context_->factory());
+    // TODO(mmohabey): Incorporate DiffInfo.
 
     if (options_->enable_blink_html_change_detection() &&
         compute_cache_html_info) {
-      num_cache_html_mismatches_cache_deletes_->IncBy(1);
       // TODO(mmohabey): Do not call delete here as we will be subsequently
       // updating the new value in property cache using
       // CreateCacheHtmlComputationDriverAndRewrite.
-      server_context_->cache_html_info_finder()->PropagateCacheDeletes(
-          url_,
-          rewrite_driver_->options()->experiment_id(),
-          rewrite_driver_->device_type());
-      page->DeleteProperty(
-          cohort, BlinkUtil::kCacheHtmlRewriterInfo);
-      page->WriteCohort(cohort);
+      DeleteCacheHtmlInfoFromPropertyCache();
       CreateCacheHtmlComputationDriverAndRewrite();
     } else if (options_->enable_blink_html_change_detection() ||
                computed_hash_ != cache_html_info_->hash() ||
@@ -501,9 +456,6 @@ class CacheHtmlComputationFetch : public AsyncFetch {
       UpdatePropertyCacheWithCacheHtmlInfo();
       delete this;
     } else {
-      if (diff_info_updated) {
-        page->WriteCohort(cohort);
-      }
       delete this;
     }
   }
@@ -514,11 +466,31 @@ class CacheHtmlComputationFetch : public AsyncFetch {
     cache_html_info_->set_hash_smart_diff(computed_hash_smart_diff_);
 
     UpdateInPropertyCache(*cache_html_info_, rewrite_driver_,
-                          server_context_->blink_cohort(),
+                          BlinkUtil::kBlinkCohort,
                           BlinkUtil::kCacheHtmlRewriterInfo,
                           true /* write_cohort*/);
   }
 
+  void DeleteCacheHtmlInfoFromPropertyCache() {
+    num_cache_html_mismatches_cache_deletes_->IncBy(1);
+    ServerContext* server_context = rewrite_driver_->server_context();
+    const PropertyCache::Cohort* cohort =
+        server_context->page_property_cache()->
+            GetCohort(BlinkUtil::kBlinkCohort);
+    PropertyPage* page = rewrite_driver_->property_page();
+    page->DeleteProperty(cohort, BlinkUtil::kCacheHtmlRewriterInfo);
+    // TODO(mmohabey): Call WriteCohort only once in
+    // UpdatePropertyCacheWithCacheHtmlInfo and not here. This is to avoid
+    // property cache write race.
+    page->WriteCohort(cohort);
+    // Propagate the delete
+    if (server_context->cache_html_info_finder() != NULL) {
+      server_context->cache_html_info_finder()->PropagateCacheDeletes(
+          url_,
+          rewrite_driver_->options()->furious_id(),
+          rewrite_driver_->device_type());
+    }
+  }
 
  private:
   GoogleString url_;
@@ -536,7 +508,7 @@ class CacheHtmlComputationFetch : public AsyncFetch {
   // RewriteDriver used to parse the buffered html content.
   RewriteDriver* cache_html_computation_driver_;
   RewriteDriver* html_change_detection_driver_;
-  scoped_ptr<AbstractLogRecord> cache_html_log_record_;
+  scoped_ptr<LogRecord> cache_html_log_record_;
   scoped_ptr<CacheHtmlFlow::LogHelper> cache_html_log_helper_;
   scoped_ptr<CacheHtmlInfo> cache_html_info_;
   Function* complete_finish_parse_cache_html_driver_fn_;
@@ -677,13 +649,14 @@ CacheHtmlFlow::~CacheHtmlFlow() {
 }
 
 void CacheHtmlFlow::CacheHtmlLookupDone() {
-  FallbackPropertyPage* fallback_page =
-      property_cache_callback_->fallback_property_page();
-  PopulateCacheHtmlInfo(fallback_page->actual_property_page());
+  PropertyPage* page = property_cache_callback_->
+      GetPropertyPageWithoutOwnership(
+          ProxyFetchPropertyCallback::kPagePropertyCache);
+  PopulateCacheHtmlInfo(page);
 
   // TODO(mmohabey): Add CSI timings.
   if (cache_html_info_.has_cached_html()) {
-    CacheHtmlHit(fallback_page);
+    CacheHtmlHit(page);
   } else {
     CacheHtmlMiss();
   }
@@ -694,14 +667,14 @@ void CacheHtmlFlow::CacheHtmlMiss() {
   TriggerProxyFetch();
 }
 
-void CacheHtmlFlow::CacheHtmlHit(FallbackPropertyPage* page) {
+void CacheHtmlFlow::CacheHtmlHit(PropertyPage* page) {
   num_cache_html_hits_->IncBy(1);
   StringPiece cached_html = cache_html_info_.cached_html();
   // TODO(mmohabey): Handle malformed html case.
   cache_html_log_helper_->SetCacheHtmlRequestFlow(
       CacheHtmlLoggingInfo::CACHE_HTML_HIT);
   cache_html_log_helper_->LogAppliedRewriter(
-            RewriteOptions::FilterId(RewriteOptions::kCachePartialHtml));
+            RewriteOptions::FilterId(RewriteOptions::kCacheHtml));
 
   ResponseHeaders* response_headers = base_fetch_->response_headers();
   response_headers->SetStatusAndReason(HttpStatus::kOK);
@@ -719,14 +692,14 @@ void CacheHtmlFlow::CacheHtmlHit(FallbackPropertyPage* page) {
   response_headers->ComputeCaching();
   response_headers->SetDateAndCaching(server_context_->timer()->NowMs(), 0,
                                       ", private, no-cache");
-  // If relevant, add the Set-Cookie header for experiments.
+  // If relevant, add the Set-Cookie header for furious experiments.
   if (options_->need_to_store_experiment_data() &&
-      options_->running_experiment()) {
-    int experiment_value = options_->experiment_id();
-    server_context_->experiment_matcher()->StoreExperimentData(
-        experiment_value, url_,
+      options_->running_furious()) {
+    int furious_value = options_->furious_id();
+    server_context_->furious_matcher()->StoreExperimentData(
+        furious_value, url_,
         server_context_->timer()->NowMs() +
-            options_->experiment_cookie_duration_ms(),
+            options_->furious_cookie_duration_ms(),
         response_headers);
   }
   base_fetch_->HeadersComplete();
@@ -737,32 +710,24 @@ void CacheHtmlFlow::CacheHtmlHit(FallbackPropertyPage* page) {
   new_driver->set_response_headers_ptr(base_fetch_->response_headers());
   new_driver->set_flushing_cached_html(true);
   new_driver->SetWriter(base_fetch_);
-  new_driver->SetUserAgent(rewrite_driver_->user_agent());
   new_driver->StartParse(url_);
 
   InitDriverWithPropertyCacheValues(new_driver, page);
 
-  bool flushed_split_js =
-      new_driver->options()->Enabled(RewriteOptions::kSplitHtml) &&
-      new_driver->request_properties()->SupportsSplitHtml(
-          new_driver->options()->enable_aggressive_rewriters_for_mobile());
   new_driver->ParseText(cached_html);
   new_driver->FinishParseAsync(
-      MakeFunction(this, &CacheHtmlFlow::CacheHtmlRewriteDone,
-                   flushed_split_js));
+      MakeFunction(this, &CacheHtmlFlow::CacheHtmlRewriteDone));
 }
 
-void CacheHtmlFlow::CacheHtmlRewriteDone(bool flushed_split_js) {
+void CacheHtmlFlow::CacheHtmlRewriteDone() {
   rewrite_driver_->set_flushed_cached_html(true);
 
   StaticAssetManager* static_asset_manager =
       server_context_->static_asset_manager();
-  if (!flushed_split_js) {
-    base_fetch_->Write(StringPrintf(kBlinkJsString,
-        static_asset_manager->GetAssetUrl(
-            StaticAssetManager::kBlinkJs, options_).c_str()), handler_);
-    base_fetch_->Write(kCacheHtmlSuffixJsString, handler_);
-  }
+  base_fetch_->Write(StringPrintf(kBlinkJsString,
+      static_asset_manager->GetAssetUrl(
+          StaticAssetManager::kBlinkJs, options_).c_str()), handler_);
+  base_fetch_->Write(kCacheHtmlSuffixJsString, handler_);
   const char* user_ip = base_fetch_->request_headers()->Lookup1(
       HttpAttributes::kXForwardedFor);
   if (user_ip != NULL && server_context_->factory()->IsDebugClient(user_ip) &&
@@ -804,8 +769,8 @@ void CacheHtmlFlow::TriggerProxyFetch() {
     // PassThrough case.
     // This flow has side effect that DeferJs is applied in passthrough case
     // even when it is not explicitly enabled since it is added in
-    // RewriteDriver::AddPostRenderFilters() if
-    // RewriteOptions::kCachePartialHtml is enabled.
+    // RewriteDriver::AddPostRenderFilters() if RewriteOptions::kCacheHtml is
+    // enabled.
     fetch = base_fetch_;
   }
   if (cache_html_computation_fetch == NULL) {
@@ -844,8 +809,17 @@ void CacheHtmlFlow::PopulateCacheHtmlInfo(PropertyPage* page) {
   if (!cache_html_info_.ParseFromZeroCopyStream(&value)) {
     LOG(DFATAL) << "Parsing value from cache into CacheHtmlInfo failed.";
     cache_html_info_.Clear();
+    return;
   }
-  return;
+  int64 expiration_time_ms =
+      cache_html_info_.last_cached_html_computation_timestamp_ms() +
+      options_->GetBlinkCacheTimeFor(google_url_);
+
+  if (!options_->enable_blink_html_change_detection() &&
+      server_context_->timer()->NowMs() > expiration_time_ms) {
+    cache_html_info_.Clear();
+    return;
+  }
 }
 
 }  // namespace net_instaweb

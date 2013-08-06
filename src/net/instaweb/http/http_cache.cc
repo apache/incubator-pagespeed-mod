@@ -22,8 +22,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -59,15 +62,14 @@ const int64 kCacheSizeUnlimited = -1;
 const char HTTPCache::kCacheTimeUs[] = "cache_time_us";
 const char HTTPCache::kCacheHits[] = "cache_hits";
 const char HTTPCache::kCacheMisses[] = "cache_misses";
-const char HTTPCache::kCacheBackendHits[] = "cache_backend_hits";
-const char HTTPCache::kCacheBackendMisses[] = "cache_backend_misses";
 const char HTTPCache::kCacheFallbacks[] = "cache_fallbacks";
 const char HTTPCache::kCacheExpirations[] = "cache_expirations";
 const char HTTPCache::kCacheInserts[] = "cache_inserts";
 const char HTTPCache::kCacheDeletes[] = "cache_deletes";
-
 // This used for doing prefix match for etag in fetcher code.
 const char HTTPCache::kEtagPrefix[] = "W/\"PSA-";
+const char HTTPCache::kEtagFormat[] = "W/\"PSA-%s\"";
+
 
 HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
                      Statistics* stats)
@@ -79,13 +81,11 @@ HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
       cache_time_us_(stats->GetVariable(kCacheTimeUs)),
       cache_hits_(stats->GetVariable(kCacheHits)),
       cache_misses_(stats->GetVariable(kCacheMisses)),
-      cache_backend_hits_(stats->GetVariable(kCacheBackendHits)),
-      cache_backend_misses_(stats->GetVariable(kCacheBackendMisses)),
       cache_fallbacks_(stats->GetVariable(kCacheFallbacks)),
       cache_expirations_(stats->GetVariable(kCacheExpirations)),
       cache_inserts_(stats->GetVariable(kCacheInserts)),
       cache_deletes_(stats->GetVariable(kCacheDeletes)),
-      name_(FormatName(cache->Name())) {
+      name_(StrCat("HTTPCache using backend : ", cache->Name())) {
   remember_not_cacheable_ttl_seconds_ = kRememberNotCacheableTtl;
   remember_fetch_failed_ttl_seconds_ = kRememberFetchFailedTtl;
   remember_fetch_dropped_ttl_seconds_ = kRememberFetchDroppedTtl;
@@ -93,10 +93,6 @@ HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
 }
 
 HTTPCache::~HTTPCache() {}
-
-GoogleString HTTPCache::FormatName(StringPiece cache) {
-  return StrCat("HTTPCache(", cache, ")");
-}
 
 void HTTPCache::SetIgnoreFailurePuts() {
   ignore_failure_puts_.set_value(true);
@@ -106,6 +102,9 @@ bool HTTPCache::IsCurrentlyValid(const RequestHeaders* request_headers,
                                  const ResponseHeaders& headers, int64 now_ms) {
   if (force_caching_) {
     return true;
+  }
+  if (!headers.IsCacheable()) {
+    return false;
   }
 
   if ((request_headers == NULL && !headers.IsProxyCacheable()) ||
@@ -118,6 +117,7 @@ bool HTTPCache::IsCurrentlyValid(const RequestHeaders* request_headers,
   if (headers.CacheExpirationTimeMs() > now_ms) {
     return true;
   }
+  cache_expirations_->Add(1);
   return false;
 }
 
@@ -138,14 +138,13 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     start_ms_ = start_us_ / 1000;
   }
 
-  virtual void Done(CacheInterface::KeyState backend_state) {
+  virtual void Done(CacheInterface::KeyState state) {
     HTTPCache::FindResult result = HTTPCache::kNotFound;
 
     int64 now_us = http_cache_->timer()->NowUs();
     int64 now_ms = now_us / 1000;
     ResponseHeaders* headers = callback_->response_headers();
-    bool is_expired = false;
-    if ((backend_state == CacheInterface::kAvailable) &&
+    if ((state == CacheInterface::kAvailable) &&
         callback_->http_value()->Link(value(), headers, handler_) &&
         callback_->IsCacheValid(key_, *headers)) {
       // While stale responses can potentially be used in case of fetch
@@ -167,8 +166,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
         headers->ForceCaching(override_cache_ttl_ms);
       }
       // Is the response still valid?
-      is_expired = !http_cache_->IsCurrentlyValid(NULL, *headers, now_ms);
-      bool is_valid_and_fresh = (!is_expired) && callback_->IsFresh(*headers);
+      bool is_valid = http_cache_->IsCurrentlyValid(NULL, *headers, now_ms) &&
+          callback_->IsFresh(*headers);
       int http_status = headers->status_code();
 
       if (http_status == HttpStatus::kRememberNotCacheableStatusCode ||
@@ -179,9 +178,9 @@ class HTTPCacheCallback : public CacheInterface::Callback {
         // consider it invalid if override_cache_ttl_ms > 0.
         if (override_cache_ttl_ms > 0 &&
             http_status == HttpStatus::kRememberNotCacheableAnd200StatusCode) {
-          is_valid_and_fresh = false;
+          is_valid = false;
         }
-        if (is_valid_and_fresh) {
+        if (is_valid) {
           int64 remember_not_found_time_ms = headers->CacheExpirationTimeMs()
               - start_ms_;
           const char* status = NULL;
@@ -204,7 +203,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
           }
         }
       } else {
-        if (is_valid_and_fresh) {
+        if (is_valid) {
           result = HTTPCache::kFound;
           if (headers->UpdateCacheHeadersIfForceCached()) {
             // If the cache headers were updated as a result of it being force
@@ -217,19 +216,21 @@ class HTTPCacheCallback : public CacheInterface::Callback {
             callback_->http_value()->SetHeaders(headers);
           }
         } else {
-          if (http_cache_->force_caching_ || headers->IsProxyCacheable()) {
+          if (http_cache_->force_caching_ ||
+              (headers->IsCacheable() && headers->IsProxyCacheable())) {
             callback_->fallback_http_value()->Link(callback_->http_value());
           }
         }
       }
     }
 
-    // TODO(gee): Perhaps all of this belongs in TimingInfo.
     int64 elapsed_us = std::max(static_cast<int64>(0), now_us - start_us_);
-    http_cache_->UpdateStats(key_, backend_state, result,
+    http_cache_->UpdateStats(result,
                              !callback_->fallback_http_value()->Empty(),
-                             is_expired, elapsed_us, handler_);
-    callback_->ReportLatencyMs(elapsed_us/1000);
+                             elapsed_us);
+    if (callback_->log_timing()) {
+      callback_->SetTimingMs(elapsed_us/1000);
+    }
     if (result != HTTPCache::kFound) {
       headers->Clear();
       callback_->http_value()->Clear();
@@ -256,16 +257,8 @@ void HTTPCache::Find(const GoogleString& key, MessageHandler* handler,
 }
 
 void HTTPCache::UpdateStats(
-    const GoogleString& key,
-    CacheInterface::KeyState backend_state, FindResult result,
-    bool has_fallback, bool is_expired, int64 delta_us,
-    MessageHandler* handler) {
+    FindResult result, bool has_fallback, int64 delta_us) {
   cache_time_us_->Add(delta_us);
-  if (backend_state == CacheInterface::kAvailable) {
-    cache_backend_hits_->Add(1);
-  } else {
-    cache_backend_misses_->Add(1);
-  }
   if (result == kFound) {
     cache_hits_->Add(1);
     DCHECK(!has_fallback);
@@ -273,10 +266,6 @@ void HTTPCache::UpdateStats(
     cache_misses_->Add(1);
     if (has_fallback) {
       cache_fallbacks_->Add(1);
-    }
-    if (is_expired) {
-      handler->Message(kInfo, "Cache entry is expired: %s", key.c_str());
-      cache_expirations_->Add(1);
     }
   }
 }
@@ -347,7 +336,8 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
       content = &new_content;
     }
     hash = hasher_->Hash(*content);
-    headers->Add(HttpAttributes::kEtag, FormatEtag(hash.c_str()));
+    headers->Add(HttpAttributes::kEtag,
+                 StringPrintf(kEtagFormat, hash.c_str()));
     headers_mutated = true;
   }
 
@@ -389,8 +379,9 @@ void HTTPCache::Put(const GoogleString& key, HTTPValue* value,
   if (!MayCacheUrl(key, headers)) {
     return;
   }
-  if (!force_caching_ && !(headers.IsProxyCacheable() &&
-                           IsCacheableBodySize(value->contents_size()))) {
+  if (!force_caching_ &&
+      !(headers.IsCacheable() && headers.IsProxyCacheable() &&
+        IsCacheableBodySize(value->contents_size()))) {
     LOG(DFATAL) << "trying to Put uncacheable data for key " << key;
     return;
   }
@@ -465,16 +456,10 @@ void HTTPCache::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCacheTimeUs);
   statistics->AddVariable(kCacheHits);
   statistics->AddVariable(kCacheMisses);
-  statistics->AddVariable(kCacheBackendHits);
-  statistics->AddVariable(kCacheBackendMisses);
   statistics->AddVariable(kCacheFallbacks);
   statistics->AddVariable(kCacheExpirations);
   statistics->AddVariable(kCacheInserts);
   statistics->AddVariable(kCacheDeletes);
-}
-
-GoogleString HTTPCache::FormatEtag(StringPiece hash) {
-  return StrCat(kEtagPrefix, hash, "\"");
 }
 
 HTTPCache::Callback::~Callback() {
@@ -483,21 +468,17 @@ HTTPCache::Callback::~Callback() {
   }
 }
 
-void HTTPCache::Callback::ReportLatencyMs(int64 latency_ms) {
-  if (is_background_) {
-    return;
-  }
-
-  if (request_context().get() == NULL) {
-    DLOG(FATAL) << "NOTREACHED";
-    return;
-  }
-
-  ReportLatencyMsImpl(latency_ms);
+LogRecord* HTTPCache::Callback::log_record() {
+  return request_context()->log_record();
 }
 
-void HTTPCache::Callback::ReportLatencyMsImpl(int64 latency_ms) {
-  request_context()->mutable_timing_info()->SetHTTPCacheLatencyMs(latency_ms);
+void HTTPCache::Callback::SetTimingMs(int64 timing_value_ms) {
+  DCHECK(request_context().get() != NULL);
+  ScopedMutex lock(log_record()->mutex());
+  TimingInfo* timing_info = log_record()->logging_info()->mutable_timing_info();
+  if (!timing_info->has_cache1_ms()) {
+    timing_info->set_cache1_ms(timing_value_ms);
+  }
 }
 
 }  // namespace net_instaweb

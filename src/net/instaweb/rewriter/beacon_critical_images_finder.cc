@@ -17,54 +17,28 @@
 
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(
-    const PropertyCache::Cohort* cohort,
-    NonceGenerator* nonce_generator,
-    Statistics* stats)
-    : CriticalImagesFinder(stats),
-      cohort_(cohort),
-      nonce_generator_(nonce_generator) { }
+BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(Statistics* stats)
+    : CriticalImagesFinder(stats) {}
 
 BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {
 }
 
-bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page) {
-  return CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      html_critical_images_set,
-      css_critical_images_set,
-      kBeaconImageSupportInterval,
-      cohort, page);
-}
-
-GoogleString BeaconCriticalImagesFinder::GetKeyForUrl(const GoogleString& url) {
+bool BeaconCriticalImagesFinder::IsHtmlCriticalImage(
+    const GoogleString& image_url, RewriteDriver* driver) {
   unsigned int hash_val = HashString<CasePreserve, unsigned int>(
-      url.c_str(), url.size());
-  return UintToString(hash_val);
+      image_url.c_str(), image_url.size());
+  GoogleString hash_str = UintToString(hash_val);
+  return CriticalImagesFinder::IsHtmlCriticalImage(hash_str, driver);
 }
 
-bool BeaconCriticalImagesFinder::IsMeaningful(
-    const RewriteDriver* driver) const {
-  CriticalImagesInfo* info = driver->critical_images_info();
-  // The finder is meaningful if the critical images info was set by the split
-  // html helper.
-  if (info != NULL && info->is_critical_image_info_present) {
-    return true;
-  }
-  return driver->options()->critical_images_beacon_enabled() &&
-      driver->server_context()->factory()->UseBeaconResultsInFilters();
+void BeaconCriticalImagesFinder::ComputeCriticalImages(
+    StringPiece url, RewriteDriver* driver) {
 }
 
 }  // namespace net_instaweb

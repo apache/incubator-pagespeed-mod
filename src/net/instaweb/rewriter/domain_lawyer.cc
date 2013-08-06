@@ -30,7 +30,7 @@
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/wildcard.h"
+#include "third_party/instaweb/util/wildcard.h"
 
 namespace net_instaweb {
 
@@ -285,17 +285,12 @@ class DomainLawyer::Domain {
 };
 
 DomainLawyer::~DomainLawyer() {
-  Clear();
+  STLDeleteValues(&domain_map_);
 }
 
 bool DomainLawyer::AddDomain(const StringPiece& domain_name,
                              MessageHandler* handler) {
   return (AddDomainHelper(domain_name, true, true, false, handler) != NULL);
-}
-
-bool DomainLawyer::AddKnownDomain(const StringPiece& domain_name,
-                                  MessageHandler* handler) {
-  return (AddDomainHelper(domain_name, false, false, false, handler) != NULL);
 }
 
 GoogleString DomainLawyer::NormalizeDomainName(const StringPiece& domain_name) {
@@ -328,10 +323,6 @@ DomainLawyer::Domain* DomainLawyer::AddDomainHelper(
       handler->Message(kWarning, "Empty domain passed to AddDomain");
     }
     return NULL;
-  }
-
-  if (authorize && domain_name == "*") {
-    authorize_all_domains_ = true;
   }
 
   // TODO(matterbury): need better data structures to eliminate the O(N) logic:
@@ -527,9 +518,6 @@ bool DomainLawyer::MapRequestToDomain(
 
 bool DomainLawyer::IsDomainAuthorized(const GoogleUrl& original_request,
                                       const GoogleUrl& domain_to_check) const {
-  if (authorize_all_domains_) {
-    return true;
-  }
   bool ret = false;
   if (domain_to_check.is_valid()) {
     if (original_request.is_valid() &&
@@ -877,7 +865,6 @@ void DomainLawyer::Merge(const DomainLawyer& src) {
   }
 
   can_rewrite_domains_ |= src.can_rewrite_domains_;
-  authorize_all_domains_ |= src.authorize_all_domains_;
 }
 
 bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
@@ -897,8 +884,9 @@ bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
   return sharded;
 }
 
-bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
-  Domain* domain = FindDomain(gurl), *mapped_domain = domain;
+bool DomainLawyer::WillDomainChange(const StringPiece& domain_name) const {
+  GoogleUrl domain_gurl(NormalizeDomainName(domain_name));
+  Domain* domain = FindDomain(domain_gurl), *mapped_domain = domain;
   if (domain != NULL) {
     // First check a mapping based on AddRewriteDomainMapping.
     mapped_domain = domain->rewrite_domain();
@@ -926,17 +914,6 @@ bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
     }
   }
   return domain != mapped_domain;
-}
-
-bool DomainLawyer::IsProxyMapped(const GoogleUrl& gurl) const {
-  Domain* domain = FindDomain(gurl);
-  if (domain != NULL) {
-    Domain* origin = domain->origin_domain();
-    if ((origin != NULL) && origin->is_proxy()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool DomainLawyer::DoDomainsServeSameContent(
@@ -980,13 +957,6 @@ GoogleString DomainLawyer::ToString(StringPiece line_prefix) const {
     StrAppend(&output, line_prefix, iterator->second->ToString(), "\n");
   }
   return output;
-}
-
-void DomainLawyer::Clear() {
-  STLDeleteValues(&domain_map_);
-  can_rewrite_domains_ = false;
-  authorize_all_domains_ = false;
-  wildcarded_domains_.clear();
 }
 
 }  // namespace net_instaweb

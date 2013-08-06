@@ -89,10 +89,6 @@ void CssInlineFilter::StartDocumentImpl() {
 CssInlineFilter::~CssInlineFilter() {}
 
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
-  // Don't inline if the CSS element is under <noscript>.
-  if (noscript_element() != NULL) {
-    return;
-  }
   HtmlElement::Attribute* href = NULL;
   const char* media = NULL;
   if (css_tag_scanner_.ParseCssElement(element, &href, &media) &&
@@ -199,9 +195,8 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
                                                   rewritten_contents));
 
   // Copy over most attributes from the original link, discarding those that
-  // we convert (href, rel), and dropping those that are irrelevant (type).
-  bool has_pagespeed_lsc_url = false;
-  bool has_pagespeed_lsc_hash = false;
+  // we convert (href, rel), and dropping those that are irrelevant (type)
+  // or subject to immediate replacement (pagespeed_lsc_*).
   const HtmlElement::AttributeList& attrs = element->attributes();
   for (HtmlElement::AttributeConstIterator i(attrs.begin()), e(attrs.end());
        i != e; ++i) {
@@ -210,15 +205,13 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
       case HtmlName::kHref:
       case HtmlName::kRel:
       case HtmlName::kType:
-        break;
-      case HtmlName::kPagespeedLscHash:
-        // If we have a hash, we /must/ have an url as well, so the fallthrough
-        // will be a no-op (so, the hash case must come before the url case).
-        has_pagespeed_lsc_hash = true;
-        FALLTHROUGH_INTENDED;
       case HtmlName::kPagespeedLscUrl:
-        has_pagespeed_lsc_url = true;
-        FALLTHROUGH_INTENDED;
+      case HtmlName::kPagespeedLscHash:
+      case HtmlName::kPagespeedLscExpiry:
+        // TODO(jmaessen): consider whether we could handle the Lsc attributes
+        // more gracefully (say copy them across rather than remove them from
+        // one and re-add them to the other).
+        break;
       default:
         style_element->AddAttribute(attr);
         break;
@@ -232,14 +225,10 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
     driver_->AddAttribute(style_element, HtmlName::kDataPagespeedHref,
                           resource_url.Spec());
   }
-  // If we don't already have a pagespeed_lsc_url then EndElementImpl must not
-  // have called AddStorableResource or LSC is disabled; in either case there
-  // is no point in trying to add the LSC attributes. OTOH, if have an url and
-  // a hash then we've already got all the attributes we need.
-  if (has_pagespeed_lsc_url && !has_pagespeed_lsc_hash) {
-    LocalStorageCacheFilter::AddLscAttributes(resource_url.Spec(), cached,
-                                              driver_, style_element);
-  }
+  // Add the local storage cache attributes if it is enabled.
+  LocalStorageCacheFilter::AddLscAttributes(resource_url.Spec(), cached,
+                                            false /* has_url */,
+                                            driver_, style_element);
 }
 
 }  // namespace net_instaweb

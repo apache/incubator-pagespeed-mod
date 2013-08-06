@@ -15,10 +15,13 @@
 #include "net/instaweb/rewriter/public/url_namer.h"
 
 #include "base/logging.h"               // for COMPACT_GOOGLE_LOG_FATAL, etc
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string_hash.h"
 #include "net/instaweb/util/public/string_util.h"  // for StrCat, etc
@@ -77,44 +80,39 @@ bool UrlNamer::IsAuthorized(const GoogleUrl& request_url,
   return lawyer->IsDomainAuthorized(invalid_request, request_url);
 }
 
+void UrlNamer::DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const {
+  callback->Done(NULL);
+}
 
-
-bool UrlNamer::ResolveToOriginUrl(const RewriteOptions& options,
-                                  const StringPiece& referer_url_str,
-                                  GoogleUrl* url) const {
-  if (!url->is_valid() || IsProxyEncoded(*url)) {
-    return false;
-  }
-
-  const DomainLawyer* domain_lawyer = options.domain_lawyer();
-  GoogleString referer_origin_url;
-  GoogleString origin_url_str;
-  bool is_proxy = false;
-  // Resolve request url to origin url.
-  if (domain_lawyer->MapOriginUrl(*url, &origin_url_str, &is_proxy) &&
-      url->Spec() != origin_url_str) {
-    GoogleUrl temp_url(origin_url_str);
-    url->Swap(&temp_url);
-    return true;
+void UrlNamer::PrepareRequest(const RewriteOptions* rewrite_options,
+                              GoogleString* url,
+                              RequestHeaders* request_headers,
+                              bool* success,
+                              Function* func,
+                              MessageHandler* handler) {
+  *success = false;
+  if (rewrite_options == NULL) {
+    *success = true;
   } else {
-    // Find the origin url for the referer.
-    GoogleUrl referer_url(referer_url_str);
-    if (domain_lawyer->MapOriginUrl(
-            referer_url, &referer_origin_url, &is_proxy) &&
-        referer_url_str != referer_origin_url) {
-      // Referer has a origin url, resolve the request path w.r.t
-      // to origin domain of the referer. This is needed as we are
-      // rewriting request urls early, js generated urls might break otherwise.
-      GoogleUrl temp_url(referer_origin_url);
-      GoogleUrl final_url(temp_url,
-          StrCat(url->PathAndLeaf(), url->AllAfterQuery()));
-      if (final_url.is_valid()) {
-        url->Swap(&final_url);
-        return true;
+    GoogleUrl gurl(*url);
+    if (gurl.is_valid()) {
+      const DomainLawyer* domain_lawyer = rewrite_options->domain_lawyer();
+      bool is_proxy = false;
+      if (domain_lawyer->MapOriginUrl(gurl, url, &is_proxy)) {
+        *success = true;
+        if (!is_proxy) {
+          request_headers->Replace(HttpAttributes::kHost, gurl.HostAndPort());
+        }
       }
     }
   }
-  return false;
+  func->CallRun();
+}
+
+UrlNamer::Callback::~Callback() {
 }
 
 }  // namespace net_instaweb

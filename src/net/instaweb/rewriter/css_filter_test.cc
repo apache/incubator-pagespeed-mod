@@ -23,8 +23,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -32,7 +30,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
@@ -86,13 +84,14 @@ class CssFilterTest : public CssRewriteTestBase {
       options()->DisableFilter(RewriteOptions::kExtendCacheImages);
       options()->DisableFilter(RewriteOptions::kSpriteImages);
     }
+    server_context()->ComputeSignature(options());
 
     // Set things up so that RewriteDriver::ShouldAbsolutifyUrl returns true
     // even though we are not proxying (but skip it if it has already been
     // set up by a previous call to this method).
     if (enable_mapping_and_sharding &&
         !options()->domain_lawyer()->can_rewrite_domains()) {
-      DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
+      DomainLawyer* domain_lawyer = options()->domain_lawyer();
       MessageHandler* handler = message_handler();
       ASSERT_TRUE(domain_lawyer->AddDomain("http://cdn.com/", handler));
       ASSERT_TRUE(domain_lawyer->AddDomain("http://test.com/", handler));
@@ -117,7 +116,6 @@ class CssFilterTest : public CssRewriteTestBase {
                                                         &proxying));
       EXPECT_FALSE(proxying);
     }
-    server_context()->ComputeSignature(options());
 
     // By default TestUrlNamer doesn't proxy but we might need it for this test.
     TestUrlNamer::SetProxyMode(enable_proxy_mode);
@@ -205,32 +203,6 @@ TEST_F(CssFilterTest, SimpleRewriteCssTestExternalUnhealthy) {
   lru_cache()->set_is_healthy(false);
   ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
                              kExpectNoChange);
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropAll) {
-  // Test that randomized optimization doesn't rewrite when drop % set to 100
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(100);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectNoChange);
-    lru_cache()->Clear();
-    ClearStats();
-  }
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropNone) {
-  // Test that randomized optimization always rewrites when drop % set to 0.
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(0);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectSuccess);
-    lru_cache()->Clear();
-    ClearStats();
-  }
 }
 
 TEST_F(CssFilterTest, RewriteCss404) {
@@ -354,7 +326,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
   // TODO(marq): Make this not necessary by folding log validation into
   // ValidateWithStats().
   RequestContextPtr rctx = rewrite_driver()->request_context();
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}", kExpectSuccess);
   int inserts_before = lru_cache()->num_inserts();
   EXPECT_EQ(1, num_blocks_rewritten_->Get());  // for factory_
@@ -363,12 +334,9 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
   ResetStats();
 
   rctx.reset(rewrite_driver()->request_context());
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectSuccess | kNoStatCheck);
   int inserts_after = lru_cache()->num_inserts();
@@ -380,8 +348,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
 }
 
 // Make sure we do not reparse external CSS when we know it already has
@@ -617,9 +583,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // Mismatched {}s that are acceptable because they do not fail to close {s,
     // but instead have stray }s that would not be parsed as closing previous {s
     "a[}]{color:red}",
-
-    // Don't "fix" font properties.
-    "a{font:12px,clean}",
   };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
@@ -815,7 +778,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     { "body { font: 2em sans-serif; }", "body{font:2em sans-serif}" },
-    { "body { font: 0.75em sans-serif; }", "body{font:.75em sans-serif}" },
+    { "body { font: 0.75em sans-serif; }", "body{font:0.75em sans-serif}" },
 
     // http://code.google.com/p/modpagespeed/issues/detail?id=128
     { "#breadcrumbs ul { list-style-type: none; }",
@@ -891,20 +854,8 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "#foo{z-index:2147483649}" },
 
     { "#foo { z-index: 123456789012345678901234567890; }",
-      "#foo{z-index:123456789012345678901234567890}" },
-
-    // Don't drop precision on long floating point numbers.
-    { ".ad-contain .ad-jump {\n"
-      "  color: #000;\n"
-      "  font: bold 1.54545455em/0.823529412 \"Benton Sans Bold\", Arial, "
-      "Helvetica, sans-serif;   /* 17px / 11px; 14px / 17px */\n"
-      "  margin-bottom: 1em;\n"
-      "}",
-
-      // Note: we drop the leading 0 from 0.823... but not any of the
-      // digits of precision.
-      ".ad-contain .ad-jump{color:#000;font:bold 1.54545455em/.823529412 "
-      "\"Benton Sans Bold\",Arial,Helvetica,sans-serif;margin-bottom:1em}" },
+      // TODO(sligocki): "#foo{z-index:12345678901234567890}" },
+      "#foo{z-index:1.234567890123457e+29}" },
 
     // Parse and serialize "\n" correctly as "n" and "\A " correctly as newline.
     // But leave the original string without messing with escaping.
@@ -1324,19 +1275,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
       "background:white url(http://static.uncyc.org/skins/common/images/Checke"
       "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}" },
-
-    { "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial !important}",
-
-      "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial!important}" },
-
-    // https://code.google.com/p/modpagespeed/issues/detail?id=722
-    { ".a { color: red; }\n"
-      "@import url('foo.css');\n"
-      ".b { color: blue; }\n",
-
-      ".a{color:red}@import url('foo.css');.b{color:#00f}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1935,7 +1873,7 @@ TEST_F(CssFilterTest, EmptyLeafFetch) {
 // http://code.google.com/p/modpagespeed/issues/detail?id=427
 TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
-  ValidateRewriteExternalCssUrl("empty_leaf", StrCat(kTestDomain, "style/"),
+  ValidateRewriteExternalCssUrl(StrCat(kTestDomain, "style/"),
                                 kInputStyle, kOutputStyle, kExpectSuccess);
 }
 
@@ -2031,14 +1969,8 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
                    StringPrintf(html_format, " StyleSheet alterNATE  ",
                                 new_url.c_str()));
 
-  ValidateExpected("alternate_stylesheet_and_more",
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                "foo.css"),
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                new_url.c_str()));
-
-  ValidateNoChanges("alternate_not_stylesheet",
-                    StringPrintf(html_format, "alternate snowflake",
+  ValidateNoChanges("alternate_stylesheet_and_more",
+                    StringPrintf(html_format, "  foo stylesheet alternate bar ",
                                  "foo.css"));
 }
 

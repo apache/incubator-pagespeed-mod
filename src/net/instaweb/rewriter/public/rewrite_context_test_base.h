@@ -80,7 +80,7 @@ class TrimWhitespaceRewriter : public SimpleTextFilter::Rewriter {
 
   virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context);
+                           ServerContext* resource_manager);
   virtual HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element);
   virtual OutputResourceKind kind() const { return kind_; }
   virtual const char* id() const { return kFilterId; }
@@ -139,7 +139,7 @@ class UpperCaseRewriter : public SimpleTextFilter::Rewriter {
 
   virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context) {
+                           ServerContext* resource_manager) {
     ++num_rewrites_;
     in.CopyToString(out);
     UpperString(out);
@@ -341,8 +341,6 @@ class CombiningFilter : public RewriteFilter {
                    CachedResult* partition,
                    OutputResourcePtr output);
     virtual void Render();
-    virtual void WillNotRender();
-    virtual void Cancel();
     void DisableRemovedSlots(CachedResult* partition);
     virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
     virtual const char* id() const { return kFilterId; }
@@ -375,11 +373,7 @@ class CombiningFilter : public RewriteFilter {
 
   virtual bool ComputeOnTheFly() const { return on_the_fly_; }
 
-  int num_rewrites() const { return num_rewrites_; }
-  int num_render() const { return num_render_; }
-  int num_will_not_render() const { return num_will_not_render_; }
-  int num_cancel() const { return num_cancel_; }
-
+  bool num_rewrites() const { return num_rewrites_; }
   void ClearStats() { num_rewrites_ = 0; }
   int64 rewrite_delay_ms() const { return rewrite_delay_ms_; }
   void set_rewrite_block_on(WorkerTestBase::SyncPoint* sync) {
@@ -407,9 +401,6 @@ class CombiningFilter : public RewriteFilter {
   UrlMultipartEncoder encoder_;
   MockScheduler* scheduler_;
   int num_rewrites_;
-  int num_render_;
-  int num_will_not_render_;
-  int num_cancel_;
   int64 rewrite_delay_ms_;
 
   // If this is non-NULL, the actual rewriting will block until this is

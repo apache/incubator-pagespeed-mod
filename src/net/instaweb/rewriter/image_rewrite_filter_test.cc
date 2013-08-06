@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
-#include <memory>
-
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -27,36 +25,30 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
-#include "net/instaweb/rewriter/public/dom_stats_filter.h"
+#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/image.h"
-#include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/rendered_image.pb.h"
-#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
@@ -70,12 +62,9 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"  // for Timer, etc
 
 namespace net_instaweb {
-
-class AbstractMutex;
 
 namespace {
 
@@ -92,10 +81,6 @@ const char kChefDims[] = " width=\"192\" height=\"256\"";
 
 // Size of a 1x1 image.
 const char kPixelDims[] = " width='1' height='1'";
-
-// If the expected value of a size is set to -1, this size will be ignored in
-// the test.
-const int kIgnoreSize = -1;
 
 // A callback for HTTP cache that stores body and string representation
 // of headers into given strings.
@@ -131,48 +116,44 @@ class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
   DISALLOW_COPY_AND_ASSIGN(HTTPCacheStringCallback);
 };
 
-}  // namespace
-
-// TODO(huibao): Move CopyOnWriteLogRecord and TestRequestContext to a shared
-// file.
-
-// RequestContext that overrides NewSubordinateLogRecord to return a
-// CopyOnWriteLogRecord that copies to a logging_info given at construction
-// time.
-class TestRequestContext : public RequestContext {
+// By default, CriticalImagesFinder does not return meaningful results. However,
+// this test manually manages the critical image set, so CriticalImagesFinder
+// can return useful information for testing this filter.
+class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
  public:
-  TestRequestContext(LoggingInfo* logging_info,
-                     AbstractMutex* mutex)
-      : RequestContext(mutex, NULL),
-        logging_info_copy_(logging_info) {
+  explicit MeaningfulCriticalImagesFinder(Statistics* stats)
+      : CriticalImagesFinder(stats),
+        compute_calls_(0) {}
+  virtual ~MeaningfulCriticalImagesFinder() {}
+  virtual bool IsMeaningful(const RewriteDriver* driver) const {
+    return true;
   }
-
-  virtual AbstractLogRecord* NewSubordinateLogRecord(
-      AbstractMutex* logging_mutex) {
-    return new CopyOnWriteLogRecord(logging_mutex, logging_info_copy_);
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver) {
+    ++compute_calls_;
+  }
+  int num_compute_calls() { return compute_calls_; }
+  virtual const char* GetCriticalImagesCohort() const {
+    return kCriticalImagesCohort;
   }
 
  private:
-  LoggingInfo* logging_info_copy_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestRequestContext);
+  static const char kCriticalImagesCohort[];
+  int compute_calls_;
+  DISALLOW_COPY_AND_ASSIGN(MeaningfulCriticalImagesFinder);
 };
-typedef RefCountedPtr<TestRequestContext> TestRequestContextPtr;
+
+const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
+    "critical_images";
+
+}  // namespace
 
 class ImageRewriteTest : public RewriteTestBase {
  protected:
-  ImageRewriteTest()
-    : test_request_context_(TestRequestContextPtr(
-          new TestRequestContext(&logging_info_,
-                                 factory()->thread_system()->NewMutex()))) {
-  }
-
   virtual void SetUp() {
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_dom_cohort(cohort);
+    SetupCohort(pcache, RewriteDriver::kDomCohort);
     RewriteTestBase::SetUp();
     MockPropertyPage* page = NewMockPage(kTestDomain);
     pcache->set_enabled(true);
@@ -218,12 +199,6 @@ class ImageRewriteTest : public RewriteTestBase {
   // Simple image rewrite test to check resource fetching functionality.
   void RewriteImage(const GoogleString& tag_string,
                     const ContentType& content_type) {
-    // Capture normal headers for comparison. We need to do it now
-    // since the clock -after- rewrite is non-deterministic, but it must be
-    // at the initial value at the time of the rewrite.
-    GoogleString expect_headers;
-    AppendDefaultHeaders(content_type, &expect_headers);
-
     GoogleString src_string;
 
     Histogram* rewrite_latency_ok = statistics()->GetHistogram(
@@ -254,15 +229,13 @@ class ImageRewriteTest : public RewriteTestBase {
     cache_callback.ExpectFound();
 
     // Make sure the headers produced make sense.
+    GoogleString expect_headers;
+    AppendDefaultHeaders(content_type, &expect_headers);
     EXPECT_STREQ(expect_headers, rewritten_headers);
 
     // Also fetch the resource to ensure it can be created dynamically
     ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
     lru_cache()->Clear();
-
-    // New time --- new timestamp.
-    expect_headers.clear();
-    AppendDefaultHeaders(content_type, &expect_headers);
 
     EXPECT_TRUE(rewrite_driver()->FetchResource(src_string, &expect_callback));
     rewrite_driver()->WaitForCompletion();
@@ -270,7 +243,7 @@ class ImageRewriteTest : public RewriteTestBase {
               expect_callback.response_headers()->status_code()) <<
         "Looking for " << src_string;
     EXPECT_STREQ(rewritten_image, expect_callback.buffer());
-    EXPECT_STREQ(expect_headers,
+    EXPECT_STREQ(rewritten_headers,
                  expect_callback.response_headers()->ToString());
     // Try to fetch from an independent server.
     ServeResourceFromManyContextsWithUA(
@@ -536,7 +509,7 @@ class ImageRewriteTest : public RewriteTestBase {
       RewriteDriver* driver, int screen_width, int screen_height) {
     EXPECT_LT(1, screen_width);
     EXPECT_LT(1, screen_height);
-    rewrite_driver()->request_properties()->SetScreenResolution(
+    rewrite_driver()->device_properties()->SetScreenResolution(
         screen_width, screen_height);
     TimedVariable* rewrites_squashing = statistics()->GetTimedVariable(
         ImageRewriteFilter::kImageRewritesSquashingForMobileScreen);
@@ -728,123 +701,6 @@ class ImageRewriteTest : public RewriteTestBase {
             net_instaweb::ImageRewriteFilter::kImageWebpWithAlphaFailureMs)->
         Count());
   }
-
-  // Verify log for background image rewriting. To skip url, pass in an empty
-  // string. To skip original_size or optimized_size,  pass in kIgnoreSize.
-  void TestBackgroundRewritingLog(
-      int rewrite_info_size,
-      int rewrite_info_index,
-      RewriterApplication::Status status,
-      const char* id,
-      const GoogleString& url,
-      ImageType original_type,
-      ImageType optimized_type,
-      int original_size,
-      int optimized_size,
-      bool is_recompressed,
-      bool is_resized,
-      int original_width,
-      int original_height,
-      bool is_resized_using_rendered_dimensions,
-      int resized_width,
-      int resized_height) {
-    // Check URL.
-    net_instaweb::ResourceUrlInfo* url_info =
-        logging_info_.mutable_resource_url_info();
-    if (!url.empty()) {
-      EXPECT_LT(0, url_info->url_size());
-      if (url_info->url_size() > 0) {
-        EXPECT_EQ(url, url_info->url(0));
-      }
-    } else {
-      EXPECT_EQ(0, url_info->url_size());
-    }
-
-    EXPECT_EQ(rewrite_info_size, logging_info_.rewriter_info_size());
-    const RewriterInfo& rewriter_info =
-        logging_info_.rewriter_info(rewrite_info_index);
-    EXPECT_EQ(id, rewriter_info.id());
-    EXPECT_EQ(status, rewriter_info.status());
-
-    ASSERT_TRUE(rewriter_info.has_rewrite_resource_info());
-    const RewriteResourceInfo& resource_info =
-        rewriter_info.rewrite_resource_info();
-
-    if (original_size != kIgnoreSize) {
-      EXPECT_EQ(original_size, resource_info.original_size());
-    }
-    if (optimized_size != kIgnoreSize) {
-      EXPECT_EQ(optimized_size, resource_info.optimized_size());
-    }
-    EXPECT_EQ(is_recompressed, resource_info.is_recompressed());
-
-    ASSERT_TRUE(rewriter_info.has_image_rewrite_resource_info());
-    const ImageRewriteResourceInfo& image_info =
-        rewriter_info.image_rewrite_resource_info();
-    EXPECT_EQ(original_type, image_info.original_image_type());
-    EXPECT_EQ(optimized_type, image_info.optimized_image_type());
-    EXPECT_EQ(is_resized, image_info.is_resized());
-    EXPECT_EQ(original_width, image_info.original_width());
-    EXPECT_EQ(original_height, image_info.original_height());
-    EXPECT_EQ(is_resized_using_rendered_dimensions,
-              image_info.is_resized_using_rendered_dimensions());
-    EXPECT_EQ(resized_width, image_info.resized_width());
-    EXPECT_EQ(resized_height, image_info.resized_height());
-  }
-
-  void TestForRenderedDimensions(MockCriticalImagesFinder* finder,
-                                 int width, int height,
-                                 int expected_width, int expected_height,
-                                 const char* dimensions_attribute,
-                                 const GoogleString& expected_rewritten_url,
-                                 int num_rewrites_using_rendered_dimensions) {
-    RenderedImages* rendered_images = new RenderedImages;
-    RenderedImages_Image* images = rendered_images->add_image();
-    images->set_src(StrCat(kTestDomain, kChefGifFile));
-    if (width != 0) {
-      images->set_rendered_width(width);
-    }
-    if (height != 0) {
-      images->set_rendered_height(height);
-    }
-
-    // Original size of kChefGifFile is 192x256
-    finder->set_rendered_images(rendered_images);
-    TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                      dimensions_attribute, dimensions_attribute, true, false);
-
-    // Check for single image file in the rewritten page.
-    StringVector image_urls;
-    CollectImgSrcs(kChefGifFile, output_buffer_, &image_urls);
-    EXPECT_EQ(1, image_urls.size());
-    const GoogleString& rewritten_url = image_urls[0];
-
-    EXPECT_STREQ(rewritten_url, expected_rewritten_url);
-    GoogleString output_png;
-    EXPECT_TRUE(FetchResourceUrl(rewritten_url, &output_png));
-    // Check if we resized to rendered dimensions.
-    scoped_ptr<Image> image(
-        NewImage(output_png, rewritten_url, server_context_->filename_prefix(),
-                 new Image::CompressionOptions(),
-                 timer(), &message_handler_));
-    ImageDim image_dim;
-    image->Dimensions(&image_dim);
-    EXPECT_EQ(expected_width, image_dim.width());
-    EXPECT_EQ(expected_height, image_dim.height());
-    Variable* resized_using_rendered_dimensions = statistics()->GetVariable(
-        ImageRewriteFilter::kImageResizedUsingRenderedDimensions);
-    EXPECT_EQ(num_rewrites_using_rendered_dimensions,
-              resized_using_rendered_dimensions->Get());
-    resized_using_rendered_dimensions->Clear();
-  }
-
-  virtual RequestContextPtr CreateRequestContext() {
-    return RequestContextPtr(test_request_context_);
-  }
-
- private:
-  LoggingInfo logging_info_;
-  TestRequestContextPtr test_request_context_;
 };
 
 TEST_F(ImageRewriteTest, ImgTag) {
@@ -854,8 +710,8 @@ TEST_F(ImageRewriteTest, ImgTag) {
 TEST_F(ImageRewriteTest, ImgTagWithComputeStatistics) {
   options()->EnableFilter(RewriteOptions::kComputeStatistics);
   RewriteImage("img", kContentTypeJpeg);
-  EXPECT_EQ(1, rewrite_driver()->dom_stats_filter()->num_img_tags());
-  EXPECT_EQ(0, rewrite_driver()->dom_stats_filter()->num_inlined_img_tags());
+  EXPECT_EQ(1, logging_info()->image_stats().num_img_tags());
+  EXPECT_EQ(0, logging_info()->image_stats().num_inlined_img_tags());
 }
 
 TEST_F(ImageRewriteTest, ImgTagWebp) {
@@ -1026,38 +882,15 @@ TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlag) {
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   options()->EnableFilter(RewriteOptions::kConvertToWebpLossless);
-  options()->set_allow_logging_urls_in_log_record(true);
   options()->set_image_recompress_quality(85);
-  options()->set_log_background_rewrites(true);
   rewrite_driver()->AddFilters();
   rewrite_driver()->SetUserAgent("webp-la");
-
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypeWebp,
                     "", " width=\"100\" height=\"100\"", true, false);
   TestConversionVariables(0, 0, 0,   // gif
                           0, 1, 0,   // png
                           0, 0, 0,   // jpg
                           true);
-
-  // Imge is recompressed but not resized.
-  rewrite_driver()->Clear();
-  TestBackgroundRewritingLog(
-      1, /* rewrite_info_size */
-      0, /* rewrite_info_index */
-      RewriterApplication::APPLIED_OK, /* status */
-      "ic", /* rewrite ID */
-      "", /* URL */
-      IMAGE_PNG, /* original_type */
-      IMAGE_WEBP_LOSSLESS_OR_ALPHA, /* optimized_type */
-      26548, /* original_size */
-      kIgnoreSize, /* optimized_size */
-      true, /* is_recompressed */
-      false, /* is_resized */
-      100, /* original width */
-      100, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      -1, /* resized_width */
-      -1 /* resized_height */);
 }
 
 TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlagTimesOut) {
@@ -1080,75 +913,6 @@ TEST_F(ImageRewriteTest, PngToWebpWithWebpLaUaAndFlagTimesOut) {
                           1, 0, 0,   // png
                           0, 0, 0,   // jpg
                           true);
-}
-
-TEST_F(ImageRewriteTest, DistributedImageRewrite) {
-  // Distribute an image rewrite, make sure that the image is resized.
-  SetupSharedCache();
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options_->DistributeFilter(RewriteOptions::kImageCompressionId);
-  options_->set_distributed_rewrite_servers("example.com:80");
-  options_->set_distributed_rewrite_key("1234123");
-  other_options()->Merge(*options());
-  rewrite_driver()->AddFilters();
-  other_rewrite_driver()->AddFilters();
-  RequestHeaders request_headers;
-  // Set default request headers.
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                    " width=10 height=10",  // initial_dims,
-                    " width=10 height=10",  // final_dims,
-                    true,                   // expect_rewritten
-                    false);                 // expect_inline
-  EXPECT_EQ(1, statistics()->GetVariable(
-                   RewriteContext::kNumDistributedRewriteSuccesses)->Get());
-}
-
-TEST_F(ImageRewriteTest, DistributedImageInline) {
-  // Distribute an image rewrite, make sure that the inlined image is used from
-  // the returned metadata.
-  SetupSharedCache();
-  options()->set_image_inline_max_bytes(1000000);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options_->DistributeFilter(RewriteOptions::kImageCompressionId);
-  options_->set_distributed_rewrite_servers("example.com:80");
-  options_->set_distributed_rewrite_key("1234123");
-  other_options()->Merge(*options());
-  rewrite_driver()->AddFilters();
-  other_rewrite_driver()->AddFilters();
-  RequestHeaders request_headers;
-  // Set default request headers.
-  rewrite_driver()->SetRequestHeaders(request_headers);
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
-                    true,   // expect_rewritten
-                    true);  // expect_inline
-  EXPECT_EQ(1, statistics()->GetVariable(
-                   RewriteContext::kNumDistributedRewriteSuccesses)->Get());
-  GoogleString distributed_output = output_buffer_;
-
-  // Run it again but this time without distributed rewriting, the output should
-  // be the same.
-  lru_cache()->Clear();
-  ClearStats();
-  // Clearing the distributed_rewrite_servers disables distribution.
-  options()->ClearSignatureForTesting();
-  options_->set_distributed_rewrite_servers("");
-  options()->ComputeSignature();
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
-                    true,   // expect_rewritten
-                    true);  // expect_inline
-  EXPECT_EQ(0, statistics()->GetVariable(
-                   RewriteContext::kNumDistributedRewriteSuccesses)->Get());
-  // Make sure we did a rewrite.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(3, lru_cache()->num_inserts());
-
-  // Is the output from distributed rewriting and local rewriting the same?
-  EXPECT_STREQ(distributed_output, output_buffer_);
 }
 
 TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOn) {
@@ -1259,126 +1023,6 @@ TEST_F(ImageRewriteTest, ImageRewriteNoTransformAttribute) {
                     "",                             // final attributes
                     false,   // expect_rewritten
                     false);  // expect_inline
-}
-
-TEST_F(ImageRewriteTest, ImageRewriteDropAll) {
-  // Test that randomized optimization doesn't rewrite when drop % set to 100
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_rewrite_random_drop_percentage(100);
-  rewrite_driver()->AddFilters();
-
-  for (int i = 0; i < 100; ++i) {
-    TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                      "",      // initial attributes
-                      "",      // final attributes
-                      false,   // expect_rewritten
-                      false);  // expect_inline
-    lru_cache()->Clear();
-    ClearStats();
-  }
-  // Try some rewrites without clearing the cache to make sure that that
-  // works too.
-  for (int i = 0; i < 100; ++i) {
-    TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                      "",      // initial attributes
-                      "",      // final attributes
-                      false,   // expect_rewritten
-                      false);  // expect_inline
-  }
-}
-
-TEST_F(ImageRewriteTest, ImageRewriteDropNone) {
-  // Test that randomized optimization always rewrites when drop % set to 0.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_rewrite_random_drop_percentage(0);
-  rewrite_driver()->AddFilters();
-
-  for (int i = 0; i < 100; ++i) {
-    TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                      "",      // initial attributes
-                      "",      // final attributes
-                      true,   // expect_rewritten
-                      false);  // expect_inline
-    lru_cache()->Clear();
-    ClearStats();
-  }
-  // Try some rewrites without clearing the cache to make sure that that
-  // works too.
-  for (int i = 0; i < 5; ++i) {
-    TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                      "",      // initial attributes
-                      "",      // final attributes
-                      true,   // expect_rewritten
-                      false);  // expect_inline
-  }
-}
-
-TEST_F(ImageRewriteTest, ImageRewriteDropSometimes) {
-  // Test that randomized optimization sometimes rewrites and sometimes doesn't.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_rewrite_random_drop_percentage(50);
-  rewrite_driver()->AddFilters();
-
-  bool found_rewritten = false;
-  bool found_not_rewritten = false;
-
-  // Boiler-plate fetching stuff.
-  GoogleString initial_url = StrCat(kTestDomain, kBikePngFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kBikePngFile, kContentTypePng, 100);
-  const char html_boilerplate[] = "<img src='%s'%s>";
-  GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), "");
-
-  // Note that this could flake, but for it to flake we'd have to have 100
-  // heads or 100 tails in a row, a probability of 1.6e-30 when
-  // image_rewrite_percentage is 50.
-  for (int i = 0; i < 100; i++) {
-    ParseUrl(page_url, html_input);
-
-    // Check for single image file in the rewritten page.
-    StringVector image_urls;
-    CollectImgSrcs(initial_url, output_buffer_, &image_urls);
-    EXPECT_EQ(1, image_urls.size());
-    const GoogleString& rewritten_url = image_urls[0];
-    const GoogleUrl rewritten_gurl(rewritten_url);
-    EXPECT_TRUE(rewritten_gurl.is_valid());
-
-    if (initial_url == rewritten_url) {
-      found_not_rewritten = true;
-    } else {
-      found_rewritten = true;
-    }
-
-    if (found_rewritten && found_not_rewritten) {
-      break;
-    }
-  }
-}
-
-// For Issue 748 where duplicate images in the same document with RandomDrop on
-// caused the duplicate urls to be removed if the first image is not optimized.
-// NOTE: This test only works if the first image is deterministically dropped.
-// We set the drop_percentage to 100 to guarantee that.
-TEST_F(ImageRewriteTest, ImageRewriteRandomDropRepeatedImages) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_rewrite_random_drop_percentage(100);
-  rewrite_driver()->AddFilters();
-  GoogleString initial_url = StrCat(kTestDomain, kBikePngFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kBikePngFile, kContentTypePng, 100);
-  const char html_boilerplate[] =
-      "<img src='%s'> <img src='%s'> <img src='%s'>";
-  GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), initial_url.c_str(),
-                   initial_url.c_str());
-  ParseUrl(page_url, html_input);
-  StringVector image_urls;
-  CollectImgSrcs(initial_url, output_buffer_, &image_urls);
-  EXPECT_EQ(3, image_urls.size());
-  EXPECT_EQ(initial_url, image_urls[0]);
-  EXPECT_EQ(initial_url, image_urls[1]);
-  EXPECT_EQ(initial_url, image_urls[2]);
 }
 
 TEST_F(ImageRewriteTest, ResizeTest) {
@@ -1694,70 +1338,9 @@ TEST_F(ImageRewriteTest, NullResizeTest) {
                     " style", " style", false, false);
 }
 
-TEST_F(ImageRewriteTest, TestLoggingWithoutOptimize) {
-  // Make sure we don't resize, if we don't optimize.
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  rewrite_driver()->AddFilters();
-  SetMockLogRecord();
-  MockLogRecord* log = mock_log_record();
-  EXPECT_CALL(*log,
-              MockLogImageRewriteActivity(LogImageRewriteActivityMatcher(
-                  StrEq("ic"),
-                  StrEq("http://test.com/IronChef2.gif"),
-                  RewriterApplication::NOT_APPLIED,
-                  false /* is_image_inlined */,
-                  true /* is_critical_image */,
-                  false /* is_url_rewritten */,
-                  24941 /* original size */,
-                  false /* try_low_res_src_insertion */,
-                  false /* low_res_src_inserted */,
-                  IMAGE_UNKNOWN /* low res image type */,
-                  _ /* low_res_data_size */)));
-  // Without resize, it's not optimizable.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", kChefDims, false, false);
-}
-
-TEST_F(ImageRewriteTest, TestLoggingWithOptimize) {
-  options()->set_image_inline_max_bytes(10000);
-  options()->set_log_url_indices(true);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->set_log_background_rewrites(true);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  SetMockLogRecord();
-  MockLogRecord* log = mock_log_record();
-  EXPECT_CALL(*log,
-              MockLogImageRewriteActivity(LogImageRewriteActivityMatcher(
-                  StrEq("ic"),
-                  StrEq("http://test.com/IronChef2.gif"),
-                  RewriterApplication::APPLIED_OK,
-                  true /* is_image_inlined */,
-                  true /* is_critical_image */,
-                  true /* is_url_rewritten */,
-                  5733 /* rewritten size */,
-                  false /* try_low_res_src_insertion */,
-                  false /* low_res_src_inserted */,
-                  IMAGE_UNKNOWN /* low res image type */,
-                  _ /* low_res_data_size */)));
-  // Without resize, it's not optimizable.
-  // With resize, the image shrinks quite a bit, and we can inline it
-  // given the 10K threshold explicitly set above.  This also strips the
-  // size information, which is now embedded in the image itself anyway.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    kResizedDims, "", true, true);
-}
-
 TEST_F(ImageRewriteTest, InlineTestWithoutOptimize) {
   // Make sure we don't resize, if we don't optimize.
-  options()->set_allow_logging_urls_in_log_record(true);
   options()->set_image_inline_max_bytes(10000);
-  options()->set_log_background_rewrites(true);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
@@ -1766,36 +1349,26 @@ TEST_F(ImageRewriteTest, InlineTestWithoutOptimize) {
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", kChefDims, false, false);
 
-  // No optimization has been applied. Image type and size are not changed,
-  // so the optimzied image does not have these values logged.
-  rewrite_driver()->Clear();
-  TestBackgroundRewritingLog(
-      1, /* rewrite_info_size */
-      0, /* rewrite_info_index */
-      RewriterApplication::NOT_APPLIED, /* status */
-      "ic", /* ID */
-      "http://test.com/IronChef2.gif", /* URL */
-      IMAGE_GIF, /* original_type */
-      IMAGE_UNKNOWN, /* optimized_type */
-      24941, /* original_size */
-      0, /* optimized_size */
-      false, /* is_recompressed */
-      false, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      -1, /* resized_width */
-      -1 /* resized_height */);
+  ScopedMutex lock(rewrite_driver()->log_record()->mutex());
+  EXPECT_EQ(1, logging_info()->rewriter_info_size());
+  const RewriterInfo& rewriter_info = logging_info()->rewriter_info(0);
+  EXPECT_EQ("ic", rewriter_info.id());
+  EXPECT_EQ(RewriterInfo::NOT_APPLIED, rewriter_info.status());
+  EXPECT_TRUE(rewriter_info.has_rewrite_resource_info());
+  EXPECT_FALSE(rewriter_info.has_image_rewrite_resource_info());
+
+  const RewriteResourceInfo& resource_info =
+      rewriter_info.rewrite_resource_info();
+  EXPECT_FALSE(resource_info.is_inlined());
+  EXPECT_TRUE(resource_info.is_critical());
 }
 
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
   options()->set_image_inline_max_bytes(10000);
-  options()->set_log_url_indices(true);
   options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->set_log_background_rewrites(true);
   rewrite_driver()->AddFilters();
   const char kResizedDims[] = " width=48 height=64";
   // Without resize, it's not optimizable.
@@ -1805,25 +1378,19 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
                     kResizedDims, "", true, true);
 
-  // After optimization, the GIF image is converted to a PNG image.
-  rewrite_driver()->Clear();
-  TestBackgroundRewritingLog(
-      1, /* rewrite_info_size */
-      0, /* rewrite_info_index */
-      RewriterApplication::APPLIED_OK, /* status */
-      "ic", /* ID */
-      "", /* URL */
-      IMAGE_GIF, /* original_type */
-      IMAGE_PNG, /* optimized_type */
-      24941, /* original_size */
-      5733, /* optimized_size */
-      true, /* is_recompressed */
-      true, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      false, /* is_resized_using_rendered_dimensions */
-      48, /* resized_width */
-      64 /* resized_height */);
+  ScopedMutex lock(rewrite_driver()->log_record()->mutex());
+  EXPECT_EQ(1, logging_info()->rewriter_info_size());
+  const RewriterInfo& rewriter_info = logging_info()->rewriter_info(0);
+  EXPECT_EQ("ic", rewriter_info.id());
+  EXPECT_EQ(RewriterInfo::APPLIED_OK, rewriter_info.status());
+  EXPECT_TRUE(rewriter_info.has_rewrite_resource_info());
+  EXPECT_FALSE(rewriter_info.has_image_rewrite_resource_info());
+  EXPECT_EQ(0, logging_info()->resource_url_info().url_size());
+
+  const RewriteResourceInfo& resource_info =
+      rewriter_info.rewrite_resource_info();
+  EXPECT_TRUE(resource_info.is_inlined());
+  EXPECT_TRUE(resource_info.is_critical());
 }
 
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
@@ -1834,6 +1401,8 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
   options()->set_allow_logging_urls_in_log_record(true);
   rewrite_driver()->AddFilters();
+  rewrite_driver()->set_request_context(
+      RequestContext::NewTestRequestContext(factory()->thread_system()));
 
   const char kResizedDims[] = " width=48 height=64";
   // Without resize, it's not optimizable.
@@ -1844,6 +1413,14 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
                     kResizedDims, "", true, true);
   TestSingleRewriteWithoutAbs(kChefGifFile, kChefGifFile, kContentTypeGif,
                               kContentTypePng, kResizedDims, "", true, true);
+  ScopedMutex lock(rewrite_driver()->log_record()->mutex());
+  const RewriterInfo& rewriter_info = logging_info()->rewriter_info(0);
+  EXPECT_EQ(RewriterInfo::APPLIED_OK, rewriter_info.status());
+  EXPECT_EQ(1, logging_info()->resource_url_info().url_size());
+  EXPECT_EQ(0, logging_info()->rewriter_info(0).rewrite_resource_info().
+            original_resource_url_index());
+  EXPECT_EQ("http://test.com/IronChef2.gif",
+            logging_info()->resource_url_info().url(0));
 }
 
 TEST_F(ImageRewriteTest, DimensionStripAfterInline) {
@@ -1866,42 +1443,24 @@ TEST_F(ImageRewriteTest, DimensionStripAfterInline) {
                     kChefWider, kChefWider, false, true);
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     kChefTaller, kChefTaller, false, true);
-
-  const char kChefWidthWithPercentage[] = " width=100% height=1";
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kChefWidthWithPercentage, kChefWidthWithPercentage,
-                    false, true);
-  const char kChefHeightWithPercentage[] = " width=1 height=%";
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kChefHeightWithPercentage, kChefHeightWithPercentage,
-                    false, true);
 }
 
 TEST_F(ImageRewriteTest, InlineCriticalOnly) {
-  MockCriticalImagesFinder* finder =
-      new MockCriticalImagesFinder(statistics());
+  MeaningfulCriticalImagesFinder* finder =
+      new MeaningfulCriticalImagesFinder(statistics());
   server_context()->set_critical_images_finder(finder);
   options()->set_image_inline_max_bytes(30000);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   rewrite_driver()->AddFilters();
-  // With no critical images registered, no images are candidates for inlining.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    "", "", false, false);
-  // Here and below, -1 results mean "no critical image data reported".
-  EXPECT_EQ(-1, logging_info()->num_html_critical_images());
-  EXPECT_EQ(-1, logging_info()->num_css_critical_images());
-
   // Image not present in critical set should not be inlined.
-  StringSet* critical_images = new StringSet;
-  critical_images->insert(StrCat(kTestDomain, "other_image.png"));
-  finder->set_critical_images(critical_images);
-
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", "", false, false);
   EXPECT_EQ(-1, logging_info()->num_html_critical_images());
   EXPECT_EQ(-1, logging_info()->num_css_critical_images());
 
   // Image present in critical set should be inlined.
+  StringSet* critical_images = server_context()->critical_images_finder()->
+      mutable_html_critical_images(rewrite_driver());
   critical_images->insert(StrCat(kTestDomain, kChefGifFile));
   TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
                     "", "", false, true);
@@ -2086,39 +1645,12 @@ TEST_F(ImageRewriteTest, HonorNoTransform) {
 
 TEST_F(ImageRewriteTest, YesTransform) {
   // Replicates above test but without no-transform to show that it works.
-  // We also verfiy that the pagespeed_no_defer attribute doesn't get removed
-  // when we rewrite images.
   options()->EnableFilter(RewriteOptions::kRecompressPng);
   rewrite_driver()->AddFilters();
 
   GoogleString url = StrCat(kTestDomain, "notransform.png");
   AddFileToMockFetcher(url, kBikePngFile,
                        kContentTypePng, 100);
-  ValidateExpected("YesTransform",
-                   StrCat("<img src=", url, " pagespeed_no_defer>"),
-                   StrCat("<img src=",
-                          Encode("http://test.com/", "ic", "0",
-                                 "notransform.png", "png"),
-                          " pagespeed_no_defer>"));
-  // Validate twice in case changes in cache from the first request alter the
-  // second.
-  ValidateExpected("YesTransform", StrCat("<img src=", url, ">"),
-                   StrCat("<img src=",
-                          Encode("http://test.com/", "ic", "0",
-                                 "notransform.png", "png"),
-                          ">"));
-}
-
-TEST_F(ImageRewriteTest, YesTransformWithOptionFalse) {
-  // Verify rewrite happens even when no-transform is set, if the option is
-  // set to false.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_disable_rewrite_on_no_transform(false);
-  rewrite_driver()->AddFilters();
-
-  GoogleString url = StrCat(kTestDomain, "notransform.png");
-  AddFileToMockFetcher(url, kBikePngFile, kContentTypePng, 100);
-  AddToResponse(url, HttpAttributes::kCacheControl, "no-transform");
   ValidateExpected("YesTransform", StrCat("<img src=", url, ">"),
                    StrCat("<img src=",
                           Encode("http://test.com/", "ic", "0",
@@ -2216,9 +1748,8 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
       statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
   ongoing_rewrites->Set(100);
 
-  // If the nested context is too busy, we don't want the parent to partially
-  // optimize.
-  ValidateNoChanges("img_in_css", CssLinkHref(kCssFile));
+  ValidateExpected("img_in_css", CssLinkHref(kCssFile),
+                   CssLinkHref(out_css_url));
 
   GoogleString out_css;
   EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css));
@@ -2431,8 +1962,7 @@ TEST_F(ImageRewriteTest, SquashImagesForMobileScreen) {
   int screen_height;
   ImageUrlEncoder::GetNormalizedScreenResolution(
       100, 80, &screen_width, &screen_height);
-  rewrite_driver()->SetUserAgent(
-      UserAgentMatcherTestBase::kAndroidNexusSUserAgent);
+  rewrite_driver()->SetUserAgent("Android 4 Mobile Safari");
 
   TestSquashImagesForMobileScreen(
       rewrite_driver(), screen_width, screen_height);
@@ -2440,7 +1970,7 @@ TEST_F(ImageRewriteTest, SquashImagesForMobileScreen) {
   rewrite_driver()->SetUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/537.13+ "
       "(KHTML, like Gecko) Version/5.1.7 Safari/534.57.2");
-  rewrite_driver()->request_properties()->SetScreenResolution(
+  rewrite_driver()->device_properties()->SetScreenResolution(
       screen_width, screen_height);
 
   ImageDim desired_dim;
@@ -2471,12 +2001,14 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
-  // Neither option is set explicitly, default is 70.
-  EXPECT_EQ(70, img_options->jpeg_quality);
+  // Neither option is set, default is -1.
+  EXPECT_EQ(-1, img_options->jpeg_quality);
   EXPECT_TRUE(ctx.has_use_small_screen_quality());
 
-  // Base image quality is set, but for_small_screens is not, return base.
+  // Base jpeg quality set, but for_small_screens is not, return base quality.
+  ctx.Clear();
   options()->ClearSignatureForTesting();
+  options()->set_image_jpeg_recompress_quality(85);
   options()->set_image_jpeg_recompress_quality_for_small_screens(-1);
   rewrite_driver()->set_custom_options(options());
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
@@ -2487,24 +2019,12 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
 
   // Base jpeg quality not set, but for_small_screens is, return small_screen.
   options()->ClearSignatureForTesting();
-  options()->set_image_recompress_quality(-1);
   options()->set_image_jpeg_recompress_quality_for_small_screens(20);
   rewrite_driver()->set_custom_options(options());
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
   img_options.reset(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
   EXPECT_EQ(20, img_options->jpeg_quality);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Neither jpeg quality is set, return -1.
-  options()->ClearSignatureForTesting();
-  options()->set_image_recompress_quality(-1);
-  options()->set_image_jpeg_recompress_quality_for_small_screens(-1);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(-1, img_options->jpeg_quality);
   EXPECT_TRUE(ctx.has_use_small_screen_quality());
 
   // Base and for_small_screen options are set, and screen is small;
@@ -2564,30 +2084,7 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
   img_options.reset(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
   EXPECT_EQ(85, img_options->jpeg_quality);
-  EXPECT_FALSE(ctx.use_small_screen_quality());
-
-  // Mobile UA
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  options()->ClearSignatureForTesting();
-  options()->set_image_jpeg_recompress_quality_for_small_screens(70);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(70, img_options->jpeg_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Min of small screen and desktop
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  options()->ClearSignatureForTesting();
-  options()->set_image_jpeg_recompress_quality_for_small_screens(70);
-  options()->set_image_jpeg_recompress_quality(60);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(60, img_options->jpeg_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
+  EXPECT_FALSE(ctx.has_use_small_screen_quality());
 }
 
 TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
@@ -2602,8 +2099,8 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
-  // Neither option is set, default is 70.
-  EXPECT_EQ(70, img_options->webp_quality);
+  // Neither option is set, default is -1.
+  EXPECT_EQ(-1, img_options->webp_quality);
   EXPECT_TRUE(ctx.has_use_small_screen_quality());
 
   // Base webp quality set, but for_small_screens is not, return base quality.
@@ -2620,8 +2117,6 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
 
   // Base webp quality not set, but for_small_screens is, return small_screen.
   options()->ClearSignatureForTesting();
-  options()->set_image_recompress_quality(-1);
-  options()->set_image_webp_recompress_quality(-1);
   options()->set_image_webp_recompress_quality_for_small_screens(20);
   rewrite_driver()->set_custom_options(options());
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
@@ -2687,146 +2182,7 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
   img_options.reset(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
   EXPECT_EQ(85, img_options->webp_quality);
-  EXPECT_FALSE(ctx.use_small_screen_quality());
-
-  // Mobile UA
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  ctx.Clear();
-  options()->ClearSignatureForTesting();
-  options()->set_image_webp_recompress_quality_for_small_screens(70);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(70, img_options->webp_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Min of desktop and mobile quality
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  ctx.Clear();
-  options()->ClearSignatureForTesting();
-  options()->set_image_webp_recompress_quality_for_small_screens(70);
-  options()->set_image_webp_recompress_quality(55);
-  rewrite_driver()->set_custom_options(options());
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  img_options.reset(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-  EXPECT_EQ(55, img_options->webp_quality);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
-}
-
-void SetNumberOfScans(int num_scans, int num_scans_small_screen,
-                      const ResourcePtr res_ptr,
-                      RewriteOptions* options,
-                      RewriteDriver* rewrite_driver,
-                      ImageRewriteFilter* image_rewrite_filter,
-                      ResourceContext* ctx,
-                      scoped_ptr<Image::CompressionOptions>* img_options) {
-  static const int DO_NOT_SET=-10;
-  ctx->Clear();
-  if ((num_scans != DO_NOT_SET)  ||
-      (num_scans_small_screen != DO_NOT_SET)) {
-    options->ClearSignatureForTesting();
-    if (num_scans != DO_NOT_SET) {
-      options->set_image_jpeg_num_progressive_scans(num_scans);
-    }
-    if (num_scans_small_screen != DO_NOT_SET) {
-      options->set_image_jpeg_num_progressive_scans_for_small_screens(
-          num_scans_small_screen);
-    }
-    rewrite_driver->set_custom_options(options);
-  }
-  image_rewrite_filter->EncodeUserAgentIntoResourceContext(ctx);
-  img_options->reset(
-      image_rewrite_filter->ImageOptionsForLoadedResource(
-          *ctx, res_ptr, false));
-}
-
-TEST_F(ImageRewriteTest, JpegProgressiveScansForSmallScreens) {
-  static const int DO_NOT_SET=-10;
-  rewrite_driver()->SetUserAgent("Mozilla/5.0 (Linux; U; Android 4.0.1; en-us; "
-      "Galaxy Nexus Build/ICL27) AppleWebKit/534.30 (KHTML, like Gecko) "
-      "Version/4.0 Mobile Safari/534.30");
-  ImageRewriteFilter image_rewrite_filter(rewrite_driver());
-  ResourceContext ctx;
-  image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(rewrite_driver()->
-      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
-  scoped_ptr<Image::CompressionOptions> img_options(
-      image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
-
-  // Neither option is set, default is -1.
-  EXPECT_EQ(-1, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Base jpeg num scans set, but for_small_screens is not, return
-  // base num scans.
-  SetNumberOfScans(8, -1, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(8, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Base jpeg quality not set, but for_small_screens is, return small_screen.
-  SetNumberOfScans(DO_NOT_SET, 2, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Base and for_small_screen options are set, and screen is small;
-  SetNumberOfScans(8, 2, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Base and for_small_screen options are set, but screen is not small.
-  rewrite_driver()->SetUserAgent("Mozilla/5.0 (Linux; U; Android 4.2; en-us; "
-      "Nexus 10 Build/JOP12D) AppleWebKit/534.30 (KHTML, like Gecko) "
-      "Version/4.0 Safari/534.30");
-  SetNumberOfScans(8, 2, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(8, img_options->jpeg_num_progressive_scans);
   EXPECT_FALSE(ctx.has_use_small_screen_quality());
-
-  // Small screen following big screen.
-  rewrite_driver()->SetUserAgent("Mozilla/5.0 (Linux; U; Android 4.0.1; en-us; "
-      "Galaxy Nexus Build/ICL27) AppleWebKit/534.30 (KHTML, like Gecko) "
-      "Version/4.0 Mobile Safari/534.30");
-  SetNumberOfScans(DO_NOT_SET, DO_NOT_SET, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
-
-  // Big screen following small screen.
-  rewrite_driver()->SetUserAgent("Mozilla/5.0 (Linux; U; Android 4.2; en-us; "
-      "Nexus 10 Build/JOP12D) AppleWebKit/534.30 (KHTML, like Gecko) "
-      "Version/4.0 Safari/534.30");
-  SetNumberOfScans(DO_NOT_SET, DO_NOT_SET, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(8, img_options->jpeg_num_progressive_scans);
-  EXPECT_FALSE(ctx.has_use_small_screen_quality());
-
-  // Non-mobile UA.
-  rewrite_driver()->SetUserAgent("Mozilla/5.0 (Windows; U; Windows NT 5.1; "
-      "en-US) AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.A.B.C "
-      "Safari/525.13");
-  SetNumberOfScans(DO_NOT_SET, DO_NOT_SET, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(8, img_options->jpeg_num_progressive_scans);
-  EXPECT_FALSE(ctx.use_small_screen_quality());
-
-  // Mobile UA
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  SetNumberOfScans(DO_NOT_SET, 2, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.use_small_screen_quality());
-
-  // Mobile UA - use min of default and small screen values
-  rewrite_driver()->SetUserAgent("iPhone OS Safari");
-  SetNumberOfScans(2, 8, res_ptr, options(), rewrite_driver(),
-                   &image_rewrite_filter, &ctx, &img_options);
-  EXPECT_EQ(2, img_options->jpeg_num_progressive_scans);
-  EXPECT_TRUE(ctx.has_use_small_screen_quality());
 }
 
 TEST_F(ImageRewriteTest, ProgressiveJpegThresholds) {
@@ -2883,8 +2239,7 @@ TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
   GoogleString page_url = StrCat(kTestDomain, "test.html");
   // Store image contents into fetcher.
   AddFileToMockFetcher(initial_image_url, kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  int64 start_time_ms = timer()->NowMs();
+                        kContentTypeJpeg, 100);
   ParseUrl(page_url, kHtmlInput);
 
   StringVector image_urls;
@@ -2901,7 +2256,7 @@ TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
   ResponseHeaders* response_headers = expect_callback.response_headers();
   EXPECT_TRUE(response_headers->IsProxyCacheable());
   EXPECT_EQ(Timer::kYearMs,
-            response_headers->CacheExpirationTimeMs() - start_time_ms);
+            response_headers->CacheExpirationTimeMs() - timer()->NowMs());
   // Set a non-webp UA.
   rewrite_driver()->SetUserAgent("");
 
@@ -2926,11 +2281,10 @@ TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
              new_hash, ".jpg");
   ASSERT_TRUE(FetchResourceUrl(rewritten_url_new, &content, &response));
   EXPECT_FALSE(response.IsProxyCacheable());
-  // TTL will be 100s since resource creation, because that is the input
-  // resource TTL and is lower than the 300s implicit cache TTL for hash
-  // mismatch.
+  // TTL will be 100s because that is the input resource TTL and is lower than
+  // the 300s implicit cache TTL for hash mismatch.
   EXPECT_EQ(100 * Timer::kSecondMs,
-            response.CacheExpirationTimeMs() - start_time_ms);
+            response.CacheExpirationTimeMs() - timer()->NowMs());
 }
 
 TEST_F(ImageRewriteTest, RewriteImagesAddingOptionsToUrl) {
@@ -2968,77 +2322,6 @@ TEST_F(ImageRewriteTest, RewriteImagesAddingOptionsToUrl) {
   ASSERT_EQ(golden_content.size(), remote_content.size());
   EXPECT_EQ(golden_content, remote_content);  // don't bother if sizes differ...
   */
-}
-
-// If we drop a rewrite because of load, make sure it returns the original URL.
-// This verifies that Issue 707 is fixed.
-TEST_F(ImageRewriteTest, TooBusyReturnsOriginalResource) {
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->set_image_max_rewrites_at_once(1);
-  rewrite_driver()->AddFilters();
-
-  // Set the current # of rewrites very high, so we stop doing more rewrites
-  // due to "load".
-  Variable* ongoing_rewrites =
-      statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
-  ongoing_rewrites->Set(100);
-
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
-                    false, false);
-  ongoing_rewrites->Set(0);
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
-                    true, false);
-}
-
-TEST_F(ImageRewriteTest, ResizeUsingRenderedDimensions) {
-  MockCriticalImagesFinder* finder =
-      new MockCriticalImagesFinder(statistics());
-  server_context()->set_critical_images_finder(finder);
-  options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
-  options()->set_log_background_rewrites(true);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  rewrite_driver()->AddFilters();
-
-  GoogleString expected_rewritten_url =
-      StrCat(kTestDomain, UintToString(100) , "x", UintToString(70), "x",
-      kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 100, 70, 100, 70, "",
-                            expected_rewritten_url, 1);
-  TestBackgroundRewritingLog(
-      1, /* rewrite_info_size */
-      0, /* rewrite_info_index */
-      RewriterApplication::APPLIED_OK, /* status */
-      "ic", /* ID */
-      "", /* URL */
-      IMAGE_GIF, /* original_type */
-      IMAGE_PNG, /* optimized_type */
-      24941, /* original_size */
-      11491, /* optimized_size */
-      true, /* is_recompressed */
-      true, /* is_resized */
-      192, /* original width */
-      256, /* original height */
-      true, /* is_resized_using_rendered_dimensions */
-      100, /* resized_width */
-      70 /* resized_height */);
-
-  expected_rewritten_url =
-      StrCat(kTestDomain, "x", kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 100, 0, 192, 256, "",
-                            expected_rewritten_url, 0);
-  TestForRenderedDimensions(finder, 0, 70, 192, 256, "",
-                            expected_rewritten_url, 0);
-  TestForRenderedDimensions(finder, 0, 0, 192, 256, "",
-                            expected_rewritten_url, 0);
-
-  // Test if rendered dimensions is more than the width and height attribute,
-  // not to resize the image using rendered dimensions.
-  expected_rewritten_url =
-      StrCat(kTestDomain, UintToString(100), "x", UintToString(100), "x",
-             kChefGifFile, ".pagespeed.ic.0.png");
-  TestForRenderedDimensions(finder, 400, 400, 100, 100,
-                            " width=\"100\" height=\"100\"",
-                            expected_rewritten_url, 0);
 }
 
 }  // namespace net_instaweb

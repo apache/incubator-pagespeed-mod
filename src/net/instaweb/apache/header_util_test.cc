@@ -15,8 +15,9 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/apache/header_util.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/http/http_names.h"
+
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/util/public/gtest.h"
 
 #include "apr_pools.h"                                               // NOLINT
 #include "http_request.h"                                            // NOLINT

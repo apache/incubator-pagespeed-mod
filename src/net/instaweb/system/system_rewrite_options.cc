@@ -22,8 +22,6 @@
 
 namespace net_instaweb {
 
-class ThreadSystem;
-
 namespace {
 
 const int64 kDefaultCacheFlushIntervalSec = 5;
@@ -45,8 +43,7 @@ void SystemRewriteOptions::Terminate() {
   }
 }
 
-SystemRewriteOptions::SystemRewriteOptions(ThreadSystem* thread_system)
-    : RewriteOptions(thread_system) {
+SystemRewriteOptions::SystemRewriteOptions() {
   DCHECK(system_properties_ != NULL)
       << "Call SystemRewriteOptions::Initialize() before construction";
   InitializeOptions(system_properties_);
@@ -62,9 +59,6 @@ void SystemRewriteOptions::AddProperties() {
   AddSystemProperty("", &SystemRewriteOptions::file_cache_path_, "afcp",
                     RewriteOptions::kFileCachePath,
                     "Set the path for file cache");
-  AddSystemProperty("", &SystemRewriteOptions::log_dir_, "ald",
-                    RewriteOptions::kLogDir,
-                    "Directory to store logs in.");
   AddSystemProperty("", &SystemRewriteOptions::memcached_servers_, "ams",
                     RewriteOptions::kMemcachedServers,
                     "Comma-separated list of servers e.g. "
@@ -77,13 +71,10 @@ void SystemRewriteOptions::AddProperties() {
                     RewriteOptions::kMemcachedTimeoutUs,
                     "Maximum time in microseconds to allow for memcached "
                         "transactions");
-  AddSystemProperty(true, &SystemRewriteOptions::statistics_enabled_, "ase",
-                    RewriteOptions::kStatisticsEnabled,
-                    "Whether to collect cross-process statistics.");
-  AddSystemProperty("/pagespeed_statistics",
-                    &SystemRewriteOptions::statistics_handler_path_, "ashp",
-                    RewriteOptions::kStatisticsHandlerPath,
-                    "Absolute path URL to statistics handler.");
+  AddSystemProperty("", &SystemRewriteOptions::statistics_logging_file_, "aslf",
+                    RewriteOptions::kStatisticsLoggingFile,
+                    "Where to log cross-process statistics if they're being "
+                        "collected."),
   AddSystemProperty("", &SystemRewriteOptions::statistics_logging_charts_css_,
                     "aslcc", RewriteOptions::kStatisticsLoggingChartsCSS,
                     "Where to find an offline copy of the Google Charts Tools "
@@ -92,17 +83,13 @@ void SystemRewriteOptions::AddProperties() {
                     "aslcj", RewriteOptions::kStatisticsLoggingChartsJS,
                     "Where to find an offline copy of the Google Charts Tools "
                         "API JS.");
+  AddSystemProperty(true, &SystemRewriteOptions::statistics_enabled_, "ase",
+                    RewriteOptions::kStatisticsEnabled,
+                    "Whether to collect cross-process statistics.");
   AddSystemProperty(false, &SystemRewriteOptions::statistics_logging_enabled_,
                     "asle", RewriteOptions::kStatisticsLoggingEnabled,
-                    "Whether to log statistics if they're being collected.");
-  AddSystemProperty(1 * Timer::kMinuteMs,
-                    &SystemRewriteOptions::statistics_logging_interval_ms_,
-                    "asli", RewriteOptions::kStatisticsLoggingIntervalMs,
-                    "How often to log statistics, in milliseconds.");
-  AddSystemProperty(100 * 1024 /* 100 Megabytes */,
-                    &SystemRewriteOptions::statistics_logging_max_file_size_kb_,
-                    "aslfs", RewriteOptions::kStatisticsLoggingMaxFileSizeKb,
-                    "Max size for statistics logging file.");
+                    "Whether to log cross-process statistics if they're being "
+                        "collected.");
   AddSystemProperty(true, &SystemRewriteOptions::use_shared_mem_locking_,
                     "ausml", RewriteOptions::kUseSharedMemLocking,
                     "Use shared memory for internal named lock service");
@@ -130,6 +117,11 @@ void SystemRewriteOptions::AddProperties() {
                     RewriteOptions::kLruCacheKbPerProcess,
                     "Set the total size, in KB, of the per-process in-memory "
                         "LRU cache");
+  AddSystemProperty(3000,
+                    &SystemRewriteOptions::statistics_logging_interval_ms_,
+                    "asli", RewriteOptions::kStatisticsLoggingIntervalMs,
+                    "How often to log cross-process statistics, in "
+                        "milliseconds.");
   AddSystemProperty("", &SystemRewriteOptions::cache_flush_filename_, "acff",
                     RewriteOptions::kCacheFlushFilename,
                     "Name of file to check for timestamp updates used to flush "
@@ -141,78 +133,14 @@ void SystemRewriteOptions::AddProperties() {
                     "acfpi", RewriteOptions::kCacheFlushPollIntervalSec,
                     "Number of seconds to wait between polling for cache-flush "
                         "requests");
-  AddSystemProperty(false,
-                    &SystemRewriteOptions::compress_metadata_cache_,
-                    "cc", RewriteOptions::kCompressMetadataCache,
-                    "Whether to compress cache entries before writing them to "
-                    "memory or disk.");
-  AddSystemProperty("", &SystemRewriteOptions::ssl_cert_directory_, "assld",
-                    RewriteOptions::kSslCertDirectory,
-                    "Directory to find SSL certificates.");
-  AddSystemProperty("", &SystemRewriteOptions::ssl_cert_file_, "asslf",
-                    RewriteOptions::kSslCertFile,
-                    "File with SSL certificates.");
-  AddSystemProperty("", &SystemRewriteOptions::slurp_directory_, "asd",
-                    RewriteOptions::kSlurpDirectory,
-                    "Directory from which to read slurped resources");
-  AddSystemProperty(false, &SystemRewriteOptions::test_proxy_, "atp",
-                    RewriteOptions::kTestProxy,
-                    "Direct non-PageSpeed URLs to a fetcher, acting as a "
-                    "simple proxy. Meant for test use only");
-  AddSystemProperty("", &SystemRewriteOptions::test_proxy_slurp_, "atps",
-                    RewriteOptions::kTestProxySlurp,
-                    "If set, the fetcher used by the TestProxy mode will be a "
-                    "readonly slurp fetcher from the given directory");
-  AddSystemProperty(false, &SystemRewriteOptions::slurp_read_only_, "asro",
-                    RewriteOptions::kSlurpReadOnly,
-                    "Only read from the slurped directory, fail to fetch "
-                    "URLs not already in the slurped directory");
-  AddSystemProperty(false,
-                    &SystemRewriteOptions::rate_limit_background_fetches_,
-                    "rlbf",
-                    RewriteOptions::kRateLimitBackgroundFetches,
-                    "Rate-limit the number of background HTTP fetches done at "
-                    "once");
-  AddSystemProperty(0, &SystemRewriteOptions::slurp_flush_limit_, "asfl",
-                    RewriteOptions::kSlurpFlushLimit,
-                    "Set the maximum byte size for the slurped content to hold "
-                    "before a flush");
-  MergeSubclassProperties(system_properties_);
 
-  // We allow a special instantiation of the options with a null thread system
-  // because we are only updating the static properties on process startup; we
-  // won't have a thread-system yet or multiple threads.
-  //
-  // Leave slurp_read_only out of the signature as (a) we don't actually change
-  // this spontaneously, and (b) it's useful to keep the metadata cache between
-  // slurping read-only and slurp read/write.
-  SystemRewriteOptions config(NULL);
-  config.slurp_read_only_.DoNotUseForSignatureComputation();
+  MergeSubclassProperties(system_properties_);
 }
 
 SystemRewriteOptions* SystemRewriteOptions::Clone() const {
-  SystemRewriteOptions* options = NewOptions();
+  SystemRewriteOptions* options = new SystemRewriteOptions();
   options->Merge(*this);
   return options;
-}
-
-SystemRewriteOptions* SystemRewriteOptions::NewOptions() const {
-  return new SystemRewriteOptions(thread_system());
-}
-
-const SystemRewriteOptions* SystemRewriteOptions::DynamicCast(
-    const RewriteOptions* instance) {
-  const SystemRewriteOptions* config =
-      dynamic_cast<const SystemRewriteOptions*>(instance);
-  DCHECK(config != NULL);
-  return config;
-}
-
-SystemRewriteOptions* SystemRewriteOptions::DynamicCast(
-    RewriteOptions* instance) {
-  SystemRewriteOptions* config = dynamic_cast<SystemRewriteOptions*>(instance);
-  DCHECK(config != NULL);
-  return config;
 }
 
 }  // namespace net_instaweb

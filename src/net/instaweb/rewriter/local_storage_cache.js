@@ -21,8 +21,6 @@
  * @author matterbury@google.com (Matt Atterbury)
  */
 
-goog.require('pagespeedutils');
-
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
@@ -211,12 +209,36 @@ pagespeed.LocalStorageCache.prototype.generateCookie_ = function() {
     // Set the cookie.
     var expires = '';
     if (minExpiry) expires = '; expires=' + (new Date(minExpiry)).toUTCString();
-    document.cookie = '_GPSLSC=' + goodUns.join('!') + expires;
+    document.cookie = '_GPSLSC=' + goodUns.join(',') + expires;
     // Remove all expired objects.
     for (var i = 0, n = deadUns.length; i < n; ++i) {
       window.localStorage.removeItem(deadUns[i]);
     }
     this.regenerate_cookie_ = false;
+  }
+};
+
+/**
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with all the other JS code.
+ */
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
   }
 };
 
@@ -228,11 +250,11 @@ pagespeed.localStorageCacheInit = function() {
   if (window.localStorage) {
     var temp = new pagespeed.LocalStorageCache();
     pagespeed['localStorageCache'] = temp;
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.saveInlinedData_();
                          });
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.generateCookie_();
                          });

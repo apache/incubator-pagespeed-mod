@@ -22,7 +22,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -62,11 +61,9 @@ apr_status_t apache_cleanup(void* object) {
 // Tracks a single property-cache lookup.
 class PropertyCallback : public PropertyPage {
  public:
-  PropertyCallback(const StringPiece& url,
-                   const StringPiece& options_signature_hash,
-                   UserAgentMatcher::DeviceType device_type,
-                   RewriteDriver* driver,
-                   ThreadSystem* thread_system);
+  PropertyCallback(RewriteDriver* driver,
+                   ThreadSystem* thread_system,
+                   const StringPiece& key);
 
   virtual void Done(bool success);
 
@@ -147,12 +144,11 @@ class InstawebContext {
   PropertyCallback* InitiatePropertyCacheLookup();
   void ProcessBytes(const char* input, int size);
 
-  // Checks to see if there was an experiment cookie sent with the request.
+  // Checks to see if there was a Furious cookie sent with the request.
   // If there was not, set one, and add a Set-Cookie header to the
   // response headers.
   // If there was one, make sure to set the options state appropriately.
-  void SetExperimentStateAndCookie(request_rec* request,
-                                   RewriteOptions* options);
+  void SetFuriousStateAndCookie(request_rec* request, RewriteOptions* options);
 
   GoogleString output_;  // content after instaweb rewritten.
   apr_bucket_brigade* bucket_brigade_;

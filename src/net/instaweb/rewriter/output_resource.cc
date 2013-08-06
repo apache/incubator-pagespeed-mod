@@ -89,7 +89,6 @@ OutputResource::OutputResource(ServerContext* server_context,
   full_name_.CopyFrom(full_name);
   CHECK(EndsInSlash(resolved_base)) <<
       "resolved_base must end in a slash, was: " << resolved_base;
-  set_enable_cache_purge(options->enable_cache_purge());
 }
 
 OutputResource::~OutputResource() {
@@ -216,10 +215,8 @@ void OutputResource::SetHash(const StringPiece& hash) {
 }
 
 void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                                     const RequestContextPtr& request_context,
-                                     AsyncCallback* callback) {
-  DCHECK(false) << "Output resources shouldn't be loaded via "
-                   "LoadAsync, but rather through FetchResource";
+                                     AsyncCallback* callback,
+                                     MessageHandler* handler) {
   callback->Done(false /* lock_failure */, writing_complete_);
 }
 

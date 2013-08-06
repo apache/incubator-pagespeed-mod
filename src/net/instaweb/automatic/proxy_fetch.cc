@@ -22,7 +22,6 @@
 #include <cstddef>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -31,28 +30,24 @@
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/blink_util.h"
-#include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/rewriter/public/furious_matcher.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/abstract_client_state.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/queued_alarm.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/request_trace.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/thread_synchronizer.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
 
@@ -70,12 +65,11 @@ const char ProxyFetch::kHeadersSetupRaceFlush[] = "HeadersSetupRace:Flush";
 const char ProxyFetch::kHeadersSetupRacePrefix[] = "HeadersSetupRace:";
 const char ProxyFetch::kHeadersSetupRaceWait[] = "HeadersSetupRace:Wait";
 
-ProxyFetchFactory::ProxyFetchFactory(ServerContext* server_context)
-    : server_context_(server_context),
-      timer_(server_context->timer()),
-      handler_(server_context->message_handler()),
-      outstanding_proxy_fetches_mutex_(
-          server_context->thread_system()->NewMutex()) {
+ProxyFetchFactory::ProxyFetchFactory(ServerContext* manager)
+    : manager_(manager),
+      timer_(manager->timer()),
+      handler_(manager->message_handler()),
+      outstanding_proxy_fetches_mutex_(manager->thread_system()->NewMutex()) {
 }
 
 ProxyFetchFactory::~ProxyFetchFactory() {
@@ -97,10 +91,10 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
 
   // Check whether this an encoding of a non-rewritten resource served
   // from a non-transparently proxied domain.
-  UrlNamer* namer = server_context_->url_namer();
+  UrlNamer* namer = manager_->url_namer();
   GoogleString decoded_resource;
   GoogleUrl gurl(url_in), request_origin;
-  DCHECK(!server_context_->IsPagespeedResource(gurl))
+  DCHECK(!manager_->IsPagespeedResource(gurl))
       << "expect ResourceFetch called for pagespeed resources, not ProxyFetch";
 
   bool cross_domain = false;
@@ -131,7 +125,7 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
 
   ProxyFetch* fetch = new ProxyFetch(
       *url_to_fetch, cross_domain, property_callback, async_fetch,
-      original_content_fetch, driver, server_context_, timer_, this);
+      original_content_fetch, driver, manager_, timer_, this);
   if (cross_domain) {
     // If we're proxying resources from a different domain, the host header is
     // likely set to the proxy host rather than the origin host.  Depending on
@@ -153,9 +147,9 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
     fetch->request_headers()->RemoveAll(HttpAttributes::kAuthorization);
     fetch->request_headers()->RemoveAll(HttpAttributes::kProxyAuthorization);
   } else {
-    // If we didn't already remove all the cookies, remove the experiment
+    // If we didn't already remove all the cookies, remove the furious
     // ones so we don't confuse the origin.
-    experiment::RemoveExperimentCookie(fetch->request_headers());
+    furious::RemoveFuriousCookie(fetch->request_headers());
   }
   RegisterNewFetch(fetch);
   return fetch;
@@ -184,22 +178,15 @@ void ProxyFetchFactory::RegisterFinishedFetch(ProxyFetch* fetch) {
 }
 
 ProxyFetchPropertyCallback::ProxyFetchPropertyCallback(
-    PageType page_type,
+    CacheType cache_type,
     PropertyCache* property_cache,
-    const StringPiece& url,
-    const StringPiece& options_signature_hash,
+    const StringPiece& key,
     UserAgentMatcher::DeviceType device_type,
     ProxyFetchPropertyCallbackCollector* collector,
     AbstractMutex* mutex)
-    : PropertyPage(
-          page_type,
-          url,
-          options_signature_hash,
-          device_type,
-          collector->request_context(),
-          mutex,
-          property_cache),
-      page_type_(page_type),
+    : PropertyPage(key, collector->request_context(), mutex, property_cache),
+      cache_type_(cache_type),
+      device_type_(device_type),
       collector_(collector) {
 }
 
@@ -208,7 +195,13 @@ bool ProxyFetchPropertyCallback::IsCacheValid(int64 write_timestamp_ms) const {
 }
 
 void ProxyFetchPropertyCallback::Done(bool success) {
-  collector_->Done(this);
+  collector_->Done(this, success);
+}
+
+void ProxyFetchPropertyCallback::LogPageCohortInfo(
+    LogRecord* log_record, int cohort_index) {
+  log_record->SetDeviceAndCacheTypeForCohortInfo(
+      cohort_index, device_type_, cache_type_);
 }
 
 ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
@@ -222,6 +215,7 @@ ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
       device_type_(device_type),
       detached_(false),
       done_(false),
+      success_(true),
       proxy_fetch_(NULL),
       post_lookup_task_vector_(new std::vector<Function*>),
       options_(options),
@@ -244,15 +238,20 @@ void ProxyFetchPropertyCallbackCollector::AddCallback(
   pending_callbacks_.insert(callback);
 }
 
-PropertyPage* ProxyFetchPropertyCallbackCollector::ReleasePropertyPage(
-    ProxyFetchPropertyCallback::PageType page_type) {
+PropertyPage* ProxyFetchPropertyCallbackCollector::GetPropertyPage(
+    ProxyFetchPropertyCallback::CacheType cache_type) {
   ScopedMutex lock(mutex_.get());
-  if (property_pages_.find(page_type) != property_pages_.end()) {
-    PropertyPage* page = property_pages_[page_type];
-    property_pages_[page_type] = NULL;
-    return page;
-  }
-  return NULL;
+  PropertyPage* page = property_pages_[cache_type];
+  property_pages_[cache_type] = NULL;
+  return page;
+}
+
+PropertyPage*
+ProxyFetchPropertyCallbackCollector::GetPropertyPageWithoutOwnership(
+    ProxyFetchPropertyCallback::CacheType cache_type) {
+  ScopedMutex lock(mutex_.get());
+  PropertyPage* page = property_pages_[cache_type];
+  return page;
 }
 
 bool ProxyFetchPropertyCallbackCollector::IsCacheValid(
@@ -279,8 +278,8 @@ bool ProxyFetchPropertyCallbackCollector::IsCacheValid(
 // ProxyInterfaceTest.PropCacheNoWritesIfNonHtmlDelayedCache.
 
 void ProxyFetchPropertyCallbackCollector::Done(
-    ProxyFetchPropertyCallback* callback) {
-  ServerContext* server_context = NULL;
+    ProxyFetchPropertyCallback* callback, bool success) {
+  ServerContext* resource_manager = NULL;
   ProxyFetch* fetch = NULL;
   scoped_ptr<std::vector<Function*> > post_lookup_task_vector;
   bool do_delete = false;
@@ -288,65 +287,37 @@ void ProxyFetchPropertyCallbackCollector::Done(
   {
     ScopedMutex lock(mutex_.get());
     pending_callbacks_.erase(callback);
-    property_pages_[callback->page_type()] = callback;
+    property_pages_[callback->cache_type()] = callback;
+    success_ &= success;
 
     if (pending_callbacks_.empty()) {
-      server_context = server_context_;
+      // There is a race where Detach() can be called immediately after we
+      // release the lock below, and it (Detach) deletes 'this' (because we
+      // just set done_ to true), which means we cannot rely on any data
+      // members being valid after releasing the lock, so we copy them all.
+      resource_manager = server_context_;
+      post_lookup_task_vector.reset(post_lookup_task_vector_.release());
       call_post = true;
     }
   }
-
   if (call_post) {
-    DCHECK(request_context_.get() != NULL);
-    request_context_->mutable_timing_info()->PropertyCacheLookupFinished();
-    ThreadSynchronizer* sync = server_context->thread_synchronizer();
+    ThreadSynchronizer* sync = resource_manager->thread_synchronizer();
     sync->Signal(ProxyFetch::kCollectorReady);
     sync->Wait(ProxyFetch::kCollectorDetach);
     sync->Wait(ProxyFetch::kCollectorDone);
-
-    PropertyPage* actual_page = ReleasePropertyPage(
-        ProxyFetchPropertyCallback::kPropertyCachePage);
-    if (actual_page != NULL) {
-      // TODO(jmarantz): Now that there is no more client property cache,
-      // is it necessary to do this test?
-      // Compose the primary and fallback property pages into a
-      // FallbackPropertyPage, so filters can use the fallback property in the
-      // absence of the primary.
-      PropertyPage* fallback_page = ReleasePropertyPage(
-          ProxyFetchPropertyCallback::kPropertyCacheFallbackPage);
-      fallback_property_page_.reset(
-          new FallbackPropertyPage(actual_page, fallback_page));
-    }
-    {
-      ScopedMutex lock(mutex_.get());
-      // This should be called only after fallback property page is set because
-      // there can be post lookup task which requires fallback_property_page.
-      // This is to avoid a race between AddPostLookupTask() and Done(). If
-      // post_lookup_task_vector_ is released before fallback_page is set, then
-      // any call to AddPostLookupTask() will execute the the task immediately
-      // and fallback page will be NULL as it is not yet set.
-      // If fallback_property_page is not set because page property page is
-      // disaabled, then there should not be any post lookup task waiting which
-      // requires fallback_property_page.
-      post_lookup_task_vector.reset(post_lookup_task_vector_.release());
-    }
     if (post_lookup_task_vector.get() != NULL) {
       for (int i = 0, n = post_lookup_task_vector->size(); i < n; ++i) {
         (*post_lookup_task_vector.get())[i]->CallRun();
       }
     }
     {
-      // There is a race where Detach() can be called immediately after we
-      // release the lock below, and it (Detach) deletes 'this' (because we
-      // just set done_ to true), which means we cannot rely on any data
-      // members being valid after releasing the lock, so we copy them all.
       ScopedMutex lock(mutex_.get());
       done_ = true;
       fetch = proxy_fetch_;
       do_delete = detached_;
     }
     if (fetch != NULL) {
-      fetch->PropertyCacheComplete(this);  // deletes this.
+      fetch->PropertyCacheComplete(success_, this);  // deletes this.
     } else if (do_delete) {
       UpdateStatusCodeInPropertyCache();
       delete this;
@@ -367,7 +338,7 @@ void ProxyFetchPropertyCallbackCollector::ConnectProxyFetch(
     ready = done_;
   }
   if (ready) {
-    proxy_fetch->PropertyCacheComplete(this);  // deletes this.
+    proxy_fetch->PropertyCacheComplete(success_, this);  // deletes this.
   }
 }
 
@@ -375,14 +346,23 @@ void ProxyFetchPropertyCallbackCollector::UpdateStatusCodeInPropertyCache() {
   // If we have not transferred the ownership of PagePropertyCache to
   // ProxyFetch yet, and we have the status code, then write the status_code in
   // PropertyCache.
-  AbstractPropertyPage* page = fallback_property_page();
-  if (page == NULL || status_code_ == HttpStatus::kUnknownStatusCode) {
-    return;
+  PropertyPage* page =
+      property_pages_[ProxyFetchPropertyCallback::kPagePropertyCache];
+  PropertyCache* pcache = server_context_->page_property_cache();
+  if (pcache != NULL && page != NULL &&
+      status_code_ != HttpStatus::kUnknownStatusCode) {
+    const PropertyCache::Cohort* dom = pcache->GetCohort(
+        RewriteDriver::kDomCohort);
+    if (dom != NULL) {
+      page->UpdateValue(
+          dom, RewriteDriver::kStatusCodePropertyName,
+          IntegerToString(status_code_));
+      page->WriteCohort(dom);
+    } else {
+      server_context_->message_handler()->Message(
+          kInfo, "dom cohort is not available for url %s.", url_.c_str());
+    }
   }
-  page->UpdateValue(
-      server_context_->dom_cohort(), RewriteDriver::kStatusCodePropertyName,
-      IntegerToString(status_code_));
-  page->WriteCohort(server_context_->dom_cohort());
 }
 
 void ProxyFetchPropertyCallbackCollector::Detach(HttpStatus::Code status_code) {
@@ -415,10 +395,6 @@ void ProxyFetchPropertyCallbackCollector::Detach(HttpStatus::Code status_code) {
 }
 
 void ProxyFetchPropertyCallbackCollector::AddPostLookupTask(Function* func) {
-  // Following sync points are added to simulate the race in test. In
-  // production binaries, these are no-op.
-  ThreadSynchronizer* sync = server_context_->thread_synchronizer();
-  sync->Wait(ProxyFetch::kCollectorReady);
   bool do_run = false;
   {
     ScopedMutex lock(mutex_.get());
@@ -431,7 +407,6 @@ void ProxyFetchPropertyCallbackCollector::AddPostLookupTask(Function* func) {
   if (do_run) {
     func->CallRun();
   }
-  sync->Signal(ProxyFetch::kCollectorDone);
 }
 
 ProxyFetch::ProxyFetch(
@@ -441,12 +416,12 @@ ProxyFetch::ProxyFetch(
     AsyncFetch* async_fetch,
     AsyncFetch* original_content_fetch,
     RewriteDriver* driver,
-    ServerContext* server_context,
+    ServerContext* manager,
     Timer* timer,
     ProxyFetchFactory* factory)
     : SharedAsyncFetch(async_fetch),
       url_(url),
-      server_context_(server_context),
+      server_context_(manager),
       timer_(timer),
       cross_domain_(cross_domain),
       claims_html_(false),
@@ -457,7 +432,7 @@ ProxyFetch::ProxyFetch(
       original_content_fetch_(original_content_fetch),
       driver_(driver),
       queue_run_job_created_(false),
-      mutex_(server_context->thread_system()->NewMutex()),
+      mutex_(manager->thread_system()->NewMutex()),
       network_flush_outstanding_(false),
       sequence_(NULL),
       done_outstanding_(false),
@@ -466,16 +441,9 @@ ProxyFetch::ProxyFetch(
       waiting_for_flush_to_finish_(false),
       idle_alarm_(NULL),
       factory_(factory),
-      distributed_fetch_(false) {
-  driver_->SetWriter(async_fetch);
+      prepare_success_(false) {
   set_request_headers(async_fetch->request_headers());
   set_response_headers(async_fetch->response_headers());
-
-  // Was this proxy_fetch created on behalf of a distributed rewrite?
-  if (request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
-      request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
-    distributed_fetch_ = true;
-  }
 
   // Now that we've created the RewriteDriver, include the client_id generated
   // from the original request headers, if any.
@@ -485,7 +453,8 @@ ProxyFetch::ProxyFetch(
     driver_->set_client_id(client_id);
   }
 
-  DCHECK(driver_->request_headers() != NULL);
+  // Make request headers available to the filters.
+  driver_->set_request_headers(request_headers());
 
   // Set the user agent in the rewrite driver if it is not set already.
   if (driver_->user_agent().empty()) {
@@ -501,12 +470,10 @@ ProxyFetch::ProxyFetch(
 
   driver_->EnableBlockingRewrite(request_headers());
 
-  // Set the implicit cache ttl and the min cache ttl for the response headers
-  // based on the value specified in the options.
+  // Set the implicit cache ttl for the response headers based on the value
+  // specified in the options.
   response_headers()->set_implicit_cache_ttl_ms(
       Options()->implicit_cache_ttl_ms());
-  response_headers()->set_min_cache_ttl_ms(
-      Options()->min_cache_ttl_ms());
 
   VLOG(1) << "Attaching RewriteDriver " << driver_
           << " to HtmlRewriter " << this;
@@ -523,17 +490,19 @@ ProxyFetch::~ProxyFetch() {
 }
 
 bool ProxyFetch::StartParse() {
+  driver_->SetWriter(base_fetch());
+
   // The response headers get munged between when we initially determine
   // which rewrite options we need (in proxy_interface.cc) and here.
   // Therefore, we can not set the Set-Cookie header there, and must
   // do it here instead.
   if (Options()->need_to_store_experiment_data() &&
-      Options()->running_experiment()) {
-    int experiment_value = Options()->experiment_id();
-    server_context_->experiment_matcher()->StoreExperimentData(
-        experiment_value, url_,
+      Options()->running_furious()) {
+    int furious_value = Options()->furious_id();
+    server_context_->furious_matcher()->StoreExperimentData(
+        furious_value, url_,
         server_context_->timer()->NowMs() +
-            Options()->experiment_cookie_duration_ms(),
+            Options()->furious_cookie_duration_ms(),
         response_headers());
   }
   driver_->set_response_headers_ptr(response_headers());
@@ -563,21 +532,9 @@ const RewriteOptions* ProxyFetch::Options() {
 }
 
 void ProxyFetch::HandleHeadersComplete() {
-  // If domain rewrite filter is enabled we need to also rewrite the location
-  // headers when origin is serving redirects.
-  if (response_headers() != NULL &&
-      driver_->options()->Enabled(RewriteOptions::kRewriteDomains) &&
-      driver_->domain_rewriter() != NULL &&
-      (response_headers()->status_code() == HttpStatus::kFound ||
-       response_headers()->status_code() == HttpStatus::kMovedPermanently)) {
-    GoogleUrl gurl(url_);
-    driver_->domain_rewriter()->UpdateLocationHeader(gurl, driver_,
-                                                     response_headers());
-    response_headers()->ComputeCaching();
-  }
-
   // Figure out semantic info from response_headers_
   claims_html_ = response_headers()->IsHtmlLike();
+
   if (original_content_fetch_ != NULL) {
     ResponseHeaders* headers = original_content_fetch_->response_headers();
     headers->CopyFrom(*response_headers());
@@ -605,18 +562,6 @@ void ProxyFetch::HandleHeadersComplete() {
       response_headers()->ComputeCaching();
     }
   }
-
-  // We do not call SharedAsyncFetch::HandleHeadersComplete() because
-  // we are going to defer propagating headers to the HTTP server
-  // infrastructure until we have seen some content.  For example if
-  // we may not add a X-PageSpeed header if we don't sniff HTML.
-  //
-  // Another reason is convert_meta_tags, in which we alter HTTP response
-  // headers based on HTML meta-tags.
-  //
-  // However we want to propagate whether the content size is known to
-  // the base fetch.
-  PropagateContentLength();
 }
 
 void ProxyFetch::AddPagespeedHeader() {
@@ -628,10 +573,7 @@ void ProxyFetch::AddPagespeedHeader() {
 
 void ProxyFetch::SetupForHtml() {
   const RewriteOptions* options = Options();
-
-  if (options->enabled() && options->IsAllowed(url_) && !distributed_fetch_) {
-    // Note that we guard with distributed_fetch_ to avoid parsing HTML on a
-    // distributed task, that's left to the ingress task to do.
+  if (options->enabled() && options->IsAllowed(url_)) {
     started_parse_ = StartParse();
     if (started_parse_) {
       // TODO(sligocki): Get these in the main flow.
@@ -662,7 +604,7 @@ void ProxyFetch::SetupForHtml() {
       // When testing, wait a little here for unit tests to make sure
       // we don't race ahead & run filters while we are still cleaning
       // up headers.  When this particular bug is fixed,
-      // HeadersComplete will *not* be called on async_fetch_ until
+      // HeadersComplete will *not* be called on base_fetch() until
       // after this function returns, so we'd block indefinitely.
       // Instead, block just for 200ms so the test can pass with
       // limited delay.  Note that this is a no-op except in test
@@ -688,69 +630,67 @@ void ProxyFetch::SetupForHtml() {
 }
 
 void ProxyFetch::StartFetch() {
-  factory_->server_context_->rewrite_options_manager()->PrepareRequest(
-      Options(),
-      &url_,
-      request_headers(),
-      NewCallback(this, &ProxyFetch::DoFetch));
+  factory_->manager_->url_namer()->PrepareRequest(
+      Options(), &url_, request_headers(), &prepare_success_,
+      MakeFunction(this, &ProxyFetch::DoFetch),
+      factory_->handler_);
 }
 
-void ProxyFetch::DoFetch(bool prepare_success) {
-  if (!prepare_success) {
-    Done(false);
-    return;
-  }
+void ProxyFetch::DoFetch() {
+  if (prepare_success_) {
+    const RewriteOptions* options = driver_->options();
+    const bool is_allowed = options->IsAllowed(url_);
+    const bool is_enabled = options->enabled();
+    {
+      ScopedMutex lock(log_record()->mutex());
+      if (!is_allowed) {
+        log_record()->logging_info()->set_is_url_disallowed(true);
+      }
+      if (!is_enabled) {
+        log_record()->logging_info()->set_is_request_disabled(true);
+      }
+    }
 
-  const RewriteOptions* options = driver_->options();
-  const bool is_allowed = options->IsAllowed(url_);
-  const bool is_enabled = options->enabled();
-  {
-    ScopedMutex lock(log_record()->mutex());
-    if (!is_allowed) {
-      log_record()->logging_info()->set_is_url_disallowed(true);
+    if (is_enabled && is_allowed) {
+      // Pagespeed enabled on URL.
+      if (options->in_place_rewriting_enabled()) {
+        // For Ajax rewrites, we go through RewriteDriver to give it
+        // a chance to optimize resources. (If they are HTML, it will
+        // not touch them, and we will stream them to the parser here).
+        driver_->FetchResource(url_, this);
+        return;
+      }
+      // Otherwise we just do a normal fetch from cache, and if it's
+      // HTML we will do a streaming rewrite.
+    } else {
+      // Pagespeed disabled on URL.
+      if (options->reject_blacklisted()) {
+        // We were asked to error out in this case.
+        response_headers()->SetStatusAndReason(
+            options->reject_blacklisted_status_code());
+        Done(true);
+        return;
+      } else if (cross_domain_ && !is_allowed) {
+        // If we find a cross domain request that is blacklisted, send a 302
+        // redirect to the decoded url instead of doing a passthrough.
+        response_headers()->Add(HttpAttributes::kLocation, url_);
+        response_headers()->SetStatusAndReason(HttpStatus::kFound);
+        Done(false);
+        return;
+      }
+      // Else we should do a passthrough. In that case, we still do a normal
+      // origin fetch, but we will never rewrite anything, since
+      // SetupForHtml() will re-check enabled() and IsAllowed();
     }
-    if (!is_enabled) {
-      log_record()->logging_info()->set_is_request_disabled(true);
-    }
-  }
 
-  if (is_enabled && is_allowed) {
-    // Pagespeed enabled on URL.
-    if (options->in_place_rewriting_enabled()) {
-      // For Ajax rewrites, we go through RewriteDriver to give it
-      // a chance to optimize resources. (If they are HTML, it will
-      // not touch them, and we will stream them to the parser here).
-      driver_->FetchResource(url_, this);
-      return;
-    }
-    // Otherwise we just do a normal fetch from cache, and if it's
-    // HTML we will do a streaming rewrite.
+    cache_fetcher_.reset(driver_->CreateCacheFetcher());
+    // Since we are proxying resources to user, we want to fetch it even if
+    // there is a kRecentFetchNotCacheable message in the cache.
+    cache_fetcher_->set_ignore_recent_fetch_failed(true);
+    cache_fetcher_->Fetch(url_, factory_->handler_, this);
   } else {
-    // Pagespeed disabled on URL.
-    if (options->reject_blacklisted()) {
-      // We were asked to error out in this case.
-      response_headers()->SetStatusAndReason(
-          options->reject_blacklisted_status_code());
-      Done(true);
-      return;
-    } else if (cross_domain_ && !is_allowed) {
-      // If we find a cross domain request that is blacklisted, send a 302
-      // redirect to the decoded url instead of doing a passthrough.
-      response_headers()->Add(HttpAttributes::kLocation, url_);
-      response_headers()->SetStatusAndReason(HttpStatus::kFound);
-      Done(false);
-      return;
-    }
-    // Else we should do a passthrough. In that case, we still do a normal
-    // origin fetch, but we will never rewrite anything, since
-    // SetupForHtml() will re-check enabled() and IsAllowed();
+    Done(false);
   }
-
-  cache_fetcher_.reset(driver_->CreateCacheFetcher());
-  // Since we are proxying resources to user, we want to fetch it even if
-  // there is a kRecentFetchNotCacheable message in the cache.
-  cache_fetcher_->set_ignore_recent_fetch_failed(true);
-  cache_fetcher_->Fetch(url_, factory_->handler_, this);
 }
 
 void ProxyFetch::ScheduleQueueExecutionIfNeeded() {
@@ -773,17 +713,20 @@ void ProxyFetch::ScheduleQueueExecutionIfNeeded() {
 }
 
 void ProxyFetch::PropertyCacheComplete(
-    ProxyFetchPropertyCallbackCollector* callback_collector) {
+    bool success, ProxyFetchPropertyCallbackCollector* callback_collector) {
   driver_->TracePrintf("PropertyCache lookup completed");
   ScopedMutex lock(mutex_.get());
 
   if (driver_ == NULL) {
     LOG(DFATAL) << "Expected non-null driver.";
   } else {
-    // Set the page property and device property objects in the driver.
-    driver_->set_fallback_property_page(
-        callback_collector->ReleaseFallbackPropertyPage());
+    // Set the page property, device property and client state objects
+    // in the driver.
+    driver_->set_property_page(
+        callback_collector->GetPropertyPage(
+            ProxyFetchPropertyCallback::kPagePropertyCache));
     driver_->set_device_type(callback_collector->device_type());
+    driver_->set_client_state(GetClientState(callback_collector));
   }
   // We have to set the callback to NULL to let ScheduleQueueExecutionIfNeeded
   // proceed (it waits until it's NULL). And we have to delete it because then
@@ -799,6 +742,22 @@ void ProxyFetch::PropertyCacheComplete(
   if (sequence_ != NULL) {
     ScheduleQueueExecutionIfNeeded();
   }
+}
+
+AbstractClientState* ProxyFetch::GetClientState(
+    ProxyFetchPropertyCallbackCollector* collector) {
+  // Do nothing if the client ID is unknown.
+  if (driver_->client_id().empty()) {
+    return NULL;
+  }
+  PropertyCache* cache = server_context_->client_property_cache();
+  PropertyPage* client_property_page = collector->GetPropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCache);
+  AbstractClientState* client_state =
+      server_context_->factory()->NewClientState();
+  client_state->InitFromPropertyCache(
+      driver_->client_id(), cache, client_property_page, timer_);
+  return client_state;
 }
 
 bool ProxyFetch::HandleWrite(const StringPiece& str,
@@ -870,7 +829,8 @@ bool ProxyFetch::HandleWrite(const StringPiece& str,
       ScheduleQueueExecutionIfNeeded();
     }
   } else {
-    ret = SharedAsyncFetch::HandleWrite(str, message_handler);
+    // Pass other data (css, js, images) directly to http writer.
+    ret = base_fetch()->Write(str, message_handler);
   }
   return ret;
 }
@@ -894,7 +854,7 @@ bool ProxyFetch::HandleFlush(MessageHandler* message_handler) {
       ScheduleQueueExecutionIfNeeded();
     }
   } else {
-    ret = SharedAsyncFetch::HandleFlush(message_handler);
+    ret = base_fetch()->Flush(message_handler);
   }
   return ret;
 }
@@ -919,7 +879,7 @@ void ProxyFetch::HandleDone(bool success) {
       GoogleString buffered;
       html_detector_.ReleaseBuffered(&buffered);
       AddPagespeedHeader();
-      SharedAsyncFetch::HandleHeadersComplete();
+      base_fetch()->HeadersComplete();
       Write(buffered, server_context_->message_handler());
     }
   } else if (!response_headers()->headers_complete()) {
@@ -1019,7 +979,15 @@ void ProxyFetch::ExecuteQueued() {
   }
 
   if (!parse_text_called_) {
-    request_context()->mutable_timing_info()->ParsingStarted();
+    DCHECK(request_context().get() != NULL);
+    ScopedMutex lock(log_record()->mutex());
+    TimingInfo* timing_info =
+        log_record()->logging_info()->mutable_timing_info();
+    if (timing_info->has_request_start_ms()) {
+      timing_info->set_time_to_start_parse_ms(
+          server_context_->timer()->NowMs() -
+              timing_info->request_start_ms());
+    }
     parse_text_called_ = true;
   }
 
@@ -1098,7 +1066,7 @@ void ProxyFetch::Finish(bool success) {
     }
   }
 
-  SharedAsyncFetch::HandleDone(success);
+  base_fetch()->Done(success);
   done_called_ = true;
   factory_->RegisterFinishedFetch(this);
 
@@ -1154,184 +1122,6 @@ void ProxyFetch::HandleIdleAlarm() {
   driver_->ShowProgress("- Flush injected due to input idleness -");
   driver_->RequestFlush();
   Flush(factory_->message_handler());
-}
-
-namespace {
-
-PropertyCache::CohortVector GetCohortList(
-    bool requires_blink_cohort,
-    const ServerContext* server_context) {
-  PropertyCache* page_property_cache = server_context->page_property_cache();
-  const PropertyCache::CohortVector cohort_list =
-      page_property_cache->GetAllCohorts();
-  if (requires_blink_cohort) {
-    return cohort_list;
-  }
-
-  PropertyCache::CohortVector cohort_list_without_blink;
-  for (int i = 0, m = cohort_list.size(); i < m; ++i) {
-    if (cohort_list[i]->name() == BlinkUtil::kBlinkCohort) {
-      continue;
-    }
-    cohort_list_without_blink.push_back(cohort_list[i]);
-  }
-  return cohort_list_without_blink;
-}
-
-bool UrlMightHavePropertyCacheEntry(const GoogleUrl& url) {
-  const ContentType* type = NameExtensionToContentType(url.LeafSansQuery());
-  if (type == NULL) {
-    // No extension or unknown; could be HTML:
-    //   http://www.example.com/
-    //   http://www.example.com/index
-    //   http://www.example.com/index.php
-    return true;
-  }
-
-  // Use a complete switch-statement rather than type()->IsHtmlLike()
-  // so that every time we add a new content-type we make an explicit
-  // decision about whether it should induce a pcache read.
-  //
-  // TODO(jmarantz): currently this returns false for ".txt".  Thus we will
-  // do no optimizations relying on property-cache on HTML files ending with
-  // ".txt".  We should determine whether this is the right thing or not.
-  switch (type->type()) {
-    case ContentType::kHtml:
-    case ContentType::kXhtml:
-    case ContentType::kCeHtml:
-      return true;
-    case ContentType::kJavascript:
-    case ContentType::kCss:
-    case ContentType::kText:
-    case ContentType::kXml:
-    case ContentType::kPng:
-    case ContentType::kGif:
-    case ContentType::kJpeg:
-    case ContentType::kSwf:
-    case ContentType::kWebp:
-    case ContentType::kIco:
-    case ContentType::kPdf:
-    case ContentType::kOther:
-    case ContentType::kJson:
-    case ContentType::kVideo:
-    case ContentType::kOctetStream:
-      return false;
-  }
-  LOG(DFATAL) << "URL " << url.Spec() << ": unexpected type:" << type->type()
-              << "; " << type->mime_type() << "; " << type->file_extension();
-  return false;
-}
-
-}  // namespace
-
-ProxyFetchPropertyCallbackCollector*
-    ProxyFetchFactory::InitiatePropertyCacheLookup(
-        const bool is_resource_fetch,
-        const GoogleUrl& request_url,
-        ServerContext* server_context,
-        RewriteOptions* options,
-        AsyncFetch* async_fetch,
-        const bool requires_blink_cohort,
-        bool* added_page_property_callback) {
-  RequestContextPtr request_ctx = async_fetch->request_context();
-  DCHECK(request_ctx.get() != NULL);
-  if (request_ctx->root_trace_context() != NULL) {
-    request_ctx->root_trace_context()->TracePrintf(
-        "PropertyCache lookup start");
-  }
-  StringPiece user_agent =
-      async_fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
-  UserAgentMatcher::DeviceType device_type =
-      server_context->user_agent_matcher()->GetDeviceTypeForUA(user_agent);
-
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
-      new ProxyFetchPropertyCallbackCollector(
-          server_context, request_url.Spec(), request_ctx, options,
-          device_type));
-  bool added_callback = false;
-  PropertyPageStarVector property_callbacks;
-
-  ProxyFetchPropertyCallback* property_callback = NULL;
-  ProxyFetchPropertyCallback* fallback_property_callback = NULL;
-  PropertyCache* page_property_cache = server_context->page_property_cache();
-  if (!is_resource_fetch &&
-      server_context->page_property_cache()->enabled() &&
-      UrlMightHavePropertyCacheEntry(request_url) &&
-      async_fetch->request_headers()->method() == RequestHeaders::kGet) {
-    GoogleString options_signature_hash;
-    if (options != NULL) {
-      server_context->ComputeSignature(options);
-      options_signature_hash =
-          server_context->GetRewriteOptionsSignatureHash(options);
-    }
-    AbstractMutex* mutex = server_context->thread_system()->NewMutex();
-    property_callback = new ProxyFetchPropertyCallback(
-        ProxyFetchPropertyCallback::kPropertyCachePage,
-        page_property_cache,
-        request_url.Spec(),
-        options_signature_hash,
-        device_type,
-        callback_collector.get(),
-        mutex);
-    callback_collector->AddCallback(property_callback);
-    added_callback = true;
-    if (added_page_property_callback != NULL) {
-      *added_page_property_callback = true;
-    }
-    // Trigger property cache lookup for the requests which contains query param
-    // as cache key without query params. The result of this lookup will be used
-    // if actual property page does not contains property value.
-    if (options != NULL &&
-        options->use_fallback_property_cache_values()) {
-      GoogleString fallback_page_url;
-      if (request_url.PathAndLeaf() != "/" &&
-          !request_url.PathAndLeaf().empty()) {
-        // Don't bother looking up fallback properties for the root, "/", since
-        // there is nothing to fall back to.
-        fallback_page_url =
-            FallbackPropertyPage::GetFallbackPageUrl(request_url);
-      }
-
-      if (!fallback_page_url.empty()) {
-        fallback_property_callback =
-            new ProxyFetchPropertyCallback(
-                ProxyFetchPropertyCallback::kPropertyCacheFallbackPage,
-                page_property_cache,
-                fallback_page_url,
-                options_signature_hash,
-                device_type,
-                callback_collector.get(),
-                server_context->thread_system()->NewMutex());
-        callback_collector->AddCallback(fallback_property_callback);
-      }
-    }
-  }
-
-  // All callbacks need to be registered before Reads to avoid race.
-  PropertyCache::CohortVector cohort_list_without_blink =
-      GetCohortList(false /* requires_blink_cohort */, server_context);
-  if (property_callback != NULL) {
-    page_property_cache->ReadWithCohorts(
-        requires_blink_cohort ?
-            GetCohortList(
-                true /* requires_blink_cohort */, server_context) :
-            cohort_list_without_blink,
-            property_callback);
-  }
-
-  if (fallback_property_callback != NULL) {
-    // Always read property page with fallback values without blink as there is
-    // no property in BlinkCohort which can used fallback values.
-    page_property_cache->ReadWithCohorts(cohort_list_without_blink,
-                                         fallback_property_callback);
-  }
-
-  if (added_callback) {
-    request_ctx->mutable_timing_info()->PropertyCacheLookupStarted();
-  } else {
-    callback_collector.reset(NULL);
-  }
-  return callback_collector.release();
 }
 
 }  // namespace net_instaweb

@@ -20,7 +20,7 @@
 
 # MOD_PAGESPEED_ROOT should be set to the 'src' directory where mod_pagespeed
 # was built.  See:
-# https://developers.google.com/speed/pagespeed/module/build_from_source
+# https://developers.google.com/speed/docs/mod_pagespeed/build_from_source
 #
 # When running this Makefile from the 'automatic' directory then it will
 # be set automatically.
@@ -44,22 +44,23 @@ BASE_LIBS = \
   base/libbase_static.a \
   build/temp_gyp/libgoogleurl.a \
   net/instaweb/libautomatic_util.a \
+  net/instaweb/libhttp_core.a \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_automatic.a \
+  net/instaweb/libinstaweb_blink_critical_line_data_pb.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
+  net/instaweb/libinstaweb_clientstate_pb.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
   net/instaweb/libinstaweb_critical_images_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_images_pb.a \
-  net/instaweb/libinstaweb_critical_keys_pb.a \
   net/instaweb/libinstaweb_critical_line_info_pb.a \
-  net/instaweb/libinstaweb_dedup_inlined_images_data2c.a \
-  net/instaweb/libinstaweb_dedup_inlined_images_opt_data2c.a \
+  net/instaweb/libinstaweb_critical_selectors_pb.a \
   net/instaweb/libinstaweb_defer_iframe_data2c.a \
   net/instaweb/libinstaweb_defer_iframe_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_data2c.a \
@@ -70,13 +71,15 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_detect_reflow_opt_data2c.a \
   net/instaweb/libinstaweb_deterministic_data2c.a \
   net/instaweb/libinstaweb_deterministic_opt_data2c.a \
-  net/instaweb/libinstaweb_extended_instrumentation_data2c.a \
-  net/instaweb/libinstaweb_extended_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_flush_early_pb.a \
-  net/instaweb/libinstaweb_ghost_click_buster_opt_data2c.a \
+  net/instaweb/libinstaweb_htmlparse.a \
   net/instaweb/libinstaweb_htmlparse_core.a \
+  net/instaweb/libinstaweb_htmlparse_core_gperf.a \
   net/instaweb/libinstaweb_http.a \
+  net/instaweb/libinstaweb_http_gperf.a \
+  net/instaweb/libinstaweb_http_pb.a \
   net/instaweb/libinstaweb_image_types_pb.a \
+  net/instaweb/libinstaweb_javascript_gperf.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
   net/instaweb/libinstaweb_lazyload_images_data2c.a \
@@ -84,43 +87,23 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_local_storage_cache_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_opt_data2c.a \
   net/instaweb/libinstaweb_logging_pb.a \
-  net/instaweb/libinstaweb_panel_loader_opt_data2c.a \
   net/instaweb/libinstaweb_propcache_pb.a \
-  net/instaweb/libinstaweb_rendered_image_pb.a \
   net/instaweb/libinstaweb_rewriter.a \
   net/instaweb/libinstaweb_rewriter_base.a \
   net/instaweb/libinstaweb_rewriter_css.a \
   net/instaweb/libinstaweb_rewriter_html.a \
   net/instaweb/libinstaweb_rewriter_html_gperf.a \
+  net/instaweb/libinstaweb_rewriter_html_option_gperf.a \
   net/instaweb/libinstaweb_rewriter_image.a \
   net/instaweb/libinstaweb_rewriter_javascript.a \
   net/instaweb/libinstaweb_rewriter_pb.a \
-  net/instaweb/libinstaweb_split_html_beacon_data2c.a \
-  net/instaweb/libinstaweb_split_html_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_spriter.a \
   net/instaweb/libinstaweb_spriter_pb.a \
   net/instaweb/libinstaweb_system.a \
   net/instaweb/libinstaweb_util.a \
-  net/instaweb/libinstaweb_util_enums_pb.a \
+  net/instaweb/libinstaweb_util_core.a \
+  net/instaweb/libinstaweb_util_pthread.a \
   net/instaweb/libprocess_context.a \
-  net/instaweb/libtest_infrastructure.a \
-  pagespeed/libjsminify.a \
-  pagespeed/libpagespeed_base.a \
-  pagespeed/libpagespeed_base_core.a \
-  pagespeed/libpagespeed_base_test_infrastructure.a \
-  pagespeed/libpagespeed_cache.a \
-  pagespeed/libpagespeed_html.a \
-  pagespeed/libpagespeed_html_gperf.a \
-  pagespeed/libpagespeed_http.a \
-  pagespeed/libpagespeed_http_core.a \
-  pagespeed/libpagespeed_http_gperf.a \
-  pagespeed/libpagespeed_http_pb.a \
-  pagespeed/libpagespeed_image_processing.a \
-  pagespeed/libpagespeed_javascript_gperf.a \
-  pagespeed/libpagespeed_sharedmem.a \
-  pagespeed/libpagespeed_thread.a \
-  pagespeed/libpthread_system.a \
-  pagespeed/libutil.a \
   third_party/base64/libbase64.a \
   third_party/chromium/src/base/third_party/dynamic_annotations/libdynamic_annotations.a \
   third_party/css_parser/libcss_parser.a \
@@ -128,16 +111,26 @@ BASE_LIBS = \
   third_party/domain_registry_provider/src/domain_registry/libassert_lib.a \
   third_party/domain_registry_provider/src/domain_registry/libdomain_registry_lib.a \
   third_party/gflags/libgflags.a \
-  third_party/giflib/libdgiflib.a \
-  third_party/giflib/libgiflib_core.a \
   third_party/icu/libicudata.a \
   third_party/icu/libicuuc.a \
+  third_party/instaweb/libutil.a \
   third_party/jsoncpp/libjsoncpp.a \
   third_party/libjpeg/libjpeg.a \
   third_party/libpagespeed/src/pagespeed/core/libpagespeed_core.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_image_converter.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_jpeg_optimizer.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_jpeg_reader.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_jpeg_utils.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_png_optimizer.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_scanline_utils.a \
+  third_party/libpagespeed/src/pagespeed/image_compression/libpagespeed_webp_optimizer.a \
+  third_party/libpagespeed/src/pagespeed/js/libpagespeed_jsminify.a \
   third_party/libpagespeed/src/pagespeed/proto/libpagespeed_output_pb.a \
   third_party/libpagespeed/src/pagespeed/proto/libpagespeed_resource_pb.a \
   third_party/libpagespeed/src/pagespeed/proto/libtimeline_pb.a \
+  third_party/libpagespeed/src/third_party/giflib/libdgiflib.a \
+  third_party/libpagespeed/src/third_party/giflib/libgiflib_core.a \
+  third_party/libpagespeed/src/third_party/optipng/libopngreduc.a \
   third_party/libpng/libpng.a \
   third_party/libwebp/libwebp_dec.a \
   third_party/libwebp/libwebp_dsp.a \
@@ -146,7 +139,6 @@ BASE_LIBS = \
   third_party/opencv/libhighgui.a \
   third_party/opencv/libopencv_core.a \
   third_party/opencv/libopencv_imgproc.a \
-  third_party/optipng/libopngreduc.a \
   third_party/protobuf/libprotobuf_lite.a \
   third_party/re2/libre2.a \
   third_party/zlib/libzlib.a
@@ -190,17 +182,14 @@ CXX = /usr/bin/g++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/third_party/re2/libre2_bench_util.a
 
 build_libraries :
-	cd $(MOD_PAGESPEED_ROOT) && make CXXFLAGS="$(CXXFLAGS)" BUILDTYPE=$(BUILDTYPE)
+	cd $(MOD_PAGESPEED_ROOT) && make BUILDTYPE=$(BUILDTYPE)
 
 endif
 
 INCLUDE_PATH = \
     -I$(MOD_PAGESPEED_ROOT) \
-    -I$(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj/gen/protoc_out/instaweb \
     -I$(MOD_PAGESPEED_ROOT)/third_party/chromium/src \
     -I$(MOD_PAGESPEED_ROOT)/third_party/gflags/gen/$(INCLUDE_ARCH)/include \
-    -I$(MOD_PAGESPEED_ROOT)/third_party/google-sparsehash/src \
-    -I$(MOD_PAGESPEED_ROOT)/third_party/google-sparsehash/gen/$(INCLUDE_ARCH)/include \
     -I$(MOD_PAGESPEED_ROOT)/third_party/protobuf/src \
     -I$(MOD_PAGESPEED_ROOT)/third_party/re2/src
 OBJS          = $(OUTPUT_DIR)/static_rewriter_main.o \

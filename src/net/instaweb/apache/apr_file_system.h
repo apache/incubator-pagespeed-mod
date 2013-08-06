@@ -32,7 +32,6 @@ namespace net_instaweb {
 class AbstractMutex;
 class MessageHandler;
 class ThreadSystem;
-class Timer;
 
 void AprReportError(MessageHandler* message_handler, const char* filename,
                     int line, const char* message, int error_code);
@@ -80,7 +79,6 @@ class AprFileSystem : public FileSystem {
                               MessageHandler* handler);
   virtual BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
                                          int64 timeout_ms,
-                                         const Timer* timer,
                                          MessageHandler* handler);
   virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
 

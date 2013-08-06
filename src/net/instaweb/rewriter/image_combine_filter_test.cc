@@ -22,8 +22,10 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -287,7 +289,8 @@ TEST_F(CssImageCombineTest, SpritesMultiSite) {
   // partitions due to different host names -- at lest when it doesn't require
   // us to keep track of multiple partitions intelligently.
   const char kAltDomain[] = "http://images.example.com/";
-  AddDomain(kAltDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddDomain(kAltDomain, message_handler());
 
   AddFileToMockFetcher(StrCat(kAltDomain, kBikePngFile), kBikePngFile,
                         kContentTypePng, 100);

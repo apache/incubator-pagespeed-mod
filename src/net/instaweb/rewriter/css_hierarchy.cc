@@ -46,7 +46,6 @@ namespace net_instaweb {
 CssHierarchy::CssHierarchy(CssFilter* filter)
     : filter_(filter),
       parent_(NULL),
-      input_contents_resolved_(false),
       flattening_succeeded_(true),
       unparseable_detected_(false),
       flattened_result_limit_(0),
@@ -241,7 +240,7 @@ bool CssHierarchy::ExpandChildren() {
     const Css::Import* import = imports[i];
     CssHierarchy* child = children_[i];
     GoogleString url(import->link().utf8_data(), import->link().utf8_length());
-    const GoogleUrl import_url(css_resolution_base(), url);
+    const GoogleUrl import_url(css_base_url_, url);
     if (!import_url.is_valid()) {
       if (filter_ != NULL) {
         filter_->num_flatten_imports_invalid_url_->Add(1);

@@ -40,8 +40,6 @@ class JavascriptLibraryIdentification {
   JavascriptLibraryIdentification() { }
   ~JavascriptLibraryIdentification();
 
-  bool empty() const { return libraries_.empty(); }
-
   // Register a library for recognition.  False indicates badly-formed hash or
   // url.
   bool RegisterLibrary(
@@ -65,7 +63,7 @@ class JavascriptLibraryIdentification {
 
   LibraryMap libraries_;
 
-  // Value-copyable because it is used with CopyOnWrite.
+  DISALLOW_COPY_AND_ASSIGN(JavascriptLibraryIdentification);
 };
 
 }  // namespace net_instaweb

@@ -31,7 +31,6 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/string.h"
@@ -102,7 +101,7 @@ class HTTPCacheTest : public testing::Test {
       : mock_timer_(ParseDate(kStartDate)),
         lru_cache_(kMaxSize),
         http_cache_(&lru_cache_, &mock_timer_, &mock_hasher_, simple_stats_),
-        thread_system_(Platform::CreateThreadSystem()) {}
+        thread_system_(ThreadSystem::CreateThreadSystem()) {}
 
   void InitHeaders(ResponseHeaders* headers, const char* cache_control) {
     headers->Add("name", "value");
@@ -208,8 +207,6 @@ TEST_F(HTTPCacheTest, PutGet) {
                            callback.get());
   ASSERT_EQ(HTTPCache::kNotFound, found);
   ASSERT_FALSE(meta_data_out.headers_complete());
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheBackendHits));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheBackendMisses));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
 
@@ -234,7 +231,6 @@ TEST_F(HTTPCacheTest, PutGet) {
                            callback2.get());
   ASSERT_EQ(HTTPCache::kNotFound, found);
   ASSERT_FALSE(meta_data_out.headers_complete());
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheBackendHits));
   // The fallback is empty since the entry has been invalidated.
   fallback_value = callback2->fallback_http_value();
   ASSERT_TRUE(fallback_value->Empty());
@@ -316,8 +312,7 @@ TEST_F(HTTPCacheTest, EtagsAddedIfAbsent) {
   ASSERT_TRUE(meta_data_out.Lookup("name", &values));
   ASSERT_EQ(static_cast<size_t>(1), values.size());
   EXPECT_EQ(GoogleString("value"), *(values[0]));
-  EXPECT_STREQ(HTTPCache::FormatEtag("0"),
-               meta_data_out.Lookup1(HttpAttributes::kEtag));
+  EXPECT_STREQ("W/\"PSA-0\"", meta_data_out.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ("content", contents);
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));  // The "query" counts as a hit.
 }

@@ -36,7 +36,6 @@ class SimpleSelectors;
 class Declaration;
 class Declarations;
 class Value;
-class Values;
 class FunctionParameters;
 class UnparsedRegion;
 }  // namespace Css
@@ -119,9 +118,6 @@ class CssMinify {
   void MinifyRulesetMediaStart(const Css::Ruleset& ruleset);
   // Emits the end of the @media rule iff required (non-empty media set).
   void MinifyRulesetMediaEnd(const Css::Ruleset& ruleset);
-
-  // Font requires special output format.
-  void MinifyFont(const Css::Values& font_values);
 
   bool Equals(const Css::MediaQueries& a, const Css::MediaQueries& b) const;
   bool Equals(const Css::MediaQuery& a, const Css::MediaQuery& b) const;

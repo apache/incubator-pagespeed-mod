@@ -26,6 +26,7 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
@@ -38,7 +39,6 @@
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -68,7 +68,7 @@ void CleanupWhitespaceScriptBody(RewriteDriver* driver,
       return;
     }
   }
-  bool deleted = driver->DeleteNode(node);
+  bool deleted = driver->DeleteElement(node);
   DCHECK(deleted);
 }
 
@@ -78,6 +78,7 @@ JavascriptFilter::JavascriptFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       script_type_(kNoScript),
       some_missing_scripts_(false),
+      config_(NULL),
       script_tag_scanner_(driver_) { }
 
 JavascriptFilter::~JavascriptFilter() { }
@@ -147,7 +148,10 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   // TODO(jmarantz): this should be done as a SimpleTextFilter.
   virtual void RewriteSingle(
       const ResourcePtr& input, const OutputResourcePtr& output) {
-    bool is_ipro = IsNestedIn(RewriteOptions::kInPlaceRewriteId);
+    bool is_ipro =
+        num_slots() == 1 &&
+        (slot(0)->LocationString() ==
+            InPlaceRewriteResourceSlot::kIproSlotLocation);
     AttachDependentRequestTrace(is_ipro ? "IproProcessJs" : "ProcessJs");
     if (!IsDataUrl(input->url())) {
       TracePrintf("RewriteJs: %s", input->url().c_str());
@@ -175,7 +179,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     }
     // The url or script content is changing, so log that fact.
     Driver()->log_record()->SetRewriterLoggingStatus(
-        id(), output_slot->resource()->url(), RewriterApplication::APPLIED_OK);
+        id(), RewriterInfo::APPLIED_OK);
     config_->num_uses()->Add(1);
   }
 
@@ -334,7 +338,7 @@ void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
     }
     config_->num_uses()->Add(1);
     driver_->log_record()->SetRewriterLoggingStatus(
-        id(), RewriterApplication::APPLIED_OK);
+        id(), RewriterInfo::APPLIED_OK);
   } else {
     config_->did_not_shrink()->Add(1);
   }

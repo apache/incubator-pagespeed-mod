@@ -32,7 +32,9 @@ class Hasher;
 class MessageHandler;
 class ServerContext;
 class Statistics;
+class Timer;
 class UrlAsyncFetcher;
+class UrlFetcher;
 class Writer;
 
 // Implements a baseline RewriteDriverFactory with the simplest possible
@@ -47,14 +49,15 @@ class FileRewriter : public RewriteDriverFactory {
                bool echo_errors_to_stdout);
   virtual ~FileRewriter();
   virtual Hasher* NewHasher();
+  virtual UrlFetcher* DefaultUrlFetcher();
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
   virtual MessageHandler* DefaultHtmlParseMessageHandler();
   virtual MessageHandler* DefaultMessageHandler();
   virtual FileSystem* DefaultFileSystem();
-  virtual void SetupCaches(ServerContext* server_context);
+  virtual Timer* DefaultTimer();
+  virtual void SetupCaches(ServerContext* resource_manager);
   virtual Statistics* statistics();
   virtual ServerContext* NewServerContext();
-  virtual bool UseBeaconResultsInFilters() const { return false; }
 
  private:
   const RewriteGflags* gflags_;

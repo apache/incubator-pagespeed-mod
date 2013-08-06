@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/shared_mem_cache.h"
@@ -31,7 +32,7 @@ namespace net_instaweb {
 
 class AbstractSharedMem;
 class AprMemCache;
-class CacheInterface;
+class AsyncCache;
 class MessageHandler;
 class NamedLockManager;
 class QueuedWorkerPool;
@@ -114,23 +115,14 @@ class SystemCaches {
   // Print out stats appropriate for the given flags combination.
   void PrintCacheStats(StatFlags flags, GoogleString* out);
 
-  // For cases where the thread limit isn't known at construction time, call
-  // set_thread_limit() before calling any other methods.
-  void set_thread_limit(int thread_limit) { thread_limit_ = thread_limit; }
-
  private:
   typedef SharedMemCache<64> MetadataShmCache;
   struct MetadataShmCacheInfo {
-    MetadataShmCacheInfo()
-        : cache_to_use(NULL), cache_backend(NULL), initialized(false) {}
+    MetadataShmCacheInfo() : cache_backend(NULL) {}
 
     // Note that the fields may be NULL if e.g. initialization failed.
-    CacheInterface* cache_to_use;  // may be CacheStats or such.
-    GoogleString segment;
+    scoped_ptr<CacheInterface> cache_to_use;  // may be CacheStats or such.
     MetadataShmCache* cache_backend;
-    bool initialized;  // This is needed since in some scenarios we may
-                       // not end up as far as calling ->Initialize() before
-                       // we get shutdown.
   };
 
   // Create a new AprMemCache from the given hostname[:port] specification.
@@ -196,6 +188,7 @@ class SystemCaches {
   MemcachedMap memcached_map_;
   scoped_ptr<QueuedWorkerPool> memcached_pool_;
   std::vector<AprMemCache*> memcache_servers_;
+  std::vector<AsyncCache*> async_caches_;
 
   // Map of any shared memory metadata caches we have + their CacheStats
   // wrappers. These are named explicitly to make configuration comprehensible.
@@ -212,3 +205,4 @@ class SystemCaches {
 }  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_SYSTEM_PUBLIC_SYSTEM_CACHES_H_
+

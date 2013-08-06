@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-goog.require('pagespeedutils');
-
 /**
  * @fileoverview Code for detecting and sending to server the critical images
  * (images above the fold) on the client side.
@@ -41,8 +39,27 @@ pagespeed.CriticalImagesBeacon = function(beaconUrl, htmlUrl, optionsHash) {
   this.beaconUrl_ = beaconUrl;
   this.htmlUrl_ = htmlUrl;
   this.optionsHash_ = optionsHash;
-  this.windowSize_ = pagespeedutils.getWindowSize();
+  this.windowSize_ = this.getWindowSize_();
   this.imgLocations_ = {};
+};
+
+/**
+ * Returns the size of the window.
+ * @return {{
+ *     height: (number),
+ *     width: (number)
+ * }}
+ * @private
+ */
+pagespeed.CriticalImagesBeacon.prototype.getWindowSize_ = function() {
+  var height = window.innerHeight || document.documentElement.clientHeight ||
+      document.body.clientHeight;
+  var width = window.innerWidth || document.documentElement.clientWidth ||
+      document.body.clientWidth;
+  return {
+    height: height,
+    width: width
+  };
 };
 
 /**
@@ -102,8 +119,7 @@ pagespeed.CriticalImagesBeacon.prototype.isCritical_ = function(element) {
   // Only return 1 image as critical if there are multiple images that have the
   // same location. This is to handle sliders with many images in the same
   // location, but most of which only appear after onload.
-  var elLocationStr = elLocation.top.toString() + ',' +
-      elLocation.left.toString();
+  var elLocationStr = JSON.stringify(elLocation);
   if (this.imgLocations_.hasOwnProperty(elLocationStr)) {
     return false;
   } else {
@@ -112,6 +128,40 @@ pagespeed.CriticalImagesBeacon.prototype.isCritical_ = function(element) {
 
   return (elLocation.top <= this.windowSize_.height &&
           elLocation.left <= this.windowSize_.width);
+};
+
+/**
+ * Send the beacon as an AJAX POST request to the server.
+ * @param {string} data The data to be sent in the POST.
+ * @return {boolean} Return true if the request was sent.
+ * @private
+ */
+pagespeed.CriticalImagesBeacon.prototype.sendBeacon_ = function(data) {
+  var httpRequest;
+  // TODO(jud): Use the closure goog.net.Xhrlo.send function here once we have
+  // closure lib support in our static JS files.
+  if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+    httpRequest = new XMLHttpRequest();
+  } else if (window.ActiveXObject) { // IE
+    try {
+      httpRequest = new ActiveXObject('Msxml2.XMLHTTP');
+    }
+    catch (e) {
+      try {
+        httpRequest = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      catch (e2) {}
+    }
+  }
+  if (!httpRequest) {
+    return false;
+  }
+
+  httpRequest.open('POST', this.beaconUrl_);
+  httpRequest.setRequestHeader(
+      'Content-Type', 'application/x-www-form-urlencoded');
+  httpRequest.send(data);
+  return true;
 };
 
 /**
@@ -127,31 +177,27 @@ pagespeed.CriticalImagesBeacon.prototype.checkCriticalImages_ = function() {
 
   // List of tags whose elements we will check to see if they are critical.
   var tags = ['img', 'input'];
-
-  var critical_imgs = [];
-  // Use an object to store the keys for critical_imgs so that we get a unique
-  // list of them.
-  var critical_imgs_keys = {};
+  // Use an object to store the critical_imgs so that we get a unique (no
+  // duplicates) list of them.
+  var critical_imgs = {};
 
   for (var i = 0; i < tags.length; ++i) {
     var elements = document.getElementsByTagName(tags[i]);
     for (var j = 0; j < elements.length; ++j) {
-      var key = elements[j].getAttribute('pagespeed_url_hash');
       // TODO(jud): Remove the check for getBoundingClientRect below, either by
       // making elLocation_ work correctly if it isn't defined, or updating the
       // user agent whitelist to exclude UAs that don't support it correctly.
-      if (key && elements[j].getBoundingClientRect &&
+      if (elements[j].hasAttribute('pagespeed_url_hash') &&
+          elements[j].getBoundingClientRect &&
           this.isCritical_(elements[j])) {
-        if (!(key in critical_imgs_keys)) {
-          critical_imgs.push(key);
-          critical_imgs_keys[key] = true;
-        }
+        critical_imgs[elements[j].getAttribute('pagespeed_url_hash')] = true;
       }
     }
   }
-
+  critical_imgs = Object.keys(critical_imgs);
   if (critical_imgs.length != 0) {
-    var data = 'oh=' + this.optionsHash_;
+    var data = 'url=' + encodeURIComponent(this.htmlUrl_);
+    data += '&oh=' + this.optionsHash_;
     data += '&ci=' + encodeURIComponent(critical_imgs[0]);
     for (var i = 1; i < critical_imgs.length; ++i) {
       var tmp = ',' + encodeURIComponent(critical_imgs[i]);
@@ -164,7 +210,31 @@ pagespeed.CriticalImagesBeacon.prototype.checkCriticalImages_ = function() {
     pagespeed['criticalImagesBeaconData'] = data;
     // TODO(jud): This beacon should coordinate with the add_instrumentation JS
     // so that only one beacon request is sent if both filters are enabled.
-    pagespeedutils.sendBeacon(this.beaconUrl_, this.htmlUrl_, data);
+    this.sendBeacon_(data);
+  }
+};
+
+/**
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with the DeferJs code.
+ */
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
   }
 };
 
@@ -190,7 +260,7 @@ pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl, optionsHash) {
       temp.checkCriticalImages_();
     }, 0);
   };
-  pagespeedutils.addHandler(window, 'load', beacon_onload);
+  pagespeed.addHandler(window, 'load', beacon_onload);
 };
 
 pagespeed['criticalImagesBeaconInit'] = pagespeed.criticalImagesBeaconInit;

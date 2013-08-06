@@ -27,12 +27,13 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class Hasher;
 class HtmlElement;
 class MessageHandler;
 class RewriteDriver;
 class RewriteOptions;
-struct ContentType;
+class UrlNamer;
 
 
 // Composes URLs for the javascript files injected by the various PSA filters.
@@ -50,23 +51,18 @@ class StaticAssetManager {
     kClientDomainRewriter,
     kCriticalCssBeaconJs,
     kCriticalImagesBeaconJs,
-    kDedupInlinedImagesJs,
     kDeferIframe,
     kDeferJs,
-    kDelayImagesInlineJs,
     kDelayImagesJs,
-    kDetectReflowJs,
+    kDelayImagesInlineJs,
     kDeterministicJs,
-    kExtendedInstrumentationJs,
-    kGhostClickBusterJs,
     kLazyloadImagesJs,
+    kDetectReflowJs,
     kLocalStorageCacheJs,
-    kSplitHtmlBeaconJs,
     kEndOfModules,  // Keep this as the last enum value.
   };
 
-  StaticAssetManager(const GoogleString& static_asset_base,
-                     Hasher* hasher,
+  StaticAssetManager(UrlNamer* url_namer, Hasher* hasher,
                      MessageHandler* message_handler);
 
   ~StaticAssetManager();
@@ -90,16 +86,14 @@ class StaticAssetManager {
 
   // Add a CharacterNode to an already created script element, properly escaping
   // the text with CDATA tags is necessary. The script element should be added
-  // already, say with a call to InsertNodeBeforeNode.
+  // already, say with a call to InsertElementBeforeElement.
   void AddJsToElement(StringPiece js, HtmlElement* script,
                       RewriteDriver* driver) const;
 
 
   // If set_serve_asset_from_gstatic is true, update the URL for module to use
   // gstatic.
-  void set_gstatic_hash(const StaticAsset& module,
-                        const GoogleString& gstatic_base,
-                        const GoogleString& hash);
+  void set_gstatic_hash(const StaticAsset& module, const GoogleString& hash);
 
   // Set serve_asset_from_gstatic_ to serve the files from gstatic. Note that
   // files won't actually get served from gstatic until you also call
@@ -116,11 +110,6 @@ class StaticAssetManager {
     InitializeAssetUrls();
   }
 
-  void set_static_asset_base(const StringPiece& x) {
-    x.CopyToString(&static_asset_base_);
-    InitializeAssetUrls();
-  }
-
  private:
   class Asset;
 
@@ -129,8 +118,8 @@ class StaticAssetManager {
   void InitializeAssetStrings();
   void InitializeAssetUrls();
 
-  GoogleString static_asset_base_;
   // Set in the constructor, this class does not own the following objects.
+  UrlNamer* url_namer_;
   Hasher* hasher_;
   MessageHandler* message_handler_;
 

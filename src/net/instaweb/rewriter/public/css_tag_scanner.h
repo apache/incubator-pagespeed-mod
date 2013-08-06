@@ -90,9 +90,6 @@ class CssTagScanner {
   // Should be called with element->AttributeValue(HtmlName::kRel) as the arg.
   static bool IsStylesheetOrAlternate(const StringPiece& attribute_value);
 
-  // Does this rel attribute value represent an alternate stylesheet?
-  static bool IsAlternateStylesheet(const StringPiece& attribute_value);
-
  private:
   DISALLOW_COPY_AND_ASSIGN(CssTagScanner);
 };
@@ -120,7 +117,6 @@ class RewriteDomainTransformer : public CssTagScanner::Transformer {
   UrlLeftTrimFilter* url_trim_filter_;
   MessageHandler* handler_;
   bool trim_urls_;
-  RewriteDriver* driver_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDomainTransformer);
 };

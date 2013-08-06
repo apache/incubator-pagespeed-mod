@@ -47,14 +47,6 @@ const char kRelDnsPrefetch[] = "dns-prefetch";
 
 const char kAttrValImage[] = "image";  // <input type="image" src=...>
 
-namespace {
-
-bool IsAttributeInvalid(HtmlElement::Attribute* attr) {
-  return (attr == NULL || attr->decoding_error());
-}
-
-}  // namespace
-
 HtmlElement::Attribute* ScanElement(
     HtmlElement* element,
     RewriteDriver* driver,  // Can be NULL.
@@ -76,24 +68,20 @@ HtmlElement::Attribute* ScanElement(
         if (CssTagScanner::IsStylesheetOrAlternate(
                 rel_attr->DecodedValueOrNull())) {
           *category = semantic_type::kStylesheet;
-        } else {
-          // Ignore keywords we don't recognize, to deal with cases like
-          // "shortcut icon" where shortcut is simply ignored.
-          StringPieceVector values;
-          SplitStringPieceToVector(rel_attr->DecodedValueOrNull(),
-                                   " ", &values, true /* skip empty */);
-          for (int i = 0, n = values.size(); i < n; ++i) {
-            if (StringCaseEqual(values[i], kIcon) ||
-                StringCaseEqual(values[i], kAppleTouchIcon) ||
-                StringCaseEqual(values[i], kAppleTouchIconPrecomposed) ||
-                StringCaseEqual(values[i], kAppleTouchStartupImage)) {
-              *category = semantic_type::kImage;
-              break;  // Image takes precedence over prefetch.
-            } else if (StringCaseEqual(values[i], kRelPrefetch) ||
-                       StringCaseEqual(values[i], kRelDnsPrefetch)) {
-              *category = semantic_type::kPrefetch;
-            }
-          }
+        } else if (StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kIcon) ||
+                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kAppleTouchIcon) ||
+                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kAppleTouchIconPrecomposed) ||
+                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kAppleTouchStartupImage)) {
+          *category = semantic_type::kImage;
+        } else if (StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kRelPrefetch) ||
+                   StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                   kRelDnsPrefetch)) {
+          *category = semantic_type::kPrefetch;
         }
       }
       break;
@@ -164,7 +152,7 @@ HtmlElement::Attribute* ScanElement(
     default:
       break;
   }
-  if (IsAttributeInvalid(attr) && driver != NULL) {
+  if (*category == semantic_type::kUndefined && driver != NULL) {
     // Find matching elements.
     for (int i = 0, n = driver->options()->num_url_valued_attributes();
          i < n; ++i) {
@@ -188,7 +176,7 @@ HtmlElement::Attribute* ScanElement(
       }
     }
   }
-  if (IsAttributeInvalid(attr) ||
+  if (attr == NULL || attr->decoding_error() ||
       *category == semantic_type::kUndefined) {
     attr = NULL;
     *category = semantic_type::kUndefined;

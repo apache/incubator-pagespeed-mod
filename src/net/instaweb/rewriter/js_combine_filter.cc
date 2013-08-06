@@ -49,7 +49,10 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
+
 
 namespace net_instaweb {
 
@@ -72,9 +75,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   virtual ~JsCombiner() {
   }
 
-  virtual bool ResourceCombinable(
-      Resource* resource, GoogleString* failure_reason,
-      MessageHandler* handler) {
+  virtual bool ResourceCombinable(Resource* resource, MessageHandler* handler) {
     // Get the charset for the given resource.
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
@@ -85,8 +86,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     if (num_urls() == 0) {
       combined_charset_ = this_charset;
     } else if (!StringCaseEqual(combined_charset_, this_charset)) {
-      *failure_reason = StrCat("Charset mismatch; combination thus far is ",
-                               combined_charset_, " file is ", this_charset);
       return false;
     }
 
@@ -96,13 +95,11 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     // (escape-free) in some contexts. As a conservative approximation, we just
     // look for the text
     if (resource->contents().find("use strict") != StringPiece::npos) {
-      *failure_reason = "Combining strict mode files unsupported";
       return false;
     }
     const RewriteOptions* options = rewrite_driver_->options();
     if (options->avoid_renaming_introspective_javascript() &&
         JavascriptCodeBlock::UnsafeToRename(resource->contents())) {
-      *failure_reason = "File seems to look for its URL";
       return false;
     }
 
@@ -178,6 +175,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 
   DISALLOW_COPY_AND_ASSIGN(JsCombiner);
 };
+
 
 class JsCombineFilter::Context : public RewriteContext {
  public:
@@ -364,7 +362,8 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* combine_element =
         Driver()->NewElement(NULL,  // no parent yet.
                              HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
+    Driver()->InsertElementBeforeElement(first_slot->element(),
+                                         combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
                            partition->url());
   }
@@ -378,7 +377,8 @@ class JsCombineFilter::Context : public RewriteContext {
     // original element had.
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(original, element);
+    Driver()->InsertElementBeforeElement(original, element);
+    //    Driver()->DeleteElement(original);
     GoogleString var_name = filter_->VarName(
         FindServerContext(), html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(
@@ -531,12 +531,6 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
 
   // An inline script.
   if (src == NULL || src->DecodedValueOrNull() == NULL) {
-    NextCombination();
-    return;
-  }
-
-  // Don't combine scripts with the pagespeed_no_defer attribute.
-  if (element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
     NextCombination();
     return;
   }

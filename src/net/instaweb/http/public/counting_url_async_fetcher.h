@@ -21,12 +21,9 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_COUNTING_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_COUNTING_URL_ASYNC_FETCHER_H_
 
-#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/platform.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
@@ -35,12 +32,8 @@ class MessageHandler;
 
 class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  // TODO(hujie): We should pass in the mutex at all call-sites instead of
-  //     creating a new mutex here.
   explicit CountingUrlAsyncFetcher(UrlAsyncFetcher* fetcher)
-      : fetcher_(fetcher),
-        thread_system_(Platform::CreateThreadSystem()),
-        mutex_(thread_system_->NewMutex()) {
+      : fetcher_(fetcher) {
     Clear();
   }
   virtual ~CountingUrlAsyncFetcher();
@@ -53,29 +46,9 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
                      MessageHandler* message_handler,
                      AsyncFetch* fetch);
 
-  // number of completed fetches.
-  int fetch_count() const {
-    ScopedMutex lock(mutex_.get());
-    return fetch_count_;
-  }
-
-  // number of started fetches
-  int fetch_start_count() const {
-    ScopedMutex lock(mutex_.get());
-    return fetch_start_count_;
-  }
-  int byte_count() const {
-    ScopedMutex lock(mutex_.get());
-    return byte_count_;
-  }
-  int failure_count() const {
-    ScopedMutex lock(mutex_.get());
-    return failure_count_;
-  }
-  GoogleString most_recent_fetched_url() const {
-    ScopedMutex lock(mutex_.get());
-    return most_recent_fetched_url_;
-  }
+  int fetch_count() const { return fetch_count_; }
+  int byte_count() const { return byte_count_; }
+  int failure_count() const { return failure_count_; }
 
   void Clear();
 
@@ -85,12 +58,8 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
  private:
   UrlAsyncFetcher* fetcher_;
   int fetch_count_;
-  int fetch_start_count_;
   int byte_count_;
   int failure_count_;
-  GoogleString most_recent_fetched_url_;
-  scoped_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  scoped_ptr<AbstractMutex> mutex_;         // Mutex Protect.
 
   DISALLOW_COPY_AND_ASSIGN(CountingUrlAsyncFetcher);
 };

@@ -28,7 +28,7 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/association_transformer.h"
@@ -42,6 +42,7 @@
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
+#include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -52,7 +53,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/data_url.h"
@@ -64,7 +64,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/writer.h"
-#include "pagespeed/kernel/util/simple_random.h"
 #include "webutil/css/parser.h"
 
 #include "base/at_exit.h"
@@ -139,7 +138,7 @@ const RewriteOptions::Filter kRelatedFilters[] = {
 };
 const int kRelatedFiltersSize = arraysize(kRelatedFilters);
 
-const char* const kRelatedOptions[] = {
+const RewriteOptions::OptionEnum kRelatedOptions[] = {
   RewriteOptions::kCssFlattenMaxBytes,
   RewriteOptions::kCssImageInlineMaxBytes,
   RewriteOptions::kCssPreserveURLs,
@@ -147,13 +146,14 @@ const char* const kRelatedOptions[] = {
   RewriteOptions::kMaxUrlSegmentSize,
   RewriteOptions::kMaxUrlSize,
 };
+const int kRelatedOptionsSize = arraysize(kRelatedOptions);
+
+const RewriteOptions::Filter* kMergedFilters = NULL;
+int merged_filters_size = 0;
+const RewriteOptions::OptionEnum* kMergedOptions = NULL;
+int merged_options_size = 0;
 
 }  // namespace
-
-const RewriteOptions::Filter* CssFilter::merged_filters_ = NULL;
-int CssFilter::merged_filters_size_ = 0;
-
-StringPieceVector* CssFilter::related_options_ = NULL;
 
 // Statistics variable names.
 const char CssFilter::kBlocksRewritten[] = "css_filter_blocks_rewritten";
@@ -253,9 +253,8 @@ void CssFilter::Context::Render() {
     } else if (rewrite_inline_attribute_ != NULL) {
       rewrite_inline_attribute_->SetValue(result.inlined_data());
     } else {
-      // External css.
-      driver_->log_record()->SetRewriterLoggingStatus(
-          id(), slot(0)->resource()->url(), RewriterApplication::APPLIED_OK);
+      // Log only when we rewrite external css.
+      filter_->LogFilterModifiedContent();
     }
     filter_->num_uses_->Add(1);
   }
@@ -289,16 +288,10 @@ void CssFilter::Context::SetupExternalRewrite(const GoogleUrl& base_gurl,
 void CssFilter::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
-
-  int drop_percentage = Options()->rewrite_random_drop_percentage();
-  if (drop_percentage > 0) {
-    SimpleRandom* simple_random = FindServerContext()->simple_random();
-    if (drop_percentage > static_cast<int>(simple_random->Next() % 100)) {
-      return RewriteDone(kTooBusy, 0);
-    }
-  }
-
-  bool is_ipro = IsNestedIn(RewriteOptions::kInPlaceRewriteId);
+  bool is_ipro =
+      num_slots() == 1 &&
+      (slot(0)->LocationString() ==
+          InPlaceRewriteResourceSlot::kIproSlotLocation);
   AttachDependentRequestTrace(is_ipro ? "IproProcessCSS" : "ProcessCSS");
   input_resource_ = input_resource;
   output_resource_ = output_resource;
@@ -358,7 +351,7 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
   // Create a stylesheet even if given declarations so that we don't need
   // two versions of everything, though they do need to handle a stylesheet
   // with no selectors in it, which they currently do.
-  scoped_ptr<Css::Stylesheet> stylesheet;
+  scoped_ptr<Css::Stylesheet> stylesheet(NULL);
   if (text_is_declarations) {
     Css::Declarations* declarations = parser.ParseRawDeclarations();
     if (declarations != NULL) {
@@ -565,9 +558,9 @@ void CssFilter::Context::Harvest() {
 
   if (ok) {
     if (rewrite_inline_element_ == NULL) {
-      ServerContext* server_context = FindServerContext();
-      server_context->MergeNonCachingResponseHeaders(input_resource_,
-                                                     output_resource_);
+      ServerContext* manager = FindServerContext();
+      manager->MergeNonCachingResponseHeaders(input_resource_,
+                                              output_resource_);
       ok = driver_->Write(ResourceVector(1, input_resource_),
                           out_text,
                           &kContentTypeCss,
@@ -784,24 +777,28 @@ T* MergeArrays(const T* a, int a_size, const T* b, int b_size, int* out_size) {
 void CssFilter::Initialize() {
   InitializeAtExitManager();
 
-  CHECK(merged_filters_ == NULL);
+  CHECK(kMergedFilters == NULL);
+  CHECK(kMergedOptions == NULL);
+
 #ifndef NDEBUG
   for (int i = 1; i < kRelatedFiltersSize; ++i) {
     CHECK_LT(kRelatedFilters[i - 1], kRelatedFilters[i])
         << "kRelatedFilters not in enum-value order";
   }
+  for (int i = 1; i < kRelatedOptionsSize; ++i) {
+    CHECK_LT(kRelatedOptions[i - 1], kRelatedOptions[i])
+        << "kRelatedOptions not in enum-value order";
+  }
 #endif
 
-  merged_filters_ = MergeArrays(ImageRewriteFilter::kRelatedFilters,
-                                ImageRewriteFilter::kRelatedFiltersSize,
-                                kRelatedFilters, kRelatedFiltersSize,
-                                &merged_filters_size_);
-
-  CHECK(related_options_ == NULL);
-  related_options_ = new StringPieceVector;
-  ImageRewriteFilter::AddRelatedOptions(related_options_);
-  CssFilter::AddRelatedOptions(related_options_);
-  std::sort(related_options_->begin(), related_options_->end());
+  kMergedFilters = MergeArrays(ImageRewriteFilter::kRelatedFilters,
+                               ImageRewriteFilter::kRelatedFiltersSize,
+                               kRelatedFilters, kRelatedFiltersSize,
+                               &merged_filters_size);
+  kMergedOptions = MergeArrays(ImageRewriteFilter::kRelatedOptions,
+                               ImageRewriteFilter::kRelatedOptionsSize,
+                               kRelatedOptions, kRelatedOptionsSize,
+                               &merged_options_size);
 }
 
 void CssFilter::Terminate() {
@@ -811,18 +808,12 @@ void CssFilter::Terminate() {
     at_exit_manager = NULL;
   }
 
-  CHECK(merged_filters_ != NULL);
-  delete [] merged_filters_;
-  merged_filters_ = NULL;
-  CHECK(related_options_ != NULL);
-  delete related_options_;
-  related_options_ = NULL;
-}
-
-void CssFilter::AddRelatedOptions(StringPieceVector* target) {
-  for (int i = 0, n = arraysize(kRelatedOptions); i < n; ++i) {
-    target->push_back(kRelatedOptions[i]);
-  }
+  CHECK(kMergedFilters != NULL);
+  CHECK(kMergedOptions != NULL);
+  delete [] kMergedFilters;
+  delete [] kMergedOptions;
+  kMergedFilters = NULL;
+  kMergedOptions = NULL;
 }
 
 void CssFilter::InitializeAtExitManager() {
@@ -924,15 +915,12 @@ void CssFilter::StartInlineRewrite(HtmlCharactersNode* text) {
   }
   rewriter->SetupInlineRewrite(element, text);
 
-  // Get the applicable media and charset. As style elements can't have a
-  // charset attribute pass NULL to GetApplicableCharset instead of 'element'.
-  // If the resulting charset for the style element doesn't agree with that of
-  // the source page, we can't flatten (though that should be impossible since
-  // we only look at meta elements and headers in this case).
+  // Get the applicable media and charset. If the charset on the link doesn't
+  // agree with that of the source page, we can't flatten.
   CssHierarchy* hierarchy = rewriter->mutable_hierarchy();
   GetApplicableMedia(element, hierarchy->mutable_media());
   hierarchy->set_flattening_succeeded(
-      GetApplicableCharset(NULL, hierarchy->mutable_charset()));
+      GetApplicableCharset(element, hierarchy->mutable_charset()));
   if (!hierarchy->flattening_succeeded()) {
     num_flatten_imports_charset_mismatch_->Add(1);
   }
@@ -1078,8 +1066,9 @@ const UrlSegmentEncoder* CssFilter::encoder() const {
 
 void CssFilter::EncodeUserAgentIntoResourceContext(
     ResourceContext* context) const {
-  // Use the same encoding as the image rewrite filter.
-  image_rewrite_filter_->EncodeUserAgentIntoResourceContext(context);
+  context->set_inline_images(
+      driver_->device_properties()->SupportsImageInlining());
+  ImageUrlEncoder::SetLibWebpLevel(*driver_->device_properties(), context);
 }
 
 const UrlSegmentEncoder* CssFilter::Context::encoder() const {
@@ -1102,6 +1091,18 @@ RewriteContext* CssFilter::MakeNestedFlatteningContextInNewSlot(
                                                          rewriter, hierarchy);
   context->AddSlot(slot);
   return context;
+}
+
+const RewriteOptions::Filter* CssFilter::RelatedFilters(
+    int* num_filters) const {
+  *num_filters = merged_filters_size;
+  return kMergedFilters;
+}
+
+const RewriteOptions::OptionEnum* CssFilter::RelatedOptions(
+    int* num_options) const {
+  *num_options = merged_options_size;
+  return kMergedOptions;
 }
 
 }  // namespace net_instaweb

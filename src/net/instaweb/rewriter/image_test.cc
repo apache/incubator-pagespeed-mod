@@ -32,16 +32,16 @@
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
-#include "pagespeed/kernel/image/jpeg_utils.h"
+#include "pagespeed/image_compression/jpeg_optimizer_test_helper.h"
+#include "pagespeed/image_compression/jpeg_utils.h"
 
 using pagespeed::image_compression::JpegUtils;
 using pagespeed_testing::image_compression::GetNumScansInJpeg;
@@ -54,10 +54,6 @@ namespace {
 
 const char kProgressiveHeader[] = "\xFF\xC2";
 const int kProgressiveHeaderStartIndex = 158;
-const char kMessagePatternDataTruncated[] = "*data truncated*";
-const char kMessagePatternFailedToCreateWebp[] = "*Failed to create webp*";
-const char kMessagePatternNoWebpDimension[] = "*Couldn't find * dimensions*";
-const char kMessagePatternTimedOut[] = "*conversion timed out*";
 
 }  // namespace
 
@@ -344,8 +340,6 @@ class ImageTest : public ImageTestBase {
 
     // Now truncate the file in various ways and make sure we still
     // get partial data.
-    handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
-    handler_.AddPatternToSkipPrinting(kMessagePatternNoWebpDimension);
     GoogleString dim_data(contents, 0, min_bytes_to_dimensions);
     ImagePtr dim_image(
         ImageFromString(intended_output_type, filename, dim_data, progressive));
@@ -402,6 +396,7 @@ class ImageTest : public ImageTestBase {
     options->recompress_jpeg = true;
   }
 
+  GoogleMessageHandler handler_;
   ImageUrlEncoder encoder_;
   scoped_ptr<Image::CompressionOptions> options_;
 
@@ -681,7 +676,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
                               0, 0, 0,   // jpeg
                               false);
 
-  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kRedbrush, &buffer, options));
   timer_.SetTimeDeltaUs(1);  // When setting deadline
@@ -1037,8 +1031,6 @@ TEST_F(ImageTest, JpegToWebpTimesOutTest) {
                               0, 0, 0,   // jpeg
                               true);
 
-  handler_.AddPatternToSkipPrinting(kMessagePatternFailedToCreateWebp);
-  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   image->output_size();
@@ -1073,7 +1065,6 @@ TEST_F(ImageTest, JpegToWebpDoesNotTimeOutTest) {
                               0, 0, 0,   // jpeg
                               true);
 
-  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   image->output_size();
@@ -1139,23 +1130,6 @@ TEST_F(ImageTest, DrawImage) {
   EXPECT_GT(canvas->output_size(), image2->output_size());
   EXPECT_GT(image1->input_size() + image2->input_size(),
             canvas->output_size());
-}
-
-TEST_F(ImageTest, BlankWhiteImage) {
-  int width = 1000, height = 1000;
-  Image::CompressionOptions* options = new Image::CompressionOptions();
-
-  options->use_white_for_blank_image = true;
-  ImagePtr blank(BlankImageWithOptions(width, height, IMAGE_PNG, GTestTempDir(),
-                                       &timer_, &handler_, options));
-  bool loaded = blank->EnsureLoaded(false);
-  EXPECT_EQ(loaded, true);
-  EXPECT_GT(blank->Contents().size(), 0);
-
-  ImageDim blank_dim;
-  blank->Dimensions(&blank_dim);
-  EXPECT_EQ(blank_dim.width(), width);
-  EXPECT_EQ(blank_dim.height(), height);
 }
 
 // Test OpenCV bug where width * height of image could be allocated on the
@@ -1248,7 +1222,6 @@ TEST_F(ImageTest, IgnoreTimeoutWhenFinishingWebp) {
   Image::CompressionOptions* jpeg_options = new Image::CompressionOptions;
   SetBaseJpegOptions(jpeg_options);
 
-  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString jpeg_buffer;
   ImagePtr jpeg_image(ReadFromFileWithOptions(kBikeCrash,
                                               &jpeg_buffer,

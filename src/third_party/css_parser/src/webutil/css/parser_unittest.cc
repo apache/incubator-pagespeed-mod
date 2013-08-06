@@ -78,18 +78,15 @@ class ParserTest : public testing::Test {
 
   // Checks that ParseAny(s) returns goldennum with goldenunit unit.
   void TestAnyNum(const char* s, int parselen, double goldennum,
-                  Value::Unit goldenunit, bool preservation_mode,
-                  string verbatim_text) {
+                  Value::Unit goldenunit) {
     SCOPED_TRACE(s);
     Parser a(s);
-    a.set_preservation_mode(preservation_mode);
     if (parselen == -1) parselen = strlen(s);
     scoped_ptr<Value> t(a.ParseAny());
     EXPECT_EQ(t->GetLexicalUnitType(), Value::NUMBER);
     EXPECT_EQ(t->GetDimension(), goldenunit);
     EXPECT_DOUBLE_EQ(t->GetFloatValue(), goldennum);
     EXPECT_EQ(parselen, a.getpos() - s);
-    EXPECT_EQ(verbatim_text, t->bytes_in_original_buffer());
   }
 
   // Checks that ParseAny(s) returns goldennum with OTHER unit (with
@@ -293,13 +290,13 @@ TEST_F(ParserTest, string) {
 }
 
 TEST_F(ParserTest, anynum) {
-  TestAnyNum("3.1415 4aone", 6, 3.1415, Value::NO_UNIT, false, "");
-  TestAnyNum(".1415 4aone", 5, 0.1415, Value::NO_UNIT, true, ".1415");
-  TestAnyNum("5 4aone", 1, 5, Value::NO_UNIT, true, "5");
+  TestAnyNum("3.1415 4aone", 6, 3.1415, Value::NO_UNIT);
+  TestAnyNum(".1415 4aone", 5, .1415, Value::NO_UNIT);
+  TestAnyNum("5 4aone", 1, 5, Value::NO_UNIT);
 
-  TestAnyNum("0.1415pt 4aone", 8, 0.1415, Value::PT, true, "0.1415");
-  TestAnyNum(".1415pc 4aone", 7, 0.1415, Value::PC, true, ".1415");
-  TestAnyNum("5s 4aone", 2, 5, Value::S, false, "");
+  TestAnyNum("3.1415pt 4aone", 8, 3.1415, Value::PT);
+  TestAnyNum(".1415pc 4aone", 7, .1415, Value::PC);
+  TestAnyNum("5s 4aone", 2, 5, Value::S);
 
   TestAnyNumOtherUnit("5sacks 4aone", 6, 5, "sacks");
   TestAnyNumOtherUnit("5灣 4aone", 4, 5, "灣");
@@ -609,7 +606,7 @@ TEST_F(ParserTest, background) {
 
 TEST_F(ParserTest, font_family) {
   scoped_ptr<Parser> a(new Parser(
-      " Arial font, 'Sans', system, menu new "));
+      " Arial font 'Sans' system, menu new "));
   scoped_ptr<Values> t(new Values);
 
   EXPECT_TRUE(a->ParseFontFamily(t.get()));
@@ -634,60 +631,6 @@ TEST_F(ParserTest, font_family) {
   ASSERT_EQ(1, t->size());
   EXPECT_EQ(Value::IDENT, t->get(0)->GetLexicalUnitType());
   EXPECT_EQ("Verdana", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
-
-  // Legal base example.
-  scoped_ptr<Declarations> d;
-  a.reset(new Parser("font-family: foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  ASSERT_EQ(1, d->size());
-  EXPECT_EQ(1, d->at(0)->values()->size());
-
-  // Illegal leading comma.
-  a.reset(new Parser("font-family: ,foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Illegal trailing comma.
-  a.reset(new Parser("font-family: foo,"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Legal empty string with separating comma.
-  a.reset(new Parser("font-family: '',foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  ASSERT_EQ(1, d->size());
-  EXPECT_EQ(2, d->at(0)->values()->size());
-
-  // Illegal empty elements in comma-separated list.
-  a.reset(new Parser("font-family: '',,foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Fonts must be comma separated.
-  a.reset(new Parser("font-family: 'bar' foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: 'bar' 'foo'"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: bar 'foo'"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: 'bar'foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
 }
 
 TEST_F(ParserTest, font) {
@@ -717,10 +660,6 @@ TEST_F(ParserTest, font) {
 
   a.reset(new Parser("normal 10px /120% Arial 'Sans'"));
   scoped_ptr<Values> t(a->ParseFont());
-  EXPECT_TRUE(NULL == t.get());
-
-  a.reset(new Parser("normal 10px /120% Arial, 'Sans'"));
-  t.reset(a->ParseFont());
   ASSERT_EQ(7, t->size());
   EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Value::PERCENT, t->get(4)->GetDimension());
@@ -882,19 +821,23 @@ TEST_F(ParserTest, values) {
                                       ->GetIdentifierText()));
 }
 
-TEST_F(ParserTest, SkipBlock) {
+void ParseFontFamily(Parser* parser) {
+  Values values;
+  parser->ParseFontFamily(&values);
+}
+
+TEST_F(ParserTest, ParseBlock) {
   static const char* truetestcases[] = {
     "{{{{}}}} serif",
     "{ {  { {  }    }   }    } serif",  // whitespace
     "{@ident1{{ @ident {}}}} serif",    // @-idents
+    "{{}} @ident {{}} @ident serif",    // multiple blocks
     "{{ident{{}ident2}}} serif",        // idents
   };
   for (int i = 0; i < arraysize(truetestcases); ++i) {
     SCOPED_TRACE(truetestcases[i]);
-    Parser p(truetestcases[i]);
-    EXPECT_TRUE(p.SkipBlock());
     Values values;
-    EXPECT_TRUE(p.ParseFontFamily(&values));
+    EXPECT_TRUE(Parser(truetestcases[i]).ParseFontFamily(&values));
     ASSERT_EQ(1, values.size());
     EXPECT_EQ(Value::IDENT, values.get(0)->GetLexicalUnitType());
     EXPECT_EQ("serif", UnicodeTextToUTF8(values.get(0)->GetIdentifierText()));
@@ -907,10 +850,8 @@ TEST_F(ParserTest, SkipBlock) {
   };
   for (int i = 0; i < arraysize(falsetestcases); ++i) {
     SCOPED_TRACE(falsetestcases[i]);
-    Parser p(falsetestcases[i]);
-    p.SkipBlock();
     Values values;
-    p.ParseFontFamily(&values);
+    Parser(falsetestcases[i]).ParseFontFamily(&values);
     EXPECT_EQ(0, values.size());
   }
 
@@ -985,7 +926,7 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ(1, t->get(6)->values()->size());
 
   // expand font
-  a.reset(new Parser("font: small-caps 24px Arial, 'Sans', monospace; "));
+  a.reset(new Parser("font: small-caps 24px Arial 'Sans', monospace; "));
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(7, t->size());
   EXPECT_EQ(Property::FONT, t->get(0)->prop());
@@ -2317,90 +2258,6 @@ TEST_F(ParserTest, SkipPastDelimiterRecusiveDepth) {
   string bad(1000000, '{');
   FailureSkipPast('}', bad);
 
-}
-
-TEST_F(ParserTest, ParseMediaQueries) {
-  scoped_ptr<Parser> a(new Parser("screen"));
-  scoped_ptr<MediaQueries> q(a->ParseMediaQueries());
-  ASSERT_TRUE(NULL != q.get());
-  EXPECT_EQ(1, q->size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  // now it requires ";" at the end of the input query.
-  EXPECT_EQ(Parser::kMediaError, a->errors_seen_mask());
-
-  // qualifier
-  a.reset(new Parser("only screen"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(MediaQuery::ONLY, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-
-  // media expression
-  a.reset(new Parser("screen and (max-width: 640px)"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("640px", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-
-  // tailing whitespaces of values are not trimmed.
-  a.reset(new Parser("screen and (max-width:  640 px  )"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("640 px  ", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-
-  // multiple queries
-  a.reset(new Parser(
-      "not screen and (max-width: 500px), projection and (color)"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(2, q->size());
-  EXPECT_EQ(MediaQuery::NOT, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("500px", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-  EXPECT_EQ("projection", UnicodeTextToUTF8((*q)[1]->media_type()));
-  ASSERT_EQ(1, (*q)[1]->expressions().size());
-  EXPECT_EQ("color", UnicodeTextToUTF8((*q)[1]->expression(0).name()));
-  ASSERT_FALSE((*q)[1]->expression(0).has_value());
-
-  // empty input. never return NULL.
-  a.reset(new Parser(""));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_TRUE(NULL != q.get());
-  EXPECT_EQ(0, q->size());
-
-  // any media_type is allowed
-  a.reset(new Parser("foobar"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(1, q->size());
-  EXPECT_EQ("foobar", UnicodeTextToUTF8((*q)[0]->media_type()));
-
-  // same results with or without "and".
-  scoped_ptr<Parser> b;
-  scoped_ptr<MediaQueries> r;
-  a.reset(new Parser("screen (max-width: 640px)"));
-  b.reset(new Parser("screen and (max-width: 640px)"));
-  q.reset(a->ParseMediaQueries());
-  r.reset(b->ParseMediaQueries());
-  EXPECT_EQ(r->ToString(), q->ToString());
-}
-
-TEST_F(ParserTest, ImportInMiddle) {
-  scoped_ptr<Parser> p(new Parser(".a { color: red; }\n"
-                                  "@import url('foo.css');\n"
-                                  ".b { color: blue; }\n"));
-  scoped_ptr<Stylesheet> s(p->ParseStylesheet());
-  EXPECT_EQ(0, s->imports().size());
-  EXPECT_EQ(2, s->rulesets().size());
-  EXPECT_EQ(Parser::kImportError, p->errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n.a {color: #ff0000}\n.b {color: #0000ff}\n",
-            s->ToString());
 }
 
 }  // namespace Css

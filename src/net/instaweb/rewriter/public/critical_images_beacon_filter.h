@@ -44,6 +44,7 @@ class CriticalImagesBeaconFilter : public EmptyHtmlFilter {
   virtual void DetermineEnabled();
 
   static void InitStats(Statistics* statistics);
+  static void Terminate() {}
 
   virtual void StartDocument();
   virtual void EndElement(HtmlElement* element);
