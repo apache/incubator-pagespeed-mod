@@ -328,7 +328,7 @@ void SlurpUrl(ApacheResourceManager* manager, request_rec* r) {
                      stripped_url.c_str(),
                      request_headers.ToString().c_str(),
                      response_headers.ToString().c_str());
-    SlurpDefaultHandler(r);
+    manager->ReportSlurpNotFound(stripped_url, r);
   }
 }
 

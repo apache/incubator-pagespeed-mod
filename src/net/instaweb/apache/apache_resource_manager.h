@@ -19,8 +19,10 @@
 
 #include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/rewrite_stats.h"
 
 struct apr_pool_t;
+struct request_rec;
 struct server_rec;
 
 namespace net_instaweb {
@@ -94,7 +96,37 @@ class ApacheResourceManager : public ResourceManager {
 
   const server_rec* server() const { return server_rec_; }
 
+  Variable* statistics_404_count();
+
+  // Reports an error status to the HTTP resource request, and logs
+  // the error as a Warning to the log file, and bumps a stat as
+  // needed.
+  void ReportResourceNotFound(StringPiece error_message, request_rec* request) {
+    ReportNotFoundHelper(error_message, request,
+                         rewrite_stats()->resource_404_count());
+  }
+
+  // Reports an error status to the HTTP statistics request, and logs
+  // the error as a Warning to the log file, and bumps a stat as
+  // needed.
+  void ReportStatisticsNotFound(StringPiece error_message,
+                                request_rec* request) {
+    ReportNotFoundHelper(error_message, request, statistics_404_count());
+  }
+
+  // Reports an error status to the HTTP slurp request, and logs
+  // the error as a Warning to the log file, and bumps a stat as
+  // needed.
+  void ReportSlurpNotFound(StringPiece error_message, request_rec* request) {
+    ReportNotFoundHelper(error_message, request,
+                         rewrite_stats()->slurp_404_count());
+  }
+
  private:
+  void ReportNotFoundHelper(StringPiece url,
+                            request_rec* request,
+                            Variable* error_count);
+
   ApacheRewriteDriverFactory* apache_factory_;
   server_rec* server_rec_;
   GoogleString version_;

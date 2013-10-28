@@ -410,6 +410,8 @@ apache_install_conf:
 	    $(OPT_ALL_DIRECTIVES_TEST)
 
 apache_debug_restart:
+	$(APACHE_CONTROL_PROGRAM) stop
+	sleep 2
 	$(APACHE_CONTROL_PROGRAM) restart
 
 apache_debug_stop: stop
