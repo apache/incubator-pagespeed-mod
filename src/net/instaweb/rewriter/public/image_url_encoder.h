@@ -26,7 +26,7 @@
 #include "net/instaweb/util/public/url_segment_encoder.h"
 
 namespace net_instaweb {
-class RequestProperties;
+class DeviceProperties;
 class RewriteDriver;
 class MessageHandler;
 
@@ -58,11 +58,6 @@ class MessageHandler;
 //       Webp requested, for mobile user agent, page missing dimensions.
 class ImageUrlEncoder : public UrlSegmentEncoder {
  public:
-  // Area threshold that determines whether we use
-  // Image*RecompressionQualityForSmallScreens to set WebP/Jpeg quality.
-  // The intent is for phones and small tablets (e.g., Nexus 7) to be in.
-  static const int kSmallScreenSizeThresholdArea;
-
   ImageUrlEncoder() {}
   virtual ~ImageUrlEncoder();
 
@@ -79,7 +74,7 @@ class ImageUrlEncoder : public UrlSegmentEncoder {
   // TODO(poojatandon): Pass a user agent object with its webp-cabaple bits
   // pre-analyzed (not just the string from the request headers), since
   // checking webp level related code doesn't belong here.
-  static void  SetLibWebpLevel(const RequestProperties& request_properties,
+  static void  SetLibWebpLevel(const DeviceProperties& device_properties,
                                ResourceContext* resource_context);
 
   // Sets webp and mobile capability in resource context.
@@ -89,11 +84,6 @@ class ImageUrlEncoder : public UrlSegmentEncoder {
   // resource context is modified and can be NULL, hence we pass as a pointer.
   static void SetWebpAndMobileUserAgent(const RewriteDriver& driver,
                                         ResourceContext* context);
-
-  // Flag whether this device has a small screen, which determines what
-  // Jpeg/WebP quality to use.
-  static void SetSmallScreen(const RewriteDriver& driver,
-                             ResourceContext* context);
 
   // Set context for screen resolution.
   static void SetUserAgentScreenResolution(

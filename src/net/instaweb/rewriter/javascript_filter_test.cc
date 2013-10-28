@@ -23,9 +23,6 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -35,7 +32,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -74,7 +70,7 @@ class JavascriptFilterTest : public RewriteTestBase {
  protected:
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    expected_rewritten_path_ = Encode("", kFilterId, "0",
+    expected_rewritten_path_ = Encode(kTestDomain, kFilterId, "0",
                                       kRewrittenJsName, "js");
 
     blocks_minified_ = statistics()->GetVariable(
@@ -143,7 +139,7 @@ class JavascriptFilterTest : public RewriteTestBase {
                      ".js", new_suffix);
 
     GoogleString out;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, munged_url), &out));
+    EXPECT_TRUE(FetchResourceUrl(munged_url, &out));
 
     // Rewrite again; should still get normal URL
     ValidateExpected("no_ext_corruption",
@@ -165,9 +161,6 @@ class JavascriptFilterTest : public RewriteTestBase {
 
 TEST_F(JavascriptFilterTest, DoRewrite) {
   InitFiltersAndTest(100);
-  AbstractLogRecord* log_record =
-      rewrite_driver_->request_context()->log_record();
-  log_record->SetAllowLoggingUrls(true);
   ValidateExpected("do_rewrite",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
@@ -179,17 +172,6 @@ TEST_F(JavascriptFilterTest, DoRewrite) {
   EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   EXPECT_EQ(1, num_uses_->Get());
   EXPECT_STREQ("jm", AppliedRewriterStringFromLog());
-  VerifyRewriterInfoEntry(log_record, "jm", 0, 0, 1, 1,
-                        "http://test.com/hello.js");
-}
-
-TEST_F(JavascriptFilterTest, RewriteButExceedLogThreshold) {
-  InitFiltersAndTest(100);
-  rewrite_driver_->log_record()->SetRewriterInfoMaxSize(0);
-  ValidateExpected("do_rewrite",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(expected_rewritten_path_.c_str()));
-  EXPECT_STREQ("", AppliedRewriterStringFromLog());
 }
 
 TEST_F(JavascriptFilterTest, DoRewriteUnhealthy) {
@@ -404,8 +386,7 @@ TEST_F(JavascriptFilterTest, ServeFiles) {
   EXPECT_EQ(0, num_uses_->Get());
 
   // Finally, serve from a completely separate server.
-  ServeResourceFromManyContexts(StrCat(kTestDomain, expected_rewritten_path_),
-                                kJsMinData);
+  ServeResourceFromManyContexts(expected_rewritten_path_, kJsMinData);
 }
 
 TEST_F(JavascriptFilterTest, ServeFilesUnhealthy) {
@@ -472,7 +453,7 @@ TEST_F(JavascriptFilterTest, InvalidInputMimetype) {
   SetResponseWithDefaultHeaders(kNotJsFile, not_java_script, kJsData, 100);
   ValidateExpected("wrong_mime",
                    GenerateHtml(kNotJsFile),
-                   GenerateHtml(Encode("", "jm", "0",
+                   GenerateHtml(Encode(kTestDomain, "jm", "0",
                                        kNotJsFile, "js").c_str()));
 }
 
@@ -542,7 +523,7 @@ TEST_F(JavascriptFilterTest, StripInlineWhitespace) {
       "StripInlineWhitespace",
       StrCat("<script src='", kOrigJsName, "'>   \t\n   </script>"),
       StrCat("<script src='",
-             Encode("", "jm", "0", kOrigJsName, "js"),
+             Encode(kTestDomain, "jm", "0", kOrigJsName, "js"),
              "'></script>"));
 }
 
@@ -552,7 +533,7 @@ TEST_F(JavascriptFilterTest, RetainInlineData) {
   ValidateExpected("StripInlineWhitespace",
                    StrCat("<script src='", kOrigJsName, "'> data </script>"),
                    StrCat("<script src='",
-                          Encode("", "jm", "0", kOrigJsName, "js"),
+                          Encode(kTestDomain, "jm", "0", kOrigJsName, "js"),
                           "'> data </script>"));
 }
 
@@ -648,7 +629,7 @@ TEST_F(JavascriptFilterTest, WeirdSrcCrash) {
   SetResponseWithDefaultHeaders(kUrl, kContentTypeJavascript, kJsData, 300);
   ValidateExpected("weird_attr", "<script src=foo<bar>Content",
                    StrCat("<script src=",
-                          Encode("", "jm", "0", kUrl, "js"),
+                          Encode(kTestDomain, "jm", "0", kUrl, "js"),
                           ">Content"));
   ValidateNoChanges("weird_tag", "<script<foo>");
 }

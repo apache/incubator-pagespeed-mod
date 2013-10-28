@@ -106,17 +106,17 @@ class ResourceFetch : public SharedAsyncFetch {
   // the caller, but it's responsible for calling Cleanup() once done with it.
   static void StartWithDriver(const GoogleUrl& url,
                               CleanupMode cleanup_mode,
-                              ServerContext* server_context,
+                              ServerContext* manager,
                               RewriteDriver* driver,
                               AsyncFetch* async_fetch);
 
   // If we're running an experiment and the url specifies an experiment spec,
   // set custom_options to use that experiment spec.  If custom_options is NULL
   // one will be allocated and the caller takes ownership of it.
-  static void ApplyExperimentOptions(const GoogleUrl& url,
-                                     const RequestContextPtr& request_ctx,
-                                     ServerContext* server_context,
-                                     RewriteOptions** custom_options);
+  static void ApplyFuriousOptions(const GoogleUrl& url,
+                                  const RequestContextPtr& request_ctx,
+                                  ServerContext* server_context,
+                                  RewriteOptions** custom_options);
 
   GoogleUrl resource_url_;
   RewriteDriver* driver_;

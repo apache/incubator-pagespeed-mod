@@ -23,17 +23,14 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
@@ -43,8 +40,8 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -87,13 +84,14 @@ class CssFilterTest : public CssRewriteTestBase {
       options()->DisableFilter(RewriteOptions::kExtendCacheImages);
       options()->DisableFilter(RewriteOptions::kSpriteImages);
     }
+    server_context()->ComputeSignature(options());
 
     // Set things up so that RewriteDriver::ShouldAbsolutifyUrl returns true
     // even though we are not proxying (but skip it if it has already been
     // set up by a previous call to this method).
     if (enable_mapping_and_sharding &&
         !options()->domain_lawyer()->can_rewrite_domains()) {
-      DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
+      DomainLawyer* domain_lawyer = options()->domain_lawyer();
       MessageHandler* handler = message_handler();
       ASSERT_TRUE(domain_lawyer->AddDomain("http://cdn.com/", handler));
       ASSERT_TRUE(domain_lawyer->AddDomain("http://test.com/", handler));
@@ -118,7 +116,6 @@ class CssFilterTest : public CssRewriteTestBase {
                                                         &proxying));
       EXPECT_FALSE(proxying);
     }
-    server_context()->ComputeSignature(options());
 
     // By default TestUrlNamer doesn't proxy but we might need it for this test.
     TestUrlNamer::SetProxyMode(enable_proxy_mode);
@@ -130,7 +127,6 @@ class CssFilterTest : public CssRewriteTestBase {
     // in the CSS parser.
     Css::Parser parser(css_input);
     parser.set_preservation_mode(true);
-    parser.set_quirks_mode(false);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
     EXPECT_TRUE(parser.errors_seen_mask() == Css::Parser::kNoError);
     EXPECT_EQ(expect_unparseable_section,
@@ -142,23 +138,13 @@ class CssFilterTest : public CssRewriteTestBase {
     StringVector css_urls;
     CollectCssLinks(StrCat(id, "_collect"), output_buffer_, &css_urls);
     ASSERT_LE(1UL, css_urls.size());
-    StringPiece prefix;
-    if (enable_mapping_and_sharding) {
-      prefix = "http://cdn1.com/";
-    } else if (factory()->use_test_url_namer()) {
-      prefix = kTestDomain;
-    } else {
-      prefix = "";
-    }
-    EXPECT_EQ(Encode(prefix, "cf", "0", "foo.css", "css"), css_urls[0]);
-
-    // Get absolute CSS URL.
-    GoogleUrl base_url(kTestDomain);
-    GoogleUrl css_url(base_url, css_urls[0]);
+    StringPiece domain(enable_mapping_and_sharding
+                       ? "http://cdn1.com/" : kTestDomain);
+    EXPECT_EQ(Encode(domain, "cf", "0", "foo.css", "css"), css_urls[0]);
 
     // Check the content of the CSS file.
     GoogleString actual_output;
-    EXPECT_TRUE(FetchResourceUrl(css_url.Spec(), &actual_output));
+    EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
     EXPECT_STREQ(expected_output, actual_output);
   }
 
@@ -177,10 +163,12 @@ class CssFilterTest : public CssRewriteTestBase {
                                           input_image_name);
     GoogleString css_input = StringPrintf("body{background:url(%s)}",
                                           input_image_name);
-    GoogleString css_output = StringPrintf("body{background:url(%s)}",
+    GoogleString css_output = StringPrintf("body{background:url(%s%s)}",
+                                           kTestDomain,
                                            image_out.c_str());
-    GoogleString expected_url = StringPrintf(output_css_name_template,
-                                             kInputCssName);
+    GoogleString expected_url = StrCat(kTestDomain,
+                                       StringPrintf(output_css_name_template,
+                                                    kInputCssName));
     AddFileToMockFetcher(StrCat(kTestDomain, input_image_name),
                          input_image_name, image_content_type, 100);
     server_context()->ComputeSignature(options());
@@ -196,8 +184,7 @@ class CssFilterTest : public CssRewriteTestBase {
 
     // Check the content of the CSS file.
     GoogleString actual_output;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, css_urls[0]),
-                                 &actual_output));
+    EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
     EXPECT_STREQ(css_output, actual_output);
   }
 };
@@ -215,32 +202,6 @@ TEST_F(CssFilterTest, SimpleRewriteCssTestExternalUnhealthy) {
   lru_cache()->set_is_healthy(false);
   ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
                              kExpectNoChange);
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropAll) {
-  // Test that randomized optimization doesn't rewrite when drop % set to 100
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(100);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectNoChange);
-    lru_cache()->Clear();
-    ClearStats();
-  }
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropNone) {
-  // Test that randomized optimization always rewrites when drop % set to 0.
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(0);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectSuccess);
-    lru_cache()->Clear();
-    ClearStats();
-  }
 }
 
 TEST_F(CssFilterTest, RewriteCss404) {
@@ -364,7 +325,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
   // TODO(marq): Make this not necessary by folding log validation into
   // ValidateWithStats().
   RequestContextPtr rctx = rewrite_driver()->request_context();
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}", kExpectSuccess);
   int inserts_before = lru_cache()->num_inserts();
   EXPECT_EQ(1, num_blocks_rewritten_->Get());  // for factory_
@@ -373,12 +333,9 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
   ResetStats();
 
   rctx.reset(rewrite_driver()->request_context());
-  rctx->log_record()->SetAllowLoggingUrls(true);
   ValidateRewriteExternalCss("rep", " div { } ", "div{}",
                              kExpectSuccess | kNoStatCheck);
   int inserts_after = lru_cache()->num_inserts();
@@ -390,8 +347,6 @@ TEST_F(CssFilterTest, RewriteRepeated) {
     ScopedMutex lock(rctx->log_record()->mutex());
     EXPECT_STREQ("cf", rctx->log_record()->AppliedRewritersString());
   }
-  VerifyRewriterInfoEntry(rctx->log_record(), "cf", 0, 0, 1, 1,
-                          "http://test.com/rep.css");
 }
 
 // Make sure we do not reparse external CSS when we know it already has
@@ -574,15 +529,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // Invalid font declaration.
     "a{font: menu foobar }",
 
-    // Do not remove . between 1 and em, this needs to be lexed as:
-    // INT(1) DELIM(.) IDENT(em)
-    "a{padding-top: 1.em }",
-
-    // Unexpected ! uses in declarations.
-    "a{color: red !ie }",
-    "a{color: !important red }",
-    "a{color: red !important blue }",
-
     // Things from Alexa-100 that we get parsing errors for. Most are illegal
     // syntax/typos. Some are CSS3 constructs.
 
@@ -627,9 +573,6 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // Mismatched {}s that are acceptable because they do not fail to close {s,
     // but instead have stray }s that would not be parsed as closing previous {s
     "a[}]{color:red}",
-
-    // Don't "fix" font properties.
-    "a{font:12px,clean}",
   };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
@@ -825,7 +768,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     { "body { font: 2em sans-serif; }", "body{font:2em sans-serif}" },
-    { "body { font: 0.75em sans-serif; }", "body{font:.75em sans-serif}" },
+    { "body { font: 0.75em sans-serif; }", "body{font:0.75em sans-serif}" },
 
     // http://code.google.com/p/modpagespeed/issues/detail?id=128
     { "#breadcrumbs ul { list-style-type: none; }",
@@ -901,20 +844,8 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "#foo{z-index:2147483649}" },
 
     { "#foo { z-index: 123456789012345678901234567890; }",
-      "#foo{z-index:123456789012345678901234567890}" },
-
-    // Don't drop precision on long floating point numbers.
-    { ".ad-contain .ad-jump {\n"
-      "  color: #000;\n"
-      "  font: bold 1.54545455em/0.823529412 \"Benton Sans Bold\", Arial, "
-      "Helvetica, sans-serif;   /* 17px / 11px; 14px / 17px */\n"
-      "  margin-bottom: 1em;\n"
-      "}",
-
-      // Note: we drop the leading 0 from 0.823... but not any of the
-      // digits of precision.
-      ".ad-contain .ad-jump{color:#000;font:bold 1.54545455em/.823529412 "
-      "\"Benton Sans Bold\",Arial,Helvetica,sans-serif;margin-bottom:1em}" },
+      // TODO(sligocki): "#foo{z-index:12345678901234567890}" },
+      "#foo{z-index:1.234567890123457e+29}" },
 
     // Parse and serialize "\n" correctly as "n" and "\A " correctly as newline.
     // But leave the original string without messing with escaping.
@@ -1279,7 +1210,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
     // Don't "fix" quirks-mode colors.
     // Note: DECAFB is not converted to a more correct #decafb.
-    { "body { color: DECAFB }", "body{color: DECAFB }" },
+    { "body { color: DECAFB }", "body{color:DECAFB}" },
 
     { "#post_content, #post_content p{\n"
       " font-family:Helvetica;\n"
@@ -1308,45 +1239,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // https://code.google.com/p/modpagespeed/issues/detail?id=614
     { "td { line-height: 0.8em; margin: -0.9in; }",
       "td{line-height:.8em;margin:-.9in}" },
-
-    // ::- in selectors
-    { "::-moz-selection {background: #f36921 ; color: #fff ; text-shadow:none}",
-      "::-moz-selection{background:#f36921;color:#fff;text-shadow:none}" },
-
-    // Sloppy color syntax
-    // Note that according to the CSS spec: 0000ff should be parsed as
-    // DIM(0, ff) and then serialized as 0ff, but browsers will parse both
-    // of these values as quirks-mode colors and thus we would be changing
-    // the links from blue to cyan.
-    // https://code.google.com/p/modpagespeed/issues/detail?id=639
-    { "A:link, A:visited { color: 0000ff }",
-      "A:link,A:visited{color: 0000ff }" },
-
-    // Unexpected ! uses in declarations.
-    { ".filehistory a img,#file img:hover{background:white url(data:image/png;"
-      "base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/"
-      "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
-      "background:white url(http://static.uncyc.org/skins/common/images/Checke"
-      "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}",
-
-      ".filehistory a img,#file img:hover{background:#fff url(data:image/png;"
-      "base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAGElEQVQYV2N4DwX/"
-      "oYBhgARgDJjEAAkAAEC99wFuu0VFAAAAAElFTkSuQmCC) repeat;"
-      "background:white url(http://static.uncyc.org/skins/common/images/Checke"
-      "r-16x16.png?2012-02-15T12:25:00Z) repeat!ie}" },
-
-    { "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial !important}",
-
-      "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
-      "font-family:Arial!important}" },
-
-    // https://code.google.com/p/modpagespeed/issues/detail?id=722
-    { ".a { color: red; }\n"
-      "@import url('foo.css');\n"
-      ".b { color: blue; }\n",
-
-      ".a{color:red}@import url('foo.css');.b{color:#00f}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1374,54 +1266,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
     "-webkit-background-size:776px 18px;background-size:776px 18px;}"
     ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}",
-
-    // Things discovered in the wild by shanemc:
-
-    // No space between "and" and "(".
-    "@media all and(-webkit-max-device-pixel-ratio:10000),\n"
-    "   not all and(-webkit-min-device-pixel-ratio:0) {\n"
-    "\n"
-    "\t:root .RadTreeView_rtl .rtPlus,\n"
-    "\t:root .RadTreeView_rtl .rtMinus\n"
-    "\t{\n"
-    "\t\tposition: relative;\n"
-    "\t\tmargin-left: 2px;\n"
-    "\t\tmargin-right: -13px;\n"
-    "\t\tright: -15px;\n"
-    "\t}\n"
-    "}\n",
-
-    // Ignoring chars at end of function.
-    "* html #profilePhoto {\n"
-    "  height: expression((this.flag == undefined) ? (this.scrollHeight > 500) "
-    "? this.flag = '500px' : 'auto' : '');\n"
-    "}",
-
-    // Zero width space <U+200B> = \xE2\x80\x8B
-    // http://zenpencils.com/wp-content/plugins/zpcustomselectmenu/ddSlick.css
-    "   .dd-container { \n"
-    "           position:relative; \n"
-    "           margin:0px;\n"
-    "   }\xE2\x80\x8B \n"
-    "   .dd-selected-text { \n"
-    "           font-weight:bold;\n"
-    "           cursor:pointer !important;\n"
-    "   }\xE2\x80\x8B",
-
-    // Nonsense: (rgba(...)) (last line).
-    // From http://yandex.st/www/1.473/touch-bem/pages-touch/index/_index.css
-    ".b-search__button{position:relative;min-width:50px;margin:0 0 0 -1px;"
-    "padding:1px 0 1px 1px;-webkit-border-top-left-radius:2px;"
-    "border-top-left-radius:2px;-webkit-border-bottom-left-radius:2px;"
-    "border-bottom-left-radius:2px;background:-webkit-gradient(linear,0 0,"
-    "0 100%,from(rgba(192,192,192,.6)),to(rgba(49,49,49,.3)));"
-    "background:-o-linear-gradient(top,(rgba(192,192,192,.6)),"
-    "(rgba(49,49,49,.3)))}",
-
-    // !important in selectors.
-    // From http://mstatic.allegrostatic.pl/allegro/touch/css/style.min.css
-    "-moz-appearance:none!important;html{height:100%}",
-    "-moz-foo { -webkit-bar: -ie-quuz }",
   };
 
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
@@ -1512,10 +1356,6 @@ TEST_F(CssFilterTest, RewriteStyleAttribute) {
   ValidateExpected("rewrite-simple",
                    "<div style='background-color: #f00; color: yellow;'/>",
                    "<div style='background-color:red;color:#ff0'/>");
-  // Rewritten elements with style attributes don't have any log entries.
-  EXPECT_EQ(0, rewrite_driver()->request_context()->log_record()->
-            logging_info()->rewriter_info().size());
-
 
   SetFetchResponse404("404.css");
   static const char kMixedInput[] =
@@ -1945,7 +1785,7 @@ TEST_F(CssFilterTest, EmptyLeafFetch) {
 // http://code.google.com/p/modpagespeed/issues/detail?id=427
 TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
-  ValidateRewriteExternalCssUrl("empty_leaf", StrCat(kTestDomain, "style/"),
+  ValidateRewriteExternalCssUrl(StrCat(kTestDomain, "style/"),
                                 kInputStyle, kOutputStyle, kExpectSuccess);
 }
 
@@ -1966,9 +1806,6 @@ TEST_F(CssFilterTest, FlushInInlineCss) {
   //   EndElement style
   EXPECT_EQ("<html><body><style>.a{color:red}</style></body></html>",
             output_buffer_);
-  // Inlined rewritten css don't have any log entries.
-  EXPECT_EQ(0, rewrite_driver()->request_context()->log_record()->
-            logging_info()->rewriter_info().size());
 }
 
 TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
@@ -2024,7 +1861,7 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
   SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, kInputStyle, 100);
 
   const char html_format[] = "<link rel='%s' href='%s' title='foo'>";
-  const GoogleString new_url = Encode("", "cf", "0", "foo.css", "css");
+  const GoogleString new_url = Encode(kTestDomain, "cf", "0", "foo.css", "css");
 
   ValidateExpected("preferred_stylesheet",
                    StringPrintf(html_format, "stylesheet", "foo.css"),
@@ -2041,14 +1878,8 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
                    StringPrintf(html_format, " StyleSheet alterNATE  ",
                                 new_url.c_str()));
 
-  ValidateExpected("alternate_stylesheet_and_more",
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                "foo.css"),
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                new_url.c_str()));
-
-  ValidateNoChanges("alternate_not_stylesheet",
-                    StringPrintf(html_format, "alternate snowflake",
+  ValidateNoChanges("alternate_stylesheet_and_more",
+                    StringPrintf(html_format, "  foo stylesheet alternate bar ",
                                  "foo.css"));
 }
 

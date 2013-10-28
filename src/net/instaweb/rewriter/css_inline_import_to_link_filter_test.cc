@@ -18,6 +18,7 @@
 
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -352,7 +353,8 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertThenCacheExtend) {
   ValidateExpected("script_to_link_then_cache_extend",
                    StrCat("<style>@import url(", kCssFile, ");</style>"),
                    StrCat("<link rel=\"stylesheet\" href=\"",
-                          Encode(kCssSubdir, "ce", "0", kCssTail, "css"),
+                          Encode(StrCat(kTestDomain, kCssSubdir), "ce", "0",
+                                 kCssTail, "css"),
                           "\">"));
 }
 

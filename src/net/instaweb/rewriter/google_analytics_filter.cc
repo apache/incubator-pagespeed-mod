@@ -34,7 +34,7 @@
 
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
 
-#include <memory>
+#include <cctype>
 #include <vector>
 
 #include "base/logging.h"
@@ -232,8 +232,8 @@ void GoogleAnalyticsFilter::EndDocument() {
 void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
   // No tags allowed inside script element.
   if (script_element_ != NULL) {
-    html_parse_->ErrorHere("Google Analytics reset: Tag '%s' found inside "
-                           "script.", CEscape(element->name_str()).c_str());
+    html_parse_->ErrorHere("Reset: Tag '%s' found inside script.",
+                           element->name_str());
     ResetFilter();
   }
   if (element->keyword() == HtmlName::kScript) {
@@ -244,9 +244,8 @@ void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
 void GoogleAnalyticsFilter::EndElement(HtmlElement* element) {
   if (script_element_ != NULL) {
     if (element != script_element_) {
-      html_parse_->ErrorHere("Google Analytics reset: Unexpected tag '%s' "
-                             "inside a script.",
-                             CEscape(element->name_str()).c_str());
+      html_parse_->ErrorHere("Reset: Unexpected tag '%s' inside a script.",
+                             element->name_str());
       ResetFilter();
     } else {
       FindRewritableScripts();
@@ -258,7 +257,7 @@ void GoogleAnalyticsFilter::EndElement(HtmlElement* element) {
 
 void GoogleAnalyticsFilter::Flush() {
   if (script_element_ != NULL) {
-    html_parse_->InfoHere("Google Analytics reset: flush in a script.");
+    html_parse_->InfoHere("Reset: flush in a script.");
     ResetFilter();
   }
 }
@@ -268,8 +267,7 @@ void GoogleAnalyticsFilter::Characters(HtmlCharactersNode* characters_node) {
     if (script_characters_node_ == NULL) {
       script_characters_node_ = characters_node;
     } else {
-      html_parse_->ErrorHere("Google Analytics reset: multiple character "
-                             "nodes in script.");
+      html_parse_->ErrorHere("Reset: multiple character nodes in script.");
       ResetFilter();
     }
   }
@@ -277,23 +275,21 @@ void GoogleAnalyticsFilter::Characters(HtmlCharactersNode* characters_node) {
 
 void GoogleAnalyticsFilter::Comment(HtmlCommentNode* comment) {
   if (script_element_ != NULL) {
-    html_parse_->InfoHere("Google Analytics reset: comment found inside "
-                          "script.");
+    html_parse_->InfoHere("Reset: comment found inside script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::Cdata(HtmlCdataNode* cdata) {
   if (script_element_ != NULL) {
-    html_parse_->InfoHere("Google Analytics reset: CDATA found inside script.");
+    html_parse_->InfoHere("Reset: CDATA found inside script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   if (script_element_ != NULL) {
-    html_parse_->ErrorHere("Google Analytics reset: IE Directive found "
-                           "inside script.");
+    html_parse_->ErrorHere("Reset: IE Directive found inside script.");
     ResetFilter();
   }
 }
@@ -379,7 +375,7 @@ bool GoogleAnalyticsFilter::MatchUnhandledCalls(
           if (c == '(') {
             html_parse_->InfoHere("Matched unhandled call: %s", method.data());
             return true;
-          } else if (!IsHtmlSpace(c)) {
+          } else if (!isspace(c)) {
             break;
           }
         }
@@ -421,7 +417,7 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
           start_pos = pos + len;
         }
         if (is_init_found_ && MatchUnhandledCalls(contents, start_pos)) {
-          html_parse_->InfoHere("Google Analytics reset: unhandled call.");
+          html_parse_->InfoHere("Reset: unhandled call.");
           ResetFilter();
           return;
         }
@@ -465,7 +461,7 @@ bool GoogleAnalyticsFilter::RewriteAsAsync() {
     ScriptEditor* editor = script_editors_[i];
     HtmlElement* script = editor->GetScriptElement();
     if (editor->GetType() == ScriptEditor::kGaJsScriptSrcLoad) {
-      html_parse_->DeleteNode(script);
+      html_parse_->DeleteElement(script);
       html_parse_->InfoHere("Deleted script src load");
     } else if (editor->GetType() == ScriptEditor::kGaJsDocWriteLoad) {
       editor->NewContents("", &replacement_script);

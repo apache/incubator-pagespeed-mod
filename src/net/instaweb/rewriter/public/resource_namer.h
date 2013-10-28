@@ -24,8 +24,8 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class Hasher;
-struct ContentType;
 
 // Encapsulates the naming of resource URL leafs.  The class holds the context
 // of a single resource, and is not intended for re-use.  We could, of course,
@@ -60,7 +60,7 @@ class ResourceNamer {
   // Note: there is no need at this time to decode the name key.
 
   // Eventual length of name. Gets eventual hash length from passed in hasher.
-  // Needed by RewriteDriver to check that filenames aren't too long.
+  // Needed by ResourceManager to check that filenames aren't too long.
   int EventualSize(const Hasher& hasher) const;
 
   // Simple getters

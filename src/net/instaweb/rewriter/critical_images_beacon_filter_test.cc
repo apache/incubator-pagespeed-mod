@@ -18,22 +18,17 @@
 
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 
+#include <set>
+
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/mock_property_page.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
@@ -58,64 +53,28 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     CriticalImagesBeaconFilter::InitStats(statistics());
     // Enable a filter that uses critical images, which in turn will enable
     // beacon insertion.
-    factory()->set_use_beacon_results_in_filters(true);
     options()->EnableFilter(RewriteOptions::kLazyloadImages);
+    options()->set_critical_images_beacon_enabled(true);
     RewriteTestBase::SetUp();
     https_mode_ = false;
-    // Setup the property cache. The DetermineEnable logic for the
-    // CriticalIMagesBeaconFinder will only inject the beacon if the property
-    // cache is enabled, since beaconed results are intended to be stored in the
-    // pcache.
-    PropertyCache* pcache = page_property_cache();
-    server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* beacon_cohort =
-        SetupCohort(pcache, RewriteDriver::kBeaconCohort);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_beacon_cohort(beacon_cohort);
-    server_context()->set_dom_cohort(dom_cohort);
-
-    server_context()->set_critical_images_finder(
-        new BeaconCriticalImagesFinder(
-            beacon_cohort, factory()->nonce_generator(), statistics()));
-    MockPropertyPage* page = NewMockPage("http://example.com");
-    rewrite_driver()->set_property_page(page);
-    pcache->set_enabled(true);
-    pcache->Read(page);
-
-    GoogleUrl base(GetTestUrl());
-    image_gurl_.Reset(base, kChefGifFile);
-  }
-
-  void PrepareInjection() {
-    rewrite_driver()->AddFilters();
-    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile,
-                         kContentTypeJpeg, 100);
-  }
-
-  void AddImageTags(GoogleString* html) {
-    // Add the relative image URL.
-    StrAppend(html, "<img src=\"", kChefGifFile, "\" ", kChefGifDims, ">");
-    // Add the absolute image URL.
-    StrAppend(html, "<img src=\"", image_gurl_.Spec(), "\" ",
-              kChefGifDims, ">");
   }
 
   void RunInjection() {
-    PrepareInjection();
-    GoogleString html = "<head></head><body>";
-    AddImageTags(&html);
-    StrAppend(&html, "</body>");
-    ParseUrl(GetTestUrl(), html);
-  }
+    rewrite_driver()->AddFilters();
+    // The filter should absolutify img URLs before generating the hash of the
+    // URL, so test with both a relative and absolute URL and make sure the
+    // hashes match.
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, kChefGifFile);
 
-  void RunInjectionNoBody() {
-    // As above, but we omit <head> and (more relevant) <body> tags.  We should
-    // still inject the script at the end of the document.  The filter used to
-    // get this wrong.
-    PrepareInjection();
-    GoogleString html;
-    AddImageTags(&html);
+    AddFileToMockFetcher(img_gurl.Spec(), kChefGifFile, kContentTypeJpeg, 100);
+
+    GoogleString html = "<head></head><body>";
+    // Add the relative image URL.
+    StrAppend(&html, "<img src=\"", kChefGifFile, "\" ", kChefGifDims, ">");
+    // Add the absolute image URL.
+    StrAppend(&html, "<img src=\"", img_gurl.Spec(), "\" ", kChefGifDims, ">");
+    StrAppend(&html, "</body>");
     ParseUrl(GetTestUrl(), html);
   }
 
@@ -134,6 +93,8 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   void VerifyWithNoImageRewrite() {
     const GoogleString hash_str = ImageUrlHash(kChefGifFile);
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, kChefGifFile);
     EXPECT_TRUE(output_buffer_.find(
         StrCat("pagespeed_url_hash=\"", hash_str)) != GoogleString::npos);
   }
@@ -149,8 +110,10 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   GoogleString ImageUrlHash(StringPiece url) {
     // Absolutify the URL before hashing.
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, url);
     unsigned int hash_val = HashString<CasePreserve, unsigned int>(
-        image_gurl_.spec_c_str(), strlen(image_gurl_.spec_c_str()));
+        img_gurl.spec_c_str(), strlen(img_gurl.spec_c_str()));
     return UintToString(hash_val);
   }
 
@@ -160,32 +123,17 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     EscapeToJsStringLiteral(rewrite_driver()->google_url().Spec(), false, &url);
     StringPiece beacon_url = https_mode_ ? options()->beacon_url().https :
         options()->beacon_url().http;
-    GoogleString options_signature_hash =
-        rewrite_driver()->server_context()->hasher()->Hash(
-            rewrite_driver()->options()->signature());
     GoogleString str = "pagespeed.criticalImagesBeaconInit(";
-    StrAppend(&str, "'", beacon_url, "',");
-    StrAppend(&str, "'", url, "',");
-    StrAppend(&str, "'", options_signature_hash, "',");
-    StrAppend(&str, BoolToString(
-        CriticalImagesBeaconFilter::IncludeRenderedImagesInBeacon(
-            rewrite_driver())), ",");
-    StrAppend(&str, "'", ExpectedNonce(), "');");
+    StrAppend(&str, "'", beacon_url, "', ");
+    StrAppend(&str, "'", url, "');");
     return str;
   }
 
   bool https_mode_;
-  GoogleUrl image_gurl_;
 };
 
 TEST_F(CriticalImagesBeaconFilterTest, ScriptInjection) {
   RunInjection();
-  VerifyInjection();
-  VerifyWithNoImageRewrite();
-}
-
-TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionNoBody) {
-  RunInjectionNoBody();
   VerifyInjection();
   VerifyWithNoImageRewrite();
 }
@@ -203,12 +151,12 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   // URI has the correct hash. We need to add the image hash to the critical
   // image set to make sure that the image is inlined.
   GoogleString hash_str = ImageUrlHash(kChefGifFile);
-  StringSet* crit_img_set = server_context()->critical_images_finder()->
-      mutable_html_critical_images(rewrite_driver());
+  scoped_ptr<StringSet> crit_img_set(new StringSet);
   crit_img_set->insert(hash_str);
+  rewrite_driver()->set_critical_images(crit_img_set.release());
+  rewrite_driver()->set_updated_critical_images(true);
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
@@ -218,8 +166,6 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
 
   EXPECT_TRUE(output_buffer_.find("data:") != GoogleString::npos);
   EXPECT_TRUE(output_buffer_.find(hash_str) != GoogleString::npos);
-  EXPECT_EQ(-1, logging_info()->num_html_critical_images());
-  EXPECT_EQ(-1, logging_info()->num_css_critical_images());
 }
 
 TEST_F(CriticalImagesBeaconFilterTest, UnsupportedUserAgent) {

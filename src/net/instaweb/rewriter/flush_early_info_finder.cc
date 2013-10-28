@@ -19,22 +19,19 @@
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 
 #include "net/instaweb/rewriter/flush_early.pb.h"
-#include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 const char FlushEarlyInfoFinder::kFlushEarlyRenderPropertyName[] =
     "flush_early_render";
-
-FlushEarlyInfoFinder::FlushEarlyInfoFinder(const PropertyCache::Cohort* cohort)
-    : cohort_(cohort) {}
 
 FlushEarlyInfoFinder::~FlushEarlyInfoFinder() {
 }
@@ -43,21 +40,29 @@ void FlushEarlyInfoFinder::UpdateFlushEarlyInfoInDriver(RewriteDriver* driver) {
   if (driver->flush_early_render_info() != NULL) {
     return;
   }
-
-  PropertyCacheDecodeResult decode_status;
-  scoped_ptr<FlushEarlyRenderInfo> flush_early_render_info(
-      DecodeFromPropertyCache<FlushEarlyRenderInfo>(
-          driver->server_context()->page_property_cache(),
-          driver->fallback_property_page(),
-          cohort_,
-          kFlushEarlyRenderPropertyName,
-          driver->options()->finder_properties_cache_expiration_time_ms(),
-          &decode_status));
-  if (decode_status == kPropertyCacheDecodeOk) {
-    driver->set_flush_early_render_info(flush_early_render_info.release());
-  } else if (decode_status == kPropertyCacheDecodeParseError) {
-    driver->message_handler()->Message(kError, "Parsing value from cache "
-                                        "into FlushEarlyRenderInfo failed.");
+  PropertyCache* property_cache =
+      driver->server_context()->page_property_cache();
+  const PropertyCache::Cohort* cohort = property_cache->GetCohort(GetCohort());
+  PropertyPage* page = driver->property_page();
+  if (page != NULL && cohort != NULL) {
+    PropertyValue* property_value = page->GetProperty(
+        cohort, kFlushEarlyRenderPropertyName);
+    int64 cache_ttl_ms =
+      driver->options()->finder_properties_cache_expiration_time_ms();
+    if (property_value->has_value() && !property_cache->IsExpired(
+          property_value, cache_ttl_ms)) {
+      FlushEarlyRenderInfo* flush_early_render_info = new FlushEarlyRenderInfo;
+      StringPiece value = property_value->value();
+      ArrayInputStream property_stream(value.data(), value.size());
+      if (!flush_early_render_info->ParseFromZeroCopyStream(&property_stream)) {
+        driver->message_handler()->Message(kError, "Parsing value from cache "
+                                           "into FlushEarlyRenderInfo failed.");
+        delete flush_early_render_info;
+      } else {
+        driver->set_flush_early_render_info(flush_early_render_info);
+        return;
+      }
+    }
   }
 }
 
@@ -78,12 +83,27 @@ const char* FlushEarlyInfoFinder::GetCharset(
 void FlushEarlyInfoFinder::UpdateFlushEarlyInfoCacheEntry(
     RewriteDriver* driver,
     FlushEarlyRenderInfo* flush_early_render_info) {
-  flush_early_render_info->set_updated(true);
-  UpdateInPropertyCache(*flush_early_render_info,
-                        cohort_,
-                        kFlushEarlyRenderPropertyName,
-                        false /* don't write_cohort*/,
-                        driver->fallback_property_page());
+  PropertyCache* property_cache =
+      driver->server_context()->page_property_cache();
+  PropertyPage* page = driver->property_page();
+  if (property_cache != NULL && page != NULL) {
+    const PropertyCache::Cohort* cohort = property_cache->GetCohort(
+        GetCohort());
+    if (cohort != NULL) {
+      flush_early_render_info->set_updated(true);
+      PropertyValue* property_value = page->GetProperty(
+          cohort, kFlushEarlyRenderPropertyName);
+      GoogleString value;
+      {
+        StringOutputStream sstream(&value);  // finalizes in destructor
+        flush_early_render_info->SerializeToZeroCopyStream(&sstream);
+      }
+      property_cache->UpdateValue(value, property_value);
+    } else {
+      driver->message_handler()->Message(kWarning, "FlushEarly FinderCohort is"
+                                         "NULL.");
+    }
+  }
 }
 
 }  // namespace net_instaweb

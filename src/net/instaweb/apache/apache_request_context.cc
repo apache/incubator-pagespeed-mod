@@ -20,20 +20,16 @@
 #include "net/instaweb/apache/interface_mod_spdy.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 
 #include "httpd.h"  // NOLINT
 
 namespace net_instaweb {
 
-ApacheRequestContext::ApacheRequestContext(
-    AbstractMutex* logging_mutex,
-    Timer* timer,
-    int local_port,
-    StringPiece local_ip,
-    request_rec* req)
-    : SystemRequestContext(logging_mutex, timer, local_port, local_ip),
+ApacheRequestContext::ApacheRequestContext(AbstractMutex* logging_mutex,
+                                           request_rec* req)
+    : RequestContext(logging_mutex),
       use_spdy_fetcher_(ModSpdyFetcher::ShouldUseOn(req)),
+      local_port_(req->connection->local_addr->port),
       spdy_connection_factory_(NULL) {
   // Note that at the time we create a RequestContext we have full
   // access to the Apache request_rec.  However, due to Cloning and (I

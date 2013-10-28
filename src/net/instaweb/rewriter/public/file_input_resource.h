@@ -21,7 +21,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FILE_INPUT_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FILE_INPUT_RESOURCE_H_
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
@@ -33,11 +32,13 @@ struct ContentType;
 class InputInfo;
 class MessageHandler;
 class ResponseHeaders;
+class RewriteOptions;
 class ServerContext;
 
 class FileInputResource : public Resource {
  public:
   FileInputResource(ServerContext* server_context,
+                    const RewriteOptions* options,
                     const ContentType* type,
                     const StringPiece& url,
                     const StringPiece& filename);
@@ -53,6 +54,9 @@ class FileInputResource : public Resource {
                                         InputInfo* input);
 
   virtual GoogleString url() const { return url_; }
+  virtual const RewriteOptions* rewrite_options() const {
+    return rewrite_options_;
+  }
 
   virtual bool UseHttpCache() const { return false; }
 
@@ -61,13 +65,15 @@ class FileInputResource : public Resource {
                          ResponseHeaders* header, MessageHandler* handler);
 
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback);
+                               AsyncCallback* callback,
+                               MessageHandler* message_handler);
 
  private:
   GoogleString url_;
   GoogleString filename_;
   int64 last_modified_time_sec_;  // Loaded from file mtime.
+
+  const RewriteOptions* rewrite_options_;
 
   DISALLOW_COPY_AND_ASSIGN(FileInputResource);
 };

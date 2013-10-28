@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
@@ -35,8 +34,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/media.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/selector.h"
 
 namespace net_instaweb {
 
@@ -63,7 +60,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(80, extractor->width());
   EXPECT_EQ(50, extractor->height());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;");
@@ -72,7 +69,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kNoValue, extractor->width());
   EXPECT_EQ(kNoValue, extractor->height());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:80px;");
@@ -82,7 +79,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kNoValue, extractor->height());
   EXPECT_EQ(80, extractor->width());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;height:200px");
@@ -90,7 +87,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kHasHeightOnly, extractor->state());
   EXPECT_EQ(200, extractor->height());
   EXPECT_EQ(kNoValue, extractor->width());
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
 }
 
 TEST_F(CssUtilTest, TestAnyDimensions) {
@@ -102,14 +99,14 @@ TEST_F(CssUtilTest, TestAnyDimensions) {
   EXPECT_TRUE(extractor->HasAnyDimensions());
   EXPECT_EQ(kHasWidthOnly, extractor->state());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;background-color:blue;");
   extractor.reset(new StyleExtractor(img));
   EXPECT_FALSE(extractor->HasAnyDimensions());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:30px;height:40px");
@@ -256,51 +253,6 @@ TEST_F(CssUtilTest, ClearVectorIfContainsMediaAll) {
   output_vector.push_back(kAllMedia);
   ClearVectorIfContainsMediaAll(&output_vector);
   EXPECT_TRUE(output_vector.empty());
-}
-
-TEST_F(CssUtilTest, CanMediaAffectScreenTest) {
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(""));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("  \t\n "));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("  screen  "));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("all\n"));
-  // Case insensitive, handles multiple (possibly junk) media types.
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("print, audio ,, ,sCrEeN"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(
-      "not!?#?;valid,screen,@%*%@*"));
-  // Some cases that fail.
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("print"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not screen"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("print screen"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not!?#?;valid"));
-  // We must handle CSS3 media queries (http://www.w3.org/TR/css3-mediaqueries/)
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("not print"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(
-      "only screen and (max-device-width: 480px) "));
-  // "(parens)" are equivalent to "all and (parens)" -- thus screen-affecting.
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("(monochrome)"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("(print)"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not (audio or print)"));
-}
-
-TEST_F(CssUtilTest, JsDetectableSelector) {
-  // We set up a series of selectors, parse them permissively,
-  // and check the result.
-  const char kSelectors[] =
-      "a, a:visited, p, :visited, p:visited a, p :visited a, p > :hover > a, "
-      "hjf98a7o, img[src^=\"mod_pagespeed_examples/images\"]";
-  const char *kExpected[] =
-      {"a", "a", "p", "", "p a", "p", "p",
-       "hjf98a7o", "img[src^=\"mod_pagespeed_examples/images\"]"};
-  Css::Parser parser(kSelectors);
-  parser.set_preservation_mode(true);
-  parser.set_quirks_mode(false);
-  scoped_ptr<const Css::Selectors> selectors(parser.ParseSelectors());
-  EXPECT_EQ(Css::Parser::kNoError, parser.errors_seen_mask());
-  CHECK(selectors.get() != NULL);
-  EXPECT_EQ(arraysize(kExpected), selectors->size());
-  for (int i = 0; i < selectors->size(); ++i) {
-    EXPECT_EQ(kExpected[i], JsDetectableSelector(*(*selectors)[i]));
-  }
 }
 
 TEST_F(CssUtilTest, EliminateElementsNotIn) {

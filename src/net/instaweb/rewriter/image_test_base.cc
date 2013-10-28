@@ -19,6 +19,7 @@
 
 #include "net/instaweb/rewriter/public/image_test_base.h"
 
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -46,24 +47,23 @@ ImageTestBase::~ImageTestBase() {
 // We use the output_type (ultimate expected output type after image
 // processing) to set up rewrite permissions for the resulting Image object.
 Image* ImageTestBase::ImageFromString(
-    ImageType output_type, const GoogleString& name,
+    Image::Type output_type, const GoogleString& name,
     const GoogleString& contents, bool progressive) {
   net_instaweb::Image::CompressionOptions* image_options =
       new net_instaweb::Image::CompressionOptions();
-  if (output_type == IMAGE_WEBP) {
+  if (output_type == Image::IMAGE_WEBP) {
     image_options->preferred_webp = Image::WEBP_LOSSY;
-  } else if (output_type == IMAGE_WEBP_LOSSLESS_OR_ALPHA) {
+  } else if (output_type == Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA) {
     image_options->preferred_webp = Image::WEBP_LOSSLESS;
   } else {
     image_options->preferred_webp = Image::WEBP_NONE;
   }
   image_options->jpeg_quality = -1;
   image_options->progressive_jpeg = progressive;
-  image_options->convert_png_to_jpeg =  output_type == IMAGE_JPEG;
-  image_options->recompress_png = true;
+  image_options->convert_png_to_jpeg =  output_type == Image::IMAGE_JPEG;
 
   return NewImage(contents, name, GTestTempDir(), image_options,
-                  &timer_, &message_handler_);
+                  &timer_, &handler_);
 }
 
 Image* ImageTestBase::ReadFromFileWithOptions(
@@ -71,17 +71,17 @@ Image* ImageTestBase::ReadFromFileWithOptions(
     Image::CompressionOptions* options) {
   EXPECT_TRUE(file_system_.ReadFile(
       StrCat(GTestSrcDir(), kTestData, name).c_str(),
-      contents, &message_handler_));
+      contents, &handler_));
   return NewImage(*contents, name, GTestTempDir(), options,
-                  &timer_, &message_handler_);
+                  &timer_, &handler_);
 }
 
 Image* ImageTestBase::ReadImageFromFile(
-    ImageType output_type, const char* filename, GoogleString* buffer,
+    Image::Type output_type, const char* filename, GoogleString* buffer,
     bool progressive) {
   EXPECT_TRUE(file_system_.ReadFile(
       StrCat(GTestSrcDir(), kTestData, filename).c_str(),
-      buffer, &message_handler_));
+      buffer, &handler_));
   return ImageFromString(output_type, filename, *buffer, progressive);
 }
 

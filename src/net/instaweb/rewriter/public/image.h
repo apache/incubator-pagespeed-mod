@@ -21,18 +21,15 @@
 
 #include <cstddef>
 
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-class Histogram;
 class ImageDim;
 class MessageHandler;
 class Timer;
-class Variable;
 struct ContentType;
 
 class Image {
@@ -49,50 +46,29 @@ class Image {
   // metadata is retrieved; the object is to do so locally in this class without
   // disrupting any of its clients.
 
+  enum Type {
+    // Update kImageTypeStart if you add something before this.
+    IMAGE_UNKNOWN = 0,
+    IMAGE_JPEG,
+    IMAGE_PNG,
+    IMAGE_GIF,
+    IMAGE_WEBP,
+    IMAGE_WEBP_LOSSLESS_OR_ALPHA,  // webps that are lossy or have transparency
+    // Update kImageTypeEnd if you add something after this.
+  };
+
   enum PreferredWebp {
     WEBP_NONE = 0,
     WEBP_LOSSY,
     WEBP_LOSSLESS
   };
 
-  struct ConversionBySourceVariable {
-    ConversionBySourceVariable()
-        : timeout_count(NULL),
-          success_ms(NULL),
-          failure_ms(NULL) {}
-
-    Variable* timeout_count;  // # of timed-out conversions.
-    Histogram* success_ms;    // Successful conversion duration.
-    Histogram* failure_ms;    // Failed (and non-timed-out) conversion duration.
-  };
-
-  struct ConversionVariables {
-    enum VariableType {
-      FROM_UNKNOWN_FORMAT = 0,
-      FROM_GIF,
-      FROM_PNG,
-      FROM_JPEG,
-      OPAQUE,
-      NONOPAQUE,
-      NUM_VARIABLE_TYPE
-    };
-    ConversionBySourceVariable* Get(VariableType var_type) {
-      if ((var_type < FROM_UNKNOWN_FORMAT) ||
-          (var_type >= NUM_VARIABLE_TYPE)) {
-        return NULL;
-      }
-      return &(vars[var_type]);
-    }
-
-    ConversionBySourceVariable vars[NUM_VARIABLE_TYPE];
-  };
-
   struct CompressionOptions {
     CompressionOptions()
         : preferred_webp(WEBP_NONE),
           allow_webp_alpha(false),
-          webp_quality(RewriteOptions::kDefaultImageRecompressQuality),
-          jpeg_quality(RewriteOptions::kDefaultImageRecompressQuality),
+          webp_quality(RewriteOptions::kDefaultImagesRecompressQuality),
+          jpeg_quality(RewriteOptions::kDefaultImagesRecompressQuality),
           progressive_jpeg_min_bytes(
               RewriteOptions::kDefaultProgressiveJpegMinBytes),
           progressive_jpeg(false),
@@ -105,14 +81,11 @@ class Image {
           retain_color_profile(false),
           retain_color_sampling(false),
           retain_exif_data(false),
-          use_transparent_for_blank_image(false),
           jpeg_num_progressive_scans(
               RewriteOptions::kDefaultImageJpegNumProgressiveScans),
           webp_conversion_timeout_ms(-1),
           conversions_attempted(0),
-          preserve_lossless(false),
-          webp_conversion_variables(NULL) {}
-
+          preserve_lossless(false) {}
     // These options are set by the client to specify what type of
     // conversion to perform:
     PreferredWebp preferred_webp;
@@ -130,22 +103,23 @@ class Image {
     bool retain_color_profile;
     bool retain_color_sampling;
     bool retain_exif_data;
-    bool use_transparent_for_blank_image;
-    int64 jpeg_num_progressive_scans;
+    int jpeg_num_progressive_scans;
     int64 webp_conversion_timeout_ms;
 
     // These fields are set by the conversion routines to report
     // characteristics of the conversion process.
     int conversions_attempted;
     bool preserve_lossless;
-
-    ConversionVariables* webp_conversion_variables;
   };
 
   virtual ~Image();
 
-  // static method to convert image type to content type.
-  static const ContentType* TypeToContentType(ImageType t);
+  // static method to convert Type to mime type.
+  static const ContentType* TypeToContentType(Type t);
+
+  // Used for checking valid ImageType enum integer.
+  static const Type kImageTypeStart = IMAGE_UNKNOWN;
+  static const Type kImageTypeEnd = IMAGE_WEBP_LOSSLESS_OR_ALPHA;
 
   // Stores the image dimensions in natural_dim (on success, sets
   // natural_dim->{width, height} and
@@ -173,7 +147,7 @@ class Image {
     return ret;
   }
 
-  ImageType image_type() {
+  Type image_type() {
     if (image_type_ == IMAGE_UNKNOWN) {
       ComputeImageType();
     }
@@ -216,7 +190,7 @@ class Image {
 
  protected:
   explicit Image(const StringPiece& original_contents);
-  explicit Image(ImageType type);
+  explicit Image(Type type);
 
   // Internal helpers
   virtual void ComputeImageType() = 0;
@@ -230,7 +204,7 @@ class Image {
   virtual bool ShouldConvertToProgressive(int64 quality) const = 0;
 
 
-  ImageType image_type_;  // Lazily initialized, initially IMAGE_UNKNOWN.
+  Type image_type_;  // Lazily initialized, initially IMAGE_UNKNOWN.
   const StringPiece original_contents_;
   GoogleString output_contents_;  // Lazily filled.
   bool output_valid_;             // Indicates output_contents_ now correct.
@@ -261,8 +235,8 @@ Image* NewImage(const StringPiece& original_contents,
                 MessageHandler* handler);
 
 // Creates a blank image of the given dimensions and type.
-// For now, this is assumed to be an 8-bit 4-channel image transparent image.
-Image* BlankImageWithOptions(int width, int height, ImageType type,
+// For now, this is assumed to be an 8-bit 3-channel image.
+Image* BlankImageWithOptions(int width, int height, Image::Type type,
                              const StringPiece& tmp_dir,
                              Timer* timer,
                              MessageHandler* handler,

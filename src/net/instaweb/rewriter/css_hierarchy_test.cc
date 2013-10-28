@@ -21,19 +21,18 @@
 #include <algorithm>
 
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
-#include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
+#include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/null_mutex.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -70,11 +69,10 @@ static const char kTopChild2Child1Css[] =
 
 }  // namespace
 
-class CssHierarchyTest : public RewriteTestBase {
+class CssHierarchyTest : public RewriteOptionsTestBase<RewriteOptions> {
  protected:
   CssHierarchyTest()
-      : handler_(new NullMutex),
-        top_url_(kTestDomain),
+      : top_url_(kTestDomain),
         top_child1_url_(top_url_, "nested1.css"),
         top_child2_url_(top_url_, "nested2.css"),
         top_child1_child1_url_(top_url_, "nested/nested1.css"),
@@ -545,24 +543,22 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
   ExpandHierarchy(&top);
 
   // Construct a resource without a charset.
-  ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", server_context()));
+  RewriteOptions options;
+  ResourcePtr resource(new UrlInputResource(NULL, &options, &kContentTypeCss,
+                                            top_url().Spec()));
   ResponseHeaders* response_headers = resource->response_headers();
 
   // First check that with no charsets anywhere we match.
   CssHierarchy* child = top.children()[0];
-  GoogleString failure_reason;
-  EXPECT_TRUE(child->CheckCharsetOk(resource, &failure_reason));
-  EXPECT_TRUE(failure_reason.empty());
+  EXPECT_TRUE(child->CheckCharsetOk(resource));
 
   // Now set both the charsets to something compatible.
   StringPiece charset("iso-8859-1");
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=", charset));
   charset.CopyToString(top.mutable_charset());
-  EXPECT_TRUE(child->CheckCharsetOk(resource, &failure_reason));
+  EXPECT_TRUE(child->CheckCharsetOk(resource));
   EXPECT_EQ(charset, child->charset());
-  EXPECT_TRUE(failure_reason.empty());
 }
 
 TEST_F(CssHierarchyTest, IncompatibleCharset) {
@@ -572,8 +568,9 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   ExpandHierarchy(&top);
 
   // Construct a resource with an incompatible charset.
-  ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", server_context()));
+  RewriteOptions options;
+  ResourcePtr resource(new UrlInputResource(NULL, &options, &kContentTypeCss,
+                                            top_url().Spec()));
   ResponseHeaders* response_headers = resource->response_headers();
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=utf-8"));
@@ -581,12 +578,8 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   StringPiece charset("iso-8859-1");
   charset.CopyToString(top.mutable_charset());
   CssHierarchy* child = top.children()[0];
-  GoogleString failure_reason;
-  EXPECT_FALSE(child->CheckCharsetOk(resource, &failure_reason));
+  EXPECT_FALSE(child->CheckCharsetOk(resource));
   EXPECT_EQ("utf-8", child->charset());
-  EXPECT_EQ("The charset of http://test.com/nested1.css (utf-8 from headers) "
-            "is different from that of its parent (inline): "
-            "iso-8859-1 from unknown", failure_reason);
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsNested) {

@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/cache_extender.h"
 
-#include <memory>
-
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -40,7 +38,6 @@
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -128,70 +125,58 @@ bool CacheExtender::ShouldRewriteResource(
   if (url_namer->ProxyMode()) {
     return !url_namer->IsProxyEncoded(origin_gurl);
   }
+  StringPiece origin = origin_gurl.Origin();
   const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
-
-  // We return true for IsProxyMapped because when reconstructing
-  // MAPPED_DOMAIN/file.pagespeed.ce.HASH.ext we won't be changing
-  // the domain (WillDomainChange==false) but we want this function
-  // to return true so that we can reconstruct the cache-extension and
-  // serve the result with long public caching.  Without IsProxyMapped,
-  // we'd serve the result with cache-control:private,max-age=300.
-  return (lawyer->IsProxyMapped(origin_gurl) ||
-          lawyer->WillDomainChange(origin_gurl));
+  return lawyer->WillDomainChange(origin);
 }
 
 void CacheExtender::StartElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    bool may_load = false;
-    switch (attributes[i].category) {
-      case semantic_type::kStylesheet:
-        may_load = driver_->MayCacheExtendCss();
-        break;
-      case semantic_type::kImage:
-        may_load = driver_->MayCacheExtendImages();
-        break;
-      case semantic_type::kScript:
-        may_load = driver_->MayCacheExtendScripts();
-        break;
-      default:
-        // Does the url in the attribute end in .pdf, ignoring query params?
-        if (attributes[i].url->DecodedValueOrNull() != NULL
-            && driver_->MayCacheExtendPdfs()) {
-        GoogleUrl url(driver_->base_url(),
-                      attributes[i].url->DecodedValueOrNull());
-        if (url.IsWebValid() && StringCaseEndsWith(
+  semantic_type::Category category;
+  HtmlElement::Attribute* href = resource_tag_scanner::ScanElement(
+      element, driver_, &category);
+  bool may_load = false;
+  switch (category) {
+    case semantic_type::kStylesheet:
+      may_load = driver_->MayCacheExtendCss();
+      break;
+    case semantic_type::kImage:
+      may_load = driver_->MayCacheExtendImages();
+      break;
+    case semantic_type::kScript:
+      may_load = driver_->MayCacheExtendScripts();
+      break;
+    default:
+      // Does the url in the attribute end in .pdf, ignoring query params?
+      if (href != NULL && href->DecodedValueOrNull() != NULL) {
+        GoogleUrl url(driver_->base_url(), href->DecodedValueOrNull());
+        if (url.is_valid() && StringCaseEndsWith(
                 url.LeafSansQuery(), kContentTypePdf.file_extension())) {
-          may_load = true;
+          may_load = driver_->MayCacheExtendPdfs();
         }
       }
       break;
-    }
-    if (!may_load) {
-      continue;
+  }
+  if (!may_load) {
+    return;
+  }
+
+  // TODO(jmarantz): We ought to be able to domain-shard even if the
+  // resources are non-cacheable or privately cacheable.
+  if ((href != NULL) && driver_->IsRewritable(element)) {
+    ResourcePtr input_resource(CreateInputResource(href->DecodedValueOrNull()));
+    if (input_resource.get() == NULL) {
+      return;
     }
 
-    // TODO(jmarantz): We ought to be able to domain-shard even if the
-    // resources are non-cacheable or privately cacheable.
-    if (driver_->IsRewritable(element)) {
-      ResourcePtr input_resource(CreateInputResource(
-          attributes[i].url->DecodedValueOrNull()));
-      if (input_resource.get() == NULL) {
-        continue;
-      }
-
-      GoogleUrl input_gurl(input_resource->url());
-      if (server_context_->IsPagespeedResource(input_gurl)) {
-        continue;
-      }
-
-      ResourceSlotPtr slot(driver_->GetSlot(
-          input_resource, element, attributes[i].url));
-      Context* context = new Context(this, driver_, NULL /* not nested */);
-      context->AddSlot(slot);
-      driver_->InitiateRewrite(context);
+    GoogleUrl input_gurl(input_resource->url());
+    if (server_context_->IsPagespeedResource(input_gurl)) {
+      return;
     }
+
+    ResourceSlotPtr slot(driver_->GetSlot(input_resource, element, href));
+    Context* context = new Context(this, driver_, NULL /* not nested */);
+    context->AddSlot(slot);
+    driver_->InitiateRewrite(context);
   }
 }
 
@@ -228,10 +213,7 @@ void CacheExtender::Context::Render() {
               RewriteOptions::kExtendCacheImages);
         }
         // TODO(anupama): Log cache extension for pdfs etc.
-        driver_->log_record()->SetRewriterLoggingStatus(
-            filter_id,
-            slot(0)->resource()->url(),
-            RewriterApplication::APPLIED_OK);
+        driver_->log_record()->LogAppliedRewriter(filter_id);
       }
     }
   }
@@ -252,7 +234,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
   bool ok = false;
   const ContentType* output_type = NULL;
   if (!server_context_->http_cache()->force_caching() &&
-      !headers->IsProxyCacheable()) {
+      !(headers->IsCacheable() && headers->IsProxyCacheable())) {
     // Note: RewriteContextTest.PreserveNoCacheWithFailedRewrites
     // relies on CacheExtender failing rewrites in this case.
     // If you change this behavior that test MUST be updated as it covers

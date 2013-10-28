@@ -63,7 +63,6 @@ const int Parser::kMaxErrorsRemembered;
 class Tracer {  // in opt mode, do nothing.
  public:
   Tracer(const char* name, const Parser* parser) { }
-  ~Tracer() { }
 };
 
 
@@ -468,10 +467,7 @@ Value* Parser::ParseStringValue() {
   UnicodeText string_contents = ParseString<delim>();
   StringPiece verbatim_bytes(oldin, in_ - oldin);
   Value* value = new Value(Value::STRING, string_contents);
-  if (preservation_mode_) {
-    value->set_bytes_in_original_buffer(verbatim_bytes);
-  }
-
+  value->set_bytes_in_original_buffer(verbatim_bytes);
   return value;
 }
 
@@ -489,11 +485,7 @@ Value* Parser::ParseNumber() {
   while (!Done() && isdigit(*in_)) {
     in_++;
   }
-  // CSS Spec tokenizes numbers as:
-  //   num     [0-9]+|[0-9]*\.[0-9]+
-  // Therefore we must have at least one digit after the dot.
-  // If there isn't, then dot is not part of the number.
-  if (in_ + 1 < end_ && in_[0] == '.' && isdigit(in_[1])) {
+  if (!Done() && *in_ == '.') {
     in_++;
 
     while (!Done() && isdigit(*in_)) {
@@ -506,29 +498,16 @@ Value* Parser::ParseNumber() {
         "Failed to parse number %s", string(begin, in_ - begin).c_str()));
     return NULL;
   }
-
-  // Set the verbatim_bytes for the number before we parse the unit below
-  // (before the in_ pointer moves).
-  StringPiece verbatim_bytes(begin, in_ - begin);
-  Value* value;
   if (Done()) {
-    value = new Value(num, Value::NO_UNIT);
+    return new Value(num, Value::NO_UNIT);
   } else if (*in_ == '%') {
     in_++;
-    value = new Value(num, Value::PERCENT);
+    return new Value(num, Value::PERCENT);
   } else if (StartsIdent(*in_)) {
-    value = new Value(num, ParseIdent());
+    return new Value(num, ParseIdent());
   } else {
-    value = new Value(num, Value::NO_UNIT);
+    return new Value(num, Value::NO_UNIT);
   }
-
-  if (preservation_mode_) {
-    // Store verbatim bytes so that we can reconstruct this with exactly the
-    // same precision.
-    value->set_bytes_in_original_buffer(verbatim_bytes);
-  }
-
-  return value;
 }
 
 HtmlColor Parser::ParseColor() {
@@ -578,20 +557,9 @@ HtmlColor Parser::ParseColor() {
   // We also do not want rrggbb (without #) to be accepted in non-quirks mode,
   // but HtmlColor will happily accept it anyway. Do a sanity check here.
   if (i == 3 || i == 6) {
-    if (!Done() && (*in_ == '%' || StartsIdent(*in_))) {
+    if (!rgb_valid ||
+        (!Done() && (*in_ == '%' || StartsIdent(*in_))))
       return HtmlColor("", 0);
-    } else {
-      if (!rgb_valid) {
-        if (preservation_mode_) {
-          // In preservation mode, we want to preserve quirks-mode colors
-          // (even if we are not parsing in quirks-mode). By reporting an
-          // error, we make sure that preservation-mode will preserve the
-          // original bytes and pass them through verbatim.
-          ReportParsingError(kValueError, "Quirks-mode color encountered");
-        }
-        return HtmlColor("", 0);
-      }
-    }
   }
 
   if (i == 3) {
@@ -1136,16 +1104,10 @@ bool Parser::ExpandBackground(const Declaration& original_declaration,
 }
 
 // Parses font-family. It is special in that it uses commas as delimiters. It
-// also concatenates adjacent idents into one name. Strings can be also used.
-// They must also be separated from each other with commas.
-// From http://www.w3.org/TR/CSS2/fonts.html#propdef-font-family:
-//   'font-family'
-//     Value:  [[ <family-name> | <generic-family> ]
-//              [, <family-name>| <generic-family>]* ] | inherit
-//
+// also concatenates adjacent idents into one name. Strings can be also used
+// and they are separate from others even without commas.
 // E.g, Courier New, Sans -> "Courier New", "Sans"
-//      Arial, "MS Times", monospace -> "Arial", "MS Times", "monospace".
-//      Arial "MS Times" monospace -> Parse error.
+//      Arial "MS Times" monospace -> "Arial", "MS Times", "monospace".
 // If you make any change to this function, please also update ParseValues,
 // ParseBackground and ParseFont if applicable.
 bool Parser::ParseFontFamily(Values* values) {
@@ -1155,53 +1117,39 @@ bool Parser::ParseFontFamily(Values* values) {
   if (Done()) return true;
   DCHECK_LT(in_, end_);
 
-  while (true) {
-    const char* oldin = in_;
-    scoped_ptr<Value> v(ParseAny());
-    if (v.get() == NULL) {
-      ReportParsingError(kValueError, "Unexpected token in font-family.");
-      in_ = oldin;  // We did not use token, so unconsume it.
-      return false;
-    }
-    // Font families can be either strings or space separated identifiers.
-    switch (v->GetLexicalUnitType()) {
-      case Value::STRING:
-        // For example: "Times New Roman"
-        // Font name is just the string value.
-        values->push_back(v.release());
-        break;
-      case Value::IDENT: {
-        // For example: Times New Roman
-        // Font name is the string made from combining all identifiers with
-        // a single space separator between each.
-        UnicodeText family;
-        family.append(v->GetIdentifierText());
-        while (SkipToNextAny() && !Done() && *in_ != ',') {
-          const char* oldin = in_;
-          v.reset(ParseAny());
-          if (v.get() == NULL || v->GetLexicalUnitType() != Value::IDENT) {
-            ReportParsingError(kValueError, "Unexpected token after "
-                               "identifier in font-family.");
-            in_ = oldin;  // We did not use token, so unconsume it.
-            return false;
-          }
-          family.push_back(static_cast<char32>(' '));
-          family.append(v->GetIdentifierText());
-        }
+  UnicodeText family;
+  while (SkipToNextAny()) {
+    DCHECK(!Done());
+    if (*in_ == ',') {
+      if (!family.empty()) {
         values->push_back(new Value(Identifier(family)));
-        break;
+        family.clear();
       }
-      default:
-        ReportParsingError(kValueError, "Unexpected token in font-family.");
-        return false;
-    }
-    SkipSpace();
-    if (!Done() && *in_ == ',') {
-      ++in_;
+      in_++;
     } else {
-      return true;
+      scoped_ptr<Value> v(ParseAny());
+      if (!v.get()) return false;
+      switch (v->GetLexicalUnitType()) {
+        case Value::STRING:
+          if (!family.empty()) {
+            values->push_back(new Value(Identifier(family)));
+            family.clear();
+          }
+          values->push_back(v.release());
+          break;
+        case Value::IDENT:
+          if (!family.empty())
+            family.push_back(static_cast<char32>(' '));
+          family.append(v->GetIdentifierText());
+          break;
+        default:
+          return false;
+      }
     }
   }
+  if (!family.empty())
+    values->push_back(new Value(Identifier(family)));
+  return true;
 }
 
 // Parse font. It is special in that it uses a special format (see spec):
@@ -1288,13 +1236,10 @@ Values* Parser::ParseFont() {
     } else if (v->GetLexicalUnitType() == Value::NUMBER &&
                v->GetDimension() == Value::NO_UNIT) {
       switch (v->GetIntegerValue()) {
-        // In standards-mode, font-sizes must have units (or be 0) and thus
-        // unitless numbers 100-900 must be font-weights.
-        //
-        // However, in quirks-mode, different browsers handle this quite
-        // differently. But there is at least a test that is consistent
-        // between IE and firefox: try <span style="font:120 serif"> and
-        // <span style="font:100 serif">, the first one treats 120 as
+        // Different browsers handle this quite differently. But there
+        // is at least a test that is consistent between IE and
+        // firefox: try <span style="font:120 serif"> and <span
+        // style="font:100 serif">, the first one treats 120 as
         // font-size, and the second does not.
         case 100: case 200: case 300: case 400:
         case 500: case 600: case 700: case 800:
@@ -1474,7 +1419,8 @@ Declarations* Parser::ParseRawDeclarations() {
     bool ignore_this_decl = false;
     switch (*in_) {
       case ';':
-        // Note: We check below that all declarations end with ';' or '}'.
+        // TODO(sligocki): Is there any way declarations might not be separated
+        // by ';' in the current code? We don't explicitly check.
         in_++;
         break;
       case '}':
@@ -1547,28 +1493,11 @@ Declarations* Parser::ParseRawDeclarations() {
           in_++;
           SkipSpace();
           UnicodeText ident = ParseIdent();
-          if (StringCaseEquals(ident, "important")) {
+          if (StringCaseEquals(ident, "important"))
             important = true;
-          } else {
-            ReportParsingError(kDeclarationError, StringPrintf(
-                "Unexpected !-identifier: !%s",
-                UnicodeTextToUTF8(ident).c_str()));
-            ignore_this_decl = true;
-            break;
-          }
         }
-        SkipSpace();
-        // Don't add Declaration if it is not ended with a ';' or '}'.
-        // For example: "foo: bar !important really;" is not valid.
-        if (Done() || *in_ == ';' || *in_ == '}') {
-          declarations->push_back(
-              new Declaration(prop, vals.release(), important));
-        } else {
-          ReportParsingError(kDeclarationError, StringPrintf(
-              "Unexpected char %c at end of declaration", *in_));
-          ignore_this_decl = true;
-          break;
-        }
+        declarations->push_back(
+            new Declaration(prop, vals.release(), important));
       }
     }
     SkipSpace();
@@ -2233,7 +2162,6 @@ Import* Parser::ParseImport() {
 
 void Parser::ParseAtRule(Stylesheet* stylesheet) {
   Tracer trace(__func__, this);
-  DCHECK(stylesheet != NULL);
 
   SkipSpace();
   DCHECK_LT(in_, end_);
@@ -2243,35 +2171,24 @@ void Parser::ParseAtRule(Stylesheet* stylesheet) {
   // in case the @-rule cannot be parsed correctly.
   const char* at_rule_start = in_;
   const uint64 start_errors_seen_mask = errors_seen_mask_;
-  bool error = false;  // Did we hit an error parsing at-rule?
   in_++;
 
   UnicodeText ident = ParseIdent();
 
   // @import string|uri medium-list ? ;
   if (StringCaseEquals(ident, "import")) {
-    if (!stylesheet->rulesets().empty()) {
-      ReportParsingError(kImportError, "@import found after rulesets.");
-      error = true;
+    scoped_ptr<Import> import(ParseImport());
+    if (import.get() && stylesheet) {
+      stylesheet->mutable_imports().push_back(import.release());
     } else {
-      scoped_ptr<Import> import(ParseImport());
-      if (import.get()) {
-        stylesheet->mutable_imports().push_back(import.release());
-      } else {
-        ReportParsingError(kImportError, "Failed to parse import.");
-        SkipPastDelimiter(';');
-      }
+      ReportParsingError(kImportError, "Failed to parse import");
+      SkipPastDelimiter(';');
     }
 
   // @charset string ;
   } else if (StringCaseEquals(ident, "charset")) {
-    if (!stylesheet->rulesets().empty() || !stylesheet->imports().empty()) {
-      ReportParsingError(kCharsetError, "@charset found after other rules.");
-      error = true;
-    } else {
-      UnicodeText s = ParseCharset();
-      stylesheet->mutable_charsets().push_back(s);
-    }
+    UnicodeText s = ParseCharset();
+    stylesheet->mutable_charsets().push_back(s);
 
   // @media medium-list { ruleset-list }
   } else if (StringCaseEquals(ident, "media")) {
@@ -2319,10 +2236,6 @@ void Parser::ParseAtRule(Stylesheet* stylesheet) {
     string ident_string(ident.utf8_data(), ident.utf8_length());
     ReportParsingError(kAtRuleError, StringPrintf(
         "Cannot parse unknown @-statement: %s", ident_string.c_str()));
-    error = true;
-  }
-
-  if (error) {
     // We can only preserve the @-rule if it is correctly terminated. If it
     // is not (because we reach EOF before it terminates) we must preserve
     // the error.
@@ -2490,7 +2403,7 @@ Stylesheet* Parser::ParseStylesheet() {
 }
 
 //
-// Some destructors that need STLDeleteElements() from stl_util.h
+// Some destructors that need STLDeleteElements() from stl_util-inl.h
 //
 
 Declarations::~Declarations() { STLDeleteElements(this); }

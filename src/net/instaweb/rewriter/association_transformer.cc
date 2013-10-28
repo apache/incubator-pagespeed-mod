@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/google_url.h"
 
@@ -37,7 +36,7 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
   // Note: we do not mess with empty URLs at all.
   if (!in.empty()) {
     GoogleUrl in_url(*base_url_, in);
-    if (!in_url.IsWebOrDataValid()) {
+    if (!in_url.is_valid()) {
       handler_->Message(kInfo, "Invalid URL in CSS %s expands to %s",
                         in.as_string().c_str(), in_url.spec_c_str());
       ret = kFailure;
@@ -47,9 +46,7 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
       in_url.Spec().CopyToString(&in_string);
       StringStringMap::const_iterator it = map_.find(in_string);
       if (it != map_.end()) {
-        UrlRelativity url_relativity = GoogleUrl::FindRelativity(in);
-        *out = ResourceSlot::RelativizeOrPassthrough(
-            options_, it->second, url_relativity, *base_url_);
+        *out = it->second;
         ret = kSuccess;
       } else {
         if (backup_transformer_ != NULL) {

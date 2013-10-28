@@ -29,16 +29,13 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/vector_deque.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
+class HtmlParse;
 class HtmlResourceSlot;
 class ResourceSlot;
 class RewriteContext;
-class RewriteDriver;
-class RewriteOptions;
 
 typedef RefCountedPtr<ResourceSlot> ResourceSlotPtr;
 typedef RefCountedPtr<HtmlResourceSlot> HtmlResourceSlotPtr;
@@ -161,14 +158,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // in log messages.
   virtual GoogleString LocationString() = 0;
 
-  // Either relativize the URL or pass it through depending on options set.
-  // PRECONDITION: url must parse as a valid GoogleUrl.
-  // TODO(sligocki): Take a GoogleUrl for url?
-  static GoogleString RelativizeOrPassthrough(const RewriteOptions* options,
-                                              StringPiece url,
-                                              UrlRelativity url_relativity,
-                                              const GoogleUrl& base_url);
-
  protected:
   virtual ~ResourceSlot();
   REFCOUNT_FRIEND_DECLARATION(ResourceSlot);
@@ -211,7 +200,14 @@ class HtmlResourceSlot : public ResourceSlot {
   HtmlResourceSlot(const ResourcePtr& resource,
                    HtmlElement* element,
                    HtmlElement::Attribute* attribute,
-                   RewriteDriver* driver);
+                   HtmlParse* html_parse)
+      : ResourceSlot(resource),
+        element_(element),
+        attribute_(attribute),
+        html_parse_(html_parse),
+        begin_line_number_(element->begin_line_number()),
+        end_line_number_(element->end_line_number()) {
+  }
 
   HtmlElement* element() { return element_; }
   HtmlElement::Attribute* attribute() { return attribute_; }
@@ -221,10 +217,6 @@ class HtmlResourceSlot : public ResourceSlot {
   virtual void DirectSetUrl(const StringPiece& url);
   virtual bool CanDirectSetUrl() { return true; }
 
-  // How relative the original URL was. If PreserveUrlRelativity is enabled,
-  // Render will try to make the final URL just as relative.
-  UrlRelativity url_relativity() const { return url_relativity_; }
-
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
   virtual ~HtmlResourceSlot();
@@ -232,8 +224,7 @@ class HtmlResourceSlot : public ResourceSlot {
  private:
   HtmlElement* element_;
   HtmlElement::Attribute* attribute_;
-  RewriteDriver* driver_;
-  UrlRelativity url_relativity_;
+  HtmlParse* html_parse_;
 
   int begin_line_number_;
   int end_line_number_;

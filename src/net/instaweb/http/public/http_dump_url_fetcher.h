@@ -19,7 +19,8 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 
-#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -28,9 +29,9 @@
 
 namespace net_instaweb {
 
-class AsyncFetch;
 class GoogleUrl;
 class MessageHandler;
+class RequestHeaders;
 class ResponseHeaders;
 class Timer;
 class Writer;
@@ -42,7 +43,7 @@ class Writer;
 // HttpDumpFetcher fetches raw HTTP dumps from the filesystem.
 // These dumps could be compressed or chunked, the fetcher does not
 // decompress or de-chunk them.
-class HttpDumpUrlFetcher : public UrlAsyncFetcher {
+class HttpDumpUrlFetcher : public UrlFetcher {
  public:
   // When the slurped data is gzipped, but request headers are made
   // that don't include 'gzip' in an Accept-Encodings header, then
@@ -70,9 +71,12 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
   }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  virtual bool StreamingFetchUrl(const GoogleString& url,
+                                 const RequestHeaders& request_headers,
+                                 ResponseHeaders* response_headers,
+                                 Writer* fetched_content_writer,
+                                 MessageHandler* message_handler,
+                                 const RequestContextPtr& request_context);
 
   // Parse file into response_headers and response_writer as if it were bytes
   // off the wire.

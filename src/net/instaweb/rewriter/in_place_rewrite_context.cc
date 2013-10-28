@@ -28,6 +28,7 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -54,9 +55,6 @@ const char InPlaceRewriteResourceSlot::kIproSlotLocation[] = "ipro";
 // Names for Statistics variables.
 const char InPlaceRewriteContext::kInPlaceOversizedOptStream[] =
     "in_place_oversized_opt_stream";
-const char InPlaceRewriteContext::kInPlaceUncacheableRewrites[] =
-    "in_place_uncacheable_rewrites";
-
 
 InPlaceRewriteResourceSlot::InPlaceRewriteResourceSlot(
     const ResourcePtr& resource)
@@ -82,13 +80,11 @@ RecordingFetch::RecordingFetch(AsyncFetch* async_fetch,
       context_(context),
       can_in_place_rewrite_(false),
       streaming_(true),
-      cache_value_writer_(
-          &cache_value_, context_->FindServerContext()->http_cache()) {
+      cache_value_writer_(&cache_value_,
+                          context_->FindServerContext()->http_cache()) {
   Statistics* stats = context->FindServerContext()->statistics();
   in_place_oversized_opt_stream_ =
       stats->GetVariable(InPlaceRewriteContext::kInPlaceOversizedOptStream);
-  in_place_uncacheable_rewrites_ =
-      stats->GetVariable(InPlaceRewriteContext::kInPlaceUncacheableRewrites);
 }
 
 RecordingFetch::~RecordingFetch() {}
@@ -100,11 +96,11 @@ void RecordingFetch::HandleHeadersComplete() {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.CopyFrom(*response_headers());
     if (streaming_) {
-      SharedAsyncFetch::HandleHeadersComplete();
+      base_fetch()->HeadersComplete();
     }
   } else {
     FreeDriver();
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -114,23 +110,23 @@ void RecordingFetch::FreeDriver() {
   context_->driver_->FetchComplete();
 }
 
-bool RecordingFetch::ShouldStream() const {
-  return !(can_in_place_rewrite_ &&
-           context_->Options()->in_place_wait_for_optimized());
+bool RecordingFetch::ShouldStream() {
+  return !can_in_place_rewrite_
+      || !context_->Options()->in_place_wait_for_optimized();
 }
 
 bool RecordingFetch::HandleWrite(const StringPiece& content,
                                  MessageHandler* handler) {
   bool result = true;
   if (streaming_) {
-    result = SharedAsyncFetch::HandleWrite(content, handler);
+    result = base_fetch()->Write(content, handler);
   }
   if (can_in_place_rewrite_) {
     if (cache_value_writer_.CanCacheContent(content)) {
       result &= cache_value_writer_.Write(content, handler);
       DCHECK(cache_value_writer_.has_buffered());
     } else {
-      // Cannot in-place rewrite a resource which is too big to fit in cache.
+      // Cannot inplace rewrite a resource which is too big to fit in cache.
       // TODO(jkarlin): Do we make note that the resource was too big so that
       // we don't try to cache it later? Test and fix if not.
       can_in_place_rewrite_ = false;
@@ -138,12 +134,11 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
         // We need to start streaming now so write out what we've cached so far.
         streaming_ = true;
         in_place_oversized_opt_stream_->Add(1);
+        base_fetch()->HeadersComplete();
         StringPiece cache_contents;
         cache_value_.ExtractContents(&cache_contents);
-        set_content_length(cache_contents.size() + content.size());
-        SharedAsyncFetch::HandleHeadersComplete();
-        SharedAsyncFetch::HandleWrite(cache_contents, handler);
-        SharedAsyncFetch::HandleWrite(content, handler);
+        base_fetch()->Write(cache_contents, handler);
+        base_fetch()->Write(content, handler);
       }
       FreeDriver();
     }
@@ -153,7 +148,7 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
 
 bool RecordingFetch::HandleFlush(MessageHandler* handler) {
   if (streaming_) {
-    return SharedAsyncFetch::HandleFlush(handler);
+    return base_fetch()->Flush(handler);
   }
   return true;
 }
@@ -175,7 +170,7 @@ void RecordingFetch::HandleDone(bool success) {
   }
 
   if (streaming_) {
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
   }
 
   if (success && can_in_place_rewrite_) {
@@ -218,12 +213,8 @@ bool RecordingFetch::CanInPlaceRewrite() {
   if (type->type() == ContentType::kCss ||
       type->type() == ContentType::kJavascript ||
       type->IsImage()) {
-    RewriteDriver* driver = context_->driver_;
-    HTTPCache* const cache = driver->server_context()->http_cache();
-    if (!cache->IsAlreadyExpired(request_headers(), *response_headers())) {
-      return true;
-    } else if (context_->rewrite_uncacheable()) {
-      in_place_uncacheable_rewrites_->Add(1);
+    if (!context_->driver_->server_context()->http_cache()->IsAlreadyExpired(
+        request_headers(), *response_headers())) {
       return true;
     }
     VLOG(2) << "CanInPlaceRewrite false, since J/I/C resource is not cacheable."
@@ -238,19 +229,14 @@ InPlaceRewriteContext::InPlaceRewriteContext(RewriteDriver* driver,
       driver_(driver),
       url_(url.data(), url.size()),
       is_rewritten_(true),
-      proxy_mode_(true) {
+      perform_http_fetch_(true) {
   set_notify_driver_on_fetch_done(true);
-  const RewriteOptions* options = Options();
-  set_rewrite_uncacheable(
-      options->rewrite_uncacheable_resources() &&
-      options->in_place_wait_for_optimized());
 }
 
 InPlaceRewriteContext::~InPlaceRewriteContext() {}
 
 void InPlaceRewriteContext::InitStats(Statistics* statistics) {
   statistics->AddVariable(kInPlaceOversizedOptStream);
-  statistics->AddVariable(kInPlaceUncacheableRewrites);
 }
 
 int64 InPlaceRewriteContext::GetRewriteDeadlineAlarmMs() const {
@@ -316,7 +302,8 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
   const char* request_etag = async_fetch()->request_headers()->Lookup1(
       HttpAttributes::kIfNoneMatch);
   if (request_etag != NULL && !hash.empty() &&
-      (HTTPCache::FormatEtag(StrCat(id(), "-", hash)) == request_etag)) {
+      (StringPrintf(HTTPCache::kEtagFormat,
+                    StrCat(id(), "-",  hash).c_str()) == request_etag)) {
     // Serve out a 304.
     async_fetch()->response_headers()->Clear();
     async_fetch()->response_headers()->SetStatusAndReason(
@@ -342,8 +329,9 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
 void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (is_rewritten_) {
     if (!rewritten_hash_.empty()) {
-      headers->Replace(HttpAttributes::kEtag, HTTPCache::FormatEtag(StrCat(
-                                                  id(), "-", rewritten_hash_)));
+      headers->Replace(HttpAttributes::kEtag, StringPrintf(
+          HTTPCache::kEtagFormat,
+          StrCat(id(), "-", rewritten_hash_).c_str()));
     }
     if (ShouldAddVaryUserAgent()) {
       headers->Replace(HttpAttributes::kVary, HttpAttributes::kUserAgent);
@@ -365,9 +353,9 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
       expire_at_ms = now_ms + headers->implicit_cache_ttl_ms();
     } else if (stale_rewrite()) {
       // If we are serving a stale rewrite, set the cache ttl to the minimum of
-      // kDefaultImplicitCacheTtlMs and the original ttl.
-      expire_at_ms = now_ms + std::min(
-          ResponseHeaders::kDefaultImplicitCacheTtlMs, expire_at_ms - date_ms);
+      // kImplicitCacheTtlMs and the original ttl.
+      expire_at_ms = now_ms + std::min(ResponseHeaders::kImplicitCacheTtlMs,
+                                       expire_at_ms - date_ms);
     }
     headers->SetDateAndCaching(now_ms, expire_at_ms - now_ms);
   }
@@ -418,11 +406,11 @@ RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
 }
 
 void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
-                                          const OutputResourcePtr& output) {
+                                       const OutputResourcePtr& output) {
   input_resource_ = input;
   output_resource_ = output;
   input->DetermineContentType();
-  if (input->type() != NULL && input->IsSafeToRewrite(rewrite_uncacheable())) {
+  if (input->IsValidAndCacheable() && input->type() != NULL) {
     const ContentType* type = input->type();
     RewriteFilter* filter = GetRewriteFilter(*type);
     if (filter != NULL) {
@@ -430,12 +418,11 @@ void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
           new InPlaceRewriteResourceSlot(slot(0)->resource()));
       RewriteContext* context = filter->MakeNestedRewriteContext(
           this, in_place_slot);
+
       if (context != NULL) {
         AddNestedContext(context);
-        // Propagate the uncacheable resource rewriting settings.
-        context->set_rewrite_uncacheable(rewrite_uncacheable());
         if (!is_rewritten_ && !rewritten_hash_.empty()) {
-          // The in-place metadata was found but the rewritten resource is not.
+          // The inplace metadata was found but the rewritten resource is not.
           // Hence, make the nested rewrite skip the metadata and force a
           // rewrite.
           context->set_force_rewrite(true);
@@ -487,12 +474,12 @@ namespace {
 class NonHttpResourceCallback : public Resource::AsyncCallback {
  public:
   NonHttpResourceCallback(const ResourcePtr& resource,
-                          bool proxy_mode,
+                          bool perform_http_fetch,
                           RewriteContext* context,
                           RecordingFetch* fetch,
                           MessageHandler* handler)
       : AsyncCallback(resource),
-        proxy_mode_(proxy_mode),
+        perform_http_fetch_(perform_http_fetch),
         context_(context),
         async_fetch_(fetch),
         message_handler_(handler) {
@@ -506,21 +493,21 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
       async_fetch_->Done(true);
     } else {
       // TODO(jmarantz): If we're in proxy mode, we must always
-      // produce the result.  If we're in origin mode, it's OK to fail.
-      // But we'll never use load-from-file when acting as a proxy.
-      // It would be better to enforce that formally.
+      // produce the result.  If we're in origin mode, it's OK to
+      // fail.  But we'll never use load-from-file when acting as a
+      // proxy.  It would be better to enforce that formally.
       //
       // TODO(jmarantz): We might have to pass stuff through even on lock
       // failure.  Consider the error cases.
 
-      DCHECK(!proxy_mode_) << "Failed to fetch url: " << resource()->url();
+      DCHECK(!perform_http_fetch_);
       async_fetch_->Done(false);
     }
     delete this;
   }
 
  private:
-  bool proxy_mode_;
+  bool perform_http_fetch_;
   RewriteContext* context_;
   RecordingFetch* async_fetch_;
   MessageHandler* message_handler_;
@@ -531,34 +518,28 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
 }  // namespace
 
 void InPlaceRewriteContext::StartFetchReconstruction() {
-  // The in-place metadata or the rewritten resource was not found in cache.
+  // The in-place metdata or the rewritten resource was not found in cache.
   // Fetch the original resource and trigger an asynchronous rewrite.
   if (num_slots() == 1) {
     ResourcePtr resource(slot(0)->resource());
     // If we get here, the resource must not have been rewritten.
     is_rewritten_ = false;
-    RecordingFetch* fetch = new RecordingFetch(async_fetch(), resource, this,
-                                               fetch_message_handler());
+    RecordingFetch* fetch = new RecordingFetch(
+        async_fetch(), resource, this, fetch_message_handler());
     if (resource->UseHttpCache()) {
-      if (proxy_mode_) {
+      if (perform_http_fetch_) {
         cache_fetcher_.reset(driver_->CreateCacheFetcher());
-        // Since we are proxying resources to user, we want to fetch it even
-        // if there is a kRecentFetchNotCacheable message in the cache.
-        cache_fetcher_->set_ignore_recent_fetch_failed(true);
       } else {
         cache_fetcher_.reset(driver_->CreateCacheOnlyFetcher());
-        // Since we are not proxying resources to user, we can respect
-        // kRecentFetchNotCacheable messages.
-        cache_fetcher_->set_ignore_recent_fetch_failed(false);
       }
       cache_fetcher_->Fetch(url_, fetch_message_handler(), fetch);
     } else {
       ServerContext* server_context = resource->server_context();
       MessageHandler* handler = server_context->message_handler();
       NonHttpResourceCallback* callback = new NonHttpResourceCallback(
-          resource, proxy_mode_, this, fetch, handler);
-      resource->LoadAsync(Resource::kLoadEvenIfNotCacheable,
-                          Driver()->request_context(), callback);
+          resource, perform_http_fetch_, this, fetch, handler);
+      server_context->ReadAsync(Resource::kLoadEvenIfNotCacheable,
+                                Driver()->request_context(), callback);
     }
   } else {
     LOG(ERROR) << "Expected one resource slot, but found " << num_slots()

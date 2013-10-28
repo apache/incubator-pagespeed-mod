@@ -21,17 +21,12 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/util/enums.pb.h"
-#include "net/instaweb/util/public/data_url.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -42,6 +37,7 @@ namespace {
 
 const char kTrue[] = "true";
 const char kFalse[] = "false";
+const char kData[] = "data:";
 const char kJquerySlider[] = "jquery.sexyslider";
 
 }  // namespace
@@ -68,22 +64,20 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
 void LazyloadImagesFilter::DetermineEnabled() {
-  RewriterHtmlApplication::Status should_apply = ShouldApply(driver());
-  set_is_enabled(should_apply == RewriterHtmlApplication::ACTIVE);
-  if (!driver()->flushing_early()) {
-    driver()->log_record()->LogRewriterHtmlStatus(
-        RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-        should_apply);
-  }
+  set_is_enabled(ShouldApply(driver()));
 }
 
 void LazyloadImagesFilter::StartDocumentImpl() {
+  CriticalImagesFinder* finder =
+      driver()->server_context()->critical_images_finder();
+  if (finder->IsMeaningful(driver())) {
+    finder->UpdateCriticalImagesSetInDriver(driver());
+  }
   Clear();
 }
 
 void LazyloadImagesFilter::EndDocument() {
   driver()->UpdatePropertyValueInDomCohort(
-      driver()->fallback_property_page(),
       kIsLazyloadScriptInsertedPropertyName,
       main_script_inserted_ ? "1" : "0");
 }
@@ -96,17 +90,9 @@ void LazyloadImagesFilter::Clear() {
   num_images_lazily_loaded_ = 0;
 }
 
-RewriterHtmlApplication::Status LazyloadImagesFilter::ShouldApply(
-    RewriteDriver* driver) {
-  if (!driver->request_properties()->SupportsLazyloadImages()) {
-    return RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED;
-  }
-  if (driver->flushing_early() ||
-      (driver->request_headers() != NULL &&
-       driver->request_headers()->IsXmlHttpRequest())) {
-    return RewriterHtmlApplication::DISABLED;
-  }
-  return RewriterHtmlApplication::ACTIVE;
+bool LazyloadImagesFilter::ShouldApply(RewriteDriver* driver) {
+  return (!driver->flushing_early() &&
+          driver->device_properties()->SupportsLazyloadImages());
 }
 
 void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
@@ -119,8 +105,8 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
       skip_rewrite_ = element;
       return;
     }
-    // Check if lazyloading is enabled for the given class name. If not,
-    // skip rewriting all images till we reach the end of this element.
+    // Check if the element has dfcg in the class name and skip rewriting all
+    // images till we reach the end of this element.
     HtmlElement::Attribute* class_attribute = element->FindAttribute(
         HtmlName::kClass);
     if (class_attribute != NULL) {
@@ -170,109 +156,100 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
       driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
       HtmlNode* script_code = driver()->NewCharactersNode(
           script, kLoadAllImages);
-      driver()->InsertNodeAfterNode(element, script);
+      driver()->InsertElementAfterElement(element, script);
       driver()->AppendChild(script, script_code);
       abort_script_inserted_ = true;
     }
     return;
   }
-  if (element->keyword() == HtmlName::kBody) {
-    InsertOverrideAttributesScript(element, false);
-    return;
-  }
-  // Only rewrite <img> tags. Don't rewrite <input> tags since the onload
-  // event is not fired for them in some browsers.
-  if (!driver()->IsRewritable(element) ||
-      element->keyword() != HtmlName::kImg) {
-    return;
-  }
+  if (driver()->IsRewritable(element) &&
+      element->keyword() == HtmlName::kImg) {
+    // Only rewrite <img> tags. Don't rewrite <input> tags since the onload
+    // event is not fired for them in some browsers.
+    HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
+    if (src != NULL) {
+      StringPiece url(src->DecodedValueOrNull());
+      if (!url.empty() && !url.starts_with(kData) &&
+          element->FindAttribute(HtmlName::kOnload) == NULL &&
+          element->FindAttribute(HtmlName::kDataSrc) == NULL &&
+          element->FindAttribute(HtmlName::kPagespeedLazySrc) == NULL &&
+          !element->DeleteAttribute(HtmlName::kPagespeedNoDefer)) {
+        // Lazily load the image if it has a src, does not have an onload /
+        // pagespeed_lazy_src attribute / pagespeed_no_defer attribute and is
+        // not inlined.
+        // Note that we remove the pagespeed_no_defer if it was present.
+        // Decode the url if it is rewritten.
+        GoogleUrl gurl(base_url(), url);
+        StringVector decoded_url_vector;
+        if (driver()->DecodeUrl(gurl, &decoded_url_vector) &&
+            decoded_url_vector.size() == 1) {
+          // We only handle the case where the rewritten url corresponds to
+          // a single original url which should be sufficient for all cases
+          // other than image sprites.
+          gurl.Reset(decoded_url_vector[0]);
+        }
+        if (!gurl.is_valid()) {
+          // Do not lazily load images with invalid urls.
+          return;
+        }
+        StringPiece full_url = gurl.Spec();
+        if (full_url.empty() || !driver()->options()->IsAllowed(full_url)) {
+          // Do not lazily load images with blacklist urls.
+          return;
+        }
 
-  HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-  if (src == NULL) {
-    return;
-  }
-
-  StringPiece url(src->DecodedValueOrNull());
-  if (url.empty() || IsDataUrl(url) ||
-      element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
-    // TODO(rahulbansal): Log separately for pagespeed_no_defer.
-    return;
-  }
-  AbstractLogRecord* log_record = driver_->log_record();
-  if (element->FindAttribute(HtmlName::kOnload) != NULL ||
-      element->FindAttribute(HtmlName::kDataSrc) != NULL ||
-      element->FindAttribute(HtmlName::kPagespeedLazySrc) != NULL) {
-    log_record->LogLazyloadFilter(
-        RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-        RewriterApplication::NOT_APPLIED, false, false);
-    return;
-  }
-  // Decode the url if it is rewritten.
-  GoogleUrl gurl(base_url(), url);
-  StringVector decoded_url_vector;
-  if (driver()->DecodeUrl(gurl, &decoded_url_vector) &&
-      decoded_url_vector.size() == 1) {
-    // We only handle the case where the rewritten url corresponds to
-    // a single original url which should be sufficient for all cases
-    // other than image sprites.
-    gurl.Reset(decoded_url_vector[0]);
-  }
-  if (!gurl.IsAnyValid()) {
-    // Do not lazily load images with invalid urls.
-    return;
-  }
-  StringPiece full_url = gurl.Spec();
-  if (full_url.empty()) {
-    return;
-  }
-  if (!driver()->options()->IsAllowed(full_url)) {
-    // Do not lazily load images with blacklisted urls.
-    log_record->LogLazyloadFilter(
-        RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-        RewriterApplication::NOT_APPLIED, true, false);
-    return;
-  }
-
-  CriticalImagesFinder* finder =
-      driver()->server_context()->critical_images_finder();
-  // Note that if the platform lacks a CriticalImageFinder
-  // implementation, we consider all images to be non-critical and try
-  // to lazily load them.
-  if (finder->IsMeaningful(driver())) {
-    // Decode the url since the critical images in the finder are not
-    // rewritten.
-    if (finder->IsHtmlCriticalImage(full_url.data(), driver())) {
-      log_record->LogLazyloadFilter(
-          RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-          RewriterApplication::NOT_APPLIED, false, true);
-      // Do not try to lazily load this image since it is critical.
-      return;
+        // Critical Images are required only if it is not a blink request as
+        // blink automatically decides critical images.
+        // Lazyload script will only be inserted if it is not a blink request.
+        // Blink sends the lazyload script after critical images are sent.
+        if (!driver_->options()->Enabled(
+            RewriteOptions::kProcessBlinkInBackground)) {
+          CriticalImagesFinder* finder =
+              driver()->server_context()->critical_images_finder();
+          // Note that if the platform lacks a CriticalImageFinder
+          // implementation, we consider all images to be non-critical and try
+          // to lazily load them.
+          if (finder->IsMeaningful(driver())) {
+            // Decode the url since the critical images in the finder are not
+            // rewritten.
+            if (finder->IsCriticalImage(full_url.data(), driver())) {
+              // Do not try to lazily load this image since it is critical.
+              return;
+            }
+          }
+          if (!main_script_inserted_ &&
+              // Split HTML filter sends the lazyload script after critical
+              // images are sent.
+              !driver_->options()->Enabled(RewriteOptions::kSplitHtml)) {
+            InsertLazyloadJsCode(element);
+           }
+          // Replace the src with pagespeed_lazy_src.
+          driver()->SetAttributeName(src, HtmlName::kPagespeedLazySrc);
+          driver()->AddAttribute(element, HtmlName::kSrc, blank_image_url_);
+        } else {
+          // Add pagespeed_blank_src as the blank image.
+          driver()->AddAttribute(
+              element, HtmlName::kPagespeedBlankSrc, blank_image_url_);
+        }
+        // Set the onload appropriately.
+        driver()->AddAttribute(element, HtmlName::kOnload, kImageOnloadCode);
+        ++num_images_lazily_loaded_;
+      }
     }
+  } else if (element->keyword() == HtmlName::kBody) {
+    InsertOverrideAttributesScript(element, false);
   }
-  if (!main_script_inserted_) {
-    InsertLazyloadJsCode(element);
-  }
-  // Replace the src with pagespeed_lazy_src.
-  driver()->SetAttributeName(src, HtmlName::kPagespeedLazySrc);
-  driver()->AddAttribute(element, HtmlName::kSrc, blank_image_url_);
-  log_record->LogLazyloadFilter(
-      RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-      RewriterApplication::APPLIED_OK, false, false);
-  // Set the onload appropriately.
-  driver()->AddAttribute(element, HtmlName::kOnload, kImageOnloadCode);
-  ++num_images_lazily_loaded_;
 }
 
 void LazyloadImagesFilter::InsertLazyloadJsCode(HtmlElement* element) {
   if (!driver()->is_lazyload_script_flushed()) {
     HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
-    driver()->InsertNodeBeforeNode(element, script);
+    driver()->InsertElementBeforeElement(element, script);
     StaticAssetManager* static_asset_manager =
         driver()->server_context()->static_asset_manager();
     GoogleString lazyload_js = GetLazyloadJsSnippet(
         driver()->options(), static_asset_manager);
     static_asset_manager->AddJsToElement(lazyload_js, script, driver());
-    driver()->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
   }
   main_script_inserted_ = true;
 }
@@ -286,7 +263,7 @@ void LazyloadImagesFilter::InsertOverrideAttributesScript(
     HtmlNode* script_code = driver()->NewCharactersNode(
         script, kOverrideAttributeFunctions);
     if (is_before_script) {
-      driver()->InsertNodeBeforeNode(element, script);
+      driver()->InsertElementBeforeElement(element, script);
     } else {
       driver()->AppendChild(element, script);
     }

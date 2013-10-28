@@ -21,9 +21,6 @@
 namespace net_instaweb {
 
 class BlinkInfo;
-class CacheHtmlLoggingInfo;
-class CriticalCssInfo;
-class DeviceInfo;
 class FlushEarlyFilterInfo;
 class FlushEarlyResourceInfo;
 class ImageRewriteResourceInfo;
@@ -32,8 +29,6 @@ class MetadataCacheInfo;
 class PropertyCohortInfo;
 class PropertyPageInfo;
 class RewriterInfo;
-class RewriteStatusCount;
-class RewriterStats;
 class RewriteResourceInfo;
 class TimingInfo;
 

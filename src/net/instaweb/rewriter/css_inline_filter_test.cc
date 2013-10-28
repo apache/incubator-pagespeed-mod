@@ -16,6 +16,8 @@
 
 // Author: mdsteele@google.com (Matthew D. Steele)
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
@@ -109,18 +111,6 @@ class CssInlineFilterTest : public RewriteTestBase {
         expect_inline, css_rewritten_body);
   }
 
-  void VerifyNoInliningForClosingStyleTag(
-      const GoogleString& closing_style_tag) {
-    AddFilter(RewriteOptions::kInlineCss);
-    SetResponseWithDefaultHeaders("foo.css", kContentTypeCss,
-                                  StrCat("a{margin:0}", closing_style_tag),
-                                  100);
-
-    // We don't mess with links that contain a closing style tag.
-    ValidateNoChanges("no_inlining_of_close_style_tag",
-                      "<link rel='stylesheet' href='foo.css'>");
-  }
-
  private:
   bool filters_added_;
 };
@@ -208,7 +198,7 @@ TEST_F(CssInlineFilterTest, NoRewriteUrlsSameDir) {
 
 TEST_F(CssInlineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   lawyer->AddShard("www.example.com", "shard1.com,shard2.com",
                    &message_handler_);
 
@@ -244,33 +234,29 @@ TEST_F(CssInlineFilterTest, DoInlineCssWithMediaScreen) {
                 "media=\"print, audio ,, ,sCrEeN \"", css, true, css);
 }
 
-TEST_F(CssInlineFilterTest, DoInlineCssWithMediaQuery) {
-  // Media queries are tested more exhaustively in css_tag_scanner_test.
-  const GoogleString css = "BODY { color: red; }\n";
-  TestInlineCss("http://www.example.com/index.html",
-                "http://www.example.com/styles.css",
-                "media=\"only (color)\"", css, true, css);
-}
-
-TEST_F(CssInlineFilterTest, InlineCssWithInvalidMedia) {
-  // Use an invalid media tag, but one that's still decipherable.
-  // Trying to deal with indecipherable media tags turned out to be
-  // more trouble than it's worth.
-  const char kNotValid[] = "not!?#?;valid";
+TEST_F(CssInlineFilterTest, InlineCssWithUndecodableMedia) {
+  // Ensure that our test string really is not decodable, to cater for it
+  // becoming decodable in the future.
+  const char kNotDecodable[] = "not\240decodable";  // ' ' with high bit set.
+  RewriteDriver* driver = rewrite_driver();
+  HtmlElement* element = driver->NewElement(NULL, HtmlName::kStyle);
+  driver->AddEscapedAttribute(element, HtmlName::kMedia, kNotDecodable);
+  HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kMedia);
+  EXPECT_TRUE(NULL == attr->DecodedValueOrNull());
 
   const GoogleString css = "BODY { color: red; }\n";
   GoogleString media;
 
-  // Now do the actual test that we don't inline the CSS with an invalid
+  // Now do the actual test that we don't inline the CSS with an undecodable
   // media type (and not screen or all as well).
-  media = StrCat("media=\"", kNotValid, "\"");
+  media = StrCat("media=\"", kNotDecodable, "\"");
   TestInlineCss("http://www.example.com/index.html",
                 "http://www.example.com/styles.css",
                 media, css, false, "");
 
-  // And now test that we DO inline the CSS with an invalid media type
-  // if there's also an instance of "screen" in the media attribute.
-  media = StrCat("media=\"", kNotValid, ",screen\"");
+  // And now test that we DO inline the CSS with an undecodable media type
+  // if ther's also an instance of "screen" in the media attribute.
+  media = StrCat("media=\"", kNotDecodable, ",screen\"");
   TestInlineCss("http://www.example.com/index.html",
                 "http://www.example.com/styles.css",
                 media, css, true, css);
@@ -327,41 +313,6 @@ TEST_F(CssInlineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
                    StringPrintf(html_format, kXhtmlDtd, inlined_css));
 }
 
-TEST_F(CssInlineFilterTest, DontInlineInNoscript) {
-  options()->EnableFilter(RewriteOptions::kInlineCss);
-  rewrite_driver()->AddFilters();
-
-  const char kCssUrl[] = "a.css";
-  const char kCss[] = "div {display:block;}";
-
-  SetResponseWithDefaultHeaders(kCssUrl, kContentTypeCss, kCss, 3000);
-
-  GoogleString html_input =
-      StrCat("<noscript><link rel=stylesheet href=\"", kCssUrl,
-             "\"></noscript>");
-
-  ValidateNoChanges("noscript_noinline", html_input);
-}
-
-TEST_F(CssInlineFilterTest, InlineAndPrioritizeCss) {
-  // Make sure we interact with Critical CSS properly, including in cached
-  // case.
-  options()->EnableFilter(RewriteOptions::kInlineCss);
-  options()->EnableFilter(RewriteOptions::kPrioritizeCriticalCss);
-  rewrite_driver()->AddFilters();
-
-  const char kCssUrl[] = "a.css";
-  const char kCss[] = "div {display:block;}";
-
-  SetResponseWithDefaultHeaders(kCssUrl, kContentTypeCss, kCss, 3000);
-
-  GoogleString html_input =
-      StrCat("<link rel=stylesheet href=\"", kCssUrl, "\">");
-  GoogleString html_output= StrCat("<style>", kCss, "</style>");
-
-  ValidateExpected("inline_prioritize", html_input, html_output);
-}
-
 TEST_F(CssInlineFilterTest, InlineCombined) {
   // Make sure we interact with CSS combiner properly, including in cached
   // case.
@@ -392,7 +343,6 @@ TEST_F(CssInlineFilterTest, InlineMinimizeInteraction) {
   TestInlineCssWithOutputUrl(
       StrCat(kTestDomain, "minimize_but_not_inline.html"), "",
       StrCat(kTestDomain, "a.css"),
-      // Note: Original URL was absolute, so rewritten one is as well.
       Encode(kTestDomain, "cf", "0", "a.css", "css"),
       "", /* no other attributes*/
       "div{display: none;}",
@@ -558,8 +508,7 @@ TEST_F(CssInlineFilterTest, AlternateStylesheet) {
       "<style>a{margin:0}</style>");
 
   // Preferred CSS links are not because inline styles cannot be given
-  // a title (AFAICT).  The title attribute indicates that the given
-  // CSS can be overridden by an alternate style sheet.
+  // a title (AFAICT).
   ValidateNoChanges(
       "preferred",
       "<link rel='stylesheet' href='foo.css' title='foo'>");
@@ -568,25 +517,6 @@ TEST_F(CssInlineFilterTest, AlternateStylesheet) {
   ValidateNoChanges(
       "alternate",
       "<link rel='alternate stylesheet' href='foo.css' title='foo'>");
-}
-
-TEST_F(CssInlineFilterTest, CarryAcrossOtherAttributes) {
-  // Carry across attributes such as id and class to the inlined style tag.
-  AddFilter(RewriteOptions::kInlineCss);
-  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, "a{margin:0}", 100);
-
-  ValidateExpected(
-      "CarryAcross",
-      "<link rel='stylesheet' href='foo.css' id='my-stylesheet' class='a b c'"
-      " lulz='!@$@#$%@4lulz'>",
-      "<style id='my-stylesheet' class='a b c' lulz='!@$@#$%@4lulz'>"
-      "a{margin:0}</style>");
-
-  // But respect pagespeed_no_transform
-  ValidateNoChanges(
-      "NoTransform",
-      "<link rel='stylesheet' href='foo.css' id='my-stylesheet' class='a b c' "
-      "pagespeed_no_transform>");
 }
 
 TEST_F(CssInlineFilterTest, NoRel) {
@@ -604,18 +534,6 @@ TEST_F(CssInlineFilterTest, NonCss) {
 
   ValidateNoChanges("non_css",
                     "<link rel='stylesheet' href='foo.xsl' type='text/xsl'/>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTag) {
-  VerifyNoInliningForClosingStyleTag("</style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithCapitalization) {
-  VerifyNoInliningForClosingStyleTag("</Style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithSpaces) {
-  VerifyNoInliningForClosingStyleTag("</style abc>");
 }
 
 }  // namespace

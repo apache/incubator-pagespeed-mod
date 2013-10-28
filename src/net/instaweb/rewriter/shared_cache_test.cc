@@ -33,6 +33,7 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_copy.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -45,8 +46,6 @@
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
-
-class CacheInterface;
 
 // Reproduce MPS issue 488 emulating memcached with LRUCache. We use the
 // 2 server contexts to emulate different servers, each with their own
@@ -68,7 +67,7 @@ class SharedCacheTest : public RewriteContextTestBase {
     EXPECT_EQ(NULL, server1_->filesystem_metadata_cache());
     EXPECT_EQ(NULL, server2_->filesystem_metadata_cache());
 
-    kRewrittenHref = Encode("", "tw", "0", kOriginalHref, "css");
+    kRewrittenHref = Encode(kTestDomain, "tw", "0", kOriginalHref, "css");
 
     // Make the metadata and HTTP caches the same for this test.
     factory1_ = factory();
@@ -77,7 +76,7 @@ class SharedCacheTest : public RewriteContextTestBase {
                                           factory1_->timer(),
                                           factory1_->hasher(),
                                           factory1_->statistics()));
-    server2_->set_metadata_cache(factory1_->delay_cache());
+    server2_->set_metadata_cache(new CacheCopy(factory1_->delay_cache()));
 
     // The metadata cache and the HTTP cache share an underlying LRU cache at
     // the bottom, so the stats for them are combined into this:
@@ -107,12 +106,8 @@ class SharedCacheTest : public RewriteContextTestBase {
 
   void SetUpFilesystemMetadataCaches() {
     // Add a filesystem metadata cache to each server.
-    CacheInterface* cache = new LRUCache(10000);
-    server1_->set_filesystem_metadata_cache(cache);
-    server1_->DeleteCacheOnDestruction(cache);
-    cache = new LRUCache(10000);
-    server2_->set_filesystem_metadata_cache(cache);
-    server1_->DeleteCacheOnDestruction(cache);
+    server1_->set_filesystem_metadata_cache(new LRUCache(10000));
+    server2_->set_filesystem_metadata_cache(new LRUCache(10000));
   }
 
   void ValidateRewrite(StringPiece id,
@@ -168,7 +163,7 @@ class SharedCacheTest : public RewriteContextTestBase {
 
     // Check the rewritten content then check that we got it from the cache.
     GoogleString output;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, kRewrittenHref), &output));
+    EXPECT_TRUE(FetchResourceUrl(kRewrittenHref, &output));
     EXPECT_EQ(expected_contents, output);
     EXPECT_EQ(1, shared_cache_->num_hits() - shared_num_hits_);
     ++shared_num_hits_;

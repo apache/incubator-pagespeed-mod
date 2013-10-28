@@ -31,224 +31,46 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
-#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/simple_stats.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
-#include "pagespeed/kernel/image/jpeg_utils.h"
-#include "pagespeed/kernel/image/test_utils.h"
+#include "pagespeed/image_compression/jpeg_optimizer_test_helper.h"
+#include "pagespeed/image_compression/jpeg_utils.h"
 
+using pagespeed::image_compression::JpegUtils;
+using pagespeed_testing::image_compression::GetNumScansInJpeg;
+using pagespeed_testing::image_compression::IsJpegSegmentPresent;
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
 using pagespeed_testing::image_compression::GetJpegNumComponentsAndSamplingFactors;
-using pagespeed_testing::image_compression::GetNumScansInJpeg;
-using pagespeed_testing::image_compression::IsJpegSegmentPresent;
-using pagespeed::image_compression::JpegUtils;
-using pagespeed::image_compression::kMessagePatternAnimatedGif;
-using pagespeed::image_compression::kMessagePatternPixelFormat;
-using pagespeed::image_compression::kMessagePatternStats;
-using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
-using pagespeed::image_compression::kMessagePatternWritingToWebp;
 
-namespace net_instaweb {
 namespace {
 
 const char kProgressiveHeader[] = "\xFF\xC2";
 const int kProgressiveHeaderStartIndex = 158;
-const char kMessagePatternDataTruncated[] = "*data truncated*";
-const char kMessagePatternFailedToCreateWebp[] = "*Failed to create webp*";
-const char kMessagePatternFailedToEncodeWebp[] = "Could not encode webp data*";
-const char kMessagePatternNoWebpDimension[] = "*Couldn't find * dimensions*";
-const char kMessagePatternTimedOut[] = "*conversion timed out*";
-
-class ConversionVarChecker {
- public:
-  explicit ConversionVarChecker(Image::CompressionOptions* options) {
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_GIF)->timeout_count =
-        simple_stats_.AddVariable("gif_webp_timeout");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_GIF)->success_ms =
-        simple_stats_.AddHistogram("gif_webp_success");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_GIF)->failure_ms =
-        simple_stats_.AddHistogram("gif_webp_failure");
-
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_PNG)->timeout_count =
-        simple_stats_.AddVariable("png_webp_timeout");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_PNG)->success_ms =
-        simple_stats_.AddHistogram("png_webp_success");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_PNG)->failure_ms =
-        simple_stats_.AddHistogram("png_webp_failure");
-
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_JPEG)->timeout_count =
-        simple_stats_.AddVariable("jpeg_webp_timeout");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_JPEG)->success_ms =
-        simple_stats_.AddHistogram("jpeg_webp_success");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::FROM_JPEG)->failure_ms =
-        simple_stats_.AddHistogram("jpeg_webp_failure");
-
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::NONOPAQUE)->timeout_count =
-        simple_stats_.AddVariable("webp_alpha_timeout");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::NONOPAQUE)->success_ms =
-        simple_stats_.AddHistogram("webp_alpha_success");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::NONOPAQUE)->failure_ms =
-        simple_stats_.AddHistogram("webp_alpha_failure");
-
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::OPAQUE)->timeout_count =
-        simple_stats_.AddVariable("webp_opaque_timeout");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::OPAQUE)->success_ms =
-        simple_stats_.AddHistogram("webp_opaque_success");
-    webp_conversion_variables_.Get(
-        Image::ConversionVariables::OPAQUE)->failure_ms =
-        simple_stats_.AddHistogram("webp_opaque_failure");
-
-    options->webp_conversion_variables = &webp_conversion_variables_;
-  }
-
-  void Test(int gif_webp_timeout,
-            int gif_webp_success,
-            int gif_webp_failure,
-
-            int png_webp_timeout,
-            int png_webp_success,
-            int png_webp_failure,
-
-            int jpeg_webp_timeout,
-            int jpeg_webp_success,
-            int jpeg_webp_failure,
-
-            bool opaque) {
-    EXPECT_EQ(gif_webp_timeout,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_GIF)->
-              timeout_count->Get());
-    EXPECT_EQ(gif_webp_success,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_GIF)->
-              success_ms->Count());
-    EXPECT_EQ(gif_webp_failure,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_GIF)->
-              failure_ms->Count());
-
-    EXPECT_EQ(png_webp_timeout,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_PNG)->
-              timeout_count->Get());
-    EXPECT_EQ(png_webp_success,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_PNG)->
-              success_ms->Count());
-    EXPECT_EQ(png_webp_failure,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_PNG)->
-              failure_ms->Count());
-
-    EXPECT_EQ(jpeg_webp_timeout,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_JPEG)->
-              timeout_count->Get());
-    EXPECT_EQ(jpeg_webp_success,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_JPEG)->
-              success_ms->Count());
-    EXPECT_EQ(jpeg_webp_failure,
-              webp_conversion_variables_.Get(
-                  Image::ConversionVariables::FROM_JPEG)->
-              failure_ms->Count());
-
-    int total_timeout =
-        gif_webp_timeout +
-        png_webp_timeout +
-        jpeg_webp_timeout;
-    int total_success =
-        gif_webp_success +
-        png_webp_success +
-        jpeg_webp_success;
-    int total_failure =
-        gif_webp_failure +
-        png_webp_failure +
-        jpeg_webp_failure;
-
-    Image::ConversionBySourceVariable* webp_transparency =
-        webp_conversion_variables_.Get(
-            (opaque ?
-             Image::ConversionVariables::OPAQUE :
-             Image::ConversionVariables::NONOPAQUE));
-
-    EXPECT_EQ(total_timeout,
-              webp_transparency->timeout_count->Get());
-    EXPECT_EQ(total_success,
-              webp_transparency->success_ms->Count());
-    EXPECT_EQ(total_failure,
-              webp_transparency->failure_ms->Count());
-  }
-
- private:
-  SimpleStats simple_stats_;
-  Image::ConversionVariables webp_conversion_variables_;
-};
 
 }  // namespace
 
+namespace net_instaweb {
+
 class ImageTest : public ImageTestBase {
  public:
-  ImageTest() :
-      options_(new Image::CompressionOptions()) {
-  }
+  ImageTest() : options_(new Image::CompressionOptions()) {}
 
  protected:
-  virtual void SetUp() {
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternAnimatedGif);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
-    message_handler_.AddPatternToSkipPrinting(
-        kMessagePatternFailedToCreateWebp);
-    message_handler_.AddPatternToSkipPrinting(
-        kMessagePatternFailedToEncodeWebp);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternNoWebpDimension);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternWritingToWebp);
-  }
-
-  GoogleString* GetOutputContents(Image* image) {
-    return &(image->output_contents_);
-  }
-
-  void WriteToBuffer(const char* contents, GoogleString* str) {
-    *str = contents;
-  }
-
-  void ExpectEmptyOutput(Image* image) {
+  void ExpectEmptyOuput(Image* image) {
     EXPECT_FALSE(image->output_valid_);
     EXPECT_TRUE(image->output_contents_.empty());
   }
 
-  void ExpectContentType(ImageType image_type, Image* image) {
+  void ExpectContentType(Image::Type image_type, Image* image) {
     EXPECT_EQ(image_type, image->image_type_);
   }
 
-  void ExpectDimensions(ImageType image_type, int size,
+  void ExpectDimensions(Image::Type image_type, int size,
                         int expected_width, int expected_height,
                         Image *image) {
     EXPECT_EQ(size, image->input_size());
@@ -264,7 +86,7 @@ class ImageTest : public ImageTestBase {
   }
 
   void CheckInvalid(const GoogleString& name, const GoogleString& contents,
-                    ImageType input_type, ImageType output_type,
+                    Image::Type input_type, Image::Type output_type,
                     bool progressive) {
     ImagePtr image(ImageFromString(output_type, name, contents, progressive));
     EXPECT_EQ(contents.size(), image->input_size());
@@ -280,8 +102,8 @@ class ImageTest : public ImageTestBase {
   }
 
   bool CheckImageFromFile(const char* filename,
-                          ImageType input_type,
-                          ImageType output_type,
+                          Image::Type input_type,
+                          Image::Type output_type,
                           int min_bytes_to_type,
                           int min_bytes_to_dimensions,
                           int width, int height,
@@ -292,29 +114,29 @@ class ImageTest : public ImageTestBase {
   }
 
   bool CheckImageFromFile(const char* filename,
-                          ImageType input_type,
-                          ImageType intended_output_type,
-                          ImageType actual_output_type,
+                          Image::Type input_type,
+                          Image::Type intended_output_type,
+                          Image::Type actual_output_type,
                           int min_bytes_to_type,
                           int min_bytes_to_dimensions,
                           int width, int height,
                           int size, bool optimizable) {
     // Set options to convert to intended_output_type, but to allow for
     // negative tests, don't clear any other options.
-    if (intended_output_type == IMAGE_WEBP) {
+    if (intended_output_type == Image::IMAGE_WEBP) {
       options_->preferred_webp = Image::WEBP_LOSSY;
-    } else if (intended_output_type == IMAGE_WEBP_LOSSLESS_OR_ALPHA) {
+    } else if (intended_output_type == Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA) {
       options_->preferred_webp = Image::WEBP_LOSSLESS;
     }
     switch (intended_output_type) {
-      case IMAGE_WEBP:
-      case IMAGE_WEBP_LOSSLESS_OR_ALPHA:
+      case Image::IMAGE_WEBP:
+      case Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA:
         options_->convert_jpeg_to_webp = true;
         FALLTHROUGH_INTENDED;
-      case IMAGE_JPEG:
+      case Image::IMAGE_JPEG:
         options_->convert_png_to_jpeg = true;
         FALLTHROUGH_INTENDED;
-      case IMAGE_PNG:
+      case Image::IMAGE_PNG:
         options_->convert_gif_to_png = true;
         break;
       default:
@@ -338,7 +160,7 @@ class ImageTest : public ImageTestBase {
     // Construct data url, then decode it and check for match.
     CachedResult cached;
     GoogleString data_url;
-    EXPECT_NE(IMAGE_UNKNOWN, image->image_type());
+    EXPECT_NE(Image::IMAGE_UNKNOWN, image->image_type());
     StringPiece image_contents = image->Contents();
 
     progressive &= ImageTestingPeer::ShouldConvertToProgressive(jpeg_quality,
@@ -352,7 +174,7 @@ class ImageTest : public ImageTestBase {
     cached.set_inlined_image_type(static_cast<int>(image->image_type()));
     DataUrl(
         *Image::TypeToContentType(
-            static_cast<ImageType>(cached.inlined_image_type())),
+            static_cast<Image::Type>(cached.inlined_image_type())),
         BASE64, cached.inlined_data(), &data_url);
     GoogleString data_header("data:");
     data_header.append(image->content_type()->mime_type());
@@ -381,7 +203,7 @@ class ImageTest : public ImageTestBase {
     CheckInvalid(filename, type_data, input_type, intended_output_type,
                  progressive);
     GoogleString junk(contents, 0, min_bytes_to_type - 1);
-    CheckInvalid(filename, junk, IMAGE_UNKNOWN, IMAGE_UNKNOWN,
+    CheckInvalid(filename, junk, Image::IMAGE_UNKNOWN, Image::IMAGE_UNKNOWN,
                  progressive);
     return progressive;
   }
@@ -402,7 +224,7 @@ class ImageTest : public ImageTestBase {
                               GoogleString* url) {
     ResourceContext context;
     StringVector urls;
-    bool result = encoder_.Decode(encoded, &urls, &context, &message_handler_);
+    bool result = encoder_.Decode(encoded, &urls, &context, &handler_);
     if (result) {
       EXPECT_EQ(1, urls.size());
       url->assign(urls.back());
@@ -423,6 +245,7 @@ class ImageTest : public ImageTestBase {
     options->recompress_jpeg = true;
   }
 
+  GoogleMessageHandler handler_;
   ImageUrlEncoder encoder_;
   scoped_ptr<Image::CompressionOptions> options_;
 
@@ -430,16 +253,14 @@ class ImageTest : public ImageTestBase {
   DISALLOW_COPY_AND_ASSIGN(ImageTest);
 };
 
-namespace {
-
 TEST_F(ImageTest, EmptyImageUnidentified) {
-  CheckInvalid("Empty string", "", IMAGE_UNKNOWN, IMAGE_UNKNOWN,
+  CheckInvalid("Empty string", "", Image::IMAGE_UNKNOWN, Image::IMAGE_UNKNOWN,
                false);
 }
 
 TEST_F(ImageTest, InputWebpTest) {
   CheckImageFromFile(
-      kScenery, IMAGE_WEBP, IMAGE_WEBP,
+      kScenery, Image::IMAGE_WEBP, Image::IMAGE_WEBP,
       20,  // Min bytes to bother checking file type at all.
       30,
       550, 368,
@@ -480,7 +301,7 @@ TEST_F(ImageTest, WebpLaLowResTest) {
 TEST_F(ImageTest, PngTest) {
   options_->recompress_png = true;
   CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_PNG,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_PNG,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
@@ -492,18 +313,13 @@ TEST_F(ImageTest, PngToWebpTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_WEBP,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_WEBP,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
       26548, true);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, PngToWebpFailToJpegDueToPreferredTest) {
@@ -511,21 +327,16 @@ TEST_F(ImageTest, PngToWebpFailToJpegDueToPreferredTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->preferred_webp = Image::WEBP_NONE;
   options_->webp_quality = 75;
   options_->jpeg_quality = 85;
   options_->convert_jpeg_to_webp = true;
   CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_JPEG,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_JPEG,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
       26548, true);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, PngToWebpLaTest) {
@@ -533,18 +344,13 @@ TEST_F(ImageTest, PngToWebpLaTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
       26548, true);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, PngAlphaToWebpFailToPngTest) {
@@ -553,7 +359,6 @@ TEST_F(ImageTest, PngAlphaToWebpFailToPngTest) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = false;
   options->webp_quality = 75;
@@ -567,10 +372,6 @@ TEST_F(ImageTest, PngAlphaToWebpFailToPngTest) {
   image->output_size();
   EXPECT_EQ(ContentType::kPng, image->content_type()->type());
   EXPECT_EQ(2, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 1,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, PngAlphaToWebpTest) {
@@ -579,7 +380,6 @@ TEST_F(ImageTest, PngAlphaToWebpTest) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
@@ -593,10 +393,6 @@ TEST_F(ImageTest, PngAlphaToWebpTest) {
   image->output_size();
   EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
   EXPECT_EQ(1, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
 }
 
 TEST_F(ImageTest, PngAlphaToWebpTestFailsBecauseTooManyTries) {
@@ -605,7 +401,6 @@ TEST_F(ImageTest, PngAlphaToWebpTestFailsBecauseTooManyTries) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
@@ -619,10 +414,6 @@ TEST_F(ImageTest, PngAlphaToWebpTestFailsBecauseTooManyTries) {
   image->output_size();
   EXPECT_EQ(ContentType::kPng, image->content_type()->type());
   EXPECT_EQ(2, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 1,   // png
-                              0, 0, 0,   // jpeg
-                              false);
 }
 
 // This tests that we compress the alpha channel on the webp. If we
@@ -633,7 +424,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTest) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
@@ -647,10 +437,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTest) {
   EXPECT_GT(image->input_size(), image->output_size());
   EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
   EXPECT_EQ(1, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
 }
 
 // This tests that we compress the alpha channel on the webp. If we
@@ -661,7 +447,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpLaTest) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSLESS;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
@@ -675,10 +460,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpLaTest) {
   EXPECT_GT(image->input_size(), image->output_size());
   EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
   EXPECT_EQ(1, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
   // TODO(vchudnov): Check that the pixels match.
 }
 
@@ -690,7 +471,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
   options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
@@ -699,10 +479,6 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
   options->jpeg_quality = 85;
   options->webp_conversion_timeout_ms = 1;
   EXPECT_EQ(0, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
 
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kRedbrush, &buffer, options));
@@ -712,59 +488,16 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
       1000 * options->webp_conversion_timeout_ms + 1);
   image->output_size();
   EXPECT_EQ(ContentType::kPng, image->content_type()->type());
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              1, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
 
   // One attempt for WebpP conversion, one attempt for the fall-back
   // to PNG/JPEG.
   EXPECT_EQ(2, options->conversions_attempted);
 }
 
-// Same image and settings that succeed in PngLargeAlphaToWebpTest,
-// should succeed if processing is really fast.
-TEST_F(ImageTest, PngLargeAlphaToWebpDoesNotTimeOutTest) {
-  // FYI: This test will also probably take very long to run under Valgrind.
-  if (RunningOnValgrind()) {
-    return;
-  }
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
-  options->preferred_webp = Image::WEBP_LOSSY;
-  options->allow_webp_alpha = true;
-  options->convert_png_to_jpeg = true;
-  options->convert_jpeg_to_webp = true;
-  options->webp_quality = 75;
-  options->jpeg_quality = 85;
-  options->webp_conversion_timeout_ms = 1;
-  EXPECT_EQ(0, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
-
-  GoogleString buffer;
-  ImagePtr image(ReadFromFileWithOptions(kRedbrush, &buffer, options));
-  timer_.SetTimeDeltaUs(1);  // When setting deadline
-  timer_.SetTimeDeltaUs(1);  // Before attempting webp lossless
-  timer_.SetTimeDeltaUs(     // During conversion
-      1000 * options->webp_conversion_timeout_ms - 2);
-  image->output_size();
-  EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 1, 0,   // png
-                              0, 0, 0,   // jpeg
-                              false);
-
-  // One attempt for WebpP conversion.
-  EXPECT_EQ(1, options->conversions_attempted);
-}
-
 TEST_F(ImageTest, PngToJpegTest) {
   options_->jpeg_quality = 85;
   CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_JPEG,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_JPEG,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
@@ -775,7 +508,7 @@ TEST_F(ImageTest, TooSmallToConvertPngToProgressiveJpegTest) {
   options_->progressive_jpeg = true;
   options_->jpeg_quality = 85;
   bool progressive = CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_JPEG,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_JPEG,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
@@ -788,7 +521,7 @@ TEST_F(ImageTest, PngToProgressiveJpegTest) {
   options_->jpeg_quality = 85;
   options_->progressive_jpeg_min_bytes = 100;  // default is 10k.
   bool progressive = CheckImageFromFile(
-      kBikeCrash, IMAGE_PNG, IMAGE_JPEG,
+      kBikeCrash, Image::IMAGE_PNG, Image::IMAGE_JPEG,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
       100, 100,
@@ -798,7 +531,7 @@ TEST_F(ImageTest, PngToProgressiveJpegTest) {
 
 TEST_F(ImageTest, GifToPngTest) {
   CheckImageFromFile(
-      kIronChef, IMAGE_GIF, IMAGE_PNG,
+      kIronChef, Image::IMAGE_GIF, Image::IMAGE_PNG,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       192, 256,
@@ -820,7 +553,7 @@ TEST_F(ImageTest, GifToPngDisabledTest) {
 TEST_F(ImageTest, GifToJpegTest) {
   options_->jpeg_quality = 85;
   CheckImageFromFile(
-      kIronChef, IMAGE_GIF, IMAGE_JPEG,
+      kIronChef, Image::IMAGE_GIF, Image::IMAGE_JPEG,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       192, 256,
@@ -832,18 +565,13 @@ TEST_F(ImageTest, GifToWebpTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 25;
   CheckImageFromFile(
-      kIronChef, IMAGE_GIF, IMAGE_WEBP,
+      kIronChef, Image::IMAGE_GIF, Image::IMAGE_WEBP,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       192, 256,
       24941, true);
-  conversion_var_checker.Test(0, 1, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, GifToWebpLaTest) {
@@ -851,23 +579,18 @@ TEST_F(ImageTest, GifToWebpLaTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kIronChef, IMAGE_GIF, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
+      kIronChef, Image::IMAGE_GIF, Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       192, 256,
       24941, true);
-  conversion_var_checker.Test(0, 1, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, AnimationTest) {
   CheckImageFromFile(
-      kCradle, IMAGE_GIF, IMAGE_PNG,
+      kCradle, Image::IMAGE_GIF, Image::IMAGE_PNG,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
       200, 150,
@@ -877,7 +600,7 @@ TEST_F(ImageTest, AnimationTest) {
 TEST_F(ImageTest, JpegTest) {
   options_->recompress_jpeg = true;
   CheckImageFromFile(
-      kPuzzle, IMAGE_JPEG, IMAGE_JPEG,
+      kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_JPEG,
       8,  // Min bytes to bother checking file type at all.
       6468,  // Specific to this test
       1023, 766,
@@ -888,7 +611,7 @@ TEST_F(ImageTest, ProgressiveJpegTest) {
   options_->recompress_jpeg = true;
   options_->progressive_jpeg = true;
   CheckImageFromFile(
-      kPuzzle, IMAGE_JPEG, IMAGE_JPEG,
+      kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_JPEG,
       8,  // Min bytes to bother checking file type at all.
       6468,  // Specific to this test
       1023, 766,
@@ -918,8 +641,7 @@ TEST_F(ImageTest, UseJpegLossyIfInputQualityIsLowTest) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When num progressive scans is set, we use lossy path. The compression
   // quality is the minimum of the input and the configuration, i.e., 50.
@@ -932,19 +654,17 @@ TEST_F(ImageTest, UseJpegLossyIfInputQualityIsLowTest) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // Empty image will return -1 when we try to determine its quality.
   options = new Image::CompressionOptions();
   SetJpegRecompressionAndQuality(options);
   options->progressive_jpeg = true;
   image.reset(NewImage("", "", GTestTempDir(), options,
-                       &timer_, &message_handler_));
+                       &timer_, &handler_));
   EXPECT_EQ(
       -1, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 }
 
 TEST_F(ImageTest, JpegRetainColorProfileTest) {
@@ -1037,75 +757,11 @@ TEST_F(ImageTest, WebpTest) {
   }
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kPuzzle, IMAGE_JPEG, IMAGE_WEBP,
+      kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_WEBP,
       8,  // Min bytes to bother checking file type at all.
       6468,  // Specific to this test
       1023, 766,
       241260, true);
-}
-
-TEST_F(ImageTest, JpegToWebpTimesOutTest) {
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
-  options->recompress_jpeg = true;
-  options->convert_jpeg_to_webp = true;
-  options->preferred_webp = Image::WEBP_LOSSY;
-  options->webp_quality = 75;
-  options->webp_conversion_timeout_ms = 1;
-  timer_.SetTimeDeltaUs(1);  // When setting deadline
-  timer_.SetTimeDeltaUs(     // During conversion
-      1000 * options->webp_conversion_timeout_ms + 1);
-
-  EXPECT_EQ(0, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
-
-  GoogleString buffer;
-  ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
-  image->output_size();
-  EXPECT_EQ(ContentType::kJpeg, image->content_type()->type());
-
-  EXPECT_EQ(2, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              1, 0, 0,   // jpeg
-                              true);
-}
-
-TEST_F(ImageTest, JpegToWebpDoesNotTimeOutTest) {
-  // FYI: This test will probably take very long to run under Valgrind.
-  if (RunningOnValgrind()) {
-    return;
-  }
-  Image::CompressionOptions* options = new Image::CompressionOptions;
-  ConversionVarChecker conversion_var_checker(options);
-  options->recompress_jpeg = true;
-  options->convert_jpeg_to_webp = true;
-  options->preferred_webp = Image::WEBP_LOSSY;
-  options->webp_quality = 75;
-  options->webp_conversion_timeout_ms = 1;
-  timer_.SetTimeDeltaUs(1);  // When setting deadline
-  timer_.SetTimeDeltaUs(     // During conversion
-      1000 * options->webp_conversion_timeout_ms - 1);
-
-  EXPECT_EQ(0, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 0, 0,   // jpeg
-                              true);
-
-  GoogleString buffer;
-  ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
-  image->output_size();
-  EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
-
-  EXPECT_EQ(1, options->conversions_attempted);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 1, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, WebpNonLaFromJpgTest) {
@@ -1113,20 +769,15 @@ TEST_F(ImageTest, WebpNonLaFromJpgTest) {
   if (RunningOnValgrind()) {
     return;
   }
-  ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   // Note that jpeg->webp cannot return a lossless webp.
   CheckImageFromFile(
-      kPuzzle, IMAGE_JPEG, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
-      IMAGE_WEBP,
+      kPuzzle, Image::IMAGE_JPEG, Image::IMAGE_WEBP_LOSSLESS_OR_ALPHA,
+      Image::IMAGE_WEBP,
       8,  // Min bytes to bother checking file type at all.
       6468,  // Specific to this test
       1023, 766,
       241260, true);
-  conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
-                              0, 1, 0,   // jpeg
-                              true);
 }
 
 TEST_F(ImageTest, DrawImage) {
@@ -1150,9 +801,9 @@ TEST_F(ImageTest, DrawImage) {
   ASSERT_GT(height, 0);
   options = new Image::CompressionOptions();
   options->recompress_png = true;
-  ImagePtr canvas(BlankImageWithOptions(width, height, IMAGE_PNG,
+  ImagePtr canvas(BlankImageWithOptions(width, height, Image::IMAGE_PNG,
                                         GTestTempDir(), &timer_,
-                                        &message_handler_, options));
+                                        &handler_, options));
   EXPECT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   EXPECT_TRUE(canvas->DrawImage(image2.get(), 0, image_dim1.height()));
   // The combined image should be bigger than either of the components, but
@@ -1163,34 +814,35 @@ TEST_F(ImageTest, DrawImage) {
             canvas->output_size());
 }
 
-TEST_F(ImageTest, BlankTransparentImage) {
-  int width = 1000, height = 1000;
-  Image::CompressionOptions* options = new Image::CompressionOptions();
+// Test OpenCV bug where width * height of image could be allocated on the
+// stack. kLarge is a 10000x10000 image, so it will try to allocate > 100MB
+// on the stack, which should overflow the stack and SEGV.
+TEST_F(ImageTest, OpencvStackOverflow) {
+  // This test takes ~90000 ms on Valgrind and need not be run there.
+  if (RunningOnValgrind()) {
+    return;
+  }
 
-  options->use_transparent_for_blank_image = true;
-  ImagePtr blank(BlankImageWithOptions(width, height, IMAGE_PNG, GTestTempDir(),
-                                       &timer_, &message_handler_, options));
-  bool loaded = blank->EnsureLoaded(false);
-  EXPECT_EQ(loaded, true);
-  EXPECT_GT(blank->Contents().size(), 0);
+  GoogleString buf;
+  ImagePtr image(ReadImageFromFile(Image::IMAGE_JPEG, kLarge, &buf, false));
 
-  ImageDim blank_dim;
-  blank->Dimensions(&blank_dim);
-  EXPECT_EQ(blank_dim.width(), width);
-  EXPECT_EQ(blank_dim.height(), height);
+  ImageDim new_dim;
+  new_dim.set_width(1);
+  new_dim.set_height(1);
+  image->ResizeTo(new_dim);
 }
 
 TEST_F(ImageTest, ResizeTo) {
   GoogleString buf;
-  ImagePtr image(ReadImageFromFile(IMAGE_JPEG, kPuzzle, &buf, false));
+  ImagePtr image(ReadImageFromFile(Image::IMAGE_JPEG, kPuzzle, &buf, false));
 
   ImageDim new_dim;
   new_dim.set_width(10);
   new_dim.set_height(10);
   image->ResizeTo(new_dim);
 
-  ExpectEmptyOutput(image.get());
-  ExpectContentType(IMAGE_JPEG, image.get());
+  ExpectEmptyOuput(image.get());
+  ExpectContentType(Image::IMAGE_JPEG, image.get());
 }
 
 TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
@@ -1205,8 +857,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When jpeg_num_progressive_scans > 0, lossy will be used and the quality
   // will be set to the minimum of input quality and jpeg_quality.
@@ -1219,8 +870,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When jpeg_quality is less than input quality, lossy will be used and the
   // output quality is the minimum of them.
@@ -1232,119 +882,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       49, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 }
 
-void SetBaseJpegOptions(Image::CompressionOptions* options) {
-  options->preferred_webp = Image::WEBP_LOSSY;
-  options->allow_webp_alpha = true;
-  options->convert_gif_to_png = true;
-  options->convert_png_to_jpeg = true;
-  options->webp_quality = 75;
-  options->jpeg_quality = 85;
-}
-
-TEST_F(ImageTest, IgnoreTimeoutWhenFinishingWebp) {
-  // FYI: This test will also probably take very long to run under Valgrind.
-  if (RunningOnValgrind()) {
-    return;
-  }
-
-  // Get the jpeg reference image
-  Image::CompressionOptions* jpeg_options = new Image::CompressionOptions;
-  SetBaseJpegOptions(jpeg_options);
-
-  GoogleString jpeg_buffer;
-  ImagePtr jpeg_image(ReadFromFileWithOptions(kBikeCrash,
-                                              &jpeg_buffer,
-                                              jpeg_options));
-
-  jpeg_image->output_size();
-  EXPECT_EQ(ContentType::kJpeg, jpeg_image->content_type()->type());
-
-
-  // Get the webp reference image
-  Image::CompressionOptions* webp_options = new Image::CompressionOptions;
-  SetBaseJpegOptions(webp_options);
-  webp_options->convert_jpeg_to_webp = true;
-  webp_options->webp_conversion_timeout_ms = 1;
-  GoogleString webp_buffer;
-  ImagePtr webp_image(ReadFromFileWithOptions(kBikeCrash,
-                                              &webp_buffer,
-                                              webp_options));
-
-  webp_image->output_size();
-  EXPECT_EQ(ContentType::kWebp, webp_image->content_type()->type());
-
-
-  // Make sure that if the timeout occurs before the first byte is
-  // written, we do indeed time out.
-  Image::CompressionOptions* timed_out_webp_options =
-      new Image::CompressionOptions;
-  SetBaseJpegOptions(timed_out_webp_options);
-  timed_out_webp_options->convert_jpeg_to_webp = true;
-  timed_out_webp_options->webp_conversion_timeout_ms = 1;
-
-  GoogleString timed_out_webp_buffer;
-  ImagePtr timed_out_webp_image(
-      ReadFromFileWithOptions(kBikeCrash,
-                              &timed_out_webp_buffer,
-                              timed_out_webp_options));
-  timer_.SetTimeMs(10);
-  timer_.SetTimeDeltaUs(1);  // When setting deadline
-  timer_.SetTimeDeltaUs(1);  // Before attempting webp lossless
-  timer_.SetTimeDeltaUs(1);
-  timer_.SetTimeDeltaUs(2000);
-
-  timed_out_webp_image->output_size();
-  EXPECT_EQ(ContentType::kJpeg, timed_out_webp_image->content_type()->type());
-  EXPECT_EQ(jpeg_image->Contents(),
-            timed_out_webp_image->Contents());
-
-  // Test that if we time out after the first output byte is emitted, we keep
-  // going with the webp output.
-  Image::CompressionOptions* almost_done_webp_options =
-      new Image::CompressionOptions;
-  SetBaseJpegOptions(almost_done_webp_options);
-  almost_done_webp_options->convert_jpeg_to_webp = true;
-  almost_done_webp_options->webp_conversion_timeout_ms = 1;
-
-  const char* kSomeData = "some data";
-  GoogleString almost_done_webp_buffer;
-  ImagePtr almost_done_webp_image(
-      ReadFromFileWithOptions(kBikeCrash,
-                              &almost_done_webp_buffer,
-                              almost_done_webp_options));
-  timer_.SetTimeMs(20);
-  timer_.SetTimeDeltaUs(1);  // When setting deadline
-  timer_.SetTimeDeltaUs(1);  // Before attempting webp lossless
-  timer_.SetTimeDeltaUs(1);
-  timer_.SetTimeDeltaUs(1);
-  timer_.SetTimeDeltaUs(1);
-  timer_.SetTimeDeltaUs(1);
-  // We need to specify the template typenames explicitly below
-  // because the compiler can't decide whether to use this test class
-  // or its base class, ImageTest.
-  timer_.SetTimeDeltaUsWithCallback(
-      2000,
-      MakeFunction<
-        ImageTest_IgnoreTimeoutWhenFinishingWebp_Test,
-        const char*,
-        GoogleString*>(
-            this,
-            &ImageTest_IgnoreTimeoutWhenFinishingWebp_Test::WriteToBuffer,
-            kSomeData,
-            GetOutputContents(almost_done_webp_image.get())));
-
-  almost_done_webp_image->output_size();
-  EXPECT_EQ(ContentType::kWebp,
-            almost_done_webp_image->content_type()->type());
-  GoogleString expected = kSomeData;
-  expected.append(webp_image->Contents().as_string());
-  EXPECT_EQ(expected,
-            almost_done_webp_image->Contents());
-}
-
-}  // namespace
 }  // namespace net_instaweb

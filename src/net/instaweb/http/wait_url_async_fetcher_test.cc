@@ -20,11 +20,9 @@
 
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/thread_system.h"
 
@@ -38,7 +36,7 @@ const char kBody[] = "Contents.";
 class WaitUrlAsyncFetcherTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    thread_system_.reset(Platform::CreateThreadSystem());
+    thread_system_.reset(ThreadSystem::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &base_fetcher_, thread_system_->NewMutex()));
 
@@ -49,17 +47,15 @@ class WaitUrlAsyncFetcherTest : public ::testing::Test {
 
   WaitUrlAsyncFetcher* wait_fetcher() { return wait_fetcher_.get(); }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-
  private:
   MockUrlFetcher base_fetcher_;
+  scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
 };
 
 TEST_F(WaitUrlAsyncFetcherTest, FetcherWaits) {
   GoogleMessageHandler handler;
-  ExpectStringAsyncFetch callback(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback(true);
 
   wait_fetcher()->Fetch(kUrl, &handler, &callback);
 
@@ -75,8 +71,7 @@ TEST_F(WaitUrlAsyncFetcherTest, FetcherWaits) {
 
 TEST_F(WaitUrlAsyncFetcherTest, PassThrough) {
   GoogleMessageHandler handler;
-  ExpectStringAsyncFetch callback(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback(true);
 
   wait_fetcher()->Fetch(kUrl, &handler, &callback);
 
@@ -91,8 +86,7 @@ TEST_F(WaitUrlAsyncFetcherTest, PassThrough) {
   EXPECT_EQ(kBody, callback.buffer());
 
   // Now fetches happen instantly.
-  ExpectStringAsyncFetch callback2(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ExpectStringAsyncFetch callback2(true);
   wait_fetcher()->Fetch(kUrl, &handler, &callback2);
   EXPECT_TRUE(callback2.done());
   EXPECT_EQ(kBody, callback2.buffer());

@@ -51,7 +51,7 @@ class FlushEarlyFlow {
   static const char kNumFlushEarlyRequestsRedirected[];
   static const char kRedirectPageJs[];
 
-  static void TryStart(
+  static void Start(
       const GoogleString& url,
       AsyncFetch** base_fetch,
       RewriteDriver* driver,
@@ -100,11 +100,10 @@ class FlushEarlyFlow {
   FlushEarlyAsyncFetch* flush_early_fetch_;
   RewriteDriver* driver_;
   ProxyFetchFactory* factory_;
-  ServerContext* server_context_;
+  ServerContext* manager_;
   ProxyFetchPropertyCallbackCollector* property_cache_callback_;
   bool should_flush_early_lazyload_script_;
   MessageHandler* handler_;
-  bool is_mobile_user_agent_;
 
   TimedVariable* num_requests_flushed_early_;
   TimedVariable* num_resources_flushed_early_;

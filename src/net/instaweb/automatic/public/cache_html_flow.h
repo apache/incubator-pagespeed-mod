@@ -23,14 +23,11 @@
 #include "net/instaweb/rewriter/cache_html_info.pb.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
 class AsyncFetch;
-class FallbackPropertyPage;
 class MessageHandler;
 class PropertyPage;
 class ProxyFetchPropertyCallbackCollector;
@@ -53,8 +50,6 @@ class TimedVariable;
 // compute CacheHtmlInfo and store it into the property cache.
 class CacheHtmlFlow {
  public:
-  class LogHelper;
-
   // Identifies the sync-point for reproducing races between foreground
   // serving request and background cache html computation requests in tests.
   static const char kBackgroundComputationDone[];
@@ -89,14 +84,11 @@ class CacheHtmlFlow {
   void Cancel();
 
   // Callback that is invoked after we rewrite the cached html.
-  void CacheHtmlRewriteDone(bool flushed_split_js);
+  void CacheHtmlRewriteDone();
 
   // Serves the cached html content to the client and triggers the proxy fetch
   // for non cacheable content.
-  // TODO(pulkitg): Change the function GetHtmlCriticalImages to take
-  // AbstractPropertyPage so that dependency on FallbackPropertyPage can be
-  // removed.
-  void CacheHtmlHit(FallbackPropertyPage* page);
+  void CacheHtmlHit(PropertyPage* page);
 
   // Serves the request in passthru mode and triggers a background request to
   // compute CacheHtmlInfo.
@@ -112,9 +104,6 @@ class CacheHtmlFlow {
   GoogleString url_;
   GoogleUrl google_url_;
   AsyncFetch* base_fetch_;
-  // Cache Html Flow needs its own log record since it needs to log even after
-  // the main log record is written out when the request processing is finished.
-  scoped_ptr<AbstractLogRecord> cache_html_log_record_;
   RewriteDriver* rewrite_driver_;
   const RewriteOptions* options_;
   ProxyFetchFactory* factory_;
@@ -122,7 +111,6 @@ class CacheHtmlFlow {
   ProxyFetchPropertyCallbackCollector* property_cache_callback_;
   MessageHandler* handler_;
   CacheHtmlInfo cache_html_info_;
-  scoped_ptr<LogHelper> cache_html_log_helper_;
 
   TimedVariable* num_cache_html_misses_;
   TimedVariable* num_cache_html_hits_;

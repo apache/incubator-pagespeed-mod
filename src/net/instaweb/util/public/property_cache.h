@@ -105,13 +105,10 @@
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
 class AbstractMutex;
-class AbstractPropertyStoreGetCallback;
-class PropertyCacheValues;
+class LogRecord;
 class PropertyValueProtobuf;
 class PropertyPage;
-class PropertyStore;
 class Statistics;
 class ThreadSystem;
 class Timer;
@@ -160,10 +157,10 @@ class PropertyValue {
 
   // Updates the value of a property, tracking stability so future
   // Readers can get a sense of how stable it is.  This is called from
-  // PropertyPage::UpdateValue only.
+  // PropertyCache::UpdateValue only.
   //
   // Updating the value here buffers it in a protobuf, but does not commit
-  // it to the cache. PropertyPage::WriteCohort() is required to commit.
+  // it to the cache.  PropertyCache::WriteCohort() is required to commit.
   void SetValue(const StringPiece& value, int64 now_ms);
 
   PropertyValueProtobuf* protobuf() { return proto_.get(); }
@@ -179,31 +176,39 @@ class PropertyValue {
 // Adds property-semantics to a raw cache API.
 class PropertyCache {
  public:
+  // Property cache key prefixes.
+  static const char kPagePropertyCacheKeyPrefix[];
+  static const char kClientPropertyCacheKeyPrefix[];
+  static const char kDevicePropertyCacheKeyPrefix[];
+
+  class CacheInterfaceCallback;
+
   // A Cohort is a set of properties that update at roughly the
   // same expected frequency.  The PropertyCache object keeps track of
   // the known set of Cohorts but does not actually keep any data for
   // them.  The data only arrives when we do a lookup.
+  // Each cohort uses a different CacheInterface so that we can track cache
+  // metrics on a per cohort basis.
   class Cohort {
    public:
-    explicit Cohort(StringPiece name) {
+    // Takes ownership of the cache.
+    Cohort(StringPiece name, CacheInterface* cache)
+        : cache_(cache) {
       name.CopyToString(&name_);
     }
     const GoogleString& name() const { return name_; }
+    CacheInterface* cache() const { return cache_.get(); }
 
    private:
+    scoped_ptr<CacheInterface> cache_;
     GoogleString name_;
 
     DISALLOW_COPY_AND_ASSIGN(Cohort);
   };
 
-  typedef std::vector<const Cohort*> CohortVector;
-
-  // Does not take ownership of the property_store, timer, stats, or threads
-  // objects.
-  PropertyCache(PropertyStore* property_store,
-                Timer* timer,
-                Statistics* stats,
-                ThreadSystem* threads);
+  PropertyCache(const GoogleString& cache_key_prefix,
+                CacheInterface* cache, Timer* timer,
+                Statistics* stats, ThreadSystem* threads);
   ~PropertyCache();
 
   // Reads all the PropertyValues in all the known Cohorts from
@@ -213,11 +218,32 @@ class PropertyCache {
 
   // Reads all the PropertyValues in the specified Cohorts from
   // cache, calling PropertyPage::Done when done.
-  void ReadWithCohorts(const CohortVector& cohort_list,
-                       PropertyPage* property_page) const;
+  void ReadWithCohorts(PropertyPage* property_page,
+                       const StringVector cohort_names) const;
 
-  // Returns all the cohorts from cache.
-  const CohortVector GetAllCohorts() const { return cohort_list_; }
+  // Reads PropertyValues for multiple pages, calling corresponding
+  // PropertyPage::Done as and when page read completes. It is essential
+  // that the Cohorts are established prior to calling this function.
+  void MultiRead(PropertyPageStarVector* property_page_list) const;
+
+  // Reads PropertyValues for multiple pages, each page has a specified
+  // cohorts. Here all pages from property_page_list have the same cohort
+  // list.
+  // Notes: Maybe PropertyPageStarVector should contain specified cohort
+  // information.
+  void MultiReadWithCohorts(PropertyPageStarVector* property_page_list,
+                            const StringVector cohort_name_list) const;
+
+  void SetupCohorts(PropertyPage* property_page) const;
+
+  // Updates a Cohort of properties into the cache.  It is a
+  // programming error (dcheck-fail) to Write a PropertyPage that
+  // was not read first.  It is fine to Write after a failed Read.
+  //
+  // Even if a PropertyValue was not changed since it was read, Write
+  // should be called periodically to update stability metrics.
+  void WriteCohort(const Cohort* cohort,
+                   PropertyPage* property_page) const;
 
   // Determines whether a value that was read is reasonably stable.
   bool IsStable(const PropertyValue* property) const {
@@ -234,13 +260,23 @@ class PropertyCache {
   // available at read-time, so for now we just use that.
   bool IsExpired(const PropertyValue* property_value, int64 ttl_ms) const;
 
+  // Updates the value of a property, tracking stability & discarding
+  // writes when the existing data is more up-to-date.
+  void UpdateValue(const StringPiece& value, PropertyValue* property) const;
+
   void set_mutations_per_1000_writes_threshold(int x) {
     mutations_per_1000_writes_threshold_ = x;
   }
 
-  // Establishes a new Cohort for this property cache. Note that you must call
+  // Establishes a new Cohort for this property cache backed by the
+  // CacheInteface passed to the constructor. Note that you must call
   // InitCohortStats prior to calling AddCohort.
   const Cohort* AddCohort(const StringPiece& cohort_name);
+
+  // Establishes a new Cohort to be backed by the specified CacheInterface.
+  // NOTE: Does not take ownership of the CacheInterface object.
+  const Cohort* AddCohortWithCache(const StringPiece& cohort_name,
+                                   CacheInterface* cache);
 
   // Returns the specified Cohort* or NULL if not found.  Cohorts must
   // be established at startup time, via AddCohort before any pages
@@ -255,24 +291,23 @@ class PropertyCache {
   // Indicates if the property cache is enabled.
   bool enabled() const { return enabled_; }
 
+  // Gets the underlying key associated with cache_key and a Cohort.
+  // This is the key used for the CacheInterface provided to the
+  // constructor.  This is made visible for testing, to make it
+  // possible to inject delays into the cache via DelayCache::DelayKey.
+  GoogleString CacheKey(const StringPiece& key, const Cohort* cohort) const;
+
+  const CacheInterface* cache_backend() const { return cache_; }
+
   // Initialize stats for the specified cohort.
   static void InitCohortStats(const GoogleString& cohort,
                               Statistics* statistics);
 
-  // Creates stats prefix for the given cohort.
-  static GoogleString GetStatsPrefix(const GoogleString& cohort_name);
-
-  // Returns timer pointer.
-  Timer* timer() const { return timer_; }
-
-  ThreadSystem* thread_system() const { return thread_system_; }
-
-  PropertyStore* property_store() { return property_store_; }
-
   // TODO(jmarantz): add some statistics tracking for stomps, stability, etc.
 
  private:
-  PropertyStore* property_store_;
+  GoogleString cache_key_prefix_;
+  CacheInterface* cache_;
   Timer* timer_;
   Statistics* stats_;
   ThreadSystem* thread_system_;
@@ -281,54 +316,16 @@ class PropertyCache {
   typedef std::map<GoogleString, Cohort*> CohortMap;
   CohortMap cohorts_;
   // For MutltiRead to scan all cohorts.
-  CohortVector cohort_list_;
+  StringVector cohort_name_list_;
   bool enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyCache);
 };
 
-// Abstract interface for implementing a PropertyPage.
-class AbstractPropertyPage {
- public:
-  virtual ~AbstractPropertyPage();
-  // Gets a property given the property name.  The property can then be
-  // mutated, prior to the PropertyPage being written back to the cache.
-  virtual PropertyValue* GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) = 0;
-
-  // Updates the value of a property, tracking stability & discarding
-  // writes when the existing data is more up-to-date.
-  virtual void UpdateValue(
-     const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-     const StringPiece& value) = 0;
-
-  // Updates a Cohort of properties into the cache.  It is a
-  // programming error (dcheck-fail) to Write a PropertyPage that
-  // was not read first.  It is fine to Write after a failed Read.
-  virtual void WriteCohort(const PropertyCache::Cohort* cohort) = 0;
-
-  // This function returns the cache state for a given cohort.
-  virtual CacheInterface::KeyState GetCacheState(
-     const PropertyCache::Cohort* cohort) = 0;
-
-  // Deletes a property given the property name.
-  virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
-                              const StringPiece& property_name) = 0;
-};
-
-
 // Holds the property values associated with a single key.  See more
 // extensive comment for PropertyPage above.
-class PropertyPage : public AbstractPropertyPage {
+class PropertyPage {
  public:
-  // The cache type associated with this callback.
-  enum PageType {
-    kPropertyCachePage,
-    kPropertyCacheFallbackPage,
-    kDevicePropertyCachePage,
-  };
-
   virtual ~PropertyPage();
 
   // Gets a property given the property name.  The property can then be
@@ -347,33 +344,8 @@ class PropertyPage : public AbstractPropertyPage {
   // via PropertyCache::Read.  This allows cache implementations that support
   // batching to do so on the read.  However, properties are written back to
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
-  virtual PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
-                                     const StringPiece& property_name);
-
-  // Updates the value of a property, tracking stability & discarding
-  // writes when the existing data is more up-to-date.
-  virtual void UpdateValue(
-      const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-      const StringPiece& value);
-
-  // Updates a Cohort of properties into the cache.  It is a
-  // programming error (dcheck-fail) to Write a PropertyPage that
-  // was not read first.  It is fine to Write after a failed Read.
-  //
-  // Even if a PropertyValue was not changed since it was read, Write
-  // should be called periodically to update stability metrics.
-  virtual void WriteCohort(const PropertyCache::Cohort* cohort);
-
-  // This function returns the cache state for a given cohort.
-  //
-  // It is a programming error to call GetCacheState on a PropertyPage
-  // that has not yet been read.
-  CacheInterface::KeyState GetCacheState(const PropertyCache::Cohort* cohort);
-
-  // This function set the cache state for a given cohort. This is used by test
-  // code and CacheCallback to populate the state.
-  void SetCacheState(const PropertyCache::Cohort* cohort,
-                     CacheInterface::KeyState x);
+  PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
+                             const StringPiece& property_name);
 
   // Deletes a property given the property name.
   //
@@ -387,58 +359,39 @@ class PropertyPage : public AbstractPropertyPage {
   void DeleteProperty(const PropertyCache::Cohort* cohort,
                       const StringPiece& property_name);
 
-  AbstractLogRecord* log_record() {
+  const GoogleString& key() const { return key_; }
+
+  LogRecord* log_record() {
     return request_context_->log_record();
   }
 
-  // Read the property page from cache.
-  void Read(const PropertyCache::CohortVector& cohort_list);
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(LogRecord* log_record, int cohort_index) {}
 
-  // Abort the reading of PropertyPage.
-  void Abort();
+ protected:
+  // The Page takes ownership of the mutex.
+  PropertyPage(AbstractMutex* mutex,
+               const PropertyCache& property_cache,
+               const StringPiece& key,
+               const RequestContextPtr& request_context);
 
   // Called immediatly after the underlying cache lookup is done, from
   // PropertyCache::CacheInterfaceCallback::Done().
   virtual bool IsCacheValid(int64 write_timestamp_ms) const { return true; }
 
-  // Populate PropertyCacheValues to the respective cohort in PropertyPage.
-  void AddValueFromProtobuf(const PropertyCache::Cohort* cohort,
-                            const PropertyValueProtobuf& proto);
-
-  // Returns the type of the page.
-  PageType page_type() { return page_type_; }
-
-  // Returns true if cohort present in the PropertyPage.
-  bool IsCohortPresent(const PropertyCache::Cohort* cohort);
-
-  // Finishes lookup for all the cohorts and call PropertyPage::Done() as fast
-  // as possible.
-  void FastFinishLookup();
-
-  // Generates PropertyCacheValues object from all the properties in the given
-  // cohort.
-  // Returns false, if cohort does not exists in the PropertyPage or no
-  // property is present in the cohort.
-  bool EncodePropertyCacheValues(const PropertyCache::Cohort* cohort,
-                                 PropertyCacheValues* values);
-
- protected:
-  // The Page takes ownership of the mutex.
-  // TODO(pulkitg): Instead of passing full PropertyCache object, just pass
-  // objects which PropertyPage needs.
-  PropertyPage(PageType page_type,
-               StringPiece url,
-               StringPiece options_signature_hash,
-               StringPiece cache_key_suffix,
-               const RequestContextPtr& request_context,
-               AbstractMutex* mutex,
-               PropertyCache* property_cache);
-
   // Called as a result of PropertyCache::Read when the data is available.
   virtual void Done(bool success) = 0;
 
  private:
-  void SetupCohorts(const PropertyCache::CohortVector& cohort_list);
+  class CallbackCollector;
+  friend class CallbackCollector;
+  friend class PropertyCache::CacheInterfaceCallback;
+  friend class PropertyCache;
+
+  // Serializes the values in this cohort into a string.  Returns
+  // false if there were no values to serialize.
+  bool EncodeCacheEntry(const PropertyCache::Cohort* cohort,
+                        GoogleString* value);
 
   // Returns true if for the given cohort any property is deleted.
   bool HasPropertyValueDeleted(const PropertyCache::Cohort* cohort);
@@ -448,35 +401,28 @@ class PropertyPage : public AbstractPropertyPage {
     Done(success);
   }
 
+  void AddValueFromProtobuf(const PropertyCache::Cohort* cohort,
+                            const PropertyValueProtobuf& proto);
+
   typedef std::map<GoogleString, PropertyValue*> PropertyMap;
 
   struct PropertyMapStruct {
-    explicit PropertyMapStruct(AbstractLogRecord* log)
+    PropertyMapStruct(LogRecord* log, int index)
         : has_deleted_property(false),
           log_record(log),
-          has_value(false) {}
+          cohort_index(index) {}
     PropertyMap pmap;
     bool has_deleted_property;
-    AbstractLogRecord* log_record;
-    CacheInterface::KeyState cache_state;
-    bool has_value;
+    LogRecord* log_record;
+    int cohort_index;
   };
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
       CohortDataMap;
   CohortDataMap cohort_data_map_;
   scoped_ptr<AbstractMutex> mutex_;
-  GoogleString url_;
-  GoogleString options_signature_hash_;
-  GoogleString cache_key_suffix_;
+  GoogleString key_;
   RequestContextPtr request_context_;
   bool was_read_;
-  PropertyCache* property_cache_;  // Owned by the caller.
-  // AbstractPropertyStoreCallback is safe to use until
-  // AbstractPropertyStoreCallback::DeleteWhenDone() which is called in
-  // PropertyPage destructor, so property_store_callback_ lives longer than
-  // PropertyPage.
-  AbstractPropertyStoreGetCallback* property_store_callback_;
-  PageType page_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PropertyPage);
 };

@@ -28,7 +28,6 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
 #include "net/instaweb/rewriter/public/image.h"
@@ -504,7 +503,7 @@ class Library : public spriter::ImageLibraryInterface {
           new net_instaweb::Image::CompressionOptions();
       options->recompress_png = true;
       image_.reset(BlankImageWithOptions(width, height,
-                                         net_instaweb::IMAGE_PNG,
+                                         net_instaweb::Image::IMAGE_PNG,
                                          tmp_dir, timer, handler, options));
     }
 
@@ -583,9 +582,9 @@ class Library : public spriter::ImageLibraryInterface {
         timer_, handler_));
 
     // We only handle PNGs and GIFs (which are converted to PNGs) for now.
-    net_instaweb::ImageType image_type = image->image_type();
-    if ((image_type != net_instaweb::IMAGE_PNG) &&
-        (image_type != net_instaweb::IMAGE_GIF)) {
+    net_instaweb::Image::Type image_type = image->image_type();
+    if ((image_type != net_instaweb::Image::IMAGE_PNG) &&
+        (image_type != net_instaweb::Image::IMAGE_GIF)) {
       handler->Message(kInfo, "Cannot sprite: not PNG or GIF, %s",
                        resource->url().c_str());
       return false;
@@ -715,11 +714,9 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 // Special resource slot that has a future_ pointer.
 class SpriteFutureSlot : public CssResourceSlot {
  public:
-  SpriteFutureSlot(const ResourcePtr& resource,
-                   const GoogleUrl& base_url, const RewriteOptions* options,
-                   Css::Values* values, size_t value_index,
-                   SpriteFuture* future)
-      : CssResourceSlot(resource, base_url, options, values, value_index),
+  SpriteFutureSlot(const ResourcePtr& resource, Css::Values* values,
+                   size_t value_index, SpriteFuture* future)
+      : CssResourceSlot(resource, values, value_index),
         future_(future),
         may_sprite_(false) {
   }
@@ -999,7 +996,7 @@ class ImageCombineFilter::Context : public RewriteContext {
       SpriteFuture* future = sprite_slot->future();
       GoogleString resource_url = resource->url();
       if (no_sprite->find(resource_url) == no_sprite->end()) {
-        if (!resource->IsSafeToRewrite(rewrite_uncacheable())) {
+        if (!resource->IsSafeToRewrite()) {
           no_sprite->insert(resource_url);
         } else {
           // Register the resource with the library and then check
@@ -1149,13 +1146,14 @@ bool ImageCombineFilter::GetDeclarationDimensions(
 // Must initialize context_ with appropriate parent before hand.
 // parent passed here because it's private.
 void ImageCombineFilter::AddCssBackgroundContext(
-    const GoogleUrl& original_url, const GoogleUrl& base_url,
-    Css::Values* values, int value_index,
+    const GoogleUrl& original_url, Css::Values* values, int value_index,
     CssFilter::Context* parent, Css::Declarations* decls,
     MessageHandler* handler) {
   CHECK(context_ != NULL);
+  handler->Message(kInfo, "Attempting to sprite css background.");
   int width, height;
   if (!GetDeclarationDimensions(decls, &width, &height)) {
+    handler->Message(kInfo, "Cannot sprite: no explicit dimensions");
     return;
   }
   StringPiece url_piece(original_url.Spec());
@@ -1167,7 +1165,7 @@ void ImageCombineFilter::AddCssBackgroundContext(
   if (resource.get() != NULL) {
     // transfers ownership of future to slot_obj
     SpriteFutureSlot* slot_obj = new SpriteFutureSlot(
-        resource, base_url, driver()->options(), values, value_index, future);
+        resource, values, value_index, future);
     CssResourceSlotPtr slot(slot_obj);
     parent->slot_factory()->UniquifySlot(slot);
     // Spriting must run before all other filters so that the slot for the

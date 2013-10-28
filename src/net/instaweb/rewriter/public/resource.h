@@ -17,11 +17,11 @@
 // Author: sligocki@google.com (Shawn Ligocki)
 //         jmarantz@google.com (Joshua Marantz)
 //
-// Resources are created by a RewriteDriver.  Input resources are
+// Resources are created by a ResourceManager.  Input resources are
 // read from URLs or the file system.  Output resources are constructed
 // programatically, usually by transforming one or more existing
 // resources.  Both input and output resources inherit from this class
-// so they can be used interchangeably in successive rewrite passes.
+// so they can be used interchangably in successive rewrite passes.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_H_
@@ -31,7 +31,6 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
@@ -46,14 +45,13 @@ class InputInfo;
 class MessageHandler;
 class Resource;
 class ServerContext;
+class RewriteOptions;
 
 typedef RefCountedPtr<Resource> ResourcePtr;
 typedef std::vector<ResourcePtr> ResourceVector;
 
 class Resource : public RefCounted<Resource> {
  public:
-  class AsyncCallback;
-
   enum HashHint {
     kOmitInputHash,
     kIncludeInputHash
@@ -72,7 +70,6 @@ class Resource : public RefCounted<Resource> {
     kFetchStatusOK,
     kFetchStatusUncacheable,
     kFetchStatus4xxError,
-    kFetchStatusDropped,
     kFetchStatusOther,
   };
 
@@ -87,9 +84,7 @@ class Resource : public RefCounted<Resource> {
 
   // Answers question: Are we allowed to rewrite the contents now?
   // Checks if valid and cacheable and if it has a no-transform header.
-  // rewrite_uncacheable is used to answer question whether the resource can be
-  // optimizaed even if it is not cacheable.
-  bool IsSafeToRewrite(bool rewrite_uncacheable) const;
+  bool IsSafeToRewrite() const;
 
   // TODO(sligocki): Do we need these or can we just use IsValidAndCacheable
   // everywhere?
@@ -97,25 +92,6 @@ class Resource : public RefCounted<Resource> {
   bool HttpStatusOk() const {
     return (response_headers_.status_code() == HttpStatus::kOK);
   }
-
-  // Loads contents of resource asynchronously, calling callback when
-  // done.  If the resource contents are already loaded into the object,
-  // the callback will be called directly, rather than asynchronously.  The
-  // resource will be passed to the callback, with its contents and headers
-  // filled in.
-  //
-  // This is implemented in terms of LoadAndCallback, taking care of the case
-  // where the resource is already loaded.
-  void LoadAsync(NotCacheablePolicy not_cacheable_policy,
-                 const RequestContextPtr& request_context,
-                 AsyncCallback* callback);
-
-  // If the resource is about to expire from the cache, re-fetches the
-  // resource in background to try to prevent it from expiring.
-  //
-  // Base implementation does nothing, since most subclasses of this do not
-  // use caching.
-  virtual void RefreshIfImminentlyExpiring();
 
   // Computes (with non-trivial cost) a hash of contents of a loaded resource.
   // Precondition: IsValidAndCacheable().
@@ -169,15 +145,14 @@ class Resource : public RefCounted<Resource> {
   // Gets the absolute URL of the resource
   virtual GoogleString url() const = 0;
 
-  // Gets the cache key for resource. This may be different from URL
-  // if the resource is e.g. UA-dependent.
-  virtual GoogleString cache_key() const {
-    return url();
-  }
-
   // Computes the content-type (and charset) based on response_headers and
   // extension, and sets it via SetType.
   void DetermineContentType();
+
+  // Obtain rewrite options for this. Any resources which return true
+  // for UseHttpCache() but don't unconditionally return true for loaded()
+  // must override this in a useful way. Used in cache invalidation.
+  virtual const RewriteOptions* rewrite_options() const = 0;
 
   // We define a new Callback type here because we need to
   // pass in the Resource to the Done callback so it can
@@ -187,9 +162,13 @@ class Resource : public RefCounted<Resource> {
     explicit AsyncCallback(const ResourcePtr& resource) : resource_(resource) {}
 
     virtual ~AsyncCallback();
-    virtual void Done(bool lock_failure, bool resource_ok) = 0;
+    virtual void Done(bool lock_ok, bool resource_ok) = 0;
 
     const ResourcePtr& resource() { return resource_; }
+
+    // Override this to return true if this callback is safe to invoke from
+    // thread other than the main html parse/http request serving thread.
+    virtual bool EnableThreaded() const { return false; }
 
    private:
     ResourcePtr resource_;
@@ -253,9 +232,9 @@ class Resource : public RefCounted<Resource> {
   virtual ~Resource();
   REFCOUNT_FRIEND_DECLARATION(Resource);
   friend class ServerContext;
-  friend class ReadAsyncHttpCacheCallback;  // uses LoadAndCallback
   friend class RewriteDriver;  // for ReadIfCachedWithStatus
   friend class UrlReadAsyncFetchCallback;
+  friend class ResourceManagerHttpCallback;
 
   // Load the resource asynchronously, storing ResponseHeaders and
   // contents in object.  Calls 'callback' when finished.  The
@@ -267,17 +246,9 @@ class Resource : public RefCounted<Resource> {
   // Cache-Control:no-cache resources.  It should not affect /whether/ the
   // callback gets involved, only whether it gets true or false.
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback) = 0;
+                               AsyncCallback* callback,
+                               MessageHandler* message_handler) = 0;
 
-  void set_enable_cache_purge(bool x) { enable_cache_purge_ = x; }
-  void set_proactive_resource_freshening(bool x) {
-    proactive_resource_freshening_ = x;
-  }
-
-  void set_disable_rewrite_on_no_transform(bool x) {
-    disable_rewrite_on_no_transform_ = x;
-  }
   ServerContext* server_context_;
 
   const ContentType* type_;
@@ -300,10 +271,6 @@ class Resource : public RefCounted<Resource> {
   // background and is not user-facing unless we explicitly set
   // is_background_fetch_ to false.
   bool is_background_fetch_;
-  bool enable_cache_purge_;
-  bool proactive_resource_freshening_;
-  bool disable_rewrite_on_no_transform_;
-
   DISALLOW_COPY_AND_ASSIGN(Resource);
 };
 

@@ -20,7 +20,7 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -33,41 +33,40 @@
 namespace net_instaweb {
 
 JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
-    : CommonFilter(driver) {
+    : rewrite_driver_(driver) {
 }
 
 JsDeferDisabledFilter::~JsDeferDisabledFilter() { }
 
 void JsDeferDisabledFilter::DetermineEnabled() {
-  set_is_enabled(ShouldApply(driver()) &&
-                 !driver()->flushing_cached_html() &&
-                 !driver()->flushed_cached_html());
+  set_is_enabled(ShouldApply(rewrite_driver_) &&
+                 !rewrite_driver_->flushing_cached_html() &&
+                 !rewrite_driver_->flushed_cached_html());
 }
 
 bool JsDeferDisabledFilter::ShouldApply(RewriteDriver* driver) {
-  return driver->request_properties()->SupportsJsDefer(
+  return driver->device_properties()->SupportsJsDefer(
       driver->options()->enable_aggressive_rewriters_for_mobile()) &&
       !driver->flushing_early();
 }
 
 void JsDeferDisabledFilter::InsertJsDeferCode() {
   StaticAssetManager* static_asset_manager =
-      driver()->server_context()->static_asset_manager();
-  const RewriteOptions* options = driver()->options();
+      rewrite_driver_->server_context()->static_asset_manager();
+  const RewriteOptions* options = rewrite_driver_->options();
   // Insert script node with deferJs code as outlined.
   HtmlElement* defer_js_url_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
-  driver()->AddAttribute(defer_js_url_node, HtmlName::kType,
+      rewrite_driver_->NewElement(NULL, HtmlName::kScript);
+  rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kType,
                                 "text/javascript");
-  driver()->AddAttribute(
+  rewrite_driver_->AddAttribute(
       defer_js_url_node, HtmlName::kSrc,
       static_asset_manager->GetAssetUrl(StaticAssetManager::kDeferJs, options));
-
-  InsertNodeAtBodyEnd(defer_js_url_node);
+  rewrite_driver_->InsertElementAfterCurrent(defer_js_url_node);
 }
 
 void JsDeferDisabledFilter::EndDocument() {
-  if (!ShouldApply(driver())) {
+  if (!ShouldApply(rewrite_driver_)) {
     return;
   }
 

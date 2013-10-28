@@ -126,11 +126,6 @@ class Parser {
   // For details, see parser.cc.
   Declarations* ParseDeclarations();
 
-  // Starting at whitespace or the first media query, ParseMediaQueries
-  // parses a media query list and returns it. Never returns NULL. Returns
-  // all MediaQueries it can successfully parse.
-  MediaQueries* ParseMediaQueries();
-
   // Expand the values of shorthand declarations. Currently expands background
   // and font. Clears (but does not delete) input orig_declarartions in the
   // process. orig_declarations should be a std::vector of NULLs on exit.
@@ -513,6 +508,11 @@ class Parser {
   // Miscellaneous
   //
 
+  // Starting at whitespace or the first media query, ParseMediaQueries
+  // parses a media query list and returns it. Never returns NULL. Returns
+  // all MediaQueries it can successfully parse.
+  MediaQueries* ParseMediaQueries();
+
   // Starting at whitespace or the start of a media query, parses and returns
   // the entire query. Returns NULL if the media query is empty.
   MediaQuery* ParseMediaQuery();
@@ -592,7 +592,6 @@ class Parser {
   FRIEND_TEST(ParserTest, font_family);
   FRIEND_TEST(ParserTest, ParseBlock);
   FRIEND_TEST(ParserTest, font);
-  FRIEND_TEST(ParserTest, numbers);
   FRIEND_TEST(ParserTest, values);
   FRIEND_TEST(ParserTest, declarations);
   FRIEND_TEST(ParserTest, universalselector);
@@ -605,9 +604,8 @@ class Parser {
   FRIEND_TEST(ParserTest, ruleset_starts_with_combinator);
   FRIEND_TEST(ParserTest, atrules);
   FRIEND_TEST(ParserTest, percentage_colors);
-  FRIEND_TEST(ParserTest, SkipBlock);
-  FRIEND_TEST(ParserTest, SkippedTokenError);
   FRIEND_TEST(ParserTest, ValueError);
+  FRIEND_TEST(ParserTest, SkippedTokenError);
   friend void ParseFontFamily(Parser* parser);
   friend class MediaAppliesToScreenTest;
 

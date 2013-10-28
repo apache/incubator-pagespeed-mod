@@ -37,16 +37,21 @@ void ApacheRequestToResponseHeaders(const request_rec& request,
                                     ResponseHeaders* headers,
                                     ResponseHeaders* err_headers);
 
-// Converts the ResponseHeaders to the output headers.  This function
-// does not alter the status code or the major/minor version of the
-// Apache request.
+
+
+// Converts ResponseHeaders into an Apache request's headers_out table.
 void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
+                                    bool ok_to_disable_downstream_headers,
                                     request_rec* request);
 
-// Converts ResponseHeaders into Apache request err_headers.  This
-// function does not alter the status code or the major/minor version
-// of the Apache request.
-void ErrorHeadersToApacheRequest(const ResponseHeaders& err_response_headers,
+// Converts ResponseHeaders (headers and err_headers) into Apache request
+// headers (headers_out and err_headers_out respectively). Either headers or
+// err_headers may be NULL but both cannot be. Unlike in
+// ApacheRequestToResponseHeaders it does not make sense for headers to equal
+// err_headers since it will result in duplicate headers being written.
+void AddResponseHeadersToRequest(const ResponseHeaders* headers,
+                                 const ResponseHeaders* err_headers,
+                                 bool ok_to_disable_downstream_headers,
                                  request_rec* request);
 
 // Remove downstream filters that might corrupt our caching headers.
@@ -54,10 +59,6 @@ void DisableDownstreamHeaderFilters(request_rec* request);
 
 // Debug utility for printing Apache headers to stdout
 void PrintHeaders(request_rec* request);
-
-// Updates caching headers to ensure the resulting response is not cached.
-// Removes any max-age specification, and adds max-age=0, no-cache.
-void DisableCaching(request_rec* request);
 
 }  // namespace net_instaweb
 

@@ -34,7 +34,7 @@
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
+class LogRecord;
 class MessageHandler;
 class Variable;
 
@@ -52,8 +52,6 @@ class Variable;
 // Write, Flush or Done.
 class AsyncFetch : public Writer {
  public:
-  static const int kContentLengthUnknown = -1;
-
   AsyncFetch();
   explicit AsyncFetch(const RequestContextPtr& request_ctx);
 
@@ -120,6 +118,8 @@ class AsyncFetch : public Writer {
   ResponseHeaders* extra_response_headers();
   void set_extra_response_headers(ResponseHeaders* headers);
 
+  virtual bool EnableThreaded() const { return false; }
+
   // Indicates whether the request is a background fetch. These can be scheduled
   // differently by the fetcher.
   virtual bool IsBackgroundFetch() const { return false; }
@@ -129,18 +129,6 @@ class AsyncFetch : public Writer {
   virtual void Reset() { headers_complete_ = false; }
 
   bool headers_complete() const { return headers_complete_; }
-
-  // Keep track of whether the content-length is known before the
-  // body is sent, so that a server can decide whether it needs chunked.
-  //
-  // Note that this is not necessarily the same as the Content-Length
-  // attribute in the response-headers, which might reflect pre-optimized
-  // or pre-compressed sizes.
-  bool content_length_known() const {
-    return content_length_ != kContentLengthUnknown;
-  }
-  int64 content_length() const { return content_length_; }
-  void set_content_length(int64 x) { content_length_ = x; }
 
   // Returns logging information in a string eg. c1:0;c2:2;hf:45;.
   // c1 is cache 1, c2 is cache 2, hf is headers fetch.
@@ -152,7 +140,7 @@ class AsyncFetch : public Writer {
 
   // Returns a pointer to a log record that wraps this fetch's logging
   // info.
-  virtual AbstractLogRecord* log_record();
+  virtual LogRecord* log_record();
 
  protected:
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler) = 0;
@@ -169,7 +157,6 @@ class AsyncFetch : public Writer {
   bool owns_response_headers_;
   bool owns_extra_response_headers_;
   bool headers_complete_;
-  int64 content_length_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncFetch);
 };
@@ -180,8 +167,15 @@ class AsyncFetch : public Writer {
 // TODO(jmarantz): move StringAsyncFetch into its own file.
 class StringAsyncFetch : public AsyncFetch {
  public:
+  // TODO(marq): Remove constructors lacking a request context.
+  StringAsyncFetch() : buffer_pointer_(&buffer_) { Init(); }
+
   explicit StringAsyncFetch(const RequestContextPtr& request_ctx)
       : AsyncFetch(request_ctx), buffer_pointer_(&buffer_) {
+    Init();
+  }
+
+  explicit StringAsyncFetch(GoogleString* buffer) : buffer_pointer_(buffer) {
     Init();
   }
 
@@ -261,13 +255,14 @@ class AsyncFetchUsingWriter : public AsyncFetch {
 // Creates an AsyncFetch object using an existing AsyncFetcher*,
 // sharing the response & request headers, and by default delegating
 // all 4 Handle methods to the base fetcher.  Any one of them can
-// be overridden by inheritors of this class, but to propagate the
-// callbacks to the base-fetch, overrides should upcall this class,
-// e.g. SharedAsyncFetch::HandleWrite(...).
+// be overridden by inheritors of this class.
 class SharedAsyncFetch : public AsyncFetch {
  public:
   explicit SharedAsyncFetch(AsyncFetch* base_fetch);
   virtual ~SharedAsyncFetch();
+
+  AsyncFetch* base_fetch() { return base_fetch_; }
+  const AsyncFetch* base_fetch() const { return base_fetch_; }
 
   virtual const RequestContextPtr& request_context() {
     return base_fetch_->request_context();
@@ -287,7 +282,13 @@ class SharedAsyncFetch : public AsyncFetch {
     return base_fetch_->Flush(handler);
   }
 
-  virtual void HandleHeadersComplete();
+  virtual void HandleHeadersComplete() {
+    base_fetch_->HeadersComplete();
+  }
+
+  virtual bool EnableThreaded() const {
+    return base_fetch_->EnableThreaded();
+  }
 
   virtual bool IsCachedResultValid(const ResponseHeaders& headers) {
     return base_fetch_->IsCachedResultValid(headers);
@@ -296,9 +297,6 @@ class SharedAsyncFetch : public AsyncFetch {
   virtual bool IsBackgroundFetch() const {
     return base_fetch_->IsBackgroundFetch();
   }
-
-  // Propagates any set_content_length from this to the base fetch.
-  void PropagateContentLength();
 
  private:
   AsyncFetch* base_fetch_;

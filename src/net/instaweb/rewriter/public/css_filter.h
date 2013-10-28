@@ -27,6 +27,7 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
@@ -54,7 +55,6 @@ class MessageHandler;
 class OutputPartitions;
 class ResourceContext;
 class RewriteContext;
-class RewriteDriver;
 class RewriteDomainTransformer;
 class Statistics;
 class UrlSegmentEncoder;
@@ -91,9 +91,6 @@ class CssFilter : public RewriteFilter {
   static void Initialize();
   static void Terminate();
 
-  // Add this filters related options to the given vector.
-  static void AddRelatedOptions(StringPieceVector* target);
-
   // Note: AtExitManager needs to be initialized or you get a nasty error:
   // Check failed: false. Tried to RegisterCallback without an AtExitManager.
   // This is called by Initialize.
@@ -106,6 +103,7 @@ class CssFilter : public RewriteFilter {
 
   virtual const char* Name() const { return "CssFilter"; }
   virtual const char* id() const { return RewriteOptions::kCssFilterId; }
+  virtual int FilterCacheFormatVersion() const;
   virtual void EncodeUserAgentIntoResourceContext(
       ResourceContext* context) const;
 
@@ -129,13 +127,9 @@ class CssFilter : public RewriteFilter {
       CssFilter::Context* rewriter, RewriteContext* parent,
       CssHierarchy* hierarchy);
 
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const {
-    *num_filters = merged_filters_size_;
-    return merged_filters_;
-  }
-  virtual const StringPieceVector* RelatedOptions() const {
-    return related_options_;
-  }
+  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
+  virtual const RewriteOptions::OptionEnum* RelatedOptions(
+      int* num_options) const;
 
  protected:
   virtual RewriteContext* MakeRewriteContext();
@@ -176,11 +170,10 @@ class CssFilter : public RewriteFilter {
   // Get the charset of the HTML being parsed which can be specified in the
   // driver's headers, defaulting to ISO-8859-1 if isn't. Then, if a charset
   // is specified in the given element, check that they agree, and if not
-  // return false and set the failure reason, otherwise return true and assign
-  // the first charset to '*charset'.
+  // return false, otherwise return true and assign the first charset to the
+  // given string.
   bool GetApplicableCharset(const HtmlElement* element,
-                            GoogleString* charset,
-                            GoogleString* failure_reason) const;
+                            GoogleString* charset) const;
 
   // Get the media specified in the given element, if any. Returns true if
   // media were found false if not.
@@ -241,13 +234,6 @@ class CssFilter : public RewriteFilter {
 
   CssUrlEncoder encoder_;
 
-  // The filters related to this filter.
-  static const RewriteOptions::Filter* merged_filters_;
-  static int merged_filters_size_;
-
-  // The options related to this filter.
-  static StringPieceVector* related_options_;
-
   DISALLOW_COPY_AND_ASSIGN(CssFilter);
 };
 
@@ -267,8 +253,7 @@ class CssFilter::Context : public SingleRewriteContext {
   void SetupAttributeRewrite(HtmlElement* element,
                              HtmlElement::Attribute* src,
                              InlineCssKind inline_css_kind);
-  void SetupExternalRewrite(HtmlElement* element,
-                            const GoogleUrl& base_gurl,
+  void SetupExternalRewrite(const GoogleUrl& base_gurl,
                             const GoogleUrl& trim_gurl);
 
   // Starts nested rewrite jobs for any imports or images contained in the CSS.
@@ -341,7 +326,15 @@ class CssFilter::Context : public SingleRewriteContext {
   // Determine the appropriate image inlining threshold based upon whether we're
   // in an html file (<style> tag or style= attribute) or in an external css
   // file.
-  int64 ImageInlineMaxBytes() const;
+  int64 ImageInlineMaxBytes() const {
+    if (rewrite_inline_element_ != NULL) {
+      // We're in an html context.
+      return driver_->options()->ImageInlineMaxBytes();
+    } else {
+      // We're in a standalone CSS file.
+      return driver_->options()->CssImageInlineMaxBytes();
+    }
+  }
 
   CssFilter* filter_;
   RewriteDriver* driver_;
@@ -359,10 +352,6 @@ class CssFilter::Context : public SingleRewriteContext {
   // Backup transformer for AssociationTransformer. Absolutifies URLs and
   // rewrites their domains as necessary if they can't be cache extended.
   scoped_ptr<RewriteDomainTransformer> absolutifier_;
-
-  // The element containing the CSS being rewritten, either a script element
-  // (inline), a link element (external), or anything with a style attribute.
-  HtmlElement* rewrite_element_;
 
   // Style element containing inline CSS (see StartInlineRewrite) -or-
   // any element with a style attribute (see StartAttributeRewrite), or

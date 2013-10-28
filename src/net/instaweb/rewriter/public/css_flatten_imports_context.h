@@ -24,7 +24,6 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
-#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -32,13 +31,11 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
 
 namespace net_instaweb {
 
@@ -79,47 +76,14 @@ class CssFlattenImportsContext : public SingleRewriteContext {
                              const OutputResourcePtr& output_resource) {
     input_resource_ = input_resource;
     output_resource_ = output_resource;
-
-    // We have to fix relative URLs in the CSS as they break if used in a
-    // CSS file that itself was loaded via a relative path from the base
-    // (for example, if styles/screen.css references ../images/icon.png, then
-    // the correct path for the image is /images/icon.png). We also need to
-    // absolutify or left-trim URLs in flattened CSS if no other rewriter is
-    // going to do it (cache extend, css image rewriter, etc), but it's
-    // hard to tell if that will happen so we transform URLs here regardless
-    // and note that for CssHierarchy::css_resolution_base().
-    RewriteDomainTransformer transformer(&hierarchy_->css_base_url(),
-                                         &hierarchy_->css_trim_url(),
-                                         Driver());
-    // If we rewrite the input resource's contents we need somewhere to store
-    // it; that's what the hierarchy's backing store is for.
-    StringWriter writer(hierarchy_->input_contents_backing_store());
-    // See RewriteDriver::ResolveCssUrls about why we disable trimming in
-    // proxy mode. We also disable it if trimming is not enabled.
-    if ( Driver()->server_context()->url_namer()->ProxyMode() ||
-        !Driver()->options()->trim_urls_in_css() ||
-        !Driver()->options()->Enabled(RewriteOptions::kLeftTrimUrls)) {
-      transformer.set_trim_urls(false);
-    }
-    if (CssTagScanner::TransformUrls(input_resource_->contents(),
-                                     &writer,
-                                     &transformer,
-                                     Driver()->message_handler())) {
-      hierarchy_->set_input_contents_to_backing_store();
-      hierarchy_->set_input_contents_resolved(true);
-    } else {
-      hierarchy_->set_input_contents(input_resource_->contents());
-    }
+    hierarchy_->set_input_contents(input_resource_->contents());
 
     bool ok = true;
-    GoogleString failure_reason;
     if (!hierarchy_->Parse()) {
       // If we cannot parse the CSS then we cannot flatten it.
       ok = false;
-      failure_reason = StrCat("Cannot parse the CSS in ",
-                              hierarchy_->url_for_humans());
       filter_->num_flatten_imports_minify_failed_->Add(1);
-    } else if (!hierarchy_->CheckCharsetOk(input_resource, &failure_reason)) {
+    } else if (!hierarchy_->CheckCharsetOk(input_resource)) {
       ok = false;
       filter_->num_flatten_imports_charset_mismatch_->Add(1);
     } else {
@@ -128,7 +92,6 @@ class CssFlattenImportsContext : public SingleRewriteContext {
 
     if (!ok) {
       hierarchy_->set_flattening_succeeded(false);
-      hierarchy_->AddFlatteningFailureReason(failure_reason);
       RewriteDone(kRewriteFailed, 0);
     } else if (num_nested() > 0) {
       StartNestedTasks();  // Initiates rewriting of @import'd files.
@@ -150,9 +113,8 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     // Our result is the combination of all our imports and our own rules.
     output_partition(0)->set_inlined_data(hierarchy_->minified_contents());
 
-    ServerContext* server_context = FindServerContext();
-    server_context->MergeNonCachingResponseHeaders(input_resource_,
-                                                   output_resource_);
+    ServerContext* manager = FindServerContext();
+    manager->MergeNonCachingResponseHeaders(input_resource_, output_resource_);
     if (Driver()->Write(ResourceVector(1, input_resource_),
                         hierarchy_->minified_contents(),
                         &kContentTypeCss,
@@ -185,8 +147,7 @@ class CssFlattenImportsContext : public SingleRewriteContext {
       // Something has gone wrong earlier. It could be that the resource is
       // not valid and cacheable (see SingleRewriteContext::Partition) or it
       // could be that we're handling a cached failure, but it's hard to tell.
-      // So, mark flattening as failed but don't record a failure statistic
-      // nor a failure reason.
+      // So, mark flattening as failed but don't record a failure statistic.
       hierarchy_->set_flattening_succeeded(false);
     }
   }

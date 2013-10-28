@@ -20,13 +20,17 @@
 
 #include <cstddef>
 
-#include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/timer.h"
 
@@ -92,10 +96,12 @@ class FallbackCacheCallback: public HTTPCache::Callback {
     return client_callback_->IsFresh(headers);
   }
 
-  virtual void ReportLatencyMsImpl(int64 latency_ms) {
+  virtual void SetTimingMs(int64 timing_value_ms) {
     DCHECK(request_context().get() != NULL);
-    request_context()->mutable_timing_info()->SetL2HTTPCacheLatencyMs(
-        latency_ms);
+    ScopedMutex lock(log_record()->mutex());
+    TimingInfo* timing_info =
+        log_record()->logging_info()->mutable_timing_info();
+    timing_info->set_cache2_ms(timing_value_ms);
   }
 
  private:
@@ -150,6 +156,14 @@ class Cache1Callback: public HTTPCache::Callback {
     return client_callback_->IsFresh(headers);
   }
 
+  virtual void SetTimingMs(int64 timing_value_ms) {
+    DCHECK(request_context().get() != NULL);
+    ScopedMutex lock(log_record()->mutex());
+    TimingInfo* timing_info =
+        log_record()->logging_info()->mutable_timing_info();
+    timing_info->set_cache1_ms(timing_value_ms);
+  }
+
  private:
   GoogleString key_;
   HTTPCache* fallback_cache_;
@@ -173,12 +187,9 @@ WriteThroughHTTPCache::WriteThroughHTTPCache(CacheInterface* cache1,
     : HTTPCache(cache1, timer, hasher, statistics),
       cache1_(new HTTPCache(cache1, timer, hasher, statistics)),
       cache2_(new HTTPCache(cache2, timer, hasher, statistics)),
-      cache1_size_limit_(kUnlimited) {
-}
-
-GoogleString WriteThroughHTTPCache::FormatName(StringPiece l1, StringPiece l2) {
-  return StrCat("WriteThroughHTTPCache(L1=", l1, ",L2=", l2, ")");
-}
+      cache1_size_limit_(kUnlimited),
+      name_(StrCat("WriteThroughHTTPCache using backend 1 : ", cache1->Name(),
+                   " and backend 2 : ", cache2->Name())) {}
 
 WriteThroughHTTPCache::~WriteThroughHTTPCache() {
 }

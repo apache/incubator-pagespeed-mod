@@ -19,32 +19,27 @@
  * This javascript is part of JsDefer filter.
  *
  * @author atulvasu@google.com (Atul Vasu)
- * @author ksimbili@google.com (Kishore Simbili)
  */
 
-goog.require('pagespeedutils');
-
-/**
- * Defer javascript will be executed in two phases. First phase will be for
- * high priority scripts and second phase is for low priority scripts. Order
- * of execution will be:
- * 1) High priority scripts.
- * 2) Low priority scripts.
- * 3) Onload of high priority scripts.
- * 4) Onload of low priority scripts.
- *
- * In case of blink, order will be:
- * 1) High priority scripts present in above the fold.
- * 2) Low priority scripts present in above the fold.
- * 3) High priority scripts which are below the fold.
- * 4) Low priority scripts which are below the fold.
- * 5) Onload of high priority scripts.
- * 6) Onload of low priority scripts.
- *
- * Exporting functions using quoted attributes to prevent js compiler from
- * renaming them.
- * See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
- */
+// Defer javascript will be executed in two phases. First phase will be for
+// high priority scripts and second phase is for low priority scripts. Order
+// of execution will be:
+// 1) High priority scripts.
+// 2) Low priority scripts.
+// 3) Onload of high priority scripts.
+// 4) Onload of low priority scripts.
+//
+// In case of blink, order will be:
+// 1) High priority scripts present in above the fold.
+// 2) Low priority scripts present in above the fold.
+// 3) High priority scripts which are below the fold.
+// 4) Low priority scripts which are below the fold.
+// 5) Onload of high priority scripts.
+// 6) Onload of low priority scripts.
+//
+// Exporting functions using quoted attributes to prevent js compiler from
+// renaming them.
+// See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
 window['pagespeed'] = window['pagespeed'] || {};
 var pagespeed = window['pagespeed'];
 
@@ -208,6 +203,13 @@ deferJsNs.DeferJs = function() {
   this.eventState_ = deferJsNs.DeferJs.EVENT.NOT_STARTED;
 
   /**
+   * Maintains the last 'orig_index' of the script executed so far.
+   * @type {!number}
+   * @private
+   */
+  this.nextScriptIndexInHtml_ = 0;
+
+  /**
    * This variable indicates whether deferJs is called for the first time.
    * This is set to false if deferJs is called again.
    * @private
@@ -243,18 +245,18 @@ deferJsNs.DeferJs = function() {
   this.noDeferAsyncScripts_ = [];
 
   /**
+   * Generated Html to prefetch the js files.
+   * @type {string}
+   * @private
+   */
+  this.prefetchScriptsHtml_ = '';
+
+  /**
    * Type of the javascript node that will get executed.
    * @type {string}
    * @private
    */
   this.psaScriptType_ = '';
-
-  /**
-   * Attribute added for nodes which are not processed yet.
-   * @type {string}
-   * @private
-   */
-  this.psaNotProcessed_ = '';
 
   /**
    * Last Index until incremental scripts will be executed, rest scripts will
@@ -346,13 +348,6 @@ deferJsNs.DeferJs.EVENT = {
 
 /**
  * Name of the attribute set for the nodes that are not reached so far during
- * priority scripts execution.
- * @const {string}
- */
-deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED = 'priority_psa_not_processed';
-
-/**
- * Name of the attribute set for the nodes that are not reached so far during
  * scripts execution.
  * @const {string}
  */
@@ -363,13 +358,6 @@ deferJsNs.DeferJs.PSA_NOT_PROCESSED = 'psa_not_processed';
  * @const {string}
  */
 deferJsNs.DeferJs.PSA_CURRENT_NODE = 'psa_current_node';
-
-/**
- * Name of the attribute to mark the script node for deletion after the
- * execution.
- * @const {string}
- */
-deferJsNs.DeferJs.PSA_TO_BE_DELETED = 'psa_to_be_deleted';
 
 /**
  * Value for psa dummy script nodes.
@@ -405,7 +393,7 @@ deferJsNs.DeferJs.PSA_ORIG_INDEX = 'orig_index';
  * Name of the deferred onload attribute.
  * @const {string}
  */
-deferJsNs.DeferJs.PAGESPEED_ONLOAD = 'data-pagespeed-onload';
+deferJsNs.DeferJs.PAGESPEED_ONLOAD = 'pagespeed_onload';
 
 /**
  * Add to defer_logs if logs are enabled.
@@ -439,7 +427,6 @@ deferJsNs.DeferJs.prototype.submitTask = function(task, opt_pos) {
  * @param {string} str to be evaluated.
  * @param {Element} opt_script_elem Script element to copy attributes into the
  *     new script node.
- * @return {Element} Script cloned element which is created.
  */
 deferJsNs.DeferJs.prototype.globalEval = function(str, opt_script_elem) {
   var script = this.cloneScriptNode(opt_script_elem);
@@ -447,7 +434,6 @@ deferJsNs.DeferJs.prototype.globalEval = function(str, opt_script_elem) {
   script.setAttribute('type', 'text/javascript');
   var currentElem = this.getCurrentDomLocation();
   currentElem.parentNode.insertBefore(script, currentElem);
-  return script;
 };
 
 /**
@@ -479,20 +465,43 @@ deferJsNs.DeferJs.prototype.createIdVars = function() {
     }
   }
   if (idVarsString) {
-    var script = this.globalEval(idVarsString);
-    script.setAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED, '');
-    script.setAttribute(deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED, '');
+    this.globalEval(idVarsString);
   }
 };
 
 /**
- * Tries to prefetch the file using image technique based on browser.
- * We are using image technique to prefetch only for webkit based browsers.
+ * Downloads all the queued Js files to prefetch without executing them.
+ */
+deferJsNs.DeferJs.prototype.prefetchQueuedScripts = function() {
+  if (this.prefetchScriptsHtml_) {
+    var iframe = document.createElement('iframe');
+    iframe.setAttribute('class', 'psa_prefetch_container');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    if (this.isFireFox()) {
+      iframe.src = 'data:text/html,' +
+          encodeURIComponent(this.prefetchScriptsHtml_);
+    } else if (this.getIEVersion()) {
+      iframe.contentWindow.document.write(this.prefetchScriptsHtml_);
+      // Close the document, else IE doesn't close the iframe connection.
+      iframe.contentWindow.document.close();
+    }
+    this.prefetchScriptsHtml_ = '';
+  }
+};
+
+/**
+ * Tries to prefetch the file using image technique based on browser. If it
+ * can't queue the url to the list and will be prefetched when
+ * prefetchQueuedScripts is called.
  * @param {!string} url Url to be downloaded.
  */
 deferJsNs.DeferJs.prototype.attemptPrefetchOrQueue = function(url) {
   if (this.isWebKit()) {
     new Image().src = url;
+  } else {
+    this.prefetchScriptsHtml_ += "<" + "script type='psa_prefetch' src='" +
+        url + "'><\/script>";
   }
 };
 
@@ -513,7 +522,7 @@ deferJsNs.DeferJs.prototype.addNode = function(script, opt_pos, opt_prefetch) {
   } else {
     // ||'ed with empty string to make sure the the value of str is not
     // undefined or null.
-    var str = script.innerHTML || script.textContent || script.data || '';
+    var str = script.innerHTML || script.textContent || script.data || "";
     this.addStr(str, script, opt_pos);
   }
 };
@@ -575,49 +584,13 @@ deferJsNs.DeferJs.prototype.cloneScriptNode = function(opt_script_elem) {
           a[i].name != deferJsNs.DeferJs.PSA_ORIG_SRC &&
           a[i].name != deferJsNs.DeferJs.PSA_ORIG_INDEX &&
           a[i].name != deferJsNs.DeferJs.PSA_CURRENT_NODE &&
-          a[i].name != this.psaNotProcessed_) {
+          a[i].name != deferJsNs.DeferJs.PSA_NOT_PROCESSED) {
         newScript.setAttribute(a[i].name, a[i].value);
         opt_script_elem.removeAttribute(a[i].name);
       }
     }
   }
   return newScript;
-};
-
-/**
- * Creates a dummy script node on load of which the next deferred script is
- * executed.
- * Note, this function needs to be called after a synchronous script node.
- * @param {!string} url returns javascript when fetched.
- */
-deferJsNs.DeferJs.prototype.scriptOnLoad = function(url) {
-  var script = this.origCreateElement_.call(document, 'script');
-  script.setAttribute('type', 'text/javascript');
-  script.async = false;
-  script.setAttribute(deferJsNs.DeferJs.PSA_TO_BE_DELETED, '');
-  script.setAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED, '');
-  script.setAttribute(deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED, '');
-  var me = this; // capture closure.
-  var runNextHandler = function() {
-    if (document.querySelector) {
-      // Find the script node we inserted and remove it.
-      var node = document.querySelector(
-          '[' + deferJsNs.DeferJs.PSA_TO_BE_DELETED + ']');
-      if (node) {
-        node.parentNode.removeChild(node);
-      }
-    }
-    me.log('Executed: ' + url);
-    me.runNext();
-  };
-  // The onload of the new script node is guaranteed which marks as the load
-  // completion of 'url'.
-  deferJsNs.addOnload(script, runNextHandler);
-  pagespeedutils.addHandler(script, 'error', runNextHandler);
-  script.src = 'data:text/javascript,' +
-      encodeURIComponent('window.pagespeed.psatemp=0;');
-  var currentElem = this.getCurrentDomLocation();
-  currentElem.parentNode.insertBefore(script, currentElem);
 };
 
 /**
@@ -634,20 +607,23 @@ deferJsNs.DeferJs.prototype.addUrl = function(url, script_elem, opt_pos) {
 
     var script = me.cloneScriptNode(script_elem);
     script.setAttribute('type', 'text/javascript');
-    var useSyncScript = false;
-    if ('async' in script) {
-      useSyncScript = true;
-      script.async = false;
-    } else if (script.readyState) {
+
+    var runNextHandler = function() {
+      me.log('Executed: ' + url);
+      me.runNext();
+    };
+    deferJsNs.addOnload(script, runNextHandler);
+    deferJsNs.addHandler(script, 'error', runNextHandler);
+    if (me.getIEVersion() < 9) {
       var stateChangeHandler = function() {
         if (script.readyState == 'complete' ||
             script.readyState == 'loaded') {
           script.onreadystatechange = null;
-          me.log('Executed: ' + url);
-          me.runNext();
+          runNextHandler();
         }
-      };
-      pagespeedutils.addHandler(script, 'readystatechange', stateChangeHandler);
+      }
+
+      deferJsNs.addHandler(script, 'readystatechange', stateChangeHandler);
     }
     script.setAttribute('src', url);
     // If a script node with src also has a node inside it
@@ -663,33 +639,26 @@ deferJsNs.DeferJs.prototype.addUrl = function(url, script_elem, opt_pos) {
     var currentElem = me.nextPsaJsNode();
     currentElem.setAttribute(deferJsNs.DeferJs.PSA_CURRENT_NODE, '');
     currentElem.parentNode.insertBefore(script, currentElem);
-    if (useSyncScript) {
-      // We cannot depend on the onload of the script node we just inserted,
-      // because of the way we preload the js resources. Hence we are using
-      // 'scriptOnLoad' to insert a dummy script tag whose onload is fired
-      // reliably.
-      me.scriptOnLoad(url);
-    }
   }, opt_pos);
 };
 deferJsNs.DeferJs.prototype['addUrl'] = deferJsNs.DeferJs.prototype.addUrl;
 
 /**
- * Remove psaNotProcessed_ attribute till the given node.
+ * Remove 'psa_not_processed' attribute till the given node.
  * @param {Node} opt_node Stop node.
  */
 deferJsNs.DeferJs.prototype.removeNotProcessedAttributeTillNode = function(
     opt_node) {
   if (document.querySelectorAll && !(this.getIEVersion() <= 8)) {
     var nodes = document.querySelectorAll(
-        '[' + this.psaNotProcessed_ + ']');
+        '[' + deferJsNs.DeferJs.PSA_NOT_PROCESSED + ']');
     for (var i = 0; i < nodes.length; i++) {
       var dom_node = nodes.item(i);
       if (dom_node == opt_node) {
         return;
       }
       if (dom_node.getAttribute('type') != this.psaScriptType_) {
-        dom_node.removeAttribute(this.psaNotProcessed_);
+        dom_node.removeAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED);
       }
     }
   }
@@ -702,7 +671,7 @@ deferJsNs.DeferJs.prototype.setNotProcessedAttributeForNodes = function() {
   var nodes = this.origGetElementsByTagName_.call(document, '*');
   for (var i = 0; i < nodes.length; i++) {
     var dom_node = nodes.item(i);
-    dom_node.setAttribute(this.psaNotProcessed_, '');
+    dom_node.setAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED, '');
   }
 };
 
@@ -1044,7 +1013,7 @@ deferJsNs.DeferJs.prototype.setUp = function() {
         try {
           // Shadow document.all
           var propertyDescriptor = { configurable: true };
-          propertyDescriptor.get = function() { return undefined; };
+          propertyDescriptor.get = function() { return undefined;}
           Object.defineProperty(document, 'all', propertyDescriptor);
         } catch (err) {
           this.log('Exception while overriding document.all.', err);
@@ -1052,7 +1021,7 @@ deferJsNs.DeferJs.prototype.setUp = function() {
       }
     }
   }
-
+  this.setNotProcessedAttributeForNodes();
   // override AddEventListeners.
   this.overrideAddEventListeners();
 
@@ -1070,19 +1039,16 @@ deferJsNs.DeferJs.prototype.setUp = function() {
     me.handlePendingDocumentWrites();
     var node = me.origGetElementById_.call(document, str);
     return node == null ||
-        node.hasAttribute(me.psaNotProcessed_) ? null : node;
-  };
+        node.hasAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED) ?
+          null : node;
+  }
 
   if (document.querySelectorAll && !(me.getIEVersion() <= 8)) {
     // TODO(ksimbili): Support IE8
     document.getElementsByTagName = function(tagName) {
-      try {
       return document.querySelectorAll(
-          tagName + ':not([' + me.psaNotProcessed_ + '])');
-      } catch (err) {
-        return me.origGetElementsByTagName_.call(document, tagName);
-      }
-    };
+          tagName + ':not([' + deferJsNs.DeferJs.PSA_NOT_PROCESSED + '])');
+    }
   }
 
   // Overriding createElement().
@@ -1103,10 +1069,10 @@ deferJsNs.DeferJs.prototype.setUp = function() {
         }
       };
       deferJsNs.addOnload(elem, onload);
-      pagespeedutils.addHandler(elem, 'error', onload);
+      deferJsNs.addHandler(elem, 'error', onload);
     }
     return elem;
-  };
+  }
 };
 
 /**
@@ -1244,7 +1210,7 @@ deferJsNs.DeferJs.prototype.markNodesAndExtractScriptNodes = function(
         child.setAttribute('type', this.psaScriptType_);
         child.setAttribute(deferJsNs.DeferJs.PSA_ORIG_SRC, child.src);
         child.setAttribute('src', '');
-        child.setAttribute(this.psaNotProcessed_, '');
+        child.setAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED, '');
       }
     } else {
       this.markNodesAndExtractScriptNodes(child, scriptNodes);
@@ -1323,7 +1289,7 @@ deferJsNs.DeferJs.prototype.addDeferredOnloadListeners = function() {
   var onloadDeferredElements;
   if (document.querySelectorAll) {
     onloadDeferredElements = document.querySelectorAll(
-        '[' + deferJsNs.DeferJs.PAGESPEED_ONLOAD + '][data-pagespeed-loaded]');
+        '[' + deferJsNs.DeferJs.PAGESPEED_ONLOAD + ']');
   }
   for (var i = 0; i < onloadDeferredElements.length; i++) {
     var elem = onloadDeferredElements.item(i);
@@ -1398,20 +1364,20 @@ deferJsNs.DeferJs.prototype.overrideAddEventListeners = function() {
     document.addEventListener = function(eventName, func, capture) {
       psaAddEventListener(document, eventName, func, capture,
                           me.origDocAddEventListener_);
-    };
+    }
     window.addEventListener = function(eventName, func, capture) {
       psaAddEventListener(window, eventName, func, capture,
                           me.origWindowAddEventListener_);
-    };
+    }
   } else if (window.attachEvent) {
     document.attachEvent = function(eventName, func) {
       psaAddEventListener(document, eventName, func, undefined,
                           me.origDocAttachEvent_);
-    };
+    }
     window.attachEvent = function(eventName, func) {
       psaAddEventListener(window, eventName, func, undefined,
                           me.origWindowAttachEvent_);
-    };
+    }
   }
 };
 
@@ -1445,17 +1411,14 @@ var psaAddEventListener = function(elem, eventName, func, opt_capture,
     return;
   }
   var deferJsEvent;
-  var deferJsEventName;
 
   if (deferJs.eventState_ < deferJsNs.DeferJs.EVENT.DOM_READY &&
      (eventName == 'DOMContentLoaded' || eventName == 'readystatechange' ||
       eventName == 'onDOMContentLoaded' || eventName == 'onreadystatechange')) {
     deferJsEvent = deferJsNs.DeferJs.EVENT.DOM_READY;
-    deferJsEventName = 'DOMContentLoaded';
   } else if (deferJs.eventState_ < deferJsNs.DeferJs.EVENT.LOAD &&
             (eventName == 'load' || eventName == 'onload')) {
     deferJsEvent = deferJsNs.DeferJs.EVENT.LOAD;
-    deferJsEventName = 'load';
   } else if (eventName == 'onbeforescripts') {
     deferJsEvent = deferJsNs.DeferJs.EVENT.BEFORE_SCRIPTS;
   } else if (eventName == 'onafterscripts') {
@@ -1466,26 +1429,21 @@ var psaAddEventListener = function(elem, eventName, func, opt_capture,
     }
     return;
   }
-  var eventListenerClosure = function() {
+  var loadEvent;
+  // TODO(ksimbili): Fix for IE8 too.
+  if (deferJsEvent == deferJsNs.DeferJs.EVENT.LOAD &&
+      !(deferJs.getIEVersion() <= 8)) {
     // HACK HACK: This is specifically to solve for jquery libraries, who try
     // to read the event being passed.
     // Note we are not setting any of the other params in event. We don't see
     // them as a need for now.
-    // This is set based on documentation from
-    // https://developer.mozilla.org/en-US/docs/DOM/Mozilla_event_reference/DOMContentLoaded#Cross-browser_fallback
-    var customEvent = {};
-    customEvent['bubbles'] = false;
-    customEvent['cancelable'] = false;
-    customEvent['eventPhase'] = 2;  // Event.AT_TARGET
-    customEvent['timeStamp'] = new Date().getTime();
-    customEvent['type'] = deferJsEventName;
-    // event.target has to be some element in DOM. It can never be window.
-    customEvent['target'] = (elem != window) ? elem : document;
-    // This can be safely 'elem' because the two events "DOMContentLoaded' and
-    // 'load' cannot bubble.
-    customEvent['currentTarget'] = elem;
-    func.call(elem, customEvent);
-  };
+    loadEvent = document.createEvent('HTMLEvents');
+    loadEvent.initEvent('load', false, false);
+  }
+
+  var eventListenerClosure = function() {
+    func.call(elem, loadEvent);
+  }
   if (!deferJs.eventListernersMap_[deferJsEvent]) {
     deferJs.eventListernersMap_[deferJsEvent] = [];
   }
@@ -1530,12 +1488,14 @@ deferJsNs.DeferJs.prototype.registerScriptTags = function(
       if (opt_callback) {
         var scriptIndex =
             script.getAttribute(deferJsNs.DeferJs.PSA_ORIG_INDEX);
-        if (scriptIndex <= this.optLastIndex_) {
+        if (scriptIndex <= opt_last_index &&
+            scriptIndex == this.nextScriptIndexInHtml_) {
+          this.nextScriptIndexInHtml_++;
           this.addNode(script, undefined, !isFirstScript);
         }
       } else {
         if (script.getAttribute(deferJsNs.DeferJs.PSA_ORIG_INDEX) <
-            this.optLastIndex_) {
+            this.nextScriptIndexInHtml_) {
           this.log('Executing a script twice. Orig_Index: ' +
                    script.getAttribute(deferJsNs.DeferJs.PSA_ORIG_INDEX),
                    new Error(''));
@@ -1544,6 +1504,7 @@ deferJsNs.DeferJs.prototype.registerScriptTags = function(
       }
     }
   }
+  this.prefetchQueuedScripts();
 };
 deferJsNs.DeferJs.prototype['registerScriptTags'] =
     deferJsNs.DeferJs.prototype.registerScriptTags;
@@ -1554,9 +1515,32 @@ deferJsNs.DeferJs.prototype['registerScriptTags'] =
  * @param {!function()} func New onload handler.
  */
 deferJsNs.addOnload = function(elem, func) {
-  pagespeedutils.addHandler(elem, 'load', func);
+  deferJsNs.addHandler(elem, 'load', func);
 };
 pagespeed['addOnload'] = deferJsNs.addOnload;
+
+/**
+ * Runs the function when event is triggered.
+ * @param {HTMLDocument|Window|Element} elem Element to attach handler.
+ * @param {!string} eventName Name of the event.
+ * @param {!function()} func New onload handler.
+ */
+deferJsNs.addHandler = function(elem, eventName, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(eventName, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + eventName, func);
+  } else {
+    var oldHandler = elem['on' + eventName];
+    elem['on' + eventName] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    }
+  }
+};
+pagespeed['addHandler'] = deferJsNs.addHandler;
 
 /**
  * @return {boolean} true if browser is Firefox.
@@ -1588,14 +1572,6 @@ deferJsNs.DeferJs.prototype.getIEVersion = function() {
  */
 deferJsNs.DeferJs.prototype.setType = function(type) {
   this.psaScriptType_ = type;
-};
-
-/**
- * Set the psaNotProcessed marker.
- * @param {string} psaNotProcessed marker.
- */
-deferJsNs.DeferJs.prototype.setPsaNotProcessed = function(psaNotProcessed) {
-  this.psaNotProcessed_ = psaNotProcessed;
 };
 
 /**
@@ -1632,10 +1608,10 @@ deferJsNs.DeferJs.prototype.noDeferCreateElementOverride = function() {
         }
       };
       deferJsNs.addOnload(elem, onload);
-      pagespeedutils.addHandler(elem, 'error', onload);
+      deferJsNs.addHandler(elem, 'error', onload);
     }
     return elem;
-  };
+  }
 };
 
 /**
@@ -1655,18 +1631,16 @@ deferJsNs.deferInit = function() {
     return;
   }
 
-  deferJsNs.DeferJs.isExperimentalMode = pagespeed['defer_js_experimental'];
+  if (window.localStorage) {
+    deferJsNs.DeferJs.isExperimentalMode =
+        window.localStorage['defer_js_experimental'];
+  }
+
   pagespeed.highPriorityDeferJs = new deferJsNs.DeferJs();
   pagespeed.highPriorityDeferJs.setType(
     deferJsNs.DeferJs.PRIORITY_PSA_SCRIPT_TYPE);
-  pagespeed.highPriorityDeferJs.setPsaNotProcessed(
-    deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED);
-  pagespeed.highPriorityDeferJs.setNotProcessedAttributeForNodes();
   pagespeed.lowPriorityDeferJs = new deferJsNs.DeferJs();
   pagespeed.lowPriorityDeferJs.setType(deferJsNs.DeferJs.PSA_SCRIPT_TYPE);
-  pagespeed.lowPriorityDeferJs.setPsaNotProcessed(
-    deferJsNs.DeferJs.PSA_NOT_PROCESSED);
-  pagespeed.lowPriorityDeferJs.setNotProcessedAttributeForNodes();
   pagespeed.deferJs = pagespeed.highPriorityDeferJs;
 
   pagespeed.deferJs.noDeferCreateElementOverride();
@@ -1691,5 +1665,5 @@ deferJsNs.startDeferJs = function() {
   pagespeed.deferJs.execute();
 };
 deferJsNs['startDeferJs'] = deferJsNs.startDeferJs;
-pagespeedutils.addHandler(document, 'DOMContentLoaded', deferJsNs.startDeferJs);
+deferJsNs.addHandler(document, 'DOMContentLoaded', deferJsNs.startDeferJs);
 deferJsNs.addOnload(window, deferJsNs.startDeferJs);

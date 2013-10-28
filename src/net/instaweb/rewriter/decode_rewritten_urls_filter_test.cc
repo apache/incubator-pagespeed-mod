@@ -16,12 +16,9 @@
 
 #include "net/instaweb/rewriter/public/decode_rewritten_urls_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/enums.pb.h"  // for RewriterApplication_Status, etc
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 
@@ -33,14 +30,6 @@ class DecodeRewrittenUrlsFilterTest : public RewriteTestBase {
     options()->EnableFilter(RewriteOptions::kDecodeRewrittenUrls);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
-  }
-
-  void ExpectLogRecord(int index, int status) {
-    AbstractLogRecord* log_record = rewrite_driver_->log_record();
-    const RewriterInfo& rewriter_info =
-        log_record->logging_info()->rewriter_info(index);
-    EXPECT_EQ("du", rewriter_info.id());
-    EXPECT_EQ(status, rewriter_info.status());
   }
 };
 
@@ -72,12 +61,6 @@ TEST_F(DecodeRewrittenUrlsFilterTest, TestAll) {
       "<script src=\"http://test.com/d.js\"></script>"
       "</body></html>";
   ValidateExpected("different_urls", input_html, output_html);
-  EXPECT_EQ(4, rewrite_driver()->log_record()->logging_info()->
-            rewriter_info().size());
-  ExpectLogRecord(0, RewriterApplication::APPLIED_OK);
-  ExpectLogRecord(1, RewriterApplication::NOT_APPLIED);
-  ExpectLogRecord(2, RewriterApplication::APPLIED_OK);
-  ExpectLogRecord(3, RewriterApplication::APPLIED_OK);
 }
 
 }  // namespace net_instaweb
