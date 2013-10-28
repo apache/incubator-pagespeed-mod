@@ -49,6 +49,8 @@ class SystemServerContext : public ServerContext {
 
   static void InitStats(Statistics* statistics);
 
+  Variable* statistics_404_count();
+
  protected:
   // Flush the cache by updating the cache flush timestamp in the global
   // options.  This will change its signature, which is part of the cache key,

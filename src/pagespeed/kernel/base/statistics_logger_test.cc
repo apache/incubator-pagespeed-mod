@@ -32,6 +32,7 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
@@ -59,6 +60,10 @@ class StatisticsLoggerTest : public ::testing::Test {
         logger_(kLoggingIntervalMs, kMaxLogfileSizeKb, kLogFile,
                 NULL /* timestamp_var */, &handler_,
                 NULL /* statistics */, &file_system_, &timer_) {}
+
+  static void SetUpTestCase() {
+    HtmlKeywords::Init();
+  }
 
   GoogleString CreateVariableDataResponse(bool has_unused_variable,
                                           bool first) {
