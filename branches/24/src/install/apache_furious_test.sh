@@ -39,12 +39,11 @@ start_test If the user is already assigned, no need to assign them again.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=2' $EXTEND_CACHE)
 check_not_from "$OUT" fgrep '_GFURIOUS='
 
-
 start_test The beacon should include the experiment id.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=2' $EXTEND_CACHE)
-check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon?ets=', 'load', '', '', '2', 'http://localhost:8080/mod_pagespeed_example/extend_cache.html');"
+check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon?ets=', 'load', '', '', '2', 'http://$1/mod_pagespeed_example/extend_cache.html');"
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=7' $EXTEND_CACHE)
-check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon?ets=', 'load', '', '', '7', 'http://localhost:8080/mod_pagespeed_example/extend_cache.html');"
+check_from "$OUT" grep "pagespeed.addInstrumentationInit('/mod_pagespeed_beacon?ets=', 'load', '', '', '7', 'http://$1/mod_pagespeed_example/extend_cache.html');"
 
 start_test The no-experiment group beacon should not include an experiment id.
 OUT=$($WGET_DUMP --header='Cookie: _GFURIOUS=0' $EXTEND_CACHE)

@@ -16,7 +16,8 @@
 
 #include "net/instaweb/apache/apache_server_context.h"
 
-#include "httpd.h"
+#include "httpd.h"                  // NOLINT
+#include "http_protocol.h"          // NOLINT
 #include "base/logging.h"
 #include "net/instaweb/apache/apache_cache.h"
 #include "net/instaweb/apache/apache_config.h"
@@ -45,6 +46,7 @@ namespace {
 
 const char kCacheFlushCount[] = "cache_flush_count";
 const char kCacheFlushTimestampMs[] = "cache_flush_timestamp_ms";
+const char kStatistics404Count[] = "statistics_404_count";
 
 // Statistics histogram names.
 const char kHtmlRewriteTimeUsHistogram[] = "Html Time us Histogram";
@@ -107,6 +109,7 @@ ApacheServerContext::~ApacheServerContext() {
 void ApacheServerContext::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCacheFlushCount);
   statistics->AddVariable(kCacheFlushTimestampMs);
+  statistics->AddVariable(kStatistics404Count);
   Histogram* html_rewrite_time_us_histogram =
       statistics->AddHistogram(kHtmlRewriteTimeUsHistogram);
   // We set the boundary at 2 seconds which is about 2 orders of magnitude
@@ -114,6 +117,10 @@ void ApacheServerContext::InitStats(Statistics* statistics) {
   // cut off actual samples.
   html_rewrite_time_us_histogram->SetMaxValue(2 * Timer::kSecondUs);
   UrlAsyncFetcherStats::InitStats(kLocalFetcherStatsPrefix, statistics);
+}
+
+Variable* ApacheServerContext::statistics_404_count() {
+  return statistics()->GetVariable(kStatistics404Count);
 }
 
 bool ApacheServerContext::InitFileCachePath() {
@@ -196,6 +203,18 @@ void ApacheServerContext::CreateLocalStatistics(
   // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,
   // but we need to take care of split_statistics_.
   ApacheRewriteDriverFactory::InitStats(split_statistics_.get());
+}
+
+void ApacheServerContext::ReportNotFoundHelper(StringPiece error_message,
+                                               request_rec* request,
+                                               Variable* error_count) {
+  error_count->Add(1);
+  request->status = HttpStatus::kNotFound;
+  ap_send_error_response(request, 0);
+  message_handler()->Message(kWarning, "%s %s: not found (404)",
+                             (error_message.empty() ? "(null)" :
+                              error_message.as_string().c_str()),
+                             error_count->GetName().as_string().c_str());
 }
 
 void ApacheServerContext::ChildInit() {
