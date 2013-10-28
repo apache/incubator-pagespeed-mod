@@ -1,0 +1,536 @@
+/*
+ * Copyright 2012 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Author: jmarantz@google.com (Joshua Marantz)
+
+#include "net/instaweb/util/public/property_cache.h"
+
+#include <algorithm>
+#include <utility>
+
+#include "base/logging.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/util/property_cache.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/cache_copy.h"
+#include "net/instaweb/util/public/cache_stats.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
+
+namespace net_instaweb {
+
+// Property cache key prefixes.
+const char PropertyCache::kPagePropertyCacheKeyPrefix[] = "prop_page/";
+const char PropertyCache::kClientPropertyCacheKeyPrefix[] = "prop_client/";
+const char PropertyCache::kDevicePropertyCacheKeyPrefix[] = "prop_device/";
+
+namespace {
+
+const int kDefaultMutationsPer1000WritesThreshold = 300;
+
+// http://stackoverflow.com/questions/109023/
+// best-algorithm-to-count-the-number-of-set-bits-in-a-32-bit-integer
+//
+// Note that gcc has __builtin_popcount(i) and we could conceivably
+// exploit that.  Also note that g++ does not seem to support that on
+// MacOS.  In the future we could consider switching to that
+// implementation if this ever was measured as a performance
+// bottleneck.
+inline uint32 NumberOfSetBits32(uint32 i) {
+  uint32 num_set = i - ((i >> 1) & 0x55555555);
+  num_set = (num_set & 0x33333333) + ((num_set >> 2) & 0x33333333);
+  return (((num_set + (num_set >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+}
+
+inline int NumberOfSetBits64(uint64 i) {
+  return (NumberOfSetBits32(static_cast<uint32>(i)) +
+          NumberOfSetBits32(static_cast<uint32>(i >> 32)));
+}
+
+GoogleString GetStatsPrefix(const GoogleString& cohort_name) {
+  return StrCat("pcache-cohorts-", cohort_name);
+}
+
+}  // namespace
+
+// Tracks multiple cache lookups.  When they are all complete, page->Done() is
+// called.
+//
+// TODO(jmarantz): refactor this to put the capability in CacheInterface, adding
+// API support for a batched lookup.  Caches that have direct support for that
+// may have a more efficient implementation for this.
+class PropertyPage::CallbackCollector {
+ public:
+  CallbackCollector(PropertyPage* page, int num_pending, AbstractMutex* mutex)
+      : page_(page),
+        pending_(num_pending),
+        success_(false),
+        mutex_(mutex) {
+  }
+
+  void Done(bool success) {
+    bool done = false;
+    {
+      ScopedMutex lock(mutex_.get());
+      success_ |= success;  // Declare victory a if *any* lookups completed.
+      --pending_;
+      done = (pending_ == 0);
+    }
+    if (done) {
+      page_->CallDone(success_);
+      delete this;
+    }
+  }
+
+ private:
+  PropertyPage* page_;
+  int pending_;
+  bool success_;
+  scoped_ptr<AbstractMutex> mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(CallbackCollector);
+};
+
+PropertyCache::PropertyCache(const GoogleString& cache_key_prefix,
+                             CacheInterface* cache, Timer* timer,
+                             Statistics* stats, ThreadSystem* threads)
+    : cache_key_prefix_(cache_key_prefix),
+      cache_(cache),
+      timer_(timer),
+      stats_(stats),
+      thread_system_(threads),
+      mutations_per_1000_writes_threshold_(
+          kDefaultMutationsPer1000WritesThreshold),
+      enabled_(true) {
+}
+
+PropertyCache::~PropertyCache() {
+  STLDeleteValues(&cohorts_);
+}
+
+// Helper class to receive low-level cache callbacks, decode them
+// as properties with meta-data (e.g. value stability), and
+// store the payload for PropertyPage::Done().
+class PropertyCache::CacheInterfaceCallback : public CacheInterface::Callback {
+ public:
+  CacheInterfaceCallback(PropertyPage* page, const Cohort* cohort,
+                         PropertyPage::PropertyMapStruct* pmap_struct,
+                         PropertyPage::CallbackCollector* collector)
+      : page_(page),
+        cohort_(cohort),
+        pmap_struct_(pmap_struct),
+        collector_(collector) {
+  }
+  virtual ~CacheInterfaceCallback() {}
+  virtual void Done(CacheInterface::KeyState state) {
+    bool valid = false;
+    if (state == CacheInterface::kAvailable) {
+      StringPiece value_string = value()->Value();
+      ArrayInputStream input(value_string.data(), value_string.size());
+      PropertyCacheValues values;
+      if (values.ParseFromZeroCopyStream(&input)) {
+        valid = true;
+        int64 min_write_timestamp_ms = kint64max;
+        // The values in a cohort could have different write_timestamp_ms
+        // values, since it is populated in UpdateValue.  But since all values
+        // in a cohort are written (and read) together we need to treat either
+        // all as valid or none as valid.  Hence we look at the oldest write
+        // timestamp to make this decision.
+        for (int i = 0; i < values.value_size(); ++i) {
+          min_write_timestamp_ms = std::min(
+              min_write_timestamp_ms, values.value(i).write_timestamp_ms());
+        }
+        // Return valid for empty cohort, and if IsCacheValid returns true for
+        // Value with oldest timestamp.
+        if (values.value_size() == 0 ||
+            page_->IsCacheValid(min_write_timestamp_ms)) {
+          valid = true;
+          for (int i = 0; i < values.value_size(); ++i) {
+            const PropertyValueProtobuf& pcache_value = values.value(i);
+            page_->AddValueFromProtobuf(cohort_, pcache_value);
+          }
+        } else {
+          valid = false;
+        }
+      }
+    }
+
+    page_->log_record()->SetCacheStatusForCohortInfo(
+        pmap_struct_->cohort_index, valid, state);
+    collector_->Done(valid);
+    delete this;
+  }
+
+ private:
+  PropertyPage* page_;
+  const Cohort* cohort_;
+  PropertyPage::PropertyMapStruct* pmap_struct_;
+  PropertyPage::CallbackCollector* collector_;
+};
+
+void PropertyPage::AddValueFromProtobuf(
+    const PropertyCache::Cohort* cohort,
+    const PropertyValueProtobuf& pcache_value) {
+  ScopedMutex lock(mutex_.get());
+  CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
+  CHECK(cohort_itr != cohort_data_map_.end());
+  PropertyMapStruct* pmap_struct = cohort_itr->second;
+  PropertyMap* pmap = &pmap_struct->pmap;
+  PropertyValue* property = (*pmap)[pcache_value.name()];
+  if (property == NULL) {
+    property = new PropertyValue;
+    (*pmap)[pcache_value.name()] = property;
+    log_record()->AddFoundPropertyToCohortInfo(
+        pmap_struct->cohort_index, pcache_value.name());
+  }
+  property->InitFromProtobuf(pcache_value);
+}
+
+bool PropertyPage::EncodeCacheEntry(const PropertyCache::Cohort* cohort,
+                                    GoogleString* value) {
+  bool ret = false;
+  PropertyCacheValues values;
+  {
+    ScopedMutex lock(mutex_.get());
+    CohortDataMap::const_iterator p = cohort_data_map_.find(cohort);
+    if (p != cohort_data_map_.end()) {
+      PropertyMap* pmap = &p->second->pmap;
+      for (PropertyMap::iterator p = pmap->begin(), e = pmap->end();
+           p != e; ++p) {
+        PropertyValue* property = p->second;
+        PropertyValueProtobuf* pcache_value = property->protobuf();
+        if (pcache_value->name().empty()) {
+          pcache_value->set_name(p->first);
+        }
+
+        // Why might the value be empty? If a cache lookup is performed, misses,
+        // and UpdateValue() is never called. In this case, we can skip the
+        // write.
+        if (!pcache_value->body().empty()) {
+          *values.add_value() = *pcache_value;
+          ret = true;
+        }
+      }
+    }
+  }
+  if (ret) {
+    StringOutputStream sstream(value);  // finalizes in destructor
+    values.SerializeToZeroCopyStream(&sstream);
+  }
+  return ret;
+}
+
+bool PropertyPage::HasPropertyValueDeleted(
+    const PropertyCache::Cohort* cohort) {
+  bool ret = false;
+  {
+    ScopedMutex lock(mutex_.get());
+    CohortDataMap::const_iterator p = cohort_data_map_.find(cohort);
+    if (p != cohort_data_map_.end()) {
+      ret = p->second->has_deleted_property;
+    }
+  }
+  return ret;
+}
+
+PropertyValue::PropertyValue()
+  : proto_(new PropertyValueProtobuf),
+    changed_(true),
+    valid_(false),
+    was_read_(false) {
+}
+
+PropertyValue::~PropertyValue() {
+}
+
+void PropertyValue::InitFromProtobuf(const PropertyValueProtobuf& value) {
+  proto_.reset(new PropertyValueProtobuf(value));
+  changed_ = false;
+  valid_ = true;
+  was_read_ = true;
+}
+
+void PropertyCache::UpdateValue(const StringPiece& value,
+                                PropertyValue* property) const {
+  int64 now_ms = timer_->NowMs();
+
+  // TODO(jmarantz): the policy of not having old timestamps override
+  // new timestamps can cause us to discard some writes when
+  // system-time jumps backwards, which can happen for various
+  // reasons.  I think will need to revisit this policy as we learn how
+  // to use the property cache & get the dynamics we want.
+  if (property->write_timestamp_ms() <= now_ms) {
+    property->SetValue(value, now_ms);
+  }
+}
+
+void PropertyValue::SetValue(const StringPiece& value, int64 now_ms) {
+  if (!valid_ || (value != proto_->body())) {
+    valid_ = true;
+    changed_ = true;
+    value.CopyToString(proto_->mutable_body());
+  }
+  proto_->set_update_mask((proto_->update_mask() << 1) | changed_);
+  proto_->set_num_writes(proto_->num_writes() + 1);
+  proto_->set_write_timestamp_ms(now_ms);
+}
+
+StringPiece PropertyValue::value() const {
+  return StringPiece(proto_->body());
+}
+
+int64 PropertyValue::write_timestamp_ms() const {
+  return proto_->write_timestamp_ms();
+}
+
+GoogleString PropertyCache::CacheKey(const StringPiece& key,
+                                     const Cohort* cohort) const {
+  return StrCat(cache_key_prefix_, key, "@", cohort->name());
+}
+
+void PropertyCache::SetupCohorts(PropertyPage* page) const {
+  for (CohortMap::const_iterator p = cohorts_.begin(), e = cohorts_.end();
+       p != e; ++p) {
+    const Cohort* cohort = p->second;
+    int cohort_index = page->log_record()->AddPropertyCohortInfo(
+        cohort->name());
+    PropertyPage::PropertyMapStruct* pmap_struct =
+        new PropertyPage::PropertyMapStruct(page->log_record(), cohort_index);
+    page->cohort_data_map_[cohort] = pmap_struct;
+  }
+}
+
+void PropertyCache::MultiRead(PropertyPageStarVector* page_list) const {
+  MultiReadWithCohorts(page_list, cohort_name_list_);
+}
+
+void PropertyCache::MultiReadWithCohorts(
+    PropertyPageStarVector* property_page_list,
+    const StringVector cohort_name_list) const {
+  for (int i = 0, m = property_page_list->size(); i < m; i++) {
+    PropertyPage* page = property_page_list->at(i);
+    if (!enabled_  || cohorts_.empty() || cohort_name_list.empty()) {
+      page->CallDone(false);
+      return;
+    }
+
+    PropertyPage::CallbackCollector* collector =
+        new PropertyPage::CallbackCollector(
+            page, cohort_name_list.size(), thread_system_->NewMutex());
+    for (int j = 0, n = cohort_name_list.size(); j < n; j++) {
+      CohortMap::const_iterator p = cohorts_.find(cohort_name_list[j]);
+      CHECK(p != cohorts_.end());
+      const Cohort* cohort = p->second;
+      PropertyPage::CohortDataMap::iterator cohort_itr =
+        page->cohort_data_map_.find(cohort);
+      CHECK(cohort_itr != page->cohort_data_map_.end());
+      PropertyPage::PropertyMapStruct* pmap_struct = cohort_itr->second;
+      page->LogPageCohortInfo(page->log_record(), pmap_struct->cohort_index);
+      const GoogleString cache_key = CacheKey(page->key(), cohort);
+      cohort->cache()->Get(
+        cache_key,
+        new CacheInterfaceCallback(page, cohort, pmap_struct, collector));
+    }
+  }
+}
+
+void PropertyCache::Read(PropertyPage* page) const {
+  PropertyPageStarVector page_list;
+  page_list.push_back(page);
+  MultiRead(&page_list);
+}
+
+void PropertyCache::ReadWithCohorts(PropertyPage* property_page,
+                                    const StringVector cohort_names) const {
+  PropertyPageStarVector page_list;
+  page_list.push_back(property_page);
+  MultiReadWithCohorts(&page_list, cohort_names);
+}
+
+bool PropertyValue::IsStable(int mutations_per_1000_threshold) const {
+  // We allocate a 64-bit mask to record whether recent calls to Write
+  // actually changed the data.  So although we keep a total number of
+  // Writes that is not clamped to 64, we need to clamp between 1-64 so
+  // we can use this as a divisor to determine stability.
+  int num_writes = std::max(static_cast<int64>(1),
+                            std::min(static_cast<int64>(64),
+                                     proto_->num_writes()));
+  int num_changes = NumberOfSetBits64(proto_->update_mask());
+  int changes_per_1000_writes = (1000 * num_changes) / num_writes;
+  return (changes_per_1000_writes < mutations_per_1000_threshold);
+}
+
+bool PropertyValue::IsRecentlyConstant(int num_writes_unchanged) const {
+  int num_pcache_writes = proto_->num_writes();
+  if (num_writes_unchanged > 64) {
+    // We track at most 64 writes in update_mask.
+    return false;
+  }
+  // If we have not seen num_writes_unchanged writes then just check whether all
+  // the writes were for the same value.
+  if (num_writes_unchanged > num_pcache_writes) {
+    num_writes_unchanged = num_pcache_writes;
+  }
+  uint64 update_mask =  proto_->update_mask();
+  // Check if the index of least set bit for update_mask is >=
+  // num_writes_unchanged. OR all writes are for the same value.
+  return !IsIndexOfLeastSetBitSmaller(update_mask, num_writes_unchanged) ||
+      (update_mask == 0);
+}
+
+bool PropertyValue::IsIndexOfLeastSetBitSmaller(uint64 value, int index) {
+  uint64 check_mask = static_cast<uint64>(1) << std::max(index - 1, 0);
+  return ((value & ~(value - 1)) < check_mask);
+}
+
+void PropertyCache::WriteCohort(const PropertyCache::Cohort* cohort,
+                                PropertyPage* page) const {
+  if (enabled_) {
+    DCHECK(GetCohort(cohort->name()) == cohort);
+    GoogleString value;
+    if (page->EncodeCacheEntry(cohort, &value) ||
+        page->HasPropertyValueDeleted(cohort)) {
+      const GoogleString cache_key = CacheKey(page->key(), cohort);
+      cohort->cache()->PutSwappingString(cache_key, &value);
+    }
+  }
+}
+
+bool PropertyCache::IsExpired(const PropertyValue* property_value,
+                              int64 ttl_ms) const {
+  DCHECK(property_value->has_value());
+  int64 expiration_time_ms = property_value->write_timestamp_ms() + ttl_ms;
+  return timer_->NowMs() > expiration_time_ms;
+}
+
+const PropertyCache::Cohort* PropertyCache::AddCohort(
+    const StringPiece& cohort_name) {
+  // Use the default cache implementation.
+  return AddCohortWithCache(cohort_name, cache_);
+}
+
+const PropertyCache::Cohort* PropertyCache::AddCohortWithCache(
+    const StringPiece& cohort_name, CacheInterface* cache) {
+  CHECK(cache != NULL);
+  GoogleString cohort_string;
+  cohort_name.CopyToString(&cohort_string);
+  std::pair<CohortMap::iterator, bool> insertions = cohorts_.insert(
+      make_pair(cohort_string, static_cast<Cohort*>(NULL)));
+  if (insertions.second) {
+    // Create a new CacheStats for every cohort so that we can track cache
+    // statistics independently for every cohort.
+    CacheInterface* cache_stats = new CacheStats(GetStatsPrefix(cohort_string),
+                                                 new CacheCopy(cache),
+                                                 timer_,
+                                                 stats_);
+    insertions.first->second = new Cohort(cohort_name, cache_stats);
+    cohort_name_list_.push_back(cohort_string);
+  }
+  return insertions.first->second;
+}
+
+const PropertyCache::Cohort* PropertyCache::GetCohort(
+    const StringPiece& cohort_name) const {
+  GoogleString cohort_string;
+  cohort_name.CopyToString(&cohort_string);
+  CohortMap::const_iterator p = cohorts_.find(cohort_string);
+  if (p == cohorts_.end()) {
+    return NULL;
+  }
+  const Cohort* cohort = p->second;
+  return cohort;
+}
+
+void PropertyCache::InitCohortStats(const GoogleString& cohort,
+                                    Statistics* statistics) {
+  CacheStats::InitStats(GetStatsPrefix(cohort), statistics);
+}
+
+PropertyPage::PropertyPage(AbstractMutex* mutex,
+                           const PropertyCache& property_cache,
+                           const StringPiece& key,
+                           const RequestContextPtr& request_context)
+      : mutex_(mutex),
+        key_(key.as_string()),
+        request_context_(request_context),
+        was_read_(false) {
+  property_cache.SetupCohorts(this);
+}
+
+PropertyPage::~PropertyPage() {
+  while (!cohort_data_map_.empty()) {
+    CohortDataMap::iterator p = cohort_data_map_.begin();
+    PropertyMapStruct* pmap_struct = p->second;
+    PropertyMap* pmap = &p->second->pmap;
+    cohort_data_map_.erase(p);
+
+    // TODO(jmarantz): Not currently Using STLDeleteValues because
+    // ~PropertyValue is private, the syntax for friending template
+    // functions eludes me.
+    for (PropertyMap::iterator p = pmap->begin(), e = pmap->end(); p != e;
+         ++p) {
+      PropertyValue* value = p->second;
+      delete value;
+    }
+    delete pmap_struct;
+  }
+}
+
+PropertyValue* PropertyPage::GetProperty(const PropertyCache::Cohort* cohort,
+                                         const StringPiece& property_name) {
+  ScopedMutex lock(mutex_.get());
+  DCHECK(was_read_);
+  DCHECK(cohort != NULL);
+  PropertyValue* property = NULL;
+  GoogleString property_name_str(property_name.data(), property_name.size());
+  CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
+  CHECK(cohort_itr != cohort_data_map_.end());
+  PropertyMapStruct* pmap_struct = cohort_itr->second;
+  PropertyMap* pmap = &pmap_struct->pmap;
+  property = (*pmap)[property_name_str];
+  if (property == NULL) {
+    property = new PropertyValue;
+    (*pmap)[property_name_str] = property;
+    property->set_was_read(was_read_);
+  }
+  return property;
+}
+
+void PropertyPage::DeleteProperty(const PropertyCache::Cohort* cohort,
+                                  const StringPiece& property_name) {
+  DCHECK(was_read_);
+  DCHECK(cohort != NULL);
+  ScopedMutex lock(mutex_.get());
+  CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
+  if (cohort_itr == cohort_data_map_.end()) {
+    return;
+  }
+  PropertyMapStruct* pmap_struct = cohort_itr->second;
+  PropertyMap* pmap = &pmap_struct->pmap;
+  PropertyMap::iterator pmap_itr = pmap->find(property_name.as_string());
+  if (pmap_itr == pmap->end()) {
+    return;
+  }
+  PropertyValue* property = pmap_itr->second;
+  pmap->erase(pmap_itr);
+  pmap_struct->has_deleted_property = true;
+  delete property;
+}
+
+}  // namespace net_instaweb
