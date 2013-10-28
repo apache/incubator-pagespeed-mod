@@ -158,10 +158,8 @@ class ResourceCombiner {
   // Override this if you need to forbid some combinations based on the
   // content of the resource (e.g. with resource->HttpStatusOk())
   // This is called before the URL is added to UrlPartnership's
-  // data structures. If the method returns false, it should set
-  // *failure_reason to a user-comprehensible explanation.
+  // data structures.
   virtual bool ResourceCombinable(Resource* resource,
-                                  GoogleString* failure_reason,
                                   MessageHandler* handler);
 
   UrlPartnership partnership_;

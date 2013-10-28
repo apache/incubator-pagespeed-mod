@@ -17,11 +17,10 @@
 
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 
-#include <map>
+#include <set>
 
 #include "base/logging.h"
-#include "net/instaweb/rewriter/critical_keys.pb.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
+#include "net/instaweb/rewriter/critical_selectors.pb.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -30,8 +29,8 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -47,11 +46,10 @@ const char CriticalSelectorFinder::kCriticalSelectorsExpiredCount[] =
 const char CriticalSelectorFinder::kCriticalSelectorsNotFoundCount[] =
     "critical_selectors_not_found_count";
 
-CriticalSelectorFinder::CriticalSelectorFinder(
-    const PropertyCache::Cohort* cohort, NonceGenerator* nonce_generator,
-    Statistics* statistics)
-    : cohort_(cohort), nonce_generator_(nonce_generator) {
-  DCHECK(cohort_ != NULL);
+CriticalSelectorFinder::CriticalSelectorFinder(StringPiece cohort,
+                                               Statistics* statistics) {
+  cohort.CopyToString(&cohort_);
+
   critical_selectors_valid_count_ = statistics->GetTimedVariable(
       kCriticalSelectorsValidCount);
   critical_selectors_expired_count_ = statistics->GetTimedVariable(
@@ -72,54 +70,15 @@ void CriticalSelectorFinder::InitStats(Statistics* statistics) {
                                ServerContext::kStatisticsGroup);
 }
 
-bool CriticalSelectorFinder::IsCriticalSelector(RewriteDriver* driver,
-                                                const GoogleString& selector) {
-  const StringSet& critical_selectors = GetCriticalSelectors(driver);
-  return (critical_selectors.find(selector) != critical_selectors.end());
-}
-
-const StringSet& CriticalSelectorFinder::GetCriticalSelectors(
+CriticalSelectorSet*
+CriticalSelectorFinder::DecodeCriticalSelectorsFromPropertyCache(
     RewriteDriver* driver) {
-  UpdateCriticalSelectorInfoInDriver(driver);
-  return driver->critical_selector_info()->critical_selectors;
-}
-
-void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
-    const StringSet& selector_set, StringPiece nonce, RewriteDriver* driver) {
-  WriteCriticalSelectorsToPropertyCacheStatic(
-      selector_set, nonce, SupportInterval(), ShouldReplacePriorResult(),
-      driver->server_context()->page_property_cache(), cohort_,
-      driver->property_page(), driver->message_handler(), driver->timer());
-}
-
-void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheStatic(
-    const StringSet& selector_set, StringPiece nonce, int support_interval,
-    bool should_replace_prior_result, const PropertyCache* cache,
-    const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
-    MessageHandler* message_handler, Timer* timer) {
-  WriteCriticalKeysToPropertyCache(
-      selector_set, nonce, support_interval, should_replace_prior_result,
-      kCriticalSelectorsPropertyName, cache, cohort, page, message_handler,
-      timer);
-}
-
-void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
-    RewriteDriver* driver) {
-  if (driver->critical_selector_info() != NULL) {
-    return;
-  }
-
   PropertyCacheDecodeResult result;
-  // NOTE: if any of these checks fail you probably didn't set up your test
-  // environment carefully enough.  Figuring that out based on test failures
-  // alone will drive you nuts and take hours out of your life, thus DCHECKs.
-  DCHECK(driver != NULL);
-  DCHECK(driver->property_page() != NULL);
-  DCHECK(cohort_ != NULL);
-  scoped_ptr<CriticalKeys> critical_keys(DecodeFromPropertyCache<CriticalKeys>(
-      driver, cohort_, kCriticalSelectorsPropertyName,
-      driver->options()->finder_properties_cache_expiration_time_ms(),
-      &result));
+  scoped_ptr<CriticalSelectorSet> critical_selectors(
+      DecodeFromPropertyCache<CriticalSelectorSet>(
+          driver, cohort_, kCriticalSelectorsPropertyName,
+          driver->options()->finder_properties_cache_expiration_time_ms(),
+          &result));
   switch (result) {
     case kPropertyCacheDecodeNotFound:
       critical_selectors_not_found_count_->IncBy(1);
@@ -134,56 +93,126 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
       break;
     case kPropertyCacheDecodeOk:
       critical_selectors_valid_count_->IncBy(1);
+      return critical_selectors.release();
   }
-
-  // Create a placeholder CriticalKeys to use in case the call to
-  // DecodeFromPropertyCache above returned NULL.
-  CriticalKeys static_keys;
-  CriticalKeys* keys_to_use =
-      (critical_keys == NULL) ? &static_keys : critical_keys.get();
-
-  CriticalSelectorInfo* critical_selector_info = new CriticalSelectorInfo;
-  critical_selector_info->proto = *keys_to_use;
-  GetCriticalKeysFromProto(0 /* support_percentage */, *keys_to_use,
-                           &critical_selector_info->critical_selectors);
-  driver->set_critical_selector_info(critical_selector_info);
+  return NULL;
 }
 
-BeaconMetadata CriticalSelectorFinder::PrepareForBeaconInsertion(
-    const StringSet& selectors, RewriteDriver* driver) {
-  UpdateCriticalSelectorInfoInDriver(driver);
-  BeaconMetadata result;
-  result.status = kDoNotBeacon;
-  if (selectors.empty()) {
-    return result;
-  }
-  if (ShouldReplacePriorResult()) {
-    // The computed critical keys will not require a nonce as we trust all
-    // beacon results.
-    result.status = kBeaconNoNonce;
-    return result;
-  }
-  // Avoid memory copy by capturing computed_nonce using RVA and swapping the
-  // two strings.
-  CriticalKeys& proto = driver->critical_selector_info()->proto;
-  net_instaweb::PrepareForBeaconInsertion(
-      selectors, &proto, SupportInterval(), nonce_generator_, driver->timer(),
-      &result);
-  if (result.status != kDoNotBeacon) {
-    UpdateInPropertyCache(proto, cohort_, kCriticalSelectorsPropertyName,
-                          true /* write_cohort */, driver->property_page());
-  }
-  return result;
+void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
+  const StringSet& selector_set, RewriteDriver* driver) {
+  WriteCriticalSelectorsToPropertyCache(
+      selector_set,
+      driver->server_context()->page_property_cache(),
+      driver->property_page(),
+      driver->message_handler());
 }
 
-void
-BeaconCriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheFromBeacon(
-    const StringSet& selector_set, StringPiece nonce,
-    const PropertyCache* cache, const PropertyCache::Cohort* cohort,
-    AbstractPropertyPage* page, MessageHandler* message_handler, Timer* timer) {
-  return CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheStatic(
-      selector_set, nonce, kDefaultSupportInterval, false, cache, cohort, page,
-      message_handler, timer);
+void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
+    const StringSet& selector_set,
+    const PropertyCache* cache, PropertyPage* page,
+    MessageHandler* message_handler) {
+
+  // We can't do anything here if page is NULL, so bail out early.
+  if (page == NULL) {
+    return;
+  }
+
+  // We first need to read the current critical selectors in the property cache,
+  // then update it with the new set if it exists, or create it if it doesn't.
+  PropertyCacheDecodeResult decode_result;
+  scoped_ptr<CriticalSelectorSet> critical_selectors(
+      DecodeFromPropertyCache<CriticalSelectorSet>(
+          cache, page, cohort_, kCriticalSelectorsPropertyName, -1,
+          &decode_result));
+  switch (decode_result) {
+    case kPropertyCacheDecodeOk:
+      // We successfully decoded the property cache value, so use the returned
+      // CriticalSelectorSet.
+      break;
+    case kPropertyCacheDecodeNotFound:
+      // We either got here because the property cache is not set up correctly
+      // (the cohort doesn't exist), or we just don't have a value already. For
+      // the former, bail out since there is no use trying to update the
+      // property cache if it is not setup. For the later, create a new
+      // CriticalSelectorSet, since we just haven't written a value before.
+      if (cache->GetCohort(cohort_) == NULL) {
+        return;
+      }
+      FALLTHROUGH_INTENDED;
+    case kPropertyCacheDecodeExpired:
+    case kPropertyCacheDecodeParseError:
+      // We can proceed here, but we need to create a new CriticalSelectorSet.
+      critical_selectors.reset(new CriticalSelectorSet);
+      break;
+  }
+
+  UpdateCriticalSelectorSet(selector_set, critical_selectors.get());
+
+  PropertyCacheUpdateResult result =
+      UpdateInPropertyCache(
+          *critical_selectors, cache, cohort_, kCriticalSelectorsPropertyName,
+          false /* don't write cohort*/, page);
+  switch (result) {
+    case kPropertyCacheUpdateNotFound:
+      message_handler->Message(
+          kWarning, "Unable to get Critical css selector set for update.");
+      break;
+    case kPropertyCacheUpdateEncodeError:
+      message_handler->Message(
+          kWarning, "Trouble marshaling CriticalSelectorSet!?");
+      break;
+    case kPropertyCacheUpdateOk:
+      // Nothing more to do.
+      break;
+  }
+}
+
+void CriticalSelectorFinder::UpdateCriticalSelectorSet(
+    const StringSet& new_set, CriticalSelectorSet* critical_selector_set) {
+  DCHECK(critical_selector_set != NULL);
+
+  // Update the selector_sets field first, which contains the history of up to
+  // NumSetsToKeep() critical selector responses. If we already have
+  // NumSetsToKeep(), drop the first (oldest) response, and append the new
+  // response to the end.
+  CriticalSelectorSet::BeaconResponse* new_selector_set;
+  if (critical_selector_set->selector_set_history_size() >= NumSetsToKeep()) {
+    DCHECK_EQ(critical_selector_set->selector_set_history_size(),
+              NumSetsToKeep());
+    protobuf::RepeatedPtrField<CriticalSelectorSet::BeaconResponse>*
+        selector_history =
+            critical_selector_set->mutable_selector_set_history();
+    for (int i = 1; i < selector_history->size(); ++i) {
+      selector_history->SwapElements(i - 1, i);
+    }
+    new_selector_set = selector_history->Mutable(selector_history->size() - 1);
+    new_selector_set->Clear();
+  } else {
+    new_selector_set = critical_selector_set->add_selector_set_history();
+  }
+
+  for (StringSet::const_iterator it = new_set.begin();
+       it != new_set.end(); ++it) {
+    new_selector_set->add_selectors(*it);
+  }
+
+  // Now recalculate the critical_selectors field as the union of all selectors
+  // reported by beacons. Aggregate all the selectors into a StringSet first to
+  // remove duplicates.
+  StringSet new_critical_selectors;
+  for (int i = 0; i < critical_selector_set->selector_set_history_size(); ++i) {
+    const CriticalSelectorSet::BeaconResponse& curr_set =
+        critical_selector_set->selector_set_history(i);
+    for (int j = 0; j < curr_set.selectors_size(); ++j) {
+      new_critical_selectors.insert(curr_set.selectors(j));
+    }
+  }
+
+  critical_selector_set->clear_critical_selectors();
+  for (StringSet::const_iterator it = new_critical_selectors.begin();
+       it != new_critical_selectors.end(); ++it) {
+    critical_selector_set->add_critical_selectors(*it);
+  }
 }
 
 }  // namespace net_instaweb

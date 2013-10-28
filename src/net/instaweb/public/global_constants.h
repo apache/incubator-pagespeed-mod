@@ -45,21 +45,7 @@ const char kPsaRewriterHeader[] = "X-PSA-Rewriter";
 // prioritize_visible_content filter to invalidate its cache.
 const char kPsaLastModified[] = "X-PSA-Last-Modified";
 
-// Header whose existence indicates that this is a purge request to
-// and external/internal caching layer and hence should not be
-// allowed to initiate yet another purge request (which could result in
-// an infinite loop).
-const char kPsaPurgeRequest[] = "X-PSA-Purge-Request";
-
-// Header used to specify a comma-separated list of optimization-related
-// capabilities which are to be supported in the response. For e.g. "ii"
-// could mean image inlining is supported. These are used by the
-// downstream caching layer to communicate to the pagespeed server,
-// the optimizations/capabilties that are going to be factored into
-// the cache's fragmentation logic.
-const char kPsaCapabilityList[] = "PS-CapabilityList";
-
-// Noscript element that redirects to PageSpeed=noscript.  This is applied
+// Noscript element that redirects to ModPagespeed=noscript.  This is applied
 // when a filter that inserts custom javascript is enabled.
 const char kNoScriptRedirectFormatter[] =
     "<noscript><meta HTTP-EQUIV=\"refresh\" content=\"0;url='%s'\" />"

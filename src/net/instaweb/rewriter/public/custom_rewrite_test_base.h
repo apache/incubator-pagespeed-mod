@@ -25,7 +25,6 @@
 
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/gtest.h"
 
@@ -36,22 +35,21 @@ class CustomRewriteTestBase : public RewriteTestBase {
  public:
   class CustomTestRewriteDriverFactory : public TestRewriteDriverFactory {
    public:
-    explicit CustomTestRewriteDriverFactory(
-        MockUrlFetcher* url_fetcher,
-        TestDistributedFetcher* distributed_fetcher)
+    explicit CustomTestRewriteDriverFactory(MockUrlFetcher* url_fetcher,
+                                            MockUrlFetcher* distributed_fetcher)
         : TestRewriteDriverFactory(GTestTempDir(), url_fetcher,
                                    distributed_fetcher) {
       InitializeDefaultOptions();
     }
 
     virtual OptionsClass* NewRewriteOptions() {
-      return new OptionsClass(thread_system());
+      return new OptionsClass;
     }
   };
 
   CustomRewriteTestBase()
       : RewriteTestBase(MakeFactories(&mock_url_fetcher_,
-                                      &test_distributed_fetcher_)) {
+                                      &mock_distributed_fetcher_)) {
   }
 
   virtual ~CustomRewriteTestBase() {
@@ -60,7 +58,7 @@ class CustomRewriteTestBase : public RewriteTestBase {
 
   virtual TestRewriteDriverFactory* MakeTestFactory() {
     return new CustomTestRewriteDriverFactory(&mock_url_fetcher_,
-                                              &test_distributed_fetcher_);
+                                              &mock_distributed_fetcher_);
   }
 
   static void SetUpTestCase() {
@@ -69,23 +67,19 @@ class CustomRewriteTestBase : public RewriteTestBase {
   static void TearDownTestCase() {
   }
 
-  OptionsClass* NewOptions() {
-    return new OptionsClass(factory()->thread_system());
-  }
-
  private:
   // We must call the static Initialize method on the options class before
   // we construct a factory, which will 'new' the OptionsClass.
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
       MakeFactories(MockUrlFetcher* mock_fetcher,
-                    TestDistributedFetcher* test_distributed_fetcher) {
+                    MockUrlFetcher* mock_distributed_fetcher) {
     OptionsClass::Initialize();
 
     return make_pair(
         new CustomTestRewriteDriverFactory(mock_fetcher,
-                                           test_distributed_fetcher),
+                                           mock_distributed_fetcher),
         new CustomTestRewriteDriverFactory(mock_fetcher,
-                                           test_distributed_fetcher));
+                                           mock_distributed_fetcher));
   }
 };
 

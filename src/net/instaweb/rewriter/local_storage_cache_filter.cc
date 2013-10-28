@@ -128,16 +128,16 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
     const char* url = element->AttributeValue(HtmlName::kPagespeedLscUrl);
     if (url != NULL) {
       num_local_storage_cache_candidates_found_->Add(1);
-      GoogleString hash = GenerateHashFromUrlAndElement(driver_, url, element);
+      GoogleString hash = driver_->server_context()->hasher()->Hash(url);
       if (IsHashInCookie(driver_, kLscCookieName, hash, &cookie_hashes_)) {
         num_local_storage_cache_stored_total_->Add(1);
         StringPiece given_url(url);
         GoogleUrl abs_url(base_url(), given_url);
-        StringPiece lsc_url(abs_url.IsWebValid() ? abs_url.Spec() : given_url);
+        StringPiece lsc_url(abs_url.is_valid() ? abs_url.Spec() : given_url);
         GoogleString snippet("pagespeed.localStorageCache.");
         if (is_img) {
           num_local_storage_cache_stored_images_->Add(1);
-          StrAppend(&snippet, "inlineImg(\"", lsc_url, "\", \"", hash, "\"",
+          StrAppend(&snippet, "inlineImg(\"", lsc_url, "\"",
                     ExtractOtherImgAttributes(element), ");");
         } else /* is_link */ {
           num_local_storage_cache_stored_css_->Add(1);
@@ -167,7 +167,7 @@ void LocalStorageCacheFilter::InsertOurScriptElement(HtmlElement* before) {
                                               kLscInitializer);
   HtmlElement* script_element = driver_->NewElement(before->parent(),
                                                     HtmlName::kScript);
-  driver_->InsertNodeBeforeNode(before, script_element);
+  driver_->InsertElementBeforeElement(before, script_element);
   static_asset_manager->AddJsToElement(initialized_js, script_element, driver_);
   script_element->AddAttribute(driver_->MakeName(HtmlName::kPagespeedNoDefer),
                                NULL, HtmlElement::NO_QUOTE);
@@ -188,7 +188,7 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
     // Get the absolute LSC url from the link url if it's valid otherwise as-is.
     if (state->enabled_) {
       GoogleUrl gurl(driver->base_url(), url);
-      StringPiece best_url(gurl.IsWebValid() ? gurl.Spec() : url);
+      StringPiece best_url(gurl.is_valid() ? gurl.Spec() : url);
       best_url.CopyToString(&state->url_);
     }
 
@@ -208,8 +208,8 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
     if (filter != NULL) {
       LocalStorageCacheFilter* lsc =
           static_cast<LocalStorageCacheFilter*>(filter);
-      GoogleString hash = GenerateHashFromUrlAndElement(driver, state->url_,
-                                                        element);
+      GoogleString hash =
+          driver->server_context()->hasher()->Hash(state->url_);
       add_the_attr = IsHashInCookie(driver, kLscCookieName, hash,
                                     lsc->mutable_cookie_hashes());
     }
@@ -247,8 +247,8 @@ bool LocalStorageCacheFilter::AddLscAttributes(const StringPiece url,
   }
 
   GoogleUrl gurl(driver->base_url(), url);
-  StringPiece lsc_url(gurl.IsWebValid() ? gurl.Spec() : url);
-  GoogleString hash = GenerateHashFromUrlAndElement(driver, lsc_url, element);
+  StringPiece lsc_url(gurl.is_valid() ? gurl.Spec() : url);
+  GoogleString hash = driver->server_context()->hasher()->Hash(lsc_url);
   driver->AddAttribute(element, HtmlName::kPagespeedLscHash, hash);
   if (cached.input_size() > 0) {
     const InputInfo& input_info = cached.input(0);
@@ -348,40 +348,6 @@ GoogleString LocalStorageCacheFilter::ExtractOtherImgAttributes(
     }
   }
   return result;
-}
-
-GoogleString LocalStorageCacheFilter::GenerateHashFromUrlAndElement(
-    const RewriteDriver* driver,
-    const StringPiece& url,
-    const HtmlElement* element) {
-  GoogleString backing_string;
-  StringPiece url_to_hash;
-  // If the element has a width and/or height attribute, append them to the
-  // given URL. Precede both with "!" to keep the logic simple; the resulting
-  // URL is never used for anything other than hashing.
-  // NOTE: We add the width and height because within the same page if the same
-  // image appears multiple times with different resolutions, we do not want to
-  // use the same cached image for all occurences. Currently, resolution is the
-  // only thing we need to handle but if anything else comes up in the future
-  // we might have to add it here as well (e.g, say a new attribute 'units' was
-  // added that the cached image depended on; we'd need to add that here).
-  // TODO(matterbury): Keep an eye on the attributes that make up the cache key
-  // for images in RewriteContext.
-  const char* width  = element->AttributeValue(HtmlName::kWidth);
-  const char* height = element->AttributeValue(HtmlName::kHeight);
-  if (width == NULL && height == NULL) {
-    url_to_hash.set(url.data(), url.size());
-  } else {
-    url.CopyToString(&backing_string);
-    if (width != NULL) {
-      StrAppend(&backing_string, "!w=", width);
-    }
-    if (height != NULL) {
-      StrAppend(&backing_string, "!h=", height);
-    }
-    url_to_hash.set(backing_string.data(), backing_string.size());
-  }
-  return driver->server_context()->hasher()->Hash(url_to_hash);
 }
 
 }  // namespace net_instaweb

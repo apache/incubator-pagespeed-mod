@@ -23,7 +23,31 @@ import "net/instaweb/util/enums.proto";
 
 package net_instaweb;
 
-// DEPRECATED.
+
+// This proto is expected to track the time taken by various components of page
+// speed service processing. Overall, the PSS processing time can be broken down
+// into time taken by the following constituents:
+// Kansas lookup
+// Local + remote cache lookup
+// Property cache lookup
+// Fastnet fetch
+// Rewriting
+// Streaming
+//
+// Here is the ordering of events.
+// 1. request_start_ms
+// 2. time_to_start_processing_ms
+// 3. time_to_pcache_lookup_start_ms
+// 4. time_to_start_fetch_ms | time_to_pcache_lookup_end_ms
+// 5. time_to_start_parse_ms
+// 6. time_to_first_byte_ms
+//
+// Note that cache1_ms, cache2_ms, header_fetch_ms and fetch_ms represent the
+// absolute times for the HTTP cache lookup and the fetch.
+//
+// Please make sure you keep this proto in sync with the proto at
+// //net/instaweb/http/logging.proto
+// Next id for TimingInfo: 13
 message TimingInfo {
   // Local HTTP cache lookup time in ms.
   optional int64 cache1_ms = 1;
@@ -56,7 +80,7 @@ message TimingInfo {
 
 // This proto stores all Blink requests related information.  These are logged
 // in the blink log record.
-// Next id for BlinkInfo : 8
+// Next id for BlinkInfo : 9
 message BlinkInfo {
   enum BlinkRequestFlow {
     BLINK_CACHE_HIT = 1;
@@ -228,7 +252,7 @@ message CriticalCssInfo {
 }
 
 // This proto stores all Cache Html flow requests related information.
-// Next id for CacheHtmlLoggingInfo : 8
+// Next id for CacheHtmlLoggingInfo : 6
 message CacheHtmlLoggingInfo {
   enum CacheHtmlRequestFlow {
     CACHE_HTML_HIT = 1;
@@ -237,9 +261,6 @@ message CacheHtmlLoggingInfo {
     CACHE_HTML_MISS_TRIGGERED_REWRITE = 4;
     FOUND_MALFORMED_HTML = 5;
     FOUND_CONTENT_LENGTH_OVER_THRESHOLD = 6;
-    // The following is only set in the main log record and not in the cache
-    // html info log record.
-    CACHE_HTML_BLACKLISTED = 7;  // Diff mismatch based blacklist active.
   };
   // Tracks the flow of a cache html rewriter request.
   optional CacheHtmlRequestFlow cache_html_request_flow = 1;
@@ -255,21 +276,6 @@ message CacheHtmlLoggingInfo {
 
   // URL of the request.
   optional string url = 5;
-
-  enum UserAgent {
-    NOT_SET = 0;
-    CACHE_HTML_DESKTOP_WHITELIST = 1;
-    CACHE_HTML_DESKTOP_BLACKLIST = 2;
-    CACHE_HTML_MOBILE = 3;
-    NULL_OR_EMPTY = 4;
-    NOT_SUPPORT_CACHE_HTML = 5;
-  };
-  // user agent which initiated the cache html request.
-  // This is set only in main log record and not in cache html info log record.
-  optional UserAgent cache_html_user_agent = 6;
-
-  // Tracks whether we hit the #mismatches threshold for blacklisting.
-  optional bool mismatch_blacklist_threshold_exceeded = 7;
 }
 
 // Information that applies to a resource.
@@ -294,7 +300,7 @@ message RewriteResourceInfo {
 }
 
 // Information related to each resource considered by the image rewrite filter.
-// Next id for ImageRewriteResourceInfo: 11
+// Next id for ImageRewriteResourceInfo: 6
 message ImageRewriteResourceInfo {
   // True if the low_res_src html attribute was inserted.
   optional bool is_low_res_src_inserted = 1 [ default = false ];
@@ -309,16 +315,6 @@ message ImageRewriteResourceInfo {
       [ default = IMAGE_UNKNOWN ];
   // True if the image has been resized.
   optional bool is_resized = 5 [ default = false ];
-  // Original height.
-  optional int32 original_height = 6 [default = 0];
-  // Original Width.
-  optional int32 original_width = 7 [default = 0];
-  // True if the image has been resized using rendered_dimensions.
-  optional bool is_resized_using_rendered_dimensions = 8 [ default = false ];
-  // Resized height.
-  optional int32 resized_height = 9 [default = 0 ];
-  // Resized width.
-  optional int32 resized_width = 10 [default = 0 ];
 }
 
 // This proto stores information describing each rewriter's activity in a
@@ -400,8 +396,11 @@ message DeviceInfo {
 }
 
 // This proto stores all information which we would like to log.
-// Next id for LoggingInfo: 26
+// Next id for LoggingInfo: 25
 message LoggingInfo {
+  // Used to track time taken by various components of page speed service
+  // processing.
+  optional TimingInfo timing_info = 1;
   // Stores all Blink related information.
   optional BlinkInfo blink_info = 2;
   // Sorted list of applied rewriter ids separated by comma.
@@ -410,8 +409,8 @@ message LoggingInfo {
   optional MetadataCacheInfo metadata_cache_info = 4;
   // Whether the original resource is cacheable.
   optional bool is_original_resource_cacheable = 5 [ default = true ];
-  // Experiment ID used for this request.
-  optional int32 experiment_id = 6;
+  // Furious ID used for this request.
+  optional int32 furious_id = 6;
   // All information related to split_html.
   optional SplitHtmlInfo split_html_info = 7;
   // All information related to the pcache lookup.
@@ -426,7 +425,7 @@ message LoggingInfo {
   optional bool is_url_disallowed = 11 [ default = false ];
   // RewriteOptions signature hash.
   optional int64 options_signature_hash = 12;
-  // Whether request is disabled like PageSpeed=off.
+  // Whether request is disabled like ModPagespeed=off.
   optional bool is_request_disabled = 13 [ default = false ];
   // Information about flush subresources filter.
   optional FlushEarlyFlowInfo flush_early_flow_info = 14;
@@ -452,9 +451,4 @@ message LoggingInfo {
   optional CriticalCssInfo critical_css_info = 23;
   // Information about the device making the request.
   optional DeviceInfo device_info = 24;
-  // Is the request an XmlHttpRequest.
-  optional bool is_xhr = 25;
-
-  // --- DEPRECATED FIELDS FOLLOW ---
-  optional TimingInfo deprecated_timing_info = 1;
 }

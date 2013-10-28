@@ -109,18 +109,6 @@ class CssInlineFilterTest : public RewriteTestBase {
         expect_inline, css_rewritten_body);
   }
 
-  void VerifyNoInliningForClosingStyleTag(
-      const GoogleString& closing_style_tag) {
-    AddFilter(RewriteOptions::kInlineCss);
-    SetResponseWithDefaultHeaders("foo.css", kContentTypeCss,
-                                  StrCat("a{margin:0}", closing_style_tag),
-                                  100);
-
-    // We don't mess with links that contain a closing style tag.
-    ValidateNoChanges("no_inlining_of_close_style_tag",
-                      "<link rel='stylesheet' href='foo.css'>");
-  }
-
  private:
   bool filters_added_;
 };
@@ -208,7 +196,7 @@ TEST_F(CssInlineFilterTest, NoRewriteUrlsSameDir) {
 
 TEST_F(CssInlineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   lawyer->AddShard("www.example.com", "shard1.com,shard2.com",
                    &message_handler_);
 
@@ -327,41 +315,6 @@ TEST_F(CssInlineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
                    StringPrintf(html_format, kXhtmlDtd, inlined_css));
 }
 
-TEST_F(CssInlineFilterTest, DontInlineInNoscript) {
-  options()->EnableFilter(RewriteOptions::kInlineCss);
-  rewrite_driver()->AddFilters();
-
-  const char kCssUrl[] = "a.css";
-  const char kCss[] = "div {display:block;}";
-
-  SetResponseWithDefaultHeaders(kCssUrl, kContentTypeCss, kCss, 3000);
-
-  GoogleString html_input =
-      StrCat("<noscript><link rel=stylesheet href=\"", kCssUrl,
-             "\"></noscript>");
-
-  ValidateNoChanges("noscript_noinline", html_input);
-}
-
-TEST_F(CssInlineFilterTest, InlineAndPrioritizeCss) {
-  // Make sure we interact with Critical CSS properly, including in cached
-  // case.
-  options()->EnableFilter(RewriteOptions::kInlineCss);
-  options()->EnableFilter(RewriteOptions::kPrioritizeCriticalCss);
-  rewrite_driver()->AddFilters();
-
-  const char kCssUrl[] = "a.css";
-  const char kCss[] = "div {display:block;}";
-
-  SetResponseWithDefaultHeaders(kCssUrl, kContentTypeCss, kCss, 3000);
-
-  GoogleString html_input =
-      StrCat("<link rel=stylesheet href=\"", kCssUrl, "\">");
-  GoogleString html_output= StrCat("<style>", kCss, "</style>");
-
-  ValidateExpected("inline_prioritize", html_input, html_output);
-}
-
 TEST_F(CssInlineFilterTest, InlineCombined) {
   // Make sure we interact with CSS combiner properly, including in cached
   // case.
@@ -392,7 +345,6 @@ TEST_F(CssInlineFilterTest, InlineMinimizeInteraction) {
   TestInlineCssWithOutputUrl(
       StrCat(kTestDomain, "minimize_but_not_inline.html"), "",
       StrCat(kTestDomain, "a.css"),
-      // Note: Original URL was absolute, so rewritten one is as well.
       Encode(kTestDomain, "cf", "0", "a.css", "css"),
       "", /* no other attributes*/
       "div{display: none;}",
@@ -604,18 +556,6 @@ TEST_F(CssInlineFilterTest, NonCss) {
 
   ValidateNoChanges("non_css",
                     "<link rel='stylesheet' href='foo.xsl' type='text/xsl'/>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTag) {
-  VerifyNoInliningForClosingStyleTag("</style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithCapitalization) {
-  VerifyNoInliningForClosingStyleTag("</Style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithSpaces) {
-  VerifyNoInliningForClosingStyleTag("</style abc>");
 }
 
 }  // namespace

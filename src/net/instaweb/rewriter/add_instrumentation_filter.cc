@@ -22,20 +22,19 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
 
 namespace net_instaweb {
 
@@ -60,9 +59,10 @@ const char AddInstrumentationFilter::kUnloadTag[] = "unload:";
 const char AddInstrumentationFilter::kInstrumentationScriptAddedCount[] =
     "instrumentation_filter_script_added_count";
 AddInstrumentationFilter::AddInstrumentationFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
+    : driver_(driver),
       found_head_(false),
       added_head_script_(false),
+      added_tail_script_(false),
       added_unload_script_(false) {
   Statistics* stats = driver->server_context()->statistics();
   instrumentation_script_added_count_ = stats->GetVariable(
@@ -75,9 +75,10 @@ void AddInstrumentationFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kInstrumentationScriptAddedCount);
 }
 
-void AddInstrumentationFilter::StartDocumentImpl() {
+void AddInstrumentationFilter::StartDocument() {
   found_head_ = false;
   added_head_script_ = false;
+  added_tail_script_ = false;
   added_unload_script_ = false;
 }
 
@@ -94,12 +95,12 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     // TODO(abliss): add an actual element instead, so other filters can
     // rewrite this JS
     HtmlCharactersNode* script = driver_->NewCharactersNode(NULL, kHeadScript);
-    driver_->InsertNodeBeforeCurrent(script);
+    driver_->InsertElementBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
   }
 }
 
-void AddInstrumentationFilter::StartElementImpl(HtmlElement* element) {
+void AddInstrumentationFilter::StartElement(HtmlElement* element) {
   if (found_head_ && !added_head_script_) {
     AddHeadScript(element);
   }
@@ -108,56 +109,35 @@ void AddInstrumentationFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-void AddInstrumentationFilter::EndElementImpl(HtmlElement* element) {
-  if (found_head_ && element->keyword() == HtmlName::kHead) {
+void AddInstrumentationFilter::EndElement(HtmlElement* element) {
+  if (!added_tail_script_ && element->keyword() == HtmlName::kBody) {
+    // We relied on the existence of a <head> element.  This should have been
+    // assured by add_head_filter.
+    CHECK(found_head_) << "Reached end of document without finding <head>."
+        "  Please turn on the add_head filter.";
+    AddScriptNode(element, kLoadTag);
+    added_tail_script_ = true;
+  } else if (found_head_ && element->keyword() == HtmlName::kHead) {
     if (!added_head_script_) {
       AddHeadScript(element);
     }
     if (driver_->options()->report_unload_time() &&
         !added_unload_script_) {
-      GoogleString js = GetScriptJs(kUnloadTag);
-      HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
-      if (!driver_->defer_instrumentation_script()) {
-        driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-      }
-      driver_->InsertNodeBeforeCurrent(script);
-      driver_->server_context()->static_asset_manager()->AddJsToElement(
-          js, script, driver_);
+      AddScriptNode(element, kUnloadTag);
       added_unload_script_ = true;
     }
   }
 }
 
-void AddInstrumentationFilter::EndDocument() {
-  // We relied on the existence of a <head> element.  This should have been
-  // assured by add_head_filter.
-  if (!found_head_) {
-    LOG(WARNING) << "Reached end of document without finding <head>."
-                    "  Please turn on the add_head filter.";
-    return;
-  }
-  GoogleString js = GetScriptJs(kLoadTag);
-  HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
-  if (!driver_->defer_instrumentation_script()) {
-    driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-  }
-  InsertNodeAtBodyEnd(script);
-  driver_->server_context()->static_asset_manager()->AddJsToElement(js, script,
-                                                                    driver_);
-}
-
-GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
+void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
+                                             const GoogleString& event) {
   GoogleString js;
   StaticAssetManager* static_asset_manager =
       driver_->server_context()->static_asset_manager();
   // Only add the static JS once.
-  if (!added_unload_script_) {
-    if (driver_->options()->enable_extended_instrumentation()) {
-      js = static_asset_manager->GetAsset(
-          StaticAssetManager::kExtendedInstrumentationJs, driver_->options());
-    }
-    StrAppend(&js, static_asset_manager->GetAsset(
-        StaticAssetManager::kAddInstrumentationJs, driver_->options()));
+  if (!added_tail_script_ && !added_unload_script_) {
+    js = static_asset_manager->GetAsset(
+        StaticAssetManager::kAddInstrumentationJs, driver_->options());
   }
 
   GoogleString js_event = (event == kLoadTag) ? "load" : "beforeunload";
@@ -165,46 +145,42 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   const RewriteOptions::BeaconUrl& beacons = driver_->options()->beacon_url();
   const GoogleString* beacon_url =
       driver_->IsHttps() ? &beacons.https : &beacons.http;
-  GoogleString extra_params;
-  if (driver_->options()->running_experiment()) {
-    int experiment_state = driver_->options()->experiment_id();
-    if (experiment_state != experiment::kExperimentNotSet &&
-        experiment_state != experiment::kNoExperiment) {
-      StrAppend(&extra_params, "&exptid=",
-                IntegerToString(driver_->options()->experiment_id()));
+  GoogleString expt_id_param;
+  if (driver_->options()->running_furious()) {
+    int furious_state = driver_->options()->furious_id();
+    if (furious_state != furious::kFuriousNotSet &&
+        furious_state != furious::kFuriousNoExperiment) {
+      expt_id_param = IntegerToString(driver_->options()->furious_id());
     }
   }
 
-  const RequestContext::TimingInfo& timing_info =
-      driver_->request_context()->timing_info();
-  int64 header_fetch_ms;
-  if (timing_info.GetFetchHeaderLatencyMs(&header_fetch_ms)) {
-    // If time taken to fetch the http header is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&hft=", Integer64ToString(header_fetch_ms));
-  }
-  int64 fetch_ms;
-  if (timing_info.GetFetchLatencyMs(&fetch_ms)) {
-    // If time taken to fetch the resource is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&ft=", Integer64ToString(fetch_ms));
-  }
-  int64 ttfb_ms;
-  if (timing_info.GetTimeToFirstByte(&ttfb_ms)) {
-    StrAppend(&extra_params, "&s_ttfb=", Integer64ToString(ttfb_ms));
-  }
-
-  // Append the http response code.
-  if (driver_->response_headers() != NULL &&
-      driver_->response_headers()->status_code() > 0 &&
-      driver_->response_headers()->status_code() != HttpStatus::kOK) {
-    StrAppend(&extra_params, "&rc=", IntegerToString(
-        driver_->response_headers()->status_code()));
-  }
-  // Append the request id.
-  if (driver_->request_context()->request_id() > 0) {
-    StrAppend(&extra_params, "&id=", Integer64ToString(
-        driver_->request_context()->request_id()));
+  GoogleString headers_fetch_time;
+  GoogleString time_to_first_byte;
+  GoogleString fetch_time;
+  AbstractLogRecord* log_record = driver_->log_record();
+  {
+    ScopedMutex lock(log_record->mutex());
+    if (log_record->logging_info()->has_timing_info()) {
+      if (log_record->logging_info()->timing_info().has_header_fetch_ms()) {
+        int64 header_fetch_ms =
+            log_record->logging_info()->timing_info().header_fetch_ms();
+        // If time taken to fetch the http header is not set, then the response
+        // came from cache.
+        headers_fetch_time = Integer64ToString(header_fetch_ms);
+      }
+      if (log_record->logging_info()->timing_info().has_fetch_ms()) {
+        int64 fetch_ms = log_record->logging_info()->timing_info().fetch_ms();
+        // If time taken to fetch the resource is not set, then the response
+        // came from cache.
+        fetch_time = Integer64ToString(fetch_ms);
+      }
+      if (log_record->logging_info()->timing_info()
+          .has_time_to_first_byte_ms()) {
+        int64 ttfb_ms =
+            log_record->logging_info()->timing_info().time_to_first_byte_ms();
+        time_to_first_byte = Integer64ToString(ttfb_ms);
+      }
+    }
   }
 
   GoogleString html_url;
@@ -212,13 +188,19 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
                           false, /* no quotes */
                           &html_url);
 
-  StrAppend(&js, "\npagespeed.addInstrumentationInit(");
-  StrAppend(&js, "'", *beacon_url, "', ");
-  StrAppend(&js, "'", js_event, "', ");
-  StrAppend(&js, "'", extra_params, "', ");
-  StrAppend(&js, "'", html_url, "');");
+  GoogleString init_js = "\npagespeed.addInstrumentationInit(";
+  StrAppend(&init_js, "'", *beacon_url, "', ");
+  StrAppend(&init_js, "'", js_event, "', ");
+  StrAppend(&init_js, "'", headers_fetch_time, "', ");
+  StrAppend(&init_js, "'", time_to_first_byte, "', ");
+  StrAppend(&init_js, "'", fetch_time, "', ");
+  StrAppend(&init_js, "'", expt_id_param, "', ");
+  StrAppend(&init_js, "'", html_url, "');");
 
-  return js;
+  StrAppend(&js, init_js);
+  HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
+  driver_->InsertElementBeforeCurrent(script);
+  static_asset_manager->AddJsToElement(js, script, driver_);
 }
 
 }  // namespace net_instaweb

@@ -22,7 +22,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/public/fallback_property_page.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 
@@ -40,9 +40,7 @@ const char CriticalCssFinder::kCriticalCssExpiredCount[] =
 const char CriticalCssFinder::kCriticalCssNotFoundCount[] =
     "critical_css_not_found_count";
 
-CriticalCssFinder::CriticalCssFinder(const PropertyCache::Cohort* cohort,
-                                     Statistics* statistics)
-    : cohort_(cohort) {
+CriticalCssFinder::CriticalCssFinder(Statistics* statistics) {
   critical_css_valid_count_ = statistics->GetTimedVariable(
       kCriticalCssValidCount);
   critical_css_expired_count_ = statistics->GetTimedVariable(
@@ -86,10 +84,7 @@ CriticalCssResult* CriticalCssFinder::GetCriticalCssFromCache(
   PropertyCacheDecodeResult pcache_status;
   scoped_ptr<CriticalCssResult> result(
       DecodeFromPropertyCache<CriticalCssResult>(
-          driver->server_context()->page_property_cache(),
-          driver->fallback_property_page(),
-          cohort_,
-          kCriticalCssPropertyName,
+          driver, GetCohort(), kCriticalCssPropertyName,
           driver->options()->finder_properties_cache_expiration_time_ms(),
           &pcache_status));
   switch (pcache_status) {
@@ -115,11 +110,8 @@ bool CriticalCssFinder::UpdateCache(
     RewriteDriver* driver, const CriticalCssResult& result) {
   PropertyCacheUpdateResult status =
       UpdateInPropertyCache(
-          result,
-          cohort_,
-          kCriticalCssPropertyName,
-          false /* don't write cohort */,
-          driver->fallback_property_page());
+          result, driver, GetCohort(), kCriticalCssPropertyName,
+          false /* don't write cohort */);
   switch (status) {
     case kPropertyCacheUpdateOk:
       driver->InfoHere("Critical CSS written to cache");
@@ -133,6 +125,16 @@ bool CriticalCssFinder::UpdateCache(
       return false;
   }
   return false;
+}
+
+PropertyValue* CriticalCssFinder::GetPropertyValue(RewriteDriver* driver) {
+  const PropertyCache* cache = driver->server_context()->page_property_cache();
+  const PropertyCache::Cohort* cohort = cache->GetCohort(GetCohort());
+  PropertyPage* page = driver->property_page();
+  if (cohort != NULL && page != NULL) {
+    return page->GetProperty(cohort, kCriticalCssPropertyName);
+  }
+  return NULL;
 }
 
 }  // namespace net_instaweb

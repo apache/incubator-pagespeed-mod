@@ -21,29 +21,24 @@
 #include <cstddef>
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/cache_property_store.h"
-#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/property_store.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "testing/base/public/gunit.h"
 
 namespace net_instaweb {
 
-const size_t kMaxCacheSize = 200;
+const size_t kMaxCacheSize = 100;
 const char kCohortName1[] = "cohort1";
 const char kCacheKey1[] = "Key1";
 const char kCacheKey2[] = "Key2";
 const char kPropertyName1[] = "prop1";
 const char kValue1[] = "value1";
 const char kValue2[] = "value2";
-const char kOptionsSignatureHash[] = "hash";
-const char kCacheKeySuffix[] = "CacheKeySuffix";
 
 class FallbackPropertyPageTest : public testing::Test {
  protected:
@@ -51,32 +46,18 @@ class FallbackPropertyPageTest : public testing::Test {
       : lru_cache_(kMaxCacheSize),
         timer_(MockTimer::kApr_5_2010_ms),
         thread_system_(Platform::CreateThreadSystem()),
-        cache_property_store_(
-            "test/", &lru_cache_, &timer_, &stats_, thread_system_.get()),
-        property_cache_(&cache_property_store_,
-                        &timer_,
-                        &stats_,
+        property_cache_("test/", &lru_cache_, &timer_, &stats_,
                         thread_system_.get()) {
     PropertyCache::InitCohortStats(kCohortName1, &stats_);
-    PropertyStoreGetCallback::InitStats(&stats_);
     cohort_ = property_cache_.AddCohort(kCohortName1);
-    cache_property_store_.AddCohort(cohort_->name());
   }
 
   // Sets both actual and fallback property page.
   void SetupFallbackPage() {
     PropertyPage* actual_property_page = new MockPropertyPage(
-        thread_system_.get(),
-        &property_cache_,
-        kCacheKey1,
-        kOptionsSignatureHash,
-        kCacheKeySuffix);
+        thread_system_.get(), &property_cache_, kCacheKey1);
     PropertyPage* fallback_property_page = new MockPropertyPage(
-        thread_system_.get(),
-        &property_cache_,
-        kCacheKey2,
-        kOptionsSignatureHash,
-        kCacheKeySuffix);
+        thread_system_.get(), &property_cache_, kCacheKey2);
     fallback_page_.reset(new FallbackPropertyPage(
         actual_property_page, fallback_property_page));
     property_cache_.Read(actual_property_page);
@@ -122,7 +103,6 @@ class FallbackPropertyPageTest : public testing::Test {
   MockTimer timer_;
   SimpleStats stats_;
   scoped_ptr<ThreadSystem> thread_system_;
-  CachePropertyStore cache_property_store_;
   PropertyCache property_cache_;
   const PropertyCache::Cohort* cohort_;
 
@@ -132,11 +112,7 @@ class FallbackPropertyPageTest : public testing::Test {
 
 TEST_F(FallbackPropertyPageTest, TestIfNoFallbackPageSet) {
   PropertyPage* actual_property_page = new MockPropertyPage(
-      thread_system_.get(),
-      &property_cache_,
-      kCacheKey1,
-      kOptionsSignatureHash,
-      kCacheKeySuffix);
+      thread_system_.get(), &property_cache_, kCacheKey1);
   fallback_page_.reset(new FallbackPropertyPage(actual_property_page, NULL));
   property_cache_.Read(actual_property_page);
   fallback_page_->UpdateValue(cohort_, kPropertyName1, kValue1);
@@ -216,26 +192,6 @@ TEST_F(FallbackPropertyPageTest, TestWriteCohortIfFallbackPageIsSet) {
   SetupFallbackPage();
 
   CheckValueIsPresent(kValue1);
-}
-
-TEST_F(FallbackPropertyPageTest, TestGetFallbackPageUrl) {
-  GoogleString fallback_path("http://www.abc.com/b/");
-  GoogleString device_type_suffix("0");
-  GoogleUrl url_query(StrCat(fallback_path, "?c=d"));
-  GoogleUrl url_base_path(StrCat(fallback_path, "c/"));
-
-  EXPECT_EQ(StrCat(fallback_path, "@fallback"),
-            FallbackPropertyPage::GetFallbackPageUrl(url_query));
-  EXPECT_EQ(StrCat(fallback_path, "#fallback"),
-            FallbackPropertyPage::GetFallbackPageUrl(url_base_path));
-}
-
-TEST_F(FallbackPropertyPageTest, TestIsFallbackUrl) {
-  EXPECT_FALSE(FallbackPropertyPage::IsFallbackUrl("http://www.abc.com/b/"));
-  EXPECT_TRUE(
-      FallbackPropertyPage::IsFallbackUrl("http://www.abc.com/b/@fallback"));
-  EXPECT_TRUE(
-      FallbackPropertyPage::IsFallbackUrl("http://www.abc.com/b/#fallback"));
 }
 
 }  // namespace net_instaweb

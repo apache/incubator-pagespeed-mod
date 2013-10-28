@@ -26,79 +26,6 @@
 
 namespace net_instaweb {
 
-GoogleString StrCat(const StringPiece& a, const StringPiece& b) {
-  GoogleString res;
-  res.reserve(a.size() + b.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(const StringPiece& a,
-                    const StringPiece& b,
-                    const StringPiece& c,
-                    const StringPiece& d,
-                    const StringPiece& e,
-                    const StringPiece& f) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(const StringPiece& a,
-                    const StringPiece& b,
-                    const StringPiece& c,
-                    const StringPiece& d,
-                    const StringPiece& e,
-                    const StringPiece& f,
-                    const StringPiece& g) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  return res;
-}
 GoogleString StrCat(const StringPiece& a,
                     const StringPiece& b,
                     const StringPiece& c,
@@ -120,110 +47,7 @@ GoogleString StrCat(const StringPiece& a,
   h.AppendToString(&res);
   return res;
 }
-GoogleString StrCat(const StringPiece& a,
-                    const StringPiece& b,
-                    const StringPiece& c,
-                    const StringPiece& d,
-                    const StringPiece& e,
-                    const StringPiece& f,
-                    const StringPiece& g,
-                    const StringPiece& h,
-                    const StringPiece& i) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size() + h.size() + i.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  h.AppendToString(&res);
-  i.AppendToString(&res);
-  return res;
-}
 
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b) {
-  target->reserve(target->size() +
-                  a.size() + b.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c,
-               const StringPiece& d) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c,
-               const StringPiece& d,
-               const StringPiece& e) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c,
-               const StringPiece& d,
-               const StringPiece& e,
-               const StringPiece& f) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c,
-               const StringPiece& d,
-               const StringPiece& e,
-               const StringPiece& f,
-               const StringPiece& g) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-}
 void StrAppend(GoogleString* target,
                const StringPiece& a,
                const StringPiece& b,
@@ -244,29 +68,6 @@ void StrAppend(GoogleString* target,
   f.AppendToString(target);
   g.AppendToString(target);
   h.AppendToString(target);
-}
-void StrAppend(GoogleString* target,
-               const StringPiece& a,
-               const StringPiece& b,
-               const StringPiece& c,
-               const StringPiece& d,
-               const StringPiece& e,
-               const StringPiece& f,
-               const StringPiece& g,
-               const StringPiece& h,
-               const StringPiece& i) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size() + h.size() + i.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-  h.AppendToString(target);
-  i.AppendToString(target);
 }
 
 void SplitStringPieceToVector(const StringPiece& sp,
@@ -609,7 +410,7 @@ bool SplitStringPieceToIntegerVector(
   ints->clear();
   int v;
   for (int i = 0, n = values.size(); i < n; ++i) {
-    if (StringToInt(values[i], &v)) {
+    if (StringToInt(values[i].as_string(), &v)) {
       ints->push_back(v);
     } else {
       ints->clear();
@@ -618,5 +419,37 @@ bool SplitStringPieceToIntegerVector(
   }
   return true;
 }
+
+namespace {
+
+// From Hypertext Transfer Protocol -- HTTP/1.1
+// CTL            = <any US-ASCII control character
+//                  (octets 0 - 31) and DEL (127)>
+// SP             = <US-ASCII SP, space (32)>
+// HT             = <US-ASCII HT, horizontal-tab (9)>
+//        token          = 1*<any CHAR except CTLs or separators>
+//        separators     = "(" | ")" | "<" | ">" | "@"
+//                       | "," | ";" | ":" | "\" | <">
+//                       | "/" | "[" | "]" | "?" | "="
+//                       | "{" | "}" | SP | HT
+const char separators[] = "()<>@,;:\\\"/[]?={}";
+
+}  // namespace
+
+bool HasIllicitTokenCharacter(const StringPiece& str) {
+  for (int i = 0, n = str.size(); i < n; ++i) {
+    if (str[i] <= 32 || str[i] == 127) {
+      return true;
+    }
+    for (int j = 0, m = STATIC_STRLEN(separators); j < m; ++j) {
+      if (str[i] == separators[j]) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+const StringPiece EmptyString::kEmptyString;
 
 }  // namespace net_instaweb

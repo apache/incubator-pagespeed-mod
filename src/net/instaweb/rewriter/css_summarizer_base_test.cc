@@ -46,8 +46,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
   explicit MinifyExcerptFilter(RewriteDriver* driver)
       : CssSummarizerBase(driver),
         render_summaries_in_place_(false),
-        will_not_render_summaries_in_place_(false),
-        include_base_(false) {}
+        will_not_render_summaries_in_place_(false) {}
 
   virtual const char* Name() const { return "Minify10"; }
   virtual const char* id() const { return "csr"; }
@@ -80,12 +79,11 @@ class MinifyExcerptFilter : public CssSummarizerBase {
       case kSummarySlotRemoved:
         return "SlotRemoved";
     }
-  }
+  };
 
   virtual void RenderSummary(int pos,
                              HtmlElement* element,
-                             HtmlCharactersNode* char_node,
-                             bool* is_element_deleted) {
+                             HtmlCharactersNode* char_node) {
     if (!render_summaries_in_place_) {
       return;
     }
@@ -98,20 +96,18 @@ class MinifyExcerptFilter : public CssSummarizerBase {
       // Replace link with style. Note: real one should also keep media,
       // test code does not have to.
       HtmlElement* style_element = driver_->NewElement(NULL, HtmlName::kStyle);
-      driver_->InsertNodeBeforeNode(element, style_element);
+      driver_->InsertElementBeforeElement(element, style_element);
 
       HtmlCharactersNode* content =
           driver_->NewCharactersNode(style_element, summary.data);
       driver_->AppendChild(style_element, content);
-      EXPECT_TRUE(driver_->DeleteNode(element));
-      *is_element_deleted = true;
+      EXPECT_TRUE(driver_->DeleteElement(element));
     }
   }
 
   virtual void WillNotRenderSummary(int pos,
                                     HtmlElement* element,
-                                    HtmlCharactersNode* char_node,
-                                    bool* is_element_deleted) {
+                                    HtmlCharactersNode* char_node) {
     // Note that these should not normally mutate the DOM, we only
     // get away with this because the tests we use this in don't really do
     // any flushing.
@@ -122,7 +118,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     const SummaryInfo& sum = GetSummaryForStyle(pos);
     GoogleString annotation = StrCat("WillNotRender:", IntegerToString(pos),
                                      " --- ", EncodeState(sum.state));
-    driver_->InsertNodeBeforeNode(
+    driver_->InsertElementBeforeElement(
         element, driver_->NewCommentNode(NULL, annotation));
   }
 
@@ -133,10 +129,9 @@ class MinifyExcerptFilter : public CssSummarizerBase {
       StrAppend(&result_, EncodeState(sum.state), "/", sum.data,
                 (sum.is_inside_noscript ? "/noscr" : ""),
                 (sum.rel.empty() ? "" : StrCat("/rel=", sum.rel)),
-                (include_base_ ? StrCat("/base=", sum.base) : ""),
                 "|");
     }
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, result_));
+    InjectSummaryData(driver()->NewCommentNode(NULL, result_));
   }
 
   const GoogleString& result() { return result_; }
@@ -151,16 +146,10 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     will_not_render_summaries_in_place_ = x;
   }
 
-  // Whether we should include the base URL in the output string we compute.
-  void set_include_base(bool x) {
-    include_base_ = x;
-  }
-
  private:
   GoogleString result_;
   bool render_summaries_in_place_;
   bool will_not_render_summaries_in_place_;
-  bool include_base_;
 };
 
 class CssSummarizerBaseTest : public RewriteTestBase {
@@ -250,6 +239,13 @@ TEST_F(CssSummarizerBaseTest, BasicOperation) {
   EXPECT_STREQ(kExpectedResult, filter_->result());
 }
 
+TEST_F(CssSummarizerBaseTest, BasicOperationWhitespace) {
+  GoogleString expected =
+      FullTest("whitespace", "<body> <p>some content</p> ", "</body>\n</html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
 TEST_F(CssSummarizerBaseTest, RenderSummary) {
   filter_->set_render_summaries_in_place(true);
   Parse("link", StrCat(CssLinkHref("a.css"),
@@ -287,20 +283,6 @@ TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWait) {
   CallFetcherCallbacks();
 }
 
-TEST_F(CssSummarizerBaseTest, Base) {
-  filter_->set_include_base(true);
-  GoogleString css =
-      StrCat(CssLinkHref("a.css"), "<style>*{display:block;}</style>");
-  Parse("base", css);
-  EXPECT_STREQ(
-      StrCat("<html>\n", css, "\n",
-             StrCat("<!--OK/div{displa/rel=stylesheet/base=",
-                    kTestDomain, "a.css"),
-             StrCat("|OK/*{display:/base=", kTestDomain, "base.html|-->"),
-             "</html>"),
-      output_buffer_);
-}
-
 TEST_F(CssSummarizerBaseTest, AlternateHandling) {
   // CssSummarizerBase itself handles alternate stylesheets, just keeps
   // the rel around inside the SummaryInfo
@@ -332,6 +314,83 @@ TEST_F(CssSummarizerBaseTest, IgnoreNonSummarizable) {
                output_buffer_);
 }
 
+TEST_F(CssSummarizerBaseTest, NoBody) {
+  GoogleString expected =
+      FullTest("no_body", "some content without body tag\n", "</html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, TwoBodies) {
+  GoogleString expected =
+      FullTest("two_bodies",
+               "<body>First body</body><body>Second body", "</body></html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, StuffAfterBody) {
+  GoogleString expected =
+      FullTest("stuff_after_body",
+               "<body>Howdy!</body><p>extra stuff</p>", "</html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, StuffAfterHtml) {
+  GoogleString expected =
+      FullTest("stuff_after_html",
+               "<body>Howdy!</body></html>extra stuff", "");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, FlushAfterBody) {
+  // Even though we flush between </body> and </html>, !IsRewritable(</html>)
+  // (since the inital <html> was in a different flush window) so we inject at
+  // end of document.
+  GoogleString expected =
+      FlushTest("flush_after_body",
+                "<body> some content </body>", "</html>", "");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, FlushDuringBody) {
+  // As above we end up inserting at end.
+  GoogleString expected =
+      FlushTest("flush_during_body",
+                "<body> partial", " content </body></html>", "");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, FlushBeforeBody) {
+  // Here we can insert at end of body.
+  GoogleString expected =
+      FlushTest("flush_before_body",
+                "", "<body> post-flush content ", "</body></html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, FlushAtEnd) {
+  // This causes us to append to the end of document after the flush.
+  GoogleString expected =
+      FlushTest("flush_at_end",
+                "<body>pre-flush content</body></html>", "", "");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
+TEST_F(CssSummarizerBaseTest, EnclosedBody) {
+  GoogleString expected =
+      FullTest("enclosed_body",
+               "<noscript><body>no script body</body></noscript>", "</html>");
+  EXPECT_STREQ(expected, output_buffer_);
+  EXPECT_STREQ(kExpectedResult, filter_->result());
+}
+
 class CssSummarizerBaseWithCombinerFilterTest : public CssSummarizerBaseTest {
  protected:
   virtual void SetUp() {
@@ -344,31 +403,13 @@ class CssSummarizerBaseWithCombinerFilterTest : public CssSummarizerBaseTest {
 TEST_F(CssSummarizerBaseWithCombinerFilterTest, Interaction) {
   SetResponseWithDefaultHeaders("a2.css", kContentTypeCss,
                                  "span { display: inline; }", 100);
-  GoogleString combined_url = Encode("", "cc", "0",
+  GoogleString combined_url = Encode(kTestDomain, "cc", "0",
                                      MultiUrl("a.css", "a2.css"), "css");
 
   Parse("with_combine", StrCat(CssLinkHref("a.css"), CssLinkHref("a2.css")));
   EXPECT_EQ(StrCat("<html>\n", CssLinkHref(combined_url),
                    "\n<!--OK/div{displa/rel=stylesheet|"
                    "SlotRemoved//rel=stylesheet|--></html>"),
-            output_buffer_);
-}
-
-TEST_F(CssSummarizerBaseWithCombinerFilterTest, BaseAcrossPaths) {
-  // Make sure base is updated if a previous filter moves a resource across
-  // directories.
-  filter_->set_include_base(true);
-  SetResponseWithDefaultHeaders("b/a2.css", kContentTypeCss,
-                                 "span { display: inline; }", 100);
-  GoogleString combined_url = "b,_a2.css+a.css.pagespeed.cc.0.css";
-
-  Parse("base_accross_paths",
-        StrCat(CssLinkHref("b/a2.css"), CssLinkHref("a.css")));
-  EXPECT_EQ(StrCat(
-      "<html>\n", CssLinkHref(combined_url), "\n"
-      "<!--OK/span{displ/rel=stylesheet/base=", kTestDomain, combined_url,
-      "|SlotRemoved//rel=stylesheet/base=", kTestDomain, "a.css"
-      "|--></html>"),
             output_buffer_);
 }
 

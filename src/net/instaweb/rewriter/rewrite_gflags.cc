@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_gflags.h"
 
-#include <memory>
-
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
@@ -32,8 +30,6 @@
 
 using google::CommandLineFlagInfo;
 using google::GetCommandLineFlagInfo;
-
-using net_instaweb::RewriteOptions;
 
 // This is used for prefixing file-based locks.
 DEFINE_string(filename_prefix, "/tmp/instaweb/",
@@ -50,88 +46,86 @@ DEFINE_string(distributable_filters, "",
 DEFINE_string(domains, "", "Comma-separated list of domains");
 
 DEFINE_int64(css_outline_min_bytes,
-             RewriteOptions::kDefaultCssOutlineMinBytes,
+             net_instaweb::RewriteOptions::kDefaultCssOutlineMinBytes,
              "Number of bytes above which inline "
              "CSS resources will be outlined.");
 DEFINE_int64(js_outline_min_bytes,
-             RewriteOptions::kDefaultJsOutlineMinBytes,
+             net_instaweb::RewriteOptions::kDefaultJsOutlineMinBytes,
              "Number of bytes above which inline "
              "Javascript resources will be outlined.");
 DEFINE_int64(image_inline_max_bytes,
-             RewriteOptions::kDefaultImageInlineMaxBytes,
+             net_instaweb::RewriteOptions::kDefaultImageInlineMaxBytes,
              "Number of bytes below which images will be inlined.");
 DEFINE_int64(css_image_inline_max_bytes,
-             RewriteOptions::kDefaultCssImageInlineMaxBytes,
+             net_instaweb::RewriteOptions::kDefaultCssImageInlineMaxBytes,
              "Number of bytes below which images in CSS will be inlined.");
 DEFINE_int32(image_recompress_quality,
-             RewriteOptions::kDefaultImageRecompressQuality,
+             net_instaweb::RewriteOptions::kDefaultImagesRecompressQuality,
              "Quality parameter to use while recompressing any image type. "
              "This should be in the range [0,100]. 100 refers to the highest "
              "quality.");
 // Deprecated flag.
-DEFINE_int32(images_recompress_quality, -1,
-             "DEPRECATED.  Does nothing.  Use image_recompress_quality.");
+DEFINE_int32(images_recompress_quality,
+             net_instaweb::RewriteOptions::kDefaultImagesRecompressQuality,
+             "Quality parameter to use while recompressing any image type. "
+             "This should be in the range [0,100]. 100 refers to the highest "
+             "quality.");
 DEFINE_int32(image_jpeg_recompress_quality,
-             RewriteOptions::kDefaultImageJpegRecompressQuality,
+             net_instaweb::RewriteOptions::kDefaultImageJpegRecompressQuality,
              "Quality parameter to use while recompressing jpeg images. "
              "This should be in the range [0,100]. 100 refers to the highest "
              "quality.");
 DEFINE_int32(image_jpeg_recompress_quality_for_small_screens,
-             RewriteOptions::kDefaultImageJpegRecompressQualityForSmallScreens,
+             net_instaweb::RewriteOptions::kDefaultImageJpegRecompressQuality,
              "Quality parameter to use while recompressing jpeg images "
              "for small screens. This should be in the range [0,100]. 100 "
              "refers to the highest quality. If -1 or not set, "
              "image_jpeg_recompress_quality will be used.");
 DEFINE_int32(image_jpeg_num_progressive_scans,
-             RewriteOptions::kDefaultImageJpegNumProgressiveScans,
+             net_instaweb::RewriteOptions::kDefaultImageJpegNumProgressiveScans,
              "The number of scans, [0,10] to serve for jpeg images that "
              "are encoded as ten-scan progressive jpegs.");
 DEFINE_int32(image_jpeg_num_progressive_scans_for_small_screens,
-             RewriteOptions::kDefaultImageJpegNumProgressiveScans,
+             net_instaweb::RewriteOptions::kDefaultImageJpegNumProgressiveScans,
              "The number of scans, [0,10], to serve to small-screen devices "
              "for jpeg images that are encoded as ten-scan progressive jpegs.");
 DEFINE_int32(image_webp_recompress_quality,
-             RewriteOptions::kDefaultImageWebpRecompressQuality,
+             net_instaweb::RewriteOptions::kDefaultImageWebpRecompressQuality,
              "Quality parameter to use while recompressing webp images. "
              "This should be in the range [0,100]. 100 refers to the highest "
              "quality.");
 DEFINE_int32(image_webp_recompress_quality_for_small_screens,
-             RewriteOptions::kDefaultImageWebpRecompressQualityForSmallScreens,
+             net_instaweb::RewriteOptions::kDefaultImageWebpRecompressQuality,
              "Quality parameter to use while recompressing webp images "
              "for small screens. This should be in the range [0,100]. 100 "
              "refers to the highest quality. If -1 or not set, "
              "image_webp_recompress_quality will be used.");
 DEFINE_int64(image_webp_timeout_ms,
-             RewriteOptions::kDefaultImageWebpTimeoutMs,
+             net_instaweb::RewriteOptions::kDefaultImageWebpTimeoutMs,
              "The timeout, in milliseconds, for converting images to WebP "
              "format. A negative value means 'no timeout'.");
 DEFINE_int32(
     image_limit_optimized_percent,
-    RewriteOptions::kDefaultImageLimitOptimizedPercent,
+    net_instaweb::RewriteOptions::kDefaultImageLimitOptimizedPercent,
     "Optimized images will be used only if they are less than this percent "
     "size of the original image size.  100 retains any smaller image.");
 DEFINE_int32(
-    image_limit_rendered_area_percent,
-    RewriteOptions::kDefaultImageLimitRenderedAreaPercent,
-    "Store image's rendered dimensions into property cache only if the "
-    "rendered dimensions reduce the image area more than the limit");
-DEFINE_int32(
     image_limit_resize_area_percent,
-    RewriteOptions::kDefaultImageLimitResizeAreaPercent,
+    net_instaweb::RewriteOptions::kDefaultImageLimitResizeAreaPercent,
     "Only attempt to shrink an image on the server if its area is less than "
     "this percent of the original image area.  100 always shrinks the image "
     "if its dimensions are smaller.");
 DEFINE_int64(js_inline_max_bytes,
-             RewriteOptions::kDefaultJsInlineMaxBytes,
+             net_instaweb::RewriteOptions::kDefaultJsInlineMaxBytes,
              "Number of bytes below which javascript will be inlined.");
 DEFINE_int64(css_flatten_max_bytes,
-             RewriteOptions::kDefaultCssFlattenMaxBytes,
+             net_instaweb::RewriteOptions::kDefaultCssFlattenMaxBytes,
              "Number of bytes below which stylesheets will be flattened.");
 DEFINE_int64(css_inline_max_bytes,
-             RewriteOptions::kDefaultCssInlineMaxBytes,
+             net_instaweb::RewriteOptions::kDefaultCssInlineMaxBytes,
              "Number of bytes below which stylesheets will be inlined.");
 DEFINE_int32(image_max_rewrites_at_once,
-             RewriteOptions::kDefaultImageMaxRewritesAtOnce,
+             net_instaweb::RewriteOptions::kDefaultImageMaxRewritesAtOnce,
              "Maximum number of images that will be rewritten simultaneously.");
 DEFINE_bool(ajax_rewriting_enabled, false, "Deprecated. Use "
             "in_place_rewriting_enabled.");
@@ -141,7 +135,7 @@ DEFINE_bool(in_place_wait_for_optimized, false, "Indicates whether in-place "
             "resource optimization should wait to optimize the resource before "
             "responding.");
 DEFINE_int32(in_place_rewrite_deadline_ms,
-             RewriteOptions::kDefaultRewriteDeadlineMs,
+             net_instaweb::RewriteOptions::kDefaultRewriteDeadlineMs,
              "Deadline for rewriting a resource on the in-place serving path. "
              "(--in_place_wait_for_optimized must be set for this to apply.) "
              "After this interval passes, the original unoptimized resource "
@@ -170,14 +164,14 @@ DEFINE_bool(css_preserve_urls, false, "Boolean to indicate whether CSS URLS"
 DEFINE_bool(js_preserve_urls, false, "Boolean to indicate whether JavaScript"
             "URLs should be preserved.");
 DEFINE_int32(rewrite_deadline_per_flush_ms,
-             RewriteOptions::kDefaultRewriteDeadlineMs,
+             net_instaweb::RewriteOptions::kDefaultRewriteDeadlineMs,
              "Deadline to rewrite a resource before putting the rewrite in the "
              "background and returning the original resource. A value of -1 "
              "will result in waiting for all rewrites to complete.");
 DEFINE_int32(
-    experiment_cookie_duration_ms,
-    RewriteOptions::kDefaultExperimentCookieDurationMs,
-    "Duration after which the experiment cookie used for A/B experiments "
+    furious_cookie_duration_ms,
+    net_instaweb::RewriteOptions::kDefaultFuriousCookieDurationMs,
+    "Duration after which the furious cookie used for A/B experiments "
     "should expire on the user's browser.");
 DEFINE_bool(log_background_rewrites, false,
             "Log rewriting that cannot finish in the line-of-request.");
@@ -185,28 +179,14 @@ DEFINE_bool(log_rewrite_timing, false, "Log time taken by rewrite filters.");
 DEFINE_bool(log_url_indices, false, "Log URL indices for every rewriter "
             "application.");
 DEFINE_int64(max_html_cache_time_ms,
-             RewriteOptions::kDefaultMaxHtmlCacheTimeMs,
+             net_instaweb::RewriteOptions::kDefaultMaxHtmlCacheTimeMs,
              "Default Cache-Control TTL for HTML. "
              "Cache-Control TTL will be set to the lower of this value "
              "and the original TTL.");
 DEFINE_int64(
     min_resource_cache_time_to_rewrite_ms,
-    RewriteOptions::kDefaultMinResourceCacheTimeToRewriteMs,
+    net_instaweb::RewriteOptions::kDefaultMinResourceCacheTimeToRewriteMs,
     "No resources with Cache-Control TTL less than this will be rewritten.");
-DEFINE_bool(
-    hide_referer_using_meta,
-    false, "Hide referer by adding meta tag to the HTML.");
-DEFINE_int64(
-    max_low_res_image_size_bytes,
-    RewriteOptions::kDefaultMaxLowResImageSizeBytes,
-    "Maximum size (in bytes) of the low resolution image which will be "
-    "inline-previewed in html.");
-DEFINE_int32(
-    max_low_res_to_full_res_image_size_percentage,
-    RewriteOptions::kDefaultMaxLowResToFullResImageSizePercentage,
-    "The maximum ratio of the size of low-res image to its full-res image "
-    "when the image will be inline-previewed in html. This is an integer "
-    "ranging from 0 to 100 (inclusive).");
 
 DEFINE_string(origin_domain_map, "",
               "Semicolon-separated list of origin_domain maps. "
@@ -222,59 +202,47 @@ DEFINE_int64(lru_cache_size_bytes, 10 * 1024 * 1024, "LRU cache size");
 DEFINE_bool(force_caching, false,
             "Ignore caching headers and cache everything.");
 DEFINE_bool(flush_html, false, "Pass fetcher-generated flushes through HTML");
-// TODO(pulkig): Remove proactively_freshen_user_facing_request flag after
-// testing is done.
-DEFINE_bool(proactively_freshen_user_facing_request, false,
-            "Proactively freshen user facing requests if they are about to"
-            "expire in cache.");
-DEFINE_bool(serve_split_html_in_two_chunks, false,
-            "Whether to serve the split html response in two chunks.");
 DEFINE_bool(serve_stale_if_fetch_error, true, "Serve stale content if the "
             "fetch results in an error.");
-DEFINE_int64(serve_stale_while_revalidate_threshold_sec, 0, "Threshold for "
-            "serving stale content while revalidating in background."
-            "0 means don't serve stale content."
-            "Note: Stale response will be served only for non-html requests.");
 DEFINE_int32(psa_flush_buffer_limit_bytes,
-             RewriteOptions::kDefaultFlushBufferLimitBytes,
+             net_instaweb::RewriteOptions::kDefaultFlushBufferLimitBytes,
              "Whenever more than this much HTML gets buffered, a flush"
              "will be injected.");
 DEFINE_int32(psa_idle_flush_time_ms,
-             RewriteOptions::kDefaultIdleFlushTimeMs,
+             net_instaweb::RewriteOptions::kDefaultIdleFlushTimeMs,
              "If the input HTML stops coming in for this many ms, a flush"
              " will be injected. Use a value <= 0 to disable.");
 DEFINE_string(pagespeed_version, "", "Version number to put into X-Page-Speed "
               "response header.");
+DEFINE_bool(enable_blink_critical_line, false,
+            "If true then blink critical line flow is enabled");
 DEFINE_bool(enable_flush_early_critical_css, false,
             "If true, inlined critical css rules are flushed early if both"
             "flush subresources and critical css filter are enabled");
-DEFINE_bool(use_selectors_for_critical_css, false,
-            "Use CriticalSelectorFilter instead of CriticalCssFilter for "
-            "the prioritize_critical_css filter.");
 DEFINE_int32(max_inlined_preview_images_index,
-             RewriteOptions::kDefaultMaxInlinedPreviewImagesIndex,
+             net_instaweb::RewriteOptions::kDefaultMaxInlinedPreviewImagesIndex,
              "Number of first N images for which low res image is generated. "
              "Negative values will bypass image index check.");
 
 DEFINE_int64(min_image_size_low_resolution_bytes,
-    RewriteOptions::kDefaultMinImageSizeLowResolutionBytes,
+    net_instaweb::RewriteOptions::kDefaultMinImageSizeLowResolutionBytes,
     "Minimum image size above which low res image is generated.");
 
 DEFINE_int64(max_image_size_low_resolution_bytes,
-    RewriteOptions::kDefaultMaxImageSizeLowResolutionBytes,
+    net_instaweb::RewriteOptions::kDefaultMaxImageSizeLowResolutionBytes,
     "Maximum image size below which low res image is generated.");
 
 DEFINE_int64(finder_properties_cache_expiration_time_ms,
-    RewriteOptions::kDefaultFinderPropertiesCacheExpirationTimeMs,
+    net_instaweb::RewriteOptions::kDefaultFinderPropertiesCacheExpirationTimeMs,
     "Cache expiration time for properties of finders in msec.");
 
 DEFINE_int64(finder_properties_cache_refresh_time_ms,
-    RewriteOptions::kDefaultFinderPropertiesCacheRefreshTimeMs,
+    net_instaweb::RewriteOptions::kFinderPropertiesCacheRefreshTimeMs,
     "Cache refresh time for properties of finders in msec.");
 
 DEFINE_int64(
     metadata_cache_staleness_threshold_ms,
-    RewriteOptions::kDefaultMetadataCacheStalenessThresholdMs,
+    net_instaweb::RewriteOptions::kDefaultMetadataCacheStalenessThresholdMs,
     "Maximum time in milliseconds beyond expiry for which a metadata cache "
     "entry may be used in milliseconds.");
 
@@ -282,18 +250,10 @@ DEFINE_bool(lazyload_images_after_onload, false, "Boolean indicating whether "
             "lazyload images should load images when onload is fired. If "
             "false, images are loaded onscroll.");
 
-DEFINE_bool(use_blank_image_for_inline_preview, false, "Boolean to decide "
-            "whether to use blank image for inline preview or a low resolution "
-            "version of the original image.");
-
 DEFINE_bool(use_fallback_property_cache_values, false,
             "Boolean indicating whether to use fallback property cache "
             "values(i.e. without query params) in case actual values are not "
             "available.");
-
-DEFINE_bool(await_pcache_lookup, false,
-            "Boolean indicating whether to always wait for property cache "
-            "lookup to finish.");
 
 DEFINE_string(lazyload_images_blank_url, "",
               "The initial image url to load in the lazyload images filter.");
@@ -314,36 +274,22 @@ DEFINE_bool(test_only_prioritize_critical_css_dont_apply_original_css, false,
             "at onload.");
 
 DEFINE_int64(implicit_cache_ttl_ms,
-             RewriteOptions::kDefaultImplicitCacheTtlMs,
+             net_instaweb::RewriteOptions::kDefaultImplicitCacheTtlMs,
              "The number of milliseconds of cache TTL we assign to resources "
              "that are likely cacheable (e.g. images, js, css, not html) and "
              "have no explicit cache ttl or expiration date.");
 
-DEFINE_int64(min_cache_ttl_ms,
-             RewriteOptions::kDefaultMinCacheTtlMs,
-             "The minimum milliseconds of cache TTL for all resources that "
-             "are explicitly cacheable. This overrides the max-age even when "
-             "it is set on the Cache-Control headers.");
-
 DEFINE_int32(property_cache_http_status_stability_threshold,
-             RewriteOptions::kDefaultPropertyCacheHttpStatusStabilityThreshold,
+             net_instaweb::RewriteOptions::
+             kDefaultPropertyCacheHttpStatusStabilityThreshold,
              "The number of requests for which the status code should remain "
              "same so that we consider it to be stable.");
-
-DEFINE_int32(max_prefetch_js_elements,
-             RewriteOptions::kDefaultMaxPrefetchJsElements,
-             "The number of JS elements to prefetch and download when defer "
-             "Javascript filter is enabled.");
 
 DEFINE_bool(enable_defer_js_experimental, false,
             "Enables experimental defer js.");
 
-DEFINE_bool(disable_background_fetches_for_bots, false,
-            "Disable pre-emptive background fetches on bot requests.");
-
-DEFINE_bool(disable_rewrite_on_no_transform, true,
-            "Disable any rewrite optimizations if the header contains "
-            "no-transform cache-control.");
+DEFINE_bool(enable_inline_preview_images_experimental, false,
+            "Enables experimental inline preview images.");
 
 DEFINE_bool(lazyload_highres_images, false,
             "Enables experimental lazy load of high res images.");
@@ -355,7 +301,7 @@ DEFINE_bool(flush_more_resources_in_ie_and_firefox, false,
             "Flush more resources if origin is slow to respond in IE and "
             "Firefox.");
 
-DEFINE_bool(avoid_renaming_introspective_javascript, true,
+DEFINE_bool(avoid_renaming_introspective_javascript, false,
             "Don't combine, inline, cache extend, or otherwise modify "
             "javascript in ways that require changing the URL if we see "
             "introspection in the form of "
@@ -377,45 +323,29 @@ DEFINE_string(experiment_specs, "",
               "'id=7;enable=recompress_images;percent=50+id=2;enable="
               "recompress_images,convert_jpeg_to_progressive;percent=5'.");
 
-DEFINE_bool(enable_cache_purge, false, "Enables the Cache Purge API. This "
-            "requires saving input URLs to each metadata cache entry to "
-            "facilitate fast URL cache invalidation.");
+DEFINE_bool(passthrough_blink_for_last_invalid_response_code, false,
+            "Pass-through blink request if we got a non-200 response from "
+            "origin on the last fetch.");
 
-DEFINE_bool(proactive_resource_freshening, false, "If set, the URLs of the "
-            "inputs to the optimization are saved in the metadata cache entry. "
-            "This is used to freshen resources when they are close to expiry.");
-
-DEFINE_bool(enable_extended_instrumentation, false,
-            "If set to true, additional instrumentation js added to that "
-            "page that adds more information to the beacon.");
+DEFINE_bool(apply_blink_if_no_families, false,
+            "If prioritize_visible_content_families_ is empty, apply "
+            "prioritize visible content rewriter on all URLs (with default "
+            "cache time and no non-cacheables).");
 
 DEFINE_string(blocking_rewrite_key,
-              RewriteOptions::kDefaultBlockingRewriteKey,
+              net_instaweb::RewriteOptions::kDefaultBlockingRewriteKey,
               "Enables rewrites to finish before the response is sent to "
               "the client, if X-PSA-Blocking-Rewrite http request header's "
               "value is same as this flag's value.");
-
-DEFINE_string(distributed_rewrite_key, "",
-              "The user-provided key used to authenticate requests from one "
-              "rewrite task to another.  Right now only used to validate "
-              "meta-data headers in distributed rewrites in the html path. "
-              "This should be random, greater than 8 characters, and the same "
-              "value for each task. An empty value disables features that rely "
-              "on it.");
 
 DEFINE_string(distributed_rewrite_servers, "",
               "Comma-separated list of servers for distributed rewriting. "
               "Servers can be BNS jobs or host:port pairs.");
 
 DEFINE_int64(distributed_rewrite_timeout_ms,
-             RewriteOptions::kDefaultDistributedTimeoutMs,
+             net_instaweb::RewriteOptions::kDefaultDistributedTimeoutMs,
              "Time to wait for a distributed rewrite to complete before "
              "abandoning it.");
-
-DEFINE_bool(
-    distribute_fetches, true,
-    "Whether or not to distribute IPRO and .pagespeed. resource fetch requests "
-    "from the RewriteDriver before checking the cache.");
 
 DEFINE_bool(support_noscript_enabled, true,
             "Support for clients with no script support, in filters that "
@@ -424,12 +354,13 @@ DEFINE_bool(support_noscript_enabled, true,
 DEFINE_bool(enable_blink_debug_dashboard, true,
             "Enable blink dashboard used for debugging.");
 
+DEFINE_int64(override_blink_cache_time_ms,
+             net_instaweb::RewriteOptions::kDefaultOverrideBlinkCacheTimeMs,
+             "If positive, overrides the cache-time for cacheable resources "
+             "in blink.");
+
 DEFINE_bool(report_unload_time, false, "If enabled, sends beacons when page "
             "unload happens before onload.");
-
-DEFINE_int64(max_combined_css_bytes, -1,
-            "Maximum size allowed for the combined CSS resource. "
-            "Negative values will bypass size check.");
 
 DEFINE_int64(max_combined_js_bytes, -1,
             "Maximum size allowed for the combined js resource. "
@@ -437,7 +368,7 @@ DEFINE_int64(max_combined_js_bytes, -1,
 
 DEFINE_int64(
     blink_html_change_detection_time_ms,
-    RewriteOptions::kDefaultBlinkHtmlChangeDetectionTimeMs,
+    net_instaweb::RewriteOptions::kDefaultBlinkHtmlChangeDetectionTimeMs,
     "Time after which we should try to detect if publisher html has changed");
 
 DEFINE_bool(enable_blink_html_change_detection, false,
@@ -453,6 +384,9 @@ DEFINE_bool(use_smart_diff_in_blink, false,
             "If enabled use smart diff to detect publisher changes in html "
             "in blink");
 
+DEFINE_bool(enable_lazyload_in_blink, false,
+    "If it is set to true, don't force disable lazyload in blink");
+
 DEFINE_bool(persist_blink_blacklist, false,
             "Persist the blink blacklist by writing to kansas.");
 
@@ -461,7 +395,7 @@ DEFINE_bool(enable_prioritizing_scripts, false,
     "data-pagespeed-prioritize attibute.");
 
 DEFINE_int64(max_image_bytes_for_webp_in_css,
-             RewriteOptions::kDefaultMaxImageBytesForWebpInCss,
+             net_instaweb::RewriteOptions::kDefaultMaxImageBytesForWebpInCss,
              "The maximum size of an image in CSS, which we convert to webp.");
 
 DEFINE_bool(override_ie_document_mode, false,
@@ -469,13 +403,13 @@ DEFINE_bool(override_ie_document_mode, false,
             " to that version of IE.");
 
 DEFINE_int64(max_html_parse_bytes,
-             RewriteOptions::kDefaultMaxHtmlParseBytes,
+             net_instaweb::RewriteOptions::kDefaultMaxHtmlParseBytes,
              "The maximum number of bytes in a html that we parse before "
              "redirecting to a page with no rewriting.");
 
 DEFINE_int64(
     metadata_input_errors_cache_ttl_ms,
-    RewriteOptions::kDefaultMetadataInputErrorsCacheTtlMs,
+    net_instaweb::RewriteOptions::kDefaultMetadataInputErrorsCacheTtlMs,
     "The metadata cache ttl for input resources which are 4xx errors.");
 
 DEFINE_bool(enable_aggressive_rewriters_for_mobile, false,
@@ -487,7 +421,7 @@ DEFINE_string(lazyload_disabled_classes, "",
               "filter is disabled.");
 
 DEFINE_int32(max_rewrite_info_log_size,
-             RewriteOptions::kDefaultMaxRewriteInfoLogSize,
+             net_instaweb::RewriteOptions::kDefaultMaxRewriteInfoLogSize,
              "The maximum number of RewriterInfo submessage stored for a "
              "single request.");
 
@@ -501,19 +435,8 @@ DEFINE_bool(rewrite_uncacheable_resources, false,
             "in-place rewriting mode, regardless of resource's caching "
             "settings. in_place_wait_for_optimized flag should also be set.");
 
-DEFINE_bool(serve_ghost_click_buster_with_split_html, false,
-            "Whether ghost click buster code is served along with split_html.");
-
-DEFINE_bool(serve_xhr_access_control_headers, false,
-            "If set to true, adds access control headers to response headers.");
-
-DEFINE_string(access_control_allow_origins, "",
-              "Comma seperated list of origins that are allowed to make "
-              "cross-origin requests. These domain requests are served with "
-              "Access-Control-Allow-Origin header.");
-
-DEFINE_bool(use_image_scanline_api, true,
-            "If set to true, do not use OpenCV for image rewrites.");
+DEFINE_bool(enable_fix_reflow, false,
+            "Fix reflows due to deferred execution of javascript.");
 
 namespace net_instaweb {
 
@@ -611,18 +534,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("serve_stale_if_fetch_error")) {
     options->set_serve_stale_if_fetch_error(FLAGS_serve_stale_if_fetch_error);
   }
-  if (WasExplicitlySet("proactively_freshen_user_facing_request")) {
-    options->set_proactively_freshen_user_facing_request(
-        FLAGS_proactively_freshen_user_facing_request);
-  }
-  if (WasExplicitlySet("serve_stale_while_revalidate_threshold_sec")) {
-    options->set_serve_stale_while_revalidate_threshold_sec(
-        FLAGS_serve_stale_while_revalidate_threshold_sec);
-  }
-  if (WasExplicitlySet("serve_split_html_in_two_chunks")) {
-    options->set_serve_split_html_in_two_chunks(
-        FLAGS_serve_split_html_in_two_chunks);
-  }
   if (WasExplicitlySet("psa_idle_flush_time_ms")) {
     options->set_idle_flush_time_ms(FLAGS_psa_idle_flush_time_ms);
   }
@@ -669,17 +580,12 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_image_limit_resize_area_percent(
         FLAGS_image_limit_resize_area_percent);
   }
-  if (WasExplicitlySet("image_limit_rendered_area_percent")) {
-    options->set_image_limit_rendered_area_percent(
-        FLAGS_image_limit_rendered_area_percent);
+  if (WasExplicitlySet("enable_blink_critical_line")) {
+    options->set_enable_blink_critical_line(FLAGS_enable_blink_critical_line);
   }
   if (WasExplicitlySet("enable_flush_early_critical_css")) {
     options->set_enable_flush_early_critical_css(
         FLAGS_enable_flush_early_critical_css);
-  }
-  if (WasExplicitlySet("use_selectors_for_critical_css")) {
-    options->set_use_selectors_for_critical_css(
-        FLAGS_use_selectors_for_critical_css);
   }
   if (WasExplicitlySet("max_inlined_preview_images_index")) {
     options->set_max_inlined_preview_images_index(
@@ -692,9 +598,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("max_image_size_low_resolution_bytes")) {
     options->set_max_image_size_low_resolution_bytes(
         FLAGS_max_image_size_low_resolution_bytes);
-  }
-  if (WasExplicitlySet("max_combined_css_bytes")) {
-    options->set_max_combined_css_bytes(FLAGS_max_combined_css_bytes);
   }
   if (WasExplicitlySet("max_combined_js_bytes")) {
     options->set_max_combined_js_bytes(FLAGS_max_combined_js_bytes);
@@ -715,16 +618,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_lazyload_images_after_onload(
         FLAGS_lazyload_images_after_onload);
   }
-  if (WasExplicitlySet("use_blank_image_for_inline_preview")) {
-    options->set_use_blank_image_for_inline_preview(
-        FLAGS_use_blank_image_for_inline_preview);
-  }
   if (WasExplicitlySet("use_fallback_property_cache_values")) {
     options->set_use_fallback_property_cache_values(
         FLAGS_use_fallback_property_cache_values);
-  }
-  if (WasExplicitlySet("await_pcache_lookup")) {
-    options->set_await_pcache_lookup(FLAGS_await_pcache_lookup);
   }
   if (WasExplicitlySet("lazyload_images_blank_url")) {
     options->set_lazyload_images_blank_url(
@@ -737,12 +633,10 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_inline_only_critical_images(
         FLAGS_inline_only_critical_images);
   }
-  // Default value for this flag in rewrite_options.cc differs from the flag
-  // setting here, so set it unconditionally (they unintentionally mismatched
-  // before, enabling the critical images beacon here which did nothing except
-  // turn on checks we wanted switched off).
-  options->set_critical_images_beacon_enabled(
-      FLAGS_critical_images_beacon_enabled);
+  if (WasExplicitlySet("critical_images_beacon_enabled")) {
+    options->set_critical_images_beacon_enabled(
+        FLAGS_critical_images_beacon_enabled);
+  }
   if (WasExplicitlySet(
           "test_only_prioritize_critical_css_dont_apply_original_css")) {
     options->set_test_only_prioritize_critical_css_dont_apply_original_css(
@@ -751,23 +645,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("implicit_cache_ttl_ms")) {
     options->set_implicit_cache_ttl_ms(FLAGS_implicit_cache_ttl_ms);
   }
-  if (WasExplicitlySet("min_cache_ttl_ms")) {
-    options->set_min_cache_ttl_ms(FLAGS_min_cache_ttl_ms);
-  }
-  if (WasExplicitlySet("max_prefetch_js_elements")) {
-    options->set_max_prefetch_js_elements(FLAGS_max_prefetch_js_elements);
-  }
   if (WasExplicitlySet("enable_defer_js_experimental")) {
     options->set_enable_defer_js_experimental(
         FLAGS_enable_defer_js_experimental);
-  }
-  if (WasExplicitlySet("disable_rewrite_on_no_transform")) {
-    options->set_disable_rewrite_on_no_transform(
-        FLAGS_disable_rewrite_on_no_transform);
-  }
-  if (WasExplicitlySet("disable_background_fetches_for_bots")) {
-    options->set_disable_background_fetches_for_bots(
-        FLAGS_disable_background_fetches_for_bots);
   }
   if (WasExplicitlySet("flush_more_resources_early_if_time_permits")) {
     options->set_flush_more_resources_early_if_time_permits(
@@ -777,6 +657,10 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("flush_more_resources_in_ie_and_firefox")) {
     options->set_flush_more_resources_in_ie_and_firefox(
         FLAGS_flush_more_resources_in_ie_and_firefox);
+  }
+  if (WasExplicitlySet("enable_inline_preview_images_experimental")) {
+    options->set_enable_inline_preview_images_experimental(
+        FLAGS_enable_inline_preview_images_experimental);
   }
   if (WasExplicitlySet("lazyload_highres_images")) {
     options->set_lazyload_highres_images(FLAGS_lazyload_highres_images);
@@ -793,9 +677,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("rewrite_deadline_per_flush_ms")) {
     options->set_rewrite_deadline_ms(FLAGS_rewrite_deadline_per_flush_ms);
   }
-  if (WasExplicitlySet("experiment_cookie_duration_ms")) {
-    options->set_experiment_cookie_duration_ms(
-        FLAGS_experiment_cookie_duration_ms);
+  if (WasExplicitlySet("furious_cookie_duration_ms")) {
+    options->set_furious_cookie_duration_ms(
+        FLAGS_furious_cookie_duration_ms);
   }
   if (WasExplicitlySet("avoid_renaming_introspective_javascript")) {
     options->set_avoid_renaming_introspective_javascript(
@@ -804,9 +688,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("blocking_rewrite_key")) {
     options->set_blocking_rewrite_key(FLAGS_blocking_rewrite_key);
   }
-  if (WasExplicitlySet("distributed_rewrite_key")) {
-    options->set_distributed_rewrite_key(FLAGS_distributed_rewrite_key);
-  }
   if (WasExplicitlySet("distributed_rewrite_servers")) {
     options->set_distributed_rewrite_servers(FLAGS_distributed_rewrite_servers);
   }
@@ -814,15 +695,16 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_distributed_rewrite_timeout_ms(
         FLAGS_distributed_rewrite_timeout_ms);
   }
-  if (WasExplicitlySet("distribute_fetches")) {
-    options->set_distribute_fetches(FLAGS_distribute_fetches);
-  }
   if (WasExplicitlySet("pagespeed_version")) {
     options->set_x_header_value(FLAGS_pagespeed_version);
   }
   if (WasExplicitlySet("enable_blink_debug_dashboard")) {
     options->set_enable_blink_debug_dashboard(
         FLAGS_enable_blink_debug_dashboard);
+  }
+  if (WasExplicitlySet("override_blink_cache_time_ms")) {
+    options->set_override_blink_cache_time_ms(
+        FLAGS_override_blink_cache_time_ms);
   }
   if (WasExplicitlySet("report_unload_time")) {
     options->set_report_unload_time(FLAGS_report_unload_time);
@@ -845,6 +727,10 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("max_image_bytes_for_webp_in_css")) {
     options->set_max_image_bytes_for_webp_in_css(
         FLAGS_max_image_bytes_for_webp_in_css);
+  }
+  if (WasExplicitlySet("enable_lazyload_in_blink")) {
+    options->set_enable_lazyload_in_blink(
+        FLAGS_enable_lazyload_in_blink);
   }
   if (WasExplicitlySet("persist_blink_blacklist")) {
     options->set_persist_blink_blacklist(
@@ -901,6 +787,10 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
         FLAGS_rewrite_uncacheable_resources);
   }
 
+  if (WasExplicitlySet("enable_fix_reflow")) {
+    options->set_enable_fix_reflow(FLAGS_enable_fix_reflow);
+  }
+
   if (WasExplicitlySet("in_place_wait_for_optimized")) {
     options->set_in_place_wait_for_optimized(FLAGS_in_place_wait_for_optimized);
   }
@@ -927,74 +817,40 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_in_place_preemptive_rewrite_javascript(
         FLAGS_in_place_preemptive_rewrite_javascript);
   }
-  if (WasExplicitlySet("serve_ghost_click_buster_with_split_html")) {
-    options->set_serve_ghost_click_buster_with_split_html(
-        FLAGS_serve_ghost_click_buster_with_split_html);
-  }
-  if (WasExplicitlySet("serve_xhr_access_control_headers")) {
-    options->set_serve_xhr_access_control_headers(
-        FLAGS_serve_xhr_access_control_headers);
-  }
-  if (WasExplicitlySet("access_control_allow_origins")) {
-    options->set_access_control_allow_origins(
-        FLAGS_access_control_allow_origins);
-  }
-  if (WasExplicitlySet("hide_referer_using_meta")) {
-    options->set_hide_referer_using_meta(
-        FLAGS_hide_referer_using_meta);
-  }
-  if (WasExplicitlySet("max_low_res_image_size_bytes")) {
-    options->set_max_low_res_image_size_bytes(
-        FLAGS_max_low_res_image_size_bytes);
-  }
-  if (WasExplicitlySet("max_low_res_to_full_res_image_size_percentage")) {
-    options->set_max_low_res_to_full_res_image_size_percentage(
-        FLAGS_max_low_res_to_full_res_image_size_percentage);
-  }
 
   MessageHandler* handler = factory->message_handler();
 
   StringPieceVector domains;
   SplitStringPieceToVector(FLAGS_domains, ",", &domains, true);
-  if (!domains.empty()) {
-    DomainLawyer* lawyer = options->WriteableDomainLawyer();
-    for (int i = 0, n = domains.size(); i < n; ++i) {
-      if (!lawyer->AddDomain(domains[i], handler)) {
-        LOG(ERROR) << "Invalid domain: " << domains[i];
-        ret = false;
-      }
+  DomainLawyer* lawyer = options->domain_lawyer();
+  for (int i = 0, n = domains.size(); i < n; ++i) {
+    if (!lawyer->AddDomain(domains[i], handler)) {
+      LOG(ERROR) << "Invalid domain: " << domains[i];
+      ret = false;
     }
   }
 
   if (WasExplicitlySet("rewrite_domain_map")) {
-    ret &= AddDomainMap(FLAGS_rewrite_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_rewrite_domain_map, lawyer,
                         &DomainLawyer::AddRewriteDomainMapping, handler);
   }
 
   if (WasExplicitlySet("shard_domain_map")) {
-    ret &= AddDomainMap(FLAGS_shard_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_shard_domain_map, lawyer,
                         &DomainLawyer::AddShard, handler);
   }
 
   if (WasExplicitlySet("origin_domain_map")) {
-    ret &= AddDomainMap(FLAGS_origin_domain_map,
-                        options->WriteableDomainLawyer(),
+    ret &= AddDomainMap(FLAGS_origin_domain_map, lawyer,
                         &DomainLawyer::AddOriginDomainMapping, handler);
   }
-  if (WasExplicitlySet("enable_extended_instrumentation")) {
-    options->set_enable_extended_instrumentation(
-        FLAGS_enable_extended_instrumentation);
+  if (WasExplicitlySet("passthrough_blink_for_last_invalid_response_code")) {
+    options->set_passthrough_blink_for_last_invalid_response_code(
+        FLAGS_passthrough_blink_for_last_invalid_response_code);
   }
-  if (WasExplicitlySet("enable_cache_purge")) {
-    options->set_enable_cache_purge(FLAGS_enable_cache_purge);
+  if (WasExplicitlySet("apply_blink_if_no_families")) {
+    options->set_apply_blink_if_no_families(FLAGS_apply_blink_if_no_families);
   }
-  if (WasExplicitlySet("proactive_resource_freshening")) {
-    options->set_proactive_resource_freshening(
-        FLAGS_proactive_resource_freshening);
-  }
-
   if (WasExplicitlySet("support_noscript_enabled")) {
     options->set_support_noscript_enabled(FLAGS_support_noscript_enabled);
   }
@@ -1004,7 +860,7 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     int i = 0;
     for (int max = library_specs.size() - 2; i < max; i += 3) {
       int64 bytes;
-      if (!StringToInt64(library_specs[i], &bytes)) {
+      if (!StringToInt64(library_specs[i].as_string(), &bytes)) {
         LOG(ERROR) << "Invalid library size in bytes; skipping: " <<
             library_specs[i];
         continue;
@@ -1023,12 +879,12 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     }
   }
   if (WasExplicitlySet("experiment_specs")) {
-    options->set_running_experiment(true);
+    options->set_running_furious_experiment(true);
     StringPieceVector experiment_specs;
     SplitStringPieceToVector(FLAGS_experiment_specs, "+",
                              &experiment_specs, true);
     for (int i = 0, n = experiment_specs.size(); i < n; ++i) {
-      if (!options->AddExperimentSpec(experiment_specs[i], handler)) {
+      if (!options->AddFuriousSpec(experiment_specs[i], handler)) {
         LOG(ERROR) << "Invalid experiment specification: "
                    << experiment_specs[i];
         ret = false;
@@ -1038,9 +894,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("distributable_filters")) {
     options->DistributeFiltersByCommaSeparatedList(FLAGS_distributable_filters,
                                                    handler);
-  }
-  if (WasExplicitlySet("use_image_scanline_api")) {
-    options->set_use_image_scanline_api(FLAGS_use_image_scanline_api);
   }
 
   ret &= SetRewriters("rewriters", FLAGS_rewriters.c_str(),

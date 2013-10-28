@@ -39,10 +39,10 @@
 
 namespace net_instaweb {
 
-void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
-                                           const RequestContextPtr& request_ctx,
-                                           ServerContext* server_context,
-                                           RewriteOptions** custom_options) {
+void ResourceFetch::ApplyFuriousOptions(const GoogleUrl& url,
+                                        const RequestContextPtr& request_ctx,
+                                        ServerContext* server_context,
+                                        RewriteOptions** custom_options) {
   const RewriteOptions* active_options;
   if (*custom_options == NULL) {
     RewriteDriverPool* driver_pool = server_context->SelectDriverPool(
@@ -51,17 +51,16 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
   } else {
     active_options = *custom_options;
   }
-  if (active_options->running_experiment()) {
+  if (active_options->running_furious()) {
     // If we're running an experiment and this resource url specifies a
-    // experiment_spec, make sure the custom options have that experiment
-    // selected.
+    // furious_spec, make sure the custom options have that experiment selected.
     ResourceNamer namer;
     namer.Decode(url.LeafSansQuery());
     if (namer.has_experiment()) {
       if (*custom_options == NULL) {
         *custom_options = active_options->Clone();
       }
-      (*custom_options)->SetExperimentStateStr(namer.experiment());
+      (*custom_options)->SetFuriousStateStr(namer.experiment());
       server_context->ComputeSignature(*custom_options);
     }
   }
@@ -70,7 +69,7 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
 RewriteDriver* ResourceFetch::GetDriver(
     const GoogleUrl& url, RewriteOptions* custom_options,
     ServerContext* server_context, const RequestContextPtr& request_ctx) {
-  ApplyExperimentOptions(url, request_ctx, server_context, &custom_options);
+  ApplyFuriousOptions(url, request_ctx, server_context, &custom_options);
   RewriteDriver* driver = (custom_options == NULL)
       ? server_context->NewRewriteDriver(request_ctx)
       : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
@@ -112,10 +111,10 @@ bool ResourceFetch::BlockingFetch(const GoogleUrl& url,
                   callback);
 
   // Wait for resource fetch to complete.
-  if (!callback->IsDone()) {
+  if (!callback->done()) {
     int64 max_ms = driver->options()->blocking_fetch_timeout_ms();
     for (int64 start_ms = server_context->timer()->NowMs(), now_ms = start_ms;
-         !callback->IsDone() && now_ms - start_ms < max_ms;
+         !callback->done() && now_ms - start_ms < max_ms;
          now_ms = server_context->timer()->NowMs()) {
       int64 remaining_ms = max_ms - (now_ms - start_ms);
 
@@ -125,7 +124,7 @@ bool ResourceFetch::BlockingFetch(const GoogleUrl& url,
 
   MessageHandler* message_handler = server_context->message_handler();
   bool ok = false;
-  if (callback->IsDone()) {
+  if (callback->done()) {
     if (callback->success()) {
       ok = true;
     } else {

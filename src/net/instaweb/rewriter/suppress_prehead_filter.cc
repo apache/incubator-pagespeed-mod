@@ -24,7 +24,6 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 #include "net/instaweb/rewriter/public/meta_tag_filter.h"
@@ -32,7 +31,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
 
 namespace {
 
@@ -80,40 +78,25 @@ void SuppressPreheadFilter::StartDocument() {
   has_charset_ = !charset_.empty();
 }
 
-void SuppressPreheadFilter::PreHeadDone(HtmlElement* element) {
-  seen_first_head_ = true;
-  set_writer(original_writer_);
-  if (driver_->flushed_early()) {
-    SendCookies(element);
-  }
-}
-
 // TODO(mmohabey): AddHead filter will not add a head in the following case:
 // <html><noscript><head></head></noscript></html>. This will break the page if
 // FlushSubresources filter is applied.
 void SuppressPreheadFilter::StartElement(HtmlElement* element) {
+  HtmlWriterFilter::StartElement(element);
   if (noscript_element_ == NULL && element->keyword() == HtmlName::kNoscript) {
     noscript_element_ = element;  // Record top-level <noscript>
-  }
-  if (!seen_first_head_ && noscript_element_ == NULL) {
-    if (element->keyword() == HtmlName::kHtml) {
-      seen_start_html_ = true;
-    } else if (element->keyword() == HtmlName::kHead) {
-      HtmlWriterFilter::StartElement(element);
-      // If the element is Head, flush the node and set seen_first_head_.
-      // If HtmlWriterFilter is holding off any bytes due to
-      // HtmlElement::BRIEF_CLOSE then emit that.
-      HtmlWriterFilter::TerminateLazyCloseElement();
-      PreHeadDone(element);
-      return;
-    } else if (seen_start_html_ && element->keyword() != HtmlName::kHtml) {
-      // If the element is other than HTML/HEAD, do not flush it. According to
-      // http://www.whatwg.org/specs/web-apps/current-work/multipage/tree-construction.html#the-before-head-insertion-mode,
-      // such nodes are part of head.
-      PreHeadDone(element);
+  } else if (element->keyword() == HtmlName::kHead && !seen_first_head_ &&
+             noscript_element_ == NULL) {
+    // If first <head> is seen then do not suppress the bytes.
+    seen_first_head_ = true;
+    // If HtmlWriterFilter is holding off any bytes due to
+    // HtmlElement::BRIEF_CLOSE then emit that.
+    HtmlWriterFilter::TerminateLazyCloseElement();
+    set_writer(original_writer_);
+    if (driver_->flushed_early()) {
+      SendCookies(element);
     }
   }
-  HtmlWriterFilter::StartElement(element);
 }
 
 void SuppressPreheadFilter::EndElement(HtmlElement* element) {
@@ -134,7 +117,6 @@ void SuppressPreheadFilter::EndElement(HtmlElement* element) {
 }
 
 void SuppressPreheadFilter::Clear() {
-  seen_start_html_ = false;
   seen_first_head_ = false;
   has_charset_ = false;
   has_x_ua_compatible_ = false;
@@ -149,42 +131,36 @@ void SuppressPreheadFilter::Clear() {
 void SuppressPreheadFilter::EndDocument() {
   int64 header_fetch_ms = -1;
   {
-    bool is_cacheable_html = false;
-    {
-      AbstractLogRecord* log_record = driver_->log_record();
-      ScopedMutex lock(log_record->mutex());
-      // It is assumed that default value of is_original_resource_cacheable is
-      // true. This field will be set only if original resource is not
-      // cacheable.
-      is_cacheable_html =
-          (!log_record->logging_info()->has_is_original_resource_cacheable() ||
-           log_record->logging_info()->is_original_resource_cacheable());
-    }  // Release lock before calling GetFetchHeaderMs as it takes the same lock
-    // TODO(gee): Fix this.
+    AbstractLogRecord* log_record = driver_->log_record();
+    ScopedMutex lock(log_record->mutex());
+    // It is assumed that default value of is_original_resource_cacheable is
+    // true. This field will be set only if original resource is not cacheable.
+    bool is_cacheable_html =
+        !log_record->logging_info()->has_is_original_resource_cacheable() ||
+        log_record->logging_info()->is_original_resource_cacheable();
 
     // If the html is cacheable, then any resource other than the critical
     // resources may block the html download as html might get served from
     // cache. Thus header_fetch_ms is not populated in that case.
-    if (!driver_->flushing_early() && !is_cacheable_html) {
-      driver_->request_context()->timing_info().GetFetchHeaderLatencyMs(
-          &header_fetch_ms);
+    if (!driver_->flushing_early() &&
+        !is_cacheable_html &&
+        log_record->logging_info()->timing_info().has_header_fetch_ms()) {
+      header_fetch_ms =
+          log_record->logging_info()->timing_info().header_fetch_ms();
     }
   }
-
-  FlushEarlyInfo* flush_early_info = driver_->flush_early_info();
 
   if (header_fetch_ms >= 0) {
     UpdateFetchLatencyInFlushEarlyProto(header_fetch_ms, driver_);
   } else {
-    flush_early_info->clear_average_fetch_latency_ms();
-    flush_early_info->clear_last_n_fetch_latencies();
+    driver_->flush_early_info()->clear_average_fetch_latency_ms();
+    driver_->flush_early_info()->clear_last_n_fetch_latencies();
   }
 
-  flush_early_info->set_pre_head(pre_head_);
+  driver_->flush_early_info()->set_pre_head(pre_head_);
   // See the description of the HttpOnly cookie in
   // http://tools.ietf.org/html/rfc6265#section-4.1.2.6
-  flush_early_info->set_http_only_cookie_present(
-      flush_early_info->http_only_cookie_present() ||
+  driver_->flush_early_info()->set_http_only_cookie_present(
       response_headers_.HasCookie("HttpOnly", NULL));
   if (!has_charset_) {
     FlushEarlyInfoFinder* finder =

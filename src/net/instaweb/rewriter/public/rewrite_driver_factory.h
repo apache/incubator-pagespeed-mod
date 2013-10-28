@@ -31,26 +31,25 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
 class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalLineInfoFinder;
 class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
-class ExperimentMatcher;
+class FuriousMatcher;
 class Hasher;
 class MessageHandler;
 class NamedLockManager;
-class NonceGenerator;
 class PropertyCache;
 class QueuedWorkerPool;
 class ServerContext;
 class RewriteDriver;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
 class StaticAssetManager;
@@ -58,10 +57,10 @@ class Statistics;
 class ThreadSystem;
 class Timer;
 class UrlAsyncFetcher;
+class UrlFetcher;
 class UrlNamer;
 class UsageDataReporter;
 class UserAgentMatcher;
-class UserAgentNormalizer;
 
 // Manages the construction and ownership of most objects needed to create
 // RewriteDrivers. If you have your own versions of these classes (specific
@@ -91,7 +90,7 @@ class RewriteDriverFactory {
 
   virtual ~RewriteDriverFactory();
 
-  // The RewriteDriverFactory will create objects of default type through the
+  // The RewriteDriveFactory will create objects of default type through the
   // New* method from drived classes.  Here are the objects that can be
   // replaced before creating the RewriteDriver.
   // Note: RewriteDriver takes ownership of these.
@@ -100,7 +99,6 @@ class RewriteDriverFactory {
   void set_file_system(FileSystem* file_system);
   void set_hasher(Hasher* hasher);
   void set_filename_encoder(FilenameEncoder* filename_encoder);
-  void set_nonce_generator(NonceGenerator* nonce_generator);
   void set_url_namer(UrlNamer* url_namer);
   void set_timer(Timer* timer);
   void set_usage_data_reporter(UsageDataReporter* reporter);
@@ -113,7 +111,8 @@ class RewriteDriverFactory {
   // be subsequently written so they don't have to be fetched from
   // the Internet again.
   //
-  // You must set the slurp directory prior to calling ComputeUrlAsyncFetcher.
+  // You must set the slurp directory prior to calling ComputeUrlFetcher
+  // or ComputeUrlAsyncFetcher.
   void set_slurp_directory(const StringPiece& directory);
   void set_slurp_read_only(bool read_only);
   void set_slurp_print_urls(bool read_only);
@@ -122,14 +121,18 @@ class RewriteDriverFactory {
   // fecher to return cached versions.
   void set_force_caching(bool u) { force_caching_ = u; }
 
-  // You can call set_base_url_async_fetcher to set up real async fetching
-  // for real serving or for modeling of live traffic.
+  // You should either call set_base_url_fetcher,
+  // set_base_url_async_fetcher, or neither.  Do not set both.  If you
+  // want to enable real async fetching, because you are serving or
+  // want to model live traffic, then call set_base_url_async_fetcher
+  // before calling url_fetcher.
   //
   // These fetchers may be used directly when serving traffic, or they
   // may be aggregated with other fetchers (e.g. for slurping).
   //
-  // You cannot set the base URL fetcher once ComputeUrlAsyncFetcher has
+  // You cannot set either base URL fetcher once ComputeUrlFetcher has
   // been called.
+  void set_base_url_fetcher(UrlFetcher* url_fetcher);
   void set_base_url_async_fetcher(UrlAsyncFetcher* url_fetcher);
   // Takes ownership of distributed_fetcher.
   void set_base_distributed_async_fetcher(UrlAsyncFetcher* distributed_fetcher);
@@ -141,7 +144,6 @@ class RewriteDriverFactory {
   MessageHandler* html_parse_message_handler();
   MessageHandler* message_handler();
   FileSystem* file_system();
-  NonceGenerator* nonce_generator();
   // TODO(sligocki): Remove hasher() and force people to make a NewHasher when
   // they need one.
   Hasher* hasher();
@@ -150,23 +152,20 @@ class RewriteDriverFactory {
   UserAgentMatcher* user_agent_matcher();
   StaticAssetManager* static_asset_manager();
   RewriteOptions* default_options() { return default_options_.get(); }
-  virtual RewriteOptionsManager* NewRewriteOptionsManager();
 
-  // These accessors are *not* thread-safe until after the first call, as they
-  // do unlocked lazy initialization, so they must be called at least once prior
-  // to starting threads. Normally this is done by CreateServerContext() or
-  // InitServerContext().
+  // These accessors are *not* thread-safe.  They must be called once prior
+  // to forking threads, e.g. via ComputeUrlFetcher().
   Timer* timer();
   NamedLockManager* lock_manager();
   QueuedWorkerPool* WorkerPool(WorkerPoolCategory pool);
   Scheduler* scheduler();
   UsageDataReporter* usage_data_reporter();
-  const std::vector<const UserAgentNormalizer*>& user_agent_normalizers();
 
   // Computes URL fetchers using the base fetcher, and optionally,
   // slurp_directory and slurp_read_only.  These are not thread-safe;
   // they must be called once prior to spawning threads, e.g. via
   // CreateServerContext.
+  virtual UrlFetcher* ComputeUrlFetcher();
   virtual UrlAsyncFetcher* ComputeUrlAsyncFetcher();
   virtual UrlAsyncFetcher* ComputeDistributedFetcher();
 
@@ -253,7 +252,7 @@ class RewriteDriverFactory {
 
   // Creates a new empty RewriteOptions object, with no default settings.
   // Generally configurations go factory's default_options() ->
-  // ServerContext::global_options() -> RewriteDriverFactory,
+  // ServerContext::global_options() -> RewriteDriveFactory,
   // but this method just provides a blank set of options.
   virtual RewriteOptions* NewRewriteOptions();
 
@@ -284,9 +283,14 @@ class RewriteDriverFactory {
     return false;
   }
 
-  // Creates an ExperimentMatcher, which is used to match clients or sessions to
-  // a specific experiment.
-  virtual ExperimentMatcher* NewExperimentMatcher();
+  // Creates a new AbstractClientState object that must be populated.
+  // Subclasses can override this to create an appropriate AbstractClientState
+  // subclass if the default isn't acceptable.
+  virtual AbstractClientState* NewClientState();
+
+  // Creates a FuriousMatcher, which is used to match clients or sessions to
+  // a specific furious experiment.
+  virtual FuriousMatcher* NewFuriousMatcher();
 
   // Returns the preferred webp image quality vector for client options.
   const std::vector<int>* preferred_webp_qualities() {
@@ -318,37 +322,35 @@ class RewriteDriverFactory {
   // for each of these methods, although they may be overridden via set_
   // methods above.  These methods all instantiate objects and transfer
   // ownership to the caller.
+  virtual UrlFetcher* DefaultUrlFetcher() = 0;
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher() = 0;
   virtual MessageHandler* DefaultHtmlParseMessageHandler() = 0;
   virtual MessageHandler* DefaultMessageHandler() = 0;
   virtual FileSystem* DefaultFileSystem() = 0;
-  virtual NonceGenerator* DefaultNonceGenerator();
   virtual Timer* DefaultTimer();
 
   virtual Hasher* NewHasher() = 0;
 
-  // Creates a new ServerContext* object.  ServerContext itself must be
+  // Creates a new ServerContext* object.  ServerContexst itself must be
   // overridden per Factory as it has at least one pure virtual method.
   virtual ServerContext* NewServerContext() = 0;
 
   virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher() { return NULL; }
 
   virtual CriticalCssFinder* DefaultCriticalCssFinder();
-  virtual CriticalImagesFinder* DefaultCriticalImagesFinder(
-      ServerContext* server_context);
-  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder(
-      ServerContext* server_context);
+  virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
+  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder();
+
+  // Default implementation returns NULL.
+  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual CacheHtmlInfoFinder* DefaultCacheHtmlInfoFinder(
-      PropertyCache* cache, ServerContext* server_context);
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();
-
-  // Default implementation returns a valid CriticalSelectorFinder.
-  virtual CriticalLineInfoFinder* DefaultCriticalLineInfoFinder(
-      ServerContext* server_context);
 
   // They may also supply a custom lock manager. The default implementation
   // will use the file system.
@@ -360,15 +362,6 @@ class RewriteDriverFactory {
 
   virtual UserAgentMatcher* DefaultUserAgentMatcher();
   virtual UsageDataReporter* DefaultUsageDataReporter();
-
-  // Provides an optional hook to add user-agent normalizers specific to
-  // needs of a specific RewriteDriverFactory implementation. The new entries
-  // should be appended to the end of *out (without clearing it), and should
-  // still be owned by the RewriteDriverFactory subclass.
-  //
-  // Default implementation does nothing.
-  virtual void AddPlatformSpecificUserAgentNormalizers(
-      std::vector<const UserAgentNormalizer*>* out);
 
   // Subclasses can override this to create an appropriately-sized thread
   // pool for their environment. The default implementation will always
@@ -412,20 +405,16 @@ class RewriteDriverFactory {
   scoped_ptr<MessageHandler> html_parse_message_handler_;
   scoped_ptr<MessageHandler> message_handler_;
   scoped_ptr<FileSystem> file_system_;
+  UrlFetcher* url_fetcher_;
   UrlAsyncFetcher* url_async_fetcher_;
   UrlAsyncFetcher* distributed_async_fetcher_;
+  scoped_ptr<UrlFetcher> base_url_fetcher_;
   scoped_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
   scoped_ptr<UrlAsyncFetcher> base_distributed_async_fetcher_;
   scoped_ptr<Hasher> hasher_;
   scoped_ptr<FilenameEncoder> filename_encoder_;
-  scoped_ptr<NonceGenerator> nonce_generator_;
   scoped_ptr<UrlNamer> url_namer_;
   scoped_ptr<UserAgentMatcher> user_agent_matcher_;
-
-  // Lazily filled-in list of UA normalizers, including the default ones
-  // this class adds, and any additional ones added by user_agent_normalizers()
-  // calling subclass' AddPlatformSpecificUserAgentNormalizers on this.
-  std::vector<const UserAgentNormalizer*> user_agent_normalizers_;
   scoped_ptr<StaticAssetManager> static_asset_manager_;
   scoped_ptr<Timer> timer_;
   scoped_ptr<Scheduler> scheduler_;

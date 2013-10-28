@@ -24,33 +24,21 @@
 #include <set>
 #include <vector>
 
-#include "base/logging.h"
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
-#  include "base/strings/stringprintf.h"
-#else
-#  include "base/stringprintf.h"
-#endif
+#include "base/stringprintf.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
 
 #include <cstdlib>  // NOLINT
 #include <string>  // NOLINT
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
-#  include "base/strings/string_number_conversions.h"
-#  include "base/strings/string_piece.h"
-#  include "base/strings/string_util.h"
-#else
-#  include "base/string_number_conversions.h"
-#  include "base/string_piece.h"
-#  include "base/string_util.h"
-#endif
+#include "base/string_number_conversions.h"
+#include "base/string_piece.h"
+#include "base/string_util.h"
 
 using base::StringAppendF;
 using base::StringAppendV;
 using base::SStringPrintf;
 using base::StringPiece;
-using base::StringPrintf;
 
 typedef StringPiece::size_type stringpiece_ssize_type;
 
@@ -112,73 +100,35 @@ inline bool StringToInt64(const GoogleString& in, int64* out) {
   return base::StringToInt64(in, out);
 }
 
-
 // Returns the part of the piece after the first '=', trimming any
 // white space found at the beginning or end of the resulting piece.
 // Returns an empty string if '=' was not found.
 StringPiece PieceAfterEquals(const StringPiece& piece);
 
+class EmptyString {
+ public:
+  static const StringPiece kEmptyString;
+};
 
-GoogleString StrCat(const StringPiece& a, const StringPiece& b);
+// TODO(jmarantz): use overloading instead of default args and get
+// rid of this statically constructed global object.
 GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e, const StringPiece& f);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e, const StringPiece& f,
-                    const StringPiece& g);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e, const StringPiece& f,
-                    const StringPiece& g, const StringPiece& h);
-GoogleString StrCat(const StringPiece& a, const StringPiece& b,
-                    const StringPiece& c, const StringPiece& d,
-                    const StringPiece& e, const StringPiece& f,
-                    const StringPiece& g, const StringPiece& h,
-                    const StringPiece& i);
+                    const StringPiece& c = EmptyString::kEmptyString,
+                    const StringPiece& d = EmptyString::kEmptyString,
+                    const StringPiece& e = EmptyString::kEmptyString,
+                    const StringPiece& f = EmptyString::kEmptyString,
+                    const StringPiece& g = EmptyString::kEmptyString,
+                    const StringPiece& h = EmptyString::kEmptyString);
 
-inline void StrAppend(GoogleString* target, const StringPiece& a) {
-  a.AppendToString(target);
-}
 void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d,
-               const StringPiece& e);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d,
-               const StringPiece& e, const StringPiece& f);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d,
-               const StringPiece& e, const StringPiece& f,
-               const StringPiece& g);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d,
-               const StringPiece& e, const StringPiece& f,
-               const StringPiece& g, const StringPiece& h);
-void StrAppend(GoogleString* target,
-               const StringPiece& a, const StringPiece& b,
-               const StringPiece& c, const StringPiece& d,
-               const StringPiece& e, const StringPiece& f,
-               const StringPiece& g, const StringPiece& h,
-               const StringPiece& i);
+               const StringPiece& a,
+               const StringPiece& b = EmptyString::kEmptyString,
+               const StringPiece& c = EmptyString::kEmptyString,
+               const StringPiece& d = EmptyString::kEmptyString,
+               const StringPiece& e = EmptyString::kEmptyString,
+               const StringPiece& f = EmptyString::kEmptyString,
+               const StringPiece& g = EmptyString::kEmptyString,
+               const StringPiece& h = EmptyString::kEmptyString);
 
 // Split sp into pieces that are separated by any character in the given string
 // of separators, and push those pieces in order onto components.
@@ -292,11 +242,7 @@ bool TrimLeadingWhitespace(StringPiece* str);
 bool TrimTrailingWhitespace(StringPiece* str);
 
 // Non-destructive TrimWhitespace.
-// WARNING: in should not point inside output!
 inline void TrimWhitespace(const StringPiece& in, GoogleString* output) {
-  DCHECK((in.data() < output->data()) ||
-         (in.data() >= (output->data() + output->length())))
-      << "Illegal argument aliasing in TrimWhitespace";
   StringPiece temp(in);   // Mutable copy
   TrimWhitespace(&temp);  // Modifies temp
   temp.CopyToString(output);
@@ -329,7 +275,7 @@ bool StringEqualConcat(const StringPiece& str, const StringPiece& first,
 struct CharStarCompareInsensitive {
   bool operator()(const char* s1, const char* s2) const {
     return (StringCaseCompare(s1, s2) < 0);
-  }
+  };
 };
 
 struct CharStarCompareSensitive {
@@ -339,15 +285,15 @@ struct CharStarCompareSensitive {
 };
 
 struct StringCompareSensitive {
-  bool operator()(const StringPiece& s1, const StringPiece& s2) const {
-    return s1 < s2;
-  }
+  bool operator()(const GoogleString& s1, const GoogleString& s2) const {
+    return (strcmp(s1.c_str(), s2.c_str()) < 0);
+  };
 };
 
 struct StringCompareInsensitive {
-  bool operator()(const StringPiece& s1, const StringPiece& s2) const {
+  bool operator()(const GoogleString& s1, const GoogleString& s2) const {
     return (StringCaseCompare(s1, s2) < 0);
-  }
+  };
 };
 
 // Parse a list of integers into a vector. Empty values are ignored.
@@ -380,6 +326,10 @@ void ParseShellLikeString(const StringPiece& input,
 // disjoint occurrences of the substring.
 // For example: "aaa" appears in "aaaaa" 3 times, not once
 int CountSubstring(const StringPiece& text, const StringPiece& substring);
+
+// Returns true if the string contains a character that is not legal
+// in an http header.
+bool HasIllicitTokenCharacter(const StringPiece& str);
 
 // Appends new empty string to a StringVector and returns a pointer to it.
 inline GoogleString* StringVectorAdd(StringVector* v) {
@@ -424,11 +374,6 @@ GoogleString JoinCollection(const C& collection, StringPiece sep) {
   GoogleString result;
   AppendJoinCollection(&result, collection, sep);
   return result;
-}
-
-// Converts a boolean to string.
-inline const char* BoolToString(bool b) {
-  return (b ? "true" : "false");
 }
 
 

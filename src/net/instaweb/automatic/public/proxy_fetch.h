@@ -43,10 +43,11 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
+class AbstractLogRecord;
 class AbstractMutex;
 class CacheUrlAsyncFetcher;
 class Function;
-class GoogleUrl;
 class MessageHandler;
 class ProxyFetch;
 class ProxyFetchPropertyCallbackCollector;
@@ -89,17 +90,6 @@ class ProxyFetchFactory {
       ProxyFetchPropertyCallbackCollector* property_callback,
       AsyncFetch* original_content_fetch);
 
-  // Initiates the PropertyCache lookup.  See ngx_pagespeed.cc or
-  // proxy_interface.cc for example usage.
-  static ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
-      bool is_resource_fetch,
-      const GoogleUrl& request_url,
-      ServerContext* server_context,
-      RewriteOptions* options,
-      AsyncFetch* async_fetch,
-      const bool requires_blink_cohort,
-      bool* added_page_property_callback);
-
   MessageHandler* message_handler() const { return handler_; }
 
  private:
@@ -132,20 +122,33 @@ class ProxyFetchFactory {
 // to complete.
 class ProxyFetchPropertyCallback : public PropertyPage {
  public:
+  // The cache type associated with this callback.
+  enum PageType {
+    kPropertyCachePage,
+    kPropertyCacheFallbackPage,
+    kClientPropertyCachePage,
+    kDevicePropertyCachePage,
+  };
+
   ProxyFetchPropertyCallback(PageType page_type,
                              PropertyCache* property_cache,
-                             const StringPiece& url,
-                             const StringPiece& options_signature_hash,
+                             const StringPiece& key,
                              UserAgentMatcher::DeviceType device_type,
                              ProxyFetchPropertyCallbackCollector* collector,
                              AbstractMutex* mutex);
 
   PageType page_type() const { return page_type_; }
 
+  UserAgentMatcher::DeviceType device_type() const { return device_type_; }
+
   // Delegates to collector_'s IsCacheValid.
   virtual bool IsCacheValid(int64 write_timestamp_ms) const;
 
   virtual void Done(bool success);
+
+  // Adds logs for the given PropertyPage to the specified cohort info index.
+  virtual void LogPageCohortInfo(AbstractLogRecord* log_record,
+                                 int cohort_index);
 
  private:
   PageType page_type_;
@@ -156,22 +159,6 @@ class ProxyFetchPropertyCallback : public PropertyPage {
 };
 
 // Tracks a collection of property-cache lookups occuring in parallel.
-// Sequence is used to execute various functions in an orderly fashion to
-// avoid any kind of race between Done(), ConnectProxyFetch(), Detach() and
-// AddPostLookupTask().  When any function is called, it is added to the
-// sequence and added function will be executed immediately if sequence is
-// free, otherwise it will wait for its turn.
-//
-// Order of events:
-// InitiatePropertyCacheLookup-->AddPostLookupTask-->Initiate Html Fetch
-//            |                 (Added to Sequence)         |
-//            |                                        Fetch Done
-//        Lookup Done()                                     |
-//    (Added to Sequence)                           -------------------
-//                                          is html |           !html |
-//                                        ConnectProxyFetch()     Detach()
-//                                                 (Added to Sequence)
-//
 class ProxyFetchPropertyCallbackCollector {
  public:
   ProxyFetchPropertyCallbackCollector(ServerContext* server_context,
@@ -241,36 +228,28 @@ class ProxyFetchPropertyCallbackCollector {
   // Called by a ProxyFetchPropertyCallback when the former is complete.
   void Done(ProxyFetchPropertyCallback* callback);
 
+  // Updates the status code of response in property cache.
+  void UpdateStatusCodeInPropertyCache();
+
   const RequestContextPtr& request_context() { return request_context_; }
 
   // Returns DeviceType from device property page.
   UserAgentMatcher::DeviceType device_type() { return device_type_; }
 
  private:
-  friend class ProxyFetchPropertyCallbackCollectorTest;
-  void ExecuteDone(ProxyFetchPropertyCallback* callback);
-  void ExecuteAddPostLookupTask(Function* func);
-  void ExecuteConnectProxyFetch(ProxyFetch* proxy_fetch);
-  void ExecuteDetach(HttpStatus::Code status_code);
-
-  // Updates the status code of response in property cache.
-  void UpdateStatusCodeInPropertyCache();
-
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
   std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
   property_pages_;
   scoped_ptr<AbstractMutex> mutex_;
   ServerContext* server_context_;
-  QueuedWorkerPool::Sequence* sequence_;
   GoogleString url_;
   RequestContextPtr request_context_;
   UserAgentMatcher::DeviceType device_type_;
-  bool is_options_valid_;     // protected by mutex_.
   bool detached_;             // protected by mutex_.
   bool done_;                 // protected by mutex_.
   ProxyFetch* proxy_fetch_;   // protected by mutex_.
   // protected by mutex_.
-  std::vector<Function*> post_lookup_task_vector_;
+  scoped_ptr<std::vector<Function*> > post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
   HttpStatus::Code status_code_;  // status_code_ of the response.
   scoped_ptr<FallbackPropertyPage> fallback_property_page_;
@@ -302,11 +281,12 @@ class ProxyFetch : public SharedAsyncFetch {
  public:
   // These strings identify sync-points for reproducing races between
   // PropertyCache lookup completion and Origin HTML Fetch completion.
-  static const char kCollectorConnectProxyFetchFinish[];
-  static const char kCollectorDetachFinish[];
-  static const char kCollectorDoneFinish[];
-  static const char kCollectorFinish[];
-  static const char kCollectorDetachStart[];
+  static const char kCollectorDone[];
+  static const char kCollectorPrefix[];
+  static const char kCollectorReady[];
+  static const char kCollectorDelete[];
+  static const char kCollectorDetach[];
+  static const char kCollectorDoneDelete[];
 
   // These strings identify sync-points for introducing races between
   // PropertyCache lookup completion and HeadersComplete.
@@ -343,6 +323,13 @@ class ProxyFetch : public SharedAsyncFetch {
   virtual void PropertyCacheComplete(
       ProxyFetchPropertyCallbackCollector* collector);
 
+  // Returns the AbstractClientState object carried by the property cache
+  // callback collector, if any. Returns NULL if no AbstractClientState
+  // is found. This method assumes that the property cache is enabled and
+  // the client state property cache lookup has completed.
+  AbstractClientState* GetClientState(
+      ProxyFetchPropertyCallbackCollector* collector);
+
   // If cross_domain is true, we're requested under a domain different from
   // the underlying host, using proxy mode in UrlNamer.
   ProxyFetch(const GoogleString& url,
@@ -372,9 +359,7 @@ class ProxyFetch : public SharedAsyncFetch {
   void StartFetch();
 
   // Actually do the fetch, called from callback of StartFetch.
-  // "prepare_success" represents whether the request was prepared successfully
-  // by the UrlNamer.
-  void DoFetch(bool prepare_success);
+  void DoFetch();
 
   // Handles buffered HTML writes, flushes, and done calls
   // in the QueuedWorkerPool::Sequence sequence_.
@@ -384,7 +369,7 @@ class ProxyFetch : public SharedAsyncFetch {
   // held.
   void ScheduleQueueExecutionIfNeeded();
 
-  // Frees up the RewriteDriver (via FinishParse or Cleanup),
+  // Frees up the RewriteDriver (via FinishParse or ReleaseRewriteDriver),
   // calls the callback (nulling out callback_ to ensure that we don't
   // do it again), notifies the ProxyInterface that the fetch is
   // complete, and deletes the ProxyFetch.
@@ -492,8 +477,8 @@ class ProxyFetch : public SharedAsyncFetch {
 
   ProxyFetchFactory* factory_;
 
-  // Set to true if this proxy_fetch is the result of a distributed fetch.
-  bool distributed_fetch_;
+  // Whether PrepareRequest() to url_namer succeeded.
+  bool prepare_success_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetch);
 };

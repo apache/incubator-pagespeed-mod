@@ -21,7 +21,6 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -62,60 +61,41 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     options()->EnableFilter(RewriteOptions::kLazyloadImages);
     RewriteTestBase::SetUp();
     https_mode_ = false;
+
+    const CriticalImagesFinder* finder =
+        rewrite_driver()->server_context()->critical_images_finder();
+
     // Setup the property cache. The DetermineEnable logic for the
     // CriticalIMagesBeaconFinder will only inject the beacon if the property
     // cache is enabled, since beaconed results are intended to be stored in the
     // pcache.
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* beacon_cohort =
-        SetupCohort(pcache, RewriteDriver::kBeaconCohort);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(pcache, RewriteDriver::kDomCohort);
-    server_context()->set_beacon_cohort(beacon_cohort);
-    server_context()->set_dom_cohort(dom_cohort);
+    SetupCohort(pcache, finder->GetCriticalImagesCohort());
+    SetupCohort(pcache, RewriteDriver::kDomCohort);
 
-    server_context()->set_critical_images_finder(
-        new BeaconCriticalImagesFinder(
-            beacon_cohort, factory()->nonce_generator(), statistics()));
     MockPropertyPage* page = NewMockPage("http://example.com");
     rewrite_driver()->set_property_page(page);
     pcache->set_enabled(true);
     pcache->Read(page);
-
-    GoogleUrl base(GetTestUrl());
-    image_gurl_.Reset(base, kChefGifFile);
-  }
-
-  void PrepareInjection() {
-    rewrite_driver()->AddFilters();
-    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile,
-                         kContentTypeJpeg, 100);
-  }
-
-  void AddImageTags(GoogleString* html) {
-    // Add the relative image URL.
-    StrAppend(html, "<img src=\"", kChefGifFile, "\" ", kChefGifDims, ">");
-    // Add the absolute image URL.
-    StrAppend(html, "<img src=\"", image_gurl_.Spec(), "\" ",
-              kChefGifDims, ">");
   }
 
   void RunInjection() {
-    PrepareInjection();
-    GoogleString html = "<head></head><body>";
-    AddImageTags(&html);
-    StrAppend(&html, "</body>");
-    ParseUrl(GetTestUrl(), html);
-  }
+    rewrite_driver()->AddFilters();
+    // The filter should absolutify img URLs before generating the hash of the
+    // URL, so test with both a relative and absolute URL and make sure the
+    // hashes match.
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, kChefGifFile);
 
-  void RunInjectionNoBody() {
-    // As above, but we omit <head> and (more relevant) <body> tags.  We should
-    // still inject the script at the end of the document.  The filter used to
-    // get this wrong.
-    PrepareInjection();
-    GoogleString html;
-    AddImageTags(&html);
+    AddFileToMockFetcher(img_gurl.Spec(), kChefGifFile, kContentTypeJpeg, 100);
+
+    GoogleString html = "<head></head><body>";
+    // Add the relative image URL.
+    StrAppend(&html, "<img src=\"", kChefGifFile, "\" ", kChefGifDims, ">");
+    // Add the absolute image URL.
+    StrAppend(&html, "<img src=\"", img_gurl.Spec(), "\" ", kChefGifDims, ">");
+    StrAppend(&html, "</body>");
     ParseUrl(GetTestUrl(), html);
   }
 
@@ -134,6 +114,8 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   void VerifyWithNoImageRewrite() {
     const GoogleString hash_str = ImageUrlHash(kChefGifFile);
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, kChefGifFile);
     EXPECT_TRUE(output_buffer_.find(
         StrCat("pagespeed_url_hash=\"", hash_str)) != GoogleString::npos);
   }
@@ -149,8 +131,10 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   GoogleString ImageUrlHash(StringPiece url) {
     // Absolutify the URL before hashing.
+    GoogleUrl base(GetTestUrl());
+    GoogleUrl img_gurl(base, url);
     unsigned int hash_val = HashString<CasePreserve, unsigned int>(
-        image_gurl_.spec_c_str(), strlen(image_gurl_.spec_c_str()));
+        img_gurl.spec_c_str(), strlen(img_gurl.spec_c_str()));
     return UintToString(hash_val);
   }
 
@@ -164,28 +148,17 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
         rewrite_driver()->server_context()->hasher()->Hash(
             rewrite_driver()->options()->signature());
     GoogleString str = "pagespeed.criticalImagesBeaconInit(";
-    StrAppend(&str, "'", beacon_url, "',");
-    StrAppend(&str, "'", url, "',");
-    StrAppend(&str, "'", options_signature_hash, "',");
-    StrAppend(&str, BoolToString(
-        CriticalImagesBeaconFilter::IncludeRenderedImagesInBeacon(
-            rewrite_driver())), ",");
-    StrAppend(&str, "'", ExpectedNonce(), "');");
+    StrAppend(&str, "'", beacon_url, "', ");
+    StrAppend(&str, "'", url, "', ");
+    StrAppend(&str, "'", options_signature_hash, "');");
     return str;
   }
 
   bool https_mode_;
-  GoogleUrl image_gurl_;
 };
 
 TEST_F(CriticalImagesBeaconFilterTest, ScriptInjection) {
   RunInjection();
-  VerifyInjection();
-  VerifyWithNoImageRewrite();
-}
-
-TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionNoBody) {
-  RunInjectionNoBody();
   VerifyInjection();
   VerifyWithNoImageRewrite();
 }
@@ -208,7 +181,6 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   crit_img_set->insert(hash_str);
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
   options()->EnableFilter(RewriteOptions::kInlineImages);
   options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);

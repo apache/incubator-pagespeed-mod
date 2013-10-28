@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-goog.require('pagespeedutils');
-
 /**
  * @fileoverview Code for detecting and sending to server the critical images
  * (images above the fold) on the client side.
@@ -29,8 +27,6 @@ goog.require('pagespeedutils');
 window['pagespeed'] = window['pagespeed'] || {};
 var pagespeed = window['pagespeed'];
 
-
-
 /**
  * @constructor
  * @param {string} beaconUrl The URL on the server to send the beacon to.
@@ -38,22 +34,33 @@ var pagespeed = window['pagespeed'];
  * @param {string} optionsHash The hash of the rewrite options. This is required
  *     to perform the property cache lookup when the beacon is handled by the
  *     sever.
- * @param {boolean} checkRenderedImageSizes The bool to show if resizing is
- *     being done using the rendered dimensions. If yes we capture the rendered
- *     dimensions and send it back with the beacon.
- * @param {string} nonce The nonce sent by the server.
  */
-pagespeed.CriticalImagesBeacon = function(beaconUrl, htmlUrl, optionsHash,
-    checkRenderedImageSizes, nonce) {
+pagespeed.CriticalImagesBeacon = function(beaconUrl, htmlUrl, optionsHash) {
   this.beaconUrl_ = beaconUrl;
   this.htmlUrl_ = htmlUrl;
   this.optionsHash_ = optionsHash;
-  this.nonce_ = nonce;
-  this.windowSize_ = pagespeedutils.getWindowSize();
-  this.checkRenderedImageSizes_ = checkRenderedImageSizes;
+  this.windowSize_ = this.getWindowSize_();
   this.imgLocations_ = {};
 };
 
+/**
+ * Returns the size of the window.
+ * @return {{
+ *     height: (number),
+ *     width: (number)
+ * }}
+ * @private
+ */
+pagespeed.CriticalImagesBeacon.prototype.getWindowSize_ = function() {
+  var height = window.innerHeight || document.documentElement.clientHeight ||
+      document.body.clientHeight;
+  var width = window.innerWidth || document.documentElement.clientWidth ||
+      document.body.clientWidth;
+  return {
+    height: height,
+    width: width
+  };
+};
 
 /**
  * Returns the absolute position of the top left corner of the element.
@@ -69,23 +76,22 @@ pagespeed.CriticalImagesBeacon.prototype.elLocation_ = function(element) {
 
   // getBoundingClientRect() is w.r.t. the viewport. Add the amount scolled to
   // calculate the absolute position of the element.
-  var scrollX, scrollY;
+  var scroll_x, scroll_y;
   // From https://developer.mozilla.org/en-US/docs/DOM/window.scrollX
-  scrollX = (window.pageXOffset !== undefined) ? window.pageXOffset :
+  scroll_x = (window.pageXOffset !== undefined) ? window.pageXOffset :
       (document.documentElement ||
        document.body.parentNode ||
        document.body).scrollLeft;
-  scrollY = (window.pageYOffset !== undefined) ? window.pageYOffset :
+  scroll_y = (window.pageYOffset !== undefined) ? window.pageYOffset :
       (document.documentElement ||
        document.body.parentNode ||
        document.body).scrollTop;
 
   return {
-    top: rect.top + scrollY,
-    left: rect.left + scrollX
+    top: rect.top + scroll_y,
+    left: rect.left + scroll_x
   };
 };
-
 
 /**
  * Returns true if an element is visible upon initial page load.
@@ -113,8 +119,7 @@ pagespeed.CriticalImagesBeacon.prototype.isCritical_ = function(element) {
   // Only return 1 image as critical if there are multiple images that have the
   // same location. This is to handle sliders with many images in the same
   // location, but most of which only appear after onload.
-  var elLocationStr = elLocation.top.toString() + ',' +
-      elLocation.left.toString();
+  var elLocationStr = JSON.stringify(elLocation);
   if (this.imgLocations_.hasOwnProperty(elLocationStr)) {
     return false;
   } else {
@@ -125,6 +130,39 @@ pagespeed.CriticalImagesBeacon.prototype.isCritical_ = function(element) {
           elLocation.left <= this.windowSize_.width);
 };
 
+/**
+ * Send the beacon as an AJAX POST request to the server.
+ * @param {string} data The data to be sent in the POST.
+ * @return {boolean} Return true if the request was sent.
+ * @private
+ */
+pagespeed.CriticalImagesBeacon.prototype.sendBeacon_ = function(data) {
+  var httpRequest;
+  // TODO(jud): Use the closure goog.net.Xhrlo.send function here once we have
+  // closure lib support in our static JS files.
+  if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+    httpRequest = new XMLHttpRequest();
+  } else if (window.ActiveXObject) { // IE
+    try {
+      httpRequest = new ActiveXObject('Msxml2.XMLHTTP');
+    }
+    catch (e) {
+      try {
+        httpRequest = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      catch (e2) {}
+    }
+  }
+  if (!httpRequest) {
+    return false;
+  }
+
+  httpRequest.open('POST', this.beaconUrl_);
+  httpRequest.setRequestHeader(
+      'Content-Type', 'application/x-www-form-urlencoded');
+  httpRequest.send(data);
+  return true;
+};
 
 /**
  * Check position of images and input tags and beacon back images that are
@@ -135,130 +173,83 @@ pagespeed.CriticalImagesBeacon.prototype.checkCriticalImages_ = function() {
   // Define the maximum size of a POST that the server will accept. We shouldn't
   // send more data than this.
   // TODO(jud): Factor out this const so that it matches kMaxPostSizeBytes.
-  /** @const */ var MAX_DATA_LEN = 131072;
+  var MAX_DATA_LEN = 131072;
 
   // List of tags whose elements we will check to see if they are critical.
   var tags = ['img', 'input'];
-
-  var criticalImgs = [];
-  // Use an object to store the keys for criticalImgs so that we get a unique
-  // list of them.
-  var criticalImgsKeys = {};
+  // Use an object to store the critical_imgs so that we get a unique (no
+  // duplicates) list of them.
+  var critical_imgs = {};
 
   for (var i = 0; i < tags.length; ++i) {
     var elements = document.getElementsByTagName(tags[i]);
     for (var j = 0; j < elements.length; ++j) {
-      var key = elements[j].getAttribute('pagespeed_url_hash');
       // TODO(jud): Remove the check for getBoundingClientRect below, either by
       // making elLocation_ work correctly if it isn't defined, or updating the
       // user agent whitelist to exclude UAs that don't support it correctly.
-      if (key && elements[j].getBoundingClientRect &&
+      if (elements[j].hasAttribute('pagespeed_url_hash') &&
+          elements[j].getBoundingClientRect &&
           this.isCritical_(elements[j])) {
-        if (!(key in criticalImgsKeys)) {
-          criticalImgs.push(key);
-          criticalImgsKeys[key] = true;
-        }
+        critical_imgs[elements[j].getAttribute('pagespeed_url_hash')] = true;
       }
     }
   }
-  var isDataAvailable = false;
-  var data = 'oh=' + this.optionsHash_;
-  if (this.nonce_) {
-    data += '&n=' + this.nonce_;
-  }
-
-  if (criticalImgs.length != 0) {
-    data += '&ci=' + encodeURIComponent(criticalImgs[0]);
-    for (var i = 1; i < criticalImgs.length; ++i) {
-      var tmp = ',' + encodeURIComponent(criticalImgs[i]);
+  critical_imgs = Object.keys(critical_imgs);
+  if (critical_imgs.length != 0) {
+    var data = 'url=' + encodeURIComponent(this.htmlUrl_);
+    data += '&oh=' + this.optionsHash_;
+    data += '&ci=' + encodeURIComponent(critical_imgs[0]);
+    for (var i = 1; i < critical_imgs.length; ++i) {
+      var tmp = ',' + encodeURIComponent(critical_imgs[i]);
       if ((data.length + tmp.length) > MAX_DATA_LEN) {
         break;
       }
       data += tmp;
     }
-    isDataAvailable = true;
-  }
-
-  // Add rendered image dimensions as a query param to the beacon url.
-  if (this.checkRenderedImageSizes_) {
-    var tmp = '&rd=' +
-        encodeURIComponent(JSON.stringify(this.getImageRenderedMap()));
-    if (data.length + tmp.length <= MAX_DATA_LEN) {
-      data += tmp;
-    }
-    isDataAvailable = true;
-  }
-
-  // Export the URL for testing purposes.
-  pagespeed['criticalImagesBeaconData'] = data;
-  if (isDataAvailable) {
+    // Export the URL for testing purposes.
+    pagespeed['criticalImagesBeaconData'] = data;
     // TODO(jud): This beacon should coordinate with the add_instrumentation JS
     // so that only one beacon request is sent if both filters are enabled.
-    pagespeedutils.sendBeacon(this.beaconUrl_, this.htmlUrl_, data);
+    this.sendBeacon_(data);
   }
 };
-
 
 /**
- * Retrieves the rendered width and height of images.
- * @return {{
- *          renderedWidth: (number|undefined),
- *          renderedHeight: (number|undefined),
- *          originalWidth: (number|undefined),
- *          originalHeight: (number|undefined)
- *          }}
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
  *
+ * TODO(nikhilmadan): Avoid duplication with the DeferJs code.
  */
-pagespeed.CriticalImagesBeacon.prototype.getImageRenderedMap = function() {
-  var renderedImageDimensions = {};
-  // TODO(poojatandon): Get elements for 'input' tag with type="image".
-  var images = document.getElementsByTagName('img');
-  for (var i = 0; i < images.length; ++i) {
-    var img = images[i];
-    var key = img.getAttribute('pagespeed_url_hash');
-    // naturalWidth and naturalHeight is defined for all browsers except in IE
-    // versions 8 and before (non HTML5 support).
-    // We bail out in case of other browsers or if hash is undefined.
-    if (typeof img.naturalWidth == 'undefined' ||
-        typeof img.naturalHeight == 'undefined' ||
-        typeof key == 'undefined') {
-      return renderedImageDimensions;
-    }
-    if ((typeof(renderedImageDimensions[img.src]) == 'undefined' &&
-         img.width > 0 && img.height > 0 &&
-         img.naturalWidth > 0 && img.naturalHeight > 0) ||
-        (typeof(renderedImageDimensions[img.src]) != 'undefined' &&
-         img.width >= renderedImageDimensions[img.src].renderedWidth &&
-         img.height >= renderedImageDimensions[img.src].renderedHeight)) {
-      renderedImageDimensions[key] = {
-        'renderedWidth' : img.width,
-        'renderedHeight' : img.height,
-        'originalWidth' : img.naturalWidth,
-        'originalHeight' : img.naturalHeight
-      };
-    }
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
   }
-  return renderedImageDimensions;
 };
-
 
 /**
  * Initialize.
  * @param {string} beaconUrl The URL on the server to send the beacon to.
  * @param {string} htmlUrl Url of the page the beacon is being inserted on.
  * @param {string} optionsHash The hash of the rewrite options.
- * @param {boolean} checkRenderedImageSizes The bool to show if resizing is
- *     being done using the rendered dimensions. If yes we capture the rendered
- *     dimensions and send it back with the beacon.
- * @param {string} nonce The nonce sent by the server.
  */
-pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl, optionsHash,
-    checkRenderedImageSizes, nonce) {
+pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl, optionsHash) {
   var temp = new pagespeed.CriticalImagesBeacon(
-      beaconUrl, htmlUrl, optionsHash, checkRenderedImageSizes, nonce);
+      beaconUrl, htmlUrl, optionsHash);
   // Add event to the onload handler to scan images and beacon back the visible
   // ones.
-  var beaconOnload = function() {
+  var beacon_onload = function() {
     // Attempt not to block other onload events on the page by wrapping in
     // setTimeout().
     // TODO(jud): checkCriticalImages_ should not run until after lazyload
@@ -269,7 +260,7 @@ pagespeed.criticalImagesBeaconInit = function(beaconUrl, htmlUrl, optionsHash,
       temp.checkCriticalImages_();
     }, 0);
   };
-  pagespeedutils.addHandler(window, 'load', beaconOnload);
+  pagespeed.addHandler(window, 'load', beacon_onload);
 };
 
 pagespeed['criticalImagesBeaconInit'] = pagespeed.criticalImagesBeaconInit;

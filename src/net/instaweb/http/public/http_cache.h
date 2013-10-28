@@ -32,6 +32,7 @@
 
 namespace net_instaweb {
 
+class AbstractLogRecord;
 class Hasher;
 class MessageHandler;
 class RequestHeaders;
@@ -47,8 +48,6 @@ class HTTPCache {
   static const char kCacheTimeUs[];
   static const char kCacheHits[];
   static const char kCacheMisses[];
-  static const char kCacheBackendHits[];
-  static const char kCacheBackendMisses[];
   static const char kCacheFallbacks[];
   static const char kCacheExpirations[];
   static const char kCacheInserts[];
@@ -57,8 +56,8 @@ class HTTPCache {
   // The prefix used for Etags.
   static const char kEtagPrefix[];
 
-  // Function to format etags.
-  static GoogleString FormatEtag(StringPiece hash);
+  // Format that is used while generating Etags.
+  static const char kEtagFormat[];
 
   // Does not take ownership of any inputs.
   HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
@@ -88,7 +87,7 @@ class HTTPCache {
         : response_headers_(NULL),
           owns_response_headers_(false),
           request_ctx_(request_ctx),
-          is_background_(false) {
+          log_timing_(true) {
     }
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
@@ -118,13 +117,6 @@ class HTTPCache {
     // the cache ttl of the stored value.
     virtual int64 OverrideCacheTtlMs(const GoogleString& key) { return -1; }
 
-    // Called upon completion of a cache lookup trigged by HTTPCache::Find by
-    // the HTTPCache code with the latency in milliseconds.  Will invoke
-    // ReportLatencyMsImpl for non-background fetches in order for system
-    // implementations, like RequestContext::TimingInfo, to record the cache
-    // latency.
-    void ReportLatencyMs(int64 latency_ms);
-
     // TODO(jmarantz): specify the dataflow between http_value and
     // response_headers.
     HTTPValue* http_value() { return &http_value_; }
@@ -148,15 +140,12 @@ class HTTPCache {
     }
     HTTPValue* fallback_http_value() { return &fallback_http_value_; }
 
+    AbstractLogRecord* log_record();
     const RequestContextPtr& request_context() { return request_ctx_; }
-    void set_is_background(bool is_background) {
-      is_background_ = is_background;
-    }
+    void set_log_timing(bool t) { log_timing_ = t; }
+    bool log_timing() const { return log_timing_; }
 
-   protected:
-    // Virtual implementation for subclasses to override.  Default
-    // implementation calls RequestContext::TimingInfo::SetHTTPCacheLatencyMs.
-    virtual void ReportLatencyMsImpl(int64 latency_ms);
+    virtual void SetTimingMs(int64 timing_value_ms);
 
    private:
     HTTPValue http_value_;
@@ -166,7 +155,7 @@ class HTTPCache {
     ResponseHeaders* response_headers_;
     bool owns_response_headers_;
     RequestContextPtr request_ctx_;
-    bool is_background_;
+    bool log_timing_;
 
     DISALLOW_COPY_AND_ASSIGN(Callback);
   };
@@ -322,10 +311,7 @@ class HTTPCache {
   HTTPValue* ApplyHeaderChangesForPut(
       const GoogleString& key, int64 start_us, const StringPiece* content,
       ResponseHeaders* headers, HTTPValue* value, MessageHandler* handler);
-  void UpdateStats(const GoogleString& key,
-                   CacheInterface::KeyState backend_state, FindResult result,
-                   bool has_fallback, bool is_expired, int64 delta_us,
-                   MessageHandler* handler);
+  void UpdateStats(FindResult result, bool has_fallback, int64 delta_us);
   void RememberFetchFailedorNotCacheableHelper(
       const GoogleString& key, MessageHandler* handler, HttpStatus::Code code,
       int64 ttl_sec);
@@ -336,23 +322,13 @@ class HTTPCache {
   bool force_caching_;
   // Whether to disable caching of HTML content fetched via https.
   bool disable_html_caching_on_https_;
-
-  // Total cumulative time spent accessing backend cache.
   Variable* cache_time_us_;
-  // # of Find() requests which are found in cache and are still valid.
   Variable* cache_hits_;
-  // # of other Find() requests that fail or are expired.
   Variable* cache_misses_;
-  // # of Find() requests which are found in backend cache (whether or not
-  // they are valid).
-  Variable* cache_backend_hits_;
-  // # of Find() requests not found in backend cache.
-  Variable* cache_backend_misses_;
   Variable* cache_fallbacks_;
   Variable* cache_expirations_;
   Variable* cache_inserts_;
   Variable* cache_deletes_;
-
   GoogleString name_;
   int64 remember_not_cacheable_ttl_seconds_;
   int64 remember_fetch_failed_ttl_seconds_;

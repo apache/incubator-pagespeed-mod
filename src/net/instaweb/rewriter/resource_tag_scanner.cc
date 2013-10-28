@@ -19,10 +19,12 @@
 
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -45,187 +47,145 @@ const char kRelDnsPrefetch[] = "dns-prefetch";
 
 const char kAttrValImage[] = "image";  // <input type="image" src=...>
 
-namespace {
-
-bool IsAttributeValid(HtmlElement::Attribute* attr) {
-  return attr != NULL && !attr->decoding_error();
-}
-
-semantic_type::Category CategorizeAttributeBySpec(
-    const HtmlElement* element, HtmlName::Keyword attribute_name) {
-  switch (element->keyword()) {
+HtmlElement::Attribute* ScanElement(
+    HtmlElement* element,
+    RewriteDriver* driver,  // Can be NULL.
+    semantic_type::Category* category) {
+  HtmlName::Keyword keyword = element->keyword();
+  HtmlElement::Attribute* attr = NULL;
+  *category = semantic_type::kUndefined;
+  if (element->attributes().IsEmpty()) {
+    return NULL;  // No attributes.
+  }
+  switch (keyword) {
     case HtmlName::kLink: {
-      // See http://www.whatwg.org/specs/web-apps/current-work/multipage/links.html#linkTypes
-      if (attribute_name != HtmlName::kHref) {
-        return semantic_type::kUndefined;
-      }
-      const HtmlElement::Attribute* rel_attr =
-          element->FindAttribute(HtmlName::kRel);
-      if (rel_attr == NULL) {
-        return semantic_type::kHyperlink;
-      }
-      if (CssTagScanner::IsStylesheetOrAlternate(
-              rel_attr->DecodedValueOrNull())) {
-        return semantic_type::kStylesheet;
-      }
-      // Ignore keywords we don't recognize, to deal with cases like
-      // "shortcut icon" where shortcut is simply ignored.
-      StringPieceVector values;
-      SplitStringPieceToVector(rel_attr->DecodedValueOrNull(),
-                               " ", &values, true /* skip empty */);
-      // Image takes precedence over prefetch, so look for images first.
-      for (int i = 0, n = values.size(); i < n; ++i) {
-        if (StringCaseEqual(values[i], kIcon) ||
-            StringCaseEqual(values[i], kAppleTouchIcon) ||
-            StringCaseEqual(values[i], kAppleTouchIconPrecomposed) ||
-            StringCaseEqual(values[i], kAppleTouchStartupImage)) {
-          return semantic_type::kImage;
+      // See http://www.whatwg.org/specs/web-apps/current-work/multipage/
+      // links.html#linkTypes
+      attr = element->FindAttribute(HtmlName::kHref);
+      *category = semantic_type::kHyperlink;
+      HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
+      if (rel_attr != NULL) {
+        if (CssTagScanner::IsStylesheetOrAlternate(
+                rel_attr->DecodedValueOrNull())) {
+          *category = semantic_type::kStylesheet;
+        } else {
+          // Ignore keywords we don't recognize, to deal with cases like
+          // "shortcut icon" where shortcut is simply ignored.
+          StringPieceVector values;
+          SplitStringPieceToVector(rel_attr->DecodedValueOrNull(),
+                                   " ", &values, true /* skip empty */);
+          for (int i = 0, n = values.size(); i < n; ++i) {
+            if (StringCaseEqual(values[i], kIcon) ||
+                StringCaseEqual(values[i], kAppleTouchIcon) ||
+                StringCaseEqual(values[i], kAppleTouchIconPrecomposed) ||
+                StringCaseEqual(values[i], kAppleTouchStartupImage)) {
+              *category = semantic_type::kImage;
+              break;  // Image takes precedence over prefetch.
+            } else if (StringCaseEqual(values[i], kRelPrefetch) ||
+                       StringCaseEqual(values[i], kRelDnsPrefetch)) {
+              *category = semantic_type::kPrefetch;
+            }
+          }
         }
       }
-      for (int i = 0, n = values.size(); i < n; ++i) {
-        if (StringCaseEqual(values[i], kRelPrefetch) ||
-            StringCaseEqual(values[i], kRelDnsPrefetch)) {
-          return semantic_type::kPrefetch;
-        }
-      }
-      return semantic_type::kUndefined;
+      break;
     }
     case HtmlName::kScript:
-      return (attribute_name == HtmlName::kSrc ?
-              semantic_type::kScript : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kSrc);
+      *category = semantic_type::kScript;
+      break;
     case HtmlName::kImg:
-      if (attribute_name == HtmlName::kSrc) {
-        return semantic_type::kImage;
-      }
-      if (attribute_name == HtmlName::kLongdesc) {
-        return semantic_type::kHyperlink;
-      }
-      return semantic_type::kUndefined;
+      attr = element->FindAttribute(HtmlName::kSrc);
+      *category = semantic_type::kImage;
+      break;
     case HtmlName::kBody:
-      if (attribute_name == HtmlName::kBackground) {
-        return semantic_type::kImage;
-      }
-      if (attribute_name == HtmlName::kCite) {
-        return semantic_type::kHyperlink;
-      }
-      return semantic_type::kUndefined;
     case HtmlName::kTd:
     case HtmlName::kTh:
     case HtmlName::kTable:
     case HtmlName::kTbody:
     case HtmlName::kTfoot:
     case HtmlName::kThead:
-      return (attribute_name == HtmlName::kBackground ?
-              semantic_type::kImage : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kBackground);
+      *category = semantic_type::kImage;
+      break;
     case HtmlName::kInput:
-      if (attribute_name == HtmlName::kFormaction) {
-        return semantic_type::kHyperlink;
-      }
       if (StringCaseEqual(element->AttributeValue(HtmlName::kType),
-                          kAttrValImage) &&
-          attribute_name == HtmlName::kSrc) {
-        return semantic_type::kImage;
+                          kAttrValImage)) {
+        attr = element->FindAttribute(HtmlName::kSrc);
+        *category = semantic_type::kImage;
       }
-      return semantic_type::kUndefined;
+      break;
     case HtmlName::kCommand:
-      return (attribute_name == HtmlName::kIcon ?
-              semantic_type::kImage : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kIcon);
+      *category = semantic_type::kImage;
+      break;
     case HtmlName::kA:
     case HtmlName::kArea:
-      return (attribute_name == HtmlName::kHref ?
-              semantic_type::kHyperlink : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kHref);
+      *category = semantic_type::kHyperlink;
+      break;
     case HtmlName::kForm:
-      return (attribute_name == HtmlName::kAction ?
-              semantic_type::kHyperlink : semantic_type::kUndefined);
-    case HtmlName::kVideo:
-      if (attribute_name == HtmlName::kSrc) {
-        return semantic_type::kOtherResource;
-      }
-      if (attribute_name == HtmlName::kPoster) {
-        return semantic_type::kImage;
-      }
-      return semantic_type::kUndefined;
+      attr = element->FindAttribute(HtmlName::kAction);
+      *category = semantic_type::kHyperlink;
+      break;
     case HtmlName::kAudio:
+    case HtmlName::kVideo:
     case HtmlName::kSource:
     case HtmlName::kTrack:
     case HtmlName::kEmbed:
-      return (attribute_name == HtmlName::kSrc ?
-              semantic_type::kOtherResource : semantic_type::kUndefined);
     case HtmlName::kFrame:
     case HtmlName::kIframe:
-      if (attribute_name == HtmlName::kSrc) {
-        return semantic_type::kOtherResource;
-      }
-      if (attribute_name == HtmlName::kLongdesc) {
-        return semantic_type::kHyperlink;
-      }
-      return semantic_type::kUndefined;
+      attr = element->FindAttribute(HtmlName::kSrc);
+      *category = semantic_type::kOtherResource;
+      break;
     case HtmlName::kHtml:
-      return (attribute_name == HtmlName::kManifest ?
-              semantic_type::kOtherResource : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kManifest);
+      *category = semantic_type::kOtherResource;
+      break;
     case HtmlName::kBlockquote:
     case HtmlName::kQ:
     case HtmlName::kIns:
     case HtmlName::kDel:
-      return (attribute_name == HtmlName::kCite ?
-              semantic_type::kHyperlink : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kCite);
+      *category = semantic_type::kHyperlink;
+      break;
     case HtmlName::kButton:
-      return (attribute_name == HtmlName::kFormaction ?
-              semantic_type::kHyperlink : semantic_type::kUndefined);
+      attr = element->FindAttribute(HtmlName::kFormaction);
+      *category = semantic_type::kHyperlink;
+      break;
     default:
       break;
   }
-  return semantic_type::kUndefined;
-}
-
-}  // namespace
-
-semantic_type::Category CategorizeAttribute(
-    const HtmlElement* element,
-    const HtmlElement::Attribute* attribute,
-    const RewriteOptions* options) {
-
-  if (attribute == NULL) {
-    return semantic_type::kUndefined;
-  }
-
-  // Handle spec-defined attributes.
-  semantic_type::Category spec_category =
-      CategorizeAttributeBySpec(element, attribute->keyword());
-  if (spec_category != semantic_type::kUndefined) {
-    return spec_category;
-  }
-
-  // Handle user-defined attributes.
-  for (int i = 0, n = options->num_url_valued_attributes(); i < n; ++i) {
-    StringPiece element_i;
-    StringPiece attribute_i;
-    semantic_type::Category category_i;
-    options->UrlValuedAttribute(i, &element_i, &attribute_i, &category_i);
-    if (StringCaseEqual(element->name_str(), element_i) &&
-        StringCaseEqual(attribute->name_str(), attribute_i)) {
-      return category_i;
-    }
-  }
-  return semantic_type::kUndefined;
-}
-
-void ScanElement(HtmlElement* element,
-                 const RewriteOptions* options,
-                 UrlCategoryVector* attributes) {
-  HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  for (HtmlElement::AttributeIterator i = attrs->begin();
-       i != attrs->end(); ++i) {
-    UrlCategoryPair url_category_pair;
-    url_category_pair.url = i.Get();
-    if (IsAttributeValid(url_category_pair.url)) {
-      url_category_pair.category = CategorizeAttribute(
-          element, url_category_pair.url, options);
-      if (url_category_pair.category != semantic_type::kUndefined) {
-        attributes->push_back(url_category_pair);
+  if (*category == semantic_type::kUndefined && driver != NULL) {
+    // Find matching elements.
+    for (int i = 0, n = driver->options()->num_url_valued_attributes();
+         i < n; ++i) {
+      StringPiece element_i;
+      StringPiece attribute_i;
+      semantic_type::Category category_i;
+      driver->options()->UrlValuedAttribute(
+          i, &element_i, &attribute_i, &category_i);
+      if (StringCaseEqual(element->name_str(), element_i)) {
+        // Find matching attributes.
+        HtmlElement::AttributeList* attrs = element->mutable_attributes();
+        for (HtmlElement::AttributeIterator j = attrs->begin();
+             j != attrs->end(); ++j) {
+          HtmlElement::Attribute* attribute_j = j.Get();
+          if (StringCaseEqual(attribute_j->name_str(), attribute_i) &&
+              !attribute_j->decoding_error()) {
+            *category = category_i;
+            return attribute_j;
+          }
+        }
       }
     }
   }
+  if (attr == NULL || attr->decoding_error() ||
+      *category == semantic_type::kUndefined) {
+    attr = NULL;
+    *category = semantic_type::kUndefined;
+  }
+  return attr;
 }
 
 }  // namespace resource_tag_scanner

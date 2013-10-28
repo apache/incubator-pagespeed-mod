@@ -53,6 +53,39 @@ void AbstractLogRecord::SetIsHtml(bool is_html) {
   logging_info()->set_is_html_response(true);
 }
 
+int AbstractLogRecord::AddPropertyCohortInfo(const GoogleString& cohort) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->add_cohort_info();
+  cohort_info->set_name(cohort);
+  return logging_info()->property_page_info().cohort_info_size() - 1;
+}
+
+void AbstractLogRecord::AddFoundPropertyToCohortInfo(
+    int index, const GoogleString& property) {
+  ScopedMutex lock(mutex_.get());
+  logging_info()->mutable_property_page_info()->mutable_cohort_info(index)->
+      add_properties_found(property);
+}
+
+void AbstractLogRecord::SetCacheStatusForCohortInfo(
+    int index, bool found, int key_state) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->mutable_cohort_info(index);
+  cohort_info->set_is_cache_hit(found);
+  cohort_info->set_cache_key_state(key_state);
+}
+
+void AbstractLogRecord::SetDeviceAndCacheTypeForCohortInfo(
+    int index, int device_type, int cache_type) {
+  ScopedMutex lock(mutex_.get());
+  PropertyCohortInfo* cohort_info =
+      logging_info()->mutable_property_page_info()->mutable_cohort_info(index);
+  cohort_info->set_device_type(device_type);
+  cohort_info->set_cache_type(cache_type);
+}
+
 RewriterInfo* AbstractLogRecord::NewRewriterInfo(const char* rewriter_id) {
   ScopedMutex lock(mutex_.get());
   if (rewriter_info_max_size_ != -1 &&
@@ -129,6 +162,15 @@ void AbstractLogRecord::SetCacheHtmlRequestFlow(int flow) {
 void AbstractLogRecord::SetIsOriginalResourceCacheable(bool cacheable) {
   ScopedMutex lock(mutex_.get());
   logging_info()->set_is_original_resource_cacheable(cacheable);
+}
+
+void AbstractLogRecord::SetTimeFromRequestStart(SetTimeFromStartFn fn,
+                                                int64 end_ms) {
+  ScopedMutex lock(mutex_.get());
+  TimingInfo* timing_info = logging_info()->mutable_timing_info();
+  if (timing_info->has_request_start_ms()) {
+    (timing_info->*fn)(end_ms - timing_info->request_start_ms());
+  }
 }
 
 void AbstractLogRecord::SetBlinkInfo(const GoogleString& user_agent) {
@@ -212,6 +254,34 @@ void AbstractLogRecord::LogFlushEarlyActivity(
   flush_early_resource_info->set_in_head(in_head);
 }
 
+void AbstractLogRecord::LogImageRewriteActivity(
+    const char* id,
+    const GoogleString& url,
+    RewriterApplication::Status status,
+    bool is_image_inlined,
+    bool is_critical_image,
+    bool try_low_res_src_insertion,
+    bool low_res_src_inserted,
+    int low_res_data_size) {
+  RewriterInfo* rewriter_info = SetRewriterLoggingStatusHelper(id, url, status);
+  if (rewriter_info == NULL) {
+    return;
+  }
+
+  ScopedMutex lock(mutex_.get());
+  RewriteResourceInfo* rewrite_resource_info =
+      rewriter_info->mutable_rewrite_resource_info();
+  rewrite_resource_info->set_is_inlined(is_image_inlined);
+  rewrite_resource_info->set_is_critical(is_critical_image);
+  if (try_low_res_src_insertion) {
+    ImageRewriteResourceInfo* image_rewrite_resource_info =
+        rewriter_info->mutable_image_rewrite_resource_info();
+    image_rewrite_resource_info->set_is_low_res_src_inserted(
+        low_res_src_inserted);
+    image_rewrite_resource_info->set_low_res_size(low_res_data_size);
+  }
+}
+
 void AbstractLogRecord::LogJsDisableFilter(const char* id,
                                    bool has_pagespeed_no_defer) {
   RewriterInfo* rewriter_info = SetRewriterLoggingStatusHelper(
@@ -274,6 +344,14 @@ void AbstractLogRecord::SetNumCssCriticalImages(int num_css_critical_images) {
   logging_info()->set_num_css_critical_images(num_css_critical_images);
 }
 
+void AbstractLogRecord::SetImageStats(int num_img_tags,
+                                      int num_inlined_img_tags) {
+  ScopedMutex lock(mutex_.get());
+  logging_info()->mutable_image_stats()->set_num_img_tags(num_img_tags);
+  logging_info()->mutable_image_stats()
+      ->set_num_inlined_img_tags(num_inlined_img_tags);
+}
+
 void AbstractLogRecord::SetCriticalCssInfo(int critical_inlined_bytes,
                                    int original_external_bytes,
                                    int overhead_bytes) {
@@ -315,17 +393,33 @@ void AbstractLogRecord::PopulateRewriterStatusCounts() {
       status_count->set_application_status(application_status);
       status_count->set_count(count);
     }
-    if (stats_proto->html_status() == RewriterHtmlApplication::UNKNOWN_STATUS &&
-        stats_proto->status_counts_size() > 0) {
-      // The filter was active if there are any status counts.
-      stats_proto->set_html_status(RewriterHtmlApplication::ACTIVE);
-    }
   }
 }
 
-void AbstractLogRecord::LogIsXhr(bool is_xhr) {
+void AbstractLogRecord::LogDeviceInfo(
+    int device_type,
+    bool supports_image_inlining,
+    bool supports_lazyload_images,
+    bool supports_critical_images_beacon,
+    bool supports_deferjs,
+    bool supports_webp,
+    bool supports_webplossless_alpha,
+    bool is_bot,
+    bool supports_split_html,
+    bool can_preload_resources) {
   ScopedMutex lock(mutex_.get());
-  logging_info()->set_is_xhr(is_xhr);
+  DeviceInfo* device_info = logging_info()->mutable_device_info();
+  device_info->set_device_type(device_type);
+  device_info->set_supports_image_inlining(supports_image_inlining);
+  device_info->set_supports_lazyload_images(supports_lazyload_images);
+  device_info->set_supports_critical_images_beacon(
+      supports_critical_images_beacon);
+  device_info->set_supports_deferjs(supports_deferjs);
+  device_info->set_supports_webp(supports_webp);
+  device_info->set_supports_webplossless_alpha(supports_webplossless_alpha);
+  device_info->set_is_bot(is_bot);
+  device_info->set_supports_split_html(supports_split_html);
+  device_info->set_can_preload_resources(can_preload_resources);
 }
 
 void AbstractLogRecord::LogImageBackgroundRewriteActivity(
@@ -337,12 +431,7 @@ void AbstractLogRecord::LogImageBackgroundRewriteActivity(
     bool is_recompressed,
     ImageType original_image_type,
     ImageType optimized_image_type,
-    bool is_resized,
-    int original_width,
-    int original_height,
-    bool is_resized_using_rendered_dimensions,
-    int resized_width,
-    int resized_height) {
+    bool is_resized) {
   RewriterInfo* rewriter_info = NewRewriterInfo(id);
   if (rewriter_info == NULL) {
     return;
@@ -382,12 +471,6 @@ void AbstractLogRecord::LogImageBackgroundRewriteActivity(
   }
 
   image_rewrite_resource_info->set_is_resized(is_resized);
-  image_rewrite_resource_info->set_original_width(original_width);
-  image_rewrite_resource_info->set_original_height(original_height);
-  image_rewrite_resource_info->set_is_resized_using_rendered_dimensions(
-      is_resized_using_rendered_dimensions);
-  image_rewrite_resource_info->set_resized_width(resized_width);
-  image_rewrite_resource_info->set_resized_height(resized_height);
 }
 
 void AbstractLogRecord::SetBackgroundRewriteInfo(

@@ -46,9 +46,9 @@ struct FilterMap {
 "convert_to_webp_lossless",          RewriteOptions::kConvertToWebpLossless
 "debug",                             RewriteOptions::kDebug
 "decode_rewritten_urls",             RewriteOptions::kDecodeRewrittenUrls
-"dedup_inlined_images",              RewriteOptions::kDedupInlinedImages
 "defer_iframe",                      RewriteOptions::kDeferIframe
 "defer_javascript",                  RewriteOptions::kDeferJavascript
+"detect_reflow_with_defer_js",       RewriteOptions::kDetectReflowWithDeferJavascript
 "deterministic_js",                  RewriteOptions::kDeterministicJs
 "disable_javascript",                RewriteOptions::kDisableJavascript
 "div_structure",                     RewriteOptions::kDivStructure
@@ -59,7 +59,6 @@ struct FilterMap {
 "extend_cache_pdfs",                 RewriteOptions::kExtendCachePdfs
 "extend_cache_scripts",              RewriteOptions::kExtendCacheScripts
 "fallback_rewrite_css_urls",         RewriteOptions::kFallbackRewriteCssUrls
-"fix_reflows",                       RewriteOptions::kFixReflows
 "flatten_css_imports",               RewriteOptions::kFlattenCssImports
 "flush_subresources",                RewriteOptions::kFlushSubresources
 "in_place_optimize_for_browser",     RewriteOptions::kInPlaceOptimizeForBrowser
@@ -83,6 +82,7 @@ struct FilterMap {
 "outline_javascript",                RewriteOptions::kOutlineJavascript
 "pedantic",                          RewriteOptions::kPedantic
 "prioritize_critical_css",           RewriteOptions::kPrioritizeCriticalCss
+"prioritize_visible_content",        RewriteOptions::kPrioritizeVisibleContent
 "recompress_jpeg",                   RewriteOptions::kRecompressJpeg
 "recompress_png",                    RewriteOptions::kRecompressPng
 "recompress_webp",                   RewriteOptions::kRecompressWebp
@@ -90,14 +90,12 @@ struct FilterMap {
 "remove_quotes",                     RewriteOptions::kRemoveQuotes
 "resize_images",                     RewriteOptions::kResizeImages
 "resize_mobile_images",              RewriteOptions::kResizeMobileImages
-"resize_rendered_image_dimensions",  RewriteOptions::kResizeToRenderedImageDimensions
 "rewrite_css",                       RewriteOptions::kRewriteCss
 "rewrite_domains",                   RewriteOptions::kRewriteDomains
 "rewrite_javascript",                RewriteOptions::kRewriteJavascript
 "rewrite_style_attributes",          RewriteOptions::kRewriteStyleAttributes
 "rewrite_style_attributes_with_url", RewriteOptions::kRewriteStyleAttributesWithUrl
 "split_html",                        RewriteOptions::kSplitHtml
-"split_html_helper",                 RewriteOptions::kSplitHtmlHelper
 "sprite_images",                     RewriteOptions::kSpriteImages
 "squash_images_for_mobile_screen",   RewriteOptions::kSquashImagesForMobileScreen
 "strip_image_color_profile",         RewriteOptions::kStripImageColorProfile

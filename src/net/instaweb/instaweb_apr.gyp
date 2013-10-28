@@ -38,19 +38,19 @@
         '<(instaweb_root)/instaweb.gyp:instaweb_spriter',
         '<(instaweb_root)/instaweb.gyp:instaweb_system',
         '<(instaweb_root)/instaweb.gyp:instaweb_util',
+        '<(instaweb_root)/instaweb.gyp:instaweb_util_pthread',
         '<(instaweb_root)/instaweb.gyp:process_context',
-        '<(DEPTH)/pagespeed/kernel.gyp:pthread_system',
       ],
       'include_dirs': [
         '<(DEPTH)',
       ],
       'sources': [
+        'apache/add_headers_fetcher.cc',
         'apache/apache_thread_system.cc',
         'apache/apr_file_system.cc',
         'apache/apr_timer.cc',
-        'system/add_headers_fetcher.cc',
-        'system/loopback_route_fetcher.cc',
-        'system/serf_url_async_fetcher.cc',
+        'apache/loopback_route_fetcher.cc',
+        'apache/serf_url_async_fetcher.cc',
       ],
       'export_dependent_settings': [
         '<(instaweb_root)/instaweb.gyp:instaweb_util',

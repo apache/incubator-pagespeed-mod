@@ -21,12 +21,11 @@
 #include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
-#include "net/instaweb/rewriter/public/split_html_beacon_filter.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -53,8 +52,13 @@ void SupportNoscriptFilter::StartDocument() {
 }
 
 void SupportNoscriptFilter::StartElement(HtmlElement* element) {
+  if (rewrite_driver_->options()->Enabled(
+      RewriteOptions::kProcessBlinkInBackground)) {
+    // Lazyload filter can be enabled for blink requests and hence this filter
+    // will get attached.
+    return;
+  }
   if (should_insert_noscript_ && element->keyword() == HtmlName::kBody) {
-    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
     scoped_ptr<GoogleUrl> url_with_psa_off(
         rewrite_driver_->google_url().CopyAndAddQueryParam(
             RewriteQuery::kModPagespeed, RewriteQuery::kNoscriptValue));
@@ -74,8 +78,8 @@ void SupportNoscriptFilter::StartElement(HtmlElement* element) {
 
 bool SupportNoscriptFilter::IsAnyFilterRequiringScriptExecutionEnabled() const {
   const RewriteOptions* options = rewrite_driver_->options();
-  const RequestProperties* request_properties =
-      rewrite_driver_->request_properties();
+  const DeviceProperties* device_properties =
+      rewrite_driver_->device_properties();
   RewriteOptions::FilterVector js_filters;
   options->GetEnabledFiltersRequiringScriptExecution(&js_filters);
   for (int i = 0, n = js_filters.size(); i < n; ++i) {
@@ -84,19 +88,15 @@ bool SupportNoscriptFilter::IsAnyFilterRequiringScriptExecutionEnabled() const {
     switch (filter) {
       case RewriteOptions::kDeferIframe:
       case RewriteOptions::kDeferJavascript:
+      case RewriteOptions::kDetectReflowWithDeferJavascript:
       case RewriteOptions::kSplitHtml:
-        // We don't need to insert a noscript redirect if we are just
-        // instrumenting the page, instead of actually running split HTML.
-        filter_enabled =
-            (request_properties->SupportsJsDefer(
-                 options->enable_aggressive_rewriters_for_mobile()) &&
-             !SplitHtmlBeaconFilter::ShouldApply(rewrite_driver_));
+        filter_enabled = device_properties->SupportsJsDefer(
+            options->enable_aggressive_rewriters_for_mobile());
         break;
-      case RewriteOptions::kDedupInlinedImages:
       case RewriteOptions::kDelayImages:
       case RewriteOptions::kLazyloadImages:
       case RewriteOptions::kLocalStorageCache:
-        filter_enabled = request_properties->SupportsImageInlining();
+        filter_enabled = device_properties->SupportsImageInlining();
         break;
       case RewriteOptions::kFlushSubresources:
         filter_enabled = rewrite_driver_->flushed_early();;

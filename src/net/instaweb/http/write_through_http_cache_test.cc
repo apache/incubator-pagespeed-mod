@@ -35,6 +35,7 @@
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
@@ -110,9 +111,7 @@ class WriteThroughHTTPCacheTest : public testing::Test {
         key_("http://www.test.com/1"),
         key2_("http://www.test.com/2"),
         content_("content"), header_name_("name"),
-        header_value_("value"),
-        cache1_ms_(-1),
-        cache2_ms_(-1) {
+        header_value_("value") {
     HTTPCache::InitStats(&simple_stats_);
     http_cache_.reset(new WriteThroughHTTPCache(
         &cache1_, &cache2_, &mock_timer_, &mock_hasher_, &simple_stats_));
@@ -142,11 +141,6 @@ class WriteThroughHTTPCacheTest : public testing::Test {
       value->Link(callback.http_value());
     }
     headers->CopyFrom(*callback.response_headers());
-    callback.request_context()->timing_info().GetHTTPCacheLatencyMs(
-        &cache1_ms_);
-    callback.request_context()->timing_info().GetL2HTTPCacheLatencyMs(
-        &cache2_ms_);
-
     return callback.result_;
   }
 
@@ -193,9 +187,6 @@ class WriteThroughHTTPCacheTest : public testing::Test {
   const GoogleString header_name_;
   const GoogleString header_value_;
 
-  int64 cache1_ms_;
-  int64 cache2_ms_;
-
  private:
   DISALLOW_COPY_AND_ASSIGN(WriteThroughHTTPCacheTest);
 };
@@ -235,8 +226,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(-1, cache2_ms_);
 
   // Remove the entry from cache1. We find it in cache2. The value is also now
   // inserted into cache1.
@@ -255,8 +244,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(0, cache2_ms_);
 
   // Now advance time 301 seconds and the we should no longer
   // be able to fetch this resource out of the cache. Note that we check both
@@ -276,8 +263,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(0, cache2_ms_);
 
   ClearStats();
   // Test that fallback_http_value() is set correctly.

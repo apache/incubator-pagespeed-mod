@@ -89,10 +89,6 @@ void CssInlineFilter::StartDocumentImpl() {
 CssInlineFilter::~CssInlineFilter() {}
 
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
-  // Don't inline if the CSS element is under <noscript>.
-  if (noscript_element() != NULL) {
-    return;
-  }
   HtmlElement::Attribute* href = NULL;
   const char* media = NULL;
   if (css_tag_scanner_.ParseCssElement(element, &href, &media) &&
@@ -133,15 +129,8 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
 
 bool CssInlineFilter::ShouldInline(const ResourcePtr& resource,
                                    const StringPiece& attrs_charset) const {
-  // If the contents are bigger than our threshold or the contents contain
-  // "</style>" anywhere, don't inline. If we inline an external stylesheet
-  // containing a "</style>", the <style> tag will be ended early.
+  // If the contents are bigger than our threshold, don't inline.
   if (resource->contents().size() > size_threshold_bytes_) {
-    return false;
-  }
-  size_t possible_end_style_pos = FindIgnoreCase(resource->contents(),
-                                                 "</style");
-  if (possible_end_style_pos != StringPiece::npos) {
     return false;
   }
 

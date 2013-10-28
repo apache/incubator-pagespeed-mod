@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
 #include "net/instaweb/util/public/basictypes.h"
@@ -43,8 +42,8 @@
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -87,13 +86,14 @@ class CssFilterTest : public CssRewriteTestBase {
       options()->DisableFilter(RewriteOptions::kExtendCacheImages);
       options()->DisableFilter(RewriteOptions::kSpriteImages);
     }
+    server_context()->ComputeSignature(options());
 
     // Set things up so that RewriteDriver::ShouldAbsolutifyUrl returns true
     // even though we are not proxying (but skip it if it has already been
     // set up by a previous call to this method).
     if (enable_mapping_and_sharding &&
         !options()->domain_lawyer()->can_rewrite_domains()) {
-      DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
+      DomainLawyer* domain_lawyer = options()->domain_lawyer();
       MessageHandler* handler = message_handler();
       ASSERT_TRUE(domain_lawyer->AddDomain("http://cdn.com/", handler));
       ASSERT_TRUE(domain_lawyer->AddDomain("http://test.com/", handler));
@@ -118,7 +118,6 @@ class CssFilterTest : public CssRewriteTestBase {
                                                         &proxying));
       EXPECT_FALSE(proxying);
     }
-    server_context()->ComputeSignature(options());
 
     // By default TestUrlNamer doesn't proxy but we might need it for this test.
     TestUrlNamer::SetProxyMode(enable_proxy_mode);
@@ -142,23 +141,13 @@ class CssFilterTest : public CssRewriteTestBase {
     StringVector css_urls;
     CollectCssLinks(StrCat(id, "_collect"), output_buffer_, &css_urls);
     ASSERT_LE(1UL, css_urls.size());
-    StringPiece prefix;
-    if (enable_mapping_and_sharding) {
-      prefix = "http://cdn1.com/";
-    } else if (factory()->use_test_url_namer()) {
-      prefix = kTestDomain;
-    } else {
-      prefix = "";
-    }
-    EXPECT_EQ(Encode(prefix, "cf", "0", "foo.css", "css"), css_urls[0]);
-
-    // Get absolute CSS URL.
-    GoogleUrl base_url(kTestDomain);
-    GoogleUrl css_url(base_url, css_urls[0]);
+    StringPiece domain(enable_mapping_and_sharding
+                       ? "http://cdn1.com/" : kTestDomain);
+    EXPECT_EQ(Encode(domain, "cf", "0", "foo.css", "css"), css_urls[0]);
 
     // Check the content of the CSS file.
     GoogleString actual_output;
-    EXPECT_TRUE(FetchResourceUrl(css_url.Spec(), &actual_output));
+    EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
     EXPECT_STREQ(expected_output, actual_output);
   }
 
@@ -177,10 +166,12 @@ class CssFilterTest : public CssRewriteTestBase {
                                           input_image_name);
     GoogleString css_input = StringPrintf("body{background:url(%s)}",
                                           input_image_name);
-    GoogleString css_output = StringPrintf("body{background:url(%s)}",
+    GoogleString css_output = StringPrintf("body{background:url(%s%s)}",
+                                           kTestDomain,
                                            image_out.c_str());
-    GoogleString expected_url = StringPrintf(output_css_name_template,
-                                             kInputCssName);
+    GoogleString expected_url = StrCat(kTestDomain,
+                                       StringPrintf(output_css_name_template,
+                                                    kInputCssName));
     AddFileToMockFetcher(StrCat(kTestDomain, input_image_name),
                          input_image_name, image_content_type, 100);
     server_context()->ComputeSignature(options());
@@ -196,8 +187,7 @@ class CssFilterTest : public CssRewriteTestBase {
 
     // Check the content of the CSS file.
     GoogleString actual_output;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, css_urls[0]),
-                                 &actual_output));
+    EXPECT_TRUE(FetchResourceUrl(css_urls[0], &actual_output));
     EXPECT_STREQ(css_output, actual_output);
   }
 };
@@ -215,32 +205,6 @@ TEST_F(CssFilterTest, SimpleRewriteCssTestExternalUnhealthy) {
   lru_cache()->set_is_healthy(false);
   ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
                              kExpectNoChange);
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropAll) {
-  // Test that randomized optimization doesn't rewrite when drop % set to 100
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(100);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectNoChange);
-    lru_cache()->Clear();
-    ClearStats();
-  }
-}
-
-TEST_F(CssFilterTest, CssRewriteRandomDropNone) {
-  // Test that randomized optimization always rewrites when drop % set to 0.
-  options()->ClearSignatureForTesting();
-  options()->set_rewrite_random_drop_percentage(0);
-  server_context()->ComputeSignature(options());
-  for (int i = 0; i < 100; ++i) {
-    ValidateRewriteExternalCss("rewrite_css", kInputStyle, kOutputStyle,
-                               kExpectSuccess);
-    lru_cache()->Clear();
-    ClearStats();
-  }
 }
 
 TEST_F(CssFilterTest, RewriteCss404) {
@@ -1340,13 +1304,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
       "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
       "font-family:Arial!important}" },
-
-    // https://code.google.com/p/modpagespeed/issues/detail?id=722
-    { ".a { color: red; }\n"
-      "@import url('foo.css');\n"
-      ".b { color: blue; }\n",
-
-      ".a{color:red}@import url('foo.css');.b{color:#00f}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1945,7 +1902,7 @@ TEST_F(CssFilterTest, EmptyLeafFetch) {
 // http://code.google.com/p/modpagespeed/issues/detail?id=427
 TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
-  ValidateRewriteExternalCssUrl("empty_leaf", StrCat(kTestDomain, "style/"),
+  ValidateRewriteExternalCssUrl(StrCat(kTestDomain, "style/"),
                                 kInputStyle, kOutputStyle, kExpectSuccess);
 }
 
@@ -2024,7 +1981,7 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
   SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, kInputStyle, 100);
 
   const char html_format[] = "<link rel='%s' href='%s' title='foo'>";
-  const GoogleString new_url = Encode("", "cf", "0", "foo.css", "css");
+  const GoogleString new_url = Encode(kTestDomain, "cf", "0", "foo.css", "css");
 
   ValidateExpected("preferred_stylesheet",
                    StringPrintf(html_format, "stylesheet", "foo.css"),

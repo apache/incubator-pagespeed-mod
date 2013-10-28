@@ -20,9 +20,7 @@
 
 #include <map>
 #include <utility>                      // for pair
-
 #include "base/logging.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -34,6 +32,7 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
@@ -49,7 +48,6 @@ void MockUrlFetcher::SetResponse(const StringPiece& url,
   // Note: This is a little kludgey, but if you set a normal response and
   // always perform normal GETs you won't even notice that we've set the
   // last_modified_time internally.
-  DCHECK(response_header.headers_complete());
   SetConditionalResponse(url, 0, "" , response_header, response_body);
 }
 
@@ -88,12 +86,6 @@ void MockUrlFetcher::Clear() {
   STLDeleteContainerPairSecondPointers(response_map_.begin(),
                                        response_map_.end());
   response_map_.clear();
-  // We don't have to protect response_map_ here, since only single
-  // setup/teardown would be called at a time.
-  {
-    ScopedMutex lock(mutex_.get());
-    last_referer_.clear();
-  }
 }
 
 void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
@@ -105,50 +97,20 @@ void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
   }
 }
 
-void MockUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* message_handler,
-    AsyncFetch* fetch) {
-  const RequestHeaders& request_headers = *fetch->request_headers();
-  ResponseHeaders* response_headers = fetch->response_headers();
+bool MockUrlFetcher::StreamingFetchUrl(
+    const GoogleString& url, const RequestHeaders& request_headers,
+    ResponseHeaders* response_headers, Writer* response_writer,
+    MessageHandler* message_handler,
+    const RequestContextPtr& unused_request_context) {
   bool ret = false;
-
-  bool enabled;
-  bool verify_host_header;
-  bool fail_after_headers;
-  bool update_date_headers;
-  bool omit_empty_writes;
-  bool fail_on_unexpected;
-  bool split_writes;
-  GoogleString error_message;
-  Timer* timer;
-  {
-    ScopedMutex lock(mutex_.get());
-    enabled = enabled_;
-    verify_host_header = verify_host_header_;
-    timer = timer_;
-    fail_after_headers = fail_after_headers_;
-    update_date_headers = update_date_headers_;
-    omit_empty_writes = omit_empty_writes_;
-    fail_on_unexpected = fail_on_unexpected_;
-    error_message = error_message_;
-    split_writes = split_writes_;
-  }
-  if (enabled) {
+  if (enabled_) {
     // Verify that the url and Host: header match.
-    if (verify_host_header) {
+    if (verify_host_header_) {
       const char* host_header = request_headers.Lookup1(HttpAttributes::kHost);
       GoogleUrl gurl(url);
       EXPECT_STREQ(gurl.HostAndPort(), host_header);
     }
-    const char* referer = request_headers.Lookup1(HttpAttributes::kReferer);
-    {
-      ScopedMutex lock(mutex_.get());
-      if (referer == NULL) {
-        last_referer_.clear();
-      } else {
-        last_referer_ = referer;
-      }
-    }
+
     ResponseMap::iterator iter = response_map_.find(url);
     if (iter != response_map_.end()) {
       const HttpResponse* response = iter->second;
@@ -177,41 +139,32 @@ void MockUrlFetcher::Fetch(
         response_headers->SetStatusAndReason(HttpStatus::kNotModified);
       } else {
         // Otherwise serve a normal 200 OK response.
-        int64 min_cache_ttl_ms_ = response_headers->min_cache_ttl_ms();
-        int64 implicit_cache_ttl_ms_ =
-             response_headers->implicit_cache_ttl_ms();
         response_headers->CopyFrom(response->header());
-        // implicit_cache_ttl_ms and min_cache_ttl_ms are set to default
-        // values from the origin fetch. The explicit values set in the test
-        // case take precedence over the default values set in origin fetch.
-        response_headers->set_implicit_cache_ttl_ms(implicit_cache_ttl_ms_);
-        response_headers->set_min_cache_ttl_ms(min_cache_ttl_ms_);
-        if (fail_after_headers) {
-          fetch->Done(false);
-          return;
+        if (fail_after_headers_) {
+          return false;
         }
-        if (update_date_headers) {
-          CHECK(timer != NULL);
+        if (update_date_headers_) {
+          CHECK(timer_ != NULL);
           // Update Date headers.
           response_headers->SetDate(timer_->NowMs());
         }
         response_headers->ComputeCaching();
 
-        if (!(response->body().empty() && omit_empty_writes)) {
-          if (!split_writes) {
+        if (!(response->body().empty() && omit_empty_writes_)) {
+          if (!split_writes_) {
             // Normal case.
-            fetch->Write(response->body(), message_handler);
+            response_writer->Write(response->body(), message_handler);
           } else {
             // This is used to test Ajax's RecordingFetch's cache recovery.
             int mid = response->body().size() / 2;
             StringPiece body = response->body();
             StringPiece head = body.substr(0, mid);
             StringPiece tail = body.substr(mid, StringPiece::npos);
-            if (!(head.empty() && omit_empty_writes)) {
-              fetch->Write(head, message_handler);
+            if (!(head.empty() && omit_empty_writes_)) {
+              response_writer->Write(head, message_handler);
             }
-            if (!(tail.empty() && omit_empty_writes)) {
-              fetch->Write(tail, message_handler);
+            if (!(tail.empty() && omit_empty_writes_)) {
+              response_writer->Write(tail, message_handler);
             }
           }
         }
@@ -221,20 +174,12 @@ void MockUrlFetcher::Fetch(
       // resource that we don't have. So fail if we do.
       //
       // If you want a 404 response, you must explicitly use SetResponse.
-      if (fail_on_unexpected) {
+      if (fail_on_unexpected_) {
         EXPECT_TRUE(false) << "Requested unset url " << url;
       }
     }
   }
-
-  if (!ret && !error_message.empty()) {
-    if (!response_headers->headers_complete()) {
-      response_headers->SetStatusAndReason(HttpStatus::kInternalServerError);
-    }
-    fetch->Write(error_message, message_handler);
-  }
-
-  fetch->Done(ret);
+  return ret;
 }
 
 }  // namespace net_instaweb

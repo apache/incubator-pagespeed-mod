@@ -18,8 +18,8 @@
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string.h"
@@ -42,6 +42,11 @@ const char kWebpLossyLossLessAlphaUserAgentKey[] = "v";
 const char kMobileUserAgentKey[] = "m";
 const char kUserAgentScreenResolutionKey[] = "sr";
 const char kSmallScreenKey[] = "ss";
+
+// Area threshold that determines whether we use
+// Image*RecompressionQualityForSmallScreens to set WebP/Jpeg quality.
+// The intent is for phones and small tablets (e.g., Nexus 7) to be in.
+const int kSmallScreenSizeThresholdArea = 1280 * 800;
 
 bool IsValidCode(char code) {
   return ((code == kCodeSeparator) ||
@@ -101,8 +106,6 @@ void CheckScreenResolutionOrder() {
 #endif
 
 }  // namespace
-
-const int ImageUrlEncoder::kSmallScreenSizeThresholdArea = 1280 * 800;
 
 ImageUrlEncoder::~ImageUrlEncoder() { }
 
@@ -249,13 +252,12 @@ bool ImageUrlEncoder::Decode(const StringPiece& encoded,
   }
 }
 
-void ImageUrlEncoder::SetLibWebpLevel(
-    const RequestProperties& request_properties,
-    ResourceContext* resource_context) {
+void ImageUrlEncoder::SetLibWebpLevel(const DeviceProperties& device_properties,
+                                      ResourceContext* resource_context) {
   ResourceContext::LibWebpLevel libwebp_level = ResourceContext::LIBWEBP_NONE;
-  if (request_properties.SupportsWebpLosslessAlpha()) {
+  if (device_properties.SupportsWebpLosslessAlpha()) {
     libwebp_level = ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA;
-  } else if (request_properties.SupportsWebp()) {
+  } else if (device_properties.SupportsWebp()) {
     libwebp_level = ResourceContext::LIBWEBP_LOSSY_ONLY;
   }
   resource_context->set_libwebp_level(libwebp_level);
@@ -271,11 +273,11 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
 
   // TODO(poojatandon): Do enabled checks before Setting the Webp Level, since
   // it avoids writing two metadata cache keys for same output.
-  SetLibWebpLevel(*driver.request_properties(), context);
+  SetLibWebpLevel(*driver.device_properties(), context);
 
-  if (options->Enabled(RewriteOptions::kDelayImages) &&
+  if (options->NeedLowResImages() &&
       options->Enabled(RewriteOptions::kResizeMobileImages) &&
-      driver.request_properties()->IsMobile()) {
+      driver.device_properties()->IsMobile()) {
     context->set_mobile_user_agent(true);
   }
 }
@@ -283,7 +285,7 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
 void ImageUrlEncoder::SetSmallScreen(const RewriteDriver& driver,
     ResourceContext* context) {
   int width = 0, height = 0;
-  if (driver.request_properties()->GetScreenResolution(&width, &height)) {
+  if (driver.device_properties()->GetScreenResolution(&width, &height)) {
     if (width * height <= kSmallScreenSizeThresholdArea) {
       context->set_use_small_screen_quality(true);
     }
@@ -291,7 +293,7 @@ void ImageUrlEncoder::SetSmallScreen(const RewriteDriver& driver,
     // If we did not find the screen resolution in kKnownScreenDimensions,
     // default to the IsMobile() check to set the small screen quality.
     context->set_use_small_screen_quality(
-        driver.request_properties()->IsMobile());
+        driver.device_properties()->IsMobile());
   }
 }
 
@@ -302,7 +304,7 @@ void ImageUrlEncoder::SetUserAgentScreenResolution(
   }
   int screen_width = 0;
   int screen_height = 0;
-  if (driver->request_properties()->GetScreenResolution(
+  if (driver->device_properties()->GetScreenResolution(
       &screen_width, &screen_height) &&
       GetNormalizedScreenResolution(
           screen_width, screen_height, &screen_width, &screen_height)) {

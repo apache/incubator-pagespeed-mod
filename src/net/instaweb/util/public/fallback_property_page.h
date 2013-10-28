@@ -33,8 +33,6 @@
 
 namespace net_instaweb {
 
-class GoogleUrl;
-
 class FallbackPropertyPage : public AbstractPropertyPage {
  public:
   // FallbackPropertyPage takes the ownership of both the property pages.
@@ -46,13 +44,7 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   // from fallback property cache if actual property page has no value.
   virtual PropertyValue* GetProperty(
       const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name);
-
-  // Gets the property from property page with fallback values. It can return
-  // NULL if property page with fallback values is NULL.
-  PropertyValue* GetFallbackProperty(
-        const PropertyCache::Cohort* cohort,
-        const StringPiece& property_name);
+      const StringPiece& property_name) const;
 
   // Updates the value of a property for both actual property page and fallback
   // property page.
@@ -68,25 +60,16 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   virtual CacheInterface::KeyState GetCacheState(
       const PropertyCache::Cohort* cohort);
 
-  // Gets the cache state of the property page with fallback values.
-  virtual CacheInterface::KeyState GetFallbackCacheState(
-        const PropertyCache::Cohort* cohort);
-
   // Deletes a property given the property name from both the pages.
   virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
                               const StringPiece& property_name);
+
+  virtual const GoogleString& key() const;
 
   PropertyPage* actual_property_page() { return actual_property_page_.get(); }
   PropertyPage* property_page_with_fallback_values() {
     return property_page_with_fallback_values_.get();
   }
-
-  // Returns the page property cache url for the page containing fallback
-  // values (i.e. without query params or without leaf).
-  static GoogleString GetFallbackPageUrl(const GoogleUrl& request_url);
-
-  // Returns true if given url is for fallback properties.
-  static bool IsFallbackUrl(const GoogleString& url);
 
  private:
   scoped_ptr<PropertyPage> actual_property_page_;

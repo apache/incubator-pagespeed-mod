@@ -15,9 +15,9 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 
 #include <algorithm>  // for std::binary_search
-#include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/device_properties.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -30,7 +30,6 @@
 #include "net/instaweb/util/public/string_multi_map.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
@@ -57,11 +56,7 @@ const char kProxyOptionValidVersionValue[] = "1";
 namespace net_instaweb {
 
 const char RewriteQuery::kModPagespeed[] = "ModPagespeed";
-const char RewriteQuery::kPageSpeed[] = "PageSpeed";
-
 const char RewriteQuery::kModPagespeedFilters[] = "ModPagespeedFilters";
-const char RewriteQuery::kPageSpeedFilters[] = "PageSpeedFilters";
-
 const char RewriteQuery::kNoscriptValue[] = "noscript";
 
 // static array of query params that have setters taking a single int64 arg.
@@ -75,44 +70,43 @@ struct Int64QueryParam {
 };
 
 static struct Int64QueryParam int64_query_params_[] = {
-  { "CssFlattenMaxBytes",
+  { "ModPagespeedCssFlattenMaxBytes",
     &RewriteOptions::set_css_flatten_max_bytes },
-  { "CssInlineMaxBytes",
+  { "ModPagespeedCssInlineMaxBytes",
     &RewriteOptions::set_css_inline_max_bytes },
-  // Note: If ImageInlineMaxBytes is specified, and CssImageInlineMaxBytes is
-  // not set explicitly, both the thresholds get set to ImageInlineMaxBytes.
-  { "ImageInlineMaxBytes",
+  // Note: If ModPagespeedImageInlineMaxBytes is specified, and
+  // ModPagespeedCssImageInlineMaxBytes is not set explicitly, both the
+  // thresholds get set to ModPagespeedImageInlineMaxBytes.
+  { "ModPagespeedImageInlineMaxBytes",
     &RewriteOptions::set_image_inline_max_bytes },
-  { "CssImageInlineMaxBytes",
+  { "ModPagespeedCssImageInlineMaxBytes",
     &RewriteOptions::set_css_image_inline_max_bytes },
-  { "JsInlineMaxBytes",
+  { "ModPagespeedJsInlineMaxBytes",
     &RewriteOptions::set_js_inline_max_bytes },
-  { "DomainShardCount",
+  { "ModPagespeedDomainShardCount",
     &RewriteOptions::set_domain_shard_count },
-  { "JpegRecompressionQuality",
+  { "ModPagespeedJpegRecompressionQuality",
     &RewriteOptions::set_image_jpeg_recompress_quality },
-  { "JpegRecompressionQualityForSmallScreens",
+  { "ModPagespeedJpegRecompressionQualityForSmallScreens",
     &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
-  { "JpegNumProgressiveScans",
+  { "ModPagespeedJpegNumProgressiveScans",
     &RewriteOptions::set_image_jpeg_num_progressive_scans },
-  { "JpegNumProgressiveScansForSmallScreens",
+  { "ModPagespeedJpegNumProgressiveScansForSmallScreens",
       &RewriteOptions::set_image_jpeg_num_progressive_scans_for_small_screens },
-  { "ImageRecompressionQuality",
+  { "ModPagespeedImageRecompressionQuality",
     &RewriteOptions::set_image_recompress_quality },
-  { "MaxCombinedCssBytes",
-    &RewriteOptions::set_max_combined_css_bytes },
-  { "WebpRecompressionQuality",
+  { "ModPagespeedWebpRecompressionQuality",
     &RewriteOptions::set_image_webp_recompress_quality },
-  { "WebpRecompressionQualityForSmallScreens",
+  { "ModPagespeedWebpRecompressionQualityForSmallScreens",
     &RewriteOptions::set_image_webp_recompress_quality_for_small_screens },
-  { "WebpTimeoutMs",
+  { "ModPagespeedWebpTimeoutMs",
     &RewriteOptions::set_image_webp_timeout_ms },
 };
 
 template <class HeaderT>
 RewriteQuery::Status RewriteQuery::ScanHeader(
     HeaderT* headers,
-    RequestProperties* request_properties,
+    DeviceProperties* device_properties,
     RewriteOptions* options,
     MessageHandler* handler) {
   Status status = kNoneFound;
@@ -125,15 +119,13 @@ RewriteQuery::Status RewriteQuery::ScanHeader(
   HeaderT headers_to_remove;
 
   for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
-    const StringPiece name(headers->Name(i));
-    const GoogleString& value = headers->Value(i);
-    switch (ScanNameValue(name, value, request_properties, options, handler)) {
+    switch (ScanNameValue(
+        headers->Name(i), headers->Value(i), device_properties, options,
+        handler)) {
       case kNoneFound:
         break;
       case kSuccess:
-        if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
-          headers_to_remove.Add(name, value);
-        }
+        headers_to_remove.Add(headers->Name(i), headers->Value(i));
         status = kSuccess;
         break;
       case kInvalid:
@@ -207,10 +199,10 @@ RewriteQuery::Status RewriteQuery::Scan(
     options->reset(factory->NewRewriteOptionsForQuery());
   }
 
-  scoped_ptr<RequestProperties> request_properties;
+  scoped_ptr<DeviceProperties> device_properties;
   if (request_headers != NULL) {
-    request_properties.reset(server_context->NewRequestProperties());
-    request_properties->set_user_agent(
+    device_properties.reset(server_context->NewDeviceProperties());
+    device_properties->set_user_agent(
         request_headers->Lookup1(HttpAttributes::kUserAgent));
   }
 
@@ -219,8 +211,8 @@ RewriteQuery::Status RewriteQuery::Scan(
     const GoogleString* value = query_params.value(i);
     if (value != NULL) {
       switch (ScanNameValue(
-          query_params.name(i), *value, request_properties.get(),
-          options->get(), handler)) {
+          query_params.name(i), *value, device_properties.get(), options->get(),
+          handler)) {
         case kNoneFound:
           temp_query_params.Add(query_params.name(i), *value);
           break;
@@ -235,7 +227,7 @@ RewriteQuery::Status RewriteQuery::Scan(
     }
   }
   if (status == kSuccess) {
-    // Remove the ModPagespeed* or PageSpeed* for url.
+    // Remove the ModPagespeed* for url.
     GoogleString temp_params = temp_query_params.empty() ? "" :
         StrCat("?", temp_query_params.ToString());
     request_url->Reset(StrCat(request_url->AllExceptQuery(), temp_params,
@@ -243,7 +235,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   }
 
   switch (ScanHeader<RequestHeaders>(
-      request_headers, request_properties.get(), options->get(), handler)) {
+      request_headers, device_properties.get(), options->get(), handler)) {
     case kNoneFound:
       break;
     case kSuccess:
@@ -254,7 +246,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   }
 
   switch (ScanHeader<ResponseHeaders>(
-      response_headers, request_properties.get(), options->get(),
+      response_headers, device_properties.get(), options->get(),
       handler)) {
     case kNoneFound:
       break;
@@ -268,7 +260,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   // Set a default rewrite level in case the mod_pagespeed server has no
   // rewriting options configured.
   // Note that if any filters are explicitly set with
-  // PageSpeedFilters=..., then the call to
+  // ModPagespeedFilters=..., then the call to
   // DisableAllFiltersNotExplicitlyEnabled() below will make the 'level'
   // irrelevant.
   if (status == kSuccess) {
@@ -283,8 +275,7 @@ bool RewriteQuery::HeadersMayHaveCustomOptions(const QueryParams& params,
                                                const HeaderT* headers) {
   if (headers != NULL) {
     for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
-      StringPiece name = headers->Name(i);
-      if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
+      if (StringPiece(headers->Name(i)).starts_with(kModPagespeed)) {
         return true;
       }
     }
@@ -297,7 +288,7 @@ bool RewriteQuery::MayHaveCustomOptions(
     const ResponseHeaders* resp_headers) {
   for (int i = 0, n = params.size(); i < n; ++i) {
     StringPiece name(params.name(i));
-    if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed) ||
+    if (name.starts_with(kModPagespeed) ||
         StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
       return true;
     }
@@ -309,8 +300,7 @@ bool RewriteQuery::MayHaveCustomOptions(
     return true;
   }
   if (req_headers != NULL &&
-      (req_headers->Lookup1(HttpAttributes::kXPsaClientOptions) != NULL ||
-       req_headers->Lookup1(HttpAttributes::kCacheControl) != NULL)) {
+      req_headers->Lookup1(HttpAttributes::kXPsaClientOptions) != NULL) {
     return true;
   }
   return false;
@@ -318,10 +308,10 @@ bool RewriteQuery::MayHaveCustomOptions(
 
 RewriteQuery::Status RewriteQuery::ScanNameValue(
     const StringPiece& name, const GoogleString& value,
-    RequestProperties* request_properties, RewriteOptions* options,
+    DeviceProperties* device_properties, RewriteOptions* options,
     MessageHandler* handler) {
   Status status = kNoneFound;
-  if (name == kModPagespeed || name == kPageSpeed) {
+  if (name == kModPagespeed) {
     RewriteOptions::EnabledEnum enabled;
     if (RewriteOptions::ParseFromString(value, &enabled)) {
       options->set_enabled(enabled);
@@ -329,6 +319,10 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     } else if (value == kNoscriptValue) {
       // Disable filters that depend on custom script execution.
       options->DisableFiltersRequiringScriptExecution();
+      // Blink cache hit response will also redirect to "?Noscript=" and hence
+      // we need to disable blink.  Otherwise we will enter
+      // blink_flow_critical_line (causing a redirect loop).
+      options->DisableFilter(RewriteOptions::kPrioritizeVisibleContent);
       options->EnableFilter(RewriteOptions::kHandleNoscriptRedirect);
       status = kSuccess;
     } else {
@@ -340,9 +334,9 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
                        value.c_str());
       status = kInvalid;
     }
-  } else if (name == kModPagespeedFilters || name == kPageSpeedFilters) {
-    // When using PageSpeedFilters query param, only the specified filters
-    // should be enabled.
+  } else if (name == kModPagespeedFilters) {
+    // When using ModPagespeedFilters query param, only the
+    // specified filters should be enabled.
     if (options->AdjustFiltersByCommaSeparatedList(value, handler)) {
       status = kSuccess;
     } else {
@@ -350,35 +344,14 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     }
   } else if (StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
     if (UpdateRewriteOptionsWithClientOptions(
-        value, request_properties, options)) {
+        value, device_properties, options)) {
       status = kSuccess;
     }
     // We don't want to return kInvalid, which causes 405 (kMethodNotAllowed)
     // returned to client.
-  } else if (StringCaseEqual(name, HttpAttributes::kCacheControl)) {
-    StringPieceVector pairs;
-    SplitStringPieceToVector(value, ",", &pairs, true /* omit_empty_strings */);
-    for (int i = 0, n = pairs.size(); i < n; ++i) {
-      if (pairs[i] == "no-transform") {
-        // TODO(jmarantz): A .pagespeed resource should return un-optimized
-        // content with "Cache-Control: no-transform".
-        options->set_enabled(RewriteOptions::kEnabledOff);
-        status = kSuccess;
-        break;
-      }
-    }
-  } else if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
-    // Remove the initial ModPagespeed or PageSpeed.
-    StringPiece name_suffix = name;
-    stringpiece_ssize_type prefix_len;
-    if (name.starts_with(kModPagespeed)) {
-      prefix_len = sizeof(kModPagespeed)-1;
-    } else {
-      prefix_len = sizeof(kPageSpeed)-1;
-    }
-    name_suffix.remove_prefix(prefix_len);
+  } else {
     for (unsigned i = 0; i < arraysize(int64_query_params_); ++i) {
-      if (name_suffix == int64_query_params_[i].name_) {
+      if (name == int64_query_params_[i].name_) {
         int64 int_val;
         if (StringToInt64(value, &int_val)) {
           RewriteOptionsInt64PMF method = int64_query_params_[i].method_;
@@ -386,13 +359,14 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
           status = kSuccess;
         } else {
           handler->Message(kWarning, "Invalid integer value for %s: %s",
-                           name_suffix.as_string().c_str(), value.c_str());
+                           name.as_string().c_str(), value.c_str());
           status = kInvalid;
         }
         break;
       }
     }
   }
+
   return status;
 }
 
@@ -421,7 +395,7 @@ GoogleString RewriteQuery::GenerateResourceOption(
   //   filter1,filter2,filter3,option1:value1,option2:value2
 
   // Add any relevant enabled filters.
-  int num_filters;
+  int num_filters, num_options;
   const RewriteOptions::Filter* filters = filter->RelatedFilters(&num_filters);
   for (int i = 0; i < num_filters; ++i) {
     RewriteOptions::Filter filter_enum = filters[i];
@@ -433,9 +407,9 @@ GoogleString RewriteQuery::GenerateResourceOption(
 
   // Add any non-default options.
   GoogleString option_value;
-  const StringPieceVector* opts = filter->RelatedOptions();
-  for (int i = 0, n = (opts == NULL ? 0 : opts->size()); i < n; ++i) {
-    StringPiece option = (*opts)[i];
+  const RewriteOptions::OptionEnum* opts = filter->RelatedOptions(&num_options);
+  for (int i = 0; i < num_options; ++i) {
+    RewriteOptions::OptionEnum option = opts[i];
     const char* id;
     bool was_set = false;
     if (options->OptionValue(option, &id, &was_set, &option_value) && was_set) {
@@ -457,9 +431,9 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
   // We will want to validate any filters & options we are trying to set
   // with this mechanism against the whitelist of whatever the filter thinks is
   // needed.  But do this lazily.
-  int num_filters;
+  int num_filters, num_options;
   const RewriteOptions::Filter* filters = filter->RelatedFilters(&num_filters);
-  const StringPieceVector* opts = filter->RelatedOptions();
+  const RewriteOptions::OptionEnum* opts = filter->RelatedOptions(&num_options);
 
   for (int i = 0, n = filters_and_options.size(); i < n; ++i) {
     StringPieceVector name_value;
@@ -479,13 +453,12 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
         break;
       }
       case 2: {
-        StringPiece option_name =
-            RewriteOptions::LookupOptionNameById(name_value[0]);
-        if (!option_name.empty() &&
-            opts != NULL &&
-            std::binary_search(opts->begin(), opts->end(), option_name) &&
-            options->SetOptionFromName(option_name, name_value[1])
-            == RewriteOptions::kOptionOk) {
+        RewriteOptions::OptionEnum option_enum =
+            RewriteOptions::LookupOptionEnumById(name_value[0]);
+        if ((option_enum != RewriteOptions::kEndOfOptions) &&
+            std::binary_search(opts, opts + num_options, option_enum) &&
+            (options->SetOptionFromEnum(option_enum, name_value[1])
+             == RewriteOptions::kOptionOk)) {
           status = kSuccess;
         } else {
           status = kInvalid;
@@ -559,14 +532,14 @@ bool RewriteQuery::ParseClientOptions(
 
 bool RewriteQuery::SetEffectiveImageQualities(
     DeviceProperties::ImageQualityPreference quality_preference,
-    RequestProperties* request_properties,
+    DeviceProperties* device_properties,
     RewriteOptions* options) {
   if (quality_preference == DeviceProperties::kImageQualityDefault ||
-      request_properties == NULL) {
+      device_properties == NULL) {
     return false;
   }
   int webp = -1, jpeg = -1;
-  if (request_properties->GetPreferredImageQualities(
+  if (device_properties->GetPreferredImageQualities(
       quality_preference, &webp, &jpeg)) {
     options->set_image_webp_recompress_quality(webp);
     options->set_image_jpeg_recompress_quality(jpeg);
@@ -576,7 +549,7 @@ bool RewriteQuery::SetEffectiveImageQualities(
 }
 
 bool RewriteQuery::UpdateRewriteOptionsWithClientOptions(
-    const GoogleString& client_options, RequestProperties* request_properties,
+    const GoogleString& client_options, DeviceProperties* device_properties,
     RewriteOptions* options) {
   ProxyMode proxy_mode = kProxyModeDefault;
   DeviceProperties::ImageQualityPreference quality_preference =
@@ -593,7 +566,7 @@ bool RewriteQuery::UpdateRewriteOptionsWithClientOptions(
     return true;
   } else if (proxy_mode == kProxyModeDefault) {
     return SetEffectiveImageQualities(
-        quality_preference, request_properties, options);
+        quality_preference, device_properties, options);
   }
   DCHECK(false);
   return false;

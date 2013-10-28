@@ -425,8 +425,7 @@ RewriteDomainTransformer::RewriteDomainTransformer(
       domain_rewriter_(driver->domain_rewriter()),
       url_trim_filter_(driver->url_trim_filter()),
       handler_(driver->message_handler()),
-      trim_urls_(true),
-      driver_(driver) {
+      trim_urls_(true) {
 }
 
 RewriteDomainTransformer::~RewriteDomainTransformer() {
@@ -435,7 +434,7 @@ RewriteDomainTransformer::~RewriteDomainTransformer() {
 CssTagScanner::Transformer::TransformStatus RewriteDomainTransformer::Transform(
     const StringPiece& in, GoogleString* out) {
   GoogleString rewritten;
-  if (domain_rewriter_->Rewrite(in, *old_base_url_, driver_,
+  if (domain_rewriter_->Rewrite(in, *old_base_url_,
                                 true /* apply_sharding */,
                                 &rewritten)
       == DomainRewriteFilter::kFail) {

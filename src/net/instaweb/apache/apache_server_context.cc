@@ -19,26 +19,38 @@
 #include "httpd.h"                  // NOLINT
 #include "http_protocol.h"          // NOLINT
 #include "base/logging.h"
+#include "net/instaweb/apache/add_headers_fetcher.h"
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_request_context.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
+#include "net/instaweb/apache/loopback_route_fetcher.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_async_fetcher_stats.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_pool.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "net/instaweb/system/public/system_caches.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/shared_mem_statistics.h"
+#include "net/instaweb/util/public/split_statistics.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
-class RewriteOptions;
-
 namespace {
+
+// Statistics histogram names.
+const char kHtmlRewriteTimeUsHistogram[] = "Html Time us Histogram";
+
+const char kLocalFetcherStatsPrefix[] = "http";
 
 class SpdyOptionsRewriteDriverPool : public RewriteDriverPool {
  public:
@@ -61,11 +73,17 @@ ApacheServerContext::ApacheServerContext(
     ApacheRewriteDriverFactory* factory,
     server_rec* server,
     const StringPiece& version)
-    : SystemServerContext(factory, server->server_hostname, server->port),
+    : SystemServerContext(factory),
       apache_factory_(factory),
       server_rec_(server),
       version_(version.data(), version.size()),
-      spdy_driver_pool_(NULL) {
+      hostname_identifier_(StrCat(server->server_hostname, ":",
+                                  IntegerToString(server->port))),
+      initialized_(false),
+      local_statistics_(NULL),
+      spdy_driver_pool_(NULL),
+      html_rewrite_time_us_histogram_(NULL) {
+  config()->set_description(hostname_identifier_);
   // We may need the message handler for error messages very early, before
   // we get to InitServerContext in ChildInit().
   set_message_handler(apache_factory_->message_handler());
@@ -85,16 +103,25 @@ ApacheServerContext::~ApacheServerContext() {
 
 void ApacheServerContext::InitStats(Statistics* statistics) {
   SystemServerContext::InitStats(statistics);
-  ModSpdyFetcher::InitStats(statistics);
+  Histogram* html_rewrite_time_us_histogram =
+      statistics->AddHistogram(kHtmlRewriteTimeUsHistogram);
+  // We set the boundary at 2 seconds which is about 2 orders of magnitude
+  // worse than anything we have reasonably seen, to make sure we don't
+  // cut off actual samples.
+  html_rewrite_time_us_histogram->SetMaxValue(2 * Timer::kSecondUs);
+  UrlAsyncFetcherStats::InitStats(kLocalFetcherStatsPrefix, statistics);
 }
 
-bool ApacheServerContext::InitPath(const GoogleString& path) {
-  if (file_system()->IsDir(path.c_str(), message_handler()).is_true()) {
+bool ApacheServerContext::InitFileCachePath() {
+  GoogleString file_cache_path = config()->file_cache_path();
+  if (file_system()->IsDir(file_cache_path.c_str(),
+                           message_handler()).is_true()) {
     return true;
   }
-  bool ok = file_system()->RecursivelyMakeDir(path, message_handler());
+  bool ok = file_system()->RecursivelyMakeDir(file_cache_path,
+                                              message_handler());
   if (ok) {
-    apache_factory_->AddCreatedDirectory(path);
+    apache_factory_->AddCreatedDirectory(file_cache_path);
   }
   return ok;
 }
@@ -105,8 +132,7 @@ ApacheConfig* ApacheServerContext::config() {
 
 ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
   if (spdy_config_overlay_.get() == NULL) {
-    spdy_config_overlay_.reset(new ApacheConfig(
-        "spdy_overlay", thread_system()));
+    spdy_config_overlay_.reset(new ApacheConfig());
     // We want to copy any implicit rewrite level from the parent,
     // so we don't end up overriding it with passthrough. It's also OK
     // to forward explicit one to an implicit one here, since an implicit
@@ -118,8 +144,7 @@ ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
 
 ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
   if (non_spdy_config_overlay_.get() == NULL) {
-    non_spdy_config_overlay_.reset(new ApacheConfig(
-        "non_spdy_overlay", thread_system()));
+    non_spdy_config_overlay_.reset(new ApacheConfig());
     // See ::SpdyConfigOverlay for explanation.
     non_spdy_config_overlay_->SetDefaultRewriteLevel(config()->level());
   }
@@ -146,11 +171,89 @@ void ApacheServerContext::CollapseConfigOverlaysAndComputeSignatures() {
     config()->Merge(*non_spdy_config_overlay_);
   }
 
-  SystemServerContext::CollapseConfigOverlaysAndComputeSignatures();
+  ComputeSignature(config());
 
   if (spdy_specific_config_.get() != NULL) {
     spdy_driver_pool_ = new SpdyOptionsRewriteDriverPool(this);
     ManageRewriteDriverPool(spdy_driver_pool_);
+  }
+}
+
+void ApacheServerContext::CreateLocalStatistics(
+    Statistics* global_statistics) {
+  local_statistics_ =
+      apache_factory_->AllocateAndInitSharedMemStatistics(
+          hostname_identifier(),
+          config()->statistics_logging_enabled(),
+          config()->statistics_logging_interval_ms(),
+          config()->statistics_logging_file());
+  split_statistics_.reset(new SplitStatistics(
+      apache_factory_->thread_system(), local_statistics_, global_statistics));
+  // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,
+  // but we need to take care of split_statistics_.
+  ApacheRewriteDriverFactory::InitStats(split_statistics_.get());
+}
+
+void ApacheServerContext::ReportNotFoundHelper(StringPiece error_message,
+                                               request_rec* request,
+                                               Variable* error_count) {
+  error_count->Add(1);
+  request->status = HttpStatus::kNotFound;
+  ap_send_error_response(request, 0);
+  message_handler()->Message(kWarning, "%s %s: not found (404)",
+                             (error_message.empty() ? "(null)" :
+                              error_message.as_string().c_str()),
+                             error_count->GetName().as_string().c_str());
+}
+
+void ApacheServerContext::ChildInit() {
+  DCHECK(!initialized_);
+  if (!initialized_) {
+    initialized_ = true;
+    set_lock_manager(apache_factory_->caches()->GetLockManager(config()));
+    UrlAsyncFetcher* fetcher = apache_factory_->GetFetcher(config());
+    set_default_system_fetcher(fetcher);
+
+    if (split_statistics_.get() != NULL) {
+      // Readjust the SHM stuff for the new process
+      local_statistics_->Init(false, message_handler());
+
+      // Create local stats for the ServerContext, and fill in its
+      // statistics() and rewrite_stats() using them; if we didn't do this here
+      // they would get set to the factory's by the InitServerContext call
+      // below.
+      set_statistics(split_statistics_.get());
+      local_rewrite_stats_.reset(new RewriteStats(
+          split_statistics_.get(), apache_factory_->thread_system(),
+          apache_factory_->timer()));
+      set_rewrite_stats(local_rewrite_stats_.get());
+
+      // In case of gzip fetching, we will have the UrlAsyncFetcherStats take
+      // care of it rather than the original fetcher, so we get correct
+      // numbers for bytes fetched.
+      if (apache_factory_->fetch_with_gzip()) {
+        fetcher->set_fetch_with_gzip(false);
+      }
+      stats_fetcher_.reset(new UrlAsyncFetcherStats(
+          kLocalFetcherStatsPrefix, fetcher,
+          apache_factory_->timer(), split_statistics_.get()));
+      if (apache_factory_->fetch_with_gzip()) {
+        stats_fetcher_->set_fetch_with_gzip(true);
+      }
+      set_default_system_fetcher(stats_fetcher_.get());
+    }
+
+    // To allow Flush to come in while multiple threads might be
+    // referencing the signature, we must be able to mutate the
+    // timestamp and signature atomically.  RewriteOptions supports
+    // an optional read/writer lock for this purpose.
+    global_options()->set_cache_invalidation_timestamp_mutex(
+        thread_system()->NewRWLock());
+    apache_factory_->InitServerContext(this);
+
+    html_rewrite_time_us_histogram_ = statistics()->GetHistogram(
+        kHtmlRewriteTimeUsHistogram);
+    html_rewrite_time_us_histogram_->SetMaxValue(2 * Timer::kSecondUs);
   }
 }
 
@@ -169,6 +272,12 @@ bool ApacheServerContext::UpdateCacheFlushTimestampMs(int64 timestamp_ms) {
   return flushed;
 }
 
+void ApacheServerContext::AddHtmlRewriteTimeUs(int64 rewrite_time_us) {
+  if (html_rewrite_time_us_histogram_ != NULL) {
+    html_rewrite_time_us_histogram_->Add(rewrite_time_us);
+  }
+}
+
 RewriteDriverPool* ApacheServerContext::SelectDriverPool(bool using_spdy) {
   if (using_spdy && (SpdyConfig() != NULL)) {
     return spdy_driver_pool();
@@ -176,48 +285,54 @@ RewriteDriverPool* ApacheServerContext::SelectDriverPool(bool using_spdy) {
   return standard_rewrite_driver_pool();
 }
 
-void ApacheServerContext::MaybeApplySpdySessionFetcher(
+void ApacheServerContext::ApplySessionFetchers(
     const RequestContextPtr& request, RewriteDriver* driver) {
   const ApacheConfig* conf = ApacheConfig::DynamicCast(driver->options());
   CHECK(conf != NULL);
   ApacheRequestContext* apache_request = ApacheRequestContext::DynamicCast(
       request.get());
+  if (apache_request == NULL) {
+    return;  // decoding_driver has a null RequestContext.
+  }
 
-  // This should have already been caught by the caller.
-  CHECK(apache_request != NULL);
+  // Note that these fetchers are applied in the opposite order of how they are
+  // added: the last one added here is the first one applied and vice versa.
+  //
+  // Currently, we want AddHeadersFetcher running first, then perhaps
+  // ModSpdyFetcher and then LoopbackRouteFetcher (and then Serf).
+  //
+  // We want AddHeadersFetcher to run before the ModSpdyFetcher since we
+  // want any headers it adds to be visible.
+  //
+  // We want ModSpdyFetcher to run before LoopbackRouteFetcher as it needs
+  // to know the request hostname, which LoopbackRouteFetcher could potentially
+  // rewrite to 127.0.0.1; and it's OK without the rewriting since it will
+  // always talk to the local machine anyway.
+  if (!apache_factory_->disable_loopback_routing() &&
+      !config()->slurping_enabled() &&
+      !config()->test_proxy()) {
+    // Note the port here is our port, not from the request, since
+    // LoopbackRouteFetcher may decide we should be talking to ourselves.
+    driver->SetSessionFetcher(new LoopbackRouteFetcher(
+        driver->options(), apache_request->local_ip(),
+        apache_request->local_port(), driver->async_fetcher()));
+  }
 
-  if (conf->fetch_from_mod_spdy() &&
+  if (conf->experimental_fetch_from_mod_spdy() &&
       apache_request->use_spdy_fetcher()) {
     driver->SetSessionFetcher(new ModSpdyFetcher(
         apache_factory_->mod_spdy_fetch_controller(), apache_request->url(),
         driver, apache_request->spdy_connection_factory()));
   }
+
+  if (driver->options()->num_custom_fetch_headers() > 0) {
+    driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
+                                                    driver->async_fetcher()));
+  }
 }
 
 void ApacheServerContext::InitProxyFetchFactory() {
   proxy_fetch_factory_.reset(new ProxyFetchFactory(this));
-}
-
-ApacheRequestContext* ApacheServerContext::NewApacheRequestContext(
-    request_rec* request) {
-  return new ApacheRequestContext(
-      thread_system()->NewMutex(),
-      timer(),
-      request->connection->local_addr->port,
-      request->connection->local_ip,
-      request);
-}
-
-void ApacheServerContext::ReportNotFoundHelper(StringPiece error_message,
-                                               request_rec* request,
-                                               Variable* error_count) {
-  error_count->Add(1);
-  request->status = HttpStatus::kNotFound;
-  ap_send_error_response(request, 0);
-  message_handler()->Message(kWarning, "%s %s: not found (404)",
-                             (error_message.empty() ? "(null)" :
-                              error_message.as_string().c_str()),
-                             error_count->GetName().as_string().c_str());
 }
 
 }  // namespace net_instaweb

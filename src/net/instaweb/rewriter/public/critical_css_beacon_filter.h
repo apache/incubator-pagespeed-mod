@@ -33,7 +33,6 @@ class Stylesheet;
 
 namespace net_instaweb {
 
-struct BeaconMetadata;
 class HtmlElement;
 class RewriteDriver;
 class Statistics;
@@ -46,8 +45,6 @@ class Variable;
 // Assumes CSS @imports have been flattened first.
 class CriticalCssBeaconFilter : public CssSummarizerBase {
  public:
-  static const char kInitializePageSpeedJs[];
-
   // Statistics:
   static const char kCriticalCssBeaconAddedCount[];
   static const char kCriticalCssNoBeaconDueToMissingData[];
@@ -76,11 +73,9 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   static void FindSelectorsFromStylesheet(const Css::Stylesheet& css,
                                           StringSet* selectors);
 
-  // Append the selectors initialization JavaScript.
-  void AppendSelectorsInitJs(GoogleString* script, const StringSet& selectors);
-
-  // Append the beaconing initialization JavaScript.
-  void AppendBeaconInitJs(const BeaconMetadata& metadata, GoogleString* script);
+  // Return the initial portion of the beaconing Javascript.  Just requires
+  // appending the array of css selector strings plus a closing ");".
+  GoogleString BeaconBoilerplate();
 
   // The total number of times the beacon is added to a page.
   Variable* critical_css_beacon_added_count_;

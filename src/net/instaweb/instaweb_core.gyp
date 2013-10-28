@@ -22,34 +22,28 @@
   },
   'targets': [
     {
-      # PSI relies on this library, so we keep it for backwards compatibility.
-      # However, it doesn't build on OS X if it has no code, so we also inject
-      # a dummy source file
-      'target_name': 'instaweb_htmlparse_core',
+      'target_name': 'instaweb_util_core',
       'type': '<(library)',
-      'sources': [
-        'htmlparse/dummy.cc',
-      ],
       'dependencies': [
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_html',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_html',
-      ],
-    },
-    {
-      'target_name': 'instaweb_rewriter_html',
-      'type': '<(library)',
-      # Like above, we need a dummy .cc file for OS X to build this.
-      # It should go away once PSI has been ported to new target names.
-      'sources': [
-        'htmlparse/dummy.cc',
-      ],
-      'dependencies': [
-        'instaweb_htmlparse_core',
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
+        '<(DEPTH)/pagespeed/kernel.gyp:util',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'sources': [
+        'util/atom.cc',
+        'util/charset_util.cc',
+        'util/countdown_timer.cc',
+        'util/file_message_handler.cc',
+        'util/google_message_handler.cc',
+        'util/google_url.cc',
+        'util/message_handler.cc',
+        'util/print_message_handler.cc',
+        'util/query_params.cc',
+        'util/string_convert.cc',
+        'util/string_writer.cc',
+        'util/symbol_table.cc',
+        'util/timer.cc',
+        'util/writer.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -62,8 +56,107 @@
         ],
       },
       'export_dependent_settings': [
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+    },
+    {
+      'target_name': 'instaweb_htmlparse_core_gperf',
+      'variables': {
+        'instaweb_gperf_subdir': 'net/instaweb/htmlparse',
+      },
+      'sources': [
+        'htmlparse/html_name.gperf',
+      ],
+      'includes': [
+        'gperf.gypi',
+      ],
+    },
+    {
+      'target_name': 'instaweb_htmlparse_core',
+      'type': '<(library)',
+      'dependencies': [
+        'instaweb_util_core',
+        'instaweb_htmlparse_core_gperf',
+        'http_core',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'sources': [
+        'htmlparse/doctype.cc',
+        'htmlparse/empty_html_filter.cc',
+        'htmlparse/explicit_close_tag.cc',
+        'htmlparse/html_element.cc',
+        'htmlparse/html_event.cc',
+        'htmlparse/html_filter.cc',
+        'htmlparse/html_keywords.cc',
+        'htmlparse/html_lexer.cc',
+        'htmlparse/html_node.cc',
+        'htmlparse/html_parse.cc',
+        'htmlparse/html_writer_filter.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+      'export_dependent_settings': [
+        'instaweb_util_core',
+      ],
+    },
+    {
+      'target_name': 'http_core',
+      'type': '<(library)',
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        'instaweb_core.gyp:instaweb_util_core',
+      ],
+      'sources': [
+        'http/content_type.cc',
+        'http/semantic_type.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+    },
+    {
+      'target_name': 'instaweb_rewriter_html',
+      'type': '<(library)',
+      'dependencies': [
+        'instaweb_util_core',
+        'instaweb_htmlparse_core',
+        '<(DEPTH)/base/base.gyp:base',
+      ],
+      'sources': [
+        'rewriter/collapse_whitespace_filter.cc',
+        'rewriter/elide_attributes_filter.cc',
+        'rewriter/html_attribute_quote_removal.cc',
+        'rewriter/remove_comments_filter.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+      'export_dependent_settings': [
+        'instaweb_util_core',
         'instaweb_htmlparse_core',
       ]
     },
@@ -72,10 +165,9 @@
       'type': 'executable',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        'instaweb_util_core',
         'instaweb_htmlparse_core',
         'instaweb_rewriter_html',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
       ],
       'sources': [
         'rewriter/html_minifier_main.cc',
@@ -115,11 +207,12 @@
                 #
                 # Note: these must be in dependency order to work; you can't
                 # sort this list alphabetically.
+                '<(LIB_DIR)/pagespeed/libbase.a',
                 '<(LIB_DIR)/net/instaweb/libinstaweb_rewriter_html.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_html.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_html_gperf.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_http_core.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_base_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_htmlparse_core.a',
+                '<(LIB_DIR)/net/instaweb/libhttp_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_util_core.a',
+                '<(LIB_DIR)/net/instaweb/libinstaweb_htmlparse_core_gperf.a',
                 '<(LIB_DIR)/build/temp_gyp/libgoogleurl.a',
                 '<(LIB_DIR)/base/libbase.a',
                 '<(LIB_DIR)/base/libbase_static.a',

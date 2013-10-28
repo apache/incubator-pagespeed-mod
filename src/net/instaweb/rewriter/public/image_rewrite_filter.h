@@ -37,6 +37,7 @@
 namespace net_instaweb {
 
 class CachedResult;
+class ContentType;
 class ImageDim;
 class Histogram;
 class ResourceContext;
@@ -47,42 +48,75 @@ class TimedVariable;
 class UrlSegmentEncoder;
 class Variable;
 class WorkBound;
-struct ContentType;
 
 // Identify img tags in html and optimize them.
 // TODO(jmaessen): Big open question: how best to link pulled-in resources to
 //     rewritten urls, when in general those urls will be in a different domain.
 class ImageRewriteFilter : public RewriteFilter {
  public:
-  // Statistic names:
-  static const char kImageNoRewritesHighResolution[];
+  // Name for statistic used to bound rewriting work.
   static const char kImageOngoingRewrites[];
-  static const char kImageResizedUsingRenderedDimensions[];
-  static const char kImageRewriteLatencyFailedMs[];
-  static const char kImageRewriteLatencyOkMs[];
-  static const char kImageRewritesDroppedDecodeFailure[];
+
+  // # of images that we decided not to rewrite because of size constraint.
+  static const char kImageNoRewritesHighResolution[];
+
+  // TimedVariable denoting image rewrites we dropped due to
+  // load (too many concurrent rewrites)
   static const char kImageRewritesDroppedDueToLoad[];
+
+  // # of images not rewritten because the image MIME type is unknown.
   static const char kImageRewritesDroppedMIMETypeUnknown[];
-  static const char kImageRewritesDroppedNoSavingNoResize[];
-  static const char kImageRewritesDroppedNoSavingResize[];
+
+  // # of images not rewritten because the server fails to write the merged
+  // html files.
   static const char kImageRewritesDroppedServerWriteFail[];
+
+  // # of images not rewritten because the rewriting does not reduce the
+  // data size by a certain threshold. The image is resized in this case.
+  static const char kImageRewritesDroppedNoSavingResize[];
+
+  // # of images not rewritten because the rewriting does not reduce the
+  // data size by a certain threshold. The image is not resized in this case.
+  static const char kImageRewritesDroppedNoSavingNoResize[];
+
+  // TimedVariable denoting image squashing for mobile screen.
   static const char kImageRewritesSquashingForMobileScreen[];
-  static const char kImageRewrites[];
-  static const char kImageWebpFromGifFailureMs[];
-  static const char kImageWebpFromGifSuccessMs[];
+
+  // Histogram for delays of successful image rewrites.
+  static const char kImageRewriteLatencyOkMs[];
+
+  // Histogram for delays of failed image rewrites.
+  static const char kImageRewriteLatencyFailedMs[];
+
+  // # of timeouts while attempting to rewrite images as WebP from
+  // various formats.
   static const char kImageWebpFromGifTimeouts[];
-  static const char kImageWebpFromJpegFailureMs[];
-  static const char kImageWebpFromJpegSuccessMs[];
-  static const char kImageWebpFromJpegTimeouts[];
-  static const char kImageWebpFromPngFailureMs[];
-  static const char kImageWebpFromPngSuccessMs[];
   static const char kImageWebpFromPngTimeouts[];
-  static const char kImageWebpOpaqueFailureMs[];
-  static const char kImageWebpOpaqueSuccessMs[];
-  static const char kImageWebpOpaqueTimeouts[];
-  static const char kImageWebpWithAlphaFailureMs[];
-  static const char kImageWebpWithAlphaSuccessMs[];
+  static const char kImageWebpFromJpegTimeouts[];
+
+  // Duration of successful WebP conversions from various
+  // formats. Note that a successful conversion may not be served if
+  // it happens to be larger than the original image.
+  static const char kImageWebpFromGifSuccessMs[];
+  static const char kImageWebpFromPngSuccessMs[];
+  static const char kImageWebpFromJpegSuccessMs[];
+
+  // Duration of failed WebP conversions from various formats. Note
+  // that this does not include timeout failures, which are captured
+  // above.
+  static const char kImageWebpFromGifFailureMs[];
+  static const char kImageWebpFromPngFailureMs[];
+  static const char kImageWebpFromJpegFailureMs[];
+
+  // Duration of conversions of images with alpha to WebP.
   static const char kImageWebpWithAlphaTimeouts[];
+  static const char kImageWebpWithAlphaSuccessMs[];
+  static const char kImageWebpWithAlphaFailureMs[];
+
+  // Duration of conversions of images without alpha to WebP.
+  static const char kImageWebpOpaqueTimeouts[];
+  static const char kImageWebpOpaqueSuccessMs[];
+  static const char kImageWebpOpaqueFailureMs[];
 
   // The property cache property name used to store URLs discovered when
   // image_inlining_identify_and_cache_without_rewriting() is set in the
@@ -91,13 +125,12 @@ class ImageRewriteFilter : public RewriteFilter {
 
   static const RewriteOptions::Filter kRelatedFilters[];
   static const int kRelatedFiltersSize;
+  static const RewriteOptions::OptionEnum kRelatedOptions[];
+  static const int kRelatedOptionsSize;
 
   explicit ImageRewriteFilter(RewriteDriver* driver);
   virtual ~ImageRewriteFilter();
   static void InitStats(Statistics* statistics);
-  static void Initialize();
-  static void Terminate();
-  static void AddRelatedOptions(StringPieceVector* target);
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
@@ -156,7 +189,6 @@ class ImageRewriteFilter : public RewriteFilter {
   //
   // Returns the dimensions to resize to in *desired_dimensions.
   bool ShouldResize(const ResourceContext& context,
-                    const GoogleString& url,
                     Image* image,
                     ImageDim* desired_dimensions);
 
@@ -173,9 +205,8 @@ class ImageRewriteFilter : public RewriteFilter {
       bool is_css);
 
   virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
-  virtual const StringPieceVector* RelatedOptions() const {
-    return related_options_;
-  }
+  virtual const RewriteOptions::OptionEnum* RelatedOptions(
+      int* num_options) const;
 
   // Disable all filters listed in kRelatedFilters in options.
   static void DisableRelatedFilters(RewriteOptions* options);
@@ -207,20 +238,16 @@ class ImageRewriteFilter : public RewriteFilter {
   bool FinishRewriteImageUrl(
       const CachedResult* cached, const ResourceContext* resource_context,
       HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      HtmlResourceSlot* slot);
+      ResourceSlot* slot);
 
   // Save image contents in cached if the image is inlinable.
   void SaveIfInlinable(const StringPiece& contents,
                        const ImageType image_type,
                        CachedResult* cached);
 
-  // Populates width and height from either the attributes specified in the
-  // image tag (including in an inline style attribute) or from the rendered
-  // dimensions and sets is_resized_using_rendered_dimensions to true if
-  // dimensions are taken from rendered dimensions.
-  void GetDimensions(HtmlElement* element, ImageDim* page_dim,
-                     const HtmlElement::Attribute* src,
-                     bool* is_resized_using_rendered_dimensions);
+  // Populates width and height with the attributes specified in the
+  // image tag (including in an inline style attribute).
+  void GetDimensions(HtmlElement* element, ImageDim* page_dim);
 
   // Returns true if there is either a width or height attribute specified,
   // even if they're not parsable.
@@ -234,7 +261,7 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Checks if image is critical to generate low res image for the given image.
   // An image is considered critical if it is in the critical list as determined
-  // by CriticalImagesFinder. Images are considered critical if the platform
+  // by CriticalImageFinder. Images are considered critical if the platform
   // lacks a CriticalImageFinder implementation.
   bool IsHtmlCriticalImage(StringPiece image_url) const;
 
@@ -251,17 +278,12 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // # of images rewritten successfully.
   Variable* image_rewrites_;
-  // # of images resized using rendered dimensions;
-  Variable* image_resized_using_rendered_dimensions_;
   // # of images that we decided not to rewrite because of size constraint.
   Variable* image_norewrites_high_resolution_;
   // # of images that we decided not to serve rewritten. This could be because
   // the rewrite failed, recompression wasn't effective enough, the image
   // couldn't be resized because it had an alpha-channel, etc.
-  // Note: This overlaps with most of the other image_rewrites_dropped_* vars.
   Variable* image_rewrites_dropped_intentionally_;
-  // # of images not rewritten because we failed to decode them.
-  Variable* image_rewrites_dropped_decode_failure_;
   // # of images not rewritten because the image MIME type is unknown.
   Variable* image_rewrites_dropped_mime_type_unknown_;
   // # of images not rewritten because the server fails to write the merged
@@ -313,9 +335,6 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Sets of variables and histograms for various conversions to WebP.
   Image::ConversionVariables webp_conversion_variables_;
-
-  // The options related to this filter.
-  static StringPieceVector* related_options_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageRewriteFilter);
 };

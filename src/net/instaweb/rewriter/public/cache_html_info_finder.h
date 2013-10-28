@@ -35,15 +35,12 @@ class CacheHtmlInfoFinder {
   CacheHtmlInfoFinder() { }
   virtual ~CacheHtmlInfoFinder() { }
 
-  virtual void PropagateCacheDeletes(const GoogleString& url, int experiment_id,
+  virtual void PropagateCacheDeletes(const GoogleString& url, int furious_id,
                                      UserAgentMatcher::DeviceType device_type);
 
   virtual bool UpdateDiffInfo(
       bool is_diff, int64 now_ms, AbstractLogRecord* cache_html_log_record,
       RewriteDriver* rewrite_driver, RewriteDriverFactory* factory);
-
-  // Updates the driver with the split html information from the pcache.
-  virtual void UpdateSplitInfoInDriver(RewriteDriver* driver) {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CacheHtmlInfoFinder);

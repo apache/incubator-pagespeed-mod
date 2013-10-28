@@ -20,11 +20,12 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class ThreadSystem;
+class Hasher;
 
 // Establishes a context for VirtualHosts and directory-scoped
 // options, either via .htaccess or <Directory>...</Directory>.
@@ -33,19 +34,74 @@ class ApacheConfig : public SystemRewriteOptions {
   static void Initialize();
   static void Terminate();
 
-  ApacheConfig(const StringPiece& description, ThreadSystem* thread_system);
-  explicit ApacheConfig(ThreadSystem* thread_system);
+  explicit ApacheConfig(const StringPiece& dir);
+  ApacheConfig();
   ~ApacheConfig() {}
 
-  bool fetch_from_mod_spdy() const {
-    return fetch_from_mod_spdy_.value();
+  // Human-readable description of what this configuration is for.  This
+  // may be a directory, or a string indicating a combination of directives
+  // for multiple directories.
+  StringPiece description() const { return description_; }
+  void set_description(const StringPiece& x) { x.CopyToString(&description_); }
+
+  int64 slurp_flush_limit() const {
+    return slurp_flush_limit_.value();
+  }
+  void set_slurp_flush_limit(int64 x) {
+    set_option(x, &slurp_flush_limit_);
+  }
+  bool slurp_read_only() const {
+    return slurp_read_only_.value();
+  }
+  void set_slurp_read_only(bool x) {
+    set_option(x, &slurp_read_only_);
+  }
+  bool rate_limit_background_fetches() const {
+    return rate_limit_background_fetches_.value();
+  }
+  const GoogleString& slurp_directory() const {
+    return slurp_directory_.value();
+  }
+  void set_slurp_directory(GoogleString x) {
+    set_option(x, &slurp_directory_);
+  }
+
+  // If this is set to true, we'll turn on our fallback proxy-like behavior
+  // on non-.pagespeed. URLs without changing the main fetcher from Serf
+  // (the way the slurp options would).
+  bool test_proxy() const {
+    return test_proxy_.value();
+  }
+  void set_test_proxy(bool x) {
+    set_option(x, &test_proxy_);
+  }
+
+  // This configures the fetcher we use for fallback handling if test_proxy()
+  // is on:
+  //  - If this is empty, we use the usual mod_pagespeed fetcher
+  //    (e.g. Serf)
+  //  - If it's non-empty, the fallback URLs will be fetched from the given
+  //    slurp directory. mod_pagespeed resource fetches, however, will still
+  //    use the usual fetcher (e.g. Serf).
+  GoogleString test_proxy_slurp() const {
+    return test_proxy_slurp_.value();
+  }
+
+  // Helper functions
+  bool slurping_enabled() const {
+    return !slurp_directory().empty();
+  }
+
+  bool slurping_enabled_read_only() const {
+    return slurping_enabled() && slurp_read_only();
+  }
+
+  bool experimental_fetch_from_mod_spdy() const {
+    return experimental_fetch_from_mod_spdy_.value();
   }
 
   // Make an identical copy of these options and return it.
   virtual ApacheConfig* Clone() const;
-
-  // Make a new empty set of options.
-  virtual ApacheConfig* NewOptions() const;
 
   // Returns a suitably down cast version of 'instance' if it is an instance
   // of this class, NULL if not.
@@ -58,21 +114,32 @@ class ApacheConfig : public SystemRewriteOptions {
   static Properties* apache_properties_;
 
   // Adds an option to apache_properties_.
-  template<class OptionClass>
+  template<class RewriteOptionsSubclass, class OptionClass>
   static void AddApacheProperty(typename OptionClass::ValueType default_value,
-                                OptionClass ApacheConfig::*offset,
+                                OptionClass RewriteOptionsSubclass::*offset,
                                 const char* id,
-                                StringPiece option_name,
+                                OptionEnum option_enum,
                                 const char* help) {
-    AddProperty(default_value, offset, id, option_name,
+    AddProperty(default_value, offset, id, option_enum,
                 RewriteOptions::kServerScope, help,
                 apache_properties_);
   }
 
+  void InitializeSignaturesAndDefaults();
   static void AddProperties();
   void Init();
 
-  Option<bool> fetch_from_mod_spdy_;
+  GoogleString description_;
+
+  Option<GoogleString> slurp_directory_;
+  Option<GoogleString> test_proxy_slurp_;
+
+  Option<bool> slurp_read_only_;
+  Option<bool> test_proxy_;
+  Option<bool> rate_limit_background_fetches_;
+  Option<bool> experimental_fetch_from_mod_spdy_;
+
+  Option<int64> slurp_flush_limit_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheConfig);
 };

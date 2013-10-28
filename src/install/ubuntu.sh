@@ -11,6 +11,4 @@ exec make \
     APACHE_ROOT=/etc/apache2 \
     APACHE_STOP_COMMAND=stop \
     BINDIR=/usr/local/bin \
-    SSL_CERT_DIR=/etc/ssl/certs \
-    SSL_CERT_FILE_COMMAND= \
     $*

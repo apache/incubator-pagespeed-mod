@@ -25,9 +25,8 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -53,7 +52,8 @@ class MockProxyFetch : public ProxyFetch {
                    NULL,  // callback
                    async_fetch,
                    NULL,  // no original content fetch
-                   GetNewRewriteDriver(server_context, async_fetch),
+                   server_context->NewRewriteDriver(
+                       async_fetch->request_context()),
                    server_context,
                    NULL,  // timer
                    factory),
@@ -62,15 +62,6 @@ class MockProxyFetch : public ProxyFetch {
   }
 
   ~MockProxyFetch() { }
-
-  static RewriteDriver* GetNewRewriteDriver(ServerContext* server_context,
-                                     AsyncFetch* async_fetch) {
-    RewriteDriver* driver = server_context->NewRewriteDriver(
-                                async_fetch->request_context());
-    RequestHeaders headers;
-    driver->SetRequestHeaders(headers);
-    return driver;
-  }
 
   void PropertyCacheComplete(
       ProxyFetchPropertyCallbackCollector* callback_collector) {
@@ -112,8 +103,7 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
   ProxyFetchPropertyCallbackCollectorTest() :
     thread_system_(Platform::CreateThreadSystem()),
     server_context_(server_context()),
-    post_lookup_called_(false) {
-  }
+    post_lookup_called_(false) {}
 
   scoped_ptr<ThreadSystem> thread_system_;
   ServerContext* server_context_;
@@ -128,27 +118,24 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
     // Collector should not contain any PropertyPages
     EXPECT_EQ(NULL, collector->ReleasePropertyPage(
         ProxyFetchPropertyCallback::kPropertyCachePage));
+    EXPECT_EQ(NULL, collector->ReleasePropertyPage(
+        ProxyFetchPropertyCallback::kClientPropertyCachePage));
 
     return collector;
   }
 
-  void EnableCollectorPrefix() {
-    ThreadSynchronizer* sync = server_context()->thread_synchronizer();
-    sync->EnableForPrefix(ProxyFetch::kCollectorDoneFinish);
-    sync->EnableForPrefix(ProxyFetch::kCollectorDetachFinish);
-    sync->EnableForPrefix(ProxyFetch::kCollectorConnectProxyFetchFinish);
-  }
-
-  // Add a callback to the collector.
+  // Add a callback of the given type to the collector.
   ProxyFetchPropertyCallback* AddCallback(
       ProxyFetchPropertyCallbackCollector* collector,
       ProxyFetchPropertyCallback::PageType page_type) {
     AbstractMutex* mutex = thread_system_->NewMutex();
-    DCHECK(page_type == ProxyFetchPropertyCallback::kPropertyCachePage);
+    PropertyCache* property_cache =
+        (page_type == ProxyFetchPropertyCallback::kPropertyCachePage) ?
+        page_property_cache() : server_context()->client_property_cache();
     ProxyFetchPropertyCallback* callback =
         new ProxyFetchPropertyCallback(
-            page_type, page_property_cache(), RewriteTestBase::kTestDomain,
-            "hash", UserAgentMatcher::kDesktop, collector, mutex);
+            page_type, property_cache, RewriteTestBase::kTestDomain,
+            UserAgentMatcher::kDesktop, collector, mutex);
     EXPECT_EQ(page_type, callback->page_type());
     collector->AddCallback(callback);
     return callback;
@@ -186,7 +173,6 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
 
   void TestAddPostlookupTask(bool add_before_done,
                              bool add_before_proxy_fetch) {
-    EnableCollectorPrefix();
     GoogleString kUrl("http://www.test.com/");
     scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
     collector.reset(MakeCollector());
@@ -255,7 +241,6 @@ TEST_F(ProxyFetchTest, TestInhibitParsing) {
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, EmptyCollectorTest) {
   // Test that creating an empty collector works.
-  EnableCollectorPrefix();
   scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
   // This should not fail
@@ -263,7 +248,6 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, EmptyCollectorTest) {
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeDetach) {
-  EnableCollectorPrefix();
   // Test that calling Done() before Detach() works.
   ProxyFetchPropertyCallbackCollector* collector = MakeCollector();
   ProxyFetchPropertyCallback* callback = AddCallback(
@@ -281,12 +265,15 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeDetach) {
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
+  // ... but not a client property.
+  EXPECT_EQ(NULL, collector->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+
   // This should not fail - will also delete the collector.
   collector->Detach(HttpStatus::kUnknownStatusCode);
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, UrlInvalidDoneBeforeDetach) {
-  EnableCollectorPrefix();
   // Invalidate all URLs cached before timestamp 2.
   options_->AddUrlCacheInvalidationEntry("*", 2L, true);
   // Test that calling Done() before Detach() works.
@@ -306,12 +293,15 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, UrlInvalidDoneBeforeDetach) {
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
+  // ... but not a client property.
+  EXPECT_EQ(NULL, collector->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+
   // This should not fail - will also delete the collector.
   collector->Detach(HttpStatus::kUnknownStatusCode);
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, DetachBeforeDone) {
-  EnableCollectorPrefix();
   // Test that calling Detach() before Done() works.
   ProxyFetchPropertyCallbackCollector* collector = MakeCollector();
   ProxyFetchPropertyCallback* callback = AddCallback(
@@ -334,7 +324,6 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DetachBeforeDone) {
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
-  EnableCollectorPrefix();
   // Test that calling Done() before SetProxyFetch() works.
   scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
@@ -363,6 +352,10 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
+  // ... but not a client property.
+  EXPECT_EQ(NULL, collector.get()->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+
   collector.get()->ConnectProxyFetch(mock_proxy_fetch);
   // Should be complete since SetProxyFetch() called after Done().
   EXPECT_TRUE(mock_proxy_fetch->complete());
@@ -372,7 +365,6 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, SetProxyFetchBeforeDone) {
-  EnableCollectorPrefix();
   // Test that calling SetProxyFetch() before Done() works.
   scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
@@ -404,8 +396,63 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, SetProxyFetchBeforeDone) {
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
+  // ... but not a client property.
+  EXPECT_EQ(NULL, collector.get()->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+
   // Should be complete since Done() called.
   EXPECT_TRUE(mock_proxy_fetch->complete());
+
+  // Needed for cleanup.
+  mock_proxy_fetch->Done(true);
+}
+
+TEST_F(ProxyFetchPropertyCallbackCollectorTest, BothCallbacksComplete) {
+  scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+  collector.reset(MakeCollector());
+
+  ProxyFetchPropertyCallback* page_callback = AddCallback(
+      collector.get(), ProxyFetchPropertyCallback::kPropertyCachePage);
+
+  ProxyFetchPropertyCallback* client_callback = AddCallback(
+      collector.get(), ProxyFetchPropertyCallback::kClientPropertyCachePage);
+
+  // Construct mock ProxyFetch to test SetProxyFetch().
+  ExpectStringAsyncFetch async_fetch(
+      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  ProxyFetchFactory factory(server_context_);
+  MockProxyFetch* mock_proxy_fetch = new MockProxyFetch(
+      &async_fetch, &factory, server_context_);
+
+  collector.get()->ConnectProxyFetch(mock_proxy_fetch);
+  // Should not be complete since SetProxyFetch() called first.
+  EXPECT_FALSE(mock_proxy_fetch->complete());
+
+  // Now invoke the page callback.
+  page_callback->Done(true);
+
+  // Should not be complete since both callbacks not yet done.
+  EXPECT_FALSE(mock_proxy_fetch->complete());
+
+  // ... no client property as well.
+  EXPECT_EQ(NULL, collector.get()->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+
+  // Now invoke the client callback.
+  client_callback->Done(true);
+
+  // Should be complete since both callbacks are done.
+  EXPECT_TRUE(mock_proxy_fetch->complete());
+
+  // Collector should now have a page property.
+  scoped_ptr<AbstractPropertyPage> page;
+  page.reset(collector->ReleaseFallbackPropertyPage());
+  EXPECT_TRUE(NULL != page.get());
+
+  // Collector should now have a client property.
+  page.reset(collector.get()->ReleasePropertyPage(
+      ProxyFetchPropertyCallback::kClientPropertyCachePage));
+  EXPECT_TRUE(NULL != page.get());
 
   // Needed for cleanup.
   mock_proxy_fetch->Done(true);
@@ -424,7 +471,6 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, ProxyFetchPostLookupDone) {
 }
 
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, FallbackPagePostLookupRace) {
-  EnableCollectorPrefix();
   // This test will check PostLookup tasks should not have Null
   // fallback_property_page.
   GoogleString kUrl("http://www.test.com/");
@@ -438,6 +484,9 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, FallbackPagePostLookupRace) {
   MockProxyFetch* mock_proxy_fetch = new MockProxyFetch(
       &async_fetch, &factory, server_context_);
 
+  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  sync->EnableForPrefix(ProxyFetch::kCollectorReady);
+  sync->EnableForPrefix(ProxyFetch::kCollectorDone);
   ThreadSystem* thread_system = server_context()->thread_system();
   QueuedWorkerPool pool(1, "test", thread_system);
   QueuedWorkerPool::Sequence* sequence = pool.NewSequence();
@@ -451,31 +500,6 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, FallbackPagePostLookupRace) {
   page_callback->Done(true);
   collector->ConnectProxyFetch(mock_proxy_fetch);
   mock_proxy_fetch->Done(true);
-}
-
-
-TEST_F(ProxyFetchPropertyCallbackCollectorTest, TestOptionsValid) {
-  GoogleString kUrl("http://www.test.com/");
-  RewriteOptions* options = new RewriteOptions(thread_system_.get());
-  ProxyFetchPropertyCallbackCollector* collector =
-      new ProxyFetchPropertyCallbackCollector(
-          server_context_,
-          RewriteTestBase::kTestDomain,
-          RequestContext::NewTestRequestContext(thread_system_.get()),
-          options,
-          UserAgentMatcher::kDesktop);
-  ProxyFetchPropertyCallback* page_callback = AddCallback(
-      collector, ProxyFetchPropertyCallback::kPropertyCachePage);
-
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
-  sync->EnableForPrefix(ProxyFetch::kCollectorFinish);
-  sync->EnableForPrefix(ProxyFetch::kCollectorDetachStart);
-  collector->Detach(HttpStatus::kUnknownStatusCode);
-  delete options;
-  collector->IsCacheValid(1L);
-  sync->Signal(ProxyFetch::kCollectorDetachStart);
-  page_callback->Done(true);
-  sync->Wait(ProxyFetch::kCollectorFinish);
 }
 
 }  // namespace net_instaweb

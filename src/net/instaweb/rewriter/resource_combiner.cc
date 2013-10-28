@@ -43,7 +43,9 @@
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/url_escaper.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
+
 
 namespace net_instaweb {
 
@@ -94,11 +96,8 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
 
   // Make sure the specific filter is OK with the data --- it may be
   // unable to combine it safely
-  GoogleString failure_reason;
-  if (!ResourceCombinable(resource.get(), &failure_reason, handler)) {
-    handler->Message(
-        kInfo, "Cannot combine %s: resource not combinable, reason: %s",
-        resource->url().c_str(), failure_reason.c_str());
+  if (!ResourceCombinable(resource.get(), handler)) {
+    handler->Message(kInfo, "Cannot combine: not combinable");
     return ret;
   }
 
@@ -181,9 +180,7 @@ bool ResourceCombiner::UrlTooBig() {
   return false;
 }
 
-bool ResourceCombiner::ResourceCombinable(
-    Resource* /*resource*/,
-    GoogleString* /*failure_reason*/,
+bool ResourceCombiner::ResourceCombinable(Resource* /*resource*/,
     MessageHandler* /*handler*/) {
   return true;
 }

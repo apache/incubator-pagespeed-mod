@@ -121,32 +121,26 @@ class AbstractLogRecord  {
       bool is_recompressed,
       ImageType original_image_type,
       ImageType optimized_image_type,
-      bool is_resized,
-      int original_width,
-      int original_height,
-      bool is_resized_using_rendered_dimensions,
-      int resized_width,
-      int resized_height);
+      bool is_resized);
 
   // Atomically sets is_html_response in the logging proto.
   void SetIsHtml(bool is_html);
 
-  // Updated the cohort info to set the found to true for the given
-  // property.
-  virtual void AddFoundPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) = 0;
+  // Adds a new cohort info with the given cohort name and returns its index.
+  int AddPropertyCohortInfo(const GoogleString& cohort);
 
-  // Updated the cohort info to set the retrieved to true for the given
-  // property.
-  virtual void AddRetrievedPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) = 0;
+  // Updates the cohort info at the specified index, to include the given
+  // property in the last of properties found in the cache.
+  void AddFoundPropertyToCohortInfo(int index, const GoogleString& property);
 
-  // Updates the cohort info to update the cache key state.
-  virtual void SetCacheStatusForCohortInfo(
-      int page_type, const GoogleString& cohort,
-      bool found, int key_state) = 0;
+  // Updates the cohort info at the specified index, to indicate whether it was
+  // a cache hit.
+  void SetCacheStatusForCohortInfo(int index, bool found, int key_state);
+
+  // Updates the cohort info at the specified index with the device and cache
+  // type.
+  void SetDeviceAndCacheTypeForCohortInfo(
+      int index, int device_type, int cache_type);
 
   // Mutex-guarded log mutation convenience methods. The rule of thumb is that
   // if a single-field update to a logging proto occurs multiple times, it
@@ -172,18 +166,15 @@ class AbstractLogRecord  {
       bool in_head);
 
   // Log a RewriterInfo for the image rewrite filter.
-  virtual void LogImageRewriteActivity(
+  void LogImageRewriteActivity(
       const char* id,
       const GoogleString& url,
       RewriterApplication::Status status,
       bool is_image_inlined,
       bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
       bool try_low_res_src_insertion,
       bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) = 0;
+      int low_res_data_size);
 
   // TODO(gee): Change the callsites.
   void LogJsDisableFilter(const char* id, bool has_pagespeed_no_defer);
@@ -219,11 +210,7 @@ class AbstractLogRecord  {
   void SetNumCssCriticalImages(int num_css_critical_images);
 
   // Sets image related statistics.
-  virtual void SetImageStats(int num_img_tags, int num_inlined_img_tags,
-                             int num_critical_images_used) = 0;
-
-  // Sets the number of external resources on an HTML page.
-  virtual void SetResourceCounts(int num_external_css, int num_scripts) = 0;
+  void SetImageStats(int num_img_tags, int num_inlined_img_tags);
 
   // Sets critical CSS related byte counts (all uncompressed).
   void SetCriticalCssInfo(int critical_inlined_bytes,
@@ -231,7 +218,7 @@ class AbstractLogRecord  {
                           int overhead_bytes);
 
   // Log information related to the user agent and device making the request.
-  virtual void LogDeviceInfo(
+  void LogDeviceInfo(
       int device_type,
       bool supports_image_inlining,
       bool supports_lazyload_images,
@@ -241,16 +228,41 @@ class AbstractLogRecord  {
       bool supports_webplossless_alpha,
       bool is_bot,
       bool supports_split_html,
-      bool can_preload_resources) = 0;
-
-  // Log whether the request is an XmlHttpRequest.
-  void LogIsXhr(bool is_xhr);
+      bool can_preload_resources);
 
   // Sets initial information for background rewrite log.
   virtual void SetBackgroundRewriteInfo(
     bool log_urls,
     bool log_url_indices,
     int max_rewrite_info_log_size);
+
+  // TODO(gee): Deprecate these methods.
+  // Sets the time from the start of the request till it begins getting
+  // processed.
+  void SetTimeToStartProcessing(int64 end_ms) {
+    SetTimeFromRequestStart(
+        &TimingInfo::set_time_to_start_processing_ms, end_ms);
+  }
+
+  // Sets the time from the start of the request till the start of parsing.
+  void SetTimeToStartParse(int64 end_ms) {
+    SetTimeFromRequestStart(
+        &TimingInfo::set_time_to_start_parse_ms, end_ms);
+  }
+
+  // Sets the time from the start of the request till the start of the pcache
+  // lookup.
+  void SetTimeToPcacheStart(int64 end_ms) {
+    SetTimeFromRequestStart(
+        &TimingInfo::set_time_to_pcache_lookup_start_ms, end_ms);
+  }
+
+  // Sets the time from the start of the request till the end of the pcache
+  // lookup.
+  void SetTimeToPcacheEnd(int64 end_ms) {
+    SetTimeFromRequestStart(
+        &TimingInfo::set_time_to_pcache_lookup_end_ms, end_ms);
+  }
 
   // Set timing information in the logging implementation.
   virtual void SetTimingInfo(const RequestContext::TimingInfo& timing_info) {}
@@ -265,14 +277,9 @@ class AbstractLogRecord  {
   // writing failed.
   virtual bool WriteLogImpl() = 0;
 
-  // Helper function which creates a new rewriter logging submessage for
-  // |rewriter_id|, sets status and the url index. It is intended to be called
-  // only inside logging code.
-  RewriterInfo* SetRewriterLoggingStatusHelper(
-      const char* rewriter_id, const GoogleString& url,
-      RewriterApplication::Status status);
-
  private:
+  typedef void (TimingInfo::*SetTimeFromStartFn)(int64);
+
   // Called on construction.
   void InitLogging();
 
@@ -282,6 +289,15 @@ class AbstractLogRecord  {
   // Fill LoggingInfo proto with information collected from LogRewriterStatus
   // and LogRewrite.
   void PopulateRewriterStatusCounts();
+
+  void SetTimeFromRequestStart(SetTimeFromStartFn fn, int64 end_ms);
+
+  // Helper function which creates a new rewriter logging submessage for
+  // |rewriter_id|, sets status and the url index. It is intended to be called
+  // only inside logging code.
+  RewriterInfo* SetRewriterLoggingStatusHelper(
+      const char* rewriter_id, const GoogleString& url,
+      RewriterApplication::Status status);
 
   // Thus must be set. Implementation constructors must minimally default this
   // to a NullMutex.
@@ -324,47 +340,6 @@ class LogRecord : public AbstractLogRecord {
   virtual ~LogRecord();
 
   LoggingInfo* logging_info() { return logging_info_.get(); }
-
-  virtual void SetImageStats(int num_img_tags, int num_inlined_img_tags,
-                             int num_critical_images_used) {}
-
-  virtual void SetResourceCounts(int num_external_css, int num_scripts) {}
-
-  virtual void AddFoundPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
-
-  virtual void AddRetrievedPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
-
-  void SetCacheStatusForCohortInfo(
-      int page_type, const GoogleString& cohort, bool found, int key_state) {}
-
-  virtual void LogImageRewriteActivity(
-      const char* id,
-      const GoogleString& url,
-      RewriterApplication::Status status,
-      bool is_image_inlined,
-      bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
-      bool try_low_res_src_insertion,
-      bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) {}
-
-  virtual void LogDeviceInfo(
-      int device_type,
-      bool supports_image_inlining,
-      bool supports_lazyload_images,
-      bool supports_critical_images_beacon,
-      bool supports_deferjs,
-      bool supports_webp,
-      bool supports_webplossless_alpha,
-      bool is_bot,
-      bool supports_split_html,
-      bool can_preload_resources) {}
 
   bool WriteLogImpl() { return true; }
 

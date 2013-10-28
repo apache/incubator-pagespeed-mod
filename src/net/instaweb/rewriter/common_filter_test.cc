@@ -19,12 +19,12 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
@@ -34,6 +34,7 @@
 
 namespace net_instaweb {
 class HtmlElement;
+class HtmlParse;
 
 namespace {
 
@@ -80,7 +81,7 @@ class CommonFilterTest : public RewriteTestBase {
                            const StringPiece& domain,
                            RewriteOptions* options,
                            RewriteDriver* driver) {
-    options->WriteableDomainLawyer()->AddDomain(domain, message_handler());
+    options->domain_lawyer()->AddDomain(domain, message_handler());
     CountingFilter* filter = new CountingFilter(driver);
     driver->AddOwnedPostRenderFilter(filter);
     driver->StartParse(base_url);
@@ -88,6 +89,8 @@ class CommonFilterTest : public RewriteTestBase {
     return filter;
   }
 
+  GoogleMessageHandler handler_;
+  HtmlParse* html_parse_;
   scoped_ptr<CountingFilter> filter_;
 };
 
@@ -206,144 +209,6 @@ TEST_F(CommonFilterTest, TestTwoDomainLawyers) {
   EXPECT_FALSE(CanRewriteResource(a, "http://b.com/b.css"));
   EXPECT_FALSE(CanRewriteResource(b, "http://a.com/a.css"));
   EXPECT_TRUE(CanRewriteResource(b, "http://b.com/b.css"));
-}
-
-const char kEndDocumentComment[] = "<!--test comment-->";
-
-class EndDocumentInserterFilter : public CommonFilter {
- public:
-  explicit EndDocumentInserterFilter(RewriteDriver* driver)
-      : CommonFilter(driver)
-  {}
-
-  virtual void EndDocument() {
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, "test comment"));
-  }
-
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
-
-  virtual const char* Name() const {
-    return "CommonFilterTest.EndDocumentInserterFilter";
-  }
-};
-
-class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
- protected:
-  virtual void SetUp() {
-    RewriteTestBase::SetUp();
-    filter_.reset(new EndDocumentInserterFilter(rewrite_driver()));
-    rewrite_driver()->AddFilter(filter_.get());
-    SetupWriter();
-  }
-
-  void StartTest(StringPiece pre_comment) {
-    GoogleString url = "http://www.example.com/";
-    rewrite_driver()->StartParse(url);
-    rewrite_driver()->ParseText(pre_comment);
-  }
-
-  const GoogleString FinishTest(StringPiece pre_comment,
-                                StringPiece post_comment) {
-    const GoogleString expected_html =
-        StrCat(pre_comment, kEndDocumentComment, post_comment);
-    rewrite_driver()->ParseText(post_comment);
-    rewrite_driver()->FinishParse();
-    return expected_html;
-  }
-
-  const GoogleString FullTest(StringPiece pre_comment,
-                              StringPiece post_comment) {
-    StartTest(pre_comment);
-    return FinishTest(pre_comment, post_comment);
-  }
-
-  const GoogleString FlushTest(StringPiece pre_flush, StringPiece pre_comment,
-                               StringPiece post_comment) {
-    StartTest(pre_flush);
-    rewrite_driver()->Flush();
-    rewrite_driver()->ParseText(pre_comment);
-    GoogleString full_pre_comment = StrCat(pre_flush, pre_comment);
-    return FinishTest(full_pre_comment, post_comment);
-  }
-
-  scoped_ptr<EndDocumentInserterFilter> filter_;
-};
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, OneBody) {
-  GoogleString expected =
-      FullTest("<html><head></head><body>", "</body></html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, WhiteSpace) {
-  GoogleString expected =
-      FullTest("<html><head></head><body>", "</body>\n</html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, NoBody) {
-  GoogleString expected =
-      FullTest("some content without body tag\n</html>", "");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, NoCloseBody) {
-  GoogleString expected =
-      FullTest("<html><head></head><body><img src=\"a.jpg\">", "</html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, FlushInBody) {
-  GoogleString expected =
-      FlushTest("<html><head></head><body>", "", "</body></html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, FlushBeforeBody) {
-  GoogleString expected =
-      FlushTest("<html><head></head>", "<body>", "</body></html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, FlushAfterCloseBody) {
-  // kEndDocumentComment gets inserted after </body> since both the open and
-  // close tags have been flushed already.
-  GoogleString expected =
-      FlushTest("<html><head></head><body></body>", "", "</html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, FlushAtEnd) {
-  // This causes us to append to the end of document after the flush.
-  GoogleString expected =
-      FlushTest("<html><head></head><body></body></html>", "", "");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, TwoBodies) {
-  GoogleString expected =
-      FullTest("<html><head></head><body></body><body>", "</body></html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, TextAfterCloseBody) {
-  GoogleString expected =
-      FullTest("<html><head></head><body></body>extra text", "</html>");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, TextAfterCloseHtml) {
-  GoogleString expected =
-      FullTest("<html><head></head><body></body></html>extra text", "");
-  EXPECT_STREQ(expected, output_buffer_);
-}
-
-TEST_F(CommonFilterInsertNodeAtBodyEndTest, BodyInNoscript) {
-  GoogleString expected = FullTest(
-      "<html><head></head><noscript><body></body></noscript>", "</html>");
-  EXPECT_STREQ(expected, output_buffer_);
 }
 
 }  // namespace

@@ -19,13 +19,10 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 
-#include <set>
-
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -47,13 +44,6 @@ typedef RefCountedPtr<RequestContext> RequestContextPtr;
 // explicit transfer of ownership in these cases.
 class RequestContext : public RefCounted<RequestContext> {
  public:
-  // Types of split html request.
-  enum SplitRequestType {
-    SPLIT_FULL,
-    SPLIT_ABOVE_THE_FOLD,
-    SPLIT_BELOW_THE_FOLD,
-  };
-
   // |logging_mutex| will be passed to the request context's AbstractLogRecord,
   // which will take ownership of it. If you will be doing logging in a real
   // (threaded) environment, pass in a real mutex. If not, a NullMutex is fine.
@@ -63,12 +53,7 @@ class RequestContext : public RefCounted<RequestContext> {
 
   // TODO(marq): Move this test context factory to a test-specific file.
   //             Makes a request context for running tests.
-  static RequestContextPtr NewTestRequestContext(ThreadSystem* thread_system) {
-    return NewTestRequestContextWithTimer(thread_system, NULL);
-  }
-  static RequestContextPtr NewTestRequestContextWithTimer(
-      ThreadSystem* thread_system, Timer* timer);
-  static RequestContextPtr NewTestRequestContext(AbstractLogRecord* log_record);
+  static RequestContextPtr NewTestRequestContext(ThreadSystem* thread_system);
 
   // Creates a new, unowned AbstractLogRecord, for use by some subordinate
   // action.  Also useful in case of background activity where logging is
@@ -118,39 +103,6 @@ class RequestContext : public RefCounted<RequestContext> {
   bool using_spdy() const { return using_spdy_; }
   void set_using_spdy(bool x) { using_spdy_ = x; }
 
-  // Indicates the type of split html request.
-  SplitRequestType split_request_type() const {
-    return split_request_type_;
-  }
-  void set_split_request_type(SplitRequestType type) {
-    split_request_type_ = type;
-  }
-
-  int64 request_id() const {
-    return request_id_;
-  }
-  void set_request_id(int64 x) {
-    request_id_ = x;
-  }
-
-  // Authorized a particular external domain to be fetched from. The caller of
-  // this method MUST ensure that the domain is not some internal site within
-  // the firewall/LAN hosting the server. Note that this doesn't affect
-  // rewriting at all.
-  // TODO(morlovich): It's not clearly this is the appropriate mechanism
-  // for all the authorizations --- we may want to scope this to a request
-  // only.
-  void AddSessionAuthorizedFetchOrigin(const GoogleString& origin) {
-    session_authorized_fetch_origins_.insert(origin);
-  }
-
-  // Returns true for exactly the origins that were authorized for this
-  // particular session by calls to AddSessionAuthorizedFetchOrigin()
-  bool IsSessionAuthorizedFetchOrigin(const GoogleString& origin) const {
-    return session_authorized_fetch_origins_.find(origin)
-           != session_authorized_fetch_origins_.end();
-  }
-
   // Prepare the AbstractLogRecord for a subsequent call to WriteLog.  This
   // might include propagating information collected in the RequestContext,
   // TimingInfo for example, to the underlying logging infrastructure.
@@ -167,154 +119,83 @@ class RequestContext : public RefCounted<RequestContext> {
       bool log_url_indices,
       int max_rewrite_info_log_size);
 
-  // TimingInfo tracks various event timestamps over the lifetime of a request.
-  // The timeline looks (roughly) like the following, with the associated
-  // TimingInfo calls.
-  // - Request Received/Context created: Init
-  // <queueing delay>
-  // - Trigger: RequestStarted
-  // <option lookup>
-  // - Start Processing: ProcessingStarted
-  // - Lookup Properties?: PropertyCacheLookup*
-  // - Fetch?: Fetch*
-  // - Start parsing?: ParsingStarted
-  // - First byte sent to client: FirstByteReturned.
-  // - Finish: RequestFinished
-  // NOTE: This class is thread safe.
+  // TODO(gee): Track queuing time.
   class TimingInfo {
    public:
-    // Initialize the TimingInfo with the specified Timer.  Sets init_ts_ to
-    // Timer::NowMs, from which GetElapsedMs is based.
-    // NOTE: Timer and mutex are not owned by TimingInfo.
-    TimingInfo(Timer* timer, AbstractMutex* mutex);
+    // TODO(gee): Does this need to be thread safe?
+    // Timer is not owned by TimingInfo.
+    TimingInfo();
 
-    // This should be called when the request "starts", potentially after
-    // queuing. It denotes the request "start time", which "elapsed" timing
-    // values are relative to.
+    // Initialize the TimingInfo with the specified Timer.  Sets a timestamp
+    // from which GetElapsedMs is based.
+    // TODO(gee): This is forced by the RequestContext/GoogleRequestContext
+    void Init(Timer* timer);
+
+    // This should be called when the request "starts", for example in
+    // HTTPServerFetch::Start.  It denotes the request "start time", which all
+    // other timing values are relative to.
     void RequestStarted();
-
-    // This should be called once the options are available and PSOL can start
-    // doing meaningful work.
-    void ProcessingStarted() { SetToNow(&processing_start_ts_ms_); }
-
-    // This should be called if/when HTML parsing begins.
-    void ParsingStarted() { SetToNow(&parsing_start_ts_ms_); }
-
-    // Called when the first byte is sent back to the user.
-    void FirstByteReturned();
-
-    // This should be called when a PropertyCache lookup is initiated.
-    void PropertyCacheLookupStarted() {
-      SetToNow(&pcache_lookup_start_ts_ms_);
-    }
-
-    // This should be called when a PropertyCache lookup completes.
-    void PropertyCacheLookupFinished() { SetToNow(&pcache_lookup_end_ts_ms_); }
 
     // Called when the request is finished, i.e. the response has been sent to
     // the client.
-    void RequestFinished() { SetToNow(&end_ts_ms_); }
+    void RequestFinished();
 
     // Fetch related timing events.
-    // Note:  Only the first call to FetchStarted will have an effect,
+    // Note:  Only the first call to FetchStarted will have an affect,
     // subsequent calls are silent no-ops.
-    // TODO(gee): Fetch and cache timing is busted for reconstructing resources
-    // with multiple inputs.
     void FetchStarted();
+    void FetchFirstByteReceived();
     void FetchHeaderReceived();
     void FetchFinished();
-
-    // TODO(gee): I'd really prefer these to be start/end calls, but the
-    // WriteThroughCache design pattern will not allow for this.
-    void SetHTTPCacheLatencyMs(int64 latency_ms);
-    void SetL2HTTPCacheLatencyMs(int64 latency_ms);
 
     // Milliseconds since Init.
     int64 GetElapsedMs() const;
 
-    // Milliseconds from request start to processing start.
-    bool GetTimeToStartProcessingMs(int64* elapsed_ms) const {
-      return GetTimeFromStart(processing_start_ts_ms_, elapsed_ms);
+    // Milliseconds since FetchStarted.
+    int64 GetElapsedFromFetchStart();
+
+    // Methods for retrieving information.
+    int64 init_ts_ms() const {
+      return init_ts_ms_;
     }
 
-    // Milliseconds spent "processing": end time - start time - fetch time.
-    // TODO(gee): This naming is somewhat misleading since it is from request
-    // start not processing start.  Leaving as is for historical reasons, at
-    // least for the time being.
-    bool GetProcessingElapsedMs(int64* elapsed_ms) const;
-
-    // Milliseconds from request start to pcache lookup start.
-    bool GetTimeToPropertyCacheLookupStartMs(int64* elapsed_ms) const {
-      return GetTimeFromStart(pcache_lookup_start_ts_ms_, elapsed_ms);
+    int64 start_ts_ms() const {
+      return start_ts_ms_;
     }
-
-    // Milliseconds from request start to pcache lookup end.
-    bool GetTimeToPropertyCacheLookupEndMs(int64* elapsed_ms) const {
-      return GetTimeFromStart(pcache_lookup_end_ts_ms_, elapsed_ms);
-    }
-
-    // HTTP Cache latencies.
-    bool GetHTTPCacheLatencyMs(int64* latency_ms) const;
-    bool GetL2HTTPCacheLatencyMs(int64* latency_ms) const;
 
     // Milliseconds from request start to fetch start.
-    bool GetTimeToStartFetchMs(int64* elapsed_ms) const;
+    int64 fetch_start_ms() const { return fetch_start_ts_ms_ - start_ts_ms_; }
 
-    // Milliseconds from fetch start to header received.
-    bool GetFetchHeaderLatencyMs(int64* latency_ms) const;
+    int64 fetch_first_byte_ms() const { return fetch_first_byte_ms_; }
+
+    // Milliseconds from fetch start to head received.
+    int64 fetch_header_ms() const { return fetch_header_ms_; }
 
     // Milliseconds from fetch start to fetch end.
-    bool GetFetchLatencyMs(int64* latency_ms) const;
+    int64 fetch_elapsed_ms() const { return fetch_elapsed_ms_; }
 
-    // Milliseconds from receiving the request (Init) to responding with the
-    // first byte of data.
-    bool GetTimeToFirstByte(int64* latency_ms) const;
-
-    // Milliseconds from request start to parse start.
-    bool GetTimeToStartParseMs(int64* elapsed_ms) const {
-      return GetTimeFromStart(parsing_start_ts_ms_, elapsed_ms);
-    }
-
-    int64 init_ts_ms() const { return init_ts_ms_; }
-
-    int64 start_ts_ms() const { return start_ts_ms_; }
+    // Milliseconds spent "processing": end time - start time - fetch time.
+    int64 processing_elapsed_ms() const { return processing_elapsed_ms_; }
 
    private:
     int64 NowMs() const;
 
-    // Set "ts_ms" to NowMs().
-    void SetToNow(int64* ts_ms) const;
-
-    // Set "elapsed_ms" to "ts_ms" - start_ms_ and returns true on success.
-    // Returns false if either start_ms_ or "ts_ms" have not been set (< 0).
-    bool GetTimeFromStart(int64 ts_ms, int64* elapsed_ms) const;
-
-
     Timer* timer_;
 
-    // Event Timestamps.  These should appear in (roughly) chronological order.
-    // These need not be protected by mu_ as they are only accessed by a single
-    // thread at any given time, and subsequent accesses are made through
-    // paths which are synchronized by other locks (pcache callback collector,
-    // sequences, etc.).
+    // Timestamps.
     int64 init_ts_ms_;
+
     int64 start_ts_ms_;
-    int64 processing_start_ts_ms_;
-    int64 pcache_lookup_start_ts_ms_;
-    int64 pcache_lookup_end_ts_ms_;
-    int64 parsing_start_ts_ms_;
-    int64 end_ts_ms_;
 
-    AbstractMutex* mu_;  // Not owned by TimingInfo.
-    // The following members are protected by mu_;
     int64 fetch_start_ts_ms_;
-    int64 fetch_header_ts_ms_;
-    int64 fetch_end_ts_ms_;
-    int64 first_byte_ts_ms_;
 
-    // Latencies.
-    int64 http_cache_latency_ms_;
-    int64 l2http_cache_latency_ms_;
+    // Durations.
+    // TODO(gee): Make all members timestamps?
+    int64 fetch_first_byte_ms_;
+    int64 fetch_header_ms_;
+    int64 fetch_elapsed_ms_;
+
+    int64 processing_elapsed_ms_;
 
     DISALLOW_COPY_AND_ASSIGN(TimingInfo);
   };
@@ -326,8 +207,7 @@ class RequestContext : public RefCounted<RequestContext> {
   // TODO(gee): Fix this, it sucks.
   // The default constructor will not create a LogRecord. Subclass constructors
   // must do this explicitly.
-  RequestContext(AbstractMutex* mutex, Timer* timer,
-                 AbstractLogRecord* log_record);
+  RequestContext();
   // Destructors in refcounted classes should be protected.
   virtual ~RequestContext();
   REFCOUNT_FRIEND_DECLARATION(RequestContext);
@@ -344,11 +224,7 @@ class RequestContext : public RefCounted<RequestContext> {
   // Log for recording background rewritings.
   scoped_ptr<AbstractLogRecord> background_rewrite_log_record_;
 
-  StringSet session_authorized_fetch_origins_;
-
   bool using_spdy_;
-  SplitRequestType split_request_type_;;
-  int64 request_id_;
 
   DISALLOW_COPY_AND_ASSIGN(RequestContext);
 };

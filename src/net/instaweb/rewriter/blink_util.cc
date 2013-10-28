@@ -72,31 +72,26 @@ bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
           user_agent, async_fetch->request_headers());
   {
     ScopedMutex lock(async_fetch->log_record()->mutex());
-    CacheHtmlLoggingInfo* cache_html_logging_info =
-        async_fetch->log_record()->logging_info()->
-        mutable_cache_html_logging_info();
+    // TODO(mmohabey): When called by IsCacheHtmlRequest logging should be done
+    // differently.
+    BlinkInfo* blink_info =
+        async_fetch->log_record()->logging_info()->mutable_blink_info();
     switch (request_type) {
       case UserAgentMatcher::kBlinkWhiteListForDesktop:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_DESKTOP_WHITELIST);
-        return true;
-      case UserAgentMatcher::kBlinkWhiteListForMobile:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_MOBILE);
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_WHITELIST);
         return true;
       case UserAgentMatcher::kDoesNotSupportBlink:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::NOT_SUPPORT_CACHE_HTML);
+        blink_info->set_blink_user_agent(BlinkInfo::NOT_SUPPORT_BLINK);
         return false;
       case UserAgentMatcher::kBlinkBlackListForDesktop:
-        FALLTHROUGH_INTENDED;
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_DESKTOP_BLACKLIST);
+        return false;
+      case UserAgentMatcher::kBlinkWhiteListForMobile:
       case UserAgentMatcher::kDoesNotSupportBlinkForMobile:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::CACHE_HTML_DESKTOP_BLACKLIST);
+        blink_info->set_blink_user_agent(BlinkInfo::BLINK_MOBILE);
         return false;
       case UserAgentMatcher::kNullOrEmpty:
-        cache_html_logging_info->set_cache_html_user_agent(
-            CacheHtmlLoggingInfo::NULL_OR_EMPTY);
+        blink_info->set_blink_user_agent(BlinkInfo::NULL_OR_EMPTY);
         return false;
     }
   }
@@ -109,9 +104,8 @@ bool IsBlinkBlacklistActive(int64 now_ms,
   bool is_blacklisted = blink_blacklist_end_timestamp_ms >= now_ms;
   if (is_blacklisted) {
     ScopedMutex lock(log_record->mutex());
-    log_record->logging_info()->mutable_cache_html_logging_info()->
-        set_cache_html_request_flow(
-            CacheHtmlLoggingInfo::CACHE_HTML_BLACKLISTED);
+    log_record->logging_info()->mutable_blink_info()->set_blink_request_flow(
+        BlinkInfo::BLINK_BLACKLISTED);
   }
   return is_blacklisted;
 }
@@ -136,6 +130,8 @@ bool IsBlinkRequest(const GoogleUrl& url,
       // TODO(sriharis): We also make this check in regular proxy flow
       // (ProxyFetch).  Should we combine these?
       options->IsAllowed(url.Spec()) &&
+      // Does url match a cacheable family pattern specified in config?
+      options->IsInBlinkCacheableFamily(url) &&
       // Is the user agent allowed to enter the blink flow?
       IsUserAgentAllowedForBlink(
           async_fetch, options, user_agent,
@@ -148,8 +144,21 @@ bool IsBlinkRequest(const GoogleUrl& url,
     if (url.SchemeIs("http")) {
       return true;
     }
+    if (!options->apply_blink_if_no_families()) {
+      LOG(ERROR) << "Non http url : " << url.spec_c_str() << " allowed in "
+                 << "blink cacheable families.";
+    }
   }
   return false;
+}
+
+bool ShouldApplyBlinkFlowCriticalLine(
+    const ServerContext* server_context,
+    const RewriteOptions* options) {
+  return options != NULL &&
+      // Blink flow critical line is enabled in rewrite options.
+      options->enable_blink_critical_line() &&
+      server_context->blink_critical_line_data_finder() != NULL;
 }
 
 bool IsJsonEmpty(const Json::Value& json) {
@@ -173,16 +182,24 @@ void ClearArrayIfAllEmpty(Json::Value* json) {
 }
 
 void EscapeString(GoogleString* str) {
-  // Escape </script> to <\/script>.
-  GlobalReplaceSubstring("</script>", "<\\/script>", str);
-
-  // TODO(sriharis):  Check whether we need to do any other escaping.
+  // TODO(sriharis):  Check whether we need to do any other escaping.  Also
+  // change the escaping of '<' and '>' to use standard '\u' mechanism.
   int num_replacements = 0;
   GoogleString tmp;
   const int length = str->length();
   for (int i = 0; i < length; ++i) {
     const unsigned char c = (*str)[i];
     switch (c) {
+      case '<': {
+        ++num_replacements;
+        tmp.append("__psa_lt;");
+        break;
+      }
+      case '>': {
+        ++num_replacements;
+        tmp.append("__psa_gt;");
+        break;
+      }
       case 0xe2: {
         if ((i + 2 < length) && ((*str)[i + 1] == '\x80')) {
           if ((*str)[i + 2] == '\xa8') {
@@ -227,7 +244,7 @@ void PopulateAttributeToNonCacheableValuesMap(
     AttributesToNonCacheableValuesMap* attribute_non_cacheable_values_map,
     std::vector<int>* panel_number_num_instances) {
   GoogleString non_cacheable_elements_str =
-      rewrite_options->non_cacheables_for_cache_partial_html();
+      rewrite_options->GetBlinkNonCacheableElementsFor(url);
   StringPiece non_cacheable_elements(non_cacheable_elements_str);
   // TODO(rahulbansal): Add more error checking.
   StringPieceVector non_cacheable_values;
@@ -269,7 +286,7 @@ int GetPanelNumberForNonCacheableElement(
     typedef AttributesToNonCacheableValuesMap::const_iterator Iterator;
     std::pair<Iterator, Iterator> ret =
         attribute_non_cacheable_values_map.equal_range(
-            attribute.name_str().as_string());
+            attribute.name().c_str());
 
     if (attribute.name().keyword() == HtmlName::kClass) {
       // Split class attribute value on whitespace.

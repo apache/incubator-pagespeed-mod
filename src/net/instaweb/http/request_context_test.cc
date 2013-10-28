@@ -20,73 +20,60 @@
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/null_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
 
 namespace {
 
 TEST(RequestContext_TimingInfo, Noop) {
-  MockTimer timer(101);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
-  EXPECT_EQ(timer.NowMs(), timing_info.init_ts_ms());
-  EXPECT_EQ(0, timing_info.GetElapsedMs());
+  RequestContext::TimingInfo timing_info;
   EXPECT_EQ(-1, timing_info.start_ts_ms());
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetProcessingElapsedMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetTimeToStartFetchMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetFetchLatencyMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetFetchHeaderLatencyMs(&elapsed));
+  EXPECT_EQ(0, timing_info.fetch_elapsed_ms());
+  EXPECT_EQ(0, timing_info.processing_elapsed_ms());
+
+  MockTimer timer(101);
+  timing_info.Init(&timer);
+  EXPECT_EQ(-1, timing_info.start_ts_ms());
+  EXPECT_EQ(0, timing_info.fetch_elapsed_ms());
+  EXPECT_EQ(0, timing_info.processing_elapsed_ms());
 }
 
 TEST(RequestContext_TimingInfo, StartTime) {
-  MockTimer timer(101);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
+  RequestContext::TimingInfo timing_info;
 
+  MockTimer timer(101);
+  timing_info.Init(&timer);
   timer.AdvanceMs(1);
   timing_info.RequestStarted();
   EXPECT_EQ(102, timing_info.start_ts_ms());
 }
 
 TEST(RequestContext_TimingInfo, FetchTiming) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
-  timing_info.RequestStarted();
+  RequestContext::TimingInfo timing_info;
 
-  int64 latency;
-  EXPECT_FALSE(timing_info.GetFetchHeaderLatencyMs(&latency));
-  EXPECT_FALSE(timing_info.GetFetchLatencyMs(&latency));
+  MockTimer timer(100);
+  timing_info.Init(&timer);
+  timing_info.RequestStarted();
 
   timer.AdvanceMs(1);
   timing_info.FetchStarted();
 
-  int64 elapsed;
-  ASSERT_TRUE(timing_info.GetTimeToStartFetchMs(&elapsed));
-  EXPECT_EQ(1, elapsed);
-  ASSERT_FALSE(timing_info.GetFetchHeaderLatencyMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetFetchLatencyMs(&elapsed));
-
   timer.AdvanceMs(2);
   timing_info.FetchHeaderReceived();
-  ASSERT_TRUE(timing_info.GetFetchHeaderLatencyMs(&elapsed));
-  EXPECT_EQ(2, elapsed);
-  ASSERT_FALSE(timing_info.GetFetchLatencyMs(&elapsed));
 
   timer.AdvanceMs(3);
   timing_info.FetchFinished();
-  ASSERT_TRUE(timing_info.GetFetchLatencyMs(&elapsed));
-  EXPECT_EQ(5, elapsed);
+
+  EXPECT_EQ(1, timing_info.fetch_start_ms());
+  EXPECT_EQ(2, timing_info.fetch_header_ms());
+  EXPECT_EQ(5, timing_info.fetch_elapsed_ms());
 }
 
 TEST(RequestContext_TimingInfo, ProcessingTime) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
+  RequestContext::TimingInfo timing_info;
 
+  MockTimer timer(100);
+  timing_info.Init(&timer);
   timing_info.RequestStarted();
 
   timer.AdvanceMs(1);
@@ -96,123 +83,31 @@ TEST(RequestContext_TimingInfo, ProcessingTime) {
   timer.AdvanceMs(10);
 
   // RequestFinished not yet called.
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetProcessingElapsedMs(&elapsed));
+  EXPECT_EQ(0, timing_info.processing_elapsed_ms());
 
   timing_info.RequestFinished();
 
-
-  ASSERT_TRUE(timing_info.GetFetchLatencyMs(&elapsed));
-  EXPECT_EQ(5, elapsed);
-  ASSERT_TRUE(timing_info.GetProcessingElapsedMs(&elapsed));
-  EXPECT_EQ(11, elapsed);
+  EXPECT_EQ(5, timing_info.fetch_elapsed_ms());
+  EXPECT_EQ(11, timing_info.processing_elapsed_ms());
   EXPECT_EQ(16, timing_info.GetElapsedMs());
 }
 
 TEST(RequestContext_TimingInfo, ProcessingTimeNoFetch) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
+  RequestContext::TimingInfo timing_info;
 
+  MockTimer timer(100);
+  timing_info.Init(&timer);
   timing_info.RequestStarted();
 
   timer.AdvanceMs(1);
   // RequestFinished not yet called.
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetProcessingElapsedMs(&elapsed));
+  EXPECT_EQ(0, timing_info.processing_elapsed_ms());
 
   timing_info.RequestFinished();
 
-  // No fetch.
-  ASSERT_FALSE(timing_info.GetFetchLatencyMs(&elapsed));
-
-  ASSERT_TRUE(timing_info.GetProcessingElapsedMs(&elapsed));
-  EXPECT_EQ(1, elapsed);
+  EXPECT_EQ(0, timing_info.fetch_elapsed_ms());
+  EXPECT_EQ(1, timing_info.processing_elapsed_ms());
   EXPECT_EQ(1, timing_info.GetElapsedMs());
-}
-
-TEST(RequestContext_TimingInfo, TimeToStartProcessing) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
-
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetTimeToStartProcessingMs(&elapsed));
-
-  timer.AdvanceMs(1);
-  timing_info.RequestStarted();
-  ASSERT_FALSE(timing_info.GetTimeToStartProcessingMs(&elapsed));
-
-  timer.AdvanceMs(2);
-  timing_info.ProcessingStarted();
-  ASSERT_TRUE(timing_info.GetTimeToStartProcessingMs(&elapsed));
-  EXPECT_EQ(2, elapsed);
-}
-
-TEST(RequestContext_TimingInfo, PcacheLookup) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
-
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetTimeToPropertyCacheLookupStartMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetTimeToPropertyCacheLookupEndMs(&elapsed));
-
-  timer.AdvanceMs(1);
-  timing_info.RequestStarted();
-  ASSERT_FALSE(timing_info.GetTimeToPropertyCacheLookupStartMs(&elapsed));
-  ASSERT_FALSE(timing_info.GetTimeToPropertyCacheLookupEndMs(&elapsed));
-
-  timer.AdvanceMs(2);
-  timing_info.PropertyCacheLookupStarted();
-  ASSERT_TRUE(timing_info.GetTimeToPropertyCacheLookupStartMs(&elapsed));
-  EXPECT_EQ(2, elapsed);
-  ASSERT_FALSE(timing_info.GetTimeToPropertyCacheLookupEndMs(&elapsed));
-
-  timer.AdvanceMs(5);
-  timing_info.PropertyCacheLookupFinished();
-  ASSERT_TRUE(timing_info.GetTimeToPropertyCacheLookupStartMs(&elapsed));
-  EXPECT_EQ(2, elapsed);
-  ASSERT_TRUE(timing_info.GetTimeToPropertyCacheLookupEndMs(&elapsed));
-  EXPECT_EQ(7, elapsed);
-}
-
-TEST(RequestContext_TimingInfo, TimeToStartParse) {
-  MockTimer timer(100);
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(&timer, &mutex);
-
-  int64 elapsed;
-  ASSERT_FALSE(timing_info.GetTimeToStartParseMs(&elapsed));
-
-  timer.AdvanceMs(1);
-  timing_info.RequestStarted();
-  ASSERT_FALSE(timing_info.GetTimeToStartParseMs(&elapsed));
-
-  timer.AdvanceMs(2);
-  timing_info.ParsingStarted();
-  ASSERT_TRUE(timing_info.GetTimeToStartParseMs(&elapsed));
-  EXPECT_EQ(2, elapsed);
-}
-
-TEST(RequestContext_TimingInfo, CacheLatency) {
-  NullMutex mutex;
-  RequestContext::TimingInfo timing_info(NULL, &mutex);
-
-  int64 latency_ms;
-  ASSERT_FALSE(timing_info.GetHTTPCacheLatencyMs(&latency_ms));
-  ASSERT_FALSE(timing_info.GetL2HTTPCacheLatencyMs(&latency_ms));
-
-  timing_info.SetHTTPCacheLatencyMs(1);
-  ASSERT_TRUE(timing_info.GetHTTPCacheLatencyMs(&latency_ms));
-  EXPECT_EQ(1, latency_ms);
-  ASSERT_FALSE(timing_info.GetL2HTTPCacheLatencyMs(&latency_ms));
-
-  timing_info.SetL2HTTPCacheLatencyMs(2);
-  ASSERT_TRUE(timing_info.GetHTTPCacheLatencyMs(&latency_ms));
-  EXPECT_EQ(1, latency_ms);
-  ASSERT_TRUE(timing_info.GetL2HTTPCacheLatencyMs(&latency_ms));
-  EXPECT_EQ(2, latency_ms);
 }
 
 }  // namespace

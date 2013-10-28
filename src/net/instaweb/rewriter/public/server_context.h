@@ -32,43 +32,40 @@
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/util/simple_random.h"
 
 namespace net_instaweb {
 
 class AbstractMutex;
+class BlinkCriticalLineDataFinder;
 class CacheHtmlInfoFinder;
 class CacheInterface;
-class CachePropertyStore;
+class ContentType;
 class CriticalCssFinder;
 class CriticalImagesFinder;
-class CriticalLineInfoFinder;
 class CriticalSelectorFinder;
-class RequestProperties;
-class ExperimentMatcher;
+class DeviceProperties;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class Function;
+class FuriousMatcher;
 class GoogleUrl;
 class Hasher;
 class MessageHandler;
 class NamedLock;
 class NamedLockManager;
-class PropertyStore;
+class PropertyCache;
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteDriver;
 class RewriteDriverFactory;
 class RewriteDriverPool;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
 class StaticAssetManager;
@@ -80,7 +77,6 @@ class UrlAsyncFetcher;
 class UrlNamer;
 class UsageDataReporter;
 class UserAgentMatcher;
-struct ContentType;
 
 typedef RefCountedPtr<OutputResource> OutputResourcePtr;
 typedef std::vector<OutputResourcePtr> OutputResourceVector;
@@ -107,6 +103,9 @@ class ServerContext {
 
   // Default statistics group name.
   static const char kStatisticsGroup[];
+
+  // Hash for resources in case of stale metadata cache lookup.
+  static const char kStaleHash[];
 
   explicit ServerContext(RewriteDriverFactory* factory);
   virtual ~ServerContext();
@@ -144,7 +143,7 @@ class ServerContext {
   ThreadSynchronizer* thread_synchronizer() {
     return thread_synchronizer_.get();
   }
-  ExperimentMatcher* experiment_matcher() { return experiment_matcher_.get(); }
+  FuriousMatcher* furious_matcher() { return furious_matcher_.get(); }
 
   // Computes the most restrictive Cache-Control intersection of the input
   // resources, and the provided headers, and sets that cache-control on the
@@ -160,6 +159,13 @@ class ServerContext {
   // Is this URL a ref to a Pagespeed resource?
   bool IsPagespeedResource(const GoogleUrl& url);
 
+  // Is this URL a ref to a Pagespeed resource which is not stale ?
+  bool IsNonStalePagespeedResource(const GoogleUrl& url);
+
+  // Returns true if the resource with given date and TTL is going to expire
+  // shortly and should hence be proactively re-fetched.
+  bool IsImminentlyExpiring(int64 start_date_ms, int64 expire_ms) const;
+
   void ComputeSignature(RewriteOptions* rewrite_options) const;
 
   // TODO(jmarantz): check thread safety in Apache.
@@ -172,11 +178,6 @@ class ServerContext {
   void set_filename_encoder(FilenameEncoder* x) { filename_encoder_ = x; }
   UrlNamer* url_namer() const { return url_namer_; }
   void set_url_namer(UrlNamer* n) { url_namer_ = n; }
-  RewriteOptionsManager* rewrite_options_manager() const {
-    return rewrite_options_manager_.get();
-  }
-  // Takes ownership of RewriteOptionsManager.
-  void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
     return static_asset_manager_;
   }
@@ -185,9 +186,7 @@ class ServerContext {
   }
   Scheduler* scheduler() const { return scheduler_; }
   void set_scheduler(Scheduler* s) { scheduler_ = s; }
-  bool has_default_system_fetcher() const {
-    return default_system_fetcher_ != NULL;
-  }
+  bool has_default_system_fetcher() { return default_system_fetcher_ != NULL; }
   bool has_default_distributed_fetcher() {
     return default_distributed_fetcher_ != NULL;
   }
@@ -201,30 +200,15 @@ class ServerContext {
 
   Timer* timer() const { return http_cache_->timer(); }
 
+  void MakePropertyCaches(CacheInterface* backend_cache);
+
   HTTPCache* http_cache() const { return http_cache_.get(); }
   void set_http_cache(HTTPCache* x) { http_cache_.reset(x); }
-
-  // Creates PagePropertyCache object with the provided PropertyStore object.
-  void MakePagePropertyCache(PropertyStore* property_store);
-
   PropertyCache* page_property_cache() const {
     return page_property_cache_.get();
   }
-
-  const PropertyCache::Cohort* dom_cohort() const { return dom_cohort_; }
-  void set_dom_cohort(const PropertyCache::Cohort* c) { dom_cohort_ = c; }
-
-  const PropertyCache::Cohort* blink_cohort() const { return blink_cohort_; }
-  void set_blink_cohort(const PropertyCache::Cohort* c) { blink_cohort_ = c; }
-
-  const PropertyCache::Cohort* beacon_cohort() const { return beacon_cohort_; }
-  void set_beacon_cohort(const PropertyCache::Cohort* c) { beacon_cohort_ = c; }
-
-  const PropertyCache::Cohort* fix_reflow_cohort() const {
-    return fix_reflow_cohort_;
-  }
-  void set_fix_reflow_cohort(const PropertyCache::Cohort* c) {
-    fix_reflow_cohort_ = c;
+  PropertyCache* client_property_cache() const {
+    return client_property_cache_.get();
   }
 
   // Cache for storing file system metadata. It must be private to a server,
@@ -270,21 +254,18 @@ class ServerContext {
   }
   void set_user_agent_matcher(UserAgentMatcher* n) { user_agent_matcher_ = n; }
 
+  BlinkCriticalLineDataFinder* blink_critical_line_data_finder() const {
+    return blink_critical_line_data_finder_.get();
+  }
+
+  void set_blink_critical_line_data_finder(
+      BlinkCriticalLineDataFinder* finder);
+
   CacheHtmlInfoFinder* cache_html_info_finder() const {
     return cache_html_info_finder_.get();
   }
 
-  SimpleRandom* simple_random() {
-    return &simple_random_;
-  }
-
   void set_cache_html_info_finder(CacheHtmlInfoFinder* finder);
-
-  CriticalLineInfoFinder* critical_line_info_finder() const {
-    return critical_line_info_finder_.get();
-  }
-
-  void set_critical_line_info_finder(CriticalLineInfoFinder* finder);
 
   // Whether or not dumps of rewritten resources should be stored to
   // the filesystem. This is meant for testing purposes only.
@@ -293,8 +274,19 @@ class ServerContext {
     store_outputs_in_file_system_ = store;
   }
 
+  void RefreshIfImminentlyExpiring(Resource* resource,
+                                   MessageHandler* handler) const;
+
   RewriteStats* rewrite_stats() const { return rewrite_stats_; }
   MessageHandler* message_handler() const { return message_handler_; }
+
+  // Loads contents of resource asynchronously, calling callback when
+  // done.  If the resource contents are cached, the callback will
+  // be called directly, rather than asynchronously.  The resource
+  // will be passed to the callback, with its contents and headers filled in.
+  void ReadAsync(Resource::NotCacheablePolicy not_cacheable_policy,
+                 const RequestContextPtr& request_context,
+                 Resource::AsyncCallback* callback);
 
   // Allocate an NamedLock to guard the creation of the given resource.  If the
   // object is expensive to create, this lock should be held during its creation
@@ -365,14 +357,6 @@ class ServerContext {
                                   RequestHeaders* request_headers,
                                   ResponseHeaders* response_headers);
 
-  // Checks the url for the split html ATF/BTF query param. If present, it
-  // strips the param from the url, and sets a bit in the request context
-  // indicating which chunk of the split response was requested.
-  // Returns true if it found a query param.
-  static bool ScanSplitHtmlRequest(const RequestContextPtr& ctx,
-                                   const RewriteOptions* options,
-                                   GoogleString* url);
-
   // Returns any custom options required for this request, incorporating
   // any domain-specific options from the UrlNamer, options set in query-params,
   // and options set in request headers.
@@ -381,9 +365,22 @@ class ServerContext {
                                    RewriteOptions* domain_options,
                                    RewriteOptions* query_options);
 
-  // Returns the RewriteOptions signature hash.
-  // Returns empty string if RewriteOptions is NULL.
-  GoogleString GetRewriteOptionsSignatureHash(const RewriteOptions* options);
+  // Returns the page property cache key to be used for the proxy interface
+  // flow.  options is expected to be frozen.
+  GoogleString GetPagePropertyCacheKey(StringPiece url,
+                                       const RewriteOptions* options,
+                                       StringPiece device_type_suffix);
+
+  GoogleString GetPagePropertyCacheKey(StringPiece url,
+                                       StringPiece options_signature_hash,
+                                       StringPiece device_type_suffix);
+
+  // Returns the page property cache key for the page containing fallback
+  // values (i.e. wihtout query params) to be used for the proxy interface flow.
+  // Options are expected to be frozen.
+  GoogleString GetFallbackPagePropertyCacheKey(StringPiece url,
+                                               const RewriteOptions* options,
+                                               StringPiece device_type_suffix);
 
   // Generates a new managed RewriteDriver using the RewriteOptions
   // managed by this class.  Each RewriteDriver is not thread-safe,
@@ -545,6 +542,10 @@ class ServerContext {
     return available_rewrite_drivers_.get();
   }
 
+  // Builds a PropertyCache given a key prefix and a CacheInterface.
+  PropertyCache* MakePropertyCache(const GoogleString& cache_key_prefix,
+                                   CacheInterface* cache) const;
+
   // Returns the current server hostname.
   const GoogleString& hostname() const {
     return hostname_;
@@ -582,37 +583,12 @@ class ServerContext {
   // for HTML.
   virtual bool ProxiesHtml() const = 0;
 
-  // Makes a new RequestProperties.
-  RequestProperties* NewRequestProperties();
+  // Makes a new DeviceProperties.
+  DeviceProperties* NewDeviceProperties();
 
   // Puts the cache on a list to be destroyed at the last phase of system
   // shutdown.
   void DeleteCacheOnDestruction(CacheInterface* cache);
-
-  void set_cache_property_store(CachePropertyStore* p);
-
-  // Creates CachePropertyStore object which will be used by PagePropertyCache.
-  virtual PropertyStore* CreatePropertyStore(CacheInterface* cache_backend);
-
-  // Establishes a new Cohort for this property.
-  // This will also call CachePropertyStore::AddCohort() if CachePropertyStore
-  // is used.
-  const PropertyCache::Cohort* AddCohort(
-      const GoogleString& cohort_name,
-      PropertyCache* pcache);
-
-  // Establishes a new Cohort to be backed by the specified CacheInterface.
-  // NOTE: Does not take ownership of the CacheInterface object.
-  // This also calls CachePropertyStore::AddCohort() to set the cache backend
-  // for the given cohort.
-  const PropertyCache::Cohort* AddCohortWithCache(
-      const GoogleString& cohort_name,
-      CacheInterface* cache,
-      PropertyCache* pcache);
-
-  // Returns the cache backend associated with CachePropertyStore.
-  // Returns NULL if non-CachePropertyStore is used.
-  const CacheInterface* pcache_cache_backend();
 
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
@@ -628,6 +604,13 @@ class ServerContext {
   // Must be called with rewrite_drivers_mutex_ held.
   void ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver);
 
+  // Checks if the given resource url is a pagespeed resource and if it is
+  // stale and sets is_pagespeed_resource and is_stale respectively.
+  // is_pagespeed_resource and is_stale should not be NULL.
+  // *is_stale makes sense only if *is_pagespeed_resource is true.
+  void GetResourceInfo(const GoogleUrl& url, bool* is_pagespeed_resource,
+                       bool* is_stale);
+
   // These are normally owned by the RewriteDriverFactory that made 'this'.
   ThreadSystem* thread_system_;
   RewriteStats* rewrite_stats_;
@@ -635,7 +618,6 @@ class ServerContext {
   FileSystem* file_system_;
   FilenameEncoder* filename_encoder_;
   UrlNamer* url_namer_;
-  scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
   UserAgentMatcher* user_agent_matcher_;
   Scheduler* scheduler_;
   UrlAsyncFetcher* default_system_fetcher_;
@@ -644,9 +626,9 @@ class ServerContext {
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
+  scoped_ptr<BlinkCriticalLineDataFinder> blink_critical_line_data_finder_;
   scoped_ptr<CacheHtmlInfoFinder> cache_html_info_finder_;
   scoped_ptr<FlushEarlyInfoFinder> flush_early_info_finder_;
-  scoped_ptr<CriticalLineInfoFinder> critical_line_info_finder_;
 
   // hasher_ is often set to a mock within unit tests, but some parts of the
   // system will not work sensibly if the "hash algorithm" used always returns
@@ -661,6 +643,7 @@ class ServerContext {
 
   scoped_ptr<HTTPCache> http_cache_;
   scoped_ptr<PropertyCache> page_property_cache_;
+  scoped_ptr<PropertyCache> client_property_cache_;
   CacheInterface* filesystem_metadata_cache_;
   CacheInterface* metadata_cache_;
 
@@ -670,11 +653,6 @@ class ServerContext {
 
   NamedLockManager* lock_manager_;
   MessageHandler* message_handler_;
-
-  const PropertyCache::Cohort* dom_cohort_;
-  const PropertyCache::Cohort* blink_cohort_;
-  const PropertyCache::Cohort* beacon_cohort_;
-  const PropertyCache::Cohort* fix_reflow_cohort_;
 
   // RewriteDrivers that were previously allocated, but have
   // been released with ReleaseRewriteDriver, and are ready
@@ -702,7 +680,6 @@ class ServerContext {
   // Protected by rewrite_drivers_mutex_.
   bool trying_to_cleanup_rewrite_drivers_;
   RewriteDriverSet deferred_release_rewrite_drivers_;
-  bool shutdown_drivers_called_;
 
   // If set, a RewriteDriverFactory provides a mechanism to add
   // platform-specific filters to a RewriteDriver.
@@ -739,19 +716,13 @@ class ServerContext {
   // of controlling thread interleaving to test code for possible races.
   scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
 
-  // Used to match clients or sessions to a specific experiment.
-  scoped_ptr<ExperimentMatcher> experiment_matcher_;
+  // Used to match clients or sessions to a specific furious experiment.
+  scoped_ptr<FuriousMatcher> furious_matcher_;
 
   UsageDataReporter* usage_data_reporter_;
 
   // A convenient central place to store the hostname we're running on.
   GoogleString hostname_;
-
-  // A simple (and always seeded with the same default!) random number
-  // generator.  Do not use for security purposes.
-  SimpleRandom simple_random_;
-
-  scoped_ptr<CachePropertyStore> cache_property_store_;
 
   DISALLOW_COPY_AND_ASSIGN(ServerContext);
 };
