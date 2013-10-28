@@ -56,6 +56,7 @@ const int kSteveSoudersCgi = 3;
 const int kModpagespeedBeacon = 4;
 const int kHttpsGoogleFavicon = 5;
 const int kConnectionRefused = 6;
+const int kNoContent = 7;
 
 class SerfTestCallback : public UrlAsyncFetcher::Callback {
  public:
@@ -151,6 +152,7 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
     AddTestUrl("http://modpagespeed.com/mod_pagespeed_beacon", "");
     AddTestUrl("https://www.google.com/favicon.ico", GoogleString());
     AddTestUrl("http://modpagespeed.com:1023/refused.jpg", GoogleString());
+    AddTestUrl("http://modpagespeed.com/no_content", "");
     prev_done_count = 0;
   }
 
@@ -527,9 +529,9 @@ TEST_F(SerfUrlAsyncFetcherTest, TestTimeout) {
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, Test204) {
-  TestFetch(kModpagespeedBeacon, kModpagespeedBeacon);
+  TestFetch(kNoContent, kNoContent);
   EXPECT_EQ(HttpStatus::kNoContent,
-            response_headers_[kModpagespeedBeacon]->status_code());
+            response_headers_[kNoContent]->status_code());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestHttpsFails) {

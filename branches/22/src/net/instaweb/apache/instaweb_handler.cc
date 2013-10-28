@@ -28,6 +28,7 @@
 #include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/interface_mod_spdy.h"
 #include "net/instaweb/apache/serf_url_async_fetcher.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 #include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -186,9 +187,7 @@ bool handle_as_resource(ApacheResourceManager* manager,
       message_handler->Message(kError, "Fetch timed out for %s", url.c_str());
     }
     if (!ok) {
-      RewriteStats* stats = rewrite_driver->resource_manager()->rewrite_stats();
-      stats->resource_404_count()->Add(1);
-      instaweb_default_handler(url, request);
+      manager->ReportResourceNotFound(url, request);
     }
   } else {
     callback->Done(false);
@@ -222,6 +221,12 @@ void write_handler_response(const StringPiece& output, request_rec* request) {
   response_headers.set_major_version(1);
   response_headers.set_minor_version(1);
   response_headers.Add(HttpAttributes::kContentType, "text/html");
+  // http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx
+  // Script and styleSheet elements will reject responses with
+  // incorrect MIME types if the server sends the response header
+  // "X-Content-Type-Options: nosniff". This is a security feature
+  // that helps prevent attacks based on MIME-type confusion.
+  response_headers.Add("X-Content-Type-Options", "nosniff");
   AprTimer timer;
   int64 now_ms = timer.NowMs();
   response_headers.SetDate(now_ms);
@@ -288,10 +293,10 @@ apr_status_t instaweb_handler(request_rec* request) {
     StringWriter writer(&output);
     Statistics* statistics = factory->statistics();
     if (statistics != NULL) {
-      // Write <pre></pre> for Dump to keep good format.
-      writer.Write("<pre>", factory->message_handler());
-      statistics->Dump(&writer, factory->message_handler());
-      writer.Write("</pre>", factory->message_handler());
+      GoogleString stats_string;
+      StringWriter stats_string_writer(&stats_string);
+      statistics->Dump(&stats_string_writer, factory->message_handler());
+      HtmlKeywords::WritePre(stats_string, &writer, factory->message_handler());
       statistics->RenderHistograms(&writer, factory->message_handler());
     } else {
       writer.Write("mod_pagespeed statistics is not enabled\n",
@@ -301,26 +306,27 @@ apr_status_t instaweb_handler(request_rec* request) {
     ret = OK;
 
   } else if (strcmp(request->handler, kRefererStatisticsHandler) == 0) {
-    GoogleString output;
-    StringWriter writer(&output);
-    factory->DumpRefererStatistics(&writer);
-    write_handler_response(output, request);
+    GoogleString html, stats;
+    StringWriter html_writer(&html), stats_writer(&stats);
+    factory->DumpRefererStatistics(&stats_writer);
+    HtmlKeywords::WritePre(stats, &html_writer, factory->message_handler());
+    write_handler_response(html, request);
     ret = OK;
 
   } else if (strcmp(request->handler, kMessageHandler) == 0) {
     // Request for page /mod_pagespeed_message.
-    GoogleString output;
-    StringWriter writer(&output);
+    GoogleString html, log;
+    StringWriter html_writer(&html), log_writer(&log);
     ApacheMessageHandler* handler = factory->apache_message_handler();
-    // Write <pre></pre> for Dump to keep good format.
-    writer.Write("<pre>", factory->message_handler());
-    if (!handler->Dump(&writer)) {
-      writer.Write("Writing to mod_pagespeed_message failed. \n"
-                   "Please check if it's enabled in pagespeed.conf.\n",
-                   factory->message_handler());
+    if (handler->Dump(&log_writer)) {
+      // Write pre-tag for Dump to keep good format.
+      HtmlKeywords::WritePre(log, &html_writer, factory->message_handler());
+    } else {
+      html =
+          "Writing to mod_pagespeed_message failed. \n"
+          "Please check if it's enabled in pagespeed.conf.\n";
     }
-    writer.Write("</pre>", factory->message_handler());
-    write_handler_response(output, request);
+    write_handler_response(html, request);
     ret = OK;
 
   } else if (strcmp(request->handler, kBeaconHandler) == 0) {
@@ -337,10 +343,6 @@ apr_status_t instaweb_handler(request_rec* request) {
 
   } else if (config->slurping_enabled() || config->test_proxy()) {
     SlurpUrl(manager, request);
-    if (request->status == HTTP_NOT_FOUND) {
-      RewriteStats* stats = manager->rewrite_stats();
-      stats->slurp_404_count()->Add(1);
-    }
     ret = OK;
   }
   return ret;

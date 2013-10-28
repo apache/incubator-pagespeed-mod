@@ -16,7 +16,8 @@
 
 #include "net/instaweb/apache/apache_resource_manager.h"
 
-#include "httpd.h"
+#include "httpd.h"                  // NOLINT
+#include "http_protocol.h"          // NOLINT
 #include "net/instaweb/apache/apache_cache.h"
 #include "net/instaweb/apache/apache_config.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
@@ -35,6 +36,7 @@ namespace {
 const int64 kDefaultCacheFlushIntervalSec = 5;
 
 const char kCacheFlushCount[] = "cache_flush_count";
+const char kStatistics404Count[] = "statistics_404_count";
 
 }  // namespace
 
@@ -80,6 +82,11 @@ ApacheResourceManager::~ApacheResourceManager() {
 
 void ApacheResourceManager::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCacheFlushCount);
+  statistics->AddVariable(kStatistics404Count);
+}
+
+Variable* ApacheResourceManager::statistics_404_count() {
+  return statistics()->GetVariable(kStatistics404Count);
 }
 
 bool ApacheResourceManager::InitFileCachePath() {
@@ -98,6 +105,17 @@ bool ApacheResourceManager::InitFileCachePath() {
 
 ApacheConfig* ApacheResourceManager::config() {
   return ApacheConfig::DynamicCast(global_options());
+}
+
+void ApacheResourceManager::ReportNotFoundHelper(StringPiece error_message,
+                                                 request_rec* request,
+                                                 Variable* error_count) {
+  error_count->Add(1);
+  request->status = HttpStatus::kNotFound;
+  ap_send_error_response(request, 0);
+  message_handler()->Message(kWarning, "%s: not found (404)",
+                             (error_message.empty() ? "(null)" :
+                              error_message.as_string().c_str()));
 }
 
 void ApacheResourceManager::ChildInit() {

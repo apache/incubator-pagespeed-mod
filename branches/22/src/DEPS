@@ -53,7 +53,7 @@ vars = {
   "opencv_src": "git://code.opencv.org/opencv.git",
   "opencv_revision": "@2.3.1",
 
-  "jsoncpp_src": "https://jsoncpp.svn.sourceforge.net/svnroot/jsoncpp/trunk/",
+  "jsoncpp_src": "https://svn.code.sf.net/p/jsoncpp/code/trunk",
   "jsoncpp_revision": "@247",
 
   "gflags_root": "http://google-gflags.googlecode.com/svn/tags/gflags-1.5/src",
