@@ -35,6 +35,7 @@
 #include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -366,9 +367,7 @@ void handle_as_pagespeed_resource(const RequestContextPtr& request_context,
                              url.c_str(), response_headers->status_code());
     send_out_headers_and_body(request, *response_headers, output);
   } else {
-    RewriteStats* stats = server_context->rewrite_stats();
-    stats->resource_404_count()->Add(1);
-    instaweb_404_handler(url, request);
+    server_context->ReportResourceNotFound(url, request);
   }
 
   callback->Release();
@@ -531,7 +530,7 @@ bool handle_as_resource(ApacheServerContext* server_context,
 }
 
 // Write response headers and send out headers and output, including the option
-//     for a custom Content-Type.
+// for a custom Content-Type.
 void write_handler_response(const StringPiece& output,
                             request_rec* request,
                             ContentType content_type,
@@ -542,6 +541,12 @@ void write_handler_response(const StringPiece& output,
   response_headers.set_minor_version(1);
 
   response_headers.Add(HttpAttributes::kContentType, content_type.mime_type());
+  // http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx
+  // Script and styleSheet elements will reject responses with
+  // incorrect MIME types if the server sends the response header
+  // "X-Content-Type-Options: nosniff". This is a security feature
+  // that helps prevent attacks based on MIME-type confusion.
+  response_headers.Add("X-Content-Type-Options", "nosniff");
   AprTimer timer;
   int64 now_ms = timer.NowMs();
   response_headers.SetDate(now_ms);
@@ -619,13 +624,6 @@ int log_request_headers(void* logging_data,
   return 1;  // Continue iteration.
 }
 
-// Writes text wrapped in a <pre> block
-void WritePre(StringPiece str, Writer* writer, MessageHandler* handler) {
-  writer->Write("<pre>\n", handler);
-  writer->Write(str, handler);
-  writer->Write("</pre>\n", handler);
-}
-
 void instaweb_static_handler(request_rec* request,
                              ApacheServerContext* server_context) {
   StaticAssetManager* static_asset_manager =
@@ -642,7 +640,7 @@ void instaweb_static_handler(request_rec* request,
       file_name, &file_contents, &content_type, &cache_header)) {
     write_handler_response(file_contents, request, content_type, cache_header);
   } else {
-    instaweb_404_handler(request->parsed_uri.path, request);
+    server_context->ReportResourceNotFound(request->parsed_uri.path, request);
   }
 }
 
@@ -792,14 +790,14 @@ apr_status_t instaweb_statistics_handler(
       factory->caches()->PrintCacheStats(
           static_cast<SystemCaches::StatFlags>(flags), &backend_stats);
       if (!backend_stats.empty()) {
-        WritePre(backend_stats, &writer, message_handler);
+        HtmlKeywords::WritePre(backend_stats, &writer, message_handler);
       }
     }
 
     if (print_normal_config) {
       writer.Write("Configuration:<br>", message_handler);
-      WritePre(server_context->config()->OptionsToString(),
-               &writer, message_handler);
+      HtmlKeywords::WritePre(server_context->config()->OptionsToString(),
+                             &writer, message_handler);
     }
 
     if (print_spdy_config) {
@@ -809,7 +807,8 @@ apr_status_t instaweb_statistics_handler(
                       message_handler);
       } else {
         writer.Write("SPDY-specific configuration:<br>", message_handler);
-        WritePre(spdy_config->OptionsToString(), &writer, message_handler);
+        HtmlKeywords::WritePre(spdy_config->OptionsToString(),
+                               &writer, message_handler);
       }
     }
   }
@@ -958,17 +957,17 @@ apr_status_t instaweb_handler(request_rec* request) {
 
   } else if (request_handler_str == kMessageHandler) {
     // Request for page /mod_pagespeed_message.
-    GoogleString output;
-    StringWriter writer(&output);
-    // Write <pre></pre> for Dump to keep good format.
-    writer.Write("<pre>", message_handler);
-    if (!message_handler->Dump(&writer)) {
-      writer.Write("Writing to mod_pagespeed_message failed. \n"
-                   "Please check if it's enabled in pagespeed.conf.\n",
-                   message_handler);
+    GoogleString html, log;
+    StringWriter html_writer(&html), log_writer(&log);
+    if (message_handler->Dump(&log_writer)) {
+      // Write pre-tag for Dump to keep good format.
+      HtmlKeywords::WritePre(log, &html_writer, message_handler);
+    } else {
+      html =
+          "Writing to mod_pagespeed_message failed. \n"
+          "Please check if it's enabled in pagespeed.conf.\n";
     }
-    writer.Write("</pre>", message_handler);
-    write_handler_response(output, request);
+    write_handler_response(html, request);
     ret = OK;
 
   } else if (request_handler_str == kBeaconHandler) {
@@ -1048,10 +1047,6 @@ apr_status_t instaweb_handler(request_rec* request) {
 
     if (ret != OK && (config->slurping_enabled() || config->test_proxy())) {
       SlurpUrl(server_context, request);
-      if (request->status == HTTP_NOT_FOUND) {
-        RewriteStats* stats = server_context->rewrite_stats();
-        stats->slurp_404_count()->Add(1);
-      }
       ret = OK;
     }
   }
