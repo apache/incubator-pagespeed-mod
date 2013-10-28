@@ -37,9 +37,9 @@ class HtmlElement;
 class RewriteDriver;
 class RewriteOptions;
 class SplitHtmlConfig;
-class SplitHtmlState;
 class StaticAssetManager;
 class Writer;
+class XpathUnit;
 
 // Splits the incoming html content into above the fold html and below the
 // fold json based on critical line specification stored in property cache.
@@ -48,15 +48,12 @@ class Writer;
 // EndDocument. It directly writes to the http request.
 class SplitHtmlFilter : public SuppressPreheadFilter {
  public:
+  static const char kSplitInit[];
   static const char kSplitSuffixJsFormatString[];
   static const char kSplitTwoChunkSuffixJsFormatString[];
-  static const char kLoadHiResImages[];
-  static const char kMetaReferer[];
 
   explicit SplitHtmlFilter(RewriteDriver* rewrite_driver);
   virtual ~SplitHtmlFilter();
-
-  virtual void DetermineEnabled();
 
   virtual void StartDocument();
   virtual void EndDocument();
@@ -81,8 +78,18 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
   // Reads the panel-id attribute and returns the value
   GoogleString GetPanelIdForInstance(HtmlElement* element);
 
+  // Returns the panel id of the panel whose xpath matched with element.
+  GoogleString MatchPanelIdForElement(HtmlElement* element);
+
   // Returns a string representation of the critical line config.
   GoogleString GenerateCriticalLineConfigString();
+
+  // Returns true if element is sibling of the current start element on top of
+  // stack.
+  bool IsElementSiblingOfCurrentPanel(HtmlElement* element);
+
+  // Returns true if element is the parent of current panel
+  bool IsElementParentOfCurrentPanel(HtmlElement* element);
 
   // Pops the json from top of the stack and merges with parent panel which is
   // one below it.
@@ -94,6 +101,10 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
   // Inserts <!-- GooglePanel begin --> and <!-- GooglePanel end --> stubs.
   void InsertPanelStub(HtmlElement* element, const GoogleString& panel_id);
 
+  // Returns true if element matches with the end_marker for panel corresponding
+  // to panel_id
+  bool IsEndMarkerForCurrentPanel(HtmlElement* element);
+
   // Appends dict to the dictionary array
   void AppendJsonData(Json::Value* dictionary, const Json::Value& dict);
 
@@ -104,6 +115,9 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
   // body tag.
   void InsertSplitInitScripts(HtmlElement* element);
 
+  bool ElementMatchesXpath(const HtmlElement* element,
+                           const std::vector<XpathUnit>& xpath_units);
+
   void InvokeBaseHtmlFilterStartDocument();
 
   void InvokeBaseHtmlFilterStartElement(HtmlElement* element);
@@ -112,29 +126,24 @@ class SplitHtmlFilter : public SuppressPreheadFilter {
 
   void InvokeBaseHtmlFilterEndDocument();
 
-  // Returns true, if the cross-origin is allowed by looking it up in
-  // RewriteOptions::access_control_allow_origins()
-  // Note: The cross-origin must match exactly inclusing the protocol.
-  // The only wildcard supported is '*' which means allow all domains.
-  bool IsAllowedCrossDomainRequest(StringPiece cross_origin);
-
   RewriteDriver* rewrite_driver_;
-  const SplitHtmlConfig* config_;  // Owned by rewrite_driver_.
-  scoped_ptr<SplitHtmlState> state_;
+  scoped_ptr<SplitHtmlConfig> config_;
   const RewriteOptions* options_;
   std::vector<ElementJsonPair> element_json_stack_;
+  std::vector<int> num_children_stack_;
   Json::FastWriter fast_writer_;
   scoped_ptr<JsonWriter> json_writer_;
   Writer* original_writer_;
   NullWriter null_writer_;
+  GoogleString current_panel_id_;
   StringPiece url_;
   bool script_written_;
   bool flush_head_enabled_;
   bool disable_filter_;
   bool inside_pagespeed_no_defer_script_;
+  int num_low_res_images_inlined_;
   bool serve_response_in_two_chunks_;
-  int last_script_index_before_panel_stub_;
-  bool panel_seen_;
+  HtmlElement* current_panel_parent_element_;
   StaticAssetManager* static_asset_manager_;  // Owned by rewrite_driver_.
   ScriptTagScanner script_tag_scanner_;
 

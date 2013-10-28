@@ -109,8 +109,7 @@ void FileRewriter::SetupCaches(ServerContext* server_context) {
   HTTPCache* http_cache = new HTTPCache(cache, timer(), hasher(), statistics());
   server_context->set_http_cache(http_cache);
   server_context->set_metadata_cache(cache);
-  server_context->MakePagePropertyCache(
-      server_context->CreatePropertyStore(cache));
+  server_context->MakePropertyCaches(cache);
 }
 
 Statistics* FileRewriter::statistics() {
@@ -160,7 +159,7 @@ bool StaticRewriter::ParseText(const StringPiece& url,
   driver->SetWriter(writer);
   if (!driver->StartParseId(url, id, kContentTypeHtml)) {
     fprintf(stderr, "StartParseId failed on url %s\n", url.as_string().c_str());
-    driver->Cleanup();
+    server_context_->ReleaseRewriteDriver(driver);
     return false;
   }
 

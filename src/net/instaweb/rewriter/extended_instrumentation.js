@@ -32,13 +32,7 @@ var pagespeed = window['pagespeed'];
  * @return {string} containing all the metrics that are extracted.
  */
 pagespeed.getResourceTimingData = function() {
-  // performance.webkitGetEntries is deprecated and has been replaced by
-  // performance.getEntries.
-  // TODO(bharathbhushan): Remove webkitGetEntries once the traffic from older
-  // chrome variants becomes small.
-  if (window['performance'] &&
-      (window['performance']['getEntries'] ||
-       window['performance']['webkitGetEntries'])) {
+  if (window['performance'] && window['performance']['webkitGetEntries']) {
     var totalFetchDuration = 0;
     var maxFetchDuration = 0;
     var numFetches = 0;
@@ -57,9 +51,7 @@ pagespeed.getResourceTimingData = function() {
 
     var entryCountMap = {};
 
-    var entries = window['performance']['getEntries'] ?
-        window['performance'].getEntries() :
-        window['performance'].webkitGetEntries();
+    var entries = window['performance'].webkitGetEntries();
     for (var i = 0; i < entries.length; i++) {
       var duration = entries[i]['duration'];
       if (duration > 0) {

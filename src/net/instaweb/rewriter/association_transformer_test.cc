@@ -22,18 +22,16 @@
 #include "net/instaweb/rewriter/public/css_url_counter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
+
+class RewriteOptions;
 
 namespace {
 
@@ -80,17 +78,6 @@ class DummyTransformer : public CssTagScanner::Transformer {
 
 class AssociationTransformerTest : public ::testing::Test {
  protected:
-  AssociationTransformerTest()
-      : thread_system_(Platform::CreateThreadSystem()) {
-    RewriteOptions::Initialize();
-    options_.reset(new RewriteOptions(thread_system_.get()));
-    options_->set_preserve_url_relativity(true);
-  }
-
-  ~AssociationTransformerTest() {
-    RewriteOptions::Terminate();
-  }
-
   template <class T>
   void ExpectValue(const std::map<GoogleString, T>& map,
                    const StringPiece& key, const T& expected_value) {
@@ -100,9 +87,6 @@ class AssociationTransformerTest : public ::testing::Test {
     EXPECT_EQ(expected_value, iter->second)
         << "map[\"" << key << "\"] not as expected";
   }
-
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<RewriteOptions> options_;
 };
 
 TEST_F(AssociationTransformerTest, TransformsCorrectly) {
@@ -122,8 +106,7 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
   NullMessageHandler handler;
   CssUrlCounter url_counter(&base_url, &handler);
   DummyTransformer backup_trans;
-  AssociationTransformer trans(&base_url, options_.get(), &backup_trans,
-                               &handler);
+  AssociationTransformer trans(&base_url, &backup_trans, &handler);
 
   // Run first pass.
   EXPECT_TRUE(url_counter.Count(css_before));
@@ -161,8 +144,7 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
       // DummyTransformer.
       "Dummy:image.gif",
       // before.css was rewritten in both places to after.css.
-      // The first one stays relative and the second stays absolute.
-      "after.css",
+      "http://example.com/after.css",
       "http://example.com/after.css",
       // Passed through DummyTransformer.
       "Dummy:http://other.org/foo.ttf",
@@ -176,8 +158,7 @@ TEST_F(AssociationTransformerTest, FailsOnInvalidUrl) {
   GoogleUrl base_url("http://example.com/");
   DummyTransformer backup_trans;
   NullMessageHandler handler;
-  AssociationTransformer trans(&base_url, options_.get(), &backup_trans,
-                               &handler);
+  AssociationTransformer trans(&base_url, &backup_trans, &handler);
 
   // Transform fails because there is an invalid URL.
   GoogleString out;

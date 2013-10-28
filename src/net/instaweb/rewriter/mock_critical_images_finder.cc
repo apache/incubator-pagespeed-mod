@@ -17,11 +17,6 @@
 
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
 
-
-#include <map>                          // for map<>::mapped_type
-#include <utility>                      // for make_pair
-
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
 namespace net_instaweb {
@@ -35,17 +30,6 @@ void MockCriticalImagesFinder::UpdateCriticalImagesSetInDriver(
   if (css_critical_images_ != NULL) {
     info->css_critical_images = *css_critical_images_;
   }
-
-  if (rendered_images_ != NULL) {
-    RenderedImageDimensionsMap map;
-    for (int i = 0; i < rendered_images_->image_size(); ++i) {
-      const RenderedImages_Image& images = rendered_images_->image(i);
-      map[images.src()] = std::make_pair(
-          images.rendered_width(), images.rendered_height());
-    }
-    info->rendered_images_map = map;
-  }
-
   driver->set_critical_images_info(info);
 }
 

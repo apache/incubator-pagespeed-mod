@@ -21,12 +21,14 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/async_fetch_with_lock.h"
+#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value_writer.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"  // for AbstractLogRecord
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -184,8 +186,7 @@ class CacheFindCallback : public HTTPCache::Callback {
         CacheFindCallback* callback,
         CacheUrlAsyncFetcher::AsyncOpHooks* async_op_hooks)
         : AsyncFetchWithLock(
-              lock_hasher, request_context, url, url /* cache_key*/,
-              lock_manager, message_handler),
+              lock_hasher, request_context, url, lock_manager, message_handler),
           callback_(callback),
           async_op_hooks_(async_op_hooks) {
       async_op_hooks_->StartAsyncOp();
@@ -274,20 +275,13 @@ class CacheFindCallback : public HTTPCache::Callback {
                    RequestHeaders::kHead) {
           DCHECK_EQ(base_fetch_->request_headers()->method(),
                     RequestHeaders::kGet);
-
-          // Before calling HeadersComplete, record the content-length so that
-          // http server gaskets have an opportunity to examine
-          // content_length_known() in HandleHeadersComplete and thereby serve
-          // non-chunked responses.
-          StringPiece contents;
-          http_value()->ExtractContents(&contents);
-          base_fetch_->set_content_length(contents.size());
           base_fetch_->HeadersComplete();
 
+          StringPiece contents;
+          http_value()->ExtractContents(&contents);
           // TODO(sligocki): We are writing all the content in one shot, this
           // fact might be useful to the HtmlParser if this is HTML. Perhaps
-          // we should add an API for conveying that information, which can
-          // be detected via AsyncFetch::content_length_known().
+          // we should add an API for conveying that information.
           base_fetch_->Write(contents, handler_);
         }
 
@@ -338,7 +332,7 @@ class CacheFindCallback : public HTTPCache::Callback {
             // TODO(gee): It is possible to cache HEAD results as well, but we
             // must add code to ensure we do not serve GET requests using HEAD
             // responses.
-            if (ServedStaleContentWhileRevalidate(base_fetch)) {
+            if (ServeStaleContentWhileRevalidate(base_fetch)) {
               // Serve stale content while revalidate in the background.
               break;
             }
@@ -386,7 +380,7 @@ class CacheFindCallback : public HTTPCache::Callback {
   }
 
  private:
-  bool ServedStaleContentWhileRevalidate(AsyncFetch* base_fetch) {
+  bool ServeStaleContentWhileRevalidate(AsyncFetch* base_fetch) {
     if (serve_stale_while_revalidate_threshold_sec_ == 0 ||
         fallback_http_value() == NULL ||
         fallback_http_value()->Empty()) {
@@ -413,14 +407,6 @@ class CacheFindCallback : public HTTPCache::Callback {
     if (fallback_responses_served_while_revalidate_ != NULL) {
       fallback_responses_served_while_revalidate_->Add(1);
     }
-    // CacheControl header is changed to private, max-age=0 to avoid caching
-    // of the resource either by browser or intermediate proxy as stale
-    // content should be served only for this request, any future requests
-    // should be served with fresh content.
-    response_headers->Replace(HttpAttributes::kCacheControl,
-                              "private, max-age=0");
-    response_headers->RemoveAll(HttpAttributes::kExpires);
-    response_headers->ComputeCaching();
     base_fetch_->HeadersComplete();
     StringPiece contents;
     fallback_http_value()->ExtractContents(&contents);
@@ -444,7 +430,7 @@ class CacheFindCallback : public HTTPCache::Callback {
         async_op_hooks_);
     RequestHeaders* request_headers = fetch->request_headers();
     request_headers->CopyFrom(*base_fetch_->request_headers());
-    fetch->Start(fetcher_);
+    AsyncFetchWithLock::Start(fetcher_, fetch, handler_);
   }
 
   bool ShouldReturn304() const {

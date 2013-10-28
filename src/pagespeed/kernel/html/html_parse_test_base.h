@@ -34,8 +34,6 @@
 
 namespace net_instaweb {
 
-class GoogleUrl;
-
 // Shared infrastructure for unit-testing the HTML parser.
 class HtmlParseTestBaseNoAlloc : public testing::Test {
  protected:
@@ -143,8 +141,6 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
                             const GoogleString& expected);
 
   virtual HtmlParse* html_parse() = 0;
-
-  const GoogleUrl& html_gurl() { return html_parse()->google_url(); }
 
   MockMessageHandler message_handler_;
   StringWriter write_to_string_;

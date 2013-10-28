@@ -323,6 +323,32 @@ void AbstractLogRecord::PopulateRewriterStatusCounts() {
   }
 }
 
+void AbstractLogRecord::LogDeviceInfo(
+    int device_type,
+    bool supports_image_inlining,
+    bool supports_lazyload_images,
+    bool supports_critical_images_beacon,
+    bool supports_deferjs,
+    bool supports_webp,
+    bool supports_webplossless_alpha,
+    bool is_bot,
+    bool supports_split_html,
+    bool can_preload_resources) {
+  ScopedMutex lock(mutex_.get());
+  DeviceInfo* device_info = logging_info()->mutable_device_info();
+  device_info->set_device_type(device_type);
+  device_info->set_supports_image_inlining(supports_image_inlining);
+  device_info->set_supports_lazyload_images(supports_lazyload_images);
+  device_info->set_supports_critical_images_beacon(
+      supports_critical_images_beacon);
+  device_info->set_supports_deferjs(supports_deferjs);
+  device_info->set_supports_webp(supports_webp);
+  device_info->set_supports_webplossless_alpha(supports_webplossless_alpha);
+  device_info->set_is_bot(is_bot);
+  device_info->set_supports_split_html(supports_split_html);
+  device_info->set_can_preload_resources(can_preload_resources);
+}
+
 void AbstractLogRecord::LogIsXhr(bool is_xhr) {
   ScopedMutex lock(mutex_.get());
   logging_info()->set_is_xhr(is_xhr);
@@ -337,12 +363,7 @@ void AbstractLogRecord::LogImageBackgroundRewriteActivity(
     bool is_recompressed,
     ImageType original_image_type,
     ImageType optimized_image_type,
-    bool is_resized,
-    int original_width,
-    int original_height,
-    bool is_resized_using_rendered_dimensions,
-    int resized_width,
-    int resized_height) {
+    bool is_resized) {
   RewriterInfo* rewriter_info = NewRewriterInfo(id);
   if (rewriter_info == NULL) {
     return;
@@ -382,12 +403,6 @@ void AbstractLogRecord::LogImageBackgroundRewriteActivity(
   }
 
   image_rewrite_resource_info->set_is_resized(is_resized);
-  image_rewrite_resource_info->set_original_width(original_width);
-  image_rewrite_resource_info->set_original_height(original_height);
-  image_rewrite_resource_info->set_is_resized_using_rendered_dimensions(
-      is_resized_using_rendered_dimensions);
-  image_rewrite_resource_info->set_resized_width(resized_width);
-  image_rewrite_resource_info->set_resized_height(resized_height);
 }
 
 void AbstractLogRecord::SetBackgroundRewriteInfo(

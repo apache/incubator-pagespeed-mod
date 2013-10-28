@@ -24,6 +24,7 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
@@ -43,7 +44,6 @@ class MessageHandler;
 class PropertyValue;
 class RequestHeaders;
 class RewriteDriver;
-class RewriteOptions;
 
 const char kPageUrl[] = "page.html";
 const char kBackgroundFetchHeader[] = "X-Background-Fetch";
@@ -54,7 +54,7 @@ class ProxyUrlNamer : public UrlNamer {
  public:
   static const char kProxyHost[];
 
-  ProxyUrlNamer() : authorized_(true) {}
+  ProxyUrlNamer() : authorized_(true), options_(NULL) {}
 
   // Given the request_url, generate the original url.
   virtual bool Decode(const GoogleUrl& gurl,
@@ -66,10 +66,20 @@ class ProxyUrlNamer : public UrlNamer {
     return authorized_;
   }
 
+  // Given the request url and request headers, generate the rewrite options.
+  virtual void DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const {
+    callback->Run((options_ == NULL) ? NULL : options_->Clone());
+  }
+
   void set_authorized(bool authorized) { authorized_ = authorized; }
+  void set_options(RewriteOptions* options) { options_ = options; }
 
  private:
   bool authorized_;
+  RewriteOptions* options_;
   DISALLOW_COPY_AND_ASSIGN(ProxyUrlNamer);
 };
 
@@ -186,14 +196,6 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   virtual void SetUp();
   virtual void TearDown();
 
-  void FetchFromProxy(
-      const StringPiece& url,
-      const RequestHeaders& request_headers,
-      bool expect_success,
-      GoogleString* string_out,
-      ResponseHeaders* headers_out,
-      bool proxy_fetch_property_callback_collector_created);
-
   void FetchFromProxy(const StringPiece& url,
                       const RequestHeaders& request_headers,
                       bool expect_success,
@@ -215,7 +217,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
                             bool log_flush,
                             ResponseHeaders* headers_out);
 
-  void WaitForFetch(bool proxy_fetch_property_callback_collector_created);
+  void WaitForFetch();
 
   void TestPropertyCache(const StringPiece& url,
                          bool delay_pcache, bool thread_pcache,

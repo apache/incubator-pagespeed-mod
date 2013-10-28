@@ -109,18 +109,6 @@ class CssInlineFilterTest : public RewriteTestBase {
         expect_inline, css_rewritten_body);
   }
 
-  void VerifyNoInliningForClosingStyleTag(
-      const GoogleString& closing_style_tag) {
-    AddFilter(RewriteOptions::kInlineCss);
-    SetResponseWithDefaultHeaders("foo.css", kContentTypeCss,
-                                  StrCat("a{margin:0}", closing_style_tag),
-                                  100);
-
-    // We don't mess with links that contain a closing style tag.
-    ValidateNoChanges("no_inlining_of_close_style_tag",
-                      "<link rel='stylesheet' href='foo.css'>");
-  }
-
  private:
   bool filters_added_;
 };
@@ -392,7 +380,6 @@ TEST_F(CssInlineFilterTest, InlineMinimizeInteraction) {
   TestInlineCssWithOutputUrl(
       StrCat(kTestDomain, "minimize_but_not_inline.html"), "",
       StrCat(kTestDomain, "a.css"),
-      // Note: Original URL was absolute, so rewritten one is as well.
       Encode(kTestDomain, "cf", "0", "a.css", "css"),
       "", /* no other attributes*/
       "div{display: none;}",
@@ -604,18 +591,6 @@ TEST_F(CssInlineFilterTest, NonCss) {
 
   ValidateNoChanges("non_css",
                     "<link rel='stylesheet' href='foo.xsl' type='text/xsl'/>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTag) {
-  VerifyNoInliningForClosingStyleTag("</style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithCapitalization) {
-  VerifyNoInliningForClosingStyleTag("</Style>");
-}
-
-TEST_F(CssInlineFilterTest, NoInliningOfCloseStyleTagWithSpaces) {
-  VerifyNoInliningForClosingStyleTag("</style abc>");
 }
 
 }  // namespace

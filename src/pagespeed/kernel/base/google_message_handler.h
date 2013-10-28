@@ -42,10 +42,9 @@ class GoogleMessageHandler : public MessageHandler {
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args);
 
- protected:
+ private:
   GoogleString Format(const char* msg, va_list args);
 
- private:
   DISALLOW_COPY_AND_ASSIGN(GoogleMessageHandler);
 };
 

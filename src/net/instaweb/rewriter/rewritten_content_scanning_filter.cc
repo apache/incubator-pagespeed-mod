@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 
-#include <memory>
-
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
@@ -57,29 +55,32 @@ void RewrittenContentScanningFilter::EndDocument() {
 }
 
 void RewrittenContentScanningFilter::StartElement(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    StringPiece url(attributes[i].url->DecodedValueOrNull());
-    if (url.empty()) {
-      continue;
-    }
-    switch (attributes[i].category) {
-      case semantic_type::kImage:
-      case semantic_type::kScript:
-      case semantic_type::kStylesheet:
-      case semantic_type::kOtherResource: {
+  semantic_type::Category category;
+  HtmlElement::Attribute* url_attribute = resource_tag_scanner::ScanElement(
+      element, driver_, &category);
+  if (url_attribute == NULL) {
+    return;
+  }
+  StringPiece url(url_attribute->DecodedValueOrNull());
+  if (url.empty()) {
+    return;
+  }
+  switch (category) {
+    case semantic_type::kImage:
+    case semantic_type::kScript:
+    case semantic_type::kStylesheet:
+    case semantic_type::kOtherResource:
+      {
         GoogleUrl gurl(driver_->base_url(), url);
         if (driver_->server_context()->url_namer()->IsProxyEncoded(gurl)) {
           ++num_proxied_rewritten_resources_;
         }
         break;
       }
-      case semantic_type::kPrefetch:
-      case semantic_type::kHyperlink:
-      case semantic_type::kUndefined:
-        break;
-    }
+    case semantic_type::kPrefetch:
+    case semantic_type::kHyperlink:
+    case semantic_type::kUndefined:
+      break;
   }
 }
 

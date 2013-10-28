@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
+#include "net/instaweb/http/http.pb.h"  // for HttpResponseHeaders
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
@@ -36,7 +37,6 @@
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
@@ -60,7 +60,6 @@
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"  // for Timer
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/http/http.pb.h"
 
 namespace {
 
@@ -103,8 +102,8 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
   // Populates all fields which are needed from property_page as property_page
   // will be set to NULL afterwards.
   flush_early_driver->flush_early_info();
-  ServerContext* server_context = flush_early_driver->server_context();
-  FlushEarlyInfoFinder* finder = server_context->flush_early_info_finder();
+  FlushEarlyInfoFinder* finder =
+      flush_early_driver->server_context()->flush_early_info_finder();
   if (finder != NULL && finder->IsMeaningful(flush_early_driver)) {
     finder->UpdateFlushEarlyInfoInDriver(flush_early_driver);
   }
@@ -116,16 +115,11 @@ void InitFlushEarlyDriverWithPropertyCacheValues(
   // that CriticalImageFinder keeps in RewriteDriver to be updated.
   // TODO(jud): Remove this when the CriticalImageFinder is held in the
   // RewriteDriver, instead of ServerContext.
-  server_context->critical_images_finder()->
+  flush_early_driver->server_context()->critical_images_finder()->
       GetHtmlCriticalImages(flush_early_driver);
 
-  CriticalSelectorFinder* selector_finder =
-      server_context->critical_selector_finder();
-  if (selector_finder != NULL) {
-    selector_finder->GetCriticalSelectors(flush_early_driver);
-  }
-
-  CriticalCssFinder* css_finder = server_context->critical_css_finder();
+  CriticalCssFinder* css_finder =
+      flush_early_driver->server_context()->critical_css_finder();
   if (css_finder != NULL) {
     css_finder->UpdateCriticalCssInfoInDriver(flush_early_driver);
   }
@@ -185,7 +179,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
         flush_called_(false),
         done_called_(false),
         done_value_(false),
-        non_ok_response_(false) {
+        non_ok_status_code_(false) {
     set_request_headers(fetch->request_headers());
     Statistics* stats = server_context_->statistics();
     num_flush_early_requests_redirected_ = stats->GetTimedVariable(
@@ -202,7 +196,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
       if (!flushed_early && headers_complete_called_) {
         base_fetch_->response_headers()->CopyFrom(*response_headers());
       }
-      if (flushed_early && non_ok_response_) {
+      if (flushed_early && non_ok_status_code_) {
         SendRedirectToPsaOff();
       } else {
         // Write out all the buffered content and call Flush and Done if it were
@@ -234,10 +228,9 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   virtual void HandleHeadersComplete() {
     {
       ScopedMutex lock(mutex_.get());
-      non_ok_response_ =
-          ((response_headers()->status_code() != HttpStatus::kOK) ||
-           !response_headers()->IsHtmlLike());
-      if (flushed_early_ && non_ok_response_) {
+      non_ok_status_code_ =
+          (response_headers()->status_code() != HttpStatus::kOK);
+      if (flushed_early_ && non_ok_status_code_) {
         SendRedirectToPsaOff();
         return;
       }
@@ -254,7 +247,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler) {
     {
       ScopedMutex lock(mutex_.get());
-      if (flushed_early_ && non_ok_response_) {
+      if (flushed_early_ && non_ok_status_code_) {
         return true;
       }
       if (!flush_early_flow_done_) {
@@ -270,7 +263,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   virtual bool HandleFlush(MessageHandler* handler) {
     {
       ScopedMutex lock(mutex_.get());
-      if (flushed_early_ && non_ok_response_) {
+      if (flushed_early_ && non_ok_status_code_) {
         return true;
       }
       if (!flush_early_flow_done_) {
@@ -323,7 +316,7 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   bool flush_called_;
   bool done_called_;
   bool done_value_;
-  bool non_ok_response_;
+  bool non_ok_status_code_;
 
   TimedVariable* num_flush_early_requests_redirected_;
 
@@ -339,13 +332,9 @@ void FlushEarlyFlow::TryStart(
   if (!driver->options()->Enabled(RewriteOptions::kFlushSubresources)) {
     return;
   }
-  const RequestHeaders* request_headers = driver->request_headers();
-  if (request_headers == NULL ||
-      request_headers->method() != RequestHeaders::kGet ||
-      request_headers->Has(HttpAttributes::kIfModifiedSince) ||
-      request_headers->Has(HttpAttributes::kIfNoneMatch) ||
-      driver->request_context()->split_request_type() ==
-      RequestContext::SPLIT_BELOW_THE_FOLD) {
+  if (driver->request_headers() == NULL ||
+      driver->request_headers()->method() != RequestHeaders::kGet ||
+      driver->request_context()->is_split_btf_request()) {
     driver->log_record()->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kFlushSubresources),
         RewriterHtmlApplication::DISABLED);

@@ -198,9 +198,7 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
   determine_enabled_filters_called_ = false;
   url.CopyToString(&url_);
   GoogleUrl gurl(url);
-  // TODO(sligocki): Use IsWebValid() here. For now we need to allow file://
-  // URLs as well because some tools use them.
-  url_valid_ = gurl.IsAnyValid();
+  url_valid_ = gurl.is_valid();
   if (!url_valid_) {
     message_handler_->Message(kWarning, "HtmlParse: Invalid document url %s",
                               url_.c_str());
@@ -217,12 +215,6 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
     lexer_->StartParse(id, content_type);
   }
   return url_valid_;
-}
-
-void HtmlParse::SetUrlForTesting(const StringPiece& url) {
-  url.CopyToString(&url_);
-  bool ok = google_url_.Reset(url);
-  CHECK(ok) << url;
 }
 
 void HtmlParse::ShowProgress(const char* message) {
@@ -256,12 +248,15 @@ void HtmlParse::EndFinishParse() {
 void HtmlParse::ParseTextInternal(const char* text, int size) {
   DCHECK(url_valid_) << "Invalid to call ParseText with invalid url";
   if (url_valid_) {
-    DetermineEnabledFilters();
+    if (!determine_enabled_filters_called_) {
+      determine_enabled_filters_called_ = true;
+      DetermineEnabledFilters();
+    }
     lexer_->Parse(text, size);
   }
 }
 
-void HtmlParse::DetermineEnabledFiltersImpl() {
+void HtmlParse::DetermineEnabledFilters() {
   for (int i = 0, n = filters_.size(); i < n; ++i) {
     filters_[i]->DetermineEnabled();
   }
@@ -393,11 +388,6 @@ void HtmlParse::Flush() {
   if (running_filters_) {
     return;
   }
-
-  // If Flush is called before any bytes are received, StartDocument events
-  // will propagate to filters before DetermineEnabled is called on them. So we
-  // send DetermineEnabled here.
-  DetermineEnabledFilters();
 
   for (FilterVector::iterator it = event_listeners_.begin();
       it != event_listeners_.end(); ++it) {
@@ -796,11 +786,6 @@ bool HtmlParse::IsRewritable(const HtmlNode* node) const {
           IsInEventWindow(node->end()));
 }
 
-bool HtmlParse::CanAppendChild(const HtmlNode* node) const {
-  return (node->live() &&  // Avoid dereferencing NULL data for closed elements.
-          IsInEventWindow(node->end()));
-}
-
 bool HtmlParse::IsInEventWindow(const HtmlEventListIterator& iter) const {
   return iter != queue_.end();
 }
@@ -944,21 +929,21 @@ void HtmlParse::CloseElement(
 }
 
 HtmlName HtmlParse::MakeName(HtmlName::Keyword keyword) {
-  const StringPiece* str = HtmlKeywords::KeywordToString(keyword);
+  const char* str = HtmlKeywords::KeywordToString(keyword);
   return HtmlName(keyword, str);
 }
 
 HtmlName HtmlParse::MakeName(const StringPiece& str_piece) {
   HtmlName::Keyword keyword = HtmlName::Lookup(str_piece);
-  const StringPiece* str = HtmlKeywords::KeywordToString(keyword);
+  const char* str = HtmlKeywords::KeywordToString(keyword);
 
   // If the passed-in string is not in its canonical form, or is not a
   // recognized keyword, then we must make a permanent copy in our
   // string table.  Note that we are comparing the bytes of the
   // keyword from the table, not the pointer.
-  if ((str == NULL) || (str_piece != *str)) {
+  if ((str == NULL) || (str_piece != str)) {
     Atom atom = string_table_.Intern(str_piece);
-    str = atom.Rep();
+    str = atom.c_str();
   }
   return HtmlName(keyword, str);
 }

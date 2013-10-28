@@ -133,7 +133,6 @@ class HtmlName {
     kLanguage,
     kLi,
     kLink,
-    kLongdesc,
     kLoop,
     kManifest,
     kMark,
@@ -159,7 +158,6 @@ class HtmlName {
     kOpen,
     kOptgroup,
     kOption,
-    kOrigIndex,
     kOther,
     kP,
     kPagespeedHighResSrc,
@@ -177,7 +175,6 @@ class HtmlName {
     kPagespeedSize,
     kPagespeedUrlHash,
     kParam,
-    kPoster,
     kPre,
     kProfile,
     kQ,
@@ -232,15 +229,21 @@ class HtmlName {
     kNotAKeyword
   };
 
-
-  // HtmlName's should be normally constructed using HtmlParse::MakeName
+  // Constructs an HTML name given a keyword, which can be
+  // HtmlName::kNotAKeyword, and 'const char* str'.  'str'
+  // is used to retain the case-sensitive spelling of the
+  // keyword.  The storage for 'str' must be managed, and
+  // must be guaranteed valid throughout the life of the HtmlName.
+  HtmlName(Keyword keyword, const char* str)
+      : keyword_(keyword), c_str_(str) {
+  }
 
   // Returns the keyword enumeration for this HTML Name.  Note that
   // keyword lookup is case-insensitive.
   Keyword keyword() const { return keyword_; }
 
   // Return the atom string, which may not be case folded.
-  StringPiece value() const { return *str_; }
+  const char* c_str() const { return c_str_; }
 
   // Limited iterator (not an STL iterator).  Example usage:
   //    for (HtmlName::Iterator iter; !iter.AtEnd(); iter.Next()) {
@@ -264,20 +267,10 @@ class HtmlName {
   static Keyword Lookup(const StringPiece& name);
 
  private:
-  // Constructs an HTML name given a keyword, which can be
-  // HtmlName::kNotAKeyword, and 'StringPiece* str'.  'str'
-  // is used to retain the case-sensitive spelling of the
-  // keyword.  The storage for 'str' must be managed, and
-  // must be guaranteed valid throughout the life of the HtmlName.
-  HtmlName(Keyword keyword, const StringPiece* str)
-      : keyword_(keyword), str_(str) {
-  }
-
   friend class HtmlNameTest;
-  friend class HtmlParse;
 
   Keyword keyword_;
-  const StringPiece* str_;
+  const char* c_str_;
 
   // Implicit copy and assign ok.  The members can be safely copied by bits.
 };

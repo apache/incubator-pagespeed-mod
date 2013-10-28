@@ -29,6 +29,7 @@
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
+#include "net/instaweb/rewriter/rendered_image.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -48,6 +49,9 @@ class UrlSegmentEncoder;
 class Variable;
 class WorkBound;
 struct ContentType;
+
+typedef std::map<GoogleString, std::pair<int32, int32> >
+    RenderedImageDimensionsMap;
 
 // Identify img tags in html and optimize them.
 // TODO(jmaessen): Big open question: how best to link pulled-in resources to
@@ -91,13 +95,12 @@ class ImageRewriteFilter : public RewriteFilter {
 
   static const RewriteOptions::Filter kRelatedFilters[];
   static const int kRelatedFiltersSize;
+  static const RewriteOptions::OptionEnum kRelatedOptions[];
+  static const int kRelatedOptionsSize;
 
   explicit ImageRewriteFilter(RewriteDriver* driver);
   virtual ~ImageRewriteFilter();
   static void InitStats(Statistics* statistics);
-  static void Initialize();
-  static void Terminate();
-  static void AddRelatedOptions(StringPieceVector* target);
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
@@ -111,6 +114,10 @@ class ImageRewriteFilter : public RewriteFilter {
   bool TryInline(
       int64 image_inline_max_bytes, const CachedResult* cached_result,
       ResourceSlot* slot, GoogleString* data_url);
+
+  // Setup a map for RenderedImages and their dimensions.
+  void SetupRenderedImageDimensionsMap(
+      const RenderedImages& rendered_images);
 
   // The valid contents of a dimension attribute on an image element have one of
   // the following forms: "45%" "45%px" "+45.0%" [45% of browser width; we can't
@@ -173,9 +180,8 @@ class ImageRewriteFilter : public RewriteFilter {
       bool is_css);
 
   virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
-  virtual const StringPieceVector* RelatedOptions() const {
-    return related_options_;
-  }
+  virtual const RewriteOptions::OptionEnum* RelatedOptions(
+      int* num_options) const;
 
   // Disable all filters listed in kRelatedFilters in options.
   static void DisableRelatedFilters(RewriteOptions* options);
@@ -207,20 +213,17 @@ class ImageRewriteFilter : public RewriteFilter {
   bool FinishRewriteImageUrl(
       const CachedResult* cached, const ResourceContext* resource_context,
       HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      HtmlResourceSlot* slot);
+      ResourceSlot* slot);
 
   // Save image contents in cached if the image is inlinable.
   void SaveIfInlinable(const StringPiece& contents,
                        const ImageType image_type,
                        CachedResult* cached);
 
-  // Populates width and height from either the attributes specified in the
-  // image tag (including in an inline style attribute) or from the rendered
-  // dimensions and sets is_resized_using_rendered_dimensions to true if
-  // dimensions are taken from rendered dimensions.
+  // Populates width and height with the attributes specified in the
+  // image tag (including in an inline style attribute).
   void GetDimensions(HtmlElement* element, ImageDim* page_dim,
-                     const HtmlElement::Attribute* src,
-                     bool* is_resized_using_rendered_dimensions);
+                     const HtmlElement::Attribute* src);
 
   // Returns true if there is either a width or height attribute specified,
   // even if they're not parsable.
@@ -249,6 +252,8 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Statistics
 
+  // A map for rendered images extracted from CriticalImagesFinder
+  scoped_ptr<RenderedImageDimensionsMap> rendered_images_map_;
   // # of images rewritten successfully.
   Variable* image_rewrites_;
   // # of images resized using rendered dimensions;
@@ -313,9 +318,6 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Sets of variables and histograms for various conversions to WebP.
   Image::ConversionVariables webp_conversion_variables_;
-
-  // The options related to this filter.
-  static StringPieceVector* related_options_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageRewriteFilter);
 };

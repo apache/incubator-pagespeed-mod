@@ -38,18 +38,41 @@
       ],
     },
     {
+      'target_name': 'http_core',
+      'type': '<(library)',
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
+        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
+      ],
+      'sources': [
+        'http/semantic_type.cc',
+      ],
+      'include_dirs': [
+        '<(instaweb_root)',
+        '<(DEPTH)',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(instaweb_root)',
+          '<(DEPTH)',
+        ],
+      },
+    },
+    {
       'target_name': 'instaweb_rewriter_html',
       'type': '<(library)',
-      # Like above, we need a dummy .cc file for OS X to build this.
-      # It should go away once PSI has been ported to new target names.
-      'sources': [
-        'htmlparse/dummy.cc',
-      ],
       'dependencies': [
         'instaweb_htmlparse_core',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
+        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
+      ],
+      'sources': [
+        'rewriter/collapse_whitespace_filter.cc',
+        'rewriter/elide_attributes_filter.cc',
+        'rewriter/html_attribute_quote_removal.cc',
+        'rewriter/remove_comments_filter.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -63,7 +86,7 @@
       },
       'export_dependent_settings': [
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
+        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         'instaweb_htmlparse_core',
       ]
     },
@@ -75,7 +98,7 @@
         'instaweb_htmlparse_core',
         'instaweb_rewriter_html',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
-        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http_core',
+        '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
       ],
       'sources': [
         'rewriter/html_minifier_main.cc',
@@ -118,7 +141,7 @@
                 '<(LIB_DIR)/net/instaweb/libinstaweb_rewriter_html.a',
                 '<(LIB_DIR)/pagespeed/libpagespeed_html.a',
                 '<(LIB_DIR)/pagespeed/libpagespeed_html_gperf.a',
-                '<(LIB_DIR)/pagespeed/libpagespeed_http_core.a',
+                '<(LIB_DIR)/pagespeed/libpagespeed_http.a',
                 '<(LIB_DIR)/pagespeed/libpagespeed_base_core.a',
                 '<(LIB_DIR)/build/temp_gyp/libgoogleurl.a',
                 '<(LIB_DIR)/base/libbase.a',

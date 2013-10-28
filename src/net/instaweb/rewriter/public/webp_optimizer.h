@@ -23,8 +23,6 @@
 
 namespace net_instaweb {
 
-class MessageHandler;
-
 // Progress hook for WebP conversions.
 typedef bool (*WebpProgressHook)(int percent, void* user_data);
 
@@ -38,8 +36,7 @@ const int kNoQualityGiven = -1;
 // compressed_webp may be filled with junk.
 bool OptimizeWebp(const GoogleString& original_jpeg, int configured_quality,
                   WebpProgressHook progress_hook, void* progress_hook_data,
-                  GoogleString* compressed_webp,
-                  MessageHandler* message_handler);
+                  GoogleString* compressed_webp);
 
 // Reduce the quality of the webp image. Indicates failure by returning false.
 // WebP quality varies from 1 to 100. Original image will be returned if input

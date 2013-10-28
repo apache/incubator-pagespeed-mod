@@ -23,8 +23,6 @@
 
 #include <cstddef>
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
@@ -34,6 +32,8 @@
 #include "net/instaweb/util/public/benchmark.h"
 
 using net_instaweb::RequestContext;
+
+namespace net_instaweb { class RewriteDriver; }
 
 static void BM_RewriteDriverConstruction(int iters) {
   net_instaweb::MockUrlFetcher fetcher;
@@ -51,7 +51,7 @@ static void BM_RewriteDriverConstruction(int iters) {
         server_context->NewCustomRewriteDriver(
             options, RequestContext::NewTestRequestContext(
                          factory.thread_system()));
-    driver->Cleanup();
+    server_context->ReleaseRewriteDriver(driver);
   }
   net_instaweb::RewriteDriverFactory::Terminate();
 }

@@ -49,7 +49,6 @@ class RewriteOptions;
 class Statistics;
 class Variable;
 class Writer;
-class FreshenMetadataUpdateManager;
 
 // RewriteContext manages asynchronous rewriting of some n >= 1 resources (think
 // CSS, JS, or images) into m >= 0 improved versions (typically, n = m = 1).
@@ -154,20 +153,17 @@ class RewriteContext {
   static const char kDistributedExt[];
   // The hash value used for all distributed fetch URLs.
   static const char kDistributedHash[];
+
   // Used to pass the result of the metadata cache lookups. Recipient must
   // take ownership.
   struct CacheLookupResult {
     CacheLookupResult()
         : cache_ok(false),
           can_revalidate(false),
-          useable_cache_content(false),
-          is_stale_rewrite(false),
           partitions(new OutputPartitions) {}
 
     bool cache_ok;
     bool can_revalidate;
-    bool useable_cache_content;
-    bool is_stale_rewrite;
     InputInfoStarVector revalidate;
     scoped_ptr<OutputPartitions> partitions;
   };
@@ -613,9 +609,6 @@ class RewriteContext {
   // deadline based on rewrite type, e.g., IPRO vs. HTML-path.
   virtual int64 GetRewriteDeadlineAlarmMs() const;
 
-  // Should the context call LockForCreation before checking the cache?
-  virtual bool CreationLockBeforeStartFetch() { return true; }
-
  private:
   class DistributedRewriteCallback;
   class DistributedRewriteFetch;
@@ -646,7 +639,6 @@ class RewriteContext {
   void Start();
   void SetPartitionKey();
   void StartFetch();
-  void StartFetchImpl();
   void CancelFetch();
   void OutputCacheDone(CacheLookupResult* cache_result);
   void OutputCacheHit(bool write_partitions);
@@ -858,23 +850,6 @@ class RewriteContext {
   // spike or overload (kFallbackDiscretional).
   bool CanFetchFallbackToOriginal(FallbackCondition circumstance) const;
 
-  // Checks whether an other dependency input info already exists in the
-  // partition with the same data. Used to de-dup the field.
-  bool HasDuplicateOtherDependency(const InputInfo& input);
-
-  // Check if there is a duplicate and if there is none, add to the other
-  // dependencies. Updates the internal other_dependency map that is used to
-  // de-dup the contents.
-  void CheckAndAddOtherDependency(const InputInfo& input);
-
-  // Perform checks and freshen the input resource. Also updates metadata if
-  // required.
-  void CheckAndFreshenResource(const InputInfo& input_info,
-                               ResourcePtr resource, int partition_index,
-                               int input_index,
-                               FreshenMetadataUpdateManager* freshen_manager);
-  ResourcePtr CreateUrlResource(const StringPiece& input_url);
-
   // To perform a rewrite, we need to have data for all of its input slots.
   ResourceSlotVector slots_;
 
@@ -1019,9 +994,6 @@ class RewriteContext {
 
   // Stores the resulting headers and content of a distributed rewrite.
   scoped_ptr<DistributedRewriteFetch> distributed_fetch_;
-
-  // Map to dedup partitions other dependency field.
-  StringIntMap other_dependency_map_;
 
   Variable* const num_distributed_rewrite_failures_;
   Variable* const num_distributed_rewrite_successes_;

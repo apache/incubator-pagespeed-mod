@@ -53,7 +53,7 @@ class ImageTestBase : public testing::Test {
 
   ImageTestBase() :
     timer_(0),
-    message_handler_(new NullMutex) {
+    handler_(new NullMutex) {
   }
 
   virtual ~ImageTestBase();
@@ -79,7 +79,7 @@ class ImageTestBase : public testing::Test {
 
   MockTimer timer_;
   StdioFileSystem file_system_;
-  MockMessageHandler message_handler_;
+  MockMessageHandler handler_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ImageTestBase);

@@ -134,13 +134,14 @@ class ProxyFetchPropertyCallback : public PropertyPage {
  public:
   ProxyFetchPropertyCallback(PageType page_type,
                              PropertyCache* property_cache,
-                             const StringPiece& url,
-                             const StringPiece& options_signature_hash,
+                             const StringPiece& key,
                              UserAgentMatcher::DeviceType device_type,
                              ProxyFetchPropertyCallbackCollector* collector,
                              AbstractMutex* mutex);
 
   PageType page_type() const { return page_type_; }
+
+  UserAgentMatcher::DeviceType device_type() const { return device_type_; }
 
   // Delegates to collector_'s IsCacheValid.
   virtual bool IsCacheValid(int64 write_timestamp_ms) const;
@@ -156,22 +157,6 @@ class ProxyFetchPropertyCallback : public PropertyPage {
 };
 
 // Tracks a collection of property-cache lookups occuring in parallel.
-// Sequence is used to execute various functions in an orderly fashion to
-// avoid any kind of race between Done(), ConnectProxyFetch(), Detach() and
-// AddPostLookupTask().  When any function is called, it is added to the
-// sequence and added function will be executed immediately if sequence is
-// free, otherwise it will wait for its turn.
-//
-// Order of events:
-// InitiatePropertyCacheLookup-->AddPostLookupTask-->Initiate Html Fetch
-//            |                 (Added to Sequence)         |
-//            |                                        Fetch Done
-//        Lookup Done()                                     |
-//    (Added to Sequence)                           -------------------
-//                                          is html |           !html |
-//                                        ConnectProxyFetch()     Detach()
-//                                                 (Added to Sequence)
-//
 class ProxyFetchPropertyCallbackCollector {
  public:
   ProxyFetchPropertyCallbackCollector(ServerContext* server_context,
@@ -241,36 +226,28 @@ class ProxyFetchPropertyCallbackCollector {
   // Called by a ProxyFetchPropertyCallback when the former is complete.
   void Done(ProxyFetchPropertyCallback* callback);
 
+  // Updates the status code of response in property cache.
+  void UpdateStatusCodeInPropertyCache();
+
   const RequestContextPtr& request_context() { return request_context_; }
 
   // Returns DeviceType from device property page.
   UserAgentMatcher::DeviceType device_type() { return device_type_; }
 
  private:
-  friend class ProxyFetchPropertyCallbackCollectorTest;
-  void ExecuteDone(ProxyFetchPropertyCallback* callback);
-  void ExecuteAddPostLookupTask(Function* func);
-  void ExecuteConnectProxyFetch(ProxyFetch* proxy_fetch);
-  void ExecuteDetach(HttpStatus::Code status_code);
-
-  // Updates the status code of response in property cache.
-  void UpdateStatusCodeInPropertyCache();
-
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
   std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
   property_pages_;
   scoped_ptr<AbstractMutex> mutex_;
   ServerContext* server_context_;
-  QueuedWorkerPool::Sequence* sequence_;
   GoogleString url_;
   RequestContextPtr request_context_;
   UserAgentMatcher::DeviceType device_type_;
-  bool is_options_valid_;     // protected by mutex_.
   bool detached_;             // protected by mutex_.
   bool done_;                 // protected by mutex_.
   ProxyFetch* proxy_fetch_;   // protected by mutex_.
   // protected by mutex_.
-  std::vector<Function*> post_lookup_task_vector_;
+  scoped_ptr<std::vector<Function*> > post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
   HttpStatus::Code status_code_;  // status_code_ of the response.
   scoped_ptr<FallbackPropertyPage> fallback_property_page_;
@@ -302,11 +279,12 @@ class ProxyFetch : public SharedAsyncFetch {
  public:
   // These strings identify sync-points for reproducing races between
   // PropertyCache lookup completion and Origin HTML Fetch completion.
-  static const char kCollectorConnectProxyFetchFinish[];
-  static const char kCollectorDetachFinish[];
-  static const char kCollectorDoneFinish[];
-  static const char kCollectorFinish[];
-  static const char kCollectorDetachStart[];
+  static const char kCollectorDone[];
+  static const char kCollectorPrefix[];
+  static const char kCollectorReady[];
+  static const char kCollectorDelete[];
+  static const char kCollectorDetach[];
+  static const char kCollectorDoneDelete[];
 
   // These strings identify sync-points for introducing races between
   // PropertyCache lookup completion and HeadersComplete.
@@ -384,7 +362,7 @@ class ProxyFetch : public SharedAsyncFetch {
   // held.
   void ScheduleQueueExecutionIfNeeded();
 
-  // Frees up the RewriteDriver (via FinishParse or Cleanup),
+  // Frees up the RewriteDriver (via FinishParse or ReleaseRewriteDriver),
   // calls the callback (nulling out callback_ to ensure that we don't
   // do it again), notifies the ProxyInterface that the fetch is
   // complete, and deletes the ProxyFetch.

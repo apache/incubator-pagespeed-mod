@@ -25,17 +25,10 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
-#include "pagespeed/kernel/image/scanline_status.h"
-
-namespace net_instaweb {
-class MessageHandler;
-}
 
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 struct WebpConfiguration {
   // This contains a subset of the options in WebPConfig and
@@ -78,25 +71,20 @@ struct WebpConfiguration {
 
 class WebpScanlineWriter : public ScanlineWriterInterface {
  public:
-  explicit WebpScanlineWriter(MessageHandler* handler);
+  WebpScanlineWriter();
   virtual ~WebpScanlineWriter();
 
-  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format);
-  // Sets the WebP configuration to be 'params', which should be a
-  // WebpConfiguration* and should not be NULL.
-  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString* const out);
-  virtual ScanlineStatus WriteNextScanlineWithStatus(void *scanline_bytes);
+  virtual bool Init(const size_t width, const size_t height,
+                    PixelFormat pixel_format);
+  bool InitializeWrite(const WebpConfiguration& config,
+                       GoogleString* const out);
+
+  virtual bool WriteNextScanline(void *scanline_bytes);
 
   // Note that even after WriteNextScanline() has been called,
   // InitializeWrite() and FinalizeWrite() may be called repeatedly to
   // write the image with, say, different configs.
-  virtual ScanlineStatus FinalizeWriteWithStatus();
-
-  MessageHandler* message_handler() {
-    return message_handler_;
-  }
+  virtual bool FinalizeWrite();
 
  private:
   // Number of bytes per row. See
@@ -148,8 +136,6 @@ class WebpScanlineWriter : public ScanlineWriterInterface {
   // in progress_hook_, passing it progress_hook_data_.
   static int ProgressHook(int percent, const WebPPicture* picture);
 
-  MessageHandler* message_handler_;
-
   DISALLOW_COPY_AND_ASSIGN(WebpScanlineWriter);
 };
 
@@ -159,7 +145,7 @@ class WebpScanlineWriter : public ScanlineWriterInterface {
 // is not supported.
 class WebpScanlineReader : public ScanlineReaderInterface {
  public:
-  explicit WebpScanlineReader(MessageHandler* handler);
+  WebpScanlineReader();
   virtual ~WebpScanlineReader();
 
   // Reset the scanline reader to its initial state.
@@ -167,13 +153,12 @@ class WebpScanlineReader : public ScanlineReaderInterface {
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the *first* call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  bool Initialize(const void* image_buffer, size_t buffer_length);
 
   // Return the next row of pixels. The entire image is decoded the first
   // time ReadNextScanline() is called, but only one scanline is returned
   // for each call.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  virtual bool ReadNextScanline(void** out_scanline_bytes);
 
   // Return the number of bytes in a row (without padding).
   virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
@@ -197,8 +182,6 @@ class WebpScanlineReader : public ScanlineReaderInterface {
 
   // Buffer for holding the decoded pixels.
   scoped_array<uint8_t> pixels_;
-
-  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(WebpScanlineReader);
 };

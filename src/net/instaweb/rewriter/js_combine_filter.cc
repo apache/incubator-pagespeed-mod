@@ -366,10 +366,7 @@ class JsCombineFilter::Context : public RewriteContext {
                              HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
-                           ResourceSlot::RelativizeOrPassthrough(
-                               Driver()->options(), partition->url(),
-                               first_slot->url_relativity(),
-                               Driver()->base_url()));
+                           partition->url());
   }
 
   // Make a script element with eval(<variable name>), and replace

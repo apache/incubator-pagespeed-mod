@@ -95,18 +95,18 @@ void DelayImagesFilter::EndElement(HtmlElement* element) {
     // current DOM walk in the above js files would need to be modified to
     // handle the large number of tags that we can identify in
     // resource_tag_scanner::ScanElement.
+    semantic_type::Category category;
+    HtmlElement::Attribute* src = resource_tag_scanner::ScanElement(
+        element, driver_, &category);
+
+    if (src == NULL || src->DecodedValueOrNull() == NULL ||
+        category != semantic_type::kImage) {
+      return;
+    }
     HtmlElement::Attribute* low_res_src =
         element->FindAttribute(HtmlName::kPagespeedLowResSrc);
     if (low_res_src == NULL || low_res_src->DecodedValueOrNull() == NULL) {
       return;
-    }
-    HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-    semantic_type::Category category =
-        resource_tag_scanner::CategorizeAttribute(
-            element, src, driver_->options());
-    if (category != semantic_type::kImage ||
-        src->DecodedValueOrNull() == NULL) {
-      return;  // Failed to find valid Image-valued src attribute.
     }
     ++num_low_res_inlined_images_;
     if (element->FindAttribute(HtmlName::kOnload) == NULL) {
@@ -241,9 +241,7 @@ void DelayImagesFilter::DetermineEnabled() {
   }
   CriticalImagesFinder* finder =
       driver_->server_context()->critical_images_finder();
-  if (finder->IsMeaningful(driver_) &&
-      !finder->IsCriticalImageInfoPresent(driver_) &&
-      !driver_->options()->Enabled(RewriteOptions::kSplitHtmlHelper)) {
+  if (finder->IsMeaningful(driver_) && !finder->IsSetFromPcache(driver_)) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDelayImages),
         RewriterHtmlApplication::PROPERTY_CACHE_MISS);

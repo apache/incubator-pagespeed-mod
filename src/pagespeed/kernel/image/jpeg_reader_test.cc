@@ -17,8 +17,6 @@
 // Author: Huibao Lin
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
 #include "pagespeed/kernel/image/read_image.h"
@@ -30,8 +28,6 @@
 
 namespace {
 
-using net_instaweb::MockMessageHandler;
-using net_instaweb::NullMutex;
 using pagespeed::image_compression::IMAGE_JPEG;
 using pagespeed::image_compression::IMAGE_PNG;
 using pagespeed::image_compression::JpegScanlineReader;
@@ -41,9 +37,6 @@ using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::ReadTestFileWithExt;
 
 const char* kValidJpegImages[] = {
-  "test411",        // RGB color space with 4:1:1 chroma sub-sampling.
-  "test420",        // RGB color space with 4:2:0 chroma sub-sampling.
-  "test422",        // RGB color space with 4:2:2 chroma sub-sampling.
   "test444",        // RGB color space with full chroma information.
   "testgray",       // Grayscale color space.
 };
@@ -60,14 +53,12 @@ const size_t kInvalidFileCount = arraysize(kInvalidFiles);
 
 // Verify that decoded image is accurate for each pixel.
 TEST(JpegReaderTest, ValidJpegs) {
-  MockMessageHandler message_handler(new NullMutex);
   for (size_t i = 0; i < kValidJpegImageCount; ++i) {
     GoogleString jpeg_image, png_image;
     ReadTestFile(kJpegTestDir, kValidJpegImages[i], "jpg", &jpeg_image);
     ReadTestFile(kJpegTestDir, kValidJpegImages[i], "png", &png_image);
     DecodeAndCompareImages(IMAGE_PNG, png_image.c_str(), png_image.length(),
-                           IMAGE_JPEG, jpeg_image.c_str(), jpeg_image.length(),
-                           &message_handler);
+                           IMAGE_JPEG, jpeg_image.c_str(), jpeg_image.length());
   }
 }
 
@@ -76,8 +67,7 @@ TEST(JpegReaderTest, InvalidJpegs) {
   for (size_t i = 0; i < kInvalidFileCount; ++i) {
     GoogleString src_data;
     ReadTestFileWithExt(kJpegTestDir, kInvalidFiles[i], &src_data);
-    MockMessageHandler message_handler(new NullMutex);
-    JpegScanlineReader reader(&message_handler);
+    JpegScanlineReader reader;
     if (i < kInvalidFileCount-1) {
       ASSERT_FALSE(reader.Initialize(src_data.c_str(), src_data.length()));
     } else {
@@ -97,26 +87,25 @@ TEST(JpegReaderTest, InvalidJpegs) {
 TEST(JpegReaderTest, PartialRead) {
   GoogleString image1, image2;
   void* scanline = NULL;
-  MockMessageHandler message_handler(new NullMutex);
 
   ReadTestFile(kJpegTestDir, kValidJpegImages[0], "jpg", &image1);
   ReadTestFile(kJpegTestDir, kValidJpegImages[1], "jpg", &image2);
 
-  JpegScanlineReader reader1(&message_handler);
+  JpegScanlineReader reader1;
   ASSERT_TRUE(reader1.Initialize(image1.c_str(), image1.length()));
 
-  JpegScanlineReader reader2(&message_handler);
+  JpegScanlineReader reader2;
   ASSERT_TRUE(reader2.Initialize(image1.c_str(), image1.length()));
   ASSERT_TRUE(reader2.ReadNextScanline(&scanline));
 
-  JpegScanlineReader reader3(&message_handler);
+  JpegScanlineReader reader3;
   ASSERT_TRUE(reader3.Initialize(image1.c_str(), image1.length()));
   ASSERT_TRUE(reader3.ReadNextScanline(&scanline));
   ASSERT_TRUE(reader3.ReadNextScanline(&scanline));
   ASSERT_TRUE(reader3.Initialize(image2.c_str(), image2.length()));
   ASSERT_TRUE(reader3.ReadNextScanline(&scanline));
 
-  JpegScanlineReader reader4(&message_handler);
+  JpegScanlineReader reader4;
   ASSERT_TRUE(reader4.Initialize(image1.c_str(), image1.length()));
   while (reader4.HasMoreScanLines()) {
     ASSERT_TRUE(reader4.ReadNextScanline(&scanline));

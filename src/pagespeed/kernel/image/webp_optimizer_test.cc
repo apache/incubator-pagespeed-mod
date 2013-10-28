@@ -16,10 +16,8 @@
 
 // Author: Huibao Lin
 
+#include "base/logging.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/read_image.h"
@@ -28,8 +26,6 @@
 
 namespace {
 
-using net_instaweb::MockMessageHandler;
-using net_instaweb::NullMutex;
 using pagespeed::image_compression::IMAGE_PNG;
 using pagespeed::image_compression::IMAGE_WEBP;
 using pagespeed::image_compression::kPngSuiteTestDir;
@@ -39,13 +35,9 @@ using pagespeed::image_compression::PngScanlineReaderRaw;
 using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
-using pagespeed::image_compression::ScanlineWriterInterface;
 using pagespeed::image_compression::WebpConfiguration;
 using pagespeed::image_compression::WebpScanlineReader;
 using pagespeed::image_compression::WebpScanlineWriter;
-using pagespeed::image_compression::kMessagePatternPixelFormat;
-using pagespeed::image_compression::kMessagePatternStats;
-using pagespeed::image_compression::kMessagePatternWritingToWebp;
 
 // Each file in kValidImages is saved in both PNG format and WebP format.
 // alpha_32x32.webp is lossless, while opaque_32x20.webp is lossy.
@@ -61,20 +53,15 @@ const char kFileCorruptedHeader[] = "corrupt_header";
 const char kFileCorruptedBody[] = "corrupt_body";
 const double kMinPSNR = 33.0;
 
-// Message to ignore.
-const char kMessagePatternInvalidWebPData[] = "Invalid WebP data.";
-
 class WebpScanlineReaderTest : public testing::Test {
  public:
   WebpScanlineReaderTest()
-    : message_handler_(new NullMutex),
-      reader_(&message_handler_),
-      scanline_(NULL) {
+    : scanline_(NULL) {
   }
 
   bool Initialize(const char* file_name) {
     if (!ReadTestFile(kWebpTestDir, file_name, "webp", &input_image_)) {
-      PS_LOG_ERROR((&message_handler_), "Failed to read file: %s", file_name);
+      LOG(ERROR) << "Failed to read file: " << file_name;
       return false;
     }
     return reader_.Initialize(input_image_.c_str(), input_image_.length());
@@ -83,7 +70,7 @@ class WebpScanlineReaderTest : public testing::Test {
   void ConvertPngToWebp(const GoogleString& png_image,
                         const WebpConfiguration& webp_config,
                         GoogleString* webp_image) {
-    PngScanlineReaderRaw png_reader(&message_handler_);
+    PngScanlineReaderRaw png_reader;
     // Initialize a PNG reader for reading the original image.
     ASSERT_TRUE(png_reader.Initialize(
         png_image.data(), png_image.length()));
@@ -96,35 +83,23 @@ class WebpScanlineReaderTest : public testing::Test {
     // WebP only supports RGB_888 and RGBA_8888.
     ASSERT_TRUE(pixel_format == RGB_888 || pixel_format == RGBA_8888);
 
-    // Create a WebP writer.
-    scoped_ptr<ScanlineWriterInterface> webp_writer(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_WEBP,
-                             pixel_format, width, height, &webp_config,
-                             webp_image, &message_handler_));
-    ASSERT_NE(reinterpret_cast<ScanlineWriterInterface*>(NULL),
-              webp_writer.get());
+    // Initialize the writer.
+    WebpScanlineWriter webp_writer;
+    ASSERT_TRUE(webp_writer.Init(width, height, pixel_format));
+    ASSERT_TRUE(webp_writer.InitializeWrite(webp_config, webp_image));
 
     // Read the scanlines from the original image and write them to the new one.
     while (png_reader.HasMoreScanLines()) {
       uint8* scanline = NULL;
       ASSERT_TRUE(png_reader.ReadNextScanline(
           reinterpret_cast<void**>(&scanline)));
-      ASSERT_TRUE(webp_writer->WriteNextScanline(
+      ASSERT_TRUE(webp_writer.WriteNextScanline(
           reinterpret_cast<void*>(scanline)));
     }
-    ASSERT_TRUE(webp_writer->FinalizeWrite());
+    ASSERT_TRUE(webp_writer.FinalizeWrite());
   }
 
  protected:
-  virtual void SetUp() {
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternInvalidWebPData);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternWritingToWebp);
-  }
-
- protected:
-  MockMessageHandler message_handler_;
   WebpScanlineReader reader_;
   GoogleString input_image_;
   void* scanline_;
@@ -147,7 +122,7 @@ TEST_F(WebpScanlineReaderTest, ConvertToAndReadLossyWebp) {
     DecodeAndCompareImagesByPSNR(IMAGE_PNG, png_image.c_str(),
                                  png_image.length(), IMAGE_WEBP,
                                  webp_image.c_str(), webp_image.length(),
-                                 kMinPSNR, &message_handler_);
+                                 kMinPSNR);
   }
 }
 
@@ -163,7 +138,7 @@ TEST_F(WebpScanlineReaderTest, ConvertToAndReadLosslessWebp) {
     ConvertPngToWebp(png_image, webp_config, &webp_image);
     DecodeAndCompareImages(IMAGE_PNG, png_image.c_str(), png_image.length(),
                            IMAGE_WEBP, webp_image.c_str(),
-                           webp_image.length(), &message_handler_);
+                           webp_image.length());
   }
 }
 
@@ -177,10 +152,8 @@ TEST_F(WebpScanlineReaderTest, CompareToWebpGolds) {
     GoogleString png_image, webp_image;
     ReadTestFile(kWebpTestDir, kValidImages[i], "png", &png_image);
     ReadTestFile(kWebpTestDir, kValidImages[i], "webp", &webp_image);
-    DecodeAndCompareImagesByPSNR(IMAGE_PNG, png_image.c_str(),
-                                 png_image.length(), IMAGE_WEBP,
-                                 webp_image.c_str(), webp_image.length(), 55,
-                                 &message_handler_);
+    DecodeAndCompareImages(IMAGE_PNG, png_image.c_str(), png_image.length(),
+                           IMAGE_WEBP, webp_image.c_str(), webp_image.length());
   }
 }
 

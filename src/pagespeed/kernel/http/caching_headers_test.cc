@@ -26,43 +26,30 @@ class TestCachingHeaders : public CachingHeaders {
  public:
   explicit TestCachingHeaders(const char* cache_control)
       : CachingHeaders(HttpStatus::kOK),
-        cache_control_(cache_control),
-        likely_static_resource_type_(true),
-        cacheable_resource_status_code_(true) {
+        cache_control_(cache_control) {
   }
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
-    if (key == HttpAttributes::kCacheControl) {
-      SplitStringPieceToVector(cache_control_, ",", values, true);
-      for (int i = 0, n = values->size(); i < n; ++i) {
-        TrimWhitespace(&((*values)[i]));
-      }
-      return true;
-    } else {
-      return false;
+  virtual bool Lookup(const GoogleString& key, StringPieceVector* values) {
+    EXPECT_STREQ(HttpAttributes::kCacheControl, key);
+    SplitStringPieceToVector(cache_control_, ",", values, true);
+    for (int i = 0, n = values->size(); i < n; ++i) {
+      TrimWhitespace(&((*values)[i]));
     }
+    return true;
   }
 
   virtual bool IsLikelyStaticResourceType() const {
-    return likely_static_resource_type_;
+    DCHECK(false);  // not called in our use-case.
+    return false;
   }
 
   virtual bool IsCacheableResourceStatusCode() const {
-    return cacheable_resource_status_code_;
-  }
-
-  void set_likely_static_resource_type(bool x) {
-    likely_static_resource_type_ = x;
-  }
-
-  void set_cacheable_resource_status_code(bool x) {
-    cacheable_resource_status_code_ = x;
+    DCHECK(false);  // not called in our use-case.
+    return false;
   }
 
  private:
   GoogleString cache_control_;
-  bool likely_static_resource_type_;
-  bool cacheable_resource_status_code_;
 
   DISALLOW_COPY_AND_ASSIGN(TestCachingHeaders);
 };
@@ -114,55 +101,6 @@ TEST_F(CachingHeadersTest, DisableNostoreRetainNoCache) {
                       ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                DisableCacheControl());
-}
-
-TEST_F(CachingHeadersTest, IsCacheable) {
-  // Default of no headers, likely static resource type and cacheable status
-  // code is cacheable.
-  SetCacheControl("");
-  EXPECT_TRUE(headers_->IsCacheable());
-
-  // It's false if type isn't likely static or status isn't cacheable, though.
-  SetCacheControl("");
-  headers_->set_cacheable_resource_status_code(false);
-  EXPECT_FALSE(headers_->IsCacheable());
-
-  SetCacheControl("");
-  headers_->set_likely_static_resource_type(false);
-  EXPECT_FALSE(headers_->IsCacheable());
-
-  // Private is OK, for browser cacheability.
-  SetCacheControl("private");
-  EXPECT_TRUE(headers_->IsCacheable());
-  EXPECT_FALSE(headers_->IsProxyCacheable());
-
-  // Various flags that make it non-cacheable.
-  SetCacheControl("no-cache");
-  EXPECT_FALSE(headers_->IsCacheable());
-
-  SetCacheControl("no-store");
-  EXPECT_FALSE(headers_->IsCacheable());
-
-  SetCacheControl("must-revalidate");
-  EXPECT_FALSE(headers_->IsCacheable());
-  EXPECT_FALSE(headers_->ProxyRevalidate());
-  EXPECT_TRUE(headers_->MustRevalidate());
-
-  SetCacheControl("proxy-revalidate");
-  EXPECT_TRUE(headers_->IsCacheable());
-  EXPECT_TRUE(headers_->ProxyRevalidate());
-  EXPECT_FALSE(headers_->MustRevalidate());
-
-  // must-revalidate does not imply uncacheability: it just means
-  // that stale content should not be trusted.
-  SetCacheControl("must-revalidate,max-age=600");
-  EXPECT_FALSE(headers_->ProxyRevalidate());
-  EXPECT_TRUE(headers_->MustRevalidate());
-
-  // proxy-revalidate is similar, but does not affect browser heuristics
-  SetCacheControl("proxy-revalidate,max-age=600");
-  EXPECT_TRUE(headers_->ProxyRevalidate());
-  EXPECT_FALSE(headers_->MustRevalidate());
 }
 
 }  // namespace net_instaweb

@@ -23,7 +23,6 @@
 #include <set>
 
 #include "base/logging.h"               // for operator<<, etc
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -34,7 +33,6 @@
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder.h"
@@ -49,11 +47,9 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "net/instaweb/rewriter/rendered_image.pb.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/cache_interface.h"
-#include "net/instaweb/util/public/cache_property_store.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
@@ -83,10 +79,11 @@ const char kBeaconUrlQueryParam[] = "url";
 const char kBeaconEtsQueryParam[] = "ets";
 const char kBeaconOptionsHashQueryParam[] = "oh";
 const char kBeaconCriticalImagesQueryParam[] = "ci";
-const char kBeaconRenderedDimensionsQueryParam[] = "rd";
 const char kBeaconCriticalCssQueryParam[] = "cs";
-const char kBeaconXPathsQueryParam[] = "xp";
 const char kBeaconNonceQueryParam[] = "n";
+
+const char kFallbackPageCacheKeyQuerySuffix[] = "@";
+const char kFallbackPageCacheKeyBasePathSuffix[] = "#";
 
 // Attributes that should not be automatically copied from inputs to outputs
 const char* kExcludedAttributes[] = {
@@ -112,7 +109,7 @@ StringSet* CommaSeparatedStringToSet(StringPiece str) {
   StringSet* set = new StringSet();
   for (StringPieceVector::const_iterator it = str_values.begin();
        it != str_values.end(); ++it) {
-    set->insert(UrlToFilenameEncoder::Unescape(*it));
+    set->insert(UrlToFilenameEncoder::Unescape(it->as_string()));
   }
   return set;
 }
@@ -124,29 +121,19 @@ class BeaconPropertyCallback : public PropertyPage {
  public:
   BeaconPropertyCallback(
       ServerContext* server_context,
-      StringPiece url,
-      StringPiece options_signature_hash,
-      UserAgentMatcher::DeviceType device_type,
+      const StringPiece& key,
       const RequestContextPtr& request_context,
       StringSet* html_critical_images_set,
       StringSet* css_critical_images_set,
       StringSet* critical_css_selector_set,
-      RenderedImages* rendered_images_set,
-      StringSet* xpaths_set,
       StringPiece nonce)
-      : PropertyPage(kPropertyCachePage,
-                     url,
-                     options_signature_hash,
-                     UserAgentMatcher::DeviceTypeSuffix(device_type),
-                     request_context,
+      : PropertyPage(kPropertyCachePage, key, request_context,
                      server_context->thread_system()->NewMutex(),
                      server_context->page_property_cache()),
         server_context_(server_context),
         html_critical_images_set_(html_critical_images_set),
         css_critical_images_set_(css_critical_images_set),
-        critical_css_selector_set_(critical_css_selector_set),
-        rendered_images_set_(rendered_images_set),
-        xpaths_set_(xpaths_set) {
+        critical_css_selector_set_(critical_css_selector_set) {
     nonce.CopyToString(&nonce_);
   }
 
@@ -161,24 +148,16 @@ class BeaconPropertyCallback : public PropertyPage {
   virtual ~BeaconPropertyCallback() {}
 
   virtual void Done(bool success) {
-    // TODO(jud): Clean up the call to UpdateCriticalImagesCacheEntry with a
-    // struct to nicely package up all of the pcache arguments.
     BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
         html_critical_images_set_.get(), css_critical_images_set_.get(),
-        rendered_images_set_.get(), nonce_, server_context_->beacon_cohort(),
-        this, server_context_->timer());
+        server_context_->beacon_cohort(), this);
     if (critical_css_selector_set_ != NULL) {
-      BeaconCriticalSelectorFinder::
-          WriteCriticalSelectorsToPropertyCacheFromBeacon(
+      server_context_->critical_selector_finder()->
+          WriteCriticalSelectorsToPropertyCache(
               *critical_css_selector_set_, nonce_,
-              server_context_->page_property_cache(),
-              server_context_->beacon_cohort(), this,
-              server_context_->message_handler(), server_context_->timer());
+              server_context_->page_property_cache(), this,
+              server_context_->message_handler());
     }
-
-    // TODO(jud): Add a call to
-    // BeaconCriticalLineInfoFinder::WriteXPathsToPropertyCacheFromBeacon when
-    // that class exists.
 
     WriteCohort(server_context_->beacon_cohort());
     delete this;
@@ -189,8 +168,6 @@ class BeaconPropertyCallback : public PropertyPage {
   scoped_ptr<StringSet> html_critical_images_set_;
   scoped_ptr<StringSet> css_critical_images_set_;
   scoped_ptr<StringSet> critical_css_selector_set_;
-  scoped_ptr<RenderedImages> rendered_images_set_;
-  scoped_ptr<StringSet> xpaths_set_;
   GoogleString nonce_;
   DISALLOW_COPY_AND_ASSIGN(BeaconPropertyCallback);
 };
@@ -268,10 +245,8 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       dom_cohort_(NULL),
       blink_cohort_(NULL),
       beacon_cohort_(NULL),
-      fix_reflow_cohort_(NULL),
       available_rewrite_drivers_(new GlobalOptionsRewriteDriverPool(this)),
       trying_to_cleanup_rewrite_drivers_(false),
-      shutdown_drivers_called_(false),
       factory_(factory),
       rewrite_drivers_mutex_(thread_system_->NewMutex()),
       html_workers_(NULL),
@@ -330,7 +305,6 @@ ServerContext::~ServerContext() {
   decoding_driver_.reset(NULL);
 }
 
-// TODO(gee): These methods are out of order with respect to the .h #tech-debt
 void ServerContext::InitWorkersAndDecodingDriver() {
   html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
   rewrite_workers_ = factory_->WorkerPool(
@@ -339,7 +313,6 @@ void ServerContext::InitWorkersAndDecodingDriver() {
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
   decoding_driver_.reset(NewUnmanagedRewriteDriver(
       NULL, global_options()->Clone(), RequestContextPtr(NULL)));
-  decoding_driver_->set_externally_managed(true);
   // Apply platform configuration mutation for consistency's sake.
   factory_->ApplyPlatformSpecificConfiguration(decoding_driver_.get());
   // Inserts platform-specific rewriters into the resource_filter_map_, so that
@@ -559,7 +532,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
     // so decode it.
     url_query_param.Reset(UrlToFilenameEncoder::Unescape(*query_param_str));
 
-    if (!url_query_param.IsWebValid()) {
+    if (!url_query_param.is_valid()) {
       message_handler_->Message(kWarning,
                                 "Invalid URL parameter in beacon: %s",
                                 query_param_str->c_str());
@@ -623,20 +596,6 @@ bool ServerContext::HandleBeacon(StringPiece params,
         CommaSeparatedStringToSet(*query_param_str));
   }
 
-  scoped_ptr<RenderedImages> rendered_images;
-  query_param_str = query_params.Lookup1(kBeaconRenderedDimensionsQueryParam);
-  if (query_param_str != NULL) {
-    rendered_images.reset(
-        critical_images_finder_->JsonMapToRenderedImagesMap(
-            *query_param_str, global_options()));
-  }
-
-  scoped_ptr<StringSet> xpaths_set;
-  query_param_str = query_params.Lookup1(kBeaconXPathsQueryParam);
-  if (query_param_str != NULL) {
-    xpaths_set.reset(CommaSeparatedStringToSet(*query_param_str));
-  }
-
   StringPiece nonce;
   query_param_str = query_params.Lookup1(kBeaconNonceQueryParam);
   if (query_param_str != NULL) {
@@ -649,23 +608,22 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // BeaconPropertyCallback::Done(). Done() is called when the read completes.
   if (html_critical_images_set != NULL ||
       css_critical_images_set != NULL ||
-      critical_css_selector_set != NULL ||
-      rendered_images != NULL ||
-      xpaths_set != NULL) {
+      critical_css_selector_set != NULL) {
     UserAgentMatcher::DeviceType device_type =
         user_agent_matcher()->GetDeviceTypeForUA(user_agent);
+    StringPiece device_type_suffix =
+        UserAgentMatcher::DeviceTypeSuffix(device_type);
 
-    BeaconPropertyCallback* beacon_property_cb = new BeaconPropertyCallback(
-        this,
+    GoogleString key = GetPagePropertyCacheKey(
         url_query_param.Spec(),
         *options_hash_param,
-        device_type,
-        request_context,
+        device_type_suffix);
+
+    BeaconPropertyCallback* beacon_property_cb = new BeaconPropertyCallback(
+        this, key, request_context,
         html_critical_images_set.release(),
         css_critical_images_set.release(),
         critical_css_selector_set.release(),
-        rendered_images.release(),
-        xpaths_set.release(),
         nonce);
     page_property_cache()->ReadWithCohorts(beacon_property_cb->CohortList(),
                                            beacon_property_cb);
@@ -720,10 +678,6 @@ RewriteDriver* ServerContext::NewUnmanagedRewriteDriver(
   if (has_default_distributed_fetcher()) {
     rewrite_driver->set_distributed_fetcher(default_distributed_fetcher_);
   }
-  // Set the initial reference, as the expectation is that the client
-  // will need to call Cleanup() or FinishParse()
-  rewrite_driver->AddUserReference();
-
   ApplySessionFetchers(request_ctx, rewrite_driver);
   return rewrite_driver;
 }
@@ -773,7 +727,6 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
       factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
     }
   } else {
-    rewrite_driver->AddUserReference();
     rewrite_driver->set_request_context(request_ctx);
     ApplySessionFetchers(request_ctx, rewrite_driver);
   }
@@ -821,14 +774,6 @@ void ServerContext::ShutDownDrivers() {
     // during the shutdown.
     trying_to_cleanup_rewrite_drivers_ = true;
   }
-
-  // Don't do this twice if subclassing of RewriteDriverFactory causes us
-  // to get called twice.
-  // TODO(morlovich): Fix the ShutDown code to not get run many times instead.
-  if (shutdown_drivers_called_) {
-    return;
-  }
-  shutdown_drivers_called_ = true;
 
   if (!active_rewrite_drivers_.empty()) {
     message_handler_->Message(kInfo, "%d rewrite(s) still ongoing at exit",
@@ -909,34 +854,24 @@ ServerContext::OptionsBoolPair ServerContext::GetQueryOptions(
   return OptionsBoolPair(query_options.release(), success);
 }
 
-bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
+void ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
                                          const RewriteOptions* options,
-                                         GoogleString* url) {
+                                         GoogleUrl* url) {
   if (options == NULL || !options->Enabled(RewriteOptions::kSplitHtml)) {
-    return false;
+    return;
   }
-  GoogleUrl gurl(*url);
   QueryParams query_params;
-  // TODO(bharathbhushan): Can we use the results of any earlier query parse?
-  query_params.Parse(gurl.Query());
+  query_params.Parse(url->Query());
 
-  const GoogleString* value = query_params.Lookup1(HttpAttributes::kXSplit);
-  if (value == NULL) {
-    return false;
+  if (query_params.RemoveAll(HttpAttributes::kXPsaSplitBtf)) {
+    ctx->set_is_split_btf_request(true);
+    GoogleString query_string = query_params.empty() ? "" :
+          StrCat("?", query_params.ToString());
+    url->Reset(
+        StrCat(url->AllExceptQuery(), query_string, url->AllAfterQuery()));
   }
-  if (HttpAttributes::kXSplitBelowTheFold == (*value)) {
-    ctx->set_split_request_type(RequestContext::SPLIT_BELOW_THE_FOLD);
-  } else if (HttpAttributes::kXSplitAboveTheFold == (*value)) {
-    ctx->set_split_request_type(RequestContext::SPLIT_ABOVE_THE_FOLD);
-  }
-  query_params.RemoveAll(HttpAttributes::kXSplit);
-  GoogleString query_string = query_params.empty() ? "" :
-        StrCat("?", query_params.ToString());
-  *url = StrCat(gurl.AllExceptQuery(), query_string, gurl.AllAfterQuery());
-  return true;
 }
 
-// TODO(gee): Seems like this should all be in RewriteOptionsManager.
 RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
                                                 RewriteOptions* domain_options,
                                                 RewriteOptions* query_options) {
@@ -988,20 +923,56 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   return custom_options.release();
 }
 
-GoogleString ServerContext::GetRewriteOptionsSignatureHash(
-    const RewriteOptions* options) {
-  if (options == NULL) {
-    return "";
+GoogleString ServerContext::GetPagePropertyCacheKey(
+    StringPiece url, const RewriteOptions* options,
+    StringPiece device_type_suffix) {
+  GoogleString options_signature_hash;
+  if (options != NULL) {
+    // Should we use lock_hasher() instead of hasher() below?
+    options_signature_hash = hasher()->Hash(options->signature());
   }
-  return hasher()->Hash(options->signature());
+  return GetPagePropertyCacheKey(
+      url, options_signature_hash, device_type_suffix);
+}
+
+GoogleString ServerContext::GetPagePropertyCacheKey(
+    StringPiece url, StringPiece options_signature_hash,
+    StringPiece device_type_suffix) {
+  GoogleString result(url.as_string());
+  if (!options_signature_hash.empty()) {
+    StrAppend(&result, "_", options_signature_hash);
+  }
+  StrAppend(&result, device_type_suffix);
+  return result;
+}
+
+GoogleString ServerContext::GetFallbackPagePropertyCacheKey(
+    const GoogleUrl& request_url, const RewriteOptions* options,
+    StringPiece device_type_suffix) {
+  GoogleString key;
+  GoogleString suffix;
+  if (request_url.has_query()) {
+    key = request_url.AllExceptQuery().as_string();
+    suffix = kFallbackPageCacheKeyQuerySuffix;
+  } else {
+    GoogleString url(request_url.spec_c_str());
+    int size = url.size();
+    if (url[size - 1] == '/') {
+      // It's common for site admins to canonicalize urls by redirecting "/a/b"
+      // to "/a/b/".  In order to more effectively share fallback properties, we
+      // strip the trailing '/' before dropping down a level.
+      url.resize(size - 1);
+    }
+    GoogleUrl gurl(url);
+    key = gurl.AllExceptLeaf().as_string();
+    suffix = kFallbackPageCacheKeyBasePathSuffix;
+  }
+  return StrCat(GetPagePropertyCacheKey(key, options, device_type_suffix),
+                suffix);
 }
 
 void ServerContext::ComputeSignature(RewriteOptions* rewrite_options) const {
   rewrite_options->ComputeSignature();
-}
-
-void ServerContext::SetRewriteOptionsManager(RewriteOptionsManager* rom) {
-  rewrite_options_manager_.reset(rom);
 }
 
 bool ServerContext::IsExcludedAttribute(const char* attribute) {
@@ -1017,16 +988,23 @@ void ServerContext::set_enable_property_cache(bool enabled) {
   }
 }
 
-void ServerContext::MakePagePropertyCache(PropertyStore* property_store) {
-  PropertyCache* pcache = new PropertyCache(
-      property_store,
-      timer(),
-      statistics(),
-      thread_system_);
-  // TODO(pulkitg): Remove set_enabled method from property_cache.
-  pcache->set_enabled(enable_property_cache_);
-  page_property_cache_.reset(pcache);
+// TODO(jmarantz): simplify the cache ownership model so that the layered
+// caches don't own one another; the ServerContext owns all the caches.
+void ServerContext::MakePropertyCaches(CacheInterface* backend_cache) {
+  // The property caches are L2-only.  We cannot use the L1 cache because
+  // this data can get stale quickly.
+  page_property_cache_.reset(MakePropertyCache(
+      PropertyCache::kPagePropertyCacheKeyPrefix, backend_cache));
 }
+
+PropertyCache* ServerContext::MakePropertyCache(
+    const GoogleString& cache_key_prefix, CacheInterface* cache) const {
+  PropertyCache* pcache = new PropertyCache(
+      cache_key_prefix, cache, timer(), statistics(), thread_system_);
+  pcache->set_enabled(enable_property_cache_);
+  return pcache;
+}
+
 
 void ServerContext::set_cache_html_info_finder(CacheHtmlInfoFinder* finder) {
   cache_html_info_finder_.reset(finder);
@@ -1049,11 +1027,6 @@ void ServerContext::set_flush_early_info_finder(FlushEarlyInfoFinder* finder) {
   flush_early_info_finder_.reset(finder);
 }
 
-void ServerContext::set_critical_line_info_finder(
-    CriticalLineInfoFinder* finder) {
-  critical_line_info_finder_.reset(finder);
-}
-
 RewriteDriverPool* ServerContext::SelectDriverPool(bool using_spdy) {
   return standard_rewrite_driver_pool();
 }
@@ -1073,51 +1046,6 @@ RequestProperties* ServerContext::NewRequestProperties() {
 
 void ServerContext::DeleteCacheOnDestruction(CacheInterface* cache) {
   factory_->TakeOwnership(cache);
-}
-
-const PropertyCache::Cohort* ServerContext::AddCohort(
-    const GoogleString& cohort_name,
-    PropertyCache* pcache) {
-  return AddCohortWithCache(cohort_name, NULL, pcache);
-}
-
-const PropertyCache::Cohort* ServerContext::AddCohortWithCache(
-    const GoogleString& cohort_name,
-    CacheInterface* cache,
-    PropertyCache* pcache) {
-  CHECK(pcache->GetCohort(cohort_name) == NULL) << cohort_name
-                                                << " is added twice.";
-  if (cache_property_store_ != NULL) {
-    if (cache != NULL) {
-      cache_property_store_->AddCohortWithCache(cohort_name, cache);
-    } else {
-      cache_property_store_->AddCohort(cohort_name);
-    }
-  }
-  return pcache->AddCohort(cohort_name);
-}
-
-void ServerContext::set_cache_property_store(CachePropertyStore* p) {
-  cache_property_store_.reset(p);
-}
-
-PropertyStore* ServerContext::CreatePropertyStore(
-    CacheInterface* cache_backend) {
-  CachePropertyStore* cache_property_store =
-      new CachePropertyStore(CachePropertyStore::kPagePropertyCacheKeyPrefix,
-                             cache_backend,
-                             timer(),
-                             statistics(),
-                             thread_system_);
-  set_cache_property_store(cache_property_store);
-  return cache_property_store;
-}
-
-const CacheInterface* ServerContext::pcache_cache_backend() {
-  if (cache_property_store_ == NULL) {
-    return NULL;
-  }
-  return cache_property_store_->cache_backend();
 }
 
 }  // namespace net_instaweb

@@ -22,20 +22,13 @@
 #include <cstddef>
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
-#include "pagespeed/kernel/image/scanline_status.h"
 
 struct jpeg_decompress_struct;
 struct jpeg_error_mgr;
 
-namespace net_instaweb {
-class MessageHandler;
-}
-
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 struct JpegEnv;
 
@@ -55,7 +48,7 @@ struct JpegEnv;
 // // perform other operations on jpeg_decompress.
 class JpegReader {
  public:
-  explicit JpegReader(MessageHandler* handler);
+  JpegReader();
   ~JpegReader();
 
   jpeg_decompress_struct *decompress_struct() const { return jpeg_decompress_; }
@@ -65,7 +58,6 @@ class JpegReader {
  private:
   jpeg_decompress_struct *jpeg_decompress_;
   jpeg_error_mgr *decompress_error_;
-  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(JpegReader);
 };
@@ -75,17 +67,16 @@ class JpegReader {
 // image has JCS_GRAYSCALE format, or RGB_888 otherwise.
 class JpegScanlineReader : public ScanlineReaderInterface {
  public:
-  explicit JpegScanlineReader(MessageHandler* handler);
+  JpegScanlineReader();
   virtual ~JpegScanlineReader();
   virtual bool Reset();
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the last call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  bool Initialize(const void* image_buffer, size_t buffer_length);
 
   // Return the next row of pixels.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  virtual bool ReadNextScanline(void** out_scanline_bytes);
 
   // Return the number of bytes in a row (without padding).
   virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
@@ -104,7 +95,6 @@ class JpegScanlineReader : public ScanlineReaderInterface {
   size_t row_;
   size_t bytes_per_row_;
   bool was_initialized_;
-  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(JpegScanlineReader);
 };

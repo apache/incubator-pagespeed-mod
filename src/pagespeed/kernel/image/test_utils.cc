@@ -31,10 +31,6 @@
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
 
-namespace net_instaweb {
-class MessageHandler;
-}
-
 namespace pagespeed {
 
 namespace {
@@ -69,8 +65,6 @@ double ComputePSNR(const uint8_t* pixels1, const uint8_t* pixels2,
 
 namespace image_compression {
 
-using net_instaweb::MessageHandler;
-
 bool ReadFile(const GoogleString& file_name,
               GoogleString* content) {
   net_instaweb::StdioFileSystem file_system;
@@ -103,11 +97,10 @@ void DecodeAndCompareImages(
     size_t buffer_length1,
     pagespeed::image_compression::ImageFormat image_format2,
     const void* image_buffer2,
-    size_t buffer_length2,
-    MessageHandler* message_handler) {
+    size_t buffer_length2) {
   DecodeAndCompareImagesByPSNR(image_format1, image_buffer1, buffer_length1,
                                image_format2, image_buffer2, buffer_length2,
-                               kMaxPSNR, message_handler);
+                               kMaxPSNR);
 }
 
 void DecodeAndCompareImagesByPSNR(
@@ -117,8 +110,7 @@ void DecodeAndCompareImagesByPSNR(
     pagespeed::image_compression::ImageFormat image_format2,
     const void* image_buffer2,
     size_t buffer_length2,
-    double min_psnr,
-    MessageHandler* message_handler) {
+    double min_psnr) {
   uint8_t* pixels1 = NULL;
   uint8_t* pixels2 = NULL;
   PixelFormat pixel_format1, pixel_format2;
@@ -127,14 +119,11 @@ void DecodeAndCompareImagesByPSNR(
   // Decode the images.
   ASSERT_TRUE(ReadImage(image_format1, image_buffer1, buffer_length1,
                         reinterpret_cast<void**>(&pixels1),
-                        &pixel_format1, &width1, &height1, &stride1,
-                        message_handler));
+                        &pixel_format1, &width1, &height1, &stride1));
   ASSERT_TRUE(ReadImage(image_format2, image_buffer2, buffer_length2,
                         reinterpret_cast<void**>(&pixels2),
-                        &pixel_format2, &width2, &height2, &stride2,
-                        message_handler));
-  int num_channels = GetNumChannelsFromPixelFormat(pixel_format1,
-                                                   message_handler);
+                        &pixel_format2, &width2, &height2, &stride2));
+  int num_channels = GetNumChannelsFromPixelFormat(pixel_format1);
 
   // Verify that the pixel format and sizes are the same.
   EXPECT_EQ(pixel_format1, pixel_format2);
@@ -144,8 +133,8 @@ void DecodeAndCompareImagesByPSNR(
 
   if (min_psnr >= kMaxPSNR) {
     // Verify that all of the pixels are exactly the same.
-    for (size_t y = 0; y < height1; ++y) {
-      for (size_t x = 0; x < width1; ++x) {
+    for (int y = 0; y < height1; ++y) {
+      for (int x = 0; x < width1; ++x) {
         for (int ch = 0; ch < num_channels; ++ch) {
           int index = y * stride1 + (x * num_channels + ch);
           EXPECT_EQ(pixels1[index], pixels2[index]);

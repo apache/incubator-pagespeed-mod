@@ -22,7 +22,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -62,11 +61,9 @@ apr_status_t apache_cleanup(void* object) {
 // Tracks a single property-cache lookup.
 class PropertyCallback : public PropertyPage {
  public:
-  PropertyCallback(const StringPiece& url,
-                   const StringPiece& options_signature_hash,
-                   UserAgentMatcher::DeviceType device_type,
-                   RewriteDriver* driver,
-                   ThreadSystem* thread_system);
+  PropertyCallback(RewriteDriver* driver,
+                   ThreadSystem* thread_system,
+                   const StringPiece& key);
 
   virtual void Done(bool success);
 
@@ -137,6 +134,8 @@ class InstawebContext {
   static const char* MakeRequestUrl(const RewriteOptions& options,
                                     request_rec* request);
 
+  bool modify_caching_headers() const { return  modify_caching_headers_; }
+
  private:
   void ComputeContentEncoding(request_rec* request);
 
@@ -168,6 +167,7 @@ class InstawebContext {
   bool started_parse_;
   bool sent_headers_;
   bool populated_headers_;
+  bool modify_caching_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(InstawebContext);
 };

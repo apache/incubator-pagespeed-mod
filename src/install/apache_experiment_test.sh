@@ -6,26 +6,30 @@
 # Runs all Apache-specific experiment framework tests that don't depend on
 # Google Analytics.
 #
-# See automatic/system_test_helpers.sh for usage.
+# See system_test_helpers.sh for usage.
 #
 # Not intended to be run stand-alone.  Should be run only by
 # apache_experiment_no_ge_test and apache_experiment_ga_test.
 #
 
-this_dir="$( dirname "${BASH_SOURCE[0]}" )"
-INSTAWEB_CODE_DIR="$this_dir/../net/instaweb"
-if [ ! -e "$INSTAWEB_CODE_DIR" ] ; then
-  INSTAWEB_CODE_DIR="$this_dir/../../"
-fi
-source "$INSTAWEB_CODE_DIR/automatic/system_test_helpers.sh" || exit 1
+this_dir=$(dirname $0)
+source "$this_dir/system_test_helpers.sh" || exit 1
 
 EXAMPLE="$1/mod_pagespeed_example"
 EXTEND_CACHE="$EXAMPLE/extend_cache.html"
+EXAMPLE_FILE_DIR="$this_dir/mod_pagespeed_example"
+TEST_ROOT_FILE_DIR="$this_dir/mod_pagespeed_test"
 
 echo Testing whether or not the experiment framework is working.
+start_test mod_pagespeed_example must have a .htaccess file.
+check test -f $EXAMPLE_FILE_DIR/.htaccess
+
 start_test PageSpeedExperiment cookie is set.
 OUT=$($WGET_DUMP $EXTEND_CACHE)
 check_from "$OUT" fgrep "PageSpeedExperiment="
+
+start_test mod_pagespeed_test must not have a .htaccess file.
+check_not test -f $TEST_ROOT_FILE_DIR/.htaccess
 
 start_test PageSpeedFilters query param should disable experiments.
 OUT=$($WGET_DUMP '$EXTEND_CACHE?PageSpeed=on&PageSpeedFilters=rewrite_css')

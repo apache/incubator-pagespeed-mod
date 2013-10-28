@@ -78,7 +78,16 @@ void ApacheRequestToResponseHeaders(const request_rec& request,
   }
 }
 
+void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
+                                    bool ok_to_disable_downstream_headers,
+                                    request_rec* request) {
+  request->status = response_headers.status_code();
+  AddResponseHeadersToRequest(&response_headers, NULL,
+                              ok_to_disable_downstream_headers, request);
+}
+
 void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
+                                       bool ok_to_disable_downstream_headers,
                                        request_rec* request,
                                        apr_table_t* table) {
   for (int i = 0, n = response_headers.NumAttributes(); i < n; ++i) {
@@ -90,6 +99,10 @@ void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
       char* ptr = apr_pstrdup(request->pool, value.c_str());
       ap_set_content_type(request, ptr);
     } else {
+      if (ok_to_disable_downstream_headers &&
+          StringCaseEqual(name, HttpAttributes::kCacheControl)) {
+        DisableDownstreamHeaderFilters(request);
+      }
       // apr_table_add makes copies of both head key and value, so we do not
       // have to duplicate them.
       apr_table_add(table, name.c_str(), value.c_str());
@@ -97,17 +110,25 @@ void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
   }
 }
 
-void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
-                                    request_rec* request) {
-  AddResponseHeadersToRequestHelper(response_headers, request,
-                                    request->headers_out);
+void AddResponseHeadersToRequest(const ResponseHeaders* headers,
+                                 const ResponseHeaders* err_headers,
+                                 bool ok_to_disable_downstream_headers,
+                                 request_rec* request) {
+  DCHECK(headers != NULL || err_headers != NULL);
+  DCHECK(headers != err_headers);
+  if (headers != NULL) {
+    AddResponseHeadersToRequestHelper(*headers,
+                                      ok_to_disable_downstream_headers,
+                                      request, request->headers_out);
+  }
+  if (err_headers != NULL) {
+    AddResponseHeadersToRequestHelper(*err_headers,
+                                      ok_to_disable_downstream_headers,
+                                      request,
+                                      request->err_headers_out);
+  }
 }
 
-void ErrorHeadersToApacheRequest(const ResponseHeaders& err_response_headers,
-                                 request_rec* request) {
-  AddResponseHeadersToRequestHelper(err_response_headers, request,
-                                    request->err_headers_out);
-}
 
 void DisableDownstreamHeaderFilters(request_rec* request) {
   // Prevent downstream filters from corrupting our headers.
@@ -146,9 +167,8 @@ class ApacheCachingHeaders : public CachingHeaders {
         request_(request) {
   }
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
-    const char* value = apr_table_get(request_->headers_out,
-                                      key.as_string().c_str());
+  virtual bool Lookup(const GoogleString& key, StringPieceVector* values) {
+    const char* value = apr_table_get(request_->headers_out, key.c_str());
     if (value == NULL) {
       return false;
     }

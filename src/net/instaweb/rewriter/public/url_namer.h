@@ -22,11 +22,13 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "pagespeed/kernel/base/callback.h"
 
 namespace net_instaweb {
 
 class GoogleUrl;
 class OutputResource;
+class MessageHandler;
 class RequestHeaders;
 class RewriteOptions;
 
@@ -42,6 +44,7 @@ class UrlNamer {
     kUnsharded
   };
 
+  typedef Callback1<RewriteOptions*> Callback;
   UrlNamer();
   virtual ~UrlNamer();
 
@@ -73,6 +76,22 @@ class UrlNamer {
   // The default implementation uses the domain lawyer in the options.
   virtual bool IsAuthorized(const GoogleUrl& request_url,
                             const RewriteOptions& options) const;
+
+  // Given the request url and request headers, generate the rewrite options.
+  virtual void DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const;
+
+  // Modifies the request prior to dispatch to the underlying fetcher.  Invokes
+  // "callback" once preparation has finished with a boolean argument
+  // representing success.  "url" may be modified by PrepareRequest, but should
+  // be owned by the caller.
+  virtual void PrepareRequest(const RewriteOptions* rewrite_options,
+                              GoogleString* url,
+                              RequestHeaders* request_headers,
+                              Callback1<bool>* callback,
+                              MessageHandler* handler);
 
   // Configure custom options. Note that options may be NULL.
   virtual void ConfigureCustomOptions(const RequestHeaders& request_headers,

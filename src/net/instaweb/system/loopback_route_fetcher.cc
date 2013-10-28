@@ -19,7 +19,6 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -57,7 +56,7 @@ void LoopbackRouteFetcher::Fetch(const GoogleString& original_url,
   GoogleString url = original_url;
   GoogleUrl parsed_url(original_url);
 
-  if (!parsed_url.IsWebValid()) {
+  if (!parsed_url.is_valid()) {
     // Fail immediately in case we can't parse the URL, rather than risk
     // getting weird handling due to inconsistencies in parsing between us
     // and backend_fetcher_.
@@ -73,9 +72,7 @@ void LoopbackRouteFetcher::Fetch(const GoogleString& original_url,
   // Note that in case of an origin mapping the parsed_url will contain the
   // fetch host, not the original host, so the domain_lawyer will know about it
   // and the if body will not run.
-  if (!options_->domain_lawyer()->IsOriginKnown(parsed_url) &&
-      !fetch->request_context()->IsSessionAuthorizedFetchOrigin(
-          parsed_url.Origin().as_string())) {
+  if (!options_->domain_lawyer()->IsOriginKnown(parsed_url)) {
     // If there is no host header, make sure to add one, since we are about
     // to munge the URL.
     if (request_headers->Lookup1(HttpAttributes::kHost) == NULL) {

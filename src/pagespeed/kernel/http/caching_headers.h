@@ -44,7 +44,7 @@ class CachingHeaders {
   virtual ~CachingHeaders();
 
   // Implementors supply this method to provide HTTP response header values.
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) = 0;
+  virtual bool Lookup(const GoogleString& key, StringPieceVector* values) = 0;
 
   // To obtain correct heuristics on URLs with query-parameters, supply the URL.
   void set_url(StringPiece x) { url_ = x; }
@@ -77,12 +77,6 @@ class CachingHeaders {
   // indicates it's not cacheable? For instance, Cache-Control: no-cache or
   // Pragma: no-cache.
   bool HasExplicitNoCacheDirective();
-
-  // Determines whether the caching headers have a must-revalidate directive.
-  bool MustRevalidate();
-
-  // Determines whether the caching headers have a proxy-revalidate directive.
-  bool ProxyRevalidate();
 
   // Tweakable methods
   //
@@ -157,7 +151,6 @@ class CachingHeaders {
   bool private_;
   bool no_transform_;
   bool must_revalidate_;
-  bool proxy_revalidate_;
   bool no_cache_;
   bool no_store_;
   bool cache_control_parse_error_;

@@ -36,8 +36,8 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
@@ -53,7 +53,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/rendered_image.pb.h"
 #include "net/instaweb/util/public/atomic_int32.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_interface.h"
@@ -161,16 +160,24 @@ class ServerContextTest : public RewriteTestBase {
     EXPECT_EQ(expect_content, fetch_result.buffer());
   }
 
-  GoogleString GetOutputResource(const OutputResourcePtr& resource) {
+  GoogleString GetOutputResourceWithoutLock(const OutputResourcePtr& resource) {
     StringAsyncFetch fetch(RequestContext::NewTestRequestContext(
         server_context()->thread_system()));
     EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
+    EXPECT_FALSE(resource->has_lock());
+    return fetch.buffer();
+  }
+
+  GoogleString GetOutputResourceWithLock(const OutputResourcePtr& resource) {
+    StringAsyncFetch fetch(CreateRequestContext());
+    EXPECT_TRUE(FetchExtantOutputResourceHelper(resource, &fetch));
+    EXPECT_TRUE(resource->has_lock());
     return fetch.buffer();
   }
 
   // Returns whether there was an existing copy of data for the resource.
   // If not, makes sure the resource is wrapped.
-  bool TryFetchExtantOutputResource(const OutputResourcePtr& resource) {
+  bool TryFetchExtantOutputResourceOrLock(const OutputResourcePtr& resource) {
     StringAsyncFetch dummy_fetch(CreateRequestContext());
     return FetchExtantOutputResourceHelper(resource, &dummy_fetch);
   }
@@ -212,26 +219,28 @@ class ServerContextTest : public RewriteTestBase {
     GoogleString name_key = output->name_key();
     RemoveUrlPrefix(kUrlPrefix, &name_key);
     EXPECT_EQ(output->full_name().EncodeIdName(), name_key);
-    // Make sure the resource hasn't already been created. We do need to give it
-    // a hash for fetching to do anything.
+    // Make sure the resource hasn't already been created (and lock it for
+    // creation). We do need to give it a hash for fetching to do anything.
     output->SetHash("42");
-    EXPECT_FALSE(TryFetchExtantOutputResource(output));
+    EXPECT_FALSE(TryFetchExtantOutputResourceOrLock(output));
     EXPECT_FALSE(output->IsWritten());
 
     {
-      // Check that a non-blocking attempt to create another resource
+      // Check that a non-blocking attempt to lock another resource
       // with the same name returns quickly. We don't need a hash in this
       // case since we're just trying to create the resource, not fetch it.
       OutputResourcePtr output1(
           rewrite_driver()->CreateOutputResourceWithPath(
               kUrlPrefix, filter_prefix, name, kRewrittenResource));
       ASSERT_TRUE(output1.get() != NULL);
+      EXPECT_FALSE(output1->TryLockForCreation());
       EXPECT_FALSE(output1->IsWritten());
     }
 
     {
       // Here we attempt to create the object with the hash and fetch it.
-      // The fetch fails as there is no active filter to resolve it.
+      // The fetch fails as there is no active filter to resolve it
+      // (but returns after timing out the lock, however).
       ResourceNamer namer;
       namer.CopyFrom(output->full_name());
       namer.set_hash("0");
@@ -240,8 +249,10 @@ class ServerContextTest : public RewriteTestBase {
       OutputResourcePtr output1(CreateOutputResourceForFetch(name));
       ASSERT_TRUE(output1.get() != NULL);
 
+      // non-blocking
+      EXPECT_FALSE(output1->TryLockForCreation());
       // blocking but stealing
-      EXPECT_FALSE(TryFetchExtantOutputResource(output1));
+      EXPECT_FALSE(TryFetchExtantOutputResourceOrLock(output1));
     }
 
     // Write some data
@@ -259,7 +270,7 @@ class ServerContextTest : public RewriteTestBase {
     // from the http_cache.
     OutputResourcePtr output4(CreateOutputResourceForFetch(output->url()));
     EXPECT_EQ(output->url(), output4->url());
-    EXPECT_EQ(contents, GetOutputResource(output4));
+    EXPECT_EQ(contents, GetOutputResourceWithoutLock(output4));
   }
 
   bool ResourceIsCached() {
@@ -367,6 +378,18 @@ class ServerContextTest : public RewriteTestBase {
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheImages));
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheScripts));
   }
+
+  GoogleString CreateCriticalImagePropertyCacheValue(
+      const StringSet* html_critical_images) {
+    CriticalImages critical_images;
+    DCHECK(html_critical_images != NULL);
+    // Update critical images from html.
+    for (StringSet::iterator i = html_critical_images->begin();
+         i != html_critical_images->end(); ++i) {
+      critical_images.add_html_critical_images(*i);
+    }
+    return critical_images.SerializeAsString();
+  }
 };
 
 TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
@@ -447,6 +470,9 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   EXPECT_FALSE(options->Enabled(RewriteOptions::kDeferIframe));
   options->EnableFilter(RewriteOptions::kDeferJavascript);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kDeferJavascript));
+  options->EnableFilter(RewriteOptions::kDetectReflowWithDeferJavascript);
+  EXPECT_FALSE(options->Enabled(
+      RewriteOptions::kDetectReflowWithDeferJavascript));
   options->EnableFilter(RewriteOptions::kFlushSubresources);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kFlushSubresources));
   options->EnableFilter(RewriteOptions::kLazyloadImages);
@@ -629,57 +655,43 @@ TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
 TEST_F(ServerContextTest, ScanSplitHtmlRequestSplitEnabled) {
   options()->EnableFilter(RewriteOptions::kSplitHtml);
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_BELOW_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_TRUE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/", gurl.Spec());
 
-  url = "http://test.com/?a=b&x_split=btf";
+  gurl.Reset("http://test.com/?a=b&X-PSA-Split-Btf=2");
   ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_BELOW_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
-
-  url = "http://test.com/?a=b&x_split=atf";
-  ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_ABOVE_THE_FOLD, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
-
-  url = "http://test.com/?a=b&x_split=junk";
-  ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_TRUE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_TRUE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?a=b", gurl.Spec());
 
   ctx.reset(CreateRequestContext());
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?a=b", url);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?a=b", gurl.Spec());
 }
 
 TEST_F(ServerContextTest, ScanSplitHtmlRequestOptionsNull) {
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, NULL, &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?x_split=btf", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, NULL, &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?X-PSA-Split-Btf=1", gurl.Spec());
 }
 
 TEST_F(ServerContextTest, ScanSplitHtmlRequestSplitDisabled) {
   options()->DisableFilter(RewriteOptions::kSplitHtml);
   RequestContextPtr ctx(CreateRequestContext());
-  GoogleString url("http://test.com/?x_split=btf");
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_FALSE(server_context()->ScanSplitHtmlRequest(ctx, options(), &url));
-  EXPECT_EQ(RequestContext::SPLIT_FULL, ctx->split_request_type());
-  EXPECT_EQ("http://test.com/?x_split=btf", url);
+  GoogleUrl gurl("http://test.com/?X-PSA-Split-Btf=1");
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  server_context()->ScanSplitHtmlRequest(ctx, options(), &gurl);
+  EXPECT_FALSE(ctx->is_split_btf_request());
+  EXPECT_EQ("http://test.com/?X-PSA-Split-Btf=1", gurl.Spec());
 }
 
 class MockRewriteFilter : public RewriteFilter {
@@ -1104,9 +1116,9 @@ class BeaconTest : public ServerContextTest {
         new BeaconCriticalImagesFinder(
             beacon_cohort, factory()->nonce_generator(), statistics()));
     server_context()->set_critical_selector_finder(
-        new BeaconCriticalSelectorFinder(beacon_cohort,
-                                         factory()->nonce_generator(),
-                                         statistics()));
+        new CriticalSelectorFinder(
+            beacon_cohort, timer(),
+            factory()->nonce_generator(), statistics()));
     ResetDriver();
     candidates_.insert("#foo");
     candidates_.insert(".bar");
@@ -1115,14 +1127,18 @@ class BeaconTest : public ServerContextTest {
 
   void ResetDriver() {
     rewrite_driver()->Clear();
+    rewrite_driver()->StartParse("http://www.example.com");
   }
 
   MockPropertyPage* MockPageForUA(StringPiece user_agent) {
     UserAgentMatcher::DeviceType device_type =
         server_context()->user_agent_matcher()->GetDeviceTypeForUA(
             user_agent);
-    MockPropertyPage* page = NewMockPage(
-        kUrlPrefix, kOptionsHash, device_type);
+    StringPiece device_type_suffix =
+        UserAgentMatcher::DeviceTypeSuffix(device_type);
+    GoogleString key = server_context()->GetPagePropertyCacheKey(
+        kUrlPrefix, kOptionsHash, device_type_suffix);
+    MockPropertyPage* page = NewMockPage(key);
     property_cache_->Read(page);
     return page;
   }
@@ -1130,53 +1146,38 @@ class BeaconTest : public ServerContextTest {
   void InsertCssBeacon(StringPiece user_agent) {
     // Simulate effects on pcache of CSS beacon insertion.
     rewrite_driver()->set_property_page(MockPageForUA(user_agent));
-    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
-    last_beacon_metadata_ =
-        server_context()->critical_selector_finder()->
-            PrepareForBeaconInsertion(candidates_, rewrite_driver());
-    ASSERT_EQ(kBeaconWithNonce, last_beacon_metadata_.status);
-    ASSERT_FALSE(last_beacon_metadata_.nonce.empty());
+    factory()->mock_timer()->AdvanceMs(
+        CriticalSelectorFinder::kMinBeaconIntervalMs);
+    last_nonce_ =
+        server_context()->critical_selector_finder()->PrepareForBeaconInsertion(
+            candidates_, rewrite_driver());
+    EXPECT_FALSE(last_nonce_.empty());
     rewrite_driver()->property_page()->WriteCohort(
         server_context()->beacon_cohort());
-  }
-
-  void InsertImageBeacon(StringPiece user_agent) {
-    // Simulate effects on pcache of image beacon insertion.
-    rewrite_driver()->set_property_page(MockPageForUA(user_agent));
-    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
-    last_beacon_metadata_ =
-        server_context()->critical_images_finder()->
-            PrepareForBeaconInsertion(rewrite_driver());
-    ASSERT_EQ(kBeaconWithNonce, last_beacon_metadata_.status);
-    ASSERT_FALSE(last_beacon_metadata_.nonce.empty());
-    rewrite_driver()->property_page()->WriteCohort(
-        server_context()->beacon_cohort());
+    rewrite_driver()->Clear();
+    ResetDriver();
   }
 
   // Send a beacon through ServerContext::HandleBeacon and verify that the
-  // property cache entries for critical images, critical selectors and rendered
-  // dimensions of images were updated correctly.
+  // property cache entries for critical images and critical selectors were
+  // updated correctly.
   void TestBeacon(const StringSet* critical_image_hashes,
                   const StringSet* critical_css_selectors,
-                  const GoogleString* rendered_images_json_map,
                   StringPiece user_agent) {
-    ASSERT_EQ(kBeaconWithNonce, last_beacon_metadata_.status)
-        << "Remember to insert a beacon!";
     // Setup the beacon_url and pass to HandleBeacon.
     GoogleString beacon_url = StrCat(
         "url=http%3A%2F%2Fwww.example.com"
-        "&oh=", kOptionsHash, "&n=", last_beacon_metadata_.nonce);
+        "&oh=", kOptionsHash);
     if (critical_image_hashes != NULL) {
       StrAppend(&beacon_url, "&ci=");
       AppendJoinCollection(&beacon_url, *critical_image_hashes, ",");
     }
+
     if (critical_css_selectors != NULL) {
-      StrAppend(&beacon_url, "&cs=");
+      StrAppend(&beacon_url, "&n=", last_nonce_, "&cs=");
       AppendJoinCollection(&beacon_url, *critical_css_selectors, ",");
     }
-    if (rendered_images_json_map != NULL) {
-      StrAppend(&beacon_url, "&rd=", *rendered_images_json_map);
-    }
+
     EXPECT_TRUE(server_context()->HandleBeacon(
         beacon_url,
         user_agent,
@@ -1184,34 +1185,32 @@ class BeaconTest : public ServerContextTest {
 
     // Read the property cache value for critical images, and verify that it has
     // the expected value.
-    ResetDriver();
     scoped_ptr<MockPropertyPage> page(MockPageForUA(user_agent));
-    rewrite_driver()->set_property_page(page.release());
+    const PropertyCache::Cohort* cohort =
+        property_cache_->GetCohort(RewriteDriver::kBeaconCohort);
     if (critical_image_hashes != NULL) {
-      critical_html_images_ = server_context()->critical_images_finder()->
-          GetHtmlCriticalImages(rewrite_driver());
-    }
-    if (critical_css_selectors != NULL) {
-      critical_css_selectors_ = server_context()->critical_selector_finder()->
-          GetCriticalSelectors(rewrite_driver());
+      PropertyValue* property = page->GetProperty(
+          cohort, CriticalImagesFinder::kCriticalImagesPropertyName);
+      EXPECT_TRUE(property->has_value());
+      property->value().CopyToString(&critical_images_property_value_);
     }
 
-    if (rendered_images_json_map != NULL) {
-      rendered_images_.reset(server_context()->critical_images_finder()->
-                             ExtractRenderedImageDimensionsFromCache(
-                                 rewrite_driver()));
+    if (critical_css_selectors != NULL) {
+      rewrite_driver()->set_property_page(page.release());
+      server_context()->critical_selector_finder()->
+          GetCriticalSelectorsFromPropertyCache(rewrite_driver(),
+                                                &critical_css_selectors_);
     }
   }
 
   PropertyCache* property_cache_;
-  // These fields hold data deserialized from the pcache after TestBeacon.
-  StringSet critical_html_images_;
+  // This field holds a serialized protobuf from pcache after a BeaconTest call.
+  GoogleString critical_images_property_value_;
+  // This field holds data deserialized from the pcache after a BeaconTest call.
   StringSet critical_css_selectors_;
-  // This field holds the data deserialized from pcache after a BeaconTest call.
-  scoped_ptr<RenderedImages> rendered_images_;
   // This field holds candidate critical css selectors.
   StringSet candidates_;
-  BeaconMetadata last_beacon_metadata_;
+  GoogleString last_nonce_;
 };
 
 TEST_F(BeaconTest, BasicPcacheSetup) {
@@ -1220,34 +1219,17 @@ TEST_F(BeaconTest, BasicPcacheSetup) {
   UserAgentMatcher::DeviceType device_type =
       server_context()->user_agent_matcher()->GetDeviceTypeForUA(
           UserAgentMatcherTestBase::kChromeUserAgent);
-  scoped_ptr<MockPropertyPage> page(
-      NewMockPage(kUrlPrefix, kOptionsHash, device_type));
+  StringPiece device_type_suffix =
+      UserAgentMatcher::DeviceTypeSuffix(device_type);
+  GoogleString key = server_context()->GetPagePropertyCacheKey(
+      kUrlPrefix,
+      kOptionsHash,
+      device_type_suffix);
+
+  scoped_ptr<MockPropertyPage> page(NewMockPage(key));
   property_cache_->Read(page.get());
   PropertyValue* property = page->GetProperty(cohort, "critical_images");
   EXPECT_FALSE(property->has_value());
-}
-
-TEST_F(BeaconTest, HandleBeaconRenderedDimensionsofImages) {
-  GoogleString img1 = "http://www.example.com/img1.png";
-  GoogleString hash1 = IntegerToString(
-      HashString<CasePreserve, int>(img1.c_str(), img1.size()));
-  options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
-  RenderedImages rendered_images;
-  RenderedImages_Image* images = rendered_images.add_image();
-  images->set_src(hash1);
-  images->set_rendered_width(40);
-  images->set_rendered_height(50);
-  GoogleString json_map_rendered_dimensions = StrCat(
-      "{\"", hash1, "\":{\"renderedWidth\":40,",
-      "\"renderedHeight\":50,\"originalWidth\":160,\"originalHeight\":200}}");
-  InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(NULL, NULL, &json_map_rendered_dimensions,
-              UserAgentMatcherTestBase::kChromeUserAgent);
-  ASSERT_FALSE(rendered_images_.get() == NULL);
-  EXPECT_EQ(1, rendered_images_->image_size());
-  EXPECT_STREQ(hash1, rendered_images_->image(0).src());
-  EXPECT_EQ(40, rendered_images_->image(0).rendered_width());
-  EXPECT_EQ(50, rendered_images_->image(0).rendered_height());
 }
 
 TEST_F(BeaconTest, HandleBeaconCritImages) {
@@ -1258,44 +1240,40 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
   GoogleString hash2 = IntegerToString(
       HashString<CasePreserve, int>(img2.c_str(), img2.size()));
 
+  CriticalImages proto;
   StringSet critical_image_hashes;
   critical_image_hashes.insert(hash1);
-  InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  proto.add_html_critical_images(hash1);
+  proto.add_html_critical_images_sets()->add_critical_images(hash1);
+  TestBeacon(&critical_image_hashes, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
+  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value_);
 
-  // Beacon both images as critical.  Since we require 80% support, img2 won't
-  // show as critical until we've beaconed four times.  It doesn't require five
-  // beacon results because we weight recent beacon values more heavily and
-  // beacon support decays over time.
   critical_image_hashes.insert(hash2);
-  for (int i = 0; i < 3; ++i) {
-    InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-    TestBeacon(&critical_image_hashes, NULL, NULL,
-               UserAgentMatcherTestBase::kChromeUserAgent);
-    EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
-  }
-  GoogleString expected = StrCat(hash1, ",", hash2);
-  InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  proto.add_html_critical_images(hash2);
+  // proto.add_html_critical_images_sets()->add_critical_images(hash1);
+  CriticalImages::CriticalImageSet* field =
+      proto.add_html_critical_images_sets();
+  field->add_critical_images(hash1);
+  field->add_critical_images(hash2);
+  TestBeacon(&critical_image_hashes, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_STREQ(expected, JoinCollection(critical_html_images_, ","));
+  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value_);
 
-  // Test with a different user agent, providing support only for img1.
   critical_image_hashes.clear();
   critical_image_hashes.insert(hash1);
-  InsertImageBeacon(UserAgentMatcherTestBase::kIPhoneUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
-             UserAgentMatcherTestBase::kIPhoneUserAgent);
-  EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
-
-  // Beacon once more with the original user agent and with only img1; img2
-  // loses 80% support again.
-  InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  proto.clear_html_critical_images();
+  proto.add_html_critical_images(hash1);
+  proto.add_html_critical_images_sets()->add_critical_images(hash1);
+  TestBeacon(&critical_image_hashes, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
-  EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
+  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value_);
+
+  proto.clear_html_critical_images_sets();
+  proto.add_html_critical_images_sets()->add_critical_images(hash1);
+  TestBeacon(&critical_image_hashes, NULL,
+             UserAgentMatcherTestBase::kIPhoneUserAgent);
+  EXPECT_STREQ(proto.SerializeAsString(), critical_images_property_value_);
 }
 
 TEST_F(BeaconTest, HandleBeaconCriticalCss) {
@@ -1304,7 +1282,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.insert("#foo");
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("#noncandidate");
-  TestBeacon(NULL, &critical_css_selector, NULL,
+  TestBeacon(NULL, &critical_css_selector,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar",
                JoinCollection(critical_css_selectors_, ","));
@@ -1316,7 +1294,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("img");
   critical_css_selector.insert("#noncandidate");
-  TestBeacon(NULL, &critical_css_selector, NULL,
+  TestBeacon(NULL, &critical_css_selector,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar,img",
                JoinCollection(critical_css_selectors_, ","));
@@ -1325,7 +1303,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
 TEST_F(BeaconTest, EmptyCriticalCss) {
   InsertCssBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   StringSet empty_critical_selectors;
-  TestBeacon(NULL, &empty_critical_selectors, NULL,
+  TestBeacon(NULL, &empty_critical_selectors,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_TRUE(critical_css_selectors_.empty());
 }
@@ -1361,8 +1339,7 @@ TEST_F(ResourceFreshenTest, TestFreshenImminentlyExpiringResources) {
 
   // Make sure we don't try to insert non-cacheable resources
   // into the cache wastefully, but still fetch them well.
-  int max_age_sec =
-      ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
+  int max_age_sec = ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs;
   response_headers_.Add(HttpAttributes::kCacheControl,
                        StringPrintf("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "");
@@ -1430,8 +1407,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
   const GoogleString kContents = "ok";
   FetcherUpdateDateHeaders();
 
-  int max_age_sec =
-      ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs - 1;
+  int max_age_sec = ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs - 1;
   response_headers_.Add(HttpAttributes::kCacheControl,
                        StringPrintf("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "");
@@ -1610,6 +1586,24 @@ TEST_F(ServerContextTest, WriteChecksInputVector) {
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
 }
 
+TEST_F(ServerContextTest, ShutDownAssumptions) {
+  // The code in ServerContext::ShutDownWorkers assumes that some potential
+  // interleaving of operations are safe. Since they are pretty unlikely
+  // in practice, this test exercises them.
+  RewriteDriver* driver =
+      server_context()->NewRewriteDriver(CreateRequestContext());
+  EnableRewriteDriverCleanupMode(true);
+  driver->WaitForShutDown();
+  driver->WaitForShutDown();
+  driver->Cleanup();
+  driver->Cleanup();
+  driver->WaitForShutDown();
+
+  EnableRewriteDriverCleanupMode(false);
+  // Should actually clean it up this time.
+  driver->Cleanup();
+}
+
 TEST_F(ServerContextTest, IsPagespeedResource) {
   GoogleUrl rewritten(Encode("http://shard0.com/dir/", "jm", "0",
                              "orig.js", "js"));
@@ -1685,6 +1679,20 @@ TEST_F(ServerContextTest, LoadFromFileReadAsync) {
                       rewrite_driver()->request_context(),
                       &callback2);
   callback2.AssertCalled();
+}
+
+TEST_F(ServerContextTest, TestGetFallbackPagePropertyCacheKey) {
+  GoogleString fallback_path("http://www.abc.com/b/");
+  GoogleString device_type_suffix("0");
+  GoogleUrl url_query(StrCat(fallback_path, "?c=d"));
+  GoogleUrl url_base_path(StrCat(fallback_path, "c/"));
+
+  EXPECT_EQ(StrCat(fallback_path, device_type_suffix, "@"),
+            server_context()->GetFallbackPagePropertyCacheKey(
+                url_query, NULL, device_type_suffix));
+  EXPECT_EQ(StrCat(fallback_path, device_type_suffix, "#"),
+            server_context()->GetFallbackPagePropertyCacheKey(
+                url_base_path, NULL, device_type_suffix));
 }
 
 namespace {
@@ -1874,7 +1882,7 @@ TEST_F(ServerContextTestThreadedCache, RepeatedFetches) {
     // Here we will be rewriting the combination with its input
     // coming in from cached previous rewrites, which have repeats.
     GoogleString minified_a(
-        StrCat("<script src=", Encode("", "jm", "0", "a.js", "js"),
+        StrCat("<script src=", Encode(kTestDomain, "jm", "0", "a.js", "js"),
                "></script>"));
     ValidateExpected(
         "par",
@@ -1891,7 +1899,7 @@ TEST_F(ServerContextTestThreadedCache, RepeatedFetches) {
     GoogleString minified_a_leaf(Encode("", "jm", "0", "a.js", "js"));
     GoogleString combination(
       StrCat("<script src=\"",
-             Encode("", "jc", "0",
+             Encode(kTestDomain, "jc", "0",
                     MultiUrl(minified_a_leaf,  minified_a_leaf), "js"),
              "\"></script>"));
     const char kEval[] = "<script>eval(mod_pagespeed_0);</script>";
@@ -1931,17 +1939,6 @@ TEST_F(ServerContextTest, TestRefererNonBackgroundFetchWithDriverRefer) {
   headers.Add(HttpAttributes::kReferer, kReferer);
   RefererTest(&headers, false);
   EXPECT_EQ(kReferer, mock_url_fetcher()->last_referer());
-}
-
-// Regression test for RewriteTestBase::DefaultResponseHeaders, which is based
-// on ServerContext methods. It used to not set 'Expires' correctly.
-TEST_F(ServerContextTest, RewriteTestBaseDefaultResponseHeaders) {
-  ResponseHeaders headers;
-  DefaultResponseHeaders(kContentTypeCss, 100 /* ttl_sec */, &headers);
-  int64 expire_time_ms = 0;
-  ASSERT_TRUE(
-      headers.ParseDateHeader(HttpAttributes::kExpires, &expire_time_ms));
-  EXPECT_EQ(timer()->NowMs() + 100 * Timer::kSecondMs, expire_time_ms);
 }
 
 }  // namespace net_instaweb

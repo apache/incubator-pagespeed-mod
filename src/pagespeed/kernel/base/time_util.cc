@@ -22,9 +22,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#ifdef WIN32
-#include <time.h>
-#endif  // WIN32
 
 namespace net_instaweb {
 
@@ -41,14 +38,14 @@ bool TimeToString(int64 time, GoogleString* time_string,
     time_sec = time / 1000;
   }
   struct tm time_buf;
-#ifdef WIN32
+#if defined(WIN32)
   struct tm* time_info = NULL;
-  if (gmtime_s(&time_buf, &time_sec) == 0) {
+  if (_gmtime_s(&time_buf, &time_sec) == 0) {
     time_info = &time_buf;
   }
 #else
   struct tm* time_info = gmtime_r(&time_sec, &time_buf);
-#endif  // WIN32
+#endif
   if ((time_info == NULL) ||
       (time_buf.tm_wday < 0) ||
       (time_buf.tm_wday > 6) ||

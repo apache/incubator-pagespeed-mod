@@ -21,7 +21,6 @@
 
 #include "pagespeed/kernel/base/atomic_bool.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -60,17 +59,17 @@ class Scheduler {
   Scheduler(ThreadSystem* thread_system, Timer* timer);
   virtual ~Scheduler();
 
-  ThreadSystem::CondvarCapableMutex* mutex() { return mutex_.get(); }
+  ThreadSystem::CondvarCapableMutex* mutex();
 
   // Optionally check that mutex is locked for debugging purposes.
-  void DCheckLocked() { mutex_->DCheckLocked(); }
+  void DCheckLocked();
 
   // Condition-style methods: The following three methods provide a simple
   // condition-variable-style interface that can be used to coordinate the
   // threads sharing the scheduler.
 
   // Wait at most timeout_ms, or until Signal() is called.  mutex() must be held
-  // when calling.
+  // when calling BlockingTimedWait.
   void BlockingTimedWaitMs(int64 timeout_ms) {
     BlockingTimedWaitUs(timeout_ms * Timer::kMsUs);
   }
@@ -81,12 +80,14 @@ class Scheduler {
   // scheduler, which deallocates it after invocation.  mutex() must be held on
   // the initial call, and is locked for the duration of callback.  Note that
   // callback may be invoked in a different thread from the calling thread.
-  void TimedWaitMs(int64 timeout_ms, Function* callback);
+  //
+  // TODO(jmarantz): rename method to have units.
+  void TimedWait(int64 timeout_ms, Function* callback);
 
-  // Signal threads in BlockingTimedWait[Ms,Us] and invoke TimedWaitMs
-  // callbacks.  mutex() must be held when calling Signal.  Performs outstanding
-  // work, including any triggered by the signal, before returning; note that
-  // this means it may drop the scheduler lock internally while doing callback
+  // Signal threads in BlockingTimedWait and invoke TimedWait callbacks.
+  // mutex() must be held when calling Signal.  Performs outstanding work,
+  // including any triggered by the signal, before returning; note that this
+  // means it may drop the scheduler lock internally while doing callback
   // invocation, which is different from the usual condition variable signal
   // semantics.
   void Signal();
@@ -100,7 +101,9 @@ class Scheduler {
   // itself and the callback when it is run or cancelled.  NOTE in particular
   // that calls to CancelAlarm must ensure the callback has not been invoked
   // yet.  This is why the scheduler mutex must be held for CancelAlarm.
-  Alarm* AddAlarmAtUs(int64 wakeup_time_us, Function* callback);
+  //
+  // TODO(jmarantz): rename method to have units.
+  Alarm* AddAlarm(int64 wakeup_time_us, Function* callback);
 
   // Cancels an alarm, calling the Cancel() method and deleting the alarm
   // object.  Scheduler mutex must be held before call to ensure that alarm is
@@ -116,13 +119,15 @@ class Scheduler {
   // its invocation of this.
   bool CancelAlarm(Alarm* alarm);
 
-  // Finally, ProcessAlarmsOrWaitUs provides a mechanism to ensure that pending
-  // alarms are executed in the absence of other scheduler activity.
-  // ProcessAlarmsOrWaitUs: handle outstanding alarms, or if there are none wait
-  // until the next wakeup and handle alarms then before relinquishing control.
-  // Idle no longer than timeout_us.  Passing in timeout_us=0 will run without
-  // blocking.  mutex() must be held.
-  void ProcessAlarmsOrWaitUs(int64 timeout_us);
+  // Finally, ProcessAlarms provides a mechanism to ensure that pending alarms
+  // are executed in the absence of other scheduler activity.  ProcessAlarms:
+  // handle outstanding alarms, or if there are none wait until the next wakeup
+  // and handle alarms then before relinquishing control.  Idle no longer than
+  // timeout_us.  Passing in timeout_us=0 will run without blocking.
+  // mutex() must be held.
+  //
+  // TODO(jmarantz): rename method to have units.
+  void ProcessAlarms(int64 timeout_us);
 
   // Obtain the timer that the scheduler is using internally.  Important if you
   // and the scheduler want to agree on the passage of time.
@@ -134,7 +139,7 @@ class Scheduler {
   // Internal method to kick the system because something of interest to the
   // overridden AwaitWakeup method has happened.  Exported here because C++
   // naming hates you.
-  void Wakeup() { condvar_->Broadcast(); }
+  void Wakeup();
 
   // These methods notify the scheduler of work sequences that may run work
   // on it. They are only used for time simulations in MockScheduler and
@@ -160,7 +165,8 @@ class Scheduler {
   typedef std::set<Alarm*, CompareAlarms> AlarmSet;
 
   int64 RunAlarms(bool* ran_alarms);
-  void AddAlarmMutexHeldUs(int64 wakeup_time_us, Alarm* alarm);
+  // TODO(jmarantz): rename method to have units.
+  void AddAlarmMutexHeld(int64 wakeup_time_us, Alarm* alarm);
   void CancelWaiting(Alarm* alarm);
   bool NoPendingAlarms();
 

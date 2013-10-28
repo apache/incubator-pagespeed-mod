@@ -21,23 +21,22 @@
 #include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/image_types.pb.h"
-#include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
+#include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/wildcard.h"
+#include "pagespeed/kernel/util/wildcard.h"
 
 namespace {
 const char kSampleJpgFile[] = "Sample.jpg";
@@ -344,43 +343,6 @@ TEST_F(DelayImagesFilterTest, DelayImageWithUnescapedQueryParam) {
   MatchOutputAndCountBytes(input_html, output_html);
 }
 
-TEST_F(DelayImagesFilterTest, DelayImageWithOnlyUrlValuedAttribute) {
-  options()->AddUrlValuedAttribute("img", "data-src", semantic_type::kImage);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  GoogleString input_html = "<head></head><body>"
-      "<img data-src=\"http://test.com/1.webp\"/>"
-      "</body>";
-  // No change made.
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img data-src=\"http://test.com/1.webp\"/>",
-      "</body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageWithSrcAndUrlValuedAttribute) {
-  options()->AddUrlValuedAttribute("img", "data-src", semantic_type::kImage);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  AddFileToMockFetcher("http://test.com/2.jpeg", kSampleJpgFile,
-                       kContentTypeJpeg, 100);
-  GoogleString input_html = "<head></head><body>"
-      "<img src=\"http://test.com/1.webp\""
-      "     data-src=\"http://test.com/2.jpeg\"/>"
-      "</body>";
-  // Inlined image will be a blank png instead of a low res webp.
-  GoogleString output_html = StrCat(
-      "<head></head><body>", GetNoscript(),
-      "<img pagespeed_high_res_src=\"http://test.com/1.webp\" "
-      "data-src=\"http://test.com/2.jpeg\" src=\"", kSampleWebpData,
-      "\" onload=\"", DelayImagesFilter::kOnloadFunction, "\"/></body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
 TEST_F(DelayImagesFilterTest, DelayImageWithBlankImage) {
   options()->set_use_blank_image_for_inline_preview(true);
   AddFilter(RewriteOptions::kDelayImages);
@@ -435,25 +397,6 @@ TEST_F(DelayImagesFilterTest, DelayImageWithMobileAggressiveEnabled) {
       StrCat(GetInlineScript(),
              GenerateAddLowResScript("http://test.com/1.jpeg", kSampleJpegData),
              GetHighResScript(), "</body>"));
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageMobileWithUrlValuedAttribute) {
-  options()->set_enable_aggressive_rewriters_for_mobile(true);
-  options()->AddUrlValuedAttribute("img", "data-src", semantic_type::kImage);
-  SetupUserAgentTest(UserAgentMatcherTestBase::kAndroidICSUserAgent);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  GoogleString input_html = "<head></head><body>"
-      "<img data-src=\"http://test.com/1.webp\"/>"
-      "</body>";
-  // No inlining.
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img data-src=\"http://test.com/1.webp\"/>",
-      "</body>");
   MatchOutputAndCountBytes(input_html, output_html);
 }
 
@@ -609,8 +552,8 @@ TEST_F(DelayImagesFilterTest, NoHeadTag) {
 }
 
 TEST_F(DelayImagesFilterTest, PcacheMiss) {
-  TestCriticalImagesFinder* finder =
-      new TestCriticalImagesFinder(NULL, statistics());
+  ForwardingMockCriticalImagesFinder* finder =
+      new ForwardingMockCriticalImagesFinder(statistics());
   server_context()->set_critical_images_finder(finder);
 
   AddFilter(RewriteOptions::kDelayImages);
@@ -800,64 +743,8 @@ TEST_F(DelayImagesFilterTest, DelayImagesScriptDebug) {
                        kContentTypeJpeg, 100);
   Parse("debug",
         "<head></head><body><img src=\"http://test.com/1.jpeg\"/></body>");
-  EXPECT_EQ(GoogleString::npos, output_buffer_.find("/*"))
-      << "There should be no comments in the debug code";
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageBasicTest) {
-  options()->DisableFilter(RewriteOptions::kInlineImages);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.webp\"/>"
-      "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      GenerateRewrittenImageTag("http://test.com/1.webp", kSampleWebpData),
-      "</body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageSizeLimitTest) {
-  options()->DisableFilter(RewriteOptions::kInlineImages);
-  // If the low res is small, the image is not inline previewed.
-  options()->set_max_low_res_image_size_bytes(615);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.webp\"/>"
-      "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img src=\"http://test.com/1.webp\"/>"
-      "</body>");
-  MatchOutputAndCountBytes(input_html, output_html);
-}
-
-TEST_F(DelayImagesFilterTest, DelayImageSizePercentageLimitTest) {
-  options()->DisableFilter(RewriteOptions::kInlineImages);
-  // If the low-res-size / full-res-size > 0.3, the image is not inline
-  // previewed.
-  options()->set_max_low_res_to_full_res_image_size_percentage(30);
-  AddFilter(RewriteOptions::kDelayImages);
-  AddFileToMockFetcher("http://test.com/1.webp", kSampleWebpFile,
-                       kContentTypeWebp, 100);
-  GoogleString input_html = "<head></head>"
-      "<body>"
-      "<img src=\"http://test.com/1.webp\"/>"
-      "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body>",
-      GetNoscript(),
-      "<img src=\"http://test.com/1.webp\"/>"
-      "</body>");
-  MatchOutputAndCountBytes(input_html, output_html);
+  EXPECT_NE(GoogleString::npos, output_buffer_.find("/*"))
+      << "There should still be some comments in the debug code";
 }
 
 }  // namespace net_instaweb

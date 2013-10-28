@@ -27,20 +27,9 @@
 #include "pagespeed/kernel/base/string_util.h"
 
 
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 193439
-#  include "third_party/chromium/src/url/gurl.h"
-#else
-#  include "googleurl/src/gurl.h"
-#endif  // defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 193439
+#include "googleurl/src/gurl.h"
 
 namespace net_instaweb {
-
-enum UrlRelativity {
-  kAbsoluteUrl,   // http://example.com/foo/bar/file.ext?k=v#f
-  kNetPath,       // //example.com/foo/bar/file.ext?k=v#f
-  kAbsolutePath,  // /foo/bar/file.ext?k=v#f
-  kRelativePath,  // bar/file.ext?k=v#f
-};
 
 class GoogleUrl {
  public:
@@ -54,7 +43,7 @@ class GoogleUrl {
   GoogleUrl(const GoogleUrl& base, const char* relative);
   GoogleUrl();
 
-  void Swap(GoogleUrl* google_url);
+  void Swap(GoogleUrl* google_url) { gurl_.Swap(&google_url->gurl_); }
 
   bool Reset(const StringPiece& new_url);
   bool Reset(const GoogleUrl& new_url);
@@ -64,14 +53,6 @@ class GoogleUrl {
 
   // Resets this URL to be invalid.
   void Clear();
-
-  // Is a valid web (HTTP or HTTPS) URL. Most users will want this.
-  bool IsWebValid() const;
-  // Also allows data: URLs.
-  bool IsWebOrDataValid() const;
-  // Only use for you don't care about scheme, just need to know that URL is
-  // well-formed. Note: This will accept things like "foo:bar".
-  bool IsAnyValid() const;
 
   // Returns a new GoogleUrl that is identical to this one but with additional
   // query param.  Name and value should both be legal and already encoded.
@@ -120,12 +101,6 @@ class GoogleUrl {
   // and excluding the query.
   StringPiece PathSansQuery() const;
 
-  // Scheme-relative URL. Spec() == Scheme() + ":" + NetPath().
-  // Named based on http://tools.ietf.org/html/rfc1808#section-2.2
-  // For "http://a.com/b/c/d?E=f/g#r" returns "//a.com/b/c/d?E=f/g#r".
-  // For "file:///tmp/foo" returns "///tmp/foo".
-  StringPiece NetPath() const;
-
   // Extracts the filename portion of the path and returns it. The filename
   // is everything after the last slash in the path. This may be empty.
   GoogleString ExtractFileName() const;
@@ -146,7 +121,7 @@ class GoogleUrl {
   // Returns scheme of stored url.
   StringPiece Scheme() const;
 
-  // It is illegal to call this for invalid urls (check IsWebValid() first).
+  // It is illegal to call this for invalid urls (i.e. check is_valid() first).
   StringPiece Spec() const;
 
   // Returns gurl_.spec_ without checking to see if it's valid or empty.
@@ -162,6 +137,10 @@ class GoogleUrl {
   // Returns the effective port number, which is dependent on the scheme.
   int EffectiveIntPort() const { return gurl_.EffectiveIntPort(); }
 
+  // Returns validity of stored url.
+  bool is_valid() const { return gurl_.is_valid(); }
+
+  bool is_standard() const { return gurl_.IsStandard(); }
   bool is_empty() const { return gurl_.is_empty(); }
   bool has_scheme() const { return gurl_.has_scheme(); }
   bool has_path() const { return gurl_.has_path(); }
@@ -177,17 +156,6 @@ class GoogleUrl {
     return gurl_.SchemeIs(lower_ascii_scheme.as_string().c_str());
   }
 
-  // Find out how relative the URL string is.
-  static UrlRelativity FindRelativity(StringPiece url);
-
-  // If possible, produce a URL as relative as url_relativity, relative to
-  // base_url. If not possible, simply returns the absolute URL string.
-  // Returns a StringPiece, only valid for the lifetime of this object.
-  //
-  // It is illegal to call this for invalid urls (check IsWebValid() first).
-  StringPiece Relativize(UrlRelativity url_relativity,
-                         const GoogleUrl& base_url) const;
-
   // Defiant equality operator!
   bool operator==(const GoogleUrl& other) const {
     return gurl_ == other.gurl_;
@@ -201,7 +169,6 @@ class GoogleUrl {
   static const size_t npos;
 
   explicit GoogleUrl(const GURL& gurl);
-  void Init();
 
   static size_t LeafEndPosition(const GURL& gurl);
   static size_t LeafStartPosition(const GURL& gurl);
@@ -210,12 +177,13 @@ class GoogleUrl {
   size_t LeafStartPosition() const;
   size_t PathStartPosition() const;
 
-  // Resolves a URL against a base. Returns whether the resolution worked.
+  // Resolves a URL against a base.  If the resultant URL has a path that starts
+  // with "//" this will "fix" the resolution by removing one of the slashes.
+  //
+  // Returns whether the resolution worked.
   inline bool ResolveHelper(const GURL& base, const std::string& path_and_leaf);
 
   GURL gurl_;
-  bool is_web_valid_;
-  bool is_web_or_data_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(GoogleUrl);
 };  // class GoogleUrl

@@ -19,16 +19,8 @@
 #include "net/instaweb/util/public/fallback_property_page.h"
 
 #include "base/logging.h"
-#include "net/instaweb/util/public/google_url.h"
 
 namespace net_instaweb {
-
-namespace {
-
-const char kFallbackPageCacheKeyQuerySuffix[] = "@fallback";
-const char kFallbackPageCacheKeyBasePathSuffix[] = "#fallback";
-
-}  // namespace
 
 FallbackPropertyPage::FallbackPropertyPage(
     PropertyPage* actual_property_page,
@@ -102,32 +94,8 @@ void FallbackPropertyPage::DeleteProperty(const PropertyCache::Cohort* cohort,
   }
 }
 
-GoogleString FallbackPropertyPage::GetFallbackPageUrl(
-    const GoogleUrl& request_url) {
-  GoogleString key;
-  GoogleString suffix;
-  if (request_url.has_query()) {
-    key = request_url.AllExceptQuery().as_string();
-    suffix = kFallbackPageCacheKeyQuerySuffix;
-  } else {
-    GoogleString url(request_url.spec_c_str());
-    int size = url.size();
-    if (url[size - 1] == '/') {
-      // It's common for site admins to canonicalize urls by redirecting "/a/b"
-      // to "/a/b/".  In order to more effectively share fallback properties, we
-      // strip the trailing '/' before dropping down a level.
-      url.resize(size - 1);
-    }
-    GoogleUrl gurl(url);
-    key = gurl.AllExceptLeaf().as_string();
-    suffix = kFallbackPageCacheKeyBasePathSuffix;
-  }
-  return StrCat(key, suffix);
-}
-
-bool FallbackPropertyPage::IsFallbackUrl(const GoogleString& url) {
-  return (url.find(kFallbackPageCacheKeyQuerySuffix) != GoogleString::npos ||
-          url.find(kFallbackPageCacheKeyBasePathSuffix) != GoogleString::npos);
+const GoogleString& FallbackPropertyPage::key() const {
+  return actual_property_page_->key();
 }
 
 }  // namespace net_instaweb

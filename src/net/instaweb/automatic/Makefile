@@ -44,23 +44,21 @@ BASE_LIBS = \
   base/libbase_static.a \
   build/temp_gyp/libgoogleurl.a \
   net/instaweb/libautomatic_util.a \
+  net/instaweb/libhttp_core.a \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_automatic.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
-  net/instaweb/libinstaweb_console_css_data2c.a \
-  net/instaweb/libinstaweb_console_js_data2c.a \
-  net/instaweb/libinstaweb_console_js_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
   net/instaweb/libinstaweb_critical_images_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_critical_images_pb.a \
-  net/instaweb/libinstaweb_critical_keys_pb.a \
   net/instaweb/libinstaweb_critical_line_info_pb.a \
+  net/instaweb/libinstaweb_critical_selectors_pb.a \
   net/instaweb/libinstaweb_dedup_inlined_images_data2c.a \
   net/instaweb/libinstaweb_dedup_inlined_images_opt_data2c.a \
   net/instaweb/libinstaweb_defer_iframe_data2c.a \
@@ -69,6 +67,8 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_delay_images_inline_data2c.a \
   net/instaweb/libinstaweb_delay_images_inline_opt_data2c.a \
   net/instaweb/libinstaweb_delay_images_opt_data2c.a \
+  net/instaweb/libinstaweb_detect_reflow_data2c.a \
+  net/instaweb/libinstaweb_detect_reflow_opt_data2c.a \
   net/instaweb/libinstaweb_deterministic_data2c.a \
   net/instaweb/libinstaweb_deterministic_opt_data2c.a \
   net/instaweb/libinstaweb_extended_instrumentation_data2c.a \
@@ -77,6 +77,8 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_ghost_click_buster_opt_data2c.a \
   net/instaweb/libinstaweb_htmlparse_core.a \
   net/instaweb/libinstaweb_http.a \
+  net/instaweb/libinstaweb_http_gperf.a \
+  net/instaweb/libinstaweb_http_pb.a \
   net/instaweb/libinstaweb_image_types_pb.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
@@ -93,11 +95,10 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_rewriter_css.a \
   net/instaweb/libinstaweb_rewriter_html.a \
   net/instaweb/libinstaweb_rewriter_html_gperf.a \
+  net/instaweb/libinstaweb_rewriter_html_option_gperf.a \
   net/instaweb/libinstaweb_rewriter_image.a \
   net/instaweb/libinstaweb_rewriter_javascript.a \
   net/instaweb/libinstaweb_rewriter_pb.a \
-  net/instaweb/libinstaweb_split_html_beacon_data2c.a \
-  net/instaweb/libinstaweb_split_html_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_spriter.a \
   net/instaweb/libinstaweb_spriter_pb.a \
   net/instaweb/libinstaweb_system.a \
@@ -113,9 +114,6 @@ BASE_LIBS = \
   pagespeed/libpagespeed_html.a \
   pagespeed/libpagespeed_html_gperf.a \
   pagespeed/libpagespeed_http.a \
-  pagespeed/libpagespeed_http_core.a \
-  pagespeed/libpagespeed_http_gperf.a \
-  pagespeed/libpagespeed_http_pb.a \
   pagespeed/libpagespeed_image_processing.a \
   pagespeed/libpagespeed_javascript_gperf.a \
   pagespeed/libpagespeed_sharedmem.a \
@@ -134,8 +132,7 @@ BASE_LIBS = \
   third_party/icu/libicudata.a \
   third_party/icu/libicuuc.a \
   third_party/jsoncpp/libjsoncpp.a \
-  third_party/libjpeg_turbo/libjpeg.a \
-  third_party/libjpeg_turbo/src/libjpeg_turbo.a \
+  third_party/libjpeg/libjpeg.a \
   third_party/libpagespeed/src/pagespeed/core/libpagespeed_core.a \
   third_party/libpagespeed/src/pagespeed/proto/libpagespeed_output_pb.a \
   third_party/libpagespeed/src/pagespeed/proto/libpagespeed_resource_pb.a \
@@ -145,6 +142,9 @@ BASE_LIBS = \
   third_party/libwebp/libwebp_dsp.a \
   third_party/libwebp/libwebp_enc.a \
   third_party/libwebp/libwebp_utils.a \
+  third_party/opencv/libhighgui.a \
+  third_party/opencv/libopencv_core.a \
+  third_party/opencv/libopencv_imgproc.a \
   third_party/optipng/libopngreduc.a \
   third_party/protobuf/libprotobuf_lite.a \
   third_party/re2/libre2.a \
@@ -195,7 +195,6 @@ endif
 
 INCLUDE_PATH = \
     -I$(MOD_PAGESPEED_ROOT) \
-    -I$(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj/gen/protoc_out/instaweb \
     -I$(MOD_PAGESPEED_ROOT)/third_party/chromium/src \
     -I$(MOD_PAGESPEED_ROOT)/third_party/gflags/gen/$(INCLUDE_ARCH)/include \
     -I$(MOD_PAGESPEED_ROOT)/third_party/google-sparsehash/src \

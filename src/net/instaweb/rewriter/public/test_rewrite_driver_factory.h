@@ -31,7 +31,6 @@
 
 namespace net_instaweb {
 
-class CachePropertyStore;
 class CountingUrlAsyncFetcher;
 class DelayCache;
 class FileSystem;
@@ -47,13 +46,11 @@ class MockTimer;
 class MockTimeCache;
 class MockUrlFetcher;
 class NonceGenerator;
-class RateControllingUrlAsyncFetcher;
 class ServerContext;
 class RewriteDriver;
 class RewriteFilter;
 class RewriteOptions;
 class Scheduler;
-class Statistics;
 class TestDistributedFetcher;
 class ThreadsafeCache;
 class Timer;
@@ -67,13 +64,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
  public:
   static const int64 kStartTimeMs;  // Arbitrary time to start MockTimer.
   static const char kUrlNamerScheme[];  // Env.var URL_NAMER_SCHEME
-
-  // These constants are used to initialize the rate-controlling fetcher,
-  // which is instantiated unconditionally, with limits high enough that
-  // no tests will hit this unless they are trying to.
-  static const int kMaxFetchGlobalQueueSize = 500;
-  static const int kFetchesPerHostOutgoingRequestThreshold = 100;
-  static const int kFetchesPerHostQueuedRequestThreshold = 500;
 
   class CreateFilterCallback {
    public:
@@ -110,8 +100,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
                            TestDistributedFetcher* test_distributed_fetcher);
   virtual ~TestRewriteDriverFactory();
 
-  static void InitStats(Statistics* statistics);
-
   DelayCache* delay_cache() { return delay_cache_; }
   LRUCache* lru_cache() { return lru_cache_.get(); }
   MockTimer* mock_timer() { return mock_timer_; }
@@ -124,7 +112,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     return wait_url_async_fetcher_.get();
   }
   CountingUrlAsyncFetcher* counting_url_async_fetcher() {
-    return counting_url_async_fetcher_.get();
+    return counting_url_async_fetcher_;
   }
   CountingUrlAsyncFetcher* counting_distributed_async_fetcher() {
     return counting_distributed_async_fetcher_;
@@ -202,10 +190,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   const PropertyCache::Cohort*  SetupCohort(
       PropertyCache* cache, const GoogleString& cohort_name);
 
-  CachePropertyStore* cache_property_store() {
-    return cache_property_store_;
-  }
-
  protected:
   virtual Hasher* NewHasher();
   virtual MessageHandler* DefaultHtmlParseMessageHandler();
@@ -230,8 +214,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   scoped_ptr<LRUCache> lru_cache_;
   MockUrlFetcher* mock_url_fetcher_;
   TestDistributedFetcher* test_distributed_fetcher_;
-  scoped_ptr<CountingUrlAsyncFetcher> counting_url_async_fetcher_;
-  RateControllingUrlAsyncFetcher* rate_controlling_url_async_fetcher_;
+  CountingUrlAsyncFetcher* counting_url_async_fetcher_;
   CountingUrlAsyncFetcher* counting_distributed_async_fetcher_;
   scoped_ptr<WaitUrlAsyncFetcher> wait_url_async_fetcher_;
   scoped_ptr<MockTimeCache> mock_time_cache_;
@@ -246,7 +229,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   std::vector<CreateFilterCallback*> filter_callback_vector_;
   std::vector<CreateRewriterCallback*> rewriter_callback_vector_;
   std::vector<PlatformSpecificConfigurationCallback*> platform_config_vector_;
-  CachePropertyStore* cache_property_store_;
 };
 
 }  // namespace net_instaweb

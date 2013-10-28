@@ -16,14 +16,10 @@
 
 // Author: Satyanarayana Manyam
 
-#include <stdbool.h>
-#include <cstddef>
+#include "base/logging.h"
 
+#include "base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/gif_reader.h"
 #include "pagespeed/kernel/image/image_converter.h"
@@ -32,8 +28,6 @@
 
 namespace {
 
-using net_instaweb::MockMessageHandler;
-using net_instaweb::NullMutex;
 using pagespeed::image_compression::kGifTestDir;
 using pagespeed::image_compression::kPngSuiteTestDir;
 using pagespeed::image_compression::kPngSuiteGifTestDir;
@@ -46,12 +40,6 @@ using pagespeed::image_compression::PngReader;
 using pagespeed::image_compression::PngReaderInterface;
 using pagespeed::image_compression::WebpConfiguration;
 using pagespeed::image_compression::ReadTestFile;
-using pagespeed::image_compression::kMessagePatternLibpngError;
-using pagespeed::image_compression::kMessagePatternLibpngWarning;
-using pagespeed::image_compression::kMessagePatternPixelFormat;
-using pagespeed::image_compression::kMessagePatternStats;
-using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
-using pagespeed::image_compression::kMessagePatternWritingToWebp;
 
 struct ImageCompressionInfo {
   const char* filename;
@@ -204,18 +192,18 @@ ImageCompressionInfo kValidImages[] = {
   { "z03n2c08", 232, 224, 1},
   { "z06n2c08", 224, 224, 1},
   { "z09n2c08", 224, 224, 1},
-  { "basi3p08", 1527, 567, 0},
-  { "basn3p08", 1286, 567, 0},
-  { "ccwn2c08", 1514, 757, 0},
-  { "ccwn3p08", 1554, 775, 0},
-  { "ch2n3p08", 1810, 567, 0},
-  { "f00n2c08", 2475, 695, 0},
-  { "f01n2c08", 1180, 648, 0},
-  { "f02n2c08", 1729, 688, 0},
-  { "f03n2c08", 1291, 690, 0},
-  { "f04n2c08", 985, 653, 0},
-  { "tp0n2c08", 1311, 863, 0},
-  { "tp0n3p08", 1120, 863, 0},
+  { "basi3p08", 1527, 565, 0},
+  { "basn3p08", 1286, 565, 0},
+  { "ccwn2c08", 1514, 764, 0},
+  { "ccwn3p08", 1554, 779, 0},
+  { "ch2n3p08", 1810, 565, 0},
+  { "f00n2c08", 2475, 706, 0},
+  { "f01n2c08", 1180, 657, 0},
+  { "f02n2c08", 1729, 696, 0},
+  { "f03n2c08", 1291, 697, 0},
+  { "f04n2c08", 985, 672, 0},
+  { "tp0n2c08", 1311, 875, 0},
+  { "tp0n3p08", 1120, 875, 0},
 };
 
 const char* kInvalidFiles[] = {
@@ -243,59 +231,34 @@ GifImageCompressionInfo kValidGifImages[] = {
   { "basn0g02", 185,  112,  664,  74},
   { "basn0g04", 344,  144,  439,  104},
   { "basn0g08", 1736, 116,  468,  582},
-  { "basi3p01", 138,   96,  793,  56},
-  { "basi3p02", 186,  115,  1162, 74},
-  { "basi3p04", 344,  185,  1002,  136},
-  { "basi3p08", 1737, 1270, 936,  810},
-  { "basn3p01", 138,  96,   793,  56},
-  { "basn3p02", 186,  115,  1162, 74},
-  { "basn3p04", 344,  185,  1002,  136},
-  { "basn3p08", 1737, 1270, 936,  810}
+  { "basi3p01", 138,   96,  789,  56},
+  { "basi3p02", 186,  115,  1157, 74},
+  { "basi3p04", 344,  185,  992,  136},
+  { "basi3p08", 1737, 1270, 929,  810},
+  { "basn3p01", 138,  96,   789,  56},
+  { "basn3p02", 186,  115,  1157, 74},
+  { "basn3p04", 344,  185,  992,  136},
+  { "basn3p08", 1737, 1270, 929,  810}
 };
 
 const size_t kValidImageCount = arraysize(kValidImages);
 const size_t kValidGifImageCount = arraysize(kValidGifImages);
 const size_t kInvalidFileCount = arraysize(kInvalidFiles);
 
-class ImageConverterTest : public testing::Test {
- public:
-  ImageConverterTest()
-    : message_handler_(new NullMutex) {
-  }
-
- protected:
-  virtual void SetUp() {
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngError);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngWarning);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternWritingToWebp);
-  }
-
- protected:
-  MockMessageHandler message_handler_;
-  scoped_ptr<PngReaderInterface> png_struct_reader_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ImageConverterTest);
-};
-
-TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg_invalidPngs) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+TEST(ImageConverterTest, OptimizePngOrConvertToJpeg_invalidPngs) {
+  scoped_ptr<PngReaderInterface> png_struct_reader(new PngReader);
   pagespeed::image_compression::JpegCompressionOptions options;
   for (size_t i = 0; i < kInvalidFileCount; i++) {
     GoogleString in, out;
     bool is_out_png;
     ReadTestFile(kPngSuiteTestDir, kInvalidFiles[i], "png", &in);
     ASSERT_FALSE(ImageConverter::OptimizePngOrConvertToJpeg(
-        *png_struct_reader_, in, options, &out, &is_out_png,
-        &message_handler_));
+        *(png_struct_reader.get()), in, options, &out, &is_out_png));
   }
 }
 
-TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+TEST(ImageConverterTest, OptimizePngOrConvertToJpeg) {
+  PngReader png_struct_reader;
   pagespeed::image_compression::JpegCompressionOptions options;
   // We are using default lossy options for conversion.
   options.lossy = true;
@@ -305,8 +268,7 @@ TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg) {
     bool is_out_png;
     ReadTestFile(kPngSuiteTestDir, kValidImages[i].filename, "png", &in);
     ASSERT_TRUE(ImageConverter::OptimizePngOrConvertToJpeg(
-        *png_struct_reader_, in, options, &out, &is_out_png,
-        &message_handler_));
+        png_struct_reader, in, options, &out, &is_out_png));
 
     // Verify that the size matches.
     EXPECT_EQ(kValidImages[i].compressed_size, out.size())
@@ -318,8 +280,8 @@ TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg) {
   }
 }
 
-TEST_F(ImageConverterTest, ConvertPngToWebp_invalidPngs) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+TEST(ImageConverterTest, ConvertPngToWebp_invalidPngs) {
+  PngReader png_struct_reader;
   WebpConfiguration webp_config;
 
   for (size_t i = 0; i < kInvalidFileCount; i++) {
@@ -327,13 +289,12 @@ TEST_F(ImageConverterTest, ConvertPngToWebp_invalidPngs) {
     ReadTestFile(kPngSuiteTestDir, kInvalidFiles[i], "png", &in);
     bool is_opaque = false;
     ASSERT_FALSE(ImageConverter::ConvertPngToWebp(
-        *png_struct_reader_, in, webp_config, &out, &is_opaque,
-        &message_handler_));
+        png_struct_reader, in, webp_config, &out, &is_opaque));
   }
 }
 
-TEST_F(ImageConverterTest, ConvertOpaqueGifToPng) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, ConvertOpaqueGifToPng) {
+  GifReader png_struct_reader;
   for (size_t i = 0; i < kValidGifImageCount; i++) {
     GoogleString in, out;
      ReadTestFile(
@@ -341,15 +302,15 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToPng) {
     EXPECT_EQ(kValidGifImages[i].original_size, in.size())
         << "input size mismatch for " << kValidGifImages[i].filename;
     ASSERT_TRUE(PngOptimizer::OptimizePngBestCompression(
-        *png_struct_reader_, in, &out, &message_handler_));
+        png_struct_reader, in, &out));
     // Verify that the size matches.
     EXPECT_EQ(kValidGifImages[i].png_size, out.size())
         << "output size mismatch for " << kValidGifImages[i].filename;
   }
 }
 
-TEST_F(ImageConverterTest, ConvertOpaqueGifToJpeg) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, ConvertOpaqueGifToJpeg) {
+  GifReader png_struct_reader;
   pagespeed::image_compression::JpegCompressionOptions options;
   options.lossy = true;
   options.progressive = false;
@@ -361,15 +322,15 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToJpeg) {
     EXPECT_EQ(kValidGifImages[i].original_size, in.size())
         << "input size mismatch for " << kValidGifImages[i].filename;
     ASSERT_TRUE(ImageConverter::ConvertPngToJpeg(
-        *png_struct_reader_, in, options, &out, &message_handler_));
+        png_struct_reader, in, options, &out));
     // Verify that the size matches.
     EXPECT_EQ(kValidGifImages[i].jpeg_size, out.size())
         << "output size mismatch for " << kValidGifImages[i].filename;
   }
 }
 
-TEST_F(ImageConverterTest, ConvertOpaqueGifToWebp) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, ConvertOpaqueGifToWebp) {
+  GifReader png_struct_reader;
   pagespeed::image_compression::WebpConfiguration options;
   for (size_t i = 0; i < kValidGifImageCount; i++) {
     GoogleString in, out;
@@ -379,7 +340,7 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToWebp) {
         << "input size mismatch for " << kValidGifImages[i].filename;
     bool is_opaque = false;
     ASSERT_TRUE(ImageConverter::ConvertPngToWebp(
-        *png_struct_reader_, in, options, &out, &is_opaque, &message_handler_));
+        png_struct_reader, in, options, &out, &is_opaque));
     // Verify that the size matches.
     // TODO(vchudnov): Have a more thorough comparison.
     EXPECT_LT(kValidGifImages[i].webp_size, in.size())
@@ -388,21 +349,21 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToWebp) {
   }
 }
 
-TEST_F(ImageConverterTest, ConvertTransparentGifToPng) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, ConvertTransparentGifToPng) {
+  GifReader png_struct_reader;
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "transparent", "gif", &in);
   EXPECT_EQ(static_cast<size_t>(55800), in.size())
       << "input size mismatch";
   ASSERT_TRUE(PngOptimizer::OptimizePngBestCompression(
-      *png_struct_reader_, in, &out, &message_handler_));
+      png_struct_reader, in, &out));
   // Verify that the size matches.
   EXPECT_EQ(static_cast<size_t>(25020), out.size())
       << "output size mismatch";
 }
 
-TEST_F(ImageConverterTest, ConvertTransparentGifToWebp) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, ConvertTransparentGifToWebp) {
+  GifReader png_struct_reader;
   pagespeed::image_compression::WebpConfiguration options;
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "transparent", "gif", &in);
@@ -410,7 +371,7 @@ TEST_F(ImageConverterTest, ConvertTransparentGifToWebp) {
       << "input size mismatch";
   bool is_opaque = false;
   ASSERT_TRUE(ImageConverter::ConvertPngToWebp(
-      *png_struct_reader_, in, options, &out, &is_opaque, &message_handler_));
+      png_struct_reader, in, options, &out, &is_opaque));
 
   // Verify that the size matches.
   // TODO(vchudnov): Have a more thorough comparison.
@@ -420,8 +381,8 @@ TEST_F(ImageConverterTest, ConvertTransparentGifToWebp) {
   EXPECT_FALSE(is_opaque);
 }
 
-TEST_F(ImageConverterTest, NotConvertTransparentGifToJpeg) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+TEST(ImageConverterTest, NotConvertTransparentGifToJpeg) {
+  GifReader png_struct_reader;
   pagespeed::image_compression::JpegCompressionOptions options;
   options.lossy = true;
   options.progressive = false;
@@ -431,7 +392,7 @@ TEST_F(ImageConverterTest, NotConvertTransparentGifToJpeg) {
   EXPECT_EQ(static_cast<size_t>(55800), in.size())
       << "input size mismatch";
   ASSERT_FALSE(ImageConverter::ConvertPngToJpeg(
-      *png_struct_reader_, in, options, &out, &message_handler_));
+      png_struct_reader, in, options, &out));
   // Verify that the size matches.
   EXPECT_EQ(static_cast<size_t>(0), out.size())
       << "output size mismatch";
@@ -457,4 +418,3 @@ TEST_F(ImageConverterTest, NotConvertTransparentGifToJpeg) {
 // and to test GetSmallestOfPngJpegWebp
 
 }  // namespace
-

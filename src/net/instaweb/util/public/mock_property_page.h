@@ -33,14 +33,9 @@ class MockPropertyPage : public PropertyPage {
  public:
   MockPropertyPage(ThreadSystem* thread_system,
                    PropertyCache* property_cache,
-                   const StringPiece& url,
-                   const StringPiece& options_signature_hash,
-                   const StringPiece& cache_key_suffix)
+                   const StringPiece& key)
       : PropertyPage(
-          kPropertyCachePage,
-          url,
-          options_signature_hash,
-          cache_key_suffix,
+          kPropertyCachePage, key,
           RequestContext::NewTestRequestContext(thread_system),
           thread_system->NewMutex(), property_cache),
         called_(false),

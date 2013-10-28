@@ -15,20 +15,18 @@
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 
 #include <setjmp.h>
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
+#include "jerror.h"                                                  // NOLINT
 #include "jpeglib.h"                                                 // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "third_party/libjpeg/jerror.h"
+#include "third_party/libjpeg/jpeglib.h"
 #endif
 }
 
-using net_instaweb::MockMessageHandler;
-using net_instaweb::NullMutex;
 using pagespeed::image_compression::JpegReader;
 
 namespace pagespeed_testing {
@@ -46,8 +44,7 @@ bool GetJpegNumComponentsAndSamplingFactors(
     int* out_num_components,
     int* out_h_samp_factor,
     int* out_v_samp_factor) {
-  MockMessageHandler message_handler_(new NullMutex);
-  JpegReader reader(&message_handler_);
+  JpegReader reader;
   jpeg_decompress_struct* jpeg_decompress = reader.decompress_struct();
 
   jmp_buf env;
@@ -67,8 +64,7 @@ bool GetJpegNumComponentsAndSamplingFactors(
 }
 
 bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
-  MockMessageHandler message_handler_(new NullMutex);
-  JpegReader reader(&message_handler_);
+  JpegReader reader;
   jpeg_decompress_struct* jpeg_decompress = reader.decompress_struct();
 
   jmp_buf env;
@@ -96,8 +92,7 @@ bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
 }
 
 int GetNumScansInJpeg(const GoogleString& data) {
-  MockMessageHandler message_handler_(new NullMutex);
-  JpegReader reader(&message_handler_);
+  JpegReader reader;
   jpeg_decompress_struct* jpeg_decompress = reader.decompress_struct();
 
   jmp_buf env;
@@ -134,4 +129,3 @@ int GetExifDataMarker() {
 
 }  // namespace image_compression
 }  // namespace pagespeed_testing
-

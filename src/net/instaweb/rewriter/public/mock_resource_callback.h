@@ -32,8 +32,6 @@ class MockResourceCallback : public Resource::AsyncCallback {
   explicit MockResourceCallback(const ResourcePtr& resource,
                                 ThreadSystem* thread_system)
       : Resource::AsyncCallback(resource),
-        success_(false),
-        done_(false),
         notify_(thread_system) {
     CHECK(thread_system);
 }

@@ -15,7 +15,6 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 
 #include <algorithm>  // for std::binary_search
-#include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -99,8 +98,6 @@ static struct Int64QueryParam int64_query_params_[] = {
       &RewriteOptions::set_image_jpeg_num_progressive_scans_for_small_screens },
   { "ImageRecompressionQuality",
     &RewriteOptions::set_image_recompress_quality },
-  { "MaxCombinedCssBytes",
-    &RewriteOptions::set_max_combined_css_bytes },
   { "WebpRecompressionQuality",
     &RewriteOptions::set_image_webp_recompress_quality },
   { "WebpRecompressionQualityForSmallScreens",
@@ -421,7 +418,7 @@ GoogleString RewriteQuery::GenerateResourceOption(
   //   filter1,filter2,filter3,option1:value1,option2:value2
 
   // Add any relevant enabled filters.
-  int num_filters;
+  int num_filters, num_options;
   const RewriteOptions::Filter* filters = filter->RelatedFilters(&num_filters);
   for (int i = 0; i < num_filters; ++i) {
     RewriteOptions::Filter filter_enum = filters[i];
@@ -433,9 +430,9 @@ GoogleString RewriteQuery::GenerateResourceOption(
 
   // Add any non-default options.
   GoogleString option_value;
-  const StringPieceVector* opts = filter->RelatedOptions();
-  for (int i = 0, n = (opts == NULL ? 0 : opts->size()); i < n; ++i) {
-    StringPiece option = (*opts)[i];
+  const RewriteOptions::OptionEnum* opts = filter->RelatedOptions(&num_options);
+  for (int i = 0; i < num_options; ++i) {
+    RewriteOptions::OptionEnum option = opts[i];
     const char* id;
     bool was_set = false;
     if (options->OptionValue(option, &id, &was_set, &option_value) && was_set) {
@@ -457,9 +454,9 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
   // We will want to validate any filters & options we are trying to set
   // with this mechanism against the whitelist of whatever the filter thinks is
   // needed.  But do this lazily.
-  int num_filters;
+  int num_filters, num_options;
   const RewriteOptions::Filter* filters = filter->RelatedFilters(&num_filters);
-  const StringPieceVector* opts = filter->RelatedOptions();
+  const RewriteOptions::OptionEnum* opts = filter->RelatedOptions(&num_options);
 
   for (int i = 0, n = filters_and_options.size(); i < n; ++i) {
     StringPieceVector name_value;
@@ -479,13 +476,12 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
         break;
       }
       case 2: {
-        StringPiece option_name =
-            RewriteOptions::LookupOptionNameById(name_value[0]);
-        if (!option_name.empty() &&
-            opts != NULL &&
-            std::binary_search(opts->begin(), opts->end(), option_name) &&
-            options->SetOptionFromName(option_name, name_value[1])
-            == RewriteOptions::kOptionOk) {
+        RewriteOptions::OptionEnum option_enum =
+            RewriteOptions::LookupOptionEnumById(name_value[0]);
+        if ((option_enum != RewriteOptions::kEndOfOptions) &&
+            std::binary_search(opts, opts + num_options, option_enum) &&
+            (options->SetOptionFromEnum(option_enum, name_value[1])
+             == RewriteOptions::kOptionOk)) {
           status = kSuccess;
         } else {
           status = kInvalid;

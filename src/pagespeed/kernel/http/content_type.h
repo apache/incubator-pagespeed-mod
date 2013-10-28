@@ -48,7 +48,6 @@ struct ContentType {
     kJson,
     kPdf,
     kVideo,
-    kAudio,
     kOctetStream,  // Binary resources.
     kOther,  // Used to specify a new local ContentType in one test file.
   };
@@ -82,9 +81,6 @@ struct ContentType {
 
   // Return true iff this content type is Video.
   bool IsVideo() const;
-
-  // Return true iff this content type is Audio.
-  bool IsAudio() const;
 
   // Heuristic to determine whether this should be treated as a static resource.
   bool IsLikelyStaticResource() const;

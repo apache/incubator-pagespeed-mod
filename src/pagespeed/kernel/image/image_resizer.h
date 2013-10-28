@@ -23,17 +23,10 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
-#include "pagespeed/kernel/image/scanline_status.h"
-
-namespace net_instaweb {
-class MessageHandler;
-}
 
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 class ResizeRow;
 class ResizeCol;
@@ -52,7 +45,7 @@ class ResizeCol;
 //
 class ScanlineResizer : public ScanlineReaderInterface {
  public:
-  explicit ScanlineResizer(MessageHandler* handler);
+  ScanlineResizer();
   virtual ~ScanlineResizer();
 
   // Initialize the resizer. You must provide an initialized reader implementing
@@ -68,7 +61,7 @@ class ScanlineResizer : public ScanlineReaderInterface {
   // is not available. This can happen when the reader cannot provide enough
   // image rows, or when all of the scanlines have been read.
   //
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  virtual bool ReadNextScanline(void** out_scanline_bytes);
 
   // Reset the resizer to its initial state. Always returns true.
   virtual bool Reset();
@@ -99,10 +92,6 @@ class ScanlineResizer : public ScanlineReaderInterface {
     return reader_->GetPixelFormat();
   }
 
-  // This is a no-op and should not be called.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
-
   static const size_t kPreserveAspectRatio = 0;
 
  private:
@@ -116,14 +105,11 @@ class ScanlineResizer : public ScanlineReaderInterface {
   int width_;
   int height_;
   int elements_per_row_;
-
-  // TODO(huibao): Remove 'row_' and use 'resizer_y_->out_row_' instead.
   int row_;
 
   // Buffer for storing the intermediate results.
-  scoped_array<float> buffer_;
+  scoped_array<uint8> buffer_;
   int bytes_per_buffer_row_;
-  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(ScanlineResizer);
 };

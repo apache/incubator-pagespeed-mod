@@ -22,27 +22,48 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_URL_INPUT_RESOURCE_H_
 
 #include "net/instaweb/rewriter/public/cacheable_resource_base.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 struct ContentType;
+class MessageHandler;
 class RewriteDriver;
-class Statistics;
+class RewriteOptions;
 
 class UrlInputResource : public CacheableResourceBase {
  public:
-  // Created only from RewriteDriver::CreateInputResource*
-  virtual ~UrlInputResource();
-
-  static void InitStats(Statistics* stats);
-
- private:
-  friend class RewriteDriver;
-  friend class UrlInputResourceTest;
   UrlInputResource(RewriteDriver* rewrite_driver,
+                   const RewriteOptions* options,
                    const ContentType* type,
                    const StringPiece& url);
+  virtual ~UrlInputResource();
+
+  virtual bool IsValidAndCacheable() const;
+  virtual GoogleString url() const { return url_; }
+  virtual const RewriteOptions* rewrite_options() const {
+    return rewrite_options_;
+  }
+
+  RewriteDriver* rewrite_driver() { return rewrite_driver_; }
+
+  virtual void Freshen(FreshenCallback* callback, MessageHandler* handler);
+
+ protected:
+  friend class UrlInputResourceTest;
+  virtual void LoadAndSaveToCache(NotCacheablePolicy not_cacheable_policy,
+                                  AsyncCallback* callback,
+                                  MessageHandler* message_handler);
+
+ private:
+  GoogleString url_;
+  // This may be NULL. However, it should always be set if we fetch or freshen
+  // the resource.
+  RewriteDriver* rewrite_driver_;
+  const RewriteOptions* rewrite_options_;
+  bool respect_vary_;
 
   DISALLOW_COPY_AND_ASSIGN(UrlInputResource);
 };

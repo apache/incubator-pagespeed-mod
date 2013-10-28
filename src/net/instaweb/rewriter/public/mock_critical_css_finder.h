@@ -18,9 +18,8 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_MOCK_CRITICAL_CSS_FINDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOCK_CRITICAL_CSS_FINDER_H_
 
-#include <cstddef>
-
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 
@@ -35,7 +34,8 @@ class Statistics;
 class MockCriticalCssFinder : public CriticalCssFinder {
  public:
   MockCriticalCssFinder(RewriteDriver* driver, Statistics* stats)
-      : CriticalCssFinder(NULL, stats), driver_(driver) {}
+      : CriticalCssFinder(stats),
+        driver_(driver) {}
   virtual ~MockCriticalCssFinder();
 
   void AddCriticalCss(const StringPiece& url, const StringPiece& rules,
@@ -48,6 +48,7 @@ class MockCriticalCssFinder : public CriticalCssFinder {
   virtual CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver);
 
   virtual void ComputeCriticalCss(RewriteDriver* driver) {}
+  virtual const PropertyCache::Cohort* GetCohort() const;
 
  private:
   RewriteDriver* driver_;

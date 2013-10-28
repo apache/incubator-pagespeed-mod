@@ -19,7 +19,6 @@
 
 #include <cstddef>
 #include <map>
-#include <utility>
 
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -55,28 +54,17 @@ class PthreadSharedMem : public AbstractSharedMem {
   static void Terminate();
 
  private:
-  typedef std::map<GoogleString, std::pair<char*, size_t> > SegmentBaseMap;
+  typedef std::map<GoogleString, char*> SegmentBaseMap;
 
   // Accessor for below. Note that the segment_bases_lock will be held at exit.
   static SegmentBaseMap* AcquireSegmentBases();
 
   static void UnlockSegmentBases();
 
-  // Prefixes the passed in segment name with the current instance number.
-  GoogleString PrefixSegmentName(const GoogleString& name);
-
   // The root process stores segment locations here. Child processes will
   // inherit a readonly copy of this map after the fork. Note that this is
   // initialized in a thread-unsafe manner, given the above assumptions.
   static SegmentBaseMap* segment_bases_;
-
-  // Holds the number of times a PthreadSharedMem has been created.
-  static size_t s_instance_count_;
-  // Used to prefix segment names, so that when two runtimes are active at the
-  // same moment they will not have overlapping segment names. This occurs in
-  // ngx_pagespeed during a configuration reload, where first a new factory is
-  // created, before destroying the old one.
-  size_t instance_number_;
 
   DISALLOW_COPY_AND_ASSIGN(PthreadSharedMem);
 };

@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
@@ -44,7 +43,6 @@
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
-#include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 #include "net/instaweb/rewriter/public/process_context.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -79,33 +77,10 @@
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/content_type.h"
 
 namespace net_instaweb {
-
-namespace {
-
-class TestRewriteOptionsManager : public RewriteOptionsManager {
- public:
-  TestRewriteOptionsManager()
-      : options_(NULL) {}
-
-  void GetRewriteOptions(const GoogleUrl& url,
-                         const RequestHeaders& headers,
-                         OptionsCallback* done) {
-    LOG(ERROR) << "Run with options: " << options_;
-    done->Run((options_ == NULL) ? NULL : options_->Clone());
-  }
-
-  void set_options(RewriteOptions* options) { options_ = options; }
-
- private:
-  RewriteOptions* options_;
-};
-
-}  // namespace
 
 class MessageHandler;
 class RequestHeaders;
@@ -124,8 +99,7 @@ RewriteTestBase::RewriteTestBase()
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
-      kEtag0(HTTPCache::FormatEtag("0")),
-      expected_nonce_(0) {
+      kEtag0(HTTPCache::FormatEtag("0")) {
   Init();
 }
 
@@ -141,8 +115,7 @@ RewriteTestBase::RewriteTestBase(Statistics* statistics)
                                                   &test_distributed_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
-      other_options_(other_factory_->NewRewriteOptions()),
-      expected_nonce_(0) {
+      other_options_(other_factory_->NewRewriteOptions()) {
   Init();
 }
 
@@ -154,15 +127,14 @@ RewriteTestBase::RewriteTestBase(
       other_factory_(factories.second),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
-      other_options_(other_factory_->NewRewriteOptions()),
-      expected_nonce_(0) {
+      other_options_(other_factory_->NewRewriteOptions()) {
   Init();
 }
 
 void RewriteTestBase::Init() {
   DCHECK(statistics_ != NULL);
   RewriteDriverFactory::Initialize();
-  TestRewriteDriverFactory::InitStats(statistics_.get());
+  RewriteDriverFactory::InitStats(statistics_.get());
   factory_->SetStatistics(statistics_.get());
   other_factory_->SetStatistics(statistics_.get());
   server_context_ = factory_->CreateServerContext();
@@ -392,8 +364,9 @@ void RewriteTestBase::DefaultResponseHeaders(
     const ContentType& content_type, int64 ttl_sec,
     ResponseHeaders* response_headers) {
   SetDefaultLongCacheHeaders(&content_type, response_headers);
-  response_headers->SetDateAndCaching(
-      timer()->NowMs(), ttl_sec * Timer::kSecondMs, ", public");
+  response_headers->Replace(HttpAttributes::kCacheControl,
+                           StrCat("public, max-age=",
+                                  Integer64ToString(ttl_sec)));
   response_headers->ComputeCaching();
 }
 
@@ -573,12 +546,10 @@ void RewriteTestBase::CssLink::Vector::Add(
 }
 
 bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
-    StringPiece base_url, GoogleString* base,
-    StringVector* segments, MessageHandler* handler) {
-  GoogleUrl base_gurl(base_url);
-  GoogleUrl gurl(base_gurl, url_);
+    GoogleString* base, StringVector* segments, MessageHandler* handler) {
+  GoogleUrl gurl(url_);
   bool ret = false;
-  if (gurl.IsWebValid()) {
+  if (gurl.is_valid()) {
     gurl.AllExceptLeaf().CopyToString(base);
     ResourceNamer namer;
     if (namer.Decode(gurl.LeafWithQuery()) &&
@@ -721,7 +692,7 @@ GoogleString RewriteTestBase::EncodeWithBase(
     ResourceNamer namer;
     EncodePathAndLeaf(id, hash, name_vector, ext, &namer);
     GoogleUrl path_gurl(path);
-    if (path_gurl.IsWebValid()) {
+    if (path_gurl.is_valid()) {
       return TestUrlNamer::EncodeUrl(base, path_gurl.Origin(),
                                      path_gurl.PathSansLeaf(), namer);
     } else {
@@ -760,7 +731,7 @@ GoogleString RewriteTestBase::EncodeCssName(const StringPiece& name,
 }
 
 GoogleString RewriteTestBase::ChangeSuffix(
-    StringPiece old_url, bool append_new_suffix,
+    GoogleString old_url, bool append_new_suffix,
     StringPiece old_suffix, StringPiece new_suffix) {
   if (!StringCaseEndsWith(old_url, old_suffix)) {
     ADD_FAILURE() << "Can't seem to find old extension!";
@@ -791,12 +762,6 @@ void RewriteTestBase::OtherCallFetcherCallbacks() {
   other_factory_->CallFetcherCallbacksForDriver(other_rewrite_driver_);
   // This calls Clear() on the driver, so give it a new request context.
   other_rewrite_driver_->set_request_context(CreateRequestContext());
-}
-
-void RewriteTestBase::SetRewriteOptions(RewriteOptions* opts) {
-  TestRewriteOptionsManager* trom = new TestRewriteOptionsManager();
-  trom->set_options(opts);
-  server_context()->SetRewriteOptionsManager(trom);
 }
 
 void RewriteTestBase::SetUseManagedRewriteDrivers(
@@ -844,9 +809,8 @@ void RewriteTestBase::TestRetainExtraHeaders(
   GoogleString content;
   ResponseHeaders response;
 
-  GoogleString rewritten_url = Encode("", filter_id, "0", name, ext);
-  ASSERT_TRUE(FetchResourceUrl(StrCat(kTestDomain, rewritten_url),
-                               &content, &response));
+  GoogleString rewritten_url = Encode(kTestDomain, filter_id, "0", name, ext);
+  ASSERT_TRUE(FetchResourceUrl(rewritten_url, &content, &response));
 
   // Extra non-blacklisted header is preserved.
   ConstStringStarVector v;
@@ -1151,60 +1115,6 @@ void RewriteTestBase::SetMockLogRecord() {
 
 MockLogRecord* RewriteTestBase::mock_log_record() {
   return dynamic_cast<MockLogRecord*>(rewrite_driver_->log_record());
-}
-
-GoogleString RewriteTestBase::GetLazyloadScriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-      LazyloadImagesFilter::GetLazyloadJsSnippet(
-          options(), server_context()->static_asset_manager()),
-      "</script>");
-}
-
-GoogleString RewriteTestBase::GetLazyloadPostscriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-        LazyloadImagesFilter::kOverrideAttributeFunctions,
-      "</script>");
-}
-
-void RewriteTestBase::SetCacheInvalidationTimestamp() {
-  options()->ClearSignatureForTesting();
-  // Make sure the time is different, since otherwise we may end up with
-  // re-fetches resulting in re-inserts rather than inserts.
-  AdvanceTimeMs(Timer::kSecondMs);
-  int64 now_ms = timer()->NowMs();
-  options()->set_cache_invalidation_timestamp(now_ms);
-  options()->ComputeSignature();
-  AdvanceTimeMs(Timer::kSecondMs);
-}
-
-void RewriteTestBase::SetCacheInvalidationTimestampForUrl(
-    StringPiece url, bool ignores_metadata_and_pcache) {
-  options()->ClearSignatureForTesting();
-  // Make sure the time is different, since otherwise we may end up with
-  // re-fetches resulting in re-inserts rather than inserts.
-  AdvanceTimeMs(Timer::kSecondMs);
-  options()->AddUrlCacheInvalidationEntry(url, timer()->NowMs(),
-                                          ignores_metadata_and_pcache);
-  options()->ComputeSignature();
-  AdvanceTimeMs(Timer::kSecondMs);
-}
-
-void RewriteTestBase::EnableCachePurge() {
-  options()->ClearSignatureForTesting();
-  options()->set_enable_cache_purge(true);
-  options()->ComputeSignature();
-}
-
-GoogleString RewriteTestBase::ExpectedNonce() {
-  GoogleString result;
-  StringPiece nonce_piece(reinterpret_cast<char*>(&expected_nonce_),
-                          sizeof(expected_nonce_));
-  Web64Encode(nonce_piece, &result);
-  result.resize(11);
-  ++expected_nonce_;
-  return result;
 }
 
 // Logging at the INFO level slows down tests, adds to the noise, and

@@ -33,8 +33,6 @@
 
 namespace net_instaweb {
 
-class GoogleUrl;
-
 class FallbackPropertyPage : public AbstractPropertyPage {
  public:
   // FallbackPropertyPage takes the ownership of both the property pages.
@@ -76,17 +74,12 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
                               const StringPiece& property_name);
 
+  virtual const GoogleString& key() const;
+
   PropertyPage* actual_property_page() { return actual_property_page_.get(); }
   PropertyPage* property_page_with_fallback_values() {
     return property_page_with_fallback_values_.get();
   }
-
-  // Returns the page property cache url for the page containing fallback
-  // values (i.e. without query params or without leaf).
-  static GoogleString GetFallbackPageUrl(const GoogleUrl& request_url);
-
-  // Returns true if given url is for fallback properties.
-  static bool IsFallbackUrl(const GoogleString& url);
 
  private:
   scoped_ptr<PropertyPage> actual_property_page_;

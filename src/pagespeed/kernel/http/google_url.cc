@@ -33,27 +33,21 @@ const size_t GoogleUrl::npos = std::string::npos;
 
 GoogleUrl::GoogleUrl()
     : gurl_() {
-  Init();
 }
 
 GoogleUrl::GoogleUrl(const GURL& gurl)
     : gurl_(gurl) {
-  Init();
 }
 
 GoogleUrl::GoogleUrl(const GoogleString& spec)
     : gurl_(spec) {
-  Init();
 }
-
 GoogleUrl::GoogleUrl(const StringPiece& sp)
     : gurl_(sp.as_string()) {
-  Init();
 }
 
 GoogleUrl::GoogleUrl(const char* str)
     : gurl_(str) {
-  Init();
 }
 
 // The following three constructors create a new GoogleUrl by resolving the
@@ -70,26 +64,20 @@ GoogleUrl::GoogleUrl(const GoogleUrl& base, const char* str) {
   Reset(base, str);
 }
 
-void GoogleUrl::Swap(GoogleUrl* google_url) {
-  gurl_.Swap(&google_url->gurl_);
-  bool old_is_web_valid = is_web_valid_;
-  bool old_is_web_or_data_valid = is_web_or_data_valid_;
-  is_web_valid_ = google_url->is_web_valid_;
-  is_web_or_data_valid_ = google_url->is_web_or_data_valid_;
-  google_url->is_web_valid_ = old_is_web_valid;
-  google_url->is_web_or_data_valid_ = old_is_web_or_data_valid;
-}
-
-void GoogleUrl::Init() {
-  is_web_valid_ = gurl_.is_valid() && (SchemeIs("http") || SchemeIs("https"));
-  is_web_or_data_valid_ =
-      is_web_valid_ || (gurl_.is_valid() && SchemeIs("data"));
-}
-
 bool GoogleUrl::ResolveHelper(const GURL& base, const std::string& url) {
   gurl_ = base.Resolve(url);
-  Init();
-  return gurl_.is_valid();
+  bool ret = gurl_.is_valid();
+  if (ret) {
+    const StringPiece& path_and_leaf = PathAndLeaf();
+    if (path_and_leaf.starts_with("//")) {
+      GURL origin(Origin().as_string());
+      if (origin.is_valid()) {
+        gurl_ = origin.Resolve(path_and_leaf.substr(1).as_string());
+        ret = gurl_.is_valid();
+      }
+    }
+  }
+  return ret;
 }
 
 bool GoogleUrl::Reset(const GoogleUrl& base, const GoogleString& str) {
@@ -102,40 +90,6 @@ bool GoogleUrl::Reset(const GoogleUrl& base, const StringPiece& sp) {
 
 bool GoogleUrl::Reset(const GoogleUrl& base, const char* str) {
   return ResolveHelper(base.gurl_, str);
-}
-
-bool GoogleUrl::Reset(const StringPiece& new_value) {
-  gurl_ = GURL(new_value.as_string());
-  Init();
-  return gurl_.is_valid();
-}
-
-bool GoogleUrl::Reset(const GoogleUrl& new_value) {
-  gurl_ = GURL(new_value.gurl_);
-  Init();
-  return gurl_.is_valid();
-}
-
-void GoogleUrl::Clear() {
-  gurl_ = GURL();
-  Init();
-}
-
-bool GoogleUrl::IsWebValid() const {
-  DCHECK(is_web_valid_ ==
-         (gurl_.is_valid() && (SchemeIs("http") || SchemeIs("https"))));
-  return is_web_valid_;
-}
-
-bool GoogleUrl::IsWebOrDataValid() const {
-  DCHECK(is_web_or_data_valid_ ==
-         (gurl_.is_valid() && (SchemeIs("http") || SchemeIs("https") ||
-                               SchemeIs("data"))));
-  return is_web_or_data_valid_;
-}
-
-bool GoogleUrl::IsAnyValid() const {
-  return gurl_.is_valid();
 }
 
 GoogleUrl* GoogleUrl::CopyAndAddQueryParam(const StringPiece& name,
@@ -214,6 +168,20 @@ size_t GoogleUrl::PathStartPosition(const GURL& gurl) {
 // Find the start of the path, includes '/'
 size_t GoogleUrl::PathStartPosition() const {
   return PathStartPosition(gurl_);
+}
+
+bool GoogleUrl::Reset(const StringPiece& new_value) {
+  gurl_ = GURL(new_value.as_string());
+  return gurl_.is_valid();
+}
+
+bool GoogleUrl::Reset(const GoogleUrl& new_value) {
+  gurl_ = GURL(new_value.gurl_);
+  return gurl_.is_valid();
+}
+
+void GoogleUrl::Clear() {
+  gurl_ = GURL();
 }
 
 StringPiece GoogleUrl::AllExceptQuery() const {
@@ -368,22 +336,6 @@ StringPiece GoogleUrl::PathSansLeaf() const {
   }
 }
 
-StringPiece GoogleUrl::NetPath() const {
-  if (!gurl_.is_valid()) {
-    LOG(DFATAL) << "Invalid URL: " << gurl_.possibly_invalid_spec();
-    return StringPiece();
-  }
-
-  if (!gurl_.has_scheme()) {
-    return Spec();
-  }
-  const std::string& spec = gurl_.possibly_invalid_spec();
-  url_parse::Parsed parsed = gurl_.parsed_for_possibly_invalid_spec();
-  // Just remove scheme and : from beginning of URL.
-  return StringPiece(spec.data() + parsed.scheme.end() + 1,
-                     spec.size() - parsed.scheme.end() - 1);
-}
-
 // Extracts the filename portion of the path and returns it. The filename
 // is everything after the last slash in the path. This may be empty.
 GoogleString GoogleUrl::ExtractFileName() const {
@@ -474,60 +426,6 @@ StringPiece GoogleUrl::Spec() const {
 StringPiece GoogleUrl::UncheckedSpec() const {
   const std::string& spec = gurl_.possibly_invalid_spec();
   return StringPiece(spec.data(), spec.size());
-}
-
-UrlRelativity GoogleUrl::FindRelativity(StringPiece url) {
-  GoogleUrl temp(url);
-  if (temp.IsAnyValid()) {
-    return kAbsoluteUrl;
-  } else if (url.starts_with("//")) {
-    return kNetPath;
-  } else if (url.starts_with("/")) {
-    return kAbsolutePath;
-  } else {
-    return kRelativePath;
-  }
-}
-
-StringPiece GoogleUrl::Relativize(UrlRelativity url_relativity,
-                                  const GoogleUrl& base_url) const {
-  // Default, in case we cannot relativize appropriately.
-  StringPiece result = Spec();
-
-  switch (url_relativity) {
-    case kRelativePath: {
-      StringPiece url_spec = Spec();
-      StringPiece relative_path = base_url.AllExceptLeaf();
-      if (url_spec.starts_with(relative_path)) {
-        result = url_spec.substr(relative_path.size());
-      }
-      break;  // TODO(sligocki): Should we fall through here?
-    }
-    case kAbsolutePath:
-      if (Origin() == base_url.Origin()) {
-        result = PathAndLeaf();
-      }
-      break;
-    case kNetPath:
-      if (Scheme() == base_url.Scheme()) {
-        result = NetPath();
-      }
-      break;
-    case kAbsoluteUrl:
-      result = Spec();
-      break;
-  }
-
-  // There are several corner cases that the naive algorithm above fails on.
-  // Ex: http://foo.com/?bar or http://foo.com//bar relative to
-  // http://foo.com/bar.html. Check if result resolves correctly and if not,
-  // return absolute URL.
-  GoogleUrl resolved_result(base_url, result);
-  if (resolved_result != *this) {
-    result = Spec();
-  }
-
-  return result;
 }
 
 }  // namespace net_instaweb

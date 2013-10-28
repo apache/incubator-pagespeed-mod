@@ -58,8 +58,7 @@ void JsOutlineFilter::StartElementImpl(HtmlElement* element) {
   // No tags allowed inside script element.
   if (inline_element_ != NULL) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
-    driver_->ErrorHere("Tag '%s' found inside script.",
-                       CEscape(element->name_str()).c_str());
+    driver_->ErrorHere("Tag '%s' found inside script.", element->name_str());
     inline_element_ = NULL;  // Don't outline what we don't understand.
     inline_chars_ = NULL;
   }
@@ -81,11 +80,15 @@ void JsOutlineFilter::EndElementImpl(HtmlElement* element) {
   if (inline_element_ != NULL) {
     if (element != inline_element_) {
       // No other tags allowed inside script element.
-      driver_->ErrorHere("Tag '%s' found inside script.",
-                         CEscape(element->name_str()).c_str());
+      driver_->ErrorHere("Tag '%s' found inside script.", element->name_str());
     } else if (inline_chars_ != NULL &&
                inline_chars_->contents().size() >= size_threshold_bytes_) {
       OutlineScript(inline_element_, inline_chars_->contents());
+    } else {
+      int size = (inline_chars_ == NULL ? 0 : inline_chars_->contents().size());
+      driver_->InfoHere("Inline element not outlined because its size %d, "
+                        "is below threshold %d",
+                        size, static_cast<int>(size_threshold_bytes_));
     }
     inline_element_ = NULL;
     inline_chars_ = NULL;
@@ -117,6 +120,7 @@ bool JsOutlineFilter::WriteResource(const GoogleString& content,
 }
 
 // Create file with script content and remove that element from DOM.
+// TODO(sligocki): We probably will break any relative URL references here.
 void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
                                     const GoogleString& content) {
   if (driver_->IsRewritable(inline_element)) {

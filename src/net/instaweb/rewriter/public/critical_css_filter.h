@@ -33,9 +33,9 @@
 #include <map>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/critical_css.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 
@@ -48,7 +48,7 @@ class HtmlCharactersNode;
 class HtmlElement;
 class RewriteDriver;
 
-class CriticalCssFilter : public CommonFilter {
+class CriticalCssFilter : public EmptyHtmlFilter {
  public:
   explicit CriticalCssFilter(RewriteDriver* rewrite_driver,
                              CriticalCssFinder* finder);
@@ -56,13 +56,17 @@ class CriticalCssFilter : public CommonFilter {
 
   static const char kAddStylesScript[];
   static const char kStatsScriptTemplate[];
+  static const char kNoscriptStylesId[];
+  static const char kMoveScriptId[];
+  static const char kApplyFlushEarlyCssTemplate[];
+  static const char kInvokeFlushEarlyCssTemplate[];
 
-  // Overridden from CommonFilter:
+  // Overridden from EmptyHtmlFilter:
   virtual void DetermineEnabled();
-  virtual void StartDocumentImpl();
+  virtual void StartDocument();
   virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartElement(HtmlElement* element);
+  virtual void EndElement(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
 
   virtual const char* Name() const { return "CriticalCss"; }
@@ -81,10 +85,12 @@ class CriticalCssFilter : public CommonFilter {
   // TODO(gee): This probably belongs in an ancestor class.
   void LogRewrite(int status);
 
+  RewriteDriver* driver_;
   CssTagScanner css_tag_scanner_;
   CriticalCssFinder* finder_;
 
   CriticalCssResult* critical_css_result_;
+  HtmlElement* noscript_element_;
 
   // Map link URLs to indexes in the critical CSS result.
   typedef std::map<GoogleString, int> UrlIndexes;

@@ -19,25 +19,15 @@
 #ifndef PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
-#include "pagespeed/kernel/image/scanline_status.h"
+#include "pagespeed/kernel/image/png_optimizer.h"
+#include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
-
-namespace net_instaweb {
-class MessageHandler;
-}
 
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
-
-class PngReaderInterface;
-class ScanlineReaderInterface;
-class ScanlineWriterInterface;
 
 class ImageConverter {
  public:
@@ -49,20 +39,14 @@ class ImageConverter {
   };
 
   // Converts image one line at a time, between different image formats.
-  static ScanlineStatus ConvertImageWithStatus(
-      ScanlineReaderInterface* reader,
-      ScanlineWriterInterface* writer);
-  inline static bool ConvertImage(ScanlineReaderInterface* reader,
-                                  ScanlineWriterInterface* writer) {
-    return ConvertImageWithStatus(reader, writer).Success();
-  }
+  static bool ConvertImage(ScanlineReaderInterface* reader,
+                           ScanlineWriterInterface* writer);
 
   static bool ConvertPngToJpeg(
       const PngReaderInterface& png_struct_reader,
       const GoogleString& in,
       const JpegCompressionOptions& options,
-      GoogleString* out,
-      MessageHandler* handler);
+      GoogleString* out);
 
   // Reads the PNG encoded in 'in' with 'png_struct_reader', encodes
   // it in WebP format using the options in 'config', and writes the
@@ -75,8 +59,7 @@ class ImageConverter {
       const GoogleString& in,
       const WebpConfiguration& config,
       GoogleString* out,
-      bool* is_opaque,
-      MessageHandler* handler);
+      bool* is_opaque);
 
   // Reads the PNG encoded in 'in' with 'png_struct_reader', encodes
   // it in WebP format using the options in 'config', and writes the
@@ -94,8 +77,7 @@ class ImageConverter {
       const WebpConfiguration& config,
       GoogleString* out,
       bool* is_opaque,
-      WebpScanlineWriter** webp_writer,
-      MessageHandler* handler);
+      WebpScanlineWriter** webp_writer);
 
   // Optimizes the given png image, also converts to jpeg and take the
   // the one that has smaller size and set the output. Returns false
@@ -105,8 +87,7 @@ class ImageConverter {
       const GoogleString& in,
       const JpegCompressionOptions& options,
       GoogleString* out,
-      bool* is_out_png,
-      MessageHandler* handler);
+      bool* is_out_png);
 
   // Populates 'out' with a version of the input image 'in' resulting
   // in the smallest size, and returns the corresponding
@@ -126,8 +107,7 @@ class ImageConverter {
       const GoogleString& in,
       const JpegCompressionOptions* jpeg_options,
       const WebpConfiguration* webp_config,
-      GoogleString* out,
-      MessageHandler* handler);
+      GoogleString* out);
 
  private:
   ImageConverter();

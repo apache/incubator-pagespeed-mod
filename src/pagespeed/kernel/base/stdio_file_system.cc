@@ -18,18 +18,10 @@
 
 #include "pagespeed/kernel/base/stdio_file_system.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
-#ifdef WIN32
-#include <direct.h>
-#include <io.h>
-#include <stdio.h>
-#include <string.h>
-#include <windows.h>
-#else
-#include <dirent.h>
 #include <unistd.h>
-#endif  // WIN32
 
 #include <algorithm>
 #include <cstddef>
@@ -160,15 +152,11 @@ class StdioOutputFile : public FileSystem::OutputFile {
 
   virtual bool SetWorldReadable(MessageHandler* message_handler) {
     bool ret = true;
-#ifdef WIN32
-    const char* filename = file_helper_.filename_.c_str();
-    ret = (_chmod(filename, _S_IREAD) == 0);
-#else
     int fd = fileno(file_helper_.file_);
-    ret = (fchmod(fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == 0);
-#endif  // WIN32
-    if (!ret) {
-      file_helper_.ReportError(message_handler, "setting world-readable: %s");
+    int status = fchmod(fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (status != 0) {
+      ret = false;
+      file_helper_.ReportError(message_handler, "setting world-readble: %s");
     }
     return ret;
   }
@@ -183,9 +171,6 @@ StdioFileSystem::~StdioFileSystem() {
 }
 
 int StdioFileSystem::MaxPathLength(const StringPiece& base) const {
-#ifdef WIN32
-  return MAX_PATH;
-#else
   const int kMaxInt = std::numeric_limits<int>::max();
 
   long limit = pathconf(base.as_string().c_str(), _PC_PATH_MAX);  // NOLINT
@@ -198,7 +183,6 @@ int StdioFileSystem::MaxPathLength(const StringPiece& base) const {
   } else {
     return limit;
   }
-#endif  // WIN32
 }
 
 FileSystem::InputFile* StdioFileSystem::OpenInputFile(
@@ -247,25 +231,15 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
   char* template_name = new char[prefix_len + sizeof(mkstemp_hook)];
   memcpy(template_name, prefix.data(), prefix_len);
   memcpy(template_name + prefix_len, mkstemp_hook, sizeof(mkstemp_hook));
-#ifdef WIN32
-  int fd = _mktemp_s(template_name, prefix_len + sizeof(mkstemp_hook));
-#else
   int fd = mkstemp(template_name);
-#endif  // WIN32
   OutputFile* output_file = NULL;
   if (fd < 0) {
     message_handler->Error(template_name, 0,
                            "opening temp file: %s", strerror(errno));
   } else {
-#ifdef WIN32
-    FILE* f = _fdopen(fd, "w");
-    if (f == NULL) {
-      _close(fd);
-#else
     FILE* f = fdopen(fd, "w");
     if (f == NULL) {
       close(fd);
-#endif
       message_handler->Error(template_name, 0,
                              "re-opening temp file: %s", strerror(errno));
     } else {
@@ -299,12 +273,8 @@ bool StdioFileSystem::RenameFileHelper(const char* old_file,
 }
 
 bool StdioFileSystem::MakeDir(const char* path, MessageHandler* handler) {
-#ifdef WIN32
-  bool ret = (_mkdir(path) == 0);
-#else
   // Mode 0777 makes the file use standard umask permissions.
   bool ret = (mkdir(path, 0777) == 0);
-#endif  // WIN32
   if (!ret) {
     handler->Message(kError, "Failed to make directory %s: %s",
                      path, strerror(errno));
@@ -313,11 +283,7 @@ bool StdioFileSystem::MakeDir(const char* path, MessageHandler* handler) {
 }
 
 bool StdioFileSystem::RemoveDir(const char* path, MessageHandler* handler) {
-#ifdef WIN32
-  bool ret = (_rmdir(path) == 0);
-#else
   bool ret = (rmdir(path) == 0);
-#endif  // WIN32
   if (!ret) {
     handler->Message(kError, "Failed to remove directory %s: %s",
                      path, strerror(errno));
@@ -340,11 +306,7 @@ BoolOrError StdioFileSystem::IsDir(const char* path, MessageHandler* handler) {
   struct stat statbuf;
   BoolOrError ret(false);
   if (stat(path, &statbuf) == 0) {
-#ifdef WIN32
-    ret.set((statbuf.st_mode & _S_IFDIR) != 0);
-#else
     ret.set(S_ISDIR(statbuf.st_mode));
-#endif  // WIN32
   } else if (errno != ENOENT) {  // Not an error if file doesn't exist.
     handler->Message(kError, "Failed to stat %s: %s",
                      path, strerror(errno));
@@ -355,37 +317,6 @@ BoolOrError StdioFileSystem::IsDir(const char* path, MessageHandler* handler) {
 
 bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
                                    MessageHandler* handler) {
-#ifdef WIN32
-  const char kDirSeparator[] = "\\";
-  std::string dir_string = dir.as_string();
-  if (!dir.ends_with(kDirSeparator)) {
-    dir_string.append(kDirSeparator);
-  }
-  std::string pattern = dir_string + "*";
-  std::wstring wpattern = std::wstring(pattern.begin(), pattern.end());
-  WIN32_FIND_DATA entry;
-  HANDLE iter = FindFirstFile(wpattern.c_str(), &entry);
-  if (iter == INVALID_HANDLE_VALUE) {
-    handler->Error(dir_string.c_str(), 0,
-                   "Failed to FindFirstFile: %s", strerror(errno));
-    return false;
-  }
-  do {
-    std::wstring wfilename(entry.cFileName);
-    std::string filename(wfilename.begin(), wfilename.end());  // This is dodgy.
-    if (filename != "." && filename != "..") {
-      files->push_back(dir_string + filename);
-    }
-  } while (FindNextFile(iter, &entry) != 0);
-  if (GetLastError() != ERROR_NO_MORE_FILES) {
-    handler->Error(dir_string.c_str(), 0,
-                   "Failed to FindNextFile: %s", strerror(errno));
-    FindClose(iter);
-    return false;
-  }
-  FindClose(iter);
-  return true;
-#else
   GoogleString dir_string = dir.as_string();
   EnsureEndsInSlash(&dir_string);
   const char* dirname = dir_string.c_str();
@@ -408,7 +339,6 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
     }
     return true;
   }
-#endif  // WIN32
 }
 
 bool StdioFileSystem::Stat(const StringPiece& path, struct stat* statbuf,
@@ -452,11 +382,7 @@ bool StdioFileSystem::Size(const StringPiece& path, int64* size,
   struct stat statbuf;
   bool ret = Stat(path, &statbuf, handler);
   if (ret) {
-#ifdef WIN32
-    *size = statbuf.st_size;
-#else
     *size = statbuf.st_blocks * kBlockSize;
-#endif  // WIN32
   }
   return ret;
 }
@@ -467,11 +393,7 @@ BoolOrError StdioFileSystem::TryLock(const StringPiece& lock_name,
   const char* lock_str = lock_string.c_str();
   // POSIX mkdir is widely believed to be atomic, although I have
   // found no reliable documentation of this fact.
-#ifdef WIN32
-  if (_mkdir(lock_str) == 0) {
-#else
   if (mkdir(lock_str, 0777) == 0) {
-#endif  // WIN32
     return BoolOrError(true);
   } else if (errno == EEXIST) {
     return BoolOrError(false);
@@ -540,11 +462,7 @@ bool StdioFileSystem::Unlock(const StringPiece& lock_name,
                              MessageHandler* handler) {
   const GoogleString lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
-#ifdef WIN32
-  if (_rmdir(lock_str) == 0) {
-#else
   if (rmdir(lock_str) == 0) {
-#endif  // WIN32
     return true;
   } else {
     handler->Message(kError, "Failed to rmdir %s: %s",

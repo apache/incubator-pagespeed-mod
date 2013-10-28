@@ -18,6 +18,7 @@
 #include "net/instaweb/rewriter/public/mock_critical_css_finder.h"
 
 #include "net/instaweb/rewriter/critical_css.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -55,6 +56,10 @@ CriticalCssResult* MockCriticalCssFinder::GetCriticalCssFromCache(
     critical_css_result_.reset(new CriticalCssResult(*result));
   }
   return result;
+}
+
+const PropertyCache::Cohort* MockCriticalCssFinder::GetCohort() const {
+  return NULL;
 }
 
 }  // namespace net_instaweb

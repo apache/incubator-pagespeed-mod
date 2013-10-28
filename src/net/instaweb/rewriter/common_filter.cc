@@ -45,7 +45,7 @@ CommonFilter::CommonFilter(RewriteDriver* driver)
 CommonFilter::~CommonFilter() {}
 
 void CommonFilter::InsertNodeAtBodyEnd(HtmlNode* data) {
-  if (end_body_point_ != NULL && driver_->CanAppendChild(end_body_point_)) {
+  if (end_body_point_ != NULL && driver_->IsRewritable(end_body_point_)) {
     driver_->AppendChild(end_body_point_, data);
   } else {
     driver_->InsertNodeBeforeCurrent(data);
@@ -99,8 +99,8 @@ void CommonFilter::EndElement(HtmlElement* element) {
       break;
     case HtmlName::kHtml:
       if ((end_body_point_ == NULL ||
-           !driver()->CanAppendChild(end_body_point_)) &&
-          driver()->CanAppendChild(element)) {
+           !driver()->IsRewritable(end_body_point_)) &&
+          driver()->IsRewritable(element)) {
         // Try to inject before </html> if before </body> won't work.
         end_body_point_ = element;
       }
@@ -145,12 +145,12 @@ ResourcePtr CommonFilter::CreateInputResource(const StringPiece& input_url) {
   if (!input_url.empty()) {
     if (!BaseUrlIsValid()) {
       const GoogleUrl resource_url(input_url);
-      if (resource_url.IsWebValid()) {
+      if (resource_url.is_valid() && resource_url.is_standard()) {
         resource = driver_->CreateInputResource(resource_url);
       }
-    } else if (base_url().IsWebValid()) {
+    } else if (base_url().is_valid()) {
       const GoogleUrl resource_url(base_url(), input_url);
-      if (resource_url.IsWebValid()) {
+      if (resource_url.is_valid() && resource_url.is_standard()) {
         resource = driver_->CreateInputResource(resource_url);
       }
     }

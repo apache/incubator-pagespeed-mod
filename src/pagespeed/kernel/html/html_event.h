@@ -21,7 +21,6 @@
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_filter.h"
 #include "pagespeed/kernel/html/html_node.h"
@@ -85,7 +84,8 @@ class HtmlStartElementEvent: public HtmlEvent {
   }
   virtual void Run(HtmlFilter* filter) { filter->StartElement(element_); }
   virtual void ToString(GoogleString* str) {
-    StrAppend(str, "StartElement ", element_->name_str());
+    *str += "StartElement ";
+    *str += element_->name_str();
   }
   virtual HtmlElement* GetElementIfStartEvent() { return element_; }
   virtual HtmlElement* GetNode() { return element_; }
@@ -103,7 +103,8 @@ class HtmlEndElementEvent: public HtmlEvent {
   }
   virtual void Run(HtmlFilter* filter) { filter->EndElement(element_); }
   virtual void ToString(GoogleString* str) {
-    StrAppend(str, "EndElement ", element_->name_str());
+    *str += "EndElement ";
+    *str += element_->name_str();
   }
   virtual HtmlElement* GetElementIfEndEvent() { return element_; }
   virtual HtmlElement* GetNode() { return element_; }

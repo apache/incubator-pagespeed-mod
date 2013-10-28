@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -100,11 +99,11 @@ void NestedFilter::Context::RewriteSingle(
   SplitStringPieceToVector(input->contents(), "\n", &pieces, true);
 
   GoogleUrl base(input->url());
-  if (base.IsWebValid()) {
+  if (base.is_valid()) {
     // Add a new nested multi-slot context.
     for (int i = 0, n = pieces.size(); i < n; ++i) {
       GoogleUrl url(base, pieces[i]);
-      if (url.IsWebValid()) {
+      if (url.is_valid()) {
         ResourcePtr resource(Driver()->CreateInputResource(url));
         if (resource.get() != NULL) {
           ResourceSlotPtr slot(new NestedSlot(resource));
@@ -255,7 +254,7 @@ void CombiningFilter::Context::Rewrite(int partition_index,
         1000 * filter_->rewrite_delay_ms();
     Function* closure = MakeFunction(
         this, &Context::DoRewrite, partition_index, partition, output);
-    scheduler_->AddAlarmAtUs(wakeup_us, closure);
+    scheduler_->AddAlarm(wakeup_us, closure);
   }
 }
 

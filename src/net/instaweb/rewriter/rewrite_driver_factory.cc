@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
@@ -28,7 +27,6 @@
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
@@ -50,7 +48,6 @@
 #include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/property_store.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -59,7 +56,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/http/user_agent_normalizer.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 
 namespace net_instaweb {
@@ -299,10 +295,6 @@ StaticAssetManager* RewriteDriverFactory::static_asset_manager() {
   return static_asset_manager_.get();
 }
 
-RewriteOptionsManager* RewriteDriverFactory::NewRewriteOptionsManager() {
-  return new RewriteOptionsManager;
-}
-
 Scheduler* RewriteDriverFactory::scheduler() {
   if (scheduler_ == NULL) {
     scheduler_.reset(CreateScheduler());
@@ -324,24 +316,6 @@ UsageDataReporter* RewriteDriverFactory::usage_data_reporter() {
   return usage_data_reporter_.get();
 }
 
-const std::vector<const UserAgentNormalizer*>&
-    RewriteDriverFactory::user_agent_normalizers() {
-  if (user_agent_normalizers_.empty()) {
-    // Note: it's possible that we may want separate lists of normalizers for
-    // different applications in the future. For now, though, we centralize
-    // one list, because:
-    // a) It's simpler b) Regexp compilation isn't free.
-    AndroidUserAgentNormalizer* an = new AndroidUserAgentNormalizer();
-    IEUserAgentNormalizer* ien = new IEUserAgentNormalizer();
-    TakeOwnership(an);
-    TakeOwnership(ien);
-    user_agent_normalizers_.push_back(an);
-    user_agent_normalizers_.push_back(ien);
-    AddPlatformSpecificUserAgentNormalizers(&user_agent_normalizers_);
-  }
-  return user_agent_normalizers_;
-}
-
 NamedLockManager* RewriteDriverFactory::DefaultLockManager() {
   return new FileSystemLockManager(file_system(), LockFilePrefix(),
                                    scheduler(), message_handler());
@@ -356,9 +330,7 @@ UserAgentMatcher* RewriteDriverFactory::DefaultUserAgentMatcher() {
 }
 
 StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
-  return new StaticAssetManager(url_namer()->get_proxy_domain(),
-                                hasher(),
-                                message_handler());
+  return new StaticAssetManager(url_namer(), hasher(), message_handler());
 }
 
 CriticalCssFinder* RewriteDriverFactory::DefaultCriticalCssFinder() {
@@ -375,11 +347,11 @@ CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder(
 
 CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
     ServerContext* server_context) {
-  if (server_context->beacon_cohort() != NULL) {
-    return new BeaconCriticalSelectorFinder(server_context->beacon_cohort(),
-                                            nonce_generator(), statistics());
-  }
-  return NULL;
+  // TODO(pulkitg): Don't create CriticalSelectorFinder if beacon cohort is
+  // not added.
+  return new CriticalSelectorFinder(
+      server_context->beacon_cohort(),
+      timer(), nonce_generator(), statistics());
 }
 
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
@@ -389,13 +361,6 @@ FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
 CacheHtmlInfoFinder* RewriteDriverFactory::DefaultCacheHtmlInfoFinder(
     PropertyCache* cache, ServerContext* server_context) {
   return NULL;
-}
-
-CriticalLineInfoFinder* RewriteDriverFactory::DefaultCriticalLineInfoFinder(
-    ServerContext* server_context) {
-  // TODO(jud): Return a BeaconCriticalLineInfoFinder for split_html beacon
-  // support when that class exists.
-  return new CriticalLineInfoFinder(server_context->beacon_cohort());
 }
 
 UsageDataReporter* RewriteDriverFactory::DefaultUsageDataReporter() {
@@ -506,7 +471,6 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
     }
   }
   server_context->set_url_namer(url_namer());
-  server_context->SetRewriteOptionsManager(NewRewriteOptionsManager());
   server_context->set_user_agent_matcher(user_agent_matcher());
   server_context->set_filename_encoder(filename_encoder());
   server_context->set_file_system(file_system());
@@ -523,15 +487,9 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_flush_early_info_finder(DefaultFlushEarlyInfoFinder());
   server_context->set_cache_html_info_finder(
       DefaultCacheHtmlInfoFinder(pcache, server_context));
-  server_context->set_critical_line_info_finder(
-      DefaultCriticalLineInfoFinder(server_context));
   server_context->set_hostname(hostname_);
   server_context->InitWorkersAndDecodingDriver();
   server_contexts_.insert(server_context);
-
-  // Make sure that all lazy state gets initialized, even if we don't copy it to
-  // ServerContext
-  user_agent_normalizers();
 }
 
 void RewriteDriverFactory::AddPlatformSpecificDecodingPasses(
@@ -544,10 +502,6 @@ void RewriteDriverFactory::AddPlatformSpecificRewritePasses(
 
 void RewriteDriverFactory::ApplyPlatformSpecificConfiguration(
     RewriteDriver* driver) {
-}
-
-void RewriteDriverFactory::AddPlatformSpecificUserAgentNormalizers(
-    std::vector<const UserAgentNormalizer*>* out) {
 }
 
 UrlAsyncFetcher* RewriteDriverFactory::ComputeUrlAsyncFetcher() {
@@ -682,7 +636,6 @@ void RewriteDriverFactory::InitStats(Statistics* statistics) {
   CriticalImagesFinder::InitStats(statistics);
   CriticalCssFinder::InitStats(statistics);
   CriticalSelectorFinder::InitStats(statistics);
-  PropertyStoreGetCallback::InitStats(statistics);
 }
 
 void RewriteDriverFactory::Initialize() {

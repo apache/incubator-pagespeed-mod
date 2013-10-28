@@ -121,12 +121,7 @@ class AbstractLogRecord  {
       bool is_recompressed,
       ImageType original_image_type,
       ImageType optimized_image_type,
-      bool is_resized,
-      int original_width,
-      int original_height,
-      bool is_resized_using_rendered_dimensions,
-      int resized_width,
-      int resized_height);
+      bool is_resized);
 
   // Atomically sets is_html_response in the logging proto.
   void SetIsHtml(bool is_html);
@@ -231,7 +226,7 @@ class AbstractLogRecord  {
                           int overhead_bytes);
 
   // Log information related to the user agent and device making the request.
-  virtual void LogDeviceInfo(
+  void LogDeviceInfo(
       int device_type,
       bool supports_image_inlining,
       bool supports_lazyload_images,
@@ -241,7 +236,7 @@ class AbstractLogRecord  {
       bool supports_webplossless_alpha,
       bool is_bot,
       bool supports_split_html,
-      bool can_preload_resources) = 0;
+      bool can_preload_resources);
 
   // Log whether the request is an XmlHttpRequest.
   void LogIsXhr(bool is_xhr);
@@ -353,18 +348,6 @@ class LogRecord : public AbstractLogRecord {
       bool low_res_src_inserted,
       ImageType low_res_image_type,
       int low_res_data_size) {}
-
-  virtual void LogDeviceInfo(
-      int device_type,
-      bool supports_image_inlining,
-      bool supports_lazyload_images,
-      bool supports_critical_images_beacon,
-      bool supports_deferjs,
-      bool supports_webp,
-      bool supports_webplossless_alpha,
-      bool is_bot,
-      bool supports_split_html,
-      bool can_preload_resources) {}
 
   bool WriteLogImpl() { return true; }
 

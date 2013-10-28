@@ -55,15 +55,11 @@ namespace {
 class FakeFetch : public AsyncFetch {
  public:
   FakeFetch(const RequestContextPtr& request_context,
-            RewriteOptions* options,
-            const GoogleString& url,
             WorkerTestBase::SyncPoint* sync,
             ResponseHeaders* response_headers)
       : AsyncFetch(request_context),
         done_(false),
         success_(false),
-        options_(options),
-        url_(url),
         sync_(sync) {
     set_response_headers(response_headers);
   }
@@ -89,16 +85,10 @@ class FakeFetch : public AsyncFetch {
   bool done() { return done_; }
   bool success() { return success_; }
 
-  bool IsCachedResultValid(const ResponseHeaders& headers) {
-    return options_->IsUrlCacheValid(url_, headers.date_ms());
-  }
-
  private:
   GoogleString content_;
   bool done_;
   bool success_;
-  const RewriteOptions* options_;
-  GoogleString url_;
   WorkerTestBase::SyncPoint* sync_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeFetch);
@@ -282,10 +272,8 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     css_filter_->set_exceed_deadline(exceed_deadline_);
 
     WorkerTestBase::SyncPoint sync(server_context()->thread_system());
-    RequestContextPtr request_context(RequestContext::NewTestRequestContext(
-        server_context()->thread_system()));
-    FakeFetch mock_fetch(request_context, options(), url, &sync,
-                         &response_headers_);
+    FakeFetch mock_fetch(RequestContext::NewTestRequestContext(
+        server_context()->thread_system()), &sync, &response_headers_);
     mock_fetch.set_request_headers(&request_headers_);
 
     ClearRewriteDriver();
@@ -481,13 +469,17 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewrite) {
                         0,      // number of ingress fetches
                         1);     // number of rewrites
 
-  // Ingress task distributes and streams back the result.
+  // We miss the In-Place Resource Optimizaiton (IPRO) metadata cache and then
+  // distribute the rewrite and write nothing back to cache (the rewrite task
+  // writes to shared cache). This means that distributed IPRO requests have the
+  // overhead of 1 metadata miss plus the RPC.
+  // Ingress task misses metadata once and distributes.
   // Rewrite task misses metadata, misses http, fetches, writes original,
   // misses ic metadata, writes optimized, and writes metadata for ipro and ic.
   EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(3, lru_cache()->num_misses());
+  EXPECT_EQ(4, lru_cache()->num_misses());
   EXPECT_EQ(4, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());
@@ -497,8 +489,8 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewrite) {
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
                         start_time_ms());
 
-  // Ingress task distributes, distributed task hits and returns.
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
+  // Ingress task hits ipro metadata and associated http resource.
+  EXPECT_EQ(0, counting_distributed_fetcher()->fetch_count());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(2, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
@@ -644,7 +636,7 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
   GoogleString orig_url = StrCat(kTestDomain, "fourofour.png");
   SetFetchResponse404(orig_url);
 
-  FetchAndCheckResponse(orig_url, "", true, ServerContext::kGeneratedMaxAgeMs,
+  FetchAndCheckResponse(orig_url, "", false, ServerContext::kGeneratedMaxAgeMs,
                         ServerContext::kResourceEtagValue, start_time_ms());
   EXPECT_EQ(HttpStatus::kNotFound, response_headers_.status_code());
 
@@ -656,26 +648,26 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
                         0,      // number of ingress fetches
                         0);     // number of rewrites
 
-  // Ingress task distributes and returns the 404 it gets back.
+  // Ingress task misses on metadata lookup and returns the 404 it gets back.
   // Rewrite task misses metadata and http, writes 404 http and returns.
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(3, lru_cache()->num_misses());
   EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
 
-  // Ingress task distributes.
+  // Ingress task misses ipro metadata and distributes.
   // Rewrite task misses ipro metadata but hits http, and returns that.
   ResetHeadersAndStats();
-  FetchAndCheckResponse(orig_url, "", true, ServerContext::kGeneratedMaxAgeMs,
+  FetchAndCheckResponse(orig_url, "", false, ServerContext::kGeneratedMaxAgeMs,
                         ServerContext::kResourceEtagValue, start_time_ms());
   CheckDistributedFetch(1,      // successful distributed fetches
                         0,      // unsuccessful distributed fetches
                         0,      // number of ingress fetches
                         0);     // number of rewrites
   EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(1, lru_cache()->num_misses());
+  EXPECT_EQ(2, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
@@ -683,11 +675,15 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
 }
 
 TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteFailFallback) {
-  // If the distributed fetch fails mid-stream then we fail.
+  // If the distributed fetch fails mid-stream then the unoptimized resource
+  // should be returned.
   SetupDistributedTest(RewriteOptions::kInPlaceRewriteId);
+
+  // Simulate distributed fetch failure and ensure that we fall back to the
+  // original.
   test_distributed_fetcher()->set_fail_after_headers(true);
 
-  FetchAndCheckResponse(cache_jpg_url_, "", false, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_jpg_url_, "good", true, ttl_ms_, kEtag0.c_str(),
                         start_time_ms());
   // Note that we didn't need to fetch the original resource at the ingress task
   // because the distributed task already fetched it and put it in shared cache.
@@ -695,24 +691,25 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteFailFallback) {
                         1,      // unsuccessful distributed fetches
                         0,      // number of ingress fetches
                         1);     // number of rewrites
-  // Ingress task: Distributes and streams back a failed stream.
+  // Ingress task: Misses ipro metadata, distributes which fails, hits http, and
+  // serves it.
   // Rewrite task: Misses ipro metadata, misses http, fetches and inserts http,
   // misses image compression metadata, writes optimized http and 2 metadata,
   // returns.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(3, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(4, lru_cache()->num_misses());
   EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());
   EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
 
   // Fetch again but we'll hit the cache this time.
   ResetHeadersAndStats();
   SetTimeMs((start_time_ms() + ttl_ms_ / 2));
-  FetchAndCheckResponse(cache_jpg_url_, "", false, ttl_ms_ / 2, etag_,
+  FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_ / 2, etag_,
                         start_time_ms() + ttl_ms_ / 2);
   CheckDistributedFetch(0,      // successful distributed fetches
-                        1,      // unsuccessful distributed fetches
+                        0,      // unsuccessful distributed fetches
                         0,      // number of ingress fetches
                         0);     // number of rewrites
   EXPECT_EQ(2, lru_cache()->num_hits());
@@ -1320,7 +1317,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJsUrlRewritingWithStaleServing) {
   SetTimeMs(start_time_ms() + (3 * ttl_ms_) / 2);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "good:jm", true,
-                        ResponseHeaders::kDefaultImplicitCacheTtlMs, etag_,
+                        ResponseHeaders::kImplicitCacheTtlMs, etag_,
                         start_time_ms() + (3 * ttl_ms_) / 2);
   // The metadata and cache entry is stale now. We serve the rewritten resource
   // here, but trigger a fetch and rewrite to update the metadata.
@@ -1379,7 +1376,6 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlIfCssRewritingDisabled) {
 
 TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
   Init();
-  EnableCachePurge();
   FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
                         start_time_ms());
 
@@ -1416,9 +1412,8 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
 
   AdvanceTimeMs(2 * ttl_ms_);
   ResetHeadersAndStats();
-  int64 date_of_css_ms = timer()->NowMs();
   FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
-                        date_of_css_ms);
+                        timer()->NowMs());
   // The metadata and cache entry is stale now. Fetch the content and serve it
   // out without rewriting. The background rewrite attempt will end up reusing
   // the old result due to revalidation, however.
@@ -1432,22 +1427,6 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
   EXPECT_EQ(0, img_filter_->num_rewrites());
   EXPECT_EQ(0, js_filter_->num_rewrites());
   EXPECT_EQ(0, css_filter_->num_rewrites());
-
-  mock_url_fetcher()->set_timer(timer());
-  mock_url_fetcher()->set_update_date_headers(true);
-  SetCacheInvalidationTimestamp();
-  date_of_css_ms = timer()->NowMs();
-
-  // Having flushed cache, we are now back to serving the origin content.
-  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_,
-                        NULL, date_of_css_ms);
-
-  // Next time we'll serve optimized content.
-  AdvanceTimeMs(ttl_ms_/2);
-  ResetHeadersAndStats();
-  int64 expected_ttl_ms = ttl_ms_ - (timer()->NowMs() - date_of_css_ms);
-  FetchAndCheckResponse(cache_css_url_, "good:cf", true, expected_ttl_ms,
-                        etag_, timer()->NowMs());
 }
 
 TEST_F(InPlaceRewriteContextTest, NonCacheableUrlNoRewriting) {
@@ -1797,7 +1776,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   // file-input-resources so we default to the implicit cache TTL.
   // We should probably have a new config options for file-input
   // TTL for use with in-place.
-  const int64 kIproFileTtl = ResponseHeaders::kDefaultImplicitCacheTtlMs;
+  const int64 kIproFileTtl = ResponseHeaders::kImplicitCacheTtlMs;
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
                         kIproFileTtl, NULL, start_time_ms());
 

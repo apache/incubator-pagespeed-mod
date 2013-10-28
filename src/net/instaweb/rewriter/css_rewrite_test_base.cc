@@ -20,6 +20,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_url_extractor.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -30,8 +31,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "pagespeed/kernel/util/wildcard.h"
 
 namespace net_instaweb {
 
@@ -48,17 +48,13 @@ bool CssRewriteTestBase::ValidateRewriteInlineCss(
       "  <title>Example style outline</title>\n"
       "  <!-- Style starts here -->\n"
       "  <style type='text/css'>";
-  static const char suffix1[] = "</style>";
-  static const char suffix2[] =
-      "\n"
+  static const char suffix[] = "</style>\n"
       "  <!-- Style ends here -->\n"
       "</head>";
 
   CheckFlags(flags);
-  GoogleString html_input  = StrCat(prefix, css_input, suffix1, suffix2);
-  GoogleString html_output = StrCat(prefix, expected_css_output, suffix1,
-                                    CssDebugMessage(flags | kOutputHtml),
-                                    suffix2);
+  GoogleString html_input  = StrCat(prefix, css_input, suffix);
+  GoogleString html_output = StrCat(prefix, expected_css_output, suffix);
 
   return ValidateWithStats(id, html_input, html_output,
                            css_input, expected_css_output, flags);
@@ -102,13 +98,6 @@ bool CssRewriteTestBase::ValidateWithStats(
                 total_bytes_saved_->Get()) << id;
       EXPECT_EQ(css_input.size(), total_original_bytes_->Get()) << id;
       EXPECT_EQ(1, num_uses_->Get()) << id;
-    } else if (FlagSet(flags, kExpectCached)) {
-      EXPECT_EQ(0, num_blocks_rewritten_->Get()) << id;
-      EXPECT_EQ(0, num_fallback_rewrites_->Get()) << id;
-      EXPECT_EQ(0, num_parse_failures_->Get()) << id;
-      EXPECT_EQ(0, total_bytes_saved_->Get()) << id;
-      EXPECT_EQ(0, total_original_bytes_->Get()) << id;
-      EXPECT_EQ(1, num_uses_->Get()) << id;  // The only non-zero value.
     } else if (FlagSet(flags, kExpectNoChange)) {
       EXPECT_EQ(0, num_blocks_rewritten_->Get()) << id;
       EXPECT_EQ(0, num_fallback_rewrites_->Get()) << id;
@@ -141,28 +130,39 @@ bool CssRewriteTestBase::ValidateWithStats(
   }
 
   // Check each of the import flattening statistics. Since each of these
-  // is controlled individually they are not gated by kNoStatCheck above,
-  // although if the results were fetched from the cache the flattener
-  // doesn't count these as new errors so skip this check in that case.
-  if (!FlagSet(flags, kExpectCached)) {
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsCharsetMismatch) ? 1 : 0,
-              num_flatten_imports_charset_mismatch_->Get()) << id;
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsInvalidUrl) ? 1 : 0,
-              num_flatten_imports_invalid_url_->Get()) << id;
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsLimitExceeded) ? 1 : 0,
-              num_flatten_imports_limit_exceeded_->Get()) << id;
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsMinifyFailed) ? 1 : 0,
-              num_flatten_imports_minify_failed_->Get()) << id;
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsRecursion) ? 1 : 0,
-              num_flatten_imports_recursion_->Get()) << id;
-    EXPECT_EQ(FlagSet(flags, kFlattenImportsComplexQueries) ? 1 : 0,
-              num_flatten_imports_complex_queries_->Get()) << id;
-  }
+  // is controlled individually they are not gated by kNoStatCheck above.
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsCharsetMismatch) ? 1 : 0,
+            num_flatten_imports_charset_mismatch_->Get()) << id;
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsInvalidUrl) ? 1 : 0,
+            num_flatten_imports_invalid_url_->Get()) << id;
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsLimitExceeded) ? 1 : 0,
+            num_flatten_imports_limit_exceeded_->Get()) << id;
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsMinifyFailed) ? 1 : 0,
+            num_flatten_imports_minify_failed_->Get()) << id;
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsRecursion) ? 1 : 0,
+            num_flatten_imports_recursion_->Get()) << id;
+  EXPECT_EQ(FlagSet(flags, kFlattenImportsComplexQueries) ? 1 : 0,
+            num_flatten_imports_complex_queries_->Get()) << id;
 
   // TODO(sligocki): This success value does not reflect failures in the
   // stats checks. Perhaps it should.
   return success;
 }
+
+GoogleString CssRewriteTestBase::ExpectedRewrittenUrl(
+    const StringPiece& original_url,
+    const StringPiece& expected_contents,
+    const StringPiece& filter_id,
+    const ContentType& content_type) {
+  GoogleUrl original_gurl(original_url);
+  DCHECK(original_gurl.is_valid());
+  return EncodeWithBase(original_gurl.Origin(),
+                        original_gurl.AllExceptLeaf(), filter_id,
+                        hasher()->Hash(expected_contents),
+                        original_gurl.LeafWithQuery(),
+                        content_type.file_extension() + 1);  // +1 to skip '.'
+}
+
 
 void CssRewriteTestBase::GetNamerForCss(const StringPiece& leaf_name,
                                         const GoogleString& expected_css_output,
@@ -175,7 +175,8 @@ void CssRewriteTestBase::GetNamerForCss(const StringPiece& leaf_name,
 
 GoogleString CssRewriteTestBase::ExpectedUrlForNamer(
     const ResourceNamer& namer) {
-  return Encode("", namer.id(), namer.hash(), namer.name(), namer.ext());
+  return Encode(kTestDomain, namer.id(), namer.hash(), namer.name(),
+                namer.ext());
 }
 
 GoogleString CssRewriteTestBase::ExpectedUrlForCss(
@@ -223,14 +224,13 @@ GoogleString CssRewriteTestBase::MakeHtmlWithExternalCssLink(
       "  <title>Example style outline</title>\n"
       "%s"
       "  <!-- Style starts here -->\n"
-      "  <link rel='stylesheet' type='text/css' href='%s'%s>"
-      "%s\n"
+      "  <link rel='stylesheet' type='text/css' href='%s'%s>\n"
       "  <!-- Style ends here -->\n"
       "</head>";
 
   return StringPrintf(html_template, meta_tag.c_str(),
                       css_url.as_string().c_str(),
-                      link_extras.c_str(), CssDebugMessage(flags).c_str());
+                      link_extras.c_str());
 }
 
 GoogleString CssRewriteTestBase::MakeIndentedCssWithImage(
@@ -266,7 +266,6 @@ GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
 
 // Check that external CSS gets rewritten correctly.
 void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
-    const StringPiece& id,
     const StringPiece& css_url,
     const GoogleString& css_input,
     const GoogleString& expected_css_output,
@@ -278,8 +277,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
     ClearFetcherResponses();
   }
   SetResponseWithDefaultHeaders(css_url, kContentTypeCss, css_input, 300);
-  GoogleString html_input = MakeHtmlWithExternalCssLink(css_url,
-                                                        flags | kInputHtml);
+  GoogleString html_input = MakeHtmlWithExternalCssLink(css_url, flags);
   GoogleString html_output;
 
   ResourceNamer namer;
@@ -289,15 +287,17 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
       Encode(css_gurl.AllExceptLeaf(), namer.id(), namer.hash(),
              namer.name(), namer.ext());
 
-  if (FlagSet(flags, kExpectSuccess) ||
-      FlagSet(flags, kExpectCached) ||
-      FlagSet(flags, kExpectFallback)) {
-    html_output = MakeHtmlWithExternalCssLink(expected_new_url,
-                                              flags | kOutputHtml);
-    ValidateWithStats(id, html_input, html_output,
-                      css_input, expected_css_output, flags);
+  if (FlagSet(flags, kExpectSuccess) || FlagSet(flags, kExpectFallback)) {
+    html_output = MakeHtmlWithExternalCssLink(expected_new_url, flags);
+  } else {
+    html_output = html_input;
+  }
 
-    // Check the new output resource.
+  ValidateWithStats(css_url, html_input, html_output,
+                    css_input, expected_css_output, flags);
+
+  // If we produced a new output resource, check it.
+  if (FlagSet(flags, kExpectSuccess) || FlagSet(flags, kExpectFallback)) {
     GoogleString actual_output;
     // TODO(sligocki): This will only work with mock_hasher.
     ResponseHeaders headers_out;
@@ -315,9 +315,6 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
     if (!FlagSet(flags, kNoOtherContexts)) {
       ServeResourceFromManyContexts(expected_new_url, expected_css_output);
     }
-  } else {
-    ValidateWithStats(id, html_input, html_input,
-                      css_input, expected_css_output, flags);
   }
 }
 
@@ -335,7 +332,7 @@ void CssRewriteTestBase::TestCorruptUrl(const char* new_suffix) {
       ChangeSuffix(css_url, false /*replace*/, ".css", new_suffix);
 
   GoogleString output;
-  EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, munged_url), &output));
+  EXPECT_TRUE(FetchResourceUrl(munged_url, &output));
 
   // Now see that output is correct
   ValidateRewriteExternalCss(

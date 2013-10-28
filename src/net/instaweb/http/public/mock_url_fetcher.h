@@ -29,7 +29,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
 
 namespace net_instaweb {
 

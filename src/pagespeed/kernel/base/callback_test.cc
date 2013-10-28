@@ -52,16 +52,6 @@ class TestClass {
     ++runs_;
   }
 
-  void Method3(int a, int b, int c) {
-    x_ = a + b + c;
-    ++runs_;
-  }
-
-  void Method3ConstRefArg(const int& a, int b, int c) {
-    x_ = a + b + c;
-    ++runs_;
-  }
-
   int x() const { return x_; }
   int runs() const { return runs_; }
 
@@ -81,7 +71,7 @@ TEST(CallbackTest, MemberCallback_0_1) {
 TEST(CallbackTest, MemberCallback_0_1_ConstRefArg) {
   TestClass test_class;
   Callback1<const int&>* cb = NewCallback(&test_class,
-                                          &TestClass::Method1ConstRefArg);
+                                   &TestClass::Method1ConstRefArg);
   EXPECT_EQ(0, test_class.x());
   cb->Run(100);
   EXPECT_EQ(200, test_class.x());
@@ -101,9 +91,7 @@ TEST(CallbackTest, MemberCallback_1_1ConstRefArg) {
   Callback1<int>* cb = NewCallback(&test_class,
                                    &TestClass::Method2ConstRefArg,
                                    arg);
-  // Increment x to show that the reference is followed, rather having
-  // arg's current value of 1 captured at the time the callback was
-  // instantiated.
+  // Increment x.
   ++arg;
   EXPECT_EQ(2, arg);
   EXPECT_EQ(0, test_class.x());
@@ -154,7 +142,7 @@ TEST(CallbackTest, PermanentMemberCallback_1_1ConstRefArg) {
   int arg = 1;
   scoped_ptr<Callback1<int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method2ConstRefArg, arg));
-  // Increment x showing the reference in the callback tracks the increment.
+  // Increment x.
   ++arg;
   EXPECT_EQ(2, arg);
   EXPECT_EQ(0, test_class.x());
@@ -163,99 +151,6 @@ TEST(CallbackTest, PermanentMemberCallback_1_1ConstRefArg) {
     // The callback should have the bound value of 1, even though it was passed
     // by reference.
     EXPECT_EQ(3, test_class.x());
-  }
-  EXPECT_EQ(kNumRunsForPermanentCallbacks, test_class.runs());
-}
-
-TEST(CallbackTest, MemberCallback_0_2) {
-  TestClass test_class;
-  Callback2<int, int>* cb = NewCallback(&test_class, &TestClass::Method2);
-  EXPECT_EQ(0, test_class.x());
-  cb->Run(100, 200);
-  EXPECT_EQ(300, test_class.x());
-}
-
-TEST(CallbackTest, MemberCallback_0_2_ConstRefArg) {
-  TestClass test_class;
-  Callback2<const int&, int>* cb =
-      NewCallback(&test_class, &TestClass::Method2ConstRefArg);
-  EXPECT_EQ(0, test_class.x());
-  cb->Run(100, 1000);
-  EXPECT_EQ(1100, test_class.x());
-}
-
-TEST(CallbackTest, MemberCallback_1_2) {
-  TestClass test_class;
-  Callback2<int, int>* cb = NewCallback(&test_class, &TestClass::Method3, 1);
-  EXPECT_EQ(0, test_class.x());
-  cb->Run(10, 100);
-  EXPECT_EQ(111, test_class.x());
-}
-
-TEST(CallbackTest, MemberCallback_1_2ConstRefArg) {
-  TestClass test_class;
-  int arg = 1;
-  Callback2<int, int>* cb = NewCallback(&test_class,
-                                        &TestClass::Method3ConstRefArg,
-                                        arg);
-  // Increment x.
-  ++arg;
-  EXPECT_EQ(2, arg);
-  EXPECT_EQ(0, test_class.x());
-  cb->Run(10, 100);
-  // The callback should include the bound value of 1 (+ 100 + 10),
-  // even though it was passed by reference.
-  EXPECT_EQ(111, test_class.x());
-}
-
-TEST(CallbackTest, PermanentMemberCallback_0_2) {
-  TestClass test_class;
-  scoped_ptr<Callback2<int, int> > cb(
-      NewPermanentCallback(&test_class, &TestClass::Method2));
-  EXPECT_EQ(0, test_class.x());
-  for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
-    cb->Run(100, 1000);
-    EXPECT_EQ(1100, test_class.x());
-  }
-  EXPECT_EQ(kNumRunsForPermanentCallbacks, test_class.runs());
-}
-
-TEST(CallbackTest, PermanentMemberCallback_0_2_ConstRefArg) {
-  TestClass test_class;
-  scoped_ptr<Callback2<const int&, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method2ConstRefArg));
-  EXPECT_EQ(0, test_class.x());
-  for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
-    cb->Run(100, 1000);
-    EXPECT_EQ(1100, test_class.x());
-  }
-  EXPECT_EQ(kNumRunsForPermanentCallbacks, test_class.runs());
-}
-
-TEST(CallbackTest, PermanentMemberCallback_1_2) {
-  TestClass test_class;
-  scoped_ptr<Callback2<int, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method3, 1));
-  EXPECT_EQ(0, test_class.x());
-  for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
-    cb->Run(10, 100);
-    EXPECT_EQ(111, test_class.x());
-  }
-  EXPECT_EQ(kNumRunsForPermanentCallbacks, test_class.runs());
-}
-
-TEST(CallbackTest, PermanentMemberCallback_1_2ConstRefArg) {
-  TestClass test_class;
-  int arg = 1;
-  scoped_ptr<Callback2<int, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method3ConstRefArg, arg));
-  ++arg;
-  EXPECT_EQ(0, test_class.x());
-  for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
-    cb->Run(10, 100);
-    // The callback should have the bound value of 1, even though it was passed
-    // by reference.
-    EXPECT_EQ(111, test_class.x());
   }
   EXPECT_EQ(kNumRunsForPermanentCallbacks, test_class.runs());
 }

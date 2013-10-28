@@ -20,24 +20,16 @@
 #define PAGESPEED_KERNEL_IMAGE_TEST_UTILS_H_
 
 #include <cstddef>
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/scanline_interface.h"
-
-namespace net_instaweb {
-class MessageHandler;
-}
+#include "pagespeed/kernel/image/read_image.h"
 
 namespace pagespeed {
 
 namespace image_compression {
 
-using net_instaweb::MessageHandler;
-
   const char kTestRootDir[] = "/pagespeed/kernel/image/testdata/";
 
-// Directory for test data.
 const char kGifTestDir[] = "gif/";
 const char kJpegTestDir[] = "jpeg/";
 const char kPngSuiteGifTestDir[] = "pngsuite/gif/";
@@ -45,18 +37,6 @@ const char kPngSuiteTestDir[] = "pngsuite/";
 const char kPngTestDir[] = "png/";
 const char kWebpTestDir[] = "webp/";
 const char kResizedTestDir[] = "resized/";
-
-// Message to ignore.
-const char kMessagePatternAnimatedGif[] =
-    "Unable to optimize image with * frames.";
-const char kMessagePatternFailedToOpen[] = "Failed to open*";
-const char kMessagePatternFailedToRead[] = "Failed to read*";
-const char kMessagePatternLibpngError[] = "libpng error:*";
-const char kMessagePatternLibpngWarning[] = "libpng warning:*";
-const char kMessagePatternPixelFormat[] = "Pixel format:*";
-const char kMessagePatternStats[] = "Stats:*";
-const char kMessagePatternUnexpectedEOF[] = "Unexpected EOF.";
-const char kMessagePatternWritingToWebp[] = "Writing to webp:*";
 
 struct ImageCompressionInfo {
  public:
@@ -186,8 +166,7 @@ void DecodeAndCompareImages(
     size_t buffer_length1,
     pagespeed::image_compression::ImageFormat image_format2,
     const void* image_buffer2,
-    size_t buffer_length2,
-    MessageHandler* message_handler);
+    size_t buffer_length2);
 
 void DecodeAndCompareImagesByPSNR(
     pagespeed::image_compression::ImageFormat image_format1,
@@ -196,8 +175,7 @@ void DecodeAndCompareImagesByPSNR(
     pagespeed::image_compression::ImageFormat image_format2,
     const void* image_buffer2,
     size_t buffer_length2,
-    double min_psnr,
-    MessageHandler* message_handler);
+    double min_psnr);
 
 }  // namespace image_compression
 

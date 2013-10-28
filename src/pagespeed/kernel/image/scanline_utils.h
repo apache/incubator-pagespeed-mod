@@ -24,15 +24,9 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 
-namespace net_instaweb {
-class MessageHandler;
-}
-
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 // Return the number of channels, including color channels and alpha channel,
 // for the input pixel format.
@@ -40,8 +34,7 @@ using net_instaweb::MessageHandler;
 //   RGB_888:   3
 //   RGBA_8888: 4
 //
-size_t GetNumChannelsFromPixelFormat(PixelFormat format,
-                                     MessageHandler* handler);
+size_t GetNumChannelsFromPixelFormat(PixelFormat format);
 
 // Palette for RGBA_8888.
 //
@@ -58,9 +51,8 @@ struct PaletteRGBA {
 //
 class ScanlineStreamInput {
  public:
-  explicit ScanlineStreamInput(MessageHandler* handler)
-    : data_(NULL), length_(0), offset_(0),
-      message_handler_(handler) {
+  ScanlineStreamInput()
+    : data_(NULL), length_(0), offset_(0) {
   }
 
   void Reset() {
@@ -93,15 +85,11 @@ class ScanlineStreamInput {
   void set_offset(size_t val) {
     offset_ = val;
   }
-  MessageHandler* message_handler() {
-    return message_handler_;
-  }
 
  private:
   const char* data_;
   size_t length_;
   size_t offset_;
-  MessageHandler* message_handler_;
 };
 
 }  // namespace image_compression

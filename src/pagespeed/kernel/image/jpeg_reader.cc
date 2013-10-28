@@ -21,7 +21,6 @@
 #include <setjmp.h>
 #include <stdlib.h>
 
-#include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
 
 extern "C" {
@@ -29,8 +28,8 @@ extern "C" {
 #include "jerror.h"                                                 // NOLINT
 #include "jpeglib.h"                                                // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jerror.h"
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "third_party/libjpeg/jerror.h"
+#include "third_party/libjpeg/jpeglib.h"
 #endif
 }
 
@@ -112,16 +111,13 @@ namespace pagespeed {
 
 namespace image_compression {
 
-using net_instaweb::MessageHandler;
-
 struct JpegEnv {
   jpeg_decompress_struct jpeg_decompress_;
   jpeg_error_mgr decompress_error_;
   jmp_buf jmp_buf_env_;
 };
 
-JpegReader::JpegReader(MessageHandler* handler)
-  : message_handler_(handler) {
+JpegReader::JpegReader() {
   jpeg_decompress_ = static_cast<jpeg_decompress_struct*>(
       malloc(sizeof(jpeg_decompress_struct)));
   decompress_error_ = static_cast<jpeg_error_mgr*>(
@@ -146,15 +142,14 @@ void JpegReader::PrepareForRead(const void* image_data, size_t image_length) {
   JpegStringReader(jpeg_decompress_, image_data, image_length);
 }
 
-JpegScanlineReader::JpegScanlineReader(MessageHandler* handler) :
+JpegScanlineReader::JpegScanlineReader() :
   jpeg_env_(NULL),
   pixel_format_(UNSUPPORTED),
   height_(0),
   width_(0),
   row_(0),
   bytes_per_row_(0),
-  was_initialized_(false),
-  message_handler_(handler) {
+  was_initialized_(false) {
   row_pointer_[0] = NULL;
 }
 
@@ -180,8 +175,8 @@ bool JpegScanlineReader::Reset() {
   return true;
 }
 
-ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
-                                                        size_t image_length) {
+bool JpegScanlineReader::Initialize(const void* image_data,
+                                    size_t image_length) {
   if (was_initialized_) {
     // Reset the reader if it has been initialized before.
     Reset();
@@ -197,10 +192,7 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
     // longjmp(env). It will reset the object to a state where it can be used
     // again.
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
-                            "longjmp()");
+    return false;
   }
 
   jpeg_error_mgr* decompress_error = &(jpeg_env_->decompress_error_);
@@ -235,16 +227,12 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
   }
 
   was_initialized_ = true;
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
-ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
-    void** out_scanline_bytes) {
+bool JpegScanlineReader::ReadNextScanline(void** out_scanline_bytes) {
   if (!was_initialized_ || !HasMoreScanLines()) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
-                            "not initialized or no more scanlines");
+    return false;
   }
 
   if (setjmp(jpeg_env_->jmp_buf_env_)) {
@@ -252,10 +240,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
     // longjmp(env). It will reset the object to a state where it can be used
     // again.
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
-                            "longjmp()");
+    return false;
   }
 
   // At the time when ReadNextScanline is called, allocate buffer for holding
@@ -271,10 +256,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
       jpeg_read_scanlines(jpeg_decompress, row_pointer_, 1);
   if (num_scanlines_read != 1) {
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_PARSE_ERROR,
-                            SCANLINE_JPEGREADER,
-                            "jpeg_read_scanlines()");
+    return false;
   }
   *out_scanline_bytes = row_pointer_[0];
   ++row_;
@@ -283,7 +265,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
   if (!HasMoreScanLines()) {
     jpeg_finish_decompress(jpeg_decompress);
   }
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
 }  // namespace image_compression

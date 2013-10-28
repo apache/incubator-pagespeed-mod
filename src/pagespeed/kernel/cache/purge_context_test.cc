@@ -25,12 +25,12 @@
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "pagespeed/kernel/base/simple_stats.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "pagespeed/kernel/util/file_system_lock_manager.h"
 #include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace {
 
@@ -96,7 +96,7 @@ class PurgeContextTest : public testing::Test {
   PurgeContext* MakePurgeContext() {
     return new PurgeContext(kPurgeFile, &file_system_, &timer_,
                             kMaxBytes, thread_system_.get(), &lock_manager_,
-                            &scheduler_, &simple_stats_, &message_handler_);
+                            &simple_stats_, &message_handler_);
   }
 
   GoogleString LockName() { return purge_context1_->LockName(); }
@@ -150,14 +150,6 @@ class PurgeContextTest : public testing::Test {
     return simple_stats_.GetVariable(PurgeContext::kFileParseFailures)->Get();
   }
 
-  int num_file_stats() {
-    return simple_stats_.GetVariable(PurgeContext::kFileStats)->Get();
-  }
-
-  int file_writes() {
-    return simple_stats_.GetVariable(PurgeContext::kFileWrites)->Get();
-  }
-
   void UpdatePurgeSet1(const CopyOnWrite<PurgeSet>& purge_set) {
     purge_set1_ = purge_set;
   }
@@ -185,32 +177,13 @@ TEST_F(PurgeContextTest, Empty) {
 }
 
 TEST_F(PurgeContextTest, InvalidationSharing) {
-  // Set up a write-delay on purge_context1_, but let purge_context2_ have
-  // immediate writes.
-  purge_context1_->set_request_batching_delay_ms(1000);
-
   scheduler_.AdvanceTimeMs(1000);
   purge_context1_->SetCachePurgeGlobalTimestampMs(400000, ExpectSuccess());
   purge_context1_->AddPurgeUrl("a", 500000, ExpectSuccess());
-  EXPECT_EQ(0, file_writes());
-  EXPECT_EQ(0, num_file_stats());
-
-  // Prior to waiting for the new purge requests to be written, the purges
-  // will not take effect.
-  EXPECT_TRUE(PollAndTest1("a", 500000));
-  EXPECT_TRUE(PollAndTest1("b", 399999));
-
-  // Wait a second for the write-timer to fire, then both purges will be
-  // written together in one file-write.
-  scheduler_.AdvanceTimeMs(1000);
-  EXPECT_EQ(1, file_writes());
-  EXPECT_EQ(2, num_file_stats());
-
   EXPECT_FALSE(PollAndTest1("a", 500000));
   EXPECT_TRUE(PollAndTest1("a", 500001));
   EXPECT_FALSE(PollAndTest1("b", 399999));
-  EXPECT_FALSE(PollAndTest1("b", 400000));
-  EXPECT_TRUE(PollAndTest1("b", 400001));
+  EXPECT_TRUE(PollAndTest1("b", 400000));
 
   // These will get transmitted to purge_context2_, which has not
   // yet read the cache invalidation file, but will pick up the
@@ -218,17 +191,12 @@ TEST_F(PurgeContextTest, InvalidationSharing) {
   EXPECT_FALSE(PollAndTest2("a", 500000));
   EXPECT_TRUE(PollAndTest2("a", 500001));
   EXPECT_FALSE(PollAndTest2("b", 399999));
-  EXPECT_FALSE(PollAndTest2("b", 400000));
-  EXPECT_TRUE(PollAndTest2("b", 400001));
-
-  EXPECT_EQ(4, num_file_stats());
+  EXPECT_TRUE(PollAndTest2("b", 400000));
 
   // Now push a time-based flush the other direction.  Because
   // we only poll the file system periodically we do have to advance
   // time.
   purge_context2_->SetCachePurgeGlobalTimestampMs(600000, ExpectSuccess());
-
-  // This will have immediate effect because purge_context2_ has no write-delay.
   EXPECT_FALSE(PollAndTest2("a", 500001));
   EXPECT_TRUE(PollAndTest1("a", 500001));
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);     // force poll
@@ -239,7 +207,6 @@ TEST_F(PurgeContextTest, InvalidationSharing) {
 
   // Now invalidate 'b' till 700k.
   purge_context2_->AddPurgeUrl("b", 700000, ExpectSuccess());
-  scheduler_.AdvanceTimeMs(1000);
   EXPECT_FALSE(PollAndTest2("b", 700000));
   EXPECT_TRUE(PollAndTest1("b", 700000));
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);      // force poll

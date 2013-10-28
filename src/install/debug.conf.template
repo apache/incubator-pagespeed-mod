@@ -40,17 +40,9 @@ ModPagespeedCriticalImagesBeaconEnabled false
 # built with ssl, but otherwise will cause no trouble.
 ModPagespeedFetchHttps enable
 
-ModPagespeedPreserveUrlRelativity on
-
-ModPagespeedLibrary 43 1o978_K0_LNE5_ystNklf http://www.modpagespeed.com/rewrite_javascript.js
-ModPagespeedRetainComment " google_ad_section*"
-
 # Test proxying of non-.pagespeed. resources.
 ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/modpagespeed_http \
                            http://@@TEST_PROXY_ORIGIN@@/do_not_modify
-
-# Turn on "KeepAlive" so we can test it in system_test.sh.
-KeepAlive On
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/https_fetch" >
   ModPagespeedDisableFilters inline_images
@@ -109,11 +101,6 @@ ModPagespeedEnableFilters add_instrumentation
     AllowOverride All
 </Directory>
 
-# Enable resize_rendered_image_dimensions
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/resize_rendered_dimensions" >
-    ModPagespeedCriticalImagesBeaconEnabled true
-</Directory>
-
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/" >
     AllowOverride All
     # Some versions of mod_rewrite will refuse to do any work if
@@ -157,19 +144,6 @@ ModPagespeedEnableFilters add_instrumentation
     ModPagespeedImageWebpRecompressionQuality 65
 </Directory>
 
-# Enable split_html
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/split_html/" >
-    ModPagespeedEnableFilters split_html,split_html_helper,lazyload_images
-    ModPagespeedServeSplitHtmlInTwoChunks on
-    ModPagespeedCriticalLineConfig div[@id="container"]/div[4]
-</Directory>
-
-# Test purging individual URLs without flushing the entire
-# metadata cache.  Note that we do not support any URL-based purging
-# in mod_pagespeed yet so there is no need to cover the 'off' case in
-# our tests.
-ModPagespeedEnableCachePurge on
-
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cachable_rewritten_html" >
     ModPagespeedRewriteDeadlinePerFlushMs 1
     # Assume that Varnish (or any other downstream cache) is running at
@@ -178,15 +152,6 @@ ModPagespeedEnableCachePurge on
     ModPagespeedDownstreamCachePurgeMethod "PURGE"
     ModPagespeedRewriteLevel PassThrough
     ModPagespeedEnableFilters collapse_whitespace,extend_cache,recompress_images
-</Directory>
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/disable_no_transform" >
-  ModPagespeedDisableRewriteOnNoTransform off
-  <IfModule headers_module>
-     <FilesMatch "\.(js|css)$">
-        Header append 'Cache-Control' 'no-transform'
-     </FilesMatch>
-  </IfModule>
 </Directory>
 
 # This Directory does not even exist, but by setting some options in that
@@ -245,14 +210,14 @@ ModPagespeedMapProxyDomain @@APACHE_DOMAIN@@/gstatic_images \
 </Directory>
 
 # This is needed for the server-side includes test in
-# apache/system_test.sh.  See mod_pagespeed_test/ssi/.htaccess as well.
+# apache_system_test.sh.  See mod_pagespeed_test/ssi/.htaccess as well.
 <IfModule !include_module>
   LoadModule include_module @@APACHE_MODULES@@/mod_include.so
 </IfModule>
 AddType text/html .shtml
 AddOutputFilter INCLUDES .shtml
 
-# For the mod_rewrite test in apache/system_test.sh
+# For the mod_rewrite test in apache_system_test.sh
 <IfModule !rewrite_module>
   LoadModule rewrite_module  @@APACHE_MODULES@@/mod_rewrite.so
 </IfModule>
@@ -272,16 +237,10 @@ Header append 'X-Extra-Header' '1'
   Header append 'Cache-Control' 'no-store'
 </Directory>
 
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/bug781" >
-  ModPagespeedCssImageInlineMaxBytes 3000
-  ModPagespeedEnableFilters convert_png_to_jpeg
-  ModPagespeedJpegRecompressionQuality 50
-</Directory>
-
 # However we should not allow user-specified cache-control on
 # rewritten HTML or resources.  This setting helps us make
 # sure that we strip any user-specified cache-control when
-# we rewrite HTML.  We test this in apache/system_test.sh.
+# we rewrite HTML.  We test this in apache_system_test.sh.
 Header set Cache-Control "max-age=600"
 
 # For regression test of connection failing.
@@ -513,9 +472,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeedUrlValuedAttribute custom a Image
   ModPagespeedUrlValuedAttribute custom b otherResource
   ModPagespeedUrlValuedAttribute custom c hyperlink
-  ModPagespeedUrlValuedAttribute img alt-src Image
-  ModPagespeedUrlValuedAttribute video alt-a Image
-  ModPagespeedUrlValuedAttribute video alt-b Image
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
@@ -618,9 +574,9 @@ ModPagespeedUsePerVHostStatistics on
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName ipro.example.com
 
-  ModPagespeedInPlaceResourceOptimization on
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
+
 </VirtualHost>
 
 # Setup a vhost with the critical image beacon and lazyload filter enabled to
@@ -634,23 +590,7 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedEnableFilters lazyload_images
   ModPagespeedCriticalImagesBeaconEnabled true
 
-  # add_instrumentation tests beacon handling with no handler specified, while
-  # here we test it with a handler (that should do nothing).
-  <Location /mod_pagespeed_beacon>
-    SetHandler mod_pagespeed_beacon
-  </Location>
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName renderedimagebeacon.example.com
-
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters resize_rendered_image_dimensions
-  ModPagespeedCriticalImagesBeaconEnabled true
-
-  # add_instrumentation tests beacon handling with no handler specified, while
+  # add_instrumention tests beacon handling with no handler specified, while
   # here we test it with a handler (that should do nothing).
   <Location /mod_pagespeed_beacon>
     SetHandler mod_pagespeed_beacon
@@ -666,20 +606,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
 
   ModPagespeedEnableFilters rewrite_images
   ModPagespeedCriticalImagesBeaconEnabled false
-</VirtualHost>
-
-# Test host for issue 809: losing extra headers with cache-control set early.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName issue809.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-
-  header add Issue809 Issue809Value
-  header add Cache-Control max-age=60 early
-
-  ModPagespeedEnableFilters rewrite_images
-  ModPagespeedCriticalImagesBeaconEnabled false
-  ModPagespeedModifyCachingHeaders on
 </VirtualHost>
 
 #PER_VHOST_STATS ModPagespeedUsePerVHostStatistics on
@@ -750,18 +676,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
 #COVERAGE   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
 #COVERAGE   ModPagespeedCompressMetadataCache true
 #COVERAGE   ModPagespeedRewriteLevel AllFilters
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters add_instrumentation
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters local_storage_cache,debug
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters lazyload_images
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters add_base_tag
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters dedup_inlined_images
-#IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters convert_jpeg_to_webp
-#IPRO_PRESERVE_COVERAGE   ModPagespeedInPlaceRewriteDeadlineMs 1000
-#COVERAGE
-#COVERAGE   # flush_subsresources doesn't work in MPS but disables
-#COVERAGE   # combine_css and combine_javascript, so we don't want to
-#COVERAGE   # load-test it.
-#COVERAGE   ModPagespeedDisableFilters flush_subresources
 #COVERAGE   ModPagespeedEnableFilters elide_attributes
 #COVERAGE   ModPagespeedDomain *
 #COVERAGE   ModPagespeedFileCacheSizeKb              102400
@@ -782,16 +696,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
 #COVERAGE   ModPagespeedJpegRecompressionQuality         -1
 #COVERAGE   ModPagespeedImageLimitOptimizedPercent      100
 #COVERAGE   ModPagespeedImageLimitResizeAreaPercent     100
-#COVERAGE
-#COVERAGE   # Enabling beacons is not interesting in our current
-#COVERAGE   # load-test framework as the load-tester doesn't run JS
-#COVERAGE   # and thus can't send back any beacons.  This means we
-#COVERAGE   # won't be able to test inline images, since we don't know
-#COVERAGE   # which images are critical.  Better to turn it off.
-#COVERAGE   # TODO(jud): Load-test the critical images beacon in a
-#COVERAGE   # context that sends back beacons.
-#COVERAGE   ModPagespeedCriticalImagesBeaconEnabled false
-#COVERAGE
 #COVERAGE   <Location /mod_pagespeed_statistics>
 #COVERAGE       Order allow,deny
 #COVERAGE       Allow from localhost
@@ -842,9 +746,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
 #PROXY   ModPagespeedRewriteLevel PassThrough
 #PROXY   ModPagespeedEnableFilters extend_cache
 #PROXY   ModPagespeedDomain *
-#PROXY
-#PROXY   # Test depends upon URLs being absolutified.
-#PROXY   ModPagespeedPreserveUrlRelativity off
 #PROXY
 #PROXY   # Proxy through to 8081.
 #PROXY   ProxyPass / http://localhost:8081/
@@ -979,37 +880,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
   ModPagespeed off
 </VirtualHost>
 
-# Help tests detect whether mod_spdy is loaded. Only sees it if it's loaded
-# before us, unfortunately, but we can at least make it so during our own
-# testing.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName spdy.example.com
-  <IfModule !spdy_module>
-    DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/nonspdy"
-  </IfModule>
-  <IfModule spdy_module>
-    DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/spdy"
-  </IfModule>
-</VirtualHost>
-
-# For testing fetching via mod_spdy.
-NameVirtualHost @@APACHE_HTTPS_DOMAIN@@
-<VirtualHost @@APACHE_HTTPS_DOMAIN@@>
-  ServerName spdyfetch.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_spdyfetch"
-  ModPagespeed on
-  ModPagespeedFetchFromModSpdy on
-</VirtualHost>
-
-<VirtualHost @@APACHE_HTTPS_DOMAIN@@>
-  ServerName nospdyfetch.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_nospdyfetch"
-  ModPagespeed on
-  ModPagespeedFetchFromModSpdy off
-</VirtualHost>
-
 # For testing where we do our loopback routing. Note that this is listening
 # on an unusual loopback IP.
 Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
@@ -1063,10 +933,8 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedImageLimitResizeAreaPercent 80
 #ALL_DIRECTIVES ModPagespeedImageMaxRewritesAtOnce 5
 #ALL_DIRECTIVES ModPagespeedImageRecompressionQuality 75
-#ALL_DIRECTIVES ModPagespeedImageResolutionLimitBytes 10000000
 #ALL_DIRECTIVES ModPagespeedImagePreserveURLs false
 #ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQuality 85
-#ALL_DIRECTIVES ModPagespeedImplicitCacheTtlMs 60000
 #ALL_DIRECTIVES ModPagespeedInPlaceResourceOptimization on
 #ALL_DIRECTIVES ModPagespeedIncreaseSpeedTracking true
 #ALL_DIRECTIVES ModPagespeedInstallCrashHandler off
@@ -1098,16 +966,13 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedModifyCachingHeaders true
 #ALL_DIRECTIVES ModPagespeedNumExpensiveRewriteThreads 2
 #ALL_DIRECTIVES ModPagespeedNumRewriteThreads 4
-#ALL_DIRECTIVES ModPagespeedPreserveUrlRelativity on
-#ALL_DIRECTIVES ModPagespeedProgressiveJpegMinBytes 1000
 #ALL_DIRECTIVES ModPagespeedRateLimitBackgroundFetches true
 #ALL_DIRECTIVES ModPagespeedRefererStatisticsOutputLevel simple
 #ALL_DIRECTIVES ModPagespeedReportUnloadTime true
 #ALL_DIRECTIVES ModPagespeedRespectVary true
 #ALL_DIRECTIVES ModPagespeedRespectXForwardedProto off
 #ALL_DIRECTIVES ModPagespeedRetainComment "special"
-#ALL_DIRECTIVES ModPagespeedRewriteDeadlinePerFlushMs 100
-#ALL_DIRECTIVES ModPagespeedInPlaceRewriteDeadlineMs 100
+#ALL_DIRECTIVES ModPagespeedRewriteDeadlinePerFlushMs 10
 #ALL_DIRECTIVES ModPagespeedRewriteLevel CoreFilters
 #ALL_DIRECTIVES ModPagespeedRewriteRandomDropPercentage 0
 #ALL_DIRECTIVES ModPagespeedRunExperiment true
@@ -1122,7 +987,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingChartsJS "example.com/js.js"
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile /tmp/log/stats.log
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingIntervalMs 3000
-#ALL_DIRECTIVES ModPagespeedStatisticsLoggingMaxFileSizeKb 1024
 #ALL_DIRECTIVES ModPagespeedSupportNoScriptEnabled true
 #ALL_DIRECTIVES ModPagespeedTestProxy off
 #ALL_DIRECTIVES ModPagespeedUrlValuedAttribute span src Hyperlink

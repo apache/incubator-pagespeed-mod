@@ -33,39 +33,35 @@
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
-#include "pagespeed/kernel/image/test_utils.h"
 
+using pagespeed::image_compression::JpegUtils;
+using pagespeed_testing::image_compression::GetNumScansInJpeg;
+using pagespeed_testing::image_compression::IsJpegSegmentPresent;
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
 using pagespeed_testing::image_compression::GetJpegNumComponentsAndSamplingFactors;
-using pagespeed_testing::image_compression::GetNumScansInJpeg;
-using pagespeed_testing::image_compression::IsJpegSegmentPresent;
-using pagespeed::image_compression::JpegUtils;
-using pagespeed::image_compression::kMessagePatternAnimatedGif;
-using pagespeed::image_compression::kMessagePatternPixelFormat;
-using pagespeed::image_compression::kMessagePatternStats;
-using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
-using pagespeed::image_compression::kMessagePatternWritingToWebp;
 
-namespace net_instaweb {
 namespace {
 
 const char kProgressiveHeader[] = "\xFF\xC2";
 const int kProgressiveHeaderStartIndex = 158;
 const char kMessagePatternDataTruncated[] = "*data truncated*";
 const char kMessagePatternFailedToCreateWebp[] = "*Failed to create webp*";
-const char kMessagePatternFailedToEncodeWebp[] = "Could not encode webp data*";
 const char kMessagePatternNoWebpDimension[] = "*Couldn't find * dimensions*";
 const char kMessagePatternTimedOut[] = "*conversion timed out*";
+
+}  // namespace
+
+namespace net_instaweb {
 
 class ConversionVarChecker {
  public:
@@ -207,30 +203,11 @@ class ConversionVarChecker {
   Image::ConversionVariables webp_conversion_variables_;
 };
 
-}  // namespace
-
 class ImageTest : public ImageTestBase {
  public:
-  ImageTest() :
-      options_(new Image::CompressionOptions()) {
-  }
+  ImageTest() : options_(new Image::CompressionOptions()) {}
 
  protected:
-  virtual void SetUp() {
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternAnimatedGif);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
-    message_handler_.AddPatternToSkipPrinting(
-        kMessagePatternFailedToCreateWebp);
-    message_handler_.AddPatternToSkipPrinting(
-        kMessagePatternFailedToEncodeWebp);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternNoWebpDimension);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternWritingToWebp);
-  }
-
   GoogleString* GetOutputContents(Image* image) {
     return &(image->output_contents_);
   }
@@ -367,6 +344,8 @@ class ImageTest : public ImageTestBase {
 
     // Now truncate the file in various ways and make sure we still
     // get partial data.
+    handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
+    handler_.AddPatternToSkipPrinting(kMessagePatternNoWebpDimension);
     GoogleString dim_data(contents, 0, min_bytes_to_dimensions);
     ImagePtr dim_image(
         ImageFromString(intended_output_type, filename, dim_data, progressive));
@@ -402,7 +381,7 @@ class ImageTest : public ImageTestBase {
                               GoogleString* url) {
     ResourceContext context;
     StringVector urls;
-    bool result = encoder_.Decode(encoded, &urls, &context, &message_handler_);
+    bool result = encoder_.Decode(encoded, &urls, &context, &handler_);
     if (result) {
       EXPECT_EQ(1, urls.size());
       url->assign(urls.back());
@@ -429,8 +408,6 @@ class ImageTest : public ImageTestBase {
  private:
   DISALLOW_COPY_AND_ASSIGN(ImageTest);
 };
-
-namespace {
 
 TEST_F(ImageTest, EmptyImageUnidentified) {
   CheckInvalid("Empty string", "", IMAGE_UNKNOWN, IMAGE_UNKNOWN,
@@ -704,6 +681,7 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
                               0, 0, 0,   // jpeg
                               false);
 
+  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kRedbrush, &buffer, options));
   timer_.SetTimeDeltaUs(1);  // When setting deadline
@@ -918,8 +896,7 @@ TEST_F(ImageTest, UseJpegLossyIfInputQualityIsLowTest) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When num progressive scans is set, we use lossy path. The compression
   // quality is the minimum of the input and the configuration, i.e., 50.
@@ -932,19 +909,17 @@ TEST_F(ImageTest, UseJpegLossyIfInputQualityIsLowTest) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // Empty image will return -1 when we try to determine its quality.
   options = new Image::CompressionOptions();
   SetJpegRecompressionAndQuality(options);
   options->progressive_jpeg = true;
   image.reset(NewImage("", "", GTestTempDir(), options,
-                       &timer_, &message_handler_));
+                       &timer_, &handler_));
   EXPECT_EQ(
       -1, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 }
 
 TEST_F(ImageTest, JpegRetainColorProfileTest) {
@@ -1062,6 +1037,8 @@ TEST_F(ImageTest, JpegToWebpTimesOutTest) {
                               0, 0, 0,   // jpeg
                               true);
 
+  handler_.AddPatternToSkipPrinting(kMessagePatternFailedToCreateWebp);
+  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   image->output_size();
@@ -1096,6 +1073,7 @@ TEST_F(ImageTest, JpegToWebpDoesNotTimeOutTest) {
                               0, 0, 0,   // jpeg
                               true);
 
+  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   image->output_size();
@@ -1152,7 +1130,7 @@ TEST_F(ImageTest, DrawImage) {
   options->recompress_png = true;
   ImagePtr canvas(BlankImageWithOptions(width, height, IMAGE_PNG,
                                         GTestTempDir(), &timer_,
-                                        &message_handler_, options));
+                                        &handler_, options));
   EXPECT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   EXPECT_TRUE(canvas->DrawImage(image2.get(), 0, image_dim1.height()));
   // The combined image should be bigger than either of the components, but
@@ -1163,13 +1141,13 @@ TEST_F(ImageTest, DrawImage) {
             canvas->output_size());
 }
 
-TEST_F(ImageTest, BlankTransparentImage) {
+TEST_F(ImageTest, BlankWhiteImage) {
   int width = 1000, height = 1000;
   Image::CompressionOptions* options = new Image::CompressionOptions();
 
-  options->use_transparent_for_blank_image = true;
+  options->use_white_for_blank_image = true;
   ImagePtr blank(BlankImageWithOptions(width, height, IMAGE_PNG, GTestTempDir(),
-                                       &timer_, &message_handler_, options));
+                                       &timer_, &handler_, options));
   bool loaded = blank->EnsureLoaded(false);
   EXPECT_EQ(loaded, true);
   EXPECT_GT(blank->Contents().size(), 0);
@@ -1178,6 +1156,24 @@ TEST_F(ImageTest, BlankTransparentImage) {
   blank->Dimensions(&blank_dim);
   EXPECT_EQ(blank_dim.width(), width);
   EXPECT_EQ(blank_dim.height(), height);
+}
+
+// Test OpenCV bug where width * height of image could be allocated on the
+// stack. kLarge is a 10000x10000 image, so it will try to allocate > 100MB
+// on the stack, which should overflow the stack and SEGV.
+TEST_F(ImageTest, OpencvStackOverflow) {
+  // This test takes ~90000 ms on Valgrind and need not be run there.
+  if (RunningOnValgrind()) {
+    return;
+  }
+
+  GoogleString buf;
+  ImagePtr image(ReadImageFromFile(IMAGE_JPEG, kLarge, &buf, false));
+
+  ImageDim new_dim;
+  new_dim.set_width(1);
+  new_dim.set_height(1);
+  image->ResizeTo(new_dim);
 }
 
 TEST_F(ImageTest, ResizeTo) {
@@ -1205,8 +1201,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When jpeg_num_progressive_scans > 0, lossy will be used and the quality
   // will be set to the minimum of input quality and jpeg_quality.
@@ -1219,8 +1214,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       50, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 
   // When jpeg_quality is less than input quality, lossy will be used and the
   // output quality is the minimum of them.
@@ -1232,8 +1226,7 @@ TEST_F(ImageTest, CompressJpegUsingLossyOrLossless) {
   EXPECT_GT(buffer.size(), image->output_size());
   EXPECT_EQ(
       49, JpegUtils::GetImageQualityFromImage(image->Contents().data(),
-                                              image->Contents().size(),
-                                              &message_handler_));
+                                              image->Contents().size()));
 }
 
 void SetBaseJpegOptions(Image::CompressionOptions* options) {
@@ -1255,6 +1248,7 @@ TEST_F(ImageTest, IgnoreTimeoutWhenFinishingWebp) {
   Image::CompressionOptions* jpeg_options = new Image::CompressionOptions;
   SetBaseJpegOptions(jpeg_options);
 
+  handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
   GoogleString jpeg_buffer;
   ImagePtr jpeg_image(ReadFromFileWithOptions(kBikeCrash,
                                               &jpeg_buffer,
@@ -1345,6 +1339,4 @@ TEST_F(ImageTest, IgnoreTimeoutWhenFinishingWebp) {
   EXPECT_EQ(expected,
             almost_done_webp_image->Contents());
 }
-
-}  // namespace
 }  // namespace net_instaweb

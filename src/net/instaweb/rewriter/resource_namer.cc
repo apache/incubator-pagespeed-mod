@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
 #include <cctype>
-#include <memory>
 #include <vector>
 
 #include "base/logging.h"
@@ -56,9 +55,8 @@ namespace {
 // If you change this, or the structure of the encoded string,
 // you will also need to change:
 //
-// automatic/system_test.sh
-// system/system_test.sh
-// apache/system_test.sh
+// apache/install/system_test.sh
+// apache/install/apache_system_test.sh
 //
 // Plus a few constants in _test.cc files.
 

@@ -33,9 +33,6 @@ namespace net_instaweb {
 const char FlushEarlyInfoFinder::kFlushEarlyRenderPropertyName[] =
     "flush_early_render";
 
-FlushEarlyInfoFinder::FlushEarlyInfoFinder(const PropertyCache::Cohort* cohort)
-    : cohort_(cohort) {}
-
 FlushEarlyInfoFinder::~FlushEarlyInfoFinder() {
 }
 
@@ -49,7 +46,7 @@ void FlushEarlyInfoFinder::UpdateFlushEarlyInfoInDriver(RewriteDriver* driver) {
       DecodeFromPropertyCache<FlushEarlyRenderInfo>(
           driver->server_context()->page_property_cache(),
           driver->fallback_property_page(),
-          cohort_,
+          GetCohort(),
           kFlushEarlyRenderPropertyName,
           driver->options()->finder_properties_cache_expiration_time_ms(),
           &decode_status));
@@ -80,7 +77,7 @@ void FlushEarlyInfoFinder::UpdateFlushEarlyInfoCacheEntry(
     FlushEarlyRenderInfo* flush_early_render_info) {
   flush_early_render_info->set_updated(true);
   UpdateInPropertyCache(*flush_early_render_info,
-                        cohort_,
+                        GetCohort(),
                         kFlushEarlyRenderPropertyName,
                         false /* don't write_cohort*/,
                         driver->fallback_property_page());

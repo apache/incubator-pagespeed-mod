@@ -13,21 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'instaweb_root': '..',
-    'protoc_out_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/instaweb',
-    'protoc_executable':
-        '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
-    'data2c_out_dir': '<(SHARED_INTERMEDIATE_DIR)/data2c_out/instaweb',
-    'data2c_exe':
-        '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)instaweb_data2c<(EXECUTABLE_SUFFIX)',
-    'js_minify':
-        '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)js_minify<(EXECUTABLE_SUFFIX)',
-    # Setting chromium_code to 1 turns on extra warnings. Also, if the compiler
-    # is whitelisted in our common.gypi, those warnings will get treated as
-    # errors.
-    'chromium_code': 1,
-  },
   'targets': [
     {
       'target_name': 'pagespeed_base_core',
@@ -81,33 +66,21 @@
       'sources': [
         'kernel/base/abstract_shared_mem.cc',
         'kernel/base/cache_interface.cc',
-        'kernel/base/charset_util.cc',
         'kernel/base/checking_thread_system.cc',
-        'kernel/base/chunking_writer.cc',
         'kernel/base/circular_buffer.cc',
         'kernel/base/condvar.cc',
-        'kernel/base/countdown_timer.cc',
-        'kernel/base/escaping.cc',
-        'kernel/base/fast_wildcard_group.cc',
         'kernel/base/file_writer.cc',
         'kernel/base/function.cc',
         'kernel/base/hasher.cc',
-        'kernel/base/hostname_util.cc',
         'kernel/base/json_writer.cc',
         'kernel/base/md5_hasher.cc',
-        'kernel/base/mem_debug.cc',
         'kernel/base/named_lock_manager.cc',
-        'kernel/base/null_rw_lock.cc',
-        'kernel/base/null_statistics.cc',
         'kernel/base/posix_timer.cc',
-        'kernel/base/request_trace.cc',
         'kernel/base/rolling_hash.cc',
         'kernel/base/shared_string.cc',
-        'kernel/base/split_statistics.cc',
-        'kernel/base/split_writer.cc',
+        'kernel/base/statistics_logger.cc',
         'kernel/base/thread.cc',
         'kernel/base/waveform.cc',
-        'kernel/base/wildcard.cc',
       ],
       'dependencies': [
         'pagespeed_base_core',
@@ -118,19 +91,15 @@
       'target_name': 'pagespeed_base_test_infrastructure',
       'type': '<(library)',
       'sources': [
-        'kernel/base/counting_writer.cc',
         'kernel/base/mem_file_system.cc',
-        'kernel/base/mock_hasher.cc',
         'kernel/base/mock_message_handler.cc',
         'kernel/base/mock_timer.cc',
         'kernel/base/null_thread_system.cc',
-        'kernel/cache/delay_cache.cc',
-        'kernel/cache/mock_time_cache.cc',
+        'kernel/base/simple_stats.cc',
         'kernel/html/canonical_attributes.cc',
         'kernel/html/explicit_close_tag.cc',
-        'kernel/thread/mock_scheduler.cc',
         'kernel/util/platform.cc',
-        'kernel/util/simple_stats.cc',
+        'kernel/thread/mock_scheduler.cc',
       ],
       'include_dirs': [
         '<(DEPTH)',
@@ -145,12 +114,11 @@
       ],
     },
     {
-      'target_name': 'kernel_test_util',
+      'target_name': 'base_test_util',
       'type': '<(library)',
       'sources': [
         'kernel/base/file_system_test_base.cc',
         'kernel/base/gtest.cc',
-        'kernel/http/user_agent_matcher_test_base.cc',
         'kernel/sharedmem/shared_circular_buffer_test_base.cc',
         'kernel/sharedmem/shared_dynamic_string_map_test_base.cc',
         'kernel/sharedmem/shared_mem_cache_data_test_base.cc',
@@ -160,7 +128,6 @@
         'kernel/sharedmem/shared_mem_test_base.cc',
         'kernel/thread/thread_system_test_base.cc',
         'kernel/thread/worker_test_base.cc',
-        'kernel/util/mock_nonce_generator.cc',
       ],
       'all_dependent_settings': {
         'include_dirs': [
@@ -173,26 +140,15 @@
       ],
       'dependencies': [
         '<(DEPTH)/testing/gtest.gyp:gtest_main',
-        'util',
       ],
     },
     {
       'target_name': 'pagespeed_cache',
       'type': '<(library)',
       'sources': [
-        'kernel/cache/async_cache.cc',
-        'kernel/cache/cache_batcher.cc',
-        'kernel/cache/cache_stats.cc',
-        'kernel/cache/compressed_cache.cc',
-        'kernel/cache/delegating_cache_callback.cc',
-        'kernel/cache/fallback_cache.cc',
-        'kernel/cache/file_cache.cc',
-        'kernel/cache/key_value_codec.cc',
         'kernel/cache/lru_cache.cc',
         'kernel/cache/purge_context.cc',
         'kernel/cache/purge_set.cc',
-        'kernel/cache/threadsafe_cache.cc',
-        'kernel/cache/write_through_cache.cc',
        ],
       'dependencies': [
         'pagespeed_base',
@@ -221,11 +177,8 @@
       'target_name': 'pagespeed_html',
       'type': '<(library)',
       'sources': [
-        'kernel/html/elide_attributes_filter.cc',
-        'kernel/html/collapse_whitespace_filter.cc',
         'kernel/html/doctype.cc',
         'kernel/html/empty_html_filter.cc',
-        'kernel/html/html_attribute_quote_removal.cc',
         'kernel/html/html_element.cc',
         'kernel/html/html_event.cc',
         'kernel/html/html_filter.cc',
@@ -234,16 +187,15 @@
         'kernel/html/html_node.cc',
         'kernel/html/html_parse.cc',
         'kernel/html/html_writer_filter.cc',
-        'kernel/html/remove_comments_filter.cc',
       ],
       'dependencies': [
         ':pagespeed_base_core',
         ':pagespeed_html_gperf',
-        ':pagespeed_http_core',
+        ':pagespeed_http',
       ],
     },
     {
-      'target_name': 'pagespeed_http_core',
+      'target_name': 'pagespeed_http',
       'type': '<(library)',
       'sources': [
         'kernel/http/caching_headers.cc',
@@ -251,66 +203,10 @@
         'kernel/http/google_url.cc',
         'kernel/http/http_names.cc',
         'kernel/http/query_params.cc',
-        'kernel/http/semantic_type.cc',
       ],
       'dependencies': [
         'pagespeed_base_core',
         '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
-      ],
-    },
-    {
-      'target_name': 'pagespeed_http',
-      'type': '<(library)',
-      'sources': [
-        'kernel/http/data_url.cc',
-        'kernel/http/headers.cc',
-        'kernel/http/response_headers_parser.cc',
-        'kernel/http/response_headers.cc',
-        'kernel/http/request_headers.cc',
-        'kernel/http/user_agent_matcher.cc',
-        'kernel/http/user_agent_normalizer.cc',
-      ],
-      'dependencies': [
-        'pagespeed_http_core',
-        'pagespeed_http_gperf',
-        'pagespeed_http_pb',
-        'util',
-#        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
-      ],
-      'include_dirs': [
-        '<(instaweb_root)',
-        '<(DEPTH)',
-      ],
-      'all_dependent_settings': {
-        'include_dirs': [
-          '<(DEPTH)/third_party/protobuf/src',
-        ],
-      },
-    },
-    {
-      'target_name': 'pagespeed_http_gperf',
-      'variables': {
-        'instaweb_gperf_subdir': 'kernel/http',
-        'instaweb_root':  '<(DEPTH)/pagespeed',
-      },
-      'sources': [
-        'kernel/http/bot_checker.gperf',
-      ],
-      'includes': [
-        '../net/instaweb/gperf.gypi',
-      ]
-    },
-    {
-      'target_name': 'pagespeed_http_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'pagespeed/kernel/http',
-      },
-      'sources': [
-        'kernel/http/http.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/http.pb.cc',
-      ],
-      'includes': [
-        '../net/instaweb/protoc.gypi',
       ],
     },
     {
@@ -348,20 +244,13 @@
       'target_name': 'util',
       'type': '<(library)',
       'sources': [
+        'kernel/util/fast_wildcard_group.cc',
         'kernel/util/file_system_lock_manager.cc',
-        'kernel/util/filename_encoder.cc',
-        'kernel/util/gzip_inflater.cc',
         'kernel/util/hashed_nonce_generator.cc',
         'kernel/util/input_file_nonce_generator.cc',
         'kernel/util/nonce_generator.cc',
         'kernel/util/simple_random.cc',
-        'kernel/util/statistics_logger.cc',
-        'kernel/util/statistics_work_bound.cc',
-        'kernel/util/url_escaper.cc',
-        'kernel/util/url_multipart_encoder.cc',
-        'kernel/util/url_segment_encoder.cc',
-        'kernel/util/url_to_filename_encoder.cc',
-        'kernel/util/work_bound.cc',
+        'kernel/util/wildcard.cc',
       ],
       'include_dirs': [
         '<(DEPTH)',
@@ -370,7 +259,19 @@
         'pagespeed_base',
         'pagespeed_thread',
         '<(DEPTH)/third_party/re2/re2.gyp:re2',
-        '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
+      ],
+    },
+    {
+      'target_name': 'util_test_util',
+      'type': '<(library)',
+      'sources': [
+        'kernel/util/mock_nonce_generator.cc',
+      ],
+      'include_dirs': [
+        '<(DEPTH)',
+      ],
+      'dependencies': [
+        'util',
       ],
     },
     {
@@ -379,7 +280,7 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/third_party/giflib/giflib.gyp:dgiflib',
-        '<(DEPTH)/third_party/libjpeg_turbo/libjpeg_turbo.gyp:libjpeg_turbo',
+        '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp_enc',
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp_dec',
@@ -407,7 +308,6 @@
       ],
       'export_dependent_settings': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/third_party/libjpeg_turbo/libjpeg_turbo.gyp:libjpeg_turbo',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -429,7 +329,7 @@
         '<(DEPTH)/testing/gtest/include',
       ],
       'dependencies': [
-        ':kernel_test_util',
+        ':base_test_util',
         ':pagespeed_image_processing',
       ],
     },
@@ -456,7 +356,6 @@
       'target_name': 'pagespeed_thread',
       'type': '<(library)',
       'sources': [
-        'kernel/thread/queued_alarm.cc',
         'kernel/thread/queued_worker.cc',
         'kernel/thread/queued_worker_pool.cc',
         'kernel/thread/scheduler.cc',

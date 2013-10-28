@@ -24,10 +24,6 @@
     # required for the console.
     ModPagespeedLogDir "@@MOD_PAGESPEED_LOG@@"
 
-    # The locations of SSL Certificates is distribution-dependent.
-    ModPagespeedSslCertDirectory "@@SSL_CERT_DIR@@"
-    @@SSL_CERT_FILE_COMMAND@@
-
     # If you want, you can use one or more memcached servers as the store for
     # the mod_pagespeed cache.
     # ModPagespeedMemcachedServers localhost:11211
@@ -94,9 +90,6 @@
     #
     # This will allow resources found on http://cdn.myhost.com to be
     # rewritten in addition to those in the same domain as the HTML.
-    #
-    # Other domain-related directives (like ModPagespeedMapRewriteDomain
-    # and ModPagespeedMapOriginDomain) can also authorize domains.
     #
     # Wildcards (* and ?) are allowed in the domain specification. Be
     # careful when using them as if you rewrite domains that do not

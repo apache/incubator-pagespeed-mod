@@ -38,7 +38,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/cache_property_store.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -216,9 +215,6 @@ void ProxyInterfaceTestBase::TestHeadersSetupRace() {
 
 void ProxyInterfaceTestBase::SetUp() {
   RewriteTestBase::SetUp();
-  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
-  sync->EnableForPrefix(ProxyFetch::kCollectorFinish);
-  sync->AllowSloppyTermination(ProxyFetch::kCollectorFinish);
   ProxyInterface::InitStats(statistics());
   proxy_interface_.reset(
       new ProxyInterface("localhost", 80, server_context(), statistics()));
@@ -244,19 +240,6 @@ void ProxyInterfaceTestBase::SetCssCriticalImagesInFinder(
   mock_critical_images_finder_->set_css_critical_images(css_critical_images);
 }
 
-void ProxyInterfaceTestBase::FetchFromProxy(
-    const StringPiece& url,
-    const RequestHeaders& request_headers,
-    bool expect_success,
-    GoogleString* string_out,
-    ResponseHeaders* headers_out,
-    bool proxy_fetch_property_callback_collector_created) {
-  FetchFromProxyNoWait(url, request_headers, expect_success,
-                       false /* log_flush*/, headers_out);
-  WaitForFetch(proxy_fetch_property_callback_collector_created);
-  *string_out = callback_buffer_;
-}
-
 // Initiates a fetch using the proxy interface, and waits for it to
 // complete.
 void ProxyInterfaceTestBase::FetchFromProxy(
@@ -265,8 +248,10 @@ void ProxyInterfaceTestBase::FetchFromProxy(
     bool expect_success,
     GoogleString* string_out,
     ResponseHeaders* headers_out) {
-  FetchFromProxy(url, request_headers, expect_success, string_out,
-                 headers_out, true);
+  FetchFromProxyNoWait(url, request_headers, expect_success,
+                       false /* log_flush*/, headers_out);
+  WaitForFetch();
+  *string_out = callback_buffer_;
 }
 
 // TODO(jmarantz): eliminate this interface as it's annoying to have
@@ -286,7 +271,7 @@ void ProxyInterfaceTestBase::FetchFromProxyLoggingFlushes(
   ResponseHeaders response_headers;
   FetchFromProxyNoWait(url, request_headers, expect_success,
                        true /* log_flush*/, &response_headers);
-  WaitForFetch(true);
+  WaitForFetch();
   *string_out = callback_buffer_;
 }
 
@@ -313,15 +298,9 @@ void ProxyInterfaceTestBase::FetchFromProxyNoWait(
 
 // This must be called after FetchFromProxyNoWait, once all of the required
 // resources (fetches, cache lookups) have been released.
-void ProxyInterfaceTestBase::WaitForFetch(
-    bool proxy_fetch_property_callback_collector_created) {
+void ProxyInterfaceTestBase::WaitForFetch() {
   sync_->Wait();
   mock_scheduler()->AwaitQuiescence();
-  if (proxy_fetch_property_callback_collector_created) {
-    ThreadSynchronizer* thread_synchronizer =
-        server_context()->thread_synchronizer();
-    thread_synchronizer->Wait(ProxyFetch::kCollectorFinish);
-  }
 }
 
 // Tests a single flow through the property-cache, optionally delaying or
@@ -359,16 +338,17 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
   scoped_ptr<QueuedWorkerPool> pool;
   QueuedWorkerPool::Sequence* sequence = NULL;
 
+  ThreadSynchronizer* sync = server_context()->thread_synchronizer();
+  sync->EnableForPrefix(ProxyFetch::kCollectorDelete);
   GoogleString delay_pcache_key, delay_http_cache_key;
   if (delay_pcache || thread_pcache) {
     PropertyCache* pcache = page_property_cache();
     const PropertyCache::Cohort* cohort =
         pcache->GetCohort(RewriteDriver::kDomCohort);
     delay_http_cache_key = AbsolutifyUrl(url);
-    delay_pcache_key = factory()->cache_property_store()->CacheKey(
+    delay_pcache_key = pcache->CacheKey(StrCat(
         delay_http_cache_key,
-        "",
-        UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop),
+        UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop)),
         cohort);
     delay_cache()->DelayKey(delay_pcache_key);
     if (thread_pcache) {
@@ -389,31 +369,39 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
                          false /* don't log flushes*/, response_headers);
     delay_cache()->ReleaseKeyInSequence(delay_pcache_key, sequence);
 
+    // Wait until the property-cache-thread is in
+    // ProxyFetchPropertyCallbackCollector::Done(), just after the
+    // critical section when it will signal kCollectorReady, and
+    // then block waiting for the test (in mainline) to signal
+    // kCollectorDone.
+    sync->Wait(ProxyFetch::kCollectorReady);
+
     // Now release the HTTPCache lookup, which allows the mock-fetch
     // to stream the bytes in the ProxyFetch and call HandleDone().
     // Note that we release this key in mainline, so that call
     // sequence happens directly from ReleaseKey.
     delay_cache()->ReleaseKey(delay_http_cache_key);
 
-    WaitForFetch(true);
+    // Now we can release the property-cache thread.
+    sync->Signal(ProxyFetch::kCollectorDone);
+    WaitForFetch();
     *output = callback_buffer_;
+    sync->Wait(ProxyFetch::kCollectorDelete);
     pool->ShutDown();
   } else {
     FetchFromProxyNoWait(url, request_headers, expect_success, false,
                          response_headers);
     if (expect_detach_before_pcache) {
-      WaitForFetch(false);
+      WaitForFetch();
     }
     if (delay_pcache) {
       delay_cache()->ReleaseKey(delay_pcache_key);
     }
     if (!expect_detach_before_pcache) {
-      WaitForFetch(false);
+      WaitForFetch();
     }
-    ThreadSynchronizer* thread_synchronizer =
-        server_context()->thread_synchronizer();
-    thread_synchronizer->Wait(ProxyFetch::kCollectorFinish);
     *output = callback_buffer_;
+    sync->Wait(ProxyFetch::kCollectorDelete);
   }
 
   if (check_stats) {

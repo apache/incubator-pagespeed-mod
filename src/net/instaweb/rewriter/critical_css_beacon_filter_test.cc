@@ -18,10 +18,10 @@
 
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
 
+#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -34,6 +34,7 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "pagespeed/kernel/base/base64_util.h"
 
 namespace net_instaweb {
 
@@ -77,7 +78,7 @@ const char kEvilUrl[] = "http://evil.com/d.css";
 // Common setup / result generation code for all tests
 class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
  public:
-  CriticalCssBeaconFilterTestBase() { }
+  CriticalCssBeaconFilterTestBase() : expected_nonce_(0) { }
   virtual ~CriticalCssBeaconFilterTestBase() { }
 
  protected:
@@ -93,9 +94,11 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
     server_context()->set_beacon_cohort(cohort);
     page_property_cache()->Read(rewrite_driver()->property_page());
     // Set up and register a beacon finder.
-    CriticalSelectorFinder* finder = new BeaconCriticalSelectorFinder(
-        server_context()->beacon_cohort(), factory()->nonce_generator(),
-        statistics());
+    CriticalSelectorFinder* finder =
+        new CriticalSelectorFinder(server_context()->beacon_cohort(),
+                                   server_context()->timer(),
+                                   factory()->nonce_generator(),
+                                   statistics());
     server_context()->set_critical_selector_finder(finder);
     // Set up contents of CSS files.
     SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
@@ -112,7 +115,7 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
 
   // Return a css_filter optimized url.
   GoogleString UrlOpt(StringPiece url) {
-    return Encode("", RewriteOptions::kCssFilterId, "0", url, "css");
+    return Encode(kTestDomain, RewriteOptions::kCssFilterId, "0", url, "css");
   }
 
   // Return a link tag with a css_filter optimized url.
@@ -120,35 +123,44 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
     return CssLinkHref(UrlOpt(url));
   }
 
+  GoogleString BeaconScriptFor(StringPiece selectors) {
+    GoogleString script = StrCat(
+        "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
+        server_context()->static_asset_manager()->GetAsset(
+            StaticAssetManager::kCriticalCssBeaconJs, options()),
+        "pagespeed.selectors=[", selectors, "];");
+    if (factory()->UseBeaconResultsInFilters()) {
+      StrAppend(&script,
+                "pagespeed.criticalCssBeaconInit('",
+                options()->beacon_url().http, "','", kTestDomain,
+                "','0','", ExpectedNonce(), "',pagespeed.selectors);");
+    }
+    StrAppend(&script, "</script>");
+    return script;
+  }
+
   GoogleString InputHtml(StringPiece head) {
     return StrCat("<head>", head, "</head><body><p>content</p></body>");
   }
 
   GoogleString BeaconHtml(StringPiece head, StringPiece selectors) {
-    GoogleString html = StrCat(
-        "<head>", head, "</head><body><p>content</p>"
-        "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-        server_context()->static_asset_manager()->GetAsset(
-            StaticAssetManager::kCriticalCssBeaconJs, options()),
-        "pagespeed.selectors=[", selectors, "];");
-    StrAppend(&html,
-              "pagespeed.criticalCssBeaconInit('",
-              options()->beacon_url().http, "','", kTestDomain,
-              "','0','", ExpectedNonce(), "',pagespeed.selectors);"
-              "</script></body>");
-    return html;
+    return StrCat("<head>", head, "</head><body><p>content</p>",
+                  BeaconScriptFor(selectors), "</body>");
   }
 
-  GoogleString SelectorsOnlyHtml(StringPiece head, StringPiece selectors) {
-    return StrCat(
-        "<head>", head, "</head><body><p>content</p>"
-        "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-        CriticalCssBeaconFilter::kInitializePageSpeedJs,
-        "pagespeed.selectors=[", selectors, "];"
-        "</script></body>");
+  GoogleString ExpectedNonce() {
+    GoogleString result;
+    StringPiece nonce_piece(reinterpret_cast<char*>(&expected_nonce_),
+                            sizeof(expected_nonce_));
+    Web64Encode(nonce_piece, &result);
+    result.resize(11);
+    ++expected_nonce_;
+    return result;
   }
 
  private:
+  uint64 expected_nonce_;
+
   DISALLOW_COPY_AND_ASSIGN(CriticalCssBeaconFilterTestBase);
 };
 
@@ -294,7 +306,8 @@ TEST_F(CriticalCssBeaconFilterTest, FalseBeaconResultsGivesEmptyBeaconUrl) {
   factory()->set_use_beacon_results_in_filters(false);
   GoogleString input_html = InputHtml(
       StrCat(CssLinkHref("a.css"), kInlineStyle, CssLinkHref("b.css")));
-  GoogleString expected_html = SelectorsOnlyHtml(
+  // BeaconHtml() (via BeaconScriptFor) will use an empty beacon url.
+  GoogleString expected_html = BeaconHtml(
       StrCat(CssLinkHref("a.css"), kInlineStyle, CssLinkHrefOpt("b.css")),
       kSelectorsInlineAB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
@@ -305,8 +318,8 @@ TEST_F(CriticalCssBeaconFilterTest, FalseBeaconResultsGivesEmptyBeaconUrl) {
 // selector filter injecting a lot of stuff in the output.
 class CriticalCssBeaconOnlyTest : public CriticalCssBeaconFilterTestBase {
  public:
-  CriticalCssBeaconOnlyTest() {}
-  virtual ~CriticalCssBeaconOnlyTest() {}
+  CriticalCssBeaconOnlyTest() { }
+  virtual ~CriticalCssBeaconOnlyTest() { LOG(INFO) << "Destructor"; }
 
  protected:
   virtual void SetUp() {
@@ -338,15 +351,14 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
   selectors.insert("span");  // Doesn't occur in our CSS
   CriticalSelectorFinder* finder = server_context()->critical_selector_finder();
   RewriteDriver* driver = rewrite_driver();
-  BeaconMetadata metadata =
-      finder->PrepareForBeaconInsertion(selectors, driver);
-  ASSERT_TRUE(metadata.status == kBeaconWithNonce);
-  EXPECT_EQ(ExpectedNonce(), metadata.nonce);
-  finder->WriteCriticalSelectorsToPropertyCache(
-      selectors, metadata.nonce, driver);
+  GoogleString nonce = finder->PrepareForBeaconInsertion(selectors, driver);
+  EXPECT_EQ(ExpectedNonce(), nonce);
+  finder->WriteCriticalSelectorsToPropertyCache(selectors, nonce, driver);
   // Force cohort to persist.
-  rewrite_driver()->property_page()
-      ->WriteCohort(server_context()->beacon_cohort());
+  rewrite_driver()->property_page()->WriteCohort(
+      server_context()->beacon_cohort());
+  // Check injection
+  EXPECT_TRUE(rewrite_driver()->CriticalSelectors() != NULL);
   // Now do the test.
 
   GoogleString input_html = InputHtml(
@@ -355,6 +367,7 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
       StrCat(CssLinkHref("a.css"), kInlineStyle, CssLinkHrefOpt("b.css")),
       kSelectorsInlineAB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
+  LOG(INFO) << "Test complete";
 }
 
 class CriticalCssBeaconWithCombinerFilterTest

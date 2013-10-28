@@ -19,6 +19,7 @@
 
 #include "net/instaweb/rewriter/public/image_test_base.h"
 
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -60,10 +61,9 @@ Image* ImageTestBase::ImageFromString(
   image_options->jpeg_quality = -1;
   image_options->progressive_jpeg = progressive;
   image_options->convert_png_to_jpeg =  output_type == IMAGE_JPEG;
-  image_options->recompress_png = true;
 
   return NewImage(contents, name, GTestTempDir(), image_options,
-                  &timer_, &message_handler_);
+                  &timer_, &handler_);
 }
 
 Image* ImageTestBase::ReadFromFileWithOptions(
@@ -71,9 +71,9 @@ Image* ImageTestBase::ReadFromFileWithOptions(
     Image::CompressionOptions* options) {
   EXPECT_TRUE(file_system_.ReadFile(
       StrCat(GTestSrcDir(), kTestData, name).c_str(),
-      contents, &message_handler_));
+      contents, &handler_));
   return NewImage(*contents, name, GTestTempDir(), options,
-                  &timer_, &message_handler_);
+                  &timer_, &handler_);
 }
 
 Image* ImageTestBase::ReadImageFromFile(
@@ -81,7 +81,7 @@ Image* ImageTestBase::ReadImageFromFile(
     bool progressive) {
   EXPECT_TRUE(file_system_.ReadFile(
       StrCat(GTestSrcDir(), kTestData, filename).c_str(),
-      buffer, &message_handler_));
+      buffer, &handler_));
   return ImageFromString(output_type, filename, *buffer, progressive);
 }
 

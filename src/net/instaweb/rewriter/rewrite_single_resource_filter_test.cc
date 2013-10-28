@@ -66,7 +66,7 @@ const char kTestEncoderUrlExtra[] = "UrlExtraStuff";
 // This should be the same as used for freshening. It may not be 100%
 // robust against rounding errors, however.
 int TtlSec() {
-  return ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
+  return ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs;
 }
 
 int TtlMs() {
@@ -238,7 +238,11 @@ class RewriteSingleResourceFilterTest
     MockMissingResource("404.tst");
 
     in_tag_ = "<tag src=\"a.tst\"></tag>";
-    out_tag_ = StrCat("<tag src=\"", OutputName("", "a.tst"), "\"></tag>");
+    out_tag_ = ComputeOutTag();
+  }
+
+  GoogleString ComputeOutTag() {
+    return StrCat("<tag src=\"", OutputName(kTestDomain, "a.tst"), "\"></tag>");
   }
 
   // Create a resource with given data and TTL

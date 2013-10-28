@@ -25,8 +25,6 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/rate_controller.h"
-#include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -35,7 +33,6 @@
 #include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"        // for int64
-#include "net/instaweb/util/public/cache_property_store.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mem_file_system.h"
@@ -63,7 +60,6 @@ class MessageHandler;
 class NonceGenerator;
 class RewriteFilter;
 class Scheduler;
-class Statistics;
 class UrlAsyncFetcher;
 class UrlNamer;
 
@@ -88,10 +84,6 @@ class TestServerContext : public ServerContext {
 const int64 TestRewriteDriverFactory::kStartTimeMs =
     MockTimer::kApr_5_2010_ms - 2 * Timer::kMonthMs;
 
-const int TestRewriteDriverFactory::kMaxFetchGlobalQueueSize;
-const int TestRewriteDriverFactory::kFetchesPerHostOutgoingRequestThreshold;
-const int TestRewriteDriverFactory::kFetchesPerHostQueuedRequestThreshold;
-
 const char TestRewriteDriverFactory::kUrlNamerScheme[] = "URL_NAMER_SCHEME";
 
 TestRewriteDriverFactory::TestRewriteDriverFactory(
@@ -103,7 +95,7 @@ TestRewriteDriverFactory::TestRewriteDriverFactory(
       delay_cache_(NULL),
       mock_url_fetcher_(mock_fetcher),
       test_distributed_fetcher_(test_distributed_fetcher),
-      rate_controlling_url_async_fetcher_(NULL),
+      counting_url_async_fetcher_(NULL),
       counting_distributed_async_fetcher_(NULL),
       mem_file_system_(NULL),
       mock_hasher_(NULL),
@@ -117,11 +109,6 @@ TestRewriteDriverFactory::TestRewriteDriverFactory(
 }
 
 TestRewriteDriverFactory::~TestRewriteDriverFactory() {
-}
-
-void TestRewriteDriverFactory::InitStats(Statistics* statistics) {
-  RateController::InitStats(statistics);
-  RewriteDriverFactory::InitStats(statistics);
 }
 
 void TestRewriteDriverFactory::SetupWaitFetcher() {
@@ -151,17 +138,9 @@ void TestRewriteDriverFactory::CallFetcherCallbacksForDriver(
 }
 
 UrlAsyncFetcher* TestRewriteDriverFactory::DefaultAsyncUrlFetcher() {
-  DCHECK(counting_url_async_fetcher_.get() == NULL);
-  counting_url_async_fetcher_.reset(new CountingUrlAsyncFetcher(
-      mock_url_fetcher_));
-  rate_controlling_url_async_fetcher_ = new RateControllingUrlAsyncFetcher(
-      counting_url_async_fetcher_.get(),
-      kMaxFetchGlobalQueueSize,
-      kFetchesPerHostOutgoingRequestThreshold,
-      kFetchesPerHostQueuedRequestThreshold,
-      thread_system(),
-      statistics());
-  return rate_controlling_url_async_fetcher_;
+  DCHECK(counting_url_async_fetcher_ == NULL);
+  counting_url_async_fetcher_ = new CountingUrlAsyncFetcher(mock_url_fetcher_);
+  return counting_url_async_fetcher_;
 }
 
 UrlAsyncFetcher* TestRewriteDriverFactory::DefaultDistributedUrlFetcher() {
@@ -203,11 +182,7 @@ void TestRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
                                         hasher(), statistics());
   server_context->set_http_cache(http_cache);
   server_context->set_metadata_cache(delay_cache_);
-  cache_property_store_ =
-      new CachePropertyStore(
-          "test/", delay_cache_, timer(), statistics(), thread_system());
-  server_context->set_cache_property_store(cache_property_store_);
-  server_context->MakePagePropertyCache(cache_property_store_);
+  server_context->MakePropertyCaches(delay_cache_);
   TakeOwnership(delay_cache_);
 }
 
@@ -257,9 +232,6 @@ RewriteOptions* TestRewriteDriverFactory::NewRewriteOptions() {
   // as otherwise when running under Valgrind some tests will finish
   // with different HTML headers than expected.
   options->set_rewrite_deadline_ms(20);
-  // TODO(sligocki): Once this becomes default on in RewriteOptions, remove
-  // this set here.
-  options->set_preserve_url_relativity(true);
   return options;
 }
 
@@ -303,7 +275,6 @@ void TestRewriteDriverFactory::AdvanceTimeMs(int64 delta_ms) {
 const PropertyCache::Cohort* TestRewriteDriverFactory::SetupCohort(
     PropertyCache* cache, const GoogleString& cohort_name) {
   PropertyCache::InitCohortStats(cohort_name, statistics());
-  cache_property_store_->AddCohort(cohort_name);
   return cache->AddCohort(cohort_name);
 }
 

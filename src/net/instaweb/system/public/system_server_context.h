@@ -19,32 +19,21 @@
 
 #include "net/instaweb/rewriter/public/server_context.h"
 
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
-class AbstractMutex;
-class Histogram;
-class SharedMemStatistics;
-class RewriteDriver;
-class RewriteDriverFactory;
-class RewriteStats;
 class Statistics;
 class SystemRewriteDriverFactory;
 class SystemRewriteOptions;
-class UrlAsyncFetcherStats;
 class Variable;
 
 // A server context with features specific to a PSOL port on a unix system.
 class SystemServerContext : public ServerContext {
  public:
-  SystemServerContext(RewriteDriverFactory* factory,
-                      StringPiece hostname, int port);
-  virtual ~SystemServerContext();
+  explicit SystemServerContext(SystemRewriteDriverFactory* driver_factory);
 
   // Implementations should call this method on every request, both for html and
   // resources, to avoid serving stale resources.
@@ -57,46 +46,10 @@ class SystemServerContext : public ServerContext {
   void FlushCacheIfNecessary();
 
   SystemRewriteOptions* system_rewrite_options();
-  GoogleString hostname_identifier() { return hostname_identifier_; }
 
   static void InitStats(Statistics* statistics);
 
-  // Called by SystemRewriteDriverFactory::ChildInit.  See documentation there.
-  virtual void ChildInit(SystemRewriteDriverFactory* factory);
-
-  // Initialize this ServerContext to have its own statistics domain.  Must be
-  // called after global_statistics has been created and had ::InitStats called
-  // on it.
-  void CreateLocalStatistics(Statistics* global_statistics,
-                             SystemRewriteDriverFactory* factory);
-
-  // Whether ChildInit() has been called yet.  Exposed so debugging code can
-  // verify initialization proceeded properly.
-  bool initialized() const { return initialized_; }
-
-  // Normally we just fetch with the default UrlAsyncFetcher, generally serf,
-  // but there are some cases where we need to do something more complex:
-  //  - Local requests: requests for resources on this host should go directly
-  //    to the local IP.
-  //  - Fetches directly from other modules: in Apache we have an experimental
-  //    pathway where we can make fetches directly from mod_spdy without going
-  //    out to the network.
-  //  - Custom fetch headers: before continuing with the fetch we want to add
-  //    request headers.
-  // Session fetchers allow us to make these decisions.  Here we may update
-  // driver->async_fetcher() to be a special fetcher just for this request.
-  virtual void ApplySessionFetchers(const RequestContextPtr& req,
-                                    RewriteDriver* driver);
-
-  // Accumulate in a histogram the amount of time spent rewriting HTML.
-  // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.
-  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
-
-  // Hook called after all configuration parsing is done to support implementers
-  // like ApacheServerContext that need to collapse configuration inside the
-  // config overlays into actual RewriteOptions objects.  It will also compute
-  // signatures when done, and by default that's the only thing it does.
-  virtual void CollapseConfigOverlaysAndComputeSignatures();
+  Variable* statistics_404_count();
 
  protected:
   // Flush the cache by updating the cache flush timestamp in the global
@@ -113,15 +66,7 @@ class SystemServerContext : public ServerContext {
   // to have it's timestamp bumped.
   virtual bool UpdateCacheFlushTimestampMs(int64 timestamp_ms);
 
-  // Hook for implementations to support fetching directly from the spdy module.
-  virtual void MaybeApplySpdySessionFetcher(const RequestContextPtr& request,
-                                            RewriteDriver* driver) {}
-
-  Variable* statistics_404_count();
-
  private:
-  bool initialized_;
-
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
   // time we Poll we will read the file.
@@ -130,23 +75,6 @@ class SystemServerContext : public ServerContext {
 
   Variable* cache_flush_count_;
   Variable* cache_flush_timestamp_ms_;
-
-  Histogram* html_rewrite_time_us_histogram_;
-
-  // Non-NULL if we have per-vhost stats.
-  scoped_ptr<Statistics> split_statistics_;
-
-  // May be NULL. Owned by *split_statistics_.
-  SharedMemStatistics* local_statistics_;
-
-  // These are non-NULL if we have per-vhost stats.
-  scoped_ptr<RewriteStats> local_rewrite_stats_;
-  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
-
-  // hostname_identifier_ equals to "server_hostname:port" of the server.  It's
-  // used to distinguish the name of shared memory so that each vhost has its
-  // own SharedCircularBuffer.
-  GoogleString hostname_identifier_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemServerContext);
 };

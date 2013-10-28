@@ -46,7 +46,7 @@ class GoogleUrlTest : public testing::Test {
     StringPiece before_url_original(before_url.UncheckedSpec());
     scoped_ptr<GoogleUrl> after_url(before_url.CopyAndAddQueryParam("r", "s"));
     EXPECT_EQ(after_url->UncheckedSpec(), after);
-    EXPECT_TRUE(after_url->IsWebValid());
+    EXPECT_TRUE(after_url->is_valid());
     EXPECT_EQ(before_url_original, before_url.UncheckedSpec());
   }
 
@@ -92,16 +92,9 @@ class GoogleUrlTest : public testing::Test {
     RunMostMethods(url_string);
 
     GoogleUrl url(url_string);
-    ASSERT_TRUE(url.IsAnyValid()) << url_string << " is invalid";
-    url.IsWebValid();
-    url.IsWebOrDataValid();
+    ASSERT_TRUE(url.is_valid()) << url_string << " is invalid";
     url.Spec();
     url.spec_c_str();
-
-    url.Relativize(kAbsoluteUrl, url);
-    url.Relativize(kNetPath, url);
-    url.Relativize(kAbsolutePath, url);
-    url.Relativize(kRelativePath, url);
   }
 
   GoogleUrl gurl_;
@@ -111,28 +104,21 @@ class GoogleUrlTest : public testing::Test {
 // Document which sorts of strings are and are not valid.
 TEST_F(GoogleUrlTest, TestNotValid) {
   GoogleUrl invalid_url("Hello, world!");
-  EXPECT_FALSE(invalid_url.IsWebValid());
+  EXPECT_FALSE(invalid_url.is_valid());
 
   GoogleUrl relative_url1("/foo/bar.html");
-  EXPECT_FALSE(relative_url1.IsWebValid());
+  EXPECT_FALSE(relative_url1.is_valid());
 
   GoogleUrl relative_url2("foo/bar.html");
-  EXPECT_FALSE(relative_url2.IsWebValid());
+  EXPECT_FALSE(relative_url2.is_valid());
 
   GoogleUrl relative_url3("bar.html");
-  EXPECT_FALSE(relative_url3.IsWebValid());
+  EXPECT_FALSE(relative_url3.is_valid());
 
-  // Only http: and https: are considered WebValid.
+  // Aparently this is close enough to be considered valid, but not standard.
   GoogleUrl proxy_filename("proxy:http://www.example.com/index.html");
-  EXPECT_FALSE(proxy_filename.IsWebValid());
-  EXPECT_FALSE(proxy_filename.IsWebOrDataValid());
-  // But it's still considered to be a valid URL, oddly enough.
-  EXPECT_TRUE(proxy_filename.IsAnyValid());
-
-  GoogleUrl data_url("data:plain/text,foobar");
-  EXPECT_FALSE(data_url.IsWebValid());
-  EXPECT_TRUE(data_url.IsWebOrDataValid());
-  EXPECT_TRUE(data_url.IsAnyValid());
+  EXPECT_TRUE(proxy_filename.is_valid());
+  EXPECT_FALSE(proxy_filename.is_standard());
 }
 
 TEST_F(GoogleUrlTest, TestSpec) {
@@ -251,7 +237,7 @@ TEST_F(GoogleUrlTest, TestAllExceptLeafIsIdempotent) {
   GoogleUrl queryless("http://a.com/b/c/d.ext");
   StringPiece all_except_leaf(queryless.AllExceptLeaf());
   GoogleUrl all_except_leaf_url(all_except_leaf);
-  EXPECT_TRUE(all_except_leaf_url.IsWebValid());
+  EXPECT_TRUE(all_except_leaf_url.is_valid());
   EXPECT_EQ(all_except_leaf, all_except_leaf_url.AllExceptLeaf());
 }
 
@@ -262,27 +248,27 @@ TEST_F(GoogleUrlTest, TestTrivialLeafSansQuery) {
 
 TEST_F(GoogleUrlTest, ResolveRelative) {
   GoogleUrl base(StringPiece("http://www.google.com"));
-  ASSERT_TRUE(base.IsWebValid());
+  ASSERT_TRUE(base.is_valid());
   GoogleUrl resolved(base, "test.html");
-  ASSERT_TRUE(resolved.IsWebValid());
+  ASSERT_TRUE(resolved.is_valid());
   EXPECT_STREQ("http://www.google.com/test.html", resolved.Spec());
   EXPECT_STREQ("/test.html", resolved.PathSansQuery());
 }
 
 TEST_F(GoogleUrlTest, ResolveAbsolute) {
   GoogleUrl base(StringPiece("http://www.google.com"));
-  ASSERT_TRUE(base.IsWebValid());
+  ASSERT_TRUE(base.is_valid());
   GoogleUrl resolved(base, "http://www.google.com");
-  ASSERT_TRUE(resolved.IsWebValid());
+  ASSERT_TRUE(resolved.is_valid());
   EXPECT_STREQ("http://www.google.com/", resolved.Spec());
   EXPECT_STREQ("/", resolved.PathSansQuery());
 }
 
 TEST_F(GoogleUrlTest, TestReset) {
   GoogleUrl url("http://www.google.com");
-  EXPECT_TRUE(url.IsWebValid());
+  EXPECT_TRUE(url.is_valid());
   url.Clear();
-  EXPECT_FALSE(url.IsWebValid());
+  EXPECT_FALSE(url.is_valid());
   EXPECT_TRUE(url.is_empty());
   EXPECT_TRUE(url.UncheckedSpec().empty());
 }
@@ -310,177 +296,32 @@ TEST_F(GoogleUrlTest, TestPort) {
 }
 
 TEST_F(GoogleUrlTest, TestExtraSlash) {
-  // We always preserve // in URLs.
-  GoogleUrl no_base("http://example.com//extra_slash/index.html");
-  EXPECT_STREQ("http://example.com//extra_slash/index.html", no_base.Spec());
-
   GoogleUrl base("http://www.example.com");
-  GoogleUrl early_slashes(base, "http://a.com//extra_slash/index.html");
-  EXPECT_STREQ("http://a.com//extra_slash/index.html", early_slashes.Spec());
-
-  GoogleUrl late_slashes(base, "http://a.com/extra_slash//index.html");
-  EXPECT_STREQ("http://a.com/extra_slash//index.html", late_slashes.Spec());
-
-  GoogleUrl three_slashes(base, "http://a.com///extra_slash/index.html");
-  EXPECT_STREQ("http://a.com///extra_slash/index.html", three_slashes.Spec());
+  GoogleUrl example_extra_slash(
+      base, "http://www.example.com//extra_slash/index.html");
+  GoogleUrl a_extra_slash(base, "http://a.com//extra_slash/index.html");
+  EXPECT_STREQ("http://www.example.com/extra_slash/index.html",
+               example_extra_slash.Spec());
+  EXPECT_STREQ("http://a.com/extra_slash/index.html", a_extra_slash.Spec());
 }
 
 TEST_F(GoogleUrlTest, SchemeRelativeBase) {
   GoogleUrl base("http://www.example.com");
   GoogleUrl resolved(base, "//other.com/file.ext");
-  ASSERT_TRUE(resolved.IsWebValid());
+  ASSERT_TRUE(resolved.is_valid());
   EXPECT_STREQ("http://other.com/file.ext", resolved.Spec());
 }
 
 TEST_F(GoogleUrlTest, SchemeRelativeHttpsBase) {
   GoogleUrl base("https://www.example.com");
   GoogleUrl resolved(base, "//other.com/file.ext");
-  ASSERT_TRUE(resolved.IsWebValid());
+  ASSERT_TRUE(resolved.is_valid());
   EXPECT_STREQ("https://other.com/file.ext", resolved.Spec());
 }
 
 TEST_F(GoogleUrlTest, SchemeRelativeNoBase) {
   GoogleUrl gurl("//other.com/file.ext");
-  EXPECT_FALSE(gurl.IsWebValid());
-}
-
-TEST_F(GoogleUrlTest, FindRelativity) {
-  EXPECT_EQ(kAbsoluteUrl, GoogleUrl::FindRelativity(
-      "http://example.com/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kNetPath, GoogleUrl::FindRelativity(
-      "//example.com/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kAbsolutePath, GoogleUrl::FindRelativity(
-      "/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kRelativePath, GoogleUrl::FindRelativity(
-      "bar/file.ext?k=v#f"));
-}
-
-TEST_F(GoogleUrlTest, Relativize) {
-  GoogleUrl url("http://example.com/foo/bar/file.ext?k=v#f");
-  GoogleUrl good_base_url("http://example.com/foo/index.html");
-
-  EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kAbsoluteUrl, good_base_url));
-  EXPECT_EQ("//example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kNetPath, good_base_url));
-  EXPECT_EQ("/foo/bar/file.ext?k=v#f",
-            url.Relativize(kAbsolutePath, good_base_url));
-  EXPECT_EQ("bar/file.ext?k=v#f",
-            url.Relativize(kRelativePath, good_base_url));
-
-  GoogleUrl bad_base_url("https://www.example.com/other/path.html");
-  EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kAbsoluteUrl, bad_base_url));
-  EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kNetPath, bad_base_url));
-  EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kAbsolutePath, bad_base_url));
-  EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
-            url.Relativize(kRelativePath, bad_base_url));
-
-  GoogleUrl double_slash("http://example.com//index.html");
-  GoogleUrl double_base("http://example.com/");
-  EXPECT_EQ("http://example.com//index.html",
-            double_slash.Relativize(kAbsoluteUrl, double_base));
-  // Safe to use net path.
-  EXPECT_EQ("//example.com//index.html",
-            double_slash.Relativize(kNetPath, double_base));
-  // We cannot shorten to "//index.html", that looks like a net path.
-  // Perhaps we could shorten to "/.//index.html" instead.
-  EXPECT_EQ("http://example.com//index.html",
-            double_slash.Relativize(kAbsolutePath, double_base));
-  // We cannot shorten to "/index.html", that looks like an absolute path.
-  // Perhaps we could shorten to ".//index.html" instead.
-  EXPECT_EQ("http://example.com//index.html",
-            double_slash.Relativize(kRelativePath, double_base));
-
-  GoogleUrl query_url("http://example.com/?bar");
-  GoogleUrl query_base("http://example.com/foo.html");
-  // We cannot shorten to "?bar", because that would refer to foo.html?bar
-  EXPECT_EQ("http://example.com/?bar",
-            query_url.Relativize(kRelativePath, query_base));
-
-  GoogleUrl fragment_url("http://example.com/#bar");
-  GoogleUrl fragment_base("http://example.com/foo.html");
-  // We cannot shorten to "#bar", because that would refer to foo.html#bar
-  EXPECT_EQ("http://example.com/#bar",
-            fragment_url.Relativize(kRelativePath, fragment_base));
-
-  GoogleUrl perverse_url("http://example.com/http://otherdomain.com/");
-  GoogleUrl perverse_base("http://example.com/");
-  // We cannot shorten to "http://otherdomain.com/" ... obviously.
-  EXPECT_EQ("http://example.com/http://otherdomain.com/",
-            perverse_url.Relativize(kRelativePath, perverse_base));
-
-  GoogleUrl no_slash_base("http://example.com");
-  GoogleUrl no_slash_url("http://example.com/index.html");
-  // Make sure we don't strip this to "/index.html".
-  EXPECT_EQ("index.html",
-            no_slash_url.Relativize(kRelativePath, no_slash_base));
-}
-
-TEST_F(GoogleUrlTest, RelativeUrls) {
-  const StringPiece base_urls[] = {
-    "http://example.com/",
-    "https://example.com/foo/bar/file.ext?k=v#f",
-    "file:///dir/sub/foo.html",
-    "file://",
-  };
-
-  // URLs which will be reproduced by Relativize().
-  const StringPiece reproducible_urls[] = {
-    "http://example.com/", "/", "/foo.html", "foo.html", "dir/foo.html",
-    "//example.com/foo.html",
-  };
-
-  for (int i = 0; i < arraysize(reproducible_urls); ++i) {
-    UrlRelativity url_relativity =
-        GoogleUrl::FindRelativity(reproducible_urls[i]);
-
-    for (int j = 0; j < arraysize(base_urls); ++j) {
-      GoogleUrl base(base_urls[j]);
-      GoogleUrl url(base, reproducible_urls[i]);
-      EXPECT_EQ(reproducible_urls[i], url.Relativize(url_relativity, base));
-    }
-  }
-
-  // URLs which will change after Relativize().
-  // Format: { (original url), (after relativized w/ base_urls[0]),
-  //           (after relativized w/ base_urls[1]), ... }
-  const StringPiece non_reproducible_urls[][arraysize(base_urls) + 1] = {
-    { "../file.html",
-      "file.html", "https://example.com/foo/file.html",
-      "file:///dir/file.html", "file.html", },
-    { "../../file.html",
-      "file.html", "https://example.com/file.html",
-      "file:///file.html", "file.html", },
-    { "./file.html",
-      "file.html", "file.html", "file.html", "file.html", },
-    { "../bar/file.html",
-      "bar/file.html", "file.html",
-      "file:///dir/bar/file.html", "bar/file.html", },
-    { "",
-      "", "file.ext?k=v", "foo.html", "", },
-    { "?a=b",
-      "?a=b", "file.ext?a=b", "foo.html?a=b", "?a=b", },
-    { "#f2",
-      "#f2", "file.ext?k=v#f2", "foo.html#f2", "#f2", },
-    { ".",
-      "", "https://example.com/foo/bar/", "file:///dir/sub/", "", },
-  };
-  for (int i = 0; i < arraysize(non_reproducible_urls); ++i) {
-    StringPiece in_url = non_reproducible_urls[i][0];
-    UrlRelativity url_relativity = GoogleUrl::FindRelativity(in_url);
-
-    for (int j = 0; j < arraysize(base_urls); ++j) {
-      GoogleUrl base(base_urls[j]);
-      GoogleUrl url(base, in_url);
-
-      StringPiece expected_url = non_reproducible_urls[i][j+1];
-      EXPECT_EQ(expected_url, url.Relativize(url_relativity, base))
-          << in_url << " " << base_urls[j];
-    }
-  }
+  EXPECT_FALSE(gurl.is_valid());
 }
 
 // Make sure weird URLs don't crash our system.

@@ -113,11 +113,6 @@ class DomainLawyer {
   //
   // Note that this method returning true does not mean that resources from the
   // given domain should be rewritten.
-  //
-  // The intent of this method is identify external hostnames fetchers should
-  // connect to. IMPORTANT: users of this method MUST NOT trust the Host:
-  // header for authorizing external connections, since doing that would
-  // make it trivial to bypass the check.
   bool IsOriginKnown(const GoogleUrl& domain_to_check) const;
 
   // Maps an origin resource; just prior to fetching it.  This fails
@@ -251,15 +246,10 @@ class DomainLawyer {
   void Clear();
   bool empty() const { return domain_map_.empty(); }
 
-  // Determines whether a resource is going to change domains due to
-  // RewriteDomain mapping or domain sharding.  Note that this does
-  // not account for the actual domain shard selected.
-  //
-  // The entire URL should be passed in, not just the domain name.
-  bool WillDomainChange(const GoogleUrl& url) const;
-
-  // Determines whether a URL's domain was proxy-mapped from a different origin.
-  bool IsProxyMapped(const GoogleUrl& url) const;
+  // Determines whether a resource of the given domain name is going
+  // to change due to RewriteDomain mapping or domain sharding.  Note
+  // that this does not account for the actual domain shard selected.
+  bool WillDomainChange(const StringPiece& domain_name) const;
 
   // Determines whether any resources might be domain-mapped, either
   // via sharding or rewriting.
@@ -295,7 +285,6 @@ class DomainLawyer {
 
  private:
   class Domain;
-  friend class DomainLawyerTest;
 
   typedef bool (Domain::*SetDomainFn)(Domain* domain, MessageHandler* handler);
 

@@ -19,18 +19,22 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SPLIT_HTML_HELPER_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SPLIT_HTML_HELPER_FILTER_H_
 
-#include "base/logging.h"
+#include <vector>
+
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/json.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
+#include "pagespeed/kernel/base/json_writer.h"
 
 namespace net_instaweb {
 
 class HtmlElement;
 class RewriteDriver;
 class SplitHtmlConfig;
-class SplitHtmlState;
+class XpathUnit;
 
 // Filter which helps in the presence of split html filter. Based on the xpath
 // configuration it will decide the above-the-fold panels and below-the-fold
@@ -40,12 +44,12 @@ class SplitHtmlState;
 // When the above-the-fold html fragment is requested it allows the images in
 // those panels to be inline previewed. When the below-the-fold html fragment is
 // requested it allows the images in those panels to be lazyloaded.
+// TODO(bharathbhushan): No need to have a json value.
+// TODO(bharathbhushan): Share the xpath matching code with SplitHtmlFilter.
 class SplitHtmlHelperFilter : public CommonFilter {
  public:
   explicit SplitHtmlHelperFilter(RewriteDriver* rewrite_driver);
   virtual ~SplitHtmlHelperFilter();
-
-  virtual void DetermineEnabled();
 
   virtual void StartDocumentImpl();
   virtual void EndDocument();
@@ -53,31 +57,40 @@ class SplitHtmlHelperFilter : public CommonFilter {
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
 
-  const HtmlElement* current_panel_element() const {
-    return current_panel_element_;
-  }
-
-  void set_current_panel_element(const HtmlElement* element) {
-    DCHECK(element == NULL || current_panel_element_ == NULL);
-    current_panel_element_ = element;
-  }
-
   virtual const char* Name() const { return "SplitHtmlHelperFilter"; }
 
  private:
-  // Pops the html element from the top of the stack.
+  // Returns the panel id of the panel whose xpath matched with element.
+  GoogleString MatchPanelIdForElement(HtmlElement* element);
+
+  // Returns true if element is the parent of current panel
+  bool IsElementParentOfCurrentPanel(HtmlElement* element);
+
+  // Pops the json from top of the stack and merges with parent panel which is
+  // one below it.
   void EndPanelInstance();
 
-  // Pushes the element corresponding to the current panel on the stack.
+  // Pushes new Json to the top of the stack corresponding to element.
   void StartPanelInstance(HtmlElement* element, const GoogleString& panelid);
 
-  const SplitHtmlConfig* config_;  // Owned by the RewriteDriver.
+  // Returns true if element matches with the end_marker for panel corresponding
+  // to panel_id
+  bool IsEndMarkerForCurrentPanel(HtmlElement* element);
 
-  scoped_ptr<SplitHtmlState> state_;
+  // Appends dict to the dictionary array
+  void AppendJsonData(Json::Value* dictionary, const Json::Value& dict);
 
-  // Not owned by this class. This is the element corresponding to the current
-  // below-the-fold panel.
-  const HtmlElement* current_panel_element_;
+  bool ElementMatchesXpath(const HtmlElement* element,
+                           const std::vector<XpathUnit>& xpath_units);
+
+  scoped_ptr<SplitHtmlConfig> config_;
+  std::vector<ElementJsonPair> element_json_stack_;
+  std::vector<int> num_children_stack_;
+  GoogleString current_panel_id_;
+  bool disable_filter_;
+  bool inside_pagespeed_no_defer_script_;
+  HtmlElement* current_panel_parent_element_;
+  ScriptTagScanner script_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(SplitHtmlHelperFilter);
 };

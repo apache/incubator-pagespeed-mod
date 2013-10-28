@@ -24,14 +24,11 @@
 #include <cstddef>
 #include <map>
 #include <utility>
-
-#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -141,12 +138,9 @@ pthread_mutex_t segment_bases_lock = PTHREAD_MUTEX_INITIALIZER;
 
 }  // namespace
 
-size_t PthreadSharedMem::s_instance_count_ = 0;
-
 PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = NULL;
 
 PthreadSharedMem::PthreadSharedMem() {
-  instance_number_ = ++s_instance_count_;
 }
 
 PthreadSharedMem::~PthreadSharedMem() {
@@ -158,12 +152,11 @@ size_t PthreadSharedMem::SharedMutexSize() const {
 
 AbstractSharedMemSegment* PthreadSharedMem::CreateSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
-  GoogleString prefixed_name = PrefixSegmentName(name);
   // Create the memory
   int fd = open("/dev/zero", O_RDWR);
   if (fd == -1) {
     handler->Message(kError, "Unable to create SHM segment %s, errno=%d.",
-                     prefixed_name.c_str(), errno);
+                     name.c_str(), errno);
     return NULL;
   }
 
@@ -176,39 +169,33 @@ AbstractSharedMemSegment* PthreadSharedMem::CreateSegment(
   }
 
   SegmentBaseMap* bases = AcquireSegmentBases();
-  (*bases)[prefixed_name] = std::make_pair(base, size);
+  (*bases)[name] = base;
   UnlockSegmentBases();
   return new PthreadSharedMemSegment(base, size, handler);
 }
 
 AbstractSharedMemSegment* PthreadSharedMem::AttachToSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
-  GoogleString prefixed_name = PrefixSegmentName(name);
   SegmentBaseMap* bases = AcquireSegmentBases();
-  SegmentBaseMap::const_iterator i = bases->find(prefixed_name);
+  SegmentBaseMap::const_iterator i = bases->find(name);
   if (i == bases->end()) {
     handler->Message(kError, "Unable to find SHM segment %s to attach to.",
-                     prefixed_name.c_str());
+                     name.c_str());
     UnlockSegmentBases();
     return NULL;
   }
-  char* base = i->second.first;
-  DCHECK_EQ(size, i->second.second);
+  char* base = i->second;
   UnlockSegmentBases();
   return new PthreadSharedMemSegment(base, size, handler);
 }
 
 void PthreadSharedMem::DestroySegment(const GoogleString& name,
                                       MessageHandler* handler) {
-  GoogleString prefixed_name = PrefixSegmentName(name);
   // Note that in the process state children will not see any mutations
   // we make here, so it acts mostly for checking in that case.
   SegmentBaseMap* bases = AcquireSegmentBases();
-  SegmentBaseMap::iterator i = bases->find(prefixed_name);
+  SegmentBaseMap::iterator i = bases->find(name);
   if (i != bases->end()) {
-    // Note that we must munmap the segment here in order to not leak like crazy
-    // for things like apache2ctrl graceful (and similar nginx configuration).
-    munmap(i->second.first, i->second.second);
     bases->erase(i);
     if (bases->empty()) {
       delete segment_bases_;
@@ -216,7 +203,7 @@ void PthreadSharedMem::DestroySegment(const GoogleString& name,
     }
   } else {
     handler->Message(kError, "Attempt to destroy unknown SHM segment %s.",
-                     prefixed_name.c_str());
+                     name.c_str());
   }
   UnlockSegmentBases();
 }
@@ -235,12 +222,6 @@ PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::AcquireSegmentBases() {
 void PthreadSharedMem::UnlockSegmentBases() {
   PthreadSharedMemMutex lock(&segment_bases_lock);
   lock.Unlock();
-}
-
-GoogleString PthreadSharedMem::PrefixSegmentName(const GoogleString& name) {
-  GoogleString res;
-  StrAppend(&res, "[", IntegerToString(instance_number_), "]", name);
-  return res;
 }
 
 void PthreadSharedMem::Terminate() {

@@ -19,8 +19,7 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_BEACON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_BEACON_FILTER_H_
 
-#include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
@@ -34,7 +33,7 @@ class Variable;
 // loaded. Also adds pagespeed_url_hash attributes that the beacon sends
 // back to the server. This allows the beacon to work despite image URL
 // rewriting or inlining.
-class CriticalImagesBeaconFilter : public CommonFilter {
+class CriticalImagesBeaconFilter : public EmptyHtmlFilter {
  public:
   // Counters.
   static const char kCriticalImagesBeaconAddedCount[];
@@ -45,22 +44,18 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   virtual void DetermineEnabled();
 
   static void InitStats(Statistics* statistics);
+  static void Terminate() {}
 
-  virtual void StartDocumentImpl() { }
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element) { }
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartDocument();
+  virtual void EndElement(HtmlElement* element);
   virtual const char* Name() const { return "CriticalImagesBeacon"; }
-
-  // Returns true if this filter is going to include rendered image dimensions
-  // in the beacon.
-  static bool IncludeRenderedImagesInBeacon(RewriteDriver* rewrite_driver);
 
  private:
   // Clear all state associated with filter.
   void Clear();
 
-  BeaconMetadata beacon_metadata_;
+  RewriteDriver* driver_;
+  bool added_script_;
   // The total number of times the beacon is added.
   Variable* critical_images_beacon_added_count_;
 

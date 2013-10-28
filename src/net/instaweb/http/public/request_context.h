@@ -19,13 +19,10 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 
-#include <set>
-
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -47,13 +44,6 @@ typedef RefCountedPtr<RequestContext> RequestContextPtr;
 // explicit transfer of ownership in these cases.
 class RequestContext : public RefCounted<RequestContext> {
  public:
-  // Types of split html request.
-  enum SplitRequestType {
-    SPLIT_FULL,
-    SPLIT_ABOVE_THE_FOLD,
-    SPLIT_BELOW_THE_FOLD,
-  };
-
   // |logging_mutex| will be passed to the request context's AbstractLogRecord,
   // which will take ownership of it. If you will be doing logging in a real
   // (threaded) environment, pass in a real mutex. If not, a NullMutex is fine.
@@ -118,38 +108,10 @@ class RequestContext : public RefCounted<RequestContext> {
   bool using_spdy() const { return using_spdy_; }
   void set_using_spdy(bool x) { using_spdy_ = x; }
 
-  // Indicates the type of split html request.
-  SplitRequestType split_request_type() const {
-    return split_request_type_;
-  }
-  void set_split_request_type(SplitRequestType type) {
-    split_request_type_ = type;
-  }
-
-  int64 request_id() const {
-    return request_id_;
-  }
-  void set_request_id(int64 x) {
-    request_id_ = x;
-  }
-
-  // Authorized a particular external domain to be fetched from. The caller of
-  // this method MUST ensure that the domain is not some internal site within
-  // the firewall/LAN hosting the server. Note that this doesn't affect
-  // rewriting at all.
-  // TODO(morlovich): It's not clearly this is the appropriate mechanism
-  // for all the authorizations --- we may want to scope this to a request
-  // only.
-  void AddSessionAuthorizedFetchOrigin(const GoogleString& origin) {
-    session_authorized_fetch_origins_.insert(origin);
-  }
-
-  // Returns true for exactly the origins that were authorized for this
-  // particular session by calls to AddSessionAuthorizedFetchOrigin()
-  bool IsSessionAuthorizedFetchOrigin(const GoogleString& origin) const {
-    return session_authorized_fetch_origins_.find(origin)
-           != session_authorized_fetch_origins_.end();
-  }
+  // Indicates whether the request for the below the fold portion of the split
+  // html response.
+  bool is_split_btf_request() const { return is_split_btf_request_; }
+  void set_is_split_btf_request(bool x) { is_split_btf_request_ = x; }
 
   // Prepare the AbstractLogRecord for a subsequent call to WriteLog.  This
   // might include propagating information collected in the RequestContext,
@@ -344,11 +306,8 @@ class RequestContext : public RefCounted<RequestContext> {
   // Log for recording background rewritings.
   scoped_ptr<AbstractLogRecord> background_rewrite_log_record_;
 
-  StringSet session_authorized_fetch_origins_;
-
   bool using_spdy_;
-  SplitRequestType split_request_type_;;
-  int64 request_id_;
+  bool is_split_btf_request_;
 
   DISALLOW_COPY_AND_ASSIGN(RequestContext);
 };

@@ -25,32 +25,21 @@
 #include <vector>
 
 #include "base/logging.h"
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
-#  include "base/strings/stringprintf.h"
-#else
-#  include "base/stringprintf.h"
-#endif
+#include "base/stringprintf.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
 
 #include <cstdlib>  // NOLINT
 #include <string>  // NOLINT
-#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
-#  include "base/strings/string_number_conversions.h"
-#  include "base/strings/string_piece.h"
-#  include "base/strings/string_util.h"
-#else
-#  include "base/string_number_conversions.h"
-#  include "base/string_piece.h"
-#  include "base/string_util.h"
-#endif
+#include "base/string_number_conversions.h"
+#include "base/string_piece.h"
+#include "base/string_util.h"
 
 using base::StringAppendF;
 using base::StringAppendV;
 using base::SStringPrintf;
 using base::StringPiece;
-using base::StringPrintf;
 
 typedef StringPiece::size_type stringpiece_ssize_type;
 
@@ -339,13 +328,13 @@ struct CharStarCompareSensitive {
 };
 
 struct StringCompareSensitive {
-  bool operator()(const StringPiece& s1, const StringPiece& s2) const {
-    return s1 < s2;
+  bool operator()(const GoogleString& s1, const GoogleString& s2) const {
+    return (strcmp(s1.c_str(), s2.c_str()) < 0);
   }
 };
 
 struct StringCompareInsensitive {
-  bool operator()(const StringPiece& s1, const StringPiece& s2) const {
+  bool operator()(const GoogleString& s1, const GoogleString& s2) const {
     return (StringCaseCompare(s1, s2) < 0);
   }
 };
@@ -424,11 +413,6 @@ GoogleString JoinCollection(const C& collection, StringPiece sep) {
   GoogleString result;
   AppendJoinCollection(&result, collection, sep);
   return result;
-}
-
-// Converts a boolean to string.
-inline const char* BoolToString(bool b) {
-  return (b ? "true" : "false");
 }
 
 

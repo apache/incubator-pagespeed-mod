@@ -20,24 +20,15 @@
 #define PAGESPEED_KERNEL_IMAGE_JPEG_OPTIMIZER_H_
 
 #include <setjmp.h>
-#include <cstddef>
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
-#include "pagespeed/kernel/image/scanline_status.h"
 
 // DO NOT INCLUDE LIBJPEG HEADERS HERE. Doing so causes build errors
 // on Windows.
 
-namespace net_instaweb {
-class MessageHandler;
-}
-
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 enum ColorSampling {
   RETAIN,
@@ -88,14 +79,12 @@ struct JpegCompressionOptions {
 // Performs lossless optimization, that is, the output image will be
 // pixel-for-pixel identical to the input image.
 bool OptimizeJpeg(const GoogleString &original,
-                  GoogleString *compressed,
-                  MessageHandler* handler);
+                  GoogleString *compressed);
 
 // Performs JPEG optimizations with the provided options.
 bool OptimizeJpegWithOptions(const GoogleString &original,
                              GoogleString *compressed,
-                             const JpegCompressionOptions &options,
-                             MessageHandler* handler);
+                             const JpegCompressionOptions &options);
 
 // User of this class must call this functions in the following sequence
 // func () {
@@ -117,7 +106,7 @@ bool OptimizeJpegWithOptions(const GoogleString &original,
 // }
 class JpegScanlineWriter : public ScanlineWriterInterface {
  public:
-  explicit JpegScanlineWriter(MessageHandler* handler);
+  JpegScanlineWriter();
   virtual ~JpegScanlineWriter();
 
   // Set the environment for longjmp calls.
@@ -127,27 +116,21 @@ class JpegScanlineWriter : public ScanlineWriterInterface {
   // cleaning up the jpeg structs.
   void AbortWrite();
 
-  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format);
-  // Set the compression options via 'params', which should be a
-  // JpegCompressionOptions*. Since writer only supports lossy
-  // encoding, it is an error to pass in a 'params' that has the lossy
-  // field set to false.
-  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString *compressed);
-  virtual ScanlineStatus WriteNextScanlineWithStatus(void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWriteWithStatus();
-
- private:
   // Since writer only supports lossy encoding, it is an error to pass
   // in a compression options that has lossy field set to false.
   void SetJpegCompressParams(const JpegCompressionOptions& options);
+  bool InitializeWrite(GoogleString *compressed);
 
+  virtual bool Init(const size_t width, const size_t height,
+                    PixelFormat pixel_format);
+  virtual bool WriteNextScanline(void *scanline_bytes);
+  virtual bool FinalizeWrite();
+
+ private:
   // Opaque struct that is defined in the cc file and contains our
   // JPEG-compressor-specific structures.
   struct Data;
   Data* const data_;
-  MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(JpegScanlineWriter);
 };

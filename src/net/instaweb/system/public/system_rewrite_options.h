@@ -33,8 +33,6 @@ class SystemRewriteOptions : public RewriteOptions {
   static void Initialize();
   static void Terminate();
 
-  SystemRewriteOptions(const StringPiece& description,
-                       ThreadSystem* thread_system);
   explicit SystemRewriteOptions(ThreadSystem* thread_system);
   virtual ~SystemRewriteOptions();
 
@@ -170,83 +168,8 @@ class SystemRewriteOptions : public RewriteOptions {
     return ssl_cert_file_.value();
   }
 
-  int64 slurp_flush_limit() const {
-    return slurp_flush_limit_.value();
-  }
-  void set_slurp_flush_limit(int64 x) {
-    set_option(x, &slurp_flush_limit_);
-  }
-  bool slurp_read_only() const {
-    return slurp_read_only_.value();
-  }
-  void set_slurp_read_only(bool x) {
-    set_option(x, &slurp_read_only_);
-  }
-  bool rate_limit_background_fetches() const {
-    return rate_limit_background_fetches_.value();
-  }
-  const GoogleString& slurp_directory() const {
-    return slurp_directory_.value();
-  }
-  void set_slurp_directory(GoogleString x) {
-    set_option(x, &slurp_directory_);
-  }
-  bool disable_loopback_routing() const {
-    return disable_loopback_routing_.value();
-  }
-  bool fetch_with_gzip() const {
-    return fetch_with_gzip_.value();
-  }
-  int64 ipro_max_response_bytes() const {
-    return ipro_max_response_bytes_.value();
-  }
-  int64 ipro_max_concurrent_recordings() const {
-    return ipro_max_concurrent_recordings_.value();
-  }
-
-  // If this is set to true, we'll turn on our fallback proxy-like behavior
-  // on non-.pagespeed. URLs without changing the main fetcher from Serf
-  // (the way the slurp options would).
-  bool test_proxy() const {
-    return test_proxy_.value();
-  }
-  void set_test_proxy(bool x) {
-    set_option(x, &test_proxy_);
-  }
-
-  // This configures the fetcher we use for fallback handling if test_proxy()
-  // is on:
-  //  - If this is empty, we use the usual fetcher (e.g. Serf)
-  //  - If it's non-empty, the fallback URLs will be fetched from the given
-  //    slurp directory.  PageSpeed resource fetches, however, will still
-  //    use the usual fetcher (e.g. Serf).
-  GoogleString test_proxy_slurp() const {
-    return test_proxy_slurp_.value();
-  }
-
-  // Helper functions
-  bool slurping_enabled() const {
-    return !slurp_directory().empty();
-  }
-
-  bool slurping_enabled_read_only() const {
-    return slurping_enabled() && slurp_read_only();
-  }
-
   virtual SystemRewriteOptions* Clone() const;
   virtual SystemRewriteOptions* NewOptions() const;
-
-  // Returns a suitably down cast version of 'instance' if it is an instance
-  // of this class, NULL if not.
-  static const SystemRewriteOptions* DynamicCast(
-      const RewriteOptions* instance);
-  static SystemRewriteOptions* DynamicCast(RewriteOptions* instance);
-
-  // Human-readable description of what this configuration is for.  This
-  // may be a directory, or a string indicating a combination of directives
-  // for multiple directories.  Should only be used for debugging.
-  StringPiece description() const { return description_; }
-  void set_description(const StringPiece& x) { x.CopyToString(&description_); }
 
  protected:
   // Apache and Nginx options classes need access to this.
@@ -259,31 +182,17 @@ class SystemRewriteOptions : public RewriteOptions {
 
   // Adds an option to system_properties_.
   //
-  template<class OptionClass>
+  template<class RewriteOptionsSubclass, class OptionClass>
   static void AddSystemProperty(typename OptionClass::ValueType default_value,
-                                OptionClass SystemRewriteOptions::*offset,
+                                OptionClass RewriteOptionsSubclass::*offset,
                                 const char* id,
-                                StringPiece option_name,
+                                OptionEnum option_enum,
                                 const char* help) {
-    AddProperty(default_value, offset, id, option_name, kServerScope, help,
-                system_properties_);
-  }
-
-  template<class OptionClass>
-  static void AddSystemProperty(typename OptionClass::ValueType default_value,
-                                OptionClass SystemRewriteOptions::*offset,
-                                const char* id,
-                                StringPiece option_name,
-                                OptionScope scope,
-                                const char* help) {
-    AddProperty(default_value, offset, id, option_name, scope, help,
+    AddProperty(default_value, offset, id, option_enum, kServerScope, help,
                 system_properties_);
   }
 
   static void AddProperties();
-
-  // Debug string useful in understanding config merges.
-  GoogleString description_;
 
   Option<GoogleString> fetcher_proxy_;
   Option<GoogleString> file_cache_path_;
@@ -298,26 +207,10 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<GoogleString> ssl_cert_directory_;
   Option<GoogleString> ssl_cert_file_;
 
-  Option<GoogleString> slurp_directory_;
-  Option<GoogleString> test_proxy_slurp_;
-
   Option<bool> statistics_enabled_;
   Option<bool> statistics_logging_enabled_;
   Option<bool> use_shared_mem_locking_;
   Option<bool> compress_metadata_cache_;
-
-  Option<bool> slurp_read_only_;
-  Option<bool> test_proxy_;
-  Option<bool> rate_limit_background_fetches_;
-
-  // If false (default) we will redirect all fetches to unknown hosts to
-  // localhost.
-  Option<bool> disable_loopback_routing_;
-
-  // Makes fetches from PSA to origin-server request
-  // accept-encoding:gzip, even when used in a context when we want
-  // cleartext.  We'll decompress as we read the content if needed.
-  Option<bool> fetch_with_gzip_;
 
   Option<int> memcached_threads_;
   Option<int> memcached_timeout_us_;
@@ -332,9 +225,6 @@ class SystemRewriteOptions : public RewriteOptions {
   // cache-flushes.
   Option<int64> cache_flush_poll_interval_sec_;
   Option<int64> statistics_logging_max_file_size_kb_;
-  Option<int64> slurp_flush_limit_;
-  Option<int64> ipro_max_response_bytes_;
-  Option<int64> ipro_max_concurrent_recordings_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemRewriteOptions);
 };

@@ -116,11 +116,6 @@ class HtmlParse {
   virtual bool StartParseId(const StringPiece& url, const StringPiece& id,
                             const ContentType& content_type);
 
-  // Sets url() for test purposes. Normally this is done by StartParseId,
-  // but sometimes tests need to set it without worrying about parse
-  // state.
-  void SetUrlForTesting(const StringPiece& url);
-
   // Parses an arbitrary block of an html file, queuing up the events.  Call
   // Flush to send the events through the Filter.
   //
@@ -301,11 +296,6 @@ class HtmlParse {
   HtmlName MakeName(HtmlName::Keyword keyword);
 
   bool IsRewritable(const HtmlNode* node) const;
-  // IsRewritable will return false for a node if either the open or close tag
-  // has been flushed, but this is too conservative if we only want to call
-  // AppendChild on that node, since we can append even if the open tag has
-  // already been flushed.
-  bool CanAppendChild(const HtmlNode* node) const;
 
   void ClearElements();
 
@@ -447,21 +437,13 @@ class HtmlParse {
 
   virtual void ParseTextInternal(const char* content, int size);
 
-  // Calls DetermineEnabledFiltersImpl in an idempotent way.
-  void DetermineEnabledFilters() {
-    if (!determine_enabled_filters_called_) {
-      determine_enabled_filters_called_ = true;
-      DetermineEnabledFiltersImpl();
-    }
-  }
-
   // Call DetermineEnabled() on each filter. Should be called after
   // the property cache lookup has finished since some filters depend on
   // pcache results in their DetermineEnabled implementation. If a subclass has
   // filters that the base HtmlParse doesn't know about, it should override this
   // function and call DetermineEnabled on each of its filters, along with
-  // calling the base DetermineEnabledFiltersImpl.
-  virtual void DetermineEnabledFiltersImpl();
+  // calling the base DetermineEnabledFilters.
+  virtual void DetermineEnabledFilters();
 
  private:
   void ApplyFilterHelper(HtmlFilter* filter);

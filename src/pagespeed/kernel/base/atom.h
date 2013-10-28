@@ -20,7 +20,7 @@
 #define PAGESPEED_KERNEL_BASE_ATOM_H_
 
 #include <set>
-#include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -43,18 +43,17 @@ class Atom {
     return *this;
   }
 
-  // Returns the address of the canonical StringPiece representing this Atom.
-  // The underlying StringPiece object (and its data) are owned by the
-  // SymbolTable.
-  const StringPiece* Rep() const { return str_; }
+  // string-like accessors.
+  const char* c_str() const { return str_; }
+  int size() const { return strlen(str_); }
 
-  // This is comparing the underlying StringPiece pointers.  It is invalid
+  // This is comparing the underlying char* pointers.  It is invalid
   // to compare Atoms from different symbol tables.
   bool operator==(const Atom& sym) const {
     return str_ == sym.str_;
   }
 
-  // This is comparing the underlying StringPiece pointers.  It is invalid
+  // This is comparing the underlying char* pointers.  It is invalid
   // to compare Atoms from different symbol tables.
   bool operator!=(const Atom& sym) const {
     return str_ != sym.str_;
@@ -62,22 +61,20 @@ class Atom {
 
   // SymbolTable is a friend of Symbol because SymbolTable is the
   // only class that has the right to construct a new Atom from
-  // a StringPiece*.
+  // a char*.
   friend class SymbolTable<CaseFold>;
   friend class SymbolTable<CasePreserve>;
 
  private:
-  explicit Atom(const StringPiece* str) : str_(str) {}
-  const StringPiece* str_;
+  explicit Atom(const char* str) : str_(str) {}
+  const char* str_;
 };
 
 // Once interned, Atoms are very cheap to put in a set, using
 // pointer-comparison.
 struct AtomCompare {
   bool operator()(const Atom& a1, const Atom& a2) const {
-    // Compares pointers. Note that this assumes we don't overlap the
-    // StringPiece's, which is the case for the implementation of SymbolTable.
-    return a1.Rep()->data() < a2.Rep()->data();
+    return a1.c_str() < a2.c_str();   // compares pointers
   }
 };
 

@@ -51,7 +51,6 @@
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/chunking_writer.h"
@@ -102,8 +101,9 @@ GoogleString RemoveModPageSpeedQueryParams(
   bool rewrite_query_params = false;
 
   for (int i = 0; i < query_params.size(); ++i) {
-    StringPiece name = query_params.name(i);
-    if (name.starts_with(RewriteQuery::kModPagespeed)) {
+    const char* name = query_params.name(i);
+    static const char kModPagespeed[] = "ModPagespeed";
+    if (strncmp(name, kModPagespeed, STATIC_STRLEN(kModPagespeed)) == 0) {
       rewrite_query_params = true;
     } else {
       const GoogleString* value = query_params.value(i);
@@ -185,8 +185,7 @@ class StrippingFetch : public StringAsyncFetch {
       // Second pass -- declare completion.
       set_success(true);
     // TODO(sligocki): Check for kPageSpeedHeader as well.
-    } else if ((response_headers()->Lookup1(kModPagespeedHeader) != NULL) ||
-               (response_headers()->Lookup1(kPageSpeedHeader) != NULL)) {
+    } else if (response_headers()->Lookup1(kModPagespeedHeader) != NULL) {
       // First pass -- the slurped site evidently had mod_pagespeed already
       // enabled.  Turn it off and re-fetch.
       LOG(ERROR) << "URL " << url_ << " already has mod_pagespeed.  Stripping.";

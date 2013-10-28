@@ -29,11 +29,10 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -243,8 +242,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
     // Parses a combined CSS elementand provides the segments from which
     // it came.
-    bool DecomposeCombinedUrl(StringPiece base_url, GoogleString* base,
-                              StringVector* segments, MessageHandler* handler);
+    bool DecomposeCombinedUrl(GoogleString* base, StringVector* segments,
+                              MessageHandler* handler);
 
     GoogleString url_;
     GoogleString content_;
@@ -354,7 +353,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // with new_suffix.
   // Either way, precondition: old_url ends with old_suffix
   static GoogleString ChangeSuffix(
-      StringPiece old_url, bool append_new_suffix,
+      GoogleString old_url, bool append_new_suffix,
       StringPiece old_suffix, StringPiece new_suffix);
 
   // Overrides the async fetcher on the primary context to be a
@@ -366,9 +365,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void OtherCallFetcherCallbacks();
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
-
-  // Set the RewriteOptions to be returned by the RewriteOptionsManager.
-  void SetRewriteOptions(RewriteOptions* opts);
 
   // Authorizes a domain to options()->domain_lawyer(), recomputing
   // the options signature if necessary.
@@ -592,19 +588,11 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void SetupSharedCache();
 
   // Returns a new mock property page for the page property cache.
-  MockPropertyPage* NewMockPage(const StringPiece& url,
-                                const StringPiece& options_signature_hash,
-                                UserAgentMatcher::DeviceType device_type) {
+  MockPropertyPage* NewMockPage(const StringPiece& key) {
     return new MockPropertyPage(
         server_context_->thread_system(),
         server_context_->page_property_cache(),
-        url,
-        options_signature_hash,
-        UserAgentMatcher::DeviceTypeSuffix(device_type));
-  }
-
-  MockPropertyPage* NewMockPage(const StringPiece& url) {
-    return NewMockPage(url, "hash", UserAgentMatcher::kDesktop);
+        key);
   }
 
   // Sets MockLogRecord in the driver's request_context.
@@ -612,27 +600,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Returns the MockLogRecord in the driver.
   MockLogRecord* mock_log_record();
-
-  // Helper methods to return js/html snippets related to lazyload images.
-  GoogleString GetLazyloadScriptHtml();
-  GoogleString GetLazyloadPostscriptHtml();
-
-  // Sets the server-scoped invalidation timestamp.  Time is advanced by
-  // 1 second both before and after invalidation.  E.g. if the current time
-  // is 100000 milliseconds at the time this is called, the invalidation
-  // timestamp will be at 101000 milliseconds, and time will be rolled
-  // forward to 102000 on exit from this function.
-  void SetCacheInvalidationTimestamp();
-
-  // Sets the invalidation timestamp for a URL pattern.  Time is advanced by
-  // in the same manner as for SetCacheInvalidationTimestamp above.
-  void SetCacheInvalidationTimestampForUrl(
-      StringPiece url, bool ignores_metadata_and_pcache);
-
-  // Changes the way cache-purges are implemented for non-wildcards to
-  // avoid flushing the entire metadata cache and instead match each
-  // metadata Input against the invalidation-set.
-  void EnableCachePurge();
 
  protected:
   void Init();
@@ -700,8 +667,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
     current_user_agent_ = user_agent;
   }
 
-  GoogleString ExpectedNonce();
-
   // The mock fetchers & stats are global across all Factories used in the
   // tests.
   MockUrlFetcher mock_url_fetcher_;
@@ -730,7 +695,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   UrlSegmentEncoder default_encoder_;
   ResponseHeaders response_headers_;
   const GoogleString kEtag0;  // Etag with a 0 hash.
-  uint64 expected_nonce_;
 };
 
 }  // namespace net_instaweb

@@ -36,12 +36,12 @@ const int kIndexNotSet = 0;
 
 }  // namespace
 
-// Basic Alarm type (forward declared in the .h file).  Note that Alarms are
-// self-cleaning; it is not valid to make use of an Alarm* after RunAlarm() or
-// CancelAlarm() has been called.  See note below for AddAlarmAtUs.  Note also
-// that Alarms hold the scheduler lock when they are invoked; the alarm drops
-// the lock before invoking its embedded callback and re-takes it afterwards if
-// that is necessary.
+// Basic Alarm type (forward declared in the .h file).  Note that
+// Alarms are self-cleaning; it is not valid to make use of an Alarm*
+// after RunAlarm() or CancelAlarm() has been called.  See note below
+// for AddAlarm.  Note also that Alarms hold the scheduler lock when
+// they are invoked; the alarm drops the lock before invoking its
+// embedded callback and re-takes it afterwards if that is necessary.
 class Scheduler::Alarm {
  public:
   virtual void RunAlarm() = 0;
@@ -219,6 +219,12 @@ Scheduler::~Scheduler() {
 #endif
 }
 
+ThreadSystem::CondvarCapableMutex* Scheduler::mutex() {
+  return mutex_.get();
+}
+
+void Scheduler::DCheckLocked() { mutex_->DCheckLocked(); }
+
 void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
   mutex_->DCheckLocked();
   int64 now_us = timer_->NowUs();
@@ -228,7 +234,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
   bool timed_out = false;
   // Schedule a timeout alarm.
   CondVarTimeout* alarm = new CondVarTimeout(&timed_out, this);
-  AddAlarmMutexHeldUs(wakeup_time_us, alarm);
+  AddAlarmMutexHeld(wakeup_time_us, alarm);
   waiting_alarms_.insert(alarm);
   int64 next_wakeup_us = RunAlarms(NULL);
   while (signal_count_ == original_signal_count && !timed_out &&
@@ -242,7 +248,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
   }
 }
 
-void Scheduler::TimedWaitMs(int64 timeout_ms, Function* callback) {
+void Scheduler::TimedWait(int64 timeout_ms, Function* callback) {
   mutex_->DCheckLocked();
   int64 now_us = timer_->NowUs();
   int64 completion_time_us = now_us + timeout_ms * Timer::kMsUs;
@@ -250,7 +256,7 @@ void Scheduler::TimedWaitMs(int64 timeout_ms, Function* callback) {
   // the alarm with the signal queue, where the callback will be run on
   // cancellation.
   CondVarCallbackTimeout* alarm = new CondVarCallbackTimeout(callback, this);
-  AddAlarmMutexHeldUs(completion_time_us, alarm);
+  AddAlarmMutexHeld(completion_time_us, alarm);
   waiting_alarms_.insert(alarm);
   RunAlarms(NULL);
 }
@@ -300,7 +306,7 @@ void Scheduler::Signal() {
 }
 
 // Add alarm while holding mutex.  Don't run any alarms or otherwise drop mutex.
-void Scheduler::AddAlarmMutexHeldUs(int64 wakeup_time_us, Alarm* alarm) {
+void Scheduler::AddAlarmMutexHeld(int64 wakeup_time_us, Alarm* alarm) {
   mutex_->DCheckLocked();
   alarm->wakeup_time_us_ = wakeup_time_us;
   alarm->index_ = ++index_;
@@ -316,11 +322,11 @@ void Scheduler::AddAlarmMutexHeldUs(int64 wakeup_time_us, Alarm* alarm) {
   outstanding_alarms_.insert(alarm);
 }
 
-Scheduler::Alarm* Scheduler::AddAlarmAtUs(int64 wakeup_time_us,
-                                          Function* callback) {
+Scheduler::Alarm* Scheduler::AddAlarm(int64 wakeup_time_us,
+                                      Function* callback) {
   Alarm* result = new FunctionAlarm(callback, this);
   ScopedMutex lock(mutex_.get());
-  AddAlarmMutexHeldUs(wakeup_time_us, result);
+  AddAlarmMutexHeld(wakeup_time_us, result);
   RunAlarms(NULL);
   return result;
 }
@@ -377,7 +383,11 @@ void Scheduler::AwaitWakeupUntilUs(int64 wakeup_time_us) {
   }
 }
 
-void Scheduler::ProcessAlarmsOrWaitUs(int64 timeout_us) {
+void Scheduler::Wakeup() {
+  condvar_->Broadcast();
+}
+
+void Scheduler::ProcessAlarms(int64 timeout_us) {
   mutex_->DCheckLocked();
   bool ran_alarms = false;
   int64 finish_us = timer_->NowUs() + timeout_us;
@@ -413,19 +423,14 @@ void SchedulerBlockingFunction::Run() {
 }
 
 void SchedulerBlockingFunction::Cancel() {
-  // Save a copy of the scheduler_ field since it may be dead when we need it.
-  Scheduler* scheduler = scheduler_;
   done_.set_value(true);
-  // At this point *this should be considered dead, since the allocating thread
-  // runs Block() and can now complete its loop and return control to the caller
-  // who will pop *this from the stack.
-  scheduler->Wakeup();
+  scheduler_->Wakeup();
 }
 
 bool SchedulerBlockingFunction::Block() {
   ScopedMutex lock(scheduler_->mutex());
   while (!done_.value()) {
-    scheduler_->ProcessAlarmsOrWaitUs(10 * Timer::kSecondUs);
+    scheduler_->ProcessAlarms(10 * Timer::kSecondUs);
   }
   return success_;
 }

@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 
 #include <cstddef>
-#include <memory>
 #include <utility>
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/doctype.h"
@@ -32,6 +31,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/stl_util.h"
@@ -40,13 +40,10 @@
 
 namespace net_instaweb {
 
-extern const char* CSS_console_css;
 extern const char* JS_add_instrumentation;
 extern const char* JS_add_instrumentation_opt;
 extern const char* JS_client_domain_rewriter;
 extern const char* JS_client_domain_rewriter_opt;
-extern const char* JS_console_js;
-extern const char* JS_console_js_opt;
 extern const char* JS_critical_css_beacon;
 extern const char* JS_critical_css_beacon_opt;
 extern const char* JS_critical_images_beacon;
@@ -56,23 +53,23 @@ extern const char* JS_dedup_inlined_images_opt;
 extern const char* JS_defer_iframe;
 extern const char* JS_defer_iframe_opt;
 extern const char* JS_delay_images;
+extern const char* JS_delay_images_opt;
 extern const char* JS_delay_images_inline;
 extern const char* JS_delay_images_inline_opt;
-extern const char* JS_delay_images_opt;
-extern const char* JS_deterministic;
-extern const char* JS_deterministic_opt;
 extern const char* JS_extended_instrumentation;
 extern const char* JS_extended_instrumentation_opt;
 extern const char* JS_ghost_click_buster_opt;
+extern const char* JS_panel_loader_opt;
 extern const char* JS_js_defer;
 extern const char* JS_js_defer_opt;
 extern const char* JS_lazyload_images;
 extern const char* JS_lazyload_images_opt;
+extern const char* JS_deterministic;
+extern const char* JS_deterministic_opt;
+extern const char* JS_detect_reflow;
+extern const char* JS_detect_reflow_opt;
 extern const char* JS_local_storage_cache;
 extern const char* JS_local_storage_cache_opt;
-extern const char* JS_panel_loader_opt;
-extern const char* JS_split_html_beacon;
-extern const char* JS_split_html_beacon_opt;
 
 // TODO(jud): use the data2c build flow to create this data.
 const char GIF_blank[] = { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1,
@@ -104,10 +101,10 @@ struct StaticAssetManager::Asset {
 };
 
 StaticAssetManager::StaticAssetManager(
-    const GoogleString& static_asset_base,
+    UrlNamer* url_namer,
     Hasher* hasher,
     MessageHandler* message_handler)
-    : static_asset_base_(static_asset_base),
+    : url_namer_(url_namer),
       hasher_(hasher),
       message_handler_(message_handler),
       serve_asset_from_gstatic_(false),
@@ -117,7 +114,7 @@ StaticAssetManager::StaticAssetManager(
   ResponseHeaders header;
   // TODO(ksimbili): Define a new constant kShortCacheTtlForMismatchedContentMs
   // in ServerContext for 5min.
-  header.SetDateAndCaching(0, ResponseHeaders::kDefaultImplicitCacheTtlMs);
+  header.SetDateAndCaching(0, ResponseHeaders::kImplicitCacheTtlMs);
   cache_header_with_private_ttl_ = StrCat(
       header.Lookup1(HttpAttributes::kCacheControl),
       ",private");
@@ -156,7 +153,6 @@ void StaticAssetManager::InitializeAssetStrings() {
     *it = new Asset;
     (*it)->content_type = kContentTypeJavascript;
   }
-  // Initialize JS
   // Initialize file names.
   assets_[kAddInstrumentationJs]->file_name = "add_instrumentation";
   assets_[kExtendedInstrumentationJs]->file_name = "extended_instrumentation";
@@ -164,7 +160,6 @@ void StaticAssetManager::InitializeAssetStrings() {
       StrCat(JS_js_defer_opt, "\n", JS_panel_loader_opt);
   assets_[kBlinkJs]->file_name = "blink";
   assets_[kClientDomainRewriter]->file_name = "client_domain_rewriter";
-  assets_[kConsoleJs]->file_name = "console_js";
   assets_[kCriticalCssBeaconJs]->file_name = "critical_css_beacon";
   assets_[kCriticalImagesBeaconJs]->file_name = "critical_images_beacon";
   assets_[kDedupInlinedImagesJs]->file_name = "dedup_inlined_images";
@@ -173,10 +168,10 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[kDelayImagesJs]->file_name = "delay_images";
   assets_[kDelayImagesInlineJs]->file_name = "delay_images_inline";
   assets_[kLazyloadImagesJs]->file_name = "lazyload_images";
+  assets_[kDetectReflowJs]->file_name = "detect_reflow";
   assets_[kDeterministicJs]->file_name = "deterministic";
   assets_[kGhostClickBusterJs]->file_name = "ghost_click_buster";
   assets_[kLocalStorageCacheJs]->file_name = "local_storage_cache";
-  assets_[kSplitHtmlBeaconJs]->file_name = "split_html_beacon";
 
   // Initialize compiled javascript strings->
   assets_[kAddInstrumentationJs]->js_optimized = JS_add_instrumentation_opt;
@@ -185,7 +180,6 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[kBlinkJs]->js_optimized = blink_js_string.c_str();
   assets_[kClientDomainRewriter]->js_optimized =
       JS_client_domain_rewriter_opt;
-  assets_[kConsoleJs]->js_optimized = JS_console_js_opt;
   assets_[kCriticalCssBeaconJs]->js_optimized = JS_critical_css_beacon_opt;
   assets_[kCriticalImagesBeaconJs]->js_optimized =
       JS_critical_images_beacon_opt;
@@ -195,10 +189,10 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[kDelayImagesJs]->js_optimized = JS_delay_images_opt;
   assets_[kDelayImagesInlineJs]->js_optimized = JS_delay_images_inline_opt;
   assets_[kLazyloadImagesJs]->js_optimized = JS_lazyload_images_opt;
+  assets_[kDetectReflowJs]->js_optimized = JS_detect_reflow_opt;
   assets_[kDeterministicJs]->js_optimized = JS_deterministic_opt;
   assets_[kGhostClickBusterJs]->js_optimized = JS_ghost_click_buster_opt;
   assets_[kLocalStorageCacheJs]->js_optimized = JS_local_storage_cache_opt;
-  assets_[kSplitHtmlBeaconJs]->js_optimized = JS_split_html_beacon_opt;
 
   // Initialize cleartext javascript strings->
   assets_[kAddInstrumentationJs]->js_debug = JS_add_instrumentation;
@@ -207,7 +201,6 @@ void StaticAssetManager::InitializeAssetStrings() {
   // unit test expects debug code to include comments->
   assets_[kBlinkJs]->js_debug = blink_js_string.c_str();
   assets_[kClientDomainRewriter]->js_debug = JS_client_domain_rewriter;
-  assets_[kConsoleJs]->js_debug = JS_console_js;
   assets_[kCriticalCssBeaconJs]->js_debug = JS_critical_css_beacon;
   assets_[kCriticalImagesBeaconJs]->js_debug = JS_critical_images_beacon;
   assets_[kDedupInlinedImagesJs]->js_debug = JS_dedup_inlined_images;
@@ -216,24 +209,16 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[kDelayImagesJs]->js_debug = JS_delay_images;
   assets_[kDelayImagesInlineJs]->js_debug = JS_delay_images_inline;
   assets_[kLazyloadImagesJs]->js_debug = JS_lazyload_images;
+  assets_[kDetectReflowJs]->js_debug = JS_detect_reflow;
   assets_[kDeterministicJs]->js_debug = JS_deterministic;
   // GhostClickBuster uses goog.require, which needs to be minifed always.
   assets_[kGhostClickBusterJs]->js_debug = JS_ghost_click_buster_opt;
   assets_[kLocalStorageCacheJs]->js_debug = JS_local_storage_cache;
-  assets_[kSplitHtmlBeaconJs]->js_debug = JS_split_html_beacon;
-
-  // Initialize non-JS assets
 
   assets_[kBlankGif]->file_name = "1";
   assets_[kBlankGif]->js_optimized.append(GIF_blank, GIF_blank_len);
   assets_[kBlankGif]->js_debug.append(GIF_blank, GIF_blank_len);
   assets_[kBlankGif]->content_type = kContentTypeGif;
-
-  assets_[kConsoleCss]->file_name = "console_css";
-  // TODO(sligocki): Do we want to have a minified version of console CSS?
-  assets_[kConsoleCss]->js_optimized = CSS_console_css;
-  assets_[kConsoleCss]->js_debug = CSS_console_css;
-  assets_[kConsoleCss]->content_type = kContentTypeCss;
 
   for (std::vector<Asset*>::iterator it = assets_.begin();
        it != assets_.end(); ++it) {
@@ -241,9 +226,6 @@ void StaticAssetManager::InitializeAssetStrings() {
     asset->js_opt_hash = hasher_->Hash(asset->js_optimized);
     asset->js_debug_hash = hasher_->Hash(asset->js_debug);
 
-    // Make sure names are unique.
-    DCHECK(file_name_to_module_map_.find(asset->file_name) ==
-           file_name_to_module_map_.end())  << asset->file_name;
     // Setup a map of file name to the corresponding index in assets_ to
     // allow easier lookup in GetAsset.
     file_name_to_module_map_[asset->file_name] =
@@ -257,7 +239,7 @@ void StaticAssetManager::InitializeAssetUrls() {
        it != assets_.end(); ++it) {
     Asset* asset = *it;
     // Generated urls are in the format "<filename>.<md5>.<extension>".
-    asset->opt_url = StrCat(static_asset_base_,
+    asset->opt_url = StrCat(url_namer_->get_proxy_domain(),
                             library_url_prefix_,
                             asset->file_name,
                             ".", asset->js_opt_hash,
@@ -265,7 +247,7 @@ void StaticAssetManager::InitializeAssetUrls() {
 
     // Generated debug urls are in the format
     // "<filename>_debug.<md5>.<extension>".
-    asset->debug_url = StrCat(static_asset_base_,
+    asset->debug_url = StrCat(url_namer_->get_proxy_domain(),
                               library_url_prefix_,
                               asset->file_name,
                               "_debug.", asset->js_debug_hash,

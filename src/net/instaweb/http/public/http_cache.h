@@ -322,10 +322,8 @@ class HTTPCache {
   HTTPValue* ApplyHeaderChangesForPut(
       const GoogleString& key, int64 start_us, const StringPiece* content,
       ResponseHeaders* headers, HTTPValue* value, MessageHandler* handler);
-  void UpdateStats(const GoogleString& key,
-                   CacheInterface::KeyState backend_state, FindResult result,
-                   bool has_fallback, bool is_expired, int64 delta_us,
-                   MessageHandler* handler);
+  void UpdateStats(CacheInterface::KeyState backend_state, FindResult result,
+                   bool has_fallback, int64 delta_us);
   void RememberFetchFailedorNotCacheableHelper(
       const GoogleString& key, MessageHandler* handler, HttpStatus::Code code,
       int64 ttl_sec);

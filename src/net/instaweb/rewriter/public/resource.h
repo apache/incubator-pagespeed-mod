@@ -72,7 +72,6 @@ class Resource : public RefCounted<Resource> {
     kFetchStatusOK,
     kFetchStatusUncacheable,
     kFetchStatus4xxError,
-    kFetchStatusDropped,
     kFetchStatusOther,
   };
 
@@ -168,12 +167,6 @@ class Resource : public RefCounted<Resource> {
 
   // Gets the absolute URL of the resource
   virtual GoogleString url() const = 0;
-
-  // Gets the cache key for resource. This may be different from URL
-  // if the resource is e.g. UA-dependent.
-  virtual GoogleString cache_key() const {
-    return url();
-  }
 
   // Computes the content-type (and charset) based on response_headers and
   // extension, and sets it via SetType.
@@ -271,9 +264,6 @@ class Resource : public RefCounted<Resource> {
                                AsyncCallback* callback) = 0;
 
   void set_enable_cache_purge(bool x) { enable_cache_purge_ = x; }
-  void set_proactive_resource_freshening(bool x) {
-    proactive_resource_freshening_ = x;
-  }
 
   void set_disable_rewrite_on_no_transform(bool x) {
     disable_rewrite_on_no_transform_ = x;
@@ -301,7 +291,6 @@ class Resource : public RefCounted<Resource> {
   // is_background_fetch_ to false.
   bool is_background_fetch_;
   bool enable_cache_purge_;
-  bool proactive_resource_freshening_;
   bool disable_rewrite_on_no_transform_;
 
   DISALLOW_COPY_AND_ASSIGN(Resource);

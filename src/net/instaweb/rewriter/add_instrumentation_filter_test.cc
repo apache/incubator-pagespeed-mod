@@ -20,7 +20,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -31,9 +31,6 @@
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/http/http_names.h"
 
 namespace net_instaweb {
@@ -100,7 +97,6 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
   bool xhtml_mode_;
   bool cdata_mode_;
   bool https_mode_;
-  ResponseHeaders response_headers_;
 };
 
 TEST_F(AddInstrumentationFilterTest, ScriptInjection) {
@@ -195,51 +191,6 @@ TEST_F(AddInstrumentationFilterTest, TestScriptAfterTitleAndMeta) {
            "<head><meta name='abc' /><title></title></head><body></body>");
   EXPECT_TRUE(output_buffer_.find(
       "<head><meta name='abc' /><title></title><script"));
-}
-
-TEST_F(AddInstrumentationFilterTest, TestNon200Response) {
-  rewrite_driver()->AddFilters();
-  response_headers_.set_status_code(HttpStatus::kForbidden);
-  rewrite_driver()->set_response_headers_ptr(&response_headers_);
-  ParseUrl(GetTestUrl(),
-           "<head></head><head></head><body></body><body></body>");
-  EXPECT_EQ(1, statistics()->GetVariable(
-      AddInstrumentationFilter::kInstrumentationScriptAddedCount)->Get());
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(
-          options()->beacon_url().http, "load", "&rc=403")) !=
-              GoogleString::npos);
-}
-
-TEST_F(AddInstrumentationFilterTest, TestRequestId) {
-  rewrite_driver()->request_context()->set_request_id(1234567890L);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(options()->beacon_url().http, "load",
-                       "&id=1234567890")) != GoogleString::npos);
-}
-
-TEST_F(AddInstrumentationFilterTest, TestNoDeferInstrumentationScript) {
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(
-          options()->beacon_url().http, "load", "")) !=
-              GoogleString::npos);
-  const StringPiece* nodefer =
-      HtmlKeywords::KeywordToString(HtmlName::kPagespeedNoDefer);
-  EXPECT_TRUE(output_buffer_.find(nodefer->as_string()) != GoogleString::npos);
-}
-
-TEST_F(AddInstrumentationFilterTest, TestDeferInstrumentationScript) {
-  rewrite_driver()->set_defer_instrumentation_script(true);
-  RunInjection();
-  EXPECT_TRUE(output_buffer_.find(
-      CreateInitString(
-          options()->beacon_url().http, "load", "")) !=
-              GoogleString::npos);
-  const StringPiece* nodefer =
-      HtmlKeywords::KeywordToString(HtmlName::kPagespeedNoDefer);
-  EXPECT_TRUE(output_buffer_.find(nodefer->as_string()) == GoogleString::npos);
 }
 
 }  // namespace net_instaweb

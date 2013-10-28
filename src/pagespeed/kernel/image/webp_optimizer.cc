@@ -21,7 +21,6 @@
 #include <cstdlib>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
 
 extern "C" {
@@ -35,8 +34,6 @@ extern "C" {
 namespace pagespeed {
 
 namespace image_compression {
-
-using net_instaweb::MessageHandler;
 
 // Copied from libwebp/v0_2/examples/cwebp.c
 static const char* const kWebPErrorMessages[] = {
@@ -58,20 +55,13 @@ static const char* const kWebPErrorMessages[] = {
   "USER_ABORT: encoding abort requested by user"
 };
 
-// The libwebp error code returned in case of timeouts.
-static const int kWebPErrorTimeout = VP8_ENC_ERROR_USER_ABORT;
-
 // Byte-emission function for use via WebPPicture.writer.
 int WriteWebpIncrementally(const uint8_t* data, size_t data_size,
                            const WebPPicture* const pic) {
   GoogleString* const out = static_cast<GoogleString*>(pic->custom_ptr);
   out->append(reinterpret_cast<const char*>(data), data_size);
-
-  PS_DLOG_INFO( \
-      static_cast<WebpScanlineWriter*>(pic->user_data)->message_handler(), \
-      "Writing to webp: %d bytes. Total size: %d", \
-      static_cast<int>(data_size), static_cast<int>(out->size()));
-
+  DLOG(INFO) << "Writing to webp: " << data_size << " bytes."
+             << "Total size: " << out->size();
   return true;
 }
 
@@ -85,12 +75,11 @@ void WebpConfiguration::CopyTo(WebPConfig* webp_config) const {
   webp_config->alpha_quality = alpha_quality;
 }
 
-WebpScanlineWriter::WebpScanlineWriter(MessageHandler* handler)
+WebpScanlineWriter::WebpScanlineWriter()
     : stride_bytes_(0), rgb_(NULL), rgb_end_(NULL), position_bytes_(NULL),
       config_(NULL), webp_image_(NULL), has_alpha_(false),
       init_ok_(false), imported_(false), got_all_scanlines_(false),
-      progress_hook_(NULL), progress_hook_data_(NULL),
-      message_handler_(handler) {
+      progress_hook_(NULL), progress_hook_data_(NULL) {
 }
 
 WebpScanlineWriter::~WebpScanlineWriter() {
@@ -101,24 +90,11 @@ WebpScanlineWriter::~WebpScanlineWriter() {
   free(rgb_);
 }
 
-ScanlineStatus WebpScanlineWriter::InitializeWriteWithStatus(
-    const void* const params,
-    GoogleString* const out) {
-
-  if (params == NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "missing WebpConfiguration*");
-  }
-  const WebpConfiguration* webp_config =
-      static_cast<const WebpConfiguration*>(params);
-
+bool WebpScanlineWriter::InitializeWrite(const WebpConfiguration& config,
+                                         GoogleString* const out) {
   if (!init_ok_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "prior initialization failure");
+    LOG(INFO) << "Init() previously failed";
+    return false;
   }
 
   // Since config_ might have been modified during a previous call to
@@ -126,25 +102,23 @@ ScanlineStatus WebpScanlineWriter::InitializeWriteWithStatus(
   delete config_;
   config_ = new WebPConfig();
   if (!WebPConfigInit(config_)) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER, "WebPConfigInit()");
+    DLOG(INFO) << "WebPConfigInit failed";
+    return false;
   }
 
-  webp_config->CopyTo(config_);
+  config.CopyTo(config_);
 
   if (!WebPValidateConfig(config_)) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER, "WebPValidateConfig()");
+    DLOG(INFO) << "WebPValidateConfig failed";
+    return false;
   }
 
   webp_image_ = out;
-  if (webp_config->progress_hook) {
-    progress_hook_ = webp_config->progress_hook;
-    progress_hook_data_ = webp_config->user_data;
+  if (config.progress_hook) {
+    progress_hook_ = config.progress_hook;
+    progress_hook_data_ = config.user_data;
   }
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
 int WebpScanlineWriter::ProgressHook(int percent, const WebPPicture* picture) {
@@ -153,22 +127,18 @@ int WebpScanlineWriter::ProgressHook(int percent, const WebPPicture* picture) {
   return webp_writer->progress_hook_(percent, webp_writer->progress_hook_data_);
 }
 
-ScanlineStatus WebpScanlineWriter::InitWithStatus(const size_t width,
-                                                  const size_t height,
-                                                  PixelFormat pixel_format) {
+bool WebpScanlineWriter::Init(const size_t width, const size_t height,
+                              PixelFormat pixel_format) {
   if (init_ok_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_WEBPWRITER, "already initialized");
+    LOG(INFO) << "Attempting to re-initialize successfully initialized image";
+    return false;
   }
 
   if ((height > WEBP_MAX_DIMENSION) ||
       (width > WEBP_MAX_DIMENSION)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "image dimensions larger than the maximum of %d",
-                            WEBP_MAX_DIMENSION);
+    LOG(INFO) << "Each image dimension (" << width << "x" << height
+               << ") must be less than " << WEBP_MAX_DIMENSION;
+    return false;
   }
   switch (pixel_format) {
     case RGB_888:
@@ -178,18 +148,14 @@ ScanlineStatus WebpScanlineWriter::InitWithStatus(const size_t width,
       has_alpha_ = true;
       break;
     default:
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-                              SCANLINE_WEBPWRITER,
-                              "unhandled or unknown pixel format: %d",
-                              pixel_format);
+      LOG(INFO) << "Invalid pixel format "
+                 << GetPixelFormatString(pixel_format);
+      return false;
   }
-  PS_DLOG_INFO(message_handler_, "Pixel format: %s", \
-      GetPixelFormatString(pixel_format));
+  DLOG(INFO) << "Pixel format: "  << GetPixelFormatString(pixel_format);
   if (!WebPPictureInit(&picture_)) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER, "WebPPictureInit()");
+    DLOG(INFO) << "WebPPictureInit failed";
+    return false;
   }
 
   picture_.width = width;
@@ -203,49 +169,40 @@ ScanlineStatus WebpScanlineWriter::InitWithStatus(const size_t width,
   stride_bytes_ = (has_alpha_ ? 4 : 3) * picture_.width * sizeof(*rgb_);
   int size_bytes = stride_bytes_ * picture_.height;
   if (rgb_ != NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "rgb_ previously initialized");
+    LOG(INFO) << "Already initialized webp";
+    return false;
   }
   if ((rgb_ = static_cast<uint8_t*>(malloc(size_bytes))) == NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_MEMORY_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "malloc()");
+    LOG(INFO) << "Could not allocate memory for webp";
+    return false;
   }
   rgb_end_ = rgb_ + size_bytes;
   position_bytes_ = rgb_;
   init_ok_ = true;
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
-ScanlineStatus WebpScanlineWriter::WriteNextScanlineWithStatus(
-    void *scanline_bytes) {
+bool WebpScanlineWriter::WriteNextScanline(void *scanline_bytes) {
   if ((position_bytes_ == NULL) ||
       (position_bytes_ + stride_bytes_ > rgb_end_)) {
-    PS_DLOG_INFO(message_handler_, \
-        "Attempting to write past allocated memory "
-        "(rgb_ == %p; position_bytes_ == %p; stride_bytes_ == %d; "
-        "rgb_end_ == %p)",
-        static_cast<void*>(rgb_), static_cast<void*>(position_bytes_),
-        stride_bytes_, static_cast<void*>(rgb_end_));
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_WEBPWRITER,
-                            "attempting to write past allocated memory");
+    LOG(INFO) << "Attempting to write past allocated memory "
+               << "(rgb_ == " << static_cast<void*>(rgb_)
+               << "; position_bytes_ == " << static_cast<void*>(position_bytes_)
+               << "; stride_bytes_ == " << stride_bytes_
+               << "; rgb_end_ == " << static_cast<void*>(rgb_end_)
+               << ")";
+    return false;
   }
   memcpy(position_bytes_, scanline_bytes, stride_bytes_);
   position_bytes_ += stride_bytes_;
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
-ScanlineStatus WebpScanlineWriter::FinalizeWriteWithStatus() {
+bool WebpScanlineWriter::FinalizeWrite() {
   if (!got_all_scanlines_) {
     if (position_bytes_ != rgb_end_) {
-      return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                              SCANLINE_STATUS_INVOCATION_ERROR,
-                              SCANLINE_WEBPWRITER, "unwritten scanlines");
+      LOG(INFO) << "Can't FinalizeWrite: Some scanlines were not written";
+      return false;
     }
     got_all_scanlines_ = true;
     position_bytes_ = NULL;
@@ -256,53 +213,36 @@ ScanlineStatus WebpScanlineWriter::FinalizeWriteWithStatus() {
       (WebPPictureImportRGB(&picture_, rgb_, stride_bytes_) != 0);
 
   if (!ok) {
-    if (has_alpha_) {
-      return PS_LOGGED_STATUS(PS_DLOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              SCANLINE_WEBPWRITER,
-                              "WebPPictureImportRGBA()");
-    } else {
-      return PS_LOGGED_STATUS(PS_DLOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              SCANLINE_WEBPWRITER,
-                              "WebPPictureImportRGB()");
-    }
+    DLOG(INFO) << "Could not import RGB(A) picture data for webp";
+    return false;
   }
 
   imported_ = true;
 
   picture_.writer = WriteWebpIncrementally;
   picture_.custom_ptr = webp_image_;
-  picture_.user_data = this;
   if (progress_hook_) {
     picture_.progress_hook = ProgressHook;
+    picture_.user_data = this;
   }
   if (!WebPEncode(config_, &picture_)) {
-    if (picture_.error_code == kWebPErrorTimeout) {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_TIMEOUT_ERROR,
-                              SCANLINE_WEBPWRITER,
-                              "WebPEncode(): %s",
-                              kWebPErrorMessages[picture_.error_code]);
-    } else {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              SCANLINE_WEBPWRITER,
-                              "WebPEncode(): %s",
-                              kWebPErrorMessages[picture_.error_code]);
-    }
+    DLOG(INFO) << "Could not encode webp data. "
+               << "Error " << picture_.error_code
+               << ": " << kWebPErrorMessages[picture_.error_code];
+    return false;
   }
 
-  PS_DLOG_INFO(message_handler_, \
-      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;"
-      " layer size: %d",
-      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size,
-      stats_.layer_data_size);
+#ifndef NDEBUG
+  DLOG(INFO) << "Stats: coded_size: " << stats_.coded_size
+             << "; lossless_size: " << stats_.lossless_size
+             << "; alpha size: " << stats_.alpha_data_size
+             << "; layer size: " << stats_.layer_data_size;
+#endif
 
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
-WebpScanlineReader::WebpScanlineReader(MessageHandler* handler)
+WebpScanlineReader::WebpScanlineReader()
   : image_buffer_(NULL),
     buffer_length_(0),
     pixel_format_(UNSUPPORTED),
@@ -310,8 +250,7 @@ WebpScanlineReader::WebpScanlineReader(MessageHandler* handler)
     width_(0),
     bytes_per_row_(0),
     row_(0),
-    was_initialized_(false),
-    message_handler_(handler) {
+    was_initialized_(false) {
 }
 
 WebpScanlineReader::~WebpScanlineReader() {
@@ -333,9 +272,8 @@ bool WebpScanlineReader::Reset() {
 
 // Initialize the reader with the given image stream. Note that image_buffer
 // must remain unchanged until the *first* call to ReadNextScanline().
-ScanlineStatus WebpScanlineReader::InitializeWithStatus(
-    const void* image_buffer,
-    size_t buffer_length) {
+bool WebpScanlineReader::Initialize(const void* image_buffer,
+                                    size_t buffer_length) {
   if (was_initialized_) {
     Reset();
   }
@@ -344,9 +282,8 @@ ScanlineStatus WebpScanlineReader::InitializeWithStatus(
   if (WebPGetFeatures(reinterpret_cast<const uint8_t*>(image_buffer),
                       buffer_length, &features)
         != VP8_STATUS_OK) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_PARSE_ERROR,
-                            SCANLINE_WEBPREADER, "WebPGetFeatures()");
+    DLOG(ERROR) << "Invalid WebP data.";
+    return false;
   }
 
 
@@ -362,21 +299,16 @@ ScanlineStatus WebpScanlineReader::InitializeWithStatus(
   buffer_length_ = buffer_length;
   width_ = features.width;
   height_ = features.height;
-  bytes_per_row_ = width_ * GetNumChannelsFromPixelFormat(pixel_format_,
-                                                          message_handler_);
+  bytes_per_row_ = width_ * GetNumChannelsFromPixelFormat(pixel_format_);
   row_ = 0;
   was_initialized_ = true;
 
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
-ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
-    void** out_scanline_bytes) {
+bool WebpScanlineReader::ReadNextScanline(void** out_scanline_bytes) {
   if (!was_initialized_ || !HasMoreScanLines()) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_WEBPREADER,
-                            "not initialized or no more scanlines.");
+    return false;
   }
 
   // The first time ReadNextScanline() is called, we decode the entire image.
@@ -384,10 +316,7 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
     pixels_.reset(new uint8_t[bytes_per_row_ * height_]);
     if (pixels_ == NULL) {
       Reset();
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                              SCANLINE_STATUS_MEMORY_ERROR,
-                              SCANLINE_WEBPREADER,
-                              "new uint8_t[]");
+      return false;
     }
 
      WebPDecoderConfig config;
@@ -407,7 +336,7 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
      config.output.is_external_memory = true;
 
      bool decode_ok = (WebPDecode(image_buffer_, buffer_length_, &config)
-                       == VP8_STATUS_OK);
+         == VP8_STATUS_OK);
 
      // Clean up WebP decoder because it is not needed any more no matter
      // whether decoding was successful or not.
@@ -415,10 +344,7 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
 
      if (!decode_ok) {
        Reset();
-       return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
-                               SCANLINE_STATUS_INTERNAL_ERROR,
-                               SCANLINE_WEBPREADER,
-                               "WebPDecode()");
+       return false;
      }
   }
 
@@ -427,7 +353,7 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
       static_cast<void*>(pixels_.get() + row_ * bytes_per_row_);
 
   ++row_;
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  return true;
 }
 
 }  // namespace image_compression

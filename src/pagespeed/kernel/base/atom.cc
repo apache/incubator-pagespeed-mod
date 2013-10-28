@@ -21,13 +21,7 @@
 
 namespace net_instaweb {
 
-namespace {
-
-const StringPiece null_sp;
-
-}  // namespace
-
-Atom::Atom() : str_(&null_sp) {
+Atom::Atom() : str_("") {
 }
 
 }  // namespace net_instaweb

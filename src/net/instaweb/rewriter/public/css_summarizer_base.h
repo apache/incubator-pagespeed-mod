@@ -140,14 +140,12 @@ class CssSummarizerBase : public RewriteFilter {
   //
   // element points to the <link> or <style> element that was summarized.
   // If the element was a <style>, char_node will also point to its contents
-  // node; otherwise it will be NULL. Overrides need to set is_element_deleted
-  // to true if they delete the element.
+  // node; otherwise it will be NULL.
   //
   // The default implementation does nothing.
   virtual void RenderSummary(int pos,
                              HtmlElement* element,
-                             HtmlCharactersNode* char_node,
-                             bool* is_element_deleted);
+                             HtmlCharactersNode* char_node);
 
   // Like RenderSummary, but called in cases where we're unable to render a
   // summary for some reason (including not being able to compute one).
@@ -155,12 +153,10 @@ class CssSummarizerBase : public RewriteFilter {
   //
   // Like with RenderSummary, this corresponds to entry [pos] in the summary
   // table, and elements points to the <link> or <style> containing CSS,
-  // with char_node being non-null in case it was a <style>.  Overrides need
-  // to set is_element_deleted to true if they delete the element.
+  // with char_node being non-null in case it was a <style>.
   virtual void WillNotRenderSummary(int pos,
                                     HtmlElement* element,
-                                    HtmlCharactersNode* char_node,
-                                    bool* is_element_deleted);
+                                    HtmlCharactersNode* char_node);
 
   // This is called at the end of the document when all outstanding summary
   // computations have completed, regardless of whether successful or not. It

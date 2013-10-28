@@ -48,16 +48,11 @@ namespace net_instaweb {
 // absolute url.
 const int kRequestChainLimit = 5;
 
-PropertyCallback::PropertyCallback(const StringPiece& url,
-                                   const StringPiece& options_signature_hash,
-                                   UserAgentMatcher::DeviceType device_type,
-                                   RewriteDriver* driver,
-                                   ThreadSystem* thread_system)
+PropertyCallback::PropertyCallback(RewriteDriver* driver,
+                                   ThreadSystem* thread_system,
+                                   const StringPiece& key)
     : PropertyPage(PropertyPage::kPropertyCachePage,
-                   url,
-                   options_signature_hash,
-                   UserAgentMatcher::DeviceTypeSuffix(device_type),
-                   driver->request_context(),
+                   key, driver->request_context(),
                    thread_system->NewMutex(),
                    driver->server_context()->page_property_cache()),
   driver_(driver),
@@ -102,7 +97,8 @@ InstawebContext::InstawebContext(request_rec* request,
       request_headers_(request_headers),
       started_parse_(false),
       sent_headers_(false),
-      populated_headers_(false) {
+      populated_headers_(false),
+      modify_caching_headers_(true) {
   if (options.running_experiment()) {
     // The experiment framework requires custom options because it has to make
     // changes based on what ExperimentSpec the user should be seeing.
@@ -127,6 +123,8 @@ InstawebContext::InstawebContext(request_rec* request,
   } else {
     rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
   }
+  modify_caching_headers_ =
+      rewrite_driver_->options()->modify_caching_headers();
 
   const char* user_agent = apr_table_get(request->headers_in,
                                          HttpAttributes::kUserAgent);
@@ -294,15 +292,14 @@ PropertyCallback* InstawebContext::InitiatePropertyCacheLookup() {
         server_context_->user_agent_matcher();
     UserAgentMatcher::DeviceType device_type =
         user_agent_matcher->GetDeviceTypeForUA(rewrite_driver_->user_agent());
-    GoogleString options_signature_hash =
-        server_context_->GetRewriteOptionsSignatureHash(
-            rewrite_driver_->options());
-    property_callback = new PropertyCallback(
-        absolute_url_,
-        options_signature_hash,
-        device_type,
-        rewrite_driver_,
-        server_context_->thread_system());
+    StringPiece device_type_suffix =
+        UserAgentMatcher::DeviceTypeSuffix(device_type);
+
+    GoogleString key = server_context_->GetPagePropertyCacheKey(
+        absolute_url_, rewrite_driver_->options(), device_type_suffix);
+    property_callback = new PropertyCallback(rewrite_driver_,
+                                             server_context_->thread_system(),
+                                             key);
     server_context_->page_property_cache()->Read(property_callback);
   }
   return property_callback;
@@ -420,7 +417,8 @@ void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
         experiment_value, url,
         timer.NowMs() + options->experiment_cookie_duration_ms(),
         &resp_headers);
-    ResponseHeadersToApacheRequest(resp_headers, request);
+    AddResponseHeadersToRequest(&resp_headers, NULL,
+                                options->modify_caching_headers(), request);
   }
 }
 

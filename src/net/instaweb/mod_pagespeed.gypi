@@ -37,6 +37,7 @@
     'apache/apache_slurp.cc',
     'apache/apache_writer.cc',
     'apache/header_util.cc',
+    'apache/in_place_resource_recorder.cc',
     'apache/instaweb_context.cc',
     'apache/instaweb_handler.cc',
     'apache/interface_mod_spdy.cc',
@@ -44,7 +45,7 @@
     'apache/mod_spdy_fetch_controller.cc',
     'apache/mod_spdy_fetcher.cc',
     'apache/mod_instaweb.cc',
-    '<(DEPTH)/pagespeed/kernel/base/mem_debug.cc',
+    'util/mem_debug.cc',
   ],
   'ldflags+': [
     '-Wl,--version-script=build/mod_pagespeed.map',

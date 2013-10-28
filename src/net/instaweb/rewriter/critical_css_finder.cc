@@ -40,9 +40,7 @@ const char CriticalCssFinder::kCriticalCssExpiredCount[] =
 const char CriticalCssFinder::kCriticalCssNotFoundCount[] =
     "critical_css_not_found_count";
 
-CriticalCssFinder::CriticalCssFinder(const PropertyCache::Cohort* cohort,
-                                     Statistics* statistics)
-    : cohort_(cohort) {
+CriticalCssFinder::CriticalCssFinder(Statistics* statistics) {
   critical_css_valid_count_ = statistics->GetTimedVariable(
       kCriticalCssValidCount);
   critical_css_expired_count_ = statistics->GetTimedVariable(
@@ -88,7 +86,7 @@ CriticalCssResult* CriticalCssFinder::GetCriticalCssFromCache(
       DecodeFromPropertyCache<CriticalCssResult>(
           driver->server_context()->page_property_cache(),
           driver->fallback_property_page(),
-          cohort_,
+          GetCohort(),
           kCriticalCssPropertyName,
           driver->options()->finder_properties_cache_expiration_time_ms(),
           &pcache_status));
@@ -116,7 +114,7 @@ bool CriticalCssFinder::UpdateCache(
   PropertyCacheUpdateResult status =
       UpdateInPropertyCache(
           result,
-          cohort_,
+          GetCohort(),
           kCriticalCssPropertyName,
           false /* don't write cohort */,
           driver->fallback_property_page());
