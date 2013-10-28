@@ -28,10 +28,15 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
 namespace {
+
+inline char IsHtmlSpace(char c) {
+  return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n') || (c == '\f');
+}
 
 struct HtmlKeywordsSequence {
   const char* sequence;
@@ -653,8 +658,9 @@ StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
     // This function, unfortunately, does not know what quoting was used.
     // TODO(jmarantz): in remove_quotes filter, switch between ' and " for
     // quoting based on whatever is in the attr value.
-    if ((ch > 127) || (ch < 32) || (ch == '"') || (ch == '\'') || (ch == '&') ||
-        (ch == '<') || (ch == '>')) {
+    if (!IsHtmlSpace(ch) &&
+        ((ch > 127) || (ch < 32) || (ch == '"') || (ch == '\'') ||
+         (ch == '&') || (ch == '<') || (ch == '>'))) {
       char_to_escape.clear();
       char_to_escape += ch;
       StringStringMapSensitive::const_iterator p =
@@ -793,6 +799,15 @@ void HtmlKeywords::InitOptionallyClosedKeywords() {
   AddToSet(kListElements, &optionally_closed_);
   AddToSet(kTableElements, &optionally_closed_);
   PrepareForBinarySearch(&optionally_closed_);
+}
+
+bool HtmlKeywords::WritePre(StringPiece str, Writer* writer,
+                            MessageHandler* handler) {
+  bool ret = writer->Write("<pre>\n", handler);
+  GoogleString escaped;
+  ret &= writer->Write(HtmlKeywords::Escape(str, &escaped), handler);
+  ret &= writer->Write("</pre>\n", handler);
+  return ret;
 }
 
 }  // namespace net_instaweb
