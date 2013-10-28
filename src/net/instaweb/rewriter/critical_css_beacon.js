@@ -23,15 +23,13 @@
  * @author jud@google.com (Jud Porter)
  */
 
-goog.require('pagespeedutils');
+// TODO(jud): Reuse and share code with critical_images_beacon.js.
 
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
 window['pagespeed'] = window['pagespeed'] || {};
 var pagespeed = window['pagespeed'];
-
-
 
 /**
  * @constructor
@@ -40,53 +38,86 @@ var pagespeed = window['pagespeed'];
  * @param {string} optionsHash The hash of the rewrite options. This is required
  *     to perform the property cache lookup when the beacon is handled by the
  *     sever.
- * @param {string} nonce The nonce sent by the server.
  * @param {Array.<string>} selectors List of the selectors on the page.
  */
 pagespeed.CriticalCssBeacon = function(beaconUrl, htmlUrl, optionsHash,
-                                       nonce, selectors) {
-  /**
-   * We divide up the main loop of checkCssSelectors into multiple calls with
-   * window.setTimeout to minimize the delay in processing other events on the
-   * page. This constant sets the number of candidate selectors we check in a
-   * single call to checkCssSelectors.
-   *
-   * This value is choosen so that each iteration takes around ~100ms on a
-   * modern mobile phone. On a nexus 4, each document.querySelector call was
-   * measured to take around 400us on a complex page.
-   *
-   * @const
-   * @private
-   */
-  this.MAXITERS_ = 250;
-
+                                       selectors) {
   this.beaconUrl_ = beaconUrl;
   this.htmlUrl_ = htmlUrl;
   this.optionsHash_ = optionsHash;
-  this.nonce_ = nonce;
   this.selectors_ = selectors;
-  this.criticalSelectors_ = [];
-  this.idx_ = 0;
+  this.windowSize_ = this.getWindowSize_();
+  this.imgLocations_ = {};
 };
 
-
 /**
- * Send the selectors that have been collected into the criticalSelectors_
- * member var back to the server.
+ * Send the beacon as an AJAX POST request to the server.
+ * @param {string} data The data to be sent in the POST.
+ * @return {boolean} Return true if the request was sent.
  * @private
  */
-pagespeed.CriticalCssBeacon.prototype.sendBeacon_ = function() {
+pagespeed.CriticalCssBeacon.prototype.sendBeacon_ = function(data) {
+  var httpRequest;
+  // TODO(jud): Use the closure goog.net.Xhrlo.send function here once we have
+  // closure lib support in our static JS files.
+  if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+    httpRequest = new XMLHttpRequest();
+  } else if (window.ActiveXObject) { // IE
+    try {
+      httpRequest = new ActiveXObject('Msxml2.XMLHTTP');
+    }
+    catch (e) {
+      try {
+        httpRequest = new ActiveXObject('Microsoft.XMLHTTP');
+      }
+      catch (e2) {}
+    }
+  }
+  if (!httpRequest) {
+    return false;
+  }
+
+  httpRequest.open('POST', this.beaconUrl_);
+  httpRequest.setRequestHeader(
+      'Content-Type', 'application/x-www-form-urlencoded');
+  httpRequest.send(data);
+  return true;
+};
+
+/**
+ * Check if CSS selectors apply to DOM elements that are visible on initial page
+ * load.
+ * @private
+ */
+pagespeed.CriticalCssBeacon.prototype.checkCssSelectors_ = function() {
   // Define the maximum size of a POST that the server will accept. We shouldn't
   // send more data than this.
   // TODO(jud): Factor out this const so that it matches kMaxPostSizeBytes, and
   // set to a smaller size based on typical critical CSS beacon sizes.
-  /** @const */ var MAX_DATA_LEN = 131072;
+  var MAX_DATA_LEN = 131072;
 
-  var data = 'oh=' + this.optionsHash_ + '&n=' + this.nonce_;
-  data += '&cs=';
-  for (var i = 0; i < this.criticalSelectors_.length; ++i) {
-    var tmp = (i > 0) ? ',' : '';
-    tmp += encodeURIComponent(this.criticalSelectors_[i]);
+  var critical_selectors = [];
+
+  for (var i = 0; i < this.selectors_.length; ++i) {
+    try {
+      // If this selector matched any DOM elements, then consider it critical.
+      if (document.querySelectorAll(this.selectors_[i]).length > 0) {
+        critical_selectors.push(this.selectors_[i]);
+      }
+    } catch (e) {
+      // SYNTAX_ERR is thrown if the browser can't parse a selector (eg, CSS3 in
+      // a CSS2.1 browser). Ignore these exceptions.
+      // TODO(jud): Consider if continue is the right thing to do here. It may
+      // be safer to mark this selector as critical if the browser didn't
+      // understand it.
+      continue;
+    }
+  }
+  var data = 'url=' + encodeURIComponent(this.htmlUrl_);
+  data += '&oh=' + this.optionsHash_;
+  data += '&cs=' + encodeURIComponent(critical_selectors[0]);
+  for (var i = 1; i < critical_selectors.length; ++i) {
+    var tmp = ',' + encodeURIComponent(critical_selectors[i]);
     // TODO(jud): Don't truncate the critical selectors list if we exceed
     // MAX_DATA_LEN. Either send a signal back that we exceeded the limit, or
     // send multiple beacons back with all the data.
@@ -99,73 +130,60 @@ pagespeed.CriticalCssBeacon.prototype.sendBeacon_ = function() {
   pagespeed['criticalCssBeaconData'] = data;
   // TODO(jud): This beacon should coordinate with the add_instrumentation JS
   // so that only one beacon request is sent if both filters are enabled.
-  pagespeedutils.sendBeacon(this.beaconUrl_, this.htmlUrl_, data);
+  this.sendBeacon_(data);
 };
-
 
 /**
- * Check if CSS selectors apply to DOM elements that are visible on initial page
- * load.
- * @param {Function} callback Function to call when calculating the selectors
- *     has finished.
- * @private
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with the DeferJs code.
  */
-pagespeed.CriticalCssBeacon.prototype.checkCssSelectors_ = function(callback) {
-  for (var i = 0; i < this.MAXITERS_ && this.idx_ < this.selectors_.length;
-       ++i, ++this.idx_) {
-    try {
-      // If this selector matched any DOM elements, then consider it critical.
-      if (document.querySelector(this.selectors_[this.idx_]) != null) {
-        this.criticalSelectors_.push(this.selectors_[this.idx_]);
-      }
-    } catch (e) {
-      // SYNTAX_ERR is thrown if the browser can't parse a selector (eg, CSS3 in
-      // a CSS2.1 browser). Ignore these exceptions.
-      // TODO(jud): Consider if continue is the right thing to do here. It may
-      // be safer to mark this selector as critical if the browser didn't
-      // understand it.
-      continue;
-    }
-  }
-
-  if (this.idx_ < this.selectors_.length) {
-    window.setTimeout(this.checkCssSelectors_.bind(this), 0, callback);
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
   } else {
-    callback();
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
   }
 };
-
 
 /**
  * Initialize.
  * @param {string} beaconUrl The URL on the server to send the beacon to.
  * @param {string} htmlUrl Url of the page the beacon is being inserted on.
  * @param {string} optionsHash The hash of the rewrite options.
- * @param {string} nonce The nonce sent by the server.
  * @param {Array.<string>} selectors List of the selectors on the page.
  */
 pagespeed.criticalCssBeaconInit = function(beaconUrl, htmlUrl, optionsHash,
-                                           nonce, selectors) {
+                                           selectors) {
   // Verify that the browser supports the APIs we need and bail out early if we
   // don't.
-  if (!document.querySelector || !Function.prototype.bind) {
+  if (!document.querySelectorAll) {
     return;
   }
 
   var temp = new pagespeed.CriticalCssBeacon(beaconUrl, htmlUrl, optionsHash,
-                                             nonce, selectors);
+                                             selectors);
   // Add event to the onload handler to scan selectors and beacon back which
   // apply to critical elements.
   var beacon_onload = function() {
     // Attempt not to block other onload events on the page by wrapping in
     // setTimeout().
     window.setTimeout(function() {
-      temp.checkCssSelectors_(function() {
-        temp.sendBeacon_();
-      });
+      temp.checkCssSelectors_();
     }, 0);
   };
-  pagespeedutils.addHandler(window, 'load', beacon_onload);
+  pagespeed.addHandler(window, 'load', beacon_onload);
 };
 
 pagespeed['criticalCssBeaconInit'] = pagespeed.criticalCssBeaconInit;

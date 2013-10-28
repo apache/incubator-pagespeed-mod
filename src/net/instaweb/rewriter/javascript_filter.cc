@@ -26,7 +26,9 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
@@ -37,7 +39,6 @@
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -67,7 +68,7 @@ void CleanupWhitespaceScriptBody(RewriteDriver* driver,
       return;
     }
   }
-  bool deleted = driver->DeleteNode(node);
+  bool deleted = driver->DeleteElement(node);
   DCHECK(deleted);
 }
 
@@ -77,6 +78,7 @@ JavascriptFilter::JavascriptFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       script_type_(kNoScript),
       some_missing_scripts_(false),
+      config_(NULL),
       script_tag_scanner_(driver_) { }
 
 JavascriptFilter::~JavascriptFilter() { }
@@ -113,7 +115,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     if (!code_block.ProfitableToRewrite()) {
       // Optimization happened but wasn't useful; the base class will remember
       // this for later so we don't attempt to rewrite twice.
-      message_handler->Message(
+      server_context->message_handler()->Message(
           kInfo, "Script %s didn't shrink.", code_block.message_id().c_str());
       config_->did_not_shrink()->Add(1);
       return kRewriteFailed;
@@ -146,7 +148,10 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   // TODO(jmarantz): this should be done as a SimpleTextFilter.
   virtual void RewriteSingle(
       const ResourcePtr& input, const OutputResourcePtr& output) {
-    bool is_ipro = IsNestedIn(RewriteOptions::kInPlaceRewriteId);
+    bool is_ipro =
+        num_slots() == 1 &&
+        (slot(0)->LocationString() ==
+            InPlaceRewriteResourceSlot::kIproSlotLocation);
     AttachDependentRequestTrace(is_ipro ? "IproProcessJs" : "ProcessJs");
     if (!IsDataUrl(input->url())) {
       TracePrintf("RewriteJs: %s", input->url().c_str());
@@ -174,7 +179,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     }
     // The url or script content is changing, so log that fact.
     Driver()->log_record()->SetRewriterLoggingStatus(
-        id(), output_slot->resource()->url(), RewriterApplication::APPLIED_OK);
+        id(), RewriterInfo::APPLIED_OK);
     config_->num_uses()->Add(1);
   }
 
@@ -191,6 +196,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
       const StringPiece& script_out, ServerContext* server_context,
       const OutputResourcePtr& script_dest) {
     bool ok = false;
+    MessageHandler* message_handler = server_context->message_handler();
     server_context->MergeNonCachingResponseHeaders(
         script_resource, script_dest);
     // Try to preserve original content type to avoid breaking upstream proxies
@@ -206,6 +212,9 @@ class JavascriptFilter::Context : public SingleRewriteContext {
                         script_resource->charset(),
                         script_dest.get())) {
       ok = true;
+      message_handler->Message(kInfo, "Rewrite script %s to %s",
+                               script_resource->url().c_str(),
+                               script_dest->url().c_str());
     }
     return ok;
   }
@@ -224,9 +233,9 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     // absolute canonical urls when they are required).
     GoogleUrl library_gurl(Driver()->base_url(), library_url);
     server_context->message_handler()->Message(
-        kInfo, "Canonical script %s is %s", code_block.message_id().c_str(),
+        kInfo, "Script %s is %s", code_block.message_id().c_str(),
         library_gurl.UncheckedSpec().as_string().c_str());
-    if (!library_gurl.IsWebValid()) {
+    if (!library_gurl.is_valid()) {
       return false;
     }
     // We remember the canonical url in the CachedResult in the metadata cache,
@@ -256,6 +265,8 @@ void JavascriptFilter::StartElementImpl(HtmlElement* element) {
     case ScriptTagScanner::kJavaScript:
       if (script_src != NULL) {
         script_type_ = kExternalScript;
+        driver_->InfoHere("Found script with src %s",
+                          script_src->DecodedValueOrNull());
         RewriteExternalScript(element, script_src);
       } else {
         script_type_ = kInlineScript;
@@ -327,7 +338,7 @@ void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
     }
     config_->num_uses()->Add(1);
     driver_->log_record()->SetRewriterLoggingStatus(
-        id(), RewriterApplication::APPLIED_OK);
+        id(), RewriterInfo::APPLIED_OK);
   } else {
     config_->did_not_shrink()->Add(1);
   }

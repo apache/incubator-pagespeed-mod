@@ -24,8 +24,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/http/caching_headers.h"
 
 #include "apr_strings.h"
 #include "http_core.h"
@@ -78,7 +76,16 @@ void ApacheRequestToResponseHeaders(const request_rec& request,
   }
 }
 
+void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
+                                    bool ok_to_disable_downstream_headers,
+                                    request_rec* request) {
+  request->status = response_headers.status_code();
+  AddResponseHeadersToRequest(&response_headers, NULL,
+                              ok_to_disable_downstream_headers, request);
+}
+
 void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
+                                       bool ok_to_disable_downstream_headers,
                                        request_rec* request,
                                        apr_table_t* table) {
   for (int i = 0, n = response_headers.NumAttributes(); i < n; ++i) {
@@ -90,6 +97,10 @@ void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
       char* ptr = apr_pstrdup(request->pool, value.c_str());
       ap_set_content_type(request, ptr);
     } else {
+      if (ok_to_disable_downstream_headers &&
+          StringCaseEqual(name, HttpAttributes::kCacheControl)) {
+        DisableDownstreamHeaderFilters(request);
+      }
       // apr_table_add makes copies of both head key and value, so we do not
       // have to duplicate them.
       apr_table_add(table, name.c_str(), value.c_str());
@@ -97,17 +108,25 @@ void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
   }
 }
 
-void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
-                                    request_rec* request) {
-  AddResponseHeadersToRequestHelper(response_headers, request,
-                                    request->headers_out);
+void AddResponseHeadersToRequest(const ResponseHeaders* headers,
+                                 const ResponseHeaders* err_headers,
+                                 bool ok_to_disable_downstream_headers,
+                                 request_rec* request) {
+  DCHECK(headers != NULL || err_headers != NULL);
+  DCHECK(headers != err_headers);
+  if (headers != NULL) {
+    AddResponseHeadersToRequestHelper(*headers,
+                                      ok_to_disable_downstream_headers,
+                                      request, request->headers_out);
+  }
+  if (err_headers != NULL) {
+    AddResponseHeadersToRequestHelper(*err_headers,
+                                      ok_to_disable_downstream_headers,
+                                      request,
+                                      request->err_headers_out);
+  }
 }
 
-void ErrorHeadersToApacheRequest(const ResponseHeaders& err_response_headers,
-                                 request_rec* request) {
-  AddResponseHeadersToRequestHelper(err_response_headers, request,
-                                    request->err_headers_out);
-}
 
 void DisableDownstreamHeaderFilters(request_rec* request) {
   // Prevent downstream filters from corrupting our headers.
@@ -139,47 +158,34 @@ void PrintHeaders(request_rec* request) {
   fflush(stdout);
 }
 
-class ApacheCachingHeaders : public CachingHeaders {
- public:
-  explicit ApacheCachingHeaders(request_rec* request)
-      : CachingHeaders(request->status),
-        request_(request) {
-  }
-
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
-    const char* value = apr_table_get(request_->headers_out,
-                                      key.as_string().c_str());
-    if (value == NULL) {
-      return false;
-    }
-    SplitStringPieceToVector(value, ",", values, true);
-    for (int i = 0, n = values->size(); i < n; ++i) {
-      TrimWhitespace(&((*values)[i]));
-    }
-    return true;
-  }
-
-  virtual bool IsLikelyStaticResourceType() const {
-    DCHECK(false);  // not called in our use-case.
-    return false;
-  }
-
-  virtual bool IsCacheableResourceStatusCode() const {
-    DCHECK(false);  // not called in our use-case.
-    return false;
-  }
-
- private:
-  request_rec* request_;
-
-  DISALLOW_COPY_AND_ASSIGN(ApacheCachingHeaders);
-};
-
 void DisableCaching(request_rec* request) {
   // Turn off caching for the HTTP requests.
-  ApacheCachingHeaders headers(request);
+  const char* cache_control = apr_table_get(request->headers_out,
+                                            HttpAttributes::kCacheControl);
+  GoogleString new_cache_control(HttpAttributes::kNoCacheMaxAge0);
+  if (cache_control != NULL) {
+    StringPieceVector pieces, name_value;
+    SplitStringPieceToVector(cache_control, ",", &pieces, true);
+    for (int i = 0, n = pieces.size(); i < n; ++i) {
+      name_value.clear();
+      TrimWhitespace(&pieces[i]);
+      SplitStringPieceToVector(pieces[i], "=", &name_value, true);
+      if (!name_value.empty()) {
+        StringPiece name = name_value[0];
+        TrimWhitespace(&name);
+        // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9.1
+        if (!StringCaseEqual(name, HttpAttributes::kNoCache) &&
+            !StringCaseEqual(name, HttpAttributes::kMaxAge) &&
+            !StringCaseEqual(name, HttpAttributes::kPrivate) &&
+            !StringCaseEqual(name, HttpAttributes::kPublic)) {
+          StrAppend(&new_cache_control, ", ", pieces[i]);
+        }
+      }
+    }
+  }
+
   apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
-                headers.GenerateDisabledCacheControl().c_str());
+                new_cache_control.c_str());
   apr_table_unset(request->headers_out, HttpAttributes::kLastModified);
   apr_table_unset(request->headers_out, HttpAttributes::kExpires);
   apr_table_unset(request->headers_out, HttpAttributes::kEtag);

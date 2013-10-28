@@ -52,7 +52,7 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
 
   // Make this actually happen asynchronously.
   SetupWaitFetcher();
-  mock_scheduler()->AddAlarmAtUs(
+  mock_scheduler()->AddAlarm(
       timer()->NowUs() + 100,
       MakeFunction(factory()->wait_url_async_fetcher(),
                    &WaitUrlAsyncFetcher::CallCallbacks));
@@ -75,7 +75,7 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   EXPECT_TRUE(
       ResourceFetch::BlockingFetch(
           url, server_context(), custom_driver, callback));
-  EXPECT_TRUE(callback->IsDone());
+  EXPECT_TRUE(callback->done());
   EXPECT_TRUE(callback->success());
   callback->Release();
 
@@ -110,7 +110,7 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
   EXPECT_FALSE(
       ResourceFetch::BlockingFetch(
           url, server_context(), custom_driver, callback));
-  EXPECT_TRUE(callback->IsDone());
+  EXPECT_TRUE(callback->done());
   EXPECT_FALSE(callback->success());
   callback->Release();
 

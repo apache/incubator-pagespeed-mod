@@ -20,7 +20,19 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_BENCHMARK_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_BENCHMARK_H_
 
-// TODO(jmarantz): Remove this forwarding header and change all references.
-#include "pagespeed/kernel/base/benchmark.h"
+
+#include "third_party/re2/src/util/benchmark.h"
+
+#undef BENCHMARK
+#define BENCHMARK(f) \
+    ::testing::Benchmark* _benchmark_##f = (new ::testing::Benchmark(#f, f))->\
+        ThreadRange(1, 1)
+
+#undef BENCHMARK_RANGE
+#define BENCHMARK_RANGE(f, lo, hi) \
+    ::testing::Benchmark* _benchmark_##f = \
+        (new ::testing::Benchmark(#f, f, lo, hi))->ThreadRange(1, 1)
+
+
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_BENCHMARK_H_

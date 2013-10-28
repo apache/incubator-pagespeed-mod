@@ -102,8 +102,8 @@ class JsInlineFilterTest : public RewriteTestBase {
                      js_original_inline_body.c_str());
 
     const GoogleString outline_html_output =
-        StringPrintf(kHtmlTemplate, js_out_url.c_str(),
-                     js_original_inline_body.c_str());
+          StringPrintf(kHtmlTemplate, js_out_url.c_str(),
+                    js_original_inline_body.c_str());
 
     const GoogleString expected_output =
         (!expect_inline ? outline_html_output :
@@ -254,10 +254,11 @@ TEST_F(JsInlineFilterTest, ConservativeNonInlineCloseScript) {
                        false);
 }
 
-TEST_F(JsInlineFilterTest, DoNotInlineIntrospectiveJavascriptByDefault) {
+TEST_F(JsInlineFilterTest, DoNotInlineIntrospectiveJavascript) {
   // If it's unsafe to rename, because it contains fragile introspection like
   // $("script"), we have to leave it at the original url and not inline it.
-  // Dependent on a config option that's on by default.
+  // Dependent on a config option that's off by default, so we turn it on.
+  options()->set_avoid_renaming_introspective_javascript(true);
   TestInlineJavascript("http://www.example.com/index.html",
                        "http://www.example.com/script.js",
                        "",
@@ -265,8 +266,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineIntrospectiveJavascriptByDefault) {
                        false);  // expect no inlining
 }
 
-TEST_F(JsInlineFilterTest, DoInlineIntrospectiveJavascript) {
-  options()->set_avoid_renaming_introspective_javascript(false);
+TEST_F(JsInlineFilterTest, InlineIntrospectiveJavascriptByDefault) {
   SetHtmlMimetype();
 
   // The same situation as DoNotInlineIntrospectiveJavascript, but in the
@@ -372,7 +372,6 @@ TEST_F(JsInlineFilterTest, InlineMinimizeInteraction) {
       StrCat(kTestDomain, "minimize_but_not_inline.html"),
       "",  // No doctype
       StrCat(kTestDomain, "a.js"),
-      // Note: Original URL was absolute, so rewritten one is as well.
       Encode(kTestDomain, "jm", "0", "a.js", "js"),
       "",  // No inline body in,
       "var answer = 42; // const is non-standard",  // out-of-line body

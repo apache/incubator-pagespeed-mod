@@ -62,7 +62,7 @@ class CssTagScannerTest : public testing::Test {
   void CheckGurlResolve(const GoogleUrl& base, const char* relative_path,
                         const char* abs_path) {
     GoogleUrl resolved(base, relative_path);
-    EXPECT_TRUE(resolved.IsWebValid());
+    EXPECT_TRUE(resolved.is_valid());
     EXPECT_STREQ(resolved.Spec(), abs_path);
   }
 
@@ -83,14 +83,14 @@ class CssTagScannerTest : public testing::Test {
 // This test verifies that we understand how Resolve works.
 TEST_F(CssTagScannerTest, TestGurl) {
   GoogleUrl base_slash("http://base/");
-  EXPECT_TRUE(base_slash.IsWebValid());
+  EXPECT_TRUE(base_slash.is_valid());
   CheckGurlResolve(base_slash, "r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "/r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "../r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_slash, "./r/path.ext", "http://base/r/path.ext");
 
   GoogleUrl base_no_slash("http://base");
-  EXPECT_TRUE(base_no_slash.IsWebValid());
+  EXPECT_TRUE(base_no_slash.is_valid());
   CheckGurlResolve(base_no_slash, "r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_no_slash, "/r/path.ext", "http://base/r/path.ext");
   CheckGurlResolve(base_no_slash, "../r/path.ext", "http://base/r/path.ext");
@@ -248,38 +248,6 @@ TEST_F(CssTagScannerTest, TestHasImport) {
       "a { color: pink; }\n"
       "/* @import after rulesets is invalid */\n"
       "@import url('http://foo.com');\n", &message_handler_));
-}
-
-TEST_F(CssTagScannerTest, IsStylesheetOrAlternate) {
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("canonical stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate(" stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate(" styleSheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("alternate stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate"));
-  EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate canonical"));
-  EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("StyleshEet alternAte canoNical "));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("alternate"));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("prev"));
-  EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate(""));
-}
-
-TEST_F(CssTagScannerTest, IsAlternateStylesheet) {
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("canonical stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(" stylesheet"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(" styleSheet"));
-  EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("alternate stylesheet"));
-  EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("stylesheet alternate"));
-  EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("stylesheet alternate canonical"));
-  EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("StyleshEet alternAte canoNical "));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("alternate"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("prev"));
-  EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(""));
 }
 
 class RewriteDomainTransformerTest : public RewriteTestBase {

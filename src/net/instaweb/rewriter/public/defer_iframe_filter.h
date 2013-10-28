@@ -53,7 +53,7 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DEFER_IFRAME_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEFER_IFRAME_FILTER_H_
 
-#include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
@@ -62,21 +62,22 @@ class HtmlElement;
 class RewriteDriver;
 class StaticAssetManager;
 
-class DeferIframeFilter : public CommonFilter {
+class DeferIframeFilter : public EmptyHtmlFilter {
  public:
   static const char kDeferIframeInit[];
   static const char kDeferIframeIframeJs[];
   explicit DeferIframeFilter(RewriteDriver* driver);
   ~DeferIframeFilter();
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartDocument();
+  virtual void StartElement(HtmlElement* element);
+  virtual void EndElement(HtmlElement* element);
   virtual void DetermineEnabled();
 
   virtual const char* Name() const { return "DeferIframe"; }
 
  private:
+  RewriteDriver* driver_;
   StaticAssetManager* static_asset_manager_;
   bool script_inserted_;
 

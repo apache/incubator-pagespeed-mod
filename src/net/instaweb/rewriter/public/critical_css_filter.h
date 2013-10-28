@@ -33,10 +33,10 @@
 #include <map>
 #include <vector>
 
-#include "net/instaweb/rewriter/critical_css.pb.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
@@ -48,7 +48,7 @@ class HtmlCharactersNode;
 class HtmlElement;
 class RewriteDriver;
 
-class CriticalCssFilter : public CommonFilter {
+class CriticalCssFilter : public EmptyHtmlFilter {
  public:
   explicit CriticalCssFilter(RewriteDriver* rewrite_driver,
                              CriticalCssFinder* finder);
@@ -57,12 +57,11 @@ class CriticalCssFilter : public CommonFilter {
   static const char kAddStylesScript[];
   static const char kStatsScriptTemplate[];
 
-  // Overridden from CommonFilter:
-  virtual void DetermineEnabled();
-  virtual void StartDocumentImpl();
+  // Overridden from EmptyHtmlFilter:
+  virtual void StartDocument();
   virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartElement(HtmlElement* element);
+  virtual void EndElement(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
 
   virtual const char* Name() const { return "CriticalCss"; }
@@ -81,23 +80,22 @@ class CriticalCssFilter : public CommonFilter {
   // TODO(gee): This probably belongs in an ancestor class.
   void LogRewrite(int status);
 
+  RewriteDriver* driver_;
   CssTagScanner css_tag_scanner_;
   CriticalCssFinder* finder_;
 
-  CriticalCssResult* critical_css_result_;
+  scoped_ptr<CriticalCssResult> critical_css_result_;
 
   // Map link URLs to indexes in the critical CSS result.
   typedef std::map<GoogleString, int> UrlIndexes;
   UrlIndexes url_indexes_;
-
-  bool has_critical_css_;
-  bool is_move_link_script_added_;
 
   class CssElement;
   class CssStyleElement;
   typedef std::vector<CssElement*> CssElementVector;
   CssElementVector css_elements_;
   CssStyleElement* current_style_element_;
+  bool has_critical_css_;
 
   // TODO(slamm): Are these just for logging, or do you want to export these
   // to varz as well.  Just in general, I think someone intimately familiar with

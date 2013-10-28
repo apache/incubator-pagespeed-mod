@@ -20,14 +20,16 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_CSS_FINDER_H_
 
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class CriticalCssResult;
+class PropertyValue;
 class RewriteDriver;
 class Statistics;
 class TimedVariable;
+
 
 // Finds critical CSS rules (i.e. CSS needed for the initial page load).
 class CriticalCssFinder {
@@ -37,7 +39,7 @@ class CriticalCssFinder {
   static const char kCriticalCssNotFoundCount[];
   static const char kCriticalCssPropertyName[];
 
-  CriticalCssFinder(const PropertyCache::Cohort* cohort, Statistics* stats);
+  explicit CriticalCssFinder(Statistics* stats);
   virtual ~CriticalCssFinder();
 
   static void InitStats(Statistics* statistics);
@@ -46,28 +48,19 @@ class CriticalCssFinder {
   // Ownership of the result is passed to the caller.
   virtual CriticalCssResult* GetCriticalCssFromCache(RewriteDriver* driver);
 
-  // Compute the critical css for the driver's url.
-  virtual void ComputeCriticalCss(RewriteDriver* driver) = 0;
+  // Compute the critical css for |url|.
+  virtual void ComputeCriticalCss(StringPiece url, RewriteDriver* driver) = 0;
 
   // Copy |critical_css_map| into property cache. Returns true on success.
   virtual bool UpdateCache(RewriteDriver* driver,
                            const CriticalCssResult& result);
 
-  // Collects the critical CSS rules from the property cache and updates the
-  // same in the rewrite driver. The ownership of the ruleset stays with the
-  // driver.
-  virtual void UpdateCriticalCssInfoInDriver(RewriteDriver* driver);
+  virtual const char* GetCohort() const = 0;
 
-  // Gets the critical CSS rules from the driver if they are present. Otherwise
-  // calls UpdateCriticalCssInfoInDriver() to populate the ruleset in the driver
-  // and returns the rules. The ownership of the CriticalCssResult is not
-  // released and it stays with the driver.
-  virtual CriticalCssResult* GetCriticalCss(RewriteDriver* driver);
-
-  const PropertyCache::Cohort* cohort() const { return cohort_; }
+ protected:
+  PropertyValue* GetPropertyValue(RewriteDriver* driver);
 
  private:
-  const PropertyCache::Cohort* cohort_;
   TimedVariable* critical_css_valid_count_;
   TimedVariable* critical_css_expired_count_;
   TimedVariable* critical_css_not_found_count_;

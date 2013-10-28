@@ -22,7 +22,6 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/public/global_constants.h"
@@ -39,10 +38,10 @@
 
 namespace net_instaweb {
 
-void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
-                                           const RequestContextPtr& request_ctx,
-                                           ServerContext* server_context,
-                                           RewriteOptions** custom_options) {
+void ResourceFetch::ApplyFuriousOptions(const GoogleUrl& url,
+                                        const RequestContextPtr& request_ctx,
+                                        ServerContext* server_context,
+                                        RewriteOptions** custom_options) {
   const RewriteOptions* active_options;
   if (*custom_options == NULL) {
     RewriteDriverPool* driver_pool = server_context->SelectDriverPool(
@@ -51,17 +50,16 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
   } else {
     active_options = *custom_options;
   }
-  if (active_options->running_experiment()) {
+  if (active_options->running_furious()) {
     // If we're running an experiment and this resource url specifies a
-    // experiment_spec, make sure the custom options have that experiment
-    // selected.
+    // furious_spec, make sure the custom options have that experiment selected.
     ResourceNamer namer;
     namer.Decode(url.LeafSansQuery());
     if (namer.has_experiment()) {
       if (*custom_options == NULL) {
         *custom_options = active_options->Clone();
       }
-      (*custom_options)->SetExperimentStateStr(namer.experiment());
+      (*custom_options)->SetFuriousStateStr(namer.experiment());
       server_context->ComputeSignature(*custom_options);
     }
   }
@@ -70,7 +68,7 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
 RewriteDriver* ResourceFetch::GetDriver(
     const GoogleUrl& url, RewriteOptions* custom_options,
     ServerContext* server_context, const RequestContextPtr& request_ctx) {
-  ApplyExperimentOptions(url, request_ctx, server_context, &custom_options);
+  ApplyFuriousOptions(url, request_ctx, server_context, &custom_options);
   RewriteDriver* driver = (custom_options == NULL)
       ? server_context->NewRewriteDriver(request_ctx)
       : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
@@ -79,12 +77,11 @@ RewriteDriver* ResourceFetch::GetDriver(
 
 void ResourceFetch::StartWithDriver(
     const GoogleUrl& url, CleanupMode cleanup_mode,
-    ServerContext* server_context, RewriteDriver* driver,
-    AsyncFetch* async_fetch) {
+    ServerContext* manager, RewriteDriver* driver, AsyncFetch* async_fetch) {
 
   ResourceFetch* resource_fetch = new ResourceFetch(
-      url, cleanup_mode, driver, server_context->timer(),
-      server_context->message_handler(), async_fetch);
+      url, cleanup_mode, driver, manager->timer(),
+      manager->message_handler(), async_fetch);
 
   if (!driver->FetchResource(url.Spec(), resource_fetch)) {
     resource_fetch->Done(false);
@@ -103,29 +100,28 @@ void ResourceFetch::Start(const GoogleUrl& url,
 }
 
 bool ResourceFetch::BlockingFetch(const GoogleUrl& url,
-                                  ServerContext* server_context,
+                                  ServerContext* manager,
                                   RewriteDriver* driver,
                                   SyncFetcherAdapterCallback* callback) {
   // Here, we do not want the driver to be cleaned up by the ResourceFetch
   // since we will be calling BoundedWaitFor on it!
-  StartWithDriver(url, kDontAutoCleanupDriver, server_context, driver,
-                  callback);
+  StartWithDriver(url, kDontAutoCleanupDriver, manager, driver, callback);
 
   // Wait for resource fetch to complete.
-  if (!callback->IsDone()) {
+  if (!callback->done()) {
     int64 max_ms = driver->options()->blocking_fetch_timeout_ms();
-    for (int64 start_ms = server_context->timer()->NowMs(), now_ms = start_ms;
-         !callback->IsDone() && now_ms - start_ms < max_ms;
-         now_ms = server_context->timer()->NowMs()) {
+    for (int64 start_ms = manager->timer()->NowMs(), now_ms = start_ms;
+         !callback->done() && now_ms - start_ms < max_ms;
+         now_ms = manager->timer()->NowMs()) {
       int64 remaining_ms = max_ms - (now_ms - start_ms);
 
       driver->BoundedWaitFor(RewriteDriver::kWaitForCompletion, remaining_ms);
     }
   }
 
-  MessageHandler* message_handler = server_context->message_handler();
+  MessageHandler* message_handler = manager->message_handler();
   bool ok = false;
-  if (callback->IsDone()) {
+  if (callback->done()) {
     if (callback->success()) {
       ok = true;
     } else {
@@ -184,7 +180,7 @@ void ResourceFetch::HandleHeadersComplete() {
 
   response_headers()->Add(kPageSpeedHeader,
                           driver_->options()->x_header_value());
-  SharedAsyncFetch::HandleHeadersComplete();
+  base_fetch()->HeadersComplete();
 }
 
 void ResourceFetch::HandleDone(bool success) {
@@ -205,7 +201,7 @@ void ResourceFetch::HandleDone(bool success) {
   if (cleanup_mode_ == kAutoCleanupDriver) {
     driver_->Cleanup();
   }
-  SharedAsyncFetch::HandleDone(success);
+  base_fetch()->Done(success);
   delete this;
 }
 

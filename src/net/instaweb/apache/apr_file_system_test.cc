@@ -25,7 +25,6 @@
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/file_system_test.h"
 #include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,7 +44,7 @@ class AprFileSystemTest : public FileSystemTest {
     apr_initialize();
     atexit(apr_terminate);
     apr_pool_create(&pool_, NULL);
-    thread_system_.reset(Platform::CreateThreadSystem());
+    thread_system_.reset(ThreadSystem::CreateThreadSystem());
     file_system_.reset(new AprFileSystem(pool_, thread_system_.get()));
 
     // Create the temp directory, so we are not dependent on test order

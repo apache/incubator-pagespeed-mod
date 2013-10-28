@@ -15,17 +15,17 @@
  */
 
 // Author: sligocki@google.com (Shawn Ligocki)
-
 #include <algorithm>
-#include <memory>
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -64,9 +64,6 @@ class CssImageCombineTest : public CssRewriteTestBase {
   }
   void TestSpriting(const char* bike_position, const char* expected_position,
                     bool should_sprite) {
-    // TODO(sligocki): This URL should remain relative (since the input URLs
-    // were relative). Update ImageCombineFilter::Context::Render() to
-    // preserve URL relativity.
     const GoogleString sprite_string =
         Encode(kTestDomain, "is", "0",
                MultiUrl(kCuppaPngFile, kBikePngFile), "png");
@@ -81,8 +78,9 @@ class CssImageCombineTest : public CssRewriteTestBase {
         "</style></head>";
     GoogleString before = StringPrintf(
         html, kCuppaPngFile, kBikePngFile, bike_position, kPuzzleJpgFile);
+    GoogleString abs_puzzle = AbsolutifyUrl(kPuzzleJpgFile);
     GoogleString after = StringPrintf(
-        html, sprite, sprite, expected_position, kPuzzleJpgFile);
+        html, sprite, sprite, expected_position, abs_puzzle.c_str());
 
     ValidateExpected("sprites_images", before, should_sprite ? after : before);
 
@@ -98,7 +96,7 @@ class CssImageCombineTest : public CssRewriteTestBase {
     before = StringPrintf(
         html2, kCuppaPngFile, kBikePngFile, bike_position, kPuzzleJpgFile);
     after = StringPrintf(
-        html2, sprite, sprite, expected_position, kPuzzleJpgFile);
+        html2, sprite, sprite, expected_position, abs_puzzle.c_str());
 
     ValidateExpected("sprites_images", before, should_sprite ? after : before);
   }
@@ -159,13 +157,15 @@ TEST_F(CssImageCombineTest, SpritesMultiple) {
   // With the same image present 3 times, there should be no sprite.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kBikePngFile, 0);
-  ValidateNoChanges("no_sprite_3_bikes", before);
+  GoogleString abs_bike = AbsolutifyUrl(kBikePngFile);
+  after = StringPrintf(kHtmlTemplate3Divs, abs_bike.c_str(), abs_bike.c_str(),
+                       0, 10, abs_bike.c_str(), 0);
+  ValidateExpected("no_sprite_3_bikes", before, after);
 
   // With 2 of the same and 1 different, there should be a sprite without
   // duplication.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kCuppaPngFile, 0);
-  // TODO(sligocki): Preserve relative URL.
   sprite = Encode(kTestDomain, "is", "0",
                   MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
   after = StringPrintf(kHtmlTemplate3Divs, sprite.c_str(),
@@ -176,17 +176,26 @@ TEST_F(CssImageCombineTest, SpritesMultiple) {
   // larger than the image), then don't sprite anything.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 999,
                         kCuppaPngFile, 0);
-  ValidateNoChanges("sprite_none_dimensions", before);
+  GoogleString abs_cuppa = AbsolutifyUrl(kCuppaPngFile);
+  after = StringPrintf(kHtmlTemplate3Divs, abs_bike.c_str(), abs_bike.c_str(),
+                       0, 999, abs_cuppa.c_str(), 0);
+  ValidateExpected("sprite_none_dimensions", before, after);
 }
 
 // Try the last test from SpritesMultiple with a cold cache.
 TEST_F(CssImageCombineTest, NoSpritesMultiple) {
+  GoogleString text;
   // If the second occurrence of the image is unspriteable (e.g. if the div is
   // larger than the image), then don't sprite anything.
   GoogleString in_text =
       StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 999,
                    kCuppaPngFile, 0);
-  ValidateNoChanges("no_sprite", in_text);
+  GoogleString abs_bike = AbsolutifyUrl(kBikePngFile);
+  GoogleString abs_cuppa = AbsolutifyUrl(kCuppaPngFile);
+  GoogleString out_text =
+      StringPrintf(kHtmlTemplate3Divs, abs_bike.c_str(), abs_bike.c_str(),
+                   0, 999, abs_cuppa.c_str(), 0);
+  ValidateExpected("no_sprite", text, text);
 }
 
 TEST_F(CssImageCombineTest, NoCrashUnknownType) {
@@ -229,7 +238,6 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
   CallFetcherCallbacks();
 
   // On the second run, we get spriting.
-  // TODO(sligocki): Preserve relative URL.
   const GoogleString sprite =
       Encode(kTestDomain, "is", "0",
              MultiUrl(kCuppaPngFile, kBikePngFile), "png");
@@ -281,7 +289,8 @@ TEST_F(CssImageCombineTest, SpritesMultiSite) {
   // partitions due to different host names -- at lest when it doesn't require
   // us to keep track of multiple partitions intelligently.
   const char kAltDomain[] = "http://images.example.com/";
-  AddDomain(kAltDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddDomain(kAltDomain, message_handler());
 
   AddFileToMockFetcher(StrCat(kAltDomain, kBikePngFile), kBikePngFile,
                         kContentTypePng, 100);
@@ -373,7 +382,6 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
       combo.push_back(StringPrintf("%.02d%s", image_index, kBikePngFile));
       ++image_index;
     }
-    // TODO(sligocki): Preserve relative URL.
     combinations.push_back(Encode(kTestDomain, "is", "0", combo, "png"));
   }
 
@@ -403,13 +411,13 @@ TEST_F(CssImageCombineTest, SpritesBrokenUp) {
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kPuzzleJpgFile, 0, 10,
                         kCuppaPngFile, 0);
 
-  // TODO(sligocki): Preserve relative URL.
+  GoogleString abs_puzzle = AbsolutifyUrl(kPuzzleJpgFile);
   const GoogleString sprite_string =
       Encode(kTestDomain, "is", "0",
              MultiUrl(kBikePngFile, kCuppaPngFile), "png");
   const char* sprite = sprite_string.c_str();
 
-  after = StringPrintf(kHtmlTemplate3Divs, sprite, kPuzzleJpgFile, 0, 10,
+  after = StringPrintf(kHtmlTemplate3Divs, sprite, abs_puzzle.c_str(), 0, 10,
                        sprite, -100);
   ValidateExpected("sprite_broken_up", before, after);
 }
@@ -422,7 +430,6 @@ TEST_F(CssImageCombineTest, SpritesGifsWithPngs) {
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kChefGifFile, 0, 10,
                         kCuppaPngFile, 0);
 
-  // TODO(sligocki): Preserve relative URL.
   const GoogleString sprite_string =
       Encode(kTestDomain, "is", "0",
              MultiUrl(kBikePngFile, kChefGifFile, kCuppaPngFile),
@@ -447,7 +454,6 @@ TEST_F(CssImageCombineTest, SpriteWrongMime) {
   AddFileToMockFetcher(wrong_cuppa, kCuppaPngFile,
                        kContentTypeJpeg, 100);
 
-  // TODO(sligocki): Preserve relative URL.
   const GoogleString sprite_string =
       Encode(kTestDomain, "is", "0",
              MultiUrl(StrCat("w", kBikePngFile),
@@ -469,21 +475,20 @@ TEST_F(CssImageCombineTest, SpriteWrongMime) {
 }
 
 class CssImageMultiFilterTest : public CssImageCombineTest {
-  // Users must call CssImageCombineTest::SetUp().
-  virtual void SetUp() {}
+  virtual void SetUp() {
+    // We setup the options before the upcall so that the
+    // CSS filter is created aware of these.
+    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    CssImageCombineTest::SetUp();
+  }
 };
 
 TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
-  // We setup the options before the upcall so that the
-  // CSS filter is created aware of these.
-  options()->EnableFilter(RewriteOptions::kExtendCacheImages);
-  CssImageCombineTest::SetUp();
-
   GoogleString before, after, encoded, cuppa_encoded, sprite;
   // With the same image present 3 times, there should be no sprite.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kBikePngFile, 0);
-  encoded = Encode("", "ce", "0", kBikePngFile, "png");
+  encoded = Encode(kTestDomain, "ce", "0", kBikePngFile, "png");
   after = StringPrintf(kHtmlTemplate3Divs, encoded.c_str(), encoded.c_str(),
                        0, 10, encoded.c_str(), 0);
   ValidateExpected("no_sprite_3_bikes", before, after);
@@ -492,7 +497,6 @@ TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
   // duplication.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 10,
                         kCuppaPngFile, 0);
-  // TODO(sligocki): Preserve relative URL.
   sprite = Encode(kTestDomain, "is", "0",
                   MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
   after = StringPrintf(kHtmlTemplate3Divs, sprite.c_str(),
@@ -503,77 +507,10 @@ TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
   // larger than the image), we shouldn't sprite any of them.
   before = StringPrintf(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, 0, 999,
                         kCuppaPngFile, 0);
-  cuppa_encoded = Encode("", "ce", "0", kCuppaPngFile, "png");
+  cuppa_encoded = Encode(kTestDomain, "ce", "0", kCuppaPngFile, "png");
   after = StringPrintf(kHtmlTemplate3Divs, encoded.c_str(), encoded.c_str(),
                        0, 999, cuppa_encoded.c_str());
   ValidateExpected("sprite_none_dimmensions", before, after);
-}
-
-TEST_F(CssImageMultiFilterTest, WithFlattening) {
-  // We setup the options before the upcall so that the
-  // CSS filter is created aware of these.
-  options()->EnableFilter(RewriteOptions::kFlattenCssImports);
-  CssImageCombineTest::SetUp();
-
-  AddFileToMockFetcher("dir/Cuppa.png", kCuppaPngFile, kContentTypePng, 100);
-  AddFileToMockFetcher("dir/BikeCrashIcn.png", kBikePngFile,
-                       kContentTypePng, 100);
-
-  const char kLeafCss[] =
-      ".a {background: 0px 0px url(Cuppa.png) no-repeat;"
-      " width:10px; height:10px}"
-      ".b {background: 0px 0px url(BikeCrashIcn.png) no-repeat;"
-      " width:10px; height:10px}";
-  SetResponseWithDefaultHeaders("dir/a.css", kContentTypeCss, kLeafCss, 100);
-
-  const char kBeforeHtml[] = "<style>@import url(dir/a.css);</style>";
-  // Note: This is flattened and combined.
-  // TODO(sligocki): Keep URLs relative.
-  const char kAfterHtml[] =
-      "<style>"
-      ".a{background:0px 0px"
-      " url(http://test.com/dir/Cuppa.png+BikeCrashIcn.png.pagespeed.is.0.png)"
-      " no-repeat;width:10px;height:10px}"
-      ".b{background:0px -70px"
-      " url(http://test.com/dir/Cuppa.png+BikeCrashIcn.png.pagespeed.is.0.png)"
-      " no-repeat;width:10px;height:10px}"
-      "</style>";
-
-  ValidateExpected("with_flattening", kBeforeHtml, kAfterHtml);
-}
-
-TEST_F(CssImageMultiFilterTest, NoCombineAcrossFlattening) {
-  // We setup the options before the upcall so that the
-  // CSS filter is created aware of these.
-  options()->EnableFilter(RewriteOptions::kFlattenCssImports);
-  CssImageCombineTest::SetUp();
-
-  AddFileToMockFetcher("dir/Cuppa.png", kCuppaPngFile, kContentTypePng, 100);
-
-  const char kLeafCss[] =
-      ".a {background: 0px 0px url(Cuppa.png) no-repeat;"
-      " width:10px; height:10px}";
-  SetResponseWithDefaultHeaders("dir/a.css", kContentTypeCss, kLeafCss, 100);
-
-  const char kBeforeHtml[] =
-      "<style>\n"
-      "@import url(dir/a.css);\n"
-      ".b {background: 0px 0px url(BikeCrashIcn.png) no-repeat;"
-      " width:10px; height:10px}\n"
-      "</style>";
-  // TODO(sligocki): Any reason not to combine images across flattening
-  // boundaries? Currently we don't seem to.
-  // TODO(sligocki): Perhaps http://test.com/dir/Cuppa.png should be relative
-  // given that the original URL in the original stylesheet was relative.
-  const char kAfterHtml[] =
-      "<style>"
-      ".a{background:0px 0px url(http://test.com/dir/Cuppa.png) no-repeat;"
-      "width:10px;height:10px}"
-      ".b{background:0px 0px url(BikeCrashIcn.png) no-repeat;"
-      "width:10px;height:10px}"
-      "</style>";
-
-  ValidateExpected("with_flattening", kBeforeHtml, kAfterHtml);
 }
 
 }  // namespace

@@ -18,16 +18,9 @@
 
 #include "base/logging.h"
 #include "net/instaweb/public/version.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
-
-class ThreadSystem;
-
-namespace {
-
-const char kModPagespeedStatisticsHandlerPath[] = "/mod_pagespeed_statistics";
-
-}  // namespace
 
 RewriteOptions::Properties* ApacheConfig::apache_properties_ = NULL;
 
@@ -44,14 +37,12 @@ void ApacheConfig::Terminate() {
   }
 }
 
-ApacheConfig::ApacheConfig(const StringPiece& description,
-                           ThreadSystem* thread_system)
-    : SystemRewriteOptions(description, thread_system) {
+ApacheConfig::ApacheConfig(const StringPiece& description)
+    : description_(description.data(), description.size()) {
   Init();
 }
 
-ApacheConfig::ApacheConfig(ThreadSystem* thread_system)
-    : SystemRewriteOptions(thread_system) {
+ApacheConfig::ApacheConfig() {
   Init();
 }
 
@@ -59,44 +50,80 @@ void ApacheConfig::Init() {
   DCHECK(apache_properties_ != NULL)
       << "Call ApacheConfig::Initialize() before construction";
   InitializeOptions(apache_properties_);
-
-  // Apache-specific default.
-  // TODO(sligocki): Get rid of this line and let both Apache and Nginx use
-  // /pagespeed_statistics as the handler.
-  statistics_handler_path_.set_default(kModPagespeedStatisticsHandlerPath);
 }
 
 void ApacheConfig::AddProperties() {
   AddApacheProperty(
-      false, &ApacheConfig::fetch_from_mod_spdy_, "ffms",
-      RewriteOptions::kFetchFromModSpdy,
-      "Fetch SSL resources with help of recent mod_spdy");
+      "", &ApacheConfig::slurp_directory_, "asd",
+      RewriteOptions::kSlurpDirectory,
+      "Directory from which to read slurped resources");
+  AddApacheProperty(
+      false, &ApacheConfig::test_proxy_, "atp",
+      RewriteOptions::kTestProxy,
+      "Direct non-mod_pagespeed URLs to a fetcher, acting as a simple "
+      "proxy. Meant for test use only");
+  AddApacheProperty(
+      "", &ApacheConfig::test_proxy_slurp_, "atps",
+      RewriteOptions::kTestProxySlurp,
+      "If set, the fetcher used by the TestProxy mode will be a "
+      "readonly slurp fetcher from the given directory");
+  AddApacheProperty(
+      false, &ApacheConfig::slurp_read_only_, "asro",
+      RewriteOptions::kSlurpReadOnly,
+      "Only read from the slurped directory, fail to fetch "
+      "URLs not already in the slurped directory");
+  AddApacheProperty(
+      false, &ApacheConfig::rate_limit_background_fetches_, "rlbf",
+      RewriteOptions::kRateLimitBackgroundFetches,
+      "Rate-limit the number of background HTTP fetches done at once");
+  AddApacheProperty(
+      0, &ApacheConfig::slurp_flush_limit_, "asfl",
+      RewriteOptions::kSlurpFlushLimit,
+      "Set the maximum byte size for the slurped content to hold before "
+      "a flush");
+  AddApacheProperty(
+      false, &ApacheConfig::experimental_fetch_from_mod_spdy_, "effms",
+      RewriteOptions::kExperimentalFetchFromModSpdy,
+      "Under construction. Do not use");
 
   MergeSubclassProperties(apache_properties_);
+  ApacheConfig config;
+  config.InitializeSignaturesAndDefaults();
+}
 
-  // Default properties are global but to set them the current API requires
-  // an ApacheConfig instance and we're in a static method.
+void ApacheConfig::InitializeSignaturesAndDefaults() {
+  // TODO(jmarantz): Perform these operations on the Properties directly, rather
+  // than going through a dummy ApacheConfig object to get to the properties.
+
+  // Leave this out of the signature as (a) we don't actually change this
+  // spontaneously, and (b) it's useful to keep the metadata cache between
+  // slurping read-only and slurp read/write.
+  slurp_read_only_.DoNotUseForSignatureComputation();
+
+  // See the comment in RewriteOptions::RewriteOptions about leaving
+  // the Signature() fairly comprehensive for now.
   //
-  // TODO(jmarantz): Perform these operations on the Properties directly and
-  // get rid of this hack.
-  //
-  // Instantiation of the options with a null thread system wouldn't usually be
-  // safe but it's ok here because we're only updating the static properties on
-  // process startup.  We won't have a thread-system yet or multiple threads.
-  ApacheConfig config("dummy_options", NULL);
-  config.set_default_x_header_value(kModPagespeedVersion);
+  // fetcher_proxy_.DoNotUseForSignatureComputation();
+  // file_cache_path_.DoNotUseForSignatureComputation();
+  // slurp_directory_.DoNotUseForSignatureComputation();
+  // statistics_enabled_.DoNotUseForSignatureComputation();
+  // test_proxy_.DoNotUseForSignatureComputation();
+  // use_shared_mem_locking_.DoNotUseForSignatureComputation();
+  // file_cache_clean_interval_ms_.DoNotUseForSignatureComputation();
+  // file_cache_clean_size_kb_.DoNotUseForSignatureComputation();
+  // file_cache_clean_inode_limit_.DoNotUseForSignatureComputation();
+  // lru_cache_byte_limit_.DoNotUseForSignatureComputation();
+  // lru_cache_kb_per_process_.DoNotUseForSignatureComputation();
+  // slurp_flush_limit_.DoNotUseForSignatureComputation();
+
+  // Set mod_pagespeed-specific default header value.
+  set_default_x_header_value(kModPagespeedVersion);
 }
 
 ApacheConfig* ApacheConfig::Clone() const {
-  ApacheConfig* options =
-      new ApacheConfig(StrCat("cloned from ", description()), thread_system());
+  ApacheConfig* options = new ApacheConfig(description_);
   options->Merge(*this);
   return options;
-}
-
-ApacheConfig* ApacheConfig::NewOptions() const {
-  return new ApacheConfig(StrCat("derived from ", description()),
-                          thread_system());
 }
 
 const ApacheConfig* ApacheConfig::DynamicCast(const RewriteOptions* instance) {

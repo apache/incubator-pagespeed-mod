@@ -392,30 +392,20 @@ bool CssTagScanner::HasUrl(const StringPiece& contents) {
 
 bool CssTagScanner::IsStylesheetOrAlternate(
     const StringPiece& attribute_value) {
-  StringPieceVector values;
-  SplitStringPieceToVector(attribute_value, " ", &values, true);
-  for (int i = 0, n = values.size(); i < n; ++i) {
-    if (StringCaseEqual(values[i], kStylesheet)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool CssTagScanner::IsAlternateStylesheet(const StringPiece& attribute_value) {
   bool has_stylesheet = false;
-  bool has_alternate = false;
+  bool has_other = false;
   StringPieceVector values;
   SplitStringPieceToVector(attribute_value, " ", &values, true);
   for (int i = 0, n = values.size(); i < n; ++i) {
     if (StringCaseEqual(values[i], kStylesheet)) {
       has_stylesheet = true;
-    } else if (StringCaseEqual(values[i], kAlternate)) {
-      has_alternate = true;
+    } else if (!StringCaseEqual(values[i], kAlternate)) {
+      has_other = true;
     }
   }
 
-  return has_stylesheet && has_alternate;
+  // Require "stylesheet", ignore "alternate", disallow all other values.
+  return has_stylesheet && !has_other;
 }
 
 RewriteDomainTransformer::RewriteDomainTransformer(
@@ -425,8 +415,7 @@ RewriteDomainTransformer::RewriteDomainTransformer(
       domain_rewriter_(driver->domain_rewriter()),
       url_trim_filter_(driver->url_trim_filter()),
       handler_(driver->message_handler()),
-      trim_urls_(true),
-      driver_(driver) {
+      trim_urls_(true) {
 }
 
 RewriteDomainTransformer::~RewriteDomainTransformer() {
@@ -435,7 +424,7 @@ RewriteDomainTransformer::~RewriteDomainTransformer() {
 CssTagScanner::Transformer::TransformStatus RewriteDomainTransformer::Transform(
     const StringPiece& in, GoogleString* out) {
   GoogleString rewritten;
-  if (domain_rewriter_->Rewrite(in, *old_base_url_, driver_,
+  if (domain_rewriter_->Rewrite(in, *old_base_url_,
                                 true /* apply_sharding */,
                                 &rewritten)
       == DomainRewriteFilter::kFail) {

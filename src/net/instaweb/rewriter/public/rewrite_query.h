@@ -15,7 +15,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 
-#include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -23,11 +22,11 @@
 
 namespace net_instaweb {
 
+class DeviceProperties;
 class GoogleUrl;
 class MessageHandler;
 class QueryParams;
 class RequestHeaders;
-class RequestProperties;
 class ResponseHeaders;
 class RewriteDriver;
 class RewriteDriverFactory;
@@ -39,9 +38,7 @@ class RewriteQuery {
  public:
   // The names of query-params.
   static const char kModPagespeed[];
-  static const char kPageSpeed[];
   static const char kModPagespeedFilters[];
-  static const char kPageSpeedFilters[];
   // ModPagespeed query-param value for redirect from clients that do not
   // support javascript.
   // * Disables all filters that insert new javascript.
@@ -55,10 +52,11 @@ class RewriteQuery {
   };
 
   // Scans request_url's query parameters and request_headers for "ModPagespeed"
-  // and "PageSpeed" flags, creating and populating *'options' if any were found
-  // they were all parsed successfully.  If any were parsed unsuccessfully
-  // kInvalid is returned.  If none found, kNoneFound is returned. It also
-  // removes the flags from the query_params of the url and the request_headers.
+  // flags, creating and populating *'options' if any were found they were all
+  // parsed successfully.  If any were parsed unsuccessfully kInvalid is
+  // returned.  If none found, kNoneFound is returned. It also removes the
+  // "ModPagespeed" flags from the query_params of the url and the
+  // request_headers.
   //
   // First queries are processed, then request headers, then response headers.
   // Therefore parameters set by response headers take precedence over request
@@ -73,6 +71,10 @@ class RewriteQuery {
   // declared in the RelatedOptions() and RelatedFilters() methods of
   // the filter identified in the .pagespeed. URL.  See GenerateResourceOption
   // for how they get into URLs in the first place.
+  //
+  // TODO(jmarantz): consider allowing an alternative prefix to "ModPagespeed"
+  // to accomodate other Page Speed Automatic applications that might want to
+  // brand differently.
   static Status Scan(bool allow_related_options,
                      RewriteDriverFactory* factory,
                      ServerContext* server_context,
@@ -83,15 +85,16 @@ class RewriteQuery {
                      MessageHandler* handler);
 
   // Performs the request and response header scanning for Scan(). If any
-  // "ModPagespeed" or "PageSpeed" options are found in the headers they are
-  // stripped.  Returns kNoneFound if no options found.  Returns kSuccess and
-  // populates *'options' if options are found.  Returns kInvalid if any headers
-  // were parsed unsuccessfully.  Note: mod_instaweb::build_context_for_request
-  // assumes that headers will be stripped from the headers if options are found
-  // and that headers will not grow in this call.
+  // "ModPagespeed" options are found in the headers they are stripped.
+  // Returns kNoneFound if no options found.  Returns kSuccess and
+  // populates *'options' if options are found.  Returns kInvalid if
+  // any headers were parsed unsuccessfully.
+  // Note: mod_instaweb::build_context_for_request assumes that headers will be
+  // stripped from the headers if options are found and that headers will not
+  // grow in this call.
   template <class HeaderT>
   static Status ScanHeader(HeaderT* headers,
-                           RequestProperties* request_properties,
+                           DeviceProperties* device_properties,
                            RewriteOptions* options,
                            MessageHandler* handler);
 
@@ -109,7 +112,6 @@ class RewriteQuery {
   FRIEND_TEST(RewriteQueryTest, ClientOptionsMultipleHeaders);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsOrder1);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsOrder2);
-  FRIEND_TEST(RewriteQueryTest, ClientOptionsCaseInsensitive);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsNonDefaultProxyMode);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsValidVersionBadOptions);
   FRIEND_TEST(RewriteQueryTest, ClientOptionsInvalidVersion);
@@ -120,8 +122,19 @@ class RewriteQuery {
     // Client prefers that no image be transformed.
     kProxyModeNoImageTransform,
     // Client prefers that no resource be transformed.
-    // This is equivalent to "?PageSpeedFilters=" in the request URL.
+    // This is equivalent to "?ModPagespeedFilters=" in the request URL.
     kProxyModeNoTransform,
+  };
+
+  enum ImageQualityPreference {
+    // Client prefers that the server uses its own default image quality.
+    kImageQualityDefault,
+    // Client prefers lows image quality.
+    kImageQualityLow,
+    // Client prefers medium image quality.
+    kImageQualityMedium,
+    // Client prefers high image quality.
+    kImageQualityHigh,
   };
 
   // Returns true if the params/headers look like they might have some
@@ -139,7 +152,7 @@ class RewriteQuery {
   // Examines a name/value pair for options.
   static Status ScanNameValue(const StringPiece& name,
                               const GoogleString& value,
-                              RequestProperties* request_properties,
+                              DeviceProperties* device_properties,
                               RewriteOptions* options,
                               MessageHandler* handler);
 
@@ -152,18 +165,18 @@ class RewriteQuery {
   static bool ParseClientOptions(
       const StringPiece& client_options,
       ProxyMode* proxy_mode,
-      DeviceProperties::ImageQualityPreference* image_quality);
+      ImageQualityPreference* image_quality);
 
   // Set image qualities in options.
   // Returns true if any option is explicitly set.
   static bool SetEffectiveImageQualities(
-      DeviceProperties::ImageQualityPreference quality_preference,
-      RequestProperties* request_properties,
+      ImageQualityPreference quality_preference,
+      DeviceProperties* device_properties,
       RewriteOptions* options);
 
   // Returns true if any option is explicitly set.
   static bool UpdateRewriteOptionsWithClientOptions(
-      const GoogleString& header_value, RequestProperties* request_properties,
+      const GoogleString& header_value, DeviceProperties* device_properties,
       RewriteOptions* options);
 
   // Returns true if a valid ProxyMode parsed and returned.
@@ -171,8 +184,7 @@ class RewriteQuery {
 
   // Returns true if a valid ImageQualityPreference parsed and returned.
   static bool ParseImageQualityPreference(
-      const GoogleString* preference_name,
-      DeviceProperties::ImageQualityPreference* preference);
+      const GoogleString* preference_name, ImageQualityPreference* preference);
 };
 
 }  // namespace net_instaweb

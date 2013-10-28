@@ -23,13 +23,8 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/critical_finder_support_util.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
@@ -48,9 +43,6 @@ using Css::Ruleset;
 using Css::Rulesets;
 
 namespace net_instaweb {
-
-const char CriticalCssBeaconFilter::kInitializePageSpeedJs[] =
-    "var pagespeed = pagespeed || {};";
 
 // Counters.
 const char CriticalCssBeaconFilter::kCriticalCssBeaconAddedCount[] =
@@ -79,21 +71,6 @@ void CriticalCssBeaconFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCriticalCssSkippedDueToCharset);
 }
 
-bool CriticalCssBeaconFilter::MustSummarize(HtmlElement* element) const {
-  // Don't summarize alternate stylesheets, they are clearly non-critical.
-  if (element->keyword() == HtmlName::kLink &&
-      CssTagScanner::IsAlternateStylesheet(
-          element->AttributeValue(HtmlName::kRel))) {
-    return false;
-  }
-
-  // Don't summarize non-screen-affecting or <noscript> CSS at all; the time we
-  // spend doing that is better devoted to summarizing CSS selectors we will
-  // actually consider critical.
-  return (noscript_element() == NULL) &&
-      css_util::CanMediaAffectScreen(element->AttributeValue(HtmlName::kMedia));
-}
-
 void CriticalCssBeaconFilter::Summarize(Stylesheet* stylesheet,
                                         GoogleString* out) const {
   StringSet selectors;
@@ -102,125 +79,91 @@ void CriticalCssBeaconFilter::Summarize(Stylesheet* stylesheet,
   AppendJoinCollection(out, selectors, ",");
 }
 
-// Append the selector list initialization JavaScript to |script|.
+// Return the initial portion of the beaconing Javascript.
+// Just requires array of css selector strings plus closing ");"
 // Right now the result looks like:
-//   pagespeed.selectors=["selector 1","selector 2","selector 3"];
-void CriticalCssBeaconFilter::AppendSelectorsInitJs(
-    GoogleString* script, const StringSet& selectors) {
-  StrAppend(script, "pagespeed.selectors=[");
-  for (StringSet::const_iterator i = selectors.begin();
-       i != selectors.end(); ++i) {
-    if (i != selectors.begin()) {
-      StrAppend(script, ",");
-    }
-    EscapeToJsStringLiteral(*i, true /* quote */, script);
-  }
-  StrAppend(script, "];");
-}
-
-// Append the beacon initialization JavaScript to |script|.
-// Right now the result looks like:
-//   pagespeed.criticalCssBeaconInit('beacon_url','page_url','options_hash',
-//        pagespeed.selectors);
-void CriticalCssBeaconFilter::AppendBeaconInitJs(
-    const BeaconMetadata& metadata, GoogleString* script) {
-  GoogleString beacon_url = driver()->IsHttps() ?
-      driver()->options()->beacon_url().https :
-      driver()->options()->beacon_url().http;
-  GoogleString page_url;
-  EscapeToJsStringLiteral(driver()->google_url().Spec(), false /* add_quotes */,
-                          &page_url);
-  Hasher* hasher = driver()->server_context()->hasher();
-  GoogleString options_hash = hasher->Hash(driver()->options()->signature());
-  StrAppend(script,
-            "pagespeed.criticalCssBeaconInit('",
-            beacon_url, "','", page_url, "','",
-            options_hash, "','", metadata.nonce, "',pagespeed.selectors);");
+// ...static script from critical_css_beacon.js...
+// pagespeed.criticalCssBeaconInit('beacon_url','page_url','options_hash',
+// To which the caller then appends:
+// ['selector 1','selector 2','selector 3']);
+GoogleString CriticalCssBeaconFilter::BeaconBoilerplate() {
+  const RewriteOptions::BeaconUrl& beacons = driver()->options()->beacon_url();
+  const GoogleString& beacon_url =
+      driver()->IsHttps() ? beacons.https : beacons.http;
+  StaticAssetManager* static_asset_manager =
+      driver()->server_context()->static_asset_manager();
+  GoogleString script;
+  const GoogleString& script_url = static_asset_manager->GetAssetUrl(
+      StaticAssetManager::kCriticalCssBeaconJs, driver()->options());
+  HtmlElement* external_script = driver()->NewElement(NULL, HtmlName::kScript);
+  InjectSummaryData(external_script);
+  driver()->AddAttribute(external_script, HtmlName::kSrc, script_url);
+  StrAppend(&script, "pagespeed.criticalCssBeaconInit('", beacon_url, "','");
+  EscapeToJsStringLiteral(driver()->google_url().Spec(),
+                          false /* no quote */, &script);
+  GoogleString options_signature_hash =
+      driver()->server_context()->hasher()->Hash(
+          driver()->options()->signature());
+  StrAppend(&script, "','", options_signature_hash, "',");
+  return script;
 }
 
 void CriticalCssBeaconFilter::SummariesDone() {
-  // We parse each summary back into component selectors from its
-  // comma-separated string, using a StringSet to remove duplicates (they'll be
-  // sorted, too, which makes this easier to test).  We re-serialize the set.
-  StringSet selectors;
-  for (int i = 0; i < NumStyles(); ++i) {
-    const SummaryInfo& summary_info = GetSummaryForStyle(i);
-    // The critical_selector_filter doesn't include <noscript>-specific CSS
-    // in the critical CSS it computes; so there is no need to figure out
-    // critical selectors for such CSS.
-    if (summary_info.is_inside_noscript) {
-      continue;
-    }
-    switch (summary_info.state) {
-      case kSummaryStillPending:
-        // Don't beacon if we're still waiting for critical selector data.
-        return;
-      case kSummaryOk: {
-        // Include the selectors in the beacon
-        StringPieceVector temp;
-        SplitStringPieceToVector(summary_info.data, ",", &temp,
-                                 true /* omit_empty_strings */);
-        for (StringPieceVector::const_iterator i = temp.begin(),
-                 end = temp.end();
-             i != end; ++i) {
-          selectors.insert(i->as_string());
-        }
-        break;
-      }
-      case kSummarySlotRemoved:
-        // Another filter (likely combine CSS) has eliminated this CSS.
-        continue;
-      case kSummaryCssParseError:
-      case kSummaryResourceCreationFailed:
-      case kSummaryInputUnavailable:
-        // The CSS couldn't be fetched or parsed in some fashion.  This will
-        // be left in place by the rewriter, so we don't need to consider it for
-        // beaconing either.  NOTE: this requires the rewriter to inject
-        // critical CSS in situ so that we don't disrupt the cascade order
-        // around the unparseable data.
-        // TODO(jmaessen): Consider handling unparseable data within the CSS
-        // parse tree, which would let us extract critical CSS selectors from
-        // CSS with a mix of parseable and unparseable rules.
-        continue;
-    }
-  }
-  BeaconMetadata metadata =
-      driver()->server_context()->critical_selector_finder()->
-          PrepareForBeaconInsertion(selectors, driver());
-  if (metadata.status == kDoNotBeacon) {
-    // No beaconing required according to current pcache state and computed
-    // selector set.
+  // First check the property cache to see if we need to inject a beacon at all.
+  // TODO(jmaessen): Why do we do this so late in the process?  Because
+  // eventually we want to store a signature of the selectors the browser
+  // checked as part of the beacon result, and this is the point where we'll be
+  // able to check it against the set of selectors we would *like* the browser
+  // to check.  If they're different we have to insert the beacon because the
+  // CSS has changed.
+  // TODO(jmaessen): This is also where we decide whether we want >1 set of
+  // beacon results, a la what's done with critical images.  For now we bail
+  // out if there are beacon results available to us.
+  if (driver()->CriticalSelectors() != NULL) {
     return;
   }
-
-  // Insert the beaconing code and selectors.
-  GoogleString script;
-  StaticAssetManager* asset_manager =
-      driver()->server_context()->static_asset_manager();
-  if (driver()->server_context()->factory()->UseBeaconResultsInFilters()) {
-    script = asset_manager->GetAsset(
-        StaticAssetManager::kCriticalCssBeaconJs, driver()->options());
-    AppendSelectorsInitJs(&script, selectors);
-    AppendBeaconInitJs(metadata, &script);
-  } else {
-    script = kInitializePageSpeedJs;
-    AppendSelectorsInitJs(&script, selectors);
+  // We construct a transient set of StringPiece objects backed by the summary
+  // information.  We parse each summary back into component selectors from its
+  // comma-separated string, use the set to remove duplicates (they'll be
+  // sorted, too, which makes this easier to test).  We re-serialize the set.
+  set<StringPiece> selectors;
+  for (int i = 0; i < NumStyles(); ++i) {
+    const SummaryInfo& block_info = GetSummaryForStyle(i);
+    if (block_info.state != kSummaryOk) {
+      // Don't beacon unless all CSS was correctly parsed and summarized.
+      return;
+    }
+    StringPieceVector temp;
+    SplitStringPieceToVector(block_info.data, ",", &temp,
+                             false /* empty shouldn't happen */);
+    selectors.insert(temp.begin(), temp.end());
   }
+  if (selectors.empty()) {
+    // Don't insert beacon if no parseable CSS was found (usually meaning there
+    // wasn't any CSS).
+    // TODO(jmaessen): Mark this case in the property cache.  We need to be a
+    // bit careful here; we want to attempt to re-instrument if there were JS
+    // resources that arrived too late for us to parse them and include them in
+    // the beaconing.  We are eventually going to need to compute a selector
+    // signature of some sort and use that to control when we re-instrument (and
+    // when we consider the beacon results to match the CSS that we actually see
+    // on the page).
+    driver()->InfoHere("No CSS selectors found.");
+    return;
+  }
+  // The set is assembled.  Insert the beaconing code.
+  GoogleString script = BeaconBoilerplate();
+  StrAppend(&script, "[");
+  AppendJoinCollection(&script, selectors, ",");
+  StrAppend(&script, "]);");
   HtmlElement* script_element = driver()->NewElement(NULL, HtmlName::kScript);
-  driver_->AddAttribute(script_element, HtmlName::kPagespeedNoDefer, "");
-  InsertNodeAtBodyEnd(script_element);
-  asset_manager->AddJsToElement(script, script_element, driver_);
-
+  InjectSummaryData(script_element);
+  StaticAssetManager* static_asset_manager =
+      driver()->server_context()->static_asset_manager();
+  static_asset_manager->AddJsToElement(script, script_element, driver_);
   if (critical_css_beacon_added_count_ != NULL) {
     critical_css_beacon_added_count_->Add(1);
   }
-}
-
-void CriticalCssBeaconFilter::DetermineEnabled() {
-  // Currently CriticalSelectorFilter can't deal with IE conditional comments,
-  // so we disable ourselves for IE.
-  // Note: this should match the logic in CriticalSelectorFilter.
-  set_is_enabled(!driver_->user_agent_matcher()->IsIe(driver_->user_agent()));
 }
 
 void CriticalCssBeaconFilter::FindSelectorsFromRuleset(
@@ -233,7 +176,11 @@ void CriticalCssBeaconFilter::FindSelectorsFromRuleset(
       // which gets stripped away as it's not JS detectable) is *automatically*
       // critical, and we could also ignore the selector * (:hover is implicitly
       // *:hover).
-      selectors->insert(trimmed);
+      // We're cautious here and escape each selector, as they're culled from a
+      // parse of site css data.
+      GoogleString quoted_and_escaped;
+      EscapeToJsStringLiteral(trimmed, true /* quote */, &quoted_and_escaped);
+      selectors->insert(quoted_and_escaped);
     }
   }
 }

@@ -24,6 +24,7 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
@@ -35,7 +36,8 @@
 
 namespace net_instaweb {
 
-class MockCriticalImagesFinder;
+class AbstractClientState;
+class CriticalImagesFinder;
 class GoogleUrl;
 class HtmlElement;
 class HtmlFilter;
@@ -43,7 +45,6 @@ class MessageHandler;
 class PropertyValue;
 class RequestHeaders;
 class RewriteDriver;
-class RewriteOptions;
 
 const char kPageUrl[] = "page.html";
 const char kBackgroundFetchHeader[] = "X-Background-Fetch";
@@ -54,7 +55,7 @@ class ProxyUrlNamer : public UrlNamer {
  public:
   static const char kProxyHost[];
 
-  ProxyUrlNamer() : authorized_(true) {}
+  ProxyUrlNamer() : authorized_(true), options_(NULL) {}
 
   // Given the request_url, generate the original url.
   virtual bool Decode(const GoogleUrl& gurl,
@@ -66,10 +67,20 @@ class ProxyUrlNamer : public UrlNamer {
     return authorized_;
   }
 
+  // Given the request url and request headers, generate the rewrite options.
+  virtual void DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const {
+    callback->Done((options_ == NULL) ? NULL : options_->Clone());
+  }
+
   void set_authorized(bool authorized) { authorized_ = authorized; }
+  void set_options(RewriteOptions* options) { options_ = options; }
 
  private:
   bool authorized_;
+  RewriteOptions* options_;
   DISALLOW_COPY_AND_ASSIGN(ProxyUrlNamer);
 };
 
@@ -84,7 +95,8 @@ class MockFilter : public EmptyHtmlFilter {
   explicit MockFilter(RewriteDriver* driver)
       : driver_(driver),
         num_elements_(0),
-        num_elements_property_(NULL) {
+        num_elements_property_(NULL),
+        client_state_(NULL) {
   }
 
   virtual void StartDocument();
@@ -100,6 +112,7 @@ class MockFilter : public EmptyHtmlFilter {
   int num_elements_;
   PropertyValue* num_elements_property_;
   GoogleString client_id_;
+  AbstractClientState* client_state_;
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
@@ -124,25 +137,23 @@ class CreateFilterCallback
 class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
  public:
   explicit BackgroundFetchCheckingAsyncFetch(AsyncFetch* base_fetch)
-      : SharedAsyncFetch(base_fetch),
-        async_fetch_(base_fetch) {}
+      : SharedAsyncFetch(base_fetch) {}
   virtual ~BackgroundFetchCheckingAsyncFetch() {}
 
   virtual void HandleHeadersComplete() {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
     response_headers()->Add(kBackgroundFetchHeader,
-                            async_fetch_->IsBackgroundFetch() ? "1" : "0");
+                            base_fetch()->IsBackgroundFetch() ? "1" : "0");
     // Call ComputeCaching again since Add sets cache_fields_dirty_ to true.
     response_headers()->ComputeCaching();
   }
 
   virtual void HandleDone(bool success) {
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
     delete this;
   }
 
  private:
-  AsyncFetch* async_fetch_;
   DISALLOW_COPY_AND_ASSIGN(BackgroundFetchCheckingAsyncFetch);
 };
 
@@ -175,6 +186,10 @@ class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
   DISALLOW_COPY_AND_ASSIGN(BackgroundFetchCheckingUrlAsyncFetcher);
 };
 
+// TODO(morlovich): This currently relies on ResourceManagerTestBase to help
+// setup fetchers; and also indirectly to prevent any rewrites from timing out
+// (as it runs the tests with real scheduler but mock timer). It would probably
+// be better to port this away to use TestRewriteDriverFactory directly.
 class ProxyInterfaceTestBase : public RewriteTestBase {
  public:
   void TestHeadersSetupRace();
@@ -185,14 +200,6 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   ProxyInterfaceTestBase();
   virtual void SetUp();
   virtual void TearDown();
-
-  void FetchFromProxy(
-      const StringPiece& url,
-      const RequestHeaders& request_headers,
-      bool expect_success,
-      GoogleString* string_out,
-      ResponseHeaders* headers_out,
-      bool proxy_fetch_property_callback_collector_created);
 
   void FetchFromProxy(const StringPiece& url,
                       const RequestHeaders& request_headers,
@@ -215,7 +222,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
                             bool log_flush,
                             ResponseHeaders* headers_out);
 
-  void WaitForFetch(bool proxy_fetch_property_callback_collector_created);
+  void WaitForFetch();
 
   void TestPropertyCache(const StringPiece& url,
                          bool delay_pcache, bool thread_pcache,
@@ -239,7 +246,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
  private:
   friend class FilterCallback;
 
-  MockCriticalImagesFinder* mock_critical_images_finder_;
+  CriticalImagesFinder* fake_critical_images_finder_;
 };
 
 }  // namespace net_instaweb

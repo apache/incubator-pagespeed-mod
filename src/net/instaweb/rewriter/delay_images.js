@@ -21,8 +21,6 @@
  * @author pulkitg@google.com (Pulkit Goyal)
  */
 
-goog.require('pagespeedutils');
-
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
@@ -33,7 +31,7 @@ var pagespeed = window['pagespeed'];
  * @constructor
  */
 pagespeed.DelayImages = function() {
-  /**
+  /*
    * Boolean that controls whether the event handlers for lazy load are already
    * registered.
    * @type {boolean}
@@ -41,7 +39,7 @@ pagespeed.DelayImages = function() {
    */
   this.lazyLoadHighResHandlersRegistered_ = false;
 
-  /**
+  /*
    * Boolean that controls the logic to replace low res images with high res
    * only once.
    * @type {boolean}
@@ -80,15 +78,13 @@ pagespeed.DelayImages.prototype.registerLazyLoadHighRes = function() {
   var interval = 500;
   var tapStart, tapEnd = 0;
 
-  var me = this;
-
   this.highResReplaced = false;
   if ('ontouchstart' in elem) {
-    pagespeedutils.addHandler(elem, 'touchstart', function(e) {
+    elem.addEventListener('touchstart', function(e) {
       tapStart = Date.now();
-    });
+    }, false);
 
-    pagespeedutils.addHandler(elem, 'touchend', function(e) {
+    elem.addEventListener('touchend', function(e) {
       tapEnd = Date.now();
       // Load the high res images if there is a multi-touch or if the tap
       // duration is less than 500ms i.e single click. The timer catches the
@@ -96,17 +92,17 @@ pagespeed.DelayImages.prototype.registerLazyLoadHighRes = function() {
       if ((e.changedTouches != null && e.changedTouches.length == 2) ||
           (e.touches != null && e.touches.length == 2) ||
           tapEnd - tapStart < interval) {
-        me.loadHighRes();
+        this.loadHighRes();
       }
-    });
+    }, false);
   } else {
-    pagespeedutils.addHandler(window, 'click', function(e) {
-      me.loadHighRes();
-    });
+    elem.addEventListener('onclick', function(e) {
+      this.loadHighRes();
+    }, false);
   }
-  pagespeedutils.addHandler(window, 'load', function(e) {
-    me.loadHighRes();
-  });
+  elem.addEventListener('onload', function(e) {
+    this.loadHighRes();
+  }, false);
   this.lazyLoadHighResHandlersRegistered_ = true;
 };
 

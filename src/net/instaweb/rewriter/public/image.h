@@ -91,8 +91,8 @@ class Image {
     CompressionOptions()
         : preferred_webp(WEBP_NONE),
           allow_webp_alpha(false),
-          webp_quality(RewriteOptions::kDefaultImageRecompressQuality),
-          jpeg_quality(RewriteOptions::kDefaultImageRecompressQuality),
+          webp_quality(RewriteOptions::kDefaultImagesRecompressQuality),
+          jpeg_quality(RewriteOptions::kDefaultImagesRecompressQuality),
           progressive_jpeg_min_bytes(
               RewriteOptions::kDefaultProgressiveJpegMinBytes),
           progressive_jpeg(false),
@@ -105,7 +105,6 @@ class Image {
           retain_color_profile(false),
           retain_color_sampling(false),
           retain_exif_data(false),
-          use_transparent_for_blank_image(false),
           jpeg_num_progressive_scans(
               RewriteOptions::kDefaultImageJpegNumProgressiveScans),
           webp_conversion_timeout_ms(-1),
@@ -130,8 +129,7 @@ class Image {
     bool retain_color_profile;
     bool retain_color_sampling;
     bool retain_exif_data;
-    bool use_transparent_for_blank_image;
-    int64 jpeg_num_progressive_scans;
+    int jpeg_num_progressive_scans;
     int64 webp_conversion_timeout_ms;
 
     // These fields are set by the conversion routines to report
@@ -261,7 +259,7 @@ Image* NewImage(const StringPiece& original_contents,
                 MessageHandler* handler);
 
 // Creates a blank image of the given dimensions and type.
-// For now, this is assumed to be an 8-bit 4-channel image transparent image.
+// For now, this is assumed to be an 8-bit 3-channel image.
 Image* BlankImageWithOptions(int width, int height, ImageType type,
                              const StringPiece& tmp_dir,
                              Timer* timer,

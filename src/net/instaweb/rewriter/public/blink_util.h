@@ -36,6 +36,7 @@ class HtmlElement;
 class Panel;
 class PanelSet;
 class ServerContext;
+class UserAgentMatcher;
 
 typedef std::map<GoogleString, const Panel*> PanelIdToSpecMap;
 typedef std::multimap<GoogleString, std::pair<GoogleString, const int>,
@@ -62,13 +63,24 @@ const char kCacheHtmlRewriterInfo[] = "cache_html";
 const char kComputeVisibleTextFilterOutputEndMarker[] =
     "<!--GooglePanel **** Output end ****-->";
 
+// Checks whether the user agent is allowed to go into the blink flow.
+bool IsUserAgentAllowedForBlink(AsyncFetch* async_fetch,
+                                const RewriteOptions* options,
+                                const char* user_agent,
+                                UserAgentMatcher* user_agent_matcher);
+
 // Checks whether the request for 'url' is a valid blink request.
 bool IsBlinkRequest(const GoogleUrl& url,
                     AsyncFetch* async_fetch,
                     const RewriteOptions* options,
                     const char* user_agent,
-                    const ServerContext* server_context,
+                    UserAgentMatcher* user_agent_matcher_,
                     RewriteOptions::Filter filter);
+
+// Checks if blink critical line flow can be applied.
+bool ShouldApplyBlinkFlowCriticalLine(
+    const ServerContext* manager,
+    const RewriteOptions* options);
 
 // Returns true if json has only miscellaneous(like 'contiguous')
 // atributes.

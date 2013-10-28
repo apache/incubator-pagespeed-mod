@@ -25,6 +25,7 @@
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_writer.h"
 #include "net/instaweb/util/public/gflags.h"
+#include "net/instaweb/util/public/google_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -34,7 +35,8 @@
 namespace net_instaweb {
 
 bool MinifyCss_main(int argc, char** argv) {
-  StdioFileSystem file_system;
+  GoogleTimer timer;
+  StdioFileSystem file_system(&timer);
   FileMessageHandler handler(stderr);
   FileSystem::OutputFile* error_file = file_system.Stderr();
 
@@ -81,6 +83,7 @@ bool MinifyCss_main(int argc, char** argv) {
   }
 
   // Re-serialize.
+  // TODO(sligocki): Allow to be an actual file?
   FileSystem::OutputFile* outfile = file_system.Stdout();
   FileWriter writer(outfile);
   bool written = CssMinify::Stylesheet(*stylesheet, &writer, &handler);

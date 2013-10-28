@@ -100,11 +100,11 @@ void RecordingFetch::HandleHeadersComplete() {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.CopyFrom(*response_headers());
     if (streaming_) {
-      SharedAsyncFetch::HandleHeadersComplete();
+      base_fetch()->HeadersComplete();
     }
   } else {
     FreeDriver();
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -123,7 +123,7 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
                                  MessageHandler* handler) {
   bool result = true;
   if (streaming_) {
-    result = SharedAsyncFetch::HandleWrite(content, handler);
+    result = base_fetch()->Write(content, handler);
   }
   if (can_in_place_rewrite_) {
     if (cache_value_writer_.CanCacheContent(content)) {
@@ -138,12 +138,11 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
         // We need to start streaming now so write out what we've cached so far.
         streaming_ = true;
         in_place_oversized_opt_stream_->Add(1);
+        base_fetch()->HeadersComplete();
         StringPiece cache_contents;
         cache_value_.ExtractContents(&cache_contents);
-        set_content_length(cache_contents.size() + content.size());
-        SharedAsyncFetch::HandleHeadersComplete();
-        SharedAsyncFetch::HandleWrite(cache_contents, handler);
-        SharedAsyncFetch::HandleWrite(content, handler);
+        base_fetch()->Write(cache_contents, handler);
+        base_fetch()->Write(content, handler);
       }
       FreeDriver();
     }
@@ -153,7 +152,7 @@ bool RecordingFetch::HandleWrite(const StringPiece& content,
 
 bool RecordingFetch::HandleFlush(MessageHandler* handler) {
   if (streaming_) {
-    return SharedAsyncFetch::HandleFlush(handler);
+    return base_fetch()->Flush(handler);
   }
   return true;
 }
@@ -175,7 +174,7 @@ void RecordingFetch::HandleDone(bool success) {
   }
 
   if (streaming_) {
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
   }
 
   if (success && can_in_place_rewrite_) {
@@ -316,7 +315,8 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
   const char* request_etag = async_fetch()->request_headers()->Lookup1(
       HttpAttributes::kIfNoneMatch);
   if (request_etag != NULL && !hash.empty() &&
-      (HTTPCache::FormatEtag(StrCat(id(), "-", hash)) == request_etag)) {
+      (StringPrintf(HTTPCache::kEtagFormat,
+                    StrCat(id(), "-",  hash).c_str()) == request_etag)) {
     // Serve out a 304.
     async_fetch()->response_headers()->Clear();
     async_fetch()->response_headers()->SetStatusAndReason(
@@ -342,8 +342,9 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
 void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (is_rewritten_) {
     if (!rewritten_hash_.empty()) {
-      headers->Replace(HttpAttributes::kEtag, HTTPCache::FormatEtag(StrCat(
-                                                  id(), "-", rewritten_hash_)));
+      headers->Replace(HttpAttributes::kEtag, StringPrintf(
+          HTTPCache::kEtagFormat,
+          StrCat(id(), "-", rewritten_hash_).c_str()));
     }
     if (ShouldAddVaryUserAgent()) {
       headers->Replace(HttpAttributes::kVary, HttpAttributes::kUserAgent);
@@ -365,9 +366,9 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
       expire_at_ms = now_ms + headers->implicit_cache_ttl_ms();
     } else if (stale_rewrite()) {
       // If we are serving a stale rewrite, set the cache ttl to the minimum of
-      // kDefaultImplicitCacheTtlMs and the original ttl.
-      expire_at_ms = now_ms + std::min(
-          ResponseHeaders::kDefaultImplicitCacheTtlMs, expire_at_ms - date_ms);
+      // kImplicitCacheTtlMs and the original ttl.
+      expire_at_ms = now_ms + std::min(ResponseHeaders::kImplicitCacheTtlMs,
+                                       expire_at_ms - date_ms);
     }
     headers->SetDateAndCaching(now_ms, expire_at_ms - now_ms);
   }
@@ -537,13 +538,13 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
     ResourcePtr resource(slot(0)->resource());
     // If we get here, the resource must not have been rewritten.
     is_rewritten_ = false;
-    RecordingFetch* fetch = new RecordingFetch(async_fetch(), resource, this,
-                                               fetch_message_handler());
+    RecordingFetch* fetch = new RecordingFetch(
+        async_fetch(), resource, this, fetch_message_handler());
     if (resource->UseHttpCache()) {
       if (proxy_mode_) {
         cache_fetcher_.reset(driver_->CreateCacheFetcher());
-        // Since we are proxying resources to user, we want to fetch it even
-        // if there is a kRecentFetchNotCacheable message in the cache.
+        // Since we are proxying resources to user, we want to fetch it even if
+        // there is a kRecentFetchNotCacheable message in the cache.
         cache_fetcher_->set_ignore_recent_fetch_failed(true);
       } else {
         cache_fetcher_.reset(driver_->CreateCacheOnlyFetcher());
@@ -557,8 +558,8 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
       MessageHandler* handler = server_context->message_handler();
       NonHttpResourceCallback* callback = new NonHttpResourceCallback(
           resource, proxy_mode_, this, fetch, handler);
-      resource->LoadAsync(Resource::kLoadEvenIfNotCacheable,
-                          Driver()->request_context(), callback);
+      server_context->ReadAsync(Resource::kLoadEvenIfNotCacheable,
+                                Driver()->request_context(), callback);
     }
   } else {
     LOG(ERROR) << "Expected one resource slot, but found " << num_slots()

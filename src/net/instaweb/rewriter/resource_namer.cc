@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
 #include <cctype>
-#include <memory>
 #include <vector>
 
 #include "base/logging.h"
@@ -49,16 +48,15 @@ namespace {
 //   3. "mod_pagespeed" is slightly longer if/when this technology
 //      is ported to other servers then the "mod_" is less relevant.
 //
-// EXPT is an optional character indicating the index of an ExperimentSpec.  The
-// first ExperimentSpec is a, the next is b, ...  Users not in any experiment
-// won't have this section.
+// EXPT is an optional character indicating the index of a Furious
+// ExperimentSpec.  The first ExperimentSpec is a, the next is b, ...  Users not
+// in any experiment won't have this section.
 //
 // If you change this, or the structure of the encoded string,
 // you will also need to change:
 //
-// automatic/system_test.sh
-// system/system_test.sh
-// apache/system_test.sh
+// apache/install/system_test.sh
+// apache/install/apache_system_test.sh
 //
 // Plus a few constants in _test.cc files.
 

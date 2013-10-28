@@ -89,7 +89,7 @@ class CssImageRewriter {
   // Needed for import flattening.
   CssFilter* filter_;
 
-  // Needed for server_context and options.
+  // Needed for resource_manager and options.
   RewriteDriver* driver_;
 
   // Top level context for rewriting root CSS file itself.

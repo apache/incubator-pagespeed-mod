@@ -43,6 +43,7 @@
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/apache_writer.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -51,7 +52,6 @@
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/chunking_writer.h"
@@ -102,8 +102,9 @@ GoogleString RemoveModPageSpeedQueryParams(
   bool rewrite_query_params = false;
 
   for (int i = 0; i < query_params.size(); ++i) {
-    StringPiece name = query_params.name(i);
-    if (name.starts_with(RewriteQuery::kModPagespeed)) {
+    const char* name = query_params.name(i);
+    static const char kModPagespeed[] = "ModPagespeed";
+    if (strncmp(name, kModPagespeed, STATIC_STRLEN(kModPagespeed)) == 0) {
       rewrite_query_params = true;
     } else {
       const GoogleString* value = query_params.value(i);
@@ -154,6 +155,8 @@ class StrippingFetch : public StringAsyncFetch {
         condvar_(mutex_->NewCondvar()) {
   }
 
+  virtual bool EnableThreaded() const { return true; }
+
   // Blocking fetch.
   bool Fetch() {
     // To test sharding domains from a slurp of a site that does not support
@@ -185,8 +188,7 @@ class StrippingFetch : public StringAsyncFetch {
       // Second pass -- declare completion.
       set_success(true);
     // TODO(sligocki): Check for kPageSpeedHeader as well.
-    } else if ((response_headers()->Lookup1(kModPagespeedHeader) != NULL) ||
-               (response_headers()->Lookup1(kPageSpeedHeader) != NULL)) {
+    } else if (response_headers()->Lookup1(kModPagespeedHeader) != NULL) {
       // First pass -- the slurped site evidently had mod_pagespeed already
       // enabled.  Turn it off and re-fetch.
       LOG(ERROR) << "URL " << url_ << " already has mod_pagespeed.  Stripping.";
@@ -232,32 +234,32 @@ class StrippingFetch : public StringAsyncFetch {
 
 }  // namespace
 
-void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
+void SlurpUrl(ApacheServerContext* manager, request_rec* r) {
   const char* url =
-      InstawebContext::MakeRequestUrl(*server_context->global_options(), r);
+      InstawebContext::MakeRequestUrl(*manager->global_options(), r);
   GoogleString stripped_url = RemoveModPageSpeedQueryParams(
       url, r->parsed_uri.query);
 
   // Figure out if we should be using a slurp fetcher rather than the default
   // system fetcher.
-  UrlAsyncFetcher* fetcher = server_context->DefaultSystemFetcher();
-  scoped_ptr<HttpDumpUrlFetcher> slurp_fetcher;
+  UrlAsyncFetcher* fetcher = manager->DefaultSystemFetcher();
+  scoped_ptr<HttpDumpUrlFetcher> sync_fetcher;
+  scoped_ptr<FakeUrlAsyncFetcher> adapter_fetcher;
 
-  ApacheConfig* config = server_context->config();
+  ApacheConfig* config = manager->config();
   if (config->test_proxy() && !config->test_proxy_slurp().empty()) {
-    slurp_fetcher.reset(new HttpDumpUrlFetcher(
-        config->test_proxy_slurp(), server_context->file_system(),
-        server_context->timer()));
-    fetcher = slurp_fetcher.get();
+    sync_fetcher.reset(new HttpDumpUrlFetcher(
+        config->test_proxy_slurp(), manager->file_system(), manager->timer()));
+    adapter_fetcher.reset(new FakeUrlAsyncFetcher(sync_fetcher.get()));
+    fetcher = adapter_fetcher.get();
   }
 
-  MessageHandler* handler = server_context->message_handler();
+  MessageHandler* handler = manager->message_handler();
   RequestContextPtr request_context(
-      new RequestContext(server_context->thread_system()->NewMutex(),
-                         server_context->timer()));
-  StrippingFetch fetch(stripped_url, server_context->config()->domain_lawyer(),
-                       fetcher, server_context->thread_system(),
-                       request_context, handler);
+      new RequestContext(manager->thread_system()->NewMutex()));
+  StrippingFetch fetch(stripped_url, manager->config()->domain_lawyer(),
+                       fetcher, manager->thread_system(), request_context,
+                       handler);
   ApacheRequestToRequestHeaders(*r, fetch.request_headers());
 
   bool fetch_succeeded = fetch.Fetch();
@@ -267,8 +269,8 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
     // in the fetch we did to write the slurp.
     ApacheWriter apache_writer(r);
     apache_writer.set_disable_downstream_header_filters(true);
-    ChunkingWriter chunking_writer(
-        &apache_writer, server_context->config()->slurp_flush_limit());
+    ChunkingWriter chunking_writer(&apache_writer,
+                                   manager->config()->slurp_flush_limit());
     apache_writer.OutputHeaders(fetch.response_headers());
     chunking_writer.Write(fetch.buffer(), handler);
   } else {
@@ -280,7 +282,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
   }
 
   if (!fetch_succeeded || fetch.response_headers()->IsErrorStatus()) {
-    server_context->ReportSlurpNotFound(stripped_url, r);
+    manager->ReportSlurpNotFound(stripped_url, r);
   }
 }
 

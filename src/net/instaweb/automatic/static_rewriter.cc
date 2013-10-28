@@ -22,6 +22,7 @@
 #include <cstdlib>  // for exit()
 
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/wget_url_fetcher.h"
@@ -30,10 +31,10 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_gflags.h"
 #include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/google_timer.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/string.h"
@@ -48,7 +49,9 @@ class FileSystem;
 class Hasher;
 class MessageHandler;
 class Statistics;
+class Timer;
 class UrlAsyncFetcher;
+class UrlFetcher;
 class Writer;
 
 namespace {
@@ -69,8 +72,7 @@ class FileServerContext : public ServerContext {
 
 FileRewriter::FileRewriter(const net_instaweb::RewriteGflags* gflags,
                            bool echo_errors_to_stdout)
-    : RewriteDriverFactory(Platform::CreateThreadSystem()),
-      gflags_(gflags),
+    : gflags_(gflags),
       echo_errors_to_stdout_(echo_errors_to_stdout) {
   net_instaweb::RewriteDriverFactory::InitStats(&simple_stats_);
   SetStatistics(&simple_stats_);
@@ -83,8 +85,12 @@ Hasher* FileRewriter::NewHasher() {
   return new MD5Hasher;
 }
 
-UrlAsyncFetcher* FileRewriter::DefaultAsyncUrlFetcher() {
+UrlFetcher* FileRewriter::DefaultUrlFetcher() {
   return new WgetUrlFetcher;
+}
+
+UrlAsyncFetcher* FileRewriter::DefaultAsyncUrlFetcher() {
+  return new FakeUrlAsyncFetcher(ComputeUrlFetcher());
 }
 
 MessageHandler* FileRewriter::DefaultHtmlParseMessageHandler() {
@@ -99,18 +105,21 @@ MessageHandler* FileRewriter::DefaultMessageHandler() {
 }
 
 FileSystem* FileRewriter::DefaultFileSystem() {
-  return new StdioFileSystem;
+  return new StdioFileSystem(timer());
 }
 
-void FileRewriter::SetupCaches(ServerContext* server_context) {
+Timer* FileRewriter::DefaultTimer() {
+  return new GoogleTimer;
+}
+
+void FileRewriter::SetupCaches(ServerContext* resource_manager) {
   LRUCache* lru_cache = new LRUCache(gflags_->lru_cache_size_bytes());
   CacheInterface* cache = new ThreadsafeCache(lru_cache,
                                               thread_system()->NewMutex());
   HTTPCache* http_cache = new HTTPCache(cache, timer(), hasher(), statistics());
-  server_context->set_http_cache(http_cache);
-  server_context->set_metadata_cache(cache);
-  server_context->MakePagePropertyCache(
-      server_context->CreatePropertyStore(cache));
+  resource_manager->set_http_cache(http_cache);
+  resource_manager->set_metadata_cache(cache);
+  resource_manager->MakePropertyCaches(cache);
 }
 
 Statistics* FileRewriter::statistics() {
@@ -160,7 +169,7 @@ bool StaticRewriter::ParseText(const StringPiece& url,
   driver->SetWriter(writer);
   if (!driver->StartParseId(url, id, kContentTypeHtml)) {
     fprintf(stderr, "StartParseId failed on url %s\n", url.as_string().c_str());
-    driver->Cleanup();
+    server_context_->ReleaseRewriteDriver(driver);
     return false;
   }
 

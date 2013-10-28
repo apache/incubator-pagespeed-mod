@@ -20,21 +20,43 @@
 
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
+#include "net/instaweb/http/public/user_agent_matcher_test.h"
+#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class Statistics;
+
+// By default, CriticalImagesFinder does not return meaningful results. However,
+// this test manually manages the critical image set, so CriticalImagesFinder
+// can return useful information for testing this filter.
+class MeaningfulCriticalImagesFinder : public CriticalImagesFinder {
+ public:
+  explicit MeaningfulCriticalImagesFinder(Statistics* stats)
+      : CriticalImagesFinder(stats) {}
+  virtual ~MeaningfulCriticalImagesFinder() {}
+  virtual bool IsMeaningful(const RewriteDriver* driver) const {
+    return true;
+  }
+  virtual void ComputeCriticalImages(StringPiece url,
+                                     RewriteDriver* driver) {}
+  virtual const char* GetCriticalImagesCohort() const {
+    return kCriticalImagesCohort;
+  }
+ private:
+  static const char kCriticalImagesCohort[];
+};
+
+const char MeaningfulCriticalImagesFinder::kCriticalImagesCohort[] =
+    "critical_images";
 
 class LazyloadImagesFilterTest : public RewriteTestBase {
  protected:
@@ -44,8 +66,6 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
   // TODO(matterbury): Delete this method as it should be redundant.
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    rewrite_driver()->SetUserAgent(
-        UserAgentMatcherTestBase::kChrome18UserAgent);
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   }
 
@@ -57,6 +77,24 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
     lazyload_images_filter_.reset(
         new LazyloadImagesFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(lazyload_images_filter_.get());
+  }
+
+  GoogleString GetScriptHtml(const StringPiece& script, bool add_no_defer) {
+    return StrCat("<script type=\"text/javascript\"",
+                  add_no_defer ? " pagespeed_no_defer=\"\"" : "",
+                  ">", script, "</script>");
+  }
+
+  GoogleString GetLazyloadScriptHtml() {
+    return GetScriptHtml(
+        LazyloadImagesFilter::GetLazyloadJsSnippet(
+            options(), server_context()->static_asset_manager()),
+        false);
+  }
+
+  GoogleString GetOverrideAttributesScriptHtml() {
+    return GetScriptHtml(
+        LazyloadImagesFilter::kOverrideAttributeFunctions, true);
   }
 
   GoogleString GenerateRewrittenImageTag(
@@ -126,7 +164,7 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
              "</marquee>",
              GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
-             "<img src=\"1.jpg\" pagespeed_no_defer />"
+             "<img src=\"1.jpg\"/>"
              "<img src=\"1.jpg\" data-src=\"2.jpg\"/>",
              StrCat("<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhE\"/>",
                     GenerateRewrittenImageTag("img", "2's.jpg",
@@ -135,20 +173,18 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
                     "<input src=\"12.jpg\"/>"
                     "<img src=\"1.jpg\" onload=\"blah();\"/>"
                     "<img src=\"1.jpg\" class=\"123 dfcg-metabox\"/>",
-                    GetLazyloadPostscriptHtml(),
+                    GetOverrideAttributesScriptHtml(),
                     "</body>")));
   EXPECT_EQ(4, logging_info()->rewriter_info().size());
   ExpectLogRecord(
-      0, RewriterApplication::APPLIED_OK /* img with src 1.jpg */,
+      0, RewriterInfo::APPLIED_OK /* img with src 1.jpg */, false, false);
+  ExpectLogRecord(
+      1, RewriterInfo::NOT_APPLIED /* img with src 1.jpg and data-src */,
       false, false);
   ExpectLogRecord(
-      1, RewriterApplication::NOT_APPLIED /* img with src 1.jpg and data-src */,
-      false, false);
+      2, RewriterInfo::APPLIED_OK /* img with src 2's.jpg*/, false, false);
   ExpectLogRecord(
-      2, RewriterApplication::APPLIED_OK /* img with src 2's.jpg*/,
-      false, false);
-  ExpectLogRecord(
-      3, RewriterApplication::NOT_APPLIED /* img with src 1.jpg and onload */,
+      3, RewriterInfo::NOT_APPLIED /* img with src 1.jpg and onload */,
       false, false);
 }
 
@@ -174,25 +210,25 @@ TEST_F(LazyloadImagesFilterTest, Blacklist) {
                      "img", "http://www.1.com/img1", ""),
                  GenerateRewrittenImageTag(
                      "img", "img2", ""),
-                 GetLazyloadPostscriptHtml(),
+                 GetOverrideAttributesScriptHtml(),
                  "</body>")));
   EXPECT_EQ(3, logging_info()->rewriter_info().size());
-  ExpectLogRecord(0, RewriterApplication::NOT_APPLIED, true, false);
-  ExpectLogRecord(1, RewriterApplication::APPLIED_OK, false, false);
-  ExpectLogRecord(2, RewriterApplication::APPLIED_OK, false, false);
+  ExpectLogRecord(0, RewriterInfo::NOT_APPLIED, true, false);
+  ExpectLogRecord(1, RewriterInfo::APPLIED_OK, false, false);
+  ExpectLogRecord(2, RewriterInfo::APPLIED_OK, false, false);
 }
 
 TEST_F(LazyloadImagesFilterTest, CriticalImages) {
   InitLazyloadImagesFilter(false);
-  MockCriticalImagesFinder* finder = new MockCriticalImagesFinder(statistics());
-  server_context()->set_critical_images_finder(finder);
+  server_context()->set_critical_images_finder(
+      new MeaningfulCriticalImagesFinder(statistics()));
 
-  StringSet* critical_images = new StringSet;
+  StringSet* critical_images = server_context()->critical_images_finder()->
+      mutable_html_critical_images(rewrite_driver());
   critical_images->insert("http://www.1.com/critical");
   critical_images->insert("www.1.com/critical2");
   critical_images->insert("http://test.com/critical3");
   critical_images->insert("http://test.com/critical4.jpg");
-  finder->set_critical_images(critical_images);
 
   GoogleString rewritten_url = Encode(
       "http://test.com/", "ce", "HASH", "critical4.jpg", "jpg");
@@ -217,31 +253,21 @@ TEST_F(LazyloadImagesFilterTest, CriticalImages) {
                      "img", "http://www.1.com/critical2", ""),
                  "<img src=\"critical3\"/>"
                  "<img src=\"", rewritten_url, "\"/>",
-                 GetLazyloadPostscriptHtml(),
+                 GetOverrideAttributesScriptHtml(),
                  "</body>")));
   EXPECT_EQ(4, logging_info()->rewriter_info().size());
-  ExpectLogRecord(0, RewriterApplication::NOT_APPLIED, false, true);
-  ExpectLogRecord(1, RewriterApplication::APPLIED_OK, false, false);
-  ExpectLogRecord(2, RewriterApplication::NOT_APPLIED, false, true);
-  ExpectLogRecord(3, RewriterApplication::NOT_APPLIED, false, true);
+  ExpectLogRecord(0, RewriterInfo::NOT_APPLIED, false, true);
+  ExpectLogRecord(1, RewriterInfo::APPLIED_OK, false, false);
+  ExpectLogRecord(2, RewriterInfo::NOT_APPLIED, false, true);
+  ExpectLogRecord(3, RewriterInfo::NOT_APPLIED, false, true);
   EXPECT_EQ(-1, logging_info()->num_html_critical_images());
   EXPECT_EQ(-1, logging_info()->num_css_critical_images());
   rewrite_driver_->log_record()->WriteLog();
   for (int i = 0; i < logging_info()->rewriter_stats_size(); i++) {
     if (logging_info()->rewriter_stats(i).id() == "ll" &&
         logging_info()->rewriter_stats(i).has_html_status()) {
-      EXPECT_EQ(RewriterHtmlApplication::ACTIVE,
+      EXPECT_EQ(RewriterStats::ACTIVE,
                 logging_info()->rewriter_stats(i).html_status());
-      const RewriteStatusCount& count_applied =
-          logging_info()->rewriter_stats(i).status_counts(0);
-      EXPECT_EQ(RewriterApplication::APPLIED_OK,
-                count_applied.application_status());
-      EXPECT_EQ(1, count_applied.count());
-      const RewriteStatusCount& count_not_applied =
-          logging_info()->rewriter_stats(i).status_counts(1);
-      EXPECT_EQ(RewriterApplication::NOT_APPLIED,
-                count_not_applied.application_status());
-      EXPECT_EQ(3, count_not_applied.count());
       return;
     }
   }
@@ -260,7 +286,7 @@ TEST_F(LazyloadImagesFilterTest, SingleHeadLoadOnOnload) {
              "<body>",
              GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
-             GetLazyloadPostscriptHtml(),
+             GetOverrideAttributesScriptHtml(),
              "</body>"));
 }
 
@@ -280,16 +306,16 @@ TEST_F(LazyloadImagesFilterTest, MultipleBodies) {
           "<body>",
           GetLazyloadScriptHtml(),
           GenerateRewrittenImageTag("img", "1.jpg", ""),
-          GetLazyloadPostscriptHtml(),
+          GetOverrideAttributesScriptHtml(),
           StrCat(
               "</body><body></body><body>"
               "<script></script>",
               GenerateRewrittenImageTag("img", "2.jpg", ""),
-              GetLazyloadPostscriptHtml()),
+              GetOverrideAttributesScriptHtml()),
           StrCat(
               "<script></script>",
               GenerateRewrittenImageTag("img", "3.jpg", ""),
-              GetLazyloadPostscriptHtml(),
+              GetOverrideAttributesScriptHtml(),
               "<script></script>",
               "</body>")));
 }
@@ -303,7 +329,7 @@ TEST_F(LazyloadImagesFilterTest, NoHeadTag) {
       StrCat("<body>",
              GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
-             GetLazyloadPostscriptHtml(),
+             GetOverrideAttributesScriptHtml(),
              "</body>"));
 }
 
@@ -332,7 +358,7 @@ TEST_F(LazyloadImagesFilterTest, CustomImageUrl) {
       StrCat("<body>",
              GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
-             GetLazyloadPostscriptHtml(),
+             GetOverrideAttributesScriptHtml(),
              "</body>"));
 }
 
@@ -388,8 +414,8 @@ TEST_F(LazyloadImagesFilterTest, LazyloadScriptDebug) {
   InitLazyloadImagesFilter(true);
   Parse("debug",
         "<head></head><body><img src=\"1.jpg\"></body>");
-  EXPECT_EQ(GoogleString::npos, output_buffer_.find("/*"))
-      << "There should be no comments in the debug code";
+  EXPECT_NE(GoogleString::npos, output_buffer_.find("/*"))
+      << "There should still be some comments in the debug code";
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySlider) {
@@ -417,8 +443,7 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySliderAfterHead) {
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
-  rewrite_driver()->SetUserAgent(
-      UserAgentMatcherTestBase::kBlackBerryOS5UserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kBlackBerryOS5UserAgent);
   InitLazyloadImagesFilter(false);
   GoogleString input_html = "<head>"
       "</head>"
@@ -429,7 +454,7 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForGooglebot) {
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kGooglebotUserAgent);
+  rewrite_driver()->SetUserAgent(UserAgentStrings::kGooglebotUserAgent);
   InitLazyloadImagesFilter(false);
   GoogleString input_html = "<head>"
       "</head>"
@@ -442,35 +467,8 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForGooglebot) {
   for (int i = 0; i < logging_info->rewriter_stats_size(); i++) {
     if (logging_info->rewriter_stats(i).id() == "ll" &&
         logging_info->rewriter_stats(i).has_html_status()) {
-      EXPECT_EQ(RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED,
+      EXPECT_EQ(RewriterStats::USER_AGENT_NOT_SUPPORTED,
                 logging_info->rewriter_stats(i).html_status());
-      return;
-    }
-  }
-  FAIL();
-}
-
-TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForXHR) {
-  InitLazyloadImagesFilter(false);
-  RequestHeaders request_headers;
-  request_headers.Add(
-      HttpAttributes::kXRequestedWith, HttpAttributes::kXmlHttpRequest);
-  rewrite_driver_->SetRequestHeaders(request_headers);
-  GoogleString input_html = "<head>"
-      "</head>"
-      "<body>"
-      "<img src=\"1.jpg\"/>"
-      "</body>";
-  ValidateNoChanges("xhr_requests", input_html);
-  rewrite_driver_->log_record()->WriteLog();
-  LoggingInfo* logging_info = rewrite_driver_->log_record()->logging_info();
-  for (int i = 0; i < logging_info->rewriter_stats_size(); i++) {
-    if (logging_info->rewriter_stats(i).id() == "ll" &&
-        logging_info->rewriter_stats(i).has_html_status()) {
-      EXPECT_EQ(RewriterHtmlApplication::DISABLED,
-                logging_info->rewriter_stats(i).html_status());
-      EXPECT_TRUE(logging_info->has_is_xhr());
-      EXPECT_TRUE(logging_info->is_xhr());
       return;
     }
   }

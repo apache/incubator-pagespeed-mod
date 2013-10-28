@@ -106,10 +106,6 @@ class InPlaceRewriteContext : public SingleRewriteContext {
       const ResourceContext* resource_context) const;
   virtual void EncodeUserAgentIntoResourceContext(ResourceContext* context);
 
-  // We don't lock for IPRO because IPRO would rather stream back the original
-  // resource than wait for the optimization.
-  virtual bool CreationLockBeforeStartFetch() { return false; }
-
  private:
   friend class RecordingFetch;
   // Implements RewriteContext::Harvest().
@@ -134,6 +130,10 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   // Returns true if the "Vary: User-Agent" header should be added for the
   // rewritten resource.
   bool ShouldAddVaryUserAgent() const;
+
+  // No stale rewrites at all in the in place flow, since we will be actually
+  // serving out the stale value.
+  virtual bool do_stale_rewrite() const { return false; }
 
   RewriteDriver* driver_;
   GoogleString url_;

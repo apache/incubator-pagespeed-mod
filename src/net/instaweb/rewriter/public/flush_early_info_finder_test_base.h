@@ -31,10 +31,14 @@ class RewriteDriver;
 // class can be used by tests which manually manage FlushEarlyRenderInfo.
 class MeaningfulFlushEarlyInfoFinder : public FlushEarlyInfoFinder {
  public:
-  MeaningfulFlushEarlyInfoFinder()
-      : FlushEarlyInfoFinder(NULL), num_compute_calls_(0) {}
+  MeaningfulFlushEarlyInfoFinder() : num_compute_calls_(0) {}
   virtual ~MeaningfulFlushEarlyInfoFinder() {}
-  virtual bool IsMeaningful(const RewriteDriver* driver) const { return true; }
+  virtual bool IsMeaningful(const RewriteDriver* driver) const {
+    return true;
+  }
+  virtual const char* GetCohort() const {
+    return "NullCohort";
+  }
   virtual int64 cache_expiration_time_ms() const {
     return Timer::kHourMs;
   }
