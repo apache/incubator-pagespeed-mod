@@ -35,6 +35,7 @@ namespace {
 
 const char kCacheFlushCount[] = "cache_flush_count";
 const char kCacheFlushTimestampMs[] = "cache_flush_timestamp_ms";
+const char kStatistics404Count[] = "statistics_404_count";
 
 }  // namespace
 
@@ -139,6 +140,11 @@ SystemRewriteOptions* SystemServerContext::system_rewrite_options() {
 void SystemServerContext::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCacheFlushCount);
   statistics->AddVariable(kCacheFlushTimestampMs);
+  statistics->AddVariable(kStatistics404Count);
+}
+
+Variable* SystemServerContext::statistics_404_count() {
+  return statistics()->GetVariable(kStatistics404Count);
 }
 
 }  // namespace net_instaweb
