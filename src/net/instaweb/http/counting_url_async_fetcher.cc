@@ -31,28 +31,21 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
  public:
   CountingFetch(CountingUrlAsyncFetcher* counter, AsyncFetch* base_fetch)
       : SharedAsyncFetch(base_fetch), counter_(counter) {
-    ScopedMutex lock(counter_->mutex_.get());
-    ++counter_->fetch_start_count_;
   }
 
   virtual bool HandleWrite(const StringPiece& content,
                            MessageHandler* handler) {
-    {
-      ScopedMutex lock(counter_->mutex_.get());
-      counter_->byte_count_ += content.size();
-    }
-    return SharedAsyncFetch::HandleWrite(content, handler);
+    counter_->byte_count_ += content.size();
+    return base_fetch()->Write(content, handler);
   }
 
   virtual void HandleDone(bool success) {
-    {
-      ScopedMutex lock(counter_->mutex_.get());
-      ++counter_->fetch_count_;
-      if (!success) {
-        ++counter_->failure_count_;
-      }
+    // TODO(jmarantz): consider whether a Mutex is needed and how to supply one.
+    ++counter_->fetch_count_;
+    if (!success) {
+      ++counter_->failure_count_;
     }
-    SharedAsyncFetch::HandleDone(success);
+    base_fetch()->Done(success);
     delete this;
   }
 
@@ -68,21 +61,14 @@ CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {
 void CountingUrlAsyncFetcher::Fetch(const GoogleString& url,
                                     MessageHandler* message_handler,
                                     AsyncFetch* base_fetch) {
-  {
-    ScopedMutex lock(mutex_.get());
-    most_recent_fetched_url_ = url;
-  }
   CountingFetch* counting_fetch = new CountingFetch(this, base_fetch);
   fetcher_->Fetch(url, message_handler, counting_fetch);
 }
 
 void CountingUrlAsyncFetcher::Clear() {
-  ScopedMutex lock(mutex_.get());
   fetch_count_ = 0;
-  fetch_start_count_ = 0;
   byte_count_ = 0;
   failure_count_ = 0;
-  most_recent_fetched_url_ = "";
 }
 
-}  // namespace net_instaweb
+}  // namespace instaweb

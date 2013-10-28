@@ -83,7 +83,6 @@ class JsCombineFilter : public RewriteFilter {
   virtual void EndElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void Flush();
-  virtual void DetermineEnabled();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "JsCombine"; }
   virtual RewriteContext* MakeRewriteContext();

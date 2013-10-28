@@ -39,7 +39,10 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
@@ -86,8 +89,6 @@ OutputResource::OutputResource(ServerContext* server_context,
   full_name_.CopyFrom(full_name);
   CHECK(EndsInSlash(resolved_base)) <<
       "resolved_base must end in a slash, was: " << resolved_base;
-  set_enable_cache_purge(options->enable_cache_purge());
-  set_proactive_resource_freshening(options->proactive_resource_freshening());
 }
 
 OutputResource::~OutputResource() {
@@ -137,6 +138,7 @@ void OutputResource::EndWrite(MessageHandler* handler) {
   full_name_.set_hash(hasher->Hash(contents()));
   computed_url_.clear();  // Since dependent on full_name_.
   writing_complete_ = true;
+  DropCreationLock();
 }
 
 StringPiece OutputResource::suffix() const {
@@ -183,7 +185,7 @@ GoogleString OutputResource::HttpCacheKey() const {
   // MapRequestToDomain needs a base URL, which ought to be irrelevant here,
   // as we're already absolute.
   GoogleUrl base(canonical_url);
-  if (base.IsWebValid() &&
+  if (base.is_valid() &&
       lawyer->MapRequestToDomain(
           base, canonical_url, &mapped_domain_name, &resolved_request,
           server_context()->message_handler())) {
@@ -212,12 +214,8 @@ void OutputResource::SetHash(const StringPiece& hash) {
   computed_url_.clear();  // Since dependent on full_name_.
 }
 
-void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                                     const RequestContextPtr& request_context,
-                                     AsyncCallback* callback) {
-  DCHECK(false) << "Output resources shouldn't be loaded via "
-                   "LoadAsync, but rather through FetchResource";
-  callback->Done(false /* lock_failure */, writing_complete_);
+bool OutputResource::Load(MessageHandler* handler) {
+  return writing_complete_;
 }
 
 GoogleString OutputResource::decoded_base() const {
@@ -227,6 +225,10 @@ GoogleString OutputResource::decoded_base() const {
     gurl.Reset(decoded_url);
   }
   return gurl.AllExceptLeaf().as_string();
+}
+
+bool OutputResource::IsWritten() const {
+  return writing_complete_;
 }
 
 void OutputResource::SetType(const ContentType* content_type) {
@@ -241,6 +243,38 @@ void OutputResource::SetType(const ContentType* content_type) {
         << "OutputResource with extension length > "
            "ContentType::MaxProducedExtensionLength()";
   }
+}
+
+NamedLock* OutputResource::CreationLock() {
+  if (creation_lock_.get() == NULL) {
+    creation_lock_.reset(server_context_->MakeCreationLock(name_key()));
+  }
+  return creation_lock_.get();
+}
+
+bool OutputResource::has_lock() const {
+  return ((creation_lock_.get() != NULL) && creation_lock_->Held());
+}
+
+bool OutputResource::TryLockForCreation() {
+  if (has_lock()) {
+    return true;
+  } else {
+    return server_context_->TryLockForCreation(CreationLock());
+  }
+}
+
+void OutputResource::LockForCreation(QueuedWorkerPool::Sequence* worker,
+                                     Function* callback) {
+  if (has_lock()) {
+    worker->Add(callback);
+  } else {
+    server_context_->LockForCreation(CreationLock(), worker, callback);
+  }
+}
+
+void OutputResource::DropCreationLock() {
+  creation_lock_.reset();
 }
 
 CachedResult* OutputResource::EnsureCachedResultCreated() {

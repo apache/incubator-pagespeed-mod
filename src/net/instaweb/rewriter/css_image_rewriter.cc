@@ -65,14 +65,20 @@ CssImageRewriter::CssImageRewriter(CssFilter::Context* root_context,
 
 CssImageRewriter::~CssImageRewriter() {}
 
+bool CssImageRewriter::FlatteningEnabled() const {
+  const RewriteOptions* options = driver_->options();
+  return options->Enabled(RewriteOptions::kFlattenCssImports);
+}
+
 bool CssImageRewriter::RewritesEnabled(
     int64 image_inline_max_bytes) const {
   const RewriteOptions* options = driver_->options();
-  return (image_inline_max_bytes > 0 ||
-          options->ImageOptimizationEnabled() ||
-          options->Enabled(RewriteOptions::kLeftTrimUrls) ||
-          options->Enabled(RewriteOptions::kExtendCacheImages) ||
-          options->Enabled(RewriteOptions::kSpriteImages));
+  return ((image_inline_max_bytes > 0 ||
+           options->ImageOptimizationEnabled() ||
+           options->Enabled(RewriteOptions::kLeftTrimUrls) ||
+           options->Enabled(RewriteOptions::kExtendCacheImages) ||
+           options->Enabled(RewriteOptions::kSpriteImages)) &&
+          !options->image_preserve_urls());
 }
 
 void CssImageRewriter::RewriteImport(
@@ -101,28 +107,28 @@ void CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
   }
 
   CssResourceSlotPtr slot(
-      root_context_->slot_factory()->GetSlot(resource, trim_url, options,
-                                             values, value_index));
-  if (options->image_preserve_urls()) {
-    slot->set_disable_rendering(true);
-  }
+      root_context_->slot_factory()->GetSlot(resource, values, value_index));
 
   RewriteSlot(ResourceSlotPtr(slot), image_inline_max_bytes, parent);
+
+  // Note: We don't do this for RewriteSlot, because EnableTrim is a
+  // CssResourceSlot-specific method.
+  if (options->trim_urls_in_css() &&
+      options->Enabled(RewriteOptions::kLeftTrimUrls)) {
+    // TODO(sligocki): Make sure this is the correct (final) URL of the CSS.
+    slot->EnableTrim(trim_url);
+  }
 }
 
 void CssImageRewriter::RewriteSlot(const ResourceSlotPtr& slot,
                                    int64 image_inline_max_bytes,
                                    RewriteContext* parent) {
   const RewriteOptions* options = driver_->options();
-  if (options->ImageOptimizationEnabled() || image_inline_max_bytes > 0) {
-    // If this isn't an IPRO rewrite or we've enabled preemptive IPRO CSS
-    // rewrites.
-    if (!slot->disable_rendering() ||
-        options->in_place_preemptive_rewrite_css_images()) {
-      parent->AddNestedContext(
-          image_rewriter_->MakeNestedRewriteContextForCss(
-              image_inline_max_bytes, parent, slot));
-    }
+  if (options->ImageOptimizationEnabled() ||
+      image_inline_max_bytes > 0) {
+    parent->AddNestedContext(
+        image_rewriter_->MakeNestedRewriteContextForCss(image_inline_max_bytes,
+            parent, slot));
   }
 
   if (driver_->MayCacheExtendImages()) {
@@ -140,10 +146,10 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
   const RewriteOptions* options = driver_->options();
   bool spriting_ok = options->Enabled(RewriteOptions::kSpriteImages);
 
-  if (!driver_->FlattenCssImportsEnabled()) {
+  if (!FlatteningEnabled()) {
     // If flattening is disabled completely, mark this hierarchy as having
     // failed flattening, so that later RollUps do the right thing (nothing).
-    // This is not something we need to log in the statistics or in debug.
+    // This is not something we need to log in the statistics.
     hierarchy->set_flattening_succeeded(false);
   } else if (hierarchy->flattening_succeeded()) {
     // Flattening of this hierarchy might have already failed because of a
@@ -159,11 +165,12 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
     }
   }
 
-  // TODO(jkarlin): We need a separate flag for CssImagePreserveURLs in case the
-  // user is willing to change image URLs in CSS but not in HTML.
+  // TODO(jkarlin): We need a separate flag for CssImagePreserveURLs.
   bool is_enabled = RewritesEnabled(image_inline_max_bytes);
 
   if (is_enabled) {
+    handler->Message(kInfo, "Starting to rewrite images in CSS in %s",
+                     hierarchy->css_base_url().spec_c_str());
     if (spriting_ok) {
       image_combiner_->Reset(parent, hierarchy->css_base_url(),
                              hierarchy->input_contents());
@@ -207,26 +214,21 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
                 GoogleString rel_url =
                     UnicodeTextToUTF8(value->GetStringValue());
                 // TODO(abliss): only do this resolution once.
-                const GoogleUrl original_url(hierarchy->css_resolution_base(),
+                const GoogleUrl original_url(hierarchy->css_base_url(),
                                              rel_url);
-                if (!original_url.IsWebValid()) {
+                if (!original_url.is_valid()) {
+                  handler->Message(kInfo, "Invalid URL %s", rel_url.c_str());
                   continue;
                 }
                 if (!options->IsAllowed(original_url.Spec())) {
+                  handler->Message(kInfo, "Disallowed URL %s", rel_url.c_str());
                   continue;
                 }
+                handler->Message(kInfo, "Found image URL %s", rel_url.c_str());
                 if (spriting_ok) {
-                  // TODO(sligocki): Pass in the correct base URL here.
-                  // Specifically, the final base URL of the CSS that will
-                  // be used to trim the final URLs.
-                  // hierarchy->css_base_url(), hierarchy->css_trim_url(),
-                  // or hierarchy->css_resolution_base()?
-                  // Note that currently preserving URLs doesn't work for
-                  // image combining filter, so we need to fix that before
-                  // testing which URL is correct.
                   image_combiner_->AddCssBackgroundContext(
-                      original_url, hierarchy->css_trim_url(),
-                      values, value_index, root_context_, &decls, handler);
+                      original_url, values, value_index, root_context_,
+                      &decls, handler);
                 }
                 RewriteImage(image_inline_max_bytes,
                              hierarchy->css_trim_url(), original_url,

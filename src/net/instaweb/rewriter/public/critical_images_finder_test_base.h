@@ -18,55 +18,52 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_FINDER_TEST_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_FINDER_TEST_BASE_H_
 
+#include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/null_statistics.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+class AbstractMutex;
 class RewriteDriver;
-class Statistics;
-
-// Provide stub implementation of abstract base class for testing purposes.
-class TestCriticalImagesFinder : public CriticalImagesFinder {
- public:
-  TestCriticalImagesFinder(const PropertyCache::Cohort* cohort,
-                           Statistics* stats)
-      : CriticalImagesFinder(cohort, stats) {}
-  virtual ~TestCriticalImagesFinder();
-  virtual bool IsMeaningful(const RewriteDriver* driver) const { return true; }
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {}
-};
 
 class CriticalImagesFinderTestBase : public RewriteTestBase {
  public:
   virtual CriticalImagesFinder* finder() = 0;
 
-  virtual bool UpdateCriticalImagesCacheEntry(
-      const StringSet* critical_images_set,
-      const StringSet* css_critical_images_set) {
+  bool CallUpdateCriticalImagesCacheEntry(
+      RewriteDriver* driver,
+      StringSet* critical_images_set,
+      StringSet* css_critical_images_set) {
     return finder()->UpdateCriticalImagesCacheEntryFromDriver(
-        critical_images_set, css_critical_images_set, rewrite_driver());
+        driver, critical_images_set, css_critical_images_set);
   }
-
-  void CheckCriticalImageFinderStats(int hits, int expiries, int not_found);
-
-  bool IsHtmlCriticalImage(const GoogleString& url);
-  bool IsCssCriticalImage(const GoogleString& url);
 
  protected:
   NullStatistics stats_;
 
-  // Resets the state of the driver.
-  void ResetDriver();
+  virtual void SetUp();
 
   const PropertyValue* GetCriticalImagesUpdatedValue();
+  const PropertyValue* GetCssCriticalImagesUpdatedValue();
 
  private:
   static const char kRequestUrl[];
+
+  class MockPage : public PropertyPage {
+   public:
+    MockPage(AbstractMutex* mutex, const StringPiece& key)
+        : PropertyPage(mutex, key) {}
+    virtual ~MockPage();
+    virtual void Done(bool valid) {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(MockPage);
+  };
 };
 
 }  // namespace net_instaweb

@@ -22,51 +22,43 @@
 
 #include <cerrno>
 #include <cstddef>
-#include <map>
-#include <memory>
 #include <set>
-#include <utility>  // for pair
-#include <vector>
+#include <utility>
+
+#include "apr_pools.h"
 
 #include "base/logging.h"
 #include "net/instaweb/apache/apache_config.h"
-#include "net/instaweb/apache/apache_request_context.h"
-#include "net/instaweb/apache/apache_rewrite_driver_factory.h"
-#include "net/instaweb/apache/apache_server_context.h"
-#include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
+#include "net/instaweb/apache/loopback_route_fetcher.h"
 #include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/instaweb_handler.h"
 #include "net/instaweb/apache/interface_mod_spdy.h"
 #include "net/instaweb/apache/mod_instaweb.h"
+#include "net/instaweb/apache/apache_rewrite_driver_factory.h"
+#include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/public/global_constants.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/public/version.h"
+#include "net/instaweb/public/global_constants.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/process_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/system/public/in_place_resource_recorder.h"
-#include "net/instaweb/system/public/loopback_route_fetcher.h"
-#include "net/instaweb/system/public/serf_url_async_fetcher.h"
-#include "net/instaweb/system/public/system_caches.h"
-#include "net/instaweb/system/public/system_rewrite_driver_factory.h"
-#include "net/instaweb/system/public/system_server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-
-#include "util_filter.h"                                             // NOLINT
+#include "util_filter.h"
 // Note: a very useful reference is this file, which demos many Apache module
 // options:
 //    http://svn.apache.org/repos/asf/httpd/httpd/trunk/modules/examples/mod_example_hooks.c
@@ -75,8 +67,8 @@
 // the compiler will complain
 // "strtoul_is_not_a_portable_function_use_strtol_instead".
 #include "ap_release.h"                                              // NOLINT
-#include "apr_pools.h"                                               // NOLINT
 #include "apr_strings.h"                                             // NOLINT
+#include "apr_timer.h"                                               // NOLINT
 #include "http_config.h"                                             // NOLINT
 #include "http_protocol.h"                                           // NOLINT
 #include "http_request.h"                                            // NOLINT
@@ -87,7 +79,7 @@
 #include "net/instaweb/apache/apache_logging_includes.h"
 
 #include "net/instaweb/apache/log_message_handler.h"
-#include "unixd.h"                                                 // NOLINT
+#include "unixd.h"
 
 #if (AP_SERVER_MAJORVERSION_NUMBER == 2) && (AP_SERVER_MINORVERSION_NUMBER >= 4)
 #define MPS_APACHE_24
@@ -103,7 +95,6 @@ struct apr_pool_t;
 namespace net_instaweb {
 
 class Statistics;
-class ThreadSystem;
 
 namespace {
 
@@ -112,6 +103,13 @@ enum VHostHandling {
   kTolerateInVHost,
   kErrorInVHost
 };
+
+// Used by ModPagespeedLoadFromFileRule
+const char kAllow[] = "allow";
+const char kDisallow[] = "disallow";
+
+const char kModPagespeedFilterName[] = "MOD_PAGESPEED_OUTPUT_FILTER";
+const char kModPagespeedFixHeadersName[] = "MOD_PAGESPEED_FIX_HEADERS_FILTER";
 
 // TODO(sligocki): Separate options parsing from all the other stuff here.
 // Instaweb directive names -- these must match
@@ -122,36 +120,82 @@ enum VHostHandling {
 const char kModPagespeedIf[] = "<ModPagespeedIf";
 
 const char kModPagespeedAllow[] = "ModPagespeedAllow";
-const char kModPagespeedBlockingRewriteRefererUrls[] =
-    "ModPagespeedBlockingRewriteRefererUrls";
-const char kModPagespeedCreateSharedMemoryMetadataCache[] =
-    "ModPagespeedCreateSharedMemoryMetadataCache";
+const char kModPagespeedAnalyticsID[] = "ModPagespeedAnalyticsID";
+const char kModPagespeedAvoidRenamingIntrospectiveJavascript[] =
+    "ModPagespeedAvoidRenamingIntrospectiveJavascript";
+const char kModPagespeedBeaconUrl[] = "ModPagespeedBeaconUrl";
+const char kModPagespeedCacheFlushFilename[] =
+    "ModPagespeedCacheFlushFilename";
+const char kModPagespeedCacheFlushPollIntervalSec[] =
+    "ModPagespeedCacheFlushPollIntervalSec";
+const char kModPagespeedClientDomainRewrite[] =
+    "ModPagespeedClientDomainRewrite";
+const char kModPagespeedCollectRefererStatistics[] =
+    "ModPagespeedCollectRefererStatistics";
+const char kModPagespeedCombineAcrossPaths[] = "ModPagespeedCombineAcrossPaths";
+const char kModPagespeedCssFlattenMaxBytes[] = "ModPagespeedCssFlattenMaxBytes";
+const char kModPagespeedCssImageInlineMaxBytes[] =
+    "ModPagespeedCssImageInlineMaxBytes";
+const char kModPagespeedCssInlineMaxBytes[] = "ModPagespeedCssInlineMaxBytes";
+const char kModPagespeedCssOutlineMinBytes[] = "ModPagespeedCssOutlineMinBytes";
+const char kModPagespeedCssPreserveURLs[] = "ModPagespeedCssPreserveURLs";
 const char kModPagespeedCustomFetchHeader[] = "ModPagespeedCustomFetchHeader";
+const char kModPagespeedDangerPermitFetchFromUnknownHosts[] =
+    "ModPagespeedDangerPermitFetchFromUnknownHosts";
+const char kModPagespeedExperimentalFetchFromModSpdy[] =
+    "ModPagespeedExperimentalFetchFromModSpdy";
 const char kModPagespeedDisableFilters[] = "ModPagespeedDisableFilters";
 const char kModPagespeedDisableForBots[] = "ModPagespeedDisableForBots";
 const char kModPagespeedDisallow[] = "ModPagespeedDisallow";
 const char kModPagespeedDomain[] = "ModPagespeedDomain";
-const char kModPagespeedDownstreamCachePurgeLocationPrefix[] =
-    "ModPagespeedDownstreamCachePurgeLocationPrefix";
+const char kModPagespeedDomainRewriteHyperlinks[] =
+    "ModPagespeedDomainRewriteHyperlinks";
 const char kModPagespeedEnableFilters[] = "ModPagespeedEnableFilters";
-const char kModPagespeedFetchHttps[] = "ModPagespeedFetchHttps";
 const char kModPagespeedFetchProxy[] = "ModPagespeedFetchProxy";
 const char kModPagespeedFetcherTimeoutMs[] = "ModPagespeedFetcherTimeOutMs";
+const char kModPagespeedFetchWithGzip[] = "ModPagespeedFetchWithGzip";
+const char kModPagespeedFileCacheCleanIntervalMs[] =
+    "ModPagespeedFileCacheCleanIntervalMs";
+const char kModPagespeedFileCacheInodeLimit[] =
+    "ModPagespeedFileCacheInodeLimit";
 const char kModPagespeedFileCachePath[] = "ModPagespeedFileCachePath";
+const char kModPagespeedFileCacheSizeKb[] = "ModPagespeedFileCacheSizeKb";
+const char kModPagespeedForbidAllDisabledFilters[] =
+    "ModPagespeedForbidAllDisabledFilters";
 const char kModPagespeedForbidFilters[] = "ModPagespeedForbidFilters";
 const char kModPagespeedForceCaching[] = "ModPagespeedForceCaching";
-const char kModPagespeedExperimentVariable[] = "ModPagespeedExperimentVariable";
-const char kModPagespeedExperimentSpec[] = "ModPagespeedExperimentSpec";
+const char kModPagespeedFuriousSlot[] = "ModPagespeedExperimentVariable";
+const char kModPagespeedFuriousSpec[] = "ModPagespeedExperimentSpec";
 const char kModPagespeedGeneratedFilePrefix[] =
     "ModPagespeedGeneratedFilePrefix";
+const char kModPagespeedHashRefererStatistics[] =
+    "ModPagespeedHashRefererStatistics";
 const char kModPagespeedImageInlineMaxBytes[] =
     "ModPagespeedImageInlineMaxBytes";
+const char kModPagespeedImageLimitOptimizedPercent[] =
+    "ModPagespeedImageLimitOptimizedPercent";
+const char kModPagespeedImageLimitResizeAreaPercent[] =
+    "ModPagespeedImageLimitResizeAreaPercent";
 const char kModPagespeedImageMaxRewritesAtOnce[] =
     "ModPagespeedImageMaxRewritesAtOnce";
+const char kModPagespeedImageRecompressionQuality[] =
+    "ModPagespeedImageRecompressionQuality";
+const char kModPagespeedImagePreserveURLs[] = "ModPagespeedImagePreserveURLs";
 const char kModPagespeedInheritVHostConfig[] = "ModPagespeedInheritVHostConfig";
 const char kModPagespeedInstallCrashHandler[] =
     "ModPagespeedInstallCrashHandler";
-const char kModPagespeedLibrary[] = "ModPagespeedLibrary";
+const char kModPagespeedJpegRecompressionQuality[] =
+    "ModPagespeedJpegRecompressionQuality";
+const char kModPagespeedWebpRecompressionQuality[] =
+    "ModPagespeedImageWebpRecompressionQuality";
+
+const char kModPagespeedJsInlineMaxBytes[] = "ModPagespeedJsInlineMaxBytes";
+const char kModPagespeedJsOutlineMinBytes[] = "ModPagespeedJsOutlineMinBytes";
+const char kModPagespeedJsPreserveURLs[] = "ModPagespeedJsPreserveURLs";
+const char kModPagespeedLRUCacheByteLimit[] = "ModPagespeedLRUCacheByteLimit";
+const char kModPagespeedLRUCacheKbPerProcess[] =
+    "ModPagespeedLRUCacheKbPerProcess";
+const char* kModPagespeedLibrary = "ModPagespeedLibrary";
 const char kModPagespeedListOutstandingUrlsOnError[] =
     "ModPagespeedListOutstandingUrlsOnError";
 const char kModPagespeedLoadFromFile[] = "ModPagespeedLoadFromFile";
@@ -159,40 +203,77 @@ const char kModPagespeedLoadFromFileMatch[] = "ModPagespeedLoadFromFileMatch";
 const char kModPagespeedLoadFromFileRule[] = "ModPagespeedLoadFromFileRule";
 const char kModPagespeedLoadFromFileRuleMatch[] =
     "ModPagespeedLoadFromFileRuleMatch";
-const char kModPagespeedLogDir[] = "ModPagespeedLogDir";
+const char kModPagespeedLogRewriteTiming[] = "ModPagespeedLogRewriteTiming";
+const char kModPagespeedLowercaseHtmlNames[] = "ModPagespeedLowercaseHtmlNames";
 const char kModPagespeedMapOriginDomain[] = "ModPagespeedMapOriginDomain";
 const char kModPagespeedMapProxyDomain[] = "ModPagespeedMapProxyDomain";
 const char kModPagespeedMapRewriteDomain[] = "ModPagespeedMapRewriteDomain";
+const char kModPagespeedMaxCacheableContentLength[] =
+    "ModPagespeedMaxCacheableContentLength";
+const char kModPagespeedMaxHtmlParseBytes[] = "ModPagespeedMaxHtmlParseBytes";
+const char kModPagespeedMaxImageSizeLowResolutionBytes[] =
+    "ModPagespeedMaxImageSizeLowResolutionBytes";
+const char kModPagespeedMaxInlinedPreviewImagesIndex[] =
+    "ModPagespeedMaxInlinedPreviewImagesIndex";
+const char kModPagespeedMaxSegmentLength[] = "ModPagespeedMaxSegmentLength";
+const char kModPagespeedMemcachedServers[] = "ModPagespeedMemcachedServers";
+const char kModPagespeedMemcachedThreads[] = "ModPagespeedMemcachedThreads";
+const char kModPagespeedMemcachedTimeoutUs[] = "ModPagespeedMemcachedTimeoutUs";
 const char kModPagespeedMessageBufferSize[] = "ModPagespeedMessageBufferSize";
+const char kModPagespeedMinImageSizeLowResolutionBytes[] =
+    "ModPagespeedMinImageSizeLowResolutionBytes";
+const char kModPagespeedModifyCachingHeaders[] =
+    "ModPagespeedModifyCachingHeaders";
 const char kModPagespeedNumExpensiveRewriteThreads[] =
     "ModPagespeedNumExpensiveRewriteThreads";
 const char kModPagespeedNumRewriteThreads[] = "ModPagespeedNumRewriteThreads";
 const char kModPagespeedNumShards[] = "ModPagespeedNumShards";
+const char kModPagespeedRateLimitBackgroundFetches[] =
+    "ModPagespeedRateLimitBackgroundFetches";
+const char kModPagespeedRefererStatisticsOutputLevel[] =
+    "ModPagespeedRefererStatisticsOutputLevel";
+const char kModPagespeedReportUnloadTime[] = "ModPagespeedReportUnloadTime";
+const char kModPagespeedRespectVary[] = "ModPagespeedRespectVary";
+const char kModPagespeedRespectXForwardedProto[] =
+    "ModPagespeedRespectXForwardedProto";
 const char kModPagespeedRetainComment[] = "ModPagespeedRetainComment";
-const char kModPagespeedRunExperiment[] = "ModPagespeedRunExperiment";
+const char kModPagespeedRewriteDeadlinePerFlushMs[] =
+    "ModPagespeedRewriteDeadlinePerFlushMs";
+const char kModPagespeedRewriteLevel[] = "ModPagespeedRewriteLevel";
+const char kModPagespeedRunFurious[] = "ModPagespeedRunExperiment";
 const char kModPagespeedShardDomain[] = "ModPagespeedShardDomain";
-const char kModPagespeedSpeedTracking[] = "ModPagespeedIncreaseSpeedTracking";
+const char kModPagespeedSharedMemoryLocks[] = "ModPagespeedSharedMemoryLocks";
+const char kModPagespeedSlurpDirectory[] = "ModPagespeedSlurpDirectory";
+const char kModPagespeedSlurpFlushLimit[] = "ModPagespeedSlurpFlushLimit";
+const char kModPagespeedSlurpReadOnly[] = "ModPagespeedSlurpReadOnly";
+const char kModPagespeedSupportNoScriptEnabled[] =
+    "ModPagespeedSupportNoScriptEnabled";
+const char kModPagespeedStatistics[] = "ModPagespeedStatistics";
+const char kModPagespeedStatisticsLogging[] = "ModPagespeedStatisticsLogging";
 const char kModPagespeedStatisticsLoggingFile[] =
     "ModPagespeedStatisticsLoggingFile";
+const char kModPagespeedStatisticsLoggingIntervalMs[] =
+    "ModPagespeedStatisticsLoggingIntervalMs";
+const char kModPagespeedStatisticsLoggingChartsCSS[] =
+    "ModPagespeedStatisticsLoggingChartsCSS";
+const char kModPagespeedStatisticsLoggingChartsJS[] =
+    "ModPagespeedStatisticsLoggingChartsJS";
+const char kModPagespeedTestProxy[] = "ModPagespeedTestProxy";
 const char kModPagespeedTrackOriginalContentLength[] =
     "ModPagespeedTrackOriginalContentLength";
 const char kModPagespeedUrlPrefix[] = "ModPagespeedUrlPrefix";
 const char kModPagespeedUrlValuedAttribute[] = "ModPagespeedUrlValuedAttribute";
 const char kModPagespeedUsePerVHostStatistics[] =
     "ModPagespeedUsePerVHostStatistics";
+const char kModPagespeedSpeedTracking[] = "ModPagespeedIncreaseSpeedTracking";
+const char kModPagespeedXHeaderValue[] = "ModPagespeedXHeaderValue";
 
 // The following two are deprecated due to spelling
 const char kModPagespeedImgInlineMaxBytes[] = "ModPagespeedImgInlineMaxBytes";
 const char kModPagespeedImgMaxRewritesAtOnce[] =
     "ModPagespeedImgMaxRewritesAtOnce";
-
-// The following three are deprecated because we didn't finish the feature.
-const char kModPagespeedCollectRefererStatistics[] =
-    "ModPagespeedCollectRefererStatistics";
-const char kModPagespeedHashRefererStatistics[] =
-    "ModPagespeedHashRefererStatistics";
-const char kModPagespeedRefererStatisticsOutputLevel[] =
-    "ModPagespeedRefererStatisticsOutputLevel";
+const char kModPagespeedBlockingRewriteKey[] =
+    "ModPagespeedBlockingRewriteKey";
 
 enum RewriteOperation {REWRITE, FLUSH, FINISH};
 
@@ -221,10 +302,14 @@ bool check_pagespeed_applicable(request_rec* request,
   // rewrittten, could in turn spawn more requests which could cascade into a
   // bad situation.  To mod_pagespeed, any fetched HTML is an error condition,
   // so there's no reason to rewrite it anyway.
-  if (is_pagespeed_subrequest(request)) {
+  const char* user_agent = apr_table_get(request->headers_in,
+                                         HttpAttributes::kUserAgent);
+  // TODO(abliss): unify this string literal with the one in
+  // serf_url_async_fetcher.cc
+  if ((user_agent != NULL) && strstr(user_agent, "mod_pagespeed")) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                   "Request not rewritten because: User-Agent appears to be "
-                  "mod_pagespeed");
+                  "mod_pagespeed (was %s)", user_agent);
     return false;
   }
 
@@ -264,7 +349,9 @@ apr_bucket* rewrite_html(InstawebContext* context, request_rec* request,
   if (!context->sent_headers()) {
     ResponseHeaders* headers = context->response_headers();
     apr_table_clear(request->headers_out);
-    ResponseHeadersToApacheRequest(*headers, request);
+    AddResponseHeadersToRequest(headers, NULL,
+                                context->modify_caching_headers(),
+                                request);
     headers->Clear();
     context->set_sent_headers(true);
   }
@@ -297,22 +384,13 @@ apr_bucket* rewrite_html(InstawebContext* context, request_rec* request,
 // as directives-parsing time.
 class ApacheProcessContext {
  public:
-  ApacheProcessContext() : apache_cmds_(NULL) {
+  ApacheProcessContext() {
     ApacheRewriteDriverFactory::Initialize();
-    InstallCommands();
   }
-
   ~ApacheProcessContext() {
     ApacheRewriteDriverFactory::Terminate();
-    delete [] apache_cmds_;
     log_message_handler::ShutDown();
-    // We must reset the factory to NULL before ProcessContext's dtor
-    // is called, which terminates the protobuf libraries.  It is unsafe
-    // to free our structures after the protobuf library has been shut down.
-    factory_.reset(NULL);
   }
-
-  void InstallCommands();
 
   ApacheRewriteDriverFactory* factory(server_rec* server) {
     // We are not mutex-protecting the factory-creation for now as the
@@ -325,18 +403,9 @@ class ApacheProcessContext {
     return factory_.get();
   }
 
-  // Checks cmd to see if it's used in a vhost or conditional context, and
-  // if so, if that's an error or warning condition.
-  const char* CheckCommandForVhost(const cmd_parms* cmd);
-
   scoped_ptr<ApacheRewriteDriverFactory> factory_;
   // Process-scoped static variable cleanups, mainly for valgrind.
   ProcessContext process_context_;
-  command_rec* apache_cmds_;
-
-  typedef std::map<const command_rec*, VHostHandling> VhostCommandHandlingMap;
-  VhostCommandHandlingMap vhost_command_handling_map_;
-  StringVector cmd_names_;
 };
 ApacheProcessContext apache_process_context;
 
@@ -344,57 +413,52 @@ typedef void (ApacheServerContext::*AddTimeFn)(int64 delta);
 
 class ScopedTimer {
  public:
-  ScopedTimer(ApacheServerContext* server_context, AddTimeFn add_time_fn)
-      : server_context_(server_context),
+  ScopedTimer(ApacheServerContext* manager, AddTimeFn add_time_fn)
+      : manager_(manager),
         add_time_fn_(add_time_fn),
         start_time_us_(timer_.NowUs()) {
   }
 
   ~ScopedTimer() {
     int64 delta_us = timer_.NowUs() - start_time_us_;
-    (server_context_->*add_time_fn_)(delta_us);
+    (manager_->*add_time_fn_)(delta_us);
   }
 
  private:
-  ApacheServerContext* server_context_;
+  ApacheServerContext* manager_;
   AddTimeFn add_time_fn_;
   AprTimer timer_;
   int64 start_time_us_;
 };
 
-// Builds a new context for an HTML request, returning NULL if we decide
+// Builds a new context for an HTTP request, returning NULL if we decide
 // that we should not handle the request for various reasons.
 // TODO(sligocki): Move most of these checks into non-Apache specific code.
 InstawebContext* build_context_for_request(request_rec* request) {
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(request->server);
-  // Escape ASAP if we're in unplugged mode.
-  if (server_context->config()->unplugged()) {
-    return NULL;
-  }
   ApacheConfig* directory_options = static_cast<ApacheConfig*>
       ap_get_module_config(request->per_dir_config, &pagespeed_module);
-  ApacheRewriteDriverFactory* factory = server_context->apache_factory();
+  ApacheServerContext* manager =
+      InstawebContext::ServerContextFromServerRec(request->server);
+  ApacheRewriteDriverFactory* factory = manager->apache_factory();
   scoped_ptr<RewriteOptions> custom_options;
 
-  ApacheRequestContext* apache_request =
-      server_context->NewApacheRequestContext(request);
-  RequestContextPtr request_context(apache_request);
-  bool using_spdy = request_context->using_spdy();
-  const RewriteOptions* host_options = server_context->global_options();
-  if (using_spdy && server_context->SpdyConfig() != NULL) {
-    host_options = server_context->SpdyConfig();
+  bool using_spdy = factory->TreatRequestAsSpdy(request);
+  const RewriteOptions* host_options = manager->global_options();
+  if (using_spdy && manager->SpdyConfig() != NULL) {
+    host_options = manager->SpdyConfig();
   }
   const RewriteOptions* options = host_options;
   bool use_custom_options = false;
 
-  server_context->FlushCacheIfNecessary();
+  // TODO(jmarantz): ASAP, add polling to instaweb_handler.cc so we don't
+  // serve stale resources from alternate servers.
+  manager->PollFilesystemForCacheFlush();
 
   if ((directory_options != NULL) && directory_options->modified()) {
     custom_options.reset(factory->NewRewriteOptions());
     custom_options->Merge(*host_options);
     custom_options->Merge(*directory_options);
-    server_context->ComputeSignature(custom_options.get());
+    manager->ComputeSignature(custom_options.get());
     options = custom_options.get();
     use_custom_options = true;
   }
@@ -465,8 +529,6 @@ InstawebContext* build_context_for_request(request_rec* request) {
 
   // Determine the absolute URL for this request.
   const char* absolute_url = InstawebContext::MakeRequestUrl(*options, request);
-  apache_request->set_url(absolute_url);
-
   // The final URL.  This is same as absolute_url but with ModPagespeed* query
   // params, if any, stripped.
   GoogleString final_url;
@@ -474,7 +536,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   scoped_ptr<RequestHeaders> request_headers(new RequestHeaders);
   ResponseHeaders response_headers;
   {
-    // TODO(mmohabey): Add a hook which strips off the PageSpeed* query
+    // TODO(mmohabey): Add a hook which strips off the ModPagespeed* query
     // (instead of stripping them here) params before content generation.
     GoogleUrl gurl(absolute_url);
     ApacheRequestToRequestHeaders(*request, request_headers.get());
@@ -488,12 +550,11 @@ InstawebContext* build_context_for_request(request_rec* request) {
                                    &response_headers);
     int num_response_attributes = response_headers.NumAttributes();
     ServerContext::OptionsBoolPair query_options_success =
-        server_context->GetQueryOptions(&gurl, request_headers.get(),
-                                        &response_headers);
-
+        manager->GetQueryOptions(&gurl, request_headers.get(),
+                                 &response_headers);
     if (!query_options_success.second) {
       ap_log_rerror(APLOG_MARK, APLOG_WARNING, APR_SUCCESS, request,
-                    "Request not rewritten because PageSpeed "
+                    "Request not rewritten because ModPagespeed "
                     "query-params or headers are invalid.");
       return NULL;
     }
@@ -508,13 +569,13 @@ InstawebContext* build_context_for_request(request_rec* request) {
       merged_options->Merge(*options);
       merged_options->Merge(*query_options.get());
       // Don't run any experiments if we're handling a query params request.
-      merged_options->set_running_experiment(false);
-      server_context->ComputeSignature(merged_options);
+      merged_options->set_running_furious_experiment(false);
+      manager->ComputeSignature(merged_options);
       custom_options.reset(merged_options);
       options = merged_options;
 
-      if (gurl.IsWebValid()) {
-        // Set final url to gurl which has PageSpeed* query params
+      if (gurl.is_valid()) {
+        // Set final url to gurl which has ModPagespeed* query params
         // stripped.
         final_url = gurl.Spec().as_string();
       }
@@ -530,38 +591,39 @@ InstawebContext* build_context_for_request(request_rec* request) {
         if (apr_is_empty_table(request->err_headers_out)) {
           // We know that response_headers were all from request->headers_out
           apr_table_clear(request->headers_out);
-          ResponseHeadersToApacheRequest(response_headers, request);
+          AddResponseHeadersToRequest(&response_headers, NULL,
+                                      options->modify_caching_headers(),
+                                      request);
         } else if (apr_is_empty_table(request->headers_out)) {
           // We know that response_headers were all from err_headers_out
           apr_table_clear(request->err_headers_out);
-          ErrorHeadersToApacheRequest(response_headers, request);
+          AddResponseHeadersToRequest(NULL, &response_headers,
+                                      options->modify_caching_headers(),
+                                      request);
+
         } else {
           // We don't know which table changed, so scan them individually and
           // write them both back. This should be a rare case and could be
           // optimized a bit if we find that we're spending time here.
           ResponseHeaders tmp_err_resp_headers, tmp_resp_headers;
-          ThreadSystem* thread_system = server_context->thread_system();
-          ApacheConfig unused_opts1("unused_options1", thread_system),
-                       unused_opts2("unused_options2", thread_system);
+          RewriteOptions unused_opts1, unused_opts2;
 
           ApacheRequestToResponseHeaders(*request, &tmp_resp_headers,
                                          &tmp_err_resp_headers);
 
-          // Use ScanHeader's parsing logic to find and strip the PageSpeed
-          // options from the headers. Use NULL for device_properties as no
-          // device property information is needed for the stripping.
-          RewriteQuery::ScanHeader(
-              &tmp_err_resp_headers, NULL /* device_properties */,
-              &unused_opts1, factory->message_handler());
-          RewriteQuery::ScanHeader(
-              &tmp_resp_headers, NULL  /* device_properties */, &unused_opts2,
-              factory->message_handler());
+          // Use ScanHeader's parsing logic to find and strip the ModPagespeed
+          // options from the headers.
+          RewriteQuery::ScanHeader(&tmp_err_resp_headers, &unused_opts1,
+                                   factory->message_handler());
+          RewriteQuery::ScanHeader(&tmp_resp_headers, &unused_opts2,
+                                   factory->message_handler());
 
           // Write the stripped headers back to the Apache record.
           apr_table_clear(request->err_headers_out);
           apr_table_clear(request->headers_out);
-          ResponseHeadersToApacheRequest(tmp_resp_headers, request);
-          ErrorHeadersToApacheRequest(tmp_err_resp_headers, request);
+          AddResponseHeadersToRequest(&tmp_resp_headers, &tmp_err_resp_headers,
+                                      options->modify_caching_headers(),
+                                      request);
         }
       }
     }
@@ -570,19 +632,18 @@ InstawebContext* build_context_for_request(request_rec* request) {
   if (final_url.empty()) {
     final_url = absolute_url;
   }
-  ServerContext::ScanSplitHtmlRequest(request_context, options, &final_url);
 
   // TODO(sligocki): Move inside PSOL.
-  // Is PageSpeed turned off? We check after parsing query params so that
+  // Is ModPagespeed turned off? We check after parsing query params so that
   // they can override .conf settings.
   if (!options->enabled()) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
-                  "Request not rewritten because: PageSpeed is off");
+                  "Request not rewritten because: ModPagespeed off");
     return NULL;
   }
 
   // TODO(sligocki): Move inside PSOL.
-  // Do Disallow statements restrict us from rewriting this URL?
+  // Do ModPagespeedDisallow statements restrict us from rewriting this URL?
   if (!options->IsAllowed(final_url)) {
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                   "Request not rewritten because: ModPagespeedDisallow");
@@ -590,8 +651,8 @@ InstawebContext* build_context_for_request(request_rec* request) {
   }
 
   InstawebContext* context = new InstawebContext(
-      request, request_headers.release(), *content_type, server_context,
-      final_url, request_context, use_custom_options, *options);
+      request, request_headers.release(), *content_type, manager, final_url,
+      using_spdy, use_custom_options, *options);
 
   // TODO(sligocki): Move inside PSOL.
   InstawebContext::ContentEncoding encoding = context->content_encoding();
@@ -616,6 +677,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   apr_table_set(request->headers_out,
                 kModPagespeedHeader, options->x_header_value().c_str());
 
+  apr_table_unset(request->headers_out, HttpAttributes::kLastModified);
   apr_table_unset(request->headers_out, HttpAttributes::kContentLength);
   apr_table_unset(request->headers_out, "Content-MD5");
   apr_table_unset(request->headers_out, HttpAttributes::kContentEncoding);
@@ -635,7 +697,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
 
 // This returns 'false' if the output filter should stop its loop over
 // the brigade and return an error.
-bool process_bucket(ap_filter_t* filter, request_rec* request,
+bool process_bucket(ap_filter_t *filter, request_rec* request,
                     InstawebContext* context, apr_bucket* bucket,
                     apr_status_t* return_code) {
   // Remove the bucket from the old brigade. We will create new bucket or
@@ -692,7 +754,7 @@ bool process_bucket(ap_filter_t* filter, request_rec* request,
 }
 
 // Entry point from Apache for streaming HTML-like content.
-apr_status_t instaweb_out_filter(ap_filter_t* filter, apr_bucket_brigade* bb) {
+apr_status_t instaweb_out_filter(ap_filter_t *filter, apr_bucket_brigade *bb) {
   // Do nothing if there is nothing, and stop passing to other filters.
   if (APR_BRIGADE_EMPTY(bb)) {
     return APR_SUCCESS;
@@ -713,8 +775,8 @@ apr_status_t instaweb_out_filter(ap_filter_t* filter, apr_bucket_brigade* bb) {
     filter->ctx = context;
   }
 
-  ApacheServerContext* server_context = context->apache_server_context();
-  ScopedTimer timer(server_context, &ApacheServerContext::AddHtmlRewriteTimeUs);
+  ApacheServerContext* manager = context->apache_server_context();
+  ScopedTimer timer(manager, &ApacheServerContext::AddHtmlRewriteTimeUs);
 
   apr_status_t return_code = APR_SUCCESS;
   while (!APR_BRIGADE_EMPTY(bb)) {
@@ -739,182 +801,34 @@ apr_status_t instaweb_out_filter(ap_filter_t* filter, apr_bucket_brigade* bb) {
 // by the call to ap_add_output_filter(kModPagespeedFixHeadersName...)
 // in build_context_for_request.
 //
-// NOTE: This is disabled if users set "ModifyCachingHeaders false".
+// NOTE: This is disabled if users set "ModPagespeedModifyCachingHeaders false".
 apr_status_t instaweb_fix_headers_filter(
-    ap_filter_t* filter, apr_bucket_brigade* bb) {
+    ap_filter_t *filter, apr_bucket_brigade *bb) {
   request_rec* request = filter->r;
 
-  // Escape ASAP if we're in unplugged mode.
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->config()->unplugged()) {
-    ap_remove_output_filter(filter);
-    return ap_pass_brigade(filter->next, bb);
-  }
-
-  // TODO(sligocki): Consider moving inside PSOL.  Note that this is a
-  // little thornier than it looks because PSOL headers are different
-  // from Apache headers and to share code easily we'd have to
-  // translate.  We can do that easily but it seems like a waste of
-  // CPU time since this will occur on every HTML request.  However,
-  // there is hope in pagespeed/kernel/http/caching_headers.h, which
-  // provides an abstracted interface to any underlying representation.
-  // We could build on that pattern to do platform-independent header
-  // manipulations in PSOL rather than direct calls to ResponseHeaders.
-  //
-  // TODO(jmarantz): merge this logic with that in
-  // ResponseHeaders::CacheControlValuesToPreserve and
-  // ServerContext::ApplyInputCacheControl
-  DisableCaching(request);
-
+  // TODO(sligocki): Move inside PSOL.
+  // Turn off caching for the HTTP requests.
+  apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
+                HttpAttributes::kNoCache);
+  apr_table_unset(request->headers_out, HttpAttributes::kExpires);
+  apr_table_unset(request->headers_out, HttpAttributes::kEtag);
   // TODO(sligocki): Why remove ourselves? Is it to assure that this filter
-  // only looks at the first bucket in the brigade?
+  // won't be turned on by default for the next request?
   ap_remove_output_filter(filter);
   return ap_pass_brigade(filter->next, bb);
 }
 
-// Entry point from Apache for recording resources for IPRO.
-// Modeled loosely after ap_content_length_filter() in protocol.c.
-// TODO(sligocki): Perhaps we can merge this filter with ApacheToMpsFilter().
-apr_status_t instaweb_in_place_filter(ap_filter_t* filter,
-                                      apr_bucket_brigade* bb) {
-  // Do nothing if there is nothing, and stop passing to other filters.
-  if (APR_BRIGADE_EMPTY(bb)) {
-    return APR_SUCCESS;
-  }
-
-  request_rec* request = filter->r;
-
-  // Escape ASAP if we're in unplugged mode.
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->config()->unplugged()) {
-    ap_remove_output_filter(filter);
-    return ap_pass_brigade(filter->next, bb);
-  }
-
-  // This should always be set by handle_as_in_place() in instaweb_handler.cc.
-  InPlaceResourceRecorder* recorder =
-      static_cast<InPlaceResourceRecorder*>(filter->ctx);
-  CHECK(recorder != NULL);
-
-  // Iterate through all buckets, saving content in the recorder and passing
-  // the buckets along when there is a flush.  Abort early if we hit EOS or the
-  // recorder fails.
-  for (apr_bucket* bucket = APR_BRIGADE_FIRST(bb);
-       !(bucket == APR_BRIGADE_SENTINEL(bb) ||
-         APR_BUCKET_IS_EOS(bucket) ||
-         recorder->failed());
-       bucket = APR_BUCKET_NEXT(bucket)) {
-    if (!APR_BUCKET_IS_METADATA(bucket)) {
-      // Content bucket.
-      const char* buf = NULL;
-      size_t bytes = 0;
-      // Note: Each call to apr_bucket_read() on a FILE bucket will pull in
-      // some of the file into a HEAP bucket. Since we do not pass those
-      // buckets to the next filter until the end of this function, we are
-      // basically buffering up the entire size of the file into memory.
-      //
-      // Apache documentation says not to do this because of the memory issues:
-      //   http://httpd.apache.org/docs/developer/output-filters.html#filtering
-      // ... but since our whole point here is to load the resource into
-      // memory, it seems reasonable.
-      //
-      // TODO(sligocki): Should we do an APR_NONBLOCK_READ? mod_content_length
-      // seems to do that, but has to deal with APR_STATUS_IS_EAGAIN() and
-      // splitting the brigade, etc.
-      apr_status_t return_code = apr_bucket_read(bucket, &buf, &bytes,
-                                                 APR_BLOCK_READ);
-      if (return_code != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, return_code, request,
-                      "Reading bucket failed (rcode=%d)", return_code);
-        recorder->Fail();
-        return return_code;
-      }
-      StringPiece contents(buf, bytes);
-      recorder->Write(contents, recorder->handler());
-    } else if (APR_BUCKET_IS_FLUSH(bucket)) {
-      recorder->Flush(recorder->handler());
-    }
-  }
-  // instaweb_in_place_check_headers_filter cleans up the recorder.
-  return ap_pass_brigade(filter->next, bb);
-}
-
-// Runs after mod_headers and other filters which muck with the headers.
-// We cannot run instaweb_in_place_filter after them because by then the
-// content is gzipped.
-// TODO(sligocki): Run as a single filter after mod_headers, etc. using
-// an inflater to gunzip the file? Or storing the gzipped version in cache?
-//
-// The sole purpose of this filter is to pass the finalized headers to recorder.
-apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
-                                                    apr_bucket_brigade* bb) {
-  // Do nothing if there is nothing, and stop passing to other filters.
-  if (APR_BRIGADE_EMPTY(bb)) {
-    return APR_SUCCESS;
-  }
-
-  request_rec* request = filter->r;
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(request->server);
-  // Escape ASAP if we're in unplugged mode.
-  if (server_context->config()->unplugged()) {
-    ap_remove_output_filter(filter);
-    return ap_pass_brigade(filter->next, bb);
-  }
-
-  // This should always be set by handle_as_in_place() in instaweb_handler.cc.
-  InPlaceResourceRecorder* recorder =
-      static_cast<InPlaceResourceRecorder*>(filter->ctx);
-  CHECK(recorder != NULL);
-
-  // Although headers come in first bucket, we do not want to call Done
-  // until last bucket comes in, so iterate to EOS bucket.
-  for (apr_bucket* bucket = APR_BRIGADE_FIRST(bb);
-       bucket != APR_BRIGADE_SENTINEL(bb);
-       bucket = APR_BUCKET_NEXT(bucket)) {
-    if (APR_BUCKET_IS_EOS(bucket)) {
-      ResponseHeaders response_headers;
-      ApacheRequestToResponseHeaders(*request, &response_headers, NULL);
-
-      // Note: For some reason Apache never actually sets the Date header in
-      // request->headers_out, but without it set we consider it uncacheable,
-      // so we set it here.
-      // TODO(sligocki): Perhaps we should stop requiring Date header to
-      // consider resources cacheable?
-      AprTimer timer;
-      response_headers.SetDate(timer.NowMs());
-      response_headers.ComputeCaching();
-
-      // We now have the final headers.  If they don't let us cache then we'll
-      // abort even though we've already buffered up the whole resource.
-      recorder->DoneAndSetHeaders(&response_headers);  // Deletes recorder.
-    }
-  }
-
-  return ap_pass_brigade(filter->next, bb);
-}
-
-void pagespeed_child_init(apr_pool_t* pool, server_rec* server_list) {
+void pagespeed_child_init(apr_pool_t* pool, server_rec* server) {
   // Create PageSpeed context used by instaweb rewrite-driver.  This is
   // per-process, so we initialize all the server's context by iterating the
   // server lists in server->next.
-  bool need_init = true;
-  for (server_rec* server = server_list; server != NULL;
-       server = server->next) {
-    ApacheServerContext* server_context =
+  ApacheRewriteDriverFactory* factory = apache_process_context.factory(server);
+  factory->ChildInit();
+  for (; server != NULL; server = server->next) {
+    ApacheServerContext* resource_manager =
         InstawebContext::ServerContextFromServerRec(server);
-    if (!server_context->config()->unplugged()) {
-      if (need_init) {
-        ApacheRewriteDriverFactory* factory = apache_process_context.factory(
-            server_list);
-        factory->ChildInit();
-        need_init = false;
-      }
-      DCHECK(server_context != NULL);
-      DCHECK(server_context->initialized());
-    }
+    DCHECK(resource_manager != NULL);
+    DCHECK(resource_manager->initialized());
   }
 }
 
@@ -956,30 +870,10 @@ bool give_apache_user_permissions(ApacheRewriteDriverFactory* factory) {
   return ret;
 }
 
-// Create directory and make sure permissions are set correctly so that
-// Apache processes can read and write from it.
-const char* init_dir(ApacheServerContext* server_context,
-                     apr_pool_t* pool,
-                     const char* directive_name,
-                     const char* path) {
-  const char* ret = NULL;
-  if (*path != '/') {
-    ret = apr_pstrcat(pool, directive_name, " ", path,
-                      " must start with a slash.", NULL);
-  } else {
-    if (!server_context->InitPath(path) ||
-        !give_apache_user_permissions(server_context->apache_factory())) {
-      ret = apr_pstrcat(pool, "Directory ", path, " could not be created "
-                        "or permissions could not be set.", NULL);
-    }
-  }
-  return ret;
-}
-
 // Hook from Apache for initialization after config is read.
 // Initialize statistics, set appropriate directory permissions, etc.
 int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
-                          server_rec* server_list) {
+                          server_rec *server_list) {
   // This routine is complicated by the fact that statistics use inter-process
   // mutexes and have static data, which co-mingles poorly with this otherwise
   // re-entrant module.  The situation that gets interesting is when there are
@@ -992,39 +886,53 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
   ApacheRewriteDriverFactory* factory = apache_process_context.factory(
       server_list);
 
-  std::vector<SystemServerContext*> server_contexts;
-  std::set<ApacheServerContext*> server_contexts_covered;
+  // In the first pass, we see whether any of the servers have
+  // statistics enabled, if found, do the static initialization of
+  // statistics to establish global memory segments.
+  Statistics* statistics = NULL;
+  std::set<ApacheServerContext*> managers_covered_;
   for (server_rec* server = server_list; server != NULL;
        server = server->next) {
-    ApacheServerContext* server_context =
+    ApacheServerContext* manager =
         InstawebContext::ServerContextFromServerRec(server);
-    if (server_contexts_covered.insert(server_context).second) {
-      CHECK(server_context != NULL);
-      server_contexts.push_back(server_context);
-    }
-  }
+    if (managers_covered_.insert(manager).second) {
+      CHECK(manager);
+      manager->CollapseConfigOverlaysAndComputeSignatures();
+      ApacheConfig* config = manager->config();
 
-  GoogleString error_message;
-  int error_index = -1;
-  Statistics* global_statistics = NULL;
-  factory->PostConfig(
-      server_contexts, &error_message, &error_index, &global_statistics);
-  if (error_index != -1) {
-    ApacheServerContext* server_context =
-        dynamic_cast<ApacheServerContext*>(server_contexts[error_index]);
-    server_context->message_handler()->Message(
-        kError,
-        "mod_pagespeed is enabled. %s:"
-        " defn_name=%s"
-        " defn_line_number=%d"
-        " server_hostname=%s"
-        " port=%d",
-        error_message.c_str(),
-        server_context->server()->defn_name,
-        server_context->server()->defn_line_number,
-        server_context->server()->server_hostname,
-        server_context->server()->port);
-    return HTTP_INTERNAL_SERVER_ERROR;
+      if (config->enabled()) {
+        GoogleString file_cache_path = config->file_cache_path();
+        if (file_cache_path.empty()) {
+          manager->message_handler()->Message(
+              kError, "mod_pagespeed is enabled. %s must not be empty:"
+              " defn_name=%s"
+              " defn_line_number=%d"
+              " server_hostname=%s"
+              " port=%d",
+              kModPagespeedFileCachePath,
+              server->defn_name, server->defn_line_number,
+              server->server_hostname, server->port);
+          return HTTP_INTERNAL_SERVER_ERROR;
+        }
+      }
+
+      // Lazily create shared-memory statistics if enabled in any
+      // config, even when mod_pagespeed is totally disabled.  This
+      // allows statistics to work if mod_pagespeed gets turned on via
+      // .htaccess or query param.
+      if ((statistics == NULL) && config->statistics_enabled()) {
+        statistics = factory->MakeGlobalSharedMemStatistics(
+            config->statistics_logging_enabled(),
+            config->statistics_logging_interval_ms(),
+            config->statistics_logging_file());
+      }
+
+      // If config has statistics on and we have per-vhost statistics on
+      // as well, then set it up.
+      if (config->statistics_enabled() && factory->use_per_vhost_statistics()) {
+        manager->CreateLocalStatistics(statistics);
+      }
+    }
   }
 
   // chown any directories we created. We may have to do it here in
@@ -1038,8 +946,9 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
 
   // If no shared-mem statistics are enabled, then init using the default
   // NullStatistics.
-  if (global_statistics == NULL) {
-    ApacheRewriteDriverFactory::InitStats(factory->statistics());
+  if (statistics == NULL) {
+    statistics = factory->statistics();
+    ApacheRewriteDriverFactory::InitStats(statistics);
   }
 
   factory->RootInit();
@@ -1049,7 +958,7 @@ int pagespeed_post_config(apr_pool_t* pool, apr_pool_t* plog, apr_pool_t* ptemp,
 
 // Here log transaction will wait for all the asynchronous resource fetchers to
 // finish.
-apr_status_t pagespeed_log_transaction(request_rec* request) {
+apr_status_t pagespeed_log_transaction(request_rec *request) {
   return DECLINED;
 }
 
@@ -1060,13 +969,6 @@ void pagespeed_fetch_optional_fns() {
 }
 
 int pagespeed_modify_request(request_rec* r) {
-  // Escape ASAP if we're in unplugged mode.
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(r->server);
-  if (server_context->config()->unplugged()) {
-    return OK;
-  }
-
   // This method is based in part on mod_remoteip.
   conn_rec* c = r->connection;
 
@@ -1113,7 +1015,7 @@ int pagespeed_modify_request(request_rec* r) {
 // processing and configuration requests. This
 // callback function declares the Handlers for
 // other events.
-void mod_pagespeed_register_hooks(apr_pool_t* pool) {
+void mod_pagespeed_register_hooks(apr_pool_t *pool) {
   // Enable logging using pagespeed style
   log_message_handler::Install(pool);
 
@@ -1143,19 +1045,6 @@ void mod_pagespeed_register_hooks(apr_pool_t* pool) {
   ap_register_output_filter(
       kModPagespeedFixHeadersName, instaweb_fix_headers_filter, NULL,
       static_cast<ap_filter_type>(AP_FTYPE_CONTENT_SET + 1));
-
-  // Run after contents are set, but before mod_deflate, which runs at
-  // AP_FTYPE_CONTENT_SET.
-  ap_register_output_filter(
-      kModPagespeedInPlaceFilterName, instaweb_in_place_filter, NULL,
-      static_cast<ap_filter_type>(AP_FTYPE_CONTENT_SET - 1));
-  // Run after headers are set by mod_headers, mod_expires, etc. and
-  // after Content-Type has been set (which appears to be at
-  // AP_FTYPE_PROTOCOL).
-  ap_register_output_filter(
-      kModPagespeedInPlaceCheckHeadersName,
-      instaweb_in_place_check_headers_filter, NULL,
-      static_cast<ap_filter_type>(AP_FTYPE_PROTOCOL + 1));
 
   ap_hook_post_config(pagespeed_post_config, NULL, NULL, APR_HOOK_MIDDLE);
   ap_hook_child_init(pagespeed_child_init, NULL, NULL, APR_HOOK_LAST);
@@ -1192,57 +1081,70 @@ void mod_pagespeed_register_hooks(apr_pool_t* pool) {
 }
 
 apr_status_t pagespeed_child_exit(void* data) {
-  ApacheServerContext* server_context = static_cast<ApacheServerContext*>(data);
-  if (server_context->PoolDestroyed()) {
-    // When the last server context is destroyed, it's important that we also
-    // clean up the factory, so we don't end up with dangling pointers in case
-    // we are not unloaded fully on a config check (e.g. on Ubuntu 11).
-    apache_process_context.factory_.reset(NULL);
+  ApacheServerContext* manager = static_cast<ApacheServerContext*>(data);
+  if (manager->PoolDestroyed()) {
+      // When the last manager is destroyed, it's important that we also clean
+      // up the factory, so we don't end up with dangling pointers in case
+      // we are not unloaded fully on a config check (e.g. on Ubuntu 11).
+      apache_process_context.factory_.reset(NULL);
   }
   return APR_SUCCESS;
 }
 
 void* mod_pagespeed_create_server_config(apr_pool_t* pool, server_rec* server) {
-  // Note: when statically loaded server->module_config is NULL when
-  // initializing and this is called for the first time.
-  ApacheServerContext* server_context =
-      server->module_config == NULL
-          ? NULL
-          : InstawebContext::ServerContextFromServerRec(server);
-
-  if (server_context == NULL) {
+  ApacheServerContext* manager =
+      InstawebContext::ServerContextFromServerRec(server);
+  if (manager == NULL) {
     ApacheRewriteDriverFactory* factory = apache_process_context.factory(
         server);
-    server_context = factory->MakeApacheServerContext(server);
-    apr_pool_cleanup_register(pool, server_context, pagespeed_child_exit,
+    manager = factory->MakeApacheServerContext(server);
+    apr_pool_cleanup_register(pool, manager, pagespeed_child_exit,
                               apr_pool_cleanup_null);
   }
-  return server_context;
+  return manager;
 }
 
-const char kBoolHint[] = " on|off";
-const char kEnabledEnumHint[] = " on|off|unplugged";
-const char kInt64Hint[] = " must specify a 64-bit integer";
-const char kIntHint[] = " must specify a 32-bit integer";
-
-const char* ParseHint(bool x) { return kBoolHint; }
-const char* ParseHint(int x) { return kIntHint; }
-const char* ParseHint(int64 x) { return kInt64Hint; }
-const char* ParseHint(RewriteOptions::EnabledEnum x) {
-  return kEnabledEnumHint;
-}
-
-template<typename OptType, typename Options>
-const char* ParseOption(Options* options, cmd_parms* cmd,
-                            void (Options::*fn)(OptType val),
+template<class Options>
+const char* ParseBoolOption(Options* options, cmd_parms* cmd,
+                            void (Options::*fn)(bool val),
                             const char* arg) {
   const char* ret = NULL;
-  OptType parsed;
-  if (RewriteOptions::ParseFromString(arg, &parsed)) {
-    (options->*fn)(parsed);
+  if (StringCaseEqual(arg, "on")) {
+    (options->*fn)(true);
+  } else if (StringCaseEqual(arg, "off")) {
+    (options->*fn)(false);
+  } else {
+    ret = apr_pstrcat(cmd->pool, cmd->directive->directive, " on|off", NULL);
+  }
+  return ret;
+}
+
+template<class Options>
+const char* ParseInt64Option(Options* options, cmd_parms* cmd,
+                             void (Options::*fn)(int64 val),
+                             const char* arg) {
+  int64 val;
+  const char* ret = NULL;
+  if (StringToInt64(arg, &val)) {
+    (options->*fn)(val);
   } else {
     ret = apr_pstrcat(cmd->pool, cmd->directive->directive,
-                      ParseHint(parsed), NULL);
+                      " must specify a 64-bit integer", NULL);
+  }
+  return ret;
+}
+
+template<class Options>
+const char* ParseIntOption(Options* options, cmd_parms* cmd,
+                           void (Options::*fn)(int val),
+                           const char* arg) {
+  int val;
+  const char* ret = NULL;
+  if (StringToInt(arg, &val)) {
+    (options->*fn)(val);
+  } else {
+    ret = apr_pstrcat(cmd->pool, cmd->directive->directive,
+                      " must specify a 32-bit integer", NULL);
   }
   return ret;
 }
@@ -1294,9 +1196,9 @@ static const char* CmdOptions(const cmd_parms* cmd, void* data,
     if (cmd->directive->data != NULL) {
       config = static_cast<ApacheConfig*>(cmd->directive->data);
     } else {
-      ApacheServerContext* server_context =
+      ApacheServerContext* manager =
           InstawebContext::ServerContextFromServerRec(cmd->server);
-      config = server_context->config();
+      config = manager->config();
     }
   } else {
     // If we're here, we are inside path-specific configuration, so we should
@@ -1342,52 +1244,12 @@ static char* CheckGlobalOption(const cmd_parms* cmd,
   return NULL;
 }
 
-const char* ApacheProcessContext::CheckCommandForVhost(const cmd_parms* cmd) {
-  // Only do the vhost_command_handling_map_ lookup if it's going
-  // to be used by CheckGlobalOption.
-  //
-  // TODO(jmarantz): Add a scope argument ParseAndSetOptionFromName[123] and
-  // let it do the error-checking & reporting.
-  const char* ret = NULL;
-  if (cmd->server->is_virtual || (cmd->directive->data != NULL)) {
-    VhostCommandHandlingMap::const_iterator p =
-        vhost_command_handling_map_.find(cmd->cmd);
-    if (p != vhost_command_handling_map_.end()) {
-      ret = CheckGlobalOption(cmd, p->second, factory_->message_handler());
-    }
-  }
-  return ret;
-}
-
-// Returns true if standard parsing handled the option and sets *err_msg to NULL
-// if OK, and to the error string managed in cmd->pool otherwise.
-bool StandardParsingHandled(
-    cmd_parms* cmd, RewriteOptions::OptionSettingResult result,
-    const GoogleString& msg, const char** err_msg) {
-  switch (result) {
-    case RewriteOptions::kOptionOk:
-      *err_msg = NULL;  // No error.
-      return true;
-    case RewriteOptions::kOptionNameUnknown:
-      // RewriteOptions didn't recognize the option, but we might do so
-      // with our own code.
-      return false;
-    case RewriteOptions::kOptionValueInvalid:
-      // The option is recognized, but the value is not. Return the error
-      // message.
-      *err_msg = apr_pstrdup(cmd->pool, msg.c_str());
-      return true;
-  }
-  LOG(DFATAL) << "Should be unreachable";
-  return true;
-}
-
 // Callback function that parses a single-argument directive.  This is called
 // by the Apache config parser.
 static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
-  ApacheServerContext* server_context =
+  ApacheServerContext* manager =
       InstawebContext::ServerContextFromServerRec(cmd->server);
-  ApacheRewriteDriverFactory* factory = server_context->apache_factory();
+  ApacheRewriteDriverFactory* factory = manager->apache_factory();
   MessageHandler* handler = factory->message_handler();
   StringPiece directive(cmd->directive->directive);
   StringPiece prefix(RewriteQuery::kModPagespeed);
@@ -1398,21 +1260,25 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     return ret;
   }
 
+  // Keep an upcast version of 'config' around so that the template methods
+  // resolve properly for options in RewriteOptions for ApacheConfig.
+  RewriteOptions* options = config;
+
   // We have "FileCachePath" mapped in gperf, but here we do more than just
   // setting the option. This must precede the call to SetOptionFromName which
   // would catch this directive but miss the call to
   // give_apache_user_permissions.
   if (StringCaseEqual(directive, kModPagespeedFileCachePath)) {
-    ret = init_dir(server_context, cmd->pool, kModPagespeedFileCachePath, arg);
-    if (ret == NULL) {
+    if (*arg != '/') {
+      ret = apr_pstrcat(cmd->pool, kModPagespeedFileCachePath, " ", arg,
+                        " must start with a slash.", NULL);
+    } else {
       config->set_file_cache_path(arg);
-    }
-    return ret;
-  }
-  if (StringCaseEqual(directive, kModPagespeedLogDir)) {
-    ret = init_dir(server_context, cmd->pool, kModPagespeedLogDir, arg);
-    if (ret == NULL) {
-      config->set_log_dir(arg);
+      if (!manager->InitFileCachePath() ||
+          !give_apache_user_permissions(factory)) {
+        ret = apr_pstrcat(cmd->pool, "Directory ", arg,
+                          " does not exist and can't be created.", NULL);
+      }
     }
     return ret;
   }
@@ -1428,49 +1294,84 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
   if (directive.starts_with(prefix)) {
     GoogleString msg;
     RewriteOptions::OptionSettingResult result =
-        config->ParseAndSetOptionFromName1(
-            directive.substr(prefix.size()), arg, &msg, handler);
-    if (StandardParsingHandled(cmd, result, msg, &ret)) {
-      if (ret == NULL) {
-        ret = apache_process_context.CheckCommandForVhost(cmd);
-      }
-      return ret;
+        options->SetOptionFromName(directive.substr(prefix.size()), arg, &msg);
+    switch (result) {
+      case RewriteOptions::kOptionOk:
+        return NULL;  // No error
+      case RewriteOptions::kOptionNameUnknown:
+        // RewriteOptions didn't recognize the option, but we might do so
+        // below.
+        break;
+      case RewriteOptions::kOptionValueInvalid:
+        // The option is recognized, but the value is not. Return the error
+        // message.
+        ret = apr_pstrdup(cmd->pool, msg.c_str());
+        return ret;
     }
   }
 
   // Options which we handle manually.
   if (StringCaseEqual(directive, RewriteQuery::kModPagespeed)) {
-    ret = ParseOption<RewriteOptions::EnabledEnum>(
-        static_cast<RewriteOptions*>(config), cmd, &RewriteOptions::set_enabled,
-        arg);
-  } else if (StringCaseEqual(directive, kModPagespeedFetchHttps)) {
+    ret = ParseBoolOption(options, cmd, &RewriteOptions::set_enabled, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedAllow)) {
+    options->Allow(arg);
+  } else if (StringCaseEqual(directive,
+                             kModPagespeedDangerPermitFetchFromUnknownHosts)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseBoolOption(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_disable_loopback_routing, arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedDisableFilters)) {
+    if (!options->DisableFiltersByCommaSeparatedList(arg, handler)) {
+      ret = "Failed to disable some filters.";
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedDisallow)) {
+    options->Disallow(arg);
+  } else if (StringCaseEqual(directive, kModPagespeedDomain)) {
+    options->domain_lawyer()->AddDomain(arg, factory->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedEnableFilters)) {
+    if (!options->EnableFiltersByCommaSeparatedList(arg, handler)) {
+      ret = "Failed to enable some filters.";
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedFetchWithGzip)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
-      GoogleString error_message;
-      if (!factory->SetHttpsOptions(arg, &error_message)) {
-        ret = apr_pstrcat(cmd->pool, "Invalid argument '", arg, "' to ",
-                          cmd->directive->directive, ": ",
-                          error_message.c_str(), NULL);
-      }
+      ret = ParseBoolOption(
+          factory, cmd, &ApacheRewriteDriverFactory::set_fetch_with_gzip, arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedForbidFilters)) {
+    if (!options->ForbidFiltersByCommaSeparatedList(arg, handler)) {
+      ret = "Failed to forbid some filters.";
     }
   } else if (StringCaseEqual(directive, kModPagespeedForceCaching)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<bool>(
-          static_cast<RewriteDriverFactory*>(factory), cmd,
-          &RewriteDriverFactory::set_force_caching, arg);
+        ret = ParseBoolOption(static_cast<RewriteDriverFactory*>(factory),
+                              cmd, &RewriteDriverFactory::set_force_caching,
+                              arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedFuriousSlot)) {
+    ParseIntBoundedOption(options, cmd,
+                          &RewriteOptions::set_furious_ga_slot,
+                          arg, 1, 5);
+  } else if (StringCaseEqual(directive, kModPagespeedFuriousSpec)) {
+    bool succeeded = options->AddFuriousSpec(arg, handler);
+    if (!succeeded) {
+      ret = apr_pstrcat(cmd->pool, "Invalid experiment spec: ", arg, NULL);
     }
   } else if (StringCaseEqual(directive, kModPagespeedInheritVHostConfig)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<bool>(
+      ret = ParseBoolOption(
           factory, cmd,
           &ApacheRewriteDriverFactory::set_inherit_vhost_config, arg);
     }
   } else if (StringCaseEqual(directive, kModPagespeedInstallCrashHandler)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<bool>(
+      ret = ParseBoolOption(
           factory, cmd,
           &ApacheRewriteDriverFactory::set_install_crash_handler, arg);
     }
@@ -1478,21 +1379,21 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
                              kModPagespeedListOutstandingUrlsOnError)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<bool>(
-          static_cast<SystemRewriteDriverFactory*>(factory), cmd,
-          &SystemRewriteDriverFactory::list_outstanding_urls_on_error, arg);
+      ret = ParseBoolOption(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::list_outstanding_urls_on_error, arg);
     }
   } else if (StringCaseEqual(directive, kModPagespeedMessageBufferSize)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<int>(
-          factory, cmd,
-          &ApacheRewriteDriverFactory::set_message_buffer_size, arg);
+      ret = ParseIntOption(factory, cmd,
+                           &ApacheRewriteDriverFactory::set_message_buffer_size,
+                           arg);
     }
   } else if (StringCaseEqual(directive, kModPagespeedNumRewriteThreads)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<int>(
+      ret = ParseIntOption(
           factory, cmd,
           &ApacheRewriteDriverFactory::set_num_rewrite_threads, arg);
     }
@@ -1500,30 +1401,28 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
                              kModPagespeedNumExpensiveRewriteThreads)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<int>(
+      ret = ParseIntOption(
           factory, cmd,
           &ApacheRewriteDriverFactory::set_num_expensive_rewrite_threads, arg);
     }
+  } else if (StringCaseEqual(directive, kModPagespeedRetainComment)) {
+    options->RetainComment(arg);
   } else if (StringCaseEqual(directive,
                              kModPagespeedTrackOriginalContentLength)) {
-    ret = ParseOption<bool>(
-        static_cast<SystemRewriteDriverFactory*>(factory), cmd,
-        &SystemRewriteDriverFactory::set_track_original_content_length, arg);
-  } else if (StringCaseEqual(directive,
-                             kModPagespeedCollectRefererStatistics) ||
-             StringCaseEqual(directive, kModPagespeedDisableForBots) ||
+    ret = ParseBoolOption(
+        factory, cmd,
+        &ApacheRewriteDriverFactory::set_track_original_content_length, arg);
+  } else if (StringCaseEqual(directive, kModPagespeedNumShards) ||
+             StringCaseEqual(directive, kModPagespeedUrlPrefix) ||
              StringCaseEqual(directive, kModPagespeedGeneratedFilePrefix) ||
-             StringCaseEqual(directive, kModPagespeedHashRefererStatistics) ||
-             StringCaseEqual(directive, kModPagespeedNumShards) ||
-             StringCaseEqual(directive, kModPagespeedStatisticsLoggingFile) ||
-             StringCaseEqual(directive,
-                             kModPagespeedRefererStatisticsOutputLevel) ||
-             StringCaseEqual(directive, kModPagespeedUrlPrefix)) {
+             StringCaseEqual(directive, kModPagespeedDisableForBots)) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
+  } else if (StringCaseEqual(directive, kModPagespeedBlockingRewriteKey)) {
+    options->set_blocking_rewrite_key(arg);
   } else if (StringCaseEqual(directive, kModPagespeedUsePerVHostStatistics)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
-      ret = ParseOption<bool>(
+      ret = ParseBoolOption(
           factory, cmd,
           &ApacheRewriteDriverFactory::set_use_per_vhost_statistics, arg);
     }
@@ -1624,42 +1523,60 @@ static const char* ParseScope(cmd_parms* cmd, ap_directive_t** mconfig,
 // by the Apache config parser.
 static const char* ParseDirective2(cmd_parms* cmd, void* data,
                                    const char* arg1, const char* arg2) {
-  ApacheServerContext* server_context =
+  ApacheServerContext* manager =
       InstawebContext::ServerContextFromServerRec(cmd->server);
-  ApacheRewriteDriverFactory* factory = server_context->apache_factory();
-  MessageHandler* handler = factory->message_handler();
 
   ApacheConfig* config;
   const char* ret = CmdOptions(cmd, data, &config);
   if (ret != NULL) {
     return ret;
   }
+  RewriteOptions* options = config;
 
-  StringPiece prefix(RewriteQuery::kModPagespeed);
-  StringPiece directive = cmd->directive->directive;
-  // Go through generic path first.
-  if (directive.starts_with(prefix)) {
-    GoogleString msg;
-    RewriteOptions::OptionSettingResult result =
-        config->ParseAndSetOptionFromName2(
-            directive.substr(prefix.size()), arg1, arg2, &msg, handler);
-    if (StandardParsingHandled(cmd, result, msg, &ret)) {
-      return ret;
-    }
-  }
-
-  if (StringCaseEqual(directive,
-                      kModPagespeedCreateSharedMemoryMetadataCache)) {
-    int64 kb = 0;
-    if (!StringToInt64(arg2, &kb) || kb < 0) {
-      return apr_pstrcat(cmd->pool, cmd->directive->directive,
-                         " size_kb must be a positive 64-bit integer", NULL);
-    }
-    GoogleString message;
-    bool ok = factory->caches()->CreateShmMetadataCache(arg1, kb, &message);
+  const char* directive = cmd->directive->directive;
+  if (StringCaseEqual(directive, kModPagespeedLoadFromFile)) {
+    options->file_load_policy()->Associate(arg1, arg2);
+  } else if (StringCaseEqual(directive, kModPagespeedLoadFromFileMatch)) {
+    GoogleString error;
+    bool ok = options->file_load_policy()->AssociateRegexp(arg1, arg2, &error);
     if (!ok) {
-      return apr_pstrdup(cmd->pool, message.c_str());
+      return apr_pstrcat(cmd->pool, "Invalid LoadFromFile Regexp: ",
+                         error.c_str(), NULL);
     }
+  } else if (StringCaseEqual(directive, kModPagespeedLoadFromFileRule) ||
+             StringCaseEqual(directive, kModPagespeedLoadFromFileRuleMatch)) {
+    bool is_regexp = StringCaseEqual(
+        directive, kModPagespeedLoadFromFileRuleMatch);
+    bool allow;
+    if (StringCaseEqual(arg1, kAllow)) {
+      allow = true;
+    } else if (StringCaseEqual(arg1, kDisallow)) {
+      allow = false;
+    } else {
+      return apr_pstrcat(cmd->pool, "Argument 1 of ", directive,
+                         " must be either '", kAllow, "' or '", kDisallow,
+                         "'.  Got '", arg1, "'.", NULL);
+    }
+    GoogleString error;
+    bool ok = options->file_load_policy()->AddRule(
+        arg2, is_regexp, allow, &error);
+    if (!ok) {
+      return apr_pstrcat(cmd->pool, "Invalid argument '", arg2, "' to ",
+                         directive, ": ", error.c_str(), NULL);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedMapRewriteDomain)) {
+    options->domain_lawyer()->AddRewriteDomainMapping(
+        arg1, arg2, manager->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedMapOriginDomain)) {
+    options->domain_lawyer()->AddOriginDomainMapping(
+        arg1, arg2, manager->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedMapProxyDomain)) {
+    options->domain_lawyer()->AddProxyDomainMapping(
+        arg1, arg2, manager->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedShardDomain)) {
+    options->domain_lawyer()->AddShard(arg1, arg2, manager->message_handler());
+  } else if (StringCaseEqual(directive, kModPagespeedCustomFetchHeader)) {
+    options->AddCustomFetchHeader(arg1, arg2);
   } else {
     return "Unknown directive.";
   }
@@ -1671,31 +1588,43 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
 static const char* ParseDirective3(
     cmd_parms* cmd, void* data,
     const char* arg1, const char* arg2, const char* arg3) {
-  ApacheServerContext* server_context =
-      InstawebContext::ServerContextFromServerRec(cmd->server);
-  ApacheRewriteDriverFactory* factory = server_context->apache_factory();
-  MessageHandler* handler = factory->message_handler();
   ApacheConfig* config;
   const char* ret = CmdOptions(cmd, data, &config);
   if (ret != NULL) {
     return ret;
   }
-
-  StringPiece prefix(RewriteQuery::kModPagespeed);
-  StringPiece directive = cmd->directive->directive;
-  // Go through generic path first.
-  if (directive.starts_with(prefix)) {
-    GoogleString msg;
-    RewriteOptions::OptionSettingResult result =
-        config->ParseAndSetOptionFromName3(
-            directive.substr(prefix.size()), arg1, arg2, arg3, &msg, handler);
-    if (StandardParsingHandled(cmd, result, msg, &ret)) {
-      return ret;
+  RewriteOptions* options = config;
+  const char* directive = cmd->directive->directive;
+  if (StringCaseEqual(directive, kModPagespeedUrlValuedAttribute)) {
+    // Examples:
+    //   ModPagespeedUrlValuedAttribute span src Hyperlink
+    //     - <span src=...> indicates a hyperlink
+    //   ModPagespeedUrlValuedAttribute hr imgsrc Image
+    //     - <hr image=...> indicates an image resource
+    semantic_type::Category category;
+    if (!semantic_type::ParseCategory(arg3, &category)) {
+      return apr_pstrcat(cmd->pool, "Invalid resource category: ", arg3, NULL);
+    } else {
+      options->AddUrlValuedAttribute(arg1, arg2, category);
     }
+  } else if (StringCaseEqual(directive, kModPagespeedLibrary)) {
+    // ModPagespeedLibrary bytes md5 canonical_url
+    // Examples:
+    //   ModPagespeedLibrary 43567 5giEj_jl-Ag5G8 http://www.example.com/url.js
+    int64 bytes;
+    if (!StringToInt64(arg1, &bytes) || bytes < 0) {
+      return apr_pstrcat(cmd->pool, directive,
+                         " size must be a positive 64-bit integer", NULL);
+    }
+    if (!options->RegisterLibrary(bytes, arg2, arg3)) {
+      return apr_pstrcat(cmd->pool, directive,
+                         "Format is size md5 url; bad md5 ", arg2,
+                         " or URL ", arg3, NULL);
+    }
+  } else {
+    return apr_pstrcat(cmd->pool, directive, " unknown directive.", NULL);
   }
-
-  return apr_pstrcat(cmd->pool, cmd->directive->directive,
-                     " unknown directive.", NULL);
+  return NULL;
 }
 
 // Setting up Apache options is cumbersome for several reasons:
@@ -1750,20 +1679,40 @@ static const char* ParseDirective3(
   AP_INIT_TAKE3(name, reinterpret_cast<const char*(*)()>(ParseDirective3), \
                 NULL, OR_ALL, help)
 
-// APACHE_CONFIG_OPTION for 2 or 3 arguments
-#define APACHE_CONFIG_DIR_OPTION23(name, help) \
-  AP_INIT_TAKE23(name, reinterpret_cast<const char*(*)()>(ParseDirective3), \
-                 NULL, OR_ALL, help)
-
 static const command_rec mod_pagespeed_filter_cmds[] = {
   // Special conditional op.
   APACHE_SCOPE_OPTION(
       kModPagespeedIf, "Conditionally apply some mod_pagespeed options. "
       "Possible arguments: spdy, !spdy"),
 
+  // All one parameter options that are allowed in <Directory> blocks.
   APACHE_CONFIG_DIR_OPTION(RewriteQuery::kModPagespeed, "Enable instaweb"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedAllow,
         "wildcard_spec for urls"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedAnalyticsID,
+        "Google Analytics ID to use on site."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedAvoidRenamingIntrospectiveJavascript,
+        "Don't combine, inline, cache extend, or otherwise modify javascript "
+        "in ways that require changing the URL if we see introspection in "
+        "the form of document.getElementsByTagName('script')."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedBeaconUrl,
+        "URL for beacon callback injected by add_instrumentation."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCollectRefererStatistics,
+        "Track page, resource, and div location referrals for prefetching."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedClientDomainRewrite,
+      "Allow rewrite_domains to rewrite urls on the client side."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCombineAcrossPaths,
+        "Allow combining resources from different paths"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssFlattenMaxBytes,
+        "Number of bytes below which stylesheets will be flattened."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssImageInlineMaxBytes,
+        "Number of bytes below which images will be inlined in external CSS."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssInlineMaxBytes,
+        "Number of bytes below which stylesheets will be inlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssOutlineMinBytes,
+        "Number of bytes above which inline CSS resources will be outlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedCssPreserveURLs,
+        "Disable the rewriting of CSS URLs."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisableFilters,
         "Comma-separated list of disabled filters"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisallow,
@@ -1771,61 +1720,160 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDisableForBots, "No longer used."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedDomain,
         "Authorize mod_pagespeed to rewrite resources in a domain."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedDownstreamCachePurgeLocationPrefix,
-        "The host:port/path prefix to be used for purging requests from "
-        "the downstream cache."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedDomainRewriteHyperlinks,
+        "Allow rewrite_domains to rewrite <form> and <a> tags in addition "
+        "to resource tags."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedEnableFilters,
         "Comma-separated list of enabled filters"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedForbidAllDisabledFilters,
+        "Prevents the use of disabled filters"),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedForbidFilters,
         "Comma-separated list of forbidden filters"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedExperimentVariable,
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedFuriousSlot,
          "Specify the custom variable slot with which to run experiments."
          "Defaults to 1."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedExperimentSpec,
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedFuriousSpec,
          "Configuration for one side of an experiment in the form: "
          "'id= ;enabled= ;disabled= ;ga= ;percent= ...'"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedHashRefererStatistics,
+        "Hash URLs and div locations in referer statistics."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageInlineMaxBytes,
+        "Number of bytes below which images will be inlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageLimitOptimizedPercent,
+        "Replace images whose size after recompression is less than the "
+        "given percent of original image size; 100 means replace if smaller."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageLimitResizeAreaPercent,
+        "Consider resizing images whose area in pixels is less than the "
+        "given percent of original image area; 100 means replace if smaller."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageRecompressionQuality,
+        "Set quality parameter for recompressing jpeg/webp images [-1,100], "
+        "100 refers to best quality, -1 disables lossy compression."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImgInlineMaxBytes,
+        "DEPRECATED, use ModPagespeedImageInlineMaxBytes."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedJpegRecompressionQuality,
+        "Set quality parameter for recompressing jpeg images [-1,100], 100 "
+        "refers to best quality, -1 disables lossy compression."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImagePreserveURLs,
+        "Disable the rewriting of image URLs."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedImgInlineMaxBytes,
+        "DEPRECATED, use ModPagespeedImageInlineMaxBytes."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedJsInlineMaxBytes,
+        "Number of bytes below which javascript will be inlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedJsOutlineMinBytes,
+        "Number of bytes above which inline Javascript resources will"
+        "be outlined."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedJsPreserveURLs,
+        "Disable the rewriting of Javascript URLs."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedListOutstandingUrlsOnError,
         "Adds an error message into the log for every URL fetch in "
         "flight when the HTTP stack encounters a system error, e.g. "
         "Connection Refused"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedLogRewriteTiming,
+        "Whether or not to report timing information about HtmlParse."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedLowercaseHtmlNames,
+        "Lowercase tag and attribute names for HTML."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxHtmlParseBytes,
+        "Maximum number of bytes of HTML that we parse, before redirecting to "
+        "?ModPagespeed=off"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxImageSizeLowResolutionBytes,
+        "Maximum image size below which low resolution image is generated."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxInlinedPreviewImagesIndex,
+        "Number of first N images for which low resolution image is generated. "
+        "Negative values result in generation for all images."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMinImageSizeLowResolutionBytes,
+        "Minimum image size above which low resolution image is generated."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedMaxSegmentLength,
+        "Maximum size of a URL segment."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedModifyCachingHeaders,
+        "Set to false to disallow mod_pagespeed from editing HTML "
+        "Cache-Control headers. This is not safe in general and can cause "
+        "the incorrect versions of HTML to be served to users."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRefererStatisticsOutputLevel,
+        "Set the output level of mod_pagespeed_referer_statistics (Fast, "
+        "Simple, Organized).  There is a trade-off between readability and "
+        "speed."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRespectVary,
+        "Whether to respect the Vary header."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedRetainComment,
         "Retain HTML comments matching wildcard, even with remove_comments "
         "enabled"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedRunExperiment,
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRewriteDeadlinePerFlushMs,
+        "Time to wait for resource optimization (per flush window) before"
+        "falling back to the original resource for the request."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRewriteLevel,
+        "Base level of rewriting (PassThrough, CoreFilters)"),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedRunFurious,
          "Run an experiment to test the effectiveness of rewriters."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedSpeedTracking,
         "Increase the percentage of sites that have Google Analytics page "
         "speed tracking"),
-
-  // All one parameter deprecated options.
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedImgInlineMaxBytes,
-        "DEPRECATED, use ModPagespeedImageInlineMaxBytes."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedCollectRefererStatistics,
-        "Deprecated.  Does nothing."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedHashRefererStatistics,
-        "Deprecated.  Does nothing."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedRefererStatisticsOutputLevel,
-        "Deprecated.  Does nothing."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedStatistics,
+        "Whether to collect cross-process statistics."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedStatisticsLogging,
+        "Whether to log cross-process statistics if they're being collected."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedStatisticsLoggingFile,
-        "Deprecated.  Does nothing."),
+        "Where to log cross-process statistics if they're being collected."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedStatisticsLoggingIntervalMs,
+        "How often to log cross-process statistics, in milliseconds."),
+  APACHE_CONFIG_DIR_OPTION(kModPagespeedWebpRecompressionQuality,
+        "Set quality parameter for recompressing webp images [-1,100], 100 "
+        "refers to best quality, -1 disables lossy compression."),
 
   // All one parameter options that can only be specified at the server level.
   // (Not in <Directory> blocks.)
+  APACHE_CONFIG_OPTION(kModPagespeedBlockingRewriteKey,
+        "If the X-PSA-Pagespeed-Blocking-Rewrite header is present, and its "
+        "value matches the configured value, ensure that all rewrites are "
+        "completed before sending the response to the client."),
+  APACHE_CONFIG_OPTION(kModPagespeedCacheFlushFilename,
+        "Name of file to check for timestamp updates used to flush cache. "
+        "This file will be relative to the ModPagespeedFileCachePath if it "
+        "does not begin with a slash."),
+  APACHE_CONFIG_OPTION(kModPagespeedCacheFlushPollIntervalSec,
+        "Number of seconds to wait between polling for cache-flush requests"),
+  APACHE_CONFIG_OPTION(kModPagespeedDangerPermitFetchFromUnknownHosts,
+        "Disable security checks that prohibit fetching from hostnames "
+        "mod_pagespeed does not know about"),
+  APACHE_CONFIG_OPTION(kModPagespeedExperimentalFetchFromModSpdy,
+        "Under construction. Do not use"),
   APACHE_CONFIG_OPTION(kModPagespeedFetcherTimeoutMs,
         "Set internal fetcher timeout in milliseconds"),
-  APACHE_CONFIG_OPTION(kModPagespeedFetchHttps,
-        "Controls direct fetching of HTTPS resources.  Value is "
-        "comma-separated list of keywords: " SERF_HTTPS_KEYWORDS),
   APACHE_CONFIG_OPTION(kModPagespeedFetchProxy, "Set the fetch proxy"),
+  APACHE_CONFIG_OPTION(kModPagespeedFetchWithGzip,
+                       "Request http content from origin servers using gzip"),
+  APACHE_CONFIG_OPTION(kModPagespeedFileCacheCleanIntervalMs,
+        "Set the interval (in ms) for cleaning the file cache"),
+  APACHE_CONFIG_OPTION(kModPagespeedFileCacheInodeLimit,
+        "Set the target number of inodes for the file cache; 0 means no limit"),
+  APACHE_CONFIG_OPTION(kModPagespeedFileCachePath,
+        "Set the path for file cache"),
+  APACHE_CONFIG_OPTION(kModPagespeedFileCacheSizeKb,
+        "Set the target size (in kilobytes) for file cache"),
   APACHE_CONFIG_OPTION(kModPagespeedForceCaching,
         "Ignore HTTP cache headers and TTLs"),
   APACHE_CONFIG_OPTION(kModPagespeedGeneratedFilePrefix, "No longer used."),
+  APACHE_CONFIG_OPTION(kModPagespeedImageMaxRewritesAtOnce,
+        "Set bound on number of images being rewritten at one time "
+        "(0 = unbounded)."),
   APACHE_CONFIG_OPTION(kModPagespeedImgMaxRewritesAtOnce,
         "DEPRECATED, use ModPagespeedImageMaxRewritesAtOnce."),
   APACHE_CONFIG_OPTION(kModPagespeedInheritVHostConfig,
         "Inherit global configuration into VHosts."),
   APACHE_CONFIG_OPTION(kModPagespeedInstallCrashHandler,
          "Try to dump backtrace on crashes. For developer use"),
+  APACHE_CONFIG_OPTION(kModPagespeedLRUCacheByteLimit,
+        "Set the maximum byte size entry to store in the per-process "
+        "in-memory LRU cache"),
+  APACHE_CONFIG_OPTION(kModPagespeedLRUCacheKbPerProcess,
+        "Set the total size, in KB, of the per-process in-memory LRU cache"),
+  APACHE_CONFIG_OPTION(kModPagespeedMaxCacheableContentLength,
+        "Maximum length of a cacheable response content."),
+  APACHE_CONFIG_OPTION(kModPagespeedMemcachedServers,
+        "Comma-separated list of servers e.g. host1:port1,host2:port2"),
+  APACHE_CONFIG_OPTION(kModPagespeedMemcachedThreads,
+        "Number of background threads to use to run memcached fetches"),
+  APACHE_CONFIG_OPTION(kModPagespeedMemcachedTimeoutUs,
+        "Maximum time in microseconds to allow for memcached transactions"),
   APACHE_CONFIG_OPTION(kModPagespeedMessageBufferSize,
         "Set the size of buffer used for /mod_pagespeed_message."),
   APACHE_CONFIG_OPTION(kModPagespeedNumRewriteThreads,
@@ -1835,22 +1883,46 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Number of threads to use for computation-intensive portions of "
         "resource-rewriting. <= 0 to auto-detect"),
   APACHE_CONFIG_OPTION(kModPagespeedNumShards, "No longer used."),
+  APACHE_CONFIG_OPTION(kModPagespeedRateLimitBackgroundFetches,
+         "Rate-limit the number of background HTTP fetches done at once"),
+  APACHE_CONFIG_OPTION(kModPagespeedReportUnloadTime,
+         "If set reports optional page unload time."),
+  APACHE_CONFIG_OPTION(kModPagespeedRespectXForwardedProto,
+        "Whether to respect the X-Forwarded-Proto header."),
+  APACHE_CONFIG_OPTION(kModPagespeedSharedMemoryLocks,
+        "Use shared memory for internal named lock service"),
+  APACHE_CONFIG_OPTION(kModPagespeedSlurpDirectory,
+        "Directory from which to read slurped resources"),
+  APACHE_CONFIG_OPTION(kModPagespeedSlurpFlushLimit,
+        "Set the maximum byte size for the slurped content to hold before "
+        "a flush"),
+  APACHE_CONFIG_OPTION(kModPagespeedSlurpReadOnly,
+        "Only read from the slurped directory, fail to fetch "
+        "URLs not already in the slurped directory"),
+  APACHE_CONFIG_OPTION(kModPagespeedSupportNoScriptEnabled,
+        "Support for clients with no script support, in filters that "
+        "insert new javascript."),
+  APACHE_CONFIG_OPTION(kModPagespeedStatisticsLoggingChartsCSS,
+        "Where to find an offline copy of the Google Charts Tools API CSS."),
+  APACHE_CONFIG_OPTION(kModPagespeedStatisticsLoggingChartsJS,
+        "Where to find an offline copy of the Google Charts Tools API JS."),
+  APACHE_CONFIG_OPTION(kModPagespeedTestProxy,
+        "Act as a proxy without maintaining a slurp dump."),
   APACHE_CONFIG_OPTION(kModPagespeedTrackOriginalContentLength,
         "Add X-Original-Content-Length headers to rewritten resources"),
   APACHE_CONFIG_OPTION(kModPagespeedUrlPrefix, "No longer used."),
   APACHE_CONFIG_OPTION(kModPagespeedUsePerVHostStatistics,
         "If true, keep track of statistics per VHost and not just globally"),
-  APACHE_CONFIG_OPTION(kModPagespeedBlockingRewriteRefererUrls,
-                       "wildcard_spec for referer urls which trigger blocking "
-                       "rewrites"),
+  APACHE_CONFIG_OPTION(kModPagespeedXHeaderValue,
+        "Set the value for the X-Mod-Pagespeed HTTP header"),
 
   // All two parameter options that are allowed in <Directory> blocks.
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedCustomFetchHeader,
         "custom_header_name custom_header_value"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
         "to_domain from_domain[,from_domain]*"),
-  APACHE_CONFIG_DIR_OPTION23(kModPagespeedMapProxyDomain,
-        "proxy_domain origin_domain [to_domain]"),
+  APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapProxyDomain,
+        "proxy_domain origin_domain"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,
         "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedShardDomain,
@@ -1858,8 +1930,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
 
   // All two parameter options that can only be specified at the server level.
   // (Not in <Directory> blocks.)
-  APACHE_CONFIG_OPTION2(kModPagespeedCreateSharedMemoryMetadataCache,
-        "name size_kb"),
   APACHE_CONFIG_OPTION2(kModPagespeedLoadFromFile,
         "url_prefix filename_prefix"),
   APACHE_CONFIG_OPTION2(kModPagespeedLoadFromFileMatch,
@@ -1880,7 +1950,9 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Yielding an entry like:\n"
         "  ModPagespeedLibrary 105527 ltVVzzYxo0 "
         "//ajax.googleapis.com/ajax/libs/1.6.1.0/prototype.js"),
-};  // Do not null terminate; we use arraysize for initialization.
+
+  {NULL}
+};
 
 // We use pool-based cleanup for ApacheConfigs.  This is 99% effective.
 // There is at least one base config which is created with create_dir_config,
@@ -1902,9 +1974,7 @@ void* create_dir_config(apr_pool_t* pool, char* dir) {
   if (dir == NULL) {
     return NULL;
   }
-  ThreadSystem* thread_system =
-      apache_process_context.factory_->thread_system();
-  ApacheConfig* config = new ApacheConfig(dir, thread_system);
+  ApacheConfig* config = new ApacheConfig(dir);
   config->SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   apr_pool_cleanup_register(pool, config, delete_config, apr_pool_cleanup_null);
   return config;
@@ -1916,25 +1986,15 @@ void* create_dir_config(apr_pool_t* pool, char* dir) {
 // new_conf is the directory structure currently being processed.
 // This function returns the new per-directory structure created
 void* merge_dir_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
-  ApacheConfig* dir1 = static_cast<ApacheConfig*>(base_conf);
-  ApacheConfig* dir2 = static_cast<ApacheConfig*>(new_conf);
+  const ApacheConfig* dir1 = static_cast<const ApacheConfig*>(base_conf);
+  const ApacheConfig* dir2 = static_cast<const ApacheConfig*>(new_conf);
 
   // To make it easier to debug the merged configurations, we store
   // the name of both input configurations as the description for
   // the merged configuration.
-  ApacheConfig* dir3 = new ApacheConfig(
-      StrCat(
-          "Combine(", dir1->description(), ", ", dir2->description(), ")"),
-      dir1->thread_system());
-
-  // Apache does not notify us when it is done adding directives to a
-  // configuration, so we don't have a good opportunity to Freeze it
-  // until it use used as a merge source.  We don't want to do this in
-  // Merge because, for C++ cleanliness/readability, we want to let
-  // Merge take a const RewrieOptions&, so we must Freeze at the call site.
-  dir1->Freeze();
+  ApacheConfig* dir3 = new ApacheConfig(StrCat(
+      "Combine(", dir1->description(), ", ", dir2->description(), ")"));
   dir3->Merge(*dir1);
-  dir2->Freeze();
   dir3->Merge(*dir2);
   apr_pool_cleanup_register(pool, dir3, delete_config, apr_pool_cleanup_null);
   return dir3;
@@ -2000,7 +2060,7 @@ module AP_MODULE_DECLARE_DATA pagespeed_module = {
   net_instaweb::merge_dir_config,
   net_instaweb::mod_pagespeed_create_server_config,
   net_instaweb::merge_server_config,
-  NULL,  // directives initialized via static ctor calling InstallCommands().
+  net_instaweb::mod_pagespeed_filter_cmds,
   net_instaweb::mod_pagespeed_register_hooks,
 };
 
@@ -2008,73 +2068,3 @@ module AP_MODULE_DECLARE_DATA pagespeed_module = {
 #pragma GCC visibility pop
 #endif
 }  // extern "C"
-
-namespace net_instaweb {
-
-// Runs via static construction and module-load time, so that it can
-// install the Apache command-table in the module-record before Apache
-// initializes the module.
-void ApacheProcessContext::InstallCommands() {
-  // Similar to the instantiation in ApacheConfig::AddProperties(), we
-  // instantiate an ApacheConfig with a null thread system as we
-  // are only using it to populate a static table which must be
-  // established very early when mod_pagespeed.so is dynamically loaded,
-  // to build the Apache directives parse-table before Apache attempts
-  // to initialize our module.
-  ApacheConfig config_template("install_commands", NULL);
-  const RewriteOptions::OptionBaseVector& v = config_template.all_options();
-  int num_cmds = arraysize(net_instaweb::mod_pagespeed_filter_cmds);
-
-  // Allocate memory for all the rewrite_options, even though we
-  // will only initialize the ones with non-null help.  We could
-  // also do a 2-pass to count how many we will allocate.  +1 to
-  // leave room for a NULL terminator.
-  apache_cmds_ = new command_rec[num_cmds + v.size() + 1];
-  memcpy(apache_cmds_, net_instaweb::mod_pagespeed_filter_cmds,
-         num_cmds * sizeof(*apache_cmds_));
-  command_rec* cmd = apache_cmds_ + num_cmds;
-  cmd_names_.resize(v.size());
-
-  for (int i = 0, n = v.size(); i < n; ++i) {
-    RewriteOptions::OptionBase* option = v[i];
-
-    // Skip entries with null documentation -- entries lacking doc
-    // are an indication that the option is not available for MPS.
-    if (option->help_text() != NULL) {
-      // Store the fully-qualified option name in a string-array that
-      // lasts until the module is destructed.
-      StrAppend(&cmd_names_[i], "ModPagespeed", option->option_name());
-      cmd->name = cmd_names_[i].c_str();
-      cmd->func = reinterpret_cast<const char*(*)()>(ParseDirective);
-      cmd->cmd_data = NULL;
-      switch (option->scope()) {
-        case RewriteOptions::kDirectoryScope:
-          cmd->req_override = OR_ALL;
-          break;
-        case RewriteOptions::kServerScope:
-          cmd->req_override = RSRC_CONF;
-          break;
-        case RewriteOptions::kProcessScopeStrict:
-          vhost_command_handling_map_[cmd] = kErrorInVHost;
-          cmd->req_override = RSRC_CONF;
-          break;
-        case RewriteOptions::kProcessScope:
-          vhost_command_handling_map_[cmd] = kTolerateInVHost;
-          cmd->req_override = RSRC_CONF;
-          break;
-      }
-      cmd->args_how = TAKE1;
-      cmd->errmsg = option->help_text();
-      ++cmd;
-    }
-  }
-  cmd->name = NULL;
-  cmd->func = 0;
-  cmd->cmd_data = NULL;
-  cmd->req_override = 0;
-  cmd->args_how = RAW_ARGS;
-  cmd->errmsg = NULL;
-  pagespeed_module.cmds = apache_cmds_;
-}
-
-}  // namespace net_instaweb

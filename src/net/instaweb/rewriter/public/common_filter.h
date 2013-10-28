@@ -19,21 +19,19 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class GoogleUrl;
-class HtmlCharactersNode;
 class HtmlElement;
-class HtmlNode;
+class ServerContext;
 class ResponseHeaders;
 class RewriteOptions;
-class ServerContext;
 
 // CommonFilter encapsulates useful functionality that many filters will want.
 // All filters who want this functionality should inherit from CommonFilter and
@@ -61,30 +59,10 @@ class CommonFilter : public EmptyHtmlFilter {
 
   HtmlElement* noscript_element() const { return noscript_element_; }
 
-  // Insert a node at the best available location in or near the closing body
-  // tag during EndDocument. This is useful for filters that want to insert
-  // scripts or summary data at the end of body, but need to wait until
-  // EndDocument to do so.
-  //
-  // Tries to inject just before </body> if nothing else intervenes; otherwise
-  // tries to inject before </html> or, failing that, at the end of all content.
-  // This latter case still works in browsers, but breaks HTML validation (and
-  // is incredibly ugly). It can be necessitated by other post-</html> content,
-  // or by flushes in the body.
-  //
-  // Note that if a subclass overloads the Characters function, it needs to call
-  // the parent implementation for this function to be correct.
-  void InsertNodeAtBodyEnd(HtmlNode* data);
-
   // Note: Don't overload these methods, overload the implementers instead!
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
-
-  // If a subclass overloads this function and wishes to use
-  // InsertNodeAtBodyEnd(), it needs to make an upcall to this implementation
-  // for InsertNodeAtBodyEnd() to work correctly.
-  virtual void Characters(HtmlCharactersNode* characters);
 
   // Creates an input resource with the url evaluated based on input_url
   // which may need to be absolutified relative to base_url().  Returns NULL if
@@ -98,7 +76,7 @@ class CommonFilter : public EmptyHtmlFilter {
   // base tag.  After the filter sees the base tag, it will return true.
   bool BaseUrlIsValid() const;
 
-  RewriteDriver* driver() const { return driver_; }
+  RewriteDriver* driver() { return driver_; }
 
   // Returns whether the current options specify the "debug" filter.
   // If set, then other filters can annotate output HTML with HTML
@@ -138,17 +116,13 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual void StartElementImpl(HtmlElement* element) = 0;
   virtual void EndElementImpl(HtmlElement* element) = 0;
 
-  // ID string used in logging. Inheritors should supply whatever short ID
-  // string they use.
-  virtual const char* LoggingId() { return Name(); }
-  // Protected pointers for inheritors to use.
+  // Protected pointers for inheriter's to use
   RewriteDriver* driver_;
   ServerContext* server_context_;
   const RewriteOptions* rewrite_options_;
 
  private:
   HtmlElement* noscript_element_;
-  HtmlElement* end_body_point_;
   bool seen_base_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonFilter);

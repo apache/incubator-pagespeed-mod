@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
@@ -28,7 +27,7 @@ namespace net_instaweb {
 class HtmlElement;
 class RewriteDriver;
 class RewriteOptions;
-class StaticAssetManager;
+class StaticJavascriptManager;
 class Statistics;
 
 // Filter to lazyload images by replacing the src with a pagespeed_lazy_src
@@ -75,6 +74,7 @@ class Statistics;
 class LazyloadImagesFilter : public CommonFilter {
  public:
   static const char* kImageLazyloadCode;
+  static const char* kBlankImageSrc;
   static const char* kImageOnloadCode;
   static const char* kLoadAllImages;
   static const char* kOverrideAttributeFunctions;
@@ -89,24 +89,21 @@ class LazyloadImagesFilter : public CommonFilter {
   static void Terminate();
 
   // Lazyload filter will be no op for the request if ShouldApply returns false.
-  static RewriterHtmlApplication::Status ShouldApply(RewriteDriver* driver);
+  static bool ShouldApply(RewriteDriver* driver);
   static GoogleString GetLazyloadJsSnippet(
       const RewriteOptions* options,
-      StaticAssetManager* static_asset_manager);
+      StaticJavascriptManager* static_js_manager);
 
  private:
   virtual void StartDocumentImpl();
   virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled();
 
   // Clears all state associated with the filter.
   void Clear();
 
-  static GoogleString GetBlankImageSrc(
-      const RewriteOptions* options,
-      const StaticAssetManager* static_asset_manager);
+  static GoogleString GetBlankImageSrc(const RewriteOptions* options);
 
   // Inserts the lazyload JS code before the given element.
   void InsertLazyloadJsCode(HtmlElement* element);

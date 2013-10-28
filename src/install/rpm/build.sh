@@ -207,11 +207,8 @@ verify_channel
 
 APACHE_CONFDIR="/etc/httpd/conf.d"
 MOD_PAGESPEED_CACHE="/var/cache/mod_pagespeed"
-MOD_PAGESPEED_LOG="/var/log/pagespeed"
 APACHE_USER="apache"
 COMMENT_OUT_DEFLATE=
-SSL_CERT_DIR="/etc/pki/tls/certs"
-SSL_CERT_FILE_COMMAND="ModPagespeedSslCertFile /etc/pki/tls/cert.pem"
 
 # Make everything happen in the OUTPUTDIR.
 cd "${OUTPUTDIR}"

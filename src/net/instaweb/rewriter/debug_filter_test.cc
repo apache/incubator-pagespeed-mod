@@ -18,15 +18,23 @@
 
 #include "net/instaweb/rewriter/public/debug_filter.h"
 
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include <vector>
+
+#include "base/logging.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -85,7 +93,7 @@ class DebugFilterTest : public RewriteTestBase {
 
   GoogleString OptScriptHtml() {
     return StringPrintf(kScriptFormat,
-                        Encode("", "ce", "0", kScript, "js").c_str());
+                        Encode(kTestDomain, "ce", "0", kScript, "js").c_str());
   }
 
   void InitiateScriptRewrite() {
@@ -200,48 +208,6 @@ TEST_F(DebugFilterTest, EndWithDelayedCache) {
   ASSERT_EQ(1, flush_messages.size());
   EXPECT_EQ(DebugFilter::FormatEndDocumentMessage(0, 0, delay_us, 0, 0),
             flush_messages[0]);
-}
-
-TEST_F(DebugFilterTest, FlushInStyleTag) {
-  // Verify that flush comments do not get insert in the middle of a literal tag
-  // (style or script) and instead are buffered until the end of that element.
-  const char kStyleStartTag[] = "<style>";
-  const char kStyleEndTag[] = "</style>";
-  const char kCss1[] = ".a { color:red; }";
-  const char kCss2[] = ".b { color:blue; }";
-  rewrite_driver()->StartParse(kTestDomain);
-  AdvanceTimeUs(1);
-  rewrite_driver()->ParseText(kStyleStartTag);
-  rewrite_driver()->ParseText(kCss1);
-  AdvanceTimeUs(10);                  // 11us elapsed so far.
-  rewrite_driver()->Flush();
-  AdvanceTimeUs(10);                  // 21us elapsed so far.
-  rewrite_driver()->ParseText(kCss2);
-  AdvanceTimeUs(10);                  // 31us elapsed so far.
-  rewrite_driver()->Flush();
-  AdvanceTimeUs(10);                  // 41us elapsed so far.
-  rewrite_driver()->ParseText(kStyleEndTag);
-  AdvanceTimeUs(10);                  // 51us elapsed so far.
-  rewrite_driver()->FinishParse();
-  EXPECT_STREQ(
-      StrCat(
-          StrCat("<!--",
-                 DebugFilter::FormatFlushMessage(11, 0, 0, 11),
-                 "-->"),
-          kStyleStartTag,
-          kCss1,
-          kCss2,
-          kStyleEndTag,
-          StrCat("<!--",
-                 DebugFilter::FormatFlushMessage(31, 0, 0, 20),
-                 "-->"),
-          StrCat("<!--",
-                 DebugFilter::FormatFlushMessage(51, 0, 0, 20),
-                 "-->"),
-          StrCat("<!--",
-                 DebugFilter::FormatEndDocumentMessage(51, 0, 0, 51, 2),
-                 "-->")),
-      output_buffer_);
 }
 
 }  // namespace

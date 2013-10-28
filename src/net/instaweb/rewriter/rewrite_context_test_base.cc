@@ -20,20 +20,6 @@
 // interaction with various subsystems.
 
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
-
-#include "base/logging.h"
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/util/public/function.h"
-#include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/stl_util.h"
 
 namespace net_instaweb {
@@ -43,9 +29,6 @@ const char TrimWhitespaceSyncFilter::kFilterId[] = "ts";
 const char UpperCaseRewriter::kFilterId[] = "uc";
 const char NestedFilter::kFilterId[] = "nf";
 const char CombiningFilter::kFilterId[] = "cr";
-// This is needed to prevent link error due to EXPECT_EQ on this field in
-// RewriteContextTest::TrimFetchHashFailedShortTtl.
-const int64 RewriteContextTestBase::kLowOriginTtlMs;
 
 TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {
 }
@@ -53,7 +36,7 @@ TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {
 bool TrimWhitespaceRewriter::RewriteText(const StringPiece& url,
                                          const StringPiece& in,
                                          GoogleString* out,
-                                         ServerContext* server_context) {
+                                         ServerContext* resource_manager) {
   LOG(INFO) << "Trimming whitespace.";
   ++num_rewrites_;
   TrimWhitespace(in, out);
@@ -100,11 +83,11 @@ void NestedFilter::Context::RewriteSingle(
   SplitStringPieceToVector(input->contents(), "\n", &pieces, true);
 
   GoogleUrl base(input->url());
-  if (base.IsWebValid()) {
+  if (base.is_valid()) {
     // Add a new nested multi-slot context.
     for (int i = 0, n = pieces.size(); i < n; ++i) {
       GoogleUrl url(base, pieces[i]);
-      if (url.IsWebValid()) {
+      if (url.is_valid()) {
         ResourcePtr resource(Driver()->CreateInputResource(url));
         if (resource.get() != NULL) {
           ResourceSlotPtr slot(new NestedSlot(resource));
@@ -147,15 +130,17 @@ void NestedFilter::Context::Harvest() {
     ResourcePtr resource(slot->resource());
     StrAppend(&new_content, resource->url(), "\n");
   }
-
+  ServerContext* resource_manager = FindServerContext();
+  MessageHandler* message_handler = resource_manager->message_handler();
   // Warning: this uses input's content-type for simplicity, but real
   // filters should not do that --- see comments in
   // CacheExtender::RewriteLoadedResource as to why.
-  if (Driver()->Write(ResourceVector(1, slot(0)->resource()),
-                      new_content,
-                      slot(0)->resource()->type(),
-                      slot(0)->resource()->charset(),
-                      output(0).get())) {
+  if (resource_manager->Write(ResourceVector(1, slot(0)->resource()),
+                              new_content,
+                              slot(0)->resource()->type(),
+                              slot(0)->resource()->charset(),
+                              output(0).get(),
+                              message_handler)) {
     result = kRewriteOk;
   }
   RewriteDone(result, 0);
@@ -181,10 +166,6 @@ CombiningFilter::CombiningFilter(RewriteDriver* driver,
                                  int64 rewrite_delay_ms)
     : RewriteFilter(driver),
       scheduler_(scheduler),
-      num_rewrites_(0),
-      num_render_(0),
-      num_will_not_render_(0),
-      num_cancel_(0),
       rewrite_delay_ms_(rewrite_delay_ms),
       rewrite_block_on_(NULL),
       rewrite_signal_on_(NULL),
@@ -213,20 +194,13 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
   MessageHandler* handler = Driver()->message_handler();
   CachedResult* partition = partitions->add_partition();
   for (int i = 0, n = num_slots(); i < n; ++i) {
-    if (!slot(i)->resource()->IsSafeToRewrite(rewrite_uncacheable()) ||
-        !combiner_.AddResourceNoFetch(slot(i)->resource(), handler).value) {
-      return false;
-    }
-    // This should be called after checking IsSafeToRewrite, since
-    // AddInputInfoToPartition requires the resource to be loaded()
     slot(i)->resource()->AddInputInfoToPartition(
         Resource::kIncludeInputHash, i, partition);
+    if (!combiner_.AddResourceNoFetch(slot(i)->resource(), handler).value) {
+      return false;
+    }
   }
   OutputResourcePtr combination(combiner_.MakeOutput());
-  // MakeOutput can fail if for example there is only one input resource.
-  if (combination.get() == NULL) {
-    return false;
-  }
 
   // ResourceCombiner provides us with a pre-populated CachedResult,
   // so we need to copy it over to our CachedResult.  This is
@@ -255,7 +229,7 @@ void CombiningFilter::Context::Rewrite(int partition_index,
         1000 * filter_->rewrite_delay_ms();
     Function* closure = MakeFunction(
         this, &Context::DoRewrite, partition_index, partition, output);
-    scheduler_->AddAlarmAtUs(wakeup_us, closure);
+    scheduler_->AddAlarm(wakeup_us, closure);
   }
 }
 
@@ -281,20 +255,11 @@ void CombiningFilter::Context::DoRewrite(int partition_index,
 }
 
 void CombiningFilter::Context::Render() {
-  ++filter_->num_render_;
   // Slot 0 will be replaced by the combined resource as part of
   // rewrite_context.cc.  But we still need to delete slots 1-N.
   for (int p = 0, np = num_output_partitions(); p < np; ++p) {
     DisableRemovedSlots(output_partition(p));
   }
-}
-
-void CombiningFilter::Context::WillNotRender() {
-  ++filter_->num_will_not_render_;
-}
-
-void CombiningFilter::Context::Cancel() {
-  ++filter_->num_cancel_;
 }
 
 void CombiningFilter::Context::DisableRemovedSlots(CachedResult* partition) {
@@ -322,7 +287,6 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-const int64 RewriteContextTestBase::kRewriteDeadlineMs;
 
 RewriteContextTestBase::~RewriteContextTestBase() {
 }
@@ -332,15 +296,16 @@ void RewriteContextTestBase::SetUp() {
   other_trim_filter_ = NULL;
   combining_filter_ = NULL;
   nested_filter_ = NULL;
+  logging_info_ = log_record_.logging_info();
+
+  RewriteTestBase::SetUp();
+
   // The default deadline set in RewriteDriver is dependent on whether
   // the system was compiled for debug, or is being run under valgrind.
   // However, the unit-tests here use mock-time so we want to set the
   // deadline explicitly.
-  options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  other_options()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
-  RewriteTestBase::SetUp();
-  EXPECT_EQ(kRewriteDeadlineMs, rewrite_driver()->rewrite_deadline_ms());
-  EXPECT_EQ(kRewriteDeadlineMs, other_rewrite_driver()->rewrite_deadline_ms());
+  rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
+  other_rewrite_driver()->set_rewrite_deadline_ms(kRewriteDeadlineMs);
 }
 
 void RewriteContextTestBase::TearDown() {
@@ -363,16 +328,6 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   SetFetchResponse(StrCat(domain, "c.css"), default_css_header,
                    "a.css\nb.css\n");
 
-  // not trimmable, low ttl.
-  ResponseHeaders low_ttl_css_header;
-  SetDefaultLongCacheHeaders(&kContentTypeCss, &low_ttl_css_header);
-  low_ttl_css_header.SetDateAndCaching(now_ms, kLowOriginTtlMs);
-  low_ttl_css_header.ComputeCaching();
-  SetFetchResponse(StrCat(domain, "d.css"), low_ttl_css_header, "d");
-
-  // trimmable, low ttl.
-  SetFetchResponse(StrCat(domain, "e.css"), low_ttl_css_header, " e ");
-
   // trimmable, with charset.
   ResponseHeaders encoded_css_header;
   server_context()->SetDefaultLongCacheHeadersWithCharset(
@@ -382,6 +337,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
 
   // trimmable, private
   ResponseHeaders private_css_header;
+  now_ms = http_cache()->timer()->NowMs();
   private_css_header.set_major_version(1);
   private_css_header.set_minor_version(1);
   private_css_header.SetStatusAndReason(HttpStatus::kOK);
@@ -394,6 +350,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
 
   // trimmable, no-cache
   ResponseHeaders no_cache_css_header;
+  now_ms = http_cache()->timer()->NowMs();
   no_cache_css_header.set_major_version(1);
   no_cache_css_header.set_minor_version(1);
   no_cache_css_header.SetStatusAndReason(HttpStatus::kOK);
@@ -404,21 +361,9 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
                    no_cache_css_header,
                    " a ");
 
-  // trimmable, no-transform
-  ResponseHeaders no_transform_css_header;
-  no_transform_css_header.set_major_version(1);
-  no_transform_css_header.set_minor_version(1);
-  no_transform_css_header.SetStatusAndReason(HttpStatus::kOK);
-  no_transform_css_header.SetDateAndCaching(now_ms, kOriginTtlMs,
-                                            ",no-transform");
-  no_transform_css_header.ComputeCaching();
-
-  SetFetchResponse(StrCat(domain, "a_no_transform.css"),
-                   no_transform_css_header,
-                   " a ");
-
   // trimmable, no-cache, no-store
   ResponseHeaders no_store_css_header;
+  now_ms = http_cache()->timer()->NowMs();
   no_store_css_header.set_major_version(1);
   no_store_css_header.set_minor_version(1);
   no_store_css_header.SetStatusAndReason(HttpStatus::kOK);
@@ -489,6 +434,7 @@ void RewriteContextTestBase::ClearStats() {
   if (nested_filter_ != NULL) {
     nested_filter_->ClearStats();
   }
+  log_record_.logging_info()->Clear();
 }
 
 }  // namespace net_instaweb

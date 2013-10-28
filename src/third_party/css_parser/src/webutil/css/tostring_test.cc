@@ -90,19 +90,12 @@ TEST_F(ToStringTest, misc) {
                  "@media print, screen { a {top: 1} }\n"
                  "b {color: #ff0000}\n");
 
-  scoped_ptr<Css::Parser> parser(new Css::Parser("a {top: 1}"));
-  scoped_ptr<Css::Stylesheet> stylesheet(parser->ParseStylesheet());
+  Css::Parser parser("a {top: 1}");
+  scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseStylesheet());
   stylesheet->set_type(Css::Stylesheet::SYSTEM);
   EXPECT_EQ("/* SYSTEM */\n\n\n"
             "a {top: 1}\n",
             stylesheet->ToString());
-
-  // Make sure we correctly deal with escaped newline.
-  parser.reset(new Css::Parser("a { content: 'line 1\\\n"
-                               "line 2'; }"));
-  stylesheet.reset(parser->ParseStylesheet());
-  EXPECT_EQ("/* AUTHOR */\n\n\n"
-            "a {content: \"line 1line 2\"}\n", stylesheet->ToString());
 }
 
 TEST_F(ToStringTest, SpecialChars) {

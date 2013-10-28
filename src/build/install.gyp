@@ -14,7 +14,7 @@
     ['OS=="linux"', {
       'variables': {
         'version' : '<!(python <(version_py_path) -f <(version_path) -t "@MAJOR@.@MINOR@.@BUILD@.@PATCH@")',
-        'revision' : '<!(<(DEPTH)/build/lastchange.sh <(DEPTH) -d <(DEPTH)/LASTCHANGE.in | cut -d "=" -f 2)',
+        'revision' : '<!(python <(DEPTH)/build/util/lastchange.py | cut -d "=" -f 2)',
         'packaging_files_common': [
           '<(install_path)/common/apt.include',
           '<(install_path)/common/mod-pagespeed/mod-pagespeed.info',
@@ -125,7 +125,7 @@
           'suppress_wildcard': 1,
           'type': 'none',
           'dependencies': [
-            'all.gyp:All',
+            '<(DEPTH)/net/instaweb/mod_pagespeed.gyp:*',
             'linux_installer_configs',
           ],
           'actions': [
@@ -153,7 +153,7 @@
           'suppress_wildcard': 1,
           'type': 'none',
           'dependencies': [
-            'all.gyp:All',
+            '<(DEPTH)/net/instaweb/mod_pagespeed.gyp:*',
             'linux_installer_configs',
           ],
           'actions': [

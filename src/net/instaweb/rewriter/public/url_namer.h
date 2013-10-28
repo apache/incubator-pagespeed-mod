@@ -21,12 +21,13 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+class Function;
 class GoogleUrl;
 class OutputResource;
+class MessageHandler;
 class RequestHeaders;
 class RewriteOptions;
 
@@ -42,6 +43,18 @@ class UrlNamer {
     kUnsharded
   };
 
+  class Callback {
+   public:
+    Callback() {}
+    virtual ~Callback();
+    // Provide the Callback function which will be executed once we have
+    // rewrite_options. It is the responsibility of Done() function to
+    // delete the Callback.
+    virtual void Done(RewriteOptions* rewrite_options) = 0;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Callback);
+  };
   UrlNamer();
   virtual ~UrlNamer();
 
@@ -74,6 +87,19 @@ class UrlNamer {
   virtual bool IsAuthorized(const GoogleUrl& request_url,
                             const RewriteOptions& options) const;
 
+  // Given the request url and request headers, generate the rewrite options.
+  virtual void DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const;
+
+  // Modifies the request prior to dispatch to the underlying fetcher.
+  virtual void PrepareRequest(const RewriteOptions* rewrite_options,
+                              GoogleString* url,
+                              RequestHeaders* request_headers,
+                              bool* success,
+                              Function* func, MessageHandler* handler);
+
   // Configure custom options. Note that options may be NULL.
   virtual void ConfigureCustomOptions(const RequestHeaders& request_headers,
                                       RewriteOptions* options) const {}
@@ -86,11 +112,6 @@ class UrlNamer {
   // proxy domain.
   virtual bool IsProxyEncoded(const GoogleUrl& url) const { return false; }
 
-  // Resolve the given url to origin url based on the rewrite options
-  // and referer information. Returns true if the url is updated.
-  virtual bool ResolveToOriginUrl(const RewriteOptions& options,
-                                  const StringPiece& referer_url_str,
-                                  GoogleUrl* request_url) const;
   const GoogleString& get_proxy_domain() {
     return proxy_domain_;
   }

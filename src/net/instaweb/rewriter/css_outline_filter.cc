@@ -61,7 +61,7 @@ void CssOutlineFilter::StartElementImpl(HtmlElement* element) {
   if (inline_element_ != NULL) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
     driver_->ErrorHere("Tag '%s' found inside style.",
-                       CEscape(element->name_str()).c_str());
+                           element->name_str());
     inline_element_ = NULL;  // Don't outline what we don't understand.
     inline_chars_ = NULL;
   }
@@ -77,6 +77,11 @@ void CssOutlineFilter::EndElementImpl(HtmlElement* element) {
     if (inline_chars_ != NULL &&
         inline_chars_->contents().size() >= size_threshold_bytes_) {
       OutlineStyle(inline_element_, inline_chars_->contents());
+    } else {
+      int size = (inline_chars_ == NULL ? 0 : inline_chars_->contents().size());
+      driver_->InfoHere("Inline element not outlined because its size %d, "
+                        "is below threshold %d",
+                        size, static_cast<int>(size_threshold_bytes_));
     }
     inline_element_ = NULL;
     inline_chars_ = NULL;
@@ -104,8 +109,9 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
   // TODO(matterbury) but AFAICT you cannot have a BOM in a <style> tag.
-  return driver_->Write(
-      ResourceVector(), content, &kContentTypeCss, StringPiece(), resource);
+  return server_context_->Write(
+      ResourceVector(), content, &kContentTypeCss, StringPiece(),
+      resource, handler);
 }
 
 // Create file with style content and remove that element from DOM.
@@ -158,10 +164,10 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
             link_element->AddAttribute(attr);
           }
           // Add link to DOM.
-          driver_->InsertNodeAfterNode(style_element, link_element);
+          driver_->InsertElementAfterElement(style_element, link_element);
           // Remove style element from DOM.
-          if (!driver_->DeleteNode(style_element)) {
-            driver_->FatalErrorHere("Failed to delete inline style element");
+          if (!driver_->DeleteElement(style_element)) {
+            driver_->FatalErrorHere("Failed to delete inline sytle element");
           }
         }
       }

@@ -136,13 +136,11 @@ class JsCodeBlockTest : public testing::Test {
   }
 
   void ExpectStats(int blocks_minified, int minification_failures,
-                   int total_bytes_saved, int total_original_bytes,
-                   int num_reducing_uses) {
+                   int total_bytes_saved, int total_original_bytes) {
     EXPECT_EQ(blocks_minified, config_->blocks_minified()->Get());
     EXPECT_EQ(minification_failures, config_->minification_failures()->Get());
     EXPECT_EQ(total_bytes_saved, config_->total_bytes_saved()->Get());
     EXPECT_EQ(total_original_bytes, config_->total_original_bytes()->Get());
-    EXPECT_EQ(num_reducing_uses, config_->num_reducing_uses()->Get());
     // Note: We cannot compare num_uses() because we only use it in
     // javascript_filter.cc, not javascript_code_block.cc.
   }
@@ -181,7 +179,7 @@ class JsCodeBlockTest : public testing::Test {
     ExpectStats(1, 0,
                 STATIC_STRLEN(kBeforeCompilation) -
                 STATIC_STRLEN(kAfterCompilation),
-                STATIC_STRLEN(kBeforeCompilation), 1);
+                STATIC_STRLEN(kBeforeCompilation));
   }
 
   GoogleMessageHandler handler_;
@@ -195,7 +193,7 @@ class JsCodeBlockTest : public testing::Test {
 
 TEST_F(JsCodeBlockTest, Config) {
   EXPECT_TRUE(config_->minify());
-  ExpectStats(0, 0, 0, 0, 0);
+  ExpectStats(0, 0, 0, 0);
 }
 
 TEST_F(JsCodeBlockTest, Rewrite) {
@@ -223,21 +221,21 @@ TEST_F(JsCodeBlockTest, NoRewrite) {
   EXPECT_EQ(kAfterCompilation, block->Rewritten());
   // Note: We do record this as a successful minification.
   // Just with 0 bytes saved.
-  ExpectStats(1, 0, 0, STATIC_STRLEN(kAfterCompilation), 0);
+  ExpectStats(1, 0, 0, STATIC_STRLEN(kAfterCompilation));
 }
 
 TEST_F(JsCodeBlockTest, TruncatedComment) {
   scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedComment));
   EXPECT_FALSE(block->ProfitableToRewrite());
   EXPECT_EQ(kTruncatedComment, block->Rewritten());
-  ExpectStats(0, 1, 0, 0, 0);
+  ExpectStats(0, 1, 0, 0);
 }
 
 TEST_F(JsCodeBlockTest, TruncatedString) {
   scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedString));
   EXPECT_FALSE(block->ProfitableToRewrite());
   EXPECT_EQ(kTruncatedString, block->Rewritten());
-  ExpectStats(0, 1, 0, 0, 0);
+  ExpectStats(0, 1, 0, 0);
 }
 
 TEST_F(JsCodeBlockTest, NoMinification) {
@@ -247,7 +245,7 @@ TEST_F(JsCodeBlockTest, NoMinification) {
   scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   EXPECT_FALSE(block->ProfitableToRewrite());
   EXPECT_EQ(kBeforeCompilation, block->Rewritten());
-  ExpectStats(0, 0, 0, 0, 0);
+  ExpectStats(0, 0, 0, 0);
 }
 
 TEST_F(JsCodeBlockTest, DealWithSgmlComment) {
@@ -260,7 +258,7 @@ TEST_F(JsCodeBlockTest, DealWithSgmlComment) {
   EXPECT_EQ(kExpected, block->Rewritten());
   ExpectStats(1, 0,
               STATIC_STRLEN(kOriginal) - STATIC_STRLEN(kExpected),
-              STATIC_STRLEN(kOriginal), 1);
+              STATIC_STRLEN(kOriginal));
 }
 
 TEST_F(JsCodeBlockTest, IdentifyUnminified) {
@@ -299,7 +297,7 @@ TEST_F(JsCodeBlockTest, IdentifyNoMinification) {
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
   EXPECT_FALSE(block->ProfitableToRewrite());
   EXPECT_EQ(kBeforeCompilation, block->Rewritten());
-  ExpectStats(1, 0, 0, 0, 0);
+  ExpectStats(1, 0, 0, 0);
 }
 
 TEST_F(JsCodeBlockTest, IdentifyNoMatch) {
@@ -330,18 +328,6 @@ TEST_F(JsCodeBlockTest, BogusLibraryRegistration) {
   // Try to register a library with a bad url
   EXPECT_FALSE(libraries_.RegisterLibrary(47, kBogusLibraryMD5,
                                           "totally://bogus.protocol/"));
-  EXPECT_FALSE(libraries_.RegisterLibrary(74, kBogusLibraryMD5,
-                                          "totally:bogus.protocol"));
-
-  // Don't allow non-standard protocols either.
-  EXPECT_FALSE(libraries_.RegisterLibrary(138, kBogusLibraryMD5,
-                                          "mailto:johndoe@example.com"));
-  EXPECT_FALSE(libraries_.RegisterLibrary(150, kBogusLibraryMD5,
-                                          "ftp://www.example.com/test.js"));
-  EXPECT_FALSE(libraries_.RegisterLibrary(222, kBogusLibraryMD5,
-                                          "file:///etc/passwd"));
-  EXPECT_FALSE(libraries_.RegisterLibrary(234, kBogusLibraryMD5,
-                                          "data:text/plain,Hello-world"));
 }
 
 }  // namespace

@@ -21,7 +21,6 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -41,10 +40,7 @@ class DomainLawyerTest : public testing::Test {
   DomainLawyerTest()
       : orig_request_("http://www.nytimes.com/index.html"),
         port_request_("http://www.nytimes.com:8080/index.html"),
-        https_request_("https://www.nytimes.com/index.html"),
-        message_handler_(new NullMutex) {
-    domain_lawyer_with_all_domains_authorized_.AddDomain(
-        "*", &message_handler_);
+        https_request_("https://www.nytimes.com/index.html") {
   }
 
   // Syntactic sugar to map a request.
@@ -91,16 +87,10 @@ class DomainLawyerTest : public testing::Test {
     return domain_lawyer_.AddShard(domain, shards, &message_handler_);
   }
 
-  bool WillDomainChange(StringPiece url) {
-    GoogleUrl gurl(domain_lawyer_.NormalizeDomainName(url));
-    return domain_lawyer_.WillDomainChange(gurl);
-  }
-
   GoogleUrl orig_request_;
   GoogleUrl port_request_;
   GoogleUrl https_request_;
   DomainLawyer domain_lawyer_;
-  DomainLawyer domain_lawyer_with_all_domains_authorized_;
   MockMessageHandler message_handler_;
 };
 
@@ -275,27 +265,22 @@ TEST_F(DomainLawyerTest, ResourceFromHttpsPage) {
 TEST_F(DomainLawyerTest, MapHttpsAcrossHosts) {
   ASSERT_TRUE(AddOriginDomainMapping("http://insecure.nytimes.com",
                                      "https://secure.nytimes.com"));
-  ASSERT_TRUE(AddOriginDomainMapping("https://secure.nytimes.com",
-                                     "http://insecure.nytimes.com"));
+  ASSERT_FALSE(AddOriginDomainMapping("https://secure.nytimes.com",
+                                      "http://insecure.nytimes.com"));
   GoogleString mapped;
   ASSERT_TRUE(MapOrigin(
       "https://secure.nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://insecure.nytimes.com/css/stylesheet.css", mapped);
-  ASSERT_TRUE(MapOrigin(
-      "http://insecure.nytimes.com/css/stylesheet.css", &mapped));
-  EXPECT_EQ("https://secure.nytimes.com/css/stylesheet.css", mapped);
 }
 
 TEST_F(DomainLawyerTest, MapHttpsAcrossSchemes) {
   ASSERT_TRUE(AddOriginDomainMapping("http://nytimes.com",
                                      "https://nytimes.com"));
-  ASSERT_TRUE(AddOriginDomainMapping("https://nytimes.com",
-                                     "http://nytimes.com"));
+  ASSERT_FALSE(AddOriginDomainMapping("https://nytimes.com",
+                                      "http://nytimes.com"));
   GoogleString mapped;
   ASSERT_TRUE(MapOrigin("https://nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://nytimes.com/css/stylesheet.css", mapped);
-  ASSERT_TRUE(MapOrigin("http://nytimes.com/css/stylesheet.css", &mapped));
-  EXPECT_EQ("https://nytimes.com/css/stylesheet.css", mapped);
 }
 
 TEST_F(DomainLawyerTest, MapHttpsAcrossPorts) {
@@ -692,9 +677,6 @@ TEST_F(DomainLawyerTest, RootDomainOfProxySourceNotAuthorized) {
   // It is not OK to rewrite content on external.com.
   EXPECT_FALSE(domain_lawyer_.IsDomainAuthorized(context_gurl,
                                                  external_domain));
-  EXPECT_TRUE(
-      domain_lawyer_with_all_domains_authorized_.IsDomainAuthorized(
-          context_gurl, external_domain));
 
   // But it *is* OK to rewrite content on external.com/static.
   external_domain.Reset("http://external.com/static/");
@@ -744,7 +726,7 @@ TEST_F(DomainLawyerTest, MapOriginDomain) {
 TEST_F(DomainLawyerTest, ProxyExternalResource) {
   GoogleUrl context_gurl("http://origin.com/index.html");
   ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://origin.com/external", "http://external.com/static", "",
+      "http://origin.com/external", "http://external.com/static",
       &message_handler_));
 
   // Map proxy_this.png to a subdirectory in origin.com.
@@ -771,104 +753,10 @@ TEST_F(DomainLawyerTest, ProxyExternalResource) {
                           &mapped_domain_name, &resolved_request));
 }
 
-// Test a situation in which origin is proxied, optimized, and rewritten to a
-// CDN.
-TEST_F(DomainLawyerTest, ProxyExternalResourceToCDN) {
-  GoogleUrl context_gurl("http://proxy.com/index.html");
-  ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/external",  // Proxies origin, optimizes.
-      "http://origin.com/static",   // Origin server, potentially external.
-      "http://cdn.com/external",    // CDN, caches responses.
-      &message_handler_));
-
-  GoogleUrl resolved_request;
-  GoogleString mapped_domain_name;
-
-  // We should rewrite origin.com/static to cdn.com/external
-  const char kUrlToProxy[] = "http://origin.com/static/images/proxy_this.png";
-  ASSERT_TRUE(MapRequest(context_gurl, kUrlToProxy, &mapped_domain_name,
-                         &resolved_request));
-  EXPECT_STREQ("http://cdn.com/external/images/proxy_this.png",
-               resolved_request.Spec());
-
-  // We should also rewrite proxy.com/external to cdn.com/external for looking
-  // up cached resources on proxy.com.
-  ASSERT_TRUE(
-      MapRequest(context_gurl,
-                         "http://proxy.com/external/images/proxy_this.png",
-                         &mapped_domain_name,
-                         &resolved_request));
-  EXPECT_STREQ("http://cdn.com/external/images/proxy_this.png",
-               resolved_request.Spec());
-
-  GoogleString external_url;
-
-  // Map CDN domain to Origin
-  ASSERT_TRUE(MapProxy("http://cdn.com/external/images/proxy_this.png",
-                        &external_url));
-  EXPECT_EQ(kUrlToProxy, external_url);
-
-  // Map Proxy domain to Origin
-  ASSERT_TRUE(MapProxy("http://proxy.com/external/images/proxy_this.png",
-                       &external_url));
-  EXPECT_EQ(kUrlToProxy, external_url);
-
-  // Just because we enabled proxying from origin.com/static, doesn't mean
-  // we want to proxy from origin.com/evil or origin.com.
-  EXPECT_FALSE(MapRequest(context_gurl, "http://origin.com/evil/gifar.gif",
-                          &mapped_domain_name, &resolved_request));
-  EXPECT_FALSE(MapRequest(context_gurl, "http://origin.com/gifar.gif",
-                          &mapped_domain_name, &resolved_request));
-
-  GoogleUrl proxy_url("http://proxy.com/external/a.b");
-  EXPECT_TRUE(domain_lawyer_.IsProxyMapped(proxy_url));
-  GoogleUrl non_proxy_url("http://proxy.com/a.b");
-  EXPECT_FALSE(domain_lawyer_.IsProxyMapped(non_proxy_url));
-  GoogleUrl origin_url("http://origin.com/static/a.b");
-  EXPECT_FALSE(domain_lawyer_.IsProxyMapped(origin_url));
-  GoogleUrl non_origin_url("http://origin.com/a.b");
-  EXPECT_FALSE(domain_lawyer_.IsProxyMapped(non_origin_url));
-  GoogleUrl cdn_url("http://cdn.com/external/a.b");
-  EXPECT_TRUE(domain_lawyer_.IsProxyMapped(cdn_url));
-  GoogleUrl non_cdn_url("http://cdn.com/a.b");
-  EXPECT_FALSE(domain_lawyer_.IsProxyMapped(non_cdn_url));
-}
-
-TEST_F(DomainLawyerTest, ProxyExternalResourceFromHttps) {
-  GoogleUrl context_gurl("http://origin.com/index.html");
-  ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://origin.com/external", "https://external.com/static", NULL,
-      &message_handler_));
-
-  // Map proxy_this.png to a subdirectory in origin.com.
-  GoogleUrl resolved_request;
-  GoogleString mapped_domain_name;
-  const char kUrlToProxy[] =
-      "https://external.com/static/images/proxy_this.png";
-  ASSERT_TRUE(MapRequest(context_gurl, kUrlToProxy, &mapped_domain_name,
-                         &resolved_request));
-  EXPECT_STREQ("http://origin.com/external/", mapped_domain_name);
-  EXPECT_STREQ("http://origin.com/external/images/proxy_this.png",
-               resolved_request.Spec());
-
-  // But when we fetch this resource, we won't find it in external.com so we
-  // must map it back to origin.com/static.
-  GoogleString origin_url;
-  ASSERT_TRUE(MapProxy(resolved_request.Spec(), &origin_url));
-  EXPECT_EQ(kUrlToProxy, origin_url);
-
-  // Just because we enabled proxying from external.com/static, doesn't mean
-  // we want to proxy from external.com/evil or external.com.
-  EXPECT_FALSE(MapRequest(context_gurl, "https://external.com/evil/gifar.gif",
-                          &mapped_domain_name, &resolved_request));
-  EXPECT_FALSE(MapRequest(context_gurl, "https://external.com/gifar.gif",
-                          &mapped_domain_name, &resolved_request));
-}
-
 TEST_F(DomainLawyerTest, ProxyAmbiguous) {
   GoogleUrl context_gurl("http://origin.com/index.html");
   ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/origin", "http://origin.com", "",  &message_handler_));
+      "http://proxy.com/origin", "http://origin.com", &message_handler_));
 
   GoogleString out;
   EXPECT_TRUE(MapProxy("http://proxy.com/origin/x", &out));
@@ -876,8 +764,7 @@ TEST_F(DomainLawyerTest, ProxyAmbiguous) {
 
   // We don't allow proxy/proxy conflicts.
   EXPECT_FALSE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/origin", "http://ambiguous.com", "",
-      &message_handler_));
+      "http://proxy.com/origin", "http://ambiguous.com", &message_handler_));
 
   EXPECT_TRUE(MapProxy("http://proxy.com/origin/x", &out));
   EXPECT_STREQ("http://origin.com/x", out);
@@ -900,7 +787,7 @@ TEST_F(DomainLawyerTest, ProxyAmbiguous) {
 
   // It is also a bad idea to map the same origin to two different proxies.
   EXPECT_FALSE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy2.com/origin", "http://origin.com", "", &message_handler_));
+      "http://proxy2.com/origin", "http://origin.com", &message_handler_));
 }
 
 TEST_F(DomainLawyerTest, Merge) {
@@ -911,7 +798,7 @@ TEST_F(DomainLawyerTest, Merge) {
   ASSERT_TRUE(AddOriginDomainMapping(
       "http://localhost:8080", "http://o1.com:8080"));
   ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/origin", "http://origin.com", "", &message_handler_));
+      "http://proxy.com/origin", "http://origin.com", &message_handler_));
 
   // We'll also a mapping that will conflict, and one that won't.
   ASSERT_TRUE(AddOriginDomainMapping("http://dest1/", "http://common_src1"));
@@ -1074,36 +961,28 @@ TEST_F(DomainLawyerTest, ShardHttps) {
 TEST_F(DomainLawyerTest, WillDomainChange) {
   ASSERT_TRUE(AddShard("foo.com", "bar1.com,bar2.com"));
   ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com", "http://origin.com"));
-  EXPECT_TRUE(WillDomainChange("http://foo.com/"));
-  EXPECT_TRUE(WillDomainChange("foo.com/"));
-  EXPECT_TRUE(WillDomainChange("http://foo.com"));
-  EXPECT_TRUE(WillDomainChange("foo.com"));
-  EXPECT_TRUE(WillDomainChange("http://origin.com/"));
-  EXPECT_TRUE(WillDomainChange("http://bar1.com/"));
-  EXPECT_TRUE(WillDomainChange("http://bar2.com/"));
-  EXPECT_FALSE(WillDomainChange("http://cdn.com/"));
-  EXPECT_FALSE(WillDomainChange("http://other_domain.com/"));
-}
-
-TEST_F(DomainLawyerTest, WillDomainChangeSubdirectory) {
-  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com",
-                                      "http://origin.com/subdir"));
-  EXPECT_FALSE(WillDomainChange("http://origin.com/"));
-  EXPECT_FALSE(WillDomainChange("http://origin.com/subdirx"));
-  EXPECT_TRUE(WillDomainChange("http://origin.com/subdir/x"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://foo.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("foo.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://foo.com"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("foo.com"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://origin.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://bar1.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://bar2.com/"));
+  EXPECT_FALSE(domain_lawyer_.WillDomainChange("http://cdn.com/"));
+  EXPECT_FALSE(domain_lawyer_.WillDomainChange("http://other_domain.com/"));
 }
 
 TEST_F(DomainLawyerTest, WillDomainChangeOnlyOneShard) {
   ASSERT_TRUE(AddShard("foo.com", "bar1.com"));
   ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com", "http://origin.com"));
-  EXPECT_TRUE(WillDomainChange("http://foo.com/"));
-  EXPECT_TRUE(WillDomainChange("foo.com/"));
-  EXPECT_TRUE(WillDomainChange("http://foo.com"));
-  EXPECT_TRUE(WillDomainChange("foo.com"));
-  EXPECT_TRUE(WillDomainChange("http://origin.com/"));
-  EXPECT_FALSE(WillDomainChange("http://bar1.com/"));
-  EXPECT_FALSE(WillDomainChange("http://cdn.com/"));
-  EXPECT_FALSE(WillDomainChange("http://other_domain.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://foo.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("foo.com/"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://foo.com"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("foo.com"));
+  EXPECT_TRUE(domain_lawyer_.WillDomainChange("http://origin.com/"));
+  EXPECT_FALSE(domain_lawyer_.WillDomainChange("http://bar1.com/"));
+  EXPECT_FALSE(domain_lawyer_.WillDomainChange("http://cdn.com/"));
+  EXPECT_FALSE(domain_lawyer_.WillDomainChange("http://other_domain.com/"));
 }
 
 TEST_F(DomainLawyerTest, MapRewriteToOriginDomain) {
@@ -1448,7 +1327,9 @@ TEST_F(DomainLawyerTest, AboutBlank) {
   GoogleUrl foo("about:blank");
   GoogleString out;
   bool is_proxy = true;
-  EXPECT_FALSE(lawyer.MapOriginUrl(foo, &out, &is_proxy));
+  EXPECT_TRUE(lawyer.MapOriginUrl(foo, &out, &is_proxy));
+  EXPECT_STREQ("about:blank", out);
+  EXPECT_FALSE(is_proxy);
 }
 
 }  // namespace net_instaweb

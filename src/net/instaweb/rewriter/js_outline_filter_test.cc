@@ -21,11 +21,13 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -43,6 +45,7 @@ class JsOutlineFilterTest : public RewriteTestBase {
     rewrite_driver()->AddFilters();
   }
 
+  // TODO(sligocki): factor out common elements in OutlineStyle and Script.
   // Test outlining scripts with options to write headers.
   void OutlineScript(const StringPiece& id, bool expect_outline) {
     GoogleString script_text = "FOOBAR";
@@ -123,6 +126,9 @@ TEST_F(JsOutlineFilterTest, NoOutlineScript) {
   GoogleString file_prefix = GTestTempDir() + "/no_outline";
   GoogleString url_prefix = "http://mysite/no_outline";
 
+  // TODO(sligocki): Maybe test with other hashers.
+  // SetHasher(hasher);
+
   options()->EnableFilter(RewriteOptions::kOutlineCss);
   SetupOutliner();
 
@@ -177,7 +183,8 @@ TEST_F(JsOutlineFilterTest, EmptyScript) {
 // http://code.google.com/p/modpagespeed/issues/detail?id=416
 TEST_F(JsOutlineFilterTest, RewriteDomain) {
   SetupOutliner();
-  AddRewriteDomainMapping("cdn.com", kTestDomain);
+  DomainLawyer* laywer = options()->domain_lawyer();
+  laywer->AddRewriteDomainMapping("cdn.com", kTestDomain, &message_handler_);
 
   // Check that CSS gets outlined to the rewritten domain.
   GoogleString expected_url = Encode("http://cdn.com/", "jo", "0", "_", "js");

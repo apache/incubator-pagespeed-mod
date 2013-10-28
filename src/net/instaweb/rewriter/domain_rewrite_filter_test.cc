@@ -23,7 +23,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -51,7 +51,7 @@ class DomainRewriteFilterTest : public RewriteTestBase {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
     options()->Disallow("*dont_shard*");
-    DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+    DomainLawyer* lawyer = options()->domain_lawyer();
     lawyer->AddRewriteDomainMapping(kTo1Domain, kFrom1Domain,
                                     &message_handler_);
     lawyer->AddRewriteDomainMapping(kTo2Domain, kFrom2Domain,
@@ -109,7 +109,8 @@ TEST_F(DomainRewriteFilterTest, RelativeUpReferenceRewrite) {
   ExpectNoChange("subdir/relative", "under_subdir.css");
   ExpectNoChange("subdir/relative", "../under_top.css");
 
-  AddRewriteDomainMapping(kTo1Domain, kHtmlDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kTo1Domain, kHtmlDomain, &message_handler_);
   ExpectChange("subdir/relative", "under_subdir.css",
                StrCat(kTo1Domain, "subdir/under_subdir.css"));
   ExpectChange("subdir/relative", "../under_top2.css",
@@ -117,7 +118,8 @@ TEST_F(DomainRewriteFilterTest, RelativeUpReferenceRewrite) {
 }
 
 TEST_F(DomainRewriteFilterTest, RelativeUpReferenceShard) {
-  AddRewriteDomainMapping(kTo2Domain, kHtmlDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kTo2Domain, kHtmlDomain, &message_handler_);
   ExpectChange("subdir/relative", "under_subdir.css",
                StrCat(kTo2ADomain, "subdir/under_subdir.css"));
   ExpectChange("subdir/relative", "../under_top1.css",
@@ -192,12 +194,13 @@ TEST_F(DomainRewriteFilterTest, NoClientDomainRewrite) {
 
 TEST_F(DomainRewriteFilterTest, ClientDomainRewrite) {
   options()->ClearSignatureForTesting();
-  AddRewriteDomainMapping(kHtmlDomain, "http://clientrewrite.com/");
+  options()->domain_lawyer()->AddRewriteDomainMapping(
+      kHtmlDomain, "http://clientrewrite.com/", &message_handler_);
   options()->set_domain_rewrite_hyperlinks(true);
   options()->set_client_domain_rewrite(true);
   StringPiece client_domain_rewriter_code =
-      server_context_->static_asset_manager()->GetAsset(
-          StaticAssetManager::kClientDomainRewriter, options());
+      server_context_->static_javascript_manager()->GetJsSnippet(
+          StaticJavascriptManager::kClientDomainRewriter, options());
 
   SetupWriter();
   html_parse()->StartParse("http://test.com/");

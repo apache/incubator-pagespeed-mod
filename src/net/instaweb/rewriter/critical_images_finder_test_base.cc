@@ -17,25 +17,21 @@
 
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/util/public/mock_property_page.h"
-#include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/statistics.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
 const char CriticalImagesFinderTestBase::kRequestUrl[] = "http://www.test.com";
 
-void CriticalImagesFinderTestBase::ResetDriver() {
-  rewrite_driver()->Clear();
-  rewrite_driver()->set_request_context(
-      RequestContext::NewTestRequestContext(factory()->thread_system()));
+void CriticalImagesFinderTestBase::SetUp() {
+  RewriteTestBase::SetUp();
   PropertyCache* pcache = server_context_->page_property_cache();
-  MockPropertyPage* page = NewMockPage(kRequestUrl);
+  MockPage* page = new MockPage(factory_->thread_system()->NewMutex(),
+                                kRequestUrl);
   rewrite_driver()->set_property_page(page);
   pcache->set_enabled(true);
   pcache->Read(page);
@@ -47,7 +43,9 @@ CriticalImagesFinderTestBase::GetCriticalImagesUpdatedValue() {
   if (page == NULL) {
     return NULL;
   }
-  const PropertyCache::Cohort* cohort = finder()->cohort();
+  PropertyCache* pcache = server_context_->page_property_cache();
+  const PropertyCache::Cohort* cohort = pcache->GetCohort(
+      finder()->GetCriticalImagesCohort());
   if (cohort == NULL) {
     return NULL;
   }
@@ -56,25 +54,24 @@ CriticalImagesFinderTestBase::GetCriticalImagesUpdatedValue() {
   return property_value;
 }
 
-void CriticalImagesFinderTestBase::CheckCriticalImageFinderStats(
-    int hits, int expiries, int not_found) {
-  EXPECT_EQ(hits, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesValidCount)->Get());
-  EXPECT_EQ(expiries, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesExpiredCount)->Get());
-  EXPECT_EQ(not_found, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesNotFoundCount)->Get());
+const PropertyValue*
+CriticalImagesFinderTestBase::GetCssCriticalImagesUpdatedValue() {
+  PropertyPage* page = rewrite_driver()->property_page();
+  if (page == NULL) {
+    return NULL;
+  }
+  PropertyCache* pcache = server_context_->page_property_cache();
+  const PropertyCache::Cohort* cohort = pcache->GetCohort(
+      finder()->GetCriticalImagesCohort());
+  if (cohort == NULL) {
+    return NULL;
+  }
+  const PropertyValue* property_value = page->GetProperty(
+      cohort, CriticalImagesFinder::kCssCriticalImagesPropertyName);
+  return property_value;
 }
 
-bool CriticalImagesFinderTestBase::IsHtmlCriticalImage(
-    const GoogleString& url) {
-  return finder()->IsHtmlCriticalImage(url, rewrite_driver());
+CriticalImagesFinderTestBase::MockPage::~MockPage() {
 }
-bool CriticalImagesFinderTestBase::IsCssCriticalImage(
-    const GoogleString& url) {
-  return finder()->IsCssCriticalImage(url, rewrite_driver());
-}
-
-TestCriticalImagesFinder::~TestCriticalImagesFinder() {}
 
 }  // namespace net_instaweb

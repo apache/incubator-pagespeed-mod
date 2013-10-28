@@ -19,8 +19,6 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 
 #include "base/logging.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -35,26 +33,17 @@
 
 namespace net_instaweb {
 
-const char kHtmlUrl[] = "http://www.test.com/index.jsp";
-
 class RewriteQueryTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
-    RewriteTestBase::SetUp();
-    allow_related_options_ = false;
-    image_url_ = Encode(kTestDomain, "ic", "0", "image.jpg", "jpg");
-  }
-
-  RewriteOptions* ParseAndScan(const StringPiece request_url,
-                               const StringPiece& in_query,
+  RewriteOptions* ParseAndScan(const StringPiece& in_query,
                                const StringPiece& in_req_string) {
-    return ParseAndScan(request_url, in_query, in_req_string, NULL, NULL);
+    return ParseAndScan(in_query, in_req_string, NULL, NULL);
   }
 
-  // Parses query-params &/or HTTP headers.  The HTTP headers are specified
-  // as a string, with semi-colons separating attr:value pairs.
-  RewriteOptions* ParseAndScan(const StringPiece request_url,
-                               const StringPiece& in_query,
+  // Parses query-params &/or HTTP headers.  The HTTP headers are just in
+  // semicolon-separated format, alternating names & values.  There must be
+  // an even number of components, implying an odd number of semicolons.
+  RewriteOptions* ParseAndScan(const StringPiece& in_query,
                                const StringPiece& in_req_string,
                                GoogleString* out_query,
                                GoogleString* out_req_string) {
@@ -62,29 +51,25 @@ class RewriteQueryTest : public RewriteTestBase {
     RequestHeaders request_headers;
     StringPieceVector components;
     SplitStringPieceToVector(in_req_string, ";", &components, true);
-    for (int i = 0, n = components.size(); i < n; ++i) {
-      StringPieceVector attr_value;
-      SplitStringPieceToVector(components[i], ":", &attr_value, false);
-      CHECK_EQ(2, attr_value.size());
-      request_headers.Add(attr_value[0], attr_value[1]);
+    CHECK_EQ(0, components.size() % 2);
+    for (int i = 0, n = components.size(); i < n; i += 2) {
+      request_headers.Add(components[i], components[i + 1]);
     }
-    return ParseAndScan(request_url, in_query, &request_headers,
-                        NULL, out_query,
-                        out_req_string, &out_resp_string);
+    return ParseAndScan(in_query, &request_headers,
+                          NULL, out_query,
+                          out_req_string, &out_resp_string);
   }
 
-  RewriteOptions* ParseAndScan(const StringPiece request_url,
-                               const StringPiece& in_query,
+  RewriteOptions* ParseAndScan(const StringPiece& in_query,
                                RequestHeaders* request_headers,
                                ResponseHeaders* response_headers,
                                GoogleString* out_query,
                                GoogleString* out_req_string,
                                GoogleString* out_resp_string) {
-    options_.reset(new RewriteOptions(factory()->thread_system()));
-    GoogleUrl url(StrCat(request_url, "?", in_query));
-    if (RewriteQuery::Scan(allow_related_options_, factory(),
-                           server_context(), &url, request_headers,
-                           response_headers, &options_, &handler_)
+    options_.reset(new RewriteOptions);
+    GoogleUrl url(StrCat("http://www.test.com/index.jsp?", in_query));
+    if (RewriteQuery::Scan(factory(), &url, request_headers, response_headers,
+                           &options_, &handler_)
         != RewriteQuery::kSuccess) {
       options_.reset(NULL);
     }
@@ -101,21 +86,6 @@ class RewriteQueryTest : public RewriteTestBase {
     return options_.get();
   }
 
-  // Starts with image_, applies the specified image-options, and any
-  // query-params and request-headers.
-  RewriteOptions* ParseAndScanImageOptions(StringPiece image_options,
-                                           StringPiece query_params,
-                                           StringPiece request_headers) {
-    allow_related_options_ = true;
-    GoogleString query;
-    GoogleString req_string;
-    GoogleString image = AddOptionsToEncodedUrl(image_url_, image_options);
-    RewriteOptions* options = ParseAndScan(image, query_params, request_headers,
-                                           &query, &req_string);
-    EXPECT_STREQ("", query);
-    return options;
-  }
-
   void CheckExtendCache(RewriteOptions* options, bool x) {
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheCss));
     EXPECT_EQ(x, options->Enabled(RewriteOptions::kExtendCacheImages));
@@ -128,95 +98,28 @@ class RewriteQueryTest : public RewriteTestBase {
     scoped_ptr<RewriteOptions> query_options;
     GoogleUrl gurl(StrCat("http://example.com/?ModPagespeedFilters=", query));
     EXPECT_EQ(RewriteQuery::kSuccess,
-              RewriteQuery::Scan(allow_related_options_, factory(),
-                                 server_context(), &gurl,
-                                 NULL, NULL, &query_options,
+              RewriteQuery::Scan(factory(), &gurl, NULL,
+                                 NULL, &query_options,
                                  message_handler()));
     options->Merge(*query_options.get());
   }
 
-  void TestParseClientOptions(
-      RequestHeaders* request_headers,
-      bool expected_parsing_result,
-      RewriteQuery::ProxyMode expected_proxy_mode,
-      DeviceProperties::ImageQualityPreference expected_quality_preference) {
-    RewriteQuery::ProxyMode proxy_mode;
-    DeviceProperties::ImageQualityPreference quality_preference;
-    const StringPiece header_value(
-        request_headers->Lookup1(HttpAttributes::kXPsaClientOptions));
-    bool parsing_result = RewriteQuery::ParseClientOptions(
-        header_value, &proxy_mode, &quality_preference);
-    EXPECT_EQ(expected_parsing_result, parsing_result);
-    if (parsing_result) {
-      EXPECT_EQ(expected_proxy_mode, proxy_mode);
-      EXPECT_EQ(expected_quality_preference, quality_preference);
-    }
-  }
-
-  void TestClientOptions(
-      RequestHeaders* request_headers,
-      bool expected_parsing_result,
-      RewriteQuery::ProxyMode expected_proxy_mode,
-      DeviceProperties::ImageQualityPreference expected_quality_preference) {
-    ResponseHeaders response_headers;
-    GoogleString in_query, out_query, out_req_string, out_resp_string;
-
-    TestParseClientOptions(
-        request_headers, expected_parsing_result, expected_proxy_mode,
-        expected_quality_preference);
-
-    RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, request_headers,
-                                           &response_headers, &out_query,
-                                           &out_req_string, &out_resp_string);
-    if (!expected_parsing_result) {
-      EXPECT_TRUE(options == NULL);
-      return;
-    }
-    if (expected_proxy_mode == RewriteQuery::kProxyModeNoTransform) {
-      EXPECT_EQ(RewriteOptions::kPassThrough, options->level());
-      // Not a complete list. Only checks the important ones.
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteCss));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kRewriteJavascript));
-    }
-    if (expected_proxy_mode == RewriteQuery::kProxyModeNoTransform ||
-        expected_proxy_mode == RewriteQuery::kProxyModeNoImageTransform) {
-      // Not a complete list. Only checks the important ones.
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kConvertGifToPng));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kConvertPngToJpeg));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kConvertJpegToProgressive));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kConvertJpegToWebp));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kConvertToWebpLossless));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeImages));
-      EXPECT_FALSE(options->Enabled(RewriteOptions::kResizeMobileImages));
-    } else {
-      EXPECT_EQ(RewriteQuery::kProxyModeDefault, expected_proxy_mode);
-      if (expected_quality_preference ==
-          DeviceProperties::kImageQualityDefault) {
-        EXPECT_TRUE(options == NULL);
-      }
-    }
-    EXPECT_TRUE(
-        request_headers->Lookup1(HttpAttributes::kXPsaClientOptions) == NULL);
-  }
-
   GoogleMessageHandler handler_;
   scoped_ptr<RewriteOptions> options_;
-  bool allow_related_options_;
-  GoogleString image_url_;
 };
 
 TEST_F(RewriteQueryTest, Empty) {
-  EXPECT_TRUE(ParseAndScan(kHtmlUrl, "", "") == NULL);
+  EXPECT_TRUE(ParseAndScan("", "") == NULL);
 }
 
 TEST_F(RewriteQueryTest, OffQuery) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "ModPagespeed=off", "");
+  RewriteOptions* options = ParseAndScan("ModPagespeed=off", "");
   ASSERT_TRUE(options != NULL);
   EXPECT_FALSE(options->enabled());
 }
 
 TEST_F(RewriteQueryTest, OffHeaders) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "", "ModPagespeed:off");
+  RewriteOptions* options = ParseAndScan("", "ModPagespeed;off");
   ASSERT_TRUE(options != NULL);
   EXPECT_FALSE(options->enabled());
 }
@@ -227,32 +130,7 @@ TEST_F(RewriteQueryTest, OffResponseHeader) {
   GoogleString in_query, out_query, out_req_string, out_resp_string;
 
   response_headers.Add("ModPagespeed", "off");
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, &request_headers,
-                                         &response_headers, &out_query,
-                                         &out_req_string, &out_resp_string);
-  ASSERT_TRUE(options != NULL);
-  EXPECT_FALSE(options->enabled());
-}
-
-TEST_F(RewriteQueryTest, OffQueryPageSpeed) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "PageSpeed=off", "");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_FALSE(options->enabled());
-}
-
-TEST_F(RewriteQueryTest, OffHeadersPageSpeed) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "", "PageSpeed:off");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_FALSE(options->enabled());
-}
-
-TEST_F(RewriteQueryTest, OffResponseHeaderPageSpeed) {
-  RequestHeaders request_headers;
-  ResponseHeaders response_headers;
-  GoogleString in_query, out_query, out_req_string, out_resp_string;
-
-  response_headers.Add("PageSpeed", "off");
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, &request_headers,
+  RewriteOptions* options = ParseAndScan(in_query, &request_headers,
                                          &response_headers, &out_query,
                                          &out_req_string, &out_resp_string);
   ASSERT_TRUE(options != NULL);
@@ -260,7 +138,7 @@ TEST_F(RewriteQueryTest, OffResponseHeaderPageSpeed) {
 }
 
 TEST_F(RewriteQueryTest, OnWithDefaultFiltersQuery) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "ModPagespeed=on", "");
+  RewriteOptions* options = ParseAndScan("ModPagespeed=on", "");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options, true);
@@ -272,31 +150,7 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersQuery) {
 }
 
 TEST_F(RewriteQueryTest, OnWithDefaultFiltersHeaders) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "", "ModPagespeed:on");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options, true);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteJavascript));
-}
-
-TEST_F(RewriteQueryTest, OnWithDefaultFiltersQueryPageSpeed) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "PageSpeed=on", "");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->enabled());
-  CheckExtendCache(options, true);
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kExtendCachePdfs));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kResizeImages));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteCss));
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRewriteJavascript));
-}
-
-TEST_F(RewriteQueryTest, OnWithDefaultFiltersHeadersPageSpeed) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "", "PageSpeed:on");
+  RewriteOptions* options = ParseAndScan("", "ModPagespeed;on");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options, true);
@@ -308,8 +162,7 @@ TEST_F(RewriteQueryTest, OnWithDefaultFiltersHeadersPageSpeed) {
 }
 
 TEST_F(RewriteQueryTest, SetFiltersQuery) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "ModPagespeedFilters=remove_quotes",
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters=remove_quotes",
                                          "");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
@@ -323,7 +176,7 @@ TEST_F(RewriteQueryTest, SetFiltersQuery) {
 }
 
 TEST_F(RewriteQueryTest, SetFiltersQueryCorePlusMinus) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "ModPagespeedFilters="
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters="
                                          "core,+div_structure,-inline_css,"
                                          "+extend_cache_css",
                                          "");
@@ -343,8 +196,8 @@ TEST_F(RewriteQueryTest, SetFiltersQueryCorePlusMinus) {
 }
 
 TEST_F(RewriteQueryTest, SetFiltersRequestHeaders) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "",
-                                         "ModPagespeedFilters:remove_quotes");
+  RewriteOptions* options = ParseAndScan("",
+                                         "ModPagespeedFilters;remove_quotes");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kRemoveQuotes));
@@ -363,7 +216,7 @@ TEST_F(RewriteQueryTest, SetFiltersResponseHeaders) {
   GoogleString in_query, out_query, out_req_string, out_resp_string;
 
   response_headers.Add("ModPagespeedFilters", "remove_quotes");
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, &request_headers,
+  RewriteOptions* options = ParseAndScan(in_query, &request_headers,
                                          &response_headers, &out_query,
                                          &out_req_string, &out_resp_string);
   ASSERT_TRUE(options != NULL);
@@ -393,7 +246,7 @@ TEST_F(RewriteQueryTest, QueryAndRequestAndResponse) {
                        "+inline_css,-remove_quotes");
   response_headers.Add("ModPagespeedJsInlineMaxBytes", "13");
   response_headers.Add("ModPagespeedFilters", "");
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, &request_headers,
+  RewriteOptions* options = ParseAndScan(in_query, &request_headers,
                                          &response_headers, &out_query,
                                          &out_req_string, &out_resp_string);
 
@@ -413,12 +266,8 @@ TEST_F(RewriteQueryTest, QueryAndRequestAndResponse) {
   EXPECT_TRUE(options->Enabled(RewriteOptions::kExtendCacheCss));
 }
 
-// Note: In the next four tests we intentionally mix ModPagespeed* and
-// PageSpeed* query params to make sure all combinations work and are respected.
-
 TEST_F(RewriteQueryTest, MultipleQuery) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "PageSpeedFilters=inline_css"
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters=inline_css"
                                          "&ModPagespeedCssInlineMaxBytes=10",
                                          "");
   ASSERT_TRUE(options != NULL);
@@ -428,9 +277,9 @@ TEST_F(RewriteQueryTest, MultipleQuery) {
 }
 
 TEST_F(RewriteQueryTest, MultipleHeaders) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "",
-                                         "ModPagespeedFilters:inline_css;"
-                                         "PageSpeedCssInlineMaxBytes:10");
+  RewriteOptions* options = ParseAndScan("",
+                                         "ModPagespeedFilters;inline_css;"
+                                         "ModPagespeedCssInlineMaxBytes;10");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kInlineCss));
@@ -438,9 +287,8 @@ TEST_F(RewriteQueryTest, MultipleHeaders) {
 }
 
 TEST_F(RewriteQueryTest, MultipleQueryAndHeaders) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "ModPagespeedFilters=inline_css",
-                                         "ModPagespeedCssInlineMaxBytes:10");
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters=inline_css",
+                                         "ModPagespeedCssInlineMaxBytes;10");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
   EXPECT_TRUE(options->Enabled(RewriteOptions::kInlineCss));
@@ -448,9 +296,8 @@ TEST_F(RewriteQueryTest, MultipleQueryAndHeaders) {
 }
 
 TEST_F(RewriteQueryTest, MultipleIgnoreUnrelated) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "PageSpeedFilters=inline_css"
-                                         "&PageSpeedCssInlineMaxBytes=10"
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters=inline_css"
+                                         "&ModPagespeedCssInlineMaxBytes=10"
                                          "&Unrelated1"
                                          "&Unrelated2="
                                          "&Unrelated3=value",
@@ -462,21 +309,19 @@ TEST_F(RewriteQueryTest, MultipleIgnoreUnrelated) {
 }
 
 TEST_F(RewriteQueryTest, MultipleBroken) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "PageSpeedFilters=inline_css"
-                                         "&PageSpeedCssInlineMaxBytes=10"
-                                         "&PageSpeedFilters=bogus_filter",
+  RewriteOptions* options = ParseAndScan("ModPagespeedFilters=inline_css"
+                                         "&ModPagespeedCssInlineMaxBytes=10"
+                                         "&ModPagespeedFilters=bogus_filter",
                                          "");
   EXPECT_TRUE(options == NULL);
 }
 
 TEST_F(RewriteQueryTest, MultipleInt64Params) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl,
-                                         "PageSpeedCssInlineMaxBytes=3"
-                                         "&PageSpeedImageInlineMaxBytes=5"
-                                         "&PageSpeedCssImageInlineMaxBytes=7"
-                                         "&PageSpeedJsInlineMaxBytes=11"
-                                         "&PageSpeedDomainShardCount=2",
+  RewriteOptions* options = ParseAndScan("ModPagespeedCssInlineMaxBytes=3"
+                                         "&ModPagespeedImageInlineMaxBytes=5"
+                                         "&ModPagespeedCssImageInlineMaxBytes=7"
+                                         "&ModPagespeedJsInlineMaxBytes=11"
+                                         "&ModPagespeedDomainShardCount=2",
                                          "");
   ASSERT_TRUE(options != NULL);
   EXPECT_TRUE(options->enabled());
@@ -487,18 +332,9 @@ TEST_F(RewriteQueryTest, MultipleInt64Params) {
   EXPECT_EQ(2, options->domain_shard_count());
 }
 
-TEST_F(RewriteQueryTest, OptionsNotArbitrary) {
-  // Security sanity check: trying to set beacon URL
-  // externally should not succeed.
-  RewriteOptions* options =
-      ParseAndScan(kHtmlUrl, StrCat("PageSpeed", RewriteOptions::kBeaconUrl,
-                                    "=", "evil.com"), "");
-  EXPECT_TRUE(options == NULL);
-}
-
 TEST_F(RewriteQueryTest, OutputQueryandHeaders) {
   GoogleString output_query, output_headers;
-  ParseAndScan(kHtmlUrl, "ModPagespeedCssInlineMaxBytes=3"
+  ParseAndScan("ModPagespeedCssInlineMaxBytes=3"
                "&ModPagespeedImageInlineMaxBytes=5"
                "&ModPagespeedCssImageInlineMaxBytes=7"
                "&ModPagespeedJsInlineMaxBytes=11"
@@ -506,34 +342,13 @@ TEST_F(RewriteQueryTest, OutputQueryandHeaders) {
                "&ModPagespeedCssFlattenMaxBytes=13"
                "&abc=1"
                "&def",
-               "ModPagespeedFilters:inline_css;"
-               "xyz:6;"
-               "ModPagespeedFilters:remove_quotes",
+               "ModPagespeedFilters;inline_css;"
+               "xyz;6;"
+               "ModPagespeedFilters;remove_quotes",
                &output_query, &output_headers);
   EXPECT_EQ(output_query, "abc=1&def");
   EXPECT_EQ(output_headers, "GET  HTTP/1.0\r\nxyz: 6\r\n\r\n");
-  ParseAndScan(kHtmlUrl, "ModPagespeedCssInlineMaxBytes=3", "",
-               &output_query, &output_headers);
-  EXPECT_EQ(output_query, "");
-}
-
-TEST_F(RewriteQueryTest, OutputQueryandHeadersPageSpeed) {
-  GoogleString output_query, output_headers;
-  ParseAndScan(kHtmlUrl, "PageSpeedCssInlineMaxBytes=3"
-               "&PageSpeedImageInlineMaxBytes=5"
-               "&PageSpeedCssImageInlineMaxBytes=7"
-               "&PageSpeedJsInlineMaxBytes=11"
-               "&PageSpeedDomainShardCount=100"
-               "&PageSpeedCssFlattenMaxBytes=13"
-               "&abc=1"
-               "&def",
-               "PageSpeedFilters:inline_css;"
-               "xyz:6;"
-               "PageSpeedFilters:remove_quotes",
-               &output_query, &output_headers);
-  EXPECT_EQ(output_query, "abc=1&def");
-  EXPECT_EQ(output_headers, "GET  HTTP/1.0\r\nxyz: 6\r\n\r\n");
-  ParseAndScan(kHtmlUrl, "PageSpeedCssInlineMaxBytes=3", "",
+  ParseAndScan("ModPagespeedCssInlineMaxBytes=3", "",
                &output_query, &output_headers);
   EXPECT_EQ(output_query, "");
 }
@@ -546,26 +361,7 @@ TEST_F(RewriteQueryTest, OutputQueryandHeadersPostRequest) {
   request_headers.Add("xyz", "6");
   request_headers.set_message_body("pqr");
 
-  ParseAndScan(kHtmlUrl, "ModPagespeedCssInlineMaxBytes=3"
-               "&abc=1"
-               "&def",
-               &request_headers,
-               NULL,
-               &output_query, &output_req_headers, &output_resp_headers);
-  EXPECT_EQ(output_query, "abc=1&def");
-  EXPECT_EQ(output_req_headers, "POST  HTTP/1.0\r\nxyz: 6\r\n\r\n");
-  EXPECT_EQ(request_headers.message_body(), "pqr");
-}
-
-TEST_F(RewriteQueryTest, OutputQueryandHeadersPostRequestPageSpeed) {
-  GoogleString output_query, output_req_headers, output_resp_headers;
-  RequestHeaders request_headers;
-  request_headers.set_method(RequestHeaders::kPost);
-  request_headers.Add("PageSpeedFilters", "inline_css");
-  request_headers.Add("xyz", "6");
-  request_headers.set_message_body("pqr");
-
-  ParseAndScan(kHtmlUrl, "PageSpeedCssInlineMaxBytes=3"
+  ParseAndScan("ModPagespeedCssInlineMaxBytes=3"
                "&abc=1"
                "&def",
                &request_headers,
@@ -579,7 +375,7 @@ TEST_F(RewriteQueryTest, OutputQueryandHeadersPostRequestPageSpeed) {
 // Tests the ability to add an additional filter on the command-line based
 // on whatever set is already installed in the configuration.
 TEST_F(RewriteQueryTest, IncrementalAdd) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   options.EnableFilter(RewriteOptions::kStripScripts);
   Incremental("+debug", &options);
@@ -594,7 +390,7 @@ TEST_F(RewriteQueryTest, IncrementalAdd) {
 // the explicitly enabled filter in the configuration and also the core
 // level.
 TEST_F(RewriteQueryTest, NonIncrementalAdd) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   options.EnableFilter(RewriteOptions::kStripScripts);
   Incremental("debug", &options);
@@ -606,7 +402,7 @@ TEST_F(RewriteQueryTest, NonIncrementalAdd) {
 
 // In this version we specify nothing, and that should erase the filters.
 TEST_F(RewriteQueryTest, IncrementalEmpty) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   options.EnableFilter(RewriteOptions::kStripScripts);
   Incremental("", &options);
@@ -616,7 +412,7 @@ TEST_F(RewriteQueryTest, IncrementalEmpty) {
 }
 
 TEST_F(RewriteQueryTest, IncrementalRemoveExplicit) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   options.EnableFilter(RewriteOptions::kStripScripts);
   Incremental("-strip_scripts", &options);
@@ -626,7 +422,7 @@ TEST_F(RewriteQueryTest, IncrementalRemoveExplicit) {
 }
 
 TEST_F(RewriteQueryTest, IncrementalRemoveFromCore) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   options.EnableFilter(RewriteOptions::kStripScripts);
   Incremental("-combine_css", &options);
@@ -636,7 +432,7 @@ TEST_F(RewriteQueryTest, IncrementalRemoveFromCore) {
 }
 
 TEST_F(RewriteQueryTest, NoChangesShouldNotModify) {
-  RewriteOptions options(factory()->thread_system());
+  RewriteOptions options;
   options.SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
   Incremental("+combine_css", &options);
   EXPECT_FALSE(options.Enabled(RewriteOptions::kStripScripts));
@@ -654,214 +450,21 @@ TEST_F(RewriteQueryTest, NoChangesShouldNotModify) {
 }
 
 TEST_F(RewriteQueryTest, NoscriptQueryParamEmptyValue) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "PageSpeed=noscript", "");
-  RewriteOptions::FilterVector filter_set;
+  RewriteOptions* options = ParseAndScan("ModPagespeed=noscript", "");
+  RewriteOptions::FilterSet filter_set;
   options->GetEnabledFiltersRequiringScriptExecution(&filter_set);
   EXPECT_TRUE(filter_set.empty());
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kPrioritizeVisibleContent));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kHandleNoscriptRedirect));
 }
 
 TEST_F(RewriteQueryTest, NoscriptHeader) {
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "", "PageSpeed:noscript");
-  RewriteOptions::FilterVector filter_set;
+  RewriteOptions* options = ParseAndScan("", "ModPagespeed;noscript");
+  RewriteOptions::FilterSet filter_set;
   options->GetEnabledFiltersRequiringScriptExecution(&filter_set);
   EXPECT_TRUE(filter_set.empty());
+  EXPECT_FALSE(options->Enabled(RewriteOptions::kPrioritizeVisibleContent));
   EXPECT_TRUE(options->Enabled(RewriteOptions::kHandleNoscriptRedirect));
-}
-
-TEST_F(RewriteQueryTest, PreserveUrlsForPagespeedResources) {
-  const char kQuery[] = "PageSpeedJpegRecompressionQuality=85";
-  GoogleString query, req;
-  RewriteOptions* options = ParseAndScan(image_url_, kQuery, "", &query, &req);
-  EXPECT_TRUE(options != NULL);
-  EXPECT_STREQ("", query);
-}
-
-TEST_F(RewriteQueryTest, GenerateEmptyResourceOption) {
-  EXPECT_EQ("", RewriteQuery::GenerateResourceOption("ic", rewrite_driver()));
-}
-
-TEST_F(RewriteQueryTest, GenerateResourceOptionRecompressImages) {
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);  // relevant
-  options()->EnableFilter(RewriteOptions::kCombineCss);  // not relevant
-  options()->set_image_jpeg_recompress_quality(70);
-  EXPECT_EQ("rj+iq=70",
-            RewriteQuery::GenerateResourceOption("ic", rewrite_driver()));
-  EXPECT_EQ("",
-            RewriteQuery::GenerateResourceOption("jm", rewrite_driver()));
-
-  // TODO(jmarantz): add support for CSS/JS options & test.
-  // TODO(jmarantz): test all relevant filter/option combinations.
-}
-
-TEST_F(RewriteQueryTest, DontAllowArbitraryOptionsForNonPagespeedResources) {
-  allow_related_options_ = true;
-  // The kHtmlUrl is a .jsp, which is not .pagespeed.
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, "PsolOpt=rj,iq:70", "");
-  EXPECT_TRUE(options == NULL);
-}
-
-TEST_F(RewriteQueryTest, DontAllowArbitraryOptionsWhenDisabled) {
-  GoogleString image = AddOptionsToEncodedUrl(image_url_, "rj+iq=70");
-  RewriteOptions* options = ParseAndScan(image, "", "");
-  EXPECT_TRUE(options == NULL);
-}
-
-TEST_F(RewriteQueryTest, CanQueryRecompressImages) {
-  RewriteOptions* options = ParseAndScanImageOptions("rj+iq=70", "", "");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_EQ(70, options->image_jpeg_recompress_quality());
-}
-
-TEST_F(RewriteQueryTest, CanOverrideRecompressImagesWithQuery) {
-  RewriteOptions* options = ParseAndScanImageOptions(
-      "rj+iq=70", "PageSpeedJpegRecompressionQuality=71", "");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_EQ(71, options->image_jpeg_recompress_quality());
-}
-
-TEST_F(RewriteQueryTest, CanOverrideRecompressImagesWithReqHeaders) {
-  RewriteOptions* options = ParseAndScanImageOptions(
-      "rj+iq=70", "", "PageSpeedJpegRecompressionQuality:72");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_EQ(72, options->image_jpeg_recompress_quality());
-}
-
-TEST_F(RewriteQueryTest, CanOverrideRecompressImagesWithBoth) {
-  RewriteOptions* options = ParseAndScanImageOptions(
-      "rj+iq=70",
-      "PageSpeedJpegRecompressionQuality=71",
-      "PageSpeedJpegRecompressionQuality:72");
-  ASSERT_TRUE(options != NULL);
-  EXPECT_TRUE(options->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_EQ(72, options->image_jpeg_recompress_quality()) << "req-headers win.";
-}
-
-TEST_F(RewriteQueryTest, OnlyAllowWhitelistedResources) {
-  allow_related_options_ = true;
-
-  // whitelisted by "ic"
-  GoogleString image = AddOptionsToEncodedUrl(image_url_, "rj");
-  EXPECT_TRUE(ParseAndScan(image, "", "") != NULL);
-  image = AddOptionsToEncodedUrl(image_url_, "iq=70");
-  EXPECT_TRUE(ParseAndScan(image, "", "") != NULL);
-
-  // not whitelisted by "ic"
-  image = AddOptionsToEncodedUrl(image_url_, "cc");
-  EXPECT_TRUE(ParseAndScan(image_url_, "", "") == NULL);
-  image = AddOptionsToEncodedUrl(image_url_, "rdm=10");
-  EXPECT_TRUE(ParseAndScan(image_url_, "", "") == NULL);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsEmptyHeader) {
-  RequestHeaders request_headers;
-
-  TestClientOptions(&request_headers,
-                    false, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsMultipleHeaders) {
-  RequestHeaders request_headers;
-
-  request_headers.Add(HttpAttributes::kXPsaClientOptions, "v=1,iqp=3,m=0");
-  request_headers.Add(HttpAttributes::kXPsaClientOptions, "v=1,iqp=3,m=0");
-  TestClientOptions(&request_headers,
-                    false, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsOrder1) {
-  RequestHeaders request_headers;
-
-  request_headers.Replace(HttpAttributes::kXPsaClientOptions, "v=1,iqp=2,m=0");
-  // Image quality is set.
-  TestClientOptions(&request_headers,
-                    true, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityMedium);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsOrder2) {
-  RequestHeaders request_headers;
-
-  // The order of name-value pairs does not matter.
-  // Not-supported parts are ignored.
-  request_headers.Replace(HttpAttributes::kXPsaClientOptions,
-                          "m=0,iqp=3,v=1,xyz=100,zyx=,yzx");
-  TestClientOptions(&request_headers,
-                    true, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityHigh);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsCaseInsensitive) {
-  RequestHeaders request_headers;
-  GoogleString lower(HttpAttributes::kXPsaClientOptions);
-  LowerString(&lower);
-
-  request_headers.Replace(lower, "v=1,iqp=3,m=1");
-  // Image quality is set.
-  TestClientOptions(&request_headers,
-                    true, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeNoImageTransform,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsNonDefaultProxyMode) {
-  RequestHeaders request_headers;
-
-  // Image quality is ignored if mode is not Default.
-  request_headers.Replace(HttpAttributes::kXPsaClientOptions, "v=1,iqp=2,m=1");
-  TestClientOptions(&request_headers,
-                    true, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeNoImageTransform,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsValidVersionBadOptions) {
-  RequestHeaders request_headers;
-
-  // A valid version with bad options.
-  request_headers.Replace(HttpAttributes::kXPsaClientOptions,
-                          "v=1,iqp=2m=1,iqp=");
-  TestClientOptions(&request_headers,
-                    true, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, ClientOptionsInvalidVersion) {
-  RequestHeaders request_headers;
-
-  request_headers.Replace(HttpAttributes::kXPsaClientOptions, "iqp=2,m=1,v=2");
-  TestClientOptions(&request_headers,
-                    false, /* expected_parsing_result */
-                    RewriteQuery::kProxyModeDefault,
-                    DeviceProperties::kImageQualityDefault);
-}
-
-TEST_F(RewriteQueryTest, CacheControlNoTransform) {
-  RequestHeaders request_headers;
-  request_headers.Replace(HttpAttributes::kCacheControl, "no-transform");
-
-  ResponseHeaders response_headers;
-  GoogleString in_query, out_query, out_req_string, out_resp_string;
-
-  RewriteOptions* options = ParseAndScan(kHtmlUrl, in_query, &request_headers,
-                                         &response_headers, &out_query,
-                                         &out_req_string, &out_resp_string);
-  EXPECT_FALSE(options->enabled());
-  EXPECT_TRUE(request_headers.Lookup1(HttpAttributes::kCacheControl) != NULL);
 }
 
 }  // namespace net_instaweb

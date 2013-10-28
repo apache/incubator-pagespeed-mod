@@ -18,9 +18,8 @@
 #define NET_INSTAWEB_APACHE_APACHE_SERVER_CONTEXT_H_
 
 #include "net/instaweb/apache/apache_config.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/system/public/system_server_context.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
@@ -31,12 +30,14 @@ struct server_rec;
 
 namespace net_instaweb {
 
+class AbstractMutex;
 class ApacheRewriteDriverFactory;
-class ApacheRequestContext;
-class ProxyFetchFactory;
+class Histogram;
 class RewriteDriverPool;
-class RewriteDriver;
+class RewriteStats;
+class SharedMemStatistics;
 class Statistics;
+class UrlAsyncFetcherStats;
 class Variable;
 
 // Creates an Apache-specific ServerContext.  This differs from base class
@@ -45,19 +46,17 @@ class Variable;
 //    - default RewriteOptions.
 // Additionally, there are startup semantics for apache's prefork model
 // that require a phased initialization.
-class ApacheServerContext : public SystemServerContext {
+class ApacheServerContext : public ServerContext {
  public:
   ApacheServerContext(ApacheRewriteDriverFactory* factory,
                       server_rec* server,
                       const StringPiece& version);
   virtual ~ApacheServerContext();
 
-  // This must be called for every statistics object in use before using this.
-  static void InitStats(Statistics* statistics);
-
+  GoogleString hostname_identifier() { return hostname_identifier_; }
   ApacheRewriteDriverFactory* apache_factory() { return apache_factory_; }
   ApacheConfig* config();
-  bool InitPath(const GoogleString& path);
+  bool InitFileCachePath();
 
   // These return configuration objects that hold settings from
   // <ModPagespeedIf spdy> and <ModPagespeedIf !spdy> sections of configuration.
@@ -100,32 +99,46 @@ class ApacheServerContext : public SystemServerContext {
   // This should be called after all configuration parsing is done to collapse
   // configuration inside the config overlays into actual ApacheConfig objects.
   // It will also compute signatures when done.
-  virtual void CollapseConfigOverlaysAndComputeSignatures();
+  void CollapseConfigOverlaysAndComputeSignatures();
+
+  // Initialize this ServerContext to have its own statistics domain.
+  // Must be called after global_statistics has been created and had
+  // ::Initialize called on it.
+  void CreateLocalStatistics(Statistics* global_statistics);
+
+  // Should be called after the child process is forked.
+  void ChildInit();
+
+  bool initialized() const { return initialized_; }
 
   // Called on notification from Apache on child exit. Returns true
   // if this is the last ServerContext that exists.
   bool PoolDestroyed();
 
+  // Poll; if we haven't checked the timestamp of
+  // $FILE_PREFIX/cache.flush in the past
+  // cache_flush_poll_interval_sec_ (default 5) seconds do so, and if
+  // the timestamp has expired then update the
+  // cache_invalidation_timestamp in global_options, thus flushing the
+  // cache.
+  //
+  // TODO(jmarantz): allow configuration of this option.
+  // TODO(jmarantz): allow a URL-based mechanism to flush cache, even if
+  // we implement it by simply writing the cache.flush file so other
+  // servers can see it.  Note that using shared-memory is not a great
+  // plan because we need the cache-invalidation to persist across server
+  // restart.
+  void PollFilesystemForCacheFlush();
+
+  // Accumulate in a histogram the amount of time spent rewriting HTML.
+  // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.
+  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
+
+  static void InitStats(Statistics* statistics);
+
   const server_rec* server() const { return server_rec_; }
 
-  virtual RewriteDriverPool* SelectDriverPool(bool using_spdy);
-
-  // Hook for implementations to support fetching directly from the spdy module.
-  virtual void MaybeApplySpdySessionFetcher(const RequestContextPtr& request,
-                                            RewriteDriver* driver);
-
-  ProxyFetchFactory* proxy_fetch_factory() {
-    return proxy_fetch_factory_.get();
-  }
-
-  void InitProxyFetchFactory();
-
-  // We do not proxy external HTML from mod_pagespeed in Apache using the
-  // ProxyFetch flow.  Currently we must rely on a separate module to
-  // let mod_pagespeed behave as an origin fetcher.
-  virtual bool ProxiesHtml() const { return false; }
-
-  ApacheRequestContext* NewApacheRequestContext(request_rec* request);
+  Variable* statistics_404_count();
 
   // Reports an error status to the HTTP resource request, and logs
   // the error as a Warning to the log file, and bumps a stat as
@@ -152,8 +165,6 @@ class ApacheServerContext : public SystemServerContext {
   }
 
  private:
-  virtual bool UpdateCacheFlushTimestampMs(int64 timestamp_ms);
-
   void ReportNotFoundHelper(StringPiece url,
                             request_rec* request,
                             Variable* error_count);
@@ -161,6 +172,23 @@ class ApacheServerContext : public SystemServerContext {
   ApacheRewriteDriverFactory* apache_factory_;
   server_rec* server_rec_;
   GoogleString version_;
+
+  // hostname_identifier_ equals to "server_hostname:port" of Apache,
+  // it's used to distinguish the name of shared memory,
+  // so that each vhost has its own SharedCircularBuffer.
+  GoogleString hostname_identifier_;
+
+  bool initialized_;
+
+  // Non-NULL if we have per-vhost stats.
+  scoped_ptr<Statistics> split_statistics_;
+
+  // May be NULL. Owned by *split_statistics_.
+  SharedMemStatistics* local_statistics_;
+
+  // These are non-NULL if we have per-vhost stats.
+  scoped_ptr<RewriteStats> local_rewrite_stats_;
+  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
 
   // May be NULL. Constructed once we see things in config files that should
   // be stored in these.
@@ -174,7 +202,16 @@ class ApacheServerContext : public SystemServerContext {
   // May be NULL if we don't have a spdy-specific configuration.
   RewriteDriverPool* spdy_driver_pool_;
 
-  scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
+  Histogram* html_rewrite_time_us_histogram_;
+
+  // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
+  // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
+  // time we Poll we will read the file.
+  scoped_ptr<AbstractMutex> cache_flush_mutex_;
+  int64 last_cache_flush_check_sec_;  // seconds since 1970
+
+  Variable* cache_flush_count_;
+  Variable* cache_flush_timestamp_ms_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheServerContext);
 };

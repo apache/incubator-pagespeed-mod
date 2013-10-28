@@ -32,6 +32,7 @@
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -49,7 +50,10 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "net/instaweb/util/public/writer.h"
+
 
 namespace net_instaweb {
 
@@ -72,9 +76,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   virtual ~JsCombiner() {
   }
 
-  virtual bool ResourceCombinable(
-      Resource* resource, GoogleString* failure_reason,
-      MessageHandler* handler) {
+  virtual bool ResourceCombinable(Resource* resource, MessageHandler* handler) {
     // Get the charset for the given resource.
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
@@ -85,8 +87,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     if (num_urls() == 0) {
       combined_charset_ = this_charset;
     } else if (!StringCaseEqual(combined_charset_, this_charset)) {
-      *failure_reason = StrCat("Charset mismatch; combination thus far is ",
-                               combined_charset_, " file is ", this_charset);
       return false;
     }
 
@@ -96,13 +96,11 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     // (escape-free) in some contexts. As a conservative approximation, we just
     // look for the text
     if (resource->contents().find("use strict") != StringPiece::npos) {
-      *failure_reason = "Combining strict mode files unsupported";
       return false;
     }
     const RewriteOptions* options = rewrite_driver_->options();
     if (options->avoid_renaming_introspective_javascript() &&
         JavascriptCodeBlock::UnsafeToRename(resource->contents())) {
-      *failure_reason = "File seems to look for its URL";
       return false;
     }
 
@@ -144,8 +142,9 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // Stats.
   void AddFileCountReduction(int files) {
     js_file_count_reduction_->Add(files);
-    if (files >= 1) {
-      filter_->LogFilterModifiedContent();
+    if (files >= 1 && rewrite_driver_->log_record() != NULL) {
+      rewrite_driver_->log_record()->LogAppliedRewriter(
+          RewriteOptions::FilterId(RewriteOptions::kCombineJavascript));
     }
   }
 
@@ -178,6 +177,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 
   DISALLOW_COPY_AND_ASSIGN(JsCombiner);
 };
+
 
 class JsCombineFilter::Context : public RewriteContext {
  public:
@@ -246,7 +246,7 @@ class JsCombineFilter::Context : public RewriteContext {
     for (int i = 0, n = num_slots(); i < n; ++i) {
       bool add_input = false;
       ResourcePtr resource(slot(i)->resource());
-      if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
+      if (resource->IsValidAndCacheable()) {
         combiner_.set_resources_attribute_charset(elements_charsets_[i]);
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           add_input = true;
@@ -364,12 +364,10 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* combine_element =
         Driver()->NewElement(NULL,  // no parent yet.
                              HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
+    Driver()->InsertElementBeforeElement(first_slot->element(),
+                                         combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
-                           ResourceSlot::RelativizeOrPassthrough(
-                               Driver()->options(), partition->url(),
-                               first_slot->url_relativity(),
-                               Driver()->base_url()));
+                           partition->url());
   }
 
   // Make a script element with eval(<variable name>), and replace
@@ -381,7 +379,8 @@ class JsCombineFilter::Context : public RewriteContext {
     // original element had.
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(original, element);
+    Driver()->InsertElementBeforeElement(original, element);
+    //    Driver()->DeleteElement(original);
     GoogleString var_name = filter_->VarName(
         FindServerContext(), html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(
@@ -538,12 +537,6 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
     return;
   }
 
-  // Don't combine scripts with the pagespeed_no_defer attribute.
-  if (element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
-    NextCombination();
-    return;
-  }
-
   // We do not try to merge in a <script with async/defer> or for/event.
   // TODO(morlovich): is it worth combining multiple scripts with
   // async/defer if the flags are the same?
@@ -589,10 +582,6 @@ void JsCombineFilter::NextCombination() {
     context_.reset(MakeContext());
   }
   context_->Reset();
-}
-
-void JsCombineFilter::DetermineEnabled() {
-  set_is_enabled(!driver_->flushed_cached_html());
 }
 
 }  // namespace net_instaweb

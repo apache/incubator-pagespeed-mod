@@ -34,7 +34,6 @@ namespace Css {
 class Declarations;
 class MediaQueries;
 class MediaQuery;
-class Selector;
 }
 
 namespace net_instaweb {
@@ -49,11 +48,11 @@ static const char kAllMedia[] = "all";
 static const int kNoValue = -1;
 
 enum DimensionState {
-  kNoDimensions,       // No dimensions found.
-  kHasHeightOnly,      // Found height only.
-  kHasWidthOnly,       // Found width only.
-  kHasBothDimensions,  // Found both width and height.
-  kNotParsable         // Found a dimension, but couldn't extract a value.
+  kNoDimensions, // No dimensions found.
+  kHasHeightOnly, // Found height only.
+  kHasWidthOnly, // Found width only.
+  kHasBothDimensions, // Found both width and height.
+  kNotParsable // Found a dimension, but couldn't extract a value.
 };
 
 // Extract the width and height values out of a list of declarations.
@@ -67,7 +66,7 @@ DimensionState GetDimensions(Css::Declarations* decls, int* width, int* height);
 
 class StyleExtractor {
  public:
-  explicit StyleExtractor(HtmlElement* element);
+  StyleExtractor(HtmlElement* element);
   virtual ~StyleExtractor();
 
 
@@ -133,13 +132,6 @@ void ConvertStringVectorToMediaQueries(const StringVector& in_vector,
 // because Css::Parser doesn't treat 'all' specially but we do for efficiency.
 void ClearVectorIfContainsMediaAll(StringVector* media);
 
-// Can this media attribute include some kind of screen?
-bool CanMediaAffectScreen(const StringPiece& media);
-
-// Strip a parsed selector down to a string that can be used by a
-// querySelectorAll call in the browser to select DOM elements.
-GoogleString JsDetectableSelector(const Css::Selector& selector);
-
 // Eliminate all elements from the first vector that are not in the second
 // vector, with the caveat that an empty vector (first or second) means 'the
 // set of all possible values', meaning that if the second vector is empty
@@ -176,8 +168,8 @@ void EliminateElementsNotIn(std::vector<T>* sorted_inner,
   }
 }
 
-}  // namespace css_util
+}  // css_util
 
-}  // namespace net_instaweb
+}  // net_instaweb
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSS_UTIL_H_

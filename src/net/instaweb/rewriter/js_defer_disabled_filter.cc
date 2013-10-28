@@ -20,11 +20,12 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
@@ -33,41 +34,39 @@
 namespace net_instaweb {
 
 JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
-    : CommonFilter(driver) {
+    : rewrite_driver_(driver) {
 }
 
 JsDeferDisabledFilter::~JsDeferDisabledFilter() { }
 
 void JsDeferDisabledFilter::DetermineEnabled() {
-  set_is_enabled(ShouldApply(driver()) &&
-                 !driver()->flushing_cached_html() &&
-                 !driver()->flushed_cached_html());
+  set_is_enabled(ShouldApply(rewrite_driver_));
 }
 
 bool JsDeferDisabledFilter::ShouldApply(RewriteDriver* driver) {
-  return driver->request_properties()->SupportsJsDefer(
-      driver->options()->enable_aggressive_rewriters_for_mobile()) &&
-      !driver->flushing_early();
+  return driver->UserAgentSupportsJsDefer() && !driver->flushing_early();
 }
 
 void JsDeferDisabledFilter::InsertJsDeferCode() {
-  StaticAssetManager* static_asset_manager =
-      driver()->server_context()->static_asset_manager();
-  const RewriteOptions* options = driver()->options();
-  // Insert script node with deferJs code as outlined.
-  HtmlElement* defer_js_url_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
-  driver()->AddAttribute(defer_js_url_node, HtmlName::kType,
-                                "text/javascript");
-  driver()->AddAttribute(
-      defer_js_url_node, HtmlName::kSrc,
-      static_asset_manager->GetAssetUrl(StaticAssetManager::kDeferJs, options));
+  if (!rewrite_driver_->is_defer_javascript_script_flushed()) {
+    StaticJavascriptManager* static_js_manager =
+        rewrite_driver_->server_context()->static_javascript_manager();
+    const RewriteOptions* options = rewrite_driver_->options();
+    // Insert script node with deferJs code as outlined.
+    HtmlElement* defer_js_url_node =
+        rewrite_driver_->NewElement(NULL, HtmlName::kScript);
+    rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kType,
+                                  "text/javascript");
+    rewrite_driver_->AddAttribute(defer_js_url_node, HtmlName::kSrc,
+                                  static_js_manager->GetDeferJsUrl(options));
+    rewrite_driver_->InsertElementAfterCurrent(defer_js_url_node);
 
-  InsertNodeAtBodyEnd(defer_js_url_node);
+    rewrite_driver_->set_is_defer_javascript_script_flushed(true);
+  }
 }
 
 void JsDeferDisabledFilter::EndDocument() {
-  if (!ShouldApply(driver())) {
+  if (!ShouldApply(rewrite_driver_)) {
     return;
   }
 

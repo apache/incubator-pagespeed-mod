@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2010 Google Inc.
  *
@@ -18,17 +17,12 @@
 
 // Some common routines and constants for tests dealing with Images
 
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_TEST_BASE_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_TEST_BASE_H_
-
 #include "net/instaweb/rewriter/public/image.h"
 
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -39,28 +33,22 @@ class ImageTestBase : public testing::Test {
  protected:
   static const char kTestData[];
   static const char kCuppa[];
-  static const char kCuppaTransparent[];
   static const char kBikeCrash[];
   static const char kIronChef[];
   static const char kCradle[];
   static const char kPuzzle[];
   static const char kLarge[];
-  static const char kRedbrush[];
   static const char kScenery[];
   static const char kAppSegments[];
 
   typedef scoped_ptr<Image> ImagePtr;
 
-  ImageTestBase() :
-    timer_(0),
-    message_handler_(new NullMutex) {
-  }
-
+  ImageTestBase() : timer_(0), file_system_(&timer_) {}
   virtual ~ImageTestBase();
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ImageFromString(ImageType output_type,
+  Image* ImageFromString(Image::Type output_type,
                          const GoogleString& name,
                          const GoogleString& contents,
                          bool progressive);
@@ -73,18 +61,16 @@ class ImageTestBase : public testing::Test {
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ReadImageFromFile(ImageType output_type,
+  Image* ReadImageFromFile(Image::Type output_type,
                            const char* filename, GoogleString* buffer,
                            bool progressive);
 
   MockTimer timer_;
   StdioFileSystem file_system_;
-  MockMessageHandler message_handler_;
+  GoogleMessageHandler handler_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ImageTestBase);
 };
 
 }  // namespace net_instaweb
-
-#endif  // NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_TEST_BASE_H_

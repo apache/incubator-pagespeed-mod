@@ -48,10 +48,8 @@ class FlushEarlyFlow {
   static const char kNumResourcesFlushedEarly[];
   static const char kFlushEarlyRewriteLatencyMs[];
   static const char kNumFlushEarlyHttpStatusCodeDeemedUnstable[];
-  static const char kNumFlushEarlyRequestsRedirected[];
-  static const char kRedirectPageJs[];
 
-  static void TryStart(
+  static void Start(
       const GoogleString& url,
       AsyncFetch** base_fetch,
       RewriteDriver* driver,
@@ -78,8 +76,17 @@ class FlushEarlyFlow {
                  ProxyFetchFactory* factory,
                  ProxyFetchPropertyCallbackCollector* property_cache_callback);
 
+  // Generates a dummy head with subresources and counts the number of resources
+  // which can be flused early.
+  void GenerateDummyHeadAndCountResources(
+      const FlushEarlyInfo& flush_early_info);
+
   // Generates response headers from previous values stored in property cache.
   void GenerateResponseHeaders(const FlushEarlyInfo& flush_early_info);
+
+  GoogleString GetHeadString(const FlushEarlyInfo& flush_early_info,
+                             const char* css_format,
+                             const char* js_format);
 
   // Callback that is invoked after we rewrite the early head.
   // start_time_ms indicates the time we started rewriting the flush early
@@ -88,6 +95,12 @@ class FlushEarlyFlow {
                              RewriteDriver* flush_early_driver);
 
   void Write(const StringPiece& val);
+
+  // Writes the script content to base_fetch.
+  void WriteScript(const GoogleString& script_content);
+
+  // Write the external script to base fetch.
+  void WriteExternalScript(const GoogleString& script_url);
 
   GoogleString url_;
   GoogleString dummy_head_;
@@ -100,11 +113,11 @@ class FlushEarlyFlow {
   FlushEarlyAsyncFetch* flush_early_fetch_;
   RewriteDriver* driver_;
   ProxyFetchFactory* factory_;
-  ServerContext* server_context_;
+  ServerContext* manager_;
   ProxyFetchPropertyCallbackCollector* property_cache_callback_;
   bool should_flush_early_lazyload_script_;
+  bool should_flush_early_js_defer_script_;
   MessageHandler* handler_;
-  bool is_mobile_user_agent_;
 
   TimedVariable* num_requests_flushed_early_;
   TimedVariable* num_resources_flushed_early_;

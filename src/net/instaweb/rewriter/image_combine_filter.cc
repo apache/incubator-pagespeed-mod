@@ -28,7 +28,6 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
 #include "net/instaweb/rewriter/public/image.h"
@@ -62,7 +61,6 @@
 #include "webutil/css/value.h"
 
 namespace net_instaweb {
-class Timer;
 class UrlSegmentEncoder;
 
 typedef std::map<GoogleString, const spriter::Rect*> RectMap;
@@ -496,7 +494,7 @@ class Library : public spriter::ImageLibraryInterface {
   class Canvas : public spriter::ImageLibraryInterface::Canvas {
    public:
     Canvas(int width, int height, Library* lib,
-           const StringPiece& tmp_dir, Timer* timer, MessageHandler* handler) :
+           const StringPiece& tmp_dir, MessageHandler* handler) :
         spriter::ImageLibraryInterface::Canvas(lib),
         lib_(lib) {
       DCHECK(lib != NULL);
@@ -504,8 +502,8 @@ class Library : public spriter::ImageLibraryInterface {
           new net_instaweb::Image::CompressionOptions();
       options->recompress_png = true;
       image_.reset(BlankImageWithOptions(width, height,
-                                         net_instaweb::IMAGE_PNG,
-                                         tmp_dir, timer, handler, options));
+                                         net_instaweb::Image::IMAGE_PNG,
+                                         tmp_dir, handler, options));
     }
 
     virtual ~Canvas() { }
@@ -534,9 +532,8 @@ class Library : public spriter::ImageLibraryInterface {
   };
 
   Library(Delegate* delegate, const StringPiece& tmp_dir,
-          Timer* timer, MessageHandler* handler)
-      : spriter::ImageLibraryInterface(delegate), timer_(timer),
-        handler_(handler) {
+          MessageHandler* handler)
+      : spriter::ImageLibraryInterface(delegate), handler_(handler) {
     tmp_dir.CopyToString(&tmp_dir_);
   }
 
@@ -556,7 +553,7 @@ class Library : public spriter::ImageLibraryInterface {
   }
 
   virtual Canvas* CreateCanvas(int width, int height) {
-    return new Canvas(width, height, this, tmp_dir_, timer_, handler_);
+    return new Canvas(width, height, this, tmp_dir_, handler_);
   }
 
   // Does not take ownership of the resource.  Returns true if the image could
@@ -572,20 +569,22 @@ class Library : public spriter::ImageLibraryInterface {
 
     net_instaweb::Image::CompressionOptions* image_options =
         new net_instaweb::Image::CompressionOptions();
+    image_options->webp_preferred = false;  // Not working with jpg/webp at all.
     // TODO(satyanarayana): Use appropriate quality param for spriting.
     image_options->jpeg_quality =
         RewriteOptions::kDefaultImageJpegRecompressQuality;
     // TODO(nikhilmadan): Use appropriate progressive setting for spriting.
     image_options->progressive_jpeg = false;
+    image_options->convert_png_to_jpeg = false;
 
-    scoped_ptr<net_instaweb::Image> image(NewImage(
+    scoped_ptr<net_instaweb::Image> image(net_instaweb::NewImage(
         resource->contents(), resource->url(), tmp_dir_, image_options,
-        timer_, handler_));
+        handler_));
 
     // We only handle PNGs and GIFs (which are converted to PNGs) for now.
-    net_instaweb::ImageType image_type = image->image_type();
-    if ((image_type != net_instaweb::IMAGE_PNG) &&
-        (image_type != net_instaweb::IMAGE_GIF)) {
+    net_instaweb::Image::Type image_type = image->image_type();
+    if ((image_type != net_instaweb::Image::IMAGE_PNG) &&
+        (image_type != net_instaweb::Image::IMAGE_GIF)) {
       handler->Message(kInfo, "Cannot sprite: not PNG or GIF, %s",
                        resource->url().c_str());
       return false;
@@ -620,7 +619,6 @@ class Library : public spriter::ImageLibraryInterface {
   // decoded raster) for quick access. Owns the Image objects.
   ImageMap fake_fs_;
   GoogleString tmp_dir_;
-  Timer* timer_;
   MessageHandler* handler_;
 };
 
@@ -678,11 +676,12 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 
     combination->EnsureCachedResultCreated()->mutable_spriter_result()->
         CopyFrom(*result);
-    if (!rewrite_driver_->Write(combine_resources,
+    if (!server_context_->Write(combine_resources,
                                 result_image->image()->Contents(),
                                 &kContentTypePng,
                                 StringPiece(),  // no charset on images.
-                                combination.get())) {
+                                combination.get(),
+                                handler)) {
       handler->Error(UrlSafeId().c_str(), 0,
                      "Could not write sprited resource.");
       return false;
@@ -715,11 +714,9 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 // Special resource slot that has a future_ pointer.
 class SpriteFutureSlot : public CssResourceSlot {
  public:
-  SpriteFutureSlot(const ResourcePtr& resource,
-                   const GoogleUrl& base_url, const RewriteOptions* options,
-                   Css::Values* values, size_t value_index,
-                   SpriteFuture* future)
-      : CssResourceSlot(resource, base_url, options, values, value_index),
+  SpriteFutureSlot(const ResourcePtr& resource, Css::Values* values,
+                   size_t value_index, SpriteFuture* future)
+      : CssResourceSlot(resource, values, value_index),
         future_(future),
         may_sprite_(false) {
   }
@@ -759,7 +756,6 @@ class ImageCombineFilter::Context : public RewriteContext {
       : RewriteContext(NULL, parent, NULL),
         library_(NULL,
                  filter->driver()->server_context()->filename_prefix(),
-                 filter->driver()->timer(),
                  filter->driver()->message_handler()),
         filter_(filter) {
     MD5Hasher hasher;
@@ -771,7 +767,6 @@ class ImageCombineFilter::Context : public RewriteContext {
       : RewriteContext(driver, NULL, NULL),
         library_(NULL,
                  filter->driver()->server_context()->filename_prefix(),
-                 filter->driver()->timer(),
                  filter->driver()->message_handler()),
         filter_(filter) {
   }
@@ -999,7 +994,7 @@ class ImageCombineFilter::Context : public RewriteContext {
       SpriteFuture* future = sprite_slot->future();
       GoogleString resource_url = resource->url();
       if (no_sprite->find(resource_url) == no_sprite->end()) {
-        if (!resource->IsSafeToRewrite(rewrite_uncacheable())) {
+        if (!resource->IsValidAndCacheable()) {
           no_sprite->insert(resource_url);
         } else {
           // Register the resource with the library and then check
@@ -1149,13 +1144,14 @@ bool ImageCombineFilter::GetDeclarationDimensions(
 // Must initialize context_ with appropriate parent before hand.
 // parent passed here because it's private.
 void ImageCombineFilter::AddCssBackgroundContext(
-    const GoogleUrl& original_url, const GoogleUrl& base_url,
-    Css::Values* values, int value_index,
+    const GoogleUrl& original_url, Css::Values* values, int value_index,
     CssFilter::Context* parent, Css::Declarations* decls,
     MessageHandler* handler) {
   CHECK(context_ != NULL);
+  handler->Message(kInfo, "Attempting to sprite css background.");
   int width, height;
   if (!GetDeclarationDimensions(decls, &width, &height)) {
+    handler->Message(kInfo, "Cannot sprite: no explicit dimensions");
     return;
   }
   StringPiece url_piece(original_url.Spec());
@@ -1167,7 +1163,7 @@ void ImageCombineFilter::AddCssBackgroundContext(
   if (resource.get() != NULL) {
     // transfers ownership of future to slot_obj
     SpriteFutureSlot* slot_obj = new SpriteFutureSlot(
-        resource, base_url, driver()->options(), values, value_index, future);
+        resource, values, value_index, future);
     CssResourceSlotPtr slot(slot_obj);
     parent->slot_factory()->UniquifySlot(slot);
     // Spriting must run before all other filters so that the slot for the

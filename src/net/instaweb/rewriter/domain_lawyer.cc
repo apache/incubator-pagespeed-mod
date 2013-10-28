@@ -30,7 +30,7 @@
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/wildcard.h"
+#include "net/instaweb/util/public/wildcard.h"
 
 namespace net_instaweb {
 
@@ -285,17 +285,12 @@ class DomainLawyer::Domain {
 };
 
 DomainLawyer::~DomainLawyer() {
-  Clear();
+  STLDeleteValues(&domain_map_);
 }
 
 bool DomainLawyer::AddDomain(const StringPiece& domain_name,
                              MessageHandler* handler) {
   return (AddDomainHelper(domain_name, true, true, false, handler) != NULL);
-}
-
-bool DomainLawyer::AddKnownDomain(const StringPiece& domain_name,
-                                  MessageHandler* handler) {
-  return (AddDomainHelper(domain_name, false, false, false, handler) != NULL);
 }
 
 GoogleString DomainLawyer::NormalizeDomainName(const StringPiece& domain_name) {
@@ -328,10 +323,6 @@ DomainLawyer::Domain* DomainLawyer::AddDomainHelper(
       handler->Message(kWarning, "Empty domain passed to AddDomain");
     }
     return NULL;
-  }
-
-  if (authorize && domain_name == "*") {
-    authorize_all_domains_ = true;
   }
 
   // TODO(matterbury): need better data structures to eliminate the O(N) logic:
@@ -447,7 +438,7 @@ void DomainLawyer::FindDomainsRewrittenTo(
     ConstStringStarVector* from_domains) const {
   // TODO(rahulbansal): Make this more efficient by maintaining the map of
   // rewrite_domain -> from_domains.
-  if (!original_url.IsWebValid()) {
+  if (!original_url.is_valid()) {
     LOG(ERROR) << "Invalid url " << original_url.Spec();
     return;
   }
@@ -471,13 +462,13 @@ bool DomainLawyer::MapRequestToDomain(
     GoogleString* mapped_domain_name,
     GoogleUrl* resolved_request,
     MessageHandler* handler) const {
-  CHECK(original_request.IsAnyValid());
+  CHECK(original_request.is_valid());
   GoogleUrl original_origin(original_request.Origin());
   resolved_request->Reset(original_request, resource_url);
 
   bool ret = false;
   // We can map a request to/from http/https.
-  if (resolved_request->IsWebValid()) {
+  if (resolved_request->is_valid()) {
     GoogleUrl resolved_origin(resolved_request->Origin());
 
     // Looks at the resolved domain name + path from the original request
@@ -527,12 +518,9 @@ bool DomainLawyer::MapRequestToDomain(
 
 bool DomainLawyer::IsDomainAuthorized(const GoogleUrl& original_request,
                                       const GoogleUrl& domain_to_check) const {
-  if (authorize_all_domains_) {
-    return true;
-  }
   bool ret = false;
-  if (domain_to_check.IsWebValid()) {
-    if (original_request.IsWebValid() &&
+  if (domain_to_check.is_valid()) {
+    if (original_request.is_valid() &&
         (original_request.Origin() == domain_to_check.Origin())) {
       ret = true;
     } else {
@@ -544,7 +532,7 @@ bool DomainLawyer::IsDomainAuthorized(const GoogleUrl& original_request,
 }
 
 bool DomainLawyer::IsOriginKnown(const GoogleUrl& domain_to_check) const {
-  if (domain_to_check.IsWebValid()) {
+  if (domain_to_check.is_valid()) {
     Domain* path_domain = FindDomain(domain_to_check);
     return (path_domain != NULL);
   }
@@ -554,7 +542,7 @@ bool DomainLawyer::IsOriginKnown(const GoogleUrl& domain_to_check) const {
 bool DomainLawyer::MapOrigin(const StringPiece& in, GoogleString* out,
                              bool* is_proxy) const {
   GoogleUrl gurl(in);
-  return gurl.IsWebValid() && MapOriginUrl(gurl, out, is_proxy);
+  return gurl.is_valid() && MapOriginUrl(gurl, out, is_proxy);
 }
 
 bool DomainLawyer::MapOriginUrl(const GoogleUrl& gurl,
@@ -562,8 +550,8 @@ bool DomainLawyer::MapOriginUrl(const GoogleUrl& gurl,
   bool ret = false;
   *is_proxy = false;
 
-  // We can map an origin to/from http/https.
-  if (gurl.IsWebValid()) {
+  // We can map an origin TO http only, but FROM http or https.
+  if (gurl.is_valid()) {
     ret = true;
     gurl.Spec().CopyToString(out);
     Domain* domain = FindDomain(gurl);
@@ -611,12 +599,12 @@ bool DomainLawyer::MapUrlHelper(const Domain& from_domain,
   GoogleString rel_url =
       StrCat("./", path_and_leaf.substr(from_domain_path.size()));
   // Make sure this isn't a valid absolute URL.
-  DCHECK(!GoogleUrl(rel_url).IsWebValid())
+  DCHECK(!GoogleUrl(rel_url).is_valid())
       << "URL " << gurl.Spec() << " is being mapped to absolute URL "
       << rel_url << " which will break many things.";
   GoogleUrl to_domain_gurl(to_domain.name());
   mapped_gurl->Reset(to_domain_gurl, rel_url);
-  return mapped_gurl->IsWebValid();
+  return mapped_gurl->is_valid();
 }
 
 bool DomainLawyer::AddRewriteDomainMapping(
@@ -695,7 +683,7 @@ bool DomainLawyer::AddOriginDomainMapping(
   return MapDomainHelper(to_domain_name, comma_separated_from_domains,
                          &Domain::SetOriginDomain,
                          true /* allow_wildcards */,
-                         true /* allow_map_to_https */,
+                         false /* allow_map_to_https */,
                          false /* authorize */,
                          handler);
 }
@@ -703,49 +691,13 @@ bool DomainLawyer::AddOriginDomainMapping(
 bool DomainLawyer::AddProxyDomainMapping(
     const StringPiece& proxy_domain_name,
     const StringPiece& origin_domain_name,
-    const StringPiece& to_domain_name,
     MessageHandler* handler) {
-  bool result;
-
-  if (to_domain_name.empty()) {
-    // 1. Rewrite from origin_domain to proxy_domain.
-    // 2. Set origin_domain->is_proxy = true.
-    // 3. Map origin from proxy_domain to origin_domain.
-    result = MapDomainHelper(origin_domain_name, proxy_domain_name,
-                             &Domain::SetProxyDomain,
-                             false /* allow_wildcards */,
-                             true /* allow_map_to_https */,
-                             true /* authorize */,
-                             handler);
-  } else {
-    // 1. Rewrite from origin_domain to to_domain.
-    // 2. Set origin_domain->is_proxy = true.
-    // 3. Map origin from to_domain to origin_domain.
-    result = MapDomainHelper(origin_domain_name, to_domain_name,
-                             &Domain::SetProxyDomain,
-                             false /* allow_wildcards */,
-                             true /* allow_map_to_https */,
-                             true /* authorize */,
-                             handler);
-    // 4. Rewrite from proxy_domain to to_domain. This way when the CDN asks us
-    // for resources on proxy_domain it knows to use the CDN domain for the
-    // cache key.
-    result &= MapDomainHelper(to_domain_name, proxy_domain_name,
-                              &Domain::SetRewriteDomain,
-                              false /* allow_wildcards */,
-                              true /* allow_map_to_https */,
-                              true /* authorize */,
-                              handler);
-    // 5. Map origin from proxy_domain to origin_domain. This tells the proxy
-    // how to fetch files from the origin for reconstruction.
-    result &= MapDomainHelper(origin_domain_name, proxy_domain_name,
-                              &Domain::SetOriginDomain,
-                              false /* allow wildcards */,
-                              true /* allow_map_to_https */,
-                              true /* authorize */,
-                              handler);
-  }
-  return result;
+  return MapDomainHelper(origin_domain_name, proxy_domain_name,
+                         &Domain::SetProxyDomain,
+                         false /* allow_wildcards */,
+                         false /* allow_map_to_https */,
+                         true /* authorize */,
+                         handler);
 }
 
 
@@ -877,7 +829,6 @@ void DomainLawyer::Merge(const DomainLawyer& src) {
   }
 
   can_rewrite_domains_ |= src.can_rewrite_domains_;
-  authorize_all_domains_ |= src.authorize_all_domains_;
 }
 
 bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
@@ -897,8 +848,9 @@ bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
   return sharded;
 }
 
-bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
-  Domain* domain = FindDomain(gurl), *mapped_domain = domain;
+bool DomainLawyer::WillDomainChange(const StringPiece& domain_name) const {
+  GoogleUrl domain_gurl(NormalizeDomainName(domain_name));
+  Domain* domain = FindDomain(domain_gurl), *mapped_domain = domain;
   if (domain != NULL) {
     // First check a mapping based on AddRewriteDomainMapping.
     mapped_domain = domain->rewrite_domain();
@@ -926,17 +878,6 @@ bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
     }
   }
   return domain != mapped_domain;
-}
-
-bool DomainLawyer::IsProxyMapped(const GoogleUrl& gurl) const {
-  Domain* domain = FindDomain(gurl);
-  if (domain != NULL) {
-    Domain* origin = domain->origin_domain();
-    if ((origin != NULL) && origin->is_proxy()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool DomainLawyer::DoDomainsServeSameContent(
@@ -980,13 +921,6 @@ GoogleString DomainLawyer::ToString(StringPiece line_prefix) const {
     StrAppend(&output, line_prefix, iterator->second->ToString(), "\n");
   }
   return output;
-}
-
-void DomainLawyer::Clear() {
-  STLDeleteValues(&domain_map_);
-  can_rewrite_domains_ = false;
-  authorize_all_domains_ = false;
-  wildcarded_domains_.clear();
 }
 
 }  // namespace net_instaweb

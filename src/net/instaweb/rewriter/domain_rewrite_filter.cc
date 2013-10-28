@@ -17,9 +17,6 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
-
-#include <memory>
-
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -30,7 +27,7 @@
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -53,13 +50,22 @@ DomainRewriteFilter::DomainRewriteFilter(RewriteDriver* rewrite_driver,
       rewrite_count_(stats->GetVariable(kDomainRewrites)) {}
 
 void DomainRewriteFilter::StartDocumentImpl() {
+  client_domain_rewriter_script_written_ = false;
   bool rewrite_hyperlinks = driver_->options()->domain_rewrite_hyperlinks();
 
   if (rewrite_hyperlinks) {
     // TODO(nikhilmadan): Rewrite the domain for cookies.
     // Rewrite the Location header for redirects.
-    UpdateLocationHeader(driver_->base_url(), driver_,
-                         driver_->mutable_response_headers());
+    ResponseHeaders* headers = driver_->mutable_response_headers();
+    if (headers != NULL) {
+      const char* location = headers->Lookup1(HttpAttributes::kLocation);
+      if (location != NULL) {
+        GoogleString new_location;
+        Rewrite(location, driver_->base_url(), false /* !apply_sharding */,
+                &new_location);
+        headers->Replace(HttpAttributes::kLocation, new_location);
+      }
+    }
   }
 }
 
@@ -69,48 +75,32 @@ void DomainRewriteFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kDomainRewrites);
 }
 
-void DomainRewriteFilter::UpdateLocationHeader(const GoogleUrl& base_url,
-                                               RewriteDriver* driver,
-                                               ResponseHeaders* headers) const {
-  if (headers != NULL) {
-    const char* location = headers->Lookup1(HttpAttributes::kLocation);
-    if (location != NULL) {
-      GoogleString new_location;
-      DomainRewriteFilter::RewriteResult status = Rewrite(
-          location, base_url, driver, false /* !apply_sharding */,
-          &new_location);
-      if (status == kRewroteDomain) {
-        headers->Replace(HttpAttributes::kLocation, new_location);
-      }
-    }
-  }
-}
-
 void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    // Disable domain_rewrite for non-image, non-script, non-stylesheet urls
-    // unless ModPagespeedDomainRewriteHyperlinks is on
-    if (attributes[i].category != semantic_type::kImage &&
-        attributes[i].category != semantic_type::kScript &&
-        attributes[i].category != semantic_type::kStylesheet &&
-        !driver_->options()->domain_rewrite_hyperlinks()) {
-      continue;
-    }
-    StringPiece val(attributes[i].url->DecodedValueOrNull());
+  semantic_type::Category category;
+  HtmlElement::Attribute* href = resource_tag_scanner::ScanElement(
+      element, driver_, &category);
+
+  // Disable domain_rewrite for non-image, non-script, non-stylesheet urls
+  // unless ModPagespeedDomainRewriteHyperlinks is on
+  if (category != semantic_type::kImage &&
+      category != semantic_type::kScript &&
+      category != semantic_type::kStylesheet &&
+      !driver_->options()->domain_rewrite_hyperlinks()) {
+    return;
+  }
+  if (href != NULL) {
+    StringPiece val(href->DecodedValueOrNull());
     GoogleString rewritten_val;
     // Don't shard hyperlinks, prefetch, embeds, frames, or iframes.
-    bool apply_sharding = (
-        attributes[i].category != semantic_type::kHyperlink &&
-        attributes[i].category != semantic_type::kPrefetch &&
-        element->keyword() != HtmlName::kEmbed &&
-        element->keyword() != HtmlName::kFrame &&
-        element->keyword() != HtmlName::kIframe);
+    bool apply_sharding = (category != semantic_type::kHyperlink &&
+                           category != semantic_type::kPrefetch &&
+                           element->keyword() != HtmlName::kEmbed &&
+                           element->keyword() != HtmlName::kFrame &&
+                           element->keyword() != HtmlName::kIframe);
     if (!val.empty() && BaseUrlIsValid() &&
-        (Rewrite(val, driver_->base_url(), driver_,
-                 apply_sharding, &rewritten_val) == kRewroteDomain)) {
-      attributes[i].url->SetValue(rewritten_val);
+        (Rewrite(val, driver_->base_url(), apply_sharding, &rewritten_val) ==
+         kRewroteDomain)) {
+      href->SetValue(rewritten_val);
       rewrite_count_->Add(1);
     }
   }
@@ -119,23 +109,30 @@ void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
 // Resolve the url we want to rewrite, and then shard as appropriate.
 DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
     const StringPiece& url_to_rewrite, const GoogleUrl& base_url,
-    const RewriteDriver* driver,
-    bool apply_sharding, GoogleString* rewritten_url) const {
+    bool apply_sharding, GoogleString* rewritten_url) {
   if (url_to_rewrite.empty()) {
     return kDomainUnchanged;
   }
 
   GoogleUrl orig_url(base_url, url_to_rewrite);
-  if (!orig_url.IsWebOrDataValid()) {
+  if (!orig_url.is_valid()) {
     return kFail;
   }
-
-  if (!orig_url.IsWebValid()) {
-    return kDomainUnchanged;
+  if (!orig_url.is_standard()) {
+    // If the schemes are the same url_to_rewrite was -probably- relative,
+    // so fail this rewrite since the absolute result can't be handled;
+    // if they're different then it was definitely absolute and we should
+    // just leave it as it was.
+    if (orig_url.Scheme() == base_url.Scheme()) {
+      return kFail;
+    } else {
+      orig_url.Spec().CopyToString(rewritten_url);
+      return kDomainUnchanged;
+    }
   }
 
   StringPiece orig_spec = orig_url.Spec();
-  const RewriteOptions* options = driver->options();
+  const RewriteOptions* options = driver_->options();
 
   if (!options->IsAllowed(orig_spec) ||
       // Don't rewrite a domain from an already-rewritten resource.
@@ -158,7 +155,7 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
   GoogleUrl resolved_request;
   if (!lawyer->MapRequestToDomain(base_url, url_to_rewrite,
                                   &mapped_domain_name, &resolved_request,
-                                  driver->message_handler())) {
+                                  driver_->message_handler())) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
     orig_url.Spec().CopyToString(rewritten_url);
@@ -185,36 +182,38 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
   }
 }
 
-void DomainRewriteFilter::EndDocument() {
-  if (!driver_->options()->client_domain_rewrite()) {
-    return;
-  }
-  const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
-  ConstStringStarVector from_domains;
-  lawyer->FindDomainsRewrittenTo(driver_->base_url(), &from_domains);
+void DomainRewriteFilter::EndElementImpl(HtmlElement* element) {
+  if (driver_->options()->client_domain_rewrite() &&
+      (element->keyword() == HtmlName::kBody &&
+      !client_domain_rewriter_script_written_)) {
+    const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
+    ConstStringStarVector from_domains;
+    lawyer->FindDomainsRewrittenTo(driver_->base_url(), &from_domains);
 
-  if (from_domains.empty()) {
-    return;
-  }
-
-  GoogleString comma_separated_from_domains;
-  for (int i = 0, n = from_domains.size(); i < n; i++) {
-    StrAppend(&comma_separated_from_domains, "\"", *(from_domains[i]), "\"");
-    if (i != n - 1) {
-      StrAppend(&comma_separated_from_domains, ",");
+    if (from_domains.empty()) {
+      return;
     }
-  }
 
-  HtmlElement* script_node = driver_->NewElement(NULL, HtmlName::kScript);
-  InsertNodeAtBodyEnd(script_node);
-  StaticAssetManager* static_asset_manager =
-      driver_->server_context()->static_asset_manager();
-  GoogleString js =
-      StrCat(static_asset_manager->GetAsset(
-                 StaticAssetManager::kClientDomainRewriter, driver_->options()),
-             "pagespeed.clientDomainRewriterInit([",
-             comma_separated_from_domains, "]);");
-  static_asset_manager->AddJsToElement(js, script_node, driver_);
+    GoogleString comma_separated_from_domains;
+    for (int i = 0, n = from_domains.size(); i < n; i++) {
+      StrAppend(&comma_separated_from_domains, "\"", *(from_domains[i]), "\"");
+      if (i != n - 1) {
+        StrAppend(&comma_separated_from_domains, ",");
+      }
+    }
+
+    HtmlElement* script_node = driver_->NewElement(element, HtmlName::kScript);
+    driver_->AppendChild(element, script_node);
+    StaticJavascriptManager* js_manager =
+        driver_->server_context()->static_javascript_manager();
+    GoogleString js = StrCat(
+        js_manager->GetJsSnippet(
+            StaticJavascriptManager::kClientDomainRewriter, driver_->options()),
+            "pagespeed.clientDomainRewriterInit([",
+            comma_separated_from_domains, "]);");
+    js_manager->AddJsToElement(js, script_node, driver_);
+    client_domain_rewriter_script_written_ = true;
+  }
 }
 
 }  // namespace net_instaweb

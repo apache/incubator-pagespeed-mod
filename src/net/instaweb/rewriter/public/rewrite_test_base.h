@@ -27,38 +27,28 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 // We need to include mock_timer.h to allow upcast to Timer*.
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "pagespeed/kernel/http/content_type.h"
 
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
 class CountingUrlAsyncFetcher;
 class DelayCache;
 class HTTPValue;
@@ -66,13 +56,15 @@ class Hasher;
 class HtmlWriterFilter;
 class LRUCache;
 class MessageHandler;
-class MockLogRecord;
 class MockScheduler;
-class RequestHeaders;
+class MockTimer;
+class PropertyCache;
 class ResourceNamer;
 class RewriteFilter;
 class Statistics;
+class UrlNamer;
 class WaitUrlAsyncFetcher;
+struct ContentType;
 
 class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
  protected:
@@ -87,6 +79,7 @@ class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
 class RewriteTestBase : public RewriteOptionsTestBase {
  public:
   static const char kTestData[];    // Testdata directory.
+
   // Specifies which server should be "active" in that rewrites and fetches
   // will use it. The data members affected are those returned by:
   // - factory() / other_factory()
@@ -174,18 +167,15 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                             GoogleString* text);
 
   void ServeResourceFromManyContexts(const GoogleString& resource_url,
-                                     const StringPiece& expected_content);
-
-  void ServeResourceFromManyContextsWithUA(
-      const GoogleString& resource_url,
-      const StringPiece& expected_content,
-      const StringPiece& user_agent);
+                                     const StringPiece& expected_content,
+                                     UrlNamer* new_rms_url_namer = NULL);
 
   // Test that a resource can be served from an new server that has not already
   // constructed it.
   void ServeResourceFromNewContext(
       const GoogleString& resource_url,
-      const StringPiece& expected_content);
+      const StringPiece& expected_content,
+      UrlNamer* new_rms_url_namer = NULL);
 
   // This definition is required by HtmlParseTestBase which defines this as
   // pure abstract, so that the test subclass can define how it instantiates
@@ -208,10 +198,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content,
                         ResponseHeaders* response);
-  bool FetchResourceUrl(const StringPiece& url,
-                        RequestHeaders* request_headers,
-                        GoogleString* content,
-                        ResponseHeaders* response_headers);
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content);
 
   // Just check if we can fetch a resource successfully, ignore response.
@@ -243,8 +229,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
     // Parses a combined CSS elementand provides the segments from which
     // it came.
-    bool DecomposeCombinedUrl(StringPiece base_url, GoogleString* base,
-                              StringVector* segments, MessageHandler* handler);
+    bool DecomposeCombinedUrl(GoogleString* base, StringVector* segments,
+                              MessageHandler* handler);
 
     GoogleString url_;
     GoogleString content_;
@@ -345,16 +331,12 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                               const StringVector& name_vector,
                               const StringPiece& ext);
 
-  // Takes an already-encoded URL and adds options to to it.
-  GoogleString AddOptionsToEncodedUrl(const StringPiece& url,
-                                      const StringPiece& options);
-
   // If append_new_suffix is true, appends new_suffix to old_url.
   // If append_new_suffix is false, replaces old_suffix at the end of old_url
   // with new_suffix.
   // Either way, precondition: old_url ends with old_suffix
   static GoogleString ChangeSuffix(
-      StringPiece old_url, bool append_new_suffix,
+      GoogleString old_url, bool append_new_suffix,
       StringPiece old_suffix, StringPiece new_suffix);
 
   // Overrides the async fetcher on the primary context to be a
@@ -363,28 +345,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // and call the callbacks.
   void SetupWaitFetcher();
   void CallFetcherCallbacks();
-  void OtherCallFetcherCallbacks();
+
   RewriteOptions* options() { return options_; }
   RewriteOptions* other_options() { return other_options_; }
-
-  // Set the RewriteOptions to be returned by the RewriteOptionsManager.
-  void SetRewriteOptions(RewriteOptions* opts);
-
-  // Authorizes a domain to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddDomain(StringPiece domain);
-
-  // Adds an origin domain mapping to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddOriginDomainMapping(StringPiece to_domain, StringPiece from_domain);
-
-  // Adds a rewrite domain mapping to options()->domain_lawyer(), recomputing
-  // the options signature if necessary.
-  bool AddRewriteDomainMapping(StringPiece to_domain, StringPiece from_domain);
-
-  // Adds a shard to options()->domain_lawyer(), recomputing the options
-  // signature if necessary.
-  bool AddShard(StringPiece domain, StringPiece shards);
 
   // Helper method to test all manner of resource serving from a filter.
   void TestServeFiles(const ContentType* content_type,
@@ -423,10 +386,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                                      const StringPiece& content,
                                      int64 ttl_sec);
 
-  // Load a test file (from testdata/) into 'contents', returning false on
-  // failure.
-  bool LoadFile(const StringPiece& filename, GoogleString* contents);
-
   // Add the contents of a file to mock fetcher (with default headers).
   void AddFileToMockFetcher(const StringPiece& url,
                             const StringPiece& filename,
@@ -451,15 +410,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   virtual void ClearStats();
 
-  // Calls Clear() on the rewrite driver and does any other necessary
-  // clean-up so the driver is okay for a test to reuse.
-  void ClearRewriteDriver();
-
   MockUrlFetcher* mock_url_fetcher() {
     return &mock_url_fetcher_;
-  }
-  TestDistributedFetcher* test_distributed_fetcher() {
-    return &test_distributed_fetcher_;
   }
   Hasher* hasher() { return server_context_->hasher(); }
   DelayCache* delay_cache() { return factory_->delay_cache(); }
@@ -501,9 +453,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   CountingUrlAsyncFetcher* counting_url_async_fetcher() {
     return factory_->counting_url_async_fetcher();
   }
-  CountingUrlAsyncFetcher* counting_distributed_fetcher() {
-    return factory_->counting_distributed_async_fetcher();
-  }
+
   void SetMockHashValue(const GoogleString& value) {
     factory_->mock_hasher()->set_hash_value(value);
   }
@@ -560,11 +510,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
       const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
       ResponseHeaders* headers);
 
-  // The same as the above function, but doesn't need an HTTPValue or
-  // ResponseHeaders.
-  HTTPCache::FindResult HttpBlockingFindStatus(
-      const GoogleString& key, HTTPCache* http_cache);
-
   // Sets the response-headers Content-Type to "application/xhtml+xml".
   void SetXhtmlMimetype() { SetMimetype("application/xhtml+xml"); }
 
@@ -581,65 +526,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
       StringPiece expected_contents,
       int64 expected_expiration_ms);
 
-  // Setup statistics for the given cohort and add it to the give PropertyCache.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort) {
-    return factory()->SetupCohort(cache, cohort);
-  }
-
-  // Configure the other_server_context_ to use the same LRU cache as the
-  // primary server context.
-  void SetupSharedCache();
-
-  // Returns a new mock property page for the page property cache.
-  MockPropertyPage* NewMockPage(const StringPiece& url,
-                                const StringPiece& options_signature_hash,
-                                UserAgentMatcher::DeviceType device_type) {
-    return new MockPropertyPage(
-        server_context_->thread_system(),
-        server_context_->page_property_cache(),
-        url,
-        options_signature_hash,
-        UserAgentMatcher::DeviceTypeSuffix(device_type));
-  }
-
-  MockPropertyPage* NewMockPage(const StringPiece& url) {
-    return NewMockPage(url, "hash", UserAgentMatcher::kDesktop);
-  }
-
-  // Sets MockLogRecord in the driver's request_context.
-  void SetMockLogRecord();
-
-  // Returns the MockLogRecord in the driver.
-  MockLogRecord* mock_log_record();
-
-  // Helper methods to return js/html snippets related to lazyload images.
-  GoogleString GetLazyloadScriptHtml();
-  GoogleString GetLazyloadPostscriptHtml();
-
-  // Sets the server-scoped invalidation timestamp.  Time is advanced by
-  // 1 second both before and after invalidation.  E.g. if the current time
-  // is 100000 milliseconds at the time this is called, the invalidation
-  // timestamp will be at 101000 milliseconds, and time will be rolled
-  // forward to 102000 on exit from this function.
-  void SetCacheInvalidationTimestamp();
-
-  // Sets the invalidation timestamp for a URL pattern.  Time is advanced by
-  // in the same manner as for SetCacheInvalidationTimestamp above.
-  void SetCacheInvalidationTimestampForUrl(
-      StringPiece url, bool ignores_metadata_and_pcache);
-
-  // Changes the way cache-purges are implemented for non-wildcards to
-  // avoid flushing the entire metadata cache and instead match each
-  // metadata Input against the invalidation-set.
-  void EnableCachePurge();
-
  protected:
   void Init();
-
-  // Override this if the test fixture needs to use a different RequestContext
-  // subclass.
-  virtual RequestContextPtr CreateRequestContext();
 
   // Calls callbacks on given wait fetcher, making sure to properly synchronize
   // with async rewrite flows given driver.
@@ -666,46 +554,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Adjusts time ignoring any scheduler callbacks.  Use with caution.
   void AdjustTimeUsWithoutWakingAlarms(int64 time_us);
 
-  // Accessor for TimingInfo.
-  const RequestContext::TimingInfo& timing_info();
-  RequestContext::TimingInfo* mutable_timing_info();
-
-  // Convenience method to pull the logging info proto out of the current
-  // request context's log record. The request context owns the log record, and
-  // if the log record has a non-NULL mutex, it will need to be locked
-  // for this call.
-  LoggingInfo* logging_info();
-
-  // Convenience method to extract read-only metadata_cache_info.
-  const MetadataCacheInfo& metadata_cache_info() {
-    return logging_info()->metadata_cache_info();
-  }
-
-  // Convenience method for retrieving the computed applied rewriters string
-  // from the current request context's log record. Thread-safe.
-  GoogleString AppliedRewriterStringFromLog();
-
-  // Convenience method for verifying that the rewriter info entries have
-  // expected values.
-  void VerifyRewriterInfoEntry(AbstractLogRecord* log_record,
-                               const GoogleString& id,
-                               int url_index,
-                               int rewriter_info_index,
-                               int rewriter_info_size,
-                               int url_list_size,
-                               const GoogleString& url);
-
-  // Sets current_user_agent_
-  void SetCurrentUserAgent(const StringPiece& user_agent) {
-    current_user_agent_ = user_agent;
-  }
-
-  GoogleString ExpectedNonce();
-
-  // The mock fetchers & stats are global across all Factories used in the
-  // tests.
+  // The mock fetcher & stats are global across all Factories used in the tests.
   MockUrlFetcher mock_url_fetcher_;
-  TestDistributedFetcher test_distributed_fetcher_;
   scoped_ptr<Statistics> statistics_;
 
   // We have two independent RewriteDrivers representing two completely
@@ -722,15 +572,13 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   scoped_ptr<HtmlWriterFilter> other_html_writer_filter_;
   ActiveServerFlag active_server_;
   bool use_managed_rewrite_drivers_;
-  StringPiece current_user_agent_;
+
   MD5Hasher md5_hasher_;
 
   RewriteOptions* options_;  // owned by rewrite_driver_.
   RewriteOptions* other_options_;  // owned by other_rewrite_driver_.
   UrlSegmentEncoder default_encoder_;
   ResponseHeaders response_headers_;
-  const GoogleString kEtag0;  // Etag with a 0 hash.
-  uint64 expected_nonce_;
 };
 
 }  // namespace net_instaweb

@@ -19,7 +19,10 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_STL_UTIL_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_STL_UTIL_H_
 
-// TODO(jmarantz): Remove this forwarding header and change all references.
-#include "pagespeed/kernel/base/stl_util.h"
+#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 93110
+#include "base/stl_util.h"
+#else
+#include "base/stl_util-inl.h"
+#endif
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_STL_UTIL_H_

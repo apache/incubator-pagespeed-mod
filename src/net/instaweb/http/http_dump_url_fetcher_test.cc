@@ -27,8 +27,6 @@
 
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 
-#include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -36,12 +34,12 @@
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/timer.h"
-#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
@@ -51,7 +49,8 @@ class HttpDumpUrlFetcherTest : public testing::Test {
  public:
   HttpDumpUrlFetcherTest()
       : mock_timer_(0),
-        thread_system_(Platform::CreateThreadSystem()),
+        file_system_(&mock_timer_),
+        content_writer_(&content_),
         http_dump_fetcher_(
             GTestSrcDir() + "/net/instaweb/http/testdata",
             &file_system_,
@@ -60,9 +59,9 @@ class HttpDumpUrlFetcherTest : public testing::Test {
 
  protected:
   MockTimer mock_timer_;
-  scoped_ptr<ThreadSystem> thread_system_;
   StdioFileSystem file_system_;
   GoogleString content_;
+  StringWriter content_writer_;
   HttpDumpUrlFetcher http_dump_fetcher_;
   GoogleMessageHandler message_handler_;
 
@@ -71,18 +70,12 @@ class HttpDumpUrlFetcherTest : public testing::Test {
 };
 
 TEST_F(HttpDumpUrlFetcherTest, TestReadWithGzip) {
-  ResponseHeaders response;
   RequestHeaders request;
+  ResponseHeaders response;
   request.Add(HttpAttributes::kAcceptEncoding, HttpAttributes::kGzip);
-  StringAsyncFetch fetch(
-      RequestContext::NewTestRequestContext(thread_system_.get()), &content_);
-  fetch.set_response_headers(&response);
-  fetch.set_request_headers(&request);
-
-  http_dump_fetcher_.Fetch(
-      "http://www.google.com", &message_handler_, &fetch);
-  ASSERT_TRUE(fetch.done());
-  ASSERT_TRUE(fetch.success());
+  ASSERT_TRUE(http_dump_fetcher_.StreamingFetchUrl(
+      "http://www.google.com", request, &response, &content_writer_,
+      &message_handler_));
   ConstStringStarVector v;
   ASSERT_TRUE(response.Lookup(HttpAttributes::kContentEncoding, &v));
   ASSERT_EQ(1, v.size());
@@ -95,15 +88,11 @@ TEST_F(HttpDumpUrlFetcherTest, TestReadWithGzip) {
 }
 
 TEST_F(HttpDumpUrlFetcherTest, TestReadUncompressedFromGzippedDump) {
+  RequestHeaders request;
   ResponseHeaders response;
-  StringAsyncFetch fetch(
-      RequestContext::NewTestRequestContext(thread_system_.get()), &content_);
-  fetch.set_response_headers(&response);
-
-  http_dump_fetcher_.Fetch(
-      "http://www.google.com", &message_handler_, &fetch);
-  ASSERT_TRUE(fetch.done());
-  ASSERT_TRUE(fetch.success());
+  ASSERT_TRUE(http_dump_fetcher_.StreamingFetchUrl(
+      "http://www.google.com", request, &response, &content_writer_,
+      &message_handler_));
   ConstStringStarVector v;
   if (response.Lookup(HttpAttributes::kContentEncoding, &v)) {
     ASSERT_EQ(1, v.size());
@@ -117,25 +106,30 @@ TEST_F(HttpDumpUrlFetcherTest, TestReadUncompressedFromGzippedDump) {
 }
 
 // Helper that checks the Date: field as it starts writing.
-class CheckDateHeaderFetch : public StringAsyncFetch {
+class CheckDateHeaderWriter : public Writer {
  public:
-  CheckDateHeaderFetch(const MockTimer* timer, ThreadSystem* threads)
-      : StringAsyncFetch(RequestContext::NewTestRequestContext(threads)),
-        headers_complete_called_(false), timer_(timer) {}
-  virtual ~CheckDateHeaderFetch() {}
+  CheckDateHeaderWriter(const MockTimer* timer, ResponseHeaders* headers)
+      : write_called_(false), timer_(timer), headers_(headers) {}
+  virtual ~CheckDateHeaderWriter() {}
 
-  virtual void HandleHeadersComplete() {
-    headers_complete_called_ = true;
-    response_headers()->ComputeCaching();
-    EXPECT_EQ(timer_->NowMs(), response_headers()->date_ms());
+  virtual bool Write(const StringPiece& content, MessageHandler* handler) {
+    write_called_ = true;
+    headers_->ComputeCaching();
+    EXPECT_EQ(timer_->NowMs(), headers_->date_ms());
+    return true;
   }
 
-  bool headers_complete_called() const { return headers_complete_called_; }
+  virtual bool Flush(MessageHandler* handler) {
+    return true;
+  }
+
+  bool write_called() const { return write_called_; }
 
  private:
-  bool headers_complete_called_;
+  bool write_called_;
   const MockTimer* timer_;
-  DISALLOW_COPY_AND_ASSIGN(CheckDateHeaderFetch);
+  ResponseHeaders* headers_;
+  DISALLOW_COPY_AND_ASSIGN(CheckDateHeaderWriter);
 };
 
 
@@ -146,13 +140,13 @@ TEST_F(HttpDumpUrlFetcherTest, TestDateAdjustment) {
 
   // Make sure that date fixing up works in time for first write ---
   // which is needed for adapting it into an async fetcher.
-  CheckDateHeaderFetch check_date(&mock_timer_, thread_system_.get());
-
-  http_dump_fetcher_.Fetch("http://www.google.com", &message_handler_,
-                           &check_date);
-  EXPECT_TRUE(check_date.done());
-  EXPECT_TRUE(check_date.success());
-  EXPECT_TRUE(check_date.headers_complete_called());
+  RequestHeaders request;
+  ResponseHeaders response;
+  CheckDateHeaderWriter check_date(&mock_timer_, &response);
+  EXPECT_TRUE(http_dump_fetcher_.StreamingFetchUrl(
+      "http://www.google.com", request, &response, &check_date,
+      &message_handler_));
+  EXPECT_TRUE(check_date.write_called());
 }
 
 }  // namespace

@@ -21,14 +21,12 @@
 #include "net/instaweb/rewriter/public/insert_dns_prefetch_filter.h"
 
 #include <cstdlib>
-#include <memory>
 #include <set>
 #include <utility>                      // for pair
 #include <vector>
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
@@ -36,7 +34,6 @@
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/string.h"
@@ -74,7 +71,7 @@ void InsertDnsPrefetchFilter::DetermineEnabled() {
 void InsertDnsPrefetchFilter::Clear() {
   dns_prefetch_inserted_ = false;
   in_head_ = false;
-  domains_to_ignore_.clear();
+  domains_in_head_.clear();
   domains_in_body_.clear();
   dns_prefetch_domains_.clear();
   user_agent_supports_dns_prefetch_ = false;
@@ -82,21 +79,13 @@ void InsertDnsPrefetchFilter::Clear() {
 
 // Read the information related to DNS prefetch tags from the property cache
 // info and populate it in the driver's flush_early_info.
+// TODO(bharathbhushan): Avoid inserting the domain name of this page
+// by pre-inserting it into domains_in_head_.
 void InsertDnsPrefetchFilter::StartDocumentImpl() {
   Clear();
-  // Avoid inserting the domain name of this page by pre-inserting it into
-  // domains_to_ignore_.
-  GoogleString host = driver()->base_url().Host().as_string();
-  domains_to_ignore_.insert(host);
   user_agent_supports_dns_prefetch_ =
-      driver()->server_context()->user_agent_matcher()->SupportsDnsPrefetch(
+      driver()->server_context()->user_agent_matcher().SupportsDnsPrefetch(
           driver()->user_agent());
-  RewriterHtmlApplication::Status status = user_agent_supports_dns_prefetch_ ?
-      RewriterHtmlApplication::ACTIVE :
-      RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED;
-  driver()->log_record()->LogRewriterHtmlStatus(
-      RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch),
-      status);
 }
 
 // Write the information about domains gathered in this rewrite into the
@@ -145,44 +134,44 @@ void InsertDnsPrefetchFilter::StartElementImpl(HtmlElement* element) {
   if (noscript_element() != NULL) {
     return;
   }
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    switch (attributes[i].category) {
-      // The categories below are downloaded by the browser to display the page.
-      // So DNS prefetch hints are useful.
-      case semantic_type::kImage:
-      case semantic_type::kScript:
-      case semantic_type::kStylesheet:
-      case semantic_type::kOtherResource:
-        MarkAlreadyInHead(attributes[i].url);
-        break;
+  semantic_type::Category category;
+  HtmlElement::Attribute* url_attribute = resource_tag_scanner::ScanElement(
+      element, driver(), &category);
+  switch (category) {
+    // The categories below are downloaded by the browser to display the page.
+    // So DNS prefetch hints are useful.
+    case semantic_type::kImage:
+    case semantic_type::kScript:
+    case semantic_type::kStylesheet:
+    case semantic_type::kOtherResource:
+      MarkAlreadyInHead(url_attribute);
+      break;
 
-      case semantic_type::kPrefetch:
-        if (element->keyword() == HtmlName::kLink) {
-          // For LINK tags, many of the link types are detected as image or
-          // stylesheet by the ResourceTagScanner. "prefetch" and "dns-prefetch"
-          // are recognized here since they are relevant for resource download.
-          // If a DNS prefetch tag inserted by the origin server is found in
-          // BODY, it is not useful to insert it but calling MarkAlreadyInHead
-          // will insert it.  So we avoid calling MarkAlreadyInHead in this
-          // specific case.
-          HtmlElement::Attribute* rel_attr =
-              element->FindAttribute(HtmlName::kRel);
-          if (rel_attr != NULL) {
-            if (StringCaseEqual(rel_attr->DecodedValueOrNull(), kRelPrefetch) ||
-                (in_head_ && StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                             kRelDnsPrefetch))) {
-              MarkAlreadyInHead(attributes[i].url);
-            }
+    case semantic_type::kPrefetch:
+      if (element->keyword() == HtmlName::kLink) {
+        // For LINK tags, many of the link types are detected as image or
+        // stylesheet by the ResourceTagScanner. "prefetch" and "dns-prefetch"
+        // are recognized here since they are relevant for resource download.
+        // If a DNS prefetch tag inserted by the origin server is found in BODY,
+        // it is not useful to insert it but calling MarkAlreadyInHead will
+        // insert it.  So we avoid calling MarkAlreadyInHead in this specific
+        // case.
+        HtmlElement::Attribute* rel_attr =
+            element->FindAttribute(HtmlName::kRel);
+        if (rel_attr != NULL) {
+          if (StringCaseEqual(rel_attr->DecodedValueOrNull(), kRelPrefetch)) {
+            MarkAlreadyInHead(url_attribute);
+          } else if (in_head_ && StringCaseEqual(rel_attr->DecodedValueOrNull(),
+                                                 kRelDnsPrefetch)) {
+            MarkAlreadyInHead(url_attribute);
           }
         }
-        break;
+      }
+      break;
 
-      case semantic_type::kHyperlink:
-      case semantic_type::kUndefined:
-        break;
-    }
+    case semantic_type::kHyperlink:
+    case semantic_type::kUndefined:
+      break;
   }
 }
 
@@ -201,7 +190,7 @@ void InsertDnsPrefetchFilter::EndElementImpl(HtmlElement* element) {
       const FlushEarlyInfo& flush_early_info = *(driver()->flush_early_info());
       if (IsDomainListStable(flush_early_info)) {
         const char* tag_to_insert =
-            driver()->user_agent_matcher()->SupportsDnsPrefetchUsingRelPrefetch(
+            driver()->user_agent_matcher().SupportsDnsPrefetchUsingRelPrefetch(
                 driver()->user_agent()) ? kRelPrefetch : kRelDnsPrefetch;
         protobuf::RepeatedPtrField<GoogleString>::const_iterator end =
             flush_early_info.dns_prefetch_domains().end();
@@ -212,14 +201,7 @@ void InsertDnsPrefetchFilter::EndElementImpl(HtmlElement* element) {
           driver()->AddAttribute(link, HtmlName::kRel, tag_to_insert);
           driver()->AddAttribute(link, HtmlName::kHref, StrCat("//", *it));
           driver()->AppendChild(element, link);
-          driver_->log_record()->SetRewriterLoggingStatus(
-              RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch),
-              RewriterApplication::APPLIED_OK);
         }
-      } else {
-        driver_->log_record()->SetRewriterLoggingStatus(
-            RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch),
-            RewriterApplication::NOT_APPLIED);
       }
     }
   }
@@ -229,14 +211,11 @@ void InsertDnsPrefetchFilter::MarkAlreadyInHead(
     HtmlElement::Attribute* urlattr) {
   if (urlattr != NULL && urlattr->DecodedValueOrNull() != NULL) {
     GoogleUrl url(driver()->base_url(), urlattr->DecodedValueOrNull());
-    GoogleString domain;
-    if (url.IsWebValid()) {
-      url.Host().CopyToString(&domain);
-    }
-    if (!domain.empty()) {
+    if (url.is_valid() && !url.Host().empty()) {
+      GoogleString domain(url.Host().data(), url.Host().size());
       if (in_head_) {
         std::pair<StringSet::iterator, bool> result =
-            domains_to_ignore_.insert(domain);
+            domains_in_head_.insert(domain);
         if (driver()->options()->Enabled(RewriteOptions::kFlushSubresources)
             && result.second) {
           // Prefetch dns for the domains present in the head if flush
@@ -244,7 +223,7 @@ void InsertDnsPrefetchFilter::MarkAlreadyInHead(
           dns_prefetch_domains_.push_back(domain);
         }
       } else {
-        if (domains_to_ignore_.find(domain) == domains_to_ignore_.end()) {
+        if (domains_in_head_.find(domain) == domains_in_head_.end()) {
           std::pair<StringSet::iterator, bool> result =
               domains_in_body_.insert(domain);
           if (result.second) {

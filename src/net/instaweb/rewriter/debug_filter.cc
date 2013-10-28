@@ -19,11 +19,19 @@
 #include "net/instaweb/rewriter/public/debug_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 namespace {
 
@@ -75,7 +83,6 @@ void DebugFilter::Clear() {
   parse_.Clear();
   render_.Clear();
   start_doc_time_us_ = kTimeNotSet;
-  flush_messages_.clear();
 }
 
 void DebugFilter::InitParse() {
@@ -138,13 +145,6 @@ GoogleString DebugFilter::FormatEndDocumentMessage(
           "us\n"));
 }
 
-void DebugFilter::EndElement(HtmlElement* element) {
-  if (!flush_messages_.empty()) {
-    driver_->InsertComment(flush_messages_);
-    flush_messages_.clear();
-  }
-}
-
 void DebugFilter::Flush() {
   int64 time_since_init_parse_us = render_.start_us() - start_doc_time_us_;
   int64 now_us = timer_->NowUs();
@@ -157,17 +157,10 @@ void DebugFilter::Flush() {
   // we don't need to print a FLUSH message at the end of the document
   // if there were no other flushes, the summary is sufficient.
   if ((num_flushes_ > 0) || !end_document_seen_) {
-    GoogleString flush_message = FormatFlushMessage(time_since_init_parse_us,
-                                                    parse_.duration_us(),
-                                                    render_.duration_us(),
-                                                    idle_.duration_us());
-    // If a <style> block spans multiple flushes, calling InsertComment here
-    // will return false, since we can't insert safely into a literal block.
-    // Instead, buffer the messages, and then print when we reach the closing
-    // tag (in EndElement).
-    if (!driver_->InsertComment(flush_message)) {
-      StrAppend(&flush_messages_, flush_message);
-    }
+    driver_->InsertComment(FormatFlushMessage(time_since_init_parse_us,
+                                              parse_.duration_us(),
+                                              render_.duration_us(),
+                                              idle_.duration_us()));
   }
 
   // Capture the flush-durations in the grand totals to be emitted at

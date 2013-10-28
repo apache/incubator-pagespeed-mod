@@ -31,9 +31,9 @@ class HeadersCookieUtilTest : public ::testing::Test {
 
 TEST_F(HeadersCookieUtilTest, OnlyOne) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=1");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=1");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -45,7 +45,7 @@ TEST_F(HeadersCookieUtilTest, OnlyUnrelatedCookies_1) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie, "A=1");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -58,7 +58,7 @@ TEST_F(HeadersCookieUtilTest, OnlyUnrelatedCookies_2) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie, "A=1;  B=2;  C; D  ; E = ; F");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -69,9 +69,9 @@ TEST_F(HeadersCookieUtilTest, OnlyUnrelatedCookies_2) {
 
 TEST_F(HeadersCookieUtilTest, OnlyOneWithUnrelatedCookie) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=1; B=2");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=1; B=2");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -82,9 +82,9 @@ TEST_F(HeadersCookieUtilTest, OnlyOneWithUnrelatedCookie) {
 
 TEST_F(HeadersCookieUtilTest, OnlyOneAtEndWithUnrelatedCookie) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie, "A=1; PageSpeedExperiment=1");
+  headers.Add(HttpAttributes::kCookie, "A=1; _GFURIOUS=1");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -95,11 +95,9 @@ TEST_F(HeadersCookieUtilTest, OnlyOneAtEndWithUnrelatedCookie) {
 
 TEST_F(HeadersCookieUtilTest, MultipleInOneLine) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie,
-              "PageSpeedExperiment=1; PageSpeedExperiment=1; "
-              "PageSpeedExperiment=1");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=1; _GFURIOUS=1; _GFURIOUS=1");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -110,10 +108,9 @@ TEST_F(HeadersCookieUtilTest, MultipleInOneLine) {
 TEST_F(HeadersCookieUtilTest, MultipleInOneLineWithUnrelatedCookie) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie,
-              "A=1; PageSpeedExperiment=1; B=2; PageSpeedExperiment=1; C=3; "
-              "PageSpeedExperiment=1");
+              "A=1; _GFURIOUS=1; B=2; _GFURIOUS=1; C=3; _GFURIOUS=1");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -124,19 +121,17 @@ TEST_F(HeadersCookieUtilTest, MultipleInOneLineWithUnrelatedCookie) {
 
 TEST_F(HeadersCookieUtilTest, RemovePreviewCookie) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=1; B=2; C=3");
-  headers.Add(HttpAttributes::kCookie, "A=x; PageSpeedExperiment=1; B=2; C=3");
-  headers.Add(HttpAttributes::kCookie,
-              "A=x; B=2; C=3;     PageSpeedExperiment=2");
-  headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=1");
-  headers.Add(HttpAttributes::kCookie, "    PageSpeedExperiment=1    ");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=1; B=2; C=3");
+  headers.Add(HttpAttributes::kCookie, "A=x; _GFURIOUS=1; B=2; C=3");
+  headers.Add(HttpAttributes::kCookie, "A=x; B=2; C=3;     _GFURIOUS=2");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=1");
+  headers.Add(HttpAttributes::kCookie, "    _GFURIOUS=1    ");
   headers.Add(HttpAttributes::kCookie, "A=b");
-  headers.Add(HttpAttributes::kCookie, "    A=b; PageSpeedExperiment=");
+  headers.Add(HttpAttributes::kCookie, "    A=b; _GFURIOUS=");
   headers.Add(HttpAttributes::kCookie,
-              "PageSpeedExperiment=1; PageSpeedExperiment=2; "
-              "PageSpeedExperiment=3; A=1; PageSpeedExperiment=4;");
+              "_GFURIOUS=1; _GFURIOUS=2; _GFURIOUS=3; A=1; _GFURIOUS=4;");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -153,9 +148,9 @@ TEST_F(HeadersCookieUtilTest, RemovePreviewCookie) {
 TEST_F(HeadersCookieUtilTest, InvalidCase_1) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie,
-              "A; PageSpeedExperiment=1;");
+              "A; _GFURIOUS=1;");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -167,13 +162,13 @@ TEST_F(HeadersCookieUtilTest, InvalidCase_1) {
 TEST_F(HeadersCookieUtilTest, InvalidCase_2) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie,
-              "A=1; B PageSpeedExperiment=1;");
+              "A=1; B _GFURIOUS=1;");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
-      "Cookie: A=1; B PageSpeedExperiment=1;\r\n"
+      "Cookie: A=1; B _GFURIOUS=1;\r\n"
       "\r\n";
   EXPECT_EQ(kExpectedHeaders, headers.ToString());
 }
@@ -181,9 +176,9 @@ TEST_F(HeadersCookieUtilTest, InvalidCase_2) {
 TEST_F(HeadersCookieUtilTest, InvalidCase_3) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie,
-              "A=1; PageSpeedExperiment=xyz 1;");
+              "A=1; _GFURIOUS=xyz 1;");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -196,7 +191,7 @@ TEST_F(HeadersCookieUtilTest, QuotedValues) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kCookie, "A=\"12;23;\"");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -211,9 +206,9 @@ TEST_F(HeadersCookieUtilTest, QuotedValues) {
 // TODO(nforman): Fix this.
 TEST_F(HeadersCookieUtilTest, QuotedValues_BrokenCase) {
   RequestHeaders headers;
-  headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=\"12;23;\"");
+  headers.Add(HttpAttributes::kCookie, "_GFURIOUS=\"12;23;\"");
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeaders[] =
       "GET  HTTP/1.0\r\n"
@@ -224,11 +219,10 @@ TEST_F(HeadersCookieUtilTest, QuotedValues_BrokenCase) {
 
 TEST_F(HeadersCookieUtilTest, QuotedValues_BrokenCase_2) {
   RequestHeaders headers;
-  GoogleString header_string =
-      "XPageSpeedExperiment=1; A=\"_BPageSpeedExperiment\"";
+  GoogleString header_string = "X_GFURIOUS=1; A=\"_B_GFURIOUS\"";
   headers.Add(HttpAttributes::kCookie, header_string);
 
-  headers.RemoveCookie("PageSpeedExperiment");
+  headers.RemoveCookie("_GFURIOUS");
 
   const char kExpectedHeadersFormat[] =
       "GET  HTTP/1.0\r\n"

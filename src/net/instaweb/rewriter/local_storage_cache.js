@@ -21,8 +21,6 @@
  * @author matterbury@google.com (Matt Atterbury)
  */
 
-goog.require('pagespeedutils');
-
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.
 // See http://code.google.com/closure/compiler/docs/api-tutorial3.html#dangers
@@ -107,11 +105,9 @@ pagespeed.LocalStorageCache.prototype['inlineCss'] =
 /**
  * Inline the IMG with the given URL.
  * @param {string} url is the URL of the image to inline.
- * @param {string} hash is the hash of the image to inline.
  */
-pagespeed.LocalStorageCache.prototype.inlineImg = function(url, hash) {
-  var obj = window.localStorage.getItem('pagespeed_lsc_url:' + url + ' ' +
-                                        'pagespeed_lsc_hash:' + hash);
+pagespeed.LocalStorageCache.prototype.inlineImg = function(url) {
+  var obj = window.localStorage.getItem('pagespeed_lsc_url:' + url);
   var newNode = document.createElement('img');
   if (obj && !this.hasExpired(obj)) {
     newNode.src = this.getData(obj);
@@ -120,10 +116,9 @@ pagespeed.LocalStorageCache.prototype.inlineImg = function(url, hash) {
     this.regenerate_cookie_ = true;
   }
   // Copy over any other original attributes.
-  for (var i = 2, n = arguments.length; i < n; ++i) {
+  for (var i = 1, n = arguments.length; i < n; ++i) {
     var pos = arguments[i].indexOf('=');
-    newNode.setAttribute(arguments[i].substring(0, pos),
-                         arguments[i].substring(pos + 1));
+    newNode[arguments[i].substring(0, pos)] = arguments[i].substring(pos + 1);
   }
   this.replaceLastScript(newNode);
 };
@@ -132,43 +127,33 @@ pagespeed.LocalStorageCache.prototype['inlineImg'] =
     pagespeed.LocalStorageCache.prototype.inlineImg;
 
 /**
- * For each element of the given tag name, check if it has pagespeed_lsc_url
- * and pagespeed_lsc_hash attributes and, if so, save the element's hash,
- * expiry, and data in local storage. regenerate_cookie_ is set to true if
- * any elements are saved, which later triggers regeneration of the cookie.
+ * For each element of the given tag name, check if it has a pagespeed_lsc_hash
+ * attribute and if so saves the element's hash, expiry, and data local storage.
+ * If any elements are saved regenerate_cookie_ is set to true to force
+ * regeneration.
  * @param {string} tagName Tag Name of elements to process.
- * @param {boolean} isHashInKey True iff the hash is part of the lookup key.
  * @param {function ({Element})} dataFunc Function to get an element's data.
  * @private
  */
 pagespeed.LocalStorageCache.prototype.processTags_ = function(tagName,
-                                                              isHashInKey,
                                                               dataFunc) {
   var elements = document.getElementsByTagName(tagName);
   for (var i = 0, n = elements.length; i < n; ++i) {
     var element = elements[i];
     var hash = element.getAttribute('pagespeed_lsc_hash');
-    var url = element.getAttribute('pagespeed_lsc_url');
-    if (hash && url) {
+    if (hash) {
+      var url = element.getAttribute('pagespeed_lsc_url');
       var urlkey = 'pagespeed_lsc_url:' + url;
-      if (isHashInKey) {
-        urlkey += ' pagespeed_lsc_hash:' + hash;
-      }
       var expiry = element.getAttribute('pagespeed_lsc_expiry');
       var millis = (expiry ? (new Date(expiry)).getTime() : '');
       var data = dataFunc(element);
       if (!data) {
         // img.src is set to a data URI on the repeat view but is missing
         // thereafter, and we must not forget it once we have it.
-        var obj = window.localStorage.getItem(urlkey);
-        if (obj) {
-          data = this.getData(obj);
-        }
+        data = this.getData(window.localStorage.getItem(urlkey));
       }
-      if (data) {
-        window.localStorage.setItem(urlkey, millis + ' ' + hash + ' ' + data);
-        this.regenerate_cookie_ = true;
-      }
+      window.localStorage.setItem(urlkey, millis + ' ' + hash + ' ' + data);
+      this.regenerate_cookie_ = true;
     }
   }
 };
@@ -178,9 +163,8 @@ pagespeed.LocalStorageCache.prototype.processTags_ = function(tagName,
  * @private
  */
 pagespeed.LocalStorageCache.prototype.saveInlinedData_ = function() {
-  this.processTags_('img', true /* isHashInKey */,
-                    function(e) { return e.src; });
-  this.processTags_('style', false /* isHashInKey */,
+  this.processTags_('img', function(e) { return e.src; });
+  this.processTags_('style',
                     function(e) {
                       return (e.firstChild ? e.firstChild.nodeValue : null);
                     });
@@ -219,12 +203,36 @@ pagespeed.LocalStorageCache.prototype.generateCookie_ = function() {
     // Set the cookie.
     var expires = '';
     if (minExpiry) expires = '; expires=' + (new Date(minExpiry)).toUTCString();
-    document.cookie = '_GPSLSC=' + goodUns.join('!') + expires;
+    document.cookie = '_GPSLSC=' + goodUns.join(',') + expires;
     // Remove all expired objects.
     for (var i = 0, n = deadUns.length; i < n; ++i) {
       window.localStorage.removeItem(deadUns[i]);
     }
     this.regenerate_cookie_ = false;
+  }
+};
+
+/**
+ * Runs the function when event is triggered.
+ * @param {Window|Element} elem Element to attach handler.
+ * @param {string} ev Name of the event.
+ * @param {function()} func New onload handler.
+ *
+ * TODO(nikhilmadan): Avoid duplication with all the other JS code.
+ */
+pagespeed.addHandler = function(elem, ev, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(ev, func, false);
+  } else if (elem.attachEvent) {
+    elem.attachEvent('on' + ev, func);
+  } else {
+    var oldHandler = elem['on' + ev];
+    elem['on' + ev] = function() {
+      func.call(this);
+      if (oldHandler) {
+        oldHandler.call(this);
+      }
+    };
   }
 };
 
@@ -236,11 +244,11 @@ pagespeed.localStorageCacheInit = function() {
   if (window.localStorage) {
     var temp = new pagespeed.LocalStorageCache();
     pagespeed['localStorageCache'] = temp;
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.saveInlinedData_();
                          });
-    pagespeedutils.addHandler(window, 'load',
+    pagespeed.addHandler(window, 'load',
                          function() {
                            temp.generateCookie_();
                          });

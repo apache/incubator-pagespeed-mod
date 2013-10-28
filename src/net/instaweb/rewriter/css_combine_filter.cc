@@ -41,9 +41,9 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -54,13 +54,10 @@
 
 namespace net_instaweb {
 
-class MessageHandler;
 class HtmlIEDirectiveNode;
 class UrlSegmentEncoder;
 
-// Names for Statistics variables.
-const char CssCombineFilter::kCssCombineOpportunities[] =
-    "css_combine_opportunities";
+// names for Statistics variables.
 const char CssCombineFilter::kCssFileCountReduction[] =
     "css_file_count_reduction";
 
@@ -69,9 +66,10 @@ const char CssCombineFilter::kCssFileCountReduction[] =
 class CssCombineFilter::CssCombiner : public ResourceCombiner {
  public:
   CssCombiner(RewriteDriver* driver,
+              CssTagScanner* css_tag_scanner,
               CssCombineFilter* filter)
       : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1, filter),
-        combined_css_size_(0) {
+        css_tag_scanner_(css_tag_scanner) {
     Statistics* stats = server_context_->statistics();
     css_file_count_reduction_ = stats->GetVariable(kCssFileCountReduction);
   }
@@ -86,15 +84,14 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     return (parser.errors_seen_mask() == Css::Parser::kNoError);
   }
 
-  virtual bool ResourceCombinable(Resource* resource,
-                                  GoogleString* failure_reason,
-                                  MessageHandler* handler) {
+  virtual bool ResourceCombinable(Resource* resource, MessageHandler* handler) {
     // If this CSS file is not parseable it may have errors that will break
     // the rest of the files combined with this one. So we should not include
     // it in the combination.
     // TODO(sligocki): Just do the CSS parsing and rewriting here.
     if (!CleanParse(resource->contents())) {
-      *failure_reason = "CSS parse error";
+      handler->Message(kInfo, "Failed to combine %s because of parse error.",
+                       resource->url().c_str());
       // TODO(sligocki): All parse failures are repeated twice because we will
       // try to combine them in the normal combination, then we'll try again
       // with this as the first of a new combination.
@@ -105,13 +102,8 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     // @import in the middle will be ignored.
     // TODO(sligocki): Do CSS parsing and rewriting here so that we can
     // git rid of this restriction.
-    if ((num_urls() != 0) &&
-        CssTagScanner::HasImport(resource->contents(), handler)) {
-      *failure_reason = "Can't have @import in middle of CSS";
-      return false;
-    }
-
-    return true;
+    return ((num_urls() == 0)
+            || !CssTagScanner::HasImport(resource->contents(), handler));
   }
 
   OutputResourcePtr MakeOutput() {
@@ -127,27 +119,10 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
 
   void AddFileCountReduction(int num_files) {
     css_file_count_reduction_->Add(num_files);
-    if (num_files >= 1) {
-      rewrite_driver_->log_record()->SetRewriterLoggingStatus(
-          RewriteOptions::FilterId(RewriteOptions::kCombineCss),
-          RewriterApplication::APPLIED_OK);
+    if (num_files >= 1 && rewrite_driver_->log_record() != NULL) {
+      rewrite_driver_->log_record()->LogAppliedRewriter(
+          RewriteOptions::FilterId(RewriteOptions::kCombineCss));
     }
-  }
-
-  virtual bool ContentSizeTooBig() const {
-    int64 combined_css_max_size =
-      rewrite_driver_->options()->max_combined_css_bytes();
-    return (combined_css_max_size >= 0 &&
-            combined_css_max_size < combined_css_size_);
-  }
-
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
-    combined_css_size_ += resource->contents().size();
-  }
-
-  virtual void Clear() {
-    ResourceCombiner::Clear();
-    combined_css_size_ = 0;
   }
 
  private:
@@ -160,16 +135,17 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
                           MessageHandler* handler);
 
   GoogleString media_;
+  CssTagScanner* css_tag_scanner_;
   Variable* css_file_count_reduction_;
-  int64 combined_css_size_;
 };
 
 class CssCombineFilter::Context : public RewriteContext {
  public:
-  Context(RewriteDriver* driver, CssCombineFilter* filter)
+  Context(RewriteDriver* driver, CssTagScanner* scanner,
+          CssCombineFilter* filter)
       : RewriteContext(driver, NULL, NULL),
         filter_(filter),
-        combiner_(driver, filter),
+        combiner_(driver, scanner, filter),
         new_combination_(true) {
   }
 
@@ -212,7 +188,7 @@ class CssCombineFilter::Context : public RewriteContext {
       bool add_input = false;
       ResourcePtr resource(slot(i)->resource());
 
-      if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
+      if (resource->IsValidAndCacheable()) {
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           // This new element works in the existing partition.
           add_input = true;
@@ -354,92 +330,70 @@ class CssCombineFilter::Context : public RewriteContext {
 CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       css_tag_scanner_(driver_),
-      end_document_found_(false),
-      css_links_(0),
-      css_combine_opportunities_(driver->statistics()->GetVariable(
-          kCssCombineOpportunities)) {
+      end_document_found_(false) {
 }
 
 CssCombineFilter::~CssCombineFilter() {
 }
 
 void CssCombineFilter::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kCssCombineOpportunities);
   statistics->AddVariable(kCssFileCountReduction);
 }
 
 void CssCombineFilter::StartDocumentImpl() {
   context_.reset(MakeContext());
   end_document_found_ = false;
-  css_links_ = 0;
 }
 
 void CssCombineFilter::EndDocument() {
   end_document_found_ = true;
-  if (css_links_ > 1) {
-    // There are only opportunities to combine if there was more than one
-    // css <link> in original HTML.
-    css_combine_opportunities_->Add(css_links_ - 1);
-  }
 }
 
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  int num_nonstandard_attributes;
   if (element->keyword() == HtmlName::kStyle) {
     // We can't reorder styles on a page, so if we are only combining <link>
     // tags, we can't combine them across a <style> tag.
     // TODO(sligocki): Maybe we should just combine <style>s too?
     // We can run outline_css first for now to make all <style>s into <link>s.
-    NextCombination("inline style");
-    return;
-  } else if (css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                              &num_nonstandard_attributes)) {
-    ++css_links_;
-    // Element is a <link rel="stylesheet" ...>.
-    if (driver_->HasChildrenInFlushWindow(element)) {
-      LOG(DFATAL) << "HTML lexer allowed children in <link>.";
-      NextCombination("children in flush window");
-      return;
+    NextCombination("css_combine: inline style");
+  } else if (driver_->HasChildrenInFlushWindow(element)) {
+    // TODO(jmarantz): Call NextCombination here to avoid combining across
+    // a malformed link.
+    if (DebugMode() &&
+        css_tag_scanner_.ParseCssElement(element, &href, &media)) {
+      driver_->InsertComment("css_combine: children in flush window");
     }
-    if (num_nonstandard_attributes > 0) {
-      // TODO(jmaessen): allow more attributes.  This is the place it's
-      // riskiest:  we can't combine multiple elements with an id, for
-      // example, so we'd need to explicitly catch and handle that case.
-      NextCombination("non-standard attributes");
-      return;
-    }
+  } else if (css_tag_scanner_.ParseCssElement(element, &href, &media)) {
     // We cannot combine with a link in <noscript> tag and we cannot combine
     // over a link in a <noscript> tag, so this is a barrier.
     if (noscript_element() != NULL) {
-      NextCombination("noscript");
-      return;
-    }
-    // Figure out if media types match.
-    if (context_->new_combination()) {
-      context_->SetMedia(media);
-    } else if (combiner()->media() != media) {
-      // After the first CSS file, subsequent CSS files must have matching
-      // media.
-      // TODO(jmarantz): do media='' and media='display' mean the same
-      // thing?  sligocki thinks mdsteele looked into this and it
-      // depended on HTML version.  In one display was default, in the
-      // other screen was IIRC.
-      NextCombination("media mismatch");
-      context_->SetMedia(media);
-    }
-    if (!context_->AddElement(element, href)) {
-      NextCombination("resource not rewritable");
+      NextCombination("css_combine: noscript");
+    } else {
+      if (context_->new_combination()) {
+        context_->SetMedia(media);
+      } else if (combiner()->media() != media) {
+        // After the first CSS file, subsequent CSS files must have matching
+        // media.
+        // TODO(jmarantz): do media='' and media='display mean the same
+        // thing?  sligocki thinks mdsteele looked into this and it
+        // depended on HTML version.  In one display was default, in the
+        // other screen was IIRC.
+        NextCombination("css_combine: media mismatch");
+        context_->SetMedia(media);
+      }
+      if (!context_->AddElement(element, href)) {
+        NextCombination("css_combine: resource not rewriteable");
+      }
     }
   }
 }
 
-void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
+void CssCombineFilter::NextCombination(const char* debug_help) {
   if (!context_->empty()) {
-    if (DebugMode() && !debug_failure_reason.empty()) {
-      driver_->InsertComment(StrCat("combine_css: Could not combine over "
-                                    "barrier: ", debug_failure_reason));
+    if (DebugMode()) {
+      driver_->InsertComment(debug_help);
     }
     driver_->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
@@ -452,13 +406,13 @@ void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
 void CssCombineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   // TODO(sligocki): Figure out how to safely parse IEDirectives, for now we
   // just consider them black boxes / solid barriers.
-  NextCombination("IE directive");
+  NextCombination("css_combine: ie directive");
 }
 
 void CssCombineFilter::Flush() {
-  // Note: We only want to log a debug comment on normal flushes, not the
-  // end of document (which is not really a barrier).
-  NextCombination(end_document_found_ ? "" : "flush");
+  NextCombination(end_document_found_
+                  ? "css_combine: end_document"
+                  : "css_combine: flush");
 }
 
 bool CssCombineFilter::CssCombiner::WritePiece(
@@ -491,15 +445,11 @@ CssCombineFilter::CssCombiner* CssCombineFilter::combiner() {
 }
 
 CssCombineFilter::Context* CssCombineFilter::MakeContext() {
-  return new Context(driver_, this);
+  return new Context(driver_, &css_tag_scanner_, this);
 }
 
 RewriteContext* CssCombineFilter::MakeRewriteContext() {
   return MakeContext();
-}
-
-void CssCombineFilter::DetermineEnabled() {
-  set_is_enabled(!driver_->flushed_cached_html());
 }
 
 }  // namespace net_instaweb

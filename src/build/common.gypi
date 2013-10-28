@@ -34,10 +34,16 @@
       'use_system_libs%': 0,
     },
 
-    # Which versions development is usually done with. These version will
+    # Which version development is usually done with. This version will
     # get -Werror
     'gcc_devel_version%': '44',
-    'gcc_devel_version2%': '46',
+
+    # This variable is required to build a recent webp gyp given an older
+    # surrounding Chromium checkout.
+    'order_profiling': 0,
+
+    # Likewise.
+    'armv7%': 0,
 
     # We need inter-process mutexes to support POSIX shared memory, and they're
     # unfortunately not supported on some common systems.
@@ -50,11 +56,9 @@
       }],
       ['use_system_libs==1', {
         'use_system_apache_dev': 1,
-        'use_system_icu': 1,
         'use_system_libjpeg': 1,
         'use_system_libpng': 1,
         'use_system_opencv': 1,
-        'use_system_openssl': 1,
         'use_system_zlib': 1,
       },{
         'use_system_apache_dev%': 0,
@@ -62,9 +66,7 @@
     ],
   },
   'includes': [
-    # Import base Chromium build system, and pagespeed customizations of it.
-    '../third_party/chromium/src/build/common.gypi',
-    '../third_party/libpagespeed/src/build/pagespeed_overrides.gypi',
+    '../third_party/libpagespeed/src/build/common.gypi',
   ],
   'target_defaults': {
     'conditions': [
@@ -76,27 +78,14 @@
         # is generally done with, to avoid breaking things for users with
         # something older or newer (which produces different warnings).
         'conditions': [
-          ['<(gcc_version) != <(gcc_devel_version) and '
-           '<(gcc_version) != <(gcc_devel_version2)', {
+          ['<(gcc_version) != <(gcc_devel_version)', {
           'cflags!': ['-Werror']
           }],
-          # Newer Chromium common.gypi adds -Wno-unused-but-set-variable
-          # (unconditionally). This is wrong for gcc < 4.6, since the flag
-          # was added in 4.6, but very much needed for >= 4.6 since
-          # otherwise ICU headers don't build with -Werror.
-          #
-          # At the moment, we need to support both building with gcc < 4.6
-          # and building with old Chromium --- so we remove the flag for
-          # < 4.6 gcc, and add it for newer versions.
+          # -W[no-]unused-but-set-variable is only there since gcc-4.6, so
+          # don't add it on earlier versions.
           # TODO(morlovich): Upstream, but how high?
           ['<(gcc_version) < 46', {
             'cflags!': ['-Wno-unused-but-set-variable']
-          }, {
-            'cflags+': ['-Wno-unused-but-set-variable']
-          }],
-          # Similarly, there is no -Wno-unused-result for gcc < 4.5
-          ['<(gcc_version) < 45', {
-            'cflags!': ['-Wno-unused-result']
           }],
         ],
         'cflags': [
@@ -108,26 +97,13 @@
           # We'd like to add '-Wtype-limits', but this does not work on
           # earlier versions of g++ on supported operating systems.
         ],
+        # Newer Chromium build adds -Wsign-compare which we have some difficulty
+        # with. Remove it for now.
         'cflags_cc!': [
-          # Newer Chromium build adds -Wsign-compare which we have some
-          # difficulty with. Remove it for now.
-          '-Wsign-compare',
-          '-fno-rtti',  # Same reason as using -frtti below.
+          '-Wsign-compare'
         ],
         'cflags_cc': [
           '-frtti',  # Hardy's g++ 4.2 <trl/function> uses typeid
-        ],
-        'defines!': [
-          # testing/gtest.gyp defines GTEST_HAS_RTTI=0 for itself and all deps.
-          # This breaks when we turn rtti on, so must be removed.
-          'GTEST_HAS_RTTI=0',
-          # third_party/protobuf/protobuf.gyp defines GOOGLE_PROTOBUF_NO_RTTI
-          # for itself and all deps. I assume this is just a ticking time bomb
-          # like GTEST_HAS_RTTI=0 was, so remove it as well.
-          'GOOGLE_PROTOBUF_NO_RTTI',
-        ],
-        'defines': [
-          'GTEST_HAS_RTTI=1',  # gtest requires this set to indicate RTTI on.
         ],
         # Disable -z,defs in linker.
         # This causes mod_pagespeed.so to fail because it doesn't link apache

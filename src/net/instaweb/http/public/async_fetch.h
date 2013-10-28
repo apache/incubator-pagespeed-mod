@@ -23,6 +23,7 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_H_
 
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -34,7 +35,7 @@
 
 namespace net_instaweb {
 
-class AbstractLogRecord;
+class LogRecord;
 class MessageHandler;
 class Variable;
 
@@ -52,10 +53,17 @@ class Variable;
 // Write, Flush or Done.
 class AsyncFetch : public Writer {
  public:
-  static const int kContentLengthUnknown = -1;
-
-  AsyncFetch();
-  explicit AsyncFetch(const RequestContextPtr& request_ctx);
+  AsyncFetch() :
+      request_headers_(NULL),
+      response_headers_(NULL),
+      extra_response_headers_(NULL),
+      log_record_(NULL),
+      owns_request_headers_(false),
+      owns_response_headers_(false),
+      owns_extra_response_headers_(false),
+      owns_log_record_(false),
+      headers_complete_(false) {
+  }
 
   virtual ~AsyncFetch();
 
@@ -99,9 +107,6 @@ class AsyncFetch : public Writer {
   // Does not take ownership of headers.
   void set_request_headers(RequestHeaders* headers);
 
-  // Same as above, but takes ownership.
-  void SetRequestHeadersTakingOwnership(RequestHeaders* headers);
-
   // Returns the request_headers as a const pointer: it is required
   // that the RequestHeaders be pre-initialized via non-const
   // request_headers() or via set_request_headers before calling this.
@@ -120,6 +125,8 @@ class AsyncFetch : public Writer {
   ResponseHeaders* extra_response_headers();
   void set_extra_response_headers(ResponseHeaders* headers);
 
+  virtual bool EnableThreaded() const { return false; }
+
   // Indicates whether the request is a background fetch. These can be scheduled
   // differently by the fetcher.
   virtual bool IsBackgroundFetch() const { return false; }
@@ -130,17 +137,17 @@ class AsyncFetch : public Writer {
 
   bool headers_complete() const { return headers_complete_; }
 
-  // Keep track of whether the content-length is known before the
-  // body is sent, so that a server can decide whether it needs chunked.
-  //
-  // Note that this is not necessarily the same as the Content-Length
-  // attribute in the response-headers, which might reflect pre-optimized
-  // or pre-compressed sizes.
-  bool content_length_known() const {
-    return content_length_ != kContentLengthUnknown;
-  }
-  int64 content_length() const { return content_length_; }
-  void set_content_length(int64 x) { content_length_ = x; }
+  // Returns a pointer to the logging info, extracting it from the log record.
+  virtual LoggingInfo* logging_info();
+
+  // Returns a pointer to a log record that wraps this fetch's logging
+  // info, lazily constructing it if needed.
+  virtual LogRecord* log_record();
+
+  // Sets the log record to the specifid pointer.  The caller must
+  // guarantee that the pointed-to log record remains valid as long as the
+  // AsyncFetch is running.
+  void set_log_record(LogRecord* log_record);
 
   // Returns logging information in a string eg. c1:0;c2:2;hf:45;.
   // c1 is cache 1, c2 is cache 2, hf is headers fetch.
@@ -148,11 +155,9 @@ class AsyncFetch : public Writer {
 
   // Returns the request context associated with this fetch, if any, or
   // NULL if no request context exists.
-  virtual const RequestContextPtr& request_context() { return request_ctx_; }
-
-  // Returns a pointer to a log record that wraps this fetch's logging
-  // info.
-  virtual AbstractLogRecord* log_record();
+  virtual RequestContextPtr request_context() {
+    return RequestContextPtr(NULL);
+  }
 
  protected:
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler) = 0;
@@ -160,16 +165,22 @@ class AsyncFetch : public Writer {
   virtual void HandleDone(bool success) = 0;
   virtual void HandleHeadersComplete() = 0;
 
+  // Returns a pointer to the log record, with no lazy construction behavior.
+  LogRecord* log_record_or_null() { return log_record_; }
+
+  // Sets LogRecord and claims ownership.
+  void set_owned_log_record(LogRecord* log_record);
+
  private:
   RequestHeaders* request_headers_;
   ResponseHeaders* response_headers_;
   ResponseHeaders* extra_response_headers_;
-  RequestContextPtr request_ctx_;
+  LogRecord* log_record_;
   bool owns_request_headers_;
   bool owns_response_headers_;
   bool owns_extra_response_headers_;
+  bool owns_log_record_;
   bool headers_complete_;
-  int64 content_length_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncFetch);
 };
@@ -180,16 +191,11 @@ class AsyncFetch : public Writer {
 // TODO(jmarantz): move StringAsyncFetch into its own file.
 class StringAsyncFetch : public AsyncFetch {
  public:
-  explicit StringAsyncFetch(const RequestContextPtr& request_ctx)
-      : AsyncFetch(request_ctx), buffer_pointer_(&buffer_) {
+  StringAsyncFetch() : buffer_pointer_(&buffer_) { Init(); }
+
+  explicit StringAsyncFetch(GoogleString* buffer) : buffer_pointer_(buffer) {
     Init();
   }
-
-  StringAsyncFetch(const RequestContextPtr& request_ctx, GoogleString* buffer)
-      : AsyncFetch(request_ctx), buffer_pointer_(buffer) {
-    Init();
-  }
-
   virtual ~StringAsyncFetch();
 
   virtual bool HandleWrite(const StringPiece& content,
@@ -243,10 +249,7 @@ class StringAsyncFetch : public AsyncFetch {
 // class is still abstract, and requires inheritors to implement Done().
 class AsyncFetchUsingWriter : public AsyncFetch {
  public:
-  AsyncFetchUsingWriter(const RequestContextPtr& request_context,
-                        Writer* writer)
-     : AsyncFetch(request_context),
-       writer_(writer) {}
+  explicit AsyncFetchUsingWriter(Writer* writer) : writer_(writer) {}
   virtual ~AsyncFetchUsingWriter();
 
  protected:
@@ -261,15 +264,16 @@ class AsyncFetchUsingWriter : public AsyncFetch {
 // Creates an AsyncFetch object using an existing AsyncFetcher*,
 // sharing the response & request headers, and by default delegating
 // all 4 Handle methods to the base fetcher.  Any one of them can
-// be overridden by inheritors of this class, but to propagate the
-// callbacks to the base-fetch, overrides should upcall this class,
-// e.g. SharedAsyncFetch::HandleWrite(...).
+// be overridden by inheritors of this class.
 class SharedAsyncFetch : public AsyncFetch {
  public:
   explicit SharedAsyncFetch(AsyncFetch* base_fetch);
   virtual ~SharedAsyncFetch();
 
-  virtual const RequestContextPtr& request_context() {
+  AsyncFetch* base_fetch() { return base_fetch_; }
+  const AsyncFetch* base_fetch() const { return base_fetch_; }
+
+  virtual RequestContextPtr request_context() {
     return base_fetch_->request_context();
   }
 
@@ -287,7 +291,13 @@ class SharedAsyncFetch : public AsyncFetch {
     return base_fetch_->Flush(handler);
   }
 
-  virtual void HandleHeadersComplete();
+  virtual void HandleHeadersComplete() {
+    base_fetch_->HeadersComplete();
+  }
+
+  virtual bool EnableThreaded() const {
+    return base_fetch_->EnableThreaded();
+  }
 
   virtual bool IsCachedResultValid(const ResponseHeaders& headers) {
     return base_fetch_->IsCachedResultValid(headers);
@@ -296,9 +306,6 @@ class SharedAsyncFetch : public AsyncFetch {
   virtual bool IsBackgroundFetch() const {
     return base_fetch_->IsBackgroundFetch();
   }
-
-  // Propagates any set_content_length from this to the base fetch.
-  void PropagateContentLength();
 
  private:
   AsyncFetch* base_fetch_;

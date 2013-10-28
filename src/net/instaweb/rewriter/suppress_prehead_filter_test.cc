@@ -17,12 +17,10 @@
 
 #include "net/instaweb/rewriter/public/suppress_prehead_filter.h"
 
-#include "pagespeed/kernel/http/http.pb.h"
+#include "net/instaweb/http/http.pb.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
@@ -66,13 +64,13 @@ class SuppressPreheadFilterTest : public RewriteTestBase {
     // Disable support no script, so that we don't insert the noscript node and
     // the output is simple.
     options()->set_support_noscript_enabled(false);
-    options()->ComputeSignature();
+    options()->ComputeSignature(hasher());
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
     rewrite_driver()->SetWriter(&writer_);
     headers_.Clear();
     rewrite_driver()->set_response_headers_ptr(&headers_);
-    rewrite_driver()->SetUserAgent("prefetch_link_script_tag");
+    rewrite_driver()->set_user_agent("prefetch_link_rel_subresource");
   }
 
   GoogleString output_;
@@ -144,19 +142,17 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
   InitResources();
   const char pre_head_input[] = "<!DOCTYPE html><html>";
   const char post_head_input[] =
-        "<a></a><head>"
+      "<head>"
         "<link type=\"text/css\" rel=\"stylesheet\""
         " href=\"http://test.com/a.css\"/>"
         "<script src=\"http://test.com/b.js\"></script>"
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  RequestContext::TimingInfo* timing_info = mutable_timing_info();
-  timing_info->FetchStarted();
-  AdvanceTimeMs(100);
-  timing_info->FetchHeaderReceived();
-  rewrite_driver_->log_record()->logging_info()->
-      set_is_original_resource_cacheable(false);
+  scoped_ptr<LogRecord> log_record(new LogRecord);
+  rewrite_driver_->set_log_record(log_record.get());
+  rewrite_driver_->log_record()->logging_info()
+      ->mutable_timing_info()->set_header_fetch_ms(100);
   rewrite_driver_->flush_early_info()->set_last_n_fetch_latencies("96,98");
   rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(97);
 
@@ -171,45 +167,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
             rewrite_driver_->flush_early_info()->last_n_fetch_latencies());
   EXPECT_EQ(98,
             rewrite_driver_->flush_early_info()->average_fetch_latency_ms());
-
-  // pre head is suppressed if the dummy head was flushed early.
-  output_.clear();
-  rewrite_driver()->set_flushed_early(true);
-  Parse("flushed_early", html_input);
-  EXPECT_EQ(post_head_input, output_);
-}
-
-TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppressWithCacheableHtml) {
-  InitResources();
-  const char pre_head_input[] = "<!DOCTYPE html><html><head>";
-  const char post_head_input[] =
-        "<link type=\"text/css\" rel=\"stylesheet\""
-        " href=\"http://test.com/a.css\"/>"
-        "<script src=\"http://test.com/b.js\"></script>"
-      "</head>"
-      "<body></body></html>";
-  GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  RequestContext::TimingInfo* timing_info = mutable_timing_info();
-  timing_info->FetchStarted();
-  AdvanceTimeMs(100);
-  timing_info->FetchHeaderReceived();
-  rewrite_driver_->log_record()->logging_info()->
-      set_is_original_resource_cacheable(true);
-  rewrite_driver_->flush_early_info()->set_last_n_fetch_latencies("96,98");
-  rewrite_driver_->flush_early_info()->set_average_fetch_latency_ms(97);
-  Parse("not_flushed_early", html_input);
-  EXPECT_EQ(html_input, output_);
-
-  // SuppressPreheadFilter should have populated the flush_early_proto with the
-  // appropriate pre head information and ensure that last_n_fetch_latencies
-  // and average_fetch_latency do not get populated as we don't want to flush
-  // more resources for cacheable html.
-  EXPECT_EQ(pre_head_input,
-            rewrite_driver()->flush_early_info()->pre_head());
-  EXPECT_FALSE(
-      rewrite_driver_->flush_early_info()->has_last_n_fetch_latencies());
-  EXPECT_FALSE(
-      rewrite_driver_->flush_early_info()->has_average_fetch_latency_ms());
+  rewrite_driver_->set_log_record(NULL);
 
   // pre head is suppressed if the dummy head was flushed early.
   output_.clear();
@@ -232,6 +190,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyMetaTags) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=EmulateIE7\"/>"
       "<meta http-equiv=\"X-UA-Compatible\" content=\"junk\"/>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
@@ -261,9 +220,9 @@ TEST_F(SuppressPreheadFilterTest, MetaTagsOutsideHead) {
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
       "<head></head>"
       "<body></body></html>";
-  const char html_without_prehead[] =
-      "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<head></head>"
+  const char html_without_prehead_and_meta_tags[] =
+      "<head>"
+      "</head>"
       "<body></body></html>";
 
   Parse("not_flushed_early", html_input);
@@ -275,52 +234,7 @@ TEST_F(SuppressPreheadFilterTest, MetaTagsOutsideHead) {
   output_.clear();
   rewrite_driver()->set_flushed_early(true);
   Parse("flushed_early", html_input);
-  EXPECT_EQ(html_without_prehead, output_);
-}
-
-
-TEST_F(SuppressPreheadFilterTest, XmlTagsBeforeDocType) {
-  InitResources();
-  const char html_input[] =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
-      "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\""
-      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">"
-      "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
-      "<head profile=\"blah\">"
-      "</head>"
-      "<body></body></html>";
-
-  // pre head is suppressed if the dummy head was flushed early.
-  output_.clear();
-  rewrite_driver()->set_flushed_early(true);
-  Parse("flushed_early", html_input);
-  EXPECT_EQ("</head><body></body></html>", output_);
-  EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
-            "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\""
-            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">"
-            "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
-            "<head profile=\"blah\">",
-            rewrite_driver()->flush_early_info()->pre_head());
-}
-
-TEST_F(SuppressPreheadFilterTest, NoStartHtml) {
-  InitResources();
-  const char html_input[] =
-      "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\""
-      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">"
-      "<head profile=\"blah\">"
-      "</head>"
-      "<body></body></html>";
-
-  // pre head is suppressed if the dummy head was flushed early.
-  output_.clear();
-  rewrite_driver()->set_flushed_early(true);
-  Parse("flushed_early", html_input);
-  EXPECT_EQ("</head><body></body></html>", output_);
-  EXPECT_EQ("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\""
-            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">"
-            "<head profile=\"blah\">",
-            rewrite_driver()->flush_early_info()->pre_head());
+  EXPECT_EQ(html_without_prehead_and_meta_tags, output_);
 }
 
 TEST_F(SuppressPreheadFilterTest, NoHead) {
@@ -338,7 +252,6 @@ TEST_F(SuppressPreheadFilterTest, NoHead) {
       "<head/><body></body></html>";
 
   const char html_input_without_prehead[] =
-      "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
       "<head/><body></body></html>";
 
   Parse("not_flushed_early", html_input);
@@ -369,6 +282,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCharset) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "</head>"
       "<body></body></html>";
 
@@ -404,6 +318,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyPreExistingCharset) {
       "</head>"
       "<body></body></html>";
   const char html_without_prehead[] =
+      "<head>"
       "</head>"
       "<body></body></html>";
 
@@ -432,6 +347,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCookies) {
       "</head>"
       "<body></body></html>";
   const char html_with_cookie[] =
+      "<head>"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "(function(){"
         "var data = [\"CG=US:CA:Mountain+View\",\"UA=chrome\",\"path=/\"];"
@@ -465,6 +381,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyCookies2) {
       "</head>"
       "<body></body></html>";
   const char html_with_cookie[] =
+      "<head>"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "(function(){"
         "var data = [\"RMID=266b56483f6e50519316c48a; expires=Friday, "

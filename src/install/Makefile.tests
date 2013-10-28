@@ -8,22 +8,22 @@
 # Imports:
 #  apache_install_conf (should read OPT_REWRITE_TEST, OPT_PROXY_TEST,
 #                       OPT_SLURP_TEST, OPT_SPELING_TEST, OPT_MEMCACHED_TEST,
-#                       OPT_MEMCACHE_COVERAGE_TEST, OPT_PURGING_COVERAGE_TEST,
-#                       OPT_IPRO_PRESERVE_COVERAGE_TEST, OPT_HTTPS_TEST,
+#                       OPT_MEMCACHE_COVERAGE_TEST, OPT_HTTPS_TEST,
 #                       OPT_COVERAGE_TRACE_TEST, OPT_STRESS_TEST,
 #                       OPT_SHARED_MEM_LOCK_TEST, OPT_GZIP_TEST,
-#                       OPT_EXPERIMENT_GA_TEST, OPT_EXPERIMENT_NO_GA_TEST,
-#                       OPT_PER_VHOST_STATS_TEST, OPT_NO_PER_VHOST_STATS_TEST,
-#                       OPT_ALL_DIRECTIVES_TEST)
+#                       OPT_FURIOUS_GA_TEST, OPT_FURIOUS_NO_GA_TEST,
+#                       OPT_URL_ATTRIBUTES_TEST, OPT_XHEADER_TEST,
+#                       OPT_DOMAIN_HYPERLINKS_TEST, OPT_ABSOLUTE_URLS_TEST,
+#                       OPT_PER_VHOST_STATS_TEST,
+#                       OPT_DOMAIN_RESOURCE_TAGS_TEST, OPT_ALL_DIRECTIVES_TEST)
 #  stop, start  (to stop and start Apache)
 #  apache_debug_restart
 #  apache_debug_stop
 #  apache_debug_leak_test, apache_debug_proxy_test, apache_debug_slurp_test
-#  APACHE_PORT
+#  APACHE_DEBUG_PORT
 #  APACHE_HTTPS_PORT
 #  APACHE_DEBUG_PAGESPEED_CONF
 #  MOD_PAGESPEED_CACHE
-#  MOD_PAGESPEED_ROOT
 #  INSTALL_DATA_DIR
 
 # We want order of dependencies honored..
@@ -32,30 +32,34 @@
 # Want |& support; and /bin/sh doesn't provide it at least on Ubuntu 11.04
 SHELL=/bin/bash
 
-# Make conf, log, and cache file locations accessible to apache/system_test.sh
+# Make conf, log, and cache file locations accessible to apache_system_test.sh
 export APACHE_DEBUG_PAGESPEED_CONF
 export APACHE_LOG
 export MOD_PAGESPEED_CACHE
 
 apache_vm_system_tests :
-	$(MAKE) FAST_RESTART=1 apache_debug_smoke_test
-	$(MAKE) FAST_RESTART=1 apache_debug_downstream_caching_test
-	$(MAKE) FAST_RESTART=1 apache_debug_per_vhost_stats_test
-	$(MAKE) FAST_RESTART=1 apache_debug_memcached_test
-	$(MAKE) FAST_RESTART=1 apache_debug_leak_test
-	$(MAKE) FAST_RESTART=1 apache_debug_rewrite_test
-	$(MAKE) FAST_RESTART=1 apache_debug_proxy_test
-	$(MAKE) FAST_RESTART=1 apache_debug_slurp_test
-	$(MAKE) FAST_RESTART=1 apache_debug_speling_test
-	$(MAKE) FAST_RESTART=1 apache_debug_gzip_test
-	$(MAKE) FAST_RESTART=1 apache_debug_experiment_test
-	$(MAKE) FAST_RESTART=1 apache_debug_vhost_only_test
-	$(MAKE) FAST_RESTART=1 apache_debug_global_off_test
-	$(MAKE) FAST_RESTART=1 apache_debug_shared_mem_lock_sanity_test
-	$(MAKE) apache_debug_https_fetch_test
-	$(MAKE) FAST_RESTART=1 apache_debug_stats_logging_test
-	$(MAKE) FAST_RESTART=1 apache_debug_all_directives_test
-	$(MAKE) FAST_RESTART=1 apache_debug_unplugged_test
+	$(MAKE) apache_debug_smoke_test
+	$(MAKE) apache_debug_per_vhost_stats_test
+	$(MAKE) apache_debug_memcached_test
+	$(MAKE) apache_debug_leak_test
+	$(MAKE) apache_debug_rewrite_test
+	$(MAKE) apache_debug_proxy_test
+	$(MAKE) apache_debug_slurp_test
+	$(MAKE) apache_debug_speling_test
+	$(MAKE) apache_debug_gzip_test
+	$(MAKE) apache_debug_furious_test
+	$(MAKE) apache_debug_url_attribute_test
+	$(MAKE) apache_debug_xheader_test
+	$(MAKE) apache_debug_rewrite_hyperlinks_test
+	$(MAKE) apache_debug_client_domain_rewrite_test
+	$(MAKE) apache_debug_rewrite_resource_tags_test
+	$(MAKE) apache_debug_vhost_only_test
+	$(MAKE) apache_debug_global_off_test
+	$(MAKE) apache_debug_shared_mem_lock_sanity_test
+	# The stats logging test is disabled as it has permission issues
+	# when package building (issue 559).
+	# $(MAKE) apache_debug_stats_logging_test
+	$(MAKE) apache_debug_all_directives_test
 	$(MAKE) apache_install_conf
 # 'apache_install_conf' should always be last, to leave your debug
 # Apache server in a consistent state.
@@ -65,15 +69,15 @@ apache_vm_system_tests :
 # setup.
 # TODO(jmarantz): fix this.
 apache_system_tests : apache_vm_system_tests
-	$(MAKE) FAST_RESTART=1 apache_debug_serf_empty_header_test
+	$(MAKE) apache_debug_serf_empty_header_test
 	$(MAKE) apache_install_conf
-	$(MAKE) FAST_RESTART=1 apache_debug_restart
+	$(MAKE) apache_debug_restart
 
 APACHE_HOST = localhost
-ifeq ($(APACHE_PORT),80)
+ifeq ($(APACHE_DEBUG_PORT),80)
   APACHE_SERVER = $(APACHE_HOST)
 else
-  APACHE_SERVER = $(APACHE_HOST):$(APACHE_PORT)
+  APACHE_SERVER = $(APACHE_HOST):$(APACHE_DEBUG_PORT)
 endif
 APACHE_SECONDARY_SERVER = $(APACHE_HOST):$(APACHE_SECONDARY_PORT)
 
@@ -106,19 +110,16 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	$(MAKE) start
 	CACHE_FLUSH_TEST=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	FIRST_RUN=true \
-	$(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
+	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                          $(APACHE_HTTPS_SERVER)
 	#
 	@echo '***' System-test with warm cache
 	CACHE_FLUSH_TEST=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	$(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
+	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                          $(APACHE_HTTPS_SERVER)
 	@echo '***' System-test with statistics off
 	mv $(APACHE_DEBUG_PAGESPEED_CONF) $(APACHE_DEBUG_PAGESPEED_CONF).save
 	sed -e "s/# ModPagespeedStatistics off/ModPagespeedStatistics off/" \
@@ -128,14 +129,10 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	grep ModPagespeedInheritVHostConfig $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) stop
 	$(MAKE) start
-	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
-	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	    $(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
+	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                          $(APACHE_HTTPS_SERVER)
 	#
 	# Now turn off ModPagespeedInheritVHostConfig, turn stats back on.
-	@echo '***' System-test without InheritVhostConfig, stats on.
 	sed -e "s/InheritVHostConfig on/InheritVHostConfig off/" \
 		< $(APACHE_DEBUG_PAGESPEED_CONF).save \
 		> $(APACHE_DEBUG_PAGESPEED_CONF)
@@ -146,16 +143,14 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	CACHE_FLUSH_TEST=on \
 	NO_VHOST_MERGE=on \
 	APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
 	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	    $(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
+	    $(INSTALL_DATA_DIR)/apache_system_test.sh \
 	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
 	#
 	# Restore config
 	mv $(APACHE_DEBUG_PAGESPEED_CONF).save $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) apache_debug_stop
 	[ -z "`grep leaked_rewrite_drivers $(APACHE_LOG)`" ]
-	@echo PASS
 
 apache_debug_rewrite_test : rewrite_test_prepare apache_install_conf \
     apache_debug_restart
@@ -187,21 +182,13 @@ speling_test_prepare :
 
 apache_debug_memcached_test : memcached_test_prepare apache_install_conf \
     apache_debug_restart
-	# Note: We run apache/system_test.sh twice inside
-	# run_program_with_memcached.sh. That is why we have \; below.
 	$(INSTALL_DATA_DIR)/run_program_with_memcached.sh -multi \
-	    $(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	        $(APACHE_SERVER) $(APACHE_HTTPS_SERVER) \; \
-	    env \
-	    CACHE_FLUSH_TEST=on \
-	    APACHE_SECONDARY_PORT=$(APACHE_SECONDARY_PORT) \
-	    APACHE_TERTIARY_PORT=$(APACHE_TERTIARY_PORT) \
-	    APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	    $(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	        $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
+            $(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                        $(APACHE_HTTPS_SERVER) \; \
+        $(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	    $(APACHE_HTTPS_SERVER)
 	$(MAKE) apache_debug_stop
 	[ -z "`grep leaked_rewrite_drivers $(APACHE_LOG)`" ]
-	@echo PASS
 
 memcached_test_prepare :
 	$(eval OPT_MEMCACHED_TEST="MEMCACHED_TEST=1")
@@ -216,15 +203,9 @@ memcached_test_prepare :
 apache_debug_gzip_test : gzip_test_prepare apache_install_conf \
     apache_debug_restart
 	@echo Testing efficacy of ModPagespeedFetchWithGzip:
-	# Note: The client request will not served with gzip because we do not
-	# have an Accept-Encoding header, we are testing that the backend fetch
-	# uses gzip.
 	$(WGET_NO_PROXY) -O /dev/null --save-headers $(EXAMPLE_BIG_CSS) 2>&1 \
 	  | head | grep "HTTP request sent, awaiting response... 200 OK"
-	# TODO(sligocki): The serf_fetch_bytes_count should be available on
-	# this vhost's mod_pagespeed_statistics page. Why isn't it?
-	bytes=`$(WGET_NO_PROXY) -q -O - \
-	  $(APACHE_SERVER)/mod_pagespeed_global_statistics \
+	bytes=`$(WGET_NO_PROXY) -q -O - $(APACHE_SERVER)/mod_pagespeed_statistics \
 	  | sed -n 's/serf_fetch_bytes_count: *//p'`; \
 	  echo Compressed big.css took $$bytes bytes; \
 	  test $$bytes -gt 200 -a $$bytes -lt 500
@@ -233,33 +214,113 @@ gzip_test_prepare :
 	$(eval OPT_GZIP_TEST="GZIP_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
-# Test to make sure the experiment framework is sending its headers.
+# Test to make sure Furious is sending its headers
 # TODO(nforman): Make this run multiple times and make sure we don't *always*
 # get the same result.
-apache_debug_experiment_test :
-	$(MAKE) apache_debug_experiment_ga_test
-	$(MAKE) apache_debug_experiment_no_ga_test
+apache_debug_furious_test :
+	$(MAKE) apache_debug_furious_ga_test
+	$(MAKE) apache_debug_furious_no_ga_test
 
-apache_debug_experiment_ga_test : experiment_ga_test_prepare \
+apache_debug_furious_ga_test : furious_ga_test_prepare apache_install_conf \
+    apache_debug_restart
+	$(INSTALL_DATA_DIR)/apache_furious_ga_test.sh $(APACHE_SERVER)
+
+apache_debug_furious_no_ga_test : furious_no_ga_test_prepare \
  apache_install_conf apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_experiment_ga_test.sh $(APACHE_SERVER)
+	$(INSTALL_DATA_DIR)/apache_furious_no_ga_test.sh $(APACHE_SERVER)
 
-apache_debug_experiment_no_ga_test : experiment_no_ga_test_prepare \
- apache_install_conf apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_experiment_no_ga_test.sh $(APACHE_SERVER)
-
-experiment_ga_test_prepare :
-	$(eval OPT_EXPERIMENT_GA_TEST="EXPERIMENT_GA_TEST=1")
+furious_ga_test_prepare :
+	$(eval OPT_FURIOUS_GA_TEST="FURIOUS_GA_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
-experiment_no_ga_test_prepare :
-	$(eval OPT_EXPERIMENT_NO_GA_TEST="EXPERIMENT_NO_GA_TEST=1")
+furious_no_ga_test_prepare :
+	$(eval OPT_FURIOUS_NO_GA_TEST="FURIOUS_NO_GA_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
 
-apache_debug_downstream_caching_test :
+# This test checks that the ModPagespeedXHeaderValue directive works.
+apache_debug_xheader_test : xheader_test_prepare apache_install_conf \
+    apache_debug_restart
+	@echo Testing ModPagespeedXHeaderValue directive:
+	$(WGET_NO_PROXY) -q -O - --save-headers $(EXAMPLE) \
+	  | egrep "^X-Mod-Pagespeed:|^X-Page-Speed:"
+	value=`$(WGET_NO_PROXY) -q -O - --save-headers '$(EXAMPLE)' \
+	  | egrep "^X-Mod-Pagespeed:|^X-Page-Speed:" \
+	  | sed -e 's/^X-Mod-Pagespeed: *//' \
+	  | sed -e 's/^X-Page-Speed: *//' \
+	  | tr -d '\r'`; \
+	test "$$value" = "UNSPECIFIED VERSION"
+
+xheader_test_prepare :
+	$(eval OPT_XHEADER_TEST="XHEADER_TEST=1")
 	rm -rf $(MOD_PAGESPEED_CACHE)/*
-	$(MAKE) apache_install_conf apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_downstream_caching_test.sh $(APACHE_SERVER)
+
+rewrite_hyperlinks_test_prepare :
+	$(eval OPT_DOMAIN_HYPERLINKS_TEST="DOMAIN_HYPERLINKS_TEST=1")
+	rm -rf $(MOD_PAGESPEED_CACHE)/*
+
+# This test checks that the ModPagespeedDomainRewriteHyperlinks directive
+# can turn on.  See mod_pagespeed_test/rewrite_domains.html: it has
+# one <img> URL, one <form> URL, and one <a> url, all referencing
+# src.example.com.  They should all be rewritten to dst.example.com.
+apache_debug_rewrite_hyperlinks_test : rewrite_hyperlinks_test_prepare \
+    apache_install_conf apache_debug_restart
+	@echo Testing ModPagespeedRewriteHyperlinks on directive:
+	matches=`$(WGET_NO_PROXY) -q -O - $(TEST_ROOT)/rewrite_domains.html \
+	  | grep -c http://dst\.example\.com`; \
+	test $$matches -eq 3
+
+client_domain_rewrite_test_prepare :
+	$(eval OPT_CLIENT_DOMAIN_REWRITE_TEST="CLIENT_DOMAIN_REWRITE_TEST=1")
+	rm -rf $(MOD_PAGESPEED_CACHE)/*
+
+# This test checks that the ModPagespeedClientDomainRewrite directive
+# can turn on.
+apache_debug_client_domain_rewrite_test : client_domain_rewrite_test_prepare \
+    apache_install_conf apache_debug_restart
+	@echo Testing ModPagespeedClientDomainRewrite on directive:
+	matches=`$(WGET_NO_PROXY) -q -O - $(TEST_ROOT)/rewrite_domains.html \
+	  | grep -c pagespeed\.clientDomainRewriterInit`; \
+	test $$matches -eq 1
+
+# Test to make sure dynamically defined url-valued attributes are rewritten by
+# rewrite_domains.  See mod_pagespeed_test/rewrite_domains.html: in addition to
+# having one <img> URL, one <form> URL, and one <a> url it also has one <span
+# src=...> URL, one <hr imgsrc=...> URL, and one <hr src=...> URL, all
+# referencing src.example.com.  The first three should be rewritten because of
+# hardcoded rules, the span.src and hr.imgsrc should be rewritten because of
+# ModPagespeedUrlValuedAttribute directives, and the hr.src should be left
+# unmodified.  The rewritten ones should all be rewritten to dst.example.com.
+apache_debug_url_attribute_test : url_attribute_test_prepare \
+    apache_install_conf apache_debug_restart
+	$(INSTALL_DATA_DIR)/apache_url_valued_attribute_test.sh $(APACHE_SERVER)
+
+url_attribute_test_prepare :
+	$(eval OPT_URL_ATTRIBUTE_TEST="URL_ATTRIBUTE_TEST=1")
+	rm -rf $(MOD_PAGESPEED_CACHE)/*
+
+# Test to make sure we don't fetch encoded absolute urls.
+apache_debug_absolute_urls_test : absolute_urls_test_prepare \
+    apache_install_conf apache_debug_restart
+	$(INSTALL_DATA_DIR)/apache_absolute_urls_test.sh $(APACHE_SERVER)
+
+absolute_urls_test_prepare :
+	$(eval OPT_ABSOLUTE_URLS_TEST="ABSOLUTE_URLS_TEST=1")
+	rm -rf $(MOD_PAGESPEED_CACHE)/*
+
+rewrite_resource_tags_test_prepare :
+	$(eval OPT_DOMAIN_RESOURCE_TAGS_TEST="DOMAIN_RESOURCE_TAGS_TEST=1")
+	rm -rf $(MOD_PAGESPEED_CACHE)/*
+
+# This test checks that the ModPagespeedDomainRewriteHyperlinks directive
+# can turn on.  See mod_pagespeed_test/rewrite_domains.html: it has
+# one <img> URL, one <form> URL, and one <a> url, all referencing
+# src.example.com.  Only the <img> url should be rewritten.
+apache_debug_rewrite_resource_tags_test : rewrite_resource_tags_test_prepare \
+    apache_install_conf apache_debug_restart
+	@echo Testing ModPagespeedRewriteHyperlinks off directive:
+	matches=`$(WGET_NO_PROXY) -q -O - $(TEST_ROOT)/rewrite_domains.html \
+	  | grep -c http://dst\.example\.com`; \
+	test $$matches -eq 1
 
 # Test to make sure we don't crash if we're off for global but on for vhosts.
 # We use the stress test config as a base for that, as it has the vhosts all
@@ -292,25 +353,18 @@ apache_debug_global_off_test :
 	$(MAKE) apache_install_conf
 	echo 'ModPagespeed off' >> $(APACHE_DEBUG_PAGESPEED_CONF)
 	$(MAKE) apache_debug_restart
-	$(WGET_NO_PROXY) -O /dev/null --save-headers $(EXAMPLE)?PageSpeed=on 2>&1 \
+	$(WGET_NO_PROXY) -O /dev/null --save-headers $(EXAMPLE)?ModPagespeed=on 2>&1 \
 	  | head | grep "HTTP request sent, awaiting response... 200 OK"
-
-# Test to make sure HTTPS fetching works.
-apache_debug_https_fetch_test :
-	$(MAKE) apache_install_conf
-	$(MAKE) apache_debug_restart
-	$(INSTALL_DATA_DIR)/apache_https_fetch_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
 
 # Sanity-check that enabling shared-memory locks don't cause the
 # system to crash, and a rewrite does successfully happen.
 apache_debug_shared_mem_lock_sanity_test : shared_mem_lock_test_prepare \
     apache_install_conf apache_debug_restart
 	$(WGET_NO_PROXY) -q -O /dev/null \
-	    $(EXAMPLE_COMBINE_CSS)?PageSpeedFilters=combine_css
+	    $(EXAMPLE_COMBINE_CSS)?ModPagespeedFilters=combine_css
 	sleep 1
 	$(WGET_NO_PROXY) -q -O - \
-	    $(EXAMPLE_COMBINE_CSS)?PageSpeedFilters=combine_css \
+	    $(EXAMPLE_COMBINE_CSS)?ModPagespeedFilters=combine_css \
 	 | grep "\.pagespeed\.cc\."
 
 shared_mem_lock_test_prepare :
@@ -333,15 +387,14 @@ apache_debug_all_directives_test :
 STATS = mod_pagespeed_statistics
 GLOBAL_STATS = mod_pagespeed_global_statistics
 TRIM_PATH = \
-    "mod_pagespeed_example/trim_urls.html?PageSpeedFilters=trim_urls"
+    "mod_pagespeed_example/trim_urls.html?ModPagespeedFilters=trim_urls"
 
 apache_debug_per_vhost_stats_test :
 	$(MAKE) apache_install_conf \
-	    OPT_PER_VHOST_STATS_TEST="PER_VHOST_STATS_TEST=1" \
-	    OPT_NO_PER_VHOST_STATS_TEST="NO_PER_VHOST_STATS_TEST=0"
+	    OPT_PER_VHOST_STATS_TEST="PER_VHOST_STATS_TEST=1"
 	$(MAKE) apache_debug_restart
-	@echo Fetch a trim URL example from VHost: 8080 -- that should bump
-	@echo the stat for that there + global but not on :8083
+	# Fetch a trim URL example from VHost: 8080 -- that should bump
+	# the stat for that there + global but not on :8083
 	$(WGET_NO_PROXY) -q -O /dev/null $(APACHE_SERVER)/$(TRIM_PATH)
 	$(WGET_NO_PROXY) -q -O - $(APACHE_SERVER)/$(STATS) \
 	     | grep url_trims | grep -w 1
@@ -351,7 +404,7 @@ apache_debug_per_vhost_stats_test :
 	     | grep url_trims | grep -w 1
 	$(WGET_NO_PROXY) -q -O - $(APACHE_SECONDARY_SERVER)/$(GLOBAL_STATS) \
 	     | grep url_trims | grep -w 1
-	@echo Now on :8083 as well.
+	# Now on :8083 as well.
 	$(WGET_NO_PROXY) -q -O /dev/null $(APACHE_SECONDARY_SERVER)/$(TRIM_PATH)
 	$(WGET_NO_PROXY) -q -O - $(APACHE_SERVER)/$(STATS) \
 	     | grep url_trims | grep -w 1
@@ -361,12 +414,10 @@ apache_debug_per_vhost_stats_test :
 	     | grep url_trims | grep -w 2
 	$(WGET_NO_PROXY) -q -O - $(APACHE_SECONDARY_SERVER)/$(GLOBAL_STATS) \
 	     | grep url_trims | grep -w 2
-	# Without per-vhost stats.
+	# Now try without global stats -- both should update at once.
 	$(MAKE) apache_install_conf \
-	    OPT_PER_VHOST_STATS_TEST="PER_VHOST_STATS_TEST=0" \
-	    OPT_NO_PER_VHOST_STATS_TEST="NO_PER_VHOST_STATS_TEST=1"
+	    OPT_PER_VHOST_STATS_TEST="PER_VHOST_STATS_TEST=0"
 	$(MAKE) apache_debug_restart
-	@echo Now try without global stats -- both should update at once.
 	$(WGET_NO_PROXY) -q -O /dev/null $(APACHE_SERVER)/$(TRIM_PATH)
 	$(WGET_NO_PROXY) -q -O - $(APACHE_SERVER)/$(STATS) \
 	     | grep url_trims | grep -w 1
@@ -383,33 +434,5 @@ apache_debug_stats_logging_test :
 	$(MAKE) apache_install_conf \
 	    OPT_STATS_LOGGING_TEST="STATS_LOGGING_TEST=1"
 	$(MAKE) apache_debug_restart
-	$(MOD_PAGESPEED_ROOT)/net/instaweb/apache/system_test.sh \
-	    $(APACHE_SERVER) $(APACHE_HTTPS_SERVER)
-
-# Tests that setting the root configuration 'unplugged' can't be overridden
-# with a query-param, but can be overridden with an explicit vhost setting.
-EXAMPLE_INDEX = mod_pagespeed_example/index.html
-apache_debug_unplugged_test : apache_install_conf apache_debug_restart
-	$(MAKE) stop
-	mv $(APACHE_DEBUG_PAGESPEED_CONF) $(APACHE_DEBUG_PAGESPEED_CONF).save
-	# Note - there are multiple occurrences of "ModPagespeed on" in our
-	# debug pagespeed.conf.  This article shows how to replace only the
-	# first one with sed: http://stackoverflow.com/questions/148451/
-	# how-to-use-sed-to-replace-only-the-first-occurrence-in-a-file
-	sed -e '0,/ModPagespeed on/{s/ModPagespeed on/ModPagespeed unplugged/}' \
-		< $(APACHE_DEBUG_PAGESPEED_CONF).save \
-		> $(APACHE_DEBUG_PAGESPEED_CONF)
-	$(MAKE) start
-	# Fetching from the root should be off, even if we try to turn it on.
-	[ -z "`$(WGET) -q --save-headers -O - \
-		$(APACHE_SERVER)/$(EXAMPLE_INDEX)?ModPagespeed=on | \
-		grep X-Mod-Pagespeed`" ]
-	# Fetching from the secondary host should be on.
-	http_proxy=$(APACHE_SECONDARY_SERVER) $(WGET) -q --save-headers -O - \
-		 http://secondary.example.com/$(EXAMPLE_INDEX) | \
-		grep X-Mod-Pagespeed
-	#
-	# Restore config
-	mv $(APACHE_DEBUG_PAGESPEED_CONF).save $(APACHE_DEBUG_PAGESPEED_CONF)
-	$(MAKE) apache_debug_stop
-	@echo PASS
+	$(INSTALL_DATA_DIR)/apache_system_test.sh $(APACHE_SERVER) \
+	                                          $(APACHE_HTTPS_SERVER)

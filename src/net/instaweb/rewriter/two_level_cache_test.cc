@@ -19,33 +19,69 @@
 // Test the interaction of L1 and L2 cache for the metadata cache.
 
 #include <utility>
+#include <vector>
 
-#include "base/scoped_ptr.h"
+#include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/util/public/delay_cache.h"
+#include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
+#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/write_through_http_cache.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
+#include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/simple_text_filter.h"
+#include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_copy.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/lru_cache.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/writer.h"
 #include "net/instaweb/util/public/write_through_cache.h"
+#include "net/instaweb/util/worker_test_base.h"
 
 namespace net_instaweb {
 
-class CacheInterface;
-class MockUrlFetcher;
-class TestDistributedFetcher;
+class MessageHandler;
 
 namespace {
 
@@ -59,15 +95,12 @@ namespace {
 class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
  public:
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
-      MakeFactories(MockUrlFetcher* mock_url_fetcher,
-                    TestDistributedFetcher* mock_distributed_fetcher) {
+      MakeFactories(MockUrlFetcher* mock_url_fetcher) {
     CustomRewriteDriverFactory* factory1 = new CustomRewriteDriverFactory(
-        mock_url_fetcher, mock_distributed_fetcher,
-        true /* Use write through cache */, 1000);
+          mock_url_fetcher, true /* Use write through cache */, 1000);
     CustomRewriteDriverFactory* factory2 = new CustomRewriteDriverFactory(
-        mock_url_fetcher, mock_distributed_fetcher,
-        false /* Do not use write through cache */, factory1->owned_cache1(),
-        factory1->owned_cache2());
+          mock_url_fetcher, false /* Do not use write through cache */,
+          factory1->owned_cache1(), factory1->owned_cache2());
     return std::make_pair(factory1, factory2);
   }
 
@@ -75,14 +108,12 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     server_context->set_http_cache(
         new HTTPCache(cache1_, timer(), hasher(), statistics()));
     if (use_write_through_cache_) {
-      CacheInterface* write_through = new WriteThroughCache(cache1_, cache2_);
-      server_context->set_metadata_cache(write_through);
-      server_context->DeleteCacheOnDestruction(write_through);
+      server_context->set_metadata_cache(new WriteThroughCache(cache1_,
+                                                               cache2_));
     } else {
-      server_context->set_metadata_cache(cache2_);
+      server_context->set_metadata_cache(new CacheCopy(cache2_));
     }
-    server_context->MakePagePropertyCache(
-        server_context->CreatePropertyStore(cache2_));
+    server_context->MakePropertyCaches(cache2_);
     server_context->set_enable_property_cache(false);
   }
 
@@ -98,11 +129,9 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
 
  private:
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             TestDistributedFetcher* distributed_fetcher,
                              bool use_write_through_cache,
                              int cache_size)
-      : TestRewriteDriverFactory(GTestTempDir(), url_fetcher,
-                                 distributed_fetcher),
+      : TestRewriteDriverFactory(GTestTempDir(), url_fetcher),
         owned_cache1_(new LRUCache(cache_size)),
         owned_cache2_(new LRUCache(cache_size)),
         cache1_(owned_cache1_.get()),
@@ -112,11 +141,9 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
   }
 
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             TestDistributedFetcher* distributed_fetcher,
                              bool use_write_through_cache,
                              LRUCache* cache1, LRUCache* cache2)
-      : TestRewriteDriverFactory(GTestTempDir(), url_fetcher,
-                                 distributed_fetcher),
+      : TestRewriteDriverFactory(GTestTempDir(), url_fetcher),
         cache1_(cache1),
         cache2_(cache2),
         use_write_through_cache_(use_write_through_cache) {
@@ -138,9 +165,7 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
  protected:
   TwoLevelCacheTest()
       : RewriteContextTestBase(
-          CustomRewriteDriverFactory::MakeFactories(
-              &mock_url_fetcher_,
-              &test_distributed_fetcher_)) {}
+          CustomRewriteDriverFactory::MakeFactories(&mock_url_fetcher_)) {}
 
   // These must be run prior to the calls to 'new CustomRewriteDriverFactory'
   // in the constructor initializer above.  Thus the calls to Initialize() in
@@ -181,110 +206,6 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     other_rewrite_driver()->FinishParse();
   }
 
-  void TwoCachesInDifferentState(bool stale_ok) {
-    InitTrimFilters(kOnTheFlyResource);
-    InitResources();
-
-    if (stale_ok) {
-      options()->ClearSignatureForTesting();
-      options()->set_metadata_cache_staleness_threshold_ms(2 * kOriginTtlMs);
-      options()->ComputeSignature();
-      other_options()->ClearSignatureForTesting();
-      other_options()->set_metadata_cache_staleness_threshold_ms(
-          2 * kOriginTtlMs);
-      other_options()->ComputeSignature();
-    }
-
-    // The first rewrite was successful because we got an 'instant' url
-    // fetch, not because we did any cache lookups. We'll have 2 cache
-    // misses: one for the OutputPartitions, one for the fetch.  We
-    // should need two items in the cache: the element and the resource
-    // mapping (OutputPartitions).  The output resource should not be
-    // stored.
-    GoogleString input_html(CssLinkHref("a.css"));
-    GoogleString output_html(CssLinkHref(
-        Encode("", "tw", "0", "a.css", "css")));
-    ValidateExpected("trimmable", input_html, output_html);
-    EXPECT_EQ(0, cache1_->num_hits());
-    EXPECT_EQ(2, cache1_->num_misses());
-    EXPECT_EQ(2, cache1_->num_inserts());  // 2 because it's kOnTheFlyResource
-    EXPECT_EQ(0, cache2_->num_hits());
-    // Miss only for metadata and not HTTPcache.
-    EXPECT_EQ(1, cache2_->num_misses());
-    EXPECT_EQ(1, cache2_->num_inserts());  // Only OutputPartitions
-    EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(1, logging_info()->metadata_cache_info().num_misses());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_hits());
-    ClearStats();
-
-    // The second time we request this URL, we should find no additional
-    // cache inserts or fetches.  The rewrite should complete using a
-    // single cache hit for the metadata.  No cache misses will occur.
-    ValidateExpected("trimmable", input_html, output_html);
-    EXPECT_EQ(1, cache1_->num_hits());
-    EXPECT_EQ(0, cache1_->num_misses());
-    EXPECT_EQ(0, cache1_->num_inserts());
-    EXPECT_EQ(0, cache2_->num_hits());
-    EXPECT_EQ(0, cache2_->num_misses());
-    EXPECT_EQ(0, cache2_->num_inserts());
-    EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_misses());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-    EXPECT_EQ(1, logging_info()->metadata_cache_info().num_hits());
-    ClearStats();
-
-    AdvanceTimeMs(2 * kOriginTtlMs);
-    other_factory_->AdvanceTimeMs(2 * kOriginTtlMs);
-    // The third time we request this URL through the other_rewrite_driver
-    // (which has cache2 as metadata cache) so that we have a fresh value in
-    // cache2 which is the L2 cache for the write through cache used in
-    // rewrite_driver.
-    ParseWithOther("trimmable", input_html);
-    EXPECT_EQ(1, cache1_->num_hits());
-    EXPECT_EQ(0, cache1_->num_misses());
-    EXPECT_EQ(1, cache1_->num_inserts());
-    EXPECT_EQ(1, cache2_->num_hits());
-    EXPECT_EQ(0, cache2_->num_misses());
-    EXPECT_EQ(1, cache2_->num_inserts());
-    EXPECT_EQ(1, other_factory_->counting_url_async_fetcher()->fetch_count());
-    LoggingInfo* other_logging_info =
-        other_rewrite_driver()->request_context()->log_record()->logging_info();
-    EXPECT_EQ(0, other_logging_info->metadata_cache_info().num_misses());
-    if (stale_ok) {
-      // If metadata staleness threshold is set, we would get a cache hit
-      // as we allow stale rewrites.
-      EXPECT_EQ(
-          1, other_logging_info->metadata_cache_info().num_stale_rewrites());
-      EXPECT_EQ(0,
-                other_logging_info->metadata_cache_info().num_revalidates());
-      EXPECT_EQ(1, other_logging_info->metadata_cache_info().num_hits());
-    } else {
-      EXPECT_EQ(1,
-                other_logging_info->metadata_cache_info().num_revalidates());
-      EXPECT_EQ(0, other_logging_info->metadata_cache_info().num_hits());
-    }
-
-    ClearStats();
-    // The fourth time we request this URL, we find fresh metadata in the write
-    // through cache (in its L2 cache) and so there is no fetch.  The metadata
-    // is also inserted into L1 cache.
-    ValidateExpected("trimmable", input_html, output_html);
-    // We have an expired hit for metadata in cache1, and a fresh hit for it in
-    // cache2.  The fresh metadata is inserted in cache1.
-    EXPECT_EQ(1, cache1_->num_hits());     // expired hit
-    EXPECT_EQ(0, cache1_->num_misses());
-    EXPECT_EQ(1, cache1_->num_inserts());  // re-inserts after expiration.
-    EXPECT_EQ(1, cache2_->num_hits());     // fresh hit
-    EXPECT_EQ(0, cache2_->num_misses());
-    EXPECT_EQ(0, cache2_->num_inserts());
-    EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_misses());
-    EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-    EXPECT_EQ(1, logging_info()->metadata_cache_info().num_hits());
-    ClearStats();
-  }
-
   LRUCache* cache1_;
   LRUCache* cache2_;
 };
@@ -301,7 +222,8 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   // stored.
   GoogleString input_html(CssLinkHref("a.css"));
   GoogleString output_html(CssLinkHref(
-      Encode("", "tw", "0", "a.css", "css")));
+      Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  rewrite_driver()->set_log_record(&log_record_);
   ValidateExpected("trimmable", input_html, output_html);
   EXPECT_EQ(0, cache1_->num_hits());
   EXPECT_EQ(2, cache1_->num_misses());
@@ -310,14 +232,15 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   EXPECT_EQ(1, cache2_->num_misses());   // Only for metadata and not HTTPcache
   EXPECT_EQ(1, cache2_->num_inserts());  // Only OutputPartitions
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(1, logging_info()->metadata_cache_info().num_misses());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_hits());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_hits());
   ClearStats();
 
   // The second time we request this URL, we should find no additional
   // cache inserts or fetches.  The rewrite should complete using a
   // single cache hit for the metadata.  No cache misses will occur.
+  rewrite_driver()->set_log_record(&log_record_);
   ValidateExpected("trimmable", input_html, output_html);
   EXPECT_EQ(1, cache1_->num_hits());
   EXPECT_EQ(0, cache1_->num_misses());
@@ -326,9 +249,9 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   EXPECT_EQ(0, cache2_->num_misses());
   EXPECT_EQ(0, cache2_->num_inserts());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_misses());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, logging_info()->metadata_cache_info().num_hits());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_hits());
   ClearStats();
 
   // The third time we request this URL, we've advanced time so that the origin
@@ -337,6 +260,7 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   // miss, but we'll re-insert.  We won't need to do any more rewrites because
   // the data did not actually change.
   AdvanceTimeMs(2 * kOriginTtlMs);
+  rewrite_driver()->set_log_record(&log_record_);
   ValidateExpected("trimmable", input_html, output_html);
   EXPECT_EQ(2, cache1_->num_hits());     // 1 expired hit, 1 valid hit.
   EXPECT_EQ(0, cache1_->num_misses());
@@ -348,13 +272,14 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   EXPECT_EQ(0, cache2_->num_misses());
   EXPECT_EQ(1, cache2_->num_inserts());  // re-inserts after expiration.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_misses());
-  EXPECT_EQ(1, logging_info()->metadata_cache_info().num_revalidates());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_hits());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_hits());
   ClearStats();
 
   // The fourth time we request this URL, the cache is in good shape despite
   // the expired date header from the origin.
+  rewrite_driver()->set_log_record(&log_record_);
   ValidateExpected("trimmable", input_html, output_html);
   EXPECT_EQ(1, cache1_->num_hits());     // 1 expired hit, 1 valid hit.
   EXPECT_EQ(0, cache1_->num_misses());
@@ -363,17 +288,92 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   EXPECT_EQ(0, cache2_->num_misses());
   EXPECT_EQ(0, cache2_->num_inserts());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_misses());
-  EXPECT_EQ(0, logging_info()->metadata_cache_info().num_revalidates());
-  EXPECT_EQ(1, logging_info()->metadata_cache_info().num_hits());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_hits());
 }
 
 TEST_F(TwoLevelCacheTest, BothCachesInDifferentState) {
-  TwoCachesInDifferentState(false);
-}
+  InitTrimFilters(kOnTheFlyResource);
+  InitResources();
 
-TEST_F(TwoLevelCacheTest, BothCachesInDifferentStaleState) {
-  TwoCachesInDifferentState(true);
+  // The first rewrite was successful because we got an 'instant' url
+  // fetch, not because we did any cache lookups. We'll have 2 cache
+  // misses: one for the OutputPartitions, one for the fetch.  We
+  // should need two items in the cache: the element and the resource
+  // mapping (OutputPartitions).  The output resource should not be
+  // stored.
+  GoogleString input_html(CssLinkHref("a.css"));
+  GoogleString output_html(CssLinkHref(
+      Encode(kTestDomain, "tw", "0", "a.css", "css")));
+  rewrite_driver()->set_log_record(&log_record_);
+  ValidateExpected("trimmable", input_html, output_html);
+  EXPECT_EQ(0, cache1_->num_hits());
+  EXPECT_EQ(2, cache1_->num_misses());
+  EXPECT_EQ(2, cache1_->num_inserts());  // 2 because it's kOnTheFlyResource
+  EXPECT_EQ(0, cache2_->num_hits());
+  EXPECT_EQ(1, cache2_->num_misses());   // Only for metadata and not HTTPcache
+  EXPECT_EQ(1, cache2_->num_inserts());  // Only OutputPartitions
+  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_hits());
+  ClearStats();
+
+  // The second time we request this URL, we should find no additional
+  // cache inserts or fetches.  The rewrite should complete using a
+  // single cache hit for the metadata.  No cache misses will occur.
+  rewrite_driver()->set_log_record(&log_record_);
+  ValidateExpected("trimmable", input_html, output_html);
+  EXPECT_EQ(1, cache1_->num_hits());
+  EXPECT_EQ(0, cache1_->num_misses());
+  EXPECT_EQ(0, cache1_->num_inserts());
+  EXPECT_EQ(0, cache2_->num_hits());
+  EXPECT_EQ(0, cache2_->num_misses());
+  EXPECT_EQ(0, cache2_->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_hits());
+  ClearStats();
+
+  AdvanceTimeMs(2 * kOriginTtlMs);
+  other_factory_->AdvanceTimeMs(2 * kOriginTtlMs);
+
+  // The third time we request this URL through the other_rewrite_driver (which
+  // has cache2 as metadata cache) so that we have a fresh value in cache2 which
+  // is the L2 cache for the write through cache used in rewrite_driver.
+  other_rewrite_driver()->set_log_record(&log_record_);
+  ParseWithOther("trimmable", input_html);
+  EXPECT_EQ(1, cache1_->num_hits());
+  EXPECT_EQ(0, cache1_->num_misses());
+  EXPECT_EQ(1, cache1_->num_inserts());
+  EXPECT_EQ(1, cache2_->num_hits());
+  EXPECT_EQ(0, cache2_->num_misses());
+  EXPECT_EQ(1, cache2_->num_inserts());
+  EXPECT_EQ(1, other_factory_->counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_hits());
+  ClearStats();
+
+  // The fourth time we request this URL, we find fresh metadata in the write
+  // through cache (in its L2 cache) and so there is no fetch.  The metadata is
+  // also inserted into L1 cache.
+  rewrite_driver()->set_log_record(&log_record_);
+  ValidateExpected("trimmable", input_html, output_html);
+  // We have an expired hit for metadata in cache1, and a fresh hit for it in
+  // cache2.  The fresh metadata is inserted in cache1.
+  EXPECT_EQ(1, cache1_->num_hits());     // expired hit
+  EXPECT_EQ(0, cache1_->num_misses());
+  EXPECT_EQ(1, cache1_->num_inserts());  // re-inserts after expiration.
+  EXPECT_EQ(1, cache2_->num_hits());     // fresh hit
+  EXPECT_EQ(0, cache2_->num_misses());
+  EXPECT_EQ(0, cache2_->num_inserts());
+  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_misses());
+  EXPECT_EQ(0, logging_info_->metadata_cache_info().num_revalidates());
+  EXPECT_EQ(1, logging_info_->metadata_cache_info().num_hits());
 }
 
 }  // namespace net_instaweb

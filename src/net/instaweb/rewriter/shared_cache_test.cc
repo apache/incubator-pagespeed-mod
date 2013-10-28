@@ -18,35 +18,68 @@
 
 // Unit-test the interaction of shared cache (e.g. memcached) & LoadFromFile.
 
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include <utility>
+#include <vector>
 
-#include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/rewriter/public/file_load_policy.h"
-#include "net/instaweb/rewriter/public/output_resource_kind.h"
-#include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/util/public/basictypes.h"
+#include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/util/public/delay_cache.h"
 #include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
+#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/write_through_http_cache.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
+#include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_context.h"
+#include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/simple_text_filter.h"
+#include "net/instaweb/rewriter/public/single_rewrite_context.h"
+#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_copy.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mem_file_system.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/writer.h"
+#include "net/instaweb/util/public/write_through_cache.h"
+#include "net/instaweb/util/worker_test_base.h"
 
 namespace net_instaweb {
-
-class CacheInterface;
 
 // Reproduce MPS issue 488 emulating memcached with LRUCache. We use the
 // 2 server contexts to emulate different servers, each with their own
@@ -68,7 +101,10 @@ class SharedCacheTest : public RewriteContextTestBase {
     EXPECT_EQ(NULL, server1_->filesystem_metadata_cache());
     EXPECT_EQ(NULL, server2_->filesystem_metadata_cache());
 
-    kRewrittenHref = Encode("", "tw", "0", kOriginalHref, "css");
+    kRewrittenHref = Encode(kTestDomain, "tw", "0", kOriginalHref, "css");
+
+    metadata_cache_info_ =
+        log_record_.logging_info()->mutable_metadata_cache_info();
 
     // Make the metadata and HTTP caches the same for this test.
     factory1_ = factory();
@@ -77,7 +113,7 @@ class SharedCacheTest : public RewriteContextTestBase {
                                           factory1_->timer(),
                                           factory1_->hasher(),
                                           factory1_->statistics()));
-    server2_->set_metadata_cache(factory1_->delay_cache());
+    server2_->set_metadata_cache(new CacheCopy(factory1_->delay_cache()));
 
     // The metadata cache and the HTTP cache share an underlying LRU cache at
     // the bottom, so the stats for them are combined into this:
@@ -101,18 +137,12 @@ class SharedCacheTest : public RewriteContextTestBase {
     shared_num_inserts_ = 0;
     shared_num_reinserts_ = 0;
     filesystem_num_opens_ = 0;
-
-    validation_ctx_ = rewrite_driver()->request_context();
   }
 
   void SetUpFilesystemMetadataCaches() {
     // Add a filesystem metadata cache to each server.
-    CacheInterface* cache = new LRUCache(10000);
-    server1_->set_filesystem_metadata_cache(cache);
-    server1_->DeleteCacheOnDestruction(cache);
-    cache = new LRUCache(10000);
-    server2_->set_filesystem_metadata_cache(cache);
-    server1_->DeleteCacheOnDestruction(cache);
+    server1_->set_filesystem_metadata_cache(new LRUCache(10000));
+    server2_->set_filesystem_metadata_cache(new LRUCache(10000));
   }
 
   void ValidateRewrite(StringPiece id,
@@ -124,51 +154,44 @@ class SharedCacheTest : public RewriteContextTestBase {
                        int num_new_shared_reinserts,
                        int num_new_filesystem_opens,
                        StringPiece expected_contents) {
-    // Restore request context (FetchResourceUrl sets a new one on
-    // rewrite_driver).
-    rewrite_driver()->set_request_context(validation_ctx_);
+    // We have to reset the log_record b/c ValidateExpected NULLs it out.
+    rewrite_driver()->set_log_record(&log_record_);
     ValidateExpected(id,
                      CssLinkHref(kOriginalHref),
                      CssLinkHref(kRewrittenHref));
 
     // Update and check the expected counts.
     EXPECT_EQ(num_new_metadata_hits,
-              validation_ctx_->log_record()->logging_info()->
-                  metadata_cache_info().num_hits() -
-              metadata_num_hits_);
-    metadata_num_hits_ = logging_info()->metadata_cache_info().num_hits();
+              metadata_cache_info_->num_hits() - metadata_num_hits_);
+    metadata_num_hits_ = metadata_cache_info_->num_hits();
 
     EXPECT_EQ(num_new_metadata_misses,
-              validation_ctx_->log_record()->logging_info()->
-                  metadata_cache_info().num_misses() -
-              metadata_num_misses_) << id;
-    metadata_num_misses_ = logging_info()->metadata_cache_info().num_misses();
+              metadata_cache_info_->num_misses() - metadata_num_misses_);
+    metadata_num_misses_ = metadata_cache_info_->num_misses();
 
     EXPECT_EQ(num_new_shared_hits,
-              shared_cache_->num_hits() - shared_num_hits_) << id;
+              shared_cache_->num_hits() - shared_num_hits_);
     shared_num_hits_ = shared_cache_->num_hits();
 
     EXPECT_EQ(num_new_shared_misses,
-              shared_cache_->num_misses() - shared_num_misses_) << id;
+              shared_cache_->num_misses() - shared_num_misses_);
     shared_num_misses_ = shared_cache_->num_misses();
 
     EXPECT_EQ(num_new_shared_inserts,
-              shared_cache_->num_inserts() - shared_num_inserts_) << id;
+              shared_cache_->num_inserts() - shared_num_inserts_);
     shared_num_inserts_ = shared_cache_->num_inserts();
 
     EXPECT_EQ(num_new_shared_reinserts,
-              shared_cache_->num_identical_reinserts() - shared_num_reinserts_)
-        << id;
+              shared_cache_->num_identical_reinserts() - shared_num_reinserts_);
     shared_num_reinserts_ = shared_cache_->num_identical_reinserts();
 
     EXPECT_EQ(num_new_filesystem_opens,
-              file_system()->num_input_file_opens() - filesystem_num_opens_)
-        << id;
+              file_system()->num_input_file_opens() - filesystem_num_opens_);
     filesystem_num_opens_ = file_system()->num_input_file_opens();
 
     // Check the rewritten content then check that we got it from the cache.
     GoogleString output;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, kRewrittenHref), &output));
+    EXPECT_TRUE(FetchResourceUrl(kRewrittenHref, &output));
     EXPECT_EQ(expected_contents, output);
     EXPECT_EQ(1, shared_cache_->num_hits() - shared_num_hits_);
     ++shared_num_hits_;
@@ -209,9 +232,9 @@ class SharedCacheTest : public RewriteContextTestBase {
   FileSystem* filesystem2_;
   TestRewriteDriverFactory* factory1_;
   TestRewriteDriverFactory* factory2_;
+  MetadataCacheInfo* metadata_cache_info_;
+  LogRecord log_record_;
   LRUCache* shared_cache_;
-
-  RequestContextPtr validation_ctx_;
 
   int metadata_num_hits_;
   int metadata_num_misses_;
@@ -230,7 +253,7 @@ const char SharedCacheTest::kNewTrimmed[] = "bar fo o";
 const char SharedCacheTest::kOriginalHref[]  = "a.css";
 
 TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
-  // With two independent servers, both using load-from-file, both sharing a
+  // With 2 independent servers, both using load-from-file, both sharing a
   // metadata cache, and neither with a filesystem metadata cache, things
   // sort-of-work, but things misbehave when one server updates its file
   // contents while the other one doesn't.
@@ -245,7 +268,7 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      0,
-                  /* num_new_shared_misses = */    1,  // metadata
+                  /* num_new_shared_misses = */    2,  // metadata + HTTP
                   /* num_new_shared_inserts = */   2,  // metadata + HTTP
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // HTTP
@@ -291,7 +314,7 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // HTTP
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,
@@ -315,7 +338,7 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // HTTP
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // metadata
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,
@@ -334,7 +357,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      0,
-                  /* num_new_shared_misses = */    1,  // metadata
+                  /* num_new_shared_misses = */    2,  // metadata + HTTP
                   /* num_new_shared_inserts = */   2,  // metadata + HTTP
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // HTTP
@@ -363,7 +386,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // HTTP
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
@@ -378,7 +401,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // HTTP
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // metadata
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
@@ -391,7 +414,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // HTTP
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
@@ -401,7 +424,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // HTTP
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
@@ -411,7 +434,7 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
                   /* num_new_metadata_hits = */    0,
                   /* num_new_metadata_misses = */  1,
                   /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
+                  /* num_new_shared_misses = */    1,  // HTTP
                   /* num_new_shared_inserts = */   2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP

@@ -29,13 +29,12 @@
     '<(DEPTH)',
   ],
   'sources': [
+    'apache/apache_cache.cc',
     'apache/apache_config.cc',
     'apache/apache_message_handler.cc',
-    'apache/apache_request_context.cc',
     'apache/apache_rewrite_driver_factory.cc',
     'apache/apache_server_context.cc',
     'apache/apache_slurp.cc',
-    'apache/apache_writer.cc',
     'apache/header_util.cc',
     'apache/instaweb_context.cc',
     'apache/instaweb_handler.cc',
@@ -44,9 +43,6 @@
     'apache/mod_spdy_fetch_controller.cc',
     'apache/mod_spdy_fetcher.cc',
     'apache/mod_instaweb.cc',
-    '<(DEPTH)/pagespeed/kernel/base/mem_debug.cc',
-  ],
-  'ldflags+': [
-    '-Wl,--version-script=build/mod_pagespeed.map',
+    'util/mem_debug.cc',
   ],
 }

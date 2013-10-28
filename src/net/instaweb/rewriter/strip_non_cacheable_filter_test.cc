@@ -21,8 +21,8 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
+#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/gtest.h"
 
@@ -79,10 +79,12 @@ class StripNonCacheableFilterTest : public RewriteTestBase {
 
   virtual void SetUp() {
     delete options_;
-    options_ = new RewriteOptions(factory()->thread_system());
+    options_ = new RewriteOptions();
     options_->EnableFilter(RewriteOptions::kStripNonCacheable);
 
-    options_->set_non_cacheables_for_cache_partial_html(
+    options_->AddBlinkCacheableFamily(
+        "http://www.test.com/",
+        RewriteOptions::kDefaultPrioritizeVisibleContentCacheTimeMs,
         "class= \"item \" , id\t =beforeItems \t , class=\"itema itemb\"");
 
     SetUseManagedRewriteDrivers(true);
@@ -100,10 +102,8 @@ class StripNonCacheableFilterTest : public RewriteTestBase {
         "<noscript>This should not get removed</noscript>"
         "<div id=\"header\"> This is the header </div>"
         "<div id=\"container\" class>"
-        "<!--GooglePanel begin panel-id-1.0-->"
-        "<!--GooglePanel end panel-id-1.0-->"
-        "<!--GooglePanel begin panel-id-0.0-->"
-        "<!--GooglePanel end panel-id-0.0-->"
+        "<!--GooglePanel begin panel-id-1.0--><!--GooglePanel end panel-id-1.0-->"
+        "<!--GooglePanel begin panel-id-0.0--><!--GooglePanel end panel-id-0.0-->"
         "<!--GooglePanel begin panel-id-0.1-->"
         "<!--GooglePanel end panel-id-0.1-->"
         "<!--GooglePanel begin panel-id-2.0-->"
@@ -124,13 +124,12 @@ TEST_F(StripNonCacheableFilterTest, StripNonCacheable) {
 }
 
 TEST_F(StripNonCacheableFilterTest, TestGstatic) {
-  StaticAssetManager static_asset_manager(
-      "", server_context()->hasher(),
-      server_context()->message_handler());
-  static_asset_manager.set_serve_asset_from_gstatic(true);
-  static_asset_manager.set_gstatic_hash(
-      StaticAssetManager::kBlinkJs, StaticAssetManager::kGStaticBase, "1");
-  server_context()->set_static_asset_manager(&static_asset_manager);
+  UrlNamer url_namer;
+  StaticJavascriptManager js_manager(&url_namer, server_context()->hasher(),
+                                     server_context()->message_handler());
+  js_manager.set_serve_js_from_gstatic(true);
+  js_manager.set_gstatic_blink_hash("1");
+  server_context()->set_static_javascript_manager(&js_manager);
   ValidateExpectedUrl(kRequestUrl, kHtmlInput,
                       GetExpectedOutput(kBlinkUrlGstatic));
 }

@@ -46,21 +46,8 @@ class MessageHandler;
 
 class DomainLawyer {
  public:
-  DomainLawyer() { Clear(); }
+  DomainLawyer() : can_rewrite_domains_(false) {}
   ~DomainLawyer();
-
-  DomainLawyer& operator=(const DomainLawyer& src) {
-    if (&src != this) {
-      Clear();
-      Merge(src);
-    }
-    return *this;
-  }
-
-  DomainLawyer(const DomainLawyer& src) {
-    Clear();
-    Merge(src);
-  }
 
   // Determines whether a resource can be rewritten, and returns the domain
   // that it should be written to.  The domain and the path of the resolved
@@ -113,11 +100,6 @@ class DomainLawyer {
   //
   // Note that this method returning true does not mean that resources from the
   // given domain should be rewritten.
-  //
-  // The intent of this method is identify external hostnames fetchers should
-  // connect to. IMPORTANT: users of this method MUST NOT trust the Host:
-  // header for authorizing external connections, since doing that would
-  // make it trivial to bypass the check.
   bool IsOriginKnown(const GoogleUrl& domain_to_check) const;
 
   // Maps an origin resource; just prior to fetching it.  This fails
@@ -138,13 +120,9 @@ class DomainLawyer {
   // Adds a simple domain to the set that can be rewritten.  No
   // mapping or sharding will be performed.  Returns false if the
   // domain syntax was not acceptable.  Wildcards (*, ?) may be used in
-  // the domain_name.  Careless use of wildcards can expose the user to
+  // the domain_name.   Careless use of wildcards can expose the user to
   // XSS attacks.
   bool AddDomain(const StringPiece& domain_name, MessageHandler* handler);
-
-  // Adds a simple domain to the set that is known but not authorized for
-  // rewriting. Observes all other constraints mentioned for AddDomain.
-  bool AddKnownDomain(const StringPiece& domain_name, MessageHandler* handler);
 
   // Adds a domain mapping, to assist with serving resources from
   // cookieless domains or CDNs.  This implicitly calls AddDomain(to_domain)
@@ -191,9 +169,9 @@ class DomainLawyer {
   //
   // Wildcards may not be used in the proxy_domain or origin_domain.
   //
-  // Subdirectories should normally be used in the proxy_domain, the
-  // origin_domain, and to_domain. This is a not a strict requirement. If you
-  // fully control the entire origin domain and are dedicating a proxy domain
+  // Subdirectories should normally be used in both the proxy_domain and
+  // origin_domain.  This is a not a strict requirement.  If you fully
+  // control the entire origin domain and are dedicating a proxy domain
   // for the sole use of that origin domain then subdirectories are not needed.
   //
   // The proxy_domain must be running mod_pagespeed and configured
@@ -203,15 +181,11 @@ class DomainLawyer {
   // The origin_domain does not need to run mod_pagespeed; it is used
   // to fetch the resources.
   //
-  // If to_domain is provided then resources are rewritten to to_domain instead
-  // of proxy_domain.  This is useful for rewriting to a CDN.
-  //
   // It is invalid to use the same origin_domain in AddProxyDomainMapping
   // and to_domain of AddOriginDomainMapping.  The latter requires
   // a overriding the Host: request-header on fetches.
   bool AddProxyDomainMapping(const StringPiece& proxy_domain,
                              const StringPiece& origin_domain,
-                             const StringPiece& to_domain_name,
                              MessageHandler* handler);
 
   // Adds domain mappings that handle fetches on both http and https for the
@@ -248,18 +222,10 @@ class DomainLawyer {
   // wins.
   void Merge(const DomainLawyer& src);
 
-  void Clear();
-  bool empty() const { return domain_map_.empty(); }
-
-  // Determines whether a resource is going to change domains due to
-  // RewriteDomain mapping or domain sharding.  Note that this does
-  // not account for the actual domain shard selected.
-  //
-  // The entire URL should be passed in, not just the domain name.
-  bool WillDomainChange(const GoogleUrl& url) const;
-
-  // Determines whether a URL's domain was proxy-mapped from a different origin.
-  bool IsProxyMapped(const GoogleUrl& url) const;
+  // Determines whether a resource of the given domain name is going
+  // to change due to RewriteDomain mapping or domain sharding.  Note
+  // that this does not account for the actual domain shard selected.
+  bool WillDomainChange(const StringPiece& domain_name) const;
 
   // Determines whether any resources might be domain-mapped, either
   // via sharding or rewriting.
@@ -295,7 +261,6 @@ class DomainLawyer {
 
  private:
   class Domain;
-  friend class DomainLawyerTest;
 
   typedef bool (Domain::*SetDomainFn)(Domain* domain, MessageHandler* handler);
 
@@ -345,12 +310,9 @@ class DomainLawyer {
   typedef std::vector<Domain*> DomainVector;          // see AddDomainHelper
   DomainVector wildcarded_domains_;
   bool can_rewrite_domains_;
-  // Indicates if all domains are authorized. If set to true, IsDomainAuthorized
-  // always returns true.
-  bool authorize_all_domains_;
   // If you add more fields here, please be sure to update Merge().
 
-  // DomainLawyer is explicitly copyable and assignable.
+  DISALLOW_COPY_AND_ASSIGN(DomainLawyer);
 };
 
 }  // namespace net_instaweb

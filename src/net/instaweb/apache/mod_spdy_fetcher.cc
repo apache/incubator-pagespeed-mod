@@ -31,27 +31,22 @@
 
 #include "base/logging.h"
 #include "net/instaweb/apache/interface_mod_spdy.h"
+#include "net/instaweb/apache/instaweb_context.h"
 #include "net/instaweb/apache/mod_spdy_fetch_controller.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_response_parser.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "pagespeed/kernel/base/timer.h"
 
 struct spdy_slave_connection;
 
 namespace net_instaweb {
 
 namespace {
-
-const char kFetchExecutionLatencyUsHistogram[] =
-    "fetch_from_mod_spdy_execution_latency_us";
-const int kFetchExecutionLatencyUsHistogramMaxValue = 500 * 1000;
 
 ap_filter_rec_t* apache_to_mps_filter_handle = NULL;
 ap_filter_rec_t* mps_to_apache_filter_handle = NULL;
@@ -189,7 +184,6 @@ struct ApacheToMpsFilterContext {
   bool ok;
 };
 
-// TODO(sligocki): Perhaps we can merge this with instaweb_in_place_filter().
 apr_status_t ApacheToMpsFilter(ap_filter_t* filter,
                                apr_bucket_brigade* input_brigade) {
   // mod_spdy fed us some bits through Apache --- direct them to our client.
@@ -306,27 +300,21 @@ void ModSpdyFetcher::Initialize() {
 }
 
 ModSpdyFetcher::ModSpdyFetcher(ModSpdyFetchController* controller,
-                               StringPiece url,
-                               RewriteDriver* driver,
-                               spdy_slave_connection_factory* factory)
+                               request_rec* req,
+                               RewriteDriver* driver)
     : controller_(controller),
-      fallback_fetcher_(driver->async_fetcher()),
-      stats_(driver->statistics()),
-      connection_factory_(factory) {
-  GoogleUrl gurl(url);
-  if (gurl.IsWebValid()) {
-    gurl.Origin().CopyToString(&own_origin_);
+      fallback_fetcher_(driver->async_fetcher()) {
+  GoogleUrl url(InstawebContext::MakeRequestUrl(*driver->options(), req));
+  if (url.is_valid()) {
+    url.Origin().CopyToString(&own_origin_);
   }
+
+  connection_factory_ =
+      mod_spdy_create_slave_connection_factory(req->connection);
 }
 
 ModSpdyFetcher::~ModSpdyFetcher() {
-}
-
-void ModSpdyFetcher::InitStats(Statistics* statistics) {
-  Histogram* histo =
-      statistics->AddHistogram(kFetchExecutionLatencyUsHistogram);
-  histo->SetMaxValue(kFetchExecutionLatencyUsHistogramMaxValue);
-  ModSpdyFetchController::InitStats(statistics);
+  mod_spdy_destroy_slave_connection_factory(connection_factory_);
 }
 
 bool ModSpdyFetcher::ShouldUseOn(request_rec* req) {
@@ -347,20 +335,17 @@ void ModSpdyFetcher::Fetch(const GoogleString& url,
   // connection, and if we have access to appropriate mod_spdy exports.
   GoogleUrl parsed_url(url);
   if (connection_factory_ != NULL &&
-      parsed_url.IsWebValid() && !own_origin_.empty() &&
+      parsed_url.is_valid() && !own_origin_.empty() &&
       parsed_url.Origin() == own_origin_) {
-    controller_->ScheduleBlockingFetch(this, url, stats_,
-                                       message_handler, fetch);
+    controller_->ScheduleBlockingFetch(this, url, message_handler, fetch);
   } else {
     fallback_fetcher_->Fetch(url, message_handler, fetch);
   }
 }
 
 void ModSpdyFetcher::BlockingFetch(
-    const GoogleString& url, ModSpdyFetchController* controller,
-    Statistics* stats, MessageHandler* message_handler, AsyncFetch* fetch) {
-  int64 start_time_us = controller->timer()->NowUs();
-
+    const GoogleString& url, MessageHandler* message_handler,
+    AsyncFetch* fetch) {
   // These will normally be deleted by their filter functions
   // (but we do cleanup if something went wrong)
   MpsToApacheFilterContext* in_context =
@@ -376,18 +361,6 @@ void ModSpdyFetcher::BlockingFetch(
   if (slave_connection != NULL) {
     mod_spdy_run_slave_connection(slave_connection);
     mod_spdy_destroy_slave_connection(slave_connection);
-
-    // Important: at this point 'this' may already be deleted, since any
-    // user callbacks may have run (potentially releasing the owning
-    // RewriteDriver), so we should not be accessing any member
-    // variables.
-    if (!controller->is_shut_down()) {
-      // Don't report stats once the controller is shut down, since
-      // things may be getting torn down right about now.
-      int64 end_time_us = controller->timer()->NowUs();
-      stats->GetHistogram(kFetchExecutionLatencyUsHistogram)->Add(
-          end_time_us - start_time_us);
-    }
     return;
   } else {
     delete in_context;

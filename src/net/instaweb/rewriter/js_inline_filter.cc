@@ -27,6 +27,7 @@
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -162,7 +163,7 @@ void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
         OnlyWhitespace(characters->contents())) {
       // If it's just whitespace inside the script tag, it's (probably) safe to
       // just remove it.
-      driver_->DeleteNode(characters);
+      driver_->DeleteElement(characters);
     } else {
       // This script tag isn't empty, despite having a src field.  The contents
       // won't be executed by the browser, but will still be in the DOM; some

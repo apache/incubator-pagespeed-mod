@@ -21,17 +21,18 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/atomic_bool.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/cache_interface.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+
 
 namespace net_instaweb {
 
+class CacheInterface;
 class Hasher;
 class MessageHandler;
 class RequestHeaders;
@@ -47,9 +48,6 @@ class HTTPCache {
   static const char kCacheTimeUs[];
   static const char kCacheHits[];
   static const char kCacheMisses[];
-  static const char kCacheBackendHits[];
-  static const char kCacheBackendMisses[];
-  static const char kCacheFallbacks[];
   static const char kCacheExpirations[];
   static const char kCacheInserts[];
   static const char kCacheDeletes[];
@@ -57,8 +55,8 @@ class HTTPCache {
   // The prefix used for Etags.
   static const char kEtagPrefix[];
 
-  // Function to format etags.
-  static GoogleString FormatEtag(StringPiece hash);
+  // Format that is used while generating Etags.
+  static const char kEtagFormat[];
 
   // Does not take ownership of any inputs.
   HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
@@ -84,11 +82,11 @@ class HTTPCache {
   // this would impact callers.
   class Callback {
    public:
-    explicit Callback(const RequestContextPtr& request_ctx)
+    Callback()
         : response_headers_(NULL),
           owns_response_headers_(false),
-          request_ctx_(request_ctx),
-          is_background_(false) {
+          logging_info_(NULL),
+          owns_logging_info_(false) {
     }
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
@@ -118,13 +116,6 @@ class HTTPCache {
     // the cache ttl of the stored value.
     virtual int64 OverrideCacheTtlMs(const GoogleString& key) { return -1; }
 
-    // Called upon completion of a cache lookup trigged by HTTPCache::Find by
-    // the HTTPCache code with the latency in milliseconds.  Will invoke
-    // ReportLatencyMsImpl for non-background fetches in order for system
-    // implementations, like RequestContext::TimingInfo, to record the cache
-    // latency.
-    void ReportLatencyMs(int64 latency_ms);
-
     // TODO(jmarantz): specify the dataflow between http_value and
     // response_headers.
     HTTPValue* http_value() { return &http_value_; }
@@ -148,15 +139,12 @@ class HTTPCache {
     }
     HTTPValue* fallback_http_value() { return &fallback_http_value_; }
 
-    const RequestContextPtr& request_context() { return request_ctx_; }
-    void set_is_background(bool is_background) {
-      is_background_ = is_background;
-    }
-
-   protected:
-    // Virtual implementation for subclasses to override.  Default
-    // implementation calls RequestContext::TimingInfo::SetHTTPCacheLatencyMs.
-    virtual void ReportLatencyMsImpl(int64 latency_ms);
+    // Sets the LoggingInfo to the specified pointer.  The caller must
+    // guarantee that the pointed-to LoggingInfo remains valid as long as the
+    // HTTPCache is running.
+    void set_logging_info(LoggingInfo* logging_info);
+    virtual LoggingInfo* logging_info();
+    virtual void SetTimingMs(int64 timing_value_ms);
 
    private:
     HTTPValue http_value_;
@@ -165,8 +153,8 @@ class HTTPCache {
     HTTPValue fallback_http_value_;
     ResponseHeaders* response_headers_;
     bool owns_response_headers_;
-    RequestContextPtr request_ctx_;
-    bool is_background_;
+    LoggingInfo* logging_info_;
+    bool owns_logging_info_;
 
     DISALLOW_COPY_AND_ASSIGN(Callback);
   };
@@ -256,7 +244,6 @@ class HTTPCache {
   Variable* cache_time_us()     { return cache_time_us_; }
   Variable* cache_hits()        { return cache_hits_; }
   Variable* cache_misses()      { return cache_misses_; }
-  Variable* cache_fallbacks()   { return cache_fallbacks_; }
   Variable* cache_expirations() { return cache_expirations_; }
   Variable* cache_inserts()     { return cache_inserts_; }
   Variable* cache_deletes()     { return cache_deletes_; }
@@ -300,8 +287,7 @@ class HTTPCache {
 
   virtual void set_max_cacheable_response_content_length(int64 value);
 
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
-  static GoogleString FormatName(StringPiece cache);
+  virtual const char* Name() const { return name_.c_str(); }
 
  protected:
   virtual void PutInternal(const GoogleString& key, int64 start_us,
@@ -322,10 +308,7 @@ class HTTPCache {
   HTTPValue* ApplyHeaderChangesForPut(
       const GoogleString& key, int64 start_us, const StringPiece* content,
       ResponseHeaders* headers, HTTPValue* value, MessageHandler* handler);
-  void UpdateStats(const GoogleString& key,
-                   CacheInterface::KeyState backend_state, FindResult result,
-                   bool has_fallback, bool is_expired, int64 delta_us,
-                   MessageHandler* handler);
+  void UpdateStats(FindResult result, int64 delta_us);
   void RememberFetchFailedorNotCacheableHelper(
       const GoogleString& key, MessageHandler* handler, HttpStatus::Code code,
       int64 ttl_sec);
@@ -336,23 +319,12 @@ class HTTPCache {
   bool force_caching_;
   // Whether to disable caching of HTML content fetched via https.
   bool disable_html_caching_on_https_;
-
-  // Total cumulative time spent accessing backend cache.
   Variable* cache_time_us_;
-  // # of Find() requests which are found in cache and are still valid.
   Variable* cache_hits_;
-  // # of other Find() requests that fail or are expired.
   Variable* cache_misses_;
-  // # of Find() requests which are found in backend cache (whether or not
-  // they are valid).
-  Variable* cache_backend_hits_;
-  // # of Find() requests not found in backend cache.
-  Variable* cache_backend_misses_;
-  Variable* cache_fallbacks_;
   Variable* cache_expirations_;
   Variable* cache_inserts_;
   Variable* cache_deletes_;
-
   GoogleString name_;
   int64 remember_not_cacheable_ttl_seconds_;
   int64 remember_fetch_failed_ttl_seconds_;

@@ -62,7 +62,6 @@ void RedirectOnSizeLimitFilter::InsertScriptIfNeeded(HtmlElement* element,
                                                      bool is_start) {
   if (!redirect_inserted_ && noscript_element() == NULL &&
       driver()->size_limit_exceeded()) {
-    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
     scoped_ptr<GoogleUrl> url_with_psa_off(
         driver()->google_url().CopyAndAddQueryParam(
             RewriteQuery::kModPagespeed, "off"));
@@ -83,9 +82,9 @@ void RedirectOnSizeLimitFilter::InsertScriptIfNeeded(HtmlElement* element,
         driver()->AppendChild(element, script);
       }
     } else if (is_start) {
-      driver()->InsertNodeBeforeNode(element, script);
+      driver()->InsertElementBeforeElement(element, script);
     } else {
-      driver()->InsertNodeAfterNode(element, script);
+      driver()->InsertElementAfterElement(element, script);
     }
     driver()->AppendChild(script, script_code);
     redirect_inserted_ = true;

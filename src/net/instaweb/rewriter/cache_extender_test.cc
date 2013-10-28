@@ -22,9 +22,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -39,7 +36,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -112,23 +108,23 @@ class CacheExtenderTest : public RewriteTestBase {
   // Helper to test for how we handle trailing junk in URLs
   void TestCorruptUrl(StringPiece junk, bool append_junk) {
     InitTest(kShortTtlSec);
-    GoogleString a_ext = Encode(kCssSubdir, "ce", "0", kCssTail, "css");
-    GoogleString b_ext = Encode("", "ce", "0", "b.jpg", "jpg");
-    GoogleString c_ext = Encode("", "ce", "0", "c.js", "js");
+    GoogleString a_ext = Encode(kCssPath, "ce", "0", kCssTail, "css");
+    GoogleString b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
+    GoogleString c_ext = Encode(kTestDomain, "ce", "0", "c.js", "js");
 
     ValidateExpected("no_ext_corrupt_fetched",
                      GenerateHtml(kCssFile, "b.jpg", "c.js"),
                      GenerateHtml(a_ext, b_ext, c_ext));
     GoogleString output;
-    EXPECT_TRUE(FetchResourceUrl(
-        ChangeSuffix(StrCat(kTestDomain, a_ext), append_junk, ".css", junk),
-        &output));
-    EXPECT_TRUE(FetchResourceUrl(
-        ChangeSuffix(StrCat(kTestDomain, b_ext), append_junk, ".jpg", junk),
-        &output));
-    EXPECT_TRUE(FetchResourceUrl(
-        ChangeSuffix(StrCat(kTestDomain, c_ext), append_junk, ".js", junk),
-        &output));
+    EXPECT_TRUE(
+        FetchResourceUrl(
+            ChangeSuffix(a_ext, append_junk, ".css", junk), &output));
+    EXPECT_TRUE(
+        FetchResourceUrl(
+            ChangeSuffix(b_ext, append_junk, ".jpg", junk), &output));
+    EXPECT_TRUE(
+        FetchResourceUrl(
+            ChangeSuffix(c_ext, append_junk, ".js", junk), &output));
     ValidateExpected("no_ext_corrupt_cached",
                      GenerateHtml(kCssFile, "b.jpg", "c.js"),
                      GenerateHtml(a_ext, b_ext, c_ext));
@@ -139,33 +135,27 @@ class CacheExtenderTest : public RewriteTestBase {
   }
 
   void TestExtendFromHtml() {
+    LoggingInfo logging_info;
+    LogRecord log_record(&logging_info);
+    rewrite_driver()->set_log_record(&log_record);
     InitTest(kShortTtlSec);
     for (int i = 0; i < 3; i++) {
       const GoogleString input_html = GenerateHtml(kCssFile, "b.jpg", "c.js");
       if (lru_cache()->IsHealthy()) {
-        AbstractLogRecord* log_record =
-            rewrite_driver()->request_context()->log_record();
-        log_record->SetAllowLoggingUrls(true);
         ValidateExpected(
             "do_extend",
             input_html,
-            GenerateHtml(Encode(kCssSubdir, "ce", "0", kCssTail, "css"),
-                         Encode("", "ce", "0", "b.jpg", "jpg"),
-                         Encode("", "ce", "0", "c.js", "js")));
+            GenerateHtml(Encode(kCssPath, "ce", "0", kCssTail, "css"),
+                         Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
+                         Encode(kTestDomain, "ce", "0", "c.js", "js")));
         EXPECT_EQ((i + 1) * 3, num_cache_extended_->Get())
             << "Number of cache extended resources is wrong";
-        EXPECT_STREQ("ec,ei,es", AppliedRewriterStringFromLog());
-        VerifyRewriterInfoEntry(log_record, "ec", 0, (i * 3), (i + 1) * 3,
-                                3, "http://test.com/sub/a.css?v=1");
-        VerifyRewriterInfoEntry(log_record, "ei", 1, 1 + (i * 3), (i + 1) * 3,
-                                3, "http://test.com/b.jpg");
-        VerifyRewriterInfoEntry(log_record, "es", 2, 2 + (i * 3), (i + 1) * 3,
-                                3, "http://test.com/c.js");
+        EXPECT_STREQ("ec,ei,es", logging_info.applied_rewriters());
       } else {
         ValidateNoChanges("unhealthy", input_html);
         EXPECT_EQ(0, num_cache_extended_->Get())
             << "Number of cache extended resources is wrong";
-        EXPECT_STREQ("", AppliedRewriterStringFromLog());
+        EXPECT_STREQ("", logging_info.applied_rewriters());
       }
     }
   }
@@ -226,6 +216,9 @@ class CacheExtenderTestPreserveURLs : public CacheExtenderTest {
       options()->set_js_preserve_urls(true);
     }
     CacheExtenderTest::SetUp();
+    LoggingInfo logging_info;
+    LogRecord log_record(&logging_info);
+    rewrite_driver()->set_log_record(&log_record);
     InitTest(kShortTtlSec);
 
     GoogleString expected_img_html = "b.jpg";
@@ -233,13 +226,13 @@ class CacheExtenderTestPreserveURLs : public CacheExtenderTest {
     GoogleString expected_js_html = "c.js";
 
     if (img_extend) {
-      expected_img_html = Encode("", "ce", "0", "b.jpg", "jpg");
+      expected_img_html = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
     }
     if (css_extend) {
-      expected_css_html = Encode(kCssSubdir, "ce", "0", kCssTail, "css");
+      expected_css_html = Encode(kCssPath, "ce", "0", kCssTail, "css");
     }
     if (js_extend) {
-      expected_js_html = Encode("", "ce", "0", "c.js", "js");
+      expected_js_html = Encode(kTestDomain, "ce", "0", "c.js", "js");
     }
     ValidateExpected(
         "do_extend",
@@ -272,7 +265,12 @@ TEST_F(CacheExtenderTestPreserveURLs, CacheExtenderPreserveAllURLsOn) {
              false);  // js_extend
 }
 
-TEST_F(CacheExtenderTest, DoNotExtendIntrospectiveJavascriptByDefault) {
+TEST_F(CacheExtenderTest, DoNotExtendIntrospectiveJavascript) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
+  options()->ClearSignatureForTesting();
+  options()->set_avoid_renaming_introspective_javascript(true);
   InitTest(kShortTtlSec);
   const char kJsTemplate[] = "<script src=\"%s\"></script>";
   ValidateExpected(
@@ -281,19 +279,18 @@ TEST_F(CacheExtenderTest, DoNotExtendIntrospectiveJavascriptByDefault) {
       StringPrintf(kJsTemplate, "introspective.js"));
   EXPECT_EQ(0, num_cache_extended_->Get())
       << "Number of cache extended resources is wrong";
-  EXPECT_STREQ("", AppliedRewriterStringFromLog());
+  EXPECT_STREQ("", logging_info.applied_rewriters());
 }
 
-TEST_F(CacheExtenderTest, DoExtendIntrospectiveJavascript) {
-  options()->ClearSignatureForTesting();
-  options()->set_avoid_renaming_introspective_javascript(false);
+TEST_F(CacheExtenderTest, DoExtendIntrospectiveJavascriptByDefault) {
   InitTest(kShortTtlSec);
   const char kJsTemplate[] = "<script src=\"%s\"></script>";
   ValidateExpected(
       "do_extend_introspective_js",
       StringPrintf(kJsTemplate, "introspective.js"),
       StringPrintf(kJsTemplate,
-                   Encode("", "ce", "0", "introspective.js", "js").c_str()));
+                   Encode(kTestDomain, "ce", "0",
+                          "introspective.js", "js").c_str()));
 }
 
 TEST_F(CacheExtenderTest, DoExtendLinkRelCaseInsensitive) {
@@ -303,10 +300,13 @@ TEST_F(CacheExtenderTest, DoExtendLinkRelCaseInsensitive) {
       "extend_ci",
       StringPrintf(kMixedCaseTemplate, kCssFile),
       StringPrintf(kMixedCaseTemplate,
-                   Encode(kCssSubdir, "ce", "0", kCssTail, "css").c_str()));
+                   Encode(kCssPath, "ce", "0", kCssTail, "css").c_str()));
 }
 
 TEST_F(CacheExtenderTest, DoExtendForImagesOnly) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   AddFilter(RewriteOptions::kExtendCacheImages);
   SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss,
                                 kCssData, kShortTtlSec);
@@ -319,10 +319,12 @@ TEST_F(CacheExtenderTest, DoExtendForImagesOnly) {
     ValidateExpected(
         "do_extend",
         GenerateHtml(kCssFile, "b.jpg", "c.js"),
-        GenerateHtml(kCssFile, Encode("", "ce", "0", "b.jpg", "jpg"), "c.js"));
+        GenerateHtml(kCssFile,
+                     Encode(kTestDomain, "ce", "0", "b.jpg", "jpg"),
+                     "c.js"));
     EXPECT_EQ((i + 1), num_cache_extended_->Get())
         << "Number of cache extended resources is wrong";
-    EXPECT_STREQ("ei", AppliedRewriterStringFromLog());
+    EXPECT_STREQ("ei", logging_info.applied_rewriters());
   }
 }
 
@@ -377,7 +379,8 @@ TEST_F(CacheExtenderTest, NoExtendAlreadyCachedProperly) {
 
 TEST_F(CacheExtenderTest, ExtendIfSharded) {
   InitTest(kLongTtlSec);  // cached for a long time to begin with
-  EXPECT_TRUE(AddShard(kTestDomain, "shard0.com,shard1.com"));
+  EXPECT_TRUE(options()->domain_lawyer()->AddShard(
+      kTestDomain, "shard0.com,shard1.com", &message_handler_));
   // shard0 is always selected in the test because of our mock hasher
   // that always returns 0.
   ValidateExpected("extend_if_sharded",
@@ -391,7 +394,8 @@ TEST_F(CacheExtenderTest, ExtendIfSharded) {
 
 TEST_F(CacheExtenderTest, ExtendIfOriginMappedHttps) {
   InitTest(kShortTtlSec);
-  EXPECT_TRUE(AddOriginDomainMapping(kTestDomain, "https://cdn.com"));
+  EXPECT_TRUE(options()->domain_lawyer()->AddOriginDomainMapping(
+      kTestDomain, "https://cdn.com", &message_handler_));
   ValidateExpected("extend_if_origin_mapped_https",
                    GenerateHtml("https://cdn.com/sub/a.css?v=1",
                                 "https://cdn.com/b.jpg",
@@ -404,9 +408,13 @@ TEST_F(CacheExtenderTest, ExtendIfOriginMappedHttps) {
 }
 
 TEST_F(CacheExtenderTest, ExtendIfRewritten) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   InitTest(kLongTtlSec);  // cached for a long time to begin with
 
-  EXPECT_TRUE(AddRewriteDomainMapping("cdn.com", kTestDomain));
+  EXPECT_TRUE(options()->domain_lawyer()->AddRewriteDomainMapping(
+      "cdn.com", kTestDomain, &message_handler_));
   ValidateExpected("extend_if_rewritten",
                    GenerateHtml(kCssFile, "b.jpg", "c.js"),
                    GenerateHtml(
@@ -416,16 +424,18 @@ TEST_F(CacheExtenderTest, ExtendIfRewritten) {
                        Encode("http://cdn.com/", "ce", "0", "c.js", "js")));
   EXPECT_EQ(3, num_cache_extended_->Get())
       << "Number of cache extended resources is wrong";
-  EXPECT_STREQ("ec,ei,es", AppliedRewriterStringFromLog());
+  EXPECT_STREQ("ec,ei,es", logging_info.applied_rewriters());
 }
 
 TEST_F(CacheExtenderTest, ExtendIfShardedAndRewritten) {
   InitTest(kLongTtlSec);  // cached for a long time to begin with
 
-  EXPECT_TRUE(AddRewriteDomainMapping("cdn.com", kTestDomain));
+  EXPECT_TRUE(options()->domain_lawyer()->AddRewriteDomainMapping(
+      "cdn.com", kTestDomain, &message_handler_));
 
   // Domain-rewriting is performed first.  Then we shard.
-  EXPECT_TRUE(AddShard("cdn.com", "shard0.com,shard1.com"));
+  EXPECT_TRUE(options()->domain_lawyer()->AddShard(
+      "cdn.com", "shard0.com,shard1.com", &message_handler_));
   // shard0 is always selected in the test because of our mock hasher
   // that always returns 0.
   ValidateExpected("extend_if_sharded_and_rewritten",
@@ -441,10 +451,12 @@ TEST_F(CacheExtenderTest, ExtendIfShardedToHttps) {
   InitTest(kLongTtlSec);
 
   // This Origin Mapping ensures any fetches are converted to http so work.
-  EXPECT_TRUE(AddOriginDomainMapping(kTestDomain, "https://test.com"));
+  EXPECT_TRUE(options()->domain_lawyer()->AddOriginDomainMapping(
+      kTestDomain, "https://test.com", &message_handler_));
 
-  EXPECT_TRUE(AddShard("https://test.com",
-                       "https://shard0.com,https://shard1.com"));
+  EXPECT_TRUE(options()->domain_lawyer()->AddShard(
+      "https://test.com", "https://shard0.com,https://shard1.com",
+      &message_handler_));
   // shard0 is always selected in the test because of our mock hasher
   // that always returns 0.
   ValidateExpected("extend_if_sharded_to_https",
@@ -486,7 +498,8 @@ TEST_F(CacheExtenderTest, ConsistentHashWithRewrite) {
   // don't cache it.  However, what we must do is generate the correct hash
   // code.  To test that we need to use the real hasher.
   UseMd5Hasher();
-  AddRewriteDomainMapping(kNewDomain, kTestDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
   InitTest(kShortTtlSec);
 
   // First do the HTML rewrite.
@@ -530,8 +543,9 @@ TEST_F(CacheExtenderTest, ConsistentHashWithShard) {
   // different than that for the .css file, thus the references within the
   // css file are rewritten as absolute.
   UseMd5Hasher();
-  AddRewriteDomainMapping(kNewDomain, kTestDomain);
-  AddShard(kNewDomain, "shard1.com,shard2.com");
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
+  lawyer->AddShard(kNewDomain, "shard1.com,shard2.com", &message_handler_);
   InitTest(kShortTtlSec);
 
   // First do the HTML rewrite.
@@ -565,7 +579,8 @@ TEST_F(CacheExtenderTest, ConsistentHashWithShard) {
 
 TEST_F(CacheExtenderTest, ServeFilesWithRewriteDomainsEnabled) {
   GoogleString content;
-  AddRewriteDomainMapping(kNewDomain, kTestDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
   InitTest(kShortTtlSec);
   ASSERT_TRUE(FetchResource(kCssPath, kFilterId, kCssTail, "css", &content));
   EXPECT_EQ(CssData("http://new.com/sub/"), content);
@@ -573,7 +588,9 @@ TEST_F(CacheExtenderTest, ServeFilesWithRewriteDomainsEnabled) {
 
 TEST_F(CacheExtenderTest, ServeFilesWithRewriteDomainAndPathEnabled) {
   GoogleString content;
-  AddRewriteDomainMapping("http://new.com/test/", kTestDomain);
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping("http://new.com/test/", kTestDomain,
+                                  &message_handler_);
   InitTest(kShortTtlSec);
   ASSERT_TRUE(FetchResource(kCssPath, kFilterId, kCssTail, "css", &content));
   EXPECT_EQ(CssData("http://new.com/test/sub/"), content);
@@ -581,8 +598,9 @@ TEST_F(CacheExtenderTest, ServeFilesWithRewriteDomainAndPathEnabled) {
 
 TEST_F(CacheExtenderTest, ServeFilesWithShard) {
   GoogleString content;
-  AddRewriteDomainMapping(kNewDomain, kTestDomain);
-  AddShard(kNewDomain, "shard1.com,shard2.com");
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddRewriteDomainMapping(kNewDomain, kTestDomain, &message_handler_);
+  lawyer->AddShard(kNewDomain, "shard1.com,shard2.com", &message_handler_);
   InitTest(kShortTtlSec);
   ASSERT_TRUE(FetchResource(kCssPath, kFilterId, kCssTail, "css", &content));
   EXPECT_EQ(CssData("http://shard1.com/sub/"), content);
@@ -646,7 +664,7 @@ TEST_F(CacheExtenderTest, MadeOnTheFly) {
   // Make sure our fetches go through on-the-fly construction and not the cache.
   InitTest(kMediumTtlSec);
 
-  GoogleString b_ext = Encode("", "ce", "0", "b.jpg", "jpg");
+  GoogleString b_ext = Encode(kTestDomain, "ce", "0", "b.jpg", "jpg");
   ValidateExpected("and_img", "<img src=\"b.jpg\">",
                    StrCat("<img src=\"", b_ext, "\">"));
 
@@ -654,7 +672,7 @@ TEST_F(CacheExtenderTest, MadeOnTheFly) {
   EXPECT_EQ(0, stats->cached_resource_fetches()->Get());
   EXPECT_EQ(0, stats->succeeded_filter_resource_fetches()->Get());
   GoogleString out;
-  EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, b_ext), &out));
+  EXPECT_TRUE(FetchResourceUrl(b_ext, &out));
   EXPECT_EQ(0, stats->cached_resource_fetches()->Get());
   EXPECT_EQ(1, stats->succeeded_filter_resource_fetches()->Get());
 }
@@ -708,7 +726,7 @@ TEST_F(CacheExtenderTest, DoNotExtendRewrittenCss) {
   static const char kRewriteDomain[] = "http://rewrite.example.com/";
   static const char kShard1Domain[] = "http://shard1.example.com/";
   static const char kShard2Domain[] = "http://shard2.example.com/";
-  DomainLawyer* lawyer = options()->WriteableDomainLawyer();
+  DomainLawyer* lawyer = options()->domain_lawyer();
   lawyer->AddRewriteDomainMapping(kRewriteDomain, kTestDomain,
                                   message_handler());
   lawyer->AddShard(kRewriteDomain,
@@ -736,7 +754,7 @@ TEST_F(CacheExtenderTest, AlternateStylesheet) {
   InitTest(kMediumTtlSec);
 
   const char html_format[] = "<link rel='%s' href='%s' title='foo'>";
-  const GoogleString new_url = Encode(kCssSubdir, "ce", "0", kCssTail, "css");
+  const GoogleString new_url = Encode(kCssPath, "ce", "0", kCssTail, "css");
 
   ValidateExpected("preferred_stylesheet",
                    StringPrintf(html_format, "stylesheet", kCssFile),
@@ -753,31 +771,9 @@ TEST_F(CacheExtenderTest, AlternateStylesheet) {
                    StringPrintf(html_format, " StyleSheet alterNATE  ",
                                 new_url.c_str()));
 
-  ValidateExpected("alternate_stylesheet_and_more",
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                kCssFile),
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
-                                new_url.c_str()));
-  ValidateNoChanges("alternate_not_stylesheet",
-                    StringPrintf(html_format, "alternate snowflake", kCssFile));
-}
-
-TEST_F(CacheExtenderTest, PreserveUrlRelativity) {
-  options()->set_preserve_url_relativity(true);
-  InitTest(kMediumTtlSec);
-
-  ValidateExpected("preserve_url_relativity",
-                   "<img src=b.jpg>",
-                   "<img src=b.jpg.pagespeed.ce.0.jpg>");
-}
-
-TEST_F(CacheExtenderTest, NoPreserveUrlRelativity) {
-  options()->set_preserve_url_relativity(false);
-  InitTest(kMediumTtlSec);
-
-  ValidateExpected("preserve_url_relativity",
-                   "<img src=b.jpg>",
-                   "<img src=http://test.com/b.jpg.pagespeed.ce.0.jpg>");
+  ValidateNoChanges("alternate_stylesheet_and_more",
+                    StringPrintf(html_format, "  foo stylesheet alternate bar ",
+                                 "foo.css"));
 }
 
 }  // namespace

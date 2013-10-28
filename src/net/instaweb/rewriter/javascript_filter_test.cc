@@ -22,10 +22,7 @@
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "net/instaweb/http/public/logging_proto.h"
-#include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -35,7 +32,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -74,7 +70,7 @@ class JavascriptFilterTest : public RewriteTestBase {
  protected:
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    expected_rewritten_path_ = Encode("", kFilterId, "0",
+    expected_rewritten_path_ = Encode(kTestDomain, kFilterId, "0",
                                       kRewrittenJsName, "js");
 
     blocks_minified_ = statistics()->GetVariable(
@@ -143,7 +139,7 @@ class JavascriptFilterTest : public RewriteTestBase {
                      ".js", new_suffix);
 
     GoogleString out;
-    EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, munged_url), &out));
+    EXPECT_TRUE(FetchResourceUrl(munged_url, &out));
 
     // Rewrite again; should still get normal URL
     ValidateExpected("no_ext_corruption",
@@ -164,10 +160,10 @@ class JavascriptFilterTest : public RewriteTestBase {
 };
 
 TEST_F(JavascriptFilterTest, DoRewrite) {
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   InitFiltersAndTest(100);
-  AbstractLogRecord* log_record =
-      rewrite_driver_->request_context()->log_record();
-  log_record->SetAllowLoggingUrls(true);
   ValidateExpected("do_rewrite",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
@@ -178,26 +174,18 @@ TEST_F(JavascriptFilterTest, DoRewrite) {
             total_bytes_saved_->Get());
   EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   EXPECT_EQ(1, num_uses_->Get());
-  EXPECT_STREQ("jm", AppliedRewriterStringFromLog());
-  VerifyRewriterInfoEntry(log_record, "jm", 0, 0, 1, 1,
-                        "http://test.com/hello.js");
-}
-
-TEST_F(JavascriptFilterTest, RewriteButExceedLogThreshold) {
-  InitFiltersAndTest(100);
-  rewrite_driver_->log_record()->SetRewriterInfoMaxSize(0);
-  ValidateExpected("do_rewrite",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(expected_rewritten_path_.c_str()));
-  EXPECT_STREQ("", AppliedRewriterStringFromLog());
+  EXPECT_STREQ("jm", logging_info.applied_rewriters());
 }
 
 TEST_F(JavascriptFilterTest, DoRewriteUnhealthy) {
   lru_cache()->set_is_healthy(false);
 
+  LoggingInfo logging_info;
+  LogRecord log_record(&logging_info);
+  rewrite_driver()->set_log_record(&log_record);
   InitFiltersAndTest(100);
   ValidateNoChanges("do_rewrite", GenerateHtml(kOrigJsName));
-  EXPECT_STREQ("", AppliedRewriterStringFromLog());
+  EXPECT_STREQ("", logging_info.applied_rewriters());
 }
 
 TEST_F(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
@@ -247,72 +235,15 @@ TEST_F(JavascriptFilterTest, IdentifyLibraryTwice) {
 }
 
 TEST_F(JavascriptFilterTest, JsPreserveURLsOnTest) {
-  // Make sure that when in conservative mode the URL stays the same.
+  // Make sure that when in conservative mode URL stays the same.
   RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
   options()->set_js_preserve_urls(true);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
-  // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
   InitTest(100);
-  // Make sure the URL doesn't change.
   ValidateExpected("js_urls_preserved",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
-
-  // We should have optimized the JS even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_js_url = Encode(kTestDomain, "jm", "0", kRewrittenJsName,
-                                   "js");
-  GoogleString out_js;
-  EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Was the JS minified?
-  EXPECT_EQ(kJsMinData, out_js);
-}
-
-TEST_F(JavascriptFilterTest, JsPreserveURLsNoPreemptiveRewriteTest) {
-  // Make sure that when in conservative mode the URL stays the same.
-  RegisterLibrary();
-  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
-  options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
-  options()->set_js_preserve_urls(true);
-  options()->set_in_place_preemptive_rewrite_javascript(false);
-  rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
-  // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
-  InitTest(100);
-  // Make sure the URL doesn't change.
-  ValidateExpected("js_urls_preserved_no_preemptive",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kOrigJsName));
-
-  // We should not have attempted any rewriting.
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // But, if we fetch the JS directly, we should receive the optimized version.
-  ClearStats();
-  GoogleString out_js_url = Encode(kTestDomain, "jm", "0", kRewrittenJsName,
-                                   "js");
-  GoogleString out_js;
-  EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
-  EXPECT_EQ(kJsMinData, out_js);
 }
 
 TEST_F(JavascriptFilterTest, IdentifyLibraryNoMinification) {
@@ -404,8 +335,7 @@ TEST_F(JavascriptFilterTest, ServeFiles) {
   EXPECT_EQ(0, num_uses_->Get());
 
   // Finally, serve from a completely separate server.
-  ServeResourceFromManyContexts(StrCat(kTestDomain, expected_rewritten_path_),
-                                kJsMinData);
+  ServeResourceFromManyContexts(expected_rewritten_path_, kJsMinData);
 }
 
 TEST_F(JavascriptFilterTest, ServeFilesUnhealthy) {
@@ -441,7 +371,7 @@ TEST_F(JavascriptFilterTest, IdentifyAjaxLibrary) {
   // If ajax rewriting is enabled, we won't minify a library when it is fetched,
   // but it will still be replaced on the containing page.
   RegisterLibrary();
-  options()->set_in_place_rewriting_enabled(true);
+  options()->set_ajax_rewriting_enabled(true);
   options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
   rewrite_driver_->AddFilters();
   InitTest(100);
@@ -472,7 +402,7 @@ TEST_F(JavascriptFilterTest, InvalidInputMimetype) {
   SetResponseWithDefaultHeaders(kNotJsFile, not_java_script, kJsData, 100);
   ValidateExpected("wrong_mime",
                    GenerateHtml(kNotJsFile),
-                   GenerateHtml(Encode("", "jm", "0",
+                   GenerateHtml(Encode(kTestDomain, "jm", "0",
                                        kNotJsFile, "js").c_str()));
 }
 
@@ -542,7 +472,7 @@ TEST_F(JavascriptFilterTest, StripInlineWhitespace) {
       "StripInlineWhitespace",
       StrCat("<script src='", kOrigJsName, "'>   \t\n   </script>"),
       StrCat("<script src='",
-             Encode("", "jm", "0", kOrigJsName, "js"),
+             Encode(kTestDomain, "jm", "0", kOrigJsName, "js"),
              "'></script>"));
 }
 
@@ -552,7 +482,7 @@ TEST_F(JavascriptFilterTest, RetainInlineData) {
   ValidateExpected("StripInlineWhitespace",
                    StrCat("<script src='", kOrigJsName, "'> data </script>"),
                    StrCat("<script src='",
-                          Encode("", "jm", "0", kOrigJsName, "js"),
+                          Encode(kTestDomain, "jm", "0", kOrigJsName, "js"),
                           "'> data </script>"));
 }
 
@@ -648,7 +578,7 @@ TEST_F(JavascriptFilterTest, WeirdSrcCrash) {
   SetResponseWithDefaultHeaders(kUrl, kContentTypeJavascript, kJsData, 300);
   ValidateExpected("weird_attr", "<script src=foo<bar>Content",
                    StrCat("<script src=",
-                          Encode("", "jm", "0", kUrl, "js"),
+                          Encode(kTestDomain, "jm", "0", kUrl, "js"),
                           ">Content"));
   ValidateNoChanges("weird_tag", "<script<foo>");
 }
@@ -735,89 +665,6 @@ TEST_F(JavascriptFilterTest, ValidCdata) {
       kInlineScriptFormat,
       StringPrintf(kCdataWrapper, "alert('foo');").c_str());
   ValidateExpected("valid_cdata", kHtmlInput, kHtmlOutput);
-}
-
-TEST_F(JavascriptFilterTest, FlushInInlineJS) {
-  InitFilters();
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html><body><script>  alert  (  'Hel");
-  // Flush in middle of inline JS.
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("lo, World!'  )  </script></body></html>");
-  rewrite_driver()->FinishParse();
-
-  // Expect text to be rewritten because it is coalesced.
-  // HtmlParse will send events like this to filter:
-  //   StartElement script
-  //   Flush
-  //   Characters ...
-  //   EndElement script
-  EXPECT_EQ("<html><body><script>alert('Hello, World!')</script></body></html>",
-            output_buffer_);
-}
-
-TEST_F(JavascriptFilterTest, FlushInEndTag) {
-  InitFilters();
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<html><body><script>  alert  (  'Hello, World!'  )  </scr");
-  // Flush in middle of closing </script> tag.
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("ipt></body></html>");
-  rewrite_driver()->FinishParse();
-
-  // Expect text to be rewritten because it is coalesced.
-  // HtmlParse will send events like this to filter:
-  //   StartElement script
-  //   Characters ...
-  //   Flush
-  //   EndElement script
-  EXPECT_EQ("<html><body><script>alert('Hello, World!')</script></body></html>",
-            output_buffer_);
-}
-
-TEST_F(JavascriptFilterTest, FlushAfterBeginScript) {
-  InitFilters();
-  SetupWriter();
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<html><body><script>");
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("alert  (  'Hello, World!'  )  </script>"
-                              "<script></script></body></html>");
-  rewrite_driver()->FinishParse();
-
-  // Expect text to be rewritten because it is coalesced.
-  // HtmlParse will send events like this to filter:
-  //   StartElement script
-  //   Flush
-  //   Characters ...
-  //   EndElement script
-  //   StartElement script
-  //   EndElement script
-  EXPECT_EQ("<html><body><script>alert('Hello, World!')</script>"
-            "<script></script></body></html>",
-            output_buffer_);
-}
-
-TEST_F(JavascriptFilterTest, StripInlineWhitespaceFlush) {
-  // Make sure we strip inline whitespace when minifying external scripts even
-  // if there's a flush between open and close.
-  InitFiltersAndTest(100);
-  SetupWriter();
-  const GoogleString kScriptTag =
-      StrCat("<script type='text/javascript' src='", kOrigJsName, "'>");
-  rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(kScriptTag);
-  rewrite_driver()->ParseText("   \t\n");
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("   </script>\n");
-  rewrite_driver()->FinishParse();
-  const GoogleString expected =
-      StringPrintf(kHtmlFormat, expected_rewritten_path_.c_str());
-  EXPECT_EQ(expected, output_buffer_);
 }
 
 }  // namespace net_instaweb

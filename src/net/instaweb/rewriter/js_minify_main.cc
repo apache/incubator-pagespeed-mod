@@ -23,12 +23,13 @@
 #include "net/instaweb/util/public/file_message_handler.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/gflags.h"
+#include "net/instaweb/util/public/google_timer.h"
 #include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/js/js_minify.h"
+#include "pagespeed/js/js_minify.h"
 
 // Command-line javascript minifier and metadata printer.  Takes a single
 // javascript file as either standard input or a command-line argument, and by
@@ -49,7 +50,8 @@ namespace {
 
 bool JSMinifyMain(int argc, char** argv) {
   net_instaweb::FileMessageHandler handler(stderr);
-  net_instaweb::StdioFileSystem file_system;
+  net_instaweb::GoogleTimer timer;
+  net_instaweb::StdioFileSystem file_system(&timer);
   if (argc >= 3) {
     handler.Message(kError,
                     "Usage: \n"

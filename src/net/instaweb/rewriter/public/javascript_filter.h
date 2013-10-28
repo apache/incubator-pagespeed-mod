@@ -67,6 +67,7 @@ class JavascriptFilter : public RewriteFilter {
   virtual void StartElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void EndElementImpl(HtmlElement* element);
+  virtual void Flush();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
 
   virtual const char* Name() const { return "Javascript"; }
@@ -80,15 +81,9 @@ class JavascriptFilter : public RewriteFilter {
  private:
   class Context;
 
-  typedef enum {
-    kNoScript,
-    kExternalScript,
-    kInlineScript
-  } ScriptType;
-
-  inline void RewriteInlineScript(HtmlCharactersNode* body_node);
-  inline void RewriteExternalScript(
-      HtmlElement* script_in_progress, HtmlElement::Attribute* script_src);
+  inline void CompleteScriptInProgress();
+  inline void RewriteInlineScript();
+  inline void RewriteExternalScript();
   // Lazily initialize config_ if it wasn't already.
   void InitializeConfigIfNecessary() {
     if (config_.get() != NULL) {
@@ -98,7 +93,9 @@ class JavascriptFilter : public RewriteFilter {
   }
   void InitializeConfig();
 
-  ScriptType script_type_;
+  HtmlCharactersNode* body_node_;
+  HtmlElement* script_in_progress_;
+  HtmlElement::Attribute* script_src_;
   // some_missing_scripts indicates that we stopped processing a script and
   // therefore can't assume we know all of the Javascript on a page.
   bool some_missing_scripts_;

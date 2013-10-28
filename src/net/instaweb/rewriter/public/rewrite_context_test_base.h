@@ -27,21 +27,35 @@
 #include <utility>
 #include <vector>
 
+#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/http_cache.h"  // for HTTPCache
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
-#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
 #include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/simple_text_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -50,14 +64,9 @@
 #include "net/instaweb/util/public/writer.h"
 #include "net/instaweb/util/worker_test_base.h"
 
-
 namespace net_instaweb {
 
-class CachedResult;
 class MessageHandler;
-class MockScheduler;
-class OutputPartitions;
-class OutputResource;
 class TestRewriteDriverFactory;
 class UrlSegmentEncoder;
 
@@ -80,7 +89,7 @@ class TrimWhitespaceRewriter : public SimpleTextFilter::Rewriter {
 
   virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context);
+                           ServerContext* resource_manager);
   virtual HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element);
   virtual OutputResourceKind kind() const { return kind_; }
   virtual const char* id() const { return kFilterId; }
@@ -139,7 +148,7 @@ class UpperCaseRewriter : public SimpleTextFilter::Rewriter {
 
   virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context) {
+                           ServerContext* resource_manager) {
     ++num_rewrites_;
     in.CopyToString(out);
     UpperString(out);
@@ -341,8 +350,6 @@ class CombiningFilter : public RewriteFilter {
                    CachedResult* partition,
                    OutputResourcePtr output);
     virtual void Render();
-    virtual void WillNotRender();
-    virtual void Cancel();
     void DisableRemovedSlots(CachedResult* partition);
     virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
     virtual const char* id() const { return kFilterId; }
@@ -375,11 +382,7 @@ class CombiningFilter : public RewriteFilter {
 
   virtual bool ComputeOnTheFly() const { return on_the_fly_; }
 
-  int num_rewrites() const { return num_rewrites_; }
-  int num_render() const { return num_render_; }
-  int num_will_not_render() const { return num_will_not_render_; }
-  int num_cancel() const { return num_cancel_; }
-
+  bool num_rewrites() const { return num_rewrites_; }
   void ClearStats() { num_rewrites_ = 0; }
   int64 rewrite_delay_ms() const { return rewrite_delay_ms_; }
   void set_rewrite_block_on(WorkerTestBase::SyncPoint* sync) {
@@ -407,9 +410,6 @@ class CombiningFilter : public RewriteFilter {
   UrlMultipartEncoder encoder_;
   MockScheduler* scheduler_;
   int num_rewrites_;
-  int num_render_;
-  int num_will_not_render_;
-  int num_cancel_;
   int64 rewrite_delay_ms_;
 
   // If this is non-NULL, the actual rewriting will block until this is
@@ -437,9 +437,6 @@ class RewriteContextTestBase : public RewriteTestBase {
   // Use a TTL value other than the implicit value, so we are sure we are using
   // the original TTL value.
   static const int64 kOriginTtlMs = 12 * Timer::kMinuteMs;
-  // An TTL value that is lower than the default implicit TTL value (300
-  // seconds).
-  static const int64 kLowOriginTtlMs = 5 * Timer::kSecondMs;
 
   // Use a TTL value other than the implicit value, so we are sure we are using
   // the original TTL value.
@@ -470,6 +467,8 @@ class RewriteContextTestBase : public RewriteTestBase {
   TrimWhitespaceRewriter* other_trim_filter_;
   CombiningFilter* combining_filter_;
   NestedFilter* nested_filter_;
+  LogRecord log_record_;
+  const LoggingInfo* logging_info_;
 };
 
 }  // namespace net_instaweb

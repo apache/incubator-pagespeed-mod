@@ -31,37 +31,34 @@
 
 namespace net_instaweb {
 
+class AbstractClientState;
 class AbstractMutex;
-class CacheHtmlInfoFinder;
-class CriticalCssFinder;
+class BlinkCriticalLineDataFinder;
 class CriticalImagesFinder;
-class CriticalLineInfoFinder;
-class CriticalSelectorFinder;
 class FileSystem;
 class FilenameEncoder;
 class FlushEarlyInfoFinder;
-class ExperimentMatcher;
+class FuriousMatcher;
 class Hasher;
+class LogRecord;
 class MessageHandler;
 class NamedLockManager;
-class NonceGenerator;
 class PropertyCache;
 class QueuedWorkerPool;
 class ServerContext;
 class RewriteDriver;
 class RewriteOptions;
-class RewriteOptionsManager;
 class RewriteStats;
 class Scheduler;
-class StaticAssetManager;
+class StaticJavascriptManager;
 class Statistics;
 class ThreadSystem;
 class Timer;
 class UrlAsyncFetcher;
+class UrlFetcher;
 class UrlNamer;
 class UsageDataReporter;
 class UserAgentMatcher;
-class UserAgentNormalizer;
 
 // Manages the construction and ownership of most objects needed to create
 // RewriteDrivers. If you have your own versions of these classes (specific
@@ -72,7 +69,7 @@ class RewriteDriverFactory {
   // Helper for users of defer_cleanup; see below.
   template<class T> class Deleter;
 
-  enum WorkerPoolCategory {
+  enum WorkerPoolName {
     kHtmlWorkers,
     kRewriteWorkers,
     kLowPriorityRewriteWorkers,
@@ -83,6 +80,9 @@ class RewriteDriverFactory {
   // Takes ownership of thread_system.
   explicit RewriteDriverFactory(ThreadSystem* thread_system);
 
+  // Initializes thread_system_ using ThreadSystem::ComputeThreadSystem().
+  RewriteDriverFactory();
+
   // Initializes default options we want to hard-code into the
   // base-class to get consistency across deployments.  Subclasses
   // that override NewRewriteOptions() should call this method from
@@ -91,7 +91,7 @@ class RewriteDriverFactory {
 
   virtual ~RewriteDriverFactory();
 
-  // The RewriteDriverFactory will create objects of default type through the
+  // The RewriteDriveFactory will create objects of default type through the
   // New* method from drived classes.  Here are the objects that can be
   // replaced before creating the RewriteDriver.
   // Note: RewriteDriver takes ownership of these.
@@ -100,7 +100,6 @@ class RewriteDriverFactory {
   void set_file_system(FileSystem* file_system);
   void set_hasher(Hasher* hasher);
   void set_filename_encoder(FilenameEncoder* filename_encoder);
-  void set_nonce_generator(NonceGenerator* nonce_generator);
   void set_url_namer(UrlNamer* url_namer);
   void set_timer(Timer* timer);
   void set_usage_data_reporter(UsageDataReporter* reporter);
@@ -113,7 +112,8 @@ class RewriteDriverFactory {
   // be subsequently written so they don't have to be fetched from
   // the Internet again.
   //
-  // You must set the slurp directory prior to calling ComputeUrlAsyncFetcher.
+  // You must set the slurp directory prior to calling ComputeUrlFetcher
+  // or ComputeUrlAsyncFetcher.
   void set_slurp_directory(const StringPiece& directory);
   void set_slurp_read_only(bool read_only);
   void set_slurp_print_urls(bool read_only);
@@ -122,17 +122,20 @@ class RewriteDriverFactory {
   // fecher to return cached versions.
   void set_force_caching(bool u) { force_caching_ = u; }
 
-  // You can call set_base_url_async_fetcher to set up real async fetching
-  // for real serving or for modeling of live traffic.
+  // You should either call set_base_url_fetcher,
+  // set_base_url_async_fetcher, or neither.  Do not set both.  If you
+  // want to enable real async fetching, because you are serving or
+  // want to model live traffic, then call set_base_url_async_fetcher
+  // before calling url_fetcher.
   //
   // These fetchers may be used directly when serving traffic, or they
   // may be aggregated with other fetchers (e.g. for slurping).
   //
-  // You cannot set the base URL fetcher once ComputeUrlAsyncFetcher has
+  // You cannot set either base URL fetcher once ComputeUrlFetcher has
   // been called.
+  void set_base_url_fetcher(UrlFetcher* url_fetcher);
   void set_base_url_async_fetcher(UrlAsyncFetcher* url_fetcher);
-  // Takes ownership of distributed_fetcher.
-  void set_base_distributed_async_fetcher(UrlAsyncFetcher* distributed_fetcher);
+
   bool set_filename_prefix(StringPiece p);
 
   // Determines whether Slurping is enabled.
@@ -141,41 +144,34 @@ class RewriteDriverFactory {
   MessageHandler* html_parse_message_handler();
   MessageHandler* message_handler();
   FileSystem* file_system();
-  NonceGenerator* nonce_generator();
   // TODO(sligocki): Remove hasher() and force people to make a NewHasher when
   // they need one.
   Hasher* hasher();
   FilenameEncoder* filename_encoder() { return filename_encoder_.get(); }
   UrlNamer* url_namer();
   UserAgentMatcher* user_agent_matcher();
-  StaticAssetManager* static_asset_manager();
+  StaticJavascriptManager* static_javascript_manager();
   RewriteOptions* default_options() { return default_options_.get(); }
-  virtual RewriteOptionsManager* NewRewriteOptionsManager();
 
-  // These accessors are *not* thread-safe until after the first call, as they
-  // do unlocked lazy initialization, so they must be called at least once prior
-  // to starting threads. Normally this is done by CreateServerContext() or
-  // InitServerContext().
+  // These accessors are *not* thread-safe.  They must be called once prior
+  // to forking threads, e.g. via ComputeUrlFetcher().
   Timer* timer();
   NamedLockManager* lock_manager();
-  QueuedWorkerPool* WorkerPool(WorkerPoolCategory pool);
+  QueuedWorkerPool* WorkerPool(WorkerPoolName pool);
   Scheduler* scheduler();
   UsageDataReporter* usage_data_reporter();
-  const std::vector<const UserAgentNormalizer*>& user_agent_normalizers();
 
-  // Computes URL fetchers using the base fetcher, and optionally,
+  // Computes URL fetchers using the based fetcher, and optionally,
   // slurp_directory and slurp_read_only.  These are not thread-safe;
   // they must be called once prior to spawning threads, e.g. via
   // CreateServerContext.
+  virtual UrlFetcher* ComputeUrlFetcher();
   virtual UrlAsyncFetcher* ComputeUrlAsyncFetcher();
-  virtual UrlAsyncFetcher* ComputeDistributedFetcher();
 
   // Threadsafe mechanism to create a managed ServerContext.  The
   // ServerContext is owned by the factory, and should not be
   // deleted directly.  Currently it is not possible to delete a
   // server context except by deleting the entire factory.
-  //
-  // Implemented in terms of NewServerContext().
   ServerContext* CreateServerContext();
 
   // Initializes a ServerContext that has been new'd directly.  This
@@ -188,11 +184,6 @@ class RewriteDriverFactory {
   // set_http_cache, set_metadata_cache, set_filesystem_metadata_cache, and
   // MakePropertyCaches.
   virtual void SetupCaches(ServerContext* server_context) = 0;
-
-  // Returns true if this platform uses beacon-based measurements to make
-  // run-time decisions.  This is used to determine how to configure various
-  // beacon-based filters.
-  virtual bool UseBeaconResultsInFilters() const = 0;
 
   // Provides an optional hook for adding rewrite passes to the HTML filter
   // chain.  This should be used for filters that are specific to a particular
@@ -252,15 +243,19 @@ class RewriteDriverFactory {
   void AddCreatedDirectory(const GoogleString& dir);
 
   // Creates a new empty RewriteOptions object, with no default settings.
-  // Generally configurations go factory's default_options() ->
-  // ServerContext::global_options() -> RewriteDriverFactory,
-  // but this method just provides a blank set of options.
+  // Note that InitResourceManager() will copy the factory's default_options()
+  // into the server context's global_options(), but this method just provides
+  // a blank set of options.
   virtual RewriteOptions* NewRewriteOptions();
 
   // Creates a new empty RewriteOptions object meant for use for
   // custom options from queries or headers. Default implementation just
   // forwards to NewRewriteOptions().
   virtual RewriteOptions* NewRewriteOptionsForQuery();
+
+  // Creates a new LogRecord object. The caller of this method has to take
+  // ownership of the returned LogRecord instance.
+  virtual LogRecord* NewLogRecord();
 
   // get/set the version placed into the X-[Mod-]Page(s|-S)peed header.
   const GoogleString& version_string() const { return version_string_; }
@@ -273,82 +268,50 @@ class RewriteDriverFactory {
   // may be useful for object deletion cleanups.
   void defer_cleanup(Function* f) { deferred_cleanups_.push_back(f); }
 
-  // Queues an object for deletion at the last phase of RewriteDriverFactory
-  // destruction.
-  template<class T> void TakeOwnership(T* obj) {
-    defer_cleanup(new RewriteDriverFactory::Deleter<T>(obj));
-  }
-
   // Base method that returns true if the given ip is a debug ip.
   virtual bool IsDebugClient(const GoogleString& ip) const {
     return false;
   }
 
-  // Creates an ExperimentMatcher, which is used to match clients or sessions to
-  // a specific experiment.
-  virtual ExperimentMatcher* NewExperimentMatcher();
+  // Creates a new AbstractClientState object that must be populated.
+  // Subclasses can override this to create an appropriate AbstractClientState
+  // subclass if the default isn't acceptable.
+  virtual AbstractClientState* NewClientState();
 
-  // Returns the preferred webp image quality vector for client options.
-  const std::vector<int>* preferred_webp_qualities() {
-    return &preferred_webp_qualities_;
-  }
-
-  // Returns the preferred jpeg image quality vector for client options.
-  const std::vector<int>* preferred_jpeg_qualities() {
-    return &preferred_jpeg_qualities_;
-  }
-
-  // Returns true if the correct number of WebP qualities are parsed and set.
-  bool SetPreferredWebpQualities(const StringPiece& qualities);
-
-  // Returns true if the correct number of JPEG qualities are parsed and set.
-  bool SetPreferredJpegQualities(const StringPiece& qualities);
+  // Creates a FuriousMatcher, which is used to match clients or sessions to
+  // a specific furious experiment.
+  virtual FuriousMatcher* NewFuriousMatcher();
 
  protected:
   bool FetchersComputed() const;
   virtual void StopCacheActivity();
   StringPiece filename_prefix();
 
-  // Used by subclasses to indicate that a ServerContext has been
+  // Used by subclasses to indicate that a ResourceManager has been
   // terminated.  Returns true if this was the last server context
   // known to this factory.
-  bool TerminateServerContext(ServerContext* server_context);
+  bool TerminateServerContext(ServerContext* rm);
 
   // Implementors of RewriteDriverFactory must supply default definitions
   // for each of these methods, although they may be overridden via set_
-  // methods above.  These methods all instantiate objects and transfer
-  // ownership to the caller.
+  // methods above.
+  virtual UrlFetcher* DefaultUrlFetcher() = 0;
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher() = 0;
   virtual MessageHandler* DefaultHtmlParseMessageHandler() = 0;
   virtual MessageHandler* DefaultMessageHandler() = 0;
   virtual FileSystem* DefaultFileSystem() = 0;
-  virtual NonceGenerator* DefaultNonceGenerator();
-  virtual Timer* DefaultTimer();
+  virtual Timer* DefaultTimer() = 0;
 
   virtual Hasher* NewHasher() = 0;
 
-  // Creates a new ServerContext* object.  ServerContext itself must be
-  // overridden per Factory as it has at least one pure virtual method.
-  virtual ServerContext* NewServerContext() = 0;
-
-  virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher() { return NULL; }
-
-  virtual CriticalCssFinder* DefaultCriticalCssFinder();
-  virtual CriticalImagesFinder* DefaultCriticalImagesFinder(
-      ServerContext* server_context);
-  virtual CriticalSelectorFinder* DefaultCriticalSelectorFinder(
-      ServerContext* server_context);
+  virtual CriticalImagesFinder* DefaultCriticalImagesFinder();
 
   // Default implementation returns NULL.
-  virtual CacheHtmlInfoFinder* DefaultCacheHtmlInfoFinder(
-      PropertyCache* cache, ServerContext* server_context);
+  virtual BlinkCriticalLineDataFinder* DefaultBlinkCriticalLineDataFinder(
+      PropertyCache* cache);
 
   // Default implementation returns NULL.
   virtual FlushEarlyInfoFinder* DefaultFlushEarlyInfoFinder();
-
-  // Default implementation returns a valid CriticalSelectorFinder.
-  virtual CriticalLineInfoFinder* DefaultCriticalLineInfoFinder(
-      ServerContext* server_context);
 
   // They may also supply a custom lock manager. The default implementation
   // will use the file system.
@@ -361,20 +324,10 @@ class RewriteDriverFactory {
   virtual UserAgentMatcher* DefaultUserAgentMatcher();
   virtual UsageDataReporter* DefaultUsageDataReporter();
 
-  // Provides an optional hook to add user-agent normalizers specific to
-  // needs of a specific RewriteDriverFactory implementation. The new entries
-  // should be appended to the end of *out (without clearing it), and should
-  // still be owned by the RewriteDriverFactory subclass.
-  //
-  // Default implementation does nothing.
-  virtual void AddPlatformSpecificUserAgentNormalizers(
-      std::vector<const UserAgentNormalizer*>* out);
-
   // Subclasses can override this to create an appropriately-sized thread
   // pool for their environment. The default implementation will always
   // make one with a single thread.
-  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
-                                             StringPiece name);
+  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolName name);
 
   // Subclasses can override this method to request load-shedding to happen
   // if the low-priority work pool has too many inactive sequences queued up
@@ -396,15 +349,15 @@ class RewriteDriverFactory {
   // filename_prefix()
   virtual StringPiece LockFilePrefix();
 
-  // Initializes the StaticAssetManager.
-  virtual void InitStaticAssetManager(
-      StaticAssetManager* static_asset_manager) {}
+  // Initializes the StaticJavascriptManager.
+  virtual void InitStaticJavascriptManager(
+      StaticJavascriptManager* static_js_manager) {}
 
  private:
-  // Creates a StaticAssetManager instance. Default implementation creates an
-  // instance that disables serving of filter javascript via gstatic
+  // Creates a StaticJavascriptManager instance. Default implementation creates
+  // an instance that disables serving of filter javascript via gstatic
   // (gstatic.com is the domain google uses for serving static content).
-  StaticAssetManager* DefaultStaticAssetManager();
+  StaticJavascriptManager* DefaultStaticJavascriptManager();
 
   void SetupSlurpDirectories();
   void Init();  // helper-method for constructors.
@@ -412,21 +365,15 @@ class RewriteDriverFactory {
   scoped_ptr<MessageHandler> html_parse_message_handler_;
   scoped_ptr<MessageHandler> message_handler_;
   scoped_ptr<FileSystem> file_system_;
+  UrlFetcher* url_fetcher_;
   UrlAsyncFetcher* url_async_fetcher_;
-  UrlAsyncFetcher* distributed_async_fetcher_;
+  scoped_ptr<UrlFetcher> base_url_fetcher_;
   scoped_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
-  scoped_ptr<UrlAsyncFetcher> base_distributed_async_fetcher_;
   scoped_ptr<Hasher> hasher_;
   scoped_ptr<FilenameEncoder> filename_encoder_;
-  scoped_ptr<NonceGenerator> nonce_generator_;
   scoped_ptr<UrlNamer> url_namer_;
   scoped_ptr<UserAgentMatcher> user_agent_matcher_;
-
-  // Lazily filled-in list of UA normalizers, including the default ones
-  // this class adds, and any additional ones added by user_agent_normalizers()
-  // calling subclass' AddPlatformSpecificUserAgentNormalizers on this.
-  std::vector<const UserAgentNormalizer*> user_agent_normalizers_;
-  scoped_ptr<StaticAssetManager> static_asset_manager_;
+  scoped_ptr<StaticJavascriptManager> static_javascript_manager_;
   scoped_ptr<Timer> timer_;
   scoped_ptr<Scheduler> scheduler_;
   scoped_ptr<UsageDataReporter> usage_data_reporter_;
@@ -474,13 +421,6 @@ class RewriteDriverFactory {
 
   // The hostname we're running on. Used to set the same field in ServerContext.
   GoogleString hostname_;
-
-  // Image qualities used for client options.
-  // Each vector contains 5 integers used as recompression qualities for
-  // quality preference and screen resolution combinations.
-  // Note that the default values cannot be changed in Apache currently.
-  std::vector<int> preferred_webp_qualities_;
-  std::vector<int> preferred_jpeg_qualities_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriverFactory);
 };

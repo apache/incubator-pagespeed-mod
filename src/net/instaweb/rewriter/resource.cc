@@ -25,16 +25,13 @@
 #include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
 class MessageHandler;
 class SharedString;
 
@@ -48,10 +45,7 @@ Resource::Resource(ServerContext* server_context, const ContentType* type)
     : server_context_(server_context),
       type_(type),
       fetch_response_status_(kFetchStatusNotSet),
-      is_background_fetch_(true),
-      enable_cache_purge_(false),
-      proactive_resource_freshening_(false),
-      disable_rewrite_on_no_transform_(true) {
+      is_background_fetch_(true) {
 }
 
 Resource::~Resource() {
@@ -64,41 +58,6 @@ bool Resource::IsValidAndCacheable() const {
   return ((response_headers_.status_code() == HttpStatus::kOK) &&
           !server_context_->http_cache()->IsAlreadyExpired(
               NULL, response_headers_));
-}
-
-bool Resource::IsSafeToRewrite(bool rewrite_uncacheable) const {
-  rewrite_uncacheable &= HttpStatusOk();
-  RewriteStats* stats = server_context_->rewrite_stats();
-  if ((IsValidAndCacheable() || rewrite_uncacheable) &&
-      !(disable_rewrite_on_no_transform_ &&
-        response_headers_.HasValue(HttpAttributes::kCacheControl,
-                                   "no-transform"))) {
-    stats->num_cache_control_rewritable_resources()->Add(1);
-    return true;
-  } else {
-    // TODO(sligocki): Are we over-counting this because uncacheable
-    // resources will hit this stat for every filter, but cacheable ones
-    // will only hit the above stat once?
-    stats->num_cache_control_not_rewritable_resources()->Add(1);
-    return false;
-  }
-}
-
-void Resource::LoadAsync(
-    NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
-    AsyncCallback* callback) {
-  DCHECK(callback->resource().get() == this);
-  if (loaded()) {
-    RefreshIfImminentlyExpiring();
-    callback->Done(false /* lock_failure */, true /* resource_ok */);
-  } else {
-    // Let the subclass handle it.
-    LoadAndCallback(not_cacheable_policy, request_context, callback);
-  }
-}
-
-void Resource::RefreshIfImminentlyExpiring() {
 }
 
 GoogleString Resource::ContentsHash() const {
@@ -125,12 +84,6 @@ void Resource::FillInPartitionInputInfo(HashHint include_content_hash,
   } else {
     input->clear_input_content_hash();
   }
-
-  // TODO(jmarantz):  Implement this correctly for OutputResource which we also
-  // have to purge if one of its inputs has been purged.
-  if (enable_cache_purge_ || proactive_resource_freshening_) {
-    input->set_url(url());
-  }
 }
 
 void Resource::FillInPartitionInputInfoFromResponseHeaders(
@@ -143,7 +96,7 @@ void Resource::FillInPartitionInputInfoFromResponseHeaders(
 
 int64 Resource::CacheExpirationTimeMs() const {
   int64 input_expire_time_ms = kNotCacheable;
-  if (response_headers_.IsProxyCacheable()) {
+  if (response_headers_.IsCacheable()) {
     input_expire_time_ms = response_headers_.CacheExpirationTimeMs();
   }
   return input_expire_time_ms;
@@ -170,6 +123,14 @@ void Resource::DetermineContentType() {
   SetType(content_type);
 }
 
+// Default, blocking implementation which calls Load.
+// Resources which can fetch asynchronously should override this.
+void Resource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+                               AsyncCallback* callback,
+                               MessageHandler* message_handler) {
+  callback->Done(false /* lock_failure */, Load(message_handler));
+}
+
 Resource::AsyncCallback::~AsyncCallback() {
 }
 
@@ -177,13 +138,11 @@ Resource::FreshenCallback::~FreshenCallback() {
 }
 
 bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
-  DCHECK(UseHttpCache());
   SharedString* contents_and_headers = value->share();
   return value_.Link(contents_and_headers, &response_headers_, handler);
 }
 
 void Resource::LinkFallbackValue(HTTPValue* value) {
-  DCHECK(UseHttpCache());
   if (!value->Empty()) {
     fallback_value_.Link(value);
   }

@@ -20,8 +20,9 @@
 // pages, but we generate these urls as a result of image inlining and
 // this confuses subsequent filters in certain cases.
 
-#include "net/instaweb/http/public/request_context.h"
+#include "base/logging.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -33,17 +34,17 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class InputInfo;
-class ServerContext;
-struct ContentType;
-
+class MessageHandler;
+class RewriteOptions;
 enum Encoding;
 
 class DataUrlInputResource : public Resource {
  public:
   // We expose a factory; parse failure returns NULL.
   static ResourcePtr Make(const StringPiece& url,
-                          ServerContext* server_context) {
+                          ServerContext* resource_manager) {
     ResourcePtr resource;
     const ContentType* type;
     Encoding encoding;
@@ -56,7 +57,7 @@ class DataUrlInputResource : public Resource {
     if (ParseDataUrl(*url_copy, &type, &encoding, &encoded_contents)) {
       resource.reset(new DataUrlInputResource(url_copy, encoding, type,
                                               encoded_contents,
-                                              server_context));
+                                              resource_manager));
     }
     return resource;
   }
@@ -70,20 +71,28 @@ class DataUrlInputResource : public Resource {
                                         InputInfo* input);
 
   virtual GoogleString url() const { return *url_.get(); }
-
-  virtual bool UseHttpCache() const { return false; }
+  virtual const RewriteOptions* rewrite_options() const {
+    LOG(DFATAL) << "Unexpected call to DataUrlInputResource::rewrite_options()";
+    return NULL;
+  }
 
  protected:
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback);
+  virtual bool Load(MessageHandler* message_handler);
+  virtual bool IsCacheable() const;
 
  private:
   DataUrlInputResource(const GoogleString* url,
                        Encoding encoding,
                        const ContentType* type,
                        const StringPiece& encoded_contents,
-                       ServerContext* server_context);
+                       ServerContext* server_context)
+      : Resource(server_context, type),
+        url_(url),
+        encoding_(encoding),
+        encoded_contents_(encoded_contents) {
+    // Make sure we auto-load.
+    Load(server_context->message_handler());
+  }
 
   scoped_ptr<const GoogleString> url_;
   const Encoding encoding_;

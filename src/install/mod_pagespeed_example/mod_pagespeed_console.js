@@ -244,7 +244,9 @@ pagespeed.MpsConsole = function() {
       'gridlines': {
         'color': '#F2F2F2'
       },
-      'baselineColor': '#E5E5E5'
+      'baseline': {
+        'color': '#E5E5E5'
+      }
     },
     'vAxis': {
       'minValue': 0,
@@ -255,7 +257,9 @@ pagespeed.MpsConsole = function() {
       'gridlines': {
         'color': '#F2F2F2'
       },
-      'baselineColor': '#E5E5E5'
+      'baseline': {
+        'color': '#E5E5E5'
+      }
     },
     'chartArea': {
       'left': 60,
@@ -989,12 +993,6 @@ pagespeed.MpsConsole.prototype.isHistogram = function(graphTitle) {
  * @param {number} endTime The ending time of the data requested, displayed if
  *   the user has queried a histogram.
  * @param {string} graphTitle The title to display for the graph.
- * @suppress {checkTypes} actual parameter 2 of
- * pagespeed.MpsConsole.prototype.computeMultipleTimeSeries
- * does not match formal parameter
- * found   : (Array.<(Object|null)>|null)
- * required: (Array.<number>|null)
- *                   data['variables'], data['timestamps'], graphIndex));
  */
 pagespeed.MpsConsole.prototype.scrapeData =
     function(data, graphIndexes, isHistogram, endTime, graphTitle) {
