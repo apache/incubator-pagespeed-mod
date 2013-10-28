@@ -19,7 +19,43 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_ATOMIC_INT32_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_ATOMIC_INT32_H_
 
-// TODO(jmarantz): Remove this forwarding header and change all references.
-#include "pagespeed/kernel/base/atomic_int32.h"
+#include "net/instaweb/util/public/atomicops.h"
+#include "net/instaweb/util/public/basictypes.h"
+
+namespace net_instaweb {
+
+// An int32 flag that can be set atomically and be visible to other
+// threads. Please be extra careful with this --- it can go wrong in
+// incomprehensible  ways; most of the time, you probably want to use a mutex
+// instead.
+
+class AtomicInt32 {
+ public:
+  explicit AtomicInt32(int32 value) {
+    set_value(value);
+  }
+  AtomicInt32() {
+    set_value(0);
+  }
+  ~AtomicInt32() {}
+
+  int32 value() const {
+    return base::subtle::Acquire_Load(&value_);
+  }
+
+  int32 increment(int32 amount) {
+    return base::subtle::NoBarrier_AtomicIncrement(&value_, amount);
+  }
+
+  void set_value(int32 value) {
+    base::subtle::Release_Store(&value_, value);
+  }
+
+ private:
+  base::subtle::AtomicWord value_;
+  DISALLOW_COPY_AND_ASSIGN(AtomicInt32);
+};
+
+}  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_ATOMIC_INT32_H_

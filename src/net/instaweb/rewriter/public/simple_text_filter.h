@@ -22,11 +22,12 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -51,7 +52,7 @@ class SimpleTextFilter : public RewriteFilter {
     virtual bool RewriteText(const StringPiece& url,
                              const StringPiece& in,
                              GoogleString* out,
-                             ServerContext* server_context) = 0;
+                             ResourceManager* resource_manager) = 0;
     virtual HtmlElement::Attribute* FindResourceAttribute(
         HtmlElement* element) = 0;
 

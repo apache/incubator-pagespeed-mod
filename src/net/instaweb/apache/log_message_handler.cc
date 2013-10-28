@@ -64,10 +64,10 @@ int GetApacheLogLevel(int severity) {
 }
 
 bool LogMessageHandler(int severity, const char* file, int line,
-                       size_t message_start, const GoogleString& str) {
+                       size_t message_start, const std::string& str) {
   const int this_log_level = GetApacheLogLevel(severity);
 
-  GoogleString message = str;
+  std::string message = str;
   if (severity == logging::LOG_FATAL) {
     if (base::debug::BeingDebugged()) {
       base::debug::BreakDebugger();

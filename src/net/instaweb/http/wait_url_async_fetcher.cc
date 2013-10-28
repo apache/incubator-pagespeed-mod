@@ -19,56 +19,74 @@
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 
 #include <vector>
-
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
+class MessageHandler;
+class ResponseHeaders;
+class Writer;
+
 class WaitUrlAsyncFetcher::DelayedFetch {
  public:
-  DelayedFetch(UrlAsyncFetcher* base_fetcher, const GoogleString& url,
-               MessageHandler* handler, AsyncFetch* base_fetch)
-      : base_fetcher_(base_fetcher), url_(url), handler_(handler),
-        base_fetch_(base_fetch) {
+  DelayedFetch(UrlFetcher* base_fetcher,
+               const GoogleString& url, const RequestHeaders& request_headers,
+               ResponseHeaders* response_headers, Writer* response_writer,
+               MessageHandler* handler, Callback* callback)
+      : base_fetcher_(base_fetcher), url_(url),
+        response_headers_(response_headers), response_writer_(response_writer),
+        handler_(handler), callback_(callback) {
+    request_headers_.CopyFrom(request_headers);
   }
 
   void FetchNow() {
-    base_fetcher_->Fetch(url_, handler_, base_fetch_);
+    bool status = base_fetcher_->StreamingFetchUrl(
+      url_, request_headers_, response_headers_, response_writer_, handler_);
+    callback_->Done(status);
   }
 
  private:
-  UrlAsyncFetcher* base_fetcher_;
-
+  UrlFetcher* base_fetcher_;
   GoogleString url_;
+  RequestHeaders request_headers_;
+  ResponseHeaders* response_headers_;
+  Writer* response_writer_;
   MessageHandler* handler_;
-  AsyncFetch* base_fetch_;
+  Callback* callback_;
 
   DISALLOW_COPY_AND_ASSIGN(DelayedFetch);
 };
 
 WaitUrlAsyncFetcher::~WaitUrlAsyncFetcher() {}
 
-void WaitUrlAsyncFetcher::Fetch(const GoogleString& url,
-                                MessageHandler* handler,
-                                AsyncFetch* base_fetch) {
-  DelayedFetch* delayed_fetch =
-      new DelayedFetch(url_fetcher_, url, handler, base_fetch);
+bool WaitUrlAsyncFetcher::StreamingFetch(const GoogleString& url,
+                                         const RequestHeaders& request_headers,
+                                         ResponseHeaders* response_headers,
+                                         Writer* response_writer,
+                                         MessageHandler* handler,
+                                         Callback* callback) {
+  DelayedFetch* fetch = new DelayedFetch(
+      url_fetcher_, url, request_headers, response_headers, response_writer,
+      handler, callback);
   {
     ScopedMutex lock(mutex_.get());
     if (!pass_through_mode_) {
       // Don't call the blocking fetcher until CallCallbacks.
-      delayed_fetches_.push_back(delayed_fetch);
-      return;
+      delayed_fetches_.push_back(fetch);
+      return false;
     }
   }
-  // pass_through_mode_ == true
-  delayed_fetch->FetchNow();
-  delete delayed_fetch;
+  fetch->FetchNow();
+  delete fetch;
+  return true;
 }
 
 bool WaitUrlAsyncFetcher::CallCallbacksAndSwitchModesHelper(bool new_mode) {

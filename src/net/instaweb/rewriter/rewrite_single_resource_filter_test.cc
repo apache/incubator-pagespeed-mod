@@ -31,8 +31,8 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -41,6 +41,8 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
@@ -66,7 +68,7 @@ const char kTestEncoderUrlExtra[] = "UrlExtraStuff";
 // This should be the same as used for freshening. It may not be 100%
 // robust against rounding errors, however.
 int TtlSec() {
-  return ResponseHeaders::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
+  return ResponseHeaders::kImplicitCacheTtlMs / Timer::kSecondMs;
 }
 
 int TtlMs() {
@@ -135,12 +137,13 @@ class TestRewriter : public RewriteFilter {
       return kTooBusy;
     }
 
-    bool ok = driver_->Write(
+    bool ok = resource_manager_->Write(
         ResourceVector(1, input_resource),
         StrCat(contents, contents),
         &kContentTypeText,
         StringPiece(),  // no explicit charset
-        output_resource.get());
+        output_resource.get(),
+        driver_->message_handler());
     return ok ? kRewriteOk : kRewriteFailed;
   }
 
@@ -221,16 +224,17 @@ class TestRewriter : public RewriteFilter {
 
 // Parameterized by whether or not we should create a custom encoder.
 class RewriteSingleResourceFilterTest
-    : public RewriteTestBase,
+    : public ResourceManagerTestBase,
       public ::testing::WithParamInterface<bool> {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
 
     filter_ = new TestRewriter(rewrite_driver(), GetParam());
     AddRewriteFilter(filter_);
-    AddOtherRewriteFilter(new TestRewriter(other_rewrite_driver(), GetParam()));
-    options()->ComputeSignature();
+    AddOtherRewriteFilter(
+        new TestRewriter(other_rewrite_driver(), GetParam()));
+    options()->ComputeSignature(hasher());
 
     MockResource("a.tst", "good", TtlSec());
     MockResource("bad.tst", "bad", TtlSec());
@@ -238,7 +242,11 @@ class RewriteSingleResourceFilterTest
     MockMissingResource("404.tst");
 
     in_tag_ = "<tag src=\"a.tst\"></tag>";
-    out_tag_ = StrCat("<tag src=\"", OutputName("", "a.tst"), "\"></tag>");
+    out_tag_ = ComputeOutTag();
+  }
+
+  GoogleString ComputeOutTag() {
+    return StrCat("<tag src=\"", OutputName(kTestDomain, "a.tst"), "\"></tag>");
   }
 
   // Create a resource with given data and TTL
@@ -272,7 +280,7 @@ class RewriteSingleResourceFilterTest
   void ResetSignature(int outline_min_bytes) {
     options()->ClearSignatureForTesting();
     options()->set_css_outline_min_bytes(outline_min_bytes);
-    server_context_->ComputeSignature(options());
+    resource_manager_->ComputeSignature(options());
   }
 
   GoogleString in_tag_;
@@ -415,7 +423,7 @@ TEST_P(RewriteSingleResourceFilterTest, CacheExpire) {
   EXPECT_EQ(1, filter_->num_rewrites_called());
 
   // Next fetch should be still in there.
-  AdvanceTimeMs(TtlMs() / 2);
+  mock_timer()->AdvanceMs(TtlMs() / 2);
   ValidateExpected("initial.2", in_tag_, out_tag_);
   EXPECT_EQ(1, filter_->num_rewrites_called());
 
@@ -424,7 +432,7 @@ TEST_P(RewriteSingleResourceFilterTest, CacheExpire) {
   // reuse_by_content_hash is off in this run, so we must rewrite again.
   // See CacheExpireWithReuseEnabled for expiration behavior but with
   // reuse enabled.
-  AdvanceTimeMs(TtlMs() * 2);
+  mock_timer()->AdvanceMs(TtlMs() * 2);
   ValidateExpected("expire", in_tag_, out_tag_);
   EXPECT_EQ(1, filter_->num_rewrites_called());
 }
@@ -436,7 +444,7 @@ TEST_P(RewriteSingleResourceFilterTest, CacheExpireWithReuseEnabled) {
 
   // Everything expires out of the cache but has the same content hash,
   // so no more rewrites should be needed.
-  AdvanceTimeMs(TtlMs() * 2);
+  mock_timer()->AdvanceMs(TtlMs() * 2);
   ValidateExpected("expire", in_tag_, out_tag_);
   EXPECT_EQ(1, filter_->num_rewrites_called());  // no second rewrite.
 }

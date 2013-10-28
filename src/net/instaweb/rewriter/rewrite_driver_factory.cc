@@ -19,88 +19,66 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/http/public/fake_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
-#include "net/instaweb/http/public/http_dump_url_async_writer.h"
+#include "net/instaweb/http/public/http_dump_url_writer.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_css_finder.h"
+#include "net/instaweb/rewriter/public/blink_critical_line_data_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_line_info_finder.h"
-#include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/device_properties.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
 #include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/cache_batcher.h"
-#include "net/instaweb/util/public/checking_thread_system.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/client_state.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
 #include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/hasher.h"
-#include "net/instaweb/util/public/hostname_util.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/named_lock_manager.h"
-#include "net/instaweb/util/public/property_store.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/scheduler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/http/user_agent_normalizer.h"
-#include "pagespeed/kernel/util/nonce_generator.h"
 
 namespace net_instaweb {
 
-namespace {
-
-// Default image qualities for client options.
-const int kWebpQualityArray[] = {20, 35, 50, 70, 85};
-const int kJpegQualityArray[] = {30, 50, 65, 80, 90};
-
-}  // namespace
-
 class Statistics;
 
-RewriteDriverFactory::RewriteDriverFactory(ThreadSystem* thread_system) {
-#ifdef NDEBUG
-  // For release binaries, use the thread-system directly.
-  thread_system_.reset(thread_system);
-#else
-  // When compiling for debug, interpose a layer that CHECKs for clean mutex
-  // semantics.
-  thread_system_.reset(new CheckingThreadSystem(thread_system));
-#endif
+RewriteDriverFactory::RewriteDriverFactory(ThreadSystem* thread_system)
+    : thread_system_(thread_system) {
+  Init();
+}
+
+RewriteDriverFactory::RewriteDriverFactory()
+    : thread_system_(ThreadSystem::CreateThreadSystem()) {
   Init();
 }
 
 void RewriteDriverFactory::Init() {
+  url_fetcher_ = NULL;
   url_async_fetcher_ = NULL;
-  distributed_async_fetcher_ = NULL;
   force_caching_ = false;
   slurp_read_only_ = false;
   slurp_print_urls_ = false;
+  enable_property_cache_ = false;
   SetStatistics(&null_statistics_);
-  server_context_mutex_.reset(thread_system_->NewMutex());
+  resource_manager_mutex_.reset(thread_system_->NewMutex());
   worker_pools_.assign(kNumWorkerPools, NULL);
-  hostname_ = GetHostname();
-
-  preferred_webp_qualities_.assign(
-      kWebpQualityArray, kWebpQualityArray + arraysize(kWebpQualityArray));
-  preferred_jpeg_qualities_.assign(
-      kJpegQualityArray, kJpegQualityArray + arraysize(kJpegQualityArray));
 
   // Pre-initializes the default options.  IMPORTANT: subclasses overridding
   // NewRewriteOptions() should re-call this method from their constructor
@@ -124,8 +102,8 @@ RewriteDriverFactory::~RewriteDriverFactory() {
   ShutDown();
 
   {
-    ScopedMutex lock(server_context_mutex_.get());
-    STLDeleteElements(&server_contexts_);
+    ScopedMutex lock(resource_manager_mutex_.get());
+    STLDeleteElements(&resource_managers_);
   }
 
   for (int c = 0; c < kNumWorkerPools; ++c) {
@@ -140,15 +118,13 @@ RewriteDriverFactory::~RewriteDriverFactory() {
     delete url_async_fetcher_;
   }
   url_async_fetcher_ = NULL;
-
-  if ((distributed_async_fetcher_ != NULL) &&
-      (distributed_async_fetcher_ != base_distributed_async_fetcher_.get())) {
-    delete distributed_async_fetcher_;
+  if ((url_fetcher_ != NULL) && (url_fetcher_ != base_url_fetcher_.get())) {
+    delete url_fetcher_;
   }
-  distributed_async_fetcher_ = NULL;
+  url_fetcher_ = NULL;
 
-  for (int i = 0, n = deferred_cleanups_.size(); i < n; ++i) {
-    deferred_cleanups_[i]->CallRun();
+  for (int i = 0, n = deferred_deletes_.size(); i < n; ++i) {
+    deferred_deletes_[i]->CallRun();
   }
 }
 
@@ -163,7 +139,7 @@ void RewriteDriverFactory::set_message_handler(
 }
 
 bool RewriteDriverFactory::FetchersComputed() const {
-  return (url_async_fetcher_ != NULL);
+  return (url_fetcher_ != NULL) || (url_async_fetcher_ != NULL);
 }
 
 void RewriteDriverFactory::set_slurp_directory(const StringPiece& dir) {
@@ -191,25 +167,29 @@ void RewriteDriverFactory::set_file_system(FileSystem* file_system) {
   file_system_.reset(file_system);
 }
 
+// TODO(jmarantz): Change this to set_base_url_fetcher
+void RewriteDriverFactory::set_base_url_fetcher(UrlFetcher* url_fetcher) {
+  CHECK(!FetchersComputed())
+      << "Cannot call set_base_url_fetcher "
+      << " after ComputeUrl*Fetcher has been called";
+  CHECK(base_url_async_fetcher_.get() == NULL)
+      << "Only call one of set_base_url_fetcher and set_base_url_async_fetcher";
+  base_url_fetcher_.reset(url_fetcher);
+}
+
 void RewriteDriverFactory::set_base_url_async_fetcher(
     UrlAsyncFetcher* url_async_fetcher) {
   CHECK(!FetchersComputed())
-      << "Cannot call set_base_url_async_fetcher "
-      << " after ComputeUrlAsyncFetcher has been called";
+      << "Cannot call set_base_url_fetcher "
+      << " after ComputeUrl*Fetcher has been called";
+  CHECK(base_url_fetcher_.get() == NULL)
+      << "Only call one of set_base_url_fetcher and set_base_url_async_fetcher";
   base_url_async_fetcher_.reset(url_async_fetcher);
 }
 
-void RewriteDriverFactory::set_base_distributed_async_fetcher(
-    UrlAsyncFetcher* distributed_fetcher) {
-  CHECK(distributed_async_fetcher_ == NULL)
-      << "Cannot call set_base_distributed_async_fetcher "
-      << "after ComputeDistributedFetcher has been called";
-  base_distributed_async_fetcher_.reset(distributed_fetcher);
-}
-
-
 void RewriteDriverFactory::set_hasher(Hasher* hasher) {
   hasher_.reset(hasher);
+  DCHECK(resource_managers_.empty());
 }
 
 void RewriteDriverFactory::set_timer(Timer* timer) {
@@ -220,12 +200,28 @@ void RewriteDriverFactory::set_filename_encoder(FilenameEncoder* e) {
   filename_encoder_.reset(e);
 }
 
-void RewriteDriverFactory::set_nonce_generator(NonceGenerator* gen) {
-  nonce_generator_.reset(gen);
-}
-
 void RewriteDriverFactory::set_url_namer(UrlNamer* url_namer) {
   url_namer_.reset(url_namer);
+}
+
+void RewriteDriverFactory::set_critical_images_finder(
+    CriticalImagesFinder* finder) {
+  critical_images_finder_.reset(finder);
+}
+
+void RewriteDriverFactory::set_blink_critical_line_data_finder(
+    BlinkCriticalLineDataFinder* finder) {
+  blink_critical_line_data_finder_.reset(finder);
+}
+
+void RewriteDriverFactory::set_enable_property_cache(bool enabled) {
+  enable_property_cache_ = enabled;
+  if (page_property_cache_.get() != NULL) {
+    page_property_cache_->set_enabled(enabled);
+  }
+  if (client_property_cache_.get() != NULL) {
+    client_property_cache_->set_enabled(enabled);
+  }
 }
 
 void RewriteDriverFactory::set_usage_data_reporter(
@@ -254,22 +250,6 @@ FileSystem* RewriteDriverFactory::file_system() {
   return file_system_.get();
 }
 
-NonceGenerator* RewriteDriverFactory::nonce_generator() {
-  if (nonce_generator_ == NULL) {
-    nonce_generator_.reset(DefaultNonceGenerator());
-  }
-  return nonce_generator_.get();
-}
-
-NonceGenerator* RewriteDriverFactory::DefaultNonceGenerator() {
-  // By default return NULL (no nonce generator).
-  return NULL;
-}
-
-Timer* RewriteDriverFactory::DefaultTimer() {
-  return thread_system()->NewTimer();
-}
-
 Timer* RewriteDriverFactory::timer() {
   if (timer_ == NULL) {
     timer_.reset(DefaultTimer());
@@ -291,16 +271,27 @@ UserAgentMatcher* RewriteDriverFactory::user_agent_matcher() {
   return user_agent_matcher_.get();
 }
 
-StaticAssetManager* RewriteDriverFactory::static_asset_manager() {
-  if (static_asset_manager_ == NULL) {
-    static_asset_manager_.reset(DefaultStaticAssetManager());
-    InitStaticAssetManager(static_asset_manager_.get());
+StaticJavascriptManager* RewriteDriverFactory::static_javascript_manager() {
+  if (static_javascript_manager_ == NULL) {
+    static_javascript_manager_.reset(DefaultStaticJavascriptManager());
   }
-  return static_asset_manager_.get();
+  return static_javascript_manager_.get();
 }
 
-RewriteOptionsManager* RewriteDriverFactory::NewRewriteOptionsManager() {
-  return new RewriteOptionsManager;
+CriticalImagesFinder* RewriteDriverFactory::critical_images_finder() {
+  if (critical_images_finder_ == NULL) {
+    critical_images_finder_.reset(DefaultCriticalImagesFinder());
+  }
+  return critical_images_finder_.get();
+}
+
+BlinkCriticalLineDataFinder*
+    RewriteDriverFactory::blink_critical_line_data_finder() {
+  if (blink_critical_line_data_finder_ == NULL) {
+    blink_critical_line_data_finder_.reset(
+        DefaultBlinkCriticalLineDataFinder());
+  }
+  return blink_critical_line_data_finder_.get();
 }
 
 Scheduler* RewriteDriverFactory::scheduler() {
@@ -324,24 +315,6 @@ UsageDataReporter* RewriteDriverFactory::usage_data_reporter() {
   return usage_data_reporter_.get();
 }
 
-const std::vector<const UserAgentNormalizer*>&
-    RewriteDriverFactory::user_agent_normalizers() {
-  if (user_agent_normalizers_.empty()) {
-    // Note: it's possible that we may want separate lists of normalizers for
-    // different applications in the future. For now, though, we centralize
-    // one list, because:
-    // a) It's simpler b) Regexp compilation isn't free.
-    AndroidUserAgentNormalizer* an = new AndroidUserAgentNormalizer();
-    IEUserAgentNormalizer* ien = new IEUserAgentNormalizer();
-    TakeOwnership(an);
-    TakeOwnership(ien);
-    user_agent_normalizers_.push_back(an);
-    user_agent_normalizers_.push_back(ien);
-    AddPlatformSpecificUserAgentNormalizers(&user_agent_normalizers_);
-  }
-  return user_agent_normalizers_;
-}
-
 NamedLockManager* RewriteDriverFactory::DefaultLockManager() {
   return new FileSystemLockManager(file_system(), LockFilePrefix(),
                                    scheduler(), message_handler());
@@ -355,56 +328,26 @@ UserAgentMatcher* RewriteDriverFactory::DefaultUserAgentMatcher() {
   return new UserAgentMatcher();
 }
 
-StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
-  return new StaticAssetManager(url_namer()->get_proxy_domain(),
-                                hasher(),
-                                message_handler());
+StaticJavascriptManager*
+    RewriteDriverFactory::DefaultStaticJavascriptManager() {
+  return new StaticJavascriptManager(url_namer(), false, "");
 }
 
-CriticalCssFinder* RewriteDriverFactory::DefaultCriticalCssFinder() {
+CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder() {
   return NULL;
 }
 
-CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder(
-    ServerContext* server_context) {
-  // TODO(pulkitg): Don't create BeaconCriticalImagesFinder if beacon cohort is
-  // not added.
-  return new BeaconCriticalImagesFinder(
-      server_context->beacon_cohort(), nonce_generator(), statistics());
-}
-
-CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
-    ServerContext* server_context) {
-  if (server_context->beacon_cohort() != NULL) {
-    return new BeaconCriticalSelectorFinder(server_context->beacon_cohort(),
-                                            nonce_generator(), statistics());
-  }
+BlinkCriticalLineDataFinder*
+RewriteDriverFactory::DefaultBlinkCriticalLineDataFinder() {
   return NULL;
-}
-
-FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
-  return NULL;
-}
-
-CacheHtmlInfoFinder* RewriteDriverFactory::DefaultCacheHtmlInfoFinder(
-    PropertyCache* cache, ServerContext* server_context) {
-  return NULL;
-}
-
-CriticalLineInfoFinder* RewriteDriverFactory::DefaultCriticalLineInfoFinder(
-    ServerContext* server_context) {
-  // TODO(jud): Return a BeaconCriticalLineInfoFinder for split_html beacon
-  // support when that class exists.
-  return new CriticalLineInfoFinder(server_context->beacon_cohort());
 }
 
 UsageDataReporter* RewriteDriverFactory::DefaultUsageDataReporter() {
   return new UsageDataReporter;
 }
 
-QueuedWorkerPool* RewriteDriverFactory::CreateWorkerPool(
-    WorkerPoolCategory pool, StringPiece name) {
-  return new QueuedWorkerPool(1, name, thread_system());
+QueuedWorkerPool* RewriteDriverFactory::CreateWorkerPool(WorkerPoolName pool) {
+  return new QueuedWorkerPool(1, thread_system());
 }
 
 int RewriteDriverFactory::LowPriorityLoadSheddingThreshold() const {
@@ -422,26 +365,9 @@ NamedLockManager* RewriteDriverFactory::lock_manager() {
   return lock_manager_.get();
 }
 
-QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolCategory pool) {
+QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolName pool) {
   if (worker_pools_[pool] == NULL) {
-    StringPiece name;
-    switch (pool) {
-      case kHtmlWorkers:
-        name = "html";
-        break;
-      case kRewriteWorkers:
-        name = "rewrite";
-        break;
-      case kLowPriorityRewriteWorkers:
-        name = "slow_rewrite";
-        break;
-      default:
-        LOG(DFATAL) << "Unhandled enum value " << pool;
-        name = "unknown_worker";
-        break;
-    }
-
-    worker_pools_[pool] = CreateWorkerPool(pool, name);
+    worker_pools_[pool] = CreateWorkerPool(pool);
     worker_pools_[pool]->set_queue_size_stat(
         rewrite_stats()->thread_queue_depth(pool));
     if (pool == kLowPriorityRewriteWorkers) {
@@ -475,63 +401,107 @@ StringPiece RewriteDriverFactory::filename_prefix() {
   return filename_prefix_;
 }
 
-ServerContext* RewriteDriverFactory::CreateServerContext() {
-  ServerContext* server_context = NewServerContext();
-  InitServerContext(server_context);
-  return server_context;
+
+CacheInterface* RewriteDriverFactory::cache_backend() {
+  if (cache_backend_.get() == NULL) {
+    cache_backend_.reset(DefaultCacheInterface());
+  }
+  return cache_backend_.get();
 }
 
-void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
-  ScopedMutex lock(server_context_mutex_.get());
 
-  server_context->ComputeSignature(server_context->global_options());
-  server_context->set_scheduler(scheduler());
-  if (server_context->statistics() == NULL) {
-    server_context->set_statistics(statistics());
+HTTPCache* RewriteDriverFactory::http_cache() {
+  if (http_cache_.get() == NULL) {
+    http_cache_.reset(ComputeHTTPCache());
   }
-  if (server_context->rewrite_stats() == NULL) {
-    server_context->set_rewrite_stats(rewrite_stats());
-  }
-  SetupCaches(server_context);
-  if (server_context->lock_manager() == NULL) {
-    server_context->set_lock_manager(lock_manager());
-  }
-  if (!server_context->has_default_system_fetcher()) {
-    server_context->set_default_system_fetcher(ComputeUrlAsyncFetcher());
-  }
-  if (!server_context->has_default_distributed_fetcher()) {
-    UrlAsyncFetcher* fetcher = ComputeDistributedFetcher();
-    if (fetcher != NULL) {
-      server_context->set_default_distributed_fetcher(fetcher);
-    }
-  }
-  server_context->set_url_namer(url_namer());
-  server_context->SetRewriteOptionsManager(NewRewriteOptionsManager());
-  server_context->set_user_agent_matcher(user_agent_matcher());
-  server_context->set_filename_encoder(filename_encoder());
-  server_context->set_file_system(file_system());
-  server_context->set_filename_prefix(filename_prefix_);
-  server_context->set_hasher(hasher());
-  server_context->set_message_handler(message_handler());
-  server_context->set_static_asset_manager(static_asset_manager());
-  PropertyCache* pcache = server_context->page_property_cache();
-  server_context->set_critical_css_finder(DefaultCriticalCssFinder());
-  server_context->set_critical_images_finder(
-      DefaultCriticalImagesFinder(server_context));
-  server_context->set_critical_selector_finder(
-      DefaultCriticalSelectorFinder(server_context));
-  server_context->set_flush_early_info_finder(DefaultFlushEarlyInfoFinder());
-  server_context->set_cache_html_info_finder(
-      DefaultCacheHtmlInfoFinder(pcache, server_context));
-  server_context->set_critical_line_info_finder(
-      DefaultCriticalLineInfoFinder(server_context));
-  server_context->set_hostname(hostname_);
-  server_context->InitWorkersAndDecodingDriver();
-  server_contexts_.insert(server_context);
+  return http_cache_.get();
+}
 
-  // Make sure that all lazy state gets initialized, even if we don't copy it to
-  // ServerContext
-  user_agent_normalizers();
+HTTPCache* RewriteDriverFactory::ComputeHTTPCache() {
+  HTTPCache* http_cache = new HTTPCache(
+      cache_backend(), timer(), hasher(), statistics());
+  http_cache->set_force_caching(force_caching_);
+  return http_cache;
+}
+
+PropertyCache* RewriteDriverFactory::MakePropertyCache(
+    const GoogleString& cache_key_prefix, CacheInterface *cache) const {
+  PropertyCache* pcache = new PropertyCache(cache_key_prefix,
+                                            cache, timer_.get(),
+                                            thread_system_.get());
+  pcache->set_enabled(enable_property_cache_);
+  return pcache;
+}
+
+PropertyCache* RewriteDriverFactory::page_property_cache() {
+  if (page_property_cache_.get() == NULL) {
+    page_property_cache_.reset(MakePropertyCache(
+        PropertyCache::kPagePropertyCacheKeyPrefix, property_cache_backend()));
+  }
+  return page_property_cache_.get();
+}
+
+PropertyCache* RewriteDriverFactory::client_property_cache() {
+  if (client_property_cache_.get() == NULL) {
+    client_property_cache_.reset(MakePropertyCache(
+        PropertyCache::kClientPropertyCacheKeyPrefix,
+        property_cache_backend()));
+  }
+  client_property_cache_.get()->AddCohort(ClientState::kClientStateCohort);
+  return client_property_cache_.get();
+}
+
+ResourceManager* RewriteDriverFactory::CreateResourceManager() {
+  ResourceManager* resource_manager = new ResourceManager(this);
+  InitResourceManager(resource_manager);
+  return resource_manager;
+}
+
+void RewriteDriverFactory::InitResourceManager(
+    ResourceManager* resource_manager) {
+  ScopedMutex lock(resource_manager_mutex_.get());
+
+  resource_manager->ComputeSignature(resource_manager->global_options());
+  resource_manager->set_scheduler(scheduler());
+  resource_manager->set_statistics(statistics());
+  resource_manager->set_rewrite_stats(rewrite_stats());
+  // Initialize the metadata cache before initializing the http cache, since
+  // it initializes the cache backend.
+  if (resource_manager->metadata_cache() == NULL) {
+    resource_manager->set_metadata_cache(cache_backend());
+  }
+  if (resource_manager->http_cache() == NULL) {
+    // In Apache we can potentially have distinct caches per
+    // VirtualHost, which must be set prior to calling Init.
+    resource_manager->set_http_cache(http_cache());
+  }
+  if (resource_manager->page_property_cache() == NULL) {
+    resource_manager->set_page_property_cache(page_property_cache());
+  }
+  if (resource_manager->client_property_cache() == NULL) {
+    resource_manager->set_client_property_cache(client_property_cache());
+  }
+  if (resource_manager->lock_manager() == NULL) {
+    resource_manager->set_lock_manager(lock_manager());
+  }
+  if (!resource_manager->has_default_system_fetcher()) {
+    resource_manager->set_default_system_fetcher(ComputeUrlAsyncFetcher());
+  }
+  resource_manager->set_url_namer(url_namer());
+  resource_manager->set_user_agent_matcher(user_agent_matcher());
+  resource_manager->set_filename_encoder(filename_encoder());
+  resource_manager->set_file_system(file_system());
+  resource_manager->set_filename_prefix(filename_prefix_);
+  resource_manager->set_hasher(hasher());
+  resource_manager->set_message_handler(message_handler());
+  resource_manager->set_static_javascript_manager(
+      static_javascript_manager());
+  SetupCohorts();
+  resource_manager->set_critical_images_finder(critical_images_finder());
+  resource_manager->set_blink_critical_line_data_finder(
+      blink_critical_line_data_finder());
+  resource_manager->InitWorkersAndDecodingDriver();
+  resource_managers_.insert(resource_manager);
 }
 
 void RewriteDriverFactory::AddPlatformSpecificDecodingPasses(
@@ -546,8 +516,21 @@ void RewriteDriverFactory::ApplyPlatformSpecificConfiguration(
     RewriteDriver* driver) {
 }
 
-void RewriteDriverFactory::AddPlatformSpecificUserAgentNormalizers(
-    std::vector<const UserAgentNormalizer*>* out) {
+UrlFetcher* RewriteDriverFactory::ComputeUrlFetcher() {
+  if (url_fetcher_ == NULL) {
+    // Run any hooks like setting up slurp directory.
+    FetcherSetupHooks();
+    if (slurp_directory_.empty()) {
+      if (base_url_fetcher_.get() == NULL) {
+        url_fetcher_ = DefaultUrlFetcher();
+      } else {
+        url_fetcher_ = base_url_fetcher_.get();
+      }
+    } else {
+      SetupSlurpDirectories();
+    }
+  }
+  return url_fetcher_;
 }
 
 UrlAsyncFetcher* RewriteDriverFactory::ComputeUrlAsyncFetcher() {
@@ -567,17 +550,6 @@ UrlAsyncFetcher* RewriteDriverFactory::ComputeUrlAsyncFetcher() {
   return url_async_fetcher_;
 }
 
-UrlAsyncFetcher* RewriteDriverFactory::ComputeDistributedFetcher() {
-  if (distributed_async_fetcher_ == NULL) {
-    if (base_distributed_async_fetcher_.get() == NULL) {
-      distributed_async_fetcher_ = DefaultDistributedUrlFetcher();
-    } else {
-      distributed_async_fetcher_ = base_distributed_async_fetcher_.get();
-    }
-  }
-  return distributed_async_fetcher_;
-}
-
 void RewriteDriverFactory::SetupSlurpDirectories() {
   CHECK(!FetchersComputed());
   if (slurp_read_only_) {
@@ -585,22 +557,25 @@ void RewriteDriverFactory::SetupSlurpDirectories() {
     HttpDumpUrlFetcher* dump_fetcher = new HttpDumpUrlFetcher(
         slurp_directory_, file_system(), timer());
     dump_fetcher->set_print_urls(slurp_print_urls_);
-    url_async_fetcher_ = dump_fetcher;
+    url_fetcher_ = dump_fetcher;
   } else {
-    // Check to see if the factory already had set_base_url_async_fetcher
+    // Check to see if the factory already had set_base_url_fetcher
     // called on it.  If so, then we'll want to use that fetcher
     // as the mechanism for the dump-writer to retrieve missing
     // content from the internet so it can be saved in the slurp
     // directory.
-    url_async_fetcher_ = base_url_async_fetcher_.get();
-    if (url_async_fetcher_ == NULL) {
-      url_async_fetcher_ = DefaultAsyncUrlFetcher();
+    url_fetcher_ = base_url_fetcher_.get();
+    if (url_fetcher_ == NULL) {
+      url_fetcher_ = DefaultUrlFetcher();
     }
-    HttpDumpUrlAsyncWriter* dump_writer = new HttpDumpUrlAsyncWriter(
-        slurp_directory_, url_async_fetcher_, file_system(), timer());
+    HttpDumpUrlWriter* dump_writer = new HttpDumpUrlWriter(
+        slurp_directory_, url_fetcher_, file_system(), timer());
     dump_writer->set_print_urls(slurp_print_urls_);
-    url_async_fetcher_ = dump_writer;
+    url_fetcher_ = dump_writer;
   }
+
+  // We do not use real async fetches when slurping.
+  url_async_fetcher_ = new FakeUrlAsyncFetcher(url_fetcher_);
 }
 
 void RewriteDriverFactory::FetcherSetupHooks() {
@@ -610,17 +585,17 @@ StringPiece RewriteDriverFactory::LockFilePrefix() {
   return filename_prefix_;
 }
 
-void RewriteDriverFactory::StopCacheActivity() {
-  ScopedMutex lock(server_context_mutex_.get());
+void RewriteDriverFactory::StopCacheWrites() {
+  ScopedMutex lock(resource_manager_mutex_.get());
 
   // Make sure we tell HTTP cache not to write out fetch failures, as
   // fetcher shutdown may create artificial ones, and we don't want to
   // remember those.
   //
   // Note that we also cannot access our own http_cache_ since it may be
-  // NULL in case like Apache where server contexts get their own.
-  for (ServerContextSet::iterator p = server_contexts_.begin();
-       p != server_contexts_.end(); ++p) {
+  // NULL in case like Apache where resource managers get their own.
+  for (ResourceManagerSet::iterator p = resource_managers_.begin();
+       p != resource_managers_.end(); ++p) {
     HTTPCache* cache = (*p)->http_cache();
     if (cache != NULL) {
       cache->SetIgnoreFailurePuts();
@@ -628,21 +603,21 @@ void RewriteDriverFactory::StopCacheActivity() {
   }
 
   // Similarly stop metadata cache writes.
-  for (ServerContextSet::iterator p = server_contexts_.begin();
-       p != server_contexts_.end(); ++p) {
-    ServerContext* server_context = *p;
-    server_context->set_shutting_down();
+  for (ResourceManagerSet::iterator p = resource_managers_.begin();
+       p != resource_managers_.end(); ++p) {
+    ResourceManager* resource_manager = *p;
+    resource_manager->set_metadata_cache_readonly();
   }
 }
 
-bool RewriteDriverFactory::TerminateServerContext(ServerContext* sc) {
-  ScopedMutex lock(server_context_mutex_.get());
-  server_contexts_.erase(sc);
-  return server_contexts_.empty();
+bool RewriteDriverFactory::TerminateResourceManager(ResourceManager* rm) {
+  ScopedMutex lock(resource_manager_mutex_.get());
+  resource_managers_.erase(rm);
+  return resource_managers_.empty();
 }
 
 void RewriteDriverFactory::ShutDown() {
-  StopCacheActivity();  // Maybe already stopped, but no harm stopping it twice.
+  StopCacheWrites();  // Maybe already stopped, but no harm stopping them twice.
 
   // We first shutdown the low-priority rewrite threads, as they're meant to
   // be robust against cancellation, and it will make the jobs wrap up
@@ -652,15 +627,15 @@ void RewriteDriverFactory::ShutDown() {
   }
 
   // Now get active RewriteDrivers for each manager to wrap up.
-  for (ServerContextSet::iterator p = server_contexts_.begin();
-       p != server_contexts_.end(); ++p) {
-    ServerContext* server_context = *p;
-    server_context->ShutDownDrivers();
+  for (ResourceManagerSet::iterator p = resource_managers_.begin();
+       p != resource_managers_.end(); ++p) {
+    ResourceManager* resource_manager = *p;
+    resource_manager->ShutDownDrivers();
   }
 
   // Shut down the remaining worker threads, to quiesce the system while
   // leaving the QueuedWorkerPool & QueuedWorkerPool::Sequence objects
-  // live.  The QueuedWorkerPools will be deleted when the ServerContext
+  // live.  The QueuedWorkerPools will be deleted when the ResourceManager
   // is destructed.
   for (int i = 0, n = worker_pools_.size(); i < n; ++i) {
     QueuedWorkerPool* worker_pool = worker_pools_[i];
@@ -674,19 +649,10 @@ void RewriteDriverFactory::AddCreatedDirectory(const GoogleString& dir) {
   created_directories_.insert(dir);
 }
 
-void RewriteDriverFactory::InitStats(Statistics* statistics) {
-  HTTPCache::InitStats(statistics);
-  RewriteDriver::InitStats(statistics);
-  RewriteStats::InitStats(statistics);
-  CacheBatcher::InitStats(statistics);
-  CriticalImagesFinder::InitStats(statistics);
-  CriticalCssFinder::InitStats(statistics);
-  CriticalSelectorFinder::InitStats(statistics);
-  PropertyStoreGetCallback::InitStats(statistics);
-}
-
-void RewriteDriverFactory::Initialize() {
-  RewriteDriver::Initialize();
+void RewriteDriverFactory::Initialize(Statistics* statistics) {
+  HTTPCache::Initialize(statistics);
+  RewriteDriver::Initialize(statistics);
+  RewriteStats::Initialize(statistics);
 }
 
 void RewriteDriverFactory::Terminate() {
@@ -707,31 +673,15 @@ RewriteStats* RewriteDriverFactory::rewrite_stats() {
 }
 
 RewriteOptions* RewriteDriverFactory::NewRewriteOptions() {
-  return new RewriteOptions(thread_system());
+  return new RewriteOptions;
 }
 
 RewriteOptions* RewriteDriverFactory::NewRewriteOptionsForQuery() {
   return NewRewriteOptions();
 }
 
-ExperimentMatcher* RewriteDriverFactory::NewExperimentMatcher() {
-  return new ExperimentMatcher;
-}
-
-bool RewriteDriverFactory::SetPreferredWebpQualities(
-    const StringPiece& qualities) {
-  return SplitStringPieceToIntegerVector(
-      qualities, ",", &preferred_webp_qualities_) &&
-      (static_cast<int>(preferred_webp_qualities_.size()) ==
-          DeviceProperties::GetPreferredImageQualityCount());
-}
-
-bool RewriteDriverFactory::SetPreferredJpegQualities(
-    const StringPiece& qualities) {
-  return SplitStringPieceToIntegerVector(
-      qualities, ",", &preferred_jpeg_qualities_) &&
-      (static_cast<int>(preferred_jpeg_qualities_.size()) ==
-          DeviceProperties::GetPreferredImageQualityCount());
+AbstractClientState* RewriteDriverFactory::NewClientState() {
+  return new ClientState;
 }
 
 }  // namespace net_instaweb

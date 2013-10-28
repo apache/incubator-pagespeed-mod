@@ -23,35 +23,39 @@
 #include <set>
 #include <utility>  // for std::pair
 
+#include "base/scoped_ptr.h"            // for scoped_ptr
+
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"               // for StrCat
 
 namespace {
 
 static const char kHtmlUrl[] = "http://html.parse.test/event_list_test.html";
+static const char kUpdatedUrl[] = "http://html.parse.test/new_css.css";
 
 }  // namespace
 
 namespace net_instaweb {
 
-class ResourceSlotTest : public RewriteTestBase {
+class ResourceSlotTest : public ResourceManagerTestBase {
  protected:
   typedef std::set<HtmlResourceSlotPtr, HtmlResourceSlotComparator> SlotSet;
 
   virtual bool AddBody() const { return false; }
 
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
 
     // Set up 4 slots for testing.
     RewriteDriver* driver = rewrite_driver();
@@ -77,7 +81,7 @@ class ResourceSlotTest : public RewriteTestBase {
 
   virtual void TearDown() {
     rewrite_driver()->FinishParse();
-    RewriteTestBase::TearDown();
+    ResourceManagerTestBase::TearDown();
   }
 
   HtmlResourceSlotPtr MakeSlot(int element_index, int attribute_index) {
@@ -98,16 +102,7 @@ class ResourceSlotTest : public RewriteTestBase {
   const HtmlResourceSlotPtr slot(int index) const { return slots_[index]; }
   HtmlElement* element(int index) { return elements_[index]; }
   HtmlElement::Attribute* attribute(int element_index, int attribute_index) {
-    HtmlElement* el = element(element_index);
-    HtmlElement::AttributeList* attrs = el->mutable_attributes();
-    int pos = 0;
-    for (net_instaweb::HtmlElement::AttributeIterator i(attrs->begin());
-         i != attrs->end(); ++i, ++pos) {
-      if (pos == attribute_index) {
-        return i.Get();
-      }
-    }
-    return NULL;
+    return &element(element_index)->attribute(attribute_index);
   }
 
   GoogleString GetHtmlDomAsString() {
@@ -124,13 +119,13 @@ class ResourceSlotTest : public RewriteTestBase {
 
 TEST_F(ResourceSlotTest, Accessors) {
   EXPECT_EQ(element(0), slot(0)->element());
-  EXPECT_EQ(attribute(0, 0), slot(0)->attribute());
+  EXPECT_EQ(&element(0)->attribute(0), slot(0)->attribute());
   EXPECT_EQ(element(0), slot(1)->element());
-  EXPECT_EQ(attribute(0, 1), slot(1)->attribute());
+  EXPECT_EQ(&element(0)->attribute(1), slot(1)->attribute());
   EXPECT_EQ(element(1), slot(2)->element());
-  EXPECT_EQ(attribute(1, 0), slot(2)->attribute());
+  EXPECT_EQ(&element(1)->attribute(0), slot(2)->attribute());
   EXPECT_EQ(element(1), slot(3)->element());
-  EXPECT_EQ(attribute(1, 1), slot(3)->attribute());
+  EXPECT_EQ(&element(1)->attribute(1), slot(3)->attribute());
   EXPECT_FALSE(slot(0)->was_optimized());
   slot(0)->set_was_optimized(true);
   EXPECT_TRUE(slot(0)->was_optimized());
@@ -140,7 +135,7 @@ TEST_F(ResourceSlotTest, Accessors) {
 
   const char kDataUrl[] = "data:text/plain,Huh";
   ResourcePtr resource =
-      DataUrlInputResource::Make(kDataUrl, server_context());
+      DataUrlInputResource::Make(kDataUrl, resource_manager());
   ResourceSlotPtr fetch_slot(new FetchResourceSlot(resource));
   EXPECT_EQ(StrCat("Fetch of ", kDataUrl), fetch_slot->LocationString());
 }
@@ -163,20 +158,20 @@ TEST_F(ResourceSlotTest, Comparator) {
 // Tests that a slot resource-update has the desired effect on the DOM.
 TEST_F(ResourceSlotTest, RenderUpdate) {
   SetupWriter();
+  GoogleUrl gurl(kUpdatedUrl);
 
   // Before update: first href=v1.
   EXPECT_EQ("<link href=\"v1\" src=\"v2\"/><link href=\"v3\" src=\"v4\"/>",
             GetHtmlDomAsString());
 
-  GoogleUrl gurl("http://html.parse.test/new_css.css");
   ResourcePtr updated(rewrite_driver()->CreateInputResource(gurl));
   slot(0)->SetResource(updated);
   slot(0)->Render();
 
-  // After update: first href=new_css.css. Note: that we relativize the URL.
-  EXPECT_EQ(
-      "<link href=\"new_css.css\" src=\"v2\"/><link href=\"v3\" src=\"v4\"/>",
-      GetHtmlDomAsString());
+  // After update: first href=kUpdated.
+  EXPECT_EQ(StrCat("<link href=\"", kUpdatedUrl,
+                   "\" src=\"v2\"/><link href=\"v3\" src=\"v4\"/>"),
+            GetHtmlDomAsString());
 }
 
 // Tests that a slot deletion takes effect as expected.
@@ -187,11 +182,7 @@ TEST_F(ResourceSlotTest, RenderDelete) {
   EXPECT_EQ("<link href=\"v1\" src=\"v2\"/><link href=\"v3\" src=\"v4\"/>",
             GetHtmlDomAsString());
 
-  EXPECT_FALSE(slot(0)->should_delete_element());
-  EXPECT_FALSE(slot(0)->disable_further_processing());
-  slot(0)->RequestDeleteElement();
-  EXPECT_TRUE(slot(0)->should_delete_element());
-  EXPECT_TRUE(slot(0)->disable_further_processing());
+  slot(0)->set_should_delete_element(true);
   slot(0)->Render();
 
   // After update, first link is gone.

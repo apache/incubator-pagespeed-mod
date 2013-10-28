@@ -22,20 +22,16 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/content_type.h"  // for ContentType
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -48,177 +44,179 @@ const char kHeadScript[] =
     "window.mod_pagespeed_start = Number(new Date());"
     "</script>";
 
+// The javascript tag to insert at the bottom of head.  Formatting args:
+//     1. %s : CDATA hack opener or "".
+//     2. %s : the custom beacon url, by default "./mod_pagespeed_beacon?ets=".
+//     3. %s : kUnloadTag.
+//     4. %s : URL of HTML.
+//     5. %s : CDATA hack closer or "".
+//
+//  Then our timing info, e.g. "unload:123", will be appended.
+const char kUnloadScriptFormat[] =
+    "<script type='text/javascript'>%s"
+    "(function(){function g(){"
+    "if(window.mod_pagespeed_loaded) {return;}"
+    "var ifr=0;"
+    "if(window.parent != window){ifr=1}"
+    "new Image().src='%s%s'+"
+    "(Number(new Date())-window.mod_pagespeed_start)+'&ifr='+ifr+'"
+    "&url='+encodeURIComponent('%s');};"
+    "var f=window.addEventListener;if(f){f('beforeunload',g,false);}else{"
+    "f=window.attachEvent;if(f){f('onbeforeunload',g);}}"
+    "})();%s</script>";
+
+// The javascript tag to insert at the bottom of document.  The same formatting
+// args are used for kUnloadScriptFormat.
+//
+// Then our timing info, e.g. "load:123", will be appended.
+const char kTailScriptFormat[] =
+    "<script type='text/javascript'>%s"
+    "(function(){function g(){var ifr=0;"
+    "if(window.parent != window){ifr=1}"
+    "new Image().src='%s%s'+"
+    "(Number(new Date())-window.mod_pagespeed_start)+'&ifr='+ifr+'"
+    "&url='+encodeURIComponent('%s');"
+    "window.mod_pagespeed_loaded=true;};"
+    "var f=window.addEventListener;if(f){f('load',g,false);}else{"
+    "f=window.attachEvent;if(f){f('onload',g);}}"
+    "})();%s</script>";
+
+// In mod_pagespeed, the output_filter gets run prior to mod_headers,
+// so we may not know the correct mimetype at the time we run.
+//
+// So we should use this hack from
+//     http://stackoverflow.com/questions/2375217
+//     should-i-use-or-for-closing-a-cdata-section-into-xhtml
+//
+//   <script type="text/javascript">//<![CDATA[
+//     INSTRUMENTATION CODE
+//   //]]></script>
+//
+// The %s format elements after <script> and before </script> are the
+// hooks that allow us to insert the cdata hacks.
+const char kCdataHackOpen[] = "//<![CDATA[\n";
+const char kCdataHackClose[] = "\n//]]>";
+
 }  // namespace
 
 // Timing tag for total page load time.  Also embedded in kTailScriptFormat
 // above via the second %s.
-// TODO(jud): These values would be better set to "load" and "beforeunload".
 const char AddInstrumentationFilter::kLoadTag[] = "load:";
 const char AddInstrumentationFilter::kUnloadTag[] = "unload:";
+GoogleString* AddInstrumentationFilter::kTailScriptFormatXhtml = NULL;
+GoogleString* AddInstrumentationFilter::kUnloadScriptFormatXhtml = NULL;
 
 // Counters.
 const char AddInstrumentationFilter::kInstrumentationScriptAddedCount[] =
     "instrumentation_filter_script_added_count";
 AddInstrumentationFilter::AddInstrumentationFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
+    : driver_(driver),
       found_head_(false),
-      added_head_script_(false),
-      added_unload_script_(false) {
-  Statistics* stats = driver->server_context()->statistics();
+      use_cdata_hack_(
+          !driver_->resource_manager()->response_headers_finalized()) {
+  Statistics* stats = driver->resource_manager()->statistics();
   instrumentation_script_added_count_ = stats->GetVariable(
       kInstrumentationScriptAddedCount);
 }
 
 AddInstrumentationFilter::~AddInstrumentationFilter() {}
 
-void AddInstrumentationFilter::InitStats(Statistics* statistics) {
+void AddInstrumentationFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kInstrumentationScriptAddedCount);
+  if (kTailScriptFormatXhtml == NULL) {
+    kTailScriptFormatXhtml = new GoogleString(kTailScriptFormat);
+    GlobalReplaceSubstring("&", "&amp;", kTailScriptFormatXhtml);
+    kUnloadScriptFormatXhtml = new GoogleString(kUnloadScriptFormat);
+    GlobalReplaceSubstring("&", "&amp;", kUnloadScriptFormatXhtml);
+  }
 }
 
-void AddInstrumentationFilter::StartDocumentImpl() {
+void AddInstrumentationFilter::Terminate() {
+  delete kTailScriptFormatXhtml;
+  kTailScriptFormatXhtml = NULL;
+  delete kUnloadScriptFormatXhtml;
+  kUnloadScriptFormatXhtml = NULL;
+}
+
+void AddInstrumentationFilter::StartDocument() {
   found_head_ = false;
-  added_head_script_ = false;
-  added_unload_script_ = false;
 }
 
-void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
-  // IE doesn't like tags other than title or meta at the start of the
-  // head. The MSDN page says:
-  //   The X-UA-Compatible header isn't case sensitive; however, it must appear
-  //   in the header of the webpage (the HEAD section) before all other elements
-  //   except for the title element and other meta elements.
-  // Reference: http://msdn.microsoft.com/en-us/library/jj676915(v=vs.85).aspx
-  if (element->keyword() != HtmlName::kTitle &&
-      element->keyword() != HtmlName::kMeta) {
-    added_head_script_ = true;
-    // TODO(abliss): add an actual element instead, so other filters can
-    // rewrite this JS
-    HtmlCharactersNode* script = driver_->NewCharactersNode(NULL, kHeadScript);
-    driver_->InsertNodeBeforeCurrent(script);
-    instrumentation_script_added_count_->Add(1);
-  }
-}
-
-void AddInstrumentationFilter::StartElementImpl(HtmlElement* element) {
-  if (found_head_ && !added_head_script_) {
-    AddHeadScript(element);
-  }
-  if (!found_head_ && element->keyword() == HtmlName::kHead) {
-    found_head_ = true;
-  }
-}
-
-void AddInstrumentationFilter::EndElementImpl(HtmlElement* element) {
-  if (found_head_ && element->keyword() == HtmlName::kHead) {
-    if (!added_head_script_) {
-      AddHeadScript(element);
-    }
-    if (driver_->options()->report_unload_time() &&
-        !added_unload_script_) {
-      GoogleString js = GetScriptJs(kUnloadTag);
-      HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
-      if (!driver_->defer_instrumentation_script()) {
-        driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-      }
-      driver_->InsertNodeBeforeCurrent(script);
-      driver_->server_context()->static_asset_manager()->AddJsToElement(
-          js, script, driver_);
-      added_unload_script_ = true;
-    }
-  }
-}
-
-void AddInstrumentationFilter::EndDocument() {
-  // We relied on the existence of a <head> element.  This should have been
-  // assured by add_head_filter.
+void AddInstrumentationFilter::StartElement(HtmlElement* element) {
   if (!found_head_) {
-    LOG(WARNING) << "Reached end of document without finding <head>."
-                    "  Please turn on the add_head filter.";
-    return;
+    if (element->keyword() == HtmlName::kHead) {
+      found_head_ = true;
+      // TODO(abliss): add an actual element instead, so other filters can
+      // rewrite this JS
+      HtmlCharactersNode* script =
+          driver_->NewCharactersNode(element, kHeadScript);
+      driver_->InsertElementAfterCurrent(script);
+      instrumentation_script_added_count_->Add(1);
+    }
   }
-  GoogleString js = GetScriptJs(kLoadTag);
-  HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
-  if (!driver_->defer_instrumentation_script()) {
-    driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-  }
-  InsertNodeAtBodyEnd(script);
-  driver_->server_context()->static_asset_manager()->AddJsToElement(js, script,
-                                                                    driver_);
 }
 
-GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
-  GoogleString js;
-  StaticAssetManager* static_asset_manager =
-      driver_->server_context()->static_asset_manager();
-  // Only add the static JS once.
-  if (!added_unload_script_) {
-    if (driver_->options()->enable_extended_instrumentation()) {
-      js = static_asset_manager->GetAsset(
-          StaticAssetManager::kExtendedInstrumentationJs, driver_->options());
-    }
-    StrAppend(&js, static_asset_manager->GetAsset(
-        StaticAssetManager::kAddInstrumentationJs, driver_->options()));
-  }
-
-  GoogleString js_event = (event == kLoadTag) ? "load" : "beforeunload";
-
-  const RewriteOptions::BeaconUrl& beacons = driver_->options()->beacon_url();
-  const GoogleString* beacon_url =
-      driver_->IsHttps() ? &beacons.https : &beacons.http;
-  GoogleString extra_params;
-  if (driver_->options()->running_experiment()) {
-    int experiment_state = driver_->options()->experiment_id();
-    if (experiment_state != experiment::kExperimentNotSet &&
-        experiment_state != experiment::kNoExperiment) {
-      StrAppend(&extra_params, "&exptid=",
-                IntegerToString(driver_->options()->experiment_id()));
+bool AddInstrumentationFilter::IsXhtml() {
+  bool is_xhtml = false;
+  if (!use_cdata_hack_) {
+    const ResponseHeaders* headers = driver_->response_headers();
+    if (headers != NULL) {
+      const ContentType* content_type = headers->DetermineContentType();
+      if (content_type != NULL) {
+        is_xhtml = content_type->IsXmlLike();
+      }
     }
   }
+  return is_xhtml;
+}
 
-  const RequestContext::TimingInfo& timing_info =
-      driver_->request_context()->timing_info();
-  int64 header_fetch_ms;
-  if (timing_info.GetFetchHeaderLatencyMs(&header_fetch_ms)) {
-    // If time taken to fetch the http header is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&hft=", Integer64ToString(header_fetch_ms));
+void AddInstrumentationFilter::EndElement(HtmlElement* element) {
+  if (element->keyword() == HtmlName::kBody) {
+    // We relied on the existence of a <head> element.  This should have been
+    // assured by add_head_filter.
+    CHECK(found_head_) << "Reached end of document without finding <head>."
+        "  Please turn on the add_head filter.";
+    bool is_xhtml = IsXhtml();
+    const char* script = is_xhtml
+        ? kTailScriptFormatXhtml->c_str() : kTailScriptFormat;
+    AddScriptNode(element, script, kLoadTag, is_xhtml);
+  } else if (found_head_ && element->keyword() == HtmlName::kHead &&
+             driver_->options()->report_unload_time()) {
+    bool is_xhtml = IsXhtml();
+    const char* script = is_xhtml
+        ? kUnloadScriptFormatXhtml->c_str() : kUnloadScriptFormat;
+    AddScriptNode(element, script, kUnloadTag, is_xhtml);
   }
-  int64 fetch_ms;
-  if (timing_info.GetFetchLatencyMs(&fetch_ms)) {
-    // If time taken to fetch the resource is not set, then the response
-    // came from cache.
-    StrAppend(&extra_params, "&ft=", Integer64ToString(fetch_ms));
-  }
-  int64 ttfb_ms;
-  if (timing_info.GetTimeToFirstByte(&ttfb_ms)) {
-    StrAppend(&extra_params, "&s_ttfb=", Integer64ToString(ttfb_ms));
-  }
+}
 
-  // Append the http response code.
-  if (driver_->response_headers() != NULL &&
-      driver_->response_headers()->status_code() > 0 &&
-      driver_->response_headers()->status_code() != HttpStatus::kOK) {
-    StrAppend(&extra_params, "&rc=", IntegerToString(
-        driver_->response_headers()->status_code()));
-  }
-  // Append the request id.
-  if (driver_->request_context()->request_id() > 0) {
-    StrAppend(&extra_params, "&id=", Integer64ToString(
-        driver_->request_context()->request_id()));
-  }
-
+void AddInstrumentationFilter::AddScriptNode(HtmlElement* element,
+                                             const GoogleString& script_format,
+                                             const GoogleString& tag_name,
+                                             bool is_xhtml) {
   GoogleString html_url;
   EscapeToJsStringLiteral(driver_->google_url().Spec(),
                           false, /* no quotes */
                           &html_url);
-
-  StrAppend(&js, "\npagespeed.addInstrumentationInit(");
-  StrAppend(&js, "'", *beacon_url, "', ");
-  StrAppend(&js, "'", js_event, "', ");
-  StrAppend(&js, "'", extra_params, "', ");
-  StrAppend(&js, "'", html_url, "');");
-
-  return js;
+  if (is_xhtml) {
+    GlobalReplaceSubstring("&", "&amp;", &html_url);
+  }
+  const RewriteOptions::BeaconUrl& beacons = driver_->options()->beacon_url();
+  const GoogleString* beacon_url =
+      driver_->IsHttps() ? &beacons.https : &beacons.http;
+  GoogleString xhtml_conversion_buffer;
+  if (is_xhtml) {
+    xhtml_conversion_buffer = *beacon_url;
+    GlobalReplaceSubstring("&", "&amp;", &xhtml_conversion_buffer);
+    beacon_url = &xhtml_conversion_buffer;
+  }
+  GoogleString tail_script = StringPrintf(
+      script_format.c_str(),
+      use_cdata_hack_ ? kCdataHackOpen : "",
+      beacon_url->c_str(), tag_name.c_str(), html_url.c_str(),
+      use_cdata_hack_ ? kCdataHackClose: "");
+  HtmlCharactersNode* script =
+      driver_->NewCharactersNode(element, tail_script);
+  driver_->InsertElementBeforeCurrent(script);
 }
 
 }  // namespace net_instaweb

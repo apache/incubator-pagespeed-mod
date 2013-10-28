@@ -21,54 +21,24 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
-
-AsyncFetch::AsyncFetch()
-    : request_headers_(NULL),
-      response_headers_(NULL),
-      extra_response_headers_(NULL),
-      request_ctx_(NULL),
-      owns_request_headers_(false),
-      owns_response_headers_(false),
-      owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
-}
-
-AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
-    : request_headers_(NULL),
-      response_headers_(NULL),
-      extra_response_headers_(NULL),
-      request_ctx_(request_ctx),
-      owns_request_headers_(false),
-      owns_response_headers_(false),
-      owns_extra_response_headers_(false),
-      headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
-  DCHECK(request_ctx_.get() != NULL);
-}
 
 AsyncFetch::~AsyncFetch() {
   if (owns_response_headers_) {
     delete response_headers_;
   }
-  if (owns_extra_response_headers_) {
-    delete extra_response_headers_;
-  }
   if (owns_request_headers_) {
     delete request_headers_;
   }
-}
-
-AbstractLogRecord* AsyncFetch::log_record() {
-  CHECK(request_context().get() != NULL);
-  return request_context()->log_record();
+  if (owns_timing_info_) {
+    delete timing_info_;
+  }
 }
 
 bool AsyncFetch::Write(const StringPiece& sp, MessageHandler* handler) {
@@ -76,8 +46,7 @@ bool AsyncFetch::Write(const StringPiece& sp, MessageHandler* handler) {
   if (!sp.empty()) {  // empty-writes should be no-ops.
     if (!headers_complete_) {
       HeadersComplete();
-    }
-    if (request_headers()->method() == RequestHeaders::kHead) {
+    } else if (request_headers()->method() == RequestHeaders::kHead) {
       // If the request is a head request, then don't write the contents of
       // body.
       return ret;
@@ -117,7 +86,7 @@ void AsyncFetch::Done(bool success) {
   HandleDone(success);
 }
 
-// Sets the request-headers to the specified pointer.  The caller must
+// Sets the request-headers to the specifid pointer.  The caller must
 // guarantee that the pointed-to headers remain valid as long as the
 // AsyncFetch is running.
 void AsyncFetch::set_request_headers(RequestHeaders* headers) {
@@ -127,11 +96,6 @@ void AsyncFetch::set_request_headers(RequestHeaders* headers) {
   }
   request_headers_ = headers;
   owns_request_headers_ = false;
-}
-
-void AsyncFetch::SetRequestHeadersTakingOwnership(RequestHeaders* headers) {
-  set_request_headers(headers);
-  owns_request_headers_ = true;
 }
 
 RequestHeaders* AsyncFetch::request_headers() {
@@ -166,45 +130,45 @@ void AsyncFetch::set_response_headers(ResponseHeaders* headers) {
   owns_response_headers_ = false;
 }
 
-ResponseHeaders* AsyncFetch::extra_response_headers() {
-  if (extra_response_headers_ == NULL) {
-    extra_response_headers_ = new ResponseHeaders;
-    owns_extra_response_headers_ = true;
+void AsyncFetch::set_timing_info(TimingInfo* timing_info) {
+  DCHECK(!owns_timing_info_);
+  if (owns_timing_info_) {
+    delete timing_info_;
   }
-  return extra_response_headers_;
+  timing_info_ = timing_info;
+  owns_timing_info_ = false;
 }
 
-void AsyncFetch::set_extra_response_headers(ResponseHeaders* headers) {
-  DCHECK(!owns_extra_response_headers_);
-  if (owns_extra_response_headers_) {
-    delete extra_response_headers_;
+TimingInfo* AsyncFetch::timing_info() {
+  if (timing_info_ == NULL) {
+    timing_info_ = new TimingInfo;
+    owns_timing_info_ = true;
   }
-  extra_response_headers_ = headers;
-  owns_extra_response_headers_ = false;
+  return timing_info_;
 }
 
-GoogleString AsyncFetch::LoggingString() {
-  GoogleString logging_info_str;
 
-  if (NULL == request_ctx_.get()) {
-    return logging_info_str;
+GoogleString AsyncFetch::TimingString() const {
+  GoogleString timing_info_str;
+  if (timing_info_ != NULL) {
+    if (timing_info_->has_cache1_ms()) {
+      StrAppend(&timing_info_str, "c1:",
+                Integer64ToString(timing_info_->cache1_ms()), ";");
+    }
+    if (timing_info_->has_cache2_ms()) {
+      StrAppend(&timing_info_str, "c2:",
+                Integer64ToString(timing_info_->cache2_ms()), ";");
+    }
+    if (timing_info_->has_header_fetch_ms()) {
+      StrAppend(&timing_info_str, "hf:",
+                Integer64ToString(timing_info_->header_fetch_ms()), ";");
+    }
+    if (timing_info_->has_fetch_ms()) {
+      StrAppend(&timing_info_str, "f:",
+                Integer64ToString(timing_info_->fetch_ms()), ";");
+    }
   }
-
-  int64 latency;
-  const RequestContext::TimingInfo& timing_info = request_ctx_->timing_info();
-  if (timing_info.GetHTTPCacheLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "c1:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetL2HTTPCacheLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "c2:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetFetchHeaderLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "hf:", Integer64ToString(latency), ";");
-  }
-  if (timing_info.GetFetchLatencyMs(&latency)) {
-    StrAppend(&logging_info_str, "f:", Integer64ToString(latency), ";");
-  }
-  return logging_info_str;
+  return timing_info_str;
 }
 
 StringAsyncFetch::~StringAsyncFetch() {
@@ -223,25 +187,13 @@ AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {
 }
 
 SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
-    : AsyncFetch(base_fetch->request_context()),
-      base_fetch_(base_fetch) {
+    : base_fetch_(base_fetch) {
   set_response_headers(base_fetch->response_headers());
-  set_extra_response_headers(base_fetch->extra_response_headers());
   set_request_headers(base_fetch->request_headers());
+  set_timing_info(base_fetch->timing_info());
 }
 
 SharedAsyncFetch::~SharedAsyncFetch() {
-}
-
-void SharedAsyncFetch::PropagateContentLength() {
-  if (content_length_known()) {
-    base_fetch_->set_content_length(content_length());
-  }
-}
-
-void SharedAsyncFetch::HandleHeadersComplete() {
-  PropagateContentLength();
-  base_fetch_->HeadersComplete();
 }
 
 const char FallbackSharedAsyncFetch::kStaleWarningHeaderValue[] =
@@ -271,19 +223,18 @@ void FallbackSharedAsyncFetch::HandleHeadersComplete() {
     // Add a warning header indicating that the response is stale.
     response_headers()->Add(HttpAttributes::kWarning, kStaleWarningHeaderValue);
     response_headers()->ComputeCaching();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     fallback_.ExtractContents(&contents);
-    set_content_length(contents.size());
-    SharedAsyncFetch::HandleHeadersComplete();
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     if (fallback_responses_served_ != NULL) {
       fallback_responses_served_->Add(1);
     }
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -292,18 +243,18 @@ bool FallbackSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool FallbackSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_fallback_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void FallbackSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_fallback_ || success);
+  base_fetch()->Done(serving_fallback_ || success);
   delete this;
 }
 
@@ -314,8 +265,7 @@ ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
     : SharedAsyncFetch(base_fetch),
       handler_(handler),
       serving_cached_value_(false),
-      added_conditional_headers_to_request_(false),
-      num_conditional_refreshes_(NULL) {
+      added_conditional_headers_to_request_(false) {
   if (cached_value != NULL && !cached_value->Empty()) {
     // Only do our own conditional fetch if the original request wasn't
     // conditional.
@@ -359,28 +309,24 @@ void ConditionalSharedAsyncFetch::HandleHeadersComplete() {
     // and stop passing any events through to the base fetch.
     serving_cached_value_ = true;
     int64 implicit_cache_ttl_ms = response_headers()->implicit_cache_ttl_ms();
-    int64 min_cache_ttl_ms = response_headers()->min_cache_ttl_ms();
     response_headers()->Clear();
     cached_value_.ExtractHeaders(response_headers(), handler_);
     if (response_headers()->is_implicitly_cacheable()) {
       response_headers()->SetCacheControlMaxAge(implicit_cache_ttl_ms);
       response_headers()->ComputeCaching();
-    } else if (response_headers()->cache_ttl_ms() < min_cache_ttl_ms) {
-      response_headers()->SetCacheControlMaxAge(min_cache_ttl_ms);
-      response_headers()->ComputeCaching();
     }
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
     StringPiece contents;
     cached_value_.ExtractContents(&contents);
-    SharedAsyncFetch::HandleWrite(contents, handler_);
-    SharedAsyncFetch::HandleFlush(handler_);
+    base_fetch()->Write(contents, handler_);
+    base_fetch()->Flush(handler_);
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
     if (num_conditional_refreshes_ != NULL) {
       num_conditional_refreshes_->Add(1);
     }
   } else {
-    SharedAsyncFetch::HandleHeadersComplete();
+    base_fetch()->HeadersComplete();
   }
 }
 
@@ -389,18 +335,18 @@ bool ConditionalSharedAsyncFetch::HandleWrite(const StringPiece& content,
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleWrite(content, handler);
+  return base_fetch()->Write(content, handler);
 }
 
 bool ConditionalSharedAsyncFetch::HandleFlush(MessageHandler* handler) {
   if (serving_cached_value_) {
     return true;
   }
-  return SharedAsyncFetch::HandleFlush(handler);
+  return base_fetch()->Flush(handler);
 }
 
 void ConditionalSharedAsyncFetch::HandleDone(bool success) {
-  SharedAsyncFetch::HandleDone(serving_cached_value_ || success);
+  base_fetch()->Done(serving_cached_value_ || success);
   delete this;
 }
 

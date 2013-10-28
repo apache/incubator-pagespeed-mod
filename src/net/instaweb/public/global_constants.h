@@ -27,50 +27,17 @@ namespace {
 // (with flag --no-js-randomness). We use the same time of day for slurping,
 // validation and measurement in order to maintain consistency.
 static const double kChromiumTimeOfDay = 1204251968254LL;
-
 const char kModPagespeedHeader[] = "X-Mod-Pagespeed";
 const char kPageSpeedHeader[] = "X-Page-Speed";
-
-// String added to all subrequests (with version string).
-const char kModPagespeedSubrequestUserAgent[] = "mod_pagespeed";
-
-const char kWPTUserAgentIdentifier[] = "PTST";
-
+const char kRequestStartTimeHeader[] = "X-Request-Start-Time";
+const char kWPTUserAgentIdentifier[] = "PTST ";
 // The name of the header used to specify the rewriters that were
 // applied to the current request.
 const char kPsaRewriterHeader[] = "X-PSA-Rewriter";
-
 // The name of the header that pubilshers can use to send the time when the
 // cacheable content on the page was last modified.  This is used by
 // prioritize_visible_content filter to invalidate its cache.
 const char kPsaLastModified[] = "X-PSA-Last-Modified";
-
-// Header whose existence indicates that this is a purge request to
-// and external/internal caching layer and hence should not be
-// allowed to initiate yet another purge request (which could result in
-// an infinite loop).
-const char kPsaPurgeRequest[] = "X-PSA-Purge-Request";
-
-// Header used to specify a comma-separated list of optimization-related
-// capabilities which are to be supported in the response. For e.g. "ii"
-// could mean image inlining is supported. These are used by the
-// downstream caching layer to communicate to the pagespeed server,
-// the optimizations/capabilties that are going to be factored into
-// the cache's fragmentation logic.
-const char kPsaCapabilityList[] = "PS-CapabilityList";
-
-// Noscript element that redirects to PageSpeed=noscript.  This is applied
-// when a filter that inserts custom javascript is enabled.
-const char kNoScriptRedirectFormatter[] =
-    "<noscript><meta HTTP-EQUIV=\"refresh\" content=\"0;url='%s'\" />"
-    "<style><!--table,div,span,font,p{display:none} --></style>"
-    "<div style=\"display:block\">Please click <a href=\"%s\">here</a> "
-    "if you are not redirected within a few seconds.</div></noscript>";
-
-// Link tag to be inserted on noscript redirect so that original URL is
-// considered canonical.
-const char kLinkRelCanonicalFormatter[] =
-    "<link rel=\"canonical\" href=\"%s\"/>";
 
 }  // namespace
 

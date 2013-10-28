@@ -18,68 +18,28 @@
 #ifndef NET_INSTAWEB_APACHE_INSTAWEB_CONTEXT_H_
 #define NET_INSTAWEB_APACHE_INSTAWEB_CONTEXT_H_
 
+#include "base/scoped_ptr.h"
+#include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/automatic/public/html_detector.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "net/instaweb/util/public/thread_system.h"
 
 // The httpd header must be after the
 // apache_rewrite_driver_factory.h. Otherwise, the compiler will
 // complain "strtoul_is_not_a_portable_function_use_strtol_instead".
 #include "httpd.h"
-#include "apr_pools.h"
-
-struct apr_bucket_brigade;
-struct request_rec;
-struct server_rec;
 
 namespace net_instaweb {
 
-class ApacheServerContext;
+class ApacheResourceManager;
 class GzipInflater;
-class RequestHeaders;
-class RewriteDriver;
 class RewriteOptions;
 
 const char kPagespeedOriginalUrl[] = "mod_pagespeed_original_url";
-
-// Generic deleter meant to be used with apr_pool_cleanup_register().
-template <class T>
-apr_status_t apache_cleanup(void* object) {
-  T* resolved = static_cast<T*>(object);
-  delete resolved;
-  return APR_SUCCESS;
-}
-
-// Tracks a single property-cache lookup.
-class PropertyCallback : public PropertyPage {
- public:
-  PropertyCallback(const StringPiece& url,
-                   const StringPiece& options_signature_hash,
-                   UserAgentMatcher::DeviceType device_type,
-                   RewriteDriver* driver,
-                   ThreadSystem* thread_system);
-
-  virtual void Done(bool success);
-
-  void BlockUntilDone();
-
- private:
-  RewriteDriver* driver_;
-  GoogleString url_;
-  bool done_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
-  DISALLOW_COPY_AND_ASSIGN(PropertyCallback);
-};
 
 // Context for an HTML rewrite.
 //
@@ -100,9 +60,8 @@ class InstawebContext {
   InstawebContext(request_rec* request,
                   RequestHeaders* request_headers,
                   const ContentType& content_type,
-                  ApacheServerContext* server_context,
+                  ApacheResourceManager* manager,
                   const GoogleString& base_url,
-                  const RequestContextPtr& request_context,
                   bool use_custom_options,
                   const RewriteOptions& options);
   ~InstawebContext();
@@ -113,7 +72,7 @@ class InstawebContext {
 
   apr_bucket_brigade* bucket_brigade() const { return bucket_brigade_; }
   ContentEncoding content_encoding() const { return  content_encoding_; }
-  ApacheServerContext* apache_server_context() { return server_context_; }
+  ApacheResourceManager* manager() { return resource_manager_; }
   const GoogleString& output() { return output_; }
   bool empty() const { return output_.empty(); }
   void clear() { output_.clear(); }  // TODO(jmarantz): needed?
@@ -128,36 +87,32 @@ class InstawebContext {
   // Populated response_headers_ with the request's headers_out table.
   void PopulateHeaders(request_rec* request);
 
-  // Looks up the apache server context from the server rec.
+  // Looks up the manager from the server rec.
   // TODO(jmarantz): Is there a better place to put this?  It needs to
   // be used by both mod_instaweb.cc and instaweb_handler.cc.
-  static ApacheServerContext* ServerContextFromServerRec(server_rec* server);
+  static ApacheResourceManager* ManagerFromServerRec(server_rec* server);
 
   // Returns a fetchable URI from a request, using the request pool.
-  static const char* MakeRequestUrl(const RewriteOptions& options,
-                                    request_rec* request);
+  static const char* MakeRequestUrl(request_rec* request);
 
  private:
   void ComputeContentEncoding(request_rec* request);
-
-  // Start a new property cache lookup. The caller is responsible for cleaning
-  // up the returned PropertyCallback*.
-  PropertyCallback* InitiatePropertyCacheLookup();
   void ProcessBytes(const char* input, int size);
 
-  // Checks to see if there was an experiment cookie sent with the request.
+  // Checks to see if there was a Furious cookie sent with the request.
   // If there was not, set one, and add a Set-Cookie header to the
   // response headers.
   // If there was one, make sure to set the options state appropriately.
-  void SetExperimentStateAndCookie(request_rec* request,
-                                   RewriteOptions* options);
+  void SetFuriousStateAndCookie(request_rec* request, RewriteOptions* options);
+
+  static apr_status_t Cleanup(void* object);
 
   GoogleString output_;  // content after instaweb rewritten.
   apr_bucket_brigade* bucket_brigade_;
   ContentEncoding content_encoding_;
   const ContentType content_type_;
 
-  ApacheServerContext* server_context_;
+  ApacheResourceManager* resource_manager_;
   RewriteDriver* rewrite_driver_;
   StringWriter string_writer_;
   scoped_ptr<GzipInflater> inflater_;

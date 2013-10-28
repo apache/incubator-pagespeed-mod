@@ -20,6 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DOMAIN_REWRITE_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -28,7 +29,6 @@ namespace net_instaweb {
 
 class HtmlElement;
 class GoogleUrl;
-class ResponseHeaders;
 class RewriteDriver;
 class Statistics;
 class Variable;
@@ -41,9 +41,8 @@ class DomainRewriteFilter : public CommonFilter {
  public:
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
   ~DomainRewriteFilter();
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   virtual void StartDocumentImpl();
-  virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
 
@@ -62,16 +61,11 @@ class DomainRewriteFilter : public CommonFilter {
   // kDomainUnchanged returned.
   RewriteResult Rewrite(const StringPiece& input_url,
                         const GoogleUrl& base_url,
-                        const RewriteDriver* driver,
                         bool apply_sharding,
-                        GoogleString* output_url) const;
-
-  // Update the url in the location header as per the rewrite rules configured
-  // for this domain.
-  void UpdateLocationHeader(const GoogleUrl& base_url, RewriteDriver* driver,
-                            ResponseHeaders* headers) const;
+                        GoogleString* output_url);
 
  private:
+  ResourceTagScanner tag_scanner_;
   // Stats on how much domain-rewriting we've done.
   Variable* rewrite_count_;
 

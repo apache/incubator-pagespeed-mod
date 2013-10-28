@@ -20,35 +20,27 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_MOCK_URL_FETCHER_H_
 
 #include <map>
-
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/platform.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
 
 namespace net_instaweb {
 
-class AsyncFetch;
 class MessageHandler;
-class Timer;
+class MockTimer;
+class RequestHeaders;
+class Writer;
 
 // Simple UrlFetcher meant for tests, you can set responses for individual URLs.
 // Meant only for testing.
-class MockUrlFetcher : public UrlAsyncFetcher {
+class MockUrlFetcher : public UrlFetcher {
  public:
-  // TODO(hujie): We should pass in the mutex at all call-sites instead of
-  //     creating a new mutex here.
   MockUrlFetcher() : enabled_(true), fail_on_unexpected_(true),
                      update_date_headers_(false), omit_empty_writes_(false),
                      fail_after_headers_(false), verify_host_header_(false),
-                     split_writes_(false), supports_https_(false), timer_(NULL),
-                     thread_system_(Platform::CreateThreadSystem()),
-                     mutex_(thread_system_->NewMutex()) {}
+                     timer_(NULL) {}
   virtual ~MockUrlFetcher();
 
   void SetResponse(const StringPiece& url,
@@ -70,26 +62,12 @@ class MockUrlFetcher : public UrlAsyncFetcher {
                               const ResponseHeaders& response_header,
                               const StringPiece& response_body);
 
-  // Fetching unset URLs will cause EXPECT failures as well as Done(false).
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
-
-  virtual bool SupportsHttps() const {
-    ScopedMutex lock(mutex_.get());
-    return supports_https_;
-  }
-
-  void set_fetcher_supports_https(bool supports_https) {
-    ScopedMutex lock(mutex_.get());
-    supports_https_ = supports_https;
-  }
-
-  // Return the referer of this fetching request.
-  const GoogleString& last_referer() {
-    ScopedMutex lock(mutex_.get());
-    return last_referer_;
-  }
+  // Fetching unset URLs will cause EXPECT failures as well as return false.
+  virtual bool StreamingFetchUrl(const GoogleString& url,
+                                 const RequestHeaders& request_headers,
+                                 ResponseHeaders* response_headers,
+                                 Writer* response_writer,
+                                 MessageHandler* message_handler);
 
   // Indicates that the specified URL should respond with headers and data,
   // but still return a 'false' status.  This is similar to a live fetcher
@@ -107,69 +85,31 @@ class MockUrlFetcher : public UrlAsyncFetcher {
 
   // When disabled, fetcher will fail (but not crash) for all requests.
   // Use to simulate temporarily not having access to resources, for example.
-  void Disable() {
-    ScopedMutex lock(mutex_.get());
-    enabled_ = false;
-  }
-  void Enable() {
-    ScopedMutex lock(mutex_.get());
-    enabled_ = true;
-  }
+  void Disable() { enabled_ = false; }
+  void Enable() { enabled_ = true; }
 
   // Set to false if you don't want the fetcher to EXPECT fail on unfound URL.
   // Useful in MockUrlFetcher unittest :)
-  void set_fail_on_unexpected(bool x) {
-    ScopedMutex lock(mutex_.get());
-    fail_on_unexpected_ = x;
-  }
+  void set_fail_on_unexpected(bool x) { fail_on_unexpected_ = x; }
 
   // Update response header's Date using supplied timer.
   // Note: Must set_timer().
-  void set_update_date_headers(bool x) {
-    ScopedMutex lock(mutex_.get());
-    update_date_headers_ = x;
-  }
+  void set_update_date_headers(bool x) { update_date_headers_ = x; }
 
   // If set to true (defaults to false) the fetcher will not emit writes of
   // length 0.
-  void set_omit_empty_writes(bool x) {
-    ScopedMutex lock(mutex_.get());
-    omit_empty_writes_ = x;
-  }
+  void set_omit_empty_writes(bool x) { omit_empty_writes_ = x; }
 
   // If set to true (defaults to false) the fetcher will fail after outputting
   // the headers.  See also SetResponseFailure which fails after writing
   // the body.
-  void set_fail_after_headers(bool x) {
-    ScopedMutex lock(mutex_.get());
-    fail_after_headers_ = x;
-  }
+  void set_fail_after_headers(bool x) { fail_after_headers_ = x; }
 
   // If set to true (defaults to false) the fetcher will verify that the Host:
   // header is present, and matches the host/port of the requested URL.
-  void set_verify_host_header(bool x) {
-    ScopedMutex lock(mutex_.get());
-    verify_host_header_ = x;
-  }
+  void set_verify_host_header(bool x) { verify_host_header_ = x; }
 
-  void set_timer(Timer* timer) {
-    ScopedMutex lock(mutex_.get());
-    timer_ = timer;
-  }
-
-  // If true then each time the fetcher writes it will split the write in half
-  // and write each half separately. This is needed to test that Ajax's
-  // RecordingFetch caches writes properly and recovers from failure.
-  void set_split_writes(bool val) {
-    ScopedMutex lock(mutex_.get());
-    split_writes_ = val;
-  }
-
-  // If this is non-empty, we will write this out any time we report an error.
-  void set_error_message(const GoogleString& msg) {
-    ScopedMutex lock(mutex_.get());
-    error_message_ = msg;
-  }
+  void set_timer(MockTimer* timer) { timer_ = timer; }
 
  private:
   class HttpResponse {
@@ -202,23 +142,16 @@ class MockUrlFetcher : public UrlAsyncFetcher {
   };
   typedef std::map<const GoogleString, HttpResponse*> ResponseMap;
 
-  // Notes: response_map_ should be only changed during setup/teardown, and
-  //     should not be considered thread-safe to change during fetching.
   ResponseMap response_map_;
 
   bool enabled_;
-  bool fail_on_unexpected_;     // Should we EXPECT if unexpected url called?
-  bool update_date_headers_;    // Should we update Date headers from timer?
-  bool omit_empty_writes_;      // Should we call ->Write with length 0?
-  bool fail_after_headers_;     // Should we call Done(false) after headers?
-  bool verify_host_header_;     // Should we verify the Host: header?
-  bool split_writes_;           // Should we turn one write into multiple?
-  bool supports_https_;         // Should we claim HTTPS support?
-  GoogleString error_message_;  // If non empty, we write out this on error
-  Timer* timer_;                // Timer to use for updating header dates.
-  GoogleString last_referer_;   // Referer string.
-  scoped_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  scoped_ptr<AbstractMutex> mutex_;  // Mutex Protect.
+  bool fail_on_unexpected_;   // Should we EXPECT if unexpected url called?
+  bool update_date_headers_;  // Should we update Date headers from timer?
+  bool omit_empty_writes_;    // Should we call ->Write with length 0?
+  bool fail_after_headers_;   // Should we call Done(false) after headers?
+  bool verify_host_header_;   // Should we verify the Host: header?
+
+  MockTimer* timer_;  // Timer to use for updating header dates.
 
   DISALLOW_COPY_AND_ASSIGN(MockUrlFetcher);
 };

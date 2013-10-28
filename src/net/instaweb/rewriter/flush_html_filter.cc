@@ -16,9 +16,11 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include <memory>
+#include <cstddef>  // for NULL
 
-#include "net/instaweb/http/public/semantic_type.h"
+#include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/flush_html_filter.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
@@ -41,10 +43,9 @@ const int kFlushImageScore = 2;    // 40 images induces a flush.
 
 namespace net_instaweb {
 
-class HtmlElement;
-
 FlushHtmlFilter::FlushHtmlFilter(RewriteDriver* driver)
     : CommonFilter(driver),
+      tag_scanner_(driver_),
       score_(0) {
 }
 
@@ -59,31 +60,32 @@ void FlushHtmlFilter::Flush() {
 }
 
 void FlushHtmlFilter::StartElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    switch (attributes[i].category) {
-      case semantic_type::kStylesheet:
-        score_ += kFlushCssScore;
-        break;
-      case semantic_type::kScript:
-        score_ += kFlushScriptScore;
-        break;
-      case semantic_type::kImage:
-        score_ += kFlushImageScore;
-        break;
-      default:
-        break;
+  bool is_hyperlink;
+  HtmlElement::Attribute* href = tag_scanner_.ScanElement(
+      element, &is_hyperlink);
+  if (href != NULL) {
+    HtmlName::Keyword keyword = element->name().keyword();
+    if (keyword == HtmlName::kLink) {
+      score_ += kFlushCssScore;
+    } else if (keyword == HtmlName::kScript) {
+      score_ += kFlushScriptScore;
+    } else if (keyword == HtmlName::kImg) {
+      score_ += kFlushScriptScore;
+    } else {
+      DLOG(FATAL) << "expected Link, Script, or Img";
     }
   }
 }
 
 void FlushHtmlFilter::EndElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  if (!attributes.empty() && score_ >= kFlushScoreThreshold) {
-    score_ = 0;
-    driver_->RequestFlush();
+  bool is_hyperlink;
+  HtmlElement::Attribute* href = tag_scanner_.ScanElement(
+      element, &is_hyperlink);
+  if (href != NULL) {
+    if (score_ >= kFlushScoreThreshold) {
+      score_ = 0;
+      driver_->RequestFlush();
+    }
   }
 }
 

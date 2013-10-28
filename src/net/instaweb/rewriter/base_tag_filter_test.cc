@@ -16,17 +16,17 @@
 
 // Author: nikhilmadan@google.com (Nikhil Madan)
 
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/gtest.h"
 
 namespace net_instaweb {
 
-class BaseTagFilterTest : public RewriteTestBase {
+class BaseTagFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kAddBaseTag);
     rewrite_driver()->AddFilters();
   }

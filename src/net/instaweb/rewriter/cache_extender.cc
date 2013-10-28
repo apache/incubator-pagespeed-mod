@@ -18,44 +18,45 @@
 
 #include "net/instaweb/rewriter/public/cache_extender.h"
 
-#include <memory>
-
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/image_tag_scanner.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/timer.h"
 
+namespace {
+
+// names for Statistics variables.
+const char kCacheExtensions[] = "cache_extensions";
+const char kNotCacheable[] = "not_cacheable";
+
+}  // namespace
+
 namespace net_instaweb {
 class MessageHandler;
 class RewriteContext;
-
-// names for Statistics variables.
-const char CacheExtender::kCacheExtensions[] = "cache_extensions";
-const char CacheExtender::kNotCacheable[] = "not_cacheable";
 
 // We do not want to bother to extend the cache lifetime for any resource
 // that is already cached for a month.
@@ -84,15 +85,16 @@ class CacheExtender::Context : public SingleRewriteContext {
 };
 
 CacheExtender::CacheExtender(RewriteDriver* driver)
-    : RewriteFilter(driver) {
-  Statistics* stats = server_context_->statistics();
+    : RewriteFilter(driver),
+      tag_scanner_(driver_) {
+  Statistics* stats = resource_manager_->statistics();
   extension_count_ = stats->GetVariable(kCacheExtensions);
   not_cacheable_count_ = stats->GetVariable(kNotCacheable);
 }
 
 CacheExtender::~CacheExtender() {}
 
-void CacheExtender::InitStats(Statistics* statistics) {
+void CacheExtender::Initialize(Statistics* statistics) {
   statistics->AddVariable(kCacheExtensions);
   statistics->AddVariable(kNotCacheable);
 }
@@ -113,7 +115,7 @@ bool CacheExtender::ShouldRewriteResource(
     // This also includes the case where a previous filter rewrote this.
     return true;
   }
-  UrlNamer* url_namer = driver_->server_context()->url_namer();
+  UrlNamer* url_namer = driver_->resource_manager()->url_namer();
   GoogleUrl origin_gurl(url);
 
   // We won't initiate a CacheExtender::Context with a pagespeed
@@ -121,77 +123,69 @@ bool CacheExtender::ShouldRewriteResource(
   // the resource after we queued the request, but before our
   // context is asked to rewrite it.  So we have to check again now
   // that the resource URL is finalized.
-  if (server_context_->IsPagespeedResource(origin_gurl)) {
+  if (resource_manager_->IsPagespeedResource(origin_gurl)) {
     return false;
   }
 
   if (url_namer->ProxyMode()) {
     return !url_namer->IsProxyEncoded(origin_gurl);
   }
+  StringPiece origin = origin_gurl.Origin();
   const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
-
-  // We return true for IsProxyMapped because when reconstructing
-  // MAPPED_DOMAIN/file.pagespeed.ce.HASH.ext we won't be changing
-  // the domain (WillDomainChange==false) but we want this function
-  // to return true so that we can reconstruct the cache-extension and
-  // serve the result with long public caching.  Without IsProxyMapped,
-  // we'd serve the result with cache-control:private,max-age=300.
-  return (lawyer->IsProxyMapped(origin_gurl) ||
-          lawyer->WillDomainChange(origin_gurl));
+  return lawyer->WillDomainChange(origin);
 }
 
 void CacheExtender::StartElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    bool may_load = false;
-    switch (attributes[i].category) {
-      case semantic_type::kStylesheet:
-        may_load = driver_->MayCacheExtendCss();
-        break;
-      case semantic_type::kImage:
-        may_load = driver_->MayCacheExtendImages();
-        break;
-      case semantic_type::kScript:
-        may_load = driver_->MayCacheExtendScripts();
-        break;
-      default:
-        // Does the url in the attribute end in .pdf, ignoring query params?
-        if (attributes[i].url->DecodedValueOrNull() != NULL
-            && driver_->MayCacheExtendPdfs()) {
-        GoogleUrl url(driver_->base_url(),
-                      attributes[i].url->DecodedValueOrNull());
-        if (url.IsWebValid() && StringCaseEndsWith(
-                url.LeafSansQuery(), kContentTypePdf.file_extension())) {
-          may_load = true;
-        }
-      }
+  // Disable extend_cache for img if ModPagespeedDisableForBots is on
+  // and the user-agent is a bot.
+  HtmlName::Keyword keyword = element->keyword();
+  bool may_rewrite = false;
+  switch (keyword) {
+    case HtmlName::kLink: {
+      may_rewrite = driver_->MayCacheExtendCss();
       break;
     }
-    if (!may_load) {
-      continue;
+    case HtmlName::kImg:
+    case HtmlName::kInput: {
+      may_rewrite = driver_->MayCacheExtendImages();
+      break;
+    }
+    case HtmlName::kScript: {
+      may_rewrite = driver_->MayCacheExtendScripts();
+      break;
+    }
+    default:
+      break;
+  }
+  if (!may_rewrite) {
+    return;
+  }
+
+  bool is_hyperlink;
+  HtmlElement::Attribute* href = tag_scanner_.ScanElement(
+      element, &is_hyperlink);
+  if (href == NULL) {
+    ImageTagScanner image_scanner(driver_);
+    href = image_scanner.ParseImageElement(element);
+  }
+
+  // TODO(jmarantz): We ought to be able to domain-shard even if the
+  // resources are non-cacheable or privately cacheable.
+  if ((href != NULL) && driver_->IsRewritable(element)) {
+    ResourcePtr input_resource(CreateInputResource(href->DecodedValueOrNull()));
+    if (input_resource.get() == NULL) {
+      return;
     }
 
-    // TODO(jmarantz): We ought to be able to domain-shard even if the
-    // resources are non-cacheable or privately cacheable.
-    if (driver_->IsRewritable(element)) {
-      ResourcePtr input_resource(CreateInputResource(
-          attributes[i].url->DecodedValueOrNull()));
-      if (input_resource.get() == NULL) {
-        continue;
-      }
-
-      GoogleUrl input_gurl(input_resource->url());
-      if (server_context_->IsPagespeedResource(input_gurl)) {
-        continue;
-      }
-
-      ResourceSlotPtr slot(driver_->GetSlot(
-          input_resource, element, attributes[i].url));
-      Context* context = new Context(this, driver_, NULL /* not nested */);
-      context->AddSlot(slot);
-      driver_->InitiateRewrite(context);
+    GoogleUrl input_gurl(input_resource->url());
+    if (resource_manager_->IsPagespeedResource(input_gurl)) {
+      return;
     }
+
+    ResourceSlotPtr slot(driver_->GetSlot(input_resource, element, href));
+    Context* context = new Context(this, driver_, NULL /* not nested */);
+    context->AddSlot(slot);
+    driver_->InitiateRewrite(context);
   }
 }
 
@@ -207,34 +201,7 @@ void CacheExtender::Context::RewriteSingle(
 }
 
 void CacheExtender::Context::Render() {
-  if (num_output_partitions() == 1 && output_partition(0)->optimizable()) {
-    extender_->extension_count_->Add(1);
-    // Log applied rewriter id. Here, we care only about non-nested
-    // cache extensions, and that too, those occurring in synchronous
-    // flows only.
-    if (driver_ != NULL) {
-      if (slot(0)->resource().get() != NULL &&
-          slot(0)->resource()->type() != NULL) {
-        const char* filter_id = id();
-        const ContentType* type = slot(0)->resource()->type();
-        if (type->type() == ContentType::kCss) {
-          filter_id = RewriteOptions::FilterId(
-              RewriteOptions::kExtendCacheCss);
-        } else if (type->type() == ContentType::kJavascript) {
-          filter_id = RewriteOptions::FilterId(
-              RewriteOptions::kExtendCacheScripts);
-        } else if (type->IsImage()) {
-          filter_id = RewriteOptions::FilterId(
-              RewriteOptions::kExtendCacheImages);
-        }
-        // TODO(anupama): Log cache extension for pdfs etc.
-        driver_->log_record()->SetRewriterLoggingStatus(
-            filter_id,
-            slot(0)->resource()->url(),
-            RewriterApplication::APPLIED_OK);
-      }
-    }
-  }
+  extender_->extension_count_->Add(1);
 }
 
 RewriteResult CacheExtender::RewriteLoadedResource(
@@ -245,48 +212,38 @@ RewriteResult CacheExtender::RewriteLoadedResource(
   MessageHandler* message_handler = driver_->message_handler();
   const ResponseHeaders* headers = input_resource->response_headers();
   GoogleString url = input_resource->url();
-  int64 now_ms = server_context_->timer()->NowMs();
+  int64 now_ms = resource_manager_->timer()->NowMs();
 
   // See if the resource is cacheable; and if so whether there is any need
   // to cache extend it.
   bool ok = false;
   const ContentType* output_type = NULL;
-  if (!server_context_->http_cache()->force_caching() &&
-      !headers->IsProxyCacheable()) {
+  if (!resource_manager_->http_cache()->force_caching() &&
+      !(headers->IsCacheable() && headers->IsProxyCacheable())) {
     // Note: RewriteContextTest.PreserveNoCacheWithFailedRewrites
     // relies on CacheExtender failing rewrites in this case.
     // If you change this behavior that test MUST be updated as it covers
     // security.
     not_cacheable_count_->Add(1);
   } else if (ShouldRewriteResource(headers, now_ms, input_resource, url)) {
-    // We must be careful what Content-Types we allow to be cache extended.
-    // Specifically, we do not want to cache extend any Content-Types that
-    // could execute scripts when loaded in a browser because that could
-    // open XSS vectors in case of system misconfiguration.
-    //
-    // We whitelist a set of safe Content-Types here.
-    //
-    // TODO(sligocki): Should we whitelist more Content-Types as well?
-    // We would also have to find and rewrite the URLs to these resources
-    // if we want to cache extend them.
+    // Be careful and turn mimetypes that may include executable scripts
+    // into plaintext if we're cache-extending. This closes off some XSS vectors
+    // in case of system misconfiguration. text/plain is a good choice here
+    // as per http://mimesniff.spec.whatwg.org/ it will never get turned into
+    // anything dangerous. Note that we also whitelist "safe" types here,
+    // to do the safe thing in the case of the unexpected.
     const ContentType* input_type = input_resource->type();
     if (input_type->IsImage() ||  // images get sniffed only to other images
-        (input_type->type() == ContentType::kPdf &&
-         driver_->MayCacheExtendPdfs()) ||  // Don't accept PDFs by default.
         input_type->type() == ContentType::kCss ||  // CSS + JS left as-is.
         input_type->type() == ContentType::kJavascript) {
       output_type = input_type;
-      ok = true;
     } else {
-      // Fail to cache extend a file that isn't an approved type.
-      ok = false;
-
-      // If we decide not to fail to cache extend unapproved types, we
-      // should convert their Content-Type to text/plain because as per
-      // http://mimesniff.spec.whatwg.org/ it will never get turned into
-      // anything dangerous.
+      // Depending on charset, text/plain will either get handled by the
+      // browser as-is or will undergo content-based detection; however that
+      // detection is spec'd to never produce things that can run scripts.
       output_type = &kContentTypeText;
     }
+    ok = true;
   }
 
   if (!ok) {
@@ -314,13 +271,14 @@ RewriteResult CacheExtender::RewriteLoadedResource(
     }
   }
 
-  server_context_->MergeNonCachingResponseHeaders(
+  resource_manager_->MergeNonCachingResponseHeaders(
       input_resource, output_resource);
-  if (driver_->Write(ResourceVector(1, input_resource),
-                     contents,
-                     output_type,
-                     input_resource->charset(),
-                     output_resource.get())) {
+  if (resource_manager_->Write(ResourceVector(1, input_resource),
+                               contents,
+                               output_type,
+                               input_resource->charset(),
+                               output_resource.get(),
+                               message_handler)) {
     return kRewriteOk;
   } else {
     return kRewriteFailed;

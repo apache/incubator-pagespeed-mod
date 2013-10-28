@@ -15,97 +15,54 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 //         lsong@google.com (Libo Song)
 
-#include "net/instaweb/apache/instaweb_context.h"
-
-#include "base/logging.h"
-#include "net/instaweb/apache/apache_server_context.h"
+#include "net/instaweb/apache/apache_resource_manager.h"
+#include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apr_timer.h"
+#include "net/instaweb/apache/instaweb_context.h"
+#include "net/instaweb/apache/interface_mod_spdy.h"
 #include "net/instaweb/apache/header_util.h"
-#include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/public/experiment_matcher.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/condvar.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
-#include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/shared_mem_referer_statistics.h"
 #include "net/instaweb/util/stack_buffer.h"
 #include "apr_strings.h"
 #include "http_config.h"
 #include "http_core.h"
 
+extern "C" {
+extern module AP_MODULE_DECLARE_DATA pagespeed_module;
+}
+
 namespace net_instaweb {
+
+class ApacheResourceManager;
 
 // Number of times to go down the request->prev chain looking for an
 // absolute url.
 const int kRequestChainLimit = 5;
 
-PropertyCallback::PropertyCallback(const StringPiece& url,
-                                   const StringPiece& options_signature_hash,
-                                   UserAgentMatcher::DeviceType device_type,
-                                   RewriteDriver* driver,
-                                   ThreadSystem* thread_system)
-    : PropertyPage(PropertyPage::kPropertyCachePage,
-                   url,
-                   options_signature_hash,
-                   UserAgentMatcher::DeviceTypeSuffix(device_type),
-                   driver->request_context(),
-                   thread_system->NewMutex(),
-                   driver->server_context()->page_property_cache()),
-  driver_(driver),
-  done_(false),
-  mutex_(thread_system->NewMutex()),
-  condvar_(mutex_->NewCondvar()) {
-}
-
-void PropertyCallback::Done(bool success) {
-  ScopedMutex lock(mutex_.get());
-  driver_->set_property_page(this);
-  done_ = true;
-  condvar_->Signal();
-}
-
-void PropertyCallback::BlockUntilDone() {
-  int iters = 0;
-  ScopedMutex lock(mutex_.get());
-  while (!done_) {
-    condvar_->TimedWait(Timer::kSecondMs);
-    if (!done_) {
-      driver_->message_handler()->Message(
-          kError, "Waiting for property cache fetch to complete. "
-          "Elapsed time: %ds", ++iters);
-    }
-  }
-}
-
 InstawebContext::InstawebContext(request_rec* request,
                                  RequestHeaders* request_headers,
                                  const ContentType& content_type,
-                                 ApacheServerContext* server_context,
+                                 ApacheResourceManager* manager,
                                  const GoogleString& absolute_url,
-                                 const RequestContextPtr& request_context,
                                  bool use_custom_options,
                                  const RewriteOptions& options)
     : content_encoding_(kNone),
       content_type_(content_type),
-      server_context_(server_context),
+      resource_manager_(manager),
       string_writer_(&output_),
+      inflater_(NULL),
       absolute_url_(absolute_url),
       request_headers_(request_headers),
       started_parse_(false),
       sent_headers_(false),
       populated_headers_(false) {
-  if (options.running_experiment()) {
-    // The experiment framework requires custom options because it has to make
-    // changes based on what ExperimentSpec the user should be seeing.
+  if (options.running_furious()) {
+    // Furious requires custom options because it has to make changes based on
+    // what ExperimentSpec the user should be seeing.
     use_custom_options = true;
   }
   if (use_custom_options) {
@@ -116,34 +73,22 @@ InstawebContext::InstawebContext(request_rec* request,
     // domain lawyer and other options.
     RewriteOptions* custom_options = options.Clone();
 
-    // If we're running an experiment, determine the state of this request and
-    // reset the options accordingly.
-    if (custom_options->running_experiment()) {
-      SetExperimentStateAndCookie(request, custom_options);
+    // If we're running a Furious experiment, determine the state of this
+    // request and reset the options accordingly.
+    if (custom_options->running_furious()) {
+      SetFuriousStateAndCookie(request, custom_options);
     }
-    server_context_->ComputeSignature(custom_options);
-    rewrite_driver_ = server_context_->NewCustomRewriteDriver(
-        custom_options, request_context);
+    resource_manager_->ComputeSignature(custom_options);
+    rewrite_driver_ = resource_manager_->NewCustomRewriteDriver(custom_options);
   } else {
-    rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
+    rewrite_driver_ = resource_manager_->NewRewriteDriver();
   }
-
-  const char* user_agent = apr_table_get(request->headers_in,
-                                         HttpAttributes::kUserAgent);
-  rewrite_driver_->SetUserAgent(user_agent);
-
-  // Begin the property cache lookup. This should be as early as possible since
-  // it may be asynchronous (in the case of memcached).
-  // TODO(jud): It would be ideal to move this even earlier. As early as, say,
-  // save_url_hook. However, there is no request specific context to save the
-  // result in at that point.
-  PropertyCallback* property_callback(InitiatePropertyCacheLookup());
-
-  rewrite_driver_->EnableBlockingRewrite(request_headers);
+  // Setup fetcher that directs most fetches to localhost.
+  resource_manager_->apache_factory()->ApplyLoopbackFetchRouting(
+      manager, rewrite_driver_, request);
 
   ComputeContentEncoding(request);
-  apr_pool_cleanup_register(request->pool,
-                            this, apache_cleanup<InstawebContext>,
+  apr_pool_cleanup_register(request->pool, this, Cleanup,
                             apr_pool_cleanup_null);
 
   bucket_brigade_ = apr_brigade_create(request->pool,
@@ -160,19 +105,35 @@ InstawebContext::InstawebContext(request_rec* request,
     inflater_->Init();
   }
 
+  SharedMemRefererStatistics* referer_stats =
+      resource_manager_->apache_factory()->shared_mem_referer_statistics();
+  if (referer_stats != NULL && !absolute_url_.empty()) {
+    GoogleUrl target_url(absolute_url_);
+    const char* referer = apr_table_get(request->headers_in,
+                                        HttpAttributes::kReferer);
+    if (referer == NULL) {
+      referer_stats->LogPageRequestWithoutReferer(target_url);
+    } else {
+      GoogleUrl referer_url(referer);
+      referer_stats->LogPageRequestWithReferer(target_url,
+                                               referer_url);
+    }
+  }
+
+  rewrite_driver_->set_using_spdy(
+      mod_spdy_get_spdy_version(request->connection) != 0);
+
+  const char* user_agent = apr_table_get(request->headers_in,
+                                         HttpAttributes::kUserAgent);
+  rewrite_driver_->set_user_agent(user_agent);
   // Make the entire request headers available to filters.
-  rewrite_driver_->SetRequestHeaders(*request_headers_.get());
+  rewrite_driver_->set_request_headers(request_headers_.get());
 
   response_headers_.Clear();
   rewrite_driver_->set_response_headers_ptr(&response_headers_);
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
   rewrite_driver_->SetWriter(&string_writer_);
-
-  // Wait until property cache lookup is complete
-  if (property_callback != NULL) {
-    property_callback->BlockUntilDone();
-  }
 }
 
 InstawebContext::~InstawebContext() {
@@ -208,9 +169,7 @@ void InstawebContext::Finish() {
     // We couldn't determine whether this is HTML or not till the very end,
     // so serve it unmodified.
     html_detector_.ReleaseBuffered(&output_);
-  }
-
-  if (started_parse_) {
+  } else if (started_parse_) {
     rewrite_driver_->FinishParse();
   } else {
     rewrite_driver_->Cleanup();
@@ -219,7 +178,7 @@ void InstawebContext::Finish() {
 
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
-    ApacheRequestToResponseHeaders(*request, &response_headers_, NULL);
+    ApacheRequestToResponseHeaders(*request, &response_headers_);
     populated_headers_ = true;
   }
 }
@@ -260,6 +219,12 @@ void InstawebContext::ProcessBytes(const char* input, int size) {
   }
 }
 
+apr_status_t InstawebContext::Cleanup(void* object) {
+  InstawebContext* ic = static_cast<InstawebContext*>(object);
+  delete ic;
+  return APR_SUCCESS;
+}
+
 void InstawebContext::ComputeContentEncoding(request_rec* request) {
   // Check if the content is gzipped. Steal from mod_deflate.
   const char* encoding = apr_table_get(request->headers_out,
@@ -287,30 +252,9 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
   }
 }
 
-PropertyCallback* InstawebContext::InitiatePropertyCacheLookup() {
-  PropertyCallback* property_callback = NULL;
-  if (server_context_->page_property_cache()->enabled()) {
-    const UserAgentMatcher* user_agent_matcher =
-        server_context_->user_agent_matcher();
-    UserAgentMatcher::DeviceType device_type =
-        user_agent_matcher->GetDeviceTypeForUA(rewrite_driver_->user_agent());
-    GoogleString options_signature_hash =
-        server_context_->GetRewriteOptionsSignatureHash(
-            rewrite_driver_->options());
-    property_callback = new PropertyCallback(
-        absolute_url_,
-        options_signature_hash,
-        device_type,
-        rewrite_driver_,
-        server_context_->thread_system());
-    server_context_->page_property_cache()->Read(property_callback);
-  }
-  return property_callback;
-}
-
-ApacheServerContext* InstawebContext::ServerContextFromServerRec(
+ApacheResourceManager* InstawebContext::ManagerFromServerRec(
     server_rec* server) {
-  return static_cast<ApacheServerContext*>
+  return static_cast<ApacheResourceManager*>
       ap_get_module_config(server->module_config, &pagespeed_module);
 }
 
@@ -321,107 +265,75 @@ ApacheServerContext* InstawebContext::ServerContextFromServerRec(
 // url.  Therefore, if we have not yet stored the url, check to see if
 // there was a previous request in this chain, and use its url as the
 // original.
-const char* InstawebContext::MakeRequestUrl(const RewriteOptions& options,
-                                            request_rec* request) {
-  const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
+const char* InstawebContext::MakeRequestUrl(request_rec* request) {
+  const char *url = apr_table_get(request->notes, kPagespeedOriginalUrl);
 
-  if (url == NULL) {
-    // Go down the prev chain to see if there this request was a rewrite
-    // from another one.  We want to store the uri the user passed in,
-    // not what we re-wrote it to.  We should not iterate down this
-    // chain more than once (MakeRequestUrl will already have been
-    // called for request->prev, before this request is created).
-    // However, max out at 5 iterations, just in case.
-    request_rec *prev = request->prev;
-    for (int i = 0; (url == NULL) && (prev != NULL) && (i < kRequestChainLimit);
-         ++i, prev = prev->prev) {
-      url = apr_table_get(prev->notes, kPagespeedOriginalUrl);
-    }
-
-    // Chase 'main' chain as well, clamping at kRequestChainLimit loops.
-    // This will eliminate spurious 'index.html' noise we've seen from
-    // slurps.  See 'make apache_debug_slurp_test' -- the attempt to
-    // slurp 'www.example.com'.  The reason this is necessary is that
-    // mod_dir.c's fixup_dir() calls ap_internal_fast_redirect in
-    // http_request.c, which mutates the original requests's uri fields,
-    // leaving little trace of the url we actually need to resolve.  Also
-    // note that http_request.c:ap_internal_fast_redirect 'overlays'
-    // the source r.notes onto the dest r.notes, which in this case would
-    // work against us if we don't first propagate the OriginalUrl.
-    request_rec *main = request->main;
-    for (int i = 0; (url == NULL) && (main != NULL) && (i < kRequestChainLimit);
-         ++i, main = main->main) {
-      url = apr_table_get(main->notes, kPagespeedOriginalUrl);
-    }
-
-    /*
-     * In some contexts we are seeing relative URLs passed
-     * into request->unparsed_uri.  But when using mod_slurp, the rewritten
-     * HTML contains complete URLs, so this construction yields the host:port
-     * prefix twice.
-     *
-     * TODO(jmarantz): Figure out how to do this correctly at all times.
-     */
-    if (url == NULL) {
-      if ((strncmp(request->unparsed_uri, "http://", 7) == 0) ||
-          (strncmp(request->unparsed_uri, "https://", 8) == 0)) {
-        url = apr_pstrdup(request->pool, request->unparsed_uri);
-      } else {
-        url = ap_construct_url(request->pool, request->unparsed_uri, request);
-      }
-    }
-
-    // Fix URL based on X-Forwarded-Proto.
-    // http://code.google.com/p/modpagespeed/issues/detail?id=546
-    // For example, if Apache gives us the URL "http://www.example.com/"
-    // and there is a header: "X-Forwarded-Proto: https", then we update
-    // this base URL to "https://www.example.com/".
-    if (options.respect_x_forwarded_proto()) {
-      const char* x_forwarded_proto =
-          apr_table_get(request->headers_in, HttpAttributes::kXForwardedProto);
-      if (x_forwarded_proto != NULL) {
-        if (StringCaseEqual(x_forwarded_proto, "http") ||
-            StringCaseEqual(x_forwarded_proto, "https")) {
-          StringPiece url_sp(url);
-          StringPiece::size_type colon_pos = url_sp.find(":");
-          if (colon_pos != StringPiece::npos) {
-            // Replace URL protocol with that specified in X-Forwarded-Proto.
-            GoogleString new_url =
-                StrCat(x_forwarded_proto, url_sp.substr(colon_pos));
-            url = apr_pstrdup(request->pool, new_url.c_str());
-          }
-        } else {
-          LOG(WARNING) << "Unsupported X-Forwarded-Proto: " << x_forwarded_proto
-                       << " for URL " << url << " protocol not changed.";
-        }
-      }
-    }
-
-    // Note: apr_table_setn does not take ownership of url, it is owned by
-    // the Apache pool.
-    apr_table_setn(request->notes, kPagespeedOriginalUrl, url);
+  // Go down the prev chain to see if there this request was a rewrite
+  // from another one.  We want to store the uri the user passed in,
+  // not what we re-wrote it to.  We should not iterate down this
+  // chain more than once (MakeRequestUrl will already have been
+  // called for request->prev, before this request is created).
+  // However, max out at 5 iterations, just in case.
+  request_rec *prev = request->prev;
+  for (int i = 0; (url == NULL) && (prev != NULL) && (i < kRequestChainLimit);
+       ++i, prev = prev->prev) {
+    url = apr_table_get(prev->notes, kPagespeedOriginalUrl);
   }
+
+  // Chase 'main' chain as well, clamping at kRequestChainLimit loops.
+  // This will eliminate spurious 'index.html' noise we've seen from
+  // slurps.  See 'make apache_debug_slurp_test' -- the attempt to
+  // slurp 'www.example.com'.  The reason this is necessary is that
+  // mod_dir.c's fixup_dir() calls ap_internal_fast_redirect in
+  // http_request.c, which mutates the original requests's uri fields,
+  // leaving little trace of the url we actually need to resolve.  Also
+  // note that http_request.c:ap_internal_fast_redirect 'overlays'
+  // the source r.notes onto the dest r.notes, which in this case would
+  // work against us if we don't first propagate the OriginalUrl.
+  request_rec *main = request->main;
+  for (int i = 0; (url == NULL) && (main != NULL) && (i < kRequestChainLimit);
+       ++i, main = main->main) {
+    url = apr_table_get(main->notes, kPagespeedOriginalUrl);
+  }
+
+  /*
+   * In some contexts we are seeing relative URLs passed
+   * into request->unparsed_uri.  But when using mod_slurp, the rewritten
+   * HTML contains complete URLs, so this construction yields the host:port
+   * prefix twice.
+   *
+   * TODO(jmarantz): Figure out how to do this correctly at all times.
+   */
+  if (url == NULL) {
+    if ((strncmp(request->unparsed_uri, "http://", 7) == 0) ||
+        (strncmp(request->unparsed_uri, "https://", 8) == 0)) {
+      url = apr_pstrdup(request->pool, request->unparsed_uri);
+    } else {
+      url = ap_construct_url(request->pool, request->unparsed_uri, request);
+    }
+  }
+  apr_table_setn(request->notes, kPagespeedOriginalUrl, url);
   return url;
 }
 
-void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
-                                                  RewriteOptions* options) {
+void InstawebContext::SetFuriousStateAndCookie(request_rec* request,
+                                               RewriteOptions* options) {
+  int furious_value;
   // If we didn't get a valid (i.e. currently-running experiment) value from
   // the cookie, determine which experiment this request should end up in
   // and set the cookie accordingly.
-  bool need_cookie = server_context_->experiment_matcher()->
-      ClassifyIntoExperiment(*request_headers_, options);
-  if (need_cookie) {
+  if (!furious::GetFuriousCookieState(*request_headers_, &furious_value)) {
     ResponseHeaders resp_headers;
     AprTimer timer;
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
-    int experiment_value = options->experiment_id();
-    server_context_->experiment_matcher()->StoreExperimentData(
-        experiment_value, url,
-        timer.NowMs() + options->experiment_cookie_duration_ms(),
-        &resp_headers);
-    ResponseHeadersToApacheRequest(resp_headers, request);
+    furious_value = furious::DetermineFuriousState(options);
+    if (furious_value != furious::kFuriousNotSet) {
+      furious::SetFuriousCookie(&resp_headers, furious_value, url,
+                                timer.NowMs());
+      AddResponseHeadersToRequest(resp_headers, request);
+    }
   }
+  options->SetFuriousState(furious_value);
 }
 
 }  // namespace net_instaweb

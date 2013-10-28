@@ -41,7 +41,7 @@ class MetaTagFilter : public CommonFilter {
   explicit MetaTagFilter(RewriteDriver* rewrite_driver);
   virtual ~MetaTagFilter();
 
-  static void InitStats(Statistics* stats);
+  static void Initialize(Statistics* stats);
 
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}
@@ -57,12 +57,6 @@ class MetaTagFilter : public CommonFilter {
   virtual void Flush();
 
   virtual const char* Name() const { return "ConvertMetaTags"; }
-
-  // Utility function to extract the mime type and/or charset from a meta tag
-  // and update the response_headers if they are not set already.
-  static bool ExtractAndUpdateMetaTagDetails(
-      HtmlElement* element,
-      ResponseHeaders* response_headers);
 
  private:
   ResponseHeaders* response_headers_;

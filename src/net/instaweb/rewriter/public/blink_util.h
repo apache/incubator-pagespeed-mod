@@ -23,23 +23,26 @@
 #include <utility>
 #include <vector>
 
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/json.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class AsyncFetch;
 class GoogleUrl;
 class HtmlElement;
+class Layout;
 class Panel;
 class PanelSet;
-class ServerContext;
+class PublisherConfig;
+class RequestHeaders;
+class ResourceManager;
+class RewriteOptions;
+class UserAgentMatcher;
 
 typedef std::map<GoogleString, const Panel*> PanelIdToSpecMap;
-typedef std::multimap<GoogleString, std::pair<GoogleString, const int>,
-        StringCompareInsensitive> AttributesToNonCacheableValuesMap;
+typedef std::multimap<GoogleString, std::pair<GoogleString, const int> >
+    AttributesToNonCacheableValuesMap;
 
 namespace BlinkUtil {
 
@@ -52,30 +55,64 @@ const char kStartBodyMarker[] = "<!--GooglePanel **** Start body ****-->";
 const char kEndBodyTag[] = "</body>";
 const char kLayoutMarker[] = "<!--GooglePanel **** Layout end ****-->";
 const char kJsonCachePrefix[] = "json:";
-// TODO(mmohabey): Use RewriteDriver::kStatusCodePropertyName here.
 const char kBlinkResponseCodePropertyName[] = "blink_last_response_code";
-const char kXpath[] = "xpath";
-// TODO(rahulbansal): Use these constants everywhere in the code from here.
-const char kBlinkCohort[] = "blink";
-const char kBlinkCriticalLineDataPropertyName[] = "blink_critical_line_data";
-const char kCacheHtmlRewriterInfo[] = "cache_html";
-const char kComputeVisibleTextFilterOutputEndMarker[] =
-    "<!--GooglePanel **** Output end ****-->";
 
 // Checks whether the request for 'url' is a valid blink request.
 bool IsBlinkRequest(const GoogleUrl& url,
-                    AsyncFetch* async_fetch,
+                    const RequestHeaders* request_headers,
                     const RewriteOptions* options,
                     const char* user_agent,
-                    const ServerContext* server_context,
-                    RewriteOptions::Filter filter);
+                    const UserAgentMatcher& user_agent_matcher_);
 
+// Checks if blink critical line flow can be applied.
+bool ShouldApplyBlinkFlowCriticalLine(
+    const ResourceManager* manager,
+    const RewriteOptions* options);
+
+// Returns a pointer to the corresponding Layout, and NULL otherwise.
+const Layout* ExtractBlinkLayout(const GoogleUrl& url, RewriteOptions* options,
+                                 const StringPiece& user_agent);
+
+// Finds the layout for the given request_url.
+const Layout* FindLayout(const PublisherConfig& config,
+                         const GoogleUrl& request_url);
+
+// Splits complete json into critical and non-critical and stores
+// them in corresponding member strings. must be called with mutex_ held.
+void SplitCritical(const Json::Value& complete_json,
+                   const PanelIdToSpecMap& panel_id_to_spec,
+                   GoogleString* critical_json_str,
+                   GoogleString* non_critical_json_str,
+                   GoogleString* pushed_images_str);
+
+// Splits complete json array into critical, non-cacheable and non-cacheable
+// arrays.
+void SplitCriticalArray(const Json::Value& complete_json,
+                        const PanelIdToSpecMap& panel_id_to_spec,
+                        Json::Value* critical_json,
+                        Json::Value* non_cacheable_json,
+                        Json::Value* non_critical_json,
+                        bool panel_valid,
+                        int num_critical_instances,
+                        Json::Value* pushed_images);
+// Splits complete json object into critical, non-cacheable and non-cacheable
+// objects.
+void SplitCriticalObj(const Json::Value& json_obj,
+                      const PanelIdToSpecMap& panel_id_to_spec,
+                      Json::Value* critical_obj,
+                      Json::Value* non_cacheable_obj,
+                      Json::Value* non_critical_obj,
+                      bool panel_cacheable,
+                      Json::Value* pushed_images);
 // Returns true if json has only miscellaneous(like 'contiguous')
 // atributes.
 bool IsJsonEmpty(const Json::Value& json);
 
 // Clears the json array if all objects are empty.
 void ClearArrayIfAllEmpty(Json::Value* json);
+
+// Deletes images from given json.
+void DeleteImagesFromJson(Json::Value* json);
 
 // Computes panel id to specification map and returns if any non cacheable
 // panels are present.
@@ -88,16 +125,21 @@ void EscapeString(GoogleString* str);
 // TODO(rahulbansal): Move this function to net/instaweb/util/string_util
 bool StripTrailingNewline(GoogleString* s);
 
+// Gets non cacheable elements for this url.
+StringPiece GetNonCacheableElements(
+    const GoogleString& atf_non_cacheable_elements, const GoogleUrl& url);
+
 // Populates the attributes to non cacheable values map.
 void PopulateAttributeToNonCacheableValuesMap(
-    const RewriteOptions* rewrite_options,
+    const GoogleString& atf_non_cacheable_elements,
     const GoogleUrl& url,
     AttributesToNonCacheableValuesMap* attribute_non_cacheable_values_map,
     std::vector<int>* panel_number_num_instances);
 
 // Returns panel number for non cacheable element. If cacheable returns -1.
 int GetPanelNumberForNonCacheableElement(
-    const AttributesToNonCacheableValuesMap& attribute_non_cacheable_values_map,
+    const AttributesToNonCacheableValuesMap&
+        attribute_non_cacheable_values_map,
     const HtmlElement* element);
 
 // Gets panel id for the given panel instance.

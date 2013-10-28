@@ -20,11 +20,13 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
@@ -32,46 +34,69 @@
 
 namespace net_instaweb {
 
+const char JsDeferDisabledFilter::kSuffix[] =
+      "\npagespeed.deferInit();\n"
+      "pagespeed.addOnload(window, function() {\n"
+      "  pagespeed.deferJs.registerScriptTags();\n"
+      "  pagespeed.deferJs.run();\n"
+      "});\n";
+
 JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
-    : CommonFilter(driver) {
+    : rewrite_driver_(driver),
+      script_written_(false),
+      defer_js_enabled_(false),
+      debug_(driver->options()->Enabled(RewriteOptions::kDebug)) {
 }
 
 JsDeferDisabledFilter::~JsDeferDisabledFilter() { }
 
-void JsDeferDisabledFilter::DetermineEnabled() {
-  set_is_enabled(ShouldApply(driver()) &&
-                 !driver()->flushing_cached_html() &&
-                 !driver()->flushed_cached_html());
+void JsDeferDisabledFilter::StartDocument() {
+  script_written_ = false;
+  defer_js_enabled_ = rewrite_driver_->UserAgentSupportsJsDefer();
 }
 
-bool JsDeferDisabledFilter::ShouldApply(RewriteDriver* driver) {
-  return driver->request_properties()->SupportsJsDefer(
-      driver->options()->enable_aggressive_rewriters_for_mobile()) &&
-      !driver->flushing_early();
+void JsDeferDisabledFilter::StartElement(HtmlElement* element) {
+  if (defer_js_enabled_ && element->keyword() == HtmlName::kBody &&
+      !script_written_) {
+    HtmlElement* head_node =
+        rewrite_driver_->NewElement(element->parent(), HtmlName::kHead);
+    rewrite_driver_->InsertElementBeforeCurrent(head_node);
+    InsertJsDeferCode(head_node);
+  }
 }
 
-void JsDeferDisabledFilter::InsertJsDeferCode() {
-  StaticAssetManager* static_asset_manager =
-      driver()->server_context()->static_asset_manager();
-  const RewriteOptions* options = driver()->options();
-  // Insert script node with deferJs code as outlined.
-  HtmlElement* defer_js_url_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
-  driver()->AddAttribute(defer_js_url_node, HtmlName::kType,
+void JsDeferDisabledFilter::EndElement(HtmlElement* element) {
+  if (defer_js_enabled_ && element->keyword() == HtmlName::kHead &&
+      !script_written_) {
+    InsertJsDeferCode(element);
+  }
+}
+
+void JsDeferDisabledFilter::InsertJsDeferCode(HtmlElement* element) {
+  HtmlElement* script_node =
+      rewrite_driver_->NewElement(element, HtmlName::kScript);
+  rewrite_driver_->AddAttribute(script_node, HtmlName::kType,
                                 "text/javascript");
-  driver()->AddAttribute(
-      defer_js_url_node, HtmlName::kSrc,
-      static_asset_manager->GetAssetUrl(StaticAssetManager::kDeferJs, options));
-
-  InsertNodeAtBodyEnd(defer_js_url_node);
+  StaticJavascriptManager* static_js_manager =
+      rewrite_driver_->resource_manager()->static_javascript_manager();
+  StringPiece defer_js_script =
+      static_js_manager->GetJsSnippet(
+          StaticJavascriptManager::kDeferJs, rewrite_driver_->options());
+  const GoogleString& defer_js =
+      StrCat(defer_js_script, JsDeferDisabledFilter::kSuffix);
+  HtmlNode* script_code =
+      rewrite_driver_->NewCharactersNode(script_node, defer_js);
+  rewrite_driver_->AppendChild(element, script_node);
+  rewrite_driver_->AppendChild(script_node, script_code);
+  script_written_ = true;
 }
 
 void JsDeferDisabledFilter::EndDocument() {
-  if (!ShouldApply(driver())) {
-    return;
+  if (defer_js_enabled_ && !script_written_) {
+    // Scripts never get executed if this happen.
+    rewrite_driver_->InfoHere("HEAD tag didn't close or no BODY tag found");
+    // TODO(atulvasu): Try to write here.
   }
-
-  InsertJsDeferCode();
 }
 
 }  // namespace net_instaweb

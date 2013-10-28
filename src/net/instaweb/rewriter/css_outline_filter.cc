@@ -18,17 +18,17 @@
 
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
-#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -45,7 +45,6 @@ const char CssOutlineFilter::kFilterId[] = "co";
 CssOutlineFilter::CssOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       inline_element_(NULL),
-      inline_chars_(NULL),
       size_threshold_bytes_(driver->options()->css_outline_min_bytes()) {
 }
 
@@ -53,7 +52,7 @@ CssOutlineFilter::~CssOutlineFilter() {}
 
 void CssOutlineFilter::StartDocumentImpl() {
   inline_element_ = NULL;
-  inline_chars_ = NULL;
+  buffer_.clear();
 }
 
 void CssOutlineFilter::StartElementImpl(HtmlElement* element) {
@@ -61,38 +60,69 @@ void CssOutlineFilter::StartElementImpl(HtmlElement* element) {
   if (inline_element_ != NULL) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
     driver_->ErrorHere("Tag '%s' found inside style.",
-                       CEscape(element->name_str()).c_str());
+                           element->name_str());
     inline_element_ = NULL;  // Don't outline what we don't understand.
-    inline_chars_ = NULL;
+    buffer_.clear();
   }
   if (element->keyword() == HtmlName::kStyle) {
     inline_element_ = element;
-    inline_chars_ = NULL;
+    buffer_.clear();
   }
 }
 
 void CssOutlineFilter::EndElementImpl(HtmlElement* element) {
   if (inline_element_ != NULL) {
-    CHECK(element == inline_element_);
-    if (inline_chars_ != NULL &&
-        inline_chars_->contents().size() >= size_threshold_bytes_) {
-      OutlineStyle(inline_element_, inline_chars_->contents());
+    if (element != inline_element_) {
+      // No other tags allowed inside style element.
+      driver_->ErrorHere("Tag '%s' found inside style.",
+                                 element->name_str());
+
+    } else if (buffer_.size() >= size_threshold_bytes_) {
+      OutlineStyle(inline_element_, buffer_);
+    } else {
+      driver_->InfoHere("Inline element not outlined because its size %d, "
+                                "is below threshold %d",
+                                static_cast<int>(buffer_.size()),
+                                static_cast<int>(size_threshold_bytes_));
     }
     inline_element_ = NULL;
-    inline_chars_ = NULL;
+    buffer_.clear();
   }
 }
 
 void CssOutlineFilter::Flush() {
   // If we were flushed in a style element, we cannot outline it.
   inline_element_ = NULL;
-  inline_chars_ = NULL;
+  buffer_.clear();
 }
 
 void CssOutlineFilter::Characters(HtmlCharactersNode* characters) {
   if (inline_element_ != NULL) {
-    CHECK(inline_chars_ == NULL) << "Multiple character blocks in style.";
-    inline_chars_ = characters;
+    buffer_ += characters->contents();
+  }
+}
+
+void CssOutlineFilter::Comment(HtmlCommentNode* comment) {
+  if (inline_element_ != NULL) {
+    driver_->ErrorHere("Comment found inside style.");
+    inline_element_ = NULL;  // Don't outline what we don't understand.
+    buffer_.clear();
+  }
+}
+
+void CssOutlineFilter::Cdata(HtmlCdataNode* cdata) {
+  if (inline_element_ != NULL) {
+    driver_->ErrorHere("CDATA found inside style.");
+    inline_element_ = NULL;  // Don't outline what we don't understand.
+    buffer_.clear();
+  }
+}
+
+void CssOutlineFilter::IEDirective(HtmlIEDirectiveNode* directive) {
+  if (inline_element_ != NULL) {
+    driver_->ErrorHere("IE Directive found inside style.");
+    inline_element_ = NULL;  // Don't outline what we don't understand.
+    buffer_.clear();
   }
 }
 
@@ -103,9 +133,9 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
   // We don't provide charset here since in general we can just inherit
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
-  // TODO(matterbury) but AFAICT you cannot have a BOM in a <style> tag.
-  return driver_->Write(
-      ResourceVector(), content, &kContentTypeCss, StringPiece(), resource);
+  return resource_manager_->Write(
+      ResourceVector(), content, &kContentTypeCss, StringPiece(),
+      resource, handler);
 }
 
 // Create file with style content and remove that element from DOM.
@@ -122,8 +152,9 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
       // Create outline resource at the document location,
       // not base URL location.
       OutputResourcePtr output_resource(
-          driver_->CreateOutputResourceWithUnmappedUrl(
-              driver_->google_url(), kFilterId, "_", kOutlinedResource));
+          driver_->CreateOutputResourceWithUnmappedPath(
+              driver_->google_url().AllExceptLeaf(), kFilterId, "_",
+              kOutlinedResource));
 
       if (output_resource.get() != NULL) {
         // Rewrite URLs in content.
@@ -150,18 +181,16 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
           driver_->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
           driver_->AddAttribute(link_element, HtmlName::kHref,
                                 output_resource->url());
-          // Add all style attributes to link.
-          const HtmlElement::AttributeList& attrs = style_element->attributes();
-          for (HtmlElement::AttributeConstIterator i(attrs.begin());
-               i != attrs.end(); ++i) {
-            const HtmlElement::Attribute& attr = *i;
+          // Add all style atrributes to link.
+          for (int i = 0; i < style_element->attribute_size(); ++i) {
+            const HtmlElement::Attribute& attr = style_element->attribute(i);
             link_element->AddAttribute(attr);
           }
           // Add link to DOM.
-          driver_->InsertNodeAfterNode(style_element, link_element);
+          driver_->InsertElementAfterElement(style_element, link_element);
           // Remove style element from DOM.
-          if (!driver_->DeleteNode(style_element)) {
-            driver_->FatalErrorHere("Failed to delete inline style element");
+          if (!driver_->DeleteElement(style_element)) {
+            driver_->FatalErrorHere("Failed to delete inline sytle element");
           }
         }
       }

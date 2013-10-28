@@ -24,7 +24,6 @@
 #include <cstring>  // memcpy
 
 #include "strings/ascii_ctype.h"  // ascii_tolower
-#include "strings/memutil.h"
 #include "util/utf8/public/unicodetext.h"
 
 namespace Css {
@@ -72,32 +71,5 @@ UnicodeText LowercaseAscii(const UnicodeText& in_text) {
   return out_text;
 }
 
-bool StringCaseEquals(const StringPiece& a, const StringPiece& b) {
-  return (a.size() == b.size() &&
-          (memcasecmp(a.data(), b.data(), a.size()) == 0));
-}
-
-bool StringCaseEquals(const UnicodeText& ident, const StringPiece& str) {
-  return (ident.utf8_length() == str.size() &&
-          (memcasecmp(str.data(), ident.utf8_data(), str.size()) == 0));
-}
-
-std::vector<StringPiece> SplitSkippingEmpty(StringPiece full, char delim) {
-  std::vector<StringPiece> result;
-
-  StringPiece::size_type begin_index, end_index;
-  begin_index = full.find_first_not_of(delim);
-  while (begin_index != StringPiece::npos) {
-    end_index = full.find_first_of(delim, begin_index);
-    if (end_index == StringPiece::npos) {
-      result.push_back(full.substr(begin_index));
-      break;
-    }
-    result.push_back(full.substr(begin_index, end_index - begin_index));
-    begin_index = full.find_first_not_of(delim, end_index);
-  }
-
-  return result;
-}
 
 }  // namespace Css

@@ -19,20 +19,20 @@
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class UrlLeftTrimFilterTest : public RewriteTestBase {
+class UrlLeftTrimFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     left_trim_filter_.reset(new UrlLeftTrimFilter(rewrite_driver(),
                                                   statistics()));
     rewrite_driver()->AddFilter(left_trim_filter_.get());
@@ -288,7 +288,7 @@ TEST_F(UrlLeftTrimFilterTest, DoubleSlashPath) {
 
 TEST_F(UrlLeftTrimFilterTest, DoubleSlashBeginningPath) {
   SetFilterBaseUrl("http://foo.bar/index.html");
-  OneTrim(false, "http://foo.bar//other.html", "http://foo.bar//other.html");
+  OneTrim(true, "http://foo.bar//other.html", "other.html");
 }
 
 TEST_F(UrlLeftTrimFilterTest, TripleSlashPath) {

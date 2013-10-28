@@ -21,19 +21,20 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"            // for scoped_ptr
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/mock_time_cache.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_util.h"        // for StringPiece
 
 namespace net_instaweb {
 
-class CachePropertyStore;
+class CacheInterface;
 class CountingUrlAsyncFetcher;
 class DelayCache;
+class FakeUrlAsyncFetcher;
 class FileSystem;
 class Hasher;
 class HtmlFilter;
@@ -44,20 +45,15 @@ class MockHasher;
 class MockMessageHandler;
 class MockScheduler;
 class MockTimer;
-class MockTimeCache;
 class MockUrlFetcher;
-class NonceGenerator;
-class RateControllingUrlAsyncFetcher;
-class ServerContext;
 class RewriteDriver;
 class RewriteFilter;
 class RewriteOptions;
 class Scheduler;
-class Statistics;
-class TestDistributedFetcher;
 class ThreadsafeCache;
 class Timer;
 class UrlAsyncFetcher;
+class UrlFetcher;
 class UrlNamer;
 class WaitUrlAsyncFetcher;
 
@@ -67,13 +63,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
  public:
   static const int64 kStartTimeMs;  // Arbitrary time to start MockTimer.
   static const char kUrlNamerScheme[];  // Env.var URL_NAMER_SCHEME
-
-  // These constants are used to initialize the rate-controlling fetcher,
-  // which is instantiated unconditionally, with limits high enough that
-  // no tests will hit this unless they are trying to.
-  static const int kMaxFetchGlobalQueueSize = 500;
-  static const int kFetchesPerHostOutgoingRequestThreshold = 100;
-  static const int kFetchesPerHostQueuedRequestThreshold = 500;
 
   class CreateFilterCallback {
    public:
@@ -106,28 +95,22 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   };
 
   TestRewriteDriverFactory(const StringPiece& temp_dir,
-                           MockUrlFetcher* mock_fetcher,
-                           TestDistributedFetcher* test_distributed_fetcher);
+                           MockUrlFetcher* mock_fetcher);
   virtual ~TestRewriteDriverFactory();
 
-  static void InitStats(Statistics* statistics);
-
   DelayCache* delay_cache() { return delay_cache_; }
-  LRUCache* lru_cache() { return lru_cache_.get(); }
+  LRUCache* lru_cache() { return lru_cache_; }
   MockTimer* mock_timer() { return mock_timer_; }
   MockHasher* mock_hasher() { return mock_hasher_; }
   MemFileSystem* mem_file_system() { return mem_file_system_; }
-  MockUrlFetcher* mock_url_async_fetcher() {
-    return mock_url_fetcher_;
+  FakeUrlAsyncFetcher* mock_url_async_fetcher() {
+    return mock_url_async_fetcher_.get();
   }
   WaitUrlAsyncFetcher* wait_url_async_fetcher() {
     return wait_url_async_fetcher_.get();
   }
   CountingUrlAsyncFetcher* counting_url_async_fetcher() {
-    return counting_url_async_fetcher_.get();
-  }
-  CountingUrlAsyncFetcher* counting_distributed_async_fetcher() {
-    return counting_distributed_async_fetcher_;
+    return counting_url_async_fetcher_;
   }
   MockTimeCache* mock_time_cache() { return mock_time_cache_.get(); }
 
@@ -156,15 +139,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     rewriter_callback_vector_.clear();
   }
 
-  // By default this is false, but can be reset.
-  virtual bool UseBeaconResultsInFilters() const {
-    return use_beacon_results_in_filters_;
-  }
-
-  void set_use_beacon_results_in_filters(bool b) {
-    use_beacon_results_in_filters_ = b;
-  }
-
   // Does NOT take ownership of the callback.
   void AddPlatformSpecificConfigurationCallback(
       PlatformSpecificConfigurationCallback* callback) {
@@ -177,9 +151,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
 
   // Note that this disables ajax rewriting by default.
   virtual RewriteOptions* NewRewriteOptions();
-
-  // Note that this enables html proxying.
-  virtual ServerContext* NewServerContext();
 
   virtual bool IsDebugClient(const GoogleString& ip) const {
     return ip == "127.0.0.1";
@@ -195,27 +166,15 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     return add_platform_specific_decoding_passes_;
   }
 
-  // Advances the mock scheduler by delta_ms.
-  void AdvanceTimeMs(int64 delta_ms);
-
-  // Sets up the cohort in the PropertyCache provided.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort_name);
-
-  CachePropertyStore* cache_property_store() {
-    return cache_property_store_;
-  }
-
  protected:
   virtual Hasher* NewHasher();
   virtual MessageHandler* DefaultHtmlParseMessageHandler();
   virtual MessageHandler* DefaultMessageHandler();
+  virtual UrlFetcher* DefaultUrlFetcher();
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
-  virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher();
   virtual FileSystem* DefaultFileSystem();
-  virtual NonceGenerator* DefaultNonceGenerator();
   virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
+  virtual CacheInterface* DefaultCacheInterface();
   virtual UrlNamer* DefaultUrlNamer();
   virtual Scheduler* CreateScheduler();
   virtual void AddPlatformSpecificDecodingPasses(RewriteDriver* driver);
@@ -224,15 +183,14 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
 
  private:
   MockTimer* mock_timer_;  // owned by base class timer_.
-  MockScheduler* mock_scheduler_;  // owned by RewriteDriverFactory::scheduler_.
+  MockScheduler* mock_scheduler_;  // owned by base class scheduler_;
   DelayCache* delay_cache_;
   scoped_ptr<ThreadsafeCache> threadsafe_cache_;
-  scoped_ptr<LRUCache> lru_cache_;
+  LRUCache* lru_cache_;
+  UrlFetcher* proxy_url_fetcher_;
   MockUrlFetcher* mock_url_fetcher_;
-  TestDistributedFetcher* test_distributed_fetcher_;
-  scoped_ptr<CountingUrlAsyncFetcher> counting_url_async_fetcher_;
-  RateControllingUrlAsyncFetcher* rate_controlling_url_async_fetcher_;
-  CountingUrlAsyncFetcher* counting_distributed_async_fetcher_;
+  scoped_ptr<FakeUrlAsyncFetcher> mock_url_async_fetcher_;
+  CountingUrlAsyncFetcher* counting_url_async_fetcher_;
   scoped_ptr<WaitUrlAsyncFetcher> wait_url_async_fetcher_;
   scoped_ptr<MockTimeCache> mock_time_cache_;
   MemFileSystem* mem_file_system_;  // owned by base class file_system_.
@@ -240,13 +198,11 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   SimpleStats simple_stats_;
   MockMessageHandler* mock_message_handler_;
   MockMessageHandler* mock_html_message_handler_;
-  bool use_beacon_results_in_filters_;
   bool use_test_url_namer_;
   bool add_platform_specific_decoding_passes_;
   std::vector<CreateFilterCallback*> filter_callback_vector_;
   std::vector<CreateRewriterCallback*> rewriter_callback_vector_;
   std::vector<PlatformSpecificConfigurationCallback*> platform_config_vector_;
-  CachePropertyStore* cache_property_store_;
 };
 
 }  // namespace net_instaweb

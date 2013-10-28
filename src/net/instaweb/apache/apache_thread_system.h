@@ -16,25 +16,28 @@
 
 // Author: morlovich@google.com (Maksim Orlovich)
 //
-// A wrapper around SystemThreadSystem that substitutes an AprTimer.
+// A wrapper around PthreadThreadSystem for use in Apache that takes care of
+// some signal masking issues that arise in prefork. We prefer pthreads to APR
+// as APR mutex, etc., creation requires pools which are generally thread
+// unsafe, introducing some additional risks.
 
 #ifndef NET_INSTAWEB_APACHE_APACHE_THREAD_SYSTEM_H_
 #define NET_INSTAWEB_APACHE_APACHE_THREAD_SYSTEM_H_
 
-#include "net/instaweb/system/public/system_thread_system.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/pthread_thread_system.h"
 
 namespace net_instaweb {
 
-class Timer;
-
-class ApacheThreadSystem : public SystemThreadSystem {
+class ApacheThreadSystem : public PthreadThreadSystem {
  public:
-  ApacheThreadSystem() {}
-  virtual ~ApacheThreadSystem() {}
+  ApacheThreadSystem();
+  virtual ~ApacheThreadSystem();
   virtual Timer* NewTimer();
 
- private:
+ protected:
+  virtual void BeforeThreadRunHook();
+
   DISALLOW_COPY_AND_ASSIGN(ApacheThreadSystem);
 };
 

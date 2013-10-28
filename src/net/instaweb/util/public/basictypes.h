@@ -17,7 +17,6 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_BASICTYPES_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_BASICTYPES_H_
 
-// TODO(jmarantz): Remove this forwarding header and update references.
-#include "pagespeed/kernel/base/basictypes.h"
+#include "base/basictypes.h"
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_BASICTYPES_H_

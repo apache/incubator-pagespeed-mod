@@ -19,10 +19,11 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_FILE_DRIVER_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_FILE_DRIVER_H_
 
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/htmlparse/public/logging_html_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 

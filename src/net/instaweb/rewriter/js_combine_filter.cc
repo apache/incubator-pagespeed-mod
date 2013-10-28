@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
@@ -38,22 +39,24 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
+class UrlSegmentEncoder;
 
 const char JsCombineFilter::kJsFileCountReduction[] = "js_file_count_reduction";
 
@@ -63,18 +66,15 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   JsCombiner(JsCombineFilter* filter, RewriteDriver* driver)
       : ResourceCombiner(driver, kContentTypeJavascript.file_extension() + 1,
                          filter),
-        filter_(filter),
-        combined_js_size_(0) {
-    Statistics* stats = server_context_->statistics();
+        filter_(filter) {
+    Statistics* stats = resource_manager_->statistics();
     js_file_count_reduction_ = stats->GetVariable(kJsFileCountReduction);
   }
 
   virtual ~JsCombiner() {
   }
 
-  virtual bool ResourceCombinable(
-      Resource* resource, GoogleString* failure_reason,
-      MessageHandler* handler) {
+  virtual bool ResourceCombinable(Resource* resource, MessageHandler* handler) {
     // Get the charset for the given resource.
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
@@ -85,8 +85,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     if (num_urls() == 0) {
       combined_charset_ = this_charset;
     } else if (!StringCaseEqual(combined_charset_, this_charset)) {
-      *failure_reason = StrCat("Charset mismatch; combination thus far is ",
-                               combined_charset_, " file is ", this_charset);
       return false;
     }
 
@@ -96,39 +94,17 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     // (escape-free) in some contexts. As a conservative approximation, we just
     // look for the text
     if (resource->contents().find("use strict") != StringPiece::npos) {
-      *failure_reason = "Combining strict mode files unsupported";
       return false;
     }
     const RewriteOptions* options = rewrite_driver_->options();
     if (options->avoid_renaming_introspective_javascript() &&
         JavascriptCodeBlock::UnsafeToRename(resource->contents())) {
-      *failure_reason = "File seems to look for its URL";
       return false;
     }
 
     // TODO(morlovich): define a pragma that javascript authors can
     // include in their source to prevent inclusion in a js combination
     return true;
-  }
-
-  virtual bool ContentSizeTooBig() const {
-    int64 combined_js_max_size =
-        rewrite_driver_->options()->max_combined_js_bytes();
-
-    if (combined_js_max_size >= 0 &&
-        combined_js_size_ > combined_js_max_size) {
-      return true;
-    }
-    return false;
-  }
-
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
-    combined_js_size_ += resource->contents().size();
-  }
-
-  virtual void Clear() {
-    ResourceCombiner::Clear();
-    combined_js_size_ = 0;
   }
 
   // This eventually calls WritePiece().
@@ -144,9 +120,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // Stats.
   void AddFileCountReduction(int files) {
     js_file_count_reduction_->Add(files);
-    if (files >= 1) {
-      filter_->LogFilterModifiedContent();
-    }
   }
 
   // Set the attribute charset of the resource being combined. This is the
@@ -165,7 +138,6 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
                           MessageHandler* handler);
 
   JsCombineFilter* filter_;
-  int64 combined_js_size_;
   Variable* js_file_count_reduction_;
   // The charset from the resource's element, set by our owning Context's
   // Partition() method each time it checks if a resource can be added to the
@@ -246,7 +218,7 @@ class JsCombineFilter::Context : public RewriteContext {
     for (int i = 0, n = num_slots(); i < n; ++i) {
       bool add_input = false;
       ResourcePtr resource(slot(i)->resource());
-      if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
+      if (resource->IsValidAndCacheable()) {
         combiner_.set_resources_attribute_charset(elements_charsets_[i]);
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           add_input = true;
@@ -364,12 +336,10 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* combine_element =
         Driver()->NewElement(NULL,  // no parent yet.
                              HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
+    Driver()->InsertElementBeforeElement(first_slot->element(),
+                                         combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
-                           ResourceSlot::RelativizeOrPassthrough(
-                               Driver()->options(), partition->url(),
-                               first_slot->url_relativity(),
-                               Driver()->base_url()));
+                           partition->url());
   }
 
   // Make a script element with eval(<variable name>), and replace
@@ -381,18 +351,23 @@ class JsCombineFilter::Context : public RewriteContext {
     // original element had.
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
-    Driver()->InsertNodeBeforeNode(original, element);
+    Driver()->InsertElementBeforeElement(original, element);
+    //    Driver()->DeleteElement(original);
     GoogleString var_name = filter_->VarName(
-        FindServerContext(), html_slot->resource()->url());
+        html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(
         element, StrCat("eval(", var_name, ");"));
     Driver()->AppendChild(element, script_code);
-    html_slot->RequestDeleteElement();
+    // Don't render this slot because it no longer has a resource attached
+    // to it.
+    //    html_slot->set_disable_rendering(true);
+    html_slot->set_should_delete_element(true);
   }
 
   JsCombineFilter::JsCombiner combiner_;
   JsCombineFilter* filter_;
   bool fresh_combination_;
+  UrlMultipartEncoder encoder_;
   // Each of the elements for the resources being combined are added to this
   // vector, but those elements will be free'd after the end of the document,
   // though this context might survive past that (as it's an asynchronous
@@ -406,10 +381,7 @@ bool JsCombineFilter::JsCombiner::WritePiece(
     int index, const Resource* input, OutputResource* combination,
     Writer* writer, MessageHandler* handler) {
   // We write out code of each script into a variable.
-  writer->Write(StrCat("var ",
-                       JsCombineFilter::VarName(
-                           filter_->server_context(), input->url()),
-                       " = "),
+  writer->Write(StrCat("var ", filter_->VarName(input->url()), " = "),
                 handler);
 
   StringPiece original = input->contents();
@@ -432,7 +404,7 @@ JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
 JsCombineFilter::~JsCombineFilter() {
 }
 
-void JsCombineFilter::InitStats(Statistics* statistics) {
+void JsCombineFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kJsFileCountReduction);
 }
 
@@ -538,12 +510,6 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
     return;
   }
 
-  // Don't combine scripts with the pagespeed_no_defer attribute.
-  if (element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
-    NextCombination();
-    return;
-  }
-
   // We do not try to merge in a <script with async/defer> or for/event.
   // TODO(morlovich): is it worth combining multiple scripts with
   // async/defer if the flags are the same?
@@ -556,13 +522,12 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
   context_->AddElement(element, src);
 }
 
-GoogleString JsCombineFilter::VarName(const ServerContext* server_context,
-                                      const GoogleString& url) {
+GoogleString JsCombineFilter::VarName(const GoogleString& url) const {
   // We hash the non-host portion of URL to keep it consistent when sharding.
   // This is safe since we never include URLs from different hosts in a single
   // combination.
-  GoogleString url_hash =
-      JavascriptCodeBlock::JsUrlHash(url, server_context->hasher());
+  GoogleString url_hash = JavascriptCodeBlock::JsUrlHash(url,
+    resource_manager_->hasher());
 
   return StrCat("mod_pagespeed_", url_hash);
 }
@@ -589,10 +554,6 @@ void JsCombineFilter::NextCombination() {
     context_.reset(MakeContext());
   }
   context_->Reset();
-}
-
-void JsCombineFilter::DetermineEnabled() {
-  set_is_enabled(!driver_->flushed_cached_html());
 }
 
 }  // namespace net_instaweb

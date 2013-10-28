@@ -23,12 +23,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_COMBINE_FILTER_H_
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 
@@ -38,7 +38,6 @@ class HtmlCharactersNode;
 class HtmlIEDirectiveNode;
 class RewriteDriver;
 class RewriteContext;
-class ServerContext;
 class Statistics;
 class UrlSegmentEncoder;
 
@@ -71,7 +70,7 @@ class JsCombineFilter : public RewriteFilter {
   virtual ~JsCombineFilter();
 
   // Registers the provided statistics variable names with 'statistics'.
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   virtual const char* id() const {
     return RewriteOptions::kJavascriptCombinerId;
   }
@@ -83,13 +82,10 @@ class JsCombineFilter : public RewriteFilter {
   virtual void EndElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void Flush();
-  virtual void DetermineEnabled();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "JsCombine"; }
   virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const {
-    return &encoder_;
-  }
+  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
 
  private:
   class JsCombiner;
@@ -101,15 +97,13 @@ class JsCombineFilter : public RewriteFilter {
                                 HtmlElement::Attribute* src);
 
   // Returns JS variable name where code for given URL should be stored.
-  static GoogleString VarName(const ServerContext* server_context,
-                              const GoogleString& url);
+  GoogleString VarName(const GoogleString& url) const;
 
   void NextCombination();
 
   Context* MakeContext();
 
   JsCombiner* combiner() const;
-  ServerContext* server_context() const { return server_context_; }
 
   ScriptTagScanner script_scanner_;
   int script_depth_;  // how many script elements we are inside

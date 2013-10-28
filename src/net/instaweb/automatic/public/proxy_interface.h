@@ -16,21 +16,29 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 //
+// NOTE: This interface is actively under development and may be
+// changed extensively. Contact us at mod-pagespeed-discuss@googlegroups.com
+// if you are interested in using it.
+//
 // Simple interface for running Page Speed Automatic as a proxy.
 //
 // When implementing a Page Speed Automatic proxy, simply construct a
-// ProxyInterface at start up time and call Fetch for every
-// requested resource. Fetch decides how to deal with requests
+// ProxyInterface at start up time and call StreamingFetch for every
+// requested resource. StreamingFetch decides how to deal with requests
 // (pagespeed resources will be computed, HTML pages will be proxied
 // and rewritten, and other resources will just be proxied).
+//
+// Page Speed Automatic currently does not deal with some requests
+// such as POSTs.
 
 #ifndef NET_INSTAWEB_AUTOMATIC_PUBLIC_PROXY_INTERFACE_H_
 #define NET_INSTAWEB_AUTOMATIC_PUBLIC_PROXY_INTERFACE_H_
 
+#include <utility>
+
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/property_cache.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -41,7 +49,8 @@ class GoogleUrl;
 class MessageHandler;
 class ProxyFetchPropertyCallbackCollector;
 class ProxyFetchFactory;
-class ServerContext;
+class RequestHeaders;
+class ResourceManager;
 class RewriteOptions;
 class Statistics;
 class TimedVariable;
@@ -50,37 +59,65 @@ class Timer;
 // TODO(sligocki): Rename as per style-guide.
 class ProxyInterface : public UrlAsyncFetcher {
  public:
+  typedef std::pair<RewriteOptions*, bool> OptionsBoolPair;
+
   ProxyInterface(const StringPiece& hostname, int port,
-                 ServerContext* server_context, Statistics* stats);
+                 ResourceManager* manager, Statistics* stats);
   virtual ~ProxyInterface();
 
   // Initializes statistics variables associated with this class.
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   // All requests use this interface. We decide internally whether the
   // request is a pagespeed resource, HTML page to be rewritten or another
   // resource to be proxied directly.
-  virtual void Fetch(const GoogleString& requested_url,
+  virtual bool Fetch(const GoogleString& requested_url,
                      MessageHandler* handler,
                      AsyncFetch* async_fetch);
 
-  // Is this url_string well-formed enough to proxy through?
-  bool IsWellFormedUrl(const GoogleUrl& url);
+  // Returns any options set in query-params or in request headers. Possible
+  // return-value scenarios for the pair are:
+  //
+  // .first==*, .second==false:  query-params or req-headers failed in parse.
+  // .first==NULL, .second==true: No query-params or req-headers is present.
+  // .first!=NULL, .second==true: Use query-params.
+  //  It also strips off the ModPageSpeed query parameters and headers from the
+  // request_url and request_headers respectively.
+  OptionsBoolPair GetQueryOptions(GoogleUrl* request_url,
+                                  RequestHeaders* request_headers,
+                                  MessageHandler* handler);
 
-  static const char kCacheHtmlRequestCount[];
+  // Returns any custom options required for this request, incorporating
+  // any domain-specific options from the UrlNamer, options set in query-params,
+  // and options set in request headers.
+  RewriteOptions* GetCustomOptions(GoogleUrl* request_url,
+                                   RequestHeaders* request_headers,
+                                   RewriteOptions* domain_options,
+                                   RewriteOptions* query_options,
+                                   MessageHandler* handler);
 
+  void set_server_version(const StringPiece& server_version);
+
+  // Callback function passed to UrlNamer to finish handling requests once we
+  // have rewrite_options for requests that are being proxied.
+  void ProxyRequestCallback(
+      bool is_resource_fetch,
+      GoogleUrl* request_url,
+      AsyncFetch* async_fetch,
+      RewriteOptions* domain_options,
+      RewriteOptions* query_options,
+      MessageHandler* handler);
+
+  static const char kBlinkRequestCount[];
+  static const char kBlinkCriticalLineRequestCount[];
+
+ protected:
   // Initiates the PropertyCache look up.
   virtual ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
       bool is_resource_fetch,
       const GoogleUrl& request_url,
       RewriteOptions* options,
-      AsyncFetch* async_fetch,
-      const bool requires_blink_cohort,
-      bool* added_page_property_callback);
-
- protected:
-  // Needed by subclasses when overriding InitiatePropertyCacheLookup.
-  ServerContext* server_context_;  // thread-safe, unowned
+      AsyncFetch* async_fetch);
 
  private:
   friend class ProxyInterfaceTest;
@@ -93,20 +130,18 @@ class ProxyInterface : public UrlAsyncFetcher {
                     AsyncFetch* async_fetch,
                     MessageHandler* handler);
 
-  // Callback function which runs once we have rewrite_options for requests that
-  // are being proxied.
-  struct RequestData;
-  void GetRewriteOptionsDone(RequestData* request_data,
-                             RewriteOptions* query_options);
-
-  PropertyCache::CohortVector GetCohortList(bool requires_blink_cohort) const;
+  // Is this url_string well-formed enough to proxy through?
+  bool IsWellFormedUrl(const GoogleUrl& url);
 
   // If the URL and port are for this server, don't proxy those (to avoid
   // infinite fetching loops). This might be the favicon or something...
   bool UrlAndPortMatchThisServer(const GoogleUrl& url);
 
+  // References to unowned objects.
+  ResourceManager* resource_manager_;     // thread-safe
   UrlAsyncFetcher* fetcher_;              // thread-safe
   Timer* timer_;                          // thread-safe
+  MessageHandler* handler_;               // thread-safe
 
   // This server's hostname and port (to avoid making circular requests).
   // TODO(sligocki): This assumes we will only be called as one hostname,
@@ -119,10 +154,10 @@ class ProxyInterface : public UrlAsyncFetcher {
   TimedVariable* all_requests_;
   // Total Pagespeed requests.
   TimedVariable* pagespeed_requests_;
-  // Cache Html requests.
-  TimedVariable* cache_html_flow_requests_;
-  // Rejected requests counter.
-  TimedVariable* rejected_requests_;
+  // Blink requests.
+  TimedVariable* blink_requests_;
+  // Blink requests in the critical line flow.
+  TimedVariable* blink_critical_line_requests_;
 
   scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 

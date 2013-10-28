@@ -50,9 +50,10 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -118,7 +119,7 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
                                  MethodVector* glue_methods,
                                  MethodVector* unhandled_methods);
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocument();
   virtual void EndDocument();
@@ -144,16 +145,16 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
   void ResetFilter();
 
   bool MatchSyncLoad(StringPiece contents,
-                     GoogleString::size_type* pos,
-                     GoogleString::size_type* len) const;
+                     GoogleString::size_type &pos,
+                     GoogleString::size_type &len) const;
   bool MatchSyncInit(StringPiece contents,
                      GoogleString::size_type start_pos,
-                     GoogleString::size_type* pos,
-                     GoogleString::size_type* len) const;
+                     GoogleString::size_type &pos,
+                     GoogleString::size_type &len) const;
   bool MatchUnhandledCalls(StringPiece contents,
                            GoogleString::size_type start_pos) const;
   void FindRewritableScripts();
-  void GetSyncToAsyncScript(GoogleString* buffer) const;
+  void GetSyncToAsyncScript(GoogleString *buffer) const;
   bool RewriteAsAsync();
 
   bool is_load_found_;

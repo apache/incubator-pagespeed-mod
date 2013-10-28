@@ -22,6 +22,7 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
@@ -29,7 +30,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
-#include "webutil/css/tostring.h"
 
 namespace {
 const char kTextCss[] = "text/css";
@@ -43,85 +43,67 @@ CssTagScanner::Transformer::~Transformer() {
 }
 
 const char CssTagScanner::kStylesheet[] = "stylesheet";
-const char CssTagScanner::kAlternate[] = "alternate";
 const char CssTagScanner::kUriValue[] = "url(";
 
 // Finds CSS files and calls another filter.
 CssTagScanner::CssTagScanner(HtmlParse* html_parse) {
 }
 
-bool CssTagScanner::ParseCssElement(HtmlElement* element,
-                                    HtmlElement::Attribute** href,
-                                    const char** media,
-                                    int* num_nonstandard_attributes) {
+bool CssTagScanner::ParseCssElement(
+    HtmlElement* element, HtmlElement::Attribute** href, const char** media) {
+  int num_required_attributes_found = 0;
   *media = "";
   *href = NULL;
-  *num_nonstandard_attributes = 0;
-  if (element->keyword() != HtmlName::kLink) {
-    return false;
-  }
-  // We must have all attributes rel='stylesheet' href='name.css'; and if
-  // there is a type, it must be type='text/css'. These can be in any order.
-  HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  bool has_href = false, has_rel_stylesheet = false;
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
-    HtmlElement::Attribute& attr = *i;
-    switch (attr.keyword()) {
-      case HtmlName::kHref:
-        if (has_href || attr.decoding_error()) {
-          // Duplicate or undecipherable href.
-          return false;
+  if (element->keyword() == HtmlName::kLink) {
+    // We must have all attributes rel='stylesheet' href='name.css', and
+    // type='text/css', although they can be in any order.  If there are,
+    // other attributes, we better learn about them so we don't lose them
+    // in css_combine_filter.cc.
+    int num_attrs = element->attribute_size();
+
+    // 'media=' is optional, but our filter requires href=*, and rel=stylesheet,
+    // and type=text/css.
+    //
+    // type should be "text/css", but if it's omitted, that's OK.
+    //
+    // TODO(jmarantz): Consider recognizing a wider variety of CSS references,
+    // including inline css so that the outline_filter can use it.
+    if ((num_attrs >= 2) || (num_attrs <= 4)) {
+      for (int i = 0; i < num_attrs; ++i) {
+        HtmlElement::Attribute& attr = element->attribute(i);
+        if (attr.decoding_error()) {
+          num_required_attributes_found = 0;
+          break;
+        } else if (attr.keyword() == HtmlName::kHref) {
+          *href = &attr;
+          ++num_required_attributes_found;
+        } else if (attr.keyword() == HtmlName::kRel) {
+          if (StringCaseEqual(attr.DecodedValueOrNull(), kStylesheet)) {
+            ++num_required_attributes_found;
+          } else {
+            // rel=something_else.  abort.
+            num_required_attributes_found = 0;
+            break;
+          }
+        } else if (attr.keyword() == HtmlName::kMedia) {
+          *media = attr.DecodedValueOrNull();
+        } else {
+          // The only other attribute we should see is type=text/css.  This
+          // attribute is not required, but if the attribute we are
+          // finding here is anything else then abort.
+          if ((attr.keyword() != HtmlName::kType) ||
+              !StringCaseEqual(attr.DecodedValueOrNull(), kTextCss)) {
+            num_required_attributes_found = 0;
+            break;
+          }
         }
-        *href = &attr;
-        has_href = true;
-        break;
-      case HtmlName::kRel: {
-        StringPiece rel(attr.DecodedValueOrNull());
-        TrimWhitespace(&rel);
-        if (!StringCaseEqual(rel, kStylesheet)) {
-          // rel=something_else.  Abort.  Includes alternate stylesheets.
-          return false;
-        }
-        has_rel_stylesheet = true;
-        break;
       }
-      case HtmlName::kMedia:
-        *media = attr.DecodedValueOrNull();
-        if (*media == NULL) {
-          // No value (media rather than media=), or decoding error
-          return false;
-        }
-        break;
-      case HtmlName::kType: {
-        // If we see this, it must be type=text/css.  This attribute is not
-        // required.
-        StringPiece type(attr.DecodedValueOrNull());
-        TrimWhitespace(&type);
-        if (!StringCaseEqual(type, kTextCss)) {
-          return false;
-        }
-        break;
-      }
-      case HtmlName::kTitle:
-      case HtmlName::kPagespeedNoTransform:
-        // title= is here because it indicates a default stylesheet among
-        // alternatives.  See:
-        // http://www.w3.org/TR/REC-html40/present/styles.html#h-14.3.1
-        // We don't alter a link for which pagespeed_no_transform is set.
-        return false;
-      default:
-        // Other tags are assumed to be harmless noise; if that is not the case
-        // for a particular filter, it should be detected within that filter
-        // (examples: extra tags are rejected in css_combine_filter, but they're
-        // preserved by css_inline_filter).
-        ++(*num_nonstandard_attributes);
-        break;
     }
   }
 
   // we require both 'href=...' and 'rel=stylesheet'.
-  return (has_rel_stylesheet && has_href);
+  // TODO(jmarantz): warn when CSS elements aren't quite what we expect?
+  return (num_required_attributes_found >= 2);
 }
 
 namespace {
@@ -145,6 +127,17 @@ inline bool EatLiteral(const StringPiece& expected, StringPiece* in) {
     return true;
   } else {
     return false;
+  }
+}
+
+inline bool IsCssWhitespace(char c) {
+ // As specified in CSS2.1,  G.2, production 's'
+  return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n') || (c == '\f');
+}
+
+void EatCssWhiteSpace(StringPiece* in) {
+  while (!in->empty() && IsCssWhitespace((*in)[0])) {
+    in->remove_prefix(1);
   }
 }
 
@@ -187,7 +180,6 @@ bool CssExtractUntil(bool is_string, char term,
             if (is_string) {
               break;
             }
-            FALLTHROUGH_INTENDED;
           default:
             // We can't parse it but it's not clear that ignoring it is the
             // safest thing, so we just pass it through unmodified
@@ -283,7 +275,7 @@ bool CssTagScanner::TransformUrls(
       // write out with transformed URL, we should start with
       // @import.
       if (EatLiteral("import", &remaining)) {
-        TrimLeadingWhitespace(&remaining);
+        EatCssWhiteSpace(&remaining);
         // The code here handles @import "foo" and @import 'foo';
         // for @import url(... we simply pass the @import through and let
         // the code that handles url( below take care of it.
@@ -299,11 +291,11 @@ bool CssTagScanner::TransformUrls(
       // url(
       GoogleString wrapped_url;
       if (EatLiteral("rl(", &remaining)) {
-        TrimLeadingWhitespace(&remaining);
+        EatCssWhiteSpace(&remaining);
         // Note if we have a quoted URL inside url(), it needs to be
         // parsed as such.
         if (CssExtractString(&remaining, &url, &quote, &have_term_quote)) {
-          TrimLeadingWhitespace(&remaining);
+          EatCssWhiteSpace(&remaining);
           if (EatLiteral(")", &remaining)) {
             have_url = kUrl;
             is_quoted = true;
@@ -335,7 +327,8 @@ bool CssTagScanner::TransformUrls(
           if (is_quoted) {
             ok = ok && writer->Write(StringPiece(&quote, 1), handler);
           }
-          ok = ok && writer->Write(Css::EscapeUrl(transformed), handler);
+          ok = ok && writer->Write(
+              CssMinify::EscapeString(transformed, true /*in_url*/), handler);
           if (have_term_quote) {
             ok = ok && writer->Write(StringPiece(&quote, 1), handler);
           }
@@ -350,8 +343,7 @@ bool CssTagScanner::TransformUrls(
         }
         case Transformer::kFailure: {
           // We could not transform URL, fail fast.
-          handler->Message(kWarning,
-                           "Transform failed for url %s", url.c_str());
+          handler->Message(kError, "Transform failed for url %s", url.c_str());
           return false;
         }
         case Transformer::kNoChange: {
@@ -390,33 +382,6 @@ bool CssTagScanner::HasUrl(const StringPiece& contents) {
   return (contents.find(CssTagScanner::kUriValue) != StringPiece::npos);
 }
 
-bool CssTagScanner::IsStylesheetOrAlternate(
-    const StringPiece& attribute_value) {
-  StringPieceVector values;
-  SplitStringPieceToVector(attribute_value, " ", &values, true);
-  for (int i = 0, n = values.size(); i < n; ++i) {
-    if (StringCaseEqual(values[i], kStylesheet)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool CssTagScanner::IsAlternateStylesheet(const StringPiece& attribute_value) {
-  bool has_stylesheet = false;
-  bool has_alternate = false;
-  StringPieceVector values;
-  SplitStringPieceToVector(attribute_value, " ", &values, true);
-  for (int i = 0, n = values.size(); i < n; ++i) {
-    if (StringCaseEqual(values[i], kStylesheet)) {
-      has_stylesheet = true;
-    } else if (StringCaseEqual(values[i], kAlternate)) {
-      has_alternate = true;
-    }
-  }
-
-  return has_stylesheet && has_alternate;
-}
 
 RewriteDomainTransformer::RewriteDomainTransformer(
     const GoogleUrl* old_base_url, const GoogleUrl* new_base_url,
@@ -425,8 +390,7 @@ RewriteDomainTransformer::RewriteDomainTransformer(
       domain_rewriter_(driver->domain_rewriter()),
       url_trim_filter_(driver->url_trim_filter()),
       handler_(driver->message_handler()),
-      trim_urls_(true),
-      driver_(driver) {
+      trim_urls_(true) {
 }
 
 RewriteDomainTransformer::~RewriteDomainTransformer() {
@@ -435,7 +399,7 @@ RewriteDomainTransformer::~RewriteDomainTransformer() {
 CssTagScanner::Transformer::TransformStatus RewriteDomainTransformer::Transform(
     const StringPiece& in, GoogleString* out) {
   GoogleString rewritten;
-  if (domain_rewriter_->Rewrite(in, *old_base_url_, driver_,
+  if (domain_rewriter_->Rewrite(in, *old_base_url_,
                                 true /* apply_sharding */,
                                 &rewritten)
       == DomainRewriteFilter::kFail) {

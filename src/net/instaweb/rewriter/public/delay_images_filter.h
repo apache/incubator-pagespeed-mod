@@ -72,21 +72,23 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DELAY_IMAGES_FILTER_H_
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class HtmlElement;
+class ImageTagScanner;
 class RewriteDriver;
-class StaticAssetManager;
+class StaticJavascriptManager;
 class Statistics;
 
 class DelayImagesFilter : public EmptyHtmlFilter {
  public:
   static const char kDelayImagesSuffix[];
+
   static const char kDelayImagesInlineSuffix[];
-  static const char kOnloadFunction[];
 
   explicit DelayImagesFilter(RewriteDriver* driver);
   virtual ~DelayImagesFilter();
@@ -97,25 +99,26 @@ class DelayImagesFilter : public EmptyHtmlFilter {
 
   virtual const char* Name() const { return "DelayImages"; }
 
-  virtual void DetermineEnabled();
-
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
   static void Terminate();
 
  private:
-  // Insert low resolution images, and the script needed to load them if any.
-  void InsertLowResImagesAndJs(HtmlElement* element, bool insert_after_element);
+  // Creates a script node containing kDelayImagesSuffix js and append this node
+  // just after element.
+  void InsertDelayImagesJS(HtmlElement* element);
 
-  // Insert the script to load the high resolution images.
-  void InsertHighResJs(HtmlElement* element);
-
-  // Returns a boolean indicating whether we should insert low resolution images
-  // in place.
-  bool ShouldRewriteInplace() const;
+  // Creates a script node containing kDelayImagesInlineSuffix js and append
+  // this node just after element.
+  void InsertDelayImagesInlineJS(HtmlElement* element);
 
   RewriteDriver* driver_;
-  StaticAssetManager* static_asset_manager_;
+  StaticJavascriptManager* static_js_manager_;
+  scoped_ptr<const ImageTagScanner> tag_scanner_;
 
+  // pagespeed_low_res_src will be added to the low_res_data_map_ until
+  // low_res_inserted is false. As soon as low_res_map_inserted_ is true, there
+  // is no further addition to low_res_data_map_.
+  bool low_res_map_inserted_;
   int num_low_res_inlined_images_;
   StringStringMap low_res_data_map_;
 
@@ -123,14 +126,6 @@ class DelayImagesFilter : public EmptyHtmlFilter {
   // true, else low_res_data_map_ containing low res images is inserted at the
   // end of body tag.
   bool insert_low_res_images_inplace_;
-
-  // lazyload_highres_images_ is set to true if lazyload_highres flag is true.
-  // It enables the feature that lazily loads the high res images after their
-  // low res versions are rendered. This flag is used especially in the case
-  // of mobile.
-  bool lazyload_highres_images_;
-
-  bool is_script_inserted_;
 
   DISALLOW_COPY_AND_ASSIGN(DelayImagesFilter);
 };

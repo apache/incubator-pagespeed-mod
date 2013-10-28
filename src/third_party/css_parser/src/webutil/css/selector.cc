@@ -17,7 +17,7 @@
 // Copyright 2006 Google Inc. All Rights Reserved.
 // Author: dpeng@google.com (Daniel Peng)
 
-#include "util/gtl/stl_util.h"
+#include "util/gtl/stl_util-inl.h"
 
 #include "webutil/css/selector.h"
 
@@ -85,7 +85,7 @@ SimpleSelector* SimpleSelector::NewLang(const UnicodeText& lang) {
 }
 
 //
-// Some destructors that need STLDeleteElements() from stl_util.h
+// Some destructors that need STLDeleteElements() from stl_util-inl.h
 //
 
 SimpleSelectors::~SimpleSelectors() { STLDeleteElements(this); }

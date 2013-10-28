@@ -18,16 +18,17 @@
 
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -35,10 +36,10 @@ namespace net_instaweb {
 
 namespace {
 
-class CssOutlineFilterTest : public RewriteTestBase {
+class CssOutlineFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
     options()->set_css_outline_min_bytes(0);
     options()->EnableFilter(RewriteOptions::kOutlineCss);
     rewrite_driver()->AddFilters();
@@ -134,23 +135,6 @@ TEST_F(CssOutlineFilterTest, OutlineStyleMD5) {
   OutlineStyle("outline_styles_md5");
 }
 
-class CssOutlineFilterTestCustomOptions : public CssOutlineFilterTest {
- protected:
-  // Derived classes should set their options and then call
-  // CssOutlineFilterTest::SetUp().
-  virtual void SetUp() {}
-};
-
-TEST_F(CssOutlineFilterTestCustomOptions, CssOutlinePreserveURLsOn) {
-  options()->set_css_preserve_urls(true);
-  options()->set_css_outline_min_bytes(0);
-  CssOutlineFilterTest::SetUp();
-  const char kStyleText[] = "background_blue { background-color: blue; }\n"
-                            "foreground_yellow { color: yellow; }\n";
-  TestOutlineCss("http://outline_style.test/outline_styles_md5.html", "",
-                 kStyleText, false, "", "");
-}
-
 
 TEST_F(CssOutlineFilterTest, NoAbsolutifySameDir) {
   const GoogleString css = "body { background-image: url('bg.png'); }";
@@ -168,7 +152,9 @@ TEST_F(CssOutlineFilterTest, AbsolutifyDifferentDir) {
 
 TEST_F(CssOutlineFilterTest, ShardSubresources) {
   UseMd5Hasher();
-  AddShard("outline_style.test", "shard1.com,shard2.com");
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  lawyer->AddShard("outline_style.test", "shard1.com,shard2.com",
+                   &message_handler_);
 
   const GoogleString css_in =
       ".p1 { background-image: url('b1.png'); }"
@@ -191,39 +177,8 @@ TEST_F(CssOutlineFilterTest, UrlTooLong) {
   // But if we set max_url_size too small, it will fail cleanly.
   options()->ClearSignatureForTesting();
   options()->set_max_url_size(0);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   TestOutlineCss(html_url, "", style_text, false, style_text, "");
-}
-
-// Test our behavior with CDATA blocks.
-TEST_F(CssOutlineFilterTest, CdataInContents) {
-  SetXhtmlMimetype();
-  // TODO(sligocki): Fix. The outlined file should be "foo  bar ".
-  GoogleString css = "foo <![CDATA[ bar ]]>";
-  TestOutlineCss("http://outline_css.test/cdata.html", "", css, true, css, "");
-}
-
-// Make sure we deal well with no Charactors() node between StartElement()
-// and EndElement().
-TEST_F(CssOutlineFilterTest, EmptyStyle) {
-  ValidateNoChanges("empty_style", "<style></style>");
-}
-
-// http://code.google.com/p/modpagespeed/issues/detail?id=416
-TEST_F(CssOutlineFilterTest, RewriteDomain) {
-  AddRewriteDomainMapping("cdn.com", kTestDomain);
-
-  // Check that CSS gets outlined to the rewritten domain.
-  GoogleString expected_url = Encode("http://cdn.com/", "co", "0", "_", "css");
-  ValidateExpected("rewrite_domain",
-                   "<style>.a { color: red; }</style>",
-                   StrCat("<link rel=\"stylesheet\" href=\"", expected_url,
-                          "\">"));
-
-  // And check that it serves correctly from that domain.
-  GoogleString content;
-  ASSERT_TRUE(FetchResourceUrl(expected_url, &content));
-  EXPECT_EQ(".a { color: red; }", content);
 }
 
 }  // namespace

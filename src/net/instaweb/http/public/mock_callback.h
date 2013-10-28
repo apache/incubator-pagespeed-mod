@@ -22,20 +22,45 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_MOCK_CALLBACK_H_
 
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 
 namespace net_instaweb {
+
+// Callback that can be used for testing resource fetches with accessors to
+// find out if it has been called and whether result was success.
+// MockCallback does not delete itself and expects to be allocated on stack
+// so that it can be accessed before and after Done() is called.
+//
+// Note: this only has one user now: TestConditionalFetch in
+// UrlAsyncFetcherTest.
+class MockCallback : public UrlAsyncFetcher::Callback {
+ public:
+  MockCallback() : success_(false), done_(false) {}
+
+  virtual void Done(bool success) {
+    success_ = success;
+    done_ = true;
+  }
+
+  bool success() const { return success_; }
+  bool done() const { return done_; }
+
+ private:
+  bool success_;
+  bool done_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockCallback);
+};
 
 // Callback that can be used for testing resource fetches which makes sure
 // that Done() is called exactly once and with the expected success value.
 // Can be used multiple times by calling Reset in between.
 class ExpectStringAsyncFetch : public StringAsyncFetch {
  public:
-  ExpectStringAsyncFetch(bool expect_success,
-                         const RequestContextPtr& request_context)
-      : StringAsyncFetch(request_context), expect_success_(expect_success) {}
+  explicit ExpectStringAsyncFetch(bool expect_success)
+      : expect_success_(expect_success) {}
   virtual ~ExpectStringAsyncFetch() {
     EXPECT_TRUE(done());
   }

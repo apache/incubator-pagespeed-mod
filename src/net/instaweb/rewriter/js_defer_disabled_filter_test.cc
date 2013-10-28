@@ -18,28 +18,22 @@
 
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/rewriter/public/static_javascript_manager.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-const char * kDeferJsCodeNonGStatic = "<script type=\"text/javascript\" "
-    "src=\"/psajs/js_defer.0.js\"></script>";
-
-class JsDeferDisabledFilterTest : public RewriteTestBase {
+class JsDeferDisabledFilterTest : public ResourceManagerTestBase {
  protected:
-  // TODO(matterbury): Delete this method as it should be redundant.
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
-    SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
+    ResourceManagerTestBase::SetUp();
   }
 
   virtual void InitJsDeferDisabledFilter(bool debug) {
@@ -51,7 +45,6 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
     rewrite_driver()->AddFilter(js_defer_disabled_filter_.get());
   }
 
-  virtual bool AddHtmlTags() const { return false; }
   virtual bool AddBody() const { return false; }
 
   scoped_ptr<JsDeferDisabledFilter> js_defer_disabled_filter_;
@@ -59,64 +52,75 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
 
 TEST_F(JsDeferDisabledFilterTest, DeferScript) {
   InitJsDeferDisabledFilter(false);
-
+  StringPiece defer_js_code =
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
+          StaticJavascriptManager::kDeferJs, options());
   ValidateExpected("defer_script",
-      "<html><head>"
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
       "> func();</script>"
-      "</head><body>Hello, world!</body></html>",
-      StrCat("<html><head>"
+      "</head><body>Hello, world!</body>",
+      StrCat("<head>"
              "<script type='text/psajs' "
              "src='http://www.google.com/javascript/ajax_apis.js'></script>"
              "<script type='text/psajs'"
              "> func();</script>"
-             "</head><body>Hello, world!",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
-}
-
-TEST_F(JsDeferDisabledFilterTest, JsDeferPreserveURLsOn) {
-  // Make sure that we don't defer when preserve urls is on.
-  options()->set_js_preserve_urls(true);
-  options()->set_support_noscript_enabled(false);
-  AddFilter(RewriteOptions::kDeferJavascript);
-  GoogleString before = "<head>"
-      "<script type='text/psajs' "
-      "src='http://www.google.com/javascript/ajax_apis.js'></script>"
-      "<script type='text/psajs'"
-      "> func();</script>"
-      "</head><body>Hello, world!</body>";
-  ValidateNoChanges("js_defer_preserve_urls_on", before);
+             "<script type=\"text/javascript\">",
+             defer_js_code,
+             JsDeferDisabledFilter::kSuffix,
+             "</script></head><body>Hello, world!"
+             "</body>"));
 }
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
   InitJsDeferDisabledFilter(false);
+  StringPiece defer_js_code =
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
+          StaticJavascriptManager::kDeferJs, options());
   ValidateExpected("defer_script_multi_body",
-      "<html><head>"
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'> func(); </script>"
       "</head><body>Hello, world!</body><body>"
-      "<script type='text/psajs'> func2(); </script></body></html>",
-      StrCat("<html><head>"
+      "<script type='text/psajs'> func2(); </script></body>",
+      StrCat("<head>"
              "<script type='text/psajs' "
              "src='http://www.google.com/javascript/ajax_apis.js'></script>"
              "<script type='text/psajs'> func(); </script>"
-             "</head><body>Hello, world!"
+             "<script type=\"text/javascript\">",
+             defer_js_code,
+             JsDeferDisabledFilter::kSuffix,
+             "</script></head><body>Hello, world!"
              "</body><body><script type='text/psajs'> func2(); "
-             "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             "</script></body>"));
+}
+
+TEST_F(JsDeferDisabledFilterTest, DeferScriptNoHead) {
+  InitJsDeferDisabledFilter(false);
+  StringPiece defer_js_code =
+      resource_manager()->static_javascript_manager()->GetJsSnippet(
+          StaticJavascriptManager::kDeferJs, options());
+  ValidateExpected("defer_script_no_head",
+      "<body>Hello, world!</body><body>"
+      "<script type='text/psajs'> func2(); </script></body>",
+      StrCat("<head>"
+             "<script type=\"text/javascript\">",
+             defer_js_code,
+             JsDeferDisabledFilter::kSuffix,
+             "</script></head><body>Hello, world!"
+             "</body><body><script type='text/psajs'> func2(); "
+             "</script></body>"));
 }
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptOptimized) {
   InitJsDeferDisabledFilter(false);
   Parse("optimized",
         "<body><script type='text/psajs' src='foo.js'></script></body>");
-  EXPECT_NE(GoogleString::npos, output_buffer_.find("js_defer.0.js"))
-      << "js_defer.js should have been included";
+  EXPECT_EQ(GoogleString::npos, output_buffer_.find("/*"))
+      << "There should be no comments in the optimized code";
 }
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptDebug) {
@@ -124,13 +128,13 @@ TEST_F(JsDeferDisabledFilterTest, DeferScriptDebug) {
   Parse("optimized",
         "<head></head><body><script type='text/psajs' src='foo.js'>"
         "</script></body>");
-  EXPECT_NE(GoogleString::npos, output_buffer_.find("js_defer_debug.0.js"))
-      << "js_defer_debug.js should have been included";
+  EXPECT_NE(GoogleString::npos, output_buffer_.find("/*"))
+      << "There should still be some comments in the debug code";
 }
 
 TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
   InitJsDeferDisabledFilter(false);
-  rewrite_driver()->SetUserAgent("BlackListUserAgent");
+  rewrite_driver()->set_user_agent("BlackListUserAgent");
   const char script[] = "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
@@ -139,80 +143,6 @@ TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
       "</head><body>Hello, world!</body>";
 
   ValidateNoChanges("defer_script", script);
-}
-
-TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
-  InitJsDeferDisabledFilter(false);
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
-  const char script[] = "<head>"
-      "<script type='text/psajs' "
-      "src='http://www.google.com/javascript/ajax_apis.js'></script>"
-      "<script type='text/psajs'"
-      "> func();</script>"
-      "</head><body>Hello, world!</body>";
-
-  GoogleString expected = StrCat("<head>"
-      "<script type='text/psajs' "
-      "src='http://www.google.com/javascript/ajax_apis.js'></script>"
-      "<script type='text/psajs'"
-      "> func();</script></head><body>"
-      "Hello, world!",
-      kDeferJsCodeNonGStatic,
-      "</body>");
-
-  ValidateExpected("defer_script", script, expected);
-}
-
-TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
-  InitJsDeferDisabledFilter(false);
-  options_->ClearSignatureForTesting();
-  options_->set_enable_aggressive_rewriters_for_mobile(false);
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
-  const char script[] = "<head>"
-      "<script type='text/psajs' "
-      "src='http://www.google.com/javascript/ajax_apis.js'></script>"
-      "<script type='text/psajs'"
-      "> func();</script>"
-      "</head><body>Hello, world!</body>";
-
-  ValidateNoChanges("defer_script", script);
-}
-
-TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
-  StaticAssetManager static_asset_manager("",
-                                          server_context()->hasher(),
-                                          server_context()->message_handler());
-  static_asset_manager.set_serve_asset_from_gstatic(true);
-  static_asset_manager.set_gstatic_hash(
-      StaticAssetManager::kDeferJs, StaticAssetManager::kGStaticBase, "1");
-
-  server_context()->set_static_asset_manager(&static_asset_manager);
-
-  InitJsDeferDisabledFilter(false);
-  ValidateExpected(
-      "defer_script_url",
-      "<html><body>Hello, world!</body><body>"
-      "<script type='text/psajs'> func2(); </script></body></html>",
-      "<html><body>Hello, world!"
-      "</body><body><script type='text/psajs'> func2(); "
-      "</script>"
-      "<script type=\"text/javascript\" "
-      "src=\"//www.gstatic.com/psa/static/1-js_defer.js\">"
-      "</script></body></html>");
-}
-
-TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromNonGStatic) {
-  InitJsDeferDisabledFilter(false);
-
-  ValidateExpected(
-      "defer_script_url",
-      "<html><body>Hello, world!</body><body>"
-      "<script type='text/psajs'> func2(); </script></body></html>",
-      StrCat("<html><body>Hello, world!",
-             "</body><body><script type='text/psajs'> func2(); "
-             "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
 }
 
 }  // namespace net_instaweb

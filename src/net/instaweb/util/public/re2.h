@@ -19,7 +19,7 @@
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_RE2_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_RE2_H_
 
-// TODO(morlovich): Remove this forwarding header and change all references.
-#include "pagespeed/kernel/util/re2.h"
+#include "third_party/re2/src/re2/re2.h"
+using re2::RE2;
 
 #endif  // NET_INSTAWEB_UTIL_PUBLIC_RE2_H_

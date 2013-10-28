@@ -19,8 +19,6 @@
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
 #include <cstddef>
-#include <memory>
-
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
@@ -44,13 +42,15 @@ namespace net_instaweb {
 UrlLeftTrimFilter::UrlLeftTrimFilter(RewriteDriver* rewrite_driver,
                                      Statistics *stats)
     : CommonFilter(rewrite_driver),
+      tag_scanner_(rewrite_driver),
       trim_count_(stats->GetVariable(kUrlTrims)),
       trim_saved_bytes_(stats->GetVariable(kUrlTrimSavedBytes)) {
+  tag_scanner_.set_find_a_tags(true);
 }
 
 UrlLeftTrimFilter::~UrlLeftTrimFilter() {}
 
-void UrlLeftTrimFilter::InitStats(Statistics* statistics) {
+void UrlLeftTrimFilter::Initialize(Statistics* statistics) {
   statistics->AddVariable(kUrlTrims);
   statistics->AddVariable(kUrlTrimSavedBytes);
 }
@@ -59,11 +59,8 @@ void UrlLeftTrimFilter::InitStats(Statistics* statistics) {
 void UrlLeftTrimFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() != HtmlName::kBase &&
       BaseUrlIsValid()) {
-    resource_tag_scanner::UrlCategoryVector attributes;
-    resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-    for (int i = 0, n = attributes.size(); i < n; ++i) {
-      TrimAttribute(attributes[i].url);
-    }
+    bool is_hyperlink;
+    TrimAttribute(tag_scanner_.ScanElement(element, &is_hyperlink));
   }
 }
 
@@ -73,13 +70,13 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
                              const StringPiece& url_to_trim,
                              GoogleString* trimmed_url,
                              MessageHandler* handler) {
-  if (!base_url.IsWebValid() || url_to_trim.empty()) {
+  if (!base_url.is_valid() || !base_url.is_standard() || url_to_trim.empty()) {
     return false;
   }
 
   GoogleUrl long_url(base_url, url_to_trim);
   //  Don't try to rework an invalid url
-  if (!long_url.IsWebValid()) {
+  if (!long_url.is_valid() || !long_url.is_standard()) {
     return false;
   }
 
@@ -157,9 +154,9 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
     }
     GoogleUrl resolved_newurl(base_url, trimmed_url_piece);
     // Error condition: this shouldn't happen.
-    DCHECK(resolved_newurl.IsWebValid());
+    DCHECK(resolved_newurl.is_valid());
     DCHECK(resolved_newurl == long_url);
-    if (!resolved_newurl.IsWebValid() || resolved_newurl != long_url) {
+    if (!resolved_newurl.is_valid() || resolved_newurl != long_url) {
       return false;
     }
     *trimmed_url = trimmed_url_piece.as_string();

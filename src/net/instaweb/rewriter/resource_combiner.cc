@@ -29,7 +29,7 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
@@ -50,7 +50,7 @@ namespace net_instaweb {
 ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
                                    const StringPiece& extension,
                                    RewriteFilter* filter)
-    : server_context_(driver->server_context()),
+    : resource_manager_(driver->resource_manager()),
       rewrite_driver_(driver),
       partnership_(driver),
       prev_num_components_(0),
@@ -66,10 +66,9 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
                     extension.size()),
       filter_(filter) {
   // This CHECK is here because RewriteDriver is constructed with its
-  // server_context_ == NULL.
-  // TODO(sligocki): Construct RewriteDriver with a ServerContext, to avoid
-  // worrying about it not getting initialized.
-  CHECK(server_context_ != NULL);
+  // resource_manager_ == NULL.
+  // TODO(sligocki): Construct RewriteDriver with a ResourceManager.
+  CHECK(resource_manager_ != NULL);
 }
 
 ResourceCombiner::~ResourceCombiner() {
@@ -94,11 +93,8 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
 
   // Make sure the specific filter is OK with the data --- it may be
   // unable to combine it safely
-  GoogleString failure_reason;
-  if (!ResourceCombinable(resource.get(), &failure_reason, handler)) {
-    handler->Message(
-        kInfo, "Cannot combine %s: resource not combinable, reason: %s",
-        resource->url().c_str(), failure_reason.c_str());
+  if (!ResourceCombinable(resource.get(), handler)) {
+    handler->Message(kInfo, "Cannot combine: not combinable");
     return ret;
   }
 
@@ -120,12 +116,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
       AccumulateLeafSize(relative_path);
     }
 
-    AccumulateCombinedSize(resource);
-
     resources_.push_back(resource);
-    if (ContentSizeTooBig() || UrlTooBig()) {
-      // TODO(ksimbili) : Propagate the correct reason-string to the caller.
-      handler->Message(kInfo, "Cannot combine: contents/url size too big");
+    if (UrlTooBig()) {
+      handler->Message(kInfo, "Cannot combine: url too big");
       RemoveLastResource();
       added = false;
     }
@@ -155,7 +148,7 @@ GoogleString ResourceCombiner::UrlSafeId() const {
 void ResourceCombiner::ComputeLeafSize() {
   GoogleString segment = UrlSafeId();
   accumulated_leaf_size_ = segment.size() + url_overhead_
-      + server_context_->hasher()->HashSizeInChars();
+      + resource_manager_->hasher()->HashSizeInChars();
 }
 
 void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
@@ -181,9 +174,7 @@ bool ResourceCombiner::UrlTooBig() {
   return false;
 }
 
-bool ResourceCombiner::ResourceCombinable(
-    Resource* /*resource*/,
-    GoogleString* /*failure_reason*/,
+bool ResourceCombiner::ResourceCombinable(Resource* /*resource*/,
     MessageHandler* /*handler*/) {
   return true;
 }
@@ -217,10 +208,8 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   // Start building up the combination.  At this point we are still
   // not committed to the combination, because the 'write' can fail.
   // TODO(jmaessen, jmarantz): encode based on partnership
-  GoogleString resolved_base = ResolvedBase();
-  combination.reset(rewrite_driver_->CreateOutputResourceWithMappedPath(
-      resolved_base, resolved_base, filter_->id(), url_safe_id,
-      kRewrittenResource));
+  combination.reset(rewrite_driver_->CreateOutputResourceWithUnmappedPath(
+      ResolvedBase(), filter_->id(), url_safe_id, kRewrittenResource));
   if (combination.get() != NULL) {
     if (combination->cached_result() != NULL &&
         combination->cached_result()->optimizable()) {
@@ -255,10 +244,10 @@ bool ResourceCombiner::WriteCombination(
   if (written) {
     // TODO(morlovich): Fix combiners to deal with charsets.
     written =
-        rewrite_driver_->Write(
+        resource_manager_->Write(
             combine_resources, combined_contents, CombinationContentType(),
             StringPiece() /* not computing charset for now */,
-            combination.get());
+            combination.get(), handler);
   }
   return written;
 }

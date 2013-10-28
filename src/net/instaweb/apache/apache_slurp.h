@@ -17,15 +17,17 @@
 #ifndef NET_INSTAWEB_APACHE_APACHE_SLURP_H_
 #define NET_INSTAWEB_APACHE_APACHE_SLURP_H_
 
+#include "net/instaweb/util/public/string.h"
+
 struct request_rec;
 
 namespace net_instaweb {
 
-class ApacheServerContext;
+class ApacheResourceManager;
 
 // Loads the URL based on the fetchers and other infrastructure in the
 // factory.
-void SlurpUrl(ApacheServerContext* server_context, request_rec* r);
+void SlurpUrl(ApacheResourceManager* manager, request_rec* r);
 
 }  // namespace net_instaweb
 

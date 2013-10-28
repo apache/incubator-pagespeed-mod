@@ -27,18 +27,14 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/vector_deque.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
+class HtmlParse;
 class HtmlResourceSlot;
 class ResourceSlot;
 class RewriteContext;
-class RewriteDriver;
-class RewriteOptions;
 
 typedef RefCountedPtr<ResourceSlot> ResourceSlotPtr;
 typedef RefCountedPtr<HtmlResourceSlot> HtmlResourceSlotPtr;
@@ -56,7 +52,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
       : resource_(resource),
         disable_rendering_(false),
         should_delete_element_(false),
-        disable_further_processing_(false),
         was_optimized_(false) {
   }
 
@@ -86,65 +81,26 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // Determines whether rendering the slot deletes the HTML Element.
   // For example, in the CSS combine filter we want the Render to
   // rewrite the first <link href>, but delete all the other <link>s.
-  //
-  // Calling RequestDeleteElement() also forces
-  // set_disable_further_processing(true);
-  void RequestDeleteElement() {
-    should_delete_element_ = true;
-    disable_further_processing_ = true;
-  }
+  void set_should_delete_element(bool x) { should_delete_element_ = x; }
   bool should_delete_element() const { return should_delete_element_; }
 
   // Returns true if any of the contexts touching this slot optimized it
-  // successfully. This in particular includes the case where a call to
-  // RewriteContext::Rewrite() on a partition containing this slot returned
-  // kRewriteOk.  Note in particular that was_optimized() does not tell you
-  // whether *your* filter optimized the slot!  For this you should check
-  // output_partition(n)->optimizable().
+  // successfully. This in particular includes the case where a
+  // call to RewriteContext::Rewrite() on a partition containing this
+  // slot returned kRewriteOk.
   bool was_optimized() const { return was_optimized_; }
 
   // Marks the slot as having been optimized.
   void set_was_optimized(bool x) { was_optimized_ = x; }
 
-  // If disable_further_processing is true, no further filter taking this slot
-  // as input will run. Note that this affects only HTML rewriting
-  // (or nested rewrites) since fetch-style rewrites do not share slots
-  // even when more than one filter was involved. For this to persist properly
-  // on cache hits it should be set before RewriteDone is called.
-  // (This also means you should not be using this when partitioning failed).
-  // Only later filters are affected, not the currently running one.
-  void set_disable_further_processing(bool x) {
-    disable_further_processing_ = x;
-  }
-
-  bool disable_further_processing() const {
-    return disable_further_processing_;
-  }
-
   // Render is not thread-safe.  This must be called from the thread that
-  // owns the DOM or CSS file. The RewriteContext state machine will only
-  // call ResourceSlot::Render() on slots that were optimized successfully,
-  // and whose partitions are safely url_relocatable(). (Note that this is
-  // different from RewriteContext::Render).
+  // owns the DOM or CSS file.
   virtual void Render() = 0;
 
   // Called after all contexts have had a chance to Render.
   // This is especially useful for cases where Render was never called
   // but you want something to be done to all slots.
   virtual void Finished() {}
-
-  // Update the URL in the slot target without touching the resource. This is
-  // intended for when we're inlining things as data: URLs. Note that if you
-  // call this you should also call set_disable_rendering(true), or otherwise
-  // the result will be overwritten. Does not alter the URL in any way.  Not
-  // supported on all slot types --- presently only slots representing things
-  // within CSS and HTML have this operation (others will DCHECK-fail).  Must be
-  // called from within a context's Render() method.
-  virtual void DirectSetUrl(const StringPiece& url);
-
-  // Returns true if DirectSetUrl is supported by this slot (html and css right
-  // now).
-  virtual bool CanDirectSetUrl() { return false; }
 
   // Return the last context to have been added to this slot.  Returns NULL
   // if no context has been added to the slot so far.
@@ -161,14 +117,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // in log messages.
   virtual GoogleString LocationString() = 0;
 
-  // Either relativize the URL or pass it through depending on options set.
-  // PRECONDITION: url must parse as a valid GoogleUrl.
-  // TODO(sligocki): Take a GoogleUrl for url?
-  static GoogleString RelativizeOrPassthrough(const RewriteOptions* options,
-                                              StringPiece url,
-                                              UrlRelativity url_relativity,
-                                              const GoogleUrl& base_url);
-
  protected:
   virtual ~ResourceSlot();
   REFCOUNT_FRIEND_DECLARATION(ResourceSlot);
@@ -177,7 +125,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   ResourcePtr resource_;
   bool disable_rendering_;
   bool should_delete_element_;
-  bool disable_further_processing_;
   bool was_optimized_;
 
   // We track the RewriteContexts that are atempting to rewrite this
@@ -211,19 +158,20 @@ class HtmlResourceSlot : public ResourceSlot {
   HtmlResourceSlot(const ResourcePtr& resource,
                    HtmlElement* element,
                    HtmlElement::Attribute* attribute,
-                   RewriteDriver* driver);
+                   HtmlParse* html_parse)
+      : ResourceSlot(resource),
+        element_(element),
+        attribute_(attribute),
+        html_parse_(html_parse),
+        begin_line_number_(element->begin_line_number()),
+        end_line_number_(element->end_line_number()) {
+  }
 
   HtmlElement* element() { return element_; }
   HtmlElement::Attribute* attribute() { return attribute_; }
 
   virtual void Render();
   virtual GoogleString LocationString();
-  virtual void DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
-
-  // How relative the original URL was. If PreserveUrlRelativity is enabled,
-  // Render will try to make the final URL just as relative.
-  UrlRelativity url_relativity() const { return url_relativity_; }
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
@@ -232,8 +180,7 @@ class HtmlResourceSlot : public ResourceSlot {
  private:
   HtmlElement* element_;
   HtmlElement::Attribute* attribute_;
-  RewriteDriver* driver_;
-  UrlRelativity url_relativity_;
+  HtmlParse* html_parse_;
 
   int begin_line_number_;
   int end_line_number_;

@@ -20,6 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_FLUSH_HTML_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
@@ -43,6 +44,7 @@ class FlushHtmlFilter : public CommonFilter {
   virtual const char* Name() const { return "FlushHtmlFilter"; }
 
  private:
+  ResourceTagScanner tag_scanner_;
   int score_;
 
   DISALLOW_COPY_AND_ASSIGN(FlushHtmlFilter);

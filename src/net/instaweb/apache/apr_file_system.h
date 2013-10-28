@@ -18,11 +18,10 @@
 #define NET_INSTAWEB_APACHE_APR_FILE_SYSTEM_H_
 
 #include "apr.h"
-
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/message_handler.h"
 
 struct apr_finfo_t;
 struct apr_pool_t;
@@ -30,9 +29,7 @@ struct apr_pool_t;
 namespace net_instaweb {
 
 class AbstractMutex;
-class MessageHandler;
 class ThreadSystem;
-class Timer;
 
 void AprReportError(MessageHandler* message_handler, const char* filename,
                     int line, const char* message, int error_code);
@@ -46,7 +43,7 @@ class AprFileSystem : public FileSystem {
   virtual InputFile* OpenInputFile(
       const char* file, MessageHandler* message_handler);
   virtual OutputFile* OpenOutputFileHelper(
-      const char* file, bool append, MessageHandler* message_handler);
+      const char* file, MessageHandler* message_handler);
   // See FileSystem interface for specifics of OpenTempFile.
   virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
                                          MessageHandler* message_handler);
@@ -56,8 +53,6 @@ class AprFileSystem : public FileSystem {
   // Like POSIX 'mkdir', makes a directory only if parent directory exists.
   // Fails if directory_name already exists or parent directory doesn't exist.
   virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveDir(const char* directory_path,
-                         MessageHandler* message_handler);
   virtual bool RemoveFile(const char* filename,
                           MessageHandler* message_handler);
   virtual bool RenameFileHelper(const char* old_filename,
@@ -68,9 +63,6 @@ class AprFileSystem : public FileSystem {
                      int64* timestamp_sec, MessageHandler* handler);
   virtual bool Mtime(const StringPiece& path,
                      int64* timestamp_sec, MessageHandler* handler);
-  // Report the disk utilization of the file specified by path. Note that disk
-  // utilization could differ from the apparent size of the file as it depends
-  // on the underlying file system and default block size.
   virtual bool Size(const StringPiece& path, int64* size,
                     MessageHandler* handler);
   virtual BoolOrError Exists(const char* path, MessageHandler* handler);
@@ -80,7 +72,6 @@ class AprFileSystem : public FileSystem {
                               MessageHandler* handler);
   virtual BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
                                          int64 timeout_ms,
-                                         const Timer* timer,
                                          MessageHandler* handler);
   virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
 

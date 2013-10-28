@@ -22,14 +22,12 @@
 #include <cstddef>
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
 class CachedResult;
 class GoogleUrl;
 class HtmlElement;
@@ -50,9 +48,7 @@ class CssInlineFilter : public CommonFilter {
   class Context;
   friend class Context;
 
-  bool ContainsNonStandardAttributes(const HtmlElement* element);
-  bool ShouldInline(const ResourcePtr& resource,
-                    const StringPiece& attrs_attribute) const;
+  bool ShouldInline(const StringPiece& input) const;
   void RenderInline(const ResourcePtr& resource, const CachedResult& cached,
                     const GoogleUrl& base_url, const StringPiece& text,
                     HtmlElement* element);
@@ -60,7 +56,6 @@ class CssInlineFilter : public CommonFilter {
   const size_t size_threshold_bytes_;
 
   GoogleString domain_;
-  CssTagScanner css_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(CssInlineFilter);
 };

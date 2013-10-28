@@ -22,16 +22,9 @@
 #ifndef WEBUTIL_CSS_STRING_UTIL_H_
 #define WEBUTIL_CSS_STRING_UTIL_H_
 
-#include "strings/stringpiece.h"
-
 class UnicodeText;
 
 namespace Css {
-
-// Using isascii with signed chars is unfortunately undefined.
-inline bool IsAscii(char c) {
-  return isascii(static_cast<unsigned char>(c));
-}
 
 // Convert a given block of chars to a double.
 bool ParseDouble(const char* str, int len, double* dest);
@@ -39,13 +32,6 @@ bool ParseDouble(const char* str, int len, double* dest);
 // Lowercase all ASCII chars in the UnicodeText in_text.
 // Leaves non-ASCII chars alone.
 UnicodeText LowercaseAscii(const UnicodeText& in_text);
-
-bool StringCaseEquals(const StringPiece& a, const StringPiece& b);
-// Compare ident's UTF8 bytes with string str ignoring ASCII case differences.
-// Meant to be used with static ASCII strings, Ex: StringCaseEquals(id, "foo").
-bool StringCaseEquals(const UnicodeText& ident, const StringPiece& str);
-
-std::vector<StringPiece> SplitSkippingEmpty(StringPiece full, char delim);
 
 }  // namespace Css
 

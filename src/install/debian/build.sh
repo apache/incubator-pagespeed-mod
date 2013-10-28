@@ -45,9 +45,7 @@ gen_substvars() {
 prep_staging_debian() {
   prep_staging_common
   install -m 755 -d "${STAGEDIR}/DEBIAN" \
-    "${STAGEDIR}/etc/cron.daily" \
-    "${STAGEDIR}/etc/apache2/conf.d" \
-    "${STAGEDIR}/usr/bin"
+    "${STAGEDIR}/etc/cron.daily"
 }
 
 # Put the package contents in the staging area.
@@ -69,27 +67,19 @@ stage_install_debian() {
   chmod 755 "${STAGEDIR}/DEBIAN/postrm"
   install -m 644 "${BUILDDIR}/install/debian/conffiles" \
     "${STAGEDIR}/DEBIAN/conffiles"
-  echo "/etc/cron.daily/${PACKAGE}" >> "${STAGEDIR}/DEBIAN/conffiles"
   process_template "${BUILDDIR}/install/common/pagespeed.load.template" \
     "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.load"
   chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.load"
   process_template "${BUILDDIR}/install/common/pagespeed.conf.template" \
     "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.conf"
-  install -m 755 "${BUILDDIR}/js_minify" \
-    "${STAGEDIR}/usr/bin/pagespeed_js_minify"
   chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.conf"
-  install -m 644 \
-    "${BUILDDIR}/../../net/instaweb/genfiles/conf/pagespeed_libraries.conf" \
-    "${STAGEDIR}${APACHE_CONF_D_DIR}/pagespeed_libraries.conf"
 }
 
 # Build the deb file within a fakeroot.
 do_package_in_fakeroot() {
   FAKEROOTFILE=$(mktemp -t fakeroot.tmp.XXXXXX) || exit 1
   fakeroot -s "${FAKEROOTFILE}" -- \
-    chown -R ${APACHE_USER}:${APACHE_USER} ${STAGEDIR}${MOD_PAGESPEED_CACHE}
-  fakeroot -s "${FAKEROOTFILE}" -- \
-    chown -R ${APACHE_USER}:${APACHE_USER} ${STAGEDIR}${MOD_PAGESPEED_LOG}
+    chown -R ${APACHE_USER}:${APACHE_USER} ${STAGEDIR}${MODPAGESPEED_CACHE_ROOT}
   fakeroot -i "${FAKEROOTFILE}" -- \
     dpkg-deb -b "${STAGEDIR}" .
   rm -f "${FAKEROOTFILE}"
@@ -101,25 +91,6 @@ do_package() {
   echo "Packaging ${HOST_ARCH}..."
   PREDEPENDS="$COMMON_PREDEPS"
   DEPENDS="${COMMON_DEPS}"
-
-  # Generate Conflicts: and Replaces: headers for the other channel to get
-  # dpkg to seamlessly switch channels on -i
-  case $CHANNEL in
-  stable )
-    CONFLICTS=mod-pagespeed-beta
-    ;;
-  beta )
-    CONFLICTS=mod-pagespeed-stable
-    ;;
-  * )
-    echo
-    echo "ERROR: '$CHANNEL' is not a valid channel type."
-    echo
-    exit 1
-    ;;
-  esac
-  REPLACES="${CONFLICTS}"
-
   gen_changelog
   process_template "${SCRIPTDIR}/control.template" "${DEB_CONTROL}"
   export DEB_HOST_ARCH="${HOST_ARCH}"
@@ -153,6 +124,9 @@ verify_channel() {
   case $CHANNEL in
     stable )
       CHANNEL=stable
+      ;;
+    unstable|dev|alpha )
+      CHANNEL=unstable
       ;;
     testing|beta )
       CHANNEL=beta
@@ -248,18 +222,14 @@ export DEBEMAIL="${MAINTMAIL}"
 # Make everything happen in the OUTPUTDIR.
 cd "${OUTPUTDIR}"
 
-COMMON_DEPS="apache2.2-common|apache2-api-20120211"
+COMMON_DEPS="apache2.2-common"
 COMMON_PREDEPS="dpkg (>= 1.14.0)"
 
 APACHE_MODULEDIR="/usr/lib/apache2/modules"
 APACHE_CONFDIR="/etc/apache2/mods-available"
-APACHE_CONF_D_DIR="/etc/apache2/conf.d"
-MOD_PAGESPEED_CACHE="/var/cache/mod_pagespeed"
-MOD_PAGESPEED_LOG="/var/log/pagespeed"
+MODPAGESPEED_CACHE_ROOT="/var/mod_pagespeed"
 APACHE_USER="www-data"
 COMMENT_OUT_DEFLATE=
-SSL_CERT_DIR="/etc/ssl/certs"
-SSL_CERT_FILE_COMMAND=
 
 case "$TARGETARCH" in
   ia32 )

@@ -19,10 +19,8 @@
 
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 
-#include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/fetcher_test.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/http/public/fetcher_test.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
@@ -37,15 +35,15 @@ class HttpDumpUrlAsyncWriterTest : public FetcherTest {
   HttpDumpUrlAsyncWriterTest()
       : root_dir_(GTestTempDir() + "/http_dump_url_async_writer_test/"),
         mock_timer_(0),
-        dump_fetcher_(root_dir_, counting_fetcher(), &file_system_,
+        dump_fetcher_(root_dir_, &mock_async_fetcher_, &file_system_,
                       &mock_timer_) {
   }
 
   UrlAsyncFetcher* async_fetcher() { return &dump_fetcher_; }
 
   GoogleString root_dir_;
-  MockTimer mock_timer_;
   StdioFileSystem file_system_;
+  MockTimer mock_timer_;
   HttpDumpUrlAsyncWriter dump_fetcher_;
 };
 
@@ -60,7 +58,7 @@ TEST_F(HttpDumpUrlAsyncWriterTest, TestCacheable) {
   EXPECT_FALSE(callback_called1);
   EXPECT_FALSE(callback_called2);
 
-  wait_fetcher()->CallCallbacks();
+  mock_async_fetcher_.CallCallbacks();
   EXPECT_TRUE(callback_called1);
   EXPECT_TRUE(callback_called2);
 
@@ -81,7 +79,7 @@ TEST_F(HttpDumpUrlAsyncWriterTest, TestNotCacheable) {
   EXPECT_FALSE(callback_called1);
   EXPECT_FALSE(callback_called2);
 
-  wait_fetcher()->CallCallbacks();
+  mock_async_fetcher_.CallCallbacks();
   EXPECT_TRUE(callback_called1);
   EXPECT_TRUE(callback_called2);
 
@@ -101,13 +99,13 @@ TEST_F(HttpDumpUrlAsyncWriterTest, TestCacheWithASyncFetcherFail) {
   EXPECT_FALSE(callback_called1);
   EXPECT_FALSE(callback_called2);
 
-  wait_fetcher()->CallCallbacks();
+  mock_async_fetcher_.CallCallbacks();
   EXPECT_TRUE(callback_called1);
   EXPECT_TRUE(callback_called2);
 
   EXPECT_EQ(1, CountFetchesAsync(kBadUrl, false, &callback_called3));
   EXPECT_FALSE(callback_called3);
-  wait_fetcher()->CallCallbacks();  // Otherwise memory will be leaked
+  mock_async_fetcher_.CallCallbacks();  // Otherwise memory will be leaked
   EXPECT_TRUE(callback_called3);
 }
 

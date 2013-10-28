@@ -15,22 +15,17 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/apache/header_util.h"
-
-#include <cstdio>
-
-#include "base/logging.h"
-#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/apache/apr_timer.h"
+#include "net/instaweb/apache/instaweb_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/http/public/headers.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/http/caching_headers.h"
+#include "net/instaweb/util/public/time_util.h"
 
 #include "apr_strings.h"
 #include "http_core.h"
 #include "http_protocol.h"
-#include "httpd.h"
 
 namespace net_instaweb {
 
@@ -62,25 +57,23 @@ void ApacheRequestToRequestHeaders(const request_rec& request,
 }
 
 void ApacheRequestToResponseHeaders(const request_rec& request,
-                                    ResponseHeaders* headers,
-                                    ResponseHeaders* err_headers) {
-  headers->set_status_code(request.status);
-  if (request.proto_num >= 1000) {
-    // proto_num is the version number of protocol; 1.1 = 1001
-    headers->set_major_version(request.proto_num / 1000);
-    headers->set_minor_version(request.proto_num % 1000);
-  }
-  apr_table_do(AddResponseAttributeCallback, headers,
+                                    ResponseHeaders* response_headers) {
+  apr_table_do(AddResponseAttributeCallback, response_headers,
                request.headers_out, NULL);
-  if (err_headers != NULL) {
-    apr_table_do(AddResponseAttributeCallback, err_headers,
-                 request.err_headers_out, NULL);
-  }
 }
 
-void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
-                                       request_rec* request,
-                                       apr_table_t* table) {
+void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
+                                    request_rec* request) {
+  request->status = response_headers.status_code();
+  // proto_num is the version number of protocol; 1.1 = 1001
+  request->proto_num =
+      (response_headers.major_version() * 1000) +
+      response_headers.minor_version();
+  AddResponseHeadersToRequest(response_headers, request);
+}
+
+void AddResponseHeadersToRequest(const ResponseHeaders& response_headers,
+                                 request_rec* request) {
   for (int i = 0, n = response_headers.NumAttributes(); i < n; ++i) {
     const GoogleString& name = response_headers.Name(i);
     const GoogleString& value = response_headers.Value(i);
@@ -90,23 +83,14 @@ void AddResponseHeadersToRequestHelper(const ResponseHeaders& response_headers,
       char* ptr = apr_pstrdup(request->pool, value.c_str());
       ap_set_content_type(request, ptr);
     } else {
+      if (StringCaseEqual(name, HttpAttributes::kCacheControl)) {
+        DisableDownstreamHeaderFilters(request);
+      }
       // apr_table_add makes copies of both head key and value, so we do not
       // have to duplicate them.
-      apr_table_add(table, name.c_str(), value.c_str());
+      apr_table_add(request->headers_out, name.c_str(), value.c_str());
     }
   }
-}
-
-void ResponseHeadersToApacheRequest(const ResponseHeaders& response_headers,
-                                    request_rec* request) {
-  AddResponseHeadersToRequestHelper(response_headers, request,
-                                    request->headers_out);
-}
-
-void ErrorHeadersToApacheRequest(const ResponseHeaders& err_response_headers,
-                                 request_rec* request) {
-  AddResponseHeadersToRequestHelper(err_response_headers, request,
-                                    request->err_headers_out);
 }
 
 void DisableDownstreamHeaderFilters(request_rec* request) {
@@ -134,55 +118,7 @@ void PrintHeaders(request_rec* request) {
   apr_table_do(PrintAttributeCallback, NULL, request->headers_in, NULL);
   fprintf(stdout, "Output headers:\n");
   apr_table_do(PrintAttributeCallback, NULL, request->headers_out, NULL);
-  fprintf(stdout, "Err_Output headers:\n");
-  apr_table_do(PrintAttributeCallback, NULL, request->err_headers_out, NULL);
   fflush(stdout);
-}
-
-class ApacheCachingHeaders : public CachingHeaders {
- public:
-  explicit ApacheCachingHeaders(request_rec* request)
-      : CachingHeaders(request->status),
-        request_(request) {
-  }
-
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
-    const char* value = apr_table_get(request_->headers_out,
-                                      key.as_string().c_str());
-    if (value == NULL) {
-      return false;
-    }
-    SplitStringPieceToVector(value, ",", values, true);
-    for (int i = 0, n = values->size(); i < n; ++i) {
-      TrimWhitespace(&((*values)[i]));
-    }
-    return true;
-  }
-
-  virtual bool IsLikelyStaticResourceType() const {
-    DCHECK(false);  // not called in our use-case.
-    return false;
-  }
-
-  virtual bool IsCacheableResourceStatusCode() const {
-    DCHECK(false);  // not called in our use-case.
-    return false;
-  }
-
- private:
-  request_rec* request_;
-
-  DISALLOW_COPY_AND_ASSIGN(ApacheCachingHeaders);
-};
-
-void DisableCaching(request_rec* request) {
-  // Turn off caching for the HTTP requests.
-  ApacheCachingHeaders headers(request);
-  apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
-                headers.GenerateDisabledCacheControl().c_str());
-  apr_table_unset(request->headers_out, HttpAttributes::kLastModified);
-  apr_table_unset(request->headers_out, HttpAttributes::kExpires);
-  apr_table_unset(request->headers_out, HttpAttributes::kEtag);
 }
 
 }  // namespace net_instaweb

@@ -25,7 +25,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/rewriter/public/furious_util.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/google_url.h"
@@ -43,19 +43,14 @@ const char kInsertedGaSnippets[] = "inserted_ga_snippets";
 
 namespace net_instaweb {
 
-// Google Analytics snippet for setting experiment related variables.
-extern const char kGAExperimentSnippet[] =
-    "var _gaq = _gaq || [];"
-    "%s"  // %s is the optional snippet to increase site speed tracking.
-    "%s";  // %s is the snippet for experiments.
-
-// Google Analytics async snippet along with the _trackPageView call.
-extern const char kGAJsSnippet[] =
-    "if (window.parent == window) {"
+// Google Analytics async snippet.
+extern const char kGASnippet[] =
     "var _gaq = _gaq || [];"
     "_gaq.push(['_setAccount', '%s']);"  // %s is the GA account number.
     "_gaq.push(['_setDomainName', '%s']);"  // %s is the domain name
     "_gaq.push(['_setAllowLinker', true]);"
+    "%s"  // %s is the optional snippet to increase site speed tracking.
+    "%s"  // %s is the Furious Snippet for experiments.
     "_gaq.push(['_trackPageview']);"
     "(function() {"
     "var ga = document.createElement('script'); ga.type = 'text/javascript';"
@@ -63,8 +58,7 @@ extern const char kGAJsSnippet[] =
     "ga.src = '%s.google-analytics.com/ga.js';"  // %s is the scheme and www/ssl
     "var s = document.getElementsByTagName('script')[0];"
     "s.parentNode.insertBefore(ga, s);"
-    "})();"
-    "}";
+    "})();";
 
 // Set the sample rate to 100%.
 // TODO(nforman): Allow this to be configurable through RewriteOptions.
@@ -74,14 +68,14 @@ extern const char kGASpeedTracking[] =
 // The %u is for the variable slot (defaults to 1).
 // The %s is for the Experiment spec string.
 // This defaults to being a page-scoped variable.
-const char kExperimentSnippetFmt[] =
-    "_gaq.push(['_setCustomVar', %u, 'ExperimentState', '%s']);";
+const char kFuriousSnippetFmt[] =
+    "_gaq.push(['_setCustomVar', %u, 'FuriousState', '%s']);";
 
 InsertGAFilter::InsertGAFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
       script_element_(NULL),
-      added_analytics_js_(false),
-      added_experiment_snippet_(false),
+      added_snippet_element_(NULL),
+      added_furious_element_(NULL),
       ga_id_(rewrite_driver->options()->ga_id()),
       found_snippet_(false),
       increase_speed_tracking_(
@@ -91,7 +85,7 @@ InsertGAFilter::InsertGAFilter(RewriteDriver* rewrite_driver)
   DCHECK(!ga_id_.empty()) << "Enabled ga insertion, but did not provide ga id.";
 }
 
-void InsertGAFilter::InitStats(Statistics* stats) {
+void InsertGAFilter::Initialize(Statistics* stats) {
   stats->AddVariable(kInsertedGaSnippets);
 }
 
@@ -100,35 +94,18 @@ InsertGAFilter::~InsertGAFilter() {}
 void InsertGAFilter::StartDocumentImpl() {
   found_snippet_ = false;
   script_element_ = NULL;
-  added_analytics_js_ = false;
-  added_experiment_snippet_ = false;
+  added_snippet_element_ = NULL;
+  added_furious_element_ = NULL;
   buffer_.clear();
-  if (driver_->options()->running_experiment()) {
+  if (driver_->options()->running_furious()) {
     driver_->message_handler()->Message(
         kInfo, "run_experiment: %s",
         driver_->options()->ToExperimentDebugString().c_str());
   }
 }
 
-// Add the experiment js snippet at the beginning of <head> and then
-// start looking for ga snippet.
+// Start looking for ga snippet.
 void InsertGAFilter::StartElementImpl(HtmlElement* element) {
-  if (!added_experiment_snippet_) {
-    if (element->keyword() == HtmlName::kHead) {
-      added_experiment_snippet_ = true;
-      // This will be empty if we're not running experiment.
-      GoogleString experiment = ConstructExperimentSnippet();
-      // Increase the percentage of traffic for which we track page load time.
-      GoogleString speed_snippet = "";
-      if (!experiment.empty() || increase_speed_tracking_) {
-        speed_snippet = kGASpeedTracking;
-      }
-      GoogleString snippet_text = StringPrintf(
-          kGAExperimentSnippet,
-          speed_snippet.c_str(), experiment.c_str());
-      AddScriptNode(element, snippet_text, true);
-    }
-  }
   if (!found_snippet_ && element->keyword() == HtmlName::kScript &&
       script_element_ == NULL) {
     script_element_ = element;
@@ -139,8 +116,6 @@ void InsertGAFilter::StartElementImpl(HtmlElement* element) {
 // This may not be exact, but should be a pretty good guess.
 // TODO(nforman): Find out if there is a canonical way of determining
 // if a script is a GA snippet.
-// TODO(anupama): If the existing GA snippet does not have a _trackPagview
-// call, we may not get meaningful results. See if this case needs to be fixed.
 bool InsertGAFilter::FoundSnippetInBuffer() const {
   return
       (buffer_.find(ga_id_) != GoogleString::npos &&
@@ -149,67 +124,72 @@ bool InsertGAFilter::FoundSnippetInBuffer() const {
         buffer_.find(".google-analytics.com/urchin.js") != GoogleString::npos));
 }
 
-// Running an experiment: add in the information as the slot 1 custom variable.
+// Running furious: add in the information as the slot 1 custom variable.
 // TODO(nforman): Change this to be a label on track_timings
 // data when the track_timings api goes live (maybe).
-GoogleString InsertGAFilter::ConstructExperimentSnippet() const {
-  GoogleString experiment = "";
-  if (driver_->options()->running_experiment()) {
-    int experiment_state = driver_->options()->experiment_id();
-    if (experiment_state != experiment::kExperimentNotSet &&
-        experiment_state != experiment::kNoExperiment) {
-      experiment = StringPrintf(kExperimentSnippetFmt,
-          driver_->options()->experiment_ga_slot(),
+GoogleString InsertGAFilter::ConstructFuriousSnippet() const {
+  GoogleString furious = "";
+  if (driver_->options()->running_furious()) {
+    int furious_state = driver_->options()->furious_id();
+    if (furious_state != furious::kFuriousNotSet &&
+        furious_state != furious::kFuriousNoExperiment) {
+      furious = StringPrintf(kFuriousSnippetFmt,
+          driver_->options()->furious_ga_slot(),
           driver_->options()->ToExperimentString().c_str());
     }
   }
-  return experiment;
+  return furious;
 }
 
-void InsertGAFilter::AddScriptNode(HtmlElement* current_element,
-                                   GoogleString text,
-                                   bool insert_immediately_after_current) {
-  HtmlElement* script_element = driver_->NewElement(current_element,
-                                                    HtmlName::kScript);
-  script_element->set_close_style(HtmlElement::EXPLICIT_CLOSE);
-  driver_->AddAttribute(script_element, HtmlName::kType,
+void InsertGAFilter::AddScriptNode(HtmlElement* parent,
+                                   const GoogleString& text,
+                                   HtmlElement** script_element) const {
+  *script_element = driver_->NewElement(parent,
+                                        HtmlName::kScript);
+  (*script_element)->set_close_style(HtmlElement::EXPLICIT_CLOSE);
+  driver_->AddAttribute(*script_element, HtmlName::kType,
                         "text/javascript");
   HtmlNode* snippet =
-      driver_->NewCharactersNode(script_element, text);
-  if (insert_immediately_after_current) {
-    driver_->InsertNodeAfterCurrent(script_element);
-  } else {
-    driver_->AppendChild(current_element, script_element);
-  }
-  driver_->AppendChild(script_element, snippet);
+      driver_->NewCharactersNode(*script_element, text);
+  driver_->AppendChild(parent, *script_element);
+  driver_->AppendChild(*script_element, snippet);
 }
 
-GoogleString InsertGAFilter::MakeFullExperimentSnippet() const {
-  GoogleString experiment = ConstructExperimentSnippet();
-  if (!experiment.empty()) {
-    // Always increase speed tracking to 100% for experiments.
-    StrAppend(&experiment, kGASpeedTracking);
+GoogleString InsertGAFilter::MakeFullFuriousSnippet() const {
+  GoogleString furious = ConstructFuriousSnippet();
+  if (!furious.empty()) {
+    // Always increase speed tracking to 100% for Furious.
+    StrAppend(&furious, kGASpeedTracking, "_gaq.push(['_trackPageview']);");
   }
-  return experiment;
+  return furious;
 }
 
-// Handle the end of a body tag.
-// If we've already inserted any GA snippet or if we found a GA
-// snippet in the original page, don't do anything.
+// Handle the end of a head tag.
+//
+// If we've already inserted any GA snippet, don't do anything.
+//
+// If we found a GA snippet in the original page, add a furious
+// snippet only (if we're running furious).
+//
 // If we haven't found anything, and haven't inserted anything yet,
-// insert the GA js snippet.
-// Caveat: Analytics js should ideally be placed in <head> for accurate
-// collection of data (e.g. pageviews etc.). We place it at the end of the
-// <body> tag so that we won't add duplicate analytics js code for any page.
-// For pages which don't already have analytics js, this might result in some
-// data being lost.
-void InsertGAFilter::HandleEndBody(HtmlElement* body) {
-  // There is a chance (e.g. if there are two body tags), that we have
+// insert a GA snippet which includes the furious tracking code.
+void InsertGAFilter::HandleEndHead(HtmlElement* head) {
+  // There is a chance (e.g. if there are two heads), that we have
   // already inserted the snippet.  In that case, don't do it again.
-  if (added_analytics_js_ || found_snippet_) {
+  if (added_snippet_element_ != NULL || added_furious_element_ != NULL) {
     return;
   }
 
+  if (found_snippet_) {
+    // We found a snippet, but we now need to set the custom variable.
+    // We also need to send a trackPageview request after the variable
+    // has been set.
+    GoogleString furious = MakeFullFuriousSnippet();
+    if (!furious.empty()) {
+      AddScriptNode(head, furious, &added_furious_element_);
+    }
+    return;
+  }
   // No snippets have been found, and we haven't added any snippets
   // yet, so add one now.
 
@@ -219,18 +199,28 @@ void InsertGAFilter::HandleEndBody(HtmlElement* body) {
   // in the ga snippet, but it's faster to determine it here.
   const char* kUrlPrefix = driver_->google_url().SchemeIs("https") ?
       "https://ssl" : "http://www";
-  GoogleString js_text = StringPrintf(kGAJsSnippet, ga_id_.c_str(),
-                                      domain.c_str(), kUrlPrefix);
-  AddScriptNode(body, js_text, false);
-  added_analytics_js_ = true;
+
+  // This will be empty if we're not running furious.
+  GoogleString furious = ConstructFuriousSnippet();
+
+  // Increase the percentage of traffic for which we track page load time.
+  GoogleString speed_snippet =
+      (!furious.empty() || increase_speed_tracking_) ? kGASpeedTracking : "";
+
+  // Full Snippet
+  GoogleString snippet_text = StringPrintf(
+      kGASnippet, ga_id_.c_str(), domain.c_str(),
+      speed_snippet.c_str(), furious.c_str(), kUrlPrefix);
+  AddScriptNode(head, snippet_text, &added_snippet_element_);
   inserted_ga_snippets_count_->Add(1);
   return;
 }
 
 // Handle the end of a script tag.
-// Look for a GA snippet in the script and record the findings so that we can
-// optionally add the analytics js at the end of the body if no GA snippet is
-// present on the page.
+// Look for a GA snippet in the script.
+// If we find one, remove any GA snippets we've added already.
+// If we're running furious, and if we had to remove a snippet,
+// we need to add back in the furious part only.
 void InsertGAFilter::HandleEndScript(HtmlElement* script) {
   // There shouldn't be any "nested" script elements, but just
   // in case, don't reset things if the elements don't match.
@@ -238,9 +228,28 @@ void InsertGAFilter::HandleEndScript(HtmlElement* script) {
   // The buffer should also be empty in that case.
   if (script == script_element_ && !found_snippet_) {
     if (FoundSnippetInBuffer()) {
-      // TODO(anupama): Handle the case where an analytics snippet is
-      // present on the page, by storing this information in pcache.
       found_snippet_ = true;
+      // If we'd already added a snippet, delete it now.
+      // This will only work if the snippet we found is in the same
+      // flush window as <head>.  (In theory, it should be since
+      // the GA instructions say to put the snippet in head, but
+      // of course I'm sure not everyone listens.)
+      if (added_snippet_element_ != NULL) {
+        if (!driver_->DeleteElement(added_snippet_element_)) {
+          LOG(INFO) <<
+              "Tried to delete GA element, but it was already flushed.";
+        } else {
+          added_snippet_element_ = NULL;
+          inserted_ga_snippets_count_->Add(-1);
+          // If we deleted the snippet, and we're running furious, we now need
+          // to add back in the furious bit.
+          GoogleString furious = MakeFullFuriousSnippet();
+          if (!furious.empty()) {
+            AddScriptNode(script->parent(), furious,
+                          &added_furious_element_);
+          }
+        }
+      }
     }
     script_element_ = NULL;
     buffer_.clear();
@@ -252,8 +261,8 @@ void InsertGAFilter::EndElementImpl(HtmlElement* element) {
     case HtmlName::kScript:
       HandleEndScript(element);
       break;
-    case HtmlName::kBody:
-      HandleEndBody(element);
+    case HtmlName::kHead:
+      HandleEndHead(element);
       break;
     default:
       break;

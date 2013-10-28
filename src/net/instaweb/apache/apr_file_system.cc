@@ -16,21 +16,18 @@
 
 #include "net/instaweb/apache/apr_file_system.h"
 
-#include <cerrno>
+#include <string>
 
-#include "apr.h"
 #include "apr_file_info.h"
 #include "apr_file_io.h"
 #include "apr_pools.h"
-
-#include "net/instaweb/apache/apr_timer.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "base/logging.h"
+#include "base/scoped_ptr.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
 #include "net/instaweb/util/public/debug.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/stack_buffer.h"
@@ -51,7 +48,7 @@ void AprReportError(MessageHandler* message_handler, const char* filename,
                     int line, const char* message, int error_code) {
   char buf[kStackBufferSize];
   apr_strerror(error_code, buf, sizeof(buf));
-  GoogleString error_format(message);
+  std::string error_format(message);
   error_format.append(" (code=%d %s)");
   message_handler->Error(filename, line, error_format.c_str(), error_code, buf);
 }
@@ -73,11 +70,11 @@ class FileHelper {
 
   bool Close(MessageHandler* message_handler);
   apr_file_t* file() { return file_; }
-  const GoogleString& filename() const { return filename_; }
+  const std::string& filename() const { return filename_; }
 
  private:
   apr_file_t* const file_;
-  const GoogleString filename_;
+  const std::string filename_;
   AbstractMutex* mutex_;  // owned by the FS object
 
   DISALLOW_COPY_AND_ASSIGN(FileHelper);
@@ -219,16 +216,11 @@ FileSystem::InputFile* AprFileSystem::OpenInputFile(
 }
 
 FileSystem::OutputFile* AprFileSystem::OpenOutputFileHelper(
-    const char* filename, bool append, MessageHandler* message_handler) {
+    const char* filename, MessageHandler* message_handler) {
   ScopedMutex hold_mutex(mutex_.get());
   apr_file_t* file;
-  apr_int32_t flags;
-  if (append) {
-    flags = APR_WRITE | APR_CREATE | APR_APPEND;
-  } else {
-    flags = APR_WRITE | APR_CREATE | APR_TRUNCATE;
-  }
-  apr_status_t ret = apr_file_open(&file, filename, flags,
+  apr_status_t ret = apr_file_open(&file, filename,
+                                   APR_WRITE | APR_CREATE | APR_TRUNCATE,
                                    APR_OS_DEFAULT, pool_);
   if (ret != APR_SUCCESS) {
     AprReportError(message_handler, filename, 0, "open output file", ret);
@@ -297,17 +289,6 @@ bool AprFileSystem::MakeDir(const char* directory_path,
   return true;
 }
 
-bool AprFileSystem::RemoveDir(const char* directory_path,
-                              MessageHandler* message_handler) {
-  ScopedMutex hold_mutex(mutex_.get());
-  apr_status_t ret = apr_dir_remove(directory_path, pool_);
-  if (ret != APR_SUCCESS) {
-    AprReportError(message_handler, directory_path, 0, "removing dir", ret);
-    return false;
-  }
-  return true;
-}
-
 BoolOrError AprFileSystem::Exists(const char* path, MessageHandler* handler) {
   ScopedMutex hold_mutex(mutex_.get());
   BoolOrError exists;  // Error is the default state.
@@ -341,7 +322,7 @@ BoolOrError AprFileSystem::IsDir(const char* path, MessageHandler* handler) {
 bool AprFileSystem::ListContents(const StringPiece& dir,
                                  StringVector* files,
                                  MessageHandler* handler) {
-  GoogleString dirString = dir.as_string();
+  std::string dirString = dir.as_string();
   EnsureEndsInSlash(&dirString);
   const char* dirname = dirString.c_str();
   apr_dir_t* mydir;
@@ -376,7 +357,7 @@ bool AprFileSystem::Stat(const StringPiece& path,
                          apr_finfo_t* file_info, apr_int32_t field_wanted,
                          MessageHandler* handler) {
   ScopedMutex hold_mutex(mutex_.get());
-  const GoogleString path_string = path.as_string();
+  const std::string path_string = path.as_string();
   const char* path_str = path_string.c_str();
   apr_status_t ret = apr_stat(file_info, path_str, field_wanted, pool_);
   if (ret != APR_SUCCESS) {
@@ -424,9 +405,9 @@ bool AprFileSystem::Mtime(const StringPiece& path,
 bool AprFileSystem::Size(const StringPiece& path, int64* size,
                            MessageHandler* handler) {
   apr_finfo_t file_info;
-  bool ret = Stat(path, &file_info, APR_FINFO_CSIZE, handler);
+  bool ret = Stat(path, &file_info, APR_FINFO_SIZE, handler);
   if (ret) {
-    *size = file_info.csize;
+    *size = file_info.size;
   }
   return ret;
 }
@@ -434,7 +415,7 @@ bool AprFileSystem::Size(const StringPiece& path, int64* size,
 BoolOrError AprFileSystem::TryLock(const StringPiece& lock_name,
                                    MessageHandler* handler) {
   ScopedMutex hold_mutex(mutex_.get());
-  const GoogleString lock_string = lock_name.as_string();
+  const std::string lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
   // TODO(abliss): mkdir is not atomic on all platforms.  We should
   // perhaps use an apr_global_mutex_t here.
@@ -451,9 +432,8 @@ BoolOrError AprFileSystem::TryLock(const StringPiece& lock_name,
 
 BoolOrError AprFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
                                               int64 timeout_ms,
-                                              const Timer* timer,
                                               MessageHandler* handler) {
-  const GoogleString lock_string = lock_name.as_string();
+  const std::string lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
   BoolOrError result = TryLock(lock_name, handler);
   if (result.is_true() || result.is_error()) {
@@ -505,7 +485,7 @@ BoolOrError AprFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
 bool AprFileSystem::Unlock(const StringPiece& lock_name,
                            MessageHandler* handler) {
   ScopedMutex hold_mutex(mutex_.get());
-  const GoogleString lock_string = lock_name.as_string();
+  const std::string lock_string = lock_name.as_string();
   const char* lock_str = lock_string.c_str();
   apr_status_t ret = apr_dir_remove(lock_str, pool_);
   if (ret != APR_SUCCESS && !APR_STATUS_IS_ENOENT(ret)) {

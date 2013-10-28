@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/public/js_combine_filter.h"
 
-#include <memory>
 #include <vector>
 
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
@@ -30,10 +29,11 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/cache_extender.h"
+#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/javascript_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -43,6 +43,7 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -54,7 +55,6 @@ namespace {
 const char kJsUrl1[] = "a.js";
 const char kJsUrl2[] = "b.js";
 const char kJsUrl3[] = "c.js";
-const char kJsUrl4[] = "d.js";
 const char kStrictUrl1[] = "strict1.js";
 const char kStrictUrl2[] = "strict2.js";
 const char kIntrospectiveUrl1[] = "introspective1.js";
@@ -64,7 +64,6 @@ const char kMinifiedJs1[] = "var a=\"hello\\nsecond line\"";
 const char kJsText2[] = "// script2\r\nvar b=42;\n";
 const char kMinifiedJs2[] = "var b=42;";
 const char kJsText3[] = "var x = 42;\nvar y = 31459;\n";
-const char kJsText4[] = "var m = 'abcd';\n";
 const char kStrictText1[] = "'use strict'; var x = 32;";
 const char kStrictText2[] = "\"use strict\"; var x = 42;";
 const char kIntrospectiveText1[] = "var x = 7; $('script') ; var y = 42;";
@@ -79,7 +78,7 @@ const char kAlternateDomain[] = "http://alternate.com/";
 }  // namespace
 
 // Test fixture for JsCombineFilter unit tests.
-class JsCombineFilterTest : public RewriteTestBase {
+class JsCombineFilterTest : public ResourceManagerTestBase {
  public:
   struct ScriptInfo {
     HtmlElement* element;
@@ -136,23 +135,28 @@ class JsCombineFilterTest : public RewriteTestBase {
   };
 
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    SetUpWithJsFilter(false);
+  }
+
+  void SetUpWithJsFilter(bool use_js_filter) {
+    ResourceManagerTestBase::SetUp();
     UseMd5Hasher();
     SetDefaultLongCacheHeaders(&kContentTypeJavascript, &default_js_header_);
     SimulateJsResource(kJsUrl1, kJsText1);
     SimulateJsResource(kJsUrl2, kJsText2);
     SimulateJsResourceOnDomain(kAlternateDomain, kJsUrl2, kJsText2);
     SimulateJsResource(kJsUrl3, kJsText3);
-    SimulateJsResource(kJsUrl4, kJsText4);
     SimulateJsResource(kStrictUrl1, kStrictText1);
     SimulateJsResource(kStrictUrl2, kStrictText2);
     SimulateJsResource(kIntrospectiveUrl1, kIntrospectiveText1);
     SimulateJsResource(kIntrospectiveUrl2, kIntrospectiveText2);
 
-    options()->EnableFilter(RewriteOptions::kCombineJavascript);
-    SetUpExtraFilters();
+    if (use_js_filter) {
+      AddRewriteFilter(new JavascriptFilter(rewrite_driver()));
+    }
+    filter_ = new JsCombineFilter(rewrite_driver());
+    AddRewriteFilter(filter_);
     rewrite_driver()->AddFilters();
-
     // Some tests need an another domain, with (different)source files on it as
     // well.
     GoogleString test_domain(kTestDomain);
@@ -162,9 +166,6 @@ class JsCombineFilterTest : public RewriteTestBase {
     other_domain_ = StrCat(test_domain, ".us/");
     SimulateJsResourceOnDomain(other_domain_, kJsUrl1, "othera");
     SimulateJsResourceOnDomain(other_domain_, kJsUrl2, "otherb");
-  }
-
-  virtual void SetUpExtraFilters() {
   }
 
   void SimulateJsResource(const StringPiece& url, const StringPiece& text) {
@@ -190,10 +191,7 @@ class JsCombineFilterTest : public RewriteTestBase {
     // We need to check against the encoded form of the given domain.
     GoogleUrl encoded(EncodeWithBase(base_url, domain, "x", "0", "x", "x"));
     // The combination url should incorporate both names...
-    GoogleUrl base_gurl(base_url);
-    GoogleUrl combination_url(base_gurl, info.url);
-    ASSERT_TRUE(encoded.IsAnyValid()) << encoded.UncheckedSpec();
-    ASSERT_TRUE(combination_url.IsAnyValid()) << info.url;
+    GoogleUrl combination_url(info.url);
     EXPECT_STREQ(encoded.AllExceptLeaf(), combination_url.AllExceptLeaf());
     ResourceNamer namer;
     EXPECT_TRUE(namer.Decode(combination_url.LeafWithQuery()));
@@ -215,20 +213,12 @@ class JsCombineFilterTest : public RewriteTestBase {
                          const StringPiece& rel_url) {
     GoogleString abs_url = StrCat(domain, rel_url);
     EXPECT_TRUE(info.url.empty());
-    EXPECT_EQ(
-        StrCat("eval(",
-               JsCombineFilter::VarName(server_context(), abs_url),
-               ");"),
-        info.text_content);
+    EXPECT_EQ(StrCat("eval(", filter_->VarName(abs_url), ");"),
+              info.text_content);
   }
 
   void VerifyUse(const ScriptInfo& info, const StringPiece& rel_url) {
     VerifyUseOnDomain(kTestDomain, info, rel_url);
-  }
-
-  GoogleString TestHtml() {
-    return StrCat("<script src=", kJsUrl1, "></script>",
-                  "<script src=", kJsUrl2, "></script>");
   }
 
   // Test basic combining of multiple JS files.  The resultant names and
@@ -247,8 +237,8 @@ class JsCombineFilterTest : public RewriteTestBase {
                      const StringPiece& domain) {
     ScriptInfoVector scripts;
     PrepareToCollectScriptsInto(&scripts);
-    GoogleUrl html_url(kTestDomain);
-    ParseUrl(html_url.Spec(), TestHtml());
+    ParseUrl(kTestDomain, StrCat("<script src=", kJsUrl1, "></script>",
+                                 "<script src=", kJsUrl2, "></script>"));
 
     // This should produce 3 script elements, with the first one referring to
     // the combination, and the second and third using eval.
@@ -262,13 +252,6 @@ class JsCombineFilterTest : public RewriteTestBase {
     // Now check the actual contents. These might change slightly
     // during implementation changes, requiring update of the test;
     // but this is also not dependent on VarName working right.
-    EXPECT_STREQ(AddHtmlBody(
-        StrCat("<script src=\"", scripts[0].url, "\"></script>"
-               "<script>eval(mod_pagespeed_", hash1, ");</script>"
-               "<script>eval(mod_pagespeed_", hash2, ");</script>")),
-        output_buffer_);
-
-    // Check that the combined URL is what we'd expect.
     GoogleString combined_path =
         Encode("", "jc", combined_hash, combined_name, "js");
     GoogleUrl encoded_domain(Encode(domain, "x", "0", "x", "x"));
@@ -276,13 +259,16 @@ class JsCombineFilterTest : public RewriteTestBase {
     // two commas, which is not what we want, so reverse that. We can be given
     // such URLs because it's too hard to do the encoding programatically.
     GlobalReplaceSubstring(",,M", ",M", &combined_path);
-    GoogleUrl output_url(html_url, scripts[0].url);
-    EXPECT_EQ(StrCat(encoded_domain.AllExceptLeaf(), combined_path),
-              output_url.Spec());
+    EXPECT_STREQ(AddHtmlBody(
+        StrCat("<script src=\"", encoded_domain.AllExceptLeaf(),
+               combined_path, "\"></script>"
+               "<script>eval(mod_pagespeed_", hash1, ");</script>"
+               "<script>eval(mod_pagespeed_", hash2, ");</script>")),
+        output_buffer_);
 
     // Now fetch the combined URL.
     GoogleString combination_src;
-    ASSERT_TRUE(FetchResourceUrl(output_url.Spec(), &combination_src));
+    ASSERT_TRUE(FetchResourceUrl(scripts[0].url, &combination_src));
     EXPECT_STREQ(StrCat(
         StrCat("var mod_pagespeed_", hash1, " = ",
                (minified ? kMinifiedEscapedJs1 : kEscapedJs1), ";\n"),
@@ -290,18 +276,18 @@ class JsCombineFilterTest : public RewriteTestBase {
                (minified ? kMinifiedEscapedJs2 : kEscapedJs2), ";\n")),
                  combination_src);
 
-    ServeResourceFromManyContexts(output_url.Spec().as_string(),
-                                  combination_src);
+    ServeResourceFromManyContexts(scripts[0].url, combination_src);
   }
 
  protected:
   ResponseHeaders default_js_header_;
   GoogleString other_domain_;
+  JsCombineFilter* filter_;  // Owned by rewrite_driver_
 };
 
 class JsFilterAndCombineFilterTest : public JsCombineFilterTest {
-  virtual void SetUpExtraFilters() {
-    options()->EnableFilter(RewriteOptions::kRewriteJavascript);
+  virtual void SetUp() {
+    SetUpWithJsFilter(true);
   }
 };
 
@@ -311,69 +297,12 @@ TEST_F(JsCombineFilterTest, CombineJs) {
                 "dzsx6RqvJJ", false, kTestDomain);
 }
 
-class JsCombineFilterCustomOptions : public JsCombineFilterTest {
- protected:
-  // Derived classes should set their options and then call
-  // JsCombineFilterTest::SetUp().
-  virtual void SetUp() {}
-};
-
-TEST_F(JsCombineFilterCustomOptions, CombineJsPreserveURLsOn) {
-  options()->set_js_preserve_urls(true);
-  JsCombineFilterTest::SetUp();
-  ValidateNoChanges("combine_js_preserve_urls_on",
-                    StrCat("<script src=", kJsUrl1, "></script>",
-                           "<script src=", kJsUrl2, "></script>"));
-}
-
-// When cache is unhealthy, don't rewrite URLs in HTML.
-TEST_F(JsCombineFilterTest, CombineJsUnhealthy) {
-  lru_cache()->set_is_healthy(false);
-  ValidateNoChanges("unhealthy", TestHtml());
-}
-
-// But do serve correctly rewritten resources when
-// .pagespeed. resources are requested even if cache is unhealthy.
-TEST_F(JsCombineFilterTest, ServeFilesUnhealthy) {
-  lru_cache()->set_is_healthy(false);
-  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript, "var a;", 100);
-  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript, "var b;", 100);
-  GoogleString content;
-  const GoogleString combined_url = Encode(
-      kTestDomain, "jc", "0", MultiUrl("a.js", "b.js"), "js");
-  ASSERT_TRUE(FetchResourceUrl(combined_url, &content));
-  const char kCombinedContent[] =
-      "var mod_pagespeed_KecOGCIjKt = \"var a;\";\n"
-      "var mod_pagespeed_dzsx6RqvJJ = \"var b;\";\n";
-  EXPECT_EQ(kCombinedContent, content);
-}
-
-class JsCombineAndCacheExtendFilterTest : public JsCombineFilterTest {
-  virtual void SetUpExtraFilters() {
-    options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
-  }
-};
-
-TEST_F(JsCombineAndCacheExtendFilterTest, CombineJsNoExtraCacheExtension) {
-  // Make sure we don't end up trying to cache extend things
-  // the combiner removed. We need to custom-set resources here to give them
-  // shorter TTL than the fixture would.
-  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript, kJsText1, 100);
-  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript, kJsText2, 100);
-
-  TestCombineJs(MultiUrl("a.js", "b.js"), "g2Xe9o4bQ2", "KecOGCIjKt",
-                "dzsx6RqvJJ", false, kTestDomain);
-  EXPECT_EQ(0,
-            rewrite_driver()->statistics()->GetVariable(
-                CacheExtender::kCacheExtensions)->Get());
-}
-
 // Turning on AvoidRewritingIntrospectiveJavascript should not affect normal
 // rewriting.
 TEST_F(JsCombineFilterTest, CombineJsAvoidRewritingIntrospectiveJavascripOn) {
   options()->ClearSignatureForTesting();
   options()->set_avoid_renaming_introspective_javascript(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   TestCombineJs(MultiUrl("a.js", "b.js"), "g2Xe9o4bQ2", "KecOGCIjKt",
                 "dzsx6RqvJJ", false, kTestDomain);
 }
@@ -393,7 +322,8 @@ TEST_F(JsFilterAndCombineFilterTest, MinifyCombineJs) {
 // the code (in url_partnership.cc) was already doing the right thing,
 // but was not previously confirmed in a unit-test.
 TEST_F(JsFilterAndCombineFilterTest, MinifyShardCombineJs) {
-  ASSERT_TRUE(AddShard(kTestDomain, "a.com,b.com"));
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  ASSERT_TRUE(lawyer->AddShard(kTestDomain, "a.com,b.com", &message_handler_));
 
   // Make sure the shards have the resources, too.
   SimulateJsResourceOnDomain("http://a.com/", kJsUrl1, kJsText1);
@@ -411,15 +341,12 @@ TEST_F(JsFilterAndCombineFilterTest, MinifyCombineAcrossHosts) {
   ScriptInfoVector scripts;
   PrepareToCollectScriptsInto(&scripts);
   GoogleString js_url_2(StrCat(kAlternateDomain, kJsUrl2));
-  AddDomain(kAlternateDomain);
+  options()->domain_lawyer()->AddDomain(kAlternateDomain, message_handler());
   ParseUrl(kTestDomain, StrCat("<script src=", kJsUrl1, "></script>",
                                "<script src=", js_url_2, "></script>"));
   ASSERT_EQ(2, scripts.size());
-  GoogleUrl base_url(kTestDomain);
-  GoogleUrl url0(base_url, scripts[0].url);
-  ServeResourceFromManyContexts(url0.spec_c_str(), kMinifiedJs1);
-  GoogleUrl url1(base_url, scripts[1].url);
-  ServeResourceFromManyContexts(url1.spec_c_str(), kMinifiedJs2);
+  ServeResourceFromManyContexts(scripts[0].url, kMinifiedJs1);
+  ServeResourceFromManyContexts(scripts[1].url, kMinifiedJs2);
 }
 
 class JsFilterAndCombineProxyTest : public JsFilterAndCombineFilterTest {
@@ -458,20 +385,16 @@ TEST_F(JsFilterAndCombineProxyTest, MinifyCombineAcrossHostsProxy) {
   ScriptInfoVector scripts;
   PrepareToCollectScriptsInto(&scripts);
   GoogleString js_url_2(StrCat(kAlternateDomain, kJsUrl2));
-  AddDomain(kAlternateDomain);
+  options()->domain_lawyer()->AddDomain(kAlternateDomain, message_handler());
   ParseUrl(kTestDomain, StrCat("<script src=", kJsUrl1, "></script>",
                                "<script src=", js_url_2, "></script>"));
   ASSERT_EQ(2, scripts.size()) << "If combination fails, we get 2 scripts";
-
-  // Note: This absolutifies path because it uses TestUrlNamer which moves
-  // it to a different domain.
+  ServeResourceFromManyContexts(scripts[0].url, kMinifiedJs1);
   EXPECT_EQ(Encode(kTestDomain, "jm", "FUEwDOA7jh", kJsUrl1, "js"),
             scripts[0].url);
-  ServeResourceFromManyContexts(scripts[0].url, kMinifiedJs1);
-
+  ServeResourceFromManyContexts(scripts[1].url, kMinifiedJs2);
   EXPECT_EQ(Encode(kAlternateDomain, "jm", "Y1kknPfzVs", kJsUrl2, "js"),
             scripts[1].url);
-  ServeResourceFromManyContexts(scripts[1].url, kMinifiedJs2);
 }
 
 TEST_F(JsFilterAndCombineFilterTest, MinifyPartlyCached) {
@@ -503,53 +426,6 @@ TEST_F(JsFilterAndCombineFilterTest, MinifyPartlyCached) {
                 test_url_namer ? "JO0ZTfFSfI" : "S$0tgbTH0O",
                 test_url_namer ? "8QmSuIkgv_" : "ose8Vzgyj9",
                 true /*minified*/, kTestDomain);
-}
-
-TEST_F(JsFilterAndCombineFilterTest, MinifyPartlyCachedWithDeadline) {
-  // Testcase for the case where we have cached metadata for results of JS
-  // rewrites, but not their data, and where we can hit a fetch deadline
-  // during their reconstruction.
-
-  SimulateJsResource(kJsUrl1, kJsText1);
-  SimulateJsResource(kJsUrl2, kJsText2);
-
-  // Fetch the result of the JS filter (which runs first) filter applied,
-  // to pre-cache them.
-  GoogleString out_url1(Encode(kTestDomain, "jm", "FUEwDOA7jh", kJsUrl1, "js"));
-  GoogleString content;
-  EXPECT_TRUE(FetchResourceUrl(out_url1, &content));
-  EXPECT_STREQ(kMinifiedJs1, content);
-
-  GoogleString out_url2(Encode(kTestDomain, "jm", "Y1kknPfzVs", kJsUrl2, "js"));
-  EXPECT_TRUE(FetchResourceUrl(out_url2, &content));
-  EXPECT_STREQ(kMinifiedJs2, content);
-
-  // Make sure the data isn't available in the HTTP cache (while the metadata
-  // still is).
-  lru_cache()->Delete(out_url1);
-  lru_cache()->Delete(out_url2);
-
-  // Force the fetch-path deadline to trigger, if applicable. This should not
-  // actually change the options signature.
-  GoogleString old_signature = options()->signature();
-  options()->ClearSignatureForTesting();
-  options()->set_test_instant_fetch_rewrite_deadline(true);
-  server_context()->ComputeSignature(options());
-  EXPECT_EQ(old_signature, options()->signature());
-
-  // Now try to get a combination.
-  // Besides deadlines for nested drivers in HTML, this also covers them
-  // triggering in nested rewrites for fetch, which can cause correctness
-  // troubles by messing with resource names.
-  //
-  // TODO(morlovich): Consider unwinding .pagespeed. resource names in
-  //                  JsCombineFilter's VarName?
-  bool test_url_namer = factory()->use_test_url_namer();
-  TestCombineJs(MultiUrl("a.js,Mjm.FUEwDOA7jh.js", "b.js,Mjm.Y1kknPfzVs.js"),
-                test_url_namer ? "8erozavBF5" : "FA3Pqioukh",
-                test_url_namer ? "JO0ZTfFSfI" : "S$0tgbTH0O",
-                test_url_namer ? "8QmSuIkgv_" : "ose8Vzgyj9",
-                true, kTestDomain);
 }
 
 // Various things that prevent combining
@@ -611,7 +487,7 @@ TEST_F(JsCombineFilterTest, TestBarriers) {
   // UnsafeToRename, with plain and jquery syntax
   options()->ClearSignatureForTesting();
   options()->set_avoid_renaming_introspective_javascript(true);
-  server_context()->ComputeSignature(options());
+  resource_manager()->ComputeSignature(options());
   ValidateNoChanges("introspective1",
                     StrCat("<script src=", kJsUrl1, "></script>",
                            "<script src=", kIntrospectiveUrl1, "></script>"));
@@ -629,11 +505,11 @@ TEST_F(JsFilterAndCombineFilterTest, TestScriptInlineTextRollback) {
                    StrCat("<script src=", kJsUrl1, "></script>",
                           "<script src=", kJsUrl2, ">TEXT HERE</script>"),
                    StrCat("<script src=",
-                          Encode("", "jm", "FUEwDOA7jh", "a.js", "js"),
+                          Encode(kTestDomain, "jm", "FUEwDOA7jh", "a.js", "js"),
                           ">",
                           "</script>",
                           "<script src=",
-                          Encode("", "jm", "Y1kknPfzVs", "b.js", "js"),
+                          Encode(kTestDomain, "jm", "Y1kknPfzVs", "b.js", "js"),
                           ">",
                           "TEXT HERE</script>"));
 }
@@ -773,7 +649,8 @@ TEST_F(JsCombineFilterTest, TestCrossDomainReject) {
 
 // Validate that we can recover a combination after a cross-domain rejection
 TEST_F(JsCombineFilterTest, TestCrossDomainRecover) {
-  ASSERT_TRUE(AddDomain(other_domain_));
+  DomainLawyer* lawyer = options()->domain_lawyer();
+  ASSERT_TRUE(lawyer->AddDomain(other_domain_, &message_handler_));
 
   ScriptInfoVector scripts;
   PrepareToCollectScriptsInto(&scripts);
@@ -811,7 +688,6 @@ TEST_F(JsCombineFilterTest, TestCombineStats) {
                   StrCat("<script src=", kJsUrl2, "></script>"),
                   StrCat("<script src=", kJsUrl3, "></script>")));
 
-  EXPECT_STREQ("jc", AppliedRewriterStringFromLog());
   EXPECT_EQ(2, num_reduced->Get());
 }
 
@@ -932,14 +808,14 @@ TEST_F(JsCombineFilterTest, AllDifferentCharsets) {
 
   ScriptInfoVector scripts;
   PrepareToCollectScriptsInto(&scripts);
-  GoogleString input_buffer =
+  GoogleString input_buffer(StrCat(
       "<head>\n"
       "  <meta charset=\"gb\">\n"
-      "  <script src=a.js></script>"
-      "  <script src=b.js charset=us-ascii></script>"
-      "  <script src=c.js></script>"
-      "  <script src=d.js></script>"
-      "</head>\n";
+      "  <script src=a.js></script>",
+      "  <script src=b.js charset=us-ascii></script>",
+      "  <script src=c.js></script>",
+      "  <script src=d.js></script>",
+      "</head>\n"));
   ParseUrl(html_url, input_buffer);
 
   // This should leave the same 4 original scripts.
@@ -979,11 +855,11 @@ TEST_F(JsCombineFilterTest, BomMismatch) {
 
   ASSERT_EQ(2, scripts.size());
 
-  GoogleString input_buffer_reversed =
+  GoogleString input_buffer_reversed(StrCat(
       "<head>\n"
-      "  <script src=y.js></script>\n"
-      "  <script src=x.js></script>\n"
-      "</head>\n";
+      "  <script src=y.js></script>\n",
+      "  <script src=x.js></script>\n",
+      "</head>\n"));
   scripts.clear();
   ParseUrl(html_url, input_buffer_reversed);
   ASSERT_EQ(2, scripts.size());
@@ -992,7 +868,7 @@ TEST_F(JsCombineFilterTest, BomMismatch) {
 TEST_F(JsCombineFilterTest, EmbeddedBom) {
   // Test that we can combine 2 JS, one with a BOM and one without, and that
   // the BOM is retained in the combination.
-  GoogleUrl html_url(StrCat(kTestDomain, "bom.html"));
+  GoogleString html_url = StrCat(kTestDomain, "bom.html");
   GoogleString x_js_url = "x.js";
   GoogleString y_js_url = "y.js";
 
@@ -1010,13 +886,13 @@ TEST_F(JsCombineFilterTest, EmbeddedBom) {
   PrepareToCollectScriptsInto(&scripts);
 
   // x.js now has a charset of utf-8 thanks to the meta tag.
-  GoogleString input_buffer =
+  GoogleString input_buffer(StrCat(
       "<head>\n"
       "  <meta charset=\"UTF-8\">\n"
-      "  <script src=x.js></script>\n"
-      "  <script src=y.js></script>\n"
-      "</head>\n";
-  ParseUrl(html_url.Spec(), input_buffer);
+      "  <script src=x.js></script>\n",
+      "  <script src=y.js></script>\n",
+      "</head>\n"));
+  ParseUrl(html_url, input_buffer);
 
   ASSERT_EQ(3, scripts.size());
   VerifyCombined(scripts[0], MultiUrl(x_js_url, y_js_url));
@@ -1024,26 +900,24 @@ TEST_F(JsCombineFilterTest, EmbeddedBom) {
   VerifyUse(scripts[2], y_js_url);
 
   GoogleString actual_combination;
-  GoogleUrl output_url(html_url, scripts[0].url);
-  EXPECT_TRUE(FetchResourceUrl(output_url.Spec(), &actual_combination));
+  EXPECT_TRUE(FetchResourceUrl(scripts[0].url, &actual_combination));
   int bom_pos = actual_combination.find(kUtf8Bom);
   EXPECT_EQ(73, bom_pos);  // WARNING: MAGIC VALUE!
 
-  GoogleString input_buffer_reversed =
+  GoogleString input_buffer_reversed(StrCat(
       "<head>\n"
       "  <meta charset=\"UTF-8\">\n"
-      "  <script src=y.js></script>\n"
-      "  <script src=x.js></script>\n"
-      "</head>\n";
+      "  <script src=y.js></script>\n",
+      "  <script src=x.js></script>\n",
+      "</head>\n"));
   scripts.clear();
-  ParseUrl(html_url.Spec(), input_buffer_reversed);
+  ParseUrl(html_url, input_buffer_reversed);
   actual_combination.clear();
   ASSERT_EQ(3UL, scripts.size());
   VerifyCombined(scripts[0], MultiUrl(y_js_url, x_js_url));
   VerifyUse(scripts[1], y_js_url);
   VerifyUse(scripts[2], x_js_url);
-  output_url.Reset(html_url, scripts[0].url);
-  EXPECT_TRUE(FetchResourceUrl(output_url.Spec(), &actual_combination));
+  EXPECT_TRUE(FetchResourceUrl(scripts[0].url, &actual_combination));
   bom_pos = actual_combination.find(kUtf8Bom);
   EXPECT_EQ(32, bom_pos);  // WARNING: MAGIC VALUE!
 }
@@ -1063,74 +937,6 @@ TEST_F(JsCombineFilterTest, EmbeddedBomReconstruct) {
   GoogleString js_out;
   EXPECT_TRUE(FetchResourceUrl(js_url, &js_out));
   EXPECT_EQ(js_min, js_out);
-}
-
-TEST_F(JsCombineFilterTest, TestMaxCombinedJsSize) {
-  // Make sure we don't produce combined js resource bigger than the
-  // max_combined_js_bytes().
-
-  options()->ClearSignatureForTesting();
-  options()->set_max_combined_js_bytes(
-      STATIC_STRLEN(kJsText1) + STATIC_STRLEN(kJsText2));
-  server_context()->ComputeSignature(options());
-
-  ScriptInfoVector scripts;
-  PrepareToCollectScriptsInto(&scripts);
-  SetupWriter();
-  html_parse()->StartParse(kTestDomain);
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl1, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl2, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl3, "></script>"));
-  html_parse()->ParseText(StrCat("<script src=", kJsUrl4, "></script>"));
-  html_parse()->FinishParse();
-
-  ASSERT_EQ(6, scripts.size());
-  VerifyCombined(scripts[0], MultiUrl(kJsUrl1, kJsUrl2));
-  VerifyUse(scripts[1], kJsUrl1);
-  VerifyUse(scripts[2], kJsUrl2);
-  VerifyCombined(scripts[3], MultiUrl(kJsUrl3, kJsUrl4));
-  VerifyUse(scripts[4], kJsUrl3);
-  VerifyUse(scripts[5], kJsUrl4);
-}
-
-TEST_F(JsCombineFilterTest, NoCombineNoDeferAttribute) {
-  ValidateNoChanges(
-      "pagespeed_no_defer",
-      StrCat("<script src=", kJsUrl1, " pagespeed_no_defer></script>",
-             "<script src=", kJsUrl2, "></script>"));
-}
-
-TEST_F(JsCombineFilterTest, PreserveUrlRelativity) {
-  options()->ClearSignatureForTesting();
-  options()->set_preserve_url_relativity(true);
-  server_context()->ComputeSignature(options());
-
-  ScriptInfoVector scripts;
-  PrepareToCollectScriptsInto(&scripts);
-  Parse("preserve_url_relativity",
-        StrCat("<script src=", kJsUrl1, "></script>"
-               "<script src=", kJsUrl2, "></script>"));
-
-  ASSERT_EQ(3, scripts.size());  // Combine URL script + 2 eval scripts.
-  StringPiece combine_url(scripts[0].url);
-  EXPECT_TRUE(combine_url.starts_with("a.js+b.js.pagespeed.jc")) << combine_url;
-}
-
-TEST_F(JsCombineFilterTest, NoPreserveUrlRelativity) {
-  options()->ClearSignatureForTesting();
-  options()->set_preserve_url_relativity(false);
-  server_context()->ComputeSignature(options());
-
-  ScriptInfoVector scripts;
-  PrepareToCollectScriptsInto(&scripts);
-  Parse("preserve_url_relativity",
-        StrCat("<script src=", kJsUrl1, "></script>"
-               "<script src=", kJsUrl2, "></script>"));
-
-  ASSERT_EQ(3, scripts.size());  // Combine URL script + 2 eval scripts.
-  StringPiece combine_url(scripts[0].url);
-  EXPECT_TRUE(combine_url.starts_with("http://test.com/a.js+b.js.pagespeed.jc"))
-      << combine_url;
 }
 
 }  // namespace net_instaweb

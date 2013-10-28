@@ -20,16 +20,14 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class Resource;
-class ResourceContext;
+class OutputResource;
 class RewriteContext;
 class RewriteDriver;
 class UrlSegmentEncoder;
@@ -43,11 +41,10 @@ class RewriteFilter : public CommonFilter {
 
   virtual const char* id() const = 0;
 
-  // Override DetermineEnabled so that filters that use the DOM cohort of the
-  // property cache can enable writing of it in the RewriterDriver. Filters
-  // inheriting from RewriteDriver that use the DOM cohort should override
-  // UsePropertyCacheDomCohort to return true.
-  virtual void DetermineEnabled();
+  // Create an input resource by decoding output_resource using the
+  // filter's. Assures legality by explicitly permission-checking the result.
+  ResourcePtr CreateInputResourceFromOutputResource(
+      OutputResource* output_resource);
 
   // All RewriteFilters define how they encode URLs and other
   // associated information needed for a rewrite into a URL.
@@ -74,12 +71,6 @@ class RewriteFilter : public CommonFilter {
   virtual RewriteContext* MakeNestedRewriteContext(
       RewriteContext* parent, const ResourceSlotPtr& slot);
 
-  // Encodes user agent information needed by the filter into ResourceContext.
-  // See additional header document for
-  // RewriteContext::EncodeUserAgentIntoResourceContext.
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context) const {}
-
   // Determine the charset of a script. Logic taken from:
   //   http://www.whatwg.org/specs/web-apps/current-work/multipage/
   //   scripting-1.html#establish-script-block-source
@@ -96,58 +87,7 @@ class RewriteFilter : public CommonFilter {
                                          const StringPiece attribute_charset,
                                          const StringPiece enclosing_charset);
 
-  // Determine the charset of a stylesheet. Logic taken from:
-  //   http://www.opentag.com/xfaq_enc.htm#enc_howspecifyforcss
-  // with the BOM rule below added somewhat arbitrarily. In essence, we take
-  // the -last- charset we see, if you pretend that headers come last.
-  // 1. If the stylesheet has a Content-Type with a charset, use that, else
-  // 2. If the stylesheet has an initial @charset, use that, else
-  // 3. If the stylesheet has a BOM, use that, else
-  // 4. If the style element has a charset attribute, use that, else
-  // 5. Use the charset of the enclosing page.
-  // If none of these are specified we return StringPiece(NULL).
-  // Note that I do not know which browsers implement this, but I know they
-  // aren't consistent, so some definitely don't.
-  static GoogleString GetCharsetForStylesheet(
-      const Resource* stylesheet,
-      const StringPiece attribute_charset,
-      const StringPiece enclosing_charset);
-
-  // Determines which filters are related to this RewriteFilter.  Note,
-  // for example, that the ImageRewriteFilter class implements lots of
-  // different RewriteOptions::Filters.
-  //
-  // This is used for embedding the relevant enabled filter IDs.  See
-  // the doc for RewriteOptions::add_options_to_urls_.  We want to support
-  // that without bloating URLs excessively adding unrelated filter settings.
-  //
-  // The vector is returned in numerically increasing order so binary_search
-  // is possible.
-  //
-  // *num_filters is set to the size of this array.
-  //
-  // Ownership of the filter-vector is not transferred to the caller; it
-  // is expected to return a pointer to a static vector.
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
-
-  // Return the names of options related to this RewriteFilter in
-  // case-insensitive alphabetical order. NULL means there are none.
-  // Ownership of the vector is not transferred to the caller.
-  virtual const StringPieceVector* RelatedOptions() const {
-    return NULL;
-  }
-
- protected:
-  // This class logs using id().
-  virtual const char* LoggingId() { return id(); }
-
  private:
-  // Filters should override this and return true if they write to the property
-  // cache DOM cohort. This is so that the cohort is only written if a filter is
-  // enabled that actually makes use of it to prevent filling the cache with a
-  // large amount of useless entries.
-  virtual bool UsesPropertyCacheDomCohort() const { return false; }
-
   DISALLOW_COPY_AND_ASSIGN(RewriteFilter);
 };
 

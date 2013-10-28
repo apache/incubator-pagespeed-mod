@@ -24,8 +24,8 @@
 
 namespace net_instaweb {
 
+class ContentType;
 class Hasher;
-struct ContentType;
 
 // Encapsulates the naming of resource URL leafs.  The class holds the context
 // of a single resource, and is not intended for re-use.  We could, of course,
@@ -41,12 +41,12 @@ class ResourceNamer {
 
   // Encoding and decoding in various formats.
 
-  // Decodes an entire resource name (NAME.pagespeed[.EXPT].ID.HASH.EXT),
-  // placing the result in the fields in this encoder.
+  // Decodes an entire resource name (NAME.pagespeed.ID.HASH.EXT), placing
+  // the result in the fields in this encoder.
   bool Decode(const StringPiece& encoded_string);
 
   // Encodes the fields in this encoder into an absolute url, with the
-  // trailing portion "NAME.pagespeed[.(EXPT|PsolOpts)].ID.HASH.EXT".
+  // trailing portion "NAME.pagespeed.ID.HASH.EXT".
   GoogleString Encode() const;
 
   // Encode a key that can used to do a lookup based on an id
@@ -60,23 +60,17 @@ class ResourceNamer {
   // Note: there is no need at this time to decode the name key.
 
   // Eventual length of name. Gets eventual hash length from passed in hasher.
-  // Needed by RewriteDriver to check that filenames aren't too long.
+  // Needed by ResourceManager to check that filenames aren't too long.
   int EventualSize(const Hasher& hasher) const;
 
   // Simple getters
   StringPiece id() const { return id_; }
-  StringPiece options() const { return options_; }
   StringPiece name() const { return name_; }
   StringPiece hash() const { return hash_; }
   StringPiece ext() const { return ext_; }
-  StringPiece experiment() const { return experiment_; }
-
-  bool has_experiment() const { return !experiment_.empty(); }
-  bool has_options() const { return !options_.empty(); }
 
   // Simple setters
   void set_id(const StringPiece& p) { p.CopyToString(&id_); }
-  void set_options(const StringPiece& opts) { opts.CopyToString(&options_); }
   void set_name(const StringPiece& n) { n.CopyToString(&name_); }
   void set_hash(const StringPiece& h) { h.CopyToString(&hash_); }
   void set_ext(const StringPiece& e) {
@@ -85,7 +79,6 @@ class ResourceNamer {
     CHECK(e.empty() || e[0] != '.');
     e.CopyToString(&ext_);
   }
-  void set_experiment(const StringPiece& e) { e.CopyToString(&experiment_); }
 
   // Other setter-like operations
   void ClearHash() { hash_.clear(); }
@@ -104,11 +97,9 @@ class ResourceNamer {
   bool LegacyDecode(const StringPiece& encoded_string);
 
   GoogleString id_;
-  GoogleString options_;
   GoogleString name_;
   GoogleString hash_;
   GoogleString ext_;
-  GoogleString experiment_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceNamer);
 };

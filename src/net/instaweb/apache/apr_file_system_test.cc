@@ -18,15 +18,13 @@
 
 #include "apr_file_io.h"
 #include "apr_pools.h"
-
+#include "net/instaweb/util/public/basictypes.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apr_file_system.h"
 #include "net/instaweb/apache/apr_timer.h"
-#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
 #include "net/instaweb/util/public/file_system_test.h"
 #include "net/instaweb/util/public/google_message_handler.h"
-#include "net/instaweb/util/public/platform.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,29 +39,14 @@ class AprFileSystemTest : public FileSystemTest {
   }
   virtual FileSystem* file_system() { return file_system_.get(); }
   virtual Timer* timer() { return &timer_; }
+  virtual std::string test_tmpdir() { return test_tmpdir_; }
   virtual void SetUp() {
     apr_initialize();
     atexit(apr_terminate);
     apr_pool_create(&pool_, NULL);
-    thread_system_.reset(Platform::CreateThreadSystem());
+    thread_system_.reset(ThreadSystem::CreateThreadSystem());
     file_system_.reset(new AprFileSystem(pool_, thread_system_.get()));
-
-    // Create the temp directory, so we are not dependent on test order
-    // to make it.
-    file_system()->RecursivelyMakeDir(test_tmpdir(), &handler_);
-
-    // Also compute the "small" directory size. This seems to be different on
-    // different FSs.
-    EXPECT_TRUE(
-        file_system()->Size(test_tmpdir(), &default_dir_size_, &handler_));
-
-    // We also need to know how many blocks an empty file consumes. On ext3,
-    // empty files are observed to consume 1 block (4K), while 1 byte files
-    // consume 2 blocks. On ext4, empty files consume 0 blocks, and 1 byte files
-    // consume 1 block.
-    GoogleString tmpfile = test_tmpdir() + "/testfile";
-    EXPECT_TRUE(file_system()->WriteFile(tmpfile.c_str(), "", &handler_));
-    EXPECT_TRUE(file_system()->Size(tmpfile, &default_file_size_, &handler_));
+    GetAprFileSystemTestDir(&test_tmpdir_);
   }
 
   virtual void TearDown() {
@@ -71,18 +54,22 @@ class AprFileSystemTest : public FileSystemTest {
     apr_pool_destroy(pool_);
   }
 
-  // AprFileSystem::Size returns the amount of space consumed on disk by a file,
-  // not the number of bytes in file. Return size rounded up to nearest default
-  // block size to represent file size in tests.
-  virtual int FileSize(StringPiece contents) const {
-    return FileBlockSize(contents, default_file_size_);
+  void GetAprFileSystemTestDir(std::string* str) {
+    const char* tmpdir;
+    apr_status_t status = apr_temp_dir_get(&tmpdir, pool_);
+    ASSERT_EQ(APR_SUCCESS, status);
+    char* test_temp_dir;
+    status = apr_filepath_merge(&test_temp_dir, tmpdir, "apr_file_sytem_test",
+                                APR_FILEPATH_NATIVE, pool_);
+    ASSERT_EQ(APR_SUCCESS, status);
+    if (file_system_->Exists(test_temp_dir, &handler_).is_false()) {
+      ASSERT_TRUE(file_system_->MakeDir(test_temp_dir, &handler_));
+    }
+    ASSERT_TRUE(file_system_->Exists(test_temp_dir, &handler_).is_true());
+    *str = test_temp_dir;
   }
 
-  virtual int DefaultDirSize() const {
-    return default_dir_size_;
-  }
-
-  void MyDeleteFileRecursively(const GoogleString& filename,
+  void MyDeleteFileRecursively(const std::string& filename,
                                const char* /*a*/,
                                const char* /*b*/) {
     if (file_system_->IsDir(filename.c_str(), &handler_).is_true()) {
@@ -94,16 +81,8 @@ class AprFileSystemTest : public FileSystemTest {
         if (APR_STATUS_IS_ENOTEMPTY(status)) {
           // Need a tempname to rename to.
           char* template_name;
-
-          // Handle case where filename was passed in with a '/' otherwise
-          // apr_filepath_merge will generate the wrong path
-          GoogleString tempname = filename;
-          if (!tempname.empty() && tempname[tempname.size() - 1] == '/') {
-            tempname.resize(tempname.size() - 1);
-          }
-
-          tempname += "-apr-XXXXXX";
-          status = apr_filepath_merge(&template_name, test_tmpdir().c_str(),
+          std::string tempname = filename + "-apr-XXXXXX";
+          status = apr_filepath_merge(&template_name, test_tmpdir_.c_str(),
                                       tempname.c_str(), APR_FILEPATH_NATIVE,
                                       pool_);
           ASSERT_EQ(APR_SUCCESS, status);
@@ -134,10 +113,8 @@ class AprFileSystemTest : public FileSystemTest {
   scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<AprFileSystem> file_system_;
   apr_pool_t* pool_;
+  std::string test_tmpdir_;
 
- private:
-  int64 default_dir_size_;
-  int64 default_file_size_;
   DISALLOW_COPY_AND_ASSIGN(AprFileSystemTest);
 };
 
@@ -147,10 +124,6 @@ TEST_F(AprFileSystemTest, TestWriteRead) {
 
 TEST_F(AprFileSystemTest, TestTemp) {
   TestTemp();
-}
-
-TEST_F(AprFileSystemTest, TestAppend) {
-  TestAppend();
 }
 
 TEST_F(AprFileSystemTest, TestRename) {
@@ -174,11 +147,6 @@ TEST_F(AprFileSystemTest, TestMakeDir) {
   TestMakeDir();
 }
 
-// Create a directory and verify removing it.
-TEST_F(AprFileSystemTest, TestRemoveDir) {
-  TestRemoveDir();
-}
-
 TEST_F(AprFileSystemTest, TestIsDir) {
   TestIsDir();
 }
@@ -199,12 +167,20 @@ TEST_F(AprFileSystemTest, TestListContents) {
   TestListContents();
 }
 
+// This test appears to be flaky under valgrind, possibly due to OS buffer
+// cache issues.  It also won't work on file systems mounted with 'noatime'.
+TEST_F(AprFileSystemTest, TestAtime) {
+  if (!RunningOnValgrind()) {
+    TestAtime();
+  }
+}
+
 TEST_F(AprFileSystemTest, TestMtime) {
   TestMtime();
 }
 
-TEST_F(AprFileSystemTest, TestDirInfo) {
-  TestDirInfo();
+TEST_F(AprFileSystemTest, TestSize) {
+  TestSize();
 }
 
 TEST_F(AprFileSystemTest, TestLock) {

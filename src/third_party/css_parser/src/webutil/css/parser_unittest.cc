@@ -30,7 +30,7 @@
 namespace Css {
 
 class ParserTest : public testing::Test {
- public:
+ protected:
   // Accessor for private method.
   Value* ParseAny(Parser* p) {
     return p->ParseAny();
@@ -78,18 +78,15 @@ class ParserTest : public testing::Test {
 
   // Checks that ParseAny(s) returns goldennum with goldenunit unit.
   void TestAnyNum(const char* s, int parselen, double goldennum,
-                  Value::Unit goldenunit, bool preservation_mode,
-                  string verbatim_text) {
+                  Value::Unit goldenunit) {
     SCOPED_TRACE(s);
     Parser a(s);
-    a.set_preservation_mode(preservation_mode);
     if (parselen == -1) parselen = strlen(s);
     scoped_ptr<Value> t(a.ParseAny());
     EXPECT_EQ(t->GetLexicalUnitType(), Value::NUMBER);
     EXPECT_EQ(t->GetDimension(), goldenunit);
     EXPECT_DOUBLE_EQ(t->GetFloatValue(), goldennum);
     EXPECT_EQ(parselen, a.getpos() - s);
-    EXPECT_EQ(verbatim_text, t->bytes_in_original_buffer());
   }
 
   // Checks that ParseAny(s) returns goldennum with OTHER unit (with
@@ -186,62 +183,6 @@ class ParserTest : public testing::Test {
     EXPECT_TRUE(found_x);
     EXPECT_TRUE(found_y);
   }
-
-  enum MethodToTest {
-    PARSE_STYLESHEET,
-    PARSE_CHARSET,
-    EXTRACT_CHARSET,
-  };
-
-  void TrapEOF(StringPiece contents) {
-    TrapEOF(contents, PARSE_STYLESHEET);
-  }
-  void TrapEOF(StringPiece contents, MethodToTest method) {
-    int size = contents.size();
-    if (size == 0) {
-      // new char[0] doesn't seem to work correctly with ASAN (maybe it gets
-      // optimized out?) So we use NULL, which shouldn't be dereferenced.
-      StringPiece copy_contents(NULL, 0);
-      TryParse(copy_contents, method);
-    } else {
-      // We copy the data region of contents into  it's own buffer which is
-      // not NULL-terminated. Therefore a single check past the end of the
-      // buffer will be a buffer overflow.
-      char* copy = new char[size];
-      memcpy(copy, contents.data(), size);
-      StringPiece copy_contents(copy, size);
-      TryParse(copy_contents, method);
-      delete [] copy;
-    }
-  }
-
-  void TryParse(StringPiece contents, MethodToTest method) {
-    Parser parser(contents);
-    switch (method) {
-      case PARSE_STYLESHEET:
-        delete parser.ParseStylesheet();
-        EXPECT_NE(Parser::kNoError, parser.errors_seen_mask());
-        break;
-      case PARSE_CHARSET:
-        parser.ParseCharset();
-        break;
-      case EXTRACT_CHARSET:
-        parser.ExtractCharset();
-        break;
-    }
-  }
-
-  const char* SkipPast(char delim, StringPiece input_text) {
-    Parser p(input_text);
-    EXPECT_TRUE(p.SkipPastDelimiter(delim)) << input_text;
-    return p.in_;  // Note: This is a pointer into the buffer owned by caller.
-  }
-
-  void FailureSkipPast(char delim, StringPiece input_text) {
-    Parser p(input_text);
-    EXPECT_FALSE(p.SkipPastDelimiter(delim)) << input_text;
-    EXPECT_TRUE(p.Done());
-  }
 };
 
 
@@ -254,8 +195,7 @@ TEST_F(ParserTest, ErrorNumber) {
 }
 
 TEST_F(ParserTest, unescape) {
-  // Invalid Unicode char.
-  TestUnescape("\\abcdef aabc", 8, ' ');
+  TestUnescape("\\abcdef aabc", 8, 0xABCDEF);
   TestUnescape("\\A", 2, 0xA);
   TestUnescape("\\A0b5C\r\n", 8, 0xa0b5C);
   TestUnescape("\\AB ", 4, 0xAB);
@@ -293,13 +233,13 @@ TEST_F(ParserTest, string) {
 }
 
 TEST_F(ParserTest, anynum) {
-  TestAnyNum("3.1415 4aone", 6, 3.1415, Value::NO_UNIT, false, "");
-  TestAnyNum(".1415 4aone", 5, 0.1415, Value::NO_UNIT, true, ".1415");
-  TestAnyNum("5 4aone", 1, 5, Value::NO_UNIT, true, "5");
+  TestAnyNum("3.1415 4aone", 6, 3.1415, Value::NO_UNIT);
+  TestAnyNum(".1415 4aone", 5, .1415, Value::NO_UNIT);
+  TestAnyNum("5 4aone", 1, 5, Value::NO_UNIT);
 
-  TestAnyNum("0.1415pt 4aone", 8, 0.1415, Value::PT, true, "0.1415");
-  TestAnyNum(".1415pc 4aone", 7, 0.1415, Value::PC, true, ".1415");
-  TestAnyNum("5s 4aone", 2, 5, Value::S, false, "");
+  TestAnyNum("3.1415pt 4aone", 8, 3.1415, Value::PT);
+  TestAnyNum(".1415pc 4aone", 7, .1415, Value::PC);
+  TestAnyNum("5s 4aone", 2, 5, Value::S);
 
   TestAnyNumOtherUnit("5sacks 4aone", 6, 5, "sacks");
   TestAnyNumOtherUnit("5灣 4aone", 4, 5, "灣");
@@ -416,31 +356,6 @@ TEST_F(ParserTest, color) {
   a.reset(new Parser("rgb( 12% , 25% 30%)"));
   t.reset(a->ParseAny());
   EXPECT_FALSE(t.get());
-
-  // Parsed as color in quirks-mode.
-  a.reset(new Parser("0000ff"));
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::COLOR, t->GetLexicalUnitType());
-  EXPECT_EQ("#0000ff", t->ToString());
-  EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
-
-  // Parsed as dimension in standards-mode.
-  a.reset(new Parser("0000ff"));
-  a->set_quirks_mode(false);
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
-  EXPECT_EQ("0ff", t->ToString());
-  EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
-
-  // Original preserved in preservation-mode + standards-mode.
-  a.reset(new Parser("0000ff"));
-  a->set_quirks_mode(false);
-  a->set_preservation_mode(true);
-  t.reset(a->ParseAnyExpectingColor());
-  EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
-  EXPECT_EQ("0ff", t->ToString());
-  // ValueError assures that we will preserve the original string.
-  EXPECT_EQ(Parser::kValueError, a->errors_seen_mask());
 }
 
 TEST_F(ParserTest, url) {
@@ -609,7 +524,7 @@ TEST_F(ParserTest, background) {
 
 TEST_F(ParserTest, font_family) {
   scoped_ptr<Parser> a(new Parser(
-      " Arial font, 'Sans', system, menu new "));
+      " Arial font 'Sans' system, menu new "));
   scoped_ptr<Values> t(new Values);
 
   EXPECT_TRUE(a->ParseFontFamily(t.get()));
@@ -634,60 +549,6 @@ TEST_F(ParserTest, font_family) {
   ASSERT_EQ(1, t->size());
   EXPECT_EQ(Value::IDENT, t->get(0)->GetLexicalUnitType());
   EXPECT_EQ("Verdana", UnicodeTextToUTF8(t->get(0)->GetIdentifierText()));
-
-  // Legal base example.
-  scoped_ptr<Declarations> d;
-  a.reset(new Parser("font-family: foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  ASSERT_EQ(1, d->size());
-  EXPECT_EQ(1, d->at(0)->values()->size());
-
-  // Illegal leading comma.
-  a.reset(new Parser("font-family: ,foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Illegal trailing comma.
-  a.reset(new Parser("font-family: foo,"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Legal empty string with separating comma.
-  a.reset(new Parser("font-family: '',foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  ASSERT_EQ(1, d->size());
-  EXPECT_EQ(2, d->at(0)->values()->size());
-
-  // Illegal empty elements in comma-separated list.
-  a.reset(new Parser("font-family: '',,foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  // Fonts must be comma separated.
-  a.reset(new Parser("font-family: 'bar' foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: 'bar' 'foo'"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: bar 'foo'"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
-
-  a.reset(new Parser("font-family: 'bar'foo"));
-  d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
-  EXPECT_EQ(0, d->size());
 }
 
 TEST_F(ParserTest, font) {
@@ -717,10 +578,6 @@ TEST_F(ParserTest, font) {
 
   a.reset(new Parser("normal 10px /120% Arial 'Sans'"));
   scoped_ptr<Values> t(a->ParseFont());
-  EXPECT_TRUE(NULL == t.get());
-
-  a.reset(new Parser("normal 10px /120% Arial, 'Sans'"));
-  t.reset(a->ParseFont());
   ASSERT_EQ(7, t->size());
   EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Value::PERCENT, t->get(4)->GetDimension());
@@ -788,63 +645,6 @@ TEST_F(ParserTest, font) {
   EXPECT_EQ(static_cast<Values *>(NULL), t.get()) << "invalid type";
 }
 
-TEST_F(ParserTest, numbers) {
-  scoped_ptr<Parser> p;
-  scoped_ptr<Value> v;
-
-  p.reset(new Parser("1"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_TRUE(p->Done());
-
-  p.reset(new Parser("1;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser("1em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::EM, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser("1.1em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1.1, v->GetFloatValue());
-  EXPECT_EQ(Value::EM, v->GetDimension());
-  EXPECT_EQ(';', *p->in_);
-
-  p.reset(new Parser(".1"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(.1, v->GetFloatValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_TRUE(p->Done());
-
-  // Note: 1.em is *not* parsed as 1.0em, instead it needs to be parsed as
-  // INT(1) DELIM(.) IDENT(em)
-  p.reset(new Parser("1.em;"));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());  // Unit is not parsed.
-  EXPECT_EQ('.', *p->in_);  // Parsing ends on dot.
-
-  // Make sure this also works if file ends with dot.
-  p.reset(new Parser("1."));
-  v.reset(p->ParseNumber());
-  ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
-  EXPECT_EQ(1, v->GetIntegerValue());
-  EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
-  EXPECT_EQ('.', *p->in_);
-}
-
 TEST_F(ParserTest, values) {
   scoped_ptr<Parser> a(new Parser(
       "rgb(12,25,30) url(blah) url('blah.png') 12% !important 'arial'"));
@@ -882,19 +682,23 @@ TEST_F(ParserTest, values) {
                                       ->GetIdentifierText()));
 }
 
-TEST_F(ParserTest, SkipBlock) {
+void ParseFontFamily(Parser* parser) {
+  Values values;
+  parser->ParseFontFamily(&values);
+}
+
+TEST_F(ParserTest, ParseBlock) {
   static const char* truetestcases[] = {
     "{{{{}}}} serif",
     "{ {  { {  }    }   }    } serif",  // whitespace
     "{@ident1{{ @ident {}}}} serif",    // @-idents
+    "{{}} @ident {{}} @ident serif",    // multiple blocks
     "{{ident{{}ident2}}} serif",        // idents
   };
   for (int i = 0; i < arraysize(truetestcases); ++i) {
     SCOPED_TRACE(truetestcases[i]);
-    Parser p(truetestcases[i]);
-    EXPECT_TRUE(p.SkipBlock());
     Values values;
-    EXPECT_TRUE(p.ParseFontFamily(&values));
+    EXPECT_TRUE(Parser(truetestcases[i]).ParseFontFamily(&values));
     ASSERT_EQ(1, values.size());
     EXPECT_EQ(Value::IDENT, values.get(0)->GetLexicalUnitType());
     EXPECT_EQ("serif", UnicodeTextToUTF8(values.get(0)->GetIdentifierText()));
@@ -907,10 +711,8 @@ TEST_F(ParserTest, SkipBlock) {
   };
   for (int i = 0; i < arraysize(falsetestcases); ++i) {
     SCOPED_TRACE(falsetestcases[i]);
-    Parser p(falsetestcases[i]);
-    p.SkipBlock();
     Values values;
-    p.ParseFontFamily(&values);
+    Parser(falsetestcases[i]).ParseFontFamily(&values);
     EXPECT_EQ(0, values.size());
   }
 
@@ -985,7 +787,7 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ(1, t->get(6)->values()->size());
 
   // expand font
-  a.reset(new Parser("font: small-caps 24px Arial, 'Sans', monospace; "));
+  a.reset(new Parser("font: small-caps 24px Arial 'Sans', monospace; "));
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(7, t->size());
   EXPECT_EQ(Property::FONT, t->get(0)->prop());
@@ -1463,8 +1265,7 @@ TEST_F(ParserTest, atrules) {
   a->ParseAtRule(t.get());
 
   ASSERT_EQ(1, t->imports().size());
-  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link()));
-  EXPECT_EQ(2, t->import(0).media_queries().size());
+  EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link));
   EXPECT_EQ(true, a->Done());
 
   a.reset(new Parser("@charset \"ISO-8859-1\" ;"));
@@ -1480,17 +1281,9 @@ TEST_F(ParserTest, atrules) {
 
   ASSERT_EQ(1, t->rulesets().size());
   ASSERT_EQ(1, t->ruleset(0).selectors().size());
-  ASSERT_EQ(2, t->ruleset(0).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            t->ruleset(0).media_query(0).qualifier());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(0).media_type()));
-  EXPECT_EQ(0, t->ruleset(0).media_query(0).expressions().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            t->ruleset(0).media_query(1).qualifier());
-  EXPECT_EQ("screen",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(1).media_type()));
-  EXPECT_EQ(0, t->ruleset(0).media_query(1).expressions().size());
+  ASSERT_EQ(2, t->ruleset(0).media().size());
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(0).medium(0)));
+  EXPECT_EQ("screen", UnicodeTextToUTF8(t->ruleset(0).medium(1)));
   ASSERT_EQ(1, t->ruleset(0).selectors()[0]->size());
   EXPECT_EQ(kHtmlTagBody,
             t->ruleset(0).selector(0)[0]->get(0)->element_type());
@@ -1514,12 +1307,8 @@ TEST_F(ParserTest, atrules) {
   a->ParseAtRule(t.get());
 
   ASSERT_EQ(2, t->rulesets().size());
-  ASSERT_EQ(1, t->ruleset(0).media_queries().size());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(0).media_query(0).media_type()));
-  ASSERT_EQ(1, t->ruleset(1).media_queries().size());
-  EXPECT_EQ("print",
-            UnicodeTextToUTF8(t->ruleset(1).media_query(0).media_type()));
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(0).medium(0)));
+  EXPECT_EQ("print", UnicodeTextToUTF8(t->ruleset(1).medium(0)));
   t->ToString(); // Make sure it can be written as a string.
 }
 
@@ -1541,11 +1330,10 @@ TEST_F(ParserTest, stylesheets) {
   scoped_ptr<Stylesheet> t(a->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
   ASSERT_EQ(2, t->imports().size());
-  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(0).link()));
-  ASSERT_EQ(1, t->import(0).media_queries().size());
-  EXPECT_EQ("all",
-            UnicodeTextToUTF8(t->import(0).media_queries()[0]->media_type()));
-  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(1).link()));
+  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(0).link));
+  ASSERT_EQ(1, t->import(0).media.size());
+  EXPECT_EQ("all", UnicodeTextToUTF8(t->import(0).media[0]));
+  EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(t->import(1).link));
   // html-style comment should NOT work
   EXPECT_EQ(4, t->rulesets().size());
   EXPECT_TRUE(a->Done());
@@ -1641,22 +1429,10 @@ TEST_F(ParserTest, Utf8Error) {
 }
 
 TEST_F(ParserTest, DeclarationError) {
-  scoped_ptr<Parser> p(new Parser("font-family ; "));
-  scoped_ptr<Declarations> declarations(p->ParseDeclarations());
+  Parser p("font-family ; ");
+  scoped_ptr<Declarations> declarations(p.ParseDeclarations());
   EXPECT_EQ(0, declarations->size());
-  EXPECT_EQ(Parser::kDeclarationError, p->errors_seen_mask());
-
-  p.reset(new Parser("padding-top: 1.em"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
-
-  p.reset(new Parser("color: red !ie"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
-
-  p.reset(new Parser("color: red !important really"));
-  declarations.reset(p->ParseDeclarations());
-  EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
+  EXPECT_EQ(Parser::kDeclarationError, p.errors_seen_mask());
 }
 
 TEST_F(ParserTest, SelectorError) {
@@ -1681,16 +1457,15 @@ TEST_F(ParserTest, SelectorError) {
   Parser p4("div[too=many=equals] { color: red; }");
   stylesheet.reset(p4.ParseStylesheet());
   EXPECT_EQ(Parser::kSelectorError, p4.errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\ndiv[too=\"many\"] {color: #ff0000}\n",
+  EXPECT_EQ("/* AUTHOR */\n\n\ndiv[too=many] {color: #ff0000}\n",
             stylesheet->ToString());
 }
 
 TEST_F(ParserTest, MediaError) {
-  Parser p("@media screen and (max-width^?` { .a { color: red; } }");
+  Parser p("@media screen and (max-width: 290px) {}");
   scoped_ptr<Stylesheet> stylesheet(p.ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p.errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n@media screen { .a {color: #ff0000} }\n",
-            stylesheet->ToString());
+  EXPECT_EQ(0, stylesheet->rulesets().size());
+  EXPECT_TRUE(Parser::kMediaError & p.errors_seen_mask());
 }
 
 TEST_F(ParserTest, HtmlCommentError) {
@@ -1805,27 +1580,19 @@ TEST_F(ParserTest, VerbatimDeclarations) {
 
 TEST_F(ParserTest, CssHacks) {
   Parser p("*border: 0px");
-  p.set_preservation_mode(false);
   scoped_ptr<Declarations> declarations(p.ParseDeclarations());
-  EXPECT_EQ(Parser::kDeclarationError, p.errors_seen_mask());
-
-  Parser p2("*border: 0px");
-  p2.set_preservation_mode(true);
-  declarations.reset(p2.ParseDeclarations());
-  EXPECT_EQ(Parser::kNoError, p2.errors_seen_mask());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
   ASSERT_EQ(1, declarations->size());
-  // * is not a valid identifier char, so we don't parse it into prop_text.
-  EXPECT_EQ(Property::UNPARSEABLE, declarations->at(0)->prop());
-  EXPECT_EQ("/* Unparsed declaration: */ *border: 0px",
-            declarations->ToString());
+  EXPECT_EQ(Property::OTHER, declarations->at(0)->prop());
+  EXPECT_EQ("*border", declarations->at(0)->prop_text());
+  EXPECT_EQ("*border: 0px", declarations->ToString());
 
-  Parser p3("width: 1px; _width: 3px;");
-  declarations.reset(p3.ParseDeclarations());
-  EXPECT_EQ(Parser::kNoError, p3.errors_seen_mask());
+  Parser p2("width: 1px; _width: 3px;");
+  declarations.reset(p2.ParseDeclarations());
+  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
   ASSERT_EQ(2, declarations->size());
   EXPECT_EQ(Property::WIDTH, declarations->at(0)->prop());
   EXPECT_EQ(Property::OTHER, declarations->at(1)->prop());
-  // _ is a valid identifier char, so we do parse it into prop_text.
   EXPECT_EQ("_width", declarations->at(1)->prop_text());
   EXPECT_EQ("width: 1px; _width: 3px", declarations->ToString());
 }
@@ -1881,101 +1648,27 @@ TEST_F(ParserTest, Counter) {
             declarations->ToString());
 }
 
-TEST_F(ParserTest, ParseNextImport) {
-  scoped_ptr<Parser> parser(new Parser(
-      "@IMPORT url(assets/style.css) screen,printer"));
-  scoped_ptr<Import> import(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(2, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(1, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(0, import->media_queries().size());
-  }
-
-  parser.reset(new Parser("*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_TRUE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_TRUE(parser->Done());
-
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"
-                          "*border: 0px"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
-  EXPECT_FALSE(parser->Done());
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-  EXPECT_FALSE(parser->Done());
-
-  parser.reset(new Parser("@charset \"ISO-8859-1\";\n"
-                          "@import \"mystyle.css\" all;"));
-  import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
-}
-
 TEST_F(ParserTest, ParseSingleImport) {
   scoped_ptr<Parser> parser(new Parser(
       "@IMPORT url(assets/style.css) screen,printer"));
   scoped_ptr<Import> import(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(2, import->media_queries().size());
+    EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(1, import->media_queries().size());
+    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() != NULL);
   if (import.get() != NULL) {
-    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
-    EXPECT_EQ(0, import->media_queries().size());
+    EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link));
   }
 
   parser.reset(new Parser("*border: 0px"));
@@ -1991,172 +1684,6 @@ TEST_F(ParserTest, ParseSingleImport) {
                           "@import \"mystyle.css\" all;"));
   import.reset(parser->ParseAsSingleImport());
   EXPECT_TRUE(import.get() == NULL);
-}
-
-TEST_F(ParserTest, MediaQueries) {
-  Parser p("@import url(a.css);\n"
-           "@import url(b.css) screen;\n"
-           "@import url(c.css) NOT (max-width: 300px) and (color);\n"
-           "@import url(d.css) only print and (color), not screen;\n"
-           "@media { .a { color: red; } }\n"
-           "@media onLy screen And (max-width: 250px) { .a { color: green } }\n"
-           ".a { color: blue; }\n"
-           "@media (nonsense: foo(')', \")\", [)])) { body { color: red } }\n");
-
-  scoped_ptr<Stylesheet> s(p.ParseStylesheet());
-  EXPECT_EQ(Parser::kNoError, p.errors_seen_mask());
-
-  ASSERT_EQ(4, s->imports().size());
-  EXPECT_EQ(0, s->import(0).media_queries().size());
-
-  ASSERT_EQ(1, s->import(1).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER,
-            s->import(1).media_queries()[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->import(1).media_queries()[0]->media_type()));
-  EXPECT_EQ(0, s->import(1).media_queries()[0]->expressions().size());
-
-  ASSERT_EQ(1, s->import(2).media_queries().size());
-  EXPECT_EQ(MediaQuery::NOT, s->import(2).media_queries()[0]->qualifier());
-  EXPECT_EQ("", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->media_type()));
-  ASSERT_EQ(2, s->import(2).media_queries()[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(0).name()));
-  ASSERT_TRUE(s->import(2).media_queries()[0]->expression(0).has_value());
-  EXPECT_EQ("300px", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(0).value()));
-  EXPECT_EQ("color", UnicodeTextToUTF8(
-      s->import(2).media_queries()[0]->expression(1).name()));
-  ASSERT_FALSE(s->import(2).media_queries()[0]->expression(1).has_value());
-
-  ASSERT_EQ(2, s->import(3).media_queries().size());
-  EXPECT_EQ(MediaQuery::ONLY, s->import(3).media_queries()[0]->qualifier());
-  EXPECT_EQ("print", UnicodeTextToUTF8(
-      s->import(3).media_queries()[0]->media_type()));
-  ASSERT_EQ(1, s->import(3).media_queries()[0]->expressions().size());
-  EXPECT_EQ("color", UnicodeTextToUTF8(
-      s->import(3).media_queries()[0]->expression(0).name()));
-  ASSERT_FALSE(s->import(3).media_queries()[0]->expression(0).has_value());
-
-  EXPECT_EQ(MediaQuery::NOT, s->import(3).media_queries()[1]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->import(3).media_queries()[1]->media_type()));
-  EXPECT_EQ(0, s->import(3).media_queries()[1]->expressions().size());
-
-
-  ASSERT_EQ(4, s->rulesets().size());
-  EXPECT_EQ(0, s->ruleset(0).media_queries().size());
-
-  ASSERT_EQ(1, s->ruleset(1).media_queries().size());
-  EXPECT_EQ(MediaQuery::ONLY, s->ruleset(1).media_query(0).qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).media_type()));
-  ASSERT_EQ(1, s->ruleset(1).media_query(0).expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).expression(0).name()));
-  ASSERT_TRUE(s->ruleset(1).media_query(0).expression(0).has_value());
-  EXPECT_EQ("250px", UnicodeTextToUTF8(
-      s->ruleset(1).media_query(0).expression(0).value()));
-
-  EXPECT_EQ(0, s->ruleset(2).media_queries().size());
-
-  ASSERT_EQ(1, s->ruleset(3).media_queries().size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER, s->ruleset(3).media_query(0).qualifier());
-  EXPECT_EQ("", UnicodeTextToUTF8(s->ruleset(3).media_query(0).media_type()));
-  ASSERT_EQ(1, s->ruleset(3).media_query(0).expressions().size());
-  EXPECT_EQ("nonsense", UnicodeTextToUTF8(
-      s->ruleset(3).media_query(0).expression(0).name()));
-  ASSERT_TRUE(s->ruleset(3).media_query(0).expression(0).has_value());
-  EXPECT_EQ("foo(')', \")\", [)])", UnicodeTextToUTF8(
-      s->ruleset(3).media_query(0).expression(0).value()));
-}
-
-// Test that we do not "fix" malformed @media queries.
-TEST_F(ParserTest, InvalidMediaQueries) {
-  scoped_ptr<Parser> p;
-  scoped_ptr<Stylesheet> s;
-
-  // This @media query is technically invalid because CSS is defined to
-  // be lexed context-free first and defines the flex primitive:
-  //   FUNCTION {ident}\(
-  // Thus "and(color)" will be parsed as a function instead of an identifier
-  // followed by a media expression.
-  // See: b/7694757 and
-  //      http://lists.w3.org/Archives/Public/www-style/2012Dec/0263.html
-  p.reset(new Parser("@media all and(color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Missing "and" between "all" and "(color)".
-  p.reset(new Parser("@media all (color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Missing "and" and space between "all" and "(color)".
-  p.reset(new Parser("@media all(color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Too many "and"s.
-  p.reset(new Parser("@media all and and (color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Too many "and"s and missing space.
-  p.reset(new Parser("@media all and and(color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Trailing "and".
-  p.reset(new Parser("@media all and { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Starting "and".
-  p.reset(new Parser("@media and (color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-
-  // Starting "and" and no space.
-  p.reset(new Parser("@media and(color) { a { color: red; } }"));
-  s.reset(p->ParseStylesheet());
-  EXPECT_EQ(Parser::kMediaError, p->errors_seen_mask());
-}
-
-TEST_F(ParserTest, ExtractCharset) {
-  scoped_ptr<Parser> parser;
-  UnicodeText charset;
-
-  parser.reset(new Parser("@charset \"ISO-8859-1\" ;"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("ISO-8859-1", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charset foobar;"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charset \"UTF-8\" \"or 9\";"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
-  EXPECT_EQ("UTF-8", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@charsets \"UTF-8\" and \"ISO-8859-1\";"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("@IMPORT url(assets/style.css) screen,printer"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
-
-  parser.reset(new Parser("wotcha!"));
-  charset = parser->ExtractCharset();
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("", UnicodeTextToUTF8(charset));
 }
 
 TEST_F(ParserTest, UnexpectedAtRule) {
@@ -2170,17 +1697,6 @@ TEST_F(ParserTest, UnexpectedAtRule) {
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
-
-  // In preservation mode.
-  parser.reset(new Parser(
-      "@font-face{font-family:'Ubuntu';font-style:normal}"
-      ".foo { width: 1px; }"));
-  parser->set_preservation_mode(true);
-  stylesheet.reset(parser->ParseStylesheet());
-  EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n/* Unparsed region: */ "
-            "@font-face{font-family:'Ubuntu';font-style:normal}\n"
-            ".foo {width: 1px}\n", stylesheet->ToString());
 
   // ... and with extra selectors.
   parser.reset(new Parser(
@@ -2244,163 +1760,4 @@ TEST_F(ParserTest, UnexpectedAtRule) {
             ".foo {width: 1px}\n", stylesheet->ToString());
 }
 
-// Make sure parser does not overflow buffers when file ends abruptly.
-// Note: You must test with --config=asan for these tests to detect overflows.
-TEST_F(ParserTest, EOFMedia) {
-  TrapEOF("@media");
-  TrapEOF("@media ");
-  TrapEOF("@media (");
-  TrapEOF("@media ( ");
-  TrapEOF("@media (size");
-  TrapEOF("@media (size ");
-  TrapEOF("@media (size:");
-  TrapEOF("@media (size: ");
-  TrapEOF("@media (size: foo");
-  TrapEOF("@media (size: foo ");
-  TrapEOF("@media (size: foo)");
-  TrapEOF("@media (size: foo) ");
-  TrapEOF("@media ( size : foo ) ");
-}
-
-TEST_F(ParserTest, EOFOther) {
-  TrapEOF(".a { margin: 5");
-  TrapEOF(".a { margin: 5.5");
-  TrapEOF(".a { color: rgb");
-  TrapEOF(".a { color: rgb(80, 80, 80");
-  TrapEOF(".a[");
-
-  TrapEOF("", EXTRACT_CHARSET);
-  TrapEOF("", PARSE_CHARSET);
-  TrapEOF("'foo'", PARSE_CHARSET);
-}
-
-// Check that SkipPastDelimiter() correctly respects matching delimiters.
-TEST_F(ParserTest, SkipPastDelimiter) {
-  EXPECT_STREQ("6789",    SkipPast('5', "123456789"));
-  EXPECT_STREQ(" 1, bar", SkipPast(',', "foo(a, b), 1, bar"));
-  EXPECT_STREQ(" bar }",  SkipPast('}', "foo: 'end brace: }'; } bar }"));
-  EXPECT_STREQ(" h1 { color: blue}\n",
-               SkipPast('}',
-                        "@three-dee {\n"
-                        "  @background-lighting {n"
-                        "    azimuth: 30deg;\n"
-                        "    elevation: 190deg;\n"
-                        "  }\n"
-                        "  h1 { color: red}\n"
-                        "}\n"
-                        "} h1 { color: blue}\n"));
-  // Make sure we match malformed strings correctly.
-  EXPECT_STREQ("\nfoo4: bar4\n",
-               SkipPast('}',
-                        "foo1: 'bar1}'\n"
-                        "foo2: 'bar2}\n"  // Notice missing closing '
-                        "foo3: bar3}\n"  // Actual closing }
-                        "foo4: bar4\n"));
-  // Make sure we match delimiters correct. Correct matching is specified
-  // by the letters in the comment below. Two symbols with the same letter
-  // above them should be matched. '-' mark closing delimiters that do not
-  // match any opening ones. '*' marks the actual matching '}'.
-  //                                 ABC--CB-D-E----EDA-*---
-  EXPECT_STREQ("\"}", SkipPast('}', "(([))])}{)'})\"'}))}\"}"));
-
-  FailureSkipPast('5', "abcdef");
-  // Make sure we fail when a string is closed by EOF.
-  FailureSkipPast('}', "'}");
-  // Pattern:           ABC--CB-D-E----EDA--F----
-  FailureSkipPast('}', "(([))])}{)'})\"'}))\"}'[]");
-}
-
-// Make sure we don't allow SkipPastDelimiter to recurse arbitrarily deep
-// and fill the stack with stack frames.
-// See b/7733984
-TEST_F(ParserTest, SkipPastDelimiterRecusiveDepth) {
-  string bad(1000000, '{');
-  FailureSkipPast('}', bad);
-
-}
-
-TEST_F(ParserTest, ParseMediaQueries) {
-  scoped_ptr<Parser> a(new Parser("screen"));
-  scoped_ptr<MediaQueries> q(a->ParseMediaQueries());
-  ASSERT_TRUE(NULL != q.get());
-  EXPECT_EQ(1, q->size());
-  EXPECT_EQ(MediaQuery::NO_QUALIFIER, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  // now it requires ";" at the end of the input query.
-  EXPECT_EQ(Parser::kMediaError, a->errors_seen_mask());
-
-  // qualifier
-  a.reset(new Parser("only screen"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(MediaQuery::ONLY, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-
-  // media expression
-  a.reset(new Parser("screen and (max-width: 640px)"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("640px", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-
-  // tailing whitespaces of values are not trimmed.
-  a.reset(new Parser("screen and (max-width:  640 px  )"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("640 px  ", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-
-  // multiple queries
-  a.reset(new Parser(
-      "not screen and (max-width: 500px), projection and (color)"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(2, q->size());
-  EXPECT_EQ(MediaQuery::NOT, (*q)[0]->qualifier());
-  EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
-  ASSERT_EQ(1, (*q)[0]->expressions().size());
-  EXPECT_EQ("max-width", UnicodeTextToUTF8((*q)[0]->expression(0).name()));
-  ASSERT_TRUE((*q)[0]->expression(0).has_value());
-  EXPECT_EQ("500px", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
-  EXPECT_EQ("projection", UnicodeTextToUTF8((*q)[1]->media_type()));
-  ASSERT_EQ(1, (*q)[1]->expressions().size());
-  EXPECT_EQ("color", UnicodeTextToUTF8((*q)[1]->expression(0).name()));
-  ASSERT_FALSE((*q)[1]->expression(0).has_value());
-
-  // empty input. never return NULL.
-  a.reset(new Parser(""));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_TRUE(NULL != q.get());
-  EXPECT_EQ(0, q->size());
-
-  // any media_type is allowed
-  a.reset(new Parser("foobar"));
-  q.reset(a->ParseMediaQueries());
-  EXPECT_EQ(1, q->size());
-  EXPECT_EQ("foobar", UnicodeTextToUTF8((*q)[0]->media_type()));
-
-  // same results with or without "and".
-  scoped_ptr<Parser> b;
-  scoped_ptr<MediaQueries> r;
-  a.reset(new Parser("screen (max-width: 640px)"));
-  b.reset(new Parser("screen and (max-width: 640px)"));
-  q.reset(a->ParseMediaQueries());
-  r.reset(b->ParseMediaQueries());
-  EXPECT_EQ(r->ToString(), q->ToString());
-}
-
-TEST_F(ParserTest, ImportInMiddle) {
-  scoped_ptr<Parser> p(new Parser(".a { color: red; }\n"
-                                  "@import url('foo.css');\n"
-                                  ".b { color: blue; }\n"));
-  scoped_ptr<Stylesheet> s(p->ParseStylesheet());
-  EXPECT_EQ(0, s->imports().size());
-  EXPECT_EQ(2, s->rulesets().size());
-  EXPECT_EQ(Parser::kImportError, p->errors_seen_mask());
-  EXPECT_EQ("/* AUTHOR */\n\n\n.a {color: #ff0000}\n.b {color: #0000ff}\n",
-            s->ToString());
-}
-
-}  // namespace Css
+}  // namespace

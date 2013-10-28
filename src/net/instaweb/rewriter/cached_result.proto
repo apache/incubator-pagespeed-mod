@@ -31,7 +31,6 @@ message ImageDim {
 };
 
 // Info about the input resource that was used to create a CachedResult.
-// Next free tag: 10.
 message InputInfo {
   // Generally, URLs of inputs are not kept in the protobufs, only the indices.
   // The intended usage is the URLs of inputs will be used to construct
@@ -61,30 +60,19 @@ message InputInfo {
   // been updated or not. For web-based resources, we use Last-Modified headers.
   // For file-based resources, we use mtime.
   optional int64 last_modified_time_ms = 3;
-
-  // For CACHED resources, keeps track of when the input expires, as taken
-  // from the headers returned when it was fetched.
   optional int64 expiration_time_ms = 4;
-
-  // For FILE_BASED resources, the file this was loaded from.
-  optional string filename = 5;
 
   // For CACHED resources, we keep track of the original fetch time so we
   // can freshen.
   optional int64 date_ms = 6;
 
-  // For CACHED and FILE_BASED resources, we store a hash of the input, so
-  // that we can reuse optimization results if it did not change, even if it
-  // has expired from the HTTP cache.
+  // For CACHED resources, we also store a hash of the input, so that we
+  // we can reuse optimization results if it did not change, even if it
+  // expired from the HTTP cache.
   optional string input_content_hash = 7;
 
-  // If true, no later filters should process the same input.
-  optional bool disable_further_processing = 8 [ default = false ];
-
-  // To support invalidation by exact URL, we keep the URL in the metadata.
-  // This bloats the size a bit, but enables fast invalidation.  Compressing
-  // the metadata cache helps.
-  optional string url = 9;
+  // For FILE_BASED resources, the file this was loaded from.
+  optional string filename = 5;
 }
 
 // The cached result of a rewrite. This is the value of a map where the key
@@ -138,7 +126,7 @@ message CachedResult {
   // vary the output based on things like the base URL. Output is cached
   // when the rewrite is expensive, with different base URLs being instead
   // incorporated into the key.
-  optional bytes inlined_data = 12;
+  optional string inlined_data = 12;
 
   // The result of a spriting operation, containing x/y coordinates for each
   // subimage in the sprite.
@@ -156,7 +144,7 @@ message CachedResult {
 
   // This contains low resolution/quality image contents. This will be set only
   // if DelayImagesFilter is enabled.
-  optional bytes low_resolution_inlined_data = 16;
+  optional string low_resolution_inlined_data = 16;
 
   // The image type is actually a net_instaweb::Image::Type.  It permits image
   // inlining to create an appropriate data: url from this and the
@@ -167,18 +155,6 @@ message CachedResult {
   // When this is false we have previously processed the URL and marked down
   // that the resource could potentially break if its url were changed.
   optional bool url_relocatable = 18 [ default = true ];
-
-  // When this is true, the filter should canonicalize the url to the contents
-  // of url and skip the default resource-based rendering (eg when we recognize
-  // a JS library and canonicalize its URL).
-  optional bool canonicalize_url = 19 [ default = false ];
-
-  // Stores the size of the rewritten resource.
-  optional int64 size = 20;
-
-  // Stores any debug messages for this result, which are injected into the
-  // HTML as comments if the debug filter is enabled.
-  repeated string debug_message = 21;
 }
 
 // Contains the mapping of input URLs to output URLs.  In the general
@@ -208,18 +184,7 @@ message OutputPartitions {
 // additional information should add it as optional fields here.
 message ResourceContext {
   optional ImageDim desired_image_dims = 1;
-  optional bool attempt_webp = 2 [ default = false, deprecated = true ];
+  optional bool attempt_webp = 2 [ default = false ];
   optional bool inline_images = 3 [ default = true ];
   optional bool mobile_user_agent = 4 [ default = false ];
-
-  enum LibWebpLevel {
-    LIBWEBP_NONE = 0;
-    LIBWEBP_LOSSY_ONLY = 1;
-    LIBWEBP_LOSSY_LOSSLESS_ALPHA = 2;
-  }
-
-  optional LibWebpLevel libwebp_level = 5 [default = LIBWEBP_NONE];
-  // Device screen resolution derived from user agent.
-  optional ImageDim user_agent_screen_resolution = 6;
-  optional bool use_small_screen_quality = 7 [default = false];
 }

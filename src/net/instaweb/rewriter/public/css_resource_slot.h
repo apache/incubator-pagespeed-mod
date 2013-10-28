@@ -26,18 +26,19 @@
 #include <cstddef>
 #include <set>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace Css { class Values; }
 
 namespace net_instaweb {
 
-class RewriteOptions;
+class GoogleUrl;
 
 // A place storing a rewritable URL inside a CSS AST.
 class CssResourceSlot : public ResourceSlot {
@@ -49,13 +50,20 @@ class CssResourceSlot : public ResourceSlot {
   Css::Values* values() const { return values_; }
   size_t value_index() const { return value_index_; }
 
-  virtual void DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  // Enables trimming of URLs versus a given base.
+  void EnableTrim(const GoogleUrl& base_url);
+
+  // Update the resource slot's url, without doing
+  // any absolutification or trimming.
+  void UpdateUrlInCss(const StringPiece& url);
 
  protected:
-  CssResourceSlot(const ResourcePtr& resource,
-                  const GoogleUrl& trim_url, const RewriteOptions* options,
-                  Css::Values* values, size_t value_index);
+  CssResourceSlot(const ResourcePtr& resource, Css::Values* values,
+                  size_t value_index)
+      : ResourceSlot(resource),
+        values_(values),
+        value_index_(value_index) {
+  }
 
   REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
   virtual ~CssResourceSlot();
@@ -65,10 +73,7 @@ class CssResourceSlot : public ResourceSlot {
 
   Css::Values* values_;
   size_t value_index_;
-
-  UrlRelativity url_relativity_;
-  GoogleUrl trim_url_;
-  const RewriteOptions* options_;
+  scoped_ptr<GoogleUrl> trim_base_;  // NULL if not trimming.
 
   DISALLOW_COPY_AND_ASSIGN(CssResourceSlot);
 };
@@ -85,8 +90,6 @@ class CssResourceSlotFactory {
   // Warning: this is only safe if the declaration containing this property is
   // not modified while this exists.
   CssResourceSlotPtr GetSlot(const ResourcePtr& resource,
-                             const GoogleUrl& trim_url,
-                             const RewriteOptions* options,
                              Css::Values* values, size_t value_index);
   CssResourceSlotPtr UniquifySlot(CssResourceSlotPtr slot);
 

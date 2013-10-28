@@ -21,23 +21,25 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 
 namespace net_instaweb {
 
-class AsyncFetch;
 class AbstractMutex;
 class MessageHandler;
+class RequestHeaders;
+class ResponseHeaders;
+class UrlFetcher;
+class Writer;
 
-// Fake UrlAsyncFetcher which waits to call underlying fetcher until
+// Fake UrlAsyncFetcher which waits to call underlying blocking fetcher until
 // you explicitly call CallCallbacks().
 class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  WaitUrlAsyncFetcher(UrlAsyncFetcher* url_fetcher,
-                      AbstractMutex* mutex)
+  WaitUrlAsyncFetcher(UrlFetcher* url_fetcher, AbstractMutex* mutex)
       : url_fetcher_(url_fetcher),
         pass_through_mode_(false),
         mutex_(mutex) {
@@ -45,9 +47,12 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   virtual ~WaitUrlAsyncFetcher();
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* handler,
-                     AsyncFetch* fetch);
+  virtual bool StreamingFetch(const GoogleString& url,
+                              const RequestHeaders& request_headers,
+                              ResponseHeaders* response_headers,
+                              Writer* response_writer,
+                              MessageHandler* message_handler,
+                              Callback* callback);
 
   // Call all callbacks from previously initiated fetches.
   void CallCallbacks();
@@ -62,7 +67,7 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
 
   bool CallCallbacksAndSwitchModesHelper(bool new_mode);
 
-  UrlAsyncFetcher* url_fetcher_;
+  UrlFetcher* url_fetcher_;
   std::vector<DelayedFetch*> delayed_fetches_;
   bool pass_through_mode_;
   scoped_ptr<AbstractMutex> mutex_;

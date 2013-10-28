@@ -25,20 +25,17 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
+class UnicodeText;
+
 namespace Css {
 class Declarations;
-class MediaQueries;
-class MediaQuery;
-class Selector;
 }
-
 namespace net_instaweb {
-
 class HtmlElement;
 
 // TODO(nforman): remove this namespace and put everything into the
@@ -49,11 +46,11 @@ static const char kAllMedia[] = "all";
 static const int kNoValue = -1;
 
 enum DimensionState {
-  kNoDimensions,       // No dimensions found.
-  kHasHeightOnly,      // Found height only.
-  kHasWidthOnly,       // Found width only.
-  kHasBothDimensions,  // Found both width and height.
-  kNotParsable         // Found a dimension, but couldn't extract a value.
+  kNoDimensions, // No dimensions found.
+  kHasHeightOnly, // Found height only.
+  kHasWidthOnly, // Found width only.
+  kHasBothDimensions, // Found both width and height.
+  kNotParsable // Found a dimension, but couldn't extract a value.
 };
 
 // Extract the width and height values out of a list of declarations.
@@ -67,7 +64,7 @@ DimensionState GetDimensions(Css::Declarations* decls, int* width, int* height);
 
 class StyleExtractor {
  public:
-  explicit StyleExtractor(HtmlElement* element);
+  StyleExtractor(HtmlElement* element);
   virtual ~StyleExtractor();
 
 
@@ -110,35 +107,22 @@ void VectorizeMediaAttribute(const StringPiece& input_media,
 // the answer is a comma-separated list of media types.
 GoogleString StringifyMediaVector(const StringVector& import_media);
 
-// Checks if query is not simply a media type. In other words, whether it has
-// a qualifier ("not" or "only") or media expressions (like "and (color)").
-bool IsComplexMediaQuery(const Css::MediaQuery& query);
+// Convert a vector of UnicodeText's (from Css::Import.media) to a vector of
+// UTF-8 GoogleString's for use of the above functions. Elements are trimmed
+// and any empty elements are ignored.
+void ConvertUnicodeVectorToStringVector(
+    const std::vector<UnicodeText>& in_vector,
+    StringVector* out_vector);
 
-// Convert a set of MediaQueries to a vector of UTF-8 GoogleString's for use
-// of the above functions. Elements are trimmed and any empty elements are
-// ignored.
-//
-// Only simple media queries are accepted, returns false for complex queries.
-bool ConvertMediaQueriesToStringVector(const Css::MediaQueries& in_vector,
-                                       StringVector* out_vector);
-
-// Convert a vector of UTF-8 GoogleString's to MediaQueries. Elements are
-// trimmed and any empty elements are ignored. The strings are interpreted
-// as simple media types (no complex media query syntax like "not screen" or
-// "(max-width: 200px)").
-void ConvertStringVectorToMediaQueries(const StringVector& in_vector,
-                                       Css::MediaQueries* out_vector);
+// Convert a vector of UTF-8 GoogleString's to UnicodeText's. Elements are
+// trimmed and any empty elements are ignored.
+void ConvertStringVectorToUnicodeVector(
+    const StringVector& in_vector,
+    std::vector<UnicodeText>* out_vector);
 
 // Clear the given vector if it contains the media 'all'. This is required
 // because Css::Parser doesn't treat 'all' specially but we do for efficiency.
 void ClearVectorIfContainsMediaAll(StringVector* media);
-
-// Can this media attribute include some kind of screen?
-bool CanMediaAffectScreen(const StringPiece& media);
-
-// Strip a parsed selector down to a string that can be used by a
-// querySelectorAll call in the browser to select DOM elements.
-GoogleString JsDetectableSelector(const Css::Selector& selector);
 
 // Eliminate all elements from the first vector that are not in the second
 // vector, with the caveat that an empty vector (first or second) means 'the
@@ -176,8 +160,8 @@ void EliminateElementsNotIn(std::vector<T>* sorted_inner,
   }
 }
 
-}  // namespace css_util
+}  // css_util
 
-}  // namespace net_instaweb
+}  // net_instaweb
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSS_UTIL_H_

@@ -26,11 +26,9 @@
 namespace net_instaweb {
 
 class AsyncFetch;
-class Hasher;
 class Histogram;
 class HTTPCache;
 class MessageHandler;
-class NamedLockManager;
 class Variable;
 
 // Composes an asynchronous URL fetcher with an http cache, to
@@ -38,71 +36,32 @@ class Variable;
 //
 // This fetcher will asynchronously check the cache. If the url
 // is found in cache and is still valid, the fetch's callback will be
-// called right away. Otherwise (if fetcher != NULL) an async fetch
-// will be performed in the fetcher, the result of which will be written
-// into the cache. In case the fetch fails and there is a stale response
-// in the cache, we serve the stale response.
-//
-// If fetcher == NULL, this will only perform a cache lookup and then call
-// the callback immediately.
-//
-// In case of cache hit and resource is about to expire (80% of TTL or 5 mins
-// which ever is minimum), it will trigger background fetch to freshen the value
-// in cache. Background fetch only be triggered only if async_op_hooks_ != NULL,
-// otherwise, fetcher object accessed by BackgroundFreshenFetch may be deleted
-// by the time origin fetch finishes.
+// called right away. Otherwise an async fetch will be performed in
+// the fetcher, the result of which will be written into the cache.
+// In case the fetch fails and there is a stale response in the cache, we serve
+// the stale response.
 //
 // TODO(sligocki): In order to use this for fetching resources for rewriting
 // we'd need to integrate resource locking in this class. Do we want that?
 class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  // Interface for managing async operations in CacheUrlAsyncFetcher. It helps
-  // to protect the lifetime of the injected objects.
-  class AsyncOpHooks {
-   public:
-    AsyncOpHooks() {}
-    virtual ~AsyncOpHooks();
-
-    // Called when CacheUrlAsyncFetcher is about to start async operation.
-    virtual void StartAsyncOp() = 0;
-    // Called when async operation is ended.
-    virtual void FinishAsyncOp() = 0;
-  };
-
-  // None of these are owned by CacheUrlAsyncFetcher.
-  CacheUrlAsyncFetcher(const Hasher* lock_hasher,
-                       NamedLockManager* lock_manager,
-                       HTTPCache* cache,
-                       AsyncOpHooks* async_op_hooks,
-                       UrlAsyncFetcher* fetcher)
-      : lock_hasher_(lock_hasher),
-        lock_manager_(lock_manager),
-        http_cache_(cache),
+  CacheUrlAsyncFetcher(HTTPCache* cache, UrlAsyncFetcher* fetcher)
+      : http_cache_(cache),
         fetcher_(fetcher),
-        async_op_hooks_(async_op_hooks),
         backend_first_byte_latency_(NULL),
         fallback_responses_served_(NULL),
-        fallback_responses_served_while_revalidate_(NULL),
-        num_conditional_refreshes_(NULL),
-        num_proactively_freshen_user_facing_request_(NULL),
         respect_vary_(false),
         ignore_recent_fetch_failed_(false),
         serve_stale_if_fetch_error_(false),
-        default_cache_html_(false),
-        proactively_freshen_user_facing_request_(false),
-        serve_stale_while_revalidate_threshold_sec_(0) {
+        default_cache_html_(false) {
   }
   virtual ~CacheUrlAsyncFetcher();
 
   virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url,
+  virtual bool Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* base_fetch);
-
-  // HTTP status code used to indicate that we failed the Fetch because
-  // result was not found in cache. (Only happens if fetcher_ == NULL).
-  static const int kNotInCacheStatus;
 
   HTTPCache* http_cache() const { return http_cache_; }
   UrlAsyncFetcher* fetcher() const { return fetcher_; }
@@ -123,28 +82,12 @@ class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
     return fallback_responses_served_;
   }
 
-  void set_fallback_responses_served_while_revalidate(Variable* x) {
-    fallback_responses_served_while_revalidate_ = x;
-  }
-
-  Variable* fallback_responses_served_while_revalidate() const {
-    return fallback_responses_served_while_revalidate_;
-  }
-
   void set_num_conditional_refreshes(Variable* x) {
     num_conditional_refreshes_ = x;
   }
 
   Variable* num_conditional_refreshes() const {
     return num_conditional_refreshes_;
-  }
-
-  void set_num_proactively_freshen_user_facing_request(Variable* x) {
-    num_proactively_freshen_user_facing_request_ = x;
-  }
-
-  Variable* num_proactively_freshen_user_facing_request() const {
-    return num_proactively_freshen_user_facing_request_;
   }
 
   void set_respect_vary(bool x) { respect_vary_ = x; }
@@ -165,44 +108,22 @@ class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
     return serve_stale_if_fetch_error_;
   }
 
-  void set_serve_stale_while_revalidate_threshold_sec(int64 x) {
-    serve_stale_while_revalidate_threshold_sec_ = x;
-  }
-
-  int64 serve_stale_while_revalidate_threshold_sec() const {
-    return serve_stale_while_revalidate_threshold_sec_;
-  }
-
   void set_default_cache_html(bool x) { default_cache_html_ = x; }
   bool default_cache_html() const { return default_cache_html_; }
 
-  void set_proactively_freshen_user_facing_request(bool x) {
-    proactively_freshen_user_facing_request_ = x;
-  }
-  bool proactively_freshen_user_facing_request() const {
-    return proactively_freshen_user_facing_request_;
-  }
-
  private:
   // Not owned by CacheUrlAsyncFetcher.
-  const Hasher* lock_hasher_;
-  NamedLockManager* lock_manager_;
   HTTPCache* http_cache_;
-  UrlAsyncFetcher* fetcher_;  // may be NULL.
-  AsyncOpHooks* async_op_hooks_;
+  UrlAsyncFetcher* fetcher_;
 
   Histogram* backend_first_byte_latency_;  // may be NULL.
   Variable* fallback_responses_served_;  // may be NULL.
-  Variable* fallback_responses_served_while_revalidate_;  // may be NULL.
   Variable* num_conditional_refreshes_;  // may be NULL.
-  Variable* num_proactively_freshen_user_facing_request_;  // may be NULL.
 
   bool respect_vary_;
   bool ignore_recent_fetch_failed_;
   bool serve_stale_if_fetch_error_;
   bool default_cache_html_;
-  bool proactively_freshen_user_facing_request_;
-  int64 serve_stale_while_revalidate_threshold_sec_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheUrlAsyncFetcher);
 };

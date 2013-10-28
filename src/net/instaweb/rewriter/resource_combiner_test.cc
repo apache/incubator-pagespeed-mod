@@ -31,7 +31,7 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
@@ -98,14 +98,9 @@ class TestCombineFilter : public RewriteFilter {
     }
 
     virtual bool ResourceCombinable(Resource* resource,
-                                    GoogleString* failure_reason,
                                     MessageHandler* /*handler*/) {
       EXPECT_TRUE(resource->HttpStatusOk());
-      if (resource->contents() == kVetoText) {
-        *failure_reason = "Contents match veto text";
-        return false;
-      }
-      return true;
+      return resource->contents() != kVetoText;
     }
   };
 
@@ -134,10 +129,10 @@ class TestCombineFilter : public RewriteFilter {
 }  // namespace
 
 // Test fixture.
-class ResourceCombinerTest : public RewriteTestBase {
+class ResourceCombinerTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
 
     filter_ = new TestCombineFilter(rewrite_driver());
     AddRewriteFilter(filter_);
@@ -179,7 +174,7 @@ class ResourceCombinerTest : public RewriteTestBase {
 
     // TODO(morlovich): This is basically copy-paste from FetchResourceUrl.
     content->clear();
-    StringAsyncFetch callback(CreateRequestContext(), content);
+    StringAsyncFetch callback(content);
     bool fetched = rewrite_driver()->FetchResource(url, &callback);
 
     if (!fetched) {

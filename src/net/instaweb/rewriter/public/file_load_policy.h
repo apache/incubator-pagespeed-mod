@@ -28,8 +28,6 @@
 namespace net_instaweb {
 
 class GoogleUrl;
-class FileLoadMapping;
-class FileLoadRule;
 
 // Class for deciding which URLs get loaded from which files.
 //
@@ -40,7 +38,7 @@ class FileLoadPolicy {
   FileLoadPolicy() {}
   virtual ~FileLoadPolicy();
 
-  // Note: This is O(N+M) for N calls to Associate and M calls to AddRule.
+  // Note: This is O(N) for N is number of calls to Associate.
   // TODO(sligocki): Set up a more efficient mapper.
   virtual bool ShouldLoadFromFile(const GoogleUrl& url,
                                   GoogleString* filename) const;
@@ -49,71 +47,31 @@ class FileLoadPolicy {
   // Both prefixes must specify directories, if they do not end in slashes,
   // we add them.
   //
-  // Tests against youngest association first in case of overlapping prefixes.
-  // Because we support regular expressions, checking for overlapping prefixes
-  // isn't practical.
+  // Currently tests against youngest association first in case of overlapping
+  // prefixes. We may disallow overlapping prefixes in the future.
   virtual void Associate(const StringPiece& url_prefix,
                          const StringPiece& filename_prefix);
-
-  // A version of Associate supporting RE2-format regular expressions.
-  // Backreferences are supported, as in:
-  //
-  //   AssociateRegexp("^https?://example.com/~([^/]*)/static/",
-  //                   "/var/static/\\1", &error);
-  //
-  // Which will map urls as:
-  //
-  //   http://example.com/~pat/static/cat.jpg -> /var/static/pat/cat.jpg
-  //   http://example.com/~sam/static/dog.jpg -> /var/static/sam/dog.jpg
-  //   https://example.com/~al/static/css/ie -> /var/static/al/css/ie
-  //
-  // If the regular expression and substitution validate, returns true.
-  // Otherwise it writes a message to error and returns false.
-  virtual bool AssociateRegexp(const StringPiece& url_regexp,
-                               const StringPiece& filename_prefix,
-                               GoogleString* error);
-
-  // By default Associate permits directly loading anything under the specified
-  // filesystem path prefix.  So if we were given:
-  //
-  //   Associate("http://example.com/", "/var/www/")
-  //
-  // we would use load-from-file for everything on the site. If some of those
-  // files actually need to be loaded through HTTP, for example because they
-  // need to be interpreted, we might need:
-  //
-  //   AddRule("/var/www/cgi-bin/", false, false);  // literal blacklist.
-  //
-  // or:
-  //
-  //   // blacklist regexp
-  //   AddRule("\\.php$", true, false);  // regexp blacklist.
-  //
-  // In cases where it's easier to list what's allowed than what's prohibited,
-  // you can whitelist:
-  //
-  //   GoogleString e;  // For regexp errors.
-  //   Associate("http://example.com/", "/var/www/")
-  //   AddRule(".*", true, false, &e)  // regexp blacklist.
-  //   AddRule("\\.html$", true, true, &e)  // regexp whitelist.
-  //   AddRule("/var/www/static/", false, true, &e)  // literal whitelist.
-  //   // regexp blacklist.
-  //   AddRule("^/var/www/static/legacy/.*\\.php$", true, false, &e)
-  //
-  // AddRule will fail if RE2 can't compile the regular expression, and will
-  // write an error message to it's error string and return false if that
-  // happens.
-  virtual bool AddRule(const GoogleString& rule, bool is_regexp, bool allowed,
-                       GoogleString* error);
 
   // Merge in other policies (needed for rewrite_options).
   virtual void Merge(const FileLoadPolicy& other);
 
  private:
-  typedef std::list<FileLoadMapping*> FileLoadMappings;
-  FileLoadMappings file_load_mappings_;
-  typedef std::list<FileLoadRule*> FileLoadRules;
-  FileLoadRules file_load_rules_;
+  struct UrlFilename {
+    UrlFilename(const StringPiece& url_prefix_in,
+                const StringPiece& filename_prefix_in)
+        : url_prefix(url_prefix_in.data(), url_prefix_in.size()),
+          filename_prefix(filename_prefix_in.data(), filename_prefix_in.size())
+    {}
+
+    GoogleString url_prefix;
+    GoogleString filename_prefix;
+  };
+  // TODO(sligocki): This is not a very efficient way to store associations
+  // if there are many. Write a better version. Perhaps a trie.
+  typedef std::list<UrlFilename> UrlFilenames;
+  UrlFilenames url_filenames_;
+
+  FRIEND_TEST(FileLoadPolicyTest, Merge);
 
   DISALLOW_COPY_AND_ASSIGN(FileLoadPolicy);
 };

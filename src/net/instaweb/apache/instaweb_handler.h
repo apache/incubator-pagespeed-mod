@@ -17,37 +17,28 @@
 //
 // The Apache handler for rewriten resources and a couple other Apache hooks.
 
-#ifndef NET_INSTAWEB_APACHE_INSTAWEB_HANDLER_H_
-#define NET_INSTAWEB_APACHE_INSTAWEB_HANDLER_H_
+#ifndef MOD_INSTAWEB_INSTAWEB_HANDLER_H_
+#define MOD_INSTAWEB_INSTAWEB_HANDLER_H_
 
-#include "apr_pools.h"  // for apr_status_t
 // The httpd header must be after the instaweb_context.h. Otherwise,
 // the compiler will complain
 // "strtoul_is_not_a_portable_function_use_strtol_instead".
-#include "httpd.h"
+#include "net/instaweb/apache/instaweb_context.h"
+#include "httpd.h"  // NOLINT
 
 namespace net_instaweb {
 
-class ApacheServerContext;
-
-// Was this request made by mod_pagespeed itself? If so, we should not try to
-// handle it, just let Apache deal with it like normal.
-bool is_pagespeed_subrequest(request_rec* request);
-
-// Handle mod_pagespeed-specific requests. Handles both .pagespeed. rewritten
-// resources and /mod_pagespeed_statistics, /mod_pagespeed_beacon, etc.
-// TODO(sligocki): Why not make each of these different handlers?
+// The content generator for instaweb rewritten resources, for example, a
+// combined CSS file.  Requests for not-instaweb rewritten resources will be
+// declined so that other Apache handlers may operate on them.
+//
+// TODO(sligocki): Use a Page Speed Automatic ResourceFetch here.
 apr_status_t instaweb_handler(request_rec* request);
 
 // Save the original URL as a request "note" before mod_rewrite has
 // a chance to corrupt mod_pagespeed's generated URLs, which would
 // prevent instaweb_handler from being able to decode the resource.
 apr_status_t save_url_hook(request_rec *request);
-
-// Implementation of the Apache 'translate_name' hook. Used by the actual hook
-// 'save_url_hook' and directly when we already have the server context.
-apr_status_t save_url_in_note(request_rec *request,
-                              ApacheServerContext* server_context);
 
 // By default, apache imposes limitations on URL segments of around
 // 256 characters that appear to correspond to filename limitations.
@@ -56,4 +47,4 @@ apr_status_t instaweb_map_to_storage(request_rec* request);
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_APACHE_INSTAWEB_HANDLER_H_
+#endif  // MOD_INSTAWEB_INSTAWEB_HANDLER_H_

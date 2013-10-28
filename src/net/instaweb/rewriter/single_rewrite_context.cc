@@ -21,9 +21,11 @@
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 
 namespace net_instaweb {
 
@@ -42,7 +44,7 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
   if (num_slots() == 1) {
     ret = true;
     ResourcePtr resource(slot(0)->resource());
-    if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
+    if (resource->IsValidAndCacheable()) {
       OutputResourcePtr output_resource(
           Driver()->CreateOutputResourceFromResource(
               id(), encoder(), resource_context(),

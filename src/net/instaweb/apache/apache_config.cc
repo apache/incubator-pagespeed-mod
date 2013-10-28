@@ -15,100 +15,124 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/apache/apache_config.h"
-
-#include "base/logging.h"
-#include "net/instaweb/public/version.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
-class ThreadSystem;
+const char ApacheConfig::kClassName[] = "ApacheConfig";
 
-namespace {
-
-const char kModPagespeedStatisticsHandlerPath[] = "/mod_pagespeed_statistics";
-
-}  // namespace
-
-RewriteOptions::Properties* ApacheConfig::apache_properties_ = NULL;
-
-void ApacheConfig::Initialize() {
-  if (Properties::Initialize(&apache_properties_)) {
-    SystemRewriteOptions::Initialize();
-    AddProperties();
-  }
-}
-
-void ApacheConfig::Terminate() {
-  if (Properties::Terminate(&apache_properties_)) {
-    SystemRewriteOptions::Terminate();
-  }
-}
-
-ApacheConfig::ApacheConfig(const StringPiece& description,
-                           ThreadSystem* thread_system)
-    : SystemRewriteOptions(description, thread_system) {
+ApacheConfig::ApacheConfig(const StringPiece& description)
+    : description_(description.data(), description.size()) {
   Init();
 }
 
-ApacheConfig::ApacheConfig(ThreadSystem* thread_system)
-    : SystemRewriteOptions(thread_system) {
+ApacheConfig::ApacheConfig() {
   Init();
 }
 
 void ApacheConfig::Init() {
-  DCHECK(apache_properties_ != NULL)
-      << "Call ApacheConfig::Initialize() before construction";
-  InitializeOptions(apache_properties_);
+  add_option("", &fetcher_proxy_, "afp", RewriteOptions::kFetcherProxy);
+  add_option("", &file_cache_path_, "afcp", RewriteOptions::kFileCachePath);
+  add_option("", &filename_prefix_, "afnp", RewriteOptions::kFileNamePrefix);
+  add_option("", &slurp_directory_, "asd", RewriteOptions::kSlurpDirectory);
 
-  // Apache-specific default.
-  // TODO(sligocki): Get rid of this line and let both Apache and Nginx use
-  // /pagespeed_statistics as the handler.
-  statistics_handler_path_.set_default(kModPagespeedStatisticsHandlerPath);
+  add_option(kOrganized, &referer_statistics_output_level_, "arso",
+             RewriteOptions::kRefererStatisticsOutputLevel);
+
+  add_option(false, &collect_referer_statistics_, "acrs",
+             RewriteOptions::kCollectRefererStatistics);
+  add_option(false, &hash_referer_statistics_, "ahrs",
+             RewriteOptions::kHashRefererStatistics);
+  add_option(true, &statistics_enabled_, "ase",
+             RewriteOptions::kStatisticsEnabled);
+  add_option(false, &test_proxy_, "atp", RewriteOptions::kTestProxy);
+  add_option(false, &use_shared_mem_locking_, "ausml",
+             RewriteOptions::kUseSharedMemLocking);
+  add_option(false, &slurp_read_only_, "asro",
+             RewriteOptions::kSlurpReadOnly);
+
+  add_option(5 * Timer::kSecondMs, &fetcher_time_out_ms_, "afto",
+             RewriteOptions::kFetcherTimeOutMs);
+  add_option(Timer::kHourMs, &file_cache_clean_interval_ms_, "afcci",
+             RewriteOptions::kFileCacheCleanIntervalMs);
+
+  add_option(100 * 1024, &file_cache_clean_size_kb_, "afc",
+             RewriteOptions::kFileCacheCleanSizeKb);  // 100 megabytes
+  add_option(0, &lru_cache_byte_limit_, "alcb",
+             RewriteOptions::kLruCacheByteLimit);
+  add_option(0, &lru_cache_kb_per_process_, "alcp",
+             RewriteOptions::kLruCacheKbPerProcess);
+  add_option(0, &slurp_flush_limit_, "asfl",
+             RewriteOptions::kSlurpFlushLimit);
+
+  SortOptions();
+
+  // Leave this out of the signature as (a) we don't actually change this
+  // spontaneously, and (b) it's useful to keep the metadata cache between
+  // slurping read-only and slurp read/write.
+  slurp_read_only_.DoNotUseForSignatureComputation();
+
+  // See the comment in RewriteOptions::RewriteOptions about leaving
+  // the Signature() fairly comprehensive for now.
+  //
+  // fetcher_proxy_.DoNotUseForSignatureComputation();
+  // file_cache_path_.DoNotUseForSignatureComputation();
+  // filename_prefix_.DoNotUseForSignatureComputation();
+  // slurp_directory_.DoNotUseForSignatureComputation();
+  // referer_statistics_output_level_.DoNotUseForSignatureComputation();
+  // collect_referer_statistics_.DoNotUseForSignatureComputation();
+  // hash_referer_statistics_.DoNotUseForSignatureComputation();
+  // statistics_enabled_.DoNotUseForSignatureComputation();
+  // test_proxy_.DoNotUseForSignatureComputation();
+  // use_shared_mem_locking_.DoNotUseForSignatureComputation();
+  // fetcher_time_out_ms_.DoNotUseForSignatureComputation();
+  // file_cache_clean_interval_ms_.DoNotUseForSignatureComputation();
+  // file_cache_clean_size_kb_.DoNotUseForSignatureComputation();
+  // lru_cache_byte_limit_.DoNotUseForSignatureComputation();
+  // lru_cache_kb_per_process_.DoNotUseForSignatureComputation();
+  // slurp_flush_limit_.DoNotUseForSignatureComputation();
 }
 
-void ApacheConfig::AddProperties() {
-  AddApacheProperty(
-      false, &ApacheConfig::fetch_from_mod_spdy_, "ffms",
-      RewriteOptions::kFetchFromModSpdy,
-      "Fetch SSL resources with help of recent mod_spdy");
-
-  MergeSubclassProperties(apache_properties_);
-
-  // Default properties are global but to set them the current API requires
-  // an ApacheConfig instance and we're in a static method.
-  //
-  // TODO(jmarantz): Perform these operations on the Properties directly and
-  // get rid of this hack.
-  //
-  // Instantiation of the options with a null thread system wouldn't usually be
-  // safe but it's ok here because we're only updating the static properties on
-  // process startup.  We won't have a thread-system yet or multiple threads.
-  ApacheConfig config("dummy_options", NULL);
-  config.set_default_x_header_value(kModPagespeedVersion);
+bool ApacheConfig::ParseRefererStatisticsOutputLevel(
+    const StringPiece& in, RefererStatisticsOutputLevel* out) {
+  bool ret = false;
+  if (in != NULL) {
+    if (StringCaseEqual(in, "Fast")) {
+      *out = kFast;
+       ret = true;
+    } else if (StringCaseEqual(in, "Simple")) {
+      *out = kSimple;
+       ret = true;
+    } else if (StringCaseEqual(in, "Organized")) {
+      *out = kOrganized;
+       ret = true;
+    }
+  }
+  return ret;
 }
 
-ApacheConfig* ApacheConfig::Clone() const {
-  ApacheConfig* options =
-      new ApacheConfig(StrCat("cloned from ", description()), thread_system());
+RewriteOptions* ApacheConfig::Clone() const {
+  ApacheConfig* options = new ApacheConfig(description_);
   options->Merge(*this);
   return options;
 }
 
-ApacheConfig* ApacheConfig::NewOptions() const {
-  return new ApacheConfig(StrCat("derived from ", description()),
-                          thread_system());
-}
-
 const ApacheConfig* ApacheConfig::DynamicCast(const RewriteOptions* instance) {
-  const ApacheConfig* config = dynamic_cast<const ApacheConfig*>(instance);
-  DCHECK(config != NULL);
-  return config;
+  return (instance == NULL ||
+          instance->class_name() != ApacheConfig::kClassName
+          ? NULL
+          : static_cast<const ApacheConfig*>(instance));
 }
 
 ApacheConfig* ApacheConfig::DynamicCast(RewriteOptions* instance) {
-  ApacheConfig* config = dynamic_cast<ApacheConfig*>(instance);
-  DCHECK(config != NULL);
-  return config;
+  return (instance == NULL ||
+          instance->class_name() != ApacheConfig::kClassName
+          ? NULL
+          : static_cast<ApacheConfig*>(instance));
+}
+
+const char* ApacheConfig::class_name() const {
+  return ApacheConfig::kClassName;
 }
 
 }  // namespace net_instaweb

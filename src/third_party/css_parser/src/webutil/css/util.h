@@ -32,7 +32,6 @@ class UnicodeText;
 
 namespace Css {
 
-class MediaQueries;
 class Value;
 
 namespace Util {
@@ -76,10 +75,6 @@ bool MediaAppliesToScreen(const StringPiece& media);
 // "all".
 bool MediaAppliesToScreen(const std::vector<UnicodeText>& media);
 
-// Note: Operates like a naive CSS2 parser, only returning true if media type
-// is "screen" or "all" and there are no qualifiers. Media expressions are
-// ignored.
-bool MediaAppliesToScreen(const Css::MediaQueries& media);
 
 }  // namespace Util
 }  // namespace Css

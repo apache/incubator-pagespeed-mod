@@ -18,84 +18,63 @@
 
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 
-#include "base/logging.h"
-#include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/url_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_writer.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/stack_buffer.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 
-class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
+class HttpDumpUrlAsyncWriter::Fetch : UrlAsyncFetcher::Callback {
  public:
-  DumpFetch(const GoogleString& url, MessageHandler* handler,
-            AsyncFetch* base_fetch, const GoogleString& filename,
-            HttpDumpUrlFetcher* dump_fetcher, FileSystem* file_system,
-            const RequestContextPtr& request_context)
-      : StringAsyncFetch(request_context),
-        url_(url), handler_(handler), base_fetch_(base_fetch),
-        filename_(filename), dump_fetcher_(dump_fetcher),
-        file_system_(file_system) {
-    DCHECK(request_context.get() != NULL);
+  Fetch(const GoogleString& url, const RequestHeaders& request_headers,
+        ResponseHeaders* response_headers, Writer* response_writer,
+        MessageHandler* handler, Callback* callback,
+        const GoogleString& filename, UrlFetcher* dump_fetcher,
+        FileSystem* file_system)
+      : url_(url), response_headers_(response_headers),
+        response_writer_(response_writer), handler_(handler),
+        callback_(callback), filename_(filename), dump_fetcher_(dump_fetcher),
+        file_system_(file_system), string_writer_(&contents_) {
+    request_headers_.CopyFrom(request_headers);
   }
 
-  void StartFetch(const bool accept_gzip, UrlAsyncFetcher* base_fetcher) {
+  // Like UrlAsyncFetcher::StreamingFetch, returns true if callback has been
+  // called already.
+  bool StartFetch(const bool accept_gzip, UrlAsyncFetcher* base_fetcher) {
     // In general we will want to always ask the origin for gzipped output,
     // but we are leaving in variable so this could be overridden by the
     // instantiator of the DumpUrlWriter.
-    request_headers()->CopyFrom(*base_fetch_->request_headers());
+    compress_headers_.CopyFrom(request_headers_);
     if (accept_gzip) {
-      request_headers()->Replace(HttpAttributes::kAcceptEncoding,
-                                 HttpAttributes::kGzip);
+      compress_headers_.Replace(HttpAttributes::kAcceptEncoding,
+                                HttpAttributes::kGzip);
     }
 
-    base_fetcher->Fetch(url_, handler_, this);
+    return base_fetcher->StreamingFetch(url_, compress_headers_,
+                                         &compressed_response_, &string_writer_,
+                                         handler_, this);
   }
 
   // Finishes the Fetch when called back.
-  virtual void HandleDone(bool success) {
-    response_headers()->Replace(HttpAttributes::kContentLength,
-                                IntegerToString(buffer().size()));
-    // TODO(jmarantz): http://tools.ietf.org/html/rfc2616#section-13.5.1
-    // tells us we can also remove Keep-Alive, Proxy-Authenticate,
-    // Proxy-Authorization, TE, Trailers, Transfer-Encoding, and Upgrade.
-    response_headers()->RemoveAll(HttpAttributes::kConnection);
-    response_headers()->ComputeCaching();
+  void Done(bool success) {
+    compressed_response_.Replace(HttpAttributes::kContentLength,
+                                 IntegerToString(contents_.size()));
+    compressed_response_.ComputeCaching();
 
     // Do not write an empty file if the fetch failed.
     if (success) {
-      // Check to see if a response marked as gzipped are really unzippable.
-      if (response_headers()->WasGzippedLast()) {
-        GzipInflater inflater(GzipInflater::kGzip);
-        inflater.Init();
-        if (buffer().empty()) {
-          response_headers()->Remove(HttpAttributes::kContentEncoding,
-                                     HttpAttributes::kGzip);
-        } else {
-          CHECK(inflater.SetInput(buffer().data(), buffer().size()));
-          while (inflater.HasUnconsumedInput()) {
-            char buf[kStackBufferSize];
-            if ((inflater.InflateBytes(buf, sizeof(buf)) == 0) ||
-                inflater.error()) {
-              response_headers()->RemoveAll(HttpAttributes::kContentEncoding);
-              break;
-            }
-          }
-        }
-      }
-
       FileSystem::OutputFile* file = file_system_->OpenTempFile(
           filename_ + ".temp", handler_);
       if (file != NULL) {
@@ -103,72 +82,74 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
                           filename_.c_str());
         GoogleString temp_filename = file->filename();
         FileWriter file_writer(file);
-        success = response_headers()->WriteAsHttp(&file_writer, handler_) &&
-            file->Write(buffer(), handler_);
+        success = compressed_response_.WriteAsHttp(&file_writer, handler_) &&
+            file->Write(contents_, handler_);
         success &= file_system_->Close(file, handler_);
         success &= file_system_->RenameFile(temp_filename.c_str(),
-                                            filename_.c_str(),
-                                            handler_);
+                                        filename_.c_str(),
+                                        handler_);
       } else {
         success = false;
       }
     }
 
-    if (success) {
+    // We are not going to be able to read the response from the file
+    // system so we better pass the error message through.
+    if (!success) {
+      response_headers_->CopyFrom(compressed_response_);
+      response_writer_->Write(contents_, handler_);
+    } else {
       // Let dump fetcher fetch the actual response so that it can decompress.
-      StringAsyncFetch dump_target(request_context());
-      dump_target.set_request_headers(base_fetch_->request_headers());
-      dump_target.set_response_headers(base_fetch_->response_headers());
-      dump_fetcher_->Fetch(url_, handler_, &dump_target);
-      // We expect the dump fetcher to operate synchronously
-      CHECK(dump_target.done());
-      success = dump_target.success();
-      base_fetch_->Write(dump_target.buffer(), handler_);
-    } else if (response_headers()->status_code() != 0) {
-      // We are not going to be able to read the response from the file
-      // system so we better pass the error message through.
-      //
-      // Status code == 0 means that the headers were not even parsed, this
-      // will cause a DCHECK failure in AsyncFetch, so we don't pass anything
-      // through.
-      base_fetch_->response_headers()->CopyFrom(*response_headers());
-      base_fetch_->HeadersComplete();
-      base_fetch_->Write(buffer(), handler_);
+      success = dump_fetcher_->StreamingFetchUrl(
+          url_, request_headers_, response_headers_, response_writer_,
+          handler_);
     }
 
-    base_fetch_->Done(success);
+    callback_->Done(success);
     delete this;
   }
 
  private:
   const GoogleString url_;
+  RequestHeaders request_headers_;
+  ResponseHeaders* response_headers_;
+  Writer* response_writer_;
   MessageHandler* handler_;
-  AsyncFetch* base_fetch_;
+  Callback* callback_;
 
   const GoogleString filename_;
-  HttpDumpUrlFetcher* dump_fetcher_;
+  UrlFetcher* dump_fetcher_;
   FileSystem* file_system_;
 
-  DISALLOW_COPY_AND_ASSIGN(DumpFetch);
+  GoogleString contents_;
+  StringWriter string_writer_;
+  RequestHeaders compress_headers_;
+  ResponseHeaders compressed_response_;
+
+  DISALLOW_COPY_AND_ASSIGN(Fetch);
 };
 
 HttpDumpUrlAsyncWriter::~HttpDumpUrlAsyncWriter() {
 }
 
-void HttpDumpUrlAsyncWriter::Fetch(const GoogleString& url,
-                                   MessageHandler* handler,
-                                   AsyncFetch* base_fetch) {
+bool HttpDumpUrlAsyncWriter::StreamingFetch(
+    const GoogleString& url, const RequestHeaders& request_headers,
+    ResponseHeaders* response_headers, Writer* response_writer,
+    MessageHandler* handler, Callback* callback) {
   GoogleString filename;
   GoogleUrl gurl(url);
   dump_fetcher_.GetFilename(gurl, &filename, handler);
 
   if (file_system_->Exists(filename.c_str(), handler).is_true()) {
-    dump_fetcher_.Fetch(url, handler, base_fetch);
+    bool success = dump_fetcher_.StreamingFetchUrl(
+        url, request_headers, response_headers, response_writer, handler);
+    callback->Done(success);
+    return true;
   } else {
-    DumpFetch* fetch = new DumpFetch(url, handler, base_fetch, filename,
-                                     &dump_fetcher_, file_system_,
-                                     base_fetch->request_context());
-    fetch->StartFetch(accept_gzip_, base_fetcher_);
+    Fetch* fetch = new Fetch(url, request_headers, response_headers,
+                             response_writer, handler, callback, filename,
+                             &dump_fetcher_, file_system_);
+    return fetch->StartFetch(accept_gzip_, base_fetcher_);
   }
 }
 

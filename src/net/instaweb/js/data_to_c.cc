@@ -5,11 +5,9 @@
 
 #include "net/instaweb/util/public/gflags.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/timer.h"
 
 using namespace google;  // NOLINT
 

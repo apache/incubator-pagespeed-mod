@@ -24,10 +24,11 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
@@ -61,10 +62,9 @@ bool InlineRewriteContext::StartInlining() {
 
 bool InlineRewriteContext::Partition(OutputPartitions* partitions,
                                      OutputResourceVector* outputs) {
-  CHECK_EQ(1, num_slots()) << "InlineRewriteContext only handles one slot";
+  CHECK(num_slots() == 1) << "InlineRewriteContext only handles one slot";
   ResourcePtr resource(slot(0)->resource());
-  if (resource->IsSafeToRewrite(rewrite_uncacheable()) &&
-      ShouldInline(resource)) {
+  if (resource->IsValidAndCacheable() && ShouldInline(resource->contents())) {
     CachedResult* partition = partitions->add_partition();
     resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
     partition->set_inlined_data(resource->contents().as_string());
@@ -79,11 +79,7 @@ void InlineRewriteContext::Rewrite(int partition_index,
                                    CachedResult* partition,
                                    const OutputResourcePtr& output_resource) {
   CHECK(output_resource.get() == NULL);
-  CHECK_EQ(0, partition_index);
-
-  // Mark slot as needing no further processing. Note that needs to be done
-  // before calling RewriteDone, as that may cause us to be deleted!
-  slot(0)->set_disable_further_processing(true);
+  CHECK(partition_index == 0);
 
   // We signal as rewrite failed, as we do not create an output resource.
   RewriteDone(kRewriteFailed, 0);

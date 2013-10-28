@@ -18,16 +18,16 @@
 // Author: jrm@google.com (Jim Meehan)
 
 
-#ifndef UTIL_UTF8_UNICODETEXT_H_
-#define UTIL_UTF8_UNICODETEXT_H_
+#ifndef UTIL_UTF8_UNICODETEXT_H__
+#define UTIL_UTF8_UNICODETEXT_H__
 
 #include <stddef.h>                     // for NULL, ptrdiff_t
 #include <iterator>                     // for bidirectional_iterator_tag, etc
 #include <string>                       // for string
 #include <utility>                      // for pair
 
+#include "base/basictypes.h"
 #include "base/integral_types.h"        // for char32
-#include "base/port.h"
 #include "util/utf8/public/config.h"
 
 // ***************************** UnicodeText **************************
@@ -148,7 +148,7 @@ class UnicodeText {
   ~UnicodeText();
 
   void clear();  // Clear text.
-  bool empty() const { return repr_.size_ == 0; }  // Test if text is empty.
+  bool empty() { return repr_.size_ == 0; }  // Test if text is empty.
 
   // Add a codepoint to the end of the text.
   // If the codepoint is not interchange-valid, add a space instead
@@ -462,4 +462,4 @@ inline string UnicodeTextToUTF8(const UnicodeText& t) {
 // integer is followed by a space. E.g., "61 62 6A 3005 ".
 string CodepointString(const UnicodeText& t);
 
-#endif  // UTIL_UTF8_UNICODETEXT_H_
+#endif  // UTIL_UTF8_UNICODETEXT_H__

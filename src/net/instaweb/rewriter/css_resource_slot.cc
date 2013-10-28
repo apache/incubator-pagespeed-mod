@@ -24,31 +24,18 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/value.h"
 
 namespace net_instaweb {
-
-CssResourceSlot::CssResourceSlot(const ResourcePtr& resource,
-                                 const GoogleUrl& trim_url,
-                                 const RewriteOptions* options,
-                                 Css::Values* values,
-                                 size_t value_index)
-    : ResourceSlot(resource),
-      values_(values),
-      value_index_(value_index),
-      url_relativity_(GoogleUrl::FindRelativity(UnicodeTextToUTF8(
-          values->at(value_index)->GetStringValue()))),
-      options_(options) {
-  trim_url_.Reset(trim_url);
-}
 
 CssResourceSlot::~CssResourceSlot() {
 }
@@ -57,27 +44,24 @@ void CssResourceSlot::Render() {
   if (disable_rendering()) {
     return;  // nothing done here.
   } else {
-    GoogleString url = resource()->url();
-
+    GoogleString rel_url = resource()->url();
 #ifndef NDEBUG
     // Check that it's an absolute URL.
-    GoogleUrl gurl(url);
-    DCHECK(gurl.IsWebValid());
+    GoogleUrl rel_gurl(rel_url);
+    DCHECK(rel_gurl.is_valid());
 #endif  // NDEBUG
 
-    // TODO(sligocki): Remove URL trimming code from CSS path?
+    // Trim URL.
+    StringPiece url(rel_url);
     GoogleString trimmed_url;
-    if (options_->trim_urls_in_css() &&
-        options_->Enabled(RewriteOptions::kLeftTrimUrls) &&
-        UrlLeftTrimFilter::Trim(
-            trim_url_, url, &trimmed_url,
-            resource()->server_context()->message_handler())) {
-      // TODO(sligocki): Make sure this is the correct (final) URL of the CSS.
-      DirectSetUrl(trimmed_url);
-    } else {
-      DirectSetUrl(RelativizeOrPassthrough(options_, url, url_relativity_,
-                                           trim_url_));
+    if (trim_base_.get() != NULL) {
+      if (UrlLeftTrimFilter::Trim(
+              *trim_base_, url, &trimmed_url,
+              resource()->resource_manager()->message_handler())) {
+        url = trimmed_url;
+      }
     }
+    UpdateUrlInCss(url);
   }
 }
 
@@ -92,7 +76,12 @@ GoogleString CssResourceSlot::LocationString() {
   return "Inside CSS";
 }
 
-void CssResourceSlot::DirectSetUrl(const StringPiece& url) {
+void CssResourceSlot::EnableTrim(const GoogleUrl& base_url) {
+  trim_base_.reset(new GoogleUrl);
+  trim_base_->Reset(base_url);
+}
+
+void CssResourceSlot::UpdateUrlInCss(const StringPiece& url) {
   delete (*values_)[value_index_];
   (*values_)[value_index_] =
       new Css::Value(Css::Value::URI,
@@ -109,10 +98,9 @@ CssResourceSlotFactory::~CssResourceSlotFactory() {
 }
 
 CssResourceSlotPtr CssResourceSlotFactory::GetSlot(
-    const ResourcePtr& resource, const GoogleUrl& trim_url,
-    const RewriteOptions* options, Css::Values* values, size_t value_index) {
+    const ResourcePtr& resource, Css::Values* values, size_t value_index) {
   CssResourceSlot* slot_obj =
-      new CssResourceSlot(resource, trim_url, options, values, value_index);
+      new CssResourceSlot(resource, values, value_index);
   CssResourceSlotPtr slot(slot_obj);
   return UniquifySlot(slot);
 }

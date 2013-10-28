@@ -27,9 +27,12 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
+class HtmlCdataNode;
 class HtmlCharactersNode;
+class HtmlCommentNode;
+class HtmlDirectiveNode;
 class HtmlElement;
+class HtmlIEDirectiveNode;
 class MessageHandler;
 class OutputResource;
 class RewriteDriver;
@@ -52,6 +55,15 @@ class CssOutlineFilter : public CommonFilter {
   // HTML Events we expect to be in <style> elements.
   virtual void Characters(HtmlCharactersNode* characters);
 
+  // HTML Events we do not expect to be in <style> and <script> elements.
+  virtual void Comment(HtmlCommentNode* comment);
+  virtual void Cdata(HtmlCdataNode* cdata);
+  virtual void IEDirective(HtmlIEDirectiveNode* directive);
+
+  // Ignored HTML Events.
+  virtual void EndDocument() {}
+  virtual void Directive(HtmlDirectiveNode* directive) {}
+
   virtual const char* Name() const { return "OutlineCss"; }
 
  private:
@@ -59,11 +71,11 @@ class CssOutlineFilter : public CommonFilter {
                      MessageHandler* handler);
   void OutlineStyle(HtmlElement* element, const GoogleString& content);
 
-  // The style element we are in (if it hasn't been flushed).
-  // If we are not in a style element, inline_element_ == NULL.
+  // The style or script element we are in (if it hasn't been flushed).
+  // If we are not in a script or style element, inline_element_ == NULL.
   HtmlElement* inline_element_;
-  // CharactersNode to be outlined.
-  HtmlCharactersNode* inline_chars_;
+  // Temporarily buffers the content between open and close of inline_element_.
+  GoogleString buffer_;
   size_t size_threshold_bytes_;
   // HTML strings interned into a symbol table.
 

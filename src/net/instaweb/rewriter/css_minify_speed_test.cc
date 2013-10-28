@@ -36,9 +36,10 @@
 // BM_EscapeStringSuperSpecial/512      11478      11629      63636
 // BM_EscapeStringSuperSpecial/4k       90466      91283       7778
 
+#include "net/instaweb/rewriter/public/css_minify.h"
+
 #include "net/instaweb/util/public/benchmark.h"
 #include "net/instaweb/util/public/string.h"
-#include "webutil/css/tostring.h"
 
 namespace net_instaweb {
 
@@ -48,8 +49,8 @@ namespace {
 static void BM_EscapeStringNormal(int iters, int size) {
   GoogleString ident(size, 'A');
   for (int i = 0; i < iters; ++i) {
-    Css::EscapeUrl(ident);
-    Css::EscapeString(ident);
+    CssMinify::EscapeString(ident, true);
+    CssMinify::EscapeString(ident, false);
   }
 }
 BENCHMARK_RANGE(BM_EscapeStringNormal, 1, 1<<12);
@@ -58,8 +59,8 @@ BENCHMARK_RANGE(BM_EscapeStringNormal, 1, 1<<12);
 static void BM_EscapeStringSpecial(int iters, int size) {
   GoogleString ident(size, '(');
   for (int i = 0; i < iters; ++i) {
-    Css::EscapeUrl(ident);
-    Css::EscapeString(ident);
+    CssMinify::EscapeString(ident, true);
+    CssMinify::EscapeString(ident, false);
   }
 }
 BENCHMARK_RANGE(BM_EscapeStringSpecial, 1, 1<<12);
@@ -68,8 +69,8 @@ BENCHMARK_RANGE(BM_EscapeStringSpecial, 1, 1<<12);
 static void BM_EscapeStringSuperSpecial(int iters, int size) {
   GoogleString ident(size, '\t');
   for (int i = 0; i < iters; ++i) {
-    Css::EscapeUrl(ident);
-    Css::EscapeString(ident);
+    CssMinify::EscapeString(ident, true);
+    CssMinify::EscapeString(ident, false);
   }
 }
 BENCHMARK_RANGE(BM_EscapeStringSuperSpecial, 1, 1<<12);

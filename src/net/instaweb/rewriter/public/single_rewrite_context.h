@@ -20,7 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_SINGLE_REWRITE_CONTEXT_H_
 
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 
@@ -53,7 +53,6 @@ class SingleRewriteContext : public RewriteContext {
                        CachedResult* partition,
                        const OutputResourcePtr& output);
 
- private:
   DISALLOW_COPY_AND_ASSIGN(SingleRewriteContext);
 };
 

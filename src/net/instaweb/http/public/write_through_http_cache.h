@@ -20,12 +20,11 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_WRITE_THROUGH_HTTP_CACHE_H_
 
 #include <cstddef>
-
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -60,51 +59,30 @@ class WriteThroughHTTPCache : public HTTPCache {
   // Implements HTTPCache::set_force_caching().
   virtual void set_force_caching(bool force);
 
-  // Implements HttpCache::set_hasher().
-  virtual void set_hasher(Hasher* hasher) {
-    cache1_->set_hasher(hasher);
-    cache2_->set_hasher(hasher);
-  }
-
-  // Implements HTTPCache::set_disable_html_caching_on_https().
-  virtual void set_disable_html_caching_on_https(bool x);
-
   // Implements HTTPCache::set_remember_not_cacheable_ttl_seconds().
   virtual void set_remember_not_cacheable_ttl_seconds(int64 value);
 
   // Implements HTTPCache::set_remember_fetch_failed_ttl_seconds().
   virtual void set_remember_fetch_failed_ttl_seconds(int64 value);
 
-  // Implements HTTPCache::set_remember_fetch_dropped_ttl_seconds();
-  virtual void set_remember_fetch_dropped_ttl_seconds(int64 value);
-
   // Implements HTTPCache::set_max_cacheable_response_content_length().
   virtual void set_max_cacheable_response_content_length(int64 value);
 
   // Implements HTTPCache::RememberNotCacheable().
   virtual void RememberNotCacheable(const GoogleString& key,
-                                    bool is_200_status_code,
                                     MessageHandler * handler);
 
   // Implements HTTPCache::RememberFetchFailed().
   virtual void RememberFetchFailed(const GoogleString& key,
                                    MessageHandler * handler);
 
-  // Implements HTTPCache::RememberFetchDropped().
-  virtual void RememberFetchDropped(const GoogleString& key,
-                                    MessageHandler * handler);
-
   // By default, all data goes into both cache1 and cache2.  But
   // if you only want to put small items in cache1, you can set the
   // size limit.  Note that both the key and value will count
   // torward the size.
   void set_cache1_limit(size_t limit) { cache1_size_limit_ = limit; }
-  size_t cache1_limit() const { return cache1_size_limit_; }
 
-  virtual GoogleString Name() const {
-    return FormatName(cache1_->Name(), cache2_->Name());
-  }
-  static GoogleString FormatName(StringPiece l1, StringPiece l2);
+  virtual const char* Name() const { return name_.c_str(); }
 
  protected:
   // Implements HTTPCache::PutInternal().

@@ -37,14 +37,13 @@ class CssMoveToHeadFilter : public CommonFilter {
   explicit CssMoveToHeadFilter(RewriteDriver* driver);
   virtual ~CssMoveToHeadFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual const char* Name() const { return "CssMoveToHead"; }
-  virtual void DetermineEnabled();
 
  private:
   CssTagScanner css_tag_scanner_;

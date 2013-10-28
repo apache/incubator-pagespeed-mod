@@ -16,18 +16,14 @@
 
 #include "net/instaweb/apache/apache_message_handler.h"
 
-#include <signal.h>
 #include <unistd.h>
 
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/log_message_handler.h"
+#include "net/instaweb/util/public/time_util.h"
 
 #include "httpd.h"
 #include "net/instaweb/apache/apache_logging_includes.h"
-#include "net/instaweb/util/public/abstract_mutex.h"
-#include "net/instaweb/util/public/debug.h"
-#include "net/instaweb/util/public/shared_circular_buffer.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -36,27 +32,7 @@ namespace {
 // and it would be good to let people know where messages are coming from.
 const char kModuleName[] = "mod_pagespeed";
 
-// For crash handler's use.
-const server_rec* global_server;
-
-}  // namespace
-
-extern "C" {
-
-static void signal_handler(int sig) {
-  // Try to output the backtrace to the log file. Since this may end up
-  // crashing/deadlocking/etc. we set an alarm() to abort us if it comes to
-  // that.
-  alarm(2);
-  ap_log_error(APLOG_MARK, APLOG_ALERT, APR_SUCCESS, global_server,
-               "[@%s] CRASH with signal:%d at %s",
-               net_instaweb::Integer64ToString(getpid()).c_str(),
-               sig,
-               net_instaweb::StackTraceString().c_str());
-  kill(getpid(), SIGKILL);
 }
-
-}  // extern "C"
 
 namespace net_instaweb {
 
@@ -67,11 +43,10 @@ namespace net_instaweb {
 // SharedCircularBuffer in RootInit() when filename_prefix is set.
 ApacheMessageHandler::ApacheMessageHandler(const server_rec* server,
                                            const StringPiece& version,
-                                           Timer* timer, AbstractMutex* mutex)
+                                           Timer* timer)
     : server_rec_(server),
       version_(version.data(), version.size()),
       timer_(timer),
-      mutex_(mutex),
       buffer_(NULL) {
   // Tell log_message_handler about this server_rec and version.
   log_message_handler::AddServerConfig(server_rec_, version);
@@ -80,16 +55,6 @@ ApacheMessageHandler::ApacheMessageHandler(const server_rec* server,
   // TODO(jmarantz): consider making this a little terser by default.
   // The string we expect in is something like "0.9.1.1-171" and we will
   // may be able to pick off some of the 5 fields that prove to be boring.
-}
-
-// Installs a signal handler for common crash signals that tries to print
-// out a backtrace.
-void ApacheMessageHandler::InstallCrashHandler(server_rec* server) {
-  global_server = server;
-  signal(SIGTRAP, signal_handler);  // On check failures
-  signal(SIGABRT, signal_handler);
-  signal(SIGFPE, signal_handler);
-  signal(SIGSEGV, signal_handler);
 }
 
 bool ApacheMessageHandler::Dump(Writer* writer) {
@@ -118,11 +83,6 @@ int ApacheMessageHandler::GetApacheLogLevel(MessageType type) {
   return APLOG_ALERT;
 }
 
-void ApacheMessageHandler::set_buffer(SharedCircularBuffer* buff) {
-  ScopedMutex lock(mutex_.get());
-  buffer_ = buff;
-}
-
 void ApacheMessageHandler::MessageVImpl(MessageType type, const char* msg,
                                         va_list args) {
   int log_level = GetApacheLogLevel(type);
@@ -132,24 +92,16 @@ void ApacheMessageHandler::MessageVImpl(MessageType type, const char* msg,
                kModuleName, version_.c_str(), static_cast<long>(getpid()),
                formatted_message.c_str());
   // Can not write to SharedCircularBuffer before it's set up.
-
-  // Prepend time (down to microseconds) and severity to message.
-  // Format is [time:microseconds] [severity] [pid] message.
-  GoogleString message;
-  char time_buffer[APR_CTIME_LEN + 1];
-  const char* time = time_buffer;
-  apr_status_t status = apr_ctime(time_buffer, apr_time_now());
-  if (status != APR_SUCCESS) {
-    time = "?";
-  }
-  StrAppend(&message, "[", time, "] ",
-            "[", MessageTypeToString(type), "] ");
-  StrAppend(&message, pid_string_, " ", formatted_message, "\n");
-  {
-    ScopedMutex lock(mutex_.get());
-    if (buffer_ != NULL) {
-      buffer_->Write(message);
-    }
+  if (buffer_ != NULL) {
+    // Prepend time (down to microseconds) and severity to message.
+    // Format is [time:microseconds] [severity] [pid] message.
+    GoogleString message;
+    GoogleString time_us;
+    ConvertTimeToStringWithUs(timer_->NowUs(), &time_us);
+    StrAppend(&message, "[", time_us, "] ",
+              "[", MessageTypeToString(type), "] ");
+    StrAppend(&message, pid_string_, " ", formatted_message, "\n");
+    buffer_->Write(message);
   }
 }
 

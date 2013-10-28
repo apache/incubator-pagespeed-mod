@@ -22,10 +22,8 @@
 
 #include <cstddef>
 #include "base/logging.h"
-#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
@@ -33,17 +31,15 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/thread_system.h"
-#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 // Set the cache size large enough so nothing gets evicted during this test.
 const int kMaxSize = 10000;
 const char kStartDate[] = "Sun, 16 Dec 1979 02:27:45 GMT";
-const char kHttpsUrl[] = "https://www.test.com/";
 }
 
 namespace net_instaweb {
@@ -54,10 +50,8 @@ class MessageHandler;
 // that are blocking in nature (e.g. in-memory LRU or blocking file-system).
 class FakeHttpCacheCallback : public HTTPCache::Callback {
  public:
-  explicit FakeHttpCacheCallback(ThreadSystem* thread_system)
-      : HTTPCache::Callback(
-          RequestContext::NewTestRequestContext(thread_system)),
-        called_(false),
+  FakeHttpCacheCallback()
+      : called_(false),
         result_(HTTPCache::kNotFound),
         first_call_cache_valid_(true),
         first_cache_valid_(true),
@@ -70,8 +64,7 @@ class FakeHttpCacheCallback : public HTTPCache::Callback {
     called_ = true;
     result_ = result;
   }
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
     bool result = first_call_cache_valid_ ?
         first_cache_valid_ : second_cache_valid_;
     first_call_cache_valid_ = false;
@@ -106,14 +99,9 @@ class WriteThroughHTTPCacheTest : public testing::Test {
   WriteThroughHTTPCacheTest()
       : mock_timer_(ParseDate(kStartDate)),
         cache1_(kMaxSize), cache2_(kMaxSize),
-        thread_system_(Platform::CreateThreadSystem()),
-        key_("http://www.test.com/1"),
-        key2_("http://www.test.com/2"),
-        content_("content"), header_name_("name"),
-        header_value_("value"),
-        cache1_ms_(-1),
-        cache2_ms_(-1) {
-    HTTPCache::InitStats(&simple_stats_);
+        key_("mykey"), content_("content"), header_name_("name"),
+        header_value_("value") {
+    HTTPCache::Initialize(&simple_stats_);
     http_cache_.reset(new WriteThroughHTTPCache(
         &cache1_, &cache2_, &mock_timer_, &mock_hasher_, &simple_stats_));
   }
@@ -135,18 +123,13 @@ class WriteThroughHTTPCacheTest : public testing::Test {
   HTTPCache::FindResult Find(const GoogleString& key, HTTPValue* value,
                              ResponseHeaders* headers,
                              MessageHandler* handler) {
-    FakeHttpCacheCallback callback(thread_system_.get());
+    FakeHttpCacheCallback callback;
     http_cache_->Find(key, handler, &callback);
     EXPECT_TRUE(callback.called_);
     if (callback.result_ == HTTPCache::kFound) {
       value->Link(callback.http_value());
     }
     headers->CopyFrom(*callback.response_headers());
-    callback.request_context()->timing_info().GetHTTPCacheLatencyMs(
-        &cache1_ms_);
-    callback.request_context()->timing_info().GetL2HTTPCacheLatencyMs(
-        &cache2_ms_);
-
     return callback.result_;
   }
 
@@ -185,16 +168,11 @@ class WriteThroughHTTPCacheTest : public testing::Test {
   scoped_ptr<WriteThroughHTTPCache> http_cache_;
   GoogleMessageHandler message_handler_;
   SimpleStats simple_stats_;
-  scoped_ptr<ThreadSystem> thread_system_;
 
   const GoogleString key_;
-  const GoogleString key2_;
   const GoogleString content_;
   const GoogleString header_name_;
   const GoogleString header_value_;
-
-  int64 cache1_ms_;
-  int64 cache2_ms_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WriteThroughHTTPCacheTest);
@@ -211,7 +189,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
   EXPECT_EQ(1, cache1_.num_inserts());
@@ -226,7 +203,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
   EXPECT_EQ(1, cache1_.num_inserts());
@@ -235,8 +211,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(-1, cache2_ms_);
 
   // Remove the entry from cache1. We find it in cache2. The value is also now
   // inserted into cache1.
@@ -246,7 +220,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(1, cache1_.num_misses());
   EXPECT_EQ(2, cache1_.num_inserts());
@@ -255,8 +228,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(0, cache2_ms_);
 
   // Now advance time 301 seconds and the we should no longer
   // be able to fetch this resource out of the cache. Note that we check both
@@ -267,7 +238,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, cache1_.num_hits());
   EXPECT_EQ(1, cache1_.num_misses());
   EXPECT_EQ(2, cache1_.num_inserts());
@@ -276,12 +246,10 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  EXPECT_EQ(0, cache1_ms_);
-  EXPECT_EQ(0, cache2_ms_);
 
   ClearStats();
   // Test that fallback_http_value() is set correctly.
-  FakeHttpCacheCallback callback(thread_system_.get());
+  FakeHttpCacheCallback callback;
   http_cache_->Find(key_, &message_handler_, &callback);
   EXPECT_EQ(HTTPCache::kNotFound, callback.result_);
   EXPECT_FALSE(callback.fallback_http_value()->Empty());
@@ -293,7 +261,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // response in the L2 cache instead.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -313,7 +280,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   temp_l1_cache.set_force_caching(true);
   temp_l1_cache.Put(key_, &headers_in, "new", &message_handler_);
   ClearStats();
-  FakeHttpCacheCallback callback2(thread_system_.get());
+  FakeHttpCacheCallback callback2;
   http_cache_->Find(key_, &message_handler_, &callback2);
   EXPECT_EQ(HTTPCache::kNotFound, callback2.result_);
   EXPECT_FALSE(callback2.fallback_http_value()->Empty());
@@ -325,7 +292,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // response in the L2 cache instead.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -340,7 +306,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   ClearStats();
   // Clear cache2. We now use the fallback from cache1.
   cache2_.Clear();
-  FakeHttpCacheCallback callback3(thread_system_.get());
+  FakeHttpCacheCallback callback3;
   http_cache_->Find(key_, &message_handler_, &callback3);
   EXPECT_EQ(HTTPCache::kNotFound, callback3.result_);
   EXPECT_FALSE(callback3.fallback_http_value()->Empty());
@@ -352,7 +318,6 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   // we use the stale response from cache1
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -367,11 +332,11 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
 // Check size-limits for the small cache
 TEST_F(WriteThroughHTTPCacheTest, SizeLimit) {
   ClearStats();
-  http_cache_->set_cache1_limit(170);  // Empirically based.
+  http_cache_->set_cache1_limit(150);  // Empirically based.
   ResponseHeaders headers_in;
   InitHeaders(&headers_in, "max-age=300");
 
-  // This one will fit. (The key is 21 bytes and the HTTPValue is 139 bytes).
+  // This one will fit. (The key is 5 bytes and the HTTPValue is 139 bytes).
   http_cache_->Put(key_, &headers_in, "Name", &message_handler_);
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
@@ -385,8 +350,8 @@ TEST_F(WriteThroughHTTPCacheTest, SizeLimit) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(1, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-  // This one will not. (The key is 21 bytes and the HTTPValue is 150 bytes).
-  http_cache_->Put(key2_, &headers_in, "TooBigForCache1", &message_handler_);
+  // This one will not. (The key is 3 bytes and the HTTPValue is 148 bytes).
+  http_cache_->Put("new", &headers_in, "TooBigForCache1", &message_handler_);
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
@@ -399,44 +364,6 @@ TEST_F(WriteThroughHTTPCacheTest, SizeLimit) {
   EXPECT_EQ(0, cache2_.num_misses());
   EXPECT_EQ(2, cache2_.num_inserts());
   EXPECT_EQ(0, cache2_.num_deletes());
-}
-
-TEST_F(WriteThroughHTTPCacheTest, PutGetForHttps) {
-  ClearStats();
-  ResponseHeaders meta_data_in, meta_data_out;
-  InitHeaders(&meta_data_in, "max-age=300");
-  meta_data_in.Replace(HttpAttributes::kContentType,
-                       kContentTypeHtml.mime_type());
-  meta_data_in.ComputeCaching();
-  // Disable caching of html on https.
-  http_cache_->set_disable_html_caching_on_https(true);
-  // The html response does not get cached.
-  http_cache_->Put(kHttpsUrl, &meta_data_in, "content", &message_handler_);
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
-  HTTPValue value;
-  HTTPCache::FindResult found = Find(
-      kHttpsUrl, &value, &meta_data_out, &message_handler_);
-  ASSERT_EQ(HTTPCache::kNotFound, found);
-
-  // However a css file is cached.
-  meta_data_in.Replace(HttpAttributes::kContentType,
-                       kContentTypeCss.mime_type());
-  meta_data_in.ComputeCaching();
-  http_cache_->Put(kHttpsUrl, &meta_data_in, "content", &message_handler_);
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
-  found = Find(kHttpsUrl, &value, &meta_data_out, &message_handler_);
-  ASSERT_EQ(HTTPCache::kFound, found);
-  ASSERT_TRUE(meta_data_out.headers_complete());
-  StringPiece contents;
-  ASSERT_TRUE(value.ExtractContents(&contents));
-  ConstStringStarVector values;
-  ASSERT_TRUE(meta_data_out.Lookup("name", &values));
-  ASSERT_EQ(static_cast<size_t>(1), values.size());
-  EXPECT_EQ(GoogleString("value"), *(values[0]));
-  EXPECT_EQ("content", contents);
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
 }
 
 // Verifies that the cache will 'remember' that a fetch should not be
@@ -456,34 +383,19 @@ TEST_F(WriteThroughHTTPCacheTest, RememberFetchFailedOrNotCacheable) {
             Find(key_, &value, &headers_out, &message_handler_));
 }
 
-TEST_F(WriteThroughHTTPCacheTest, RememberFetchDropped) {
-  ClearStats();
-  ResponseHeaders headers_out;
-  http_cache_->RememberFetchDropped(key_, &message_handler_);
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kRecentFetchFailed,
-            Find(key_, &value, &headers_out, &message_handler_));
-
-  // Now advance time 11 seconds; the cache should allow us to try fetching
-  // again.
-  mock_timer_.AdvanceMs(11 * Timer::kSecondMs);
-  EXPECT_EQ(HTTPCache::kNotFound,
-            Find(key_, &value, &headers_out, &message_handler_));
-}
-
 // Make sure we don't remember 'non-cacheable' once we've put it into
 // SetIgnoreFailurePuts() mode (but do before)
 TEST_F(WriteThroughHTTPCacheTest, SetIgnoreFailurePuts) {
   ClearStats();
-  http_cache_->RememberNotCacheable(key_, false, &message_handler_);
+  http_cache_->RememberNotCacheable(key_, &message_handler_);
   http_cache_->SetIgnoreFailurePuts();
-  http_cache_->RememberNotCacheable(key2_, false, &message_handler_);
+  http_cache_->RememberNotCacheable("mykey2", &message_handler_);
   ResponseHeaders headers_out;
   HTTPValue value_out;
   EXPECT_EQ(HTTPCache::kRecentFetchNotCacheable,
             Find(key_, &value_out, &headers_out, &message_handler_));
   EXPECT_EQ(HTTPCache::kNotFound,
-            Find(key2_, &value_out, &headers_out, &message_handler_));
+            Find("mykey2", &value_out, &headers_out, &message_handler_));
 }
 
 TEST_F(WriteThroughHTTPCacheTest, Uncacheable) {
@@ -531,7 +443,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheInvalidation) {
 
   // Check with both caches valid...
   ClearStats();
-  FakeHttpCacheCallback callback1(thread_system_.get());
+  FakeHttpCacheCallback callback1;
   http_cache_->Find(key_, &message_handler_, &callback1);
   EXPECT_TRUE(callback1.called_);
   // ... only goes to cache1_ and hits.
@@ -551,7 +463,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheInvalidation) {
 
   // Check with local cache invalid and remote cache valid...
   ClearStats();
-  FakeHttpCacheCallback callback2(thread_system_.get());
+  FakeHttpCacheCallback callback2;
   callback2.first_cache_valid_ = false;
   http_cache_->Find(key_, &message_handler_, &callback2);
   EXPECT_TRUE(callback2.called_);
@@ -574,7 +486,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheInvalidation) {
 
   // Check with both caches invalid...
   ClearStats();
-  FakeHttpCacheCallback callback3(thread_system_.get());
+  FakeHttpCacheCallback callback3;
   callback3.first_cache_valid_ = false;
   callback3.second_cache_valid_ = false;
   http_cache_->Find(key_, &message_handler_, &callback3);
@@ -597,7 +509,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheInvalidation) {
 
   // Check with local cache valid and remote cache invalid...
   ClearStats();
-  FakeHttpCacheCallback callback4(thread_system_.get());
+  FakeHttpCacheCallback callback4;
   callback4.second_cache_valid_ = false;
   http_cache_->Find(key_, &message_handler_, &callback4);
   EXPECT_TRUE(callback4.called_);
@@ -638,13 +550,12 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
 
   // Check with both caches freshe...
   ClearStats();
-  FakeHttpCacheCallback callback1(thread_system_.get());
+  FakeHttpCacheCallback callback1;
   http_cache_->Find(key_, &message_handler_, &callback1);
   EXPECT_TRUE(callback1.called_);
   // ... only goes to cache1_ and hits.
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -659,14 +570,13 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
 
   // Check with local cache not fresh and remote cache fresh...
   ClearStats();
-  FakeHttpCacheCallback callback2(thread_system_.get());
+  FakeHttpCacheCallback callback2;
   callback2.first_cache_fresh_ = false;
   http_cache_->Find(key_, &message_handler_, &callback2);
   EXPECT_TRUE(callback2.called_);
   // ... hits both cache1_ and cache_2.
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -683,7 +593,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
 
   // Check with both caches not fresh...
   ClearStats();
-  FakeHttpCacheCallback callback3(thread_system_.get());
+  FakeHttpCacheCallback callback3;
   callback3.first_cache_fresh_ = false;
   callback3.second_cache_fresh_ = false;
   http_cache_->Find(key_, &message_handler_, &callback3);
@@ -692,7 +602,6 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
   // misses.
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
@@ -708,7 +617,7 @@ TEST_F(WriteThroughHTTPCacheTest, CacheFreshness) {
 
   // Check with local cache fresh and remote cache not fresh...
   ClearStats();
-  FakeHttpCacheCallback callback4(thread_system_.get());
+  FakeHttpCacheCallback callback4;
   callback4.second_cache_fresh_ = false;
   http_cache_->Find(key_, &message_handler_, &callback4);
   EXPECT_TRUE(callback4.called_);

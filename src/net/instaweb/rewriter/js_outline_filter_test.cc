@@ -21,9 +21,9 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/string.h"
@@ -33,7 +33,7 @@ namespace net_instaweb {
 
 namespace {
 
-class JsOutlineFilterTest : public RewriteTestBase {
+class JsOutlineFilterTest : public ResourceManagerTestBase {
  protected:
   // We need an explicitly called method here rather than using SetUp so
   // that NoOutlineScript can call another AddFilter function first.
@@ -43,6 +43,7 @@ class JsOutlineFilterTest : public RewriteTestBase {
     rewrite_driver()->AddFilters();
   }
 
+  // TODO(sligocki): factor out common elements in OutlineStyle and Script.
   // Test outlining scripts with options to write headers.
   void OutlineScript(const StringPiece& id, bool expect_outline) {
     GoogleString script_text = "FOOBAR";
@@ -123,6 +124,9 @@ TEST_F(JsOutlineFilterTest, NoOutlineScript) {
   GoogleString file_prefix = GTestTempDir() + "/no_outline";
   GoogleString url_prefix = "http://mysite/no_outline";
 
+  // TODO(sligocki): Maybe test with other hashers.
+  // SetHasher(hasher);
+
   options()->EnableFilter(RewriteOptions::kOutlineCss);
   SetupOutliner();
 
@@ -144,51 +148,11 @@ TEST_F(JsOutlineFilterTest, UrlNotTooLong) {
   OutlineScript("url_not_too_long", true);
 }
 
-TEST_F(JsOutlineFilterTest, JsPreserveURL) {
-  options()->set_js_outline_min_bytes(0);
-  options()->EnableFilter(RewriteOptions::kOutlineJavascript);
-  options()->set_js_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  OutlineScript("url_not_too_long", false);
-}
-
-TEST_F(JsOutlineFilterTest, JsPreserveURLOff) {
-  options()->set_js_outline_min_bytes(0);
-  options()->EnableFilter(RewriteOptions::kOutlineJavascript);
-  options()->set_js_preserve_urls(false);
-  rewrite_driver()->AddFilters();
-  OutlineScript("url_not_too_long", true);
-}
-
 // But if we set max_url_size too small, it will fail cleanly.
 TEST_F(JsOutlineFilterTest, UrlTooLong) {
   options()->set_max_url_size(0);
   SetupOutliner();
   OutlineScript("url_too_long", false);
-}
-
-// Make sure we deal well with no Charactors() node between StartElement()
-// and EndElement().
-TEST_F(JsOutlineFilterTest, EmptyScript) {
-  SetupOutliner();
-  ValidateNoChanges("empty_script", "<script></script>");
-}
-
-// http://code.google.com/p/modpagespeed/issues/detail?id=416
-TEST_F(JsOutlineFilterTest, RewriteDomain) {
-  SetupOutliner();
-  AddRewriteDomainMapping("cdn.com", kTestDomain);
-
-  // Check that CSS gets outlined to the rewritten domain.
-  GoogleString expected_url = Encode("http://cdn.com/", "jo", "0", "_", "js");
-  ValidateExpected("rewrite_domain",
-                   "<script>alert('foo');</script>",
-                   StrCat("<script src=\"", expected_url, "\"></script>"));
-
-  // And check that it serves correctly from that domain.
-  GoogleString content;
-  ASSERT_TRUE(FetchResourceUrl(expected_url, &content));
-  EXPECT_EQ("alert('foo');", content);
 }
 
 }  // namespace

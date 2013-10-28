@@ -20,14 +20,19 @@
 
 #include <csetjmp>
 #include <cstddef>
+#include <cstdlib>
 
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/image/jpeg_reader.h"
-#include "pagespeed/kernel/image/jpeg_utils.h"
-
+#include "pagespeed/image_compression/jpeg_reader.h"
 extern "C" {
+#ifdef USE_SYSTEM_LIBJPEG
+#include "jpeglib.h"
+#else
+#include "third_party/libjpeg/jpeglib.h"
+#endif
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/encode.h"
 #include "webp/decode.h"
@@ -38,19 +43,7 @@ extern "C" {
 // TODO(jmaessen): open source imports & build of libwebp.
 }
 
-extern "C" {
-#ifdef USE_SYSTEM_LIBJPEG
-#include "jpeglib.h"  // NOLINT
-#else
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
-#endif
-}
-
-using pagespeed::image_compression::JpegUtils;
-
 namespace net_instaweb {
-
-class MessageHandler;
 
 namespace {
 
@@ -78,7 +71,7 @@ const J_DCT_METHOD fastest_dct_method = JDCT_IFAST;
 #endif
 
 
-int GoogleStringWebpWriter(const uint8_t* data, size_t data_size,
+int GoogleStringWebpWriter(const uint8* data, size_t data_size,
                            const WebPPicture* const picture) {
   GoogleString* compressed_webp =
       static_cast<GoogleString*>(picture->custom_ptr);
@@ -89,15 +82,12 @@ int GoogleStringWebpWriter(const uint8_t* data, size_t data_size,
 
 class WebpOptimizer {
  public:
-  explicit WebpOptimizer(MessageHandler* handler);
+  WebpOptimizer();
   ~WebpOptimizer();
 
   // Take the given input file and transcode it to webp.
   // Return true on success.
   bool CreateOptimizedWebp(const GoogleString& original_jpeg,
-                           int configured_quality,
-                           WebpProgressHook progress_hook,
-                           void* progress_hook_data,
                            GoogleString* compressed_webp);
 
  private:
@@ -118,38 +108,18 @@ class WebpOptimizer {
                       const GoogleString& original_jpeg);
   bool WebPImportYUV(WebPPicture* const picture);
 
-  // The function to be called by libwebp's progress hook (with 'this'
-  // as the user data), which in turn will call the user-supplied function
-  // in progress_hook_, passing it progress_hook_data_.
-  static int ProgressHook(int percent, const WebPPicture* picture);
-
   // Structure for jpeg decompression
-  MessageHandler* message_handler_;
   pagespeed::image_compression::JpegReader reader_;
   uint8* pixels_;
   uint8** rows_;  // Holds offsets into pixels_ during decompression
   unsigned int width_, height_;  // Type-compatible with libjpeg.
   size_t row_stride_;
-
   // Structures for webp recompression
-  WebpProgressHook progress_hook_;
-  void* progress_hook_data_;
 
   DISALLOW_COPY_AND_ASSIGN(WebpOptimizer);
 };  // class WebpOptimizer
 
-WebpOptimizer::WebpOptimizer(MessageHandler* handler)
-    : message_handler_(handler),
-      reader_(handler),
-      pixels_(NULL),
-      rows_(NULL),
-      width_(0),
-      height_(0),
-      row_stride_(0),
-      progress_hook_(NULL),
-      progress_hook_data_(NULL) {
-}
-
+WebpOptimizer::WebpOptimizer() : pixels_(NULL), rows_(NULL) { }
 WebpOptimizer::~WebpOptimizer() {
   delete[] pixels_;
   DCHECK(rows_ == NULL);
@@ -169,7 +139,7 @@ bool WebpOptimizer::DoReadJpegPixels(J_COLOR_SPACE color_space,
   jpeg_decompress_struct* jpeg_decompress = reader_.decompress_struct();
   jpeg_decompress->client_data = static_cast<void*>(&env);
 
-  reader_.PrepareForRead(original_jpeg.data(), original_jpeg.size());
+  reader_.PrepareForRead(original_jpeg);
 
   if (jpeg_read_header(jpeg_decompress, TRUE) != JPEG_HEADER_OK) {
     return false;
@@ -326,64 +296,20 @@ bool WebpOptimizer::WebPImportYUV(WebPPicture* const picture) {
   return true;
 }
 
-int WebpOptimizer::ProgressHook(int percent, const WebPPicture* picture) {
-  const WebpOptimizer* webp_optimizer =
-      static_cast<WebpOptimizer*>(picture->user_data);
-  return webp_optimizer->progress_hook_(percent,
-                                        webp_optimizer->progress_hook_data_);
-}
-
 // Main body of transcode.
 bool WebpOptimizer::CreateOptimizedWebp(
-    const GoogleString& original_jpeg,
-    int configured_quality,
-    WebpProgressHook progress_hook,
-    void* progress_hook_data,
-    GoogleString* compressed_webp) {
+    const GoogleString& original_jpeg, GoogleString* compressed_webp) {
   // Begin by making sure we can create a webp image at all:
   WebPPicture picture;
   WebPConfig config;
-  int input_quality = JpegUtils::GetImageQualityFromImage(original_jpeg.data(),
-                                                          original_jpeg.size(),
-                                                          message_handler_);
-
   if (!WebPPictureInit(&picture) || !WebPConfigInit(&config)) {
     // Version mismatch.
     return false;
-  }
-
-  if (configured_quality == kNoQualityGiven) {
-    // If configured quality is not available use the webp config
-    // quality as the configured quality.
-    configured_quality = config.quality;
-  }
-
-  int output_quality = configured_quality;
-
-  if (input_quality != kNoQualityGiven && input_quality < configured_quality) {
-      output_quality =  input_quality;
-    } else {
-    // If JpegUtils::GetImageQualityFromImage couldn't figure
-    // out the quality or if the input quality is more than the configured
-    // quality, use configured quality to rewrite.
-      output_quality = configured_quality;
-  }
-
-  if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, output_quality)) {
+  } else if (!WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, config.quality)) {
     // Couldn't use the default preset.
     return false;
-  } else {
-    // Set WebP compression method to 3 (4 is the default). From
-    // third_party/libwebp/v0_2/src/webp/encode.h, the method determines the
-    // 'quality/speed trade-off (0=fast, 6=slower-better). On a representative
-    // set of images, we see a 26% improvement in the 75th percentile
-    // compression time, even greater improvements further along the tail, and
-    // no increase in file size. Method 2 incurs a prohibitive 10% increase in
-    // file size, which is not worth the compression time savings.
-    config.method = 3;
-    if (!WebPValidateConfig(&config)) {
-      return false;
-    }
+  } else if (!WebPValidateConfig(&config)) {
+    return false;
   }
 
   J_COLOR_SPACE color_space = kUseYUV ? JCS_YCbCr : JCS_RGB;
@@ -400,12 +326,6 @@ bool WebpOptimizer::CreateOptimizedWebp(
   picture.custom_ptr = static_cast<void*>(compressed_webp);
   picture.width = width_;
   picture.height = height_;
-  if (progress_hook != NULL) {
-    picture.progress_hook = ProgressHook;
-    picture.user_data = this;
-    progress_hook_ = progress_hook;
-    progress_hook_data_ = progress_hook_data;
-  }
 
   if (kUseYUV) {
     // pixels_ are YUV at full resolution; WebP requires us to downsample the U
@@ -433,34 +353,10 @@ bool WebpOptimizer::CreateOptimizedWebp(
 
 }  // namespace
 
-bool OptimizeWebp(const GoogleString& original_jpeg, int configured_quality,
-                  WebpProgressHook progress_hook, void* progress_hook_data,
-                  GoogleString* compressed_webp,
-                  MessageHandler* message_handler) {
-  WebpOptimizer optimizer(message_handler);
-  return optimizer.CreateOptimizedWebp(original_jpeg, configured_quality,
-                                       progress_hook, progress_hook_data,
-                                       compressed_webp);
-}
-
-// Helper function to initialize picture object from WebP decode buffer.
-static bool WebPDecBufferToPicture(const WebPDecBuffer* const buf,
-                                   WebPPicture* const picture) {
-  const WebPYUVABuffer* const yuva = &buf->u.YUVA;
-  if ((yuva->u_stride != yuva->v_stride) || (buf->colorspace != MODE_YUVA)) {
-    return false;
-  }
-  picture->width = buf->width;
-  picture->height = buf->height;
-  picture->y = yuva->y;
-  picture->u = yuva->u;
-  picture->v = yuva->v;
-  picture->a = yuva->a;
-  picture->y_stride = yuva->y_stride;
-  picture->uv_stride = yuva->u_stride;
-  picture->a_stride = yuva->a_stride;
-  picture->colorspace = WEBP_YUV420A;
-  return true;
+bool OptimizeWebp(const GoogleString& original_jpeg,
+                  GoogleString* compressed_webp) {
+  WebpOptimizer optimizer;
+  return optimizer.CreateOptimizedWebp(original_jpeg, compressed_webp);
 }
 
 bool ReduceWebpImageQuality(const GoogleString& original_webp,
@@ -475,41 +371,28 @@ bool ReduceWebpImageQuality(const GoogleString& original_webp,
 
   const uint8* webp = reinterpret_cast<const uint8*>(original_webp.data());
   const int webp_size = original_webp.size();
-  // At the recommendation of skal@, we decompress and recompress in YUV(A)
-  // space here. We used to do this for jpeg conversion (as evidenced by the
-  // code above), but there are subtle differences between webp and jpeg YUV
-  // space conversions that require an adjustment step that was never
-  // implemented (see http://en.wikipedia.org/wiki/YCbCr).
-  // Here, however, it makes conversions less lossy and allows us to operate
-  // exclusively on the downsampled image, and of course we're operating in the
-  // webp YUV(A) space in both cases.
-  WebPConfig config;
-  if (WebPConfigPreset(&config, WEBP_PRESET_DEFAULT, quality) == 0) {
-    // Couldn't set up preset.
+  int width = 0, height = 0;
+  // TODO(jmaessen): code below used to use rgba, but that's still in a state of
+  // flux in libwebp and we aren't at present using the alpha channel.  Change
+  // this code to use 4 color planes and RGBA when transparent webp images
+  // become an active concern.
+  const int kColorPlanes = 3;
+  scoped_ptr_malloc<uint8> rgb(
+      WebPDecodeRGB(webp, webp_size, &width, &height));
+  if (rgb == NULL) {
+    // Webp decode function is not able to decode the provided images.
     return false;
   }
-  WebPPicture picture;
-  if (WebPPictureInit(&picture) == 0) {
-    // Couldn't set up picture due to library version mismatch.
+  int stride = width * kColorPlanes;
+  uint8* buf;
+  size_t size = WebPEncodeRGB(rgb.get(), width, height, stride, quality, &buf);
+  if (size == 0) {
+    // Webp Encode failed.
     return false;
   }
-
-  WebPDecoderConfig dec_config;
-  WebPInitDecoderConfig(&dec_config);
-  WebPDecBuffer* const output_buffer = &dec_config.output;
-  output_buffer->colorspace = MODE_YUVA;
-  bool success = ((WebPDecode(webp, webp_size, &dec_config) == VP8_STATUS_OK) &&
-                  WebPDecBufferToPicture(output_buffer, &picture));
-  if (success) {
-    picture.writer = &GoogleStringWebpWriter;
-    picture.custom_ptr = reinterpret_cast<void*>(compressed_webp);
-
-    success = WebPEncode(&config, &picture);
-  }
-
-  WebPFreeDecBuffer(output_buffer);
-
-  return success;
+  compressed_webp->append(reinterpret_cast<const char*>(buf), size);
+  free(buf);
+  return true;
 }
 
 }  // namespace net_instaweb

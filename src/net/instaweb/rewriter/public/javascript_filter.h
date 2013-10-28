@@ -20,18 +20,17 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 
 #include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 
 namespace net_instaweb {
 
 class HtmlCharactersNode;
 class HtmlIEDirectiveNode;
-class JavascriptRewriteConfig;
 class RewriteContext;
 class RewriteDriver;
 class Statistics;
@@ -61,13 +60,20 @@ class JavascriptFilter : public RewriteFilter {
  public:
   explicit JavascriptFilter(RewriteDriver* rewrite_driver);
   virtual ~JavascriptFilter();
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
-  virtual void StartDocumentImpl() { InitializeConfigIfNecessary(); }
+  virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void EndElementImpl(HtmlElement* element);
+  virtual void Flush();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
+
+  // Configuration settings for javascript filtering:
+  // Set whether to minify javascript code blocks encountered.
+  void set_minify(bool minify)  {
+    config_.set_minify(minify);
+  }
 
   virtual const char* Name() const { return "Javascript"; }
   virtual const char* id() const { return RewriteOptions::kJavascriptMinId; }
@@ -80,29 +86,17 @@ class JavascriptFilter : public RewriteFilter {
  private:
   class Context;
 
-  typedef enum {
-    kNoScript,
-    kExternalScript,
-    kInlineScript
-  } ScriptType;
+  inline void CompleteScriptInProgress();
+  inline void RewriteInlineScript();
+  inline void RewriteExternalScript();
 
-  inline void RewriteInlineScript(HtmlCharactersNode* body_node);
-  inline void RewriteExternalScript(
-      HtmlElement* script_in_progress, HtmlElement::Attribute* script_src);
-  // Lazily initialize config_ if it wasn't already.
-  void InitializeConfigIfNecessary() {
-    if (config_.get() != NULL) {
-      return;
-    }
-    InitializeConfig();
-  }
-  void InitializeConfig();
-
-  ScriptType script_type_;
+  HtmlCharactersNode* body_node_;
+  HtmlElement* script_in_progress_;
+  HtmlElement::Attribute* script_src_;
   // some_missing_scripts indicates that we stopped processing a script and
   // therefore can't assume we know all of the Javascript on a page.
   bool some_missing_scripts_;
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  JavascriptRewriteConfig config_;
   ScriptTagScanner script_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptFilter);

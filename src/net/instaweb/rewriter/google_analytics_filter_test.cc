@@ -18,7 +18,7 @@
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
 
 #include "net/instaweb/rewriter/google_analytics_snippet.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/resource_manager_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
@@ -53,13 +53,13 @@ const char kAsyncGlueInit[] =
     "</script>";
 
 
-class GoogleAnalyticsFilterTest : public RewriteTestBase {
+class GoogleAnalyticsFilterTest : public ResourceManagerTestBase {
  protected:
   virtual void SetUp() {
     // Setup the statistics.
-    RewriteTestBase::SetUp();
+    ResourceManagerTestBase::SetUp();
 
-    GoogleAnalyticsFilter::InitStats(statistics());
+    GoogleAnalyticsFilter::Initialize(statistics());
     GoogleAnalyticsFilter::MethodVector* glue_methods =
         new GoogleAnalyticsFilter::MethodVector;
     GoogleAnalyticsFilter::MethodVector* unhandled_methods =

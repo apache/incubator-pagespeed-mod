@@ -21,21 +21,21 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/data_url.h"
 
 namespace Css {
 class Stylesheet;
 }  // namespace Css
 
+class UnicodeText;
+
 namespace net_instaweb {
 
-class CssFilter;
 class MessageHandler;
 
 // Representation of a CSS with all the information required for import
@@ -63,11 +63,9 @@ class MessageHandler;
 //
 class CssHierarchy {
  public:
-  static const char kFailureReasonPrefix[];
-
   // Initialized in an empty state, which is considered successful since it
   // can be flattened into nothing.
-  explicit CssHierarchy(CssFilter* filter);
+  CssHierarchy();
   ~CssHierarchy();
 
   // Initialize the top-level hierarchy's state from the given values.
@@ -76,8 +74,8 @@ class CssHierarchy {
   void InitializeRoot(const GoogleUrl& css_base_url,
                       const GoogleUrl& css_trim_url,
                       const StringPiece input_contents,
+                      bool is_xhtml,
                       bool has_unparseables,
-                      int64 flattened_result_limit,
                       Css::Stylesheet* stylesheet,
                       MessageHandler* message_handler);
 
@@ -87,21 +85,9 @@ class CssHierarchy {
   }
 
   const StringPiece url() const { return url_; }
-  const StringPiece url_for_humans() const {
-    return (url_.empty() ? "inline"
-            : IsDataUrl(url_) ? "data URL"
-            : url_);
-  }
 
   const GoogleUrl& css_base_url() const { return css_base_url_; }
   const GoogleUrl& css_trim_url() const { return css_trim_url_; }
-
-  // If the input contents have been resolved return css_trim_url_ because
-  // that's what the contents have been resolved against, otherwise return
-  // css_base_url_ because that's what the paths in the CSS are relative to.
-  const GoogleUrl& css_resolution_base() {
-    return (input_contents_resolved_ ? css_trim_url_ : css_base_url_);
-  }
 
   const Css::Stylesheet* stylesheet() const { return stylesheet_.get(); }
   Css::Stylesheet* mutable_stylesheet() { return stylesheet_.get(); }
@@ -114,20 +100,11 @@ class CssHierarchy {
     input_contents_ = input_contents;
   }
 
-  GoogleString* input_contents_backing_store() {
-    return &input_contents_backing_store_;
-  }
-  void set_input_contents_to_backing_store() {
-    input_contents_ = input_contents_backing_store_;
-  }
-
   const GoogleString& minified_contents() const { return minified_contents_; }
   void set_minified_contents(const StringPiece minified_contents);
 
   const GoogleString& charset() const { return charset_; }
   GoogleString* mutable_charset() { return &charset_; }
-
-  const GoogleString& charset_source() const { return charset_source_; }
 
   const StringVector& media() const { return media_; }
   StringVector* mutable_media() { return &media_; }
@@ -136,42 +113,24 @@ class CssHierarchy {
   const std::vector<CssHierarchy*>& children() const { return children_; }
   std::vector<CssHierarchy*>& children() { return children_; }
 
-  bool input_contents_resolved() const { return input_contents_resolved_; }
-  void set_input_contents_resolved(bool x) { input_contents_resolved_ = x; }
-
   bool flattening_succeeded() const { return flattening_succeeded_; }
   void set_flattening_succeeded(bool ok) { flattening_succeeded_ = ok; }
 
-  const GoogleString& flattening_failure_reason() const {
-    return flattening_failure_reason_;
-  }
-  // Do nothing if given an empty reason, otherwise if we don't have a failure
-  // reason yet, set it to the given one prepended with "Flattening failed: ",
-  // otherwise append the given one to what we have now, separated by " AND ".
-  // We also strip any leading "Flattening failed: " from the given reason,
-  // which can happen when rolling up hierarchies.
-  void AddFlatteningFailureReason(const GoogleString& reason);
-
   bool unparseable_detected() const { return unparseable_detected_; }
   void set_unparseable_detected(bool ok) { unparseable_detected_ = ok; }
-
-  int64 flattened_result_limit() const { return flattened_result_limit_; }
-  void set_flattened_result_limit(int64 x) { flattened_result_limit_ = x; }
 
   // If we haven't already, determine the charset of this CSS, then check if
   // it is compatible with the charset of its parent; currently they are
   // compatible if they're exactly the same (ignoring case). The charset of
   // this CSS is taken from resource's headers if specified, else from the
   // @charset rule in the parsed CSS, if any, else from the owning document
-  // (our parent). Returns true if the charsets are compatible, otherwise
-  // returns false and sets the failure reason. The charset is always
-  // determined and set regardless of the return value.
+  // (our parent). Returns true if the charsets are compatible, false if not.
+  // The charset is always determined and set regardless of the return value.
   //
   // TODO(matterbury): A potential future enhancement is to allow 'compatible'
   // charsets, like a US-ASCII child in a UTF-8 parent, since US-ASCII is a
   // subset of UTF-8.
-  bool CheckCharsetOk(const ResourcePtr& resource,
-                      GoogleString* failure_reason);
+  bool CheckCharsetOk(const ResourcePtr& resource);
 
   // Parse the input contents into a stylesheet iff it doesn't have one yet,
   // and apply the media applicable to the whole CSS to each ruleset in the
@@ -248,18 +207,16 @@ class CssHierarchy {
   // CSS's media attribute. If the resulting media is empty then this CSS
   // doesn't have to be processed at all so return false, otherwise true.
   bool DetermineImportMedia(const StringVector& containing_media,
-                            const StringVector& import_media);
+                            const std::vector<UnicodeText>& import_media_in);
 
   // Determine the media applicable to a ruleset as the intersection of the
   // set of media that apply just to the ruleset and the set of media that
   // apply to this CSS (as determined by DetermineImportMedia above), and
-  // edits ruleset_media in place. If the intersection is empty, false is
-  // returned and the ruleset doesn't have to be processed at all (it can
-  // be omitted), else true is returned.
-  bool DetermineRulesetMedia(StringVector* ruleset_media);
-
-  // The filter that owns us, used for recording statistics.
-  CssFilter* filter_;
+  // return this result in ruleset_media_out. If the intersection is empty,
+  // false is returned and the ruleset doesn't have to be processed at all
+  // (it can be omitted), else true is returned.
+  bool DetermineRulesetMedia(const std::vector<UnicodeText>& ruleset_media_in,
+                             StringVector* ruleset_media_out);
 
   // The URL of the stylesheet being represented; in the case of inline CSS
   // this will be a data URL.
@@ -284,13 +241,6 @@ class CssHierarchy {
   // The text form of the input CSS.
   StringPiece input_contents_;
 
-  // Backing store for the input contents. As input_contents_ is a StringPiece,
-  // the referenced string has to survive as long as we do; normally that is the
-  // inlined_contents() of the input resource, which is guaranteed to survive
-  // us, however if CssFlattenImportsContext::RewriteSingle() has to resolve
-  // URLs in that text it needs somewhere to save the result, and this is it.
-  GoogleString input_contents_backing_store_;
-
   // The text form of the output (flattened) CSS.
   GoogleString minified_contents_;
 
@@ -298,13 +248,11 @@ class CssHierarchy {
   // from the input text form by Parse, mutated by RollUpContents and
   // RollUpStylesheets - see their description for details.
   scoped_ptr<Css::Stylesheet> stylesheet_;
+  bool is_xhtml_;
 
   // The charset for this CSS as specified by HTTP headers, or a charset
   // attribute, or an @charset rule, or inherited from the parent.
   GoogleString charset_;
-
-  // The source of the charset for this CSS (headers, attribute, etc).
-  GoogleString charset_source_;
 
   // The collection of media for which this CSS applies; an empty collection
   // means all media. CSS in or linked from HTML can specify this using a media
@@ -313,33 +261,13 @@ class CssHierarchy {
   // *whole* CSS document. Note that media expressions (CSS3) are NOT handled.
   StringVector media_;
 
-  // An indication of whether the input contents have been resolved. If not,
-  // we use css_base_url_ to resolve @import's, but if so we use css_trim_url_
-  // because that's what the contents have been resolved against. Resolution
-  // is performed by CssFlattenImportsContext::RewriteSingle().
-  bool input_contents_resolved_;
-
   // An indication of the success or failure of the flattening process, which
   // can fail for various reasons, and any failure propagates up the hierarchy
   // to the root CSS and eventually stops the process.
   bool flattening_succeeded_;
 
-  // If flattening failed, a user-oriented description of why, for injection
-  // into the HTML if the debug filter is enabled.
-  GoogleString flattening_failure_reason_;
-
   // An indication of whether anything unparseable was detected in this CSS.
   bool unparseable_detected_;
-
-  // The limit to the size of the result of flattening (0 means no limit).
-  // If the flattened result would be this much or more, flattening will be
-  // aborted. TODO(matterbury): Investigate whether we can, or ought to,
-  // flatten nested @imports that do fit within the limit [eg. a.css imports
-  // b.css then has a load of CSS; b.css imports c.ss then some CSS; say the
-  // flattened version of b.css fits in the limit, but the flattened version
-  // of a.css does not; we could flatten b.css then change the @import in
-  // a.css to import the flattened version, saving the fetch of c.css].
-  int64 flattened_result_limit_;
 
   // For logging messages.
   MessageHandler* message_handler_;

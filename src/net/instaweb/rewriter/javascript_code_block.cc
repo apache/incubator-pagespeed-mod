@@ -21,20 +21,18 @@
 
 #include <cstddef>
 
-#include "net/instaweb/js/public/js_minify.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "pagespeed/js/js_minify.h"
 
 namespace net_instaweb {
 
 // Statistics names
 const char JavascriptRewriteConfig::kBlocksMinified[] =
     "javascript_blocks_minified";
-const char JavascriptRewriteConfig::kLibrariesIdentified[] =
-    "javascript_libraries_identified";
 const char JavascriptRewriteConfig::kMinificationFailures[] =
     "javascript_minification_failures";
 const char JavascriptRewriteConfig::kTotalBytesSaved[] =
@@ -42,47 +40,23 @@ const char JavascriptRewriteConfig::kTotalBytesSaved[] =
 const char JavascriptRewriteConfig::kTotalOriginalBytes[] =
     "javascript_total_original_bytes";
 const char JavascriptRewriteConfig::kMinifyUses[] = "javascript_minify_uses";
-const char JavascriptRewriteConfig::kNumReducingMinifications[] =
-    "javascript_reducing_minifications";
 
-
-const char JavascriptRewriteConfig::kJSMinificationDisabled[] =
-    "javascript_minification_disabled";
-const char JavascriptRewriteConfig::kJSDidNotShrink[] =
-    "javascript_did_not_shrink";
-const char JavascriptRewriteConfig::kJSFailedToWrite[] =
-    "javascript_failed_to_write";
-
-JavascriptRewriteConfig::JavascriptRewriteConfig(
-    Statistics* stats, bool minify,
-    const JavascriptLibraryIdentification* identification)
-    : minify_(minify),
-      library_identification_(identification),
-      blocks_minified_(stats->GetVariable(kBlocksMinified)),
-      libraries_identified_(stats->GetVariable(kLibrariesIdentified)),
-      minification_failures_(stats->GetVariable(kMinificationFailures)),
-      total_bytes_saved_(stats->GetVariable(kTotalBytesSaved)),
-      total_original_bytes_(stats->GetVariable(kTotalOriginalBytes)),
-      num_uses_(stats->GetVariable(kMinifyUses)),
-      num_reducing_minifications_(
-          stats->GetVariable(kNumReducingMinifications)),
-      minification_disabled_(stats->GetVariable(kJSMinificationDisabled)),
-      did_not_shrink_(stats->GetVariable(kJSDidNotShrink)),
-      failed_to_write_(stats->GetVariable(kJSFailedToWrite)) {
+JavascriptRewriteConfig::JavascriptRewriteConfig(Statistics* stats)
+    : minify_(true),
+      redirect_(true) {
+  blocks_minified_ = stats->GetVariable(kBlocksMinified);
+  minification_failures_ = stats->GetVariable(kMinificationFailures);
+  total_bytes_saved_ = stats->GetVariable(kTotalBytesSaved);
+  total_original_bytes_ = stats->GetVariable(kTotalOriginalBytes);
+  num_uses_ = stats->GetVariable(kMinifyUses);
 }
 
-void JavascriptRewriteConfig::InitStats(Statistics* statistics) {
+void JavascriptRewriteConfig::Initialize(Statistics* statistics) {
   statistics->AddVariable(kBlocksMinified);
-  statistics->AddVariable(kLibrariesIdentified);
   statistics->AddVariable(kMinificationFailures);
   statistics->AddVariable(kTotalBytesSaved);
   statistics->AddVariable(kTotalOriginalBytes);
   statistics->AddVariable(kMinifyUses);
-  statistics->AddVariable(kNumReducingMinifications);
-
-  statistics->AddVariable(kJSMinificationDisabled);
-  statistics->AddVariable(kJSDidNotShrink);
-  statistics->AddVariable(kJSFailedToWrite);
 }
 
 JavascriptCodeBlock::JavascriptCodeBlock(
@@ -92,31 +66,19 @@ JavascriptCodeBlock::JavascriptCodeBlock(
       message_id_(message_id.data(), message_id.size()),
       handler_(handler),
       original_code_(original_code.data(), original_code.size()),
-      rewritten_(false),
-      output_code_(original_code_) { }
+      output_code_(original_code_),
+      rewritten_(false) { }
 
 JavascriptCodeBlock::~JavascriptCodeBlock() { }
 
-StringPiece JavascriptCodeBlock::ComputeJavascriptLibrary() const {
+const JavascriptLibraryId JavascriptCodeBlock::ComputeJavascriptLibrary() {
   // We always RewriteIfNecessary just to provide a degree of
   // predictability to the rewrite flow.
-  // TODO(jmaessen): when we compute minified version and find
-  // a match, consider adding the un-minified hash to the library
-  // identifier, and then using that to speed up identification
-  // in future (at the cost of a double lookup for a miss).  Also
-  // consider pruning candidate JS that is simply too small to match
-  // a registered library.
   RewriteIfNecessary();
-  const JavascriptLibraryIdentification* library_identification =
-      config_->library_identification();
-  if (library_identification == NULL) {
-    return StringPiece(NULL);
+  if (!config_->redirect()) {
+    return JavascriptLibraryId();
   }
-  StringPiece result = library_identification->Find(rewritten_code_);
-  if (!result.empty()) {
-    config_->libraries_identified()->Add(1);
-  }
-  return result;
+  return JavascriptLibraryId::Find(rewritten_code_);
 }
 
 bool JavascriptCodeBlock::UnsafeToRename(const StringPiece& script) {
@@ -133,35 +95,24 @@ bool JavascriptCodeBlock::UnsafeToRename(const StringPiece& script) {
            != StringPiece::npos;
 }
 
-void JavascriptCodeBlock::Rewrite() const {
-  // We minify for two reasons: because the user wants minified js code (in
-  // which case output_code_ should point to the minified code when we're done),
-  // or because we're trying to identify a javascript library.  Bail if we're
-  // not doing one of these things.
-  if (!config_->minify() && (config_->library_identification() == NULL)) {
-    return;
-  }
-  if (!pagespeed::js::MinifyJs(original_code_, &rewritten_code_)) {
-    handler_->Message(kInfo, "%s: Javascript minification failed.  "
-                      "Preserving old code.", message_id_.c_str());
-    TrimWhitespace(original_code_, &rewritten_code_);
-    // Update stats.
-    config_->minification_failures()->Add(1);
-    return;
-  }
-  // Minification succeeded.  Update stats based on whether
-  // minified code will be served back to the user or is just being
-  // used for library identification.
-  // The fact that it succeeded doesn't imply that it actually saved anything;
-  // we increment num_reducing_uses when there were actual savings.
-  config_->blocks_minified()->Add(1);
-  if (config_->minify()) {
-    config_->total_original_bytes()->Add(original_code_.size());
-    const size_t savings = original_code_.size() - rewritten_code_.size();
-    if (savings > 0) {
-      config_->num_reducing_uses()->Add(1);
+void JavascriptCodeBlock::Rewrite() {
+  // Before attempting library identification, we minify.  However, we only
+  // point output_code_ at the minified code if we actually want to serve it to
+  // the rest of the universe.
+  if ((config_->minify())) {
+    if (!pagespeed::js::MinifyJs(original_code_, &rewritten_code_)) {
+      handler_->Message(kInfo, "%s: Javascript minification failed.  "
+                        "Preserving old code.", message_id_.c_str());
+      TrimWhitespace(original_code_, &rewritten_code_);
+      // Update stats.
+      config_->minification_failures()->Add(1);
+    } else {
+      // Update stats.
+      config_->blocks_minified()->Add(1);
+      config_->total_original_bytes()->Add(original_code_.size());
+      size_t savings = original_code_.size() - rewritten_code_.size();
+      config_->total_bytes_saved()->Add(savings);
     }
-    config_->total_bytes_saved()->Add(savings);
     output_code_ = rewritten_code_;
   }
 }

@@ -35,6 +35,8 @@ class RewriteGflags {
   RewriteGflags(const char* progname, int* argc, char*** argv);
 
   // Constructor that does no option parsing.
+  // For use in rewrite_proxy, where InitGoogle is called        [google]
+  // explicitly after sandbox fork.                              [google]
   RewriteGflags() {}
 
   // Apply the parsed options to the options and factory.  Note that some of
@@ -49,7 +51,7 @@ class RewriteGflags {
 
   // Determines whether a flag was explicitly set, as opposed to having its
   // default value.
-  static bool WasExplicitlySet(const char* name);
+  bool WasExplicitlySet(const char* name) const;
 
   // Sets the rewrite level/list passed on the specified option names
   // & values.  The flag names are passed in to provide better error

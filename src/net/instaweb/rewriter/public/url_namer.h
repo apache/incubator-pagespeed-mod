@@ -21,12 +21,13 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+class Function;
 class GoogleUrl;
 class OutputResource;
+class MessageHandler;
 class RequestHeaders;
 class RewriteOptions;
 
@@ -37,24 +38,27 @@ class RewriteOptions;
 // '.pagespeed.<filter>.<hash>.<extension>'
 class UrlNamer {
  public:
-  enum EncodeOption {
-    kSharded,
-    kUnsharded
-  };
+  class Callback {
+   public:
+    Callback() {}
+    virtual ~Callback();
+    // Provide the Callback function which will be executed once we have
+    // rewrite_options. It is the responsibility of Done() function to
+    // delete the Callback.
+    virtual void Done(RewriteOptions* rewrite_options) = 0;
 
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Callback);
+  };
   UrlNamer();
   virtual ~UrlNamer();
 
   // Given an output resource and an optional set of options, generate the URL
   // that will be embedded in the rewritten page.
   //
-  // encode_options is used to determine whether sharding is applied in this
-  // encoding.
-  //
   // Note: the default implementation returns the url of the output resource.
   virtual GoogleString Encode(const RewriteOptions* rewrite_options,
-                              const OutputResource& output_resource,
-                              EncodeOption encode_option) const;
+                              const OutputResource& output_resource) const;
 
   // Given the request_url, generate the original url.  If the URL naming
   // syntax supports an "owner" domain, and 'owner_domain' is non-null, then
@@ -74,9 +78,18 @@ class UrlNamer {
   virtual bool IsAuthorized(const GoogleUrl& request_url,
                             const RewriteOptions& options) const;
 
-  // Configure custom options. Note that options may be NULL.
-  virtual void ConfigureCustomOptions(const RequestHeaders& request_headers,
-                                      RewriteOptions* options) const {}
+  // Given the request url and request headers, generate the rewrite options.
+  virtual void DecodeOptions(const GoogleUrl& request_url,
+                             const RequestHeaders& request_headers,
+                             Callback* callback,
+                             MessageHandler* handler) const;
+
+  // Modifies the request prior to dispatch to the underlying fetcher.
+  virtual void PrepareRequest(const RewriteOptions* rewrite_options,
+                              GoogleString* url,
+                              RequestHeaders* request_headers,
+                              bool* success,
+                              Function* func, MessageHandler* handler);
 
   // Determines whether the naming policy incorporates proxying resources
   // using a central proxy domain.
@@ -86,11 +99,6 @@ class UrlNamer {
   // proxy domain.
   virtual bool IsProxyEncoded(const GoogleUrl& url) const { return false; }
 
-  // Resolve the given url to origin url based on the rewrite options
-  // and referer information. Returns true if the url is updated.
-  virtual bool ResolveToOriginUrl(const RewriteOptions& options,
-                                  const StringPiece& referer_url_str,
-                                  GoogleUrl* request_url) const;
   const GoogleString& get_proxy_domain() {
     return proxy_domain_;
   }

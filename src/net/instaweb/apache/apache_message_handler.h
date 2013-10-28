@@ -17,23 +17,18 @@
 #ifndef NET_INSTAWEB_APACHE_APACHE_MESSAGE_HANDLER_H_
 #define NET_INSTAWEB_APACHE_APACHE_MESSAGE_HANDLER_H_
 
-#include <cstdarg>
-
+#include <string>
+#include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/shared_circular_buffer.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 struct server_rec;
 
 namespace net_instaweb {
-
-class AbstractMutex;
-class SharedCircularBuffer;
-class Timer;
-class Writer;
 
 // Implementation of an HTML parser message handler that uses Apache
 // logging to emit messsages.
@@ -42,16 +37,13 @@ class ApacheMessageHandler : public MessageHandler {
   // version is a string added to each message.
   // Timer is used to generate timestamp for messages in shared memory.
   ApacheMessageHandler(const server_rec* server, const StringPiece& version,
-                       Timer* timer, AbstractMutex* mutex);
-
-  // Installs a signal handler for common crash signals that tries to print
-  // out a backtrace.
-  static void InstallCrashHandler(server_rec* global_server);
-
+                       Timer* timer);
   // When we initialize ApacheMessageHandler in ApacheRewriteDriverFactory,
   // SharedCircularBuffer of ApacheRewriteDriverFactory is not initialized yet.
   // We need to set buffer_ later in RootInit() or ChildInit().
-  void set_buffer(SharedCircularBuffer* buff);
+  inline void set_buffer(SharedCircularBuffer* buff) {
+    buffer_ = buff;
+  }
   void SetPidString(const int64 pid) {
     pid_string_ = StrCat("[", Integer64ToString(pid), "]");
   }
@@ -73,7 +65,6 @@ class ApacheMessageHandler : public MessageHandler {
   // This timer is used to prepend time when writing a message
   // to SharedCircularBuffer.
   Timer* timer_;
-  scoped_ptr<AbstractMutex> mutex_;
   // String "[pid]".
   GoogleString pid_string_;
   // This handler is for internal use.

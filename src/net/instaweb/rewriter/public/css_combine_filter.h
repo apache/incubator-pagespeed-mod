@@ -19,12 +19,11 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_COMBINE_FILTER_H_
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_multipart_encoder.h"
 
 namespace net_instaweb {
@@ -35,28 +34,22 @@ class RewriteContext;
 class RewriteDriver;
 class Statistics;
 class UrlSegmentEncoder;
-class Variable;
 
 class CssCombineFilter : public RewriteFilter {
  public:
-  // Statistic names:
-  // # of CSS links which could ideally have been reduced (# CSS links on
-  // original page - 1 for each page).
-  static const char kCssCombineOpportunities[];
-  // CSS file reduction (Optimally this equals kCssCombineOpportunities).
+  // Name of statistics variable used to record # of CSS file fetches
+  // avoided due to combining.
   static const char kCssFileCountReduction[];
 
   explicit CssCombineFilter(RewriteDriver* rewrite_driver);
   virtual ~CssCombineFilter();
 
-  static void InitStats(Statistics* statistics);
+  static void Initialize(Statistics* statistics);
 
   virtual void StartDocumentImpl();
-  virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual void Flush();
-  virtual void DetermineEnabled();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "CssCombine"; }
   virtual const UrlSegmentEncoder* encoder() const {
@@ -71,16 +64,12 @@ class CssCombineFilter : public RewriteFilter {
   class CssCombiner;
 
   CssCombiner* combiner();
-  void NextCombination(StringPiece debug_help);
+  void NextCombination();
   Context* MakeContext();
 
   CssTagScanner css_tag_scanner_;
   scoped_ptr<Context> context_;
   UrlMultipartEncoder multipart_encoder_;
-  bool end_document_found_;
-  int css_links_;  // # of CSS <link>s found on this page.
-
-  Variable* css_combine_opportunities_;
 
   DISALLOW_COPY_AND_ASSIGN(CssCombineFilter);
 };

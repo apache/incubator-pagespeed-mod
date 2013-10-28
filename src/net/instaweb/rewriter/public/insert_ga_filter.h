@@ -34,8 +34,7 @@ class RewriteDriver;
 class Statistics;
 class Variable;
 
-extern const char kGAExperimentSnippet[];
-extern const char kGAJsSnippet[];
+extern const char kGASnippet[];
 extern const char kGASpeedTracking[];
 
 // This class is the implementation of insert_ga_snippet filter, which adds
@@ -46,7 +45,7 @@ class InsertGAFilter : public CommonFilter {
   virtual ~InsertGAFilter();
 
   // Set up statistics for this filter.
-  static void InitStats(Statistics* stats);
+  static void Initialize(Statistics* stats);
 
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
@@ -57,23 +56,23 @@ class InsertGAFilter : public CommonFilter {
   virtual const char* Name() const { return "InsertGASnippet"; }
 
  private:
-  // Construct the custom variable part for experiment of the GA snippet.
-  GoogleString ConstructExperimentSnippet() const;
+  // Construct the custom variable part for Furious of the GA snippet.
+  GoogleString ConstructFuriousSnippet() const;
 
-  // Construct a stand-alone GA snippet to send back experiment info.
-  GoogleString MakeFullExperimentSnippet() const;
+  // Construct a stand-alone GA snippet to send back Furious info.
+  GoogleString MakeFullFuriousSnippet() const;
 
-  // If appropriate, insert the GA snippet at the end of the body element.
-  void HandleEndBody(HtmlElement* body);
-
-  // Adds a script node with text as its contents either as a child of the
-  // current_element or immediately after current element.
-  void AddScriptNode(HtmlElement* current_element, GoogleString text,
-                     bool insert_immediately_after_current);
+  // If appropriate, insert the GA snippet at the end of the head element.
+  void HandleEndHead(HtmlElement* head);
 
   // Look to see if the script had a GA snippet, and modify our code
   // appropriately.
   void HandleEndScript(HtmlElement* script);
+
+  // Add a script node to parent with text as the contents.
+  // Store a pointer to the resulting script element in script_element.
+  void AddScriptNode(HtmlElement* parent, const GoogleString& text,
+                     HtmlElement** script_element) const;
 
   // Indicates whether or not buffer_ contains a GA snippet with the
   // same id as ga_id_.
@@ -85,10 +84,10 @@ class InsertGAFilter : public CommonFilter {
   // Script element we're currently in, so we can check it to see if
   // it has the GA snippet already.
   HtmlElement* script_element_;
-  // Whether we added the analytics js or not.
-  bool added_analytics_js_;
-  // Whether we added the experiment snippet or not.
-  bool added_experiment_snippet_;
+  // Element in which we added the GA snippet.
+  HtmlElement* added_snippet_element_;
+  // Element in which we added a separate Furious snippet.
+  HtmlElement* added_furious_element_;
 
   // GA ID for this site.
   GoogleString ga_id_;

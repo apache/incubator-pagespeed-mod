@@ -20,19 +20,16 @@
 
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/rate_controller.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/platform.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/stl_util.h"
@@ -46,9 +43,8 @@ namespace {
 
 class MockFetch : public AsyncFetch {
  public:
-  explicit MockFetch(const RequestContextPtr& ctx, bool is_background_fetch)
-      : AsyncFetch(ctx),
-        is_background_fetch_(is_background_fetch),
+  explicit MockFetch(bool is_background_fetch)
+      : is_background_fetch_(is_background_fetch),
         done_(false),
         success_(false) {}
   virtual ~MockFetch() {}
@@ -93,8 +89,8 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
         body1_("b1"),
         body2_("b2"),
         ttl_ms_(Timer::kHourMs) {
-    RateController::InitStats(&stats_);
-    thread_system_.reset(Platform::CreateThreadSystem());
+    RateControllingUrlAsyncFetcher::Initialize(&stats_);
+    thread_system_.reset(ThreadSystem::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &mock_fetcher_, thread_system_->NewMutex()));
     counting_fetcher_.reset(new CountingUrlAsyncFetcher((wait_fetcher_.get())));
@@ -140,8 +136,7 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
 };
 
 TEST_F(RateControllingUrlAsyncFetcherTest, SingleUrlWorks) {
-  MockFetch fetch(
-      RequestContext::NewTestRequestContext(thread_system_.get()), true);
+  MockFetch fetch(true);
   rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, &fetch);
   // Call callback immediately.
   wait_fetcher_->CallCallbacks();
@@ -157,8 +152,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
 
   // Trigger 100 background requests all for the same domain.
   for (int i = 0; i < 100; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
@@ -169,15 +163,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(4, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   // The next 94 fetches get shedded due to load.
   for (int i = 6; i < 100; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   // We need 3 calls to WaitUrlAsyncFetcher::CallCallbacks since the queued
@@ -191,8 +183,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body1_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -201,13 +191,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   }
 
   EXPECT_EQ(4, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(94, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -217,16 +207,14 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
 
   // Trigger 100 user-facing requests all for the same domain.
   for (int i = 0; i < 100; ++i) {
-    MockFetch* fetch = new MockFetch(  // User-facing requests.
-        RequestContext::NewTestRequestContext(thread_system_.get()), false);
+    MockFetch* fetch = new MockFetch(false);  // User-facing requests.
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
 
   // Trigger 200 background requests all for the same domain.
   for (int i = 0; i < 200; ++i) {
-    MockFetch* fetch = new MockFetch(  // Background requests.
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);  // Background requests.
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
   }
@@ -237,14 +225,12 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(4, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   for (int i = 104; i < 300; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   wait_fetcher_->CallCallbacks();
@@ -255,8 +241,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
     EXPECT_TRUE(fetch->success());
     EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
     EXPECT_STREQ(body1_, fetch->content());
-    EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                     HttpAttributes::kXPsaLoadShed));
   }
 
   // The next 4 are queued up.
@@ -275,8 +259,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body1_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -285,13 +267,13 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
   }
 
   EXPECT_EQ(4, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(196, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -304,12 +286,10 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   // Trigger a total of 100 requests, alternately for domain1 and domain2.
   // For each domain, 2 fetches get triggered while 4 get queued up.
   for (int i = 0; i < 50; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain1_url1_, &handler_, fetch);
-    fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain2_url1_, &handler_, fetch);
   }
@@ -317,8 +297,7 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   // Send another 10 requests for domain3. 2 fetches get triggered, 2 get
   // enqueued and 6 get dropped.
   for (int i = 0; i < 10; ++i) {
-    MockFetch* fetch = new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), true);
+    MockFetch* fetch = new MockFetch(true);
     fetch_vector.push_back(fetch);
     rate_controlling_fetcher_->Fetch(domain3_url1_, &handler_, fetch);
   }
@@ -332,22 +311,18 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
     EXPECT_FALSE(fetch_vector[i]->done());
   }
   EXPECT_EQ(10, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   // 94 fetches get shedded due to load.
   for (int i = 12; i < 100; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
   for (int i = 104; i < 110; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
     EXPECT_FALSE(fetch_vector[i]->success());
     EXPECT_EQ("", fetch_vector[i]->content());
-    EXPECT_TRUE(fetch_vector[i]->response_headers()->Has(
-                    HttpAttributes::kXPsaLoadShed));
   }
 
   // We need 3 calls to WaitUrlAsyncFetcher::CallCallbacks since the queued
@@ -361,8 +336,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(j % 2 == 0 ? body1_ : body2_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -375,8 +348,6 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
         EXPECT_TRUE(fetch->success());
         EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
         EXPECT_STREQ(body3_, fetch->content());
-        EXPECT_FALSE(fetch_vector[i]->response_headers()->Has(
-                         HttpAttributes::kXPsaLoadShed));
       } else {
         EXPECT_FALSE(fetch->done());
         EXPECT_FALSE(fetch->success());
@@ -390,17 +361,15 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   EXPECT_TRUE(fetch->success());
   EXPECT_EQ(HttpStatus::kOK, fetch->response_headers()->status_code());
   EXPECT_STREQ(body3_, fetch->content());
-  EXPECT_FALSE(
-      fetch->response_headers()->Has(HttpAttributes::kXPsaLoadShed));
 
   EXPECT_EQ(10, stats_.GetTimedVariable(
-      RateController::kQueuedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kQueuedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(94, stats_.GetTimedVariable(
-      RateController::kDroppedFetchCount)->Get(
+      RateControllingUrlAsyncFetcher::kDroppedFetchCount)->Get(
           TimedVariable::START));
   EXPECT_EQ(0, stats_.GetVariable(
-      RateController::kCurrentGlobalFetchQueueSize)->Get());
+      RateControllingUrlAsyncFetcher::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }

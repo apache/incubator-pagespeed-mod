@@ -32,15 +32,13 @@ namespace net_instaweb {
 class CachedResult;
 class HtmlElement;
 class RewriteDriver;
-class Statistics;
-class Variable;
 
 /*
  * The Local Storage Cache rewriter reduces HTTP requests by inlining resources
- * and using browser-side javascript to store the inlined resources in local
+ * and using browser-side javasript to store the inlined resources in local
  * storage. The javascript also creates a cookie that reflects the resources it
  * has in local storage. On a repeat view, the server uses the cookie to
- * determine if it should replace an inlined resource with a script snippet
+ * determine if it should replace an inlined resource with a script snipper
  * that loads the resource from local storage. In effect, we get browser
  * caching of inlined resources, theoretically speeding up first view (by
  * inlining) and repeat view (by not resending the inlined resource).
@@ -49,14 +47,6 @@ class LocalStorageCacheFilter : public RewriteFilter {
  public:
   static const char kLscCookieName[];
   static const char kLscInitializer[];  // public for the test harness only.
-
-  // Statistics' names.
-  static const char kCandidatesFound[];
-  static const char kStoredTotal[];
-  static const char kStoredImages[];
-  static const char kStoredCss[];
-  static const char kCandidatesAdded[];
-  static const char kCandidatesRemoved[];
 
   // State information for an inline filter using LSC.
   class InlineState {
@@ -73,9 +63,6 @@ class LocalStorageCacheFilter : public RewriteFilter {
 
   explicit LocalStorageCacheFilter(RewriteDriver* rewrite_driver);
   virtual ~LocalStorageCacheFilter();
-
-  // May be called multiple times, if there are multiple statistics objects.
-  static void InitStats(Statistics* statistics);
 
   virtual void StartDocumentImpl();
   virtual void EndDocument();
@@ -112,22 +99,24 @@ class LocalStorageCacheFilter : public RewriteFilter {
                                   HtmlElement* element,
                                   InlineState* state);
 
-  // Tell the LSC to add its attributes to the given element:
-  // pagespeed_lsc_hash and, if the resource has an expiry time [in cached],
-  // pagespeed_lsc_expiry. This is a no-op if LSC is disabled.
+  // Tell the LSC to add its attributes to the given element: pagespeed_lsc_url
+  // (if not already added [has_url is false]), pagespeed_lsc_hash, and, if the
+  // resource has an expiry time [in cached], pagespeed_lsc_expiry. This is a
+  // no-op if LSC is disabled.
   // url is the URL of the resource being rewritten.
   // cached is the result of the resource rewrite.
+  // has_url is true if the element already has an url so don't add it again.
   // driver is the request's context.
   // element is the element to update.
   // Returns true if the element was updated.
   static bool AddLscAttributes(const StringPiece url,
                                const CachedResult& cached,
+                               bool has_url,
                                RewriteDriver* driver,
                                HtmlElement* element);
 
   // Remove the LSC attributes from the given element.
-  static void RemoveLscAttributes(HtmlElement* element,
-                                  RewriteDriver* driver);
+  static void RemoveLscAttributes(HtmlElement* element);
 
  private:
   void InsertOurScriptElement(HtmlElement* before);
@@ -136,9 +125,6 @@ class LocalStorageCacheFilter : public RewriteFilter {
                              const StringPiece hash,
                              std::set<StringPiece>* hash_set);
   static GoogleString ExtractOtherImgAttributes(const HtmlElement* element);
-  static GoogleString GenerateHashFromUrlAndElement(const RewriteDriver* driver,
-                                                    const StringPiece& lsc_url,
-                                                    const HtmlElement* element);
 
   // Have we inserted the script of utility functions?
   bool script_inserted_;
@@ -147,19 +133,6 @@ class LocalStorageCacheFilter : public RewriteFilter {
   // The set of hashes in the local storage cache cookie. Each element points
   // into the rewrite driver's cookies() - that must not change underneath us.
   std::set<StringPiece> cookie_hashes_;
-
-  // # of times an img/link was found with a pagespeed_lsc_url attribute.
-  Variable* num_local_storage_cache_candidates_found_;
-  // # of times the hash of an img/link was found in the hash cookie.
-  Variable* num_local_storage_cache_stored_total_;
-  // # of times an img's hash was found in the hash cookie.
-  Variable* num_local_storage_cache_stored_images_;
-  // # of times a link's hash was found in the hash cookie.
-  Variable* num_local_storage_cache_stored_css_;
-  // # of times we added the hash and expiry attributes to a candidate img/link.
-  Variable* num_local_storage_cache_candidates_added_;
-  // # of times we removed the lsc attributes from a candidate img/link.
-  Variable* num_local_storage_cache_candidates_removed_;
 
   DISALLOW_COPY_AND_ASSIGN(LocalStorageCacheFilter);
 };

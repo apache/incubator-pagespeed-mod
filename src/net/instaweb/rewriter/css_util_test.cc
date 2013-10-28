@@ -23,20 +23,16 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/selector.h"
 
 namespace net_instaweb {
 
@@ -63,7 +59,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(80, extractor->width());
   EXPECT_EQ(50, extractor->height());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;");
@@ -72,7 +68,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kNoValue, extractor->width());
   EXPECT_EQ(kNoValue, extractor->height());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:80px;");
@@ -82,7 +78,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kNoValue, extractor->height());
   EXPECT_EQ(80, extractor->width());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;height:200px");
@@ -90,7 +86,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(kHasHeightOnly, extractor->state());
   EXPECT_EQ(200, extractor->height());
   EXPECT_EQ(kNoValue, extractor->width());
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
 }
 
 TEST_F(CssUtilTest, TestAnyDimensions) {
@@ -102,19 +98,20 @@ TEST_F(CssUtilTest, TestAnyDimensions) {
   EXPECT_TRUE(extractor->HasAnyDimensions());
   EXPECT_EQ(kHasWidthOnly, extractor->state());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;background-color:blue;");
   extractor.reset(new StyleExtractor(img));
   EXPECT_FALSE(extractor->HasAnyDimensions());
 
-  html_parse.DeleteNode(img);
+  html_parse.DeleteElement(img);
   img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:30px;height:40px");
   extractor.reset(new StyleExtractor(img));
   EXPECT_TRUE(extractor->HasAnyDimensions());
+
 }
 
 TEST_F(CssUtilTest, VectorizeMediaAttribute) {
@@ -160,85 +157,46 @@ TEST_F(CssUtilTest, StringifyMediaVector) {
   EXPECT_EQ(css_util::kAllMedia, all_media);
 }
 
-TEST_F(CssUtilTest, IsComplexMediaQuery) {
-  Css::MediaQuery query;
-  EXPECT_FALSE(css_util::IsComplexMediaQuery(query));
+TEST_F(CssUtilTest, ConvertUnicodeVectorToStringVector) {
+  const char kScreen[] = "screen";
+  const char kPrinter[] = "printer ";
+  const char kAll[] = " all";
+  const char kEmpty[] = "";
+  const char kBlanks[] = "  ";
 
-  query.set_media_type(UTF8ToUnicodeText("screen"));
-  EXPECT_FALSE(css_util::IsComplexMediaQuery(query));
-
-  query.set_qualifier(Css::MediaQuery::ONLY);
-  EXPECT_TRUE(css_util::IsComplexMediaQuery(query));
-
-  query.set_qualifier(Css::MediaQuery::NOT);
-  EXPECT_TRUE(css_util::IsComplexMediaQuery(query));
-
-  query.set_qualifier(Css::MediaQuery::NO_QUALIFIER);
-  EXPECT_FALSE(css_util::IsComplexMediaQuery(query));
-
-  query.add_expression(new Css::MediaExpression(UTF8ToUnicodeText("foo"),
-                                                UTF8ToUnicodeText("bar")));
-  EXPECT_TRUE(css_util::IsComplexMediaQuery(query));
-}
-
-// Helper function.
-Css::MediaQuery* NewSimpleMedium(const StringPiece& media_type) {
-  Css::MediaQuery* query = new Css::MediaQuery;
-  query->set_media_type(
-      UTF8ToUnicodeText(media_type.data(), media_type.size()));
-  return query;
-}
-
-TEST_F(CssUtilTest, ConvertMediaQueriesToStringVector) {
-  Css::MediaQueries queries;
-  queries.push_back(NewSimpleMedium("screen"));
-  queries.push_back(NewSimpleMedium(""));
-  queries.push_back(NewSimpleMedium("  "));
-  queries.push_back(NewSimpleMedium("printer"));
-  queries.push_back(NewSimpleMedium("all"));
+  std::vector<UnicodeText> unicode_vector;
+  UnicodeText element;
+  unicode_vector.push_back(element.CopyUTF8(kScreen,  STATIC_STRLEN(kScreen)));
+  unicode_vector.push_back(element.CopyUTF8(kEmpty,   STATIC_STRLEN(kEmpty)));
+  unicode_vector.push_back(element.CopyUTF8(kBlanks,  STATIC_STRLEN(kBlanks)));
+  unicode_vector.push_back(element.CopyUTF8(kPrinter, STATIC_STRLEN(kPrinter)));
+  unicode_vector.push_back(element.CopyUTF8(kAll,     STATIC_STRLEN(kAll)));
 
   const char* kExpectedVector[] = { "screen", "printer", "all" };
   StringVector expected_vector(kExpectedVector,
                                kExpectedVector + arraysize(kExpectedVector));
   StringVector actual_vector;
-  EXPECT_TRUE(ConvertMediaQueriesToStringVector(queries, &actual_vector));
-  EXPECT_EQ(expected_vector, actual_vector);
-
-  // Complex media queries are not converted.
-  Css::MediaQuery* complex = new Css::MediaQuery;
-  complex->set_qualifier(Css::MediaQuery::ONLY);
-  complex->set_media_type(UTF8ToUnicodeText("screen"));
-  queries.push_back(complex);
-  EXPECT_FALSE(ConvertMediaQueriesToStringVector(queries, &actual_vector));
-  EXPECT_TRUE(actual_vector.empty());
+  ConvertUnicodeVectorToStringVector(unicode_vector, &actual_vector);
+  EXPECT_TRUE(expected_vector == actual_vector);
 }
 
-TEST_F(CssUtilTest, ConvertStringVectorToMediaQueries) {
-  const char* kInputVector[] = { "screen", "", " ", "print ", " all ",
-                                 "not braille and (color)" };
+TEST_F(CssUtilTest, ConvertStringVectorToUnicodeVector) {
+  const char kScreen[] = "screen";
+  const char kPrint[] = "print";
+  const char kAll[] = "all";
+
+  std::vector<UnicodeText> expected_vector;
+  UnicodeText element;
+  expected_vector.push_back(element.CopyUTF8(kScreen, STATIC_STRLEN(kScreen)));
+  expected_vector.push_back(element.CopyUTF8(kPrint,  STATIC_STRLEN(kPrint)));
+  expected_vector.push_back(element.CopyUTF8(kAll,    STATIC_STRLEN(kAll)));
+
+  const char* kInputVector[] = { "screen", "", " ", "print ", " all " };
   StringVector input_vector(kInputVector,
                             kInputVector + arraysize(kInputVector));
-  Css::MediaQueries queries;
-  ConvertStringVectorToMediaQueries(input_vector, &queries);
-
-  ASSERT_EQ(4, queries.size());
-  EXPECT_STREQ("screen", UnicodeTextToUTF8(queries[0]->media_type()));
-  EXPECT_EQ(Css::MediaQuery::NO_QUALIFIER, queries[0]->qualifier());
-  EXPECT_EQ(0, queries[0]->expressions().size());
-
-  EXPECT_STREQ("print", UnicodeTextToUTF8(queries[1]->media_type()));
-  EXPECT_EQ(Css::MediaQuery::NO_QUALIFIER, queries[1]->qualifier());
-  EXPECT_EQ(0, queries[1]->expressions().size());
-
-  EXPECT_STREQ("all", UnicodeTextToUTF8(queries[2]->media_type()));
-  EXPECT_EQ(Css::MediaQuery::NO_QUALIFIER, queries[2]->qualifier());
-  EXPECT_EQ(0, queries[2]->expressions().size());
-
-  // NOTE: We do not parse media strings. Only assign them to media_type().
-  EXPECT_STREQ("not braille and (color)",
-               UnicodeTextToUTF8(queries[3]->media_type()));
-  EXPECT_EQ(Css::MediaQuery::NO_QUALIFIER, queries[3]->qualifier());
-  EXPECT_EQ(0, queries[3]->expressions().size());
+  std::vector<UnicodeText> actual_vector;
+  ConvertStringVectorToUnicodeVector(input_vector, &actual_vector);
+  EXPECT_TRUE(expected_vector == actual_vector);
 }
 
 TEST_F(CssUtilTest, ClearVectorIfContainsMediaAll) {
@@ -256,51 +214,6 @@ TEST_F(CssUtilTest, ClearVectorIfContainsMediaAll) {
   output_vector.push_back(kAllMedia);
   ClearVectorIfContainsMediaAll(&output_vector);
   EXPECT_TRUE(output_vector.empty());
-}
-
-TEST_F(CssUtilTest, CanMediaAffectScreenTest) {
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(""));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("  \t\n "));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("  screen  "));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("all\n"));
-  // Case insensitive, handles multiple (possibly junk) media types.
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("print, audio ,, ,sCrEeN"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(
-      "not!?#?;valid,screen,@%*%@*"));
-  // Some cases that fail.
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("print"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not screen"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("print screen"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not!?#?;valid"));
-  // We must handle CSS3 media queries (http://www.w3.org/TR/css3-mediaqueries/)
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("not print"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(
-      "only screen and (max-device-width: 480px) "));
-  // "(parens)" are equivalent to "all and (parens)" -- thus screen-affecting.
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("(monochrome)"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen("(print)"));
-  EXPECT_FALSE(css_util::CanMediaAffectScreen("not (audio or print)"));
-}
-
-TEST_F(CssUtilTest, JsDetectableSelector) {
-  // We set up a series of selectors, parse them permissively,
-  // and check the result.
-  const char kSelectors[] =
-      "a, a:visited, p, :visited, p:visited a, p :visited a, p > :hover > a, "
-      "hjf98a7o, img[src^=\"mod_pagespeed_examples/images\"]";
-  const char *kExpected[] =
-      {"a", "a", "p", "", "p a", "p", "p",
-       "hjf98a7o", "img[src^=\"mod_pagespeed_examples/images\"]"};
-  Css::Parser parser(kSelectors);
-  parser.set_preservation_mode(true);
-  parser.set_quirks_mode(false);
-  scoped_ptr<const Css::Selectors> selectors(parser.ParseSelectors());
-  EXPECT_EQ(Css::Parser::kNoError, parser.errors_seen_mask());
-  CHECK(selectors.get() != NULL);
-  EXPECT_EQ(arraysize(kExpected), selectors->size());
-  for (int i = 0; i < selectors->size(); ++i) {
-    EXPECT_EQ(kExpected[i], JsDetectableSelector(*(*selectors)[i]));
-  }
 }
 
 TEST_F(CssUtilTest, EliminateElementsNotIn) {
@@ -341,6 +254,6 @@ TEST_F(CssUtilTest, EliminateElementsNotIn) {
   EXPECT_TRUE(input_vector == intersect_vector);
 }
 
-}  // namespace css_util
+} // css_util
 
-}  // namespace net_instaweb
+} // net_instaweb

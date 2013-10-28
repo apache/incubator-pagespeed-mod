@@ -17,20 +17,19 @@
 // Author: nikhilmadan@google.com (Nikhil Madan)
 
 #include "net/instaweb/http/public/write_through_http_cache.h"
-
 #include <cstddef>
-
-#include "base/logging.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/http/timing.pb.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
+
+class CacheInterface;
 
 namespace {
 
@@ -43,39 +42,28 @@ class FallbackCacheCallback: public HTTPCache::Callback {
 
   FallbackCacheCallback(const GoogleString& key,
                         WriteThroughHTTPCache* write_through_http_cache,
-                        HTTPCache* cache1,
                         HTTPCache::Callback* client_callback,
                         UpdateCache1HandlerFunction function)
-      : HTTPCache::Callback(client_callback->request_context()),
-        key_(key),
+      : key_(key),
         write_through_http_cache_(write_through_http_cache),
-        cache1_(cache1),
         client_callback_(client_callback),
         function_(function) {}
 
   virtual ~FallbackCacheCallback() {}
 
   virtual void Done(HTTPCache::FindResult find_result) {
-    HTTPValue* client_fallback = client_callback_->fallback_http_value();
-    const bool has_cache1_fallback = !client_fallback->Empty();
     if (find_result != HTTPCache::kNotFound) {
       client_callback_->http_value()->Link(http_value());
       client_callback_->response_headers()->CopyFrom(*response_headers());
       // Clear the fallback_http_value() in client_callback_ since we found a
       // fresh response.
-      client_fallback->Clear();
+      client_callback_->fallback_http_value()->Clear();
       // Insert the response into cache1.
       (write_through_http_cache_->*function_)(key_, http_value());
-      if (has_cache1_fallback) {
-        cache1_->cache_fallbacks()->Add(-1);
-      }
     } else if (!fallback_http_value()->Empty()) {
       // We assume that the fallback value in the L2 cache is always fresher
       // than or as fresh as the fallback value in the L1 cache.
-      if (has_cache1_fallback) {
-        // Both caches had a fallback value, make sure we don't double count.
-        cache1_->cache_fallbacks()->Add(-1);
-      }
+      HTTPValue* client_fallback = client_callback_->fallback_http_value();
       client_fallback->Clear();
       client_fallback->Link(fallback_http_value());
     }
@@ -83,25 +71,25 @@ class FallbackCacheCallback: public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
-    return client_callback_->IsCacheValid(key, headers);
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return client_callback_->IsCacheValid(headers);
   }
 
   virtual bool IsFresh(const ResponseHeaders& headers) {
     return client_callback_->IsFresh(headers);
   }
 
-  virtual void ReportLatencyMsImpl(int64 latency_ms) {
-    DCHECK(request_context().get() != NULL);
-    request_context()->mutable_timing_info()->SetL2HTTPCacheLatencyMs(
-        latency_ms);
+  virtual void SetTimingMs(int64 timing_value_ms) {
+    client_callback_->timing_info()->set_cache2_ms(timing_value_ms);
+  }
+
+  virtual TimingInfo* timing_info() {
+    return client_callback_->timing_info();
   }
 
  private:
   GoogleString key_;
   WriteThroughHTTPCache* write_through_http_cache_;
-  HTTPCache* cache1_;
   HTTPCache::Callback* client_callback_;
   UpdateCache1HandlerFunction function_;
 };
@@ -115,8 +103,7 @@ class Cache1Callback: public HTTPCache::Callback {
                  MessageHandler* handler,
                  HTTPCache::Callback* client_callback,
                  HTTPCache::Callback* fallback_cache_callback)
-      : HTTPCache::Callback(client_callback->request_context()),
-        key_(key),
+      : key_(key),
         fallback_cache_(fallback_cache),
         handler_(handler),
         client_callback_(client_callback),
@@ -141,13 +128,20 @@ class Cache1Callback: public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
-    return client_callback_->IsCacheValid(key, headers);
+  virtual bool IsCacheValid(const ResponseHeaders& headers) {
+    return client_callback_->IsCacheValid(headers);
   }
 
   virtual bool IsFresh(const ResponseHeaders& headers) {
     return client_callback_->IsFresh(headers);
+  }
+
+  virtual void SetTimingMs(int64 timing_value_ms) {
+    client_callback_->timing_info()->set_cache1_ms(timing_value_ms);
+  }
+
+  virtual TimingInfo* timing_info() {
+    return client_callback_->timing_info();
   }
 
  private:
@@ -173,12 +167,9 @@ WriteThroughHTTPCache::WriteThroughHTTPCache(CacheInterface* cache1,
     : HTTPCache(cache1, timer, hasher, statistics),
       cache1_(new HTTPCache(cache1, timer, hasher, statistics)),
       cache2_(new HTTPCache(cache2, timer, hasher, statistics)),
-      cache1_size_limit_(kUnlimited) {
-}
-
-GoogleString WriteThroughHTTPCache::FormatName(StringPiece l1, StringPiece l2) {
-  return StrCat("WriteThroughHTTPCache(L1=", l1, ",L2=", l2, ")");
-}
+      cache1_size_limit_(kUnlimited),
+      name_(StrCat("WriteThroughHTTPCache using backend 1 : ", cache1->Name(),
+                   " and backend 2 : ", cache2->Name())) {}
 
 WriteThroughHTTPCache::~WriteThroughHTTPCache() {
 }
@@ -202,7 +193,7 @@ void WriteThroughHTTPCache::Find(const GoogleString& key,
                                  MessageHandler* handler,
                                  Callback* callback) {
   FallbackCacheCallback* fallback_cache_callback = new FallbackCacheCallback(
-      key, this, cache1_.get(), callback, &WriteThroughHTTPCache::PutInCache1);
+      key, this, callback, &WriteThroughHTTPCache::PutInCache1);
   Cache1Callback* cache1_callback = new Cache1Callback(
       key, cache2_.get(), handler, callback, fallback_cache_callback);
   cache1_->Find(key, handler, cache1_callback);
@@ -228,12 +219,6 @@ void WriteThroughHTTPCache::set_force_caching(bool force) {
   cache2_->set_force_caching(force);
 }
 
-void WriteThroughHTTPCache::set_disable_html_caching_on_https(bool x) {
-  HTTPCache::set_disable_html_caching_on_https(x);
-  cache1_->set_disable_html_caching_on_https(x);
-  cache2_->set_disable_html_caching_on_https(x);
-}
-
 void WriteThroughHTTPCache::set_remember_not_cacheable_ttl_seconds(
     int64 value) {
   HTTPCache::set_remember_not_cacheable_ttl_seconds(value);
@@ -248,13 +233,6 @@ void WriteThroughHTTPCache::set_remember_fetch_failed_ttl_seconds(
   cache2_->set_remember_fetch_failed_ttl_seconds(value);
 }
 
-void WriteThroughHTTPCache::set_remember_fetch_dropped_ttl_seconds(
-    int64 value) {
-  HTTPCache::set_remember_fetch_dropped_ttl_seconds(value);
-  cache1_->set_remember_fetch_dropped_ttl_seconds(value);
-  cache2_->set_remember_fetch_dropped_ttl_seconds(value);
-}
-
 void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
     int64 value) {
   HTTPCache::set_max_cacheable_response_content_length(value);
@@ -264,10 +242,9 @@ void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
 
 void WriteThroughHTTPCache::RememberNotCacheable(
     const GoogleString& key,
-    bool is_200_status_code,
     MessageHandler* handler) {
-  cache1_->RememberNotCacheable(key, is_200_status_code, handler);
-  cache2_->RememberNotCacheable(key, is_200_status_code, handler);
+  cache1_->RememberNotCacheable(key, handler);
+  cache2_->RememberNotCacheable(key, handler);
 }
 
 void WriteThroughHTTPCache::RememberFetchFailed(
@@ -275,12 +252,6 @@ void WriteThroughHTTPCache::RememberFetchFailed(
     MessageHandler* handler) {
   cache1_->RememberFetchFailed(key, handler);
   cache2_->RememberFetchFailed(key, handler);
-}
-
-void WriteThroughHTTPCache::RememberFetchDropped(const GoogleString& key,
-                                                 MessageHandler * handler) {
-  cache1_->RememberFetchDropped(key, handler);
-  cache2_->RememberFetchDropped(key, handler);
 }
 
 }  // namespace net_instaweb

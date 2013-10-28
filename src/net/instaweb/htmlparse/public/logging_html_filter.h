@@ -41,8 +41,9 @@
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_LOGGING_HTML_FILTER_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_LOGGING_HTML_FILTER_H_
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/htmlparse/public/html_parser_types.h"
 
 namespace net_instaweb {
 
@@ -53,7 +54,6 @@ class HtmlElement;
 class HtmlIEDirectiveNode;
 class StatisticsLog;
 
-// Counts some basic statistics observed as HTML is parsed.
 class LoggingFilter : public EmptyHtmlFilter {
  public:
   // internal names of statistics.

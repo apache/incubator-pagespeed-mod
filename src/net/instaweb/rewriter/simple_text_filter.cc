@@ -21,14 +21,17 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 SimpleTextFilter::Rewriter::~Rewriter() {
 }
@@ -55,16 +58,17 @@ void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
                                               const OutputResourcePtr& output) {
   RewriteResult result = kRewriteFailed;
   GoogleString rewritten;
-  ServerContext* server_context = FindServerContext();
+  ResourceManager* resource_manager = Manager();
   if (rewriter_->RewriteText(input->url(), input->contents(), &rewritten,
-                             server_context))  {
+                             resource_manager))  {
+    MessageHandler* message_handler = resource_manager->message_handler();
     const ContentType* output_type = input->type();
     if (output_type == NULL) {
       output_type = &kContentTypeText;
     }
-    if (Driver()->Write(
+    if (resource_manager->Write(
             ResourceVector(1, input), rewritten, output_type, input->charset(),
-            output.get())) {
+            output.get(), message_handler)) {
       result = kRewriteOk;
     }
   }

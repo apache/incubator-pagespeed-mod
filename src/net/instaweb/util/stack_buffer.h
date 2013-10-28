@@ -21,7 +21,12 @@
 #ifndef NET_INSTAWEB_UTIL_STACK_BUFFER_H_
 #define NET_INSTAWEB_UTIL_STACK_BUFFER_H_
 
-// TODO(jmarantz): Remove this forwarding header and update references.
-#include "pagespeed/kernel/base/stack_buffer.h"
+namespace net_instaweb {
+
+// Size of stack buffer for read-blocks.  This can't be too big or it will blow
+// the stack, which may be set small in multi-threaded environments.
+const int kStackBufferSize = 10000;
+
+}  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_UTIL_STACK_BUFFER_H_

@@ -44,11 +44,10 @@ TestUrlNamer::~TestUrlNamer() {
 }
 
 GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
-                                  const OutputResource& output_resource,
-                                  EncodeOption encode_option) const {
+                                  const OutputResource& output_resource) const {
   // Some test requires us to use normal encoding, so off we go!
   if (use_normal_encoding_) {
-    return UrlNamer::Encode(rewrite_options, output_resource, encode_option);
+    return UrlNamer::Encode(rewrite_options, output_resource);
   }
 
   DCHECK(rewrite_options != NULL);
@@ -57,12 +56,12 @@ GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
   // If there is any sharding or rewriting enabled then various tests don't
   // work if we rewrite the domain or path, so in that case revert to normal.
   if (rewrite_options->domain_lawyer()->can_rewrite_domains()) {
-    return UrlNamer::Encode(rewrite_options, output_resource, encode_option);
+    return UrlNamer::Encode(rewrite_options, output_resource);
   }
 
   // TEST only handles http/https schemes, so bail if it's anything else.
   if (base_gurl.Scheme() != "http" && base_gurl.Scheme() != "https") {
-    return UrlNamer::Encode(rewrite_options, output_resource, encode_option);
+    return UrlNamer::Encode(rewrite_options, output_resource);
   }
 
   // The base might already be the encoded, such as when the resource is
@@ -121,7 +120,7 @@ GoogleString TestUrlNamer::EncodeUrl(const StringPiece& original_base,
 }
 
 bool TestUrlNamer::IsProxyEncoded(const GoogleUrl& url) const {
-  if (!url.IsWebValid()) {
+  if (!url.is_valid()) {
     return false;
   }
   GoogleString url_origin = url.Origin().as_string();

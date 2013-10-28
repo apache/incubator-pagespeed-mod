@@ -21,11 +21,9 @@
 #include <cstdio>
 #include <set>
 #include <utility>                     // for pair
-
 #include "base/logging.h"
-#include "net/instaweb/http/public/async_fetch.h"
+#include "base/scoped_ptr.h"
 #include "net/instaweb/http/public/http_response_parser.h"
-#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -34,8 +32,8 @@
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/util/public/null_message_handler.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
@@ -78,7 +76,7 @@ bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
     handler->Message(kError,
                      "GetFilenameFromUrl: root_dir must end in slash, was %s",
                      root_dir.as_string().c_str());
-  } else if (!gurl.IsWebValid()) {
+  } else if (!gurl.is_valid()) {
     handler->Message(kError, "GetFilenameFromUrl: gurl is invalid");
   } else {
     ret = true;
@@ -185,14 +183,14 @@ class HttpResponseWriter : public Writer {
   DISALLOW_COPY_AND_ASSIGN(HttpResponseWriter);
 };
 
-void HttpDumpUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
+bool HttpDumpUrlFetcher::StreamingFetchUrl(
+    const GoogleString& url, const RequestHeaders& request_headers,
+    ResponseHeaders* response_headers, Writer* response_writer,
+    MessageHandler* handler) {
   bool ret = false;
   GoogleString filename;
   GoogleUrl gurl(url);
-  const RequestHeaders& request_headers = *fetch->request_headers();
-  ResponseHeaders* response_headers = fetch->response_headers();
-  if (gurl.IsWebValid() &&
+  if (gurl.is_valid() && gurl.is_standard() &&
       GetFilenameFromUrl(root_dir_, gurl, &filename, handler)) {
     NullMessageHandler null_handler;
     // Pass in NullMessageHandler so that we don't get errors for file not found
@@ -216,7 +214,7 @@ void HttpDumpUrlFetcher::Fetch(
         if (!response.headers_complete()) {
           // Fill in some default headers and body.  Note that if we have
           // a file, then we will return true, even if the file is corrupt.
-          RespondError(response_headers, fetch, handler);
+          RespondError(response_headers, response_writer, handler);
         } else {
           // Update 'date' and 'Expires' headers, if found.
           //
@@ -231,7 +229,7 @@ void HttpDumpUrlFetcher::Fetch(
               writer.gzip_content_length()));
         }
         response_headers->ComputeCaching();
-        fetch->Write(output_buffer, handler);
+        response_writer->Write(output_buffer, handler);
         ret = true;
       } else {
         handler->Message(kWarning,
@@ -254,7 +252,7 @@ void HttpDumpUrlFetcher::Fetch(
     fprintf(stdout, "url: %s\n", url.c_str());
   }
 
-  fetch->Done(ret);
+  return ret;
 }
 
 void HttpDumpUrlFetcher::set_print_urls(bool on) {

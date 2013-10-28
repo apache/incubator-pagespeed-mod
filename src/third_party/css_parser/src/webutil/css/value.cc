@@ -17,7 +17,7 @@
 // Copyright 2006 Google Inc. All Rights Reserved.
 // Author: dpeng@google.com (Daniel Peng)
 
-#include "util/gtl/stl_util.h"
+#include "util/gtl/stl_util-inl.h"
 
 #include "webutil/css/value.h"
 
@@ -109,8 +109,7 @@ Value::Value(const Value& other)
     identifier_(other.identifier_),
     str_(other.str_),
     params_(new FunctionParameters),
-    color_(other.color_),
-    bytes_in_original_buffer_(other.bytes_in_original_buffer_) {
+    color_(other.color_) {
   if (other.params_.get() != NULL) {
     params_->Copy(*other.params_);
   }
@@ -124,7 +123,6 @@ Value& Value::operator=(const Value& other) {
   identifier_ = other.identifier_;
   str_ = other.str_;
   color_ = other.color_;
-  bytes_in_original_buffer_ = other.bytes_in_original_buffer_;
   if (other.params_.get() != NULL) {
     params_->Copy(*other.params_);
   } else {
@@ -159,7 +157,7 @@ bool Value::Equals(const Value& other) const {
     case FUNCTION:
       if (str_ != other.str_)
         return false;
-      FALLTHROUGH_INTENDED;
+      // pass through
     case RECT:
       if (params_.get() == NULL)
         return other.params_.get() == NULL;

@@ -20,15 +20,13 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_MINIFY_H_
 
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
 class Stylesheet;
 class Charsets;
 class Import;
-class MediaQuery;
-class MediaQueries;
-class MediaExpression;
 class Ruleset;
 class Selector;
 class SimpleSelector;
@@ -36,10 +34,8 @@ class SimpleSelectors;
 class Declaration;
 class Declarations;
 class Value;
-class Values;
 class FunctionParameters;
-class UnparsedRegion;
-}  // namespace Css
+}
 
 class UnicodeText;
 
@@ -80,11 +76,16 @@ class CssMinify {
                              RewriteDriver* driver,
                              MessageHandler* handler);
 
+  // Escape [() \t\r\n\\'"].  Also escape , for non-URLs.  Escaping , in
+  // URLs causes IE8 to interpret the backslash as a forward slash.
+  static GoogleString EscapeString(const StringPiece& src, bool in_url);
+
  private:
   CssMinify(Writer* writer, MessageHandler* handler);
   ~CssMinify();
 
   void Write(const StringPiece& str);
+
   void WriteURL(const UnicodeText& url);
 
   template<typename Container>
@@ -92,21 +93,20 @@ class CssMinify {
   template<typename Iterator>
   void JoinMinifyIter(const Iterator& begin, const Iterator& end,
                       const StringPiece& sep);
+  template<typename Container>
+  void JoinMediaMinify(const Container& container, const StringPiece& sep);
 
   // We name all of these methods identically to simplify the writing of the
   // templated Join* methods.
   void Minify(const Css::Stylesheet& stylesheet);
   void Minify(const Css::Charsets& charsets);
   void Minify(const Css::Import& import);
-  void Minify(const Css::MediaQuery& media_query);
-  void Minify(const Css::MediaExpression& expression);
   void Minify(const Css::Selector& selector);
   void Minify(const Css::SimpleSelectors& sselectors, bool isfirst = false);
   void Minify(const Css::SimpleSelector& sselector);
   void Minify(const Css::Declaration& declaration);
   void Minify(const Css::Value& value);
   void Minify(const Css::FunctionParameters& parameters);
-  void Minify(const Css::UnparsedRegion& unparsed_region);
 
   // Specializations for Ruleset to handle common @media rules.
   // Start followed by Ignoring followed by End gives the same result as the
@@ -119,14 +119,6 @@ class CssMinify {
   void MinifyRulesetMediaStart(const Css::Ruleset& ruleset);
   // Emits the end of the @media rule iff required (non-empty media set).
   void MinifyRulesetMediaEnd(const Css::Ruleset& ruleset);
-
-  // Font requires special output format.
-  void MinifyFont(const Css::Values& font_values);
-
-  bool Equals(const Css::MediaQueries& a, const Css::MediaQueries& b) const;
-  bool Equals(const Css::MediaQuery& a, const Css::MediaQuery& b) const;
-  bool Equals(const Css::MediaExpression& a,
-              const Css::MediaExpression& b) const;
 
   Writer* writer_;
   MessageHandler* handler_;

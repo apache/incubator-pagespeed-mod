@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/scan_filter.h"
 
-#include <memory>
-
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
@@ -27,7 +25,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
@@ -37,7 +35,9 @@
 namespace net_instaweb {
 
 ScanFilter::ScanFilter(RewriteDriver* driver)
-    : driver_(driver) {
+    : driver_(driver),
+      tag_scanner_(driver) {
+  tag_scanner_.set_find_a_tags(true);
 }
 
 ScanFilter::~ScanFilter() {
@@ -108,17 +108,10 @@ void ScanFilter::StartElement(HtmlElement* element) {
     }
     // TODO(jmarantz): handle base targets in addition to hrefs.
   } else {
-    resource_tag_scanner::UrlCategoryVector attributes;
-    resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
-    for (int i = 0, n = attributes.size(); i < n; ++i) {
-      // Don't count <html manifest=...> as a ref for the purpose of determining
-      // if there are refs before base.  It's also important not to count <head
-      // profile=...> but ScanElement skips that.
-      if (!seen_refs_ && !seen_base_ &&
-          !(element->keyword() == HtmlName::kHtml &&
-            attributes[i].url->keyword() == HtmlName::kManifest)) {
-        seen_refs_ = true;
-      }
+    bool is_hyperlink;
+    if (!seen_refs_ && !seen_base_ &&
+        tag_scanner_.ScanElement(element, &is_hyperlink) != NULL) {
+      seen_refs_ = true;
     }
   }
 
@@ -151,7 +144,7 @@ void ScanFilter::StartElement(HtmlElement* element) {
 }
 
 void ScanFilter::Flush() {
-  driver_->server_context()->rewrite_stats()->num_flushes()->Add(1);
+  driver_->resource_manager()->rewrite_stats()->num_flushes()->Add(1);
 }
 
 }  // namespace net_instaweb

@@ -18,19 +18,7 @@
 #ifndef NET_INSTAWEB_SPRITER_LIBPNG_IMAGE_LIBRARY_H_
 #define NET_INSTAWEB_SPRITER_LIBPNG_IMAGE_LIBRARY_H_
 
-// TODO(huibao): Move LibpngImageLibrary to pagespeed/kernel/image/.
-// Refactor LibpngImageLibrary. This class can be split into 3 parts:
-// reader, writer, and canvas creater. The first two parts can be merged
-// with png_optimizer.cc and png_optimizer.h.
-
-extern "C" {
-#ifdef USE_SYSTEM_LIBPNG
-#include "png.h"  // NOLINT
-#else
-#include "third_party/libpng/png.h"
-#endif
-}  // extern "C"
-
+#include <png.h>
 #include "net/instaweb/spriter/image_library_interface.h"
 #include "net/instaweb/util/public/string.h"
 
@@ -78,7 +66,7 @@ class LibpngImageLibrary : public ImageLibraryInterface {
   // a canvas to a file.
   class Canvas : public ImageLibraryInterface::Canvas {
    public:
-    Canvas(ImageLibraryInterface* lib, const Delegate* d,
+    Canvas(ImageLibraryInterface* lib, const Delegate& d,
            const GoogleString& base_out_path,
            int width, int height);
     virtual ~Canvas();
@@ -87,8 +75,8 @@ class LibpngImageLibrary : public ImageLibraryInterface {
     virtual bool WriteToFile(const FilePath& write_path, ImageFormat format);
 
    private:
-    const Delegate* delegate_;
-    const GoogleString base_out_path_;
+    const Delegate& delegate_;
+    const GoogleString& base_out_path_;
     int width_;
     int height_;
     png_bytep* rows_;

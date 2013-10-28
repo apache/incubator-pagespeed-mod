@@ -18,43 +18,61 @@
 #ifndef NET_INSTAWEB_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 
-// Note: We must include apache_config.h to allow using ApacheConfig*
-// return-types for functions that return RewriteOptions* in base class.
+#include <cstdio>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "base/scoped_ptr.h"
 #include "net/instaweb/apache/apache_config.h"
+#include "net/instaweb/apache/apache_resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/system/public/system_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/string.h"
-#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/ref_counted_owner.h"
+#include "net/instaweb/util/public/shared_circular_buffer.h"
 
 struct apr_pool_t;
 struct server_rec;
+struct request_rec;
 
 namespace net_instaweb {
 
+class AbstractSharedMem;
+class ApacheCache;
+class ApacheConfig;
 class ApacheMessageHandler;
-class ApacheServerContext;
-class MessageHandler;
-class ModSpdyFetchController;
-class QueuedWorkerPool;
-class ServerContext;
-class SharedCircularBuffer;
+class ApacheResourceManager;
+class SerfUrlAsyncFetcher;
+class SharedMemLockManager;
+class SharedMemRefererStatistics;
+class SharedMemStatistics;
 class SlowWorker;
-class StaticAssetManager;
-class Statistics;
-class Timer;
+class SyncFetcherAdapter;
+class UrlPollableAsyncFetcher;
 
 // Creates an Apache RewriteDriver.
-class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
+class ApacheRewriteDriverFactory : public RewriteDriverFactory {
  public:
-  // Path prefix where we serve static assets (primarily images and js
-  // resources) needed by some filters.
-  static const char kStaticAssetPrefix[];
-
   ApacheRewriteDriverFactory(server_rec* server, const StringPiece& version);
   virtual ~ApacheRewriteDriverFactory();
 
+  virtual Hasher* NewHasher();
+
+  // Returns the fetcher that will be used by the filters to load any
+  // resources they need. This either matches the resource manager's
+  // async fetcher or is NULL in case we are configured in a way that
+  // all fetches will succeed immediately. Must be called after the fetchers
+  // have been computed
+  UrlPollableAsyncFetcher* SubResourceFetcher();
+
+  GoogleString hostname_identifier() { return hostname_identifier_; }
+
+  AbstractSharedMem* shared_mem_runtime() const {
+    return shared_mem_runtime_.get();
+  }
+  SharedMemRefererStatistics* shared_mem_referer_statistics() const {
+    return shared_mem_referer_statistics_.get();
+  }
   // Give access to apache_message_handler_ for the cases we need
   // to use ApacheMessageHandler rather than MessageHandler.
   // e.g. Use ApacheMessageHandler::Dump()
@@ -62,116 +80,141 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   ApacheMessageHandler* apache_message_handler() {
     return apache_message_handler_;
   }
+  // For shared memory resources the general setup we follow is to have the
+  // first running process (aka the root) create the necessary segments and
+  // fill in their shared data structures, while processes created to actually
+  // handle requests attach to already existing shared data structures.
+  //
+  // During normal server startup[1], RootInit() is called from the Apache hooks
+  // in the root process for the first task, and then ChildInit() is called in
+  // any child process.
+  //
+  // Keep in mind, however, that when fork() is involved a process may
+  // effectively see both calls, in which case the 'ChildInit' call would
+  // come second and override the previous root status. Both calls are also
+  // invoked in the debug single-process mode (httpd -X).
+  //
+  // Note that these are not static methods --- they are invoked on every
+  // ApacheRewriteDriverFactory instance, which exist for the global
+  // configuration as well as all the vhosts.
+  //
+  // [1] Besides normal startup, Apache also uses a temporary process to
+  // syntax check the config file. That basically looks like a complete
+  // normal startup and shutdown to the code.
+  bool is_root_process() const { return is_root_process_; }
+  void RootInit();
+  void ChildInit();
 
-  virtual void ChildInit();
+  void DumpRefererStatistics(Writer* writer);
 
-  virtual void NonStaticInitStats(Statistics* statistics) {
-    InitStats(statistics);
-  }
+  SlowWorker* slow_worker() { return slow_worker_.get(); }
 
-  ApacheServerContext* MakeApacheServerContext(server_rec* server);
+  // Build shared-memory statistics.  This is invoked only if at least
+  // one VirtualHost enables statistics, in which case the shared-mem
+  // statistics is used for VirtualHosts.
+  Statistics* MakeSharedMemStatistics();
+
+  ApacheResourceManager* MakeApacheResourceManager(server_rec* server);
+
+  // Makes fetches from PSA to origin-server request
+  // accept-encoding:gzip, even when used in a context when we want
+  // cleartext.  We'll decompress as we read the content if needed.
+  void set_fetch_with_gzip(bool x) { fetch_with_gzip_ = x; }
 
   void set_num_rewrite_threads(int x) { num_rewrite_threads_ = x; }
-  int num_rewrite_threads() const { return num_rewrite_threads_; }
   void set_num_expensive_rewrite_threads(int x) {
     num_expensive_rewrite_threads_ = x;
   }
-  int num_expensive_rewrite_threads() const {
-    return num_expensive_rewrite_threads_;
+
+  void set_message_buffer_size(int x) {
+    message_buffer_size_ = x;
   }
 
-  virtual bool use_per_vhost_statistics() const {
-    return use_per_vhost_statistics_;
+  // When Serf gets a system error during polling, to avoid spamming
+  // the log we just print the number of outstanding fetch URLs.  To
+  // debug this it's useful to print the complete set of URLs, in
+  // which case this should be turned on.
+  void list_outstanding_urls_on_error(bool x) {
+    list_outstanding_urls_on_error_ = x;
   }
 
-  void set_use_per_vhost_statistics(bool x) {
-    use_per_vhost_statistics_ = x;
+  bool disable_loopback_routing() const {
+    return disable_loopback_routing_;
   }
 
-  virtual bool enable_property_cache() const {
-    return enable_property_cache_;
+  void set_disable_loopback_routing(bool x) {
+    disable_loopback_routing_ = x;
   }
 
-  void set_enable_property_cache(bool x) {
-    enable_property_cache_ = x;
-  }
+  // Finds a Cache for the file_cache_path in the config.  If none exists,
+  // creates one, using all the other parameters in the ApacheConfig.
+  // Currently, no checking is done that the other parameters (e.g. cache
+  // size, cleanup interval, etc.) are consistent.
+  ApacheCache* GetCache(ApacheConfig* config);
 
-  // If true, virtual hosts should inherit global configuration.
-  bool inherit_vhost_config() const {
-    return inherit_vhost_config_;
-  }
+  // Finds a fetcher for the settings in this config, sharing with
+  // existing fetchers if possible, otherwise making a new one (and
+  // its required thread).
+  UrlPollableAsyncFetcher* GetFetcher(ApacheConfig* config);
 
-  void set_inherit_vhost_config(bool x) {
-    inherit_vhost_config_ = x;
-  }
-
-  bool install_crash_handler() const {
-    return install_crash_handler_;
-  }
-
-  void set_install_crash_handler(bool x) {
-    install_crash_handler_ = x;
-  }
-
-  // mod_pagespeed uses a beacon handler to collect data for critical images,
-  // css, etc., so filters should be configured accordingly.
-  virtual bool UseBeaconResultsInFilters() const {
-    return true;
-  }
+  // Accumulate in a histogram the amount of time spent rewriting HTML.
+  void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
 
   // Notification of apache tearing down a context (vhost or top-level)
-  // corresponding to given ApacheServerContext. Returns true if it was
+  // corresponding to given ApacheResourceManager. Returns true if it was
   // the last context.
-  bool PoolDestroyed(ApacheServerContext* rm);
+  bool PoolDestroyed(ApacheResourceManager* rm);
 
-  virtual ApacheConfig* NewRewriteOptions();
+  // Create a new RewriteOptions.  In this implementation it will be an
+  // ApacheConfig.
+  virtual RewriteOptions* NewRewriteOptions();
 
   // As above, but set a name on the ApacheConfig noting that it came from
   // a query.
-  virtual ApacheConfig* NewRewriteOptionsForQuery();
+  virtual RewriteOptions* NewRewriteOptionsForQuery();
 
   // Initializes all the statistics objects created transitively by
   // ApacheRewriteDriverFactory, including apache-specific and
   // platform-independent statistics.
-  static void InitStats(Statistics* statistics);
-  static void Initialize();
-  static void Terminate();
+  static void Initialize(Statistics* statistics);
 
-  ModSpdyFetchController* mod_spdy_fetch_controller() {
-    return mod_spdy_fetch_controller_.get();
-  }
-
-  // Needed by mod_instaweb.cc:ParseDirective().
-  virtual void set_message_buffer_size(int x) {
-    SystemRewriteDriverFactory::set_message_buffer_size(x);
-  }
-
-  // Override requests_per_host to take num_rewrite_threads_ into account.
-  virtual int requests_per_host();
+  // Sets a session fetcher on the driver that routes requests directly to this
+  // very server when they are not configured to be external.
+  void ApplyLoopbackFetchRouting(ApacheResourceManager* manager,
+                                 RewriteDriver* driver,
+                                 request_rec* req);
 
  protected:
+  virtual UrlFetcher* DefaultUrlFetcher();
+  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
+
   // Provide defaults.
   virtual MessageHandler* DefaultHtmlParseMessageHandler();
   virtual MessageHandler* DefaultMessageHandler();
+  virtual FileSystem* DefaultFileSystem();
   virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
-  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
-                                             StringPiece name);
+  virtual CacheInterface* DefaultCacheInterface();
+  virtual NamedLockManager* DefaultLockManager();
+  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolName name);
 
   // Disable the Resource Manager's filesystem since we have a
   // write-through http_cache.
   virtual bool ShouldWriteResourcesToFileSystem() { return false; }
 
-  virtual void ParentOrChildInit();
+  // This helper method contains init procedures invoked by both RootInit()
+  // and ChildInit()
+  void ParentOrChildInit();
+  // Initialize SharedCircularBuffer and pass it to ApacheMessageHandler and
+  // ApacheHtmlParseMessageHandler. is_root is true if this is invoked from
+  // root (ie. parent) process.
+  void SharedCircularBufferInit(bool is_root);
+  // Initialize shared_mem_referer_statistics_; is_root should be true if this
+  // is invoked from the root (i.e. parent) process
+  void SharedMemRefererStatisticsInit(bool is_root);
 
-  virtual void SetupMessageHandlers();
-  virtual void ShutDownMessageHandlers();
-  virtual void ShutDownFetchers();
-
-  virtual void SetCircularBuffer(SharedCircularBuffer* buffer);
-
-  // Initializes the StaticAssetManager.
-  virtual void InitStaticAssetManager(StaticAssetManager* static_asset_manager);
+  // Release all the resources. It also calls the base class ShutDown to release
+  // the base class resources.
+  virtual void ShutDown();
 
  private:
   // Updates num_rewrite_threads_ and num_expensive_rewrite_threads_
@@ -180,14 +223,28 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   apr_pool_t* pool_;
   server_rec* server_rec_;
+  scoped_ptr<SharedMemStatistics> shared_mem_statistics_;
+  scoped_ptr<AbstractSharedMem> shared_mem_runtime_;
+  scoped_ptr<SharedCircularBuffer> shared_circular_buffer_;
   scoped_ptr<SlowWorker> slow_worker_;
 
   // TODO(jmarantz): These options could be consolidated in a protobuf or
   // some other struct, which would keep them distinct from the rest of the
   // state.  Note also that some of the options are in the base class,
   // RewriteDriverFactory, so we'd have to sort out how that worked.
-  GoogleString version_;
+  std::string version_;
 
+  bool statistics_frozen_;
+  bool is_root_process_;
+  bool fetch_with_gzip_;
+  bool list_outstanding_urls_on_error_;
+
+  scoped_ptr<SharedMemRefererStatistics> shared_mem_referer_statistics_;
+
+  // hostname_identifier_ equals to "server_hostname:port" of Apache,
+  // it's used to distinguish the name of shared memory,
+  // so that each vhost has its own SharedCircularBuffer.
+  const GoogleString hostname_identifier_;
   // This will be assigned to message_handler_ when message_handler() or
   // html_parse_message_handler is invoked for the first time.
   // We keep an extra link because we need to refer them as
@@ -200,19 +257,21 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   // writes to the same shared memory which is owned by the factory.
   ApacheMessageHandler* apache_html_parse_message_handler_;
 
-  // If true, we'll have a separate statistics object for each vhost
-  // (along with a global aggregate), rather than just a single object
-  // aggregating all of them.
-  bool use_per_vhost_statistics_;
+  // Once ResourceManagers are initialized via
+  // RewriteDriverFactory::InitResourceManager, they will be
+  // managed by the RewriteDriverFactory.  But in the root Apache process
+  // the ResourceManagers will never be initialized.  We track these here
+  // so that ApacheRewriteDriverFactory::ChildInit can iterate over all
+  // the managers that need to be ChildInit'd, and so that we can free
+  // the managers in the Root process that were never ChildInit'd.
+  typedef std::set<ApacheResourceManager*> ApacheResourceManagerSet;
+  ApacheResourceManagerSet uninitialized_managers_;
 
-  // Enable the property cache.
-  bool enable_property_cache_;
+  Histogram* html_rewrite_time_us_histogram_;
 
-  // Inherit configuration from global context into vhosts.
-  bool inherit_vhost_config_;
-
-  // If true, we'll install a signal handler that prints backtraces.
-  bool install_crash_handler_;
+  // If false (default) we will redirect all fetches to unknown hosts to
+  // localhost.
+  bool disable_loopback_routing_;
 
   // true iff we ran through AutoDetectThreadCounts()
   bool thread_counts_finalized_;
@@ -221,10 +280,20 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   int num_rewrite_threads_;
   int num_expensive_rewrite_threads_;
 
-  int max_mod_spdy_fetch_threads_;
+  // Size of shared circular buffer for displaying Info messages in
+  // /mod_pagespeed_messages.
+  int message_buffer_size_;
 
-  // Helps coordinate direct-to-mod_spdy fetches.
-  scoped_ptr<ModSpdyFetchController> mod_spdy_fetch_controller_;
+  // Caches are expensive.  Just allocate one per distinct file-cache path.
+  // At the moment there is no consistency checking for other parameters.
+  typedef std::map<GoogleString, ApacheCache*> PathCacheMap;
+  PathCacheMap path_cache_map_;
+
+  // Serf fetchers are expensive -- they each cost a thread. Allocate
+  // one for each proxy/slurp-setting.  Currently there is no
+  // consistency checking for fetcher timeout.
+  typedef std::map<GoogleString, UrlPollableAsyncFetcher*> FetcherMap;
+  FetcherMap fetcher_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheRewriteDriverFactory);
 };

@@ -22,7 +22,7 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -51,7 +51,7 @@ class InlineRewriteContext : public RewriteContext {
 
  protected:
   // Subclasses of InlineRewriteContext must override these:
-  virtual bool ShouldInline(const ResourcePtr& resource) const = 0;
+  virtual bool ShouldInline(const StringPiece& input) const = 0;
   virtual void RenderInline(const ResourcePtr& resource,
                             const StringPiece& text,
                             HtmlElement* element) = 0;
@@ -66,7 +66,7 @@ class InlineRewriteContext : public RewriteContext {
   virtual void Render();
   virtual OutputResourceKind kind() const;
 
-  HtmlElement* get_element() const { return element_; }
+  HtmlElement* get_element() { return element_; }
 
  private:
   CommonFilter* filter_;

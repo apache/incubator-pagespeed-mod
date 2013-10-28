@@ -19,20 +19,21 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
 
+#include "base/scoped_ptr.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_manager.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
@@ -44,7 +45,6 @@ class Stylesheet;
 
 namespace net_instaweb {
 
-class AssociationTransformer;
 class CssImageRewriter;
 class CacheExtender;
 class HtmlCharactersNode;
@@ -54,8 +54,6 @@ class MessageHandler;
 class OutputPartitions;
 class ResourceContext;
 class RewriteContext;
-class RewriteDriver;
-class RewriteDomainTransformer;
 class Statistics;
 class UrlSegmentEncoder;
 class Variable;
@@ -83,16 +81,8 @@ class CssFilter : public RewriteFilter {
             ImageCombineFilter* image_combiner);
   virtual ~CssFilter();
 
-  // May be called multiple times, in case there are multiple statistics
-  // objects.
-  static void InitStats(Statistics* statistics);
-
-  // Initialize & Terminate must be paired.
-  static void Initialize();
+  static void Initialize(Statistics* statistics);
   static void Terminate();
-
-  // Add this filters related options to the given vector.
-  static void AddRelatedOptions(StringPieceVector* target);
 
   // Note: AtExitManager needs to be initialized or you get a nasty error:
   // Check failed: false. Tried to RegisterCallback without an AtExitManager.
@@ -106,36 +96,19 @@ class CssFilter : public RewriteFilter {
 
   virtual const char* Name() const { return "CssFilter"; }
   virtual const char* id() const { return RewriteOptions::kCssFilterId; }
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context) const;
+  virtual int FilterCacheFormatVersion() const;
 
   static const char kBlocksRewritten[];
   static const char kParseFailures[];
-  static const char kFallbackRewrites[];
-  static const char kFallbackFailures[];
   static const char kRewritesDropped[];
   static const char kTotalBytesSaved[];
   static const char kTotalOriginalBytes[];
   static const char kUses[];
-  static const char kCharsetMismatch[];
-  static const char kInvalidUrl[];
-  static const char kLimitExceeded[];
-  static const char kMinifyFailed[];
-  static const char kRecursion[];
-  static const char kComplexQueries[];
 
   RewriteContext* MakeNestedFlatteningContextInNewSlot(
       const ResourcePtr& resource, const GoogleString& location,
       CssFilter::Context* rewriter, RewriteContext* parent,
       CssHierarchy* hierarchy);
-
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const {
-    *num_filters = merged_filters_size_;
-    return merged_filters_;
-  }
-  virtual const StringPieceVector* RelatedOptions() const {
-    return related_options_;
-  }
 
  protected:
   virtual RewriteContext* MakeRewriteContext();
@@ -145,26 +118,18 @@ class CssFilter : public RewriteFilter {
 
  private:
   friend class Context;
-  friend class CssFlattenImportsContext;  // for statistics
-  friend class CssHierarchy;              // for statistics
-
-  enum InlineCssKind {
-    kInsideStyleTag,
-    kAttributeWithoutUrls,
-    kAttributeWithUrls
-  };
 
   Context* MakeContext(RewriteDriver* driver,
                        RewriteContext* parent);
 
-  // Starts the asynchronous rewrite process for inline CSS 'text'.
-  void StartInlineRewrite(HtmlCharactersNode* text);
+  // Starts the asynchronous rewrite process for inline CSS inside the given
+  // style_element, with the CSS in 'text'.
+  void StartInlineRewrite(HtmlElement* style_element, HtmlCharactersNode* text);
 
   // Starts the asynchronous rewrite process for inline CSS inside the given
   // element's given style attribute.
   void StartAttributeRewrite(HtmlElement* element,
-                             HtmlElement::Attribute* style,
-                             InlineCssKind inline_css_kind);
+                             HtmlElement::Attribute* style);
 
   // Starts the asynchronous rewrite process for external CSS referenced by
   // attribute 'src' of 'link'.
@@ -176,11 +141,10 @@ class CssFilter : public RewriteFilter {
   // Get the charset of the HTML being parsed which can be specified in the
   // driver's headers, defaulting to ISO-8859-1 if isn't. Then, if a charset
   // is specified in the given element, check that they agree, and if not
-  // return false and set the failure reason, otherwise return true and assign
-  // the first charset to '*charset'.
+  // return false, otherwise return true and assign the first charset to the
+  // given string.
   bool GetApplicableCharset(const HtmlElement* element,
-                            GoogleString* charset,
-                            GoogleString* failure_reason) const;
+                            GoogleString* charset) const;
 
   // Get the media specified in the given element, if any. Returns true if
   // media were found false if not.
@@ -188,8 +152,9 @@ class CssFilter : public RewriteFilter {
                           StringVector* media) const;
 
   bool in_style_element_;  // Are we in a style element?
-  // This is meaningless if in_style_element_ is false:
+  // These are meaningless if in_style_element_ is false:
   HtmlElement* style_element_;  // The element we are in.
+  HtmlCharactersNode* style_char_node_;  // The single character node in style.
 
   // The charset extracted from a meta tag, if any.
   GoogleString meta_tag_charset_;
@@ -205,11 +170,6 @@ class CssFilter : public RewriteFilter {
   Variable* num_blocks_rewritten_;
   // # of CSS blocks that rewriter failed to parse.
   Variable* num_parse_failures_;
-  // # of CSS blocks that failed to be parsed, but were rewritten in the
-  // fallback path.
-  Variable* num_fallback_rewrites_;
-  // # of CSS blocks that failed to be rewritten in the fallback path.
-  Variable* num_fallback_failures_;
   // # of CSS rewrites which were not applied because they made the CSS larger
   // and did not rewrite any images in it/flatten any other CSS files into it.
   Variable* num_rewrites_dropped_;
@@ -226,27 +186,8 @@ class CssFilter : public RewriteFilter {
   // # of uses of rewritten CSS (updating <link> href= attributes,
   // <style> contents or style= attributes).
   Variable* num_uses_;
-  // # of times CSS was not flattened because of a charset mismatch.
-  Variable* num_flatten_imports_charset_mismatch_;
-  // # of times CSS was not flattened because of an invalid @import URL.
-  Variable* num_flatten_imports_invalid_url_;
-  // # of times CSS was not flattened because the resulting CSS too big.
-  Variable* num_flatten_imports_limit_exceeded_;
-  // # of times CSS was not flattened because minification failed.
-  Variable* num_flatten_imports_minify_failed_;
-  // # of times CSS was not flattened because of recursive imports.
-  Variable* num_flatten_imports_recursion_;
-  // # of times CSS was not flattened because it had complex media queries.
-  Variable* num_flatten_imports_complex_queries_;
 
   CssUrlEncoder encoder_;
-
-  // The filters related to this filter.
-  static const RewriteOptions::Filter* merged_filters_;
-  static int merged_filters_size_;
-
-  // The options related to this filter.
-  static StringPieceVector* related_options_;
 
   DISALLOW_COPY_AND_ASSIGN(CssFilter);
 };
@@ -264,15 +205,10 @@ class CssFilter::Context : public SingleRewriteContext {
 
   // Setup rewriting for inline, attribute, or external CSS.
   void SetupInlineRewrite(HtmlElement* style_element, HtmlCharactersNode* text);
-  void SetupAttributeRewrite(HtmlElement* element,
-                             HtmlElement::Attribute* src,
-                             InlineCssKind inline_css_kind);
-  void SetupExternalRewrite(HtmlElement* element,
-                            const GoogleUrl& base_gurl,
+  void SetupAttributeRewrite(HtmlElement* element, HtmlElement::Attribute* src);
+  void SetupExternalRewrite(const GoogleUrl& base_gurl,
                             const GoogleUrl& trim_gurl);
 
-  // Starts nested rewrite jobs for any imports or images contained in the CSS.
-  // Marked public, so that it's accessible from CssHierarchy.
   void RewriteCssFromNested(RewriteContext* parent, CssHierarchy* hierarchy);
 
   // Specialization to absolutify URLs in input resource in case of rewrite
@@ -296,10 +232,6 @@ class CssFilter::Context : public SingleRewriteContext {
   virtual GoogleString CacheKeySuffix() const;
   virtual const UrlSegmentEncoder* encoder() const;
 
-  // Implements UserAgentCacheKey method of RewriteContext.
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* resource_context) const;
-
  private:
   bool RewriteCssText(const GoogleUrl& css_base_gurl,
                       const GoogleUrl& css_trim_gurl,
@@ -307,17 +239,9 @@ class CssFilter::Context : public SingleRewriteContext {
                       int64 in_text_size,
                       bool text_is_declarations,
                       MessageHandler* handler);
-
   // Starts nested rewrite jobs for any imports or images contained in the CSS.
   void RewriteCssFromRoot(const StringPiece& in_text, int64 in_text_size,
                           bool has_unparseables, Css::Stylesheet* stylesheet);
-
-  // Fall back to using CssTagScanner to find the URLs and rewrite them
-  // that way. Like RewriteCssFromRoot, output is written into output
-  // resource in Harvest(). Called if CSS Parser fails to parse doc.
-  // Returns whether or not fallback rewriting succeeds. Fallback can fail
-  // if URLs in CSS are not parseable.
-  bool FallbackRewriteUrls(const StringPiece& in_text);
 
   // Tries to write out a (potentially edited) stylesheet out to out_text,
   // and returns whether we should consider the result as an improvement.
@@ -341,7 +265,15 @@ class CssFilter::Context : public SingleRewriteContext {
   // Determine the appropriate image inlining threshold based upon whether we're
   // in an html file (<style> tag or style= attribute) or in an external css
   // file.
-  int64 ImageInlineMaxBytes() const;
+  int64 ImageInlineMaxBytes() const {
+    if (rewrite_inline_element_ != NULL) {
+      // We're in an html context.
+      return driver_->options()->ImageInlineMaxBytes();
+    } else {
+      // We're in a standalone CSS file.
+      return driver_->options()->CssImageInlineMaxBytes();
+    }
+  }
 
   CssFilter* filter_;
   RewriteDriver* driver_;
@@ -350,19 +282,6 @@ class CssFilter::Context : public SingleRewriteContext {
   CssHierarchy hierarchy_;
   bool css_rewritten_;
   bool has_utf8_bom_;
-
-  // Are we performing a fallback rewrite?
-  bool fallback_mode_;
-  // Transformer used by CssTagScanner to rewrite URLs if we failed to
-  // parse CSS. This will only be defined if CSS parsing failed.
-  scoped_ptr<AssociationTransformer> fallback_transformer_;
-  // Backup transformer for AssociationTransformer. Absolutifies URLs and
-  // rewrites their domains as necessary if they can't be cache extended.
-  scoped_ptr<RewriteDomainTransformer> absolutifier_;
-
-  // The element containing the CSS being rewritten, either a script element
-  // (inline), a link element (external), or anything with a style attribute.
-  HtmlElement* rewrite_element_;
 
   // Style element containing inline CSS (see StartInlineRewrite) -or-
   // any element with a style attribute (see StartAttributeRewrite), or
@@ -376,11 +295,6 @@ class CssFilter::Context : public SingleRewriteContext {
   // exclusive with rewrite_inline_char_node_ since style elements cannot
   // have style attributes.
   HtmlElement::Attribute* rewrite_inline_attribute_;
-
-  // Indicates the kind of CSS inline CSS we are rewriting (<style> vs. style=,
-  // and whether we've noticed any URLs). Only valid if the other
-  // rewrite_inline_ fields reflect us doing inline rewriting.
-  InlineCssKind rewrite_inline_css_kind_;
 
   // Information needed for nested rewrites or finishing up serialization.
   int64 in_text_size_;

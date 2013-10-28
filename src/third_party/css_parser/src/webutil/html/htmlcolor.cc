@@ -721,7 +721,7 @@ static const RgbValue * GetKnownColorValue(const char *colorstr) {
       return &known_color_values[146];
     }
     return NULL;
-  }
+  };
 
   return NULL;
 }  // NOLINT
@@ -731,9 +731,7 @@ const unsigned char HtmlColor::kBadColorName;
 const unsigned char HtmlColor::kBadColorHex;
 
 static inline int TwoXDigitsToNum(const char *xstr) {
-  return (
-      strings::hex_digit_to_int(
-          xstr[0])*16 + strings::hex_digit_to_int(xstr[1]));
+  return (hex_digit_to_int(xstr[0])*16 + hex_digit_to_int(xstr[1]));
 }
 
 void HtmlColor::SetValueFromHexStr(const char *hexstr) {
