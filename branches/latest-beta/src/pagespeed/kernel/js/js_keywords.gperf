@@ -1,0 +1,122 @@
+%{
+// js_keywords.cc is automatically generated from js_keywords.gperf.
+// Author: jmarantz@google.com
+
+#include "base/logging.h"
+#include "pagespeed/kernel/js/js_keywords.h"
+#include "pagespeed/kernel/base/string_util.h"
+
+namespace pagespeed {
+%}
+%compare-strncmp
+%define class-name JsKeywordMapper
+%define lookup-function-name Lookup
+%define word-array-name kJsKeywordsTable
+%global-table
+%includes
+%language=C++
+%readonly-tables
+%struct-type
+
+struct JsKeywordMap {
+  const char* name;
+  pagespeed::JsKeywords::Type keyword;
+  pagespeed::JsKeywords::Flag flag;
+};
+%%
+### literals
+"false",        JsKeywords::kFalse,           JsKeywords::kIsValue
+"null",         JsKeywords::kNull,            JsKeywords::kIsValue
+"true",         JsKeywords::kTrue,            JsKeywords::kIsValue
+### keywords that can precede regular expressions
+"case",         JsKeywords::kCase,            JsKeywords::kCanPrecedeRegEx
+"delete",       JsKeywords::kDelete,          JsKeywords::kCanPrecedeRegEx
+"do",           JsKeywords::kDo,              JsKeywords::kCanPrecedeRegEx
+"in",           JsKeywords::kIn,              JsKeywords::kCanPrecedeRegEx
+"instanceof",   JsKeywords::kInstanceof,      JsKeywords::kCanPrecedeRegEx
+"new",          JsKeywords::kNew,             JsKeywords::kCanPrecedeRegEx
+"return",       JsKeywords::kReturn,          JsKeywords::kCanPrecedeRegEx
+"throw",        JsKeywords::kThrow,           JsKeywords::kCanPrecedeRegEx
+"typeof",       JsKeywords::kTypeof,          JsKeywords::kCanPrecedeRegEx
+"void",         JsKeywords::kVoid,            JsKeywords::kCanPrecedeRegEx
+### keywords that can't precede regular expressions
+"break",        JsKeywords::kBreak,           JsKeywords::kNone
+"catch",        JsKeywords::kCatch,           JsKeywords::kNone
+"const",        JsKeywords::kConst,           JsKeywords::kNone
+"continue",     JsKeywords::kContinue,        JsKeywords::kNone
+"debugger",     JsKeywords::kDebugger,        JsKeywords::kNone
+"default",      JsKeywords::kDefault,         JsKeywords::kNone
+"else",         JsKeywords::kElse,            JsKeywords::kNone
+"finally",      JsKeywords::kFinally,         JsKeywords::kNone
+"for",          JsKeywords::kFor,             JsKeywords::kNone
+"function",     JsKeywords::kFunction,        JsKeywords::kNone
+"if",           JsKeywords::kIf,              JsKeywords::kNone
+"switch",       JsKeywords::kSwitch,          JsKeywords::kNone
+"this",         JsKeywords::kThis,            JsKeywords::kNone
+"try",          JsKeywords::kTry,             JsKeywords::kNone
+"while",        JsKeywords::kWhile,           JsKeywords::kNone
+"with",         JsKeywords::kWith,            JsKeywords::kNone
+"var",          JsKeywords::kVar,             JsKeywords::kNone
+### reserved for future use
+"class",        JsKeywords::kClass,           JsKeywords::kIsReservedNonStrict
+"enum",         JsKeywords::kEnum,            JsKeywords::kIsReservedNonStrict
+"export",       JsKeywords::kExport,          JsKeywords::kIsReservedNonStrict
+"extends",      JsKeywords::kExtends,         JsKeywords::kIsReservedNonStrict
+"import",       JsKeywords::kImport,          JsKeywords::kIsReservedNonStrict
+"super",        JsKeywords::kSuper,           JsKeywords::kIsReservedNonStrict
+### reserved for future use in strict code
+"implements",   JsKeywords::kImplements,      JsKeywords::kIsReservedStrict
+"interface",    JsKeywords::kInterface,       JsKeywords::kIsReservedStrict
+"let",          JsKeywords::kLet,             JsKeywords::kIsReservedStrict
+"package",      JsKeywords::kPackage,         JsKeywords::kIsReservedStrict
+"private",      JsKeywords::kPrivate,         JsKeywords::kIsReservedStrict
+"protected",    JsKeywords::kProtected,       JsKeywords::kIsReservedStrict
+"public",       JsKeywords::kPublic,          JsKeywords::kIsReservedStrict
+"static",       JsKeywords::kStatic,          JsKeywords::kIsReservedStrict
+"yield",        JsKeywords::kYield,           JsKeywords::kIsReservedStrict
+%%
+
+JsKeywords::Type JsKeywords::Lookup(const StringPiece& keyword,
+                                       JsKeywords::Flag* flag) {
+  const JsKeywordMap* keyword_map =
+      JsKeywordMapper::Lookup(keyword.data(), keyword.size());
+  if (keyword_map != NULL) {
+    *flag = keyword_map->flag;
+    return keyword_map->keyword;
+  }
+  return JsKeywords::kNotAKeyword;
+}
+
+bool JsKeywords::Iterator::AtEnd() const {
+  return index_ > MAX_HASH_VALUE;
+}
+
+void JsKeywords::Iterator::Next() {
+  DCHECK(!AtEnd());
+  ++index_;
+  while (!AtEnd() && (*(kJsKeywordsTable[index_].name) == '\0')) {
+    ++index_;
+  }
+}
+
+const char* JsKeywords::Iterator::name() const {
+  DCHECK(!AtEnd());
+  return kJsKeywordsTable[index_].name;
+}
+
+JsKeywords::Type JsKeywords::Iterator::keyword() const {
+  DCHECK(!AtEnd());
+  return kJsKeywordsTable[index_].keyword;
+}
+
+int JsKeywords::num_keywords() {
+  return TOTAL_KEYWORDS;
+}
+
+bool JsKeywords::CanKeywordPrecedeRegEx(const StringPiece& name) {
+  Flag flag;
+  Type type = Lookup(name, &flag);
+  return (IsAKeyword(type) && flag == kCanPrecedeRegEx);
+}
+
+}  // namespace net_instaweb
