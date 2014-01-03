@@ -39,8 +39,8 @@ namespace net_instaweb {
 class WaveformTest : public testing::Test {
  protected:
   WaveformTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+      : timer_(MockTimer::kApr_5_2010_ms),
+        thread_system_(Platform::CreateThreadSystem()),
         stats_(thread_system_.get()),
         handler_(thread_system_->NewMutex()) {
   }
@@ -53,8 +53,8 @@ class WaveformTest : public testing::Test {
     return (html.find(Format(time_ms, value)) != GoogleString::npos);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
+  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   MockMessageHandler handler_;
 };

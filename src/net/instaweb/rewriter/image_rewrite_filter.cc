@@ -206,7 +206,7 @@ const char ImageRewriteFilter::kImageOngoingRewrites[] =
     "image_ongoing_rewrites";
 const char ImageRewriteFilter::kImageResizedUsingRenderedDimensions[] =
     "image_resized_using_rendered_dimensions";
-const char ImageRewriteFilter::kImageWebpRewrites[] = "image_webp_rewrites";
+const char kImageWebpRewrites[] = "image_webp_rewrites";
 const char ImageRewriteFilter::kInlinableImageUrlsPropertyName[] =
     "ImageRewriter-inlinable-urls";
 const char ImageRewriteFilter::kImageRewriteLatencyOkMs[] =
@@ -1206,10 +1206,9 @@ bool ImageRewriteFilter::FinishRewriteCssImageUrl(
     DCHECK(!options->cache_small_images_unrewritten())
         << "Modifying a URL slot despite "
         << "image_inlining_identify_and_cache_without_rewriting set.";
-    if (slot->DirectSetUrl(data_url)) {
-      image_inline_count_->Add(1);
-      return true;
-    }
+    slot->DirectSetUrl(data_url);
+    image_inline_count_->Add(1);
+    return true;
   } else if (cached->optimizable()) {
     image_rewrite_uses_->Add(1);
   }

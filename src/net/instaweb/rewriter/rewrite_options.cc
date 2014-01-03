@@ -91,8 +91,6 @@ const char RewriteOptions::kDomainRewriteHyperlinks[] =
 const char RewriteOptions::kDomainShardCount[] = "DomainShardCount";
 const char RewriteOptions::kDownstreamCachePurgeMethod[] =
     "DownstreamCachePurgeMethod";
-const char RewriteOptions::kDownstreamCacheRebeaconingKey[] =
-    "DownstreamCacheRebeaconingKey";
 const char RewriteOptions::kDownstreamCacheRewrittenPercentageThreshold[] =
     "DownstreamCacheRewrittenPercentageThreshold";
 const char RewriteOptions::kEnableAggressiveRewritersForMobile[] =
@@ -151,10 +149,10 @@ const char RewriteOptions::kImageRecompressionQuality[] =
 const char RewriteOptions::kImageResolutionLimitBytes[] =
     "ImageResolutionLimitBytes";
 const char RewriteOptions::kImageWebpRecompressionQuality[] =
-    "WebpRecompressionQuality";
+    "ImageWebpRecompressionQuality";
 const char RewriteOptions::kImageWebpRecompressionQualityForSmallScreens[] =
-    "WebpRecompressionQualityForSmallScreens";
-const char RewriteOptions::kImageWebpTimeoutMs[] = "WebpTimeoutMs";
+    "ImageWebpRecompressionQualityForSmallScreens";
+const char RewriteOptions::kImageWebpTimeoutMs[] = "ImageWebpTimeoutMs";
 const char RewriteOptions::kImplicitCacheTtlMs[] = "ImplicitCacheTtlMs";
 const char RewriteOptions::kInPlaceResourceOptimization[] =
     "InPlaceResourceOptimization";
@@ -173,8 +171,6 @@ const char RewriteOptions::kInPlaceRewriteDeadlineMs[] =
 const char RewriteOptions::kIncreaseSpeedTracking[] = "IncreaseSpeedTracking";
 const char RewriteOptions::kInlineOnlyCriticalImages[] =
     "InlineOnlyCriticalImages";
-const char RewriteOptions::kInlineUnauthorizedResourcesExperimental[] =
-    "InlineUnauthorizedResourcesExperimental";
 const char RewriteOptions::kJsInlineMaxBytes[] = "JsInlineMaxBytes";
 const char RewriteOptions::kJsOutlineMinBytes[] = "JsOutlineMinBytes";
 const char RewriteOptions::kJsPreserveURLs[] = "JsPreserveURLs";
@@ -237,6 +233,8 @@ const char RewriteOptions::kRewriteRandomDropPercentage[] =
     "RewriteRandomDropPercentage";
 const char RewriteOptions::kRewriteUncacheableResources[] =
     "RewriteUncacheableResources";
+const char RewriteOptions::kRewriteRequestUrlsEarly[] =
+    "RewriteRequestUrlsEarly";
 const char RewriteOptions::kRunningExperiment[] = "RunExperiment";
 const char RewriteOptions::kServeGhostClickBusterWithSplitHtml[] =
     "ServeGhostClickBusterWithSplitHtml";
@@ -305,8 +303,6 @@ const char RewriteOptions::kMemcachedThreads[] = "MemcachedThreads";
 const char RewriteOptions::kMemcachedTimeoutUs[] = "MemcachedTimeoutUs";
 const char RewriteOptions::kRateLimitBackgroundFetches[] =
     "RateLimitBackgroundFetches";
-const char RewriteOptions::kServeWebpToAnyAgent[] =
-    "ServeRewrittenWebpUrlsToAnyAgent";
 const char RewriteOptions::kSlurpDirectory[] = "SlurpDirectory";
 const char RewriteOptions::kSlurpFlushLimit[] = "SlurpFlushLimit";
 const char RewriteOptions::kSlurpReadOnly[] = "SlurpReadOnly";
@@ -574,7 +570,6 @@ const RewriteOptions::Filter kTestFilterSet[] = {
   RewriteOptions::kDebug,
   RewriteOptions::kDeferIframe,
   RewriteOptions::kDeferJavascript,
-  RewriteOptions::kDelayImages,  // AKA inline_preview_images
   RewriteOptions::kInsertGA,
   RewriteOptions::kInsertImageDimensions,
   RewriteOptions::kLazyloadImages,
@@ -594,7 +589,6 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
   RewriteOptions::kDeterministicJs,   // used for measurement
   RewriteOptions::kDisableJavascript,
   RewriteOptions::kDivStructure,
-  RewriteOptions::kExperimentSpdy,
   RewriteOptions::kExplicitCloseTags,
   RewriteOptions::kFixReflows,
   RewriteOptions::kSplitHtml,  // internal, enabled conditionally
@@ -694,8 +688,6 @@ const RewriteOptions::FilterEnumToIdAndNameEntry
     "ds", "Div Structure" },
   { RewriteOptions::kElideAttributes,
     "ea", "Elide Attributes" },
-  { RewriteOptions::kExperimentSpdy,
-    "xs", "SPDY Resources Experiment" },
   { RewriteOptions::kExplicitCloseTags,
     "xc", "Explicit Close Tags" },
   { RewriteOptions::kExtendCacheCss,
@@ -861,30 +853,6 @@ void StripBeaconUrlQueryParam(GoogleString* url,
   url_split[0].CopyToString(url_no_query_param);
 }
 
-// Maps the deprecated options to the new names.
-struct DeprecatedOptionMap {
-  static bool LessThan(
-      const DeprecatedOptionMap& option_map,
-      StringPiece arg) {
-    return StringCaseCompare(option_map.deprecated_option_name, arg) < 0;
-  }
-
-  const char* deprecated_option_name;
-  const char* new_option_name;
-};
-
-const DeprecatedOptionMap kDeprecatedOptionNameData[] = {
-  {"ImageWebpRecompressionQuality",
-      "WebpRecompressionQuality"},
-  {"ImageWebpRecompressionQualityForSmallScreens",
-      "WebpRecompressionQualityForSmallScreens"}
-};
-
-std::vector<DeprecatedOptionMap> kDeprecatedOptionNameList(
-    kDeprecatedOptionNameData,
-    kDeprecatedOptionNameData + arraysize(kDeprecatedOptionNameData)
-);
-
 }  // namespace
 
 const char* RewriteOptions::FilterName(Filter filter) {
@@ -1018,6 +986,10 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
   }
 
   InitializeOptions(properties_);
+
+  // We need to exclude this test-only option from signature, since we may need
+  // to change it in the middle of tests.
+  test_instant_fetch_rewrite_deadline_.DoNotUseForSignatureComputation();
 
   // Enable HtmlWriterFilter by default.
   EnableFilter(kHtmlWriterFilter);
@@ -1323,12 +1295,6 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty(
       false, &RewriteOptions::respect_x_forwarded_proto_, "rxfp",
       kRespectXForwardedProto,
-      // Note: We mark this as kDirectoryScope because we mistakenly used to.
-      // It does not actually work in directory-scope and is documented to
-      // only work on server-scope.
-      // Note: We must check this option to get the proper URL, but the proper
-      // URL is needed to get directory-specific options, so allowing this in
-      // directory-scope would be a circular dependency.
       kDirectoryScope,
       "Whether to respect the X-Forwarded-Proto header.");
   AddBaseProperty(
@@ -1366,7 +1332,7 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       NULL);
   AddBaseProperty(
-      0,
+      true,
       &RewriteOptions::serve_stale_while_revalidate_threshold_sec_,
       "sswrt",
       kServeStaleWhileRevalidateThresholdSec,
@@ -1464,8 +1430,10 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "URL for beacon callback injected by add_instrumentation.");
 
-  // lazyload_images_after_onload_ is especially important for mobile,
-  // where the recommendation is that you prefetch all the
+  // TODO(jmarantz): igrigorik suggests that 'onload' should be the
+  // default in mobile.
+  //
+  // For mobile, the recommendation is that you prefetch all the
   // necessary assets (burst your data), and then shutoff the radio to
   // preserve battery. Further, if the radio has been idle, and then
   // you scroll, then you'll have to incur the RRC upgrade cost, which
@@ -1478,9 +1446,10 @@ void RewriteOptions::AddProperties() {
   // in radio consuming power for 10s+.  So you incur unnecessary
   // latency, burn battery, etc.
   //
-  // http://developer.android.com/training/efficient-downloads/efficient-network-access.html#PrefetchData
+  // http://developer.android.com/training/efficient-downloads
+  // /efficient-network-access.html#PrefetchData
   AddBaseProperty(
-      true, &RewriteOptions::lazyload_images_after_onload_, "llio",
+      false, &RewriteOptions::lazyload_images_after_onload_, "llio",
       kLazyloadImagesAfterOnload,
       kDirectoryScope,
       "Wait until page onload before loading lazy images");
@@ -1501,14 +1470,6 @@ void RewriteOptions::AddProperties() {
       kInlineOnlyCriticalImages,
       kDirectoryScope,
       NULL);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::inline_unauthorized_resources_, "iur",
-      kInlineUnauthorizedResourcesExperimental,
-      kDirectoryScope,
-      // TODO(anupama): Update this help text once the option is ready.
-      "Experimental option for inlining unauthorized js and css resources. Do "
-      "not enable this option on your servers yet. This option name may change "
-      "in the future.");
   AddBaseProperty(
       false, &RewriteOptions::domain_rewrite_hyperlinks_, "drh",
       kDomainRewriteHyperlinks,
@@ -1585,7 +1546,7 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "Set quality parameter for recompressing webp images for small "
       "screens. [-1,100], 100 refers to best quality, -1 falls back to "
-      "WebpRecompressionQuality.");
+      "ImageWebpRecompressionQuality.");
   AddBaseProperty(
       kDefaultImageWebpTimeoutMs,
       &RewriteOptions::image_webp_timeout_ms_, "wt",
@@ -1791,6 +1752,13 @@ void RewriteOptions::AddProperties() {
   // Currently not applicable for mod_pagespeed.
   AddBaseProperty(
       false,
+      &RewriteOptions::rewrite_request_urls_early_, "rrue",
+      kRewriteRequestUrlsEarly,
+      kServerScope,
+      "If set, we apply the origin rules to rewrite requests urls before "
+      "we start processing them");
+  AddBaseProperty(
+      false,
       &RewriteOptions::enable_blink_html_change_detection_logging_,
       "ebhcdl", kEnableBlinkHtmlChangeDetectionLogging,
       kDirectoryScope,
@@ -1846,12 +1814,6 @@ void RewriteOptions::AddProperties() {
       kDownstreamCachePurgeMethod,
       kDirectoryScope,
       "Method to be used for purging responses from the downstream cache");
-  AddBaseProperty(
-      "", &RewriteOptions::downstream_cache_rebeaconing_key_, "dcrk",
-      kDownstreamCacheRebeaconingKey, kDirectoryScope,
-      "The key used to authenticate rebeaconing requests from downstream "
-      "caches. The value specified for this key in the pagespeed server "
-      "config should be used in the caching layer configuration also.");
   AddBaseProperty(
       kDefaultDownstreamCacheRewrittenPercentageThreshold,
       &RewriteOptions::downstream_cache_rewritten_percentage_threshold_,
@@ -1960,19 +1922,14 @@ void RewriteOptions::AddProperties() {
 
   AddBaseProperty(
       true,
-      &RewriteOptions::serve_rewritten_webp_urls_to_any_agent_,
-      "swaa",
-      kServeWebpToAnyAgent,
-      kDirectoryScope,
-      "Serve rewritten .webp images to any user-agent");
+      &RewriteOptions::use_image_scanline_api_, "uisa",
+      kUseImageScanlineApi,
+      kServerScope,
+      NULL);  // Temporary flag
 
   // Test-only, so no enum.
   AddRequestProperty(
       false, &RewriteOptions::test_instant_fetch_rewrite_deadline_, "tifrwd");
-  // We need to exclude this test-only option from signature, since we may need
-  // to change it in the middle of tests.
-  properties_->property(properties_->size() - 1)
-      ->set_do_not_use_for_signature_computation(true);
 
   //
   // Recently sriharis@ excluded a variety of options from
@@ -2545,9 +2502,6 @@ bool RewriteOptions::AddByNameToFilterSet(
       for (int i = 0, n = arraysize(kTestFilterSet); i < n; ++i) {
         set->Insert(kTestFilterSet[i]);
       }
-      for (int i = 0, n = arraysize(kCoreFilterSet); i < n; ++i) {
-        set->Insert(kCoreFilterSet[i]);
-      }
     } else if (option == "core") {
       for (int i = 0, n = arraysize(kCoreFilterSet); i < n; ++i) {
         set->Insert(kCoreFilterSet[i]);
@@ -2634,8 +2588,7 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
   }
   PropertyNameMap::iterator
       end = option_name_to_property_map_->end(),
-      pos = option_name_to_property_map_->find(
-          GetEffectiveOptionName(option_name));
+      pos = option_name_to_property_map_->find(option_name);
   return (pos == end ? NULL : pos->second);
 }
 
@@ -2796,7 +2749,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName2(
       result = RewriteOptions::kOptionValueInvalid;
     }
   } else if (StringCaseEqual(name, kMapOriginDomain)) {
-    WriteableDomainLawyer()->AddOriginDomainMapping(arg1, arg2, "", handler);
+    WriteableDomainLawyer()->AddOriginDomainMapping(arg1, arg2, handler);
   } else if (StringCaseEqual(name, kMapProxyDomain)) {
     WriteableDomainLawyer()->AddProxyDomainMapping(arg1, arg2, "", handler);
   } else if (StringCaseEqual(name, kMapRewriteDomain)) {
@@ -2839,8 +2792,6 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName3(
       *msg = StrCat("Format is size md5 url; bad md5 ", arg2, " or URL ", arg3);
       result = RewriteOptions::kOptionValueInvalid;
     }
-  } else if (StringCaseEqual(name, kMapOriginDomain)) {
-    WriteableDomainLawyer()->AddOriginDomainMapping(arg1, arg2, arg3, handler);
   } else if (StringCaseEqual(name, kMapProxyDomain)) {
     WriteableDomainLawyer()->AddProxyDomainMapping(arg1, arg2, arg3, handler);
   } else {
@@ -2849,29 +2800,14 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName3(
   return result;
 }
 
-StringPiece RewriteOptions::GetEffectiveOptionName(StringPiece name) {
-  StringPiece effective_name = name;
-  std::vector<DeprecatedOptionMap>::iterator id =
-       std::lower_bound(kDeprecatedOptionNameList.begin(),
-                        kDeprecatedOptionNameList.end(),
-                        name,
-                        DeprecatedOptionMap::LessThan);
-  if (id != kDeprecatedOptionNameList.end() &&
-      StringCaseEqual(name, id->deprecated_option_name)) {
-    effective_name = id->new_option_name;
-  }
-  return effective_name;
-}
-
 RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromName(
     StringPiece name, StringPiece value) {
-  StringPiece effective_name = GetEffectiveOptionName(name);
   OptionBaseVector::iterator it = std::lower_bound(
-      all_options_.begin(), all_options_.end(), effective_name,
+      all_options_.begin(), all_options_.end(), name,
       RewriteOptions::OptionNameLessThanArg);
   if (it != all_options_.end()) {
     OptionBase* option = *it;
-    if (StringCaseEqual(effective_name, option->option_name())) {
+    if (StringCaseEqual(name, option->option_name())) {
       if (!option->SetFromString(value)) {
         return kOptionValueInvalid;
       } else {

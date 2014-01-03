@@ -35,7 +35,6 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/annotated_message_handler.h"
 #include "pagespeed/kernel/image/gif_reader.h"
 #include "pagespeed/kernel/image/image_converter.h"
 #include "pagespeed/kernel/image/image_resizer.h"
@@ -249,7 +248,8 @@ class ConversionTimeoutHandler {
                 << "% for " << timeout_handler->url_;
         return true;
       }
-      PS_LOG_WARN(timeout_handler->handler_, "WebP conversion timed out!");
+      timeout_handler->handler_->Warning(timeout_handler->url_.c_str(), 0,
+                                         "WebP conversion timed out!");
       timeout_handler->expired_ = true;
       return false;
     }
@@ -439,7 +439,7 @@ class ImageImpl : public Image {
   int GetJpegQualityFromImage(const StringPiece& contents) {
     const int quality = JpegUtils::GetImageQualityFromImage(contents.data(),
                                                             contents.size(),
-                                                            handler_.get());
+                                                            handler_);
     return quality;
   }
 
@@ -447,7 +447,7 @@ class ImageImpl : public Image {
   int EstimateQualityForResizedJpeg();
 
   const GoogleString file_prefix_;
-  scoped_ptr<MessageHandler> handler_;
+  MessageHandler* handler_;
   bool changed_;
   const GoogleString url_;
   ImageDim dims_;
@@ -486,14 +486,12 @@ ImageImpl::ImageImpl(const StringPiece& original_contents,
                      MessageHandler* handler)
     : Image(original_contents),
       file_prefix_(file_prefix.data(), file_prefix.size()),
+      handler_(handler),
       changed_(false),
       url_(url),
       options_(options),
       low_quality_enabled_(false),
-      timer_(timer) {
-  const GoogleString annotation = StrCat(url, ": ");
-  handler_.reset(new AnnotatedMessageHandler(annotation, handler));
-}
+      timer_(timer) {}
 
 Image* NewImage(const StringPiece& original_contents,
                 const GoogleString& url,
@@ -518,13 +516,13 @@ ImageImpl::ImageImpl(int width, int height, ImageType type,
                      CompressionOptions* options)
     : Image(type),
       file_prefix_(tmp_dir.data(), tmp_dir.size()),
+      handler_(handler),
       changed_(false),
       low_quality_enabled_(false),
       timer_(timer) {
   options_.reset(options);
   dims_.set_width(width);
   dims_.set_height(height);
-  handler_.reset(new AnnotatedMessageHandler(handler));
 }
 
 bool ImageImpl::GenerateBlankImage() {
@@ -533,16 +531,16 @@ bool ImageImpl::GenerateBlankImage() {
   // Create a PNG writer with no compression.
   scoped_ptr<ScanlineWriterInterface> png_writer(
       CreateUncompressedPngWriter(dims_.width(), dims_.height(),
-                                  &output_contents_, handler_.get(),
+                                  &output_contents_, handler_,
                                   options_->use_transparent_for_blank_image));
   if (png_writer == NULL) {
-    PS_LOG_ERROR(handler_, "Failed to create an image writer.");
+    LOG(ERROR) << "Failed to create an image writer.";
     return false;
   }
 
   // Create a transparent scanline.
   const size_t bytes_per_scanline = dims_.width() *
-      GetNumChannelsFromPixelFormat(RGBA_8888, handler_.get());
+      GetNumChannelsFromPixelFormat(RGBA_8888, handler_);
   scoped_array<unsigned char> scanline(new unsigned char[bytes_per_scanline]);
   memset(scanline.get(), 0, bytes_per_scanline);
 
@@ -622,7 +620,8 @@ void ImageImpl::FindJpegSize() {
   if (!ImageUrlEncoder::HasValidDimensions(dims_) ||
       (dims_.height() <= 0) || (dims_.width() <= 0)) {
     dims_.Clear();
-    PS_LOG_WARN(handler_, "Couldn't find jpeg dimensions (data truncated?).");
+    handler_->Warning(url_.c_str(), 0,
+                      "Couldn't find jpeg dimensions (data truncated?).");
   }
 }
 
@@ -644,8 +643,9 @@ void ImageImpl::FindPngSize() {
     dims_.set_height(PngIntAtPosition(
         buf, ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize));
   } else {
-    PS_LOG_WARN(handler_, "Couldn't find png dimensions "
-                "(data truncated or IHDR missing).");
+    handler_->Warning(url_.c_str(), 0,
+                      "Couldn't find png dimensions "
+                      "(data truncated or IHDR missing).");
   }
 }
 
@@ -662,7 +662,8 @@ void ImageImpl::FindGifSize() {
     dims_.set_height(GifIntAtPosition(
         buf, ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize));
   } else {
-    PS_LOG_WARN(handler_, "Couldn't find gif dimensions (data truncated)");
+    handler_->Warning(url_.c_str(), 0,
+                      "Couldn't find gif dimensions (data truncated)");
   }
 }
 
@@ -674,7 +675,7 @@ void ImageImpl::FindWebpSize() {
     dims_.set_width(width);
     dims_.set_height(height);
   } else {
-    PS_LOG_WARN(handler_, "Couldn't find webp dimensions ");
+    handler_->Warning(url_.c_str(), 0, "Couldn't find webp dimensions ");
   }
 }
 
@@ -879,9 +880,9 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
       CreateScanlineReader(original_format,
                            original_contents_.data(),
                            original_contents_.length(),
-                           handler_.get()));
+                           handler_));
   if (image_reader == NULL) {
-    PS_LOG_ERROR(handler_, "Cannot open the image to resize.");
+    LOG(ERROR) << "Cannot open the image to resize.";
     return false;
   }
 
@@ -889,7 +890,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
     return false;
   }
 
-  ScanlineResizer resizer(handler_.get());
+  ScanlineResizer resizer(handler_);
   if (!resizer.Initialize(image_reader.get(), new_dim.width(),
                           new_dim.height())) {
     return false;
@@ -910,7 +911,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
                                           resizer.GetImageHeight(),
                                           &jpeg_config,
                                           &resized_image_,
-                                          handler_.get()));
+                                          handler_));
       }
       break;
 
@@ -923,12 +924,12 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
                                           resizer.GetImageHeight(),
                                           &png_config,
                                           &resized_image_,
-                                          handler_.get()));
+                                          handler_));
       }
       break;
 
     default:
-      PS_LOG_DFATAL(handler_, "Unsupported image format");
+      LOG(DFATAL) << "Unsupported image format";
   }
 
   if (writer == NULL) {
@@ -1048,7 +1049,7 @@ bool ImageImpl::ComputeOutputContents() {
             VLOG(1) << "Image conversion: " << ok
                     << " jpeg->webp for " << url_.c_str();
             if (!ok) {
-              PS_LOG_WARN(handler_, "Failed to create webp!");
+              handler_->Warning(url_.c_str(), 0, "Failed to create webp!");
             }
           }
           if (ok) {
@@ -1058,13 +1059,13 @@ bool ImageImpl::ComputeOutputContents() {
             JpegCompressionOptions jpeg_options;
             ConvertToJpegOptions(*options_.get(), &jpeg_options);
             ok = OptimizeJpegWithOptions(string_for_image, &output_contents_,
-                                         jpeg_options, handler_.get());
+                                         jpeg_options, handler_);
             VLOG(1) << "Image conversion: " << ok
                     << " jpeg->jpeg for " << url_.c_str();
           }
           break;
         case IMAGE_PNG:
-          png_reader.reset(new PngReader(handler_.get()));
+          png_reader.reset(new PngReader(handler_));
           ok = ComputeOutputContentsFromPngReader(
               string_for_image,
               png_reader.get(),
@@ -1076,9 +1077,9 @@ bool ImageImpl::ComputeOutputContents() {
           if (resized) {
             // If the GIF image has been resized, it has already been
             // converted to a PNG image.
-            png_reader.reset(new PngReader(handler_.get()));
+            png_reader.reset(new PngReader(handler_));
           } else if (options_->convert_gif_to_png || low_quality_enabled_) {
-            png_reader.reset(new GifReader(handler_.get()));
+            png_reader.reset(new GifReader(handler_));
           }
           if (png_reader.get() != NULL) {
             ok = ComputeOutputContentsFromPngReader(
@@ -1099,12 +1100,12 @@ bool ImageImpl::ComputeOutputContents() {
 inline bool ImageImpl::ConvertJpegToWebp(
     const GoogleString& original_jpeg, int configured_quality,
     GoogleString* compressed_webp) {
-  ConversionTimeoutHandler timeout_handler(url_, timer_, handler_.get(),
+  ConversionTimeoutHandler timeout_handler(url_, timer_, handler_,
                                            options_->webp_conversion_timeout_ms,
                                            compressed_webp);
   bool ok = OptimizeWebp(original_jpeg, configured_quality,
                          ConversionTimeoutHandler::Continue, &timeout_handler,
-                         compressed_webp, handler_.get());
+                         compressed_webp, handler_);
   timeout_handler.RegisterStatus(
       ok,
       Image::ConversionVariables::FROM_JPEG,
@@ -1171,7 +1172,7 @@ bool ImageImpl::ConvertPngToWebp(
   if ((options_->preferred_webp != Image::WEBP_NONE) &&
       (options_->webp_quality > 0)) {
     ConversionTimeoutHandler timeout_handler(
-        url_, timer_, handler_.get(),
+        url_, timer_, handler_,
         options_->webp_conversion_timeout_ms,
         &output_contents_);
     WebpConfiguration webp_config;
@@ -1195,7 +1196,7 @@ bool ImageImpl::ConvertPngToWebp(
       ok = MayConvert() &&
           ImageConverter::ConvertPngToWebp(
           png_reader, input_image, webp_config,
-          &output_contents_, &is_opaque, handler_.get());
+          &output_contents_, &is_opaque, handler_);
       if (ok) {
         image_type_ = IMAGE_WEBP_LOSSLESS_OR_ALPHA;
       }
@@ -1212,7 +1213,7 @@ bool ImageImpl::ConvertPngToWebp(
       ok = MayConvert() &&
           ImageConverter::ConvertPngToWebp(
           png_reader, input_image, webp_config,
-          &output_contents_, &is_opaque, handler_.get());
+          &output_contents_, &is_opaque, handler_);
       if (ok) {
         if (is_opaque) {
           image_type_ = IMAGE_WEBP;
@@ -1244,7 +1245,7 @@ bool ImageImpl::OptimizePng(
       PngOptimizer::OptimizePngBestCompression(png_reader,
                                                image_data,
                                                &output_contents_,
-                                               handler_.get());
+                                               handler_);
   if (ok) {
     image_type_ = IMAGE_PNG;
   }
@@ -1260,7 +1261,7 @@ bool ImageImpl::OptimizePngOrConvertToJpeg(
   bool ok = MayConvert() &&
       ImageConverter::OptimizePngOrConvertToJpeg(
           png_reader, image_data, jpeg_options,
-          &output_contents_, &is_png, handler_.get());
+          &output_contents_, &is_png, handler_);
   if (ok) {
     if (is_png) {
       image_type_ = IMAGE_PNG;
@@ -1344,9 +1345,9 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       pagespeed::image_compression::IMAGE_PNG,
       output_contents_.data(),
       output_contents_.length(),
-      handler_.get()));
+      handler_));
   if (canvas_reader == NULL) {
-    PS_LOG_ERROR(handler_, "Cannot open canvas image.");
+    LOG(ERROR) << "Cannot open canvas image.";
     return false;
   }
 
@@ -1361,9 +1362,9 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       ImageTypeToImageFormat(impl->image_type()),
                              impl->original_contents().data(),
                              impl->original_contents().length(),
-                             handler_.get()));
+                             handler_));
   if (image_reader == NULL) {
-    PS_LOG_ERROR(handler_, "Cannot open the image which will be sprited.");
+    LOG(ERROR) << "Cannot open the image which will be sprited.";
     return false;
   }
 
@@ -1373,7 +1374,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   const PixelFormat image_pixel_format = image_reader->GetPixelFormat();
 
   if (x + image_width > canvas_width || y + image_height > canvas_height) {
-    PS_LOG_ERROR(handler_, "The new image cannot fit into the canvas.");
+    LOG(ERROR) << "The new image cannot fit into the canvas.";
     return false;
   }
 
@@ -1386,7 +1387,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   }
 
   const size_t bytes_per_pixel =
-      GetNumChannelsFromPixelFormat(output_pixel_format, handler_.get());
+      GetNumChannelsFromPixelFormat(output_pixel_format, handler_);
   const size_t bytes_per_scanline = canvas_width * bytes_per_pixel;
   scoped_array<uint8> scanline(new uint8[bytes_per_scanline]);
 
@@ -1394,9 +1395,9 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   GoogleString canvas_image;
   scoped_ptr<ScanlineWriterInterface> canvas_writer(
       CreateUncompressedPngWriter(canvas_width, canvas_height,
-                                  &canvas_image, handler_.get(), has_alpha));
+                                  &canvas_image, handler_, has_alpha));
   if (canvas_writer == NULL) {
-    PS_LOG_ERROR(handler_, "Failed to create canvas writer.");
+    LOG(ERROR) << "Failed to create canvas writer.";
     return false;
   }
 
@@ -1405,7 +1406,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
     uint8* canvas_line = NULL;
     if (!canvas_reader->ReadNextScanline(
         reinterpret_cast<void**>(&canvas_line))) {
-      PS_LOG_ERROR(handler_, "Failed to read canvas image.");
+      LOG(ERROR) << "Failed to read canvas image.";
       return false;
     }
 
@@ -1413,8 +1414,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       uint8* image_line = NULL;
       if (!image_reader->ReadNextScanline(
           reinterpret_cast<void**>(&image_line))) {
-        PS_LOG_ERROR(handler_,
-                     "Failed to read the image which will be sprited.");
+        LOG(ERROR) << "Failed to read the image which will be sprited.";
         return false;
       }
 
@@ -1427,21 +1427,21 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
              (canvas_width - image_width - x) * bytes_per_pixel);
 
       ExpandPixelFormat(image_width, image_pixel_format, 0, image_line,
-                        output_pixel_format, x, scanline.get(), handler_.get());
+                        output_pixel_format, x, scanline.get(), handler_);
     } else {
       ExpandPixelFormat(canvas_width, canvas_pixel_format, 0, canvas_line,
-                        output_pixel_format, 0, scanline.get(), handler_.get());
+                        output_pixel_format, 0, scanline.get(), handler_);
     }
 
     if (!canvas_writer->WriteNextScanline(
         reinterpret_cast<void*>(scanline.get()))) {
-      PS_LOG_ERROR(handler_, "Failed to write canvas image.");
+      LOG(ERROR) << "Failed to write canvas image.";
       return false;
     }
   }
 
   if (!canvas_writer->FinalizeWrite()) {
-    PS_LOG_ERROR(handler_, "Failed to close canvas file.");
+    LOG(ERROR) << "Failed to close canvas file.";
     return false;
   }
 

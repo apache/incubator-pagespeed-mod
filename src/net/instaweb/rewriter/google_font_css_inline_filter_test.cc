@@ -20,7 +20,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -93,9 +92,6 @@ TEST_F(GoogleFontCssInlineFilterTest, UsageRestrictions) {
   ValidateExpected("incompat1",
                    CssLinkHref(kRoboto),
                    StrCat(CssLinkHref(kRoboto),
-                          "<!--InlineGoogleFontCss: ",
-                          CommonFilter::kCreateResourceFailedDebugMsg,
-                          "-->",
                           "<!--Cannot inline font loader CSS when "
                           "ModifyCachingHeaders is off-->"));
 
@@ -106,9 +102,6 @@ TEST_F(GoogleFontCssInlineFilterTest, UsageRestrictions) {
   ValidateExpected("incompat2",
                    CssLinkHref(kRoboto),
                    StrCat(CssLinkHref(kRoboto),
-                          "<!--InlineGoogleFontCss: ",
-                          CommonFilter::kCreateResourceFailedDebugMsg,
-                          "-->",
                           "<!--Cannot inline font loader CSS when "
                           "using downstream cache-->"));
 }

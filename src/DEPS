@@ -13,6 +13,10 @@
 # limitations under the License.
 
 vars = {
+  # Note that the chromium_revision should be kept in sync with the
+  # one in libpagespeed's DEPS file. Allowing them to drift out of
+  # sync means that we will end up linking different versions of code
+  # that may be incompatible with each other, which can lead to bugs.
   "chromium_trunk": "http://src.chromium.org/svn/trunk",
   # We don't include @ inside the revision here as is customary since
   # we want to pass this into a -D flag
@@ -26,6 +30,7 @@ vars = {
   "libpagespeed_svn_root": "http://page-speed.googlecode.com/svn",
   "libpagespeed_trunk": "http://page-speed.googlecode.com/svn/lib/trunk",
   "libpagespeed_revision": "@2439",
+  "libpagespeed_deps_root": "src/third_party/libpagespeed_deps",
 
   "modspdy_src": "http://mod-spdy.googlecode.com/svn/trunk/src",
   "modspdy_revision": "@387",
@@ -68,9 +73,10 @@ vars = {
   #
   # The revision we are picking here is to a specific commit found on
   # http://git.chromium.org/gitweb/?p=chromium/deps/openssl.git;a=summary :
-  # 2013-11-18 agl@chromium.org Also remove chacha_vec.c from x86.
+  # 2013-03-26 digit@chromium.org Restore the x509_hash_name_alpgorithm_change
+  #                               patch.
   "openssl_src": "http://git.chromium.org/chromium/deps/openssl.git",
-  "openssl_revision": "@74e3032cd121a9275486e6b5653da87b3285cf7d",
+  "openssl_revision": "@67ccadeefe503dad566639ac02c772945a72a08d",
 }
 
 deps = {
@@ -80,27 +86,23 @@ deps = {
   Var("chromium_deps_root"):
     File(Var("chromium_trunk") + "/src/DEPS@" + Var("chromium_revision_num")),
 
+  Var("libpagespeed_deps_root"):
+    File(Var("libpagespeed_trunk") + "/src/DEPS" +
+      Var("libpagespeed_revision")),
+
   # Other dependencies.
+  "src/base":
+    Var("libpagespeed_trunk") + "/src/base" + Var("libpagespeed_revision"),
+
   "src/build/temp_gyp":
     Var("libpagespeed_trunk") + "/src/build/temp_gyp" +
       Var("libpagespeed_revision"),
 
-  # We check 'build/android' out of Chromium repo to get
-  # 'android/cpufeatures.gypi', which is needed to compile libwebp.
-  "src/build/android":
-    Var("chromium_trunk") + "/src/build/android" +
-    Var("chromium_webp_android_revision"),
-  "src/build/ios":
-    Var("chromium_trunk") + "/src/build/ios@" + Var("chromium_revision_num"),
-  "src/build/internal":
-    Var("chromium_trunk") + "/src/build/internal@" +
-      Var("chromium_revision_num"),
-  "src/build/linux":
-    Var("chromium_trunk") + "/src/build/linux@" + Var("chromium_revision_num"),
-  "src/build/mac":
-    Var("chromium_trunk") + "/src/build/mac@" + Var("chromium_revision_num"),
-  "src/build/win":
-    Var("chromium_trunk") + "/src/build/win@" + Var("chromium_revision_num"),
+  "src/build/ios": From(Var("libpagespeed_deps_root")),
+  "src/build/internal": From(Var("libpagespeed_deps_root")),
+  "src/build/linux": From(Var("libpagespeed_deps_root")),
+  "src/build/mac": From(Var("libpagespeed_deps_root")),
+  "src/build/win": From(Var("libpagespeed_deps_root")),
 
   # TODO(huibao): Remove references to libpagespeed.
   "src/third_party/giflib": Var("libpagespeed_svn_root") + "/deps/giflib-4.1.6",
@@ -127,8 +129,7 @@ deps = {
     (Var("libpagespeed_trunk") + "/src/googleurl_noconv" +
      Var("libpagespeed_revision")),
 
-  "src/testing":
-    Var("chromium_trunk") + "/src/testing@" + Var("chromium_revision_num"),
+  "src/testing": From(Var("libpagespeed_deps_root")),
   "src/testing/gtest": From(Var("chromium_deps_root")),
   "src/testing/gmock": From(Var("chromium_deps_root")),
 
@@ -150,12 +151,9 @@ deps = {
   "src/third_party/httpd24/src/os":
     Var("apache_httpd24_src") + "/os" + Var("apache_httpd24_revision"),
 
-  "src/third_party/chromium/src/base":
-    Var("chromium_trunk") + "/src/base@" + Var("chromium_revision_num"),
+  "src/third_party/chromium/src/base": From(Var("libpagespeed_deps_root")),
 
-  "src/third_party/chromium/src/build":
-    Var("chromium_trunk") + "/src/build@" + Var("chromium_revision_num"),
-
+  "src/third_party/chromium/src/build": From(Var("libpagespeed_deps_root")),
   "src/third_party/chromium/src/chrome/tools/build":
     File(Var("chromium_trunk") + "/src/chrome/tools/build/version.py@" +
          Var("chromium_revision_num")),
@@ -168,9 +166,39 @@ deps = {
   "src/third_party/google-sparsehash/src":
     Var("google_sparsehash_root") + Var("google_sparsehash_revision"),
 
-  "src/third_party/protobuf":
-    (Var("chromium_trunk") + "/src/third_party/protobuf@" +
-      Var("chromium_revision_num")),
+  "src/third_party/libpagespeed/src/build":
+    (Var("libpagespeed_trunk") + "/src/build" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/build/internal":
+    Var("chromium_trunk") + "/src/build/internal@" +
+    Var("chromium_revision_num"),
+
+  "src/third_party/libpagespeed/src/pagespeed/core":
+    (Var("libpagespeed_trunk") + "/src/pagespeed/core" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/pagespeed/image_compression":
+    (Var("libpagespeed_trunk") + "/src/pagespeed/image_compression" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/pagespeed/js":
+    (Var("libpagespeed_trunk") + "/src/pagespeed/js" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/pagespeed/l10n":
+    (Var("libpagespeed_trunk") + "/src/pagespeed/l10n" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/pagespeed/proto":
+    (Var("libpagespeed_trunk") + "/src/pagespeed/proto" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/libpagespeed/src/third_party":
+    (Var("libpagespeed_trunk") + "/src/third_party" +
+     Var("libpagespeed_revision")),
+
+  "src/third_party/protobuf": From(Var("libpagespeed_deps_root")),
 
   # Json cpp.
   "src/third_party/jsoncpp/src":
@@ -189,15 +217,20 @@ deps = {
      Var("chromium_trunk") + "/src/third_party/libwebp" +
      Var("chromium_webp_android_revision"),
 
-  "src/tools/clang":
-    (Var("chromium_trunk") + "/src/tools/clang@" +
-      Var("chromium_revision_num")),
+  # We check 'build/android' out of Chromium repo to get
+  # 'android/cpufeatures.gypi', which is needed to compile libwebp.
+  "src/build/android":
+     Var("chromium_trunk") + "/src/build/android" +
+     Var("chromium_webp_android_revision"),
 
+  "src/tools/clang":From(Var("libpagespeed_deps_root")),
+  "src/tools/grit": From(Var("libpagespeed_deps_root")),
   "src/tools/gyp": From(Var("chromium_deps_root")),
 
-  "src/third_party/modp_b64":
-    Var("chromium_trunk") + "/src/third_party/modp_b64@" +
-    Var("chromium_revision_num"),
+  "src/third_party/modp_b64": From(Var("libpagespeed_deps_root")),
+
+  "src/third_party/domain_registry_provider/src":
+    From(Var("libpagespeed_deps_root")),
 
   # RE2.
   "src/third_party/re2/src":

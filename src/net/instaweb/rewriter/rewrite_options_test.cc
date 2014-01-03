@@ -790,8 +790,8 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   PassLookupOptionByName(RewriteOptions::kDistributedRewriteTimeoutMs);
   PassLookupOptionByName(RewriteOptions::kDomainRewriteHyperlinks);
   PassLookupOptionByName(RewriteOptions::kDomainShardCount);
+  PassLookupOptionByName(RewriteOptions::kUseImageScanlineApi);
   PassLookupOptionByName(RewriteOptions::kDownstreamCachePurgeMethod);
-  PassLookupOptionByName(RewriteOptions::kDownstreamCacheRebeaconingKey);
   PassLookupOptionByName(RewriteOptions::
                          kDownstreamCacheRewrittenPercentageThreshold);
   PassLookupOptionByName(RewriteOptions::kEnableAggressiveRewritersForMobile);
@@ -838,8 +838,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   PassLookupOptionByName(RewriteOptions::kImplicitCacheTtlMs);
   PassLookupOptionByName(RewriteOptions::kIncreaseSpeedTracking);
   PassLookupOptionByName(RewriteOptions::kInlineOnlyCriticalImages);
-  PassLookupOptionByName(
-      RewriteOptions::kInlineUnauthorizedResourcesExperimental);
   PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteCss);
   PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteCssImages);
   PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteImages);
@@ -847,6 +845,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   PassLookupOptionByName(RewriteOptions::kInPlaceResourceOptimization);
   PassLookupOptionByName(RewriteOptions::kInPlaceRewriteDeadlineMs);
   PassLookupOptionByName(RewriteOptions::kInPlaceWaitForOptimized);
+  PassLookupOptionByName(RewriteOptions::kInlineOnlyCriticalImages);
   PassLookupOptionByName(RewriteOptions::kJsInlineMaxBytes);
   PassLookupOptionByName(RewriteOptions::kJsOutlineMinBytes);
   PassLookupOptionByName(RewriteOptions::kJsPreserveURLs);
@@ -892,12 +891,12 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   PassLookupOptionByName(RewriteOptions::kRewriteDeadlineMs);
   PassLookupOptionByName(RewriteOptions::kRewriteLevel);
   PassLookupOptionByName(RewriteOptions::kRewriteRandomDropPercentage);
+  PassLookupOptionByName(RewriteOptions::kRewriteRequestUrlsEarly);
   PassLookupOptionByName(RewriteOptions::kRewriteUncacheableResources);
   PassLookupOptionByName(RewriteOptions::kRunningExperiment);
   PassLookupOptionByName(RewriteOptions::kServeGhostClickBusterWithSplitHtml);
   PassLookupOptionByName(RewriteOptions::kServeSplitHtmlInTwoChunks);
   PassLookupOptionByName(RewriteOptions::kServeStaleIfFetchError);
-  PassLookupOptionByName(RewriteOptions::kServeWebpToAnyAgent);
   PassLookupOptionByName(RewriteOptions::kServeXhrAccessControlHeaders);
   PassLookupOptionByName(RewriteOptions::
                          kServeStaleWhileRevalidateThresholdSec);
@@ -1959,36 +1958,6 @@ TEST_F(RewriteOptionsTest, AccessAcrossThreads) {
   null_thread_system.set_current_thread(5);
   EXPECT_TRUE(options.MergeOK());
 #endif
-}
-
-TEST_F(RewriteOptionsTest, ParseAndSetDeprecatedOptionFromName1) {
-  GoogleString msg;
-  NullMessageHandler handler;
-
-  // 'ImageWebpRecompressionQuality' is replaced by 'WebpRecompressionQuality'.
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1("ImageWebpRecompressionQuality",
-                                                "12", &msg, &handler));
-  EXPECT_EQ(12, options_.image_webp_recompress_quality());
-
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1("WebpRecompressionQuality",
-                                                "23", &msg, &handler));
-  EXPECT_EQ(23, options_.image_webp_recompress_quality());
-
-  // 'ImageWebpRecompressionQualityForSmallScreens' is replaced by
-  // 'WebpRecompressionQualityForSmallScreens'.
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1(
-                "ImageWebpRecompressionQualityForSmallScreens",
-                "34", &msg, &handler));
-  EXPECT_EQ(34, options_.image_webp_recompress_quality_for_small_screens());
-
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1(
-                "WebpRecompressionQualityForSmallScreens",
-                "45", &msg, &handler));
-  EXPECT_EQ(45, options_.image_webp_recompress_quality_for_small_screens());
 }
 
 }  // namespace net_instaweb

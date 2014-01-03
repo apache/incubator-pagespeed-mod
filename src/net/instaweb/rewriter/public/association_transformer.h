@@ -105,22 +105,13 @@ class AssociationSlot : public ResourceSlot {
   // All Render() calls are from the same thread, so this doesn't need to be
   // thread-safe.
   virtual void Render() {
-    // We should never try to render unauthorized resource URLs as is.
-    if (!resource()->is_authorized_domain()) {
-      return;
-    }
     if (!disable_rendering()) {
       (*map_)[key_] = resource()->url();
     }
   }
 
-  virtual bool DirectSetUrl(const StringPiece& url) {
-    // We should never try to render unauthorized resource URLs as is.
-    if (!resource()->is_authorized_domain()) {
-      return false;
-    }
+  virtual void DirectSetUrl(const StringPiece& url) {
     url.CopyToString(&((*map_)[key_]));
-    return true;
   }
 
   virtual GoogleString LocationString() {

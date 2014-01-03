@@ -36,10 +36,9 @@ void ResourceSlot::SetResource(const ResourcePtr& resource) {
   resource_ = ResourcePtr(resource);
 }
 
-bool ResourceSlot::DirectSetUrl(const StringPiece& url) {
+void ResourceSlot::DirectSetUrl(const StringPiece& url) {
   LOG(DFATAL) << "Trying to direct-set a URL on a slot that does not "
       "support it: " << LocationString();
-  return false;
 }
 
 RewriteContext* ResourceSlot::LastContext() const {
@@ -135,17 +134,11 @@ GoogleString HtmlResourceSlot::LocationString() {
   }
 }
 
-bool HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
-  // We should never try to render unauthorized resource URLs as is.
-  if (!resource()->is_authorized_domain()) {
-    return false;
-  }
+void HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
   DCHECK(attribute_ != NULL);
   if (attribute_ != NULL) {
     attribute_->SetValue(url);
-    return true;
   }
-  return false;
 }
 
 // TODO(jmarantz): test sanity of set maintenance using this comparator.

@@ -418,7 +418,7 @@ check_from "$IMG_HEADERS" fgrep -qi 'Last-Modified'
 
 IMAGES_QUALITY="PageSpeedImageRecompressionQuality"
 JPEG_QUALITY="PageSpeedJpegRecompressionQuality"
-WEBP_QUALITY="PageSpeedWebpRecompressionQuality"
+WEBP_QUALITY="PageSpeedImageWebpRecompressionQuality"
 start_test quality of jpeg output images with generic quality flag
 IMG_REWRITE="$TEST_ROOT/image_rewriting/rewrite_images.html"
 REWRITE_URL="$IMG_REWRITE?PageSpeedFilters=rewrite_images"
@@ -455,7 +455,7 @@ REWRITE_URL="$IMG_REWRITE?PageSpeedFilters=rewrite_images"
 URL="$REWRITE_URL,convert_jpeg_to_webp&$IMAGES_QUALITY=75&$WEBP_QUALITY=65"
 check run_wget_with_args \
   --header 'X-PSA-Blocking-Rewrite: psatest' --user-agent=webp $URL
-check_file_size "$WGET_DIR/*256x192*Puzzle*webp" -le 5140   # resized, webp'd
+check_file_size "$WGET_DIR/*256x192*Puzzle*webp" -le 6516   # resized, webp'd
 
 BAD_IMG_URL=$REWRITTEN_ROOT/images/xBadName.jpg.pagespeed.ic.Zi7KMNYwzD.jpg
 start_test rewrite_images fails broken image
@@ -864,12 +864,6 @@ fetch_until $URL 'fgrep -ci //ajax.googleapis.com' 2
 test_filter dedup_inlined_images,inline_images
 fetch_until -save $URL 'fgrep -ocw inlineImg(' 4
 check grep -q "ModPagespeed=noscript" $FETCH_FILE
-
-# Make sure we don't blank url(data:...) in CSS.
-start_test CSS data URLs
-URL=$REWRITTEN_ROOT/styles/A.data.css.pagespeed.cf.Hash.css
-OUT=$($WGET_DUMP $URL)
-check_from "$OUT" fgrep -q 'data:image/png'
 
 # Cleanup
 rm -rf $OUTDIR

@@ -152,8 +152,8 @@ bool CssMinify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
               result = true;
               GoogleString in = UnicodeTextToUTF8(value->GetStringValue());
               GoogleString out;
-              if (transformer.Transform(in, &out) ==
-                  CssTagScanner::Transformer::kSuccess) {
+              transformer.Transform(in, &out);
+              if (in != out) {
                 delete (*values)[value_index];
                 (*values)[value_index] =
                     new Css::Value(Css::Value::URI,

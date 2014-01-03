@@ -794,10 +794,9 @@ class RewriteContext::DistributedRewriteFetch : public AsyncFetch {
 
   void DispatchForHTML() {
     DCHECK(fetcher_ != NULL);
+    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteForHtml, "");
     StringPiece distributed_key =
         rewrite_context_->Options()->distributed_rewrite_key();
-    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteForHtml,
-                           distributed_key);
     request_headers()->Add(HttpAttributes::kXPsaRequestMetadata,
                            distributed_key);
     // Note: We're defaulting to a kGet request. We don't always *have* to do a
@@ -1471,10 +1470,9 @@ void RewriteContext::SetPartitionKey() {
     url_keys.push_back("");
     GoogleString encoding;
     encoder()->Encode(url_keys, resource_context_.get(), &encoding);
-    GoogleString tmp = StrCat(encoding, "@",
-                              UserAgentCacheKey(resource_context_.get()), "_",
-                              suffix);
-    suffix.swap(tmp);
+    StrAppend(&suffix, encoding, "@",
+              UserAgentCacheKey(resource_context_.get()), "_",
+              CacheKeySuffix());
 
     url_key = slot(0)->resource()->cache_key();
     // TODO(morlovich): What this is really trying to ask is whether the
@@ -1635,9 +1633,9 @@ void RewriteContext::OutputCacheMiss() {
 
 bool RewriteContext::IsDistributedRewriteForHtml() const {
   const RequestHeaders* request_headers = Driver()->request_headers();
+  DCHECK(request_headers != NULL);
   if (request_headers != NULL &&
-      request_headers->HasValue(HttpAttributes::kXPsaDistributedRewriteForHtml,
-                                Options()->distributed_rewrite_key())) {
+      request_headers->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
     return true;
   }
   return false;
@@ -1673,8 +1671,7 @@ bool RewriteContext::ShouldDistributeRewrite() const {
   // filter. For instance, if this is a distributed CSS request, we don't want
   // to redistribute the CSS rewrite but its nested image filters should be
   // allowed to be distributed.  The rewrite task of the nested filter will
-  // not redistribute it. Note: We don't verify the distributed rewrite key
-  // because we want to be conservative about loop detection.
+  // not redistribute it.
   if (request_headers != NULL && parent() == NULL) {
     if (request_headers->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
         request_headers->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
@@ -2765,9 +2762,7 @@ bool RewriteContext::PrepareFetch(
          is_valid = false;
          break;
       }
-      if (!IsDistributedRewriteForHtml()) {
-        resource->set_is_background_fetch(false);
-      }
+      resource->set_is_background_fetch(false);
       ResourceSlotPtr slot(new FetchResourceSlot(resource));
       AddSlot(slot);
     }
@@ -3018,7 +3013,6 @@ void RewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
       std::min(min_cache_expiry_time_ms - headers->date_ms(),
                ResponseHeaders::kDefaultImplicitCacheTtlMs),
       ",private");
-  headers->RemoveAll(HttpAttributes::kEtag);
   headers->ComputeCaching();
 }
 

@@ -117,7 +117,6 @@ class RewriteOptions {
     kDisableJavascript,
     kDivStructure,
     kElideAttributes,
-    kExperimentSpdy,  // Temporary and will be removed soon.
     kExplicitCloseTags,
     kExtendCacheCss,
     kExtendCacheImages,
@@ -221,7 +220,6 @@ class RewriteOptions {
   static const char kDomainRewriteHyperlinks[];
   static const char kDomainShardCount[];
   static const char kDownstreamCachePurgeMethod[];
-  static const char kDownstreamCacheRebeaconingKey[];
   static const char kDownstreamCacheRewrittenPercentageThreshold[];
   static const char kEnableAggressiveRewritersForMobile[];
   static const char kEnableBlinkHtmlChangeDetection[];
@@ -262,7 +260,6 @@ class RewriteOptions {
   static const char kImplicitCacheTtlMs[];
   static const char kIncreaseSpeedTracking[];
   static const char kInlineOnlyCriticalImages[];
-  static const char kInlineUnauthorizedResourcesExperimental[];
   static const char kInPlacePreemptiveRewriteCss[];
   static const char kInPlacePreemptiveRewriteCssImages[];
   static const char kInPlacePreemptiveRewriteImages[];
@@ -314,6 +311,7 @@ class RewriteOptions {
   static const char kRewriteDeadlineMs[];
   static const char kRewriteLevel[];
   static const char kRewriteRandomDropPercentage[];
+  static const char kRewriteRequestUrlsEarly[];
   static const char kRewriteUncacheableResources[];
   static const char kRunningExperiment[];
   static const char kServeGhostClickBusterWithSplitHtml[];
@@ -375,7 +373,6 @@ class RewriteOptions {
   static const char kMemcachedThreads[];
   static const char kMemcachedTimeoutUs[];
   static const char kRateLimitBackgroundFetches[];
-  static const char kServeWebpToAnyAgent[];
   static const char kSlurpDirectory[];
   static const char kSlurpFlushLimit[];
   static const char kSlurpReadOnly[];
@@ -1266,13 +1263,16 @@ class RewriteOptions {
     set_option(x, &preserve_url_relativity_);
   }
 
+  bool use_image_scanline_api() const {
+    return use_image_scanline_api_.value();
+  }
+  void set_use_image_scanline_api(bool x) {
+    set_option(x, &use_image_scanline_api_);
+  }
+
   // Returns false if there is an entry in url_cache_invalidation_entries_ with
   // its timestamp_ms > time_ms and url matches the url_pattern.  Else, return
   // true.
-  //
-  // In most contexts where you'd call this you should consider instead
-  // calling OptionsAwareHTTPCacheCallback::IsCacheValid instead, which takes
-  // into account request-headers.
   bool IsUrlCacheValid(StringPiece url, int64 time_ms) const;
 
   // Returns true if PurgeCacheUrl has been called on url with a timestamp
@@ -1602,13 +1602,6 @@ class RewriteOptions {
     return inline_only_critical_images_.value();
   }
 
-  void set_inline_unauthorized_resources(bool x) {
-    set_option(x, &inline_unauthorized_resources_);
-  }
-  bool inline_unauthorized_resources() const {
-    return inline_unauthorized_resources_.value();
-  }
-
   void set_critical_images_beacon_enabled(bool x) {
     set_option(x, &critical_images_beacon_enabled_);
   }
@@ -1714,6 +1707,13 @@ class RewriteOptions {
     set_option(x, &js_preserve_urls_);
   }
 
+  bool rewrite_request_urls_early() const {
+    return rewrite_request_urls_early_.value();
+  }
+  void set_rewrite_request_urls_early(bool x) {
+    set_option(x, &rewrite_request_urls_early_);
+  }
+
   void set_metadata_cache_staleness_threshold_ms(int64 x) {
     set_option(x, &metadata_cache_staleness_threshold_ms_);
   }
@@ -1740,16 +1740,6 @@ class RewriteOptions {
   }
   void set_downstream_cache_purge_location_prefix(const StringPiece& p) {
     set_option(p.as_string(), &downstream_cache_purge_location_prefix_);
-  }
-  bool downstream_cache_integration_enabled() const {
-    return !downstream_cache_purge_location_prefix().empty();
-  }
-
-  void set_downstream_cache_rebeaconing_key(const StringPiece& p) {
-      set_option(p.as_string(), &downstream_cache_rebeaconing_key_);
-  }
-  const GoogleString& downstream_cache_rebeaconing_key() const {
-    return downstream_cache_rebeaconing_key_.value();
   }
 
   void set_downstream_cache_rewritten_percentage_threshold(int64 x) {
@@ -2203,13 +2193,6 @@ class RewriteOptions {
   }
   int max_low_res_to_full_res_image_size_percentage() const {
     return max_low_res_to_full_res_image_size_percentage_.value();
-  }
-
-  void set_serve_rewritten_webp_urls_to_any_agent(bool x) {
-    set_option(x, &serve_rewritten_webp_urls_to_any_agent_);
-  }
-  bool serve_rewritten_webp_urls_to_any_agent() const {
-    return serve_rewritten_webp_urls_to_any_agent_.value();
   }
 
   // Merge src into 'this'.  Generally, options that are explicitly
@@ -3014,6 +2997,10 @@ class RewriteOptions {
   static void InitFilterIdToEnumArray();
   static void InitOptionIdToPropertyArray();
   static void InitOptionNameToPropertyArray();
+  // If str match a cacheable family pattern then returns the
+  // PrioritizeVisibleContentFamily that it matches, else returns NULL.
+  const PrioritizeVisibleContentFamily* FindPrioritizeVisibleContentFamily(
+      const StringPiece str) const;
 
   // Helper for converting the result of SetOptionFromName into
   // a status/message pair. The returned result may be adjusted from the passed
@@ -3081,10 +3068,6 @@ class RewriteOptions {
     return strcmp(e1->filter_id, e2->filter_id) < 0;
   }
 
-  // Return the effective option name. If the name is deprecated, the new name
-  // will be returned; otherwise the name will be returned as is.
-  static StringPiece GetEffectiveOptionName(StringPiece name);
-
   bool modified_;
   bool frozen_;
   FilterSet enabled_filters_;
@@ -3122,6 +3105,10 @@ class RewriteOptions {
   Option<bool> css_preserve_urls_;
   Option<bool> js_preserve_urls_;
   Option<bool> image_preserve_urls_;
+
+  // Option to rewrite the request to origin url before we start processing
+  // the request.
+  Option<bool> rewrite_request_urls_early_;
 
   Option<int64> image_inline_max_bytes_;
   Option<int64> js_inline_max_bytes_;
@@ -3253,10 +3240,6 @@ class RewriteOptions {
   // people may want to inline all images (both critical and non-critical). If
   // set to false, all images will be inlined within the html.
   Option<bool> inline_only_critical_images_;
-  // By default, resources from unauthorized domains are not rewritten or
-  // inlined. Using this option, unauthorized resources become available for
-  // inlining into the HTML only.
-  Option<bool> inline_unauthorized_resources_;
   // Indicates whether image rewriting filters should insert the critical images
   // beacon code.
   Option<bool> critical_images_beacon_enabled_;
@@ -3281,8 +3264,6 @@ class RewriteOptions {
   // won't have effect, if onload beacon is sent before unload event is
   // trigggered.
   Option<bool> report_unload_time_;
-
-  Option<bool> serve_rewritten_webp_urls_to_any_agent_;
 
   // Flush more resources if origin is slow to respond.
   Option<bool> flush_more_resources_early_if_time_permits_;
@@ -3388,10 +3369,6 @@ class RewriteOptions {
 
   // The host:port/path prefix to be used for purging the cached responses.
   Option<GoogleString> downstream_cache_purge_location_prefix_;
-
-  // The webmaster-provided key used to authenticate rebeaconing requests from
-  // downstream caches.
-  Option<GoogleString> downstream_cache_rebeaconing_key_;
 
   // Threshold for amount of rewriting finished before the response was served
   // out (expressed as a percentage) and simultaneously stored in the downstream
@@ -3528,6 +3505,8 @@ class RewriteOptions {
   // b. low-res image is not small enough compared to the full-res version.
   Option<int64> max_low_res_image_size_bytes_;
   Option<int> max_low_res_to_full_res_image_size_percentage_;
+
+  Option<bool> use_image_scanline_api_;
 
   // Be sure to update constructor when new fields are added so that they are
   // added to all_options_, which is used for Merge, and eventually, Compare.

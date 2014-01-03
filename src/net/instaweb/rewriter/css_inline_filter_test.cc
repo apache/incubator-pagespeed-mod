@@ -286,18 +286,10 @@ TEST_F(CssInlineFilterTest, DoNotInlineCssTooBig) {
                 false, "");
 }
 
-TEST_F(CssInlineFilterTest, DoInlineCssDifferentDomain) {
-  const GoogleString css = "BODY { color: red; }\n";
-  options()->set_inline_unauthorized_resources(true);
-  TestInlineCss("http://www.example.com/index.html",
-                "http://unauth.com/styles.css",
-                "", css, true, css);
-}
-
 TEST_F(CssInlineFilterTest, DoNotInlineCssDifferentDomain) {
-  // Note: This only fails because we haven't authorized unauth.com
+  // Note: This only fails because we haven't authorized www.example.org
   TestInlineCss("http://www.example.com/index.html",
-                "http://unauth.com/styles.css",
+                "http://www.example.org/styles.css",
                 "", "BODY { color: red; }\n", false, "");
 }
 

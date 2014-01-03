@@ -82,7 +82,6 @@
 #include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
@@ -109,6 +108,7 @@ class TestRewriteOptionsManager : public RewriteOptionsManager {
 }  // namespace
 
 class MessageHandler;
+class RequestHeaders;
 
 const char RewriteTestBase::kTestData[] = "/net/instaweb/rewriter/testdata/";
 
@@ -246,21 +246,6 @@ void RewriteTestBase::AddOtherRewriteFilter(RewriteFilter* filter) {
 
 void RewriteTestBase::SetBaseUrlForFetch(const StringPiece& url) {
   rewrite_driver_->SetBaseUrlForFetch(url);
-}
-
-void RewriteTestBase::SetDummyRequestHeaders() {
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-}
-
-void RewriteTestBase::SetDownstreamCacheDirectives(
-    StringPiece downstream_cache_location,
-    StringPiece rebeaconing_key) {
-  options_->ClearSignatureForTesting();
-  options_->set_downstream_cache_purge_location_prefix(
-      downstream_cache_location);
-  options_->set_downstream_cache_rebeaconing_key(rebeaconing_key);
-  options_->ComputeSignature();
 }
 
 ResourcePtr RewriteTestBase::CreateResource(const StringPiece& base,
@@ -502,6 +487,7 @@ bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
   }
   async_fetch.set_response_headers(response_headers);
   bool fetched = rewrite_driver_->FetchResource(url, &async_fetch);
+
   // Make sure we let the rewrite complete, and also wait for the driver to be
   // idle so we can reuse it safely.
   rewrite_driver_->WaitForShutDown();
@@ -1129,7 +1115,7 @@ bool RewriteTestBase::AddOriginDomainMapping(StringPiece to_domain,
                                              StringPiece from_domain) {
   bool frozen = options_->ClearSignatureForTesting();
   bool ret = options_->WriteableDomainLawyer()->AddOriginDomainMapping(
-      to_domain, from_domain, "", message_handler());
+      to_domain, from_domain, message_handler());
   if (frozen) {
     server_context()->ComputeSignature(options_);
   }

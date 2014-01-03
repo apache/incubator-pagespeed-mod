@@ -413,6 +413,14 @@ void ServerContext::MergeNonCachingResponseHeaders(
   }
 }
 
+// TODO(jmarantz): consider moving this method to ResponseHeaders
+void ServerContext::SetContentType(const ContentType* content_type,
+                                     ResponseHeaders* header) {
+  CHECK(content_type != NULL);
+  header->Replace(HttpAttributes::kContentType, content_type->mime_type());
+  header->ComputeCaching();
+}
+
 void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
   file_prefix.CopyToString(&file_prefix_);
 }
@@ -439,20 +447,21 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
                                           "no-store");
     }
   }
-  DCHECK(! (proxy_cacheable && !browser_cacheable)) <<
-      "You can't have a proxy-cacheable result that is not browser-cacheable";
-  if (!proxy_cacheable) {
-    const char* directives = NULL;
-    if (browser_cacheable) {
-      directives = ",private";
+  if (browser_cacheable) {
+    if (proxy_cacheable) {
+      return;
     } else {
-      max_age = 0;
-      directives = no_store ? ",no-cache,no-store" : ",no-cache";
+      headers->SetDateAndCaching(headers->date_ms(), max_age,
+                                 ",private" /*cache_control_suffix*/);
     }
-    headers->SetDateAndCaching(headers->date_ms(), max_age, directives);
-    headers->RemoveAll(HttpAttributes::kEtag);
-    headers->ComputeCaching();
+  } else {
+    GoogleString directives = ",no-cache";
+    if (no_store) {
+      directives += ",no-store";
+    }
+    headers->SetDateAndCaching(headers->date_ms(), 0 /*ttl*/, directives);
   }
+  headers->ComputeCaching();
 }
 
 void ServerContext::AddOriginalContentLengthHeader(

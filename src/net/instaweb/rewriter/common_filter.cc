@@ -33,11 +33,6 @@
 
 namespace net_instaweb {
 
-const char CommonFilter::kCreateResourceFailedDebugMsg[] =
-    "Cannot create resource: either its domain is unauthorized and "
-    "InlineUnauthorizedResources is not enabled, or it cannot be fetched "
-    "(check the server logs)";
-
 CommonFilter::CommonFilter(RewriteDriver* driver)
     : driver_(driver),
       server_context_(driver->server_context()),
@@ -161,8 +156,7 @@ ResourcePtr CommonFilter::CreateInputResource(const StringPiece& input_url) {
   GoogleUrl resource_url;
   ResolveUrl(input_url, &resource_url);
   if (resource_url.IsWebValid()) {
-    resource = driver_->CreateInputResource(resource_url,
-                                            AllowUnauthorizedDomain());
+    resource = driver_->CreateInputResource(resource_url);
   }
   return resource;
 }

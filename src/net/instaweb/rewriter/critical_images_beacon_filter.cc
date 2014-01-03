@@ -136,7 +136,7 @@ void CriticalImagesBeaconFilter::EndDocument() {
       driver_->server_context()->hasher()->Hash(
           driver_->options()->signature());
   StrAppend(&js,
-            "\npagespeed.CriticalImages.Run('",
+            "\npagespeed.criticalImagesBeaconInit('",
             *beacon_url, "','", html_url, "','",
             options_signature_hash, "',");
   StrAppend(&js,

@@ -158,34 +158,6 @@
       ]
     },
     {
-      'target_name': 'instaweb_critical_css_loader_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/genfiles/rewriter',
-        'var_name': 'critical_css_loader',
-      },
-      'sources': [
-        'genfiles/rewriter/critical_css_loader_dbg.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
-      'target_name': 'instaweb_critical_css_loader_opt_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/genfiles/rewriter',
-        'var_name': 'critical_css_loader_opt',
-      },
-      'sources': [
-        'genfiles/rewriter/critical_css_loader_opt.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
       'target_name': 'instaweb_critical_images_beacon_data2c',
       'variables': {
         'instaweb_data2c_subdir': 'net/instaweb/rewriter',
@@ -819,6 +791,7 @@
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_sharedmem',
         '<(DEPTH)/pagespeed/kernel.gyp:util',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -902,6 +875,7 @@
       'dependencies': [
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
       ],
       'sources': [
         'http/counting_url_async_fetcher.cc',
@@ -1108,8 +1082,6 @@
         'instaweb_core.gyp:instaweb_rewriter_html',
         'instaweb_critical_css_beacon_data2c',
         'instaweb_critical_css_beacon_opt_data2c',
-        'instaweb_critical_css_loader_data2c',
-        'instaweb_critical_css_loader_opt_data2c',
         'instaweb_critical_css_pb',
         'instaweb_critical_images_beacon_data2c',
         'instaweb_critical_images_beacon_opt_data2c',

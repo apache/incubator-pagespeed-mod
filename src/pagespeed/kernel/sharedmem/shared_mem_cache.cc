@@ -133,7 +133,6 @@
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/stl_util.h"
@@ -141,7 +140,6 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_data.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_cache_snapshot.pb.h"
 
 namespace net_instaweb {
 
@@ -229,8 +227,7 @@ bool SharedMemCache<kBlockSize>::InitCache(bool parent) {
 
   if (segment_.get() == NULL) {
     handler_->Message(
-        kError, "SharedMemCache: can't %s segment %s of size %s",
-        parent ? "create" : "attach",
+        kError, "SharedMemCache: can't create/attach segment %s of size %s",
         filename_.c_str(), FormatSize(size).c_str());
     return false;
   }
@@ -250,8 +247,8 @@ bool SharedMemCache<kBlockSize>::InitCache(bool parent) {
 
     if (!ok) {
       handler_->Message(
-          kError, "SharedMemCache: can't %s sector %d of cache %s",
-          parent ? "create" : "attach", s, filename_.c_str());
+          kError, "SharedMemCache: can't create/attach sector %d of cache %s",
+          s, filename_.c_str());
       return false;
     }
     sectors_.push_back(sec.release());
@@ -329,91 +326,8 @@ GoogleString SharedMemCache<kBlockSize>::DumpStats() {
 }
 
 template<size_t kBlockSize>
-void SharedMemCache<kBlockSize>::AddSectorToSnapshot(
-    int sector_num, SharedMemCacheDump* dest) {
-  CHECK_LE(0, sector_num);
-  CHECK_LT(sector_num, num_sectors_);
-
-  Sector<kBlockSize>* sector = sectors_[sector_num];
-  sector->Lock();
-
-  EntryNum cur = sector->OldestEntryNum();
-  while (cur != kInvalidEntry) {
-    CacheEntry* cur_entry = sector->EntryAt(cur);
-
-    // It's possible that the sector got unlocked while a Put is
-    // updating the payload for an entry. In that case, the entry will
-    // have its creating bit set (but the metadata will be valid).
-    // We skip those.
-    if (!cur_entry->creating) {
-      SharedMemCacheDumpEntry* dump_entry = dest->add_entry();
-      dump_entry->set_raw_key(cur_entry->hash_bytes, kHashSize);
-      dump_entry->set_last_use_timestamp_ms(cur_entry->last_use_timestamp_ms);
-
-      // Gather value.
-      BlockVector blocks;
-      sector->BlockListForEntry(cur_entry, &blocks);
-
-      size_t total_blocks = blocks.size();
-      for (size_t b = 0; b < total_blocks; ++b) {
-        int bytes = sector->BytesInPortion(cur_entry->byte_size, b,
-                                           total_blocks);
-        dump_entry->mutable_value()->append(
-            sector->BlockBytes(blocks[b]), bytes);
-      }
-    }
-    cur = cur_entry->lru_prev;
-  }
-
-  sector->Unlock();
-}
-
-template<size_t kBlockSize>
-void SharedMemCache<kBlockSize>::RestoreSnapshot(
-    const SharedMemCacheDump& dump) {
-  for (int i = 0; i < dump.entry_size(); ++i) {
-    const SharedMemCacheDumpEntry& entry = dump.entry(i);
-
-    // The code below assumes that the raw hash is the right size, so make sure
-    // to detect this particular corruption to avoid crashing.
-    if (entry.raw_key().size() != kHashSize) {
-      return;
-    }
-
-    SharedString value(entry.value());
-    PutRawHash(entry.raw_key(), entry.last_use_timestamp_ms(), &value);
-  }
-}
-
-template<size_t kBlockSize>
-void SharedMemCache<kBlockSize>::MarshalSnapshot(
-    const SharedMemCacheDump& dump, GoogleString* out) {
-  out->clear();
-  StringOutputStream sstream(out);  // finalizes *out in destructor
-  dump.SerializeToZeroCopyStream(&sstream);
-}
-
-
-template<size_t kBlockSize>
-void SharedMemCache<kBlockSize>::DemarshalSnapshot(
-    const GoogleString& marshaled, SharedMemCacheDump* out) {
-  ArrayInputStream input(marshaled.data(), marshaled.size());
-  out->ParseFromZeroCopyStream(&input);
-}
-
-template<size_t kBlockSize>
 void SharedMemCache<kBlockSize>::Put(const GoogleString& key,
                                      SharedString* value) {
-  int64 now_ms = timer_->NowMs();
-  GoogleString raw_hash = ToRawHash(key);
-  PutRawHash(raw_hash, now_ms, value);
-}
-
-template<size_t kBlockSize>
-void SharedMemCache<kBlockSize>::PutRawHash(
-    const GoogleString& raw_hash,
-    int64 last_use_timestamp_ms,
-    SharedString* value) {
   // See also ::ComputeDimensions
   const size_t kMaxSize = (blocks_per_sector_ * kBlockSize) / 8;
 
@@ -426,6 +340,7 @@ void SharedMemCache<kBlockSize>::PutRawHash(
     return;
   }
 
+  GoogleString raw_hash = ToRawHash(key);
   Position pos;
   ExtractPosition(raw_hash, &pos);
 
@@ -446,7 +361,7 @@ void SharedMemCache<kBlockSize>::PutRawHash(
       if (!cand->creating) {
         ++stats->num_put_update;
         EnsureReadyForWriting(sector, cand);
-        PutIntoEntry(sector, cand_key, last_use_timestamp_ms, value);
+        PutIntoEntry(sector, cand_key, value);
       } else {
         ++stats->num_put_concurrent_create;
         sector->Unlock();
@@ -487,13 +402,12 @@ void SharedMemCache<kBlockSize>::PutRawHash(
   // Wait for readers before touching the key.
   EnsureReadyForWriting(sector, best);
   std::memcpy(best->hash_bytes, raw_hash.data(), kHashSize);
-  PutIntoEntry(sector, best_key, last_use_timestamp_ms, value);
+  PutIntoEntry(sector, best_key, value);
 }
 
 template<size_t kBlockSize>
 void SharedMemCache<kBlockSize>::PutIntoEntry(
-    Sector<kBlockSize>* sector, EntryNum entry_num,
-    int64 last_use_timestamp_ms, SharedString* value) {
+    Sector<kBlockSize>* sector, EntryNum entry_num, SharedString* value) {
   const char* data = value->data();
 
   CacheEntry* entry = sector->EntryAt(entry_num);
@@ -531,7 +445,7 @@ void SharedMemCache<kBlockSize>::PutIntoEntry(
   }
 
   entry->byte_size = value->size();
-  TouchEntry(sector, last_use_timestamp_ms, entry_num);
+  TouchEntry(sector, entry_num);
 
   // Write out successor list for the blocks we use, and point the entry to it.
   sector->LinkBlockSuccessors(blocks);
@@ -599,7 +513,7 @@ void SharedMemCache<kBlockSize>::GetFromEntry(
   }
   ++entry->open_count;
 
-  TouchEntry(sector, timer_->NowMs(), entry_num);
+  TouchEntry(sector, entry_num);
 
   BlockVector blocks;
   sector->BlockListForEntry(entry, &blocks);
@@ -734,12 +648,11 @@ void SharedMemCache<kBlockSize>::MarkEntryFree(Sector<kBlockSize>* sector,
 
 template<size_t kBlockSize>
 void SharedMemCache<kBlockSize>::TouchEntry(Sector<kBlockSize>* sector,
-                                            int64 last_use_timestamp_ms,
                                             EntryNum entry_num) {
   CacheEntry* entry = sector->EntryAt(entry_num);
   sector->UnlinkEntryFromLRU(entry_num);
   sector->InsertEntryIntoLRU(entry_num);
-  entry->last_use_timestamp_ms = last_use_timestamp_ms;
+  entry->last_use_timestamp_ms = timer_->NowMs();
 }
 
 template<size_t kBlockSize>
