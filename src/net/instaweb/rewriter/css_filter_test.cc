@@ -260,8 +260,7 @@ class CssFilterTestCustomOptions : public CssFilterTest {
 };
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+  options()->EnableFilter(RewriteOptions::kInlineCss);
   options()->set_css_preserve_urls(true);
   CssFilterTest::SetUp();
   // Verify that preserve had a chance to forbid some filters.
@@ -288,7 +287,7 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
 }
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsNoPreemptiveRewrite) {
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
+  options()->EnableFilter(RewriteOptions::kInlineCss);
   options()->set_css_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_css(false);
   CssFilterTest::SetUp();
@@ -1948,11 +1947,6 @@ TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
   ValidateRewriteExternalCssUrl("empty_leaf", StrCat(kTestDomain, "style/"),
                                 kInputStyle, kOutputStyle, kExpectSuccess);
-}
-
-TEST_F(CssFilterTest, UnauthorizedCssResource) {
-  ValidateRewriteExternalCssUrl("unauth", "http://unauth.example.com/style.css",
-                                kInputStyle, kInputStyle, kExpectNoChange);
 }
 
 TEST_F(CssFilterTest, FlushInInlineCss) {

@@ -50,7 +50,6 @@ const int64 kBeaconTimeoutIntervalMs = Timer::kMinuteMs;
 class CriticalKeys;
 class MessageHandler;
 class NonceGenerator;
-class RewriteDriver;
 
 enum BeaconStatus {
   kDoNotBeacon,
@@ -113,9 +112,9 @@ void WriteCriticalKeysToPropertyCache(
 // candidate detection will not occur).  If result->status != kDontBeacon,
 // caller should write proto back to the property cache using
 // UpdateInPropertyCache.
-void PrepareForBeaconInsertionHelper(
+void PrepareForBeaconInsertion(
     const StringSet& keys, CriticalKeys* proto, int support_interval,
-    NonceGenerator* nonce_generator, RewriteDriver* driver,
+    NonceGenerator* nonce_generator, Timer* timer,
     BeaconMetadata* result);
 
 }  // namespace net_instaweb

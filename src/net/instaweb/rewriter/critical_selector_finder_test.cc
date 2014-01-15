@@ -18,8 +18,6 @@
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/critical_keys.pb.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
@@ -75,15 +73,10 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     pcache->Read(page);
   }
 
-  void WriteToPropertyCache() {
+  void WriteBackAndResetDriver() {
     rewrite_driver()->property_page()->WriteCohort(
         server_context()->beacon_cohort());
-  }
-
-  void WriteBackAndResetDriver() {
-    WriteToPropertyCache();
     ResetDriver();
-    SetDummyRequestHeaders();
   }
 
   void CheckCriticalSelectorFinderStats(int hits, int expiries, int not_found) {
@@ -131,15 +124,36 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     ASSERT_EQ(ExpectedBeaconStatus(), last_beacon_metadata_.status);
   }
 
+  // Set up legacy critical selectors value.  We have to do this by hand using
+  // the protos and direct pcache writes, since the new finder by design doesn't
+  // write legacy data.
+  void SetupLegacyCriticalSelectors(bool include_history) {
+    CriticalKeys legacy_selectors;
+    legacy_selectors.add_critical_keys("#bar");
+    legacy_selectors.add_critical_keys(".foo");
+    if (include_history) {
+      CriticalKeys::BeaconResponse* first_set =
+          legacy_selectors.add_beacon_history();
+      first_set->add_keys("#bar");
+      CriticalKeys::BeaconResponse* second_set =
+          legacy_selectors.add_beacon_history();
+      second_set->add_keys("#bar");
+      second_set->add_keys(".foo");
+    }
+    WriteCriticalSelectorSetToPropertyCache(legacy_selectors);
+  }
+
   CriticalKeys* RawCriticalSelectorSet(int expected_size) {
     WriteBackAndResetDriver();
     finder_->GetCriticalSelectors(rewrite_driver());
     CriticalKeys* selectors =
         &rewrite_driver()->critical_selector_info()->proto;
     if (selectors != NULL) {
-      EXPECT_EQ(expected_size, selectors->key_evidence_size());
-    } else {
-      EXPECT_EQ(expected_size, 0);
+      EXPECT_EQ(0, selectors->critical_keys_size());
+      EXPECT_EQ(0, selectors->beacon_history_size());
+      if (selectors->key_evidence_size() != expected_size) {
+        EXPECT_EQ(expected_size, selectors->key_evidence_size());
+      }
     }
     return selectors;
   }
@@ -290,6 +304,46 @@ TEST_F(CriticalSelectorFinderTest, StoreNonCandidate) {
   EXPECT_STREQ(".a", CriticalSelectorsString());
 }
 
+// Test migration of legacy critical selectors to support format during beacon
+// insertion.  This tests the case where only critical_selectors were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetBeaconMigration) {
+  // First set up legacy pcache entry.
+  SetupLegacyCriticalSelectors(false /* include_history */);
+  Beacon();
+  CheckFooBarBeaconSupport(finder_->SupportInterval());
+}
+
+// Test migration of legacy critical selectors to support format during critical
+// selector return.  This tests the case where only critical_selectors were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetMigration) {
+  SetupLegacyCriticalSelectors(false /* include_history */);
+  // Create a new critical selector set and add it.  The legacy data will have
+  // migrated, and we'll add support for ".foo".
+  Beacon();
+  StringSet selectors;
+  selectors.insert(".noncandidate");
+  selectors.insert(".foo");
+  WriteCriticalSelectorsToPropertyCache(selectors);
+  CheckFooBarBeaconSupport(2 * finder_->SupportInterval() - 1,
+                           finder_->SupportInterval() - 1);
+}
+
+// Test migration of legacy selector history to the new format (using support).
+// This tests the case where both critical_selectors and selector_set_history
+// were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetHistoryMigration) {
+  SetupLegacyCriticalSelectors(true /* include_history */);
+  // Create a new critical selector set and add it.  The legacy data will have
+  // migrated, and we'll add support for ".foo".
+  Beacon();
+  StringSet selectors;
+  selectors.insert(".noncandidate");
+  selectors.insert(".foo");
+  WriteCriticalSelectorsToPropertyCache(selectors);
+  CheckFooBarBeaconSupport(2 * finder_->SupportInterval() - 1,
+                           2 * finder_->SupportInterval() - 2);
+}
+
 // Make sure we aggregate duplicate beacon results.
 TEST_F(CriticalSelectorFinderTest, DuplicateEntries) {
   Beacon();
@@ -345,7 +399,6 @@ TEST_F(CriticalSelectorFinderTest, EvidenceOverflow) {
 
 // Make sure we don't beacon if we have an empty set of candidate selectors.
 TEST_F(CriticalSelectorFinderTest, NoCandidatesNoBeacon) {
-  WriteBackAndResetDriver();
   StringSet empty;
   BeaconMetadata last_beacon_metadata =
       finder_->PrepareForBeaconInsertion(empty, rewrite_driver());
@@ -362,70 +415,6 @@ TEST_F(CriticalSelectorFinderTest, DontRebeaconBeforeTimeout) {
   EXPECT_EQ(kDoNotBeacon, last_beacon_metadata.status);
   // But we'll re-beacon if some more time passes.
   Beacon();  // kMinBeaconIntervalMs passes in Beacon() call.
-}
-
-TEST_F(CriticalSelectorFinderTest, RebeaconBeforeTimeoutWithHeader) {
-  Beacon();
-
-  // Write a dummy value to the property cache.
-  WriteToPropertyCache();
-
-  // Beacon injection should happen when downstream caching is enabled.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "random_rebeaconing_key");
-  RequestHeaders request_headers_with_correct_key;
-  request_headers_with_correct_key.Add(kPsaShouldBeacon,
-                                       "random_rebeaconing_key");
-  rewrite_driver()->SetRequestHeaders(request_headers_with_correct_key);
-  factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs / 2);
-  BeaconMetadata tmp_metadata =
-      finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
-  EXPECT_EQ(kDoNotBeacon, tmp_metadata.status);
-  EXPECT_TRUE(tmp_metadata.nonce.empty());
-
-  // Force beaconing so that the timer gets reset.
-  Beacon();
-
-  // Beacon injection should not happen when rebeaconing key is empty.
-  ResetDriver();
-  SetDownstreamCacheDirectives("localhost:80", "");
-  rewrite_driver()->SetRequestHeaders(request_headers_with_correct_key);
-  factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs / 2);
-  tmp_metadata =
-      finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
-  EXPECT_EQ(kDoNotBeacon, tmp_metadata.status);
-  EXPECT_TRUE(tmp_metadata.nonce.empty());
-
-  // Force beaconing so that the timer gets reset.
-  Beacon();
-
-  // Beacon injection should not happen when the PS-ShouldBeacon header is
-  // incorrect.
-  ResetDriver();
-  SetDownstreamCacheDirectives("localhost:80", "random_rebeaconing_key");
-  RequestHeaders request_headers_with_wrong_key;
-  request_headers_with_wrong_key.Add(kPsaShouldBeacon, "wrong_rebeaconing_key");
-  rewrite_driver()->SetRequestHeaders(request_headers_with_wrong_key);
-  factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs / 2);
-  tmp_metadata =
-      finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
-  EXPECT_EQ(kDoNotBeacon, tmp_metadata.status);
-  EXPECT_TRUE(tmp_metadata.nonce.empty());
-
-  // Force beaconing so that the timer gets reset.
-  Beacon();
-
-  // Beacon injection happens when the PS-ShouldBeacon header is present even
-  // when the pcache value has not expired and the reinstrumentation time
-  // interval has not been exceeded.
-  ResetDriver();
-  SetDownstreamCacheDirectives("localhost:80", "random_rebeaconing_key");
-  rewrite_driver()->SetRequestHeaders(request_headers_with_correct_key);
-  factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs / 2);
-  tmp_metadata =
-      finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
-  EXPECT_EQ(kBeaconWithNonce, tmp_metadata.status);
-  EXPECT_FALSE(tmp_metadata.nonce.empty());
 }
 
 // If ShouldReplacePriorResult returns true, then a beacon result

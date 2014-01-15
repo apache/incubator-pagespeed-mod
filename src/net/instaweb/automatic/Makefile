@@ -46,21 +46,15 @@ BASE_LIBS = \
   net/instaweb/libautomatic_util.a \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
-  net/instaweb/libinstaweb_apr.a \
   net/instaweb/libinstaweb_automatic.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
-  net/instaweb/libinstaweb_console_body_data2c.a \
   net/instaweb/libinstaweb_console_css_data2c.a \
-  net/instaweb/libinstaweb_console_css_old_data2c.a \
   net/instaweb/libinstaweb_console_js_data2c.a \
-  net/instaweb/libinstaweb_console_js_old_data2c.a \
   net/instaweb/libinstaweb_console_js_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
-  net/instaweb/libinstaweb_critical_css_loader_data2c.a \
-  net/instaweb/libinstaweb_critical_css_loader_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
   net/instaweb/libinstaweb_critical_images_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
@@ -125,16 +119,15 @@ BASE_LIBS = \
   pagespeed/libpagespeed_image_processing.a \
   pagespeed/libpagespeed_javascript_gperf.a \
   pagespeed/libpagespeed_sharedmem.a \
-  pagespeed/libpagespeed_sharedmem_pb.a \
   pagespeed/libpagespeed_thread.a \
   pagespeed/libpthread_system.a \
   pagespeed/libutil.a \
-  third_party/apr/libapr.a \
-  third_party/aprutil/libaprutil.a \
   third_party/base64/libbase64.a \
   third_party/chromium/src/base/third_party/dynamic_annotations/libdynamic_annotations.a \
   third_party/css_parser/libcss_parser.a \
   third_party/css_parser/libutf.a \
+  third_party/domain_registry_provider/src/domain_registry/libassert_lib.a \
+  third_party/domain_registry_provider/src/domain_registry/libdomain_registry_lib.a \
   third_party/gflags/libgflags.a \
   third_party/giflib/libdgiflib.a \
   third_party/giflib/libgiflib_core.a \
@@ -143,16 +136,18 @@ BASE_LIBS = \
   third_party/jsoncpp/libjsoncpp.a \
   third_party/libjpeg_turbo/libjpeg.a \
   third_party/libjpeg_turbo/src/libjpeg_turbo.a \
+  third_party/libpagespeed/src/pagespeed/core/libpagespeed_core.a \
+  third_party/libpagespeed/src/pagespeed/proto/libpagespeed_output_pb.a \
+  third_party/libpagespeed/src/pagespeed/proto/libpagespeed_resource_pb.a \
+  third_party/libpagespeed/src/pagespeed/proto/libtimeline_pb.a \
   third_party/libpng/libpng.a \
   third_party/libwebp/libwebp_dec.a \
   third_party/libwebp/libwebp_dsp.a \
   third_party/libwebp/libwebp_enc.a \
   third_party/libwebp/libwebp_utils.a \
-  third_party/openssl/libopenssl.a \
   third_party/optipng/libopngreduc.a \
   third_party/protobuf/libprotobuf_lite.a \
   third_party/re2/libre2.a \
-  third_party/serf/libserf.a \
   third_party/zlib/libzlib.a
 
 # The 'gclient' build flow uses 'xcodebuild' on Mac and 'make' on Linux.
@@ -236,10 +231,7 @@ CXXFLAGS = -g
 
 $(OUTPUT_DIR)/pagespeed_automatic.a : $(LIBS)
 	@echo Merging libraries ...
-	@./merge_libraries.sh $@.dirty $(LIBS)
-	@echo Cleaning namespace
-	@./rename_c_symbols.sh $@.dirty $@
-	rm $@.dirty
+	@./merge_libraries.sh $@ $(LIBS)
 
 
 $(OUTPUT_DIR)/%.o : %.cc

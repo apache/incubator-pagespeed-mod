@@ -58,6 +58,7 @@ class AbstractMutex;
 class AbstractPropertyPage;
 class AddInstrumentationFilter;
 class AsyncFetch;
+class CommonFilter;
 class CriticalCssResult;
 class CriticalLineInfo;
 class DebugFilter;
@@ -150,6 +151,9 @@ class RewriteDriver : public HtmlParse {
   static const char kSubresourcesPropertyName[];
   // Status codes of previous responses.
   static const char kStatusCodePropertyName[];
+  // Value of the kXPsaBlockingRewriteMode header which causes the blocking
+  // rewrite to wait for async events.
+  static const char kXPsaBlockingRewriteModeSlow[];
 
   RewriteDriver(MessageHandler* message_handler,
                 FileSystem* file_system,
@@ -536,15 +540,6 @@ class RewriteDriver : public HtmlParse {
   // context of this page.
   ResourcePtr CreateInputResource(const GoogleUrl& input_url);
 
-  // Creates an input resource paying attention to whether or not resources from
-  // unauthorized domains are to be allowed or not. Returns NULL if the input
-  // resource url isn't valid, or can't legally be rewritten in the context of
-  // this page (which could mean that it was a resource from an unauthorized
-  // domain being processed by a filter that does not allow unauthorized
-  // resources).
-  ResourcePtr CreateInputResource(const GoogleUrl& input_url,
-                                  bool allow_unauthorized_domain);
-
   // Creates an input resource from the given absolute url.  Requires that the
   // provided url has been checked, and can legally be rewritten in the current
   // page context.
@@ -558,15 +553,10 @@ class RewriteDriver : public HtmlParse {
   bool MatchesBaseUrl(const GoogleUrl& input_url) const;
 
   // Checks to see if we can write the input_url resource in the
-  // domain_url taking into account domain authorization,
-  // wildcard allow/disallow from RewriteOptions and allow_unauthorized_domain
-  // (a field that is dictated by the filter processing the URL).
-  // After the function is executed, is_authorized_domain will indicate whether
-  // input_url was found to belong to an authorized domain or not.
+  // domain_url taking into account domain authorization and
+  // wildcard allow/disallow from RewriteOptions.
   bool MayRewriteUrl(const GoogleUrl& domain_url,
-                     const GoogleUrl& input_url,
-                     bool allow_unauthorized_domain,
-                     bool* is_authorized_domain) const;
+                     const GoogleUrl& input_url) const;
 
   // Returns the appropriate base gurl to be used for resolving hrefs
   // in the document.  Note that HtmlParse::google_url() is the URL
@@ -855,6 +845,9 @@ class RewriteDriver : public HtmlParse {
       StringPiece property_name,
       StringPiece property_value);
 
+  void set_client_id(const StringPiece& id) { client_id_ = id.as_string(); }
+  const GoogleString& client_id() const { return client_id_; }
+
   // Returns the property page which contains the cached properties associated
   // with the current URL.
   PropertyPage* property_page() const;
@@ -985,6 +978,12 @@ class RewriteDriver : public HtmlParse {
   // thread-safe. Call it only from the html parser thread.
   void set_flush_early_render_info(
       FlushEarlyRenderInfo* flush_early_render_info);
+
+  void set_serve_blink_non_critical(bool x) { serve_blink_non_critical_ = x; }
+  bool serve_blink_non_critical() const { return serve_blink_non_critical_; }
+
+  void set_is_blink_request(bool x) { is_blink_request_ = x; }
+  bool is_blink_request() const { return is_blink_request_; }
 
   // Determines whether we are currently in Debug mode; meaning that the
   // site owner or user has enabled filter kDebug.
@@ -1141,6 +1140,11 @@ class RewriteDriver : public HtmlParse {
 
   friend class ScanFilter;
 
+  // Adds a CommonFilter into the HtmlParse filter-list, and into the
+  // Scan filter-list for initiating async resource fetches.   See
+  // ScanRequestUrl above.
+  void AddCommonFilter(CommonFilter* filter);
+
   // Registers RewriteFilter in the map, but does not put it in the
   // html parse filter chain.  This allows it to serve resource
   // requests.
@@ -1154,11 +1158,8 @@ class RewriteDriver : public HtmlParse {
 
   // Internal low-level helper for resource creation.
   // Use only when permission checking has been done explicitly on the
-  // caller side. is_authorized_domain is passed along to Resource object
-  // creation, in order to decide whether to keep the resource in the usual
-  // key space or a separate one meant for unauthorized resources only.
-  ResourcePtr CreateInputResourceUnchecked(const GoogleUrl& gurl,
-                                           bool is_authorized_domain);
+  // caller side.
+  ResourcePtr CreateInputResourceUnchecked(const GoogleUrl& gurl);
 
   void AddPreRenderFilters();
   void AddPostRenderFilters();
@@ -1181,6 +1182,8 @@ class RewriteDriver : public HtmlParse {
   // a RewriteFilter, should override
   // RewriteFilter::UsesPropertyCacheDomCohort() to return true.
   void WriteDomCohortIntoPropertyCache();
+
+  void FinalizeFilterLogging();
 
   // Used by CreateCacheFetcher() and CreateCacheOnlyFetcher().
   CacheUrlAsyncFetcher* CreateCustomCacheFetcher(UrlAsyncFetcher* base_fetcher);
@@ -1253,10 +1256,6 @@ class RewriteDriver : public HtmlParse {
 
   // The charset of the containing HTML page.
   GoogleString containing_charset_;
-
-  // Copies properties from the request headers to the request context,
-  // if both are non-null.
-  void PopulateRequestContext();
 
   bool filters_added_;
   bool externally_managed_;
@@ -1511,6 +1510,9 @@ class RewriteDriver : public HtmlParse {
 
   Writer* writer_;
 
+  // Stores a client identifier associated with this request, if any.
+  GoogleString client_id_;
+
   // Stores any cached properties associated with the current URL and fallback
   // URL (i.e. without query params).
   FallbackPropertyPage* fallback_property_page_;
@@ -1551,6 +1553,12 @@ class RewriteDriver : public HtmlParse {
   scoped_ptr<FlushEarlyInfo> flush_early_info_;
   scoped_ptr<FlushEarlyRenderInfo> flush_early_render_info_;
 
+  // When non-cacheable panels are absent, non-critical content is already
+  // served in blink flow. This flag indicates whether to serve non-critical
+  // from panel_filter / blink_filter or not.
+  bool serve_blink_non_critical_;
+  // Is this a blink request?
+  bool is_blink_request_;
   bool can_rewrite_resources_;
   bool is_nested_;
 
@@ -1587,15 +1595,6 @@ class OptionsAwareHTTPCacheCallback : public HTTPCache::Callback {
   virtual bool IsCacheValid(const GoogleString& key,
                             const ResponseHeaders& headers);
   virtual int64 OverrideCacheTtlMs(const GoogleString& key);
-
-  // Validates the specified response for the URL, request, given the specified
-  // options.  This is for checking if cache response can still be used, not for
-  // determining whether an entry should be written to an HTTP cache.
-  static bool IsCacheValid(const GoogleString& key,
-                           const RewriteOptions& rewrite_options,
-                           const RequestContextPtr& request_ctx,
-                           const ResponseHeaders& headers);
-
  protected:
   // Sub-classes need to ensure that rewrite_options remains valid till
   // Callback::Done finishes.

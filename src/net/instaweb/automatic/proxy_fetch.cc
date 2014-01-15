@@ -483,12 +483,18 @@ ProxyFetch::ProxyFetch(
   set_request_headers(async_fetch->request_headers());
   set_response_headers(async_fetch->response_headers());
 
-  // Was this proxy_fetch created on behalf of a distributed rewrite? Note: We
-  // don't verify the distributed rewrite key because we want to be conservative
-  // about when we apply rewriting.
+  // Was this proxy_fetch created on behalf of a distributed rewrite?
   if (request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
       request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
     distributed_fetch_ = true;
+  }
+
+  // Now that we've created the RewriteDriver, include the client_id generated
+  // from the original request headers, if any.
+  const char* client_id = async_fetch->request_headers()->Lookup1(
+      HttpAttributes::kXGooglePagespeedClientId);
+  if (client_id != NULL) {
+    driver_->set_client_id(client_id);
   }
 
   DCHECK(driver_->request_headers() != NULL);
@@ -948,8 +954,8 @@ void ProxyFetch::HandleDone(bool success) {
 }
 
 bool ProxyFetch::IsCachedResultValid(const ResponseHeaders& headers) {
-  return OptionsAwareHTTPCacheCallback::IsCacheValid(
-      url_, *Options(), request_context(), headers);
+  return (headers.has_date_ms() &&
+          Options()->IsUrlCacheValid(url_, headers.date_ms()));
 }
 
 void ProxyFetch::FlushDone() {

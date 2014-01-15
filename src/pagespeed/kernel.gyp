@@ -37,7 +37,6 @@
       'type': '<(library)',
       'sources': [
         'kernel/base/abstract_mutex.cc',
-        'kernel/base/annotated_message_handler.cc',
         'kernel/base/atom.cc',
         'kernel/base/debug.cc',
         'kernel/base/file_message_handler.cc',
@@ -151,7 +150,6 @@
       'sources': [
         'kernel/base/file_system_test_base.cc',
         'kernel/base/gtest.cc',
-        'kernel/base/message_handler_test_base.cc',
         'kernel/http/user_agent_matcher_test_base.cc',
         'kernel/sharedmem/shared_circular_buffer_test_base.cc',
         'kernel/sharedmem/shared_dynamic_string_map_test_base.cc',
@@ -175,7 +173,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/testing/gtest.gyp:gtest_main',
-        'pagespeed_sharedmem',
         'util',
       ],
     },
@@ -278,11 +275,17 @@
         'pagespeed_http_gperf',
         'pagespeed_http_pb',
         'util',
+#        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
       ],
       'include_dirs': [
         '<(instaweb_root)',
         '<(DEPTH)',
       ],
+      'all_dependent_settings': {
+        'include_dirs': [
+          '<(DEPTH)/third_party/protobuf/src',
+        ],
+      },
     },
     {
       'target_name': 'pagespeed_http_gperf',
@@ -390,7 +393,6 @@
         'kernel/image/jpeg_optimizer.cc',
         'kernel/image/jpeg_reader.cc',
         'kernel/image/jpeg_utils.cc',
-        'kernel/image/pixel_format_optimizer.cc',
         'kernel/image/png_optimizer.cc',
         'kernel/image/read_image.cc',
         'kernel/image/scanline_utils.cc',
@@ -432,19 +434,6 @@
       ],
     },
     {
-      'target_name': 'pagespeed_sharedmem_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'pagespeed/kernel/sharedmem',
-      },
-      'sources': [
-        'kernel/sharedmem/shared_mem_cache_snapshot.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/shared_mem_cache_snapshot.pb.cc',
-      ],
-      'includes': [
-        '../net/instaweb/protoc.gypi',
-      ],
-    },
-    {
       'target_name': 'pagespeed_sharedmem',
       'type': '<(library)',
       'sources': [
@@ -458,7 +447,6 @@
       ],
       'dependencies': [
         'pagespeed_base',
-        'pagespeed_sharedmem_pb',
       ],
       'include_dirs': [
         '<(DEPTH)',

@@ -167,7 +167,7 @@ ModPagespeedEnableFilters add_instrumentation
 
 # Set Webp Quality
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/image_rewriting" >
-    ModPagespeedWebpRecompressionQuality 65
+    ModPagespeedImageWebpRecompressionQuality 65
 </Directory>
 
 # Enable split_html
@@ -285,24 +285,10 @@ Header append 'X-Extra-Header' '1'
   Header append 'Cache-Control' 'no-store'
 </Directory>
 
-# Build a configuration hierarchy where at the root we have turned on
-# OptimizeForBandwidth, and in various subdirectories we override settings
-# to make them more aggressive.
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth" >
-  ModPagespeedRewriteLevel OptimizeForBandwidth
-  ModPagespeedDisableFilters add_instrumentation
-</Directory>
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/inline_css" >
-  ModPagespeedEnableFilters inline_css
-</Directory>
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/css_urls" >
-  ModPagespeedCssPreserveURLs off
-</Directory>
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/image_urls" >
-  ModPagespeedImagePreserveURLs off
-</Directory>
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/core_filters" >
-  ModPagespeedRewriteLevel CoreFilters
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/bug781" >
+  ModPagespeedCssImageInlineMaxBytes 3000
+  ModPagespeedEnableFilters convert_png_to_jpeg
+  ModPagespeedJpegRecompressionQuality 50
 </Directory>
 
 # However we should not allow user-specified cache-control on
@@ -454,21 +440,12 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeedDisableFilters inline_css
 </VirtualHost>
 
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName unauthorizedresources.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedInlineUnauthorizedResourcesExperimental true
-  ModPagespeedCssInlineMaxBytes 1000000
-</VirtualHost>
-
 # Sets up a logical home-page server on
-# max-cacheable-content-length.example.com.  This server is only used to test
+# max_cacheable_content_length.example.com.  This server is only used to test
 # ModPagespeedMaxCacheableContentLength, i.e.,
 # max_cacheable_response_content_length.
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName max-cacheable-content-length.example.com
+  ServerName max_cacheable_content_length.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedBlockingRewriteKey psatest
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
@@ -487,7 +464,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName domain-hyperlinks-on.example.com
+  ServerName domain_hyperlinks_on.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
 
@@ -501,7 +478,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName domain-hyperlinks-off.example.com
+  ServerName domain_hyperlinks_off.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
 
@@ -515,7 +492,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName client-domain-rewrite.example.com
+  ServerName client_domain_rewrite.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
 
@@ -523,14 +500,14 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   # rewrite_domains.html don't actually exist.
   ModPagespeedRewriteLevel PassThrough
 
-  ModPagespeedMapRewriteDomain http://client-domain-rewrite.example.com \
+  ModPagespeedMapRewriteDomain http://client_domain_rewrite.example.com \
       http://@@APACHE_DOMAIN@@
   ModPagespeedClientDomainRewrite true
   ModPagespeedEnableFilters rewrite_domains
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName url-attribute.example.com
+  ServerName url_attribute.example.com
 
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
@@ -555,7 +532,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName absolute-urls.example.com
+  ServerName absolute_urls.example.com
 
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
@@ -669,28 +646,6 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedRewriteLevel PassThrough
   ModPagespeedEnableFilters lazyload_images
   ModPagespeedCriticalImagesBeaconEnabled true
-
-  # add_instrumentation tests beacon handling with no handler specified, while
-  # here we test it with a handler (that should do nothing).
-  <Location /mod_pagespeed_beacon>
-    SetHandler mod_pagespeed_beacon
-  </Location>
-</VirtualHost>
-
-# Setup a vhost with the critical image beacon and lazyload filter enabled to
-# make sure that downstream caches and rebeaconing interact correctly.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName downstreamcacherebeacon.example.com
-
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters lazyload_images
-  ModPagespeedCriticalImagesBeaconEnabled true
-
-  # Enable the downstream caching feature and specify a rebeaconing key.
-  ModPagespeedDownstreamCachePurgeLocationPrefix "http://localhost:8020"
-  ModPagespeedDownstreamCacheRebeaconingKey random_rebeaconing_key
 
   # add_instrumentation tests beacon handling with no handler specified, while
   # here we test it with a handler (that should do nothing).
@@ -871,7 +826,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #COVERAGE   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
 #COVERAGE   ModPagespeedCompressMetadataCache true
 #COVERAGE   ModPagespeedRewriteLevel AllFilters
-#IPRO_PRESERVE_COVERAGE   ModPagespeedRewriteLevel OptimizeForBandwidth
 #IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters add_instrumentation
 #IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters local_storage_cache,debug
 #IPRO_PRESERVE_COVERAGE   ModPagespeedDisableFilters lazyload_images
@@ -885,8 +839,7 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #COVERAGE   # load-test it.
 #COVERAGE   ModPagespeedDisableFilters flush_subresources
 #COVERAGE   ModPagespeedEnableFilters elide_attributes
-#DOMAIN_AUTH_COVERAGE   ModPagespeedDomain *
-#IUR_COVERAGE   ModPagespeedInlineUnauthorizedResourcesExperimental true
+#COVERAGE   ModPagespeedDomain *
 #COVERAGE   ModPagespeedFileCacheSizeKb              102400
 #COVERAGE   ModPagespeedFileCacheCleanIntervalMs    3600000
 #COVERAGE   ModPagespeedLRUCacheKbPerProcess           1024
@@ -1058,7 +1011,7 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #
 # Note that we test with two distinct caches.
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName embed-config-html.example.com
+  ServerName embed_config_html.example.com
 
   DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
@@ -1066,14 +1019,14 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
   ModPagespeedAddOptionsToUrls on
   ModPagespeedJpegRecompressionQuality 73
   ModPagespeedDisableFilters inline_css,extend_cache,inline_javascript
-  ModPagespeedDomain embed-config-resources.example.com
+  ModPagespeedDomain embed_config_resources.example.com
 
-  ModPagespeedLoadFromFile "http://embed-config-resources.example.com/" \
+  ModPagespeedLoadFromFile "http://embed_config_resources.example.com/" \
       "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/"
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName embed-config-resources.example.com
+  ServerName embed_config_resources.example.com
 
   DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_example"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
@@ -1081,19 +1034,10 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
   ModPagespeedAddOptionsToUrls on
   # Note that we do not set the jpeg quality here, but take
   # it from image URL query parameters that we synthesize in
-  # from embed-config-html.example.com.
+  # from embed_config_html.example.com.
 
-  ModPagespeedLoadFromFile "http://embed-config-resources.example.com/" \
+  ModPagespeedLoadFromFile "http://embed_config_resources.example.com/" \
       "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/"
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName ipro-for-browser.example.com
-  ModPagespeedEnableFilters rewrite_images,convert_jpeg_to_webp
-  ModPagespeedEnableFilters in_place_optimize_for_browser
-  ModPagespeedInPlaceResourceOptimization on
-  DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_example"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_ipro_for_browser"
 </VirtualHost>
 
 # For testing Modpagespeed unplugged.
@@ -1109,30 +1053,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_mpsoff"
   ModPagespeed off
-</VirtualHost>
-
-# For testing with a custom origin header.  In this VirtualHost,
-# /mod_pagespeed_test is included in our DocumentRoot and thus does
-# not need to be in any resource URL paths.  This helps us verify that
-# we are looping back to the corect VirtualHost -- if we hit the wrong
-# one it will not work.  Also we don't have a VirtualHost for
-# sharedcdn.example.com, so the default Host header used for
-# origin-mapping won't work either.  Instead, we want origin-fetches
-# to go back to this VirtualHost so we rely on the new third optional
-# argument to MapOriginDomain.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName customhostheader.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_test"
-  ModPagespeed on
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters rewrite_images
-  ModPagespeedMapOriginDomain \
-      localhost:@@APACHE_SECONDARY_PORT@@/customhostheader \
-      sharedcdn.example.com/test \
-      customhostheader.example.com
-  ModPagespeedJpegRecompressionQuality 50
-  ModPagespeedCriticalImagesBeaconEnabled false
 </VirtualHost>
 
 # Help tests detect whether mod_spdy is loaded. Only sees it if it's loaded
@@ -1223,7 +1143,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedImageResolutionLimitBytes 10000000
 #ALL_DIRECTIVES ModPagespeedImagePreserveURLs false
 #ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQuality 85
-#ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQualityForSmallScreens 85
 #ALL_DIRECTIVES ModPagespeedImplicitCacheTtlMs 60000
 #ALL_DIRECTIVES ModPagespeedInPlaceResourceOptimization on
 #ALL_DIRECTIVES ModPagespeedIncreaseSpeedTracking true
@@ -1288,5 +1207,3 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedUrlValuedAttribute span src Hyperlink
 #ALL_DIRECTIVES ModPagespeedUsePerVHostStatistics on
 #ALL_DIRECTIVES ModPagespeedXHeaderValue "test"
-#ALL_DIRECTIVES ModPagespeedWebpRecompressionQuality 85
-#ALL_DIRECTIVES ModPagespeedWebpRecompressionQualityForSmallScreens 85

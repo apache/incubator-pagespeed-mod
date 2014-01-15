@@ -24,7 +24,6 @@
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -39,7 +38,6 @@
 #include "net/instaweb/util/public/stdio_file_system.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
@@ -72,10 +70,8 @@ class CssImageRewriterTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheImages);
-    options()->SoftEnableFilterForTesting(
-        RewriteOptions::kFallbackRewriteCssUrls);
-    options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    options()->EnableFilter(RewriteOptions::kFallbackRewriteCssUrls);
     CssRewriteTestBase::SetUp();
   }
 
@@ -194,8 +190,8 @@ TEST_F(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
 
 TEST_F(CssImageRewriterTest, RewriteCssImagesVerifyQuality) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressJpeg);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_max_rewrites_at_once(1);
   options()->set_always_rewrite_css(true);
   options()->set_image_jpeg_recompress_quality(85);
@@ -339,7 +335,7 @@ TEST_F(CssImageRewriterTest, InlinePaths) {
   // during development of async + inline case which caused us to do
   // null rewrites from cache.
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kLeftTrimUrls);
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
   server_context()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
                                 kDummyContent, 100);
@@ -371,7 +367,7 @@ TEST_F(CssImageRewriterTest, InlinePaths) {
 TEST_F(CssImageRewriterTest, RewriteCached) {
   // Make sure we produce the same output from cache.
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kLeftTrimUrls);
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
   server_context()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
                                 kDummyContent, 100);
@@ -422,7 +418,7 @@ TEST_F(CssImageRewriterTest, CacheInlineParseFailures) {
 
 TEST_F(CssImageRewriterTest, RecompressImages) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                        kContentTypePng, 100);
@@ -442,7 +438,7 @@ TEST_F(CssImageRewriterTest, RecompressImages) {
 
 TEST_F(CssImageRewriterTest, CssImagePreserveUrls) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->set_image_preserve_urls(true);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
@@ -472,7 +468,7 @@ TEST_F(CssImageRewriterTest, CssImagePreserveUrls) {
 
 TEST_F(CssImageRewriterTest, CssImagePreserveUrlsNoPreemptiveRewrite) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->set_image_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_css_images(false);
   server_context()->ComputeSignature(options());
@@ -667,8 +663,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesInStyleAttributes) {
   SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kDummyContent, 100);
 
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kRewriteStyleAttributes);
+  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
   server_context()->ComputeSignature(options());
 
   ValidateExpected("cache_extend_images_simple",
@@ -799,7 +794,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesFallback) {
 
 TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                        kContentTypePng, 100);
@@ -819,7 +814,7 @@ TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
 // Make sure we don't break import URLs or other non-image URLs.
 TEST_F(CssImageRewriterTest, FallbackImportsAndUnknownContentType) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
 
   AddFileToMockFetcher(StrCat(kTestDomain, "image.png"), kBikePngFile,
@@ -1001,22 +996,6 @@ class CssRecompressImagesInStyleAttributes : public RewriteTestBase {
         "\"/>");
   }
 
-  // Rewrites HTML, scans the rewritten HTML for a substring, and returns
-  // the number of image rewrites that were executed.
-  int64 TestInlineWithUA(StringPiece id, const GoogleString& html_input,
-                         const GoogleString& expected_substring,
-                         StringPiece user_agent)  {
-    Variable* image_rewrite_count = statistics()->GetVariable(
-        ImageRewriteFilter::kImageRewrites);
-    int64 start_image_rewrites = image_rewrite_count->Get();
-    output_buffer_.clear();
-    rewrite_driver()->SetUserAgent(user_agent);
-    Parse(id, html_input);
-    EXPECT_TRUE(output_buffer_.find(expected_substring) != GoogleString::npos)
-        << expected_substring;
-    return image_rewrite_count->Get() - start_image_rewrites;
-  }
-
   GoogleString div_before_;
   GoogleString div_after_;
 };
@@ -1114,74 +1093,6 @@ TEST_F(CssRecompressImagesInStyleAttributes,
   ValidateExpected("webp-lossless",
       "<div style=\"background-image:url(foo.jpg)\"/>",
       "<div style=\"background-image:url(xfoo.jpg.pagespeed.ic.0.jpg)\"/>");
-}
-
-// https://code.google.com/p/modpagespeed/issues/detail?id=781
-TEST_F(CssRecompressImagesInStyleAttributes, ServeCssToDifferentUA) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "bike.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
-  options()->set_image_jpeg_recompress_quality(85);
-  options()->set_image_inline_max_bytes(10000);
-  options()->set_max_image_bytes_for_webp_in_css(100000);
-  options()->set_css_image_inline_max_bytes(10000);
-  rewrite_driver()->AddFilters();
-
-  const char kHtmlInput[] = "<div style=\"background-image:url(bike.png)\"/>";
-  const char kJpegFile[] = "<div style=\"background-image:url("
-      "xbike.png.pagespeed.ic.0.jpg)\"/>";
-  const char kJpegInline[] = "background-image:url(data:image/jpeg;base64";
-  const char kWebpInline[] = "background-image:url(data:image/webp;base64";
-  const char* kIE7 = UserAgentMatcherTestBase::kIe7UserAgent;
-  const char* kIE9 = UserAgentMatcherTestBase::kIe9UserAgent;
-  const char* kFF = UserAgentMatcherTestBase::kFirefoxUserAgent;
-  const char* kWebp = UserAgentMatcherTestBase::kTestingWebp;
-
-  // Test to make sure we don't poison the cache with metadata from
-  // the wrong UA by making sure we get the expected results in each
-  // order.  The return value of TestInlineWithUA is the number of
-  // image-rewrites that were executed.  Note that ie7, ie9, and ff
-  // each share the same rewritten jpeg file, though ie7 can't inline
-  // it.  Thus after clearing cache, we should expect to see exactly
-  // two new image rewrites: 1 for jpeg, one for webp.
-  EXPECT_EQ(1, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-  EXPECT_EQ(0, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-
-  lru_cache()->Clear();
-  EXPECT_EQ(1, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-  EXPECT_EQ(0, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-
-  lru_cache()->Clear();
-  EXPECT_EQ(1, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-  EXPECT_EQ(0, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-
-  lru_cache()->Clear();
-  EXPECT_EQ(1, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-  EXPECT_EQ(0, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-
-  lru_cache()->Clear();
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-  EXPECT_EQ(1, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-  EXPECT_EQ(0, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-
-  lru_cache()->Clear();
-  EXPECT_EQ(1, TestInlineWithUA("webp", kHtmlInput, kWebpInline, kWebp));
-  EXPECT_EQ(1, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
-  EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
-  EXPECT_EQ(0, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
 }
 
 }  // namespace

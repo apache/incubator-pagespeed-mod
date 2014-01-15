@@ -25,6 +25,7 @@
 namespace net_instaweb {
 
 class Hasher;
+struct ContentType;
 
 // Encapsulates the naming of resource URL leafs.  The class holds the context
 // of a single resource, and is not intended for re-use.  We could, of course,
@@ -94,6 +95,9 @@ class ResourceNamer {
 
   // Name suitable for debugging and logging
   GoogleString PrettyName() const {return  InternalEncode(); }
+
+  // Compute a content-type based on ext().  NULL if unrecognized.
+  const ContentType* ContentTypeFromExt() const;
 
  private:
   GoogleString InternalEncode() const;

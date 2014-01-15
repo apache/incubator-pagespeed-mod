@@ -196,8 +196,9 @@ class ApacheProxyFetch : public AsyncFetchUsingWriter {
   bool status_ok() const { return status_ok_; }
 
   virtual bool IsCachedResultValid(const ResponseHeaders& headers) {
-    return OptionsAwareHTTPCacheCallback::IsCacheValid(
-        mapped_url_, *driver_->options(), request_context(), headers);
+    const RewriteOptions* options = driver_->options();
+    return (headers.has_date_ms() &&
+            options->IsUrlCacheValid(mapped_url_, headers.date_ms()));
   }
 
  private:
@@ -447,9 +448,7 @@ bool handle_as_proxy(ApacheServerContext* server_context,
   // resource optimization) is off.
   bool is_proxy = false;
   GoogleString mapped_url;
-  GoogleString host_header;
-  if (options->domain_lawyer()->MapOriginUrl(*gurl, &mapped_url, &host_header,
-                                             &is_proxy) &&
+  if (options->domain_lawyer()->MapOriginUrl(*gurl, &mapped_url, &is_proxy) &&
       is_proxy) {
     RewriteDriver* driver = ResourceFetch::GetDriver(
         *gurl, custom_options->release(), server_context, request_context);
@@ -486,8 +485,8 @@ bool handle_as_resource(ApacheServerContext* server_context,
   RequestContextPtr request_context(apache_request_context);
   bool using_spdy = request_context->using_spdy();
   RewriteOptions* global_options = server_context->global_options();
-  if (using_spdy && (server_context->SpdyGlobalConfig() != NULL)) {
-    global_options = server_context->SpdyGlobalConfig();
+  if (using_spdy && (server_context->SpdyConfig() != NULL)) {
+    global_options = server_context->SpdyConfig();
   }
 
   scoped_ptr<RequestHeaders> request_headers(new RequestHeaders);
@@ -657,7 +656,7 @@ apr_status_t instaweb_statistics_handler(
   const char* error_message = StatisticsHandler(
       factory,
       server_context,
-      server_context->SpdyGlobalConfig(),
+      server_context->SpdyConfig(),
       is_global_request,
       request->args,  /* query params */
       &content_type,
@@ -844,9 +843,9 @@ apr_status_t instaweb_handler(request_rec* request) {
   apr_status_t ret = DECLINED;
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  ApacheConfig* global_config = server_context->global_config();
+  ApacheConfig* config = server_context->config();
   // Escape ASAP if we're in unplugged mode.
-  if (global_config->unplugged()) {
+  if (config->unplugged()) {
     return DECLINED;
   }
 
@@ -864,18 +863,18 @@ apr_status_t instaweb_handler(request_rec* request) {
   } else if (request_handler_str == kTempStatisticsGraphsHandler) {
     GoogleString output;
     StringWriter writer(&output);
-    StatisticsGraphsHandler(global_config, &writer, message_handler);
+    StatisticsGraphsHandler(config, &writer, message_handler);
     write_handler_response(output, request);
     ret = OK;
   } else if (request_handler_str == kConsoleHandler) {
     // Do a little dance to get correct options for this request.
     RequestHeaders headers;
     ApacheRequestToRequestHeaders(*request, &headers);
-    GoogleUrl gurl(InstawebContext::MakeRequestUrl(*global_config, request));
+    GoogleUrl gurl(InstawebContext::MakeRequestUrl(*config, request));
     scoped_ptr<ApacheConfig> custom_options(get_custom_options(
-        server_context, request, &gurl, &headers, global_config));
+        server_context, request, &gurl, &headers, config));
     ApacheConfig* options =
-        (custom_options.get() != NULL ? custom_options.get() : global_config);
+        (custom_options.get() != NULL ? custom_options.get() : config);
 
     GoogleString output;
     StringWriter writer(&output);
@@ -931,14 +930,15 @@ apr_status_t instaweb_handler(request_rec* request) {
     }
 
   } else {
-    const char* url = InstawebContext::MakeRequestUrl(*global_config, request);
+    const char* url = InstawebContext::MakeRequestUrl(*config, request);
     // Do not try to rewrite our own sub-request.
     if (url != NULL) {
       GoogleUrl gurl(url);
       if (!gurl.IsWebValid()) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                       "Ignoring invalid URL: %s", gurl.spec_c_str());
-      } else if (IsBeaconUrl(global_config->beacon_url(), gurl)) {
+      } else if (IsBeaconUrl(server_context->global_options()->beacon_url(),
+                             gurl)) {
         ret = instaweb_beacon_handler(request, server_context);
       // For the beacon accept any method; for all others only allow GETs.
       } else if (request->method_number != M_GET) {
@@ -958,7 +958,7 @@ apr_status_t instaweb_handler(request_rec* request) {
     // Check for HTTP_NO_CONTENT here since that's the status used for a
     // successfully handled beacon.
     if (ret != OK && ret != HTTP_NO_CONTENT &&
-        (global_config->slurping_enabled() || global_config->test_proxy())) {
+        (config->slurping_enabled() || config->test_proxy())) {
       SlurpUrl(server_context, request);
       ret = OK;
     }
@@ -1023,7 +1023,7 @@ apr_status_t save_url_hook(request_rec *request) {
 apr_status_t save_url_in_note(request_rec *request,
                               ApacheServerContext* server_context) {
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return DECLINED;
   }
 
@@ -1086,7 +1086,7 @@ apr_status_t instaweb_map_to_storage(request_rec* request) {
 
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     // If we're in unplugged mode then none of our hooks apply so escape ASAP.
     return DECLINED;
   }

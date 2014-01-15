@@ -103,6 +103,11 @@ pagespeed.SplitHtmlBeacon.prototype.walkDom_ = function(node) {
  * @private
  */
 pagespeed.SplitHtmlBeacon.prototype.checkSplitHtml_ = function() {
+  // Define the maximum size of a POST that the server will accept. We shouldn't
+  // send more data than this.
+  // TODO(jud): Factor out this const so that it matches kMaxPostSizeBytes.
+  /** @const */ var MAX_DATA_LEN = 131072;
+
   this.walkDom_(document.body);
 
   if (this.btfNodes_.length != 0) {
@@ -114,7 +119,7 @@ pagespeed.SplitHtmlBeacon.prototype.checkSplitHtml_ = function() {
       // maximum POST request size limit. Check how large typical XPath sets
       // are, and if they are approaching this limit, either raise the limit or
       // split up the POST into multiple requests.
-      if ((data.length + tmp.length) > pagespeedutils.MAX_POST_SIZE) {
+      if ((data.length + tmp.length) > MAX_DATA_LEN) {
         break;
       }
       data += tmp;

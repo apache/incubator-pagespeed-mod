@@ -20,21 +20,21 @@ bool CssUrlCounter::Count(const StringPiece& in_text) {
 }
 
 CssTagScanner::Transformer::TransformStatus CssUrlCounter::Transform(
-    GoogleString* str) {
+    const StringPiece& in, GoogleString* out) {
   TransformStatus ret = kNoChange;
 
   // Note: we do not mess with empty URLs at all.
-  if (!str->empty()) {
-    GoogleUrl url(*base_url_, *str);
-    if (!url.IsWebOrDataValid()) {
+  if (!in.empty()) {
+    GoogleUrl in_url(*base_url_, in);
+    if (!in_url.IsWebOrDataValid()) {
       handler_->Message(kInfo, "Invalid URL in CSS %s expands to %s",
-                        str->c_str(), url.spec_c_str());
+                        in.as_string().c_str(), in_url.spec_c_str());
       ret = kFailure;
     } else {
       // Count occurrences of each URL.
-      GoogleString url_string;
-      url.Spec().CopyToString(&url_string);
-      ++url_counts_[url_string];
+      GoogleString in_string;
+      in_url.Spec().CopyToString(&in_string);
+      ++url_counts_[in_string];
     }
   }
 

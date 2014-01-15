@@ -571,7 +571,7 @@ TEST_F(ServerContextTest, TestOutputInputUrlEvil) {
 
 TEST_F(ServerContextTest, TestOutputInputUrlBusy) {
   EXPECT_TRUE(options()->WriteableDomainLawyer()->AddOriginDomainMapping(
-      "www.busy.com", "example.com", "", message_handler()));
+      "www.busy.com", "example.com", message_handler()));
   options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   rewrite_driver()->AddFilters();
 
@@ -592,7 +592,7 @@ TEST_F(ServerContextTest, TestOutputInputUrlBusy) {
 // fetching the URL.
 TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
   ASSERT_TRUE(options()->WriteableDomainLawyer()->AddOriginDomainMapping(
-      "localhost", kTestDomain, "", message_handler()));
+      "localhost", kTestDomain, message_handler()));
   EXPECT_TRUE(options()->WriteableDomainLawyer()->AddRewriteDomainMapping(
       "cdn.com", kTestDomain, message_handler()));
 
@@ -1115,7 +1115,6 @@ class BeaconTest : public ServerContextTest {
 
   void ResetDriver() {
     rewrite_driver()->Clear();
-    SetDummyRequestHeaders();
   }
 
   MockPropertyPage* MockPageForUA(StringPiece user_agent) {
@@ -1239,7 +1238,8 @@ TEST_F(BeaconTest, HandleBeaconRenderedDimensionsofImages) {
   images->set_rendered_width(40);
   images->set_rendered_height(50);
   GoogleString json_map_rendered_dimensions = StrCat(
-      "{\"", hash1, "\":{\"rw\":40,", "\"rh\":50,\"ow\":160,\"oh\":200}}");
+      "{\"", hash1, "\":{\"renderedWidth\":40,",
+      "\"renderedHeight\":50,\"originalWidth\":160,\"originalHeight\":200}}");
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   TestBeacon(NULL, NULL, &json_map_rendered_dimensions,
               UserAgentMatcherTestBase::kChromeUserAgent);

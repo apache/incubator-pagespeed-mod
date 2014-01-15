@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/css_summarizer_base.h"
 
 #include <cstddef>
-#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
@@ -42,7 +41,6 @@
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -241,50 +239,36 @@ void CssSummarizerBase::Context::RewriteSingle(
 
 bool CssSummarizerBase::Context::Partition(OutputPartitions* partitions,
                                            OutputResourceVector* outputs) {
-  if (num_slots() != 1) {
-    return false;
+  bool ok;
+  if (!rewrite_inline_) {
+    ok = SingleRewriteContext::Partition(partitions, outputs);
+    ok = ok && (partitions->partition_size() != 0);
+  } else {
+    // In the case where we're rewriting inline CSS, we don't want an output
+    // resource but still want a non-trivial partition.
+    // We use kOmitInputHash here as this is for inline content.
+    CachedResult* partition = partitions->add_partition();
+    slot(0)->resource()->AddInputInfoToPartition(
+        Resource::kOmitInputHash, 0, partition);
+    outputs->push_back(OutputResourcePtr(NULL));
+    ok = true;
   }
-  ResourcePtr resource(slot(0)->resource());
-  if (!rewrite_inline_ && !resource->IsSafeToRewrite(rewrite_uncacheable())) {
-    // TODO(anupama): Shouldn't we check the closing style tag portion of
-    // ShouldInline(resource) here?
-    return false;
-  }
-  // We don't want an output resource but still want a non-trivial partition.
-  // We use kOmitInputHash here as this is for content that will be inlined.
-  CachedResult* partition = partitions->add_partition();
-  resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
-  outputs->push_back(OutputResourcePtr(NULL));
-  return true;
+
+  return ok;
 }
 
 GoogleString CssSummarizerBase::Context::CacheKeySuffix() const {
   return filter_->CacheKeySuffix();
 }
 
-const char CssSummarizerBase::kNumCssUsedForCriticalCssComputation[] =
-    "num_css_used_for_critical_css_computation";
-const char CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation[] =
-    "num_css_not_used_for_critical_css_computation";
-
 CssSummarizerBase::CssSummarizerBase(RewriteDriver* driver)
     : RewriteFilter(driver),
       progress_lock_(driver->server_context()->thread_system()->NewMutex()) {
-  Statistics* stats = server_context_->statistics();
-  num_css_used_for_critical_css_computation_ =
-      stats->GetVariable(kNumCssUsedForCriticalCssComputation);
-  num_css_not_used_for_critical_css_computation_ =
-      stats->GetVariable(kNumCssNotUsedForCriticalCssComputation);
   Clear();
 }
 
 CssSummarizerBase::~CssSummarizerBase() {
   Clear();
-}
-
-void CssSummarizerBase::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kNumCssUsedForCriticalCssComputation);
-  statistics->AddVariable(kNumCssNotUsedForCriticalCssComputation);
 }
 
 GoogleString CssSummarizerBase::CacheKeySuffix() const {
@@ -421,7 +405,8 @@ void CssSummarizerBase::ReportSummariesDone() {
           StrAppend(&comment, "Unrecoverable CSS parse error\n");
           break;
         case kSummaryResourceCreationFailed:
-          StrAppend(&comment, kCreateResourceFailedDebugMsg, "\n");
+          StrAppend(&comment, "Cannot create resource; is it authorized and "
+                              "is URL well-formed?\n");
           break;
         case kSummaryInputUnavailable:
           StrAppend(&comment,
@@ -435,13 +420,7 @@ void CssSummarizerBase::ReportSummariesDone() {
     }
     InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, comment));
   }
-  for (int i = 0, n = summaries_.size(); i < n; ++i) {
-    if (summaries_[i].state == kSummaryOk) {
-      num_css_used_for_critical_css_computation_->Add(1);
-    } else {
-      num_css_not_used_for_critical_css_computation_->Add(1);
-    }
-  }
+
   SummariesDone();
 }
 
@@ -475,7 +454,7 @@ void CssSummarizerBase::StartExternalRewrite(
     // TODO(morlovich): Stat?
     if (DebugMode()) {
       driver_->InsertComment(StrCat(
-          Name(), ": ", kCreateResourceFailedDebugMsg));
+          Name(), ": unable to create resource; is it authorized?"));
     }
     return;
   }

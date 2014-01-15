@@ -31,13 +31,10 @@ namespace net_instaweb {
 class HtmlElement;
 class HtmlCharactersNode;
 class RewriteDriver;
-class Statistics;
-class Variable;
 
 // Inline small Javascript files.
 class JsInlineFilter : public CommonFilter {
  public:
-  static const char kNumJsInlined[];
   explicit JsInlineFilter(RewriteDriver* driver);
   virtual ~JsInlineFilter();
 
@@ -47,12 +44,6 @@ class JsInlineFilter : public CommonFilter {
   virtual void EndElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual const char* Name() const { return "InlineJs"; }
-  // Inlining javascript from unauthorized domains into HTML is considered
-  // safe because it does not cause any new content to be executed compared
-  // to the unoptimized page.
-  virtual bool AllowUnauthorizedDomain() const { return true; }
-
-  static void InitStats(Statistics* statistics);
 
  private:
   class Context;
@@ -71,8 +62,6 @@ class JsInlineFilter : public CommonFilter {
   // inline the script (and set it back to false).  It should never be true
   // outside of <script> and </script>.
   bool should_inline_;
-
-  Variable* num_js_inlined_;
 
   DISALLOW_COPY_AND_ASSIGN(JsInlineFilter);
 };

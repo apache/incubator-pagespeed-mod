@@ -34,7 +34,6 @@ class AbstractSharedMem;
 class AbstractSharedMemSegment;
 class Hasher;
 class MessageHandler;
-class SharedMemCacheDump;
 class SharedString;
 class Timer;
 
@@ -92,21 +91,6 @@ class SharedMemCache : public CacheInterface {
   // Statistics system (or pull to it from these).
   GoogleString DumpStats();
 
-  // Saves information on sector contents to *dest. You can call this multiple
-  // times with the same dest.
-  // Note: other accesses to the sector will be locked out for the duration.
-  void AddSectorToSnapshot(int sector_num, SharedMemCacheDump* dest);
-
-  // Restores entries stored in the dump into this cache. The dump
-  // may contain multiple sectors.
-  void RestoreSnapshot(const SharedMemCacheDump& dump);
-
-  // Encode/Decode SharedMemCacheDump objects.
-  static void MarshalSnapshot(const SharedMemCacheDump& dump,
-                              GoogleString* out);
-  static void DemarshalSnapshot(const GoogleString& marshaled,
-                                SharedMemCacheDump* out);
-
   virtual void Get(const GoogleString& key, Callback* callback);
   virtual void Put(const GoogleString& key, SharedString* value);
   virtual void Delete(const GoogleString& key);
@@ -131,9 +115,6 @@ class SharedMemCache : public CacheInterface {
 
   bool InitCache(bool parent);
 
-  void PutRawHash(const GoogleString& raw_hash, int64 last_use_timestamp_ms,
-                  SharedString* value);
-
   // Finish a get, with the entry matching and sector lock held.
   // Releases lock when done.
   void GetFromEntry(const GoogleString& key,
@@ -146,7 +127,6 @@ class SharedMemCache : public CacheInterface {
   // correct at time of entry.
   void PutIntoEntry(SharedMemCacheData::Sector<kBlockSize>* sector,
                     SharedMemCacheData::EntryNum entry_num,
-                    int64 last_use_timestamp_ms,
                     SharedString* value);
 
   // Finish a delete, with the entry matching and sector lock held.
@@ -170,7 +150,6 @@ class SharedMemCache : public CacheInterface {
 
   // Marks entry as having been recently used, and updates timestamp.
   void TouchEntry(SharedMemCacheData::Sector<kBlockSize>* sector,
-                  int64 last_use_timestamp_ms,
                   SharedMemCacheData::EntryNum entry_num);
 
   // Returns true if the entry can be written (in particular meaning it's not

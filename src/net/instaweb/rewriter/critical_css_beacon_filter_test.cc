@@ -23,7 +23,6 @@
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/css_summarizer_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -35,7 +34,6 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -59,7 +57,6 @@ const char kStyleB[] =
 
 // The styles above produce the following beacon initialization selector lists.
 const char kSelectorsInline[] = "\"a\",\"p\"";
-const char kSelectorsInlineWithUnauthSelectors[] = "\"a\",\"div\",\"p\"";
 const char kSelectorsA[] = "\".sec h1#id\",\"div ul > li\"";
 const char kSelectorsB[] = "\"a\",\"div ul > li\",\"p\"";
 const char kSelectorsInlineAB[] = "\".sec h1#id\",\"a\",\"div ul > li\",\"p\"";
@@ -73,9 +70,9 @@ const char kStyleCorrupt[] =
     "span{color:";
 const char kStyleEmpty[] =
     "/* This has no selectors */";
-const char kStyleForUnauthCss[] =
+const char kStyleEvil[] =
     "div{display:inline}";
-const char kUnauthDomainUrl[] = "http://unauthorized.com/d.css";
+const char kEvilUrl[] = "http://evil.com/d.css";
 
 // Common setup / result generation code for all tests
 class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
@@ -90,7 +87,6 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
     SetHtmlMimetype();  // Don't wrap scripts in <![CDATA[ ]]>
     factory()->set_use_beacon_results_in_filters(true);
     rewrite_driver()->set_property_page(NewMockPage(kTestDomain));
-    SetDummyRequestHeaders();
     // Set up pcache for page.
     const PropertyCache::Cohort* cohort =
         SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
@@ -110,8 +106,8 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
                                   kStyleCorrupt, 100);
     SetResponseWithDefaultHeaders("empty.css", kContentTypeCss,
                                   kStyleEmpty, 100);
-    SetResponseWithDefaultHeaders(kUnauthDomainUrl, kContentTypeCss,
-                                  kStyleForUnauthCss, 100);
+    SetResponseWithDefaultHeaders(kEvilUrl, kContentTypeCss,
+                                  kStyleEvil, 100);
   }
 
   // Return a css_filter optimized url.
@@ -223,27 +219,9 @@ TEST_F(CriticalCssBeaconFilterTest, DontExtractFromAlternate) {
 }
 
 TEST_F(CriticalCssBeaconFilterTest, Unauthorized) {
-  GoogleString css = StrCat(CssLinkHref(kUnauthDomainUrl), kInlineStyle);
+  GoogleString css = StrCat(CssLinkHref(kEvilUrl), kInlineStyle);
   ValidateExpectedUrl(
       kTestDomain, InputHtml(css), BeaconHtml(css, kSelectorsInline));
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
-}
-
-TEST_F(CriticalCssBeaconFilterTest, AllowUnauthorized) {
-  options()->ClearSignatureForTesting();
-  options()->set_inline_unauthorized_resources(true);
-  options()->ComputeSignature();
-  GoogleString css = StrCat(CssLinkHref(kUnauthDomainUrl), kInlineStyle);
-  ValidateExpectedUrl(
-      kTestDomain, InputHtml(css),
-      BeaconHtml(css, kSelectorsInlineWithUnauthSelectors));
-  EXPECT_EQ(2, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(0, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
 }
 
 TEST_F(CriticalCssBeaconFilterTest, Missing) {
@@ -293,12 +271,12 @@ TEST_F(CriticalCssBeaconFilterTest, MixOfGoodAndBad) {
   SetFetchFailOnUnexpected(false);
   GoogleString input_html = InputHtml(
       StrCat(CssLinkHref("a.css"), CssLinkHref("404.css"), kInlineStyle,
-             CssLinkHref(kUnauthDomainUrl), CssLinkHref("corrupt.css"),
-             kInlinePrint, CssLinkHref("b.css")));
+             CssLinkHref(kEvilUrl), CssLinkHref("corrupt.css"), kInlinePrint,
+             CssLinkHref("b.css")));
   GoogleString expected_html = BeaconHtml(
       StrCat(CssLinkHref("a.css"), CssLinkHref("404.css"), kInlineStyle,
-             CssLinkHref(kUnauthDomainUrl), CssLinkHref("corrupt.css"),
-             kInlinePrint, CssLinkHrefOpt("b.css")),
+             CssLinkHref(kEvilUrl), CssLinkHref("corrupt.css"), kInlinePrint,
+             CssLinkHrefOpt("b.css")),
       kSelectorsInlineAB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
 }

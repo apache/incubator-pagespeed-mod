@@ -231,21 +231,6 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     return FinishTest(full_pre_comment, post_comment);
   }
 
-  void VerifyUnauthNotRendered() {
-    FullTest("will_not_render", "", "");
-    EXPECT_STREQ(StrCat("<html>\n",
-                        "<style>* {display: none; }</style>",
-                        CssLinkHref("a.css"),
-                        StrCat("<!--WillNotRender:2 --- ParseError-->",
-                               CssLinkHref("b.css")),
-                        StrCat("<!--WillNotRender:3 --- FetchError-->",
-                               CssLinkHref("404.css")),
-                        StrCat("<!--WillNotRender:4 --- ResourceError-->",
-                               CssLinkHref("http://evil.com/d.css")),
-                        StrCat("<!--", kExpectedResult, "-->")),
-                 output_buffer_);
-  }
-
   MinifyExcerptFilter* filter_;  // owned by the driver;
   const GoogleString head_;
 
@@ -276,15 +261,18 @@ TEST_F(CssSummarizerBaseTest, RenderSummary) {
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummary) {
   filter_->set_will_not_render_summaries_in_place(true);
-  VerifyUnauthNotRendered();
-}
-
-TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWithUnauthEnabled) {
-  filter_->set_will_not_render_summaries_in_place(true);
-  options()->ClearSignatureForTesting();
-  options()->set_inline_unauthorized_resources(true);
-  server_context()->ComputeSignature(options());
-  VerifyUnauthNotRendered();
+  FullTest("will_not_render", "", "");
+  EXPECT_STREQ(StrCat("<html>\n",
+                      "<style>* {display: none; }</style>",
+                      CssLinkHref("a.css"),
+                      StrCat("<!--WillNotRender:2 --- ParseError-->",
+                             CssLinkHref("b.css")),
+                      StrCat("<!--WillNotRender:3 --- FetchError-->",
+                             CssLinkHref("404.css")),
+                      StrCat("<!--WillNotRender:4 --- ResourceError-->",
+                             CssLinkHref("http://evil.com/d.css")),
+                      StrCat("<!--", kExpectedResult, "-->")),
+               output_buffer_);
 }
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWait) {

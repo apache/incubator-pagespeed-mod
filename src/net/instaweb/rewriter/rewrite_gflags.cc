@@ -512,39 +512,19 @@ DEFINE_string(access_control_allow_origins, "",
               "cross-origin requests. These domain requests are served with "
               "Access-Control-Allow-Origin header.");
 
+DEFINE_bool(use_image_scanline_api, true,
+            "If set to true, do not use OpenCV for image rewrites.");
+
 namespace net_instaweb {
 
 namespace {
 
-bool DomainMapRewriteDomain(DomainLawyer* lawyer,
-                            const StringPiece& to_domain,
-                            const StringPiece& from,
-                            MessageHandler* handler) {
-  return lawyer->AddRewriteDomainMapping(to_domain, from, handler);
-}
-
-bool DomainMapOriginDomain(DomainLawyer* lawyer,
-                           const StringPiece& to_domain,
-                           const StringPiece& from,
-                           MessageHandler* handler) {
-  // Note that we don't currently have a syntax to specify a Host header
-  // from flags.  This can be created as the need arises.
-  return lawyer->AddOriginDomainMapping(to_domain, from, "" /* host_header */,
-                                        handler);
-}
-
-bool DomainAddShard(DomainLawyer* lawyer,
-                            const StringPiece& to_domain,
-                            const StringPiece& from,
-                            MessageHandler* handler) {
-  return lawyer->AddShard(to_domain, from, handler);
-}
+#define CALL_MEMBER_FN(object, var) (object->*(var))
 
 bool AddDomainMap(const StringPiece& flag_value, DomainLawyer* lawyer,
-                  bool (*fn)(DomainLawyer* lawyer,
-                             const StringPiece& to_domain,
-                             const StringPiece& from,
-                             MessageHandler* handler),
+                  bool (DomainLawyer::*fn)(const StringPiece& to_domain,
+                                           const StringPiece& from,
+                                           MessageHandler* handler),
                   MessageHandler* message_handler) {
   bool ret = true;
   StringPieceVector maps;
@@ -559,7 +539,8 @@ bool AddDomainMap(const StringPiece& flag_value, DomainLawyer* lawyer,
                                maps[i].as_string().c_str());
       ret = false;
     } else {
-      ret &= (*fn)(lawyer, name_values[0], name_values[1], message_handler);
+      ret &= CALL_MEMBER_FN(lawyer, fn)(name_values[0], name_values[1],
+                                        message_handler);
     }
   }
   return ret;
@@ -988,19 +969,19 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("rewrite_domain_map")) {
     ret &= AddDomainMap(FLAGS_rewrite_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainMapRewriteDomain, handler);
+                        &DomainLawyer::AddRewriteDomainMapping, handler);
   }
 
   if (WasExplicitlySet("shard_domain_map")) {
     ret &= AddDomainMap(FLAGS_shard_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainAddShard, handler);
+                        &DomainLawyer::AddShard, handler);
   }
 
   if (WasExplicitlySet("origin_domain_map")) {
     ret &= AddDomainMap(FLAGS_origin_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainMapOriginDomain, handler);
+                        &DomainLawyer::AddOriginDomainMapping, handler);
   }
   if (WasExplicitlySet("enable_extended_instrumentation")) {
     options->set_enable_extended_instrumentation(
@@ -1057,6 +1038,9 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("distributable_filters")) {
     options->DistributeFiltersByCommaSeparatedList(FLAGS_distributable_filters,
                                                    handler);
+  }
+  if (WasExplicitlySet("use_image_scanline_api")) {
+    options->set_use_image_scanline_api(FLAGS_use_image_scanline_api);
   }
 
   ret &= SetRewriters("rewriters", FLAGS_rewriters.c_str(),

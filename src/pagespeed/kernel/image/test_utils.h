@@ -199,10 +199,6 @@ void DecodeAndCompareImagesByPSNR(
     double min_psnr,
     MessageHandler* message_handler);
 
-// Check whether the readers decode to exactly the same pixels.
-void CompareImageReaders(ScanlineReaderInterface* reader1,
-                         ScanlineReaderInterface* reader2);
-
 // Check whether the images have the same content in the specified regions.
 // Here "same content" means that the image regions "look" the same. It
 // does not matter how the image is encoded or stored. As an example,

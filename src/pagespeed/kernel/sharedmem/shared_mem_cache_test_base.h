@@ -31,7 +31,7 @@
 
 namespace net_instaweb {
 
-class SharedMemCacheDump;
+class CacheInterface;
 class ThreadSystem;
 
 class SharedMemCacheTestBase : public CacheTestBase {
@@ -43,7 +43,7 @@ class SharedMemCacheTestBase : public CacheTestBase {
 
   virtual void TearDown();
 
-  virtual SharedMemCache<kBlockSize>* Cache() { return cache_.get(); }
+  virtual CacheInterface* Cache() { return cache_.get(); }
   virtual void SanityCheck();
 
   void TestBasic();
@@ -52,16 +52,9 @@ class SharedMemCacheTestBase : public CacheTestBase {
   void TestReaderWriter();
   void TestConflict();
   void TestEvict();
-  void TestSnapshot();
-
-  void ResetCache();
 
  private:
   bool CreateChild(TestMethod method);
-
-  void CheckDumpsEqual(const SharedMemCacheDump& a,
-                       const SharedMemCacheDump& b,
-                       const char* test_label);
 
   SharedMemCache<kBlockSize>* MakeCache();
   void CheckDelete(const char* key);
@@ -117,13 +110,9 @@ TYPED_TEST_P(SharedMemCacheTestTemplate, TestEvict) {
   SharedMemCacheTestBase::TestEvict();
 }
 
-TYPED_TEST_P(SharedMemCacheTestTemplate, TestSnapshot) {
-  SharedMemCacheTestBase::TestSnapshot();
-}
-
 REGISTER_TYPED_TEST_CASE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
                            TestReplacement, TestReaderWriter, TestConflict,
-                           TestEvict, TestSnapshot);
+                           TestEvict);
 
 }  // namespace net_instaweb
 

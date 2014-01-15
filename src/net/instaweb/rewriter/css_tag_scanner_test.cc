@@ -441,7 +441,7 @@ class FailTransformer : public CssTagScanner::Transformer {
   FailTransformer() {}
   virtual ~FailTransformer() {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
+  virtual TransformStatus Transform(const StringPiece& in, GoogleString* out) {
     return kFailure;
   }
 

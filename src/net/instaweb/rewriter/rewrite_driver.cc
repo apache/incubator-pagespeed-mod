@@ -69,7 +69,6 @@
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
-#include "net/instaweb/rewriter/public/css_summarizer_base.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -280,6 +279,8 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       num_flushed_early_pagespeed_resources_(0),
       num_bytes_in_(0),
       debug_filter_(NULL),
+      serve_blink_non_critical_(false),
+      is_blink_request_(false),
       can_rewrite_resources_(true),
       is_nested_(false),
       request_context_(NULL),
@@ -292,14 +293,6 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
   early_pre_render_filters_.push_back(&scan_filter_);
 }
 
-void RewriteDriver::PopulateRequestContext() {
-  if ((request_context_.get() != NULL) &&
-      (request_headers_ != NULL)) {
-    request_context_->set_accepts_webp(request_headers_->HasValue(
-        HttpAttributes::kAccept, kContentTypeWebp.mime_type()));
-  }
-}
-
 void RewriteDriver::SetRequestHeaders(const RequestHeaders& headers) {
   DCHECK(request_headers_.get() == NULL);
   RequestHeaders* new_request_headers = new RequestHeaders();
@@ -307,7 +300,6 @@ void RewriteDriver::SetRequestHeaders(const RequestHeaders& headers) {
   new_request_headers->PopulateLazyCaches();
   request_headers_.reset(new_request_headers);
   request_properties_->ParseRequestHeaders(*request_headers_.get());
-  PopulateRequestContext();
 }
 
 void RewriteDriver::set_request_context(const RequestContextPtr& x) {
@@ -333,7 +325,6 @@ void RewriteDriver::set_request_context(const RequestContextPtr& x) {
         options()->allow_logging_urls_in_log_record());
     request_context_->log_record()->SetLogUrlIndices(
         options()->log_url_indices());
-    PopulateRequestContext();
   }
 }
 
@@ -424,6 +415,7 @@ void RewriteDriver::Clear() {
   base_was_set_ = false;
   refs_before_base_ = false;
   containing_charset_.clear();
+  client_id_.clear();
   fully_rewrite_on_flush_ = false;
   fast_blocking_rewrite_ = true;
   num_inline_preview_images_ = 0;
@@ -431,6 +423,8 @@ void RewriteDriver::Clear() {
   num_bytes_in_ = 0;
   flush_early_info_.reset(NULL);
   flush_early_render_info_.reset(NULL);
+  serve_blink_non_critical_ = false;
+  is_blink_request_ = false;
   can_rewrite_resources_ = true;
   is_nested_ = false;
   num_initiated_rewrites_ = 0;
@@ -814,10 +808,8 @@ void RewriteDriver::InitStats(Statistics* statistics) {
   CriticalImagesBeaconFilter::InitStats(statistics);
   CssCombineFilter::InitStats(statistics);
   CssFilter::InitStats(statistics);
-  CssInlineFilter::InitStats(statistics);
   CssInlineImportToLinkFilter::InitStats(statistics);
   CssMoveToHeadFilter::InitStats(statistics);
-  CssSummarizerBase::InitStats(statistics);
   DedupInlinedImagesFilter::InitStats(statistics);
   DomainRewriteFilter::InitStats(statistics);
   GoogleAnalyticsFilter::InitStats(statistics);
@@ -828,7 +820,6 @@ void RewriteDriver::InitStats(Statistics* statistics) {
   InsertGAFilter::InitStats(statistics);
   JavascriptFilter::InitStats(statistics);
   JsCombineFilter::InitStats(statistics);
-  JsInlineFilter::InitStats(statistics);
   LocalStorageCacheFilter::InitStats(statistics);
   MetaTagFilter::InitStats(statistics);
   SplitHtmlBeaconFilter::InitStats(statistics);
@@ -1671,17 +1662,6 @@ class CacheCallback : public OptionsAwareHTTPCacheCallback {
     http_cache->Find(canonical_url_, handler_, this);
   }
 
-  bool IsCacheValid(const GoogleString& key, const ResponseHeaders& headers) {
-    // If the user cares, don't try to send a rewritten .pagespeed. webp
-    // resources to a browser that can't handle it.
-    if (!driver_->options()->serve_rewritten_webp_urls_to_any_agent() &&
-        (headers.DetermineContentType() == &kContentTypeWebp) &&
-        !async_fetch_->request_context()->accepts_webp()) {
-      return false;
-    }
-    return OptionsAwareHTTPCacheCallback::IsCacheValid(key, headers);
-  }
-
   virtual void Done(HTTPCache::FindResult find_result) {
     StringPiece content;
     ResponseHeaders* response_headers = async_fetch_->response_headers();
@@ -1832,12 +1812,12 @@ class DistributedFetchResourceFetch : public SharedAsyncFetch {
   }
 
   void DispatchFetch() {
-    StringPiece distributed_key = driver_->options()->distributed_rewrite_key();
-    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteFetch,
-                           distributed_key);
+    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteFetch, "");
     // Nested driver fetches are not supposed to use deadlines, so block the
     // distributed rewrite.
     if (driver_->is_nested()) {
+      StringPiece distributed_key =
+          driver_->options()->distributed_rewrite_key();
       request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteBlock,
                              distributed_key);
     }
@@ -1889,9 +1869,7 @@ bool RewriteDriver::ShouldDistributeFetch(const StringPiece& filter_id) {
     return false;
   }
 
-  // Don't redistribute an already distributed rewrite. Note: We don't verify
-  // the distributed rewrite key because we want to be conservative about loop
-  // detection.
+  // Don't redistribute an already distributed rewrite.
   DCHECK(request_headers() != NULL);
   if (request_headers() != NULL) {
     if (request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
@@ -1964,24 +1942,7 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
                                          bool proxy_mode,
                                          AsyncFetch* async_fetch) {
   CHECK(gurl.IsWebValid()) << "Invalid URL " << gurl.spec_c_str();
-  const char* user_agent =
-      async_fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
-  if (user_agent != NULL) {
-    // Only set the user agent if we haven't already done
-    // so. Otherwise we trigger a race condition in
-    // FlushEarlyFlowTest.DontInsertLazyloadJsIfMobile where it will
-    // crash about 10% of the time in a debug build, probably due to
-    // calling FetchInPlaceResource twice on a driver.
-    //
-    // TODO(jmarantz): fix the FlushEarlyFlow to not call FetchInPlaceResource
-    // twice on the same driver, which seems risky.
-    if (user_agent_.empty()) {
-      SetUserAgent(user_agent);
-    } else {
-      DCHECK_EQ(user_agent_, user_agent);
-    }
-  }
-  gurl.Spec().CopyToString(&fetch_url_);
+  fetch_url_ = gurl.Spec().as_string();
   StringPiece base = gurl.AllExceptLeaf();
   ResourceNamer namer;
   OutputResourcePtr output_resource(new OutputResource(
@@ -2104,24 +2065,15 @@ void RewriteDriver::DetachedFetchComplete() {
 }
 
 bool RewriteDriver::MayRewriteUrl(const GoogleUrl& domain_url,
-                                  const GoogleUrl& input_url,
-                                  bool allow_unauthorized_domain,
-                                  bool* is_authorized_domain) const {
-  *is_authorized_domain = false;
+                                  const GoogleUrl& input_url) const {
+  bool ret = false;
   if (domain_url.IsWebValid()) {
     if (options()->IsAllowed(input_url.Spec())) {
-      *is_authorized_domain = options()->domain_lawyer()->IsDomainAuthorized(
+      ret = options()->domain_lawyer()->IsDomainAuthorized(
           domain_url, input_url);
-      if (options()->inline_unauthorized_resources() &&
-          !*is_authorized_domain && allow_unauthorized_domain) {
-        // We decide that this URL can be rewritten (true) but
-        // is_authorized_domain will be retained as false to allow creation of
-        // the Resource object in the correct cache key space.
-        return true;
-      }
     }
   }
-  return *is_authorized_domain;
+  return ret;
 }
 
 bool RewriteDriver::MatchesBaseUrl(const GoogleUrl& input_url) const {
@@ -2131,14 +2083,8 @@ bool RewriteDriver::MatchesBaseUrl(const GoogleUrl& input_url) const {
 }
 
 ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url) {
-  return CreateInputResource(input_url, false);
-}
-
-ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
-                                               bool allow_unauthorized_domain) {
   ResourcePtr resource;
   bool may_rewrite = false;
-  bool is_authorized_domain = false;
   if (input_url.SchemeIs("data")) {
     // Skip and silently ignore; don't log a failure.
     // For the moment we assume data: urls are small enough to not be worth
@@ -2146,9 +2092,7 @@ ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
     // to have bit-rotted since it was disabled.
     return resource;
   } else if (decoded_base_url_.IsAnyValid()) {
-    may_rewrite = MayRewriteUrl(decoded_base_url_, input_url,
-                                allow_unauthorized_domain,
-                                &is_authorized_domain);
+    may_rewrite = MayRewriteUrl(decoded_base_url_, input_url);
     // In the case where we are proxying and we have resources that have been
     // rewritten multiple times, input_url will still have the encoded domain,
     // and we can rewrite that, so test again but against the encoded base url.
@@ -2157,9 +2101,7 @@ ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
       GoogleString decoded_input;
       if (namer->Decode(input_url, NULL, &decoded_input)) {
         GoogleUrl decoded_url(decoded_input);
-        may_rewrite = MayRewriteUrl(decoded_base_url_, decoded_url,
-                                    allow_unauthorized_domain,
-                                    &is_authorized_domain);
+        may_rewrite = MayRewriteUrl(decoded_base_url_, decoded_url);
       }
     }
   } else {
@@ -2170,7 +2112,7 @@ ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
   }
   RewriteStats* stats = server_context_->rewrite_stats();
   if (may_rewrite) {
-    resource = CreateInputResourceUnchecked(input_url, is_authorized_domain);
+    resource = CreateInputResourceUnchecked(input_url);
     stats->resource_url_domain_acceptances()->Add(1);
   } else {
     message_handler()->Message(kInfo, "No permission to rewrite '%s'",
@@ -2191,12 +2133,10 @@ ResourcePtr RewriteDriver::CreateInputResourceAbsoluteUnchecked(
                                url.spec_c_str());
     return ResourcePtr();
   }
-  return CreateInputResourceUnchecked(url, true);
+  return CreateInputResourceUnchecked(url);
 }
 
-ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
-    const GoogleUrl& url,
-    bool is_authorized_domain) {
+ResourcePtr RewriteDriver::CreateInputResourceUnchecked(const GoogleUrl& url) {
   StringPiece url_string = url.Spec();
   ResourcePtr resource;
 
@@ -2219,16 +2159,13 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
       // the URL to what will ultimately be fetched to see if that will be
       // http, in which case the fetcher will be able to handle it.
       GoogleString mapped_url;
-      GoogleString host_header;
       bool is_proxy = false;
-      options()->domain_lawyer()->MapOriginUrl(url, &mapped_url,
-                                               &host_header, &is_proxy);
+      options()->domain_lawyer()->MapOriginUrl(url, &mapped_url, &is_proxy);
       GoogleUrl mapped_gurl(mapped_url);
       if (mapped_gurl.SchemeIs("http") ||
           (mapped_gurl.SchemeIs("https") &&
            url_async_fetcher_->SupportsHttps())) {
-        resource.reset(new UrlInputResource(this, type, url_string,
-                                            is_authorized_domain));
+        resource.reset(new UrlInputResource(this, type, url_string));
       } else {
         message_handler()->Message(
             kInfo, "Cannot fetch url '%s': as %s is not supported",
@@ -2650,6 +2587,8 @@ GoogleString RewriteDriver::ToString(bool show_detached_contexts) {
     AppendBool(&out, "using_spdy", using_spdy());
     AppendBool(&out, "owns_property_page", owns_property_page_);
     AppendBool(&out, "xhtml_mimetype_computed", xhtml_mimetype_computed_);
+    AppendBool(&out, "serve_blink_non_critical", serve_blink_non_critical_);
+    AppendBool(&out, "is_blink_request", is_blink_request_);
     AppendBool(&out, "can_rewrite_resources", can_rewrite_resources_);
     AppendBool(&out, "is_nested", is_nested());
     StrAppend(&out, "ref counts:\n", ref_counts_.DebugStringMutexHeld());
@@ -2775,7 +2714,6 @@ OutputResourcePtr RewriteDriver::CreateOutputResourceFromResource(
           filter_id, name, kind));
     }
   }
-  CHECK(input_resource->is_authorized_domain());
   return result;
 }
 
@@ -3010,23 +2948,7 @@ OptionsAwareHTTPCacheCallback::~OptionsAwareHTTPCacheCallback() {}
 
 bool OptionsAwareHTTPCacheCallback::IsCacheValid(
     const GoogleString& key, const ResponseHeaders& headers) {
-  return IsCacheValid(key, *rewrite_options_, request_context(), headers);
-}
-
-// static
-bool OptionsAwareHTTPCacheCallback::IsCacheValid(
-    const GoogleString& url,
-    const RewriteOptions& rewrite_options,
-    const RequestContextPtr& request_ctx,
-    const ResponseHeaders& headers) {
-  if ((headers.DetermineContentType() == &kContentTypeWebp) &&
-      !request_ctx->accepts_webp() &&
-      headers.HasValue(HttpAttributes::kVary, HttpAttributes::kAccept)) {
-    return false;
-  }
-
-  return (headers.has_date_ms() &&
-          rewrite_options.IsUrlCacheValid(url, headers.date_ms()));
+  return rewrite_options_->IsUrlCacheValid(key, headers.date_ms());
 }
 
 int64 OptionsAwareHTTPCacheCallback::OverrideCacheTtlMs(

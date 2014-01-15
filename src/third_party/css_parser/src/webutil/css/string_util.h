@@ -22,8 +22,6 @@
 #ifndef WEBUTIL_CSS_STRING_UTIL_H_
 #define WEBUTIL_CSS_STRING_UTIL_H_
 
-#include <vector>
-
 #include "strings/stringpiece.h"
 
 class UnicodeText;

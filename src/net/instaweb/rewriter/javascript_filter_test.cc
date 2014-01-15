@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
@@ -64,7 +63,6 @@ const char kJsData[] =
 const char kJsMinData[] = "alert('hello, world!')";
 const char kFilterId[] = "jm";
 const char kOrigJsName[] = "hello.js";
-const char kUnauthorizedJs[] = "http://other.domain.com/hello.js";
 const char kRewrittenJsName[] = "hello.js";
 const char kLibraryUrl[] = "https://www.example.com/hello/1.0/hello.js";
 
@@ -104,8 +102,6 @@ class JavascriptFilterTest : public RewriteTestBase {
   void InitTest(int64 ttl) {
     SetResponseWithDefaultHeaders(
         kOrigJsName, kContentTypeJavascript, kJsData, ttl);
-    SetResponseWithDefaultHeaders(
-        kUnauthorizedJs, kContentTypeJavascript, kJsData, ttl);
   }
 
   void InitFiltersAndTest(int64 ttl) {
@@ -187,19 +183,6 @@ TEST_F(JavascriptFilterTest, DoRewrite) {
                         "http://test.com/hello.js");
 }
 
-TEST_F(JavascriptFilterTest, DontRewriteUnauthorizedDomain) {
-  InitFiltersAndTest(100);
-  ValidateNoChanges("dont_rewrite", GenerateHtml(kUnauthorizedJs));
-}
-
-TEST_F(JavascriptFilterTest, DontRewriteUnauthorizedDomainWithUnauthOptionSet) {
-  InitFiltersAndTest(100);
-  options()->ClearSignatureForTesting();
-  options()->set_inline_unauthorized_resources(true);
-  server_context()->ComputeSignature(options());
-  ValidateNoChanges("dont_rewrite", GenerateHtml(kUnauthorizedJs));
-}
-
 TEST_F(JavascriptFilterTest, RewriteButExceedLogThreshold) {
   InitFiltersAndTest(100);
   rewrite_driver_->log_record()->SetRewriterInfoMaxSize(0);
@@ -266,9 +249,8 @@ TEST_F(JavascriptFilterTest, IdentifyLibraryTwice) {
 TEST_F(JavascriptFilterTest, JsPreserveURLsOnTest) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kCanonicalizeJavascriptLibraries);
+  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
+  options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
   options()->set_js_preserve_urls(true);
   rewrite_driver()->AddFilters();
   EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
@@ -301,9 +283,8 @@ TEST_F(JavascriptFilterTest, JsPreserveURLsOnTest) {
 TEST_F(JavascriptFilterTest, JsPreserveURLsNoPreemptiveRewriteTest) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kCanonicalizeJavascriptLibraries);
+  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
+  options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
   options()->set_js_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_javascript(false);
   rewrite_driver()->AddFilters();

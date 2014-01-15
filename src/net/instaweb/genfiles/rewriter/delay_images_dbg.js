@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -49,8 +49,6 @@
   return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;

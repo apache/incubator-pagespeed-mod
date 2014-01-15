@@ -51,8 +51,7 @@ Resource::Resource(ServerContext* server_context, const ContentType* type)
       is_background_fetch_(true),
       enable_cache_purge_(false),
       proactive_resource_freshening_(false),
-      disable_rewrite_on_no_transform_(true),
-      is_authorized_domain_(true) {
+      disable_rewrite_on_no_transform_(true) {
 }
 
 Resource::~Resource() {

@@ -181,14 +181,10 @@ const char kModPagespeedUrlValuedAttribute[] = "ModPagespeedUrlValuedAttribute";
 const char kModPagespeedUsePerVHostStatistics[] =
     "ModPagespeedUsePerVHostStatistics";
 
-// The following are deprecated due to spelling
+// The following two are deprecated due to spelling
 const char kModPagespeedImgInlineMaxBytes[] = "ModPagespeedImgInlineMaxBytes";
 const char kModPagespeedImgMaxRewritesAtOnce[] =
     "ModPagespeedImgMaxRewritesAtOnce";
-const char kModPagespeedImageWebpRecompressionQuality[] =
-    "ModPagespeedImageWebpRecompressionQuality";
-const char kModPagespeedImageWebpRecompressionQualityForSmallScreens[] =
-    "ModPagespeedImageWebpRecompressionQualityForSmallScreens";
 
 // The following three are deprecated because we didn't finish the feature.
 const char kModPagespeedCollectRefererStatistics[] =
@@ -380,8 +376,8 @@ const RewriteOptions* compute_request_options(
 
   bool using_spdy = request_context->using_spdy();
   const RewriteOptions* host_options = server_context->global_options();
-  if (using_spdy && server_context->SpdyGlobalConfig() != NULL) {
-    host_options = server_context->SpdyGlobalConfig();
+  if (using_spdy && server_context->SpdyConfig() != NULL) {
+    host_options = server_context->SpdyConfig();
   }
   const RewriteOptions* options = host_options;
 
@@ -404,7 +400,7 @@ const RewriteOptions* get_request_options(
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return NULL;
   }
   ApacheRewriteDriverFactory* factory = server_context->apache_factory();
@@ -428,7 +424,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return NULL;
   }
   ApacheRewriteDriverFactory* factory = server_context->apache_factory();
@@ -508,8 +504,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   }
 
   // Determine the absolute URL for this request.
-  const char* absolute_url = InstawebContext::MakeRequestUrl(
-      *server_context->global_config(), request);
+  const char* absolute_url = InstawebContext::MakeRequestUrl(*options, request);
   apache_request->set_url(absolute_url);
 
   // The final URL.  This is same as absolute_url but with ModPagespeed* query
@@ -792,7 +787,7 @@ apr_status_t instaweb_fix_headers_filter(
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -839,7 +834,7 @@ apr_status_t instaweb_in_place_filter(ap_filter_t* filter,
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -910,7 +905,7 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -961,7 +956,7 @@ void pagespeed_child_init(apr_pool_t* pool, server_rec* server_list) {
        server = server->next) {
     ApacheServerContext* server_context =
         InstawebContext::ServerContextFromServerRec(server);
-    if (!server_context->global_config()->unplugged()) {
+    if (!server_context->config()->unplugged()) {
       if (need_init) {
         ApacheRewriteDriverFactory* factory = apache_process_context.factory(
             server_list);
@@ -1119,7 +1114,7 @@ int pagespeed_modify_request(request_rec* r) {
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(r->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return OK;
   }
 
@@ -1352,7 +1347,7 @@ static const char* CmdOptions(const cmd_parms* cmd, void* data,
     } else {
       ApacheServerContext* server_context =
           InstawebContext::ServerContextFromServerRec(cmd->server);
-      config = server_context->global_config();
+      config = server_context->config();
     }
   } else {
     // If we're here, we are inside path-specific configuration, so we should
@@ -1864,11 +1859,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Deprecated.  Does nothing."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedStatisticsLoggingFile,
         "Deprecated.  Does nothing."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageWebpRecompressionQuality,
-        "Deprecated.  Use ModPagespeedWebpRecompressionQuality"),
-  APACHE_CONFIG_DIR_OPTION(
-        kModPagespeedImageWebpRecompressionQualityForSmallScreens,
-        "Deprecated.  Use ModPagespeedWebpRecompressionQualityForSmallScreens"),
 
   // All one parameter options that can only be specified at the server level.
   // (Not in <Directory> blocks.)
@@ -1908,8 +1898,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   // All two parameter options that are allowed in <Directory> blocks.
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedCustomFetchHeader,
         "custom_header_name custom_header_value"),
-  APACHE_CONFIG_DIR_OPTION23(kModPagespeedMapOriginDomain,
-        "to_domain from_domain[,from_domain]* [host_header]"),
+  APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
+        "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION23(kModPagespeedMapProxyDomain,
         "proxy_domain origin_domain [to_domain]"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,
@@ -2007,9 +1997,8 @@ void* merge_server_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
   ApacheServerContext* vhost_context =
       static_cast<ApacheServerContext*>(new_conf);
   if (global_context->apache_factory()->inherit_vhost_config()) {
-    scoped_ptr<ApacheConfig> merged_config(
-        global_context->global_config()->Clone());
-    merged_config->Merge(*vhost_context->global_config());
+    scoped_ptr<ApacheConfig> merged_config(global_context->config()->Clone());
+    merged_config->Merge(*vhost_context->config());
     // Note that we don't need to do any special handling of cache paths here,
     // since it's all related to actually creating the directories + giving
     // permissions, so doing it at top-level is sufficient.

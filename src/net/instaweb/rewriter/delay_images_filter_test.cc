@@ -259,8 +259,7 @@ TEST_F(DelayImagesFilterTest, DelayImagesAcrossDifferentFlushWindow) {
 TEST_F(DelayImagesFilterTest, DelayImagesPreserveURLsOn) {
   // Make sure that we don't delay images when preserve urls is on.
   options()->set_image_preserve_urls(true);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kDelayImages);
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kDelayImages);
   AddFileToMockFetcher("http://test.com/1.jpeg", kSampleJpgFile,
                        kContentTypeJpeg, 100);
   const char kInputHtml[] =

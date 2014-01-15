@@ -214,6 +214,10 @@ GoogleString ResourceNamer::EncodeIdName() const {
   return StrCat(id_, kSeparatorString, name_);
 }
 
+const ContentType* ResourceNamer::ContentTypeFromExt() const {
+  return NameExtensionToContentType(StrCat(".", ext_));
+}
+
 void ResourceNamer::CopyFrom(const ResourceNamer& other) {
   other.id().CopyToString(&id_);
   other.name().CopyToString(&name_);

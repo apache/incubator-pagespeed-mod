@@ -90,8 +90,7 @@ class MessageHandler {
     FileMessageV(kFatal, fname, line, msg, a);
   }
 
-  // 'MessageVImpl' and 'FileMessageVImpl' are public methods in order to
-  // simplify delegation.
+ protected:
   virtual void MessageVImpl(MessageType type, const char* msg,
                             va_list args) = 0;
   virtual void FileMessageVImpl(MessageType type, const char* filename,

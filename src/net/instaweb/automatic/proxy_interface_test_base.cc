@@ -159,6 +159,8 @@ void MockFilter::StartDocument() {
   } else {
     num_elements_property_ = NULL;
   }
+
+  client_id_ = driver_->client_id();
 }
 
 void MockFilter::StartElement(HtmlElement* element) {
@@ -169,6 +171,9 @@ void MockFilter::StartElement(HtmlElement* element) {
     PropertyCache* page_cache =
         driver_->server_context()->page_property_cache();
 
+    if (!client_id_.empty()) {
+      StrAppend(&comment, "ClientID: ", client_id_, " ");
+    }
     if ((num_elements_property_ != NULL) &&
                num_elements_property_->has_value()) {
       StrAppend(&comment, num_elements_property_->value(),

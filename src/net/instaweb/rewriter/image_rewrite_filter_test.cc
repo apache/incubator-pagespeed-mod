@@ -871,18 +871,6 @@ class ImageRewriteTest : public RewriteTestBase {
     return RequestContextPtr(test_request_context_);
   }
 
-  // Fetches a URL for the given user-agent, returning success-status,
-  // and modifying content and response if successful.  Statistics are
-  // cleared on each call.
-  bool FetchWebp(StringPiece url, StringPiece user_agent,
-                 GoogleString* content, ResponseHeaders* response) {
-    content->clear();
-    response->Clear();
-    ClearStats();
-    rewrite_driver()->SetUserAgent(user_agent);
-    return FetchResourceUrl(url, content, response);
-  }
-
  private:
   LoggingInfo logging_info_;
   TestRequestContextPtr test_request_context_;
@@ -1192,11 +1180,10 @@ TEST_F(ImageRewriteTest, DistributedImageInline) {
   EXPECT_STREQ(distributed_output, output_buffer_);
 }
 
-TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOnSoftEnable) {
-  // Make sure that the image URL stays the same when optimization is enabled
-  // due to core filters.
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kResizeImages);
+TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOn) {
+  // Make sure that the image URL stays the same.
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kResizeImages);
   options()->set_image_preserve_urls(true);
   rewrite_driver()->AddFilters();
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
@@ -1226,46 +1213,6 @@ TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOnSoftEnable) {
   image->Dimensions(&image_dim);
   EXPECT_EQ(100, image_dim.width());
   EXPECT_EQ(100, image_dim.height());
-}
-
-TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOnExplicit) {
-  // Make sure that the image URLs get rewritten if we are explicitly enabling
-  // filters.
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->set_image_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng,
-                    " width=10 height=10",  // initial_dims,
-                    " width=10 height=10",  // final_dims,
-                    true,    // expect_rewritten: explicitly enabling filters
-                             // overrides image_preserve_urls.
-                    false);  // expect_inline
-  // The URL wasn't changed but the image should have been compressed and cached
-  // anyway (prefetching for IPRO).
-  ClearStats();
-  GoogleString out_png_url(Encode(kTestDomain, "ic", "0", kBikePngFile, "png"));
-  GlobalReplaceSubstring(StrCat("x", kBikePngFile),
-                         StrCat("10x10x", kBikePngFile),
-                         &out_png_url);
-  GoogleString out_png;
-  EXPECT_TRUE(FetchResourceUrl(out_png_url, &out_png));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Make sure that we did the resize resize to 10x10 from 100x100.
-  scoped_ptr<Image> image(
-      NewImage(out_png, out_png_url, server_context_->filename_prefix(),
-               new Image::CompressionOptions(),
-               timer(), &message_handler_));
-  ImageDim image_dim;
-  image->Dimensions(&image_dim);
-  EXPECT_EQ(10, image_dim.width());
-  EXPECT_EQ(10, image_dim.height());
 }
 
 TEST_F(ImageRewriteTest, ImageRewritePreserveURLsDisablePreemptiveRewrite) {
@@ -1306,38 +1253,7 @@ TEST_F(ImageRewriteTest, ImageRewritePreserveURLsDisablePreemptiveRewrite) {
   EXPECT_EQ(100, image_dim.height());
 }
 
-TEST_F(ImageRewriteTest, ImageRewriteInlinePreserveURLsOnSoftEnable) {
-  // Willing to inline large files.
-  options()->set_image_inline_max_bytes(1000000);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineImages);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInsertImageDimensions);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kConvertGifToPng);
-  options()->DisableFilter(RewriteOptions::kConvertPngToJpeg);
-  options()->set_image_preserve_urls(true);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=48 height=64";
-  // File would be inlined without preserve urls, make sure it's not,
-  // because turning on image_preserve_urls overrides the implicit filter
-  // selection from Core filters.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
-                    kResizedDims, kResizedDims,
-                    false,   // expect_rewritten
-                    false);  // expect_inline
-  // The optimized file should be in the cache now.
-  ClearStats();
-  GoogleString out_gif_url = Encode(kTestDomain, "ic", "0", kChefGifFile,
-                                    "png");
-  GoogleString out_gif;
-  EXPECT_TRUE(FetchResourceUrl(out_gif_url, &out_gif));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-}
-
-TEST_F(ImageRewriteTest, ImageRewriteInlinePreserveURLsExplicit) {
+TEST_F(ImageRewriteTest, ImageRewriteInlinePreserveURLs) {
   // Willing to inline large files.
   options()->set_image_inline_max_bytes(1000000);
   options()->EnableFilter(RewriteOptions::kInlineImages);
@@ -1346,12 +1262,9 @@ TEST_F(ImageRewriteTest, ImageRewriteInlinePreserveURLsExplicit) {
   options()->set_image_preserve_urls(true);
   rewrite_driver()->AddFilters();
   const char kResizedDims[] = " width=48 height=64";
-  // In this case, since we have explicitly requested inline images,
-  // we will get them despite the preserve URLs setting.
-  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypePng,
-                    kResizedDims, kResizedDims,
-                    true,   // expect_rewritten
-                    true);  // expect_inline
+  // File would be inlined without preserve urls, make sure it's not!
+  TestSingleRewrite(kChefGifFile, kContentTypeGif, kContentTypeGif,
+                    kResizedDims, kResizedDims, false, false);
   // The optimized file should be in the cache now.
   ClearStats();
   GoogleString out_gif_url = Encode(kTestDomain, "ic", "0", kChefGifFile,
@@ -3069,103 +2982,6 @@ TEST_F(ImageRewriteTest, RewriteImagesAddingOptionsToUrl) {
   ASSERT_EQ(golden_content.size(), remote_content.size());
   EXPECT_EQ(golden_content, remote_content);  // don't bother if sizes differ...
   */
-}
-
-TEST_F(ImageRewriteTest, ServeWebpFromColdCache) {
-  const StringPiece kJpegMimeType = kContentTypeJpeg.mime_type();
-  const StringPiece kWebpMimeType = kContentTypeWebp.mime_type();
-
-  // First rewrite an HTML file with an image for a webp-compatible browser,
-  // and collect the image URL.
-  UseMd5Hasher();
-  AddRecompressImageFilters();
-  options()->set_serve_rewritten_webp_urls_to_any_agent(true);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  GoogleString img_src;
-  rewrite_driver()->SetUserAgent("webp");
-  Variable* webp_rewrite_count = statistics()->GetVariable(
-      ImageRewriteFilter::kImageWebpRewrites);
-  RewriteImageFromHtml("img", kContentTypeWebp, &img_src);
-  EXPECT_EQ(1, webp_rewrite_count->Get());
-  GoogleUrl webp_gurl(html_gurl(), img_src);
-
-  // Serve this image from cache. No further rewrites should be needed, since
-  // the image was optimized when serving HTML.
-  GoogleString golden_content, content;
-  ResponseHeaders response;
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "webp", &golden_content, &response));
-  EXPECT_STREQ("image/webp", response.Lookup1(HttpAttributes::kContentType));
-  EXPECT_TRUE(response.IsProxyCacheable());
-  EXPECT_EQ(0, webp_rewrite_count->Get());
-  EXPECT_EQ(1, lru_cache()->num_hits());
-
-  // Now clear the cache and fetch the resource again.  We will need to
-  // reconstruct the image but we'll get the same result.
-  lru_cache()->Clear();
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "webp", &content, &response));
-  EXPECT_STREQ(kWebpMimeType, response.Lookup1(HttpAttributes::kContentType));
-  EXPECT_TRUE(response.IsProxyCacheable());
-  EXPECT_EQ(1, webp_rewrite_count->Get());  // We had to reconstruct.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_TRUE(content == golden_content);
-
-  // Do the same test again, but don't clear the cache.
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "webp", &content, &response));
-  EXPECT_STREQ(kWebpMimeType, response.Lookup1(HttpAttributes::kContentType));
-  EXPECT_TRUE(response.IsProxyCacheable());
-  EXPECT_EQ(0, webp_rewrite_count->Get());  // No need to reconstruct...
-  EXPECT_EQ(1, lru_cache()->num_hits());    // ...picked it up from cache.
-  EXPECT_TRUE(content == golden_content);
-
-  // Now set the user-agent to something that does not support webp,
-  // and we should still reconstruct the webp when asked for it, since
-  // we have called options()->set_serve_rewritten_webp_urls_to_any_agent(true)
-  // above.
-  lru_cache()->Clear();
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "null", &content, &response));
-  EXPECT_STREQ(kWebpMimeType, response.Lookup1(HttpAttributes::kContentType));
-  EXPECT_TRUE(response.IsProxyCacheable());
-  EXPECT_EQ(1, webp_rewrite_count->Get());  // We had to reconstruct.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_TRUE(content == golden_content);
-
-  // Now turn off 'serve_rewritten_webp_urls_to_any_agent', and
-  // we will serve the original jpeg instead, privately cached.
-  options()->ClearSignatureForTesting();
-  options()->set_serve_rewritten_webp_urls_to_any_agent(false);
-  server_context()->ComputeSignature(options());
-
-  // Don't clear the cache here, proving Issue 846 is fixed.
-  ClearStats();
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "null", &content, &response));
-  EXPECT_STREQ(kJpegMimeType, response.Lookup1(
-      HttpAttributes::kContentType));
-  EXPECT_FALSE(response.IsProxyCacheable());
-  EXPECT_TRUE(response.IsBrowserCacheable());
-  EXPECT_EQ(0, webp_rewrite_count->Get());  // Reconstruction not attempted.
-  EXPECT_EQ(2, lru_cache()->num_hits());    // Hits, but result is invalid.
-  EXPECT_FALSE(content == golden_content);
-  EXPECT_GT(content.size(), golden_content.size());
-
-  // All works fine anyway we if we clear the cache first.
-  lru_cache()->Clear();
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "null", &content, &response));
-  EXPECT_STREQ(kJpegMimeType, response.Lookup1(HttpAttributes::kContentType));
-  EXPECT_FALSE(response.IsProxyCacheable());
-  EXPECT_TRUE(response.IsBrowserCacheable());
-  EXPECT_EQ(0, webp_rewrite_count->Get());  // Reconstruction not attempted.
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_FALSE(content == golden_content);
-  EXPECT_GT(content.size(), golden_content.size());
-
-  // But if any webp-enabled client asks for the resource, we will serve
-  // the webp to them.
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "webp", &content, &response));
-  EXPECT_STREQ(kWebpMimeType, response.Lookup1(HttpAttributes::kContentType));
-
-  // And we will continue to serve jpeg to other browsers.
-  EXPECT_TRUE(FetchWebp(webp_gurl.Spec(), "none", &content, &response));
-  EXPECT_STREQ(kJpegMimeType, response.Lookup1(HttpAttributes::kContentType));
 }
 
 // If we drop a rewrite because of load, make sure it returns the original URL.

@@ -95,9 +95,9 @@ BeaconMetadata BeaconCriticalImagesFinder::PrepareForBeaconInsertion(
   CriticalImages& proto = driver->critical_images_info()->proto;
   // We store the metadata about last beacon time and nonce generation in the
   // html_critical_image_support field of the CriticalImages proto.
-  net_instaweb::PrepareForBeaconInsertionHelper(
+  net_instaweb::PrepareForBeaconInsertion(
       empty, proto.mutable_html_critical_image_support(), SupportInterval(),
-      nonce_generator_, driver, &metadata);
+      nonce_generator_, driver->timer(), &metadata);
   if (metadata.status != kDoNotBeacon) {
     UpdateInPropertyCache(proto, cohort(), kCriticalImagesPropertyName,
                           true /* write_cohort */,

@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/fake_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -91,8 +90,7 @@ class FakeFetch : public AsyncFetch {
   bool success() { return success_; }
 
   bool IsCachedResultValid(const ResponseHeaders& headers) {
-    return OptionsAwareHTTPCacheCallback::IsCacheValid(
-        url_, *options_, request_context(), headers);
+    return options_->IsUrlCacheValid(url_, headers.date_ms());
   }
 
  private:
@@ -201,11 +199,11 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         redirect_url_, redirect_headers, redirect_body_);
 
     img_filter_ = new FakeFilter(RewriteOptions::kImageCompressionId,
-                                 rewrite_driver(), semantic_type::kImage);
+                                 rewrite_driver());
     js_filter_ = new FakeFilter(RewriteOptions::kJavascriptMinId,
-                                rewrite_driver(), semantic_type::kScript);
-    css_filter_ = new FakeFilter(RewriteOptions::kCssFilterId, rewrite_driver(),
-                                 semantic_type::kStylesheet);
+                                rewrite_driver());
+    css_filter_ = new FakeFilter(RewriteOptions::kCssFilterId,
+                                 rewrite_driver());
 
     rewrite_driver()->AppendRewriteFilter(img_filter_);
     rewrite_driver()->AppendRewriteFilter(js_filter_);
@@ -343,9 +341,8 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
 
   void SetupDistributedTest(const StringPiece& distributed_filter) {
     SetupSharedCache();
-    other_img_filter_ =
-        new FakeFilter(RewriteOptions::kImageCompressionId,
-                       other_rewrite_driver(), semantic_type::kImage);
+    other_img_filter_ = new FakeFilter(RewriteOptions::kImageCompressionId,
+                                      other_rewrite_driver());
     other_rewrite_driver()->AppendRewriteFilter(other_img_filter_);
     options()->ClearSignatureForTesting();
     other_options()->ClearSignatureForTesting();
@@ -1486,10 +1483,8 @@ TEST_F(InPlaceRewriteContextTest, NonCacheableUrlRewriting) {
   // The ttl is just a value in proto, actual cacheable values will be checked
   // below.
   FetchAndCheckResponse(nocache_js_url_, StrCat(cache_body_, ":", "jm"),
-                        true /* success */,
-                        Timer::kYearMs /* ttl (ms) */,
-                        NULL /* etag */,
-                        timer()->NowMs());
+                        true /* success */, Timer::kYearMs /* ttl (ms) */,
+                        etag_, timer()->NowMs());
 
   // Shouldn't be cacheable at all.
   EXPECT_FALSE(response_headers_.IsBrowserCacheable());
@@ -1526,9 +1521,7 @@ TEST_F(InPlaceRewriteContextTest, PrivateCacheableUrlRewriting) {
   // The ttl is just a value in proto, actual cacheable values will be checked
   // below.
   FetchAndCheckResponse(private_cache_js_url_, StrCat(cache_body_, ":", "jm"),
-                        true /* success */,
-                        1000 /* ttl (s) */,
-                        NULL /* etag */,
+                        true /* success */, 1000 /* ttl (s) */, etag_,
                         timer()->NowMs());
   // Should be cacheable.
   EXPECT_TRUE(response_headers_.IsBrowserCacheable());

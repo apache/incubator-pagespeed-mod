@@ -19,7 +19,6 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/js_inline_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -27,7 +26,6 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -84,8 +82,7 @@ class JsInlineFilterTest : public RewriteTestBase {
                                    const GoogleString& js_expected_inline_body,
                                    bool expect_inline) {
     if (!filters_added_) {
-      options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
-      rewrite_driver()->AddFilters();
+      AddFilter(RewriteOptions::kInlineJavascript);
       filters_added_ = true;
     }
 
@@ -187,17 +184,6 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptWhitespace) {
                        true);
 }
 
-TEST_F(JsInlineFilterTest, DoInlineJavascriptDifferentDomain) {
-  options()->set_inline_unauthorized_resources(true);
-  SetHtmlMimetype();
-  TestInlineJavascript("http://www.example.net/index.html",
-                       "http://scripts.example.org/script2.js",
-                       "",
-                       "function id(x) { return x; }\n",
-                       true);
-  EXPECT_EQ(1, statistics()->GetVariable(JsInlineFilter::kNumJsInlined)->Get());
-}
-
 TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
   // Different domains:
   TestInlineJavascript("http://www.example.net/index.html",
@@ -205,7 +191,6 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
                        "",
                        "function id(x) { return x; }\n",
                        false);
-  EXPECT_EQ(0, statistics()->GetVariable(JsInlineFilter::kNumJsInlined)->Get());
 }
 
 TEST_F(JsInlineFilterTest, DoNotInlineJavascriptInlineContents) {
@@ -225,6 +210,47 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptTooBig) {
                        "",
                        ("function longstr() { return '" +
                         GoogleString(length, 'z') + "'; }\n"),
+                       false);
+}
+
+TEST_F(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag) {
+  // External script contains "</script>":
+  TestInlineJavascript("http://www.example.com/index.html",
+                       "http://www.example.com/script.js",
+                       "",
+                       "function close() { return '</script>'; }\n",
+                       false);
+}
+
+TEST_F(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag2) {
+  // HTML parsers will also accept junk like
+  // </script  fofo  > as closing the script. (Spaces in the beginning do
+  // cause it to be missed, hower).
+  TestInlineJavascript("http://www.example.com/index.html",
+                       "http://www.example.com/script.js",
+                       "",
+                       "function close() { return '</script foo >'; }\n",
+                       false);
+}
+
+TEST_F(JsInlineFilterTest, DoNotInlineJavascriptWithCloseTag3) {
+  // HTML is case insensitive, so make sure we recognize </ScrIpt> as potential
+  // closing tag, too.
+  TestInlineJavascript("http://www.example.com/index.html",
+                       "http://www.example.com/script.js",
+                       "",
+                       "function close() { return '</ScrIpt >'; }\n",
+                       false);
+}
+
+TEST_F(JsInlineFilterTest, ConservativeNonInlineCloseScript) {
+  // We conservatively don't inline some things which contain things that
+  // look a lot like </script> but aren't. This is safe, but it would be
+  // better if we inlined it.
+  TestInlineJavascript("http://www.example.com/index.html",
+                       "http://www.example.com/script.js",
+                       "",
+                       "function close() { return '</scripty>'; }\n",
                        false);
 }
 
@@ -287,8 +313,8 @@ TEST_F(JsInlineFilterTest, CachedWithSuccesors) {
   // the source attribute which the inliner deleted while using
   // cached filter results.
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheScripts);
+  options()->EnableFilter(RewriteOptions::kInlineJavascript);
+  options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
   rewrite_driver()->AddFilters();
 
   const char kJsUrl[] = "script.js";
@@ -308,8 +334,8 @@ TEST_F(JsInlineFilterTest, CachedWithPredecessors) {
   // (Current state is not to inline after combining due to the
   //  <script> element with src= being new).
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kCombineJavascript);
+  options()->EnableFilter(RewriteOptions::kInlineJavascript);
+  options()->EnableFilter(RewriteOptions::kCombineJavascript);
   rewrite_driver()->AddFilters();
 
   const char kJsUrl[] = "script.js";
@@ -339,7 +365,7 @@ TEST_F(JsInlineFilterTest, InlineMinimizeInteraction) {
   // There was a bug in async mode where we would accidentally prevent
   // minification results from rendering when inlining was not to be done.
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
+  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   options()->set_js_inline_max_bytes(4);
 
   TestInlineJavascriptGeneral(
@@ -354,48 +380,9 @@ TEST_F(JsInlineFilterTest, InlineMinimizeInteraction) {
       false);  // Not inlining
 }
 
-TEST_F(JsInlineFilterTest, ScriptWithScriptTags) {
-  SetHtmlMimetype();
-  AddFilter(RewriteOptions::kInlineJavascript);
-
-  ResponseHeaders default_js_header;
-  SetDefaultLongCacheHeaders(&kContentTypeJavascript, &default_js_header);
-  GoogleString js_url = StrCat(kTestDomain, "a.js");
-  SetFetchResponse(js_url,
-                   default_js_header,
-                   "alert('<script></script>');"
-                   "alert('<sCrIpT></ScRiPt>');"
-                   "alert('</SCRIPT foo>');"
-                   "alert('<Script</sCRIPT');"
-                   "alert('</scr>');");
-
-  // a.js now contains a script that needs escaping to inline.
-
-  ValidateExpectedUrl(
-      StrCat(kTestDomain, "inline_with_close_script.html"),
-
-      // Input, with js referenced externally.
-      StringPrintf(
-          "<head>\n"
-          "  <script src='%s'></script>\n"
-          "</head>\n"
-          "<body>Hello, world!</body>\n",
-          js_url.c_str()),
-
-      // Expected output, with js inlined and escaped.
-      "<head>\n"
-      "  <script>alert('<\\u0073cript></\\u0073cript>');"
-      "alert('<\\u0073CrIpT></\\u0053cRiPt>');"
-      "alert('</\\u0053CRIPT foo>');"
-      "alert('<\\u0053cript</\\u0073CRIPT');"
-      "alert('</scr>');</script>\n"
-      "</head>\n"
-      "<body>Hello, world!</body>\n");
-}
-
 TEST_F(JsInlineFilterTest, FlushSplittingScriptTag) {
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
+  options()->EnableFilter(RewriteOptions::kInlineJavascript);
   rewrite_driver()->AddFilters();
   SetupWriter();
 
@@ -413,7 +400,7 @@ TEST_F(JsInlineFilterTest, FlushSplittingScriptTag) {
 
 TEST_F(JsInlineFilterTest, NoFlushSplittingScriptTag) {
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
+  options()->EnableFilter(RewriteOptions::kInlineJavascript);
   rewrite_driver()->AddFilters();
   SetupWriter();
 
