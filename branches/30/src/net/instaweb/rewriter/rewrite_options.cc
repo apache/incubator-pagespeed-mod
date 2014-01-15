@@ -570,6 +570,7 @@ const RewriteOptions::Filter kTestFilterSet[] = {
   RewriteOptions::kDebug,
   RewriteOptions::kDeferIframe,
   RewriteOptions::kDeferJavascript,
+  RewriteOptions::kDelayImages,  // AKA inline_preview_images
   RewriteOptions::kInsertGA,
   RewriteOptions::kInsertImageDimensions,
   RewriteOptions::kLazyloadImages,
@@ -2501,6 +2502,9 @@ bool RewriteOptions::AddByNameToFilterSet(
     } else if (option == "testing") {
       for (int i = 0, n = arraysize(kTestFilterSet); i < n; ++i) {
         set->Insert(kTestFilterSet[i]);
+      }
+      for (int i = 0, n = arraysize(kCoreFilterSet); i < n; ++i) {
+        set->Insert(kCoreFilterSet[i]);
       }
     } else if (option == "core") {
       for (int i = 0, n = arraysize(kCoreFilterSet); i < n; ++i) {
