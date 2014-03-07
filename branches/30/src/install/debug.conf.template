@@ -648,14 +648,6 @@ NameVirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@
   AddOutputFilterByType DEFLATE text/css
 </VirtualHost>
 
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/ipro/instant/wait/" >
-    ModPagespeedInPlaceWaitForOptimized on
-</Directory>
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/ipro/instant/deadline/" >
-    ModPagespeedInPlaceRewriteDeadlineMs -1
-</Directory>
-
 # Enable per-vhost statistics so that tests can be somewhat independent.
 ModPagespeedUsePerVHostStatistics on
 <Location /mod_pagespeed_global_statistics>
