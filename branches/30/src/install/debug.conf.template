@@ -358,7 +358,7 @@ ModPagespeedCompressMetadataCache true
 # different depending on whether we are running system tests as root
 # or as a normal user.  Note that fetches must be done with
 #    http_proxy=SECONDARY_HOST:SECONDARY_PORT.
-Listen localhost:@@APACHE_SECONDARY_PORT@@
+Listen 127.0.0.1:@@APACHE_SECONDARY_PORT@@
 NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName secondary.example.com
