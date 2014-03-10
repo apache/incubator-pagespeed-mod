@@ -405,8 +405,7 @@ class RewriteContext {
   // But contexts may need to specialize this to actually absolutify
   // subresources if the fetched resource is served on a different path
   // than the input resource.
-  virtual bool AbsolutifyIfNeeded(const StringPiece& output_url_base,
-                                  const StringPiece& input_contents,
+  virtual bool AbsolutifyIfNeeded(const StringPiece& input_contents,
                                   Writer* writer, MessageHandler* handler);
 
   // Called on the parent to initiate all nested tasks.  This is so
@@ -539,7 +538,7 @@ class RewriteContext {
   bool ShouldDistributeRewrite() const;
 
   // Determines if this rewrite-context is acting on behalf of a distributed
-  // rewrite request from an HTML rewrite. Verifies the distributed rewrite key.
+  // rewrite request from an HTML rewrite.
   bool IsDistributedRewriteForHtml() const;
 
   // Dispatches the rewrite to another task with a distributed fetcher. Should
@@ -562,12 +561,10 @@ class RewriteContext {
                                MessageHandler* message_handler,
                                GoogleUrlStarVector* url_vector);
 
-  // Adjust headers sent out for a stale or in-place result. We may send out
-  // stale results in the fallback fetch pathway, but these results should not
-  // be cached much.  By default we strip Set-Cookie* headers and Etags, and
-  // convert Cache-Control headers to private, max-age=300.
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers);
+  // Fixes the headers resulting from a fetch fallback. This is called when a
+  // fetch fallback is found in cache. The default implementation strips cookies
+  // and sets the cache ttl to the implicit cache ttl ms.
+  virtual void FixFetchFallbackHeaders(ResponseHeaders* headers);
 
   // Callback once the fetch is done. This calls Driver()->FetchComplete() if
   // notify_driver_on_fetch_done is true.

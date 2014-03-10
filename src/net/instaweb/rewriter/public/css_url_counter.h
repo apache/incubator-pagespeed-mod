@@ -48,7 +48,7 @@ class CssUrlCounter : public CssTagScanner::Transformer {
 
  private:
   // CssTagScanner::Transform interface. Called indirectly by Count().
-  virtual TransformStatus Transform(GoogleString* str);
+  virtual TransformStatus Transform(const StringPiece& in, GoogleString* out);
 
   // Counts for how many times each URL was found in the CSS file.
   StringIntMap url_counts_;

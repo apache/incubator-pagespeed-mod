@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -17,7 +17,8 @@
   if (!httpRequest) {
     return!1;
   }
-  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  var query_param_char = -1 == beaconUrl.indexOf("?") ? "?" : "&", url = beaconUrl + query_param_char + "url=" + encodeURIComponent(htmlUrl);
+  httpRequest.open("POST", url);
   httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   httpRequest.send(data);
   return!0;
@@ -41,13 +42,13 @@
   }
   return{top:top, left:left};
 }, getWindowSize:function() {
-  return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
+  var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  return{height:height, width:width};
 }, inViewport:function(element, windowSize) {
-  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+  var position = pagespeedutils.getPosition(element);
+  return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;
@@ -64,7 +65,7 @@ pagespeed.CriticalCssBeacon = function(beaconUrl, htmlUrl, optionsHash, nonce, s
 pagespeed.CriticalCssBeacon.prototype.sendBeacon_ = function() {
   for (var data = "oh=" + this.optionsHash_ + "&n=" + this.nonce_, data = data + "&cs=", i = 0;i < this.criticalSelectors_.length;++i) {
     var tmp = 0 < i ? "," : "", tmp = tmp + encodeURIComponent(this.criticalSelectors_[i]);
-    if (data.length + tmp.length > pagespeedutils.MAX_POST_SIZE) {
+    if (131072 < data.length + tmp.length) {
       break;
     }
     data += tmp;
@@ -83,14 +84,14 @@ pagespeed.CriticalCssBeacon.prototype.checkCssSelectors_ = function(callback) {
 };
 pagespeed.criticalCssBeaconInit = function(beaconUrl, htmlUrl, optionsHash, nonce, selectors) {
   if (document.querySelector && Function.prototype.bind) {
-    var temp = new pagespeed.CriticalCssBeacon(beaconUrl, htmlUrl, optionsHash, nonce, selectors);
-    pagespeedutils.addHandler(window, "load", function() {
+    var temp = new pagespeed.CriticalCssBeacon(beaconUrl, htmlUrl, optionsHash, nonce, selectors), beacon_onload = function() {
       window.setTimeout(function() {
         temp.checkCssSelectors_(function() {
           temp.sendBeacon_();
         });
       }, 0);
-    });
+    };
+    pagespeedutils.addHandler(window, "load", beacon_onload);
   }
 };
 pagespeed.criticalCssBeaconInit = pagespeed.criticalCssBeaconInit;

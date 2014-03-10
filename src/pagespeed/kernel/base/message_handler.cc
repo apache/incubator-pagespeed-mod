@@ -19,6 +19,7 @@
 #include "pagespeed/kernel/base/message_handler.h"
 
 #include <cstdarg>
+#include <cstddef>
 
 #include "base/logging.h"
 
@@ -136,15 +137,6 @@ void MessageHandler::FatalError(
   va_start(args, msg);
   FatalErrorV(file, line, msg, args);
   va_end(args);
-}
-
-GoogleString MessageHandler::Format(const char* msg, va_list args) {
-  GoogleString buffer;
-
-  // Ignore the name of this routine: it formats with vsnprintf.
-  // See base/stringprintf.cc.
-  StringAppendV(&buffer, msg, args);
-  return buffer;
 }
 
 }  // namespace net_instaweb

@@ -21,9 +21,6 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
@@ -82,25 +79,17 @@ void CheckPreferredImageQualities() {
 }  // namespace
 
 DeviceProperties::DeviceProperties(UserAgentMatcher* matcher)
-    : ua_matcher_(matcher),
-      supports_critical_css_(kNotSet),
-      supports_image_inlining_(kNotSet),
+    : ua_matcher_(matcher), supports_image_inlining_(kNotSet),
       supports_js_defer_(kNotSet),
       supports_lazyload_images_(kNotSet),
-      accepts_webp_(kNotSet),
-      supports_webp_rewritten_urls_(kNotSet),
+      supports_webp_(kNotSet),
       supports_webp_lossless_alpha_(kNotSet),
       is_bot_(kNotSet),
       is_mobile_user_agent_(kNotSet),
-      supports_split_html_(kNotSet),
-      supports_flush_early_(kNotSet),
-      screen_dimensions_set_(kNotSet),
-      screen_width_(0),
-      screen_height_(0),
-      preferred_webp_qualities_(NULL),
-      preferred_jpeg_qualities_(NULL),
-      device_type_set_(kNotSet),
-      device_type_(UserAgentMatcher::kDesktop) {
+      supports_split_html_(kNotSet), supports_flush_early_(kNotSet),
+      screen_dimensions_set_(kNotSet), screen_width_(0), screen_height_(0),
+      preferred_webp_qualities_(NULL), preferred_jpeg_qualities_(NULL),
+      device_type_set_(kNotSet), device_type_(UserAgentMatcher::kDesktop) {
 #ifndef NDEBUG
   CheckPreferredImageQualities();
 #endif
@@ -109,15 +98,14 @@ DeviceProperties::DeviceProperties(UserAgentMatcher* matcher)
 DeviceProperties::~DeviceProperties() {
 }
 
-void DeviceProperties::SetUserAgent(const StringPiece& user_agent_string) {
+void DeviceProperties::set_user_agent(const StringPiece& user_agent_string) {
   user_agent_string.CopyToString(&user_agent_);
 
   // Reset everything determined by user agent.
-  supports_critical_css_ = kNotSet;
   supports_image_inlining_ = kNotSet;
   supports_js_defer_ = kNotSet;
   supports_lazyload_images_ = kNotSet;
-  supports_webp_rewritten_urls_ = kNotSet;
+  supports_webp_ = kNotSet;
   supports_webp_lossless_alpha_ = kNotSet;
   is_bot_ = kNotSet;
   is_mobile_user_agent_ = kNotSet;
@@ -126,15 +114,6 @@ void DeviceProperties::SetUserAgent(const StringPiece& user_agent_string) {
   screen_dimensions_set_ = kNotSet;
   screen_width_ = 0;
   screen_height_ = 0;
-}
-
-void DeviceProperties::ParseRequestHeaders(
-    const RequestHeaders& request_headers) {
-  DCHECK_EQ(kNotSet, accepts_webp_) << "Double call to ParseRequestHeaders";
-  accepts_webp_ =
-      request_headers.HasValue(HttpAttributes::kAccept,
-                               kContentTypeWebp.mime_type()) ?
-      kTrue : kFalse;
 }
 
 bool DeviceProperties::SupportsImageInlining() const {
@@ -154,25 +133,11 @@ bool DeviceProperties::SupportsLazyloadImages() const {
   return (supports_lazyload_images_ == kTrue);
 }
 
-bool DeviceProperties::SupportsCriticalCss() const {
-  // Currently CriticalSelectorFilter can't deal with IE conditional comments,
-  // so we disable ourselves for IE.
-  // TODO(morlovich): IE10 in strict mode disables the conditional comments
-  // feature; but the strict mode is determined by combination of doctype and
-  // X-UA-Compatible, which can come in both meta and header flavors. Once we
-  // have a good way of detecting this case, we can enable us for strict IE10.
-  if (supports_critical_css_ == kNotSet) {
-    supports_critical_css_ = !ua_matcher_->IsIe(user_agent_) ? kTrue : kFalse;
-  }
-  return (supports_critical_css_ == kTrue);
-}
-
 bool DeviceProperties::SupportsCriticalImagesBeacon() const {
   // For now this script has the same user agent requirements as image inlining,
   // however that could change in the future if more advanced JS is used by the
-  // beacon. Also disable for bots. See
-  // https://code.google.com/p/modpagespeed/issues/detail?id=813.
-  return SupportsImageInlining() && !IsBot();
+  // beacon.
+  return SupportsImageInlining();
 }
 
 // Note that the result of the function is cached as supports_js_defer_. This
@@ -187,22 +152,12 @@ bool DeviceProperties::SupportsJsDefer(bool allow_mobile) const {
   return (supports_js_defer_ == kTrue);
 }
 
-bool DeviceProperties::SupportsWebpInPlace() const {
-  // We used to check accepts_webp_ == kNotSet here, but many tests don't bother
-  // setting request headers.  So we simply use kNotSet to detect
-  // double-initialization above.
-  return (accepts_webp_ == kTrue);
-}
-
-bool DeviceProperties::SupportsWebpRewrittenUrls() const {
-  if (supports_webp_rewritten_urls_ == kNotSet) {
-    if (SupportsWebpInPlace() || ua_matcher_->SupportsWebp(user_agent_)) {
-      supports_webp_rewritten_urls_ = kTrue;
-    } else {
-      supports_webp_rewritten_urls_ = kFalse;
-    }
+bool DeviceProperties::SupportsWebp() const {
+  if (supports_webp_ == kNotSet) {
+    supports_webp_ =
+        ua_matcher_->SupportsWebp(user_agent_) ? kTrue : kFalse;
   }
-  return (supports_webp_rewritten_urls_ == kTrue);
+  return (supports_webp_ == kTrue);
 }
 
 bool DeviceProperties::SupportsWebpLosslessAlpha() const {

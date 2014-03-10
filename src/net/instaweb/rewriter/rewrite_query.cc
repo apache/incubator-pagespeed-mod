@@ -21,6 +21,7 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"        // for int64
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/query_params.h"
@@ -62,6 +63,51 @@ const char RewriteQuery::kModPagespeedFilters[] = "ModPagespeedFilters";
 const char RewriteQuery::kPageSpeedFilters[] = "PageSpeedFilters";
 
 const char RewriteQuery::kNoscriptValue[] = "noscript";
+
+// static array of query params that have setters taking a single int64 arg.
+// TODO(matterbury): Accept or solve the problem that the query parameter
+// names are duplicated here and in apache/mod_instaweb.cc.
+typedef void (RewriteOptions::*RewriteOptionsInt64PMF)(int64);
+
+struct Int64QueryParam {
+  const char* name_;
+  RewriteOptionsInt64PMF method_;
+};
+
+static struct Int64QueryParam int64_query_params_[] = {
+  { "CssFlattenMaxBytes",
+    &RewriteOptions::set_css_flatten_max_bytes },
+  { "CssInlineMaxBytes",
+    &RewriteOptions::set_css_inline_max_bytes },
+  // Note: If ImageInlineMaxBytes is specified, and CssImageInlineMaxBytes is
+  // not set explicitly, both the thresholds get set to ImageInlineMaxBytes.
+  { "ImageInlineMaxBytes",
+    &RewriteOptions::set_image_inline_max_bytes },
+  { "CssImageInlineMaxBytes",
+    &RewriteOptions::set_css_image_inline_max_bytes },
+  { "JsInlineMaxBytes",
+    &RewriteOptions::set_js_inline_max_bytes },
+  { "DomainShardCount",
+    &RewriteOptions::set_domain_shard_count },
+  { "JpegRecompressionQuality",
+    &RewriteOptions::set_image_jpeg_recompress_quality },
+  { "JpegRecompressionQualityForSmallScreens",
+    &RewriteOptions::set_image_jpeg_recompress_quality_for_small_screens },
+  { "JpegNumProgressiveScans",
+    &RewriteOptions::set_image_jpeg_num_progressive_scans },
+  { "JpegNumProgressiveScansForSmallScreens",
+      &RewriteOptions::set_image_jpeg_num_progressive_scans_for_small_screens },
+  { "ImageRecompressionQuality",
+    &RewriteOptions::set_image_recompress_quality },
+  { "MaxCombinedCssBytes",
+    &RewriteOptions::set_max_combined_css_bytes },
+  { "WebpRecompressionQuality",
+    &RewriteOptions::set_image_webp_recompress_quality },
+  { "WebpRecompressionQualityForSmallScreens",
+    &RewriteOptions::set_image_webp_recompress_quality_for_small_screens },
+  { "WebpTimeoutMs",
+    &RewriteOptions::set_image_webp_timeout_ms },
+};
 
 template <class HeaderT>
 RewriteQuery::Status RewriteQuery::ScanHeader(
@@ -135,7 +181,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   if (allow_related_options && namer.Decode(request_url->LeafSansQuery()) &&
       namer.has_options()) {
     const RewriteFilter* rewrite_filter =
-        server_context->FindFilterForDecoding(namer.id());
+        server_context->decoding_driver()->FindFilter(namer.id());
     if (rewrite_filter != NULL) {
       options->reset(factory->NewRewriteOptionsForQuery());
       status = ParseResourceOption(namer.options(), options->get(),
@@ -164,7 +210,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   scoped_ptr<RequestProperties> request_properties;
   if (request_headers != NULL) {
     request_properties.reset(server_context->NewRequestProperties());
-    request_properties->SetUserAgent(
+    request_properties->set_user_agent(
         request_headers->Lookup1(HttpAttributes::kUserAgent));
   }
 
@@ -232,18 +278,13 @@ RewriteQuery::Status RewriteQuery::Scan(
   return status;
 }
 
-bool RewriteQuery::MightBeCustomOption(StringPiece name) {
-  // TODO(jmarantz): switch to case-insenstive comparisons for these prefixes.
-  return name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed) ||
-      StringCaseEqual(name, HttpAttributes::kXPsaClientOptions);
-}
-
 template <class HeaderT>
 bool RewriteQuery::HeadersMayHaveCustomOptions(const QueryParams& params,
                                                const HeaderT* headers) {
   if (headers != NULL) {
     for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
-      if (MightBeCustomOption(headers->Name(i))) {
+      StringPiece name = headers->Name(i);
+      if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
         return true;
       }
     }
@@ -255,7 +296,9 @@ bool RewriteQuery::MayHaveCustomOptions(
     const QueryParams& params, const RequestHeaders* req_headers,
     const ResponseHeaders* resp_headers) {
   for (int i = 0, n = params.size(); i < n; ++i) {
-    if (MightBeCustomOption(params.name(i))) {
+    StringPiece name(params.name(i));
+    if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed) ||
+        StringCaseEqual(name, HttpAttributes::kXPsaClientOptions)) {
       return true;
     }
   }
@@ -266,12 +309,8 @@ bool RewriteQuery::MayHaveCustomOptions(
     return true;
   }
   if (req_headers != NULL &&
-      (req_headers->Has(HttpAttributes::kXPsaClientOptions) ||
-       req_headers->HasValue(HttpAttributes::kCacheControl, "no-transform"))) {
-    return true;
-  }
-  if ((resp_headers != NULL) && resp_headers->HasValue(
-          HttpAttributes::kCacheControl, "no-transform")) {
+      (req_headers->Lookup1(HttpAttributes::kXPsaClientOptions) != NULL ||
+       req_headers->Lookup1(HttpAttributes::kCacheControl) != NULL)) {
     return true;
   }
   return false;
@@ -329,7 +368,6 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     SplitStringPieceToVector(trimmed_value, ",", &pairs,
                              true /* omit_empty_strings */);
     for (int i = 0, n = pairs.size(); i < n; ++i) {
-      TrimWhitespace(&pairs[i]);
       if (pairs[i] == "no-transform") {
         // TODO(jmarantz): A .pagespeed resource should return un-optimized
         // content with "Cache-Control: no-transform".
@@ -348,16 +386,21 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
       prefix_len = sizeof(kPageSpeed)-1;
     }
     name_suffix.remove_prefix(prefix_len);
-    switch (options->SetOptionFromQuery(name_suffix, trimmed_value)) {
-      case RewriteOptions::kOptionOk:
-        status = kSuccess;
+    for (unsigned i = 0; i < arraysize(int64_query_params_); ++i) {
+      if (name_suffix == int64_query_params_[i].name_) {
+        int64 int_val;
+        if (StringToInt64(trimmed_value, &int_val)) {
+          RewriteOptionsInt64PMF method = int64_query_params_[i].method_;
+          (options->*method)(int_val);
+          status = kSuccess;
+        } else {
+          handler->Message(kWarning, "Invalid integer value for %s: %s",
+                           name_suffix.as_string().c_str(),
+                           trimmed_value.as_string().c_str());
+          status = kInvalid;
+        }
         break;
-      case RewriteOptions::kOptionNameUnknown:
-        status = kNoneFound;
-        break;
-      case RewriteOptions::kOptionValueInvalid:
-        status = kInvalid;
-        break;
+      }
     }
   }
   return status;
@@ -434,13 +477,13 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
                              kResourceOptionValueSeparator, &name_value, true);
     switch (name_value.size()) {
       case 1: {
-        RewriteOptions::Filter filter_enum =
+        RewriteOptions::Filter filter =
             RewriteOptions::LookupFilterById(name_value[0]);
-        if ((filter_enum == RewriteOptions::kEndOfFilters) ||
-            !std::binary_search(filters, filters + num_filters, filter_enum)) {
+        if ((filter == RewriteOptions::kEndOfFilters) ||
+            !std::binary_search(filters, filters + num_filters, filter)) {
           status = kInvalid;
         } else {
-          options->EnableFilter(filter_enum);
+          options->EnableFilter(filter);
           status = kSuccess;
         }
         break;

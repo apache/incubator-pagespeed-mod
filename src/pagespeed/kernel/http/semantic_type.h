@@ -21,7 +21,6 @@
 #ifndef PAGESPEED_KERNEL_HTTP_SEMANTIC_TYPE_H_
 #define PAGESPEED_KERNEL_HTTP_SEMANTIC_TYPE_H_
 
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
@@ -39,12 +38,12 @@ namespace semantic_type {
 // kJavascript, and we'll ignore the extension (mp3) and actual contents of the
 // file (which will look like css).
 enum Category {
-  kHyperlink,
-  kImage,
-  kOtherResource,
-  kPrefetch,
   kScript,
+  kImage,
   kStylesheet,
+  kOtherResource,
+  kHyperlink,
+  kPrefetch,
   kUndefined
 };
 
@@ -64,9 +63,6 @@ enum Category {
 //      normally load in connection to this page. For example the 'href'
 //      attribute of an 'a' element.
 bool ParseCategory(const StringPiece& category_str, Category* category);
-
-// Determine the string representation for a given category.
-GoogleString GetCategoryString(Category category);
 
 }  // namespace semantic_type
 }  // namespace net_instaweb

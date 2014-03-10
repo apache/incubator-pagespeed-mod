@@ -23,14 +23,15 @@
 
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/cache_html_flow.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/automatic/public/proxy_interface.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -40,6 +41,7 @@
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
+#include "net/instaweb/rewriter/public/critical_selector_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
@@ -47,7 +49,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -59,10 +60,10 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -73,7 +74,6 @@
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/worker_test_base.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/wildcard.h"
 
 namespace net_instaweb {
@@ -403,8 +403,8 @@ class ProxyInterfaceWithDelayCache : public ProxyInterface {
 // time.
 class TestRequestContext : public RequestContext {
  public:
-  TestRequestContext(ThreadSystem* threads, LoggingInfo* logging_info)
-      : RequestContext(threads->NewMutex(), NULL),
+  explicit TestRequestContext(LoggingInfo* logging_info)
+      : RequestContext(new NullMutex, NULL),
         logging_info_copy_(logging_info) {}
 
   virtual AbstractLogRecord* NewSubordinateLogRecord(
@@ -426,8 +426,7 @@ class CacheHtmlFlowTest : public ProxyInterfaceTestBase {
   static const int kHtmlCacheTimeSec = 5000;
 
   CacheHtmlFlowTest() : test_request_context_(TestRequestContextPtr(
-      new TestRequestContext(server_context()->thread_system(),
-                             &cache_html_logging_info_))) {
+      new TestRequestContext(&cache_html_logging_info_))) {
     ConvertTimeToString(MockTimer::kApr_5_2010_ms, &start_time_string_);
   }
 
@@ -1770,13 +1769,13 @@ TEST_F(CacheHtmlPrioritizeCriticalCssTest, CacheHtmlWithCriticalSelectors) {
   GoogleString full_styles_html = StrCat(
       "<noscript class=\"psa_add_styles\">",
       // URLs are encoded because CSS rewrite is enabled with selectors filter.
-      CssLinkEncodedHref("a.css"), CssLinkEncodedHref("b.css?x=1&y=2"),
+      CssLinkEncodedHref("a.css"),
+      CssLinkEncodedHref("b.css?x=1&y=2"),
       "</noscript>"
       "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-      rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-          StaticAssetManager::kCriticalCssLoaderJs,
-          rewrite_driver()->options()),
-      "pagespeed.CriticalCssLoader.Run();</script>");
+      CriticalSelectorFilter::kAddStylesFunction,
+      CriticalSelectorFilter::kAddStylesInvocation,
+      "</script>");
   ValidateCacheHtml(
       "critical_selector", InputHtml(), ExpectedHtml(full_styles_html));
 }

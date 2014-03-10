@@ -65,9 +65,9 @@ void HtmlElement::MarkAsDead(const HtmlEventListIterator& end) {
 void HtmlElement::SynthesizeEvents(const HtmlEventListIterator& iter,
                                    HtmlEventList* queue) {
   // We use -1 as a bogus line number, since these events are synthetic.
-  HtmlEvent* start_tag = new HtmlStartElementEvent(this, Data::kMaxLineNumber);
+  HtmlEvent* start_tag = new HtmlStartElementEvent(this, -1);
   set_begin(queue->insert(iter, start_tag));
-  HtmlEvent* end_tag = new HtmlEndElementEvent(this, Data::kMaxLineNumber);
+  HtmlEvent* end_tag = new HtmlEndElementEvent(this, -1);
   set_end(queue->insert(iter, end_tag));
 }
 
@@ -75,17 +75,6 @@ bool HtmlElement::DeleteAttribute(HtmlName::Keyword keyword) {
   AttributeList* attrs = mutable_attributes();
   for (AttributeIterator iter(attrs->begin()); iter != attrs->end(); ++iter) {
     if (iter->keyword() == keyword) {
-      attrs->Erase(&iter);
-      return true;
-    }
-  }
-  return false;
-}
-
-bool HtmlElement::DeleteAttribute(StringPiece name) {
-  AttributeList* attrs = mutable_attributes();
-  for (AttributeIterator iter(attrs->begin()); iter != attrs->end(); ++iter) {
-    if (iter->name_str() == name) {
       attrs->Erase(&iter);
       return true;
     }
@@ -106,18 +95,6 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
     }
   }
   return ret;
-}
-
-const HtmlElement::Attribute* HtmlElement::FindAttribute(
-    StringPiece name) const {
-  for (AttributeConstIterator iter = attributes().begin();
-       iter != attributes().end(); ++iter) {
-    const Attribute* attribute = iter.Get();
-    if (iter->name_str() == name) {
-      return attribute;
-    }
-  }
-  return NULL;
 }
 
 void HtmlElement::ToString(GoogleString* buf) const {
@@ -147,14 +124,13 @@ void HtmlElement::ToString(GoogleString* buf) const {
     case BRIEF_CLOSE:      *buf += "/>"; break;
     case UNCLOSED:         *buf += "> (unclosed)"; break;
   }
-  if ((data_->begin_line_number_ != Data::kMaxLineNumber) ||
-      (data_->end_line_number_ != Data::kMaxLineNumber)) {
+  if ((data_->begin_line_number_ != -1) || (data_->end_line_number_ != -1)) {
     *buf += " ";
-    if (data_->begin_line_number_ != Data::kMaxLineNumber) {
+    if (data_->begin_line_number_ != -1) {
       *buf += IntegerToString(data_->begin_line_number_);
     }
     *buf += "...";
-    if (data_->end_line_number_ != Data::kMaxLineNumber) {
+    if (data_->end_line_number_ != -1) {
       *buf += IntegerToString(data_->end_line_number_);
     }
   }

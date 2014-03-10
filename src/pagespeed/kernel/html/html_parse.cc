@@ -253,10 +253,6 @@ void HtmlParse::EndFinishParse() {
   }
 }
 
-void HtmlParse::Clear() {
-  string_table_.Clear();
-}
-
 void HtmlParse::ParseTextInternal(const char* text, int size) {
   DCHECK(url_valid_) << "Invalid to call ParseText with invalid url";
   if (url_valid_) {

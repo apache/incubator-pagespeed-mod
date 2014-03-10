@@ -34,7 +34,6 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
@@ -1597,17 +1596,6 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithIEAddUACompatibilityHeader) {
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithDeferJsAndSplitEnabled) {
-  // The default finder class used by split_html is
-  // BeaconCriticalLineInfoFinder, which requires the pcache to be setup, so do
-  // that setup here.
-  PropertyCache* pcache = server_context_->page_property_cache();
-  const PropertyCache::Cohort* beacon_cohort =
-      SetupCohort(pcache, RewriteDriver::kBeaconCohort);
-  server_context()->set_beacon_cohort(beacon_cohort);
-  server_context()->set_critical_line_info_finder(
-      new BeaconCriticalLineInfoFinder(server_context()->beacon_cohort(),
-                                       factory()->nonce_generator()));
-
   SetupForFlushEarlyFlow();
   RequestHeaders request_headers;
   request_headers.Replace(HttpAttributes::kUserAgent,
@@ -1837,14 +1825,14 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
   EXPECT_TRUE(finder->IsCriticalSelector(rewrite_driver(), "*"));
 
   GoogleString full_styles_html = StrCat(
-      "<noscript class=\"psa_add_styles\">", CssLinkEncodedHref("a.css"),
+      "<noscript class=\"psa_add_styles\">",
+      CssLinkEncodedHref("a.css"),
       CssLinkEncodedHref("b.css?x=1&y=2"),
       "</noscript>"
       "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-      rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-          StaticAssetManager::kCriticalCssLoaderJs,
-          rewrite_driver()->options()),
-      "pagespeed.CriticalCssLoader.Run();</script>");
+      CriticalSelectorFilter::kAddStylesFunction,
+      CriticalSelectorFilter::kAddStylesInvocation,
+      "</script>");
   ValidateFlushEarly(
       "critical_selector", InputHtml(), ExpectedHtml(full_styles_html));
 }

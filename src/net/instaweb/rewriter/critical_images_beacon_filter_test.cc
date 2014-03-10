@@ -21,10 +21,6 @@
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -41,15 +37,13 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
-#include "pagespeed/kernel/base/mock_timer.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
 const char kChefGifFile[] = "IronChef2.gif";
 // Set image dimensions such that image will be inlined.
 const char kChefGifDims[] = "width=48 height=64";
-
-const char kRequestUrl[] = "http://www.example.com";
 
 }  // namespace
 
@@ -69,7 +63,7 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     RewriteTestBase::SetUp();
     https_mode_ = false;
     // Setup the property cache. The DetermineEnable logic for the
-    // CriticalImagesBeaconFinder will only inject the beacon if the property
+    // CriticalIMagesBeaconFinder will only inject the beacon if the property
     // cache is enabled, since beaconed results are intended to be stored in the
     // pcache.
     PropertyCache* pcache = page_property_cache();
@@ -84,32 +78,19 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     server_context()->set_critical_images_finder(
         new BeaconCriticalImagesFinder(
             beacon_cohort, factory()->nonce_generator(), statistics()));
+    MockPropertyPage* page = NewMockPage("http://example.com");
+    rewrite_driver()->set_property_page(page);
+    pcache->set_enabled(true);
+    pcache->Read(page);
 
     GoogleUrl base(GetTestUrl());
     image_gurl_.Reset(base, kChefGifFile);
-    ResetDriver();
-    SetDummyRequestHeaders();
-  }
-
-  void ResetDriver() {
-    rewrite_driver()->Clear();
-    rewrite_driver()->SetUserAgent(
-        UserAgentMatcherTestBase::kChrome18UserAgent);
-    rewrite_driver()->set_request_context(
-        RequestContext::NewTestRequestContext(factory()->thread_system()));
-    MockPropertyPage* page = NewMockPage(kRequestUrl);
-    rewrite_driver()->set_property_page(page);
-    PropertyCache* pcache = server_context_->page_property_cache();
-    pcache->Read(page);
-  }
-
-  void WriteToPropertyCache() {
-    rewrite_driver()->property_page()->WriteCohort(
-        server_context()->beacon_cohort());
   }
 
   void PrepareInjection() {
     rewrite_driver()->AddFilters();
+    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile,
+                         kContentTypeJpeg, 100);
   }
 
   void AddImageTags(GoogleString* html) {
@@ -122,12 +103,6 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   void RunInjection() {
     PrepareInjection();
-    SetupAndProcessUrl();
-  }
-
-  void SetupAndProcessUrl() {
-    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile,
-                         kContentTypeJpeg, 100);
     GoogleString html = "<head></head><body>";
     AddImageTags(&html);
     StrAppend(&html, "</body>");
@@ -144,16 +119,16 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     ParseUrl(GetTestUrl(), html);
   }
 
-  void VerifyInjection(int expected_beacon_count) {
-    EXPECT_EQ(expected_beacon_count, statistics()->GetVariable(
+  void VerifyInjection() {
+    EXPECT_EQ(1, statistics()->GetVariable(
         CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)->Get());
     EXPECT_TRUE(output_buffer_.find(CreateInitString()) != GoogleString::npos);
   }
 
-  void VerifyNoInjection(int expected_beacon_count) {
-    EXPECT_EQ(expected_beacon_count, statistics()->GetVariable(
+  void VerifyNoInjection() {
+    EXPECT_EQ(0, statistics()->GetVariable(
         CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)->Get());
-    EXPECT_TRUE(output_buffer_.find("pagespeed.CriticalImages.Run") ==
+    EXPECT_TRUE(output_buffer_.find("criticalImagesBeaconInit") ==
                 GoogleString::npos);
   }
 
@@ -188,13 +163,13 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     GoogleString options_signature_hash =
         rewrite_driver()->server_context()->hasher()->Hash(
             rewrite_driver()->options()->signature());
-    GoogleString str = "pagespeed.CriticalImages.Run(";
+    GoogleString str = "pagespeed.criticalImagesBeaconInit(";
     StrAppend(&str, "'", beacon_url, "',");
     StrAppend(&str, "'", url, "',");
     StrAppend(&str, "'", options_signature_hash, "',");
-    StrAppend(&str, BoolToString(rewrite_driver()->options()->Enabled(
-                        RewriteOptions::kResizeToRenderedImageDimensions)),
-              ",");
+    StrAppend(&str, BoolToString(
+        CriticalImagesBeaconFilter::IncludeRenderedImagesInBeacon(
+            rewrite_driver())), ",");
     StrAppend(&str, "'", ExpectedNonce(), "');");
     return str;
   }
@@ -205,20 +180,20 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
 TEST_F(CriticalImagesBeaconFilterTest, ScriptInjection) {
   RunInjection();
-  VerifyInjection(1);
+  VerifyInjection();
   VerifyWithNoImageRewrite();
 }
 
 TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionNoBody) {
   RunInjectionNoBody();
-  VerifyInjection(1);
+  VerifyInjection();
   VerifyWithNoImageRewrite();
 }
 
 TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithHttps) {
   AssumeHttps();
   RunInjection();
-  VerifyInjection(1);
+  VerifyInjection();
   VerifyWithNoImageRewrite();
 }
 
@@ -239,7 +214,7 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
   options()->DisableFilter(RewriteOptions::kLazyloadImages);
   RunInjection();
-  VerifyInjection(1);
+  VerifyInjection();
 
   EXPECT_TRUE(output_buffer_.find("data:") != GoogleString::npos);
   EXPECT_TRUE(output_buffer_.find(hash_str) != GoogleString::npos);
@@ -247,62 +222,11 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   EXPECT_EQ(-1, logging_info()->num_css_critical_images());
 }
 
-TEST_F(CriticalImagesBeaconFilterTest, DontRebeaconBeforeTimeout) {
-  RunInjection();
-  VerifyInjection(1);
-  VerifyWithNoImageRewrite();
-
-  // Write a dummy value to the property cache.
-  WriteToPropertyCache();
-
-  // No beacon injection happens on the immediately succeeding request.
-  ResetDriver();
-  SetDummyRequestHeaders();
-  SetupAndProcessUrl();
-  VerifyNoInjection(1);
-
-  // Beacon injection happens when the pcache value expires or when the
-  // reinstrumentation time interval is exceeded.
-  factory()->mock_timer()->AdvanceMs(
-      options()->beacon_reinstrument_time_sec() * 1000);
-  ResetDriver();
-  SetDummyRequestHeaders();
-  SetupAndProcessUrl();
-  VerifyInjection(2);
-}
-
-TEST_F(CriticalImagesBeaconFilterTest, BeaconReinstrumentationWithHeader) {
-  RunInjection();
-  VerifyInjection(1);
-  VerifyWithNoImageRewrite();
-
-  // Write a dummy value to the property cache.
-  WriteToPropertyCache();
-
-  // Beacon injection happens when the PS-ShouldBeacon header is present even
-  // when the pcache value has not expired and the reinstrumentation time
-  // interval has not been exceeded.
-  ResetDriver();
-  SetDownstreamCacheDirectives("localhost:80", "random_rebeaconing_key");
-  RequestHeaders new_request_headers;
-  new_request_headers.Add(kPsaShouldBeacon, "random_rebeaconing_key");
-  rewrite_driver()->SetRequestHeaders(new_request_headers);
-  SetupAndProcessUrl();
-  VerifyInjection(2);
-}
-
 TEST_F(CriticalImagesBeaconFilterTest, UnsupportedUserAgent) {
   // Test that the filter is not applied for unsupported user agents.
   rewrite_driver()->SetUserAgent("Firefox/1.0");
   RunInjection();
-  VerifyNoInjection(0);
-}
-
-TEST_F(CriticalImagesBeaconFilterTest, Googlebot) {
-  // Verify that the filter is not applied for bots.
-  rewrite_driver()->SetUserAgent(UserAgentMatcherTestBase::kGooglebotUserAgent);
-  RunInjection();
-  VerifyNoInjection(0);
+  VerifyNoInjection();
 }
 
 }  // namespace net_instaweb

@@ -28,16 +28,12 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/message_handler.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
-
-const char CssInlineFilter::kNumCssInlined[] = "num_css_inlined";
 
 class CssInlineFilter::Context : public InlineRewriteContext {
  public:
@@ -90,14 +86,7 @@ CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       id_(RewriteOptions::kCssInlineId),
       size_threshold_bytes_(driver->options()->css_inline_max_bytes()),
-      css_tag_scanner_(driver_) {
-  Statistics* stats = server_context_->statistics();
-  num_css_inlined_ = stats->GetVariable(kNumCssInlined);
-}
-
-void CssInlineFilter::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kNumCssInlined);
-}
+      css_tag_scanner_(driver_) {}
 
 void CssInlineFilter::StartDocumentImpl() {
 }
@@ -151,10 +140,6 @@ ResourcePtr CssInlineFilter::CreateResource(const char* url) {
   return CreateInputResource(url);
 }
 
-bool CssInlineFilter::HasClosingStyleTag(StringPiece contents) {
-  return FindIgnoreCase(contents, "</style") != StringPiece::npos;
-}
-
 bool CssInlineFilter::ShouldInline(const ResourcePtr& resource,
                                    const StringPiece& attrs_charset) const {
   // If the contents are bigger than our threshold or the contents contain
@@ -163,7 +148,9 @@ bool CssInlineFilter::ShouldInline(const ResourcePtr& resource,
   if (resource->contents().size() > size_threshold_bytes_) {
     return false;
   }
-  if (HasClosingStyleTag(resource->contents())) {
+  size_t possible_end_style_pos = FindIgnoreCase(resource->contents(),
+                                                 "</style");
+  if (possible_end_style_pos != StringPiece::npos) {
     return false;
   }
 
@@ -269,7 +256,6 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
     LocalStorageCacheFilter::AddLscAttributes(resource_url.Spec(), cached,
                                               driver_, style_element);
   }
-  num_css_inlined_->Add(1);
 }
 
 }  // namespace net_instaweb

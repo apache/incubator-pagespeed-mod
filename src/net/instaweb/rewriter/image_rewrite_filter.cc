@@ -19,8 +19,6 @@
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
 #include <limits.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 
 #include <algorithm>                    // for min
 #include <memory>
@@ -208,15 +206,13 @@ const char ImageRewriteFilter::kImageOngoingRewrites[] =
     "image_ongoing_rewrites";
 const char ImageRewriteFilter::kImageResizedUsingRenderedDimensions[] =
     "image_resized_using_rendered_dimensions";
-const char ImageRewriteFilter::kImageWebpRewrites[] = "image_webp_rewrites";
+const char kImageWebpRewrites[] = "image_webp_rewrites";
 const char ImageRewriteFilter::kInlinableImageUrlsPropertyName[] =
     "ImageRewriter-inlinable-urls";
 const char ImageRewriteFilter::kImageRewriteLatencyOkMs[] =
     "image_rewrite_latency_ok_ms";
 const char ImageRewriteFilter::kImageRewriteLatencyFailedMs[] =
     "image_rewrite_latency_failed_ms";
-const char ImageRewriteFilter::kImageRewriteLatencyTotalMs[] =
-    "image_rewrite_latency_total_ms";
 
 const char ImageRewriteFilter::kImageWebpFromGifTimeouts[] =
     "image_webp_conversion_gif_timeouts";
@@ -343,8 +339,6 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
   DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
-// TODO(huibao): Move the logic for determining output format to a centralized
-// method which should consider all relevant factors.
 void SetWebpCompressionOptions(
     const ResourceContext& resource_context,
     const RewriteOptions& options,
@@ -473,8 +467,6 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
   image_rewrite_uses_ = stats->GetVariable(kImageRewriteUses);
   image_inline_count_ = stats->GetVariable(kImageInline);
   image_webp_rewrites_ = stats->GetVariable(kImageWebpRewrites);
-  image_rewrite_latency_total_ms_ =
-      stats->GetVariable(kImageRewriteLatencyTotalMs);
 
   webp_conversion_variables_.Get(
       Image::ConversionVariables::FROM_GIF)->timeout_count =
@@ -564,7 +556,6 @@ void ImageRewriteFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kImageRewriteUses);
   statistics->AddVariable(kImageInline);
   statistics->AddVariable(kImageWebpRewrites);
-  statistics->AddVariable(kImageRewriteLatencyTotalMs);
   // We want image_ongoing_rewrites to be global even if we do per-vhost
   // stats, as it's used for a StatisticsWorkBound.
   statistics->AddGlobalVariable(kImageOngoingRewrites);
@@ -769,23 +760,6 @@ bool ImageRewriteFilter::ShouldResize(const ResourceContext& resource_context,
   return false;
 }
 
-namespace {
-
-int64 GetCurrentCpuTimeMs(Timer* timer) {
-  // See http://linux.die.net/man/2/getrusage -- RUSAGE_THREAD is supported
-  // on Linux since Linux 2.6.26, so fall back to wall-clock time.
-#ifdef RUSAGE_THREAD
-  struct rusage start_rusage;
-  if (getrusage(RUSAGE_THREAD, &start_rusage) == 0) {
-    return ((start_rusage.ru_utime.tv_sec * 1000) +
-            (start_rusage.ru_utime.tv_usec / 1000));
-  }
-#endif
-  return timer->NowMs();
-}
-
-}  // namespace
-
 RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
       Context* rewrite_context, const ResourcePtr& input_resource,
       const OutputResourcePtr& result) {
@@ -861,8 +835,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   }
   if (work_bound_->TryToWork()) {
     rewrite_result = kRewriteFailed;
-    Timer* timer = server_context_->timer();
-    int64 rewrite_time_start_ms = GetCurrentCpuTimeMs(timer);
+    int64 rewrite_time_start_ms = server_context_->timer()->NowMs();
+
     CachedResult* cached = result->EnsureCachedResultCreated();
     is_resized = ResizeImageIfNecessary(
         rewrite_context, input_resource->url(),
@@ -952,7 +926,6 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
         rewrite_context->TracePrintf("%s", msg.c_str());
       }
     }
-    cached->set_minimal_webp_support(image->MinimalWebpSupport());
     cached->set_size(rewrite_result == kRewriteOk ? image->output_size() :
                      image->input_size());
 
@@ -1007,12 +980,12 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
         image_options->use_transparent_for_blank_image = true;
         low_image.reset(BlankImageWithOptions(image_width, image_height,
             IMAGE_PNG, server_context_->filename_prefix(),
-            timer, message_handler, image_options));
+            driver_->timer(), message_handler, image_options));
         low_image->EnsureLoaded(true);
       } else {
         low_image.reset(NewImage(image->Contents(), input_resource->url(),
             server_context_->filename_prefix(), image_options,
-            timer, message_handler));
+            driver_->timer(), message_handler));
       }
       low_image->SetTransformToLowRes();
       if (ShouldInlinePreview(low_image->Contents().size(),
@@ -1028,17 +1001,14 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
       }
     }
     work_bound_->WorkComplete();
-    int64 latency_ms = GetCurrentCpuTimeMs(timer) - rewrite_time_start_ms;
     if (rewrite_result == kRewriteOk) {
-      image_rewrite_latency_ok_ms_->Add(latency_ms);
+      image_rewrite_latency_ok_ms_->Add(
+          server_context_->timer()->NowMs() - rewrite_time_start_ms);
     } else {
-      image_rewrite_latency_failed_ms_->Add(latency_ms);
+      image_rewrite_latency_failed_ms_->Add(
+          server_context_->timer()->NowMs() - rewrite_time_start_ms);
     }
 
-    // We track the total latency (including failed & OK) in its own
-    // variable so it can be easily scraped with wget.  The ok/failed
-    // versions above are histograms and thus harder to scrape.
-    image_rewrite_latency_total_ms_->Add(latency_ms);
   } else {
     image_rewrites_dropped_due_to_load_->IncBy(1);
     GoogleString msg(StringPrintf("%s: Too busy to rewrite image.",
@@ -1180,9 +1150,9 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
 
   // In case of RewriteOptions::image_preserve_urls() we do not want to use
   // image dimension information from HTML/CSS.
-
-  if (options->Enabled(RewriteOptions::kResizeImages) ||
-      options->Enabled(RewriteOptions::kResizeToRenderedImageDimensions)) {
+  if ((options->Enabled(RewriteOptions::kResizeImages) ||
+       options->Enabled(RewriteOptions::kResizeToRenderedImageDimensions))&&
+      !driver_->options()->image_preserve_urls()) {
     ImageDim* desired_dim = resource_context->mutable_desired_image_dims();
     GetDimensions(element, desired_dim, src,
                   &is_resized_using_rendered_dimensions);
@@ -1217,14 +1187,7 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
                                    is_resized_using_rendered_dimensions);
     ResourceSlotPtr slot(driver_->GetSlot(input_resource, element, src));
     context->AddSlot(slot);
-
-    // Note that in RewriteOptions::Merge we turn off image_preserve_urls
-    // when merging into a configuration that has explicitly
-    // enabled cache_extend_images.
-    if (options->image_preserve_urls() &&
-        !options->Enabled(RewriteOptions::kResizeImages) &&
-        !options->Enabled(RewriteOptions::kResizeToRenderedImageDimensions) &&
-        !options->Enabled(RewriteOptions::kInlineImages)) {
+    if (driver_->options()->image_preserve_urls()) {
       slot->set_disable_rendering(true);
     }
     driver_->InitiateRewrite(context);
@@ -1243,10 +1206,9 @@ bool ImageRewriteFilter::FinishRewriteCssImageUrl(
     DCHECK(!options->cache_small_images_unrewritten())
         << "Modifying a URL slot despite "
         << "image_inlining_identify_and_cache_without_rewriting set.";
-    if (slot->DirectSetUrl(data_url)) {
-      image_inline_count_->Add(1);
-      return true;
-    }
+    slot->DirectSetUrl(data_url);
+    image_inline_count_->Add(1);
+    return true;
   } else if (cached->optimizable()) {
     image_rewrite_uses_->Add(1);
   }
@@ -1586,8 +1548,8 @@ void ImageRewriteFilter::GetDimensions(
   // the desired image dimensions. Don't use rendered image dimensions
   // when beaconing, since it would cause improper instrumentation.
   if (driver_->options()->Enabled(
-          RewriteOptions::kResizeToRenderedImageDimensions) &&
-      !CriticalImagesBeaconFilter::ShouldApply(driver_)) {
+      RewriteOptions::kResizeToRenderedImageDimensions) &&
+      !CriticalImagesBeaconFilter::IncludeRenderedImagesInBeacon(driver_)) {
     StringPiece src_value(src->DecodedValueOrNull());
     if (!src_value.empty()) {
       GoogleUrl src_gurl(driver_->base_url(), src_value);
@@ -1768,8 +1730,7 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
     // CopyFrom parent_context is not sufficient because parent_context checks
     // only UserAgentSupportsWebp when creating the context, but while
     // rewriting the image, rewrite options should also be checked.
-    ImageUrlEncoder::SetLibWebpLevel(
-        *driver_->options(), *driver_->request_properties(),
+    ImageUrlEncoder::SetLibWebpLevel(*driver_->request_properties(),
         cloned_context);
   }
   Context* context = new Context(css_image_inline_max_bytes,

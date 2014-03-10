@@ -110,25 +110,33 @@ void HTTPCache::SetIgnoreFailurePuts() {
   ignore_failure_puts_.set_value(true);
 }
 
-bool HTTPCache::IsExpired(const ResponseHeaders& headers, int64 now_ms) {
+bool HTTPCache::IsCurrentlyValid(const RequestHeaders* request_headers,
+                                 const ResponseHeaders& headers, int64 now_ms) {
   if (force_caching_) {
-    return false;
+    return true;
   }
 
-  if (headers.CacheExpirationTimeMs() > now_ms) {
+  if ((request_headers == NULL && !headers.IsProxyCacheable()) ||
+      (request_headers != NULL &&
+       !headers.IsProxyCacheableGivenRequest(*request_headers))) {
+    // TODO(jmarantz): Should we have a separate 'force' bit that doesn't
+    // expired resources to be valid, but does ignore cache-control:private?
     return false;
   }
-  return true;
+  if (headers.CacheExpirationTimeMs() > now_ms) {
+    return true;
+  }
+  return false;
 }
 
-bool HTTPCache::IsExpired(const ResponseHeaders& headers) {
-  return IsExpired(headers, timer_->NowMs());
+bool HTTPCache::IsAlreadyExpired(const RequestHeaders* request_headers,
+                                 const ResponseHeaders& headers) {
+  return !IsCurrentlyValid(request_headers, headers, timer_->NowMs());
 }
 
 class HTTPCacheCallback : public CacheInterface::Callback {
  public:
-  HTTPCacheCallback(const GoogleString& key,
-                    MessageHandler* handler,
+  HTTPCacheCallback(const GoogleString& key, MessageHandler* handler,
                     HTTPCache::Callback* callback, HTTPCache* http_cache)
       : key_(key),
         handler_(handler),
@@ -147,10 +155,6 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     bool is_expired = false;
     if ((backend_state == CacheInterface::kAvailable) &&
         callback_->http_value()->Link(value(), headers, handler_) &&
-        (http_cache_->force_caching_ ||
-         headers->IsProxyCacheable(callback_->req_properties(),
-                                   callback_->RespectVaryOnResources(),
-                                   ResponseHeaders::kHasValidator)) &&
         callback_->IsCacheValid(key_, *headers) &&
         // To resolve Issue 664 we sanitize 'Connection' headers on
         // HTTPCache::Put, but cache entries written before the bug
@@ -184,8 +188,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
         headers->ForceCaching(override_cache_ttl_ms);
       }
       // Is the response still valid?
-      is_expired = http_cache_->IsExpired(*headers, now_ms);
-      bool is_valid_and_fresh = !is_expired && callback_->IsFresh(*headers);
+      is_expired = !http_cache_->IsCurrentlyValid(NULL, *headers, now_ms);
+      bool is_valid_and_fresh = (!is_expired) && callback_->IsFresh(*headers);
       int http_status = headers->status_code();
 
       if (http_status == HttpStatus::kRememberNotCacheableStatusCode ||
@@ -234,10 +238,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
             callback_->http_value()->SetHeaders(headers);
           }
         } else {
-          if (http_cache_->force_caching_ ||
-              headers->IsProxyCacheable(callback_->req_properties(),
-                                        callback_->RespectVaryOnResources(),
-                                        ResponseHeaders::kHasValidator)) {
+          if (http_cache_->force_caching_ || headers->IsProxyCacheable()) {
             callback_->fallback_http_value()->Link(callback_->http_value());
           }
         }
@@ -260,7 +261,6 @@ class HTTPCacheCallback : public CacheInterface::Callback {
 
  private:
   GoogleString key_;
-  RequestHeaders::Properties req_properties_;
   MessageHandler* handler_;
   HTTPCache::Callback* callback_;
   HTTPCache* http_cache_;
@@ -340,9 +340,7 @@ void HTTPCache::RememberFetchFailedorNotCacheableHelper(const GoogleString& key,
   int64 now_ms = timer_->NowMs();
   headers.SetDateAndCaching(now_ms, ttl_sec * 1000);
   headers.ComputeCaching();
-  Put(key, RequestHeaders::Properties(),
-      ResponseHeaders::kRespectVaryOnResources,
-      &headers, "", handler);
+  Put(key, &headers, "", handler);
 }
 
 HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
@@ -402,10 +400,8 @@ void HTTPCache::PutInternal(const GoogleString& key, int64 start_us,
 // We do not check cache invalidation in Put. It is assumed that the date header
 // will be greater than the cache_invalidation_timestamp, if any, in domain
 // config.
-void HTTPCache::Put(const GoogleString& key,
-                    RequestHeaders::Properties req_properties,
-                    ResponseHeaders::VaryOption respect_vary_on_resources,
-                    HTTPValue* value, MessageHandler* handler) {
+void HTTPCache::Put(const GoogleString& key, HTTPValue* value,
+                    MessageHandler* handler) {
   int64 start_us = timer_->NowUs();
   // Extract headers and contents.
   ResponseHeaders headers;
@@ -414,10 +410,8 @@ void HTTPCache::Put(const GoogleString& key,
   if (!MayCacheUrl(key, headers)) {
     return;
   }
-  if (!force_caching_ &&
-      !(headers.IsProxyCacheable(req_properties, respect_vary_on_resources,
-                                 ResponseHeaders::kHasValidator) &&
-        IsCacheableBodySize(value->contents_size()))) {
+  if (!force_caching_ && !(headers.IsProxyCacheable() &&
+                           IsCacheableBodySize(value->contents_size()))) {
     LOG(DFATAL) << "trying to Put uncacheable data for key " << key;
     return;
   }
@@ -434,19 +428,17 @@ void HTTPCache::Put(const GoogleString& key,
   }
 }
 
-void HTTPCache::Put(const GoogleString& key,
-                    RequestHeaders::Properties req_properties,
-                    ResponseHeaders::VaryOption respect_vary_on_resources,
-                    ResponseHeaders* headers,
+void HTTPCache::Put(const GoogleString& key, ResponseHeaders* headers,
                     const StringPiece& content, MessageHandler* handler) {
   if (!MayCacheUrl(key, *headers)) {
     return;
   }
   int64 start_us = timer_->NowUs();
   int64 now_ms = start_us / 1000;
-  if ((IsExpired(*headers, now_ms) ||
-       !headers->IsProxyCacheable(req_properties, respect_vary_on_resources,
-                                  ResponseHeaders::kHasValidator) ||
+  // Note: this check is only valid if the caller didn't send an Authorization:
+  // header.
+  // TODO(morlovich): expose the request_headers in the API?
+  if ((!IsCurrentlyValid(NULL, *headers, now_ms) ||
        !IsCacheableBodySize(content.size()))
       && !force_caching_) {
     return;

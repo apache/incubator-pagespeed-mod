@@ -47,9 +47,6 @@ class ServerContext;
 // accessed via a convenience method here for historical reasons.
 class CommonFilter : public EmptyHtmlFilter {
  public:
-  // Debug message to be inserted when resource creation fails.
-  static const char kCreateResourceFailedDebugMsg[];
-
   explicit CommonFilter(RewriteDriver* driver);
   virtual ~CommonFilter();
 
@@ -136,17 +133,6 @@ class CommonFilter : public EmptyHtmlFilter {
   // content of the response to the request being processed.
   // This class logs using Name(); subclasses may do otherwise.
   virtual void LogFilterModifiedContent();
-
-  // Returns true if this filter allows domains not authorized by any pagespeed
-  // directive to be optimized. Filters that end up inlining content onto the
-  // HTML are almost the only ones that can safely do this.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const { return RewriteDriver::kInlineOnlyAuthorizedResources; }
-
-  // Returns true if the filter intends to inline the resource it fetches.  This
-  // is to support AllowWhenInlining.  Unlike AllowUnauthorizedDomain() this
-  // doesn't have security implications and is just used for performance tuning.
-  virtual bool IntendedForInlining() const { return false; }
 
  protected:
   // Overload these implementer methods:

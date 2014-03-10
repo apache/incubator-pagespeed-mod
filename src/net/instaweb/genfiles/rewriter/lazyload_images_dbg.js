@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -17,7 +17,8 @@
   if (!httpRequest) {
     return!1;
   }
-  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  var query_param_char = -1 == beaconUrl.indexOf("?") ? "?" : "&", url = beaconUrl + query_param_char + "url=" + encodeURIComponent(htmlUrl);
+  httpRequest.open("POST", url);
   httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   httpRequest.send(data);
   return!0;
@@ -41,13 +42,13 @@
   }
   return{top:top, left:left};
 }, getWindowSize:function() {
-  return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
+  var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  return{height:height, width:width};
 }, inViewport:function(element, windowSize) {
-  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+  var position = pagespeedutils.getPosition(element);
+  return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;
@@ -98,7 +99,8 @@ pagespeed.LazyloadImages.prototype.isVisible_ = function(element) {
   if (!this.onload_done_ && (0 == element.offsetHeight || 0 == element.offsetWidth)) {
     return!1;
   }
-  if ("relative" == this.getStyle_(element, "position")) {
+  var element_position = this.getStyle_(element, "position");
+  if ("relative" == element_position) {
     return!0;
   }
   var viewport = this.viewport_(), rect = element.getBoundingClientRect(), top_diff, bottom_diff;
@@ -165,17 +167,18 @@ pagespeed.LazyloadImages.prototype.overrideAttributeFunctionsInternal_ = functio
 pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
   var context = new pagespeed.LazyloadImages(blankImageSrc);
   pagespeed.lazyLoadImages = context;
-  pagespeedutils.addHandler(window, "load", function() {
+  var lazy_onload = function() {
     context.onload_done_ = !0;
     context.force_load_ = loadAfterOnload;
     context.buffer_ = 200;
     context.loadVisible_();
-  });
+  };
+  pagespeedutils.addHandler(window, "load", lazy_onload);
   0 != blankImageSrc.indexOf("data") && ((new Image).src = blankImageSrc);
   var lazy_onscroll = function() {
     if (!(context.onload_done_ && loadAfterOnload || context.scroll_timer_)) {
-      var timeout_ms = context.min_scroll_time_;
-      (new Date).getTime() - context.last_scroll_time_ > context.min_scroll_time_ && (timeout_ms = 0);
+      var now = (new Date).getTime(), timeout_ms = context.min_scroll_time_;
+      now - context.last_scroll_time_ > context.min_scroll_time_ && (timeout_ms = 0);
       context.scroll_timer_ = window.setTimeout(function() {
         context.last_scroll_time_ = (new Date).getTime();
         context.loadVisible_();

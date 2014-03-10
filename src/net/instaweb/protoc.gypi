@@ -50,7 +50,6 @@
     'hard_dependency': 1,
     'include_dirs': [
       '<(protoc_out_dir)',
-      '<(DEPTH)/third_party/protobuf/src',
     ],
   },
 }

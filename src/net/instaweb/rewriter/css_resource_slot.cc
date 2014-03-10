@@ -92,16 +92,11 @@ GoogleString CssResourceSlot::LocationString() {
   return "Inside CSS";
 }
 
-bool CssResourceSlot::DirectSetUrl(const StringPiece& url) {
-  // We should never try to render unauthorized resource URLs as is.
-  if (!resource()->is_authorized_domain()) {
-    return false;
-  }
+void CssResourceSlot::DirectSetUrl(const StringPiece& url) {
   delete (*values_)[value_index_];
   (*values_)[value_index_] =
       new Css::Value(Css::Value::URI,
                      UTF8ToUnicodeText(url.data(), url.size()));
-  return true;
 }
 
 bool CssResourceSlotFactory::SlotComparator::operator()(

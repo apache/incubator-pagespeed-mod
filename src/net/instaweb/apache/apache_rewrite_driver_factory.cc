@@ -47,17 +47,14 @@
 
 namespace net_instaweb {
 
-class ProcessContext;
 class SharedCircularBuffer;
 
 const char ApacheRewriteDriverFactory::kStaticAssetPrefix[] =
     "/mod_pagespeed_static/";
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
-    const ProcessContext& process_context,
     server_rec* server, const StringPiece& version)
     : SystemRewriteDriverFactory(
-          process_context,
           new ApacheThreadSystem,
           NULL, /* default shared memory runtime */
           server->server_hostname,
@@ -282,12 +279,6 @@ ApacheServerContext* ApacheRewriteDriverFactory::MakeApacheServerContext(
       new ApacheServerContext(this, server, version_);
   uninitialized_server_contexts_.insert(server_context);
   return server_context;
-}
-
-ServerContext* ApacheRewriteDriverFactory::NewDecodingServerContext() {
-  ServerContext* sc = new ApacheServerContext(this, server_rec_, version_);
-  InitStubDecodingServerContext(sc);
-  return sc;
 }
 
 bool ApacheRewriteDriverFactory::PoolDestroyed(

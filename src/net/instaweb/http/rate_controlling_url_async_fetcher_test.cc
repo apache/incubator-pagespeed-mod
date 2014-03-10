@@ -86,8 +86,7 @@ class MockFetch : public AsyncFetch {
 class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
  protected:
   RateControllingUrlAsyncFetcherTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+      : timer_(MockTimer::kApr_5_2010_ms),
         domain1_url1_("http://www.d1.com/url1"),
         domain2_url1_("http://www.d2.com/url1"),
         domain3_url1_("http://www.d3.com/url1"),
@@ -95,6 +94,7 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
         body2_("b2"),
         ttl_ms_(Timer::kHourMs) {
     RateController::InitStats(&stats_);
+    thread_system_.reset(Platform::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &mock_fetcher_, thread_system_->NewMutex()));
     counting_fetcher_.reset(new CountingUrlAsyncFetcher((wait_fetcher_.get())));

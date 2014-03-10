@@ -22,11 +22,10 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/function.h"
+#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
 
 // TODO(jmarantz): The Scheduler should cancel all outstanding operations
 // on destruction.  Deploying this requires further analysis of shutdown
@@ -60,39 +59,36 @@ class Scheduler {
   Scheduler(ThreadSystem* thread_system, Timer* timer);
   virtual ~Scheduler();
 
-  ThreadSystem::CondvarCapableMutex* mutex() LOCK_RETURNED(mutex_) {
-    return mutex_.get();
-  }
+  ThreadSystem::CondvarCapableMutex* mutex() { return mutex_.get(); }
 
   // Optionally check that mutex is locked for debugging purposes.
-  void DCheckLocked() EXCLUSIVE_LOCKS_REQUIRED(mutex()) {
-    mutex_->DCheckLocked();
-  }
+  void DCheckLocked() { mutex_->DCheckLocked(); }
 
   // Condition-style methods: The following three methods provide a simple
   // condition-variable-style interface that can be used to coordinate the
   // threads sharing the scheduler.
 
-  // Wait at most timeout_ms, or until Signal() is called.
-  void BlockingTimedWaitMs(int64 timeout_ms) EXCLUSIVE_LOCKS_REQUIRED(mutex()) {
+  // Wait at most timeout_ms, or until Signal() is called.  mutex() must be held
+  // when calling.
+  void BlockingTimedWaitMs(int64 timeout_ms) {
     BlockingTimedWaitUs(timeout_ms * Timer::kMsUs);
   }
-  void BlockingTimedWaitUs(int64 timeout_us) EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void BlockingTimedWaitUs(int64 timeout_us);
 
   // Non-blocking invocation of callback either when Signal() is called, or
   // after timeout_ms have passed.  Ownership of callback passes to the
   // scheduler, which deallocates it after invocation.  mutex() must be held on
   // the initial call, and is locked for the duration of callback.  Note that
   // callback may be invoked in a different thread from the calling thread.
-  void TimedWaitMs(int64 timeout_ms, Function* callback)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void TimedWaitMs(int64 timeout_ms, Function* callback);
 
   // Signal threads in BlockingTimedWait[Ms,Us] and invoke TimedWaitMs
-  // callbacks.  Performs outstanding work, including any triggered by the
-  // signal, before returning; note that this means it may drop the scheduler
-  // lock internally while doing callback invocation, which is different from
-  // the usual condition variable signal semantics.
-  void Signal() EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  // callbacks.  mutex() must be held when calling Signal.  Performs outstanding
+  // work, including any triggered by the signal, before returning; note that
+  // this means it may drop the scheduler lock internally while doing callback
+  // invocation, which is different from the usual condition variable signal
+  // semantics.
+  void Signal();
 
   // Alarms.  The following two methods provide a mechanism for scheduling
   // alarm tasks, each run at a particular time.
@@ -117,16 +113,15 @@ class Scheduler {
   // committed to running the callback, it will just return false), so it's the
   // caller's responsibility to properly synchronize between its callback and
   // its invocation of this.
-  bool CancelAlarm(Alarm* alarm) EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  bool CancelAlarm(Alarm* alarm);
 
   // Finally, ProcessAlarmsOrWaitUs provides a mechanism to ensure that pending
   // alarms are executed in the absence of other scheduler activity.
   // ProcessAlarmsOrWaitUs: handle outstanding alarms, or if there are none wait
   // until the next wakeup and handle alarms then before relinquishing control.
   // Idle no longer than timeout_us.  Passing in timeout_us=0 will run without
-  // blocking.
-  void ProcessAlarmsOrWaitUs(int64 timeout_us)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  // blocking.  mutex() must be held.
+  void ProcessAlarmsOrWaitUs(int64 timeout_us);
 
   // Obtain the timer that the scheduler is using internally.  Important if you
   // and the scheduler want to agree on the passage of time.
@@ -146,11 +141,6 @@ class Scheduler {
   virtual void RegisterWorker(QueuedWorkerPool::Sequence* w);
   virtual void UnregisterWorker(QueuedWorkerPool::Sequence* w);
 
-  // Run any alarms that have reached their deadline.  Returns the time of the
-  // next deadline, or 0 if no further deadlines loom.  Sets *ran_alarms if
-  // non-NULL and any alarms were run, otherwise leaves it untouched.
-  int64 RunAlarms(bool* ran_alarms) EXCLUSIVE_LOCKS_REQUIRED(mutex());
-
  protected:
   // Internal method to await a wakeup event.  Block until wakeup_time_us (an
   // absolute time since the epoch), or until something interesting (such as a
@@ -168,6 +158,7 @@ class Scheduler {
 
   typedef std::set<Alarm*, CompareAlarms> AlarmSet;
 
+  int64 RunAlarms(bool* ran_alarms);
   void AddAlarmMutexHeldUs(int64 wakeup_time_us, Alarm* alarm);
   void CancelWaiting(Alarm* alarm);
   bool NoPendingAlarms();

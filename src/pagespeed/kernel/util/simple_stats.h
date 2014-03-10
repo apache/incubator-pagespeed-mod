@@ -62,7 +62,6 @@ class SimpleStats : public ScalarStatisticsTemplate<SimpleStatsVariable> {
   virtual ~SimpleStats();
 
  protected:
-  virtual CountHistogram* NewHistogram(const StringPiece& name);
   virtual SimpleStatsVariable* NewVariable(const StringPiece& name, int index);
 
  private:

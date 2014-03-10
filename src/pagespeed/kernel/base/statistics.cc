@@ -20,7 +20,6 @@
 
 #include <limits>
 #include <map>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -100,9 +99,6 @@ int64 MutexedVariable::AddLockHeld(int delta) {
 
 Histogram::~Histogram() {
 }
-
-CountHistogram::CountHistogram(AbstractMutex* mutex)
-    : mutex_(mutex), count_(0) {}
 
 CountHistogram::~CountHistogram() {
 }

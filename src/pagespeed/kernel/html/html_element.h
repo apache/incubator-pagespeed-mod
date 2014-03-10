@@ -253,7 +253,6 @@ class HtmlElement : public HtmlNode {
   // Remove the attribute with the given name.  Return true if the attribute
   // was deleted, false if it wasn't there to begin with.
   bool DeleteAttribute(HtmlName::Keyword keyword);
-  bool DeleteAttribute(StringPiece name);
 
   // Look up attribute by name.  NULL if no attribute exists.
   // Use this for attributes whose value you might want to change
@@ -262,13 +261,6 @@ class HtmlElement : public HtmlNode {
   Attribute* FindAttribute(HtmlName::Keyword keyword) {
     const HtmlElement* const_this = this;
     const Attribute* result = const_this->FindAttribute(keyword);
-    return const_cast<Attribute*>(result);
-  }
-
-  const Attribute* FindAttribute(StringPiece name) const;
-  Attribute* FindAttribute(StringPiece name) {
-    const HtmlElement* const_this = this;
-    const Attribute* result = const_this->FindAttribute(name);
     return const_cast<Attribute*>(result);
   }
 
@@ -354,10 +346,6 @@ class HtmlElement : public HtmlNode {
          const HtmlEventListIterator& begin,
          const HtmlEventListIterator& end);
     ~Data();
-
-    // Max value for the line numbers below.  Since they are 24-bits,
-    // comparing against -1 does not work properly.
-    static const unsigned kMaxLineNumber = 0x00ffffff;
 
     // Pack four fields into 64 bits using bitfields.  Warning: this
     // stuff is quite sensitive to details, so make sure to look at

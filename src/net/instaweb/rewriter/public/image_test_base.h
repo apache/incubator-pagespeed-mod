@@ -38,22 +38,21 @@ namespace net_instaweb {
 class ImageTestBase : public testing::Test {
  protected:
   static const char kTestData[];
-  static const char kAppSegments[];
-  static const char kBikeCrash[];
-  static const char kCradle[];
   static const char kCuppa[];
   static const char kCuppaTransparent[];
+  static const char kBikeCrash[];
   static const char kIronChef[];
-  static const char kLarge[];
+  static const char kCradle[];
   static const char kPuzzle[];
+  static const char kLarge[];
   static const char kRedbrush[];
   static const char kScenery[];
-  static const char kTransparent[];
+  static const char kAppSegments[];
 
   typedef scoped_ptr<Image> ImagePtr;
 
   ImageTestBase() :
-    timer_(new NullMutex, 0),
+    timer_(0),
     message_handler_(new NullMutex) {
   }
 

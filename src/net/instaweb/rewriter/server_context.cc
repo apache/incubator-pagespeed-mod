@@ -31,7 +31,6 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
@@ -177,12 +176,9 @@ class BeaconPropertyCallback : public PropertyPage {
               server_context_->message_handler(), server_context_->timer());
     }
 
-    if (xpaths_set_ != NULL) {
-      BeaconCriticalLineInfoFinder::WriteXPathsToPropertyCacheFromBeacon(
-          *xpaths_set_, nonce_, server_context_->page_property_cache(),
-          server_context_->beacon_cohort(), this,
-          server_context_->message_handler(), server_context_->timer());
-    }
+    // TODO(jud): Add a call to
+    // BeaconCriticalLineInfoFinder::WriteXPathsToPropertyCacheFromBeacon when
+    // that class exists.
 
     WriteCohort(server_context_->beacon_cohort());
     delete this;
@@ -262,7 +258,6 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       lock_hasher_(RewriteOptions::kHashBytes),
       contents_hasher_(21),
       statistics_(NULL),
-      timer_(NULL),
       filesystem_metadata_cache_(NULL),
       metadata_cache_(NULL),
       store_outputs_in_file_system_(false),
@@ -279,7 +274,6 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       shutdown_drivers_called_(false),
       factory_(factory),
       rewrite_drivers_mutex_(thread_system_->NewMutex()),
-      decoding_driver_(NULL),
       html_workers_(NULL),
       rewrite_workers_(NULL),
       low_priority_rewrite_workers_(NULL),
@@ -287,8 +281,7 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       thread_synchronizer_(new ThreadSynchronizer(thread_system_)),
       experiment_matcher_(factory_->NewExperimentMatcher()),
       usage_data_reporter_(factory_->usage_data_reporter()),
-      simple_random_(thread_system_->NewMutex()),
-      js_tokenizer_patterns_(factory_->js_tokenizer_patterns()) {
+      simple_random_(thread_system_->NewMutex()) {
   // Make sure the excluded-attributes are in abc order so binary_search works.
   // Make sure to use the same comparator that we pass to the binary_search.
 #ifndef NDEBUG
@@ -334,15 +327,29 @@ ServerContext::~ServerContext() {
   STLDeleteElements(&active_rewrite_drivers_);
   available_rewrite_drivers_.reset();
   STLDeleteElements(&additional_driver_pools_);
+  decoding_driver_.reset(NULL);
 }
 
 // TODO(gee): These methods are out of order with respect to the .h #tech-debt
-void ServerContext::InitWorkers() {
+void ServerContext::InitWorkersAndDecodingDriver() {
   html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
   rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kRewriteWorkers);
   low_priority_rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
+  decoding_driver_.reset(NewUnmanagedRewriteDriver(
+      NULL, global_options()->Clone(), RequestContextPtr(NULL)));
+  decoding_driver_->set_externally_managed(true);
+  // Apply platform configuration mutation for consistency's sake.
+  factory_->ApplyPlatformSpecificConfiguration(decoding_driver_.get());
+  // Inserts platform-specific rewriters into the resource_filter_map_, so that
+  // the decoding process can recognize those rewriter ids.
+  factory_->AddPlatformSpecificDecodingPasses(decoding_driver_.get());
+  // This call is for backwards compatibility.  When adding new platform
+  // specific rewriters to implementations of RewriteDriverFactory, please
+  // do not rely on this call to include them in the decoding process.  Instead,
+  // add them to your implementation of AddPlatformSpecificDecodingPasses.
+  factory_->AddPlatformSpecificRewritePasses(decoding_driver_.get());
 }
 
 // TODO(jmarantz): consider moving this method to ResponseHeaders
@@ -364,7 +371,7 @@ void ServerContext::SetDefaultLongCacheHeadersWithCharset(
     header->Add(HttpAttributes::kContentType, header_val);
   }
 
-  int64 now_ms = timer()->NowMs();
+  int64 now_ms = http_cache_->timer()->NowMs();
   header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs);
 
   // While PageSpeed claims the "Vary" header is needed to avoid proxy cache
@@ -406,6 +413,14 @@ void ServerContext::MergeNonCachingResponseHeaders(
   }
 }
 
+// TODO(jmarantz): consider moving this method to ResponseHeaders
+void ServerContext::SetContentType(const ContentType* content_type,
+                                     ResponseHeaders* header) {
+  CHECK(content_type != NULL);
+  header->Replace(HttpAttributes::kContentType, content_type->mime_type());
+  header->ComputeCaching();
+}
+
 void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
   file_prefix.CopyToString(&file_prefix_);
 }
@@ -413,20 +428,7 @@ void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
 void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
                                            ResponseHeaders* headers) {
   headers->ComputeCaching();
-
-  // We always turn off respect_vary in this context, as this is being
-  // used to clean up the headers of a generated resource, to which we
-  // may have applied vary:user-agent if (for example) we are transcoding
-  // to webp during in-place resource optimization.
-  //
-  // TODO(jmarantz): Add a suite of tests to ensure that we are preserving
-  // Vary headers from inputs to output, or converting them to
-  // cache-control:private if needed.
-  bool proxy_cacheable = headers->IsProxyCacheable(
-      RequestHeaders::Properties(),
-      ResponseHeaders::kIgnoreVaryOnResources,
-      ResponseHeaders::kHasValidator);
-
+  bool proxy_cacheable = headers->IsProxyCacheable();
   bool browser_cacheable = headers->IsBrowserCacheable();
   bool no_store = headers->HasValue(HttpAttributes::kCacheControl,
                                     "no-store");
@@ -439,30 +441,27 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
       if (input_headers->cache_ttl_ms() < max_age) {
         max_age = input_headers->cache_ttl_ms();
       }
-      bool resource_cacheable = input_headers->IsProxyCacheable(
-          RequestHeaders::Properties(),
-          ResponseHeaders::kIgnoreVaryOnResources,
-          ResponseHeaders::kHasValidator);
-      proxy_cacheable &= resource_cacheable;
+      proxy_cacheable &= input_headers->IsProxyCacheable();
       browser_cacheable &= input_headers->IsBrowserCacheable();
       no_store |= input_headers->HasValue(HttpAttributes::kCacheControl,
                                           "no-store");
     }
   }
-  DCHECK(!(proxy_cacheable && !browser_cacheable)) <<
-      "You can't have a proxy-cacheable result that is not browser-cacheable";
-  if (!proxy_cacheable) {
-    const char* directives = NULL;
-    if (browser_cacheable) {
-      directives = ",private";
+  if (browser_cacheable) {
+    if (proxy_cacheable) {
+      return;
     } else {
-      max_age = 0;
-      directives = no_store ? ",no-cache,no-store" : ",no-cache";
+      headers->SetDateAndCaching(headers->date_ms(), max_age,
+                                 ",private" /*cache_control_suffix*/);
     }
-    headers->SetDateAndCaching(headers->date_ms(), max_age, directives);
-    headers->RemoveAll(HttpAttributes::kEtag);
-    headers->ComputeCaching();
+  } else {
+    GoogleString directives = ",no-cache";
+    if (no_store) {
+      directives += ",no-store";
+    }
+    headers->SetDateAndCaching(headers->date_ms(), 0 /*ttl*/, directives);
   }
+  headers->ComputeCaching();
 }
 
 void ServerContext::AddOriginalContentLengthHeader(
@@ -495,20 +494,7 @@ bool ServerContext::IsPagespeedResource(const GoogleUrl& url) {
   OutputResourceKind kind;
   RewriteFilter* filter;
   return decoding_driver_->DecodeOutputResourceName(
-      url, global_options(), url_namer(), &namer, &kind, &filter);
-}
-
-const RewriteFilter* ServerContext::FindFilterForDecoding(
-    const StringPiece& id) const {
-  return decoding_driver_->FindFilter(id);
-}
-
-bool ServerContext::DecodeUrlGivenOptions(const GoogleUrl& url,
-                                          const RewriteOptions* options,
-                                          const UrlNamer* url_namer,
-                                          StringVector* decoded_urls) const {
-  return decoding_driver_->DecodeUrlGivenOptions(url, options, url_namer,
-                                                 decoded_urls);
+      url, &namer, &kind, &filter);
 }
 
 NamedLock* ServerContext::MakeCreationLock(const GoogleString& name) {
@@ -976,11 +962,8 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     custom_options->Merge(*options);
     query_options->Freeze();
     custom_options->Merge(*query_options);
-    // Don't run any experiments if this is a special query-params request,
-    // unless EnrollExperiment is on.
-    if (!custom_options->enroll_experiment()) {
-      custom_options->set_running_experiment(false);
-    }
+    // Don't run any experiments if this is a special query-params request.
+    custom_options->set_running_experiment(false);
   }
 
   if (request_headers->IsXmlHttpRequest()) {

@@ -32,7 +32,6 @@
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
@@ -52,9 +51,7 @@ Resource::Resource(ServerContext* server_context, const ContentType* type)
       is_background_fetch_(true),
       enable_cache_purge_(false),
       proactive_resource_freshening_(false),
-      disable_rewrite_on_no_transform_(true),
-      is_authorized_domain_(true),
-      respect_vary_(ResponseHeaders::kRespectVaryOnResources) {
+      disable_rewrite_on_no_transform_(true) {
 }
 
 Resource::~Resource() {
@@ -65,10 +62,8 @@ bool Resource::IsValidAndCacheable() const {
   // if we have some we should be using UrlInputResource's implementation
   // of this method.
   return ((response_headers_.status_code() == HttpStatus::kOK) &&
-          !server_context_->http_cache()->IsExpired(response_headers_) &&
-          response_headers_.IsProxyCacheable(RequestHeaders::Properties(),
-                                             respect_vary_,
-                                             ResponseHeaders::kNoValidator));
+          !server_context_->http_cache()->IsAlreadyExpired(
+              NULL, response_headers_));
 }
 
 bool Resource::IsSafeToRewrite(bool rewrite_uncacheable) const {
@@ -148,9 +143,7 @@ void Resource::FillInPartitionInputInfoFromResponseHeaders(
 
 int64 Resource::CacheExpirationTimeMs() const {
   int64 input_expire_time_ms = kNotCacheable;
-  if (response_headers_.IsProxyCacheable(RequestHeaders::Properties(),
-                                         respect_vary_,
-                                         ResponseHeaders::kNoValidator)) {
+  if (response_headers_.IsProxyCacheable()) {
     input_expire_time_ms = response_headers_.CacheExpirationTimeMs();
   }
   return input_expire_time_ms;

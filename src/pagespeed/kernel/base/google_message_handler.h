@@ -26,6 +26,7 @@
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
+#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -40,6 +41,9 @@ class GoogleMessageHandler : public MessageHandler {
 
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args);
+
+ protected:
+  GoogleString Format(const char* msg, va_list args);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GoogleMessageHandler);

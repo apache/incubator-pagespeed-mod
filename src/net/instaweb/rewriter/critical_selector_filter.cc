@@ -31,12 +31,12 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_util.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -68,6 +68,45 @@ template<typename VectorType> void Compact(VectorType* cl) {
 }
 
 }  // namespace
+
+// Function and invocation are separate so we can suppress the invocation when
+// running tests while still being able to manually invoke it from the JS
+// console if desired.
+// See ModPagespeedTestOnlyCriticalSelectorFilterDontApplyOriginalCss.
+const char CriticalSelectorFilter::kAddStylesFunction[] =
+    "window['pagespeed'] = window['pagespeed'] || {};"
+    "window['pagespeed']['stylesAdded'] = false;"
+    "var addAllStyles = function() {"
+    "  if (window['pagespeed']['stylesAdded']) return;"
+    "  window['pagespeed']['stylesAdded'] = true;"
+    "  var n = document.getElementsByTagName(\"noscript\");"
+    // Note that this uses separate loops to walk the noscript NodeList and
+    // to modify the DOM as modifying the DOM while walking a collection risks
+    // turning the walk quadratic.
+    "  var r = [];"
+    "  for (var i = 0; i < n.length; ++i) {"
+    "    var e = n[i];"
+    "    if (e.className == \"psa_add_styles\") {"
+    "      r.push(e);"
+    "    }"
+    "  }"
+    "  for (var i = 0; i < r.length; ++i) {"
+    "    var e = r[i];"
+    "    var div = document.createElement(\"div\");"
+    "    div.innerHTML = e.textContent;"
+    "    document.body.appendChild(div);"
+    "  }"
+    "};";
+
+const char CriticalSelectorFilter::kAddStylesInvocation[] =
+    "if (window.addEventListener) {"
+    "  document.addEventListener(\"DOMContentLoaded\", addAllStyles, false);"
+    "  window.addEventListener(\"load\", addAllStyles, false);"
+    "} else if (window.attachEvent) {"
+    "  window.attachEvent(\"onload\", addAllStyles);"
+    "} else {"
+    "  window.onload = addAllStyles;"
+    "}";
 
 // When flush early filter is enabled, critical css rules are flushed early
 // as innerHTML of a script element. When the CSS element appears in the
@@ -408,15 +447,14 @@ void CriticalSelectorFilter::RenderDone() {
     HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
     driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
     InsertNodeAtBodyEnd(script);
-    GoogleString js =
-        driver_->server_context()->static_asset_manager()->GetAsset(
-            StaticAssetManager::kCriticalCssLoaderJs, driver_->options());
-    if (!driver_->options()
-             ->test_only_prioritize_critical_css_dont_apply_original_css()) {
-      StrAppend(&js, "pagespeed.CriticalCssLoader.Run();");
+    if (driver_->options()
+        ->test_only_prioritize_critical_css_dont_apply_original_css()) {
+      driver_->server_context()->static_asset_manager()->AddJsToElement(
+          kAddStylesFunction, script, driver_);
+    } else {
+      driver_->server_context()->static_asset_manager()->AddJsToElement(
+          StrCat(kAddStylesFunction, kAddStylesInvocation), script, driver_);
     }
-    driver_->server_context()->static_asset_manager()->AddJsToElement(
-        js, script, driver_);
   }
 
   STLDeleteElements(&css_elements_);
@@ -427,17 +465,22 @@ void CriticalSelectorFilter::DetermineEnabled() {
   // in the property cache. Unfortunately, we also cannot run safely in case of
   // IE, since we do not understand IE conditional comments well enough to
   // replicate their behavior in the load-everything section.
+  // TODO(morlovich): IE10 in strict mode disables the conditional comments
+  // feature; but the strict mode is determined by combination of doctype and
+  // X-UA-Compatible, which can come in both meta and header flavors. Once we
+  // have a good way of detecting this case, we can enable us for strict IE10.
+  // Note: the UA logic should be the same in CriticalCssBeaconFilter.
   const StringSet& critical_selectors = driver_->server_context()
       ->critical_selector_finder()->GetCriticalSelectors(driver_);
-  bool ua_supports_critical_css =
-      driver_->request_properties()->SupportsCriticalCss();
-  bool can_run = ua_supports_critical_css && !critical_selectors.empty();
+  bool is_ie = driver_->user_agent_matcher()->IsIe(driver_->user_agent());
+  bool can_run = !is_ie && !critical_selectors.empty();
   driver_->log_record()->LogRewriterHtmlStatus(
       RewriteOptions::FilterId(RewriteOptions::kPrioritizeCriticalCss),
-      (can_run ? RewriterHtmlApplication::ACTIVE
-               : (ua_supports_critical_css
-                      ? RewriterHtmlApplication::PROPERTY_CACHE_MISS
-                      : RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED)));
+      (can_run ?
+       RewriterHtmlApplication::ACTIVE :
+       (is_ie ?
+        RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED :
+        RewriterHtmlApplication::PROPERTY_CACHE_MISS)));
   set_is_enabled(can_run);
 }
 

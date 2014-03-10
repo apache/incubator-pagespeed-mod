@@ -74,8 +74,8 @@ class PurgeContextTest : public testing::Test {
 
  protected:
   PurgeContextTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+      : timer_(MockTimer::kApr_5_2010_ms),
+        thread_system_(Platform::CreateThreadSystem()),
         message_handler_(thread_system_->NewMutex()),
         file_system_(thread_system_.get(), &timer_),
         scheduler_(thread_system_.get(), &timer_),
@@ -166,8 +166,8 @@ class PurgeContextTest : public testing::Test {
     purge_set2_ = purge_set;
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
+  scoped_ptr<ThreadSystem> thread_system_;
   MockMessageHandler message_handler_;
   MemFileSystem file_system_;
   MockScheduler scheduler_;
@@ -252,9 +252,8 @@ TEST_F(PurgeContextTest, InvalidationSharing) {
 
 TEST_F(PurgeContextTest, EmptyPurgeFile) {
   // The currently documented mechanism to flush the entire cache is
-  // to simply touch CACHE_DIR/cache.flush.  This mode of operation
-  // requires disabling purging in the context.
-  purge_context1_->set_enable_purge(false);
+  // to simply touch CACHE_DIR/cache.flush.  That should continue to
+  // work as advertised.
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);
   ASSERT_TRUE(file_system_.WriteFile(kPurgeFile, "", &message_handler_));
   EXPECT_FALSE(PollAndTest1("b", timer_.NowMs() - 1));
@@ -330,10 +329,9 @@ TEST_F(PurgeContextTest,  FileWriteConflictWithInterveningUpdate) {
 TEST_F(PurgeContextTest, InvalidTimestampInPurgeRecord) {
   ASSERT_TRUE(file_system_.WriteFile(
       kPurgeFile,
-      "-1\n"                // Valid initial timestamp
+      "-1\n"                // timestamp in past
       "x\n"                 // not enough tokens
       "2000000000000 y\n"   // timestamp(ms) in far future
-      "-2 z\n"              // timestamp(ms) in far past
       "500 a\n",            // valid record should be parsed.
       &message_handler_));
   EXPECT_FALSE(PollAndTest1("a", 500));

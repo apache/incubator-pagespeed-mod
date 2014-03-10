@@ -24,7 +24,6 @@
 #include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
@@ -68,10 +67,9 @@ PurgeContext::PurgeContext(StringPiece filename,
       mutex_(thread_system->NewMutex()),
       pending_purges_(max_bytes_in_cache),
       last_file_check_ms_(0),
-      num_consecutive_failures_(0),
       waiting_for_interprocess_lock_(false),
       reading_(false),
-      enable_purge_(true),
+      num_consecutive_failures_(0),
       max_bytes_in_cache_(max_bytes_in_cache),
       request_batching_delay_ms_(0),
       cancellations_(statistics->GetVariable(kCancellations)),
@@ -97,25 +95,27 @@ void PurgeContext::InitStats(Statistics* statistics) {
   statistics->AddVariable(kFileWriteFailures);
 }
 
-bool PurgeContext::ParseAndValidateTimestamp(
-    StringPiece time_string, int64 now_ms, int64* timestamp_ms) {
-  if (!StringToInt64(time_string, timestamp_ms)) {
+int64 PurgeContext::ParseAndValidateTimestamp(
+    StringPiece time_string, int64 now_ms) {
+  int64 timestamp_ms;
+  if (!StringToInt64(time_string, &timestamp_ms)) {
     message_handler_->Info(filename_.c_str(), 1,
                            "Invalidation timestamp (%s) not parsed as int64",
                            time_string.as_string().c_str());
-    return false;
-  } else if ((*timestamp_ms != PurgeSet::kInitialTimestampMs) &&
-             ((*timestamp_ms < 0) ||
-              (*timestamp_ms > now_ms + PurgeSet::kClockSkewAllowanceMs))) {
+    file_parse_failures_->Add(1);
+    timestamp_ms = 0;
+  } else if ((timestamp_ms < 0) ||
+             (timestamp_ms > now_ms + PurgeSet::kClockSkewAllowanceMs)) {
     GoogleString converted_time_string;
-    ConvertTimeToString(*timestamp_ms, &converted_time_string);
+    ConvertTimeToString(timestamp_ms, &converted_time_string);
     message_handler_->Info(filename_.c_str(), 1,
                            "Invalidation timestamp (%s) in the future: %s",
                            time_string.as_string().c_str(),
                            converted_time_string.c_str());
-    return false;
+    file_parse_failures_->Add(1);
+    timestamp_ms = 0;
   }
-  return true;
+  return timestamp_ms;
 }
 
 // Parses the cache purge file.
@@ -123,26 +123,9 @@ void PurgeContext::ReadPurgeFile(PurgeSet* purges_from_file) {
   GoogleString buffer;
 
   file_stats_->Add(1);
-  NullMessageHandler null_handler;
-
-  // Prior to mod_pagespeed 1.8, the cache.flush file's contents were not
-  // significant, and generally empty, and only the timestamp of the file
-  // itself was important, meaning "wipe everything out of the cache predating
-  // that timestamp."
-  if (!enable_purge_) {
-    int64 timestamp_sec;
-    if (file_system_->Mtime(filename_.c_str(), &timestamp_sec,
-                             &null_handler)) {
-      int64 timestamp_ms = timestamp_sec * Timer::kSecondMs;
-      purges_from_file->UpdateGlobalInvalidationTimestampMs(timestamp_ms);
-    }
-    return;
-  }
-
-  if (!file_system_->ReadFile(filename_.c_str(), &buffer, &null_handler)) {
+  if (!file_system_->ReadFile(filename_.c_str(), &buffer, message_handler_)) {
     // If the file simply doesn't exist, that's a 'successful' read.  It's
-    // fine for there to be no cache file and no invalidation data, and thus
-    // we swallow file-not-found messages with NullMessageHandler.
+    // fine for there to be no cache file and no invalidation data.
     return;
   }
   StringPieceVector lines;
@@ -150,13 +133,22 @@ void PurgeContext::ReadPurgeFile(PurgeSet* purges_from_file) {
   int64 timestamp_ms = 0;
   int64 now_ms = timer_->NowMs();
 
-  // The first line should contain the global invalidation timestamp,
-  // though we'll just silently leave the invalidation timestamp unchanged
-  // if the file was empty.
-  if (lines.empty() || !ParseAndValidateTimestamp(lines[0], now_ms,
-                                                  &timestamp_ms)) {
-    file_parse_failures_->Add(1);
-    return;
+  // Prior to mod_pagespeed 1.7, the cache.flush file's contents were not
+  // significant, and generally empty, and only the timestamp of the file
+  // itself was important, meaning "wipe everything out of the cache predating
+  // that timestamp."
+  if (lines.empty()) {
+    int64 timestamp_sec;
+    file_stats_->Add(1);
+    if (!file_system_->Mtime(filename_.c_str(), &timestamp_sec,
+                             message_handler_)) {
+      file_parse_failures_->Add(1);
+      return;
+    }
+    timestamp_ms = timestamp_sec * Timer::kSecondMs;
+  } else {
+    // The first line should contain the global invalidation timestamp.
+    timestamp_ms = ParseAndValidateTimestamp(lines[0], now_ms);
   }
   purges_from_file->UpdateGlobalInvalidationTimestampMs(timestamp_ms);
 
@@ -168,11 +160,10 @@ void PurgeContext::ReadPurgeFile(PurgeSet* purges_from_file) {
     StringPiece line = lines[i];
     if (!line.empty()) {  // skip empty lines but include them in line-count.
       stringpiece_ssize_type pos = line.find(' ');
-      if ((pos == StringPiece::npos) ||
-          !ParseAndValidateTimestamp(line.substr(0, pos), now_ms,
-                                     &timestamp_ms)) {
+      if (pos == StringPiece::npos) {
         file_parse_failures_->Add(1);
       } else {
+        timestamp_ms = ParseAndValidateTimestamp(line.substr(0, pos), now_ms);
         StringPiece url = line.substr(pos + 1);
         purges_from_file->Put(url.as_string(), timestamp_ms);
       }

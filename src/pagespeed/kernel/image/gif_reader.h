@@ -27,7 +27,6 @@
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "pagespeed/kernel/image/scanline_utils.h"
 
 extern "C" {
 #include "third_party/giflib/lib/gif_lib.h"
@@ -50,6 +49,7 @@ namespace image_compression {
 using net_instaweb::MessageHandler;
 
 class ScopedGifStruct;
+struct PaletteRGBA;
 
 // Reader for GIF-encoded data.
 class GifReader : public PngReaderInterface {
@@ -137,12 +137,12 @@ class GifScanlineReaderRaw : public ScanlineReaderInterface {
   bool was_initialized_;
   // Palette of the image. It has 257 entries. The last one stores the
   // background color.
-  net_instaweb::scoped_array<PaletteRGBA> gif_palette_;
+  scoped_array<PaletteRGBA> gif_palette_;
   // Buffer for holding the color (RGB or RGBA) for a row of pixels.
-  net_instaweb::scoped_array<GifByteType> image_buffer_;
+  scoped_array<GifByteType> image_buffer_;
   // Buffer for holding the palette index for a row of pixels (for
   // non-progressive GIF) or for the entire image (for progressive GIF).
-  net_instaweb::scoped_array<GifByteType> image_index_;
+  scoped_array<GifByteType> image_index_;
   // gif_struct_ stores a pointer to the input image stream. It also
   // keeps track of the length of data that giflib has read. It is
   // initialized in Initialize() and is updated in

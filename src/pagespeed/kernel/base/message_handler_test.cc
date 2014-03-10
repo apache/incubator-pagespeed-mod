@@ -16,18 +16,49 @@
 
 // Author: bmcquade@google.com (Bryan McQuade)
 
-#include "pagespeed/kernel/base/message_handler_test_base.h"
-
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
+
+#include <cstdarg>
+#include <vector>
+#include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
 namespace {
 
+class TestMessageHandler : public net_instaweb::MessageHandler {
+ public:
+  typedef std::vector<GoogleString> MessageVector;
+
+  const MessageVector& messages() { return messages_; }
+
+ protected:
+  virtual void MessageVImpl(MessageType type, const char* msg,
+                            va_list args) {
+    GoogleString message;
+    StringAppendF(&message, "%s: ", MessageTypeToString(type));
+    StringAppendV(&message, msg, args);
+    messages_.push_back(message);
+  }
+
+  virtual void FileMessageVImpl(MessageType type, const char* filename,
+                                int line, const char* msg, va_list args) {
+    GoogleString message;
+    StringAppendF(&message, "%s: %s: %d: ", MessageTypeToString(type),
+                  filename, line);
+    StringAppendV(&message, msg, args);
+    messages_.push_back(message);
+  }
+
+ private:
+  MessageVector messages_;
+};
+
 class MessageHandlerTest : public testing::Test {
  protected:
-  const StringVector& messages() {
+  const TestMessageHandler::MessageVector& messages() {
     return handler_.messages();
   }
 

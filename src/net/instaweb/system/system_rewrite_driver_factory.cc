@@ -16,12 +16,10 @@
 
 #include "net/instaweb/system/public/system_rewrite_driver_factory.h"
 
-#include <cstdlib>
 #include <map>
 #include <set>
 #include <utility>  // for pair
 
-#include "apr_general.h"
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
@@ -30,6 +28,7 @@
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 #include "net/instaweb/system/public/serf_url_async_fetcher.h"
 #include "net/instaweb/system/public/system_caches.h"
@@ -58,7 +57,6 @@
 namespace net_instaweb {
 
 class NonceGenerator;
-class ProcessContext;
 
 namespace {
 
@@ -67,11 +65,10 @@ const char kShutdownCount[] = "child_shutdown_count";
 }  // namespace
 
 SystemRewriteDriverFactory::SystemRewriteDriverFactory(
-    const ProcessContext& process_context,
     SystemThreadSystem* thread_system,
     AbstractSharedMem* shared_mem_runtime, /* may be null */
     StringPiece hostname, int port)
-    : RewriteDriverFactory(process_context, thread_system),
+    : RewriteDriverFactory(thread_system),
       statistics_frozen_(false),
       is_root_process_(true),
       hostname_identifier_(StrCat(hostname, ":", IntegerToString(port))),
@@ -96,11 +93,6 @@ SystemRewriteDriverFactory::SystemRewriteDriverFactory(
 
 SystemRewriteDriverFactory::~SystemRewriteDriverFactory() {
   shared_mem_statistics_.reset(NULL);
-}
-
-void SystemRewriteDriverFactory::InitApr() {
-  apr_initialize();
-  atexit(apr_terminate);
 }
 
 // Initializes global statistics object if needed, using factory to
@@ -177,7 +169,16 @@ NonceGenerator* SystemRewriteDriverFactory::DefaultNonceGenerator() {
 }
 
 void SystemRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
-  caches_->SetupCaches(server_context, enable_property_cache());
+  caches_->SetupCaches(server_context);
+  server_context->set_enable_property_cache(enable_property_cache());
+  PropertyCache* pcache = server_context->page_property_cache();
+
+  const PropertyCache::Cohort* cohort =
+      server_context->AddCohort(RewriteDriver::kBeaconCohort, pcache);
+  server_context->set_beacon_cohort(cohort);
+
+  cohort = server_context->AddCohort(RewriteDriver::kDomCohort, pcache);
+  server_context->set_dom_cohort(cohort);
 }
 
 void SystemRewriteDriverFactory::ParentOrChildInit() {
@@ -193,7 +194,7 @@ void SystemRewriteDriverFactory::RootInit() {
            p = uninitialized_server_contexts_.begin(),
            e = uninitialized_server_contexts_.end(); p != e; ++p) {
     SystemServerContext* server_context = *p;
-    caches_->RegisterConfig(server_context->global_system_rewrite_options());
+    caches_->RegisterConfig(server_context->system_rewrite_options());
   }
 
   caches_->RootInit();
@@ -248,7 +249,7 @@ void SystemRewriteDriverFactory::PostConfig(
   for (int i = 0, n = server_contexts.size(); i < n; ++i) {
     server_contexts[i]->CollapseConfigOverlaysAndComputeSignatures();
     SystemRewriteOptions* options =
-        server_contexts[i]->global_system_rewrite_options();
+        server_contexts[i]->system_rewrite_options();
     if (options->unplugged()) {
       continue;
     }
@@ -357,7 +358,7 @@ GoogleString SystemRewriteDriverFactory::GetFetcherKey(
       }
     }
     StrAppend(&key,
-              "\nhttps: ", config->https_options(),
+              "\nhttps: ", https_options_,
               "\ncert_dir: ", config->ssl_cert_directory(),
               "\ncert_file: ", config->ssl_cert_file());
   }
@@ -416,7 +417,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(
   serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
   serf->set_fetch_with_gzip(config->fetch_with_gzip());
   serf->set_track_original_content_length(track_original_content_length_);
-  serf->SetHttpsOptions(config->https_options());
+  serf->SetHttpsOptions(https_options_);
   serf->SetSslCertificatesDir(config->ssl_cert_directory());
   serf->SetSslCertificatesFile(config->ssl_cert_file());
   return serf;
@@ -433,6 +434,12 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(
     iter->second = AllocateFetcher(config);
   }
   return iter->second;
+}
+
+bool SystemRewriteDriverFactory::SetHttpsOptions(StringPiece directive,
+                                                 GoogleString* error_message) {
+  directive.CopyToString(&https_options_);
+  return SerfUrlAsyncFetcher::ValidateHttpsOptions(directive, error_message);
 }
 
 UrlAsyncFetcher* SystemRewriteDriverFactory::DefaultAsyncUrlFetcher() {

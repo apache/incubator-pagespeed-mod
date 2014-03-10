@@ -26,7 +26,6 @@
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
@@ -107,7 +106,7 @@ class FunctionAlarm : public Scheduler::Alarm {
   }
  private:
   typedef void (Function::*FunctionAction)();
-  void DropMutexActAndCleanup(FunctionAction act) NO_THREAD_SAFETY_ANALYSIS {
+  void DropMutexActAndCleanup(FunctionAction act) {
     AbstractMutex* mutex = scheduler_->mutex();  // Save across delete.
     mutex->Unlock();
     ((function_)->*(act))();
@@ -337,6 +336,10 @@ bool Scheduler::CancelAlarm(Alarm* alarm) {
   }
 }
 
+// Run any alarms that have reached their deadline.  Requires that we hold
+// mutex_ before calling.  Returns the time of the next deadline, or 0 if no
+// further deadlines loom.  Sets *ran_alarms if non-NULL and any alarms were
+// run, otherwise leaves it untouched.
 int64 Scheduler::RunAlarms(bool* ran_alarms) {
   while (!outstanding_alarms_.empty()) {
     mutex_->DCheckLocked();

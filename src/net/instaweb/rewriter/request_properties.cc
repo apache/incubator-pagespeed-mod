@@ -16,8 +16,8 @@
 
 #include <vector>
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/rewriter/public/downstream_caching_directives.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -31,21 +31,19 @@ RequestProperties::RequestProperties(UserAgentMatcher* matcher)
       supports_image_inlining_(kNotSet),
       supports_js_defer_(kNotSet),
       supports_lazyload_images_(kNotSet),
-      supports_webp_in_place_(kNotSet),
-      supports_webp_rewritten_urls_(kNotSet),
+      supports_webp_(kNotSet),
       supports_webp_lossless_alpha_(kNotSet) {
 }
 
 RequestProperties::~RequestProperties() {
 }
 
-void RequestProperties::SetUserAgent(const StringPiece& user_agent_string) {
-  device_properties_->SetUserAgent(user_agent_string);
+void RequestProperties::set_user_agent(const StringPiece& user_agent_string) {
+  device_properties_->set_user_agent(user_agent_string);
 }
 
 void RequestProperties::ParseRequestHeaders(
     const RequestHeaders& request_headers) {
-  device_properties_->ParseRequestHeaders(request_headers);
   downstream_caching_directives_->ParseCapabilityListFromRequestHeaders(
                                       request_headers);
 }
@@ -73,17 +71,6 @@ bool RequestProperties::SupportsLazyloadImages() const {
   return (supports_lazyload_images_ == kTrue);
 }
 
-bool RequestProperties::SupportsCriticalCss() const {
-  return device_properties_->SupportsCriticalCss();
-}
-
-bool RequestProperties::SupportsCriticalCssBeacon() const {
-  // For bots, we don't allow instrumentation, but we do allow bots to use
-  // previous instrumentation results collected by non-bots to enable the
-  // prioritize_critical_css rewriter.
-  return SupportsCriticalCss() && !IsBot();
-}
-
 bool RequestProperties::SupportsCriticalImagesBeacon() const {
   // For now this script has the same user agent requirements as image inlining,
   // however that could change in the future if more advanced JS is used by the
@@ -105,26 +92,15 @@ bool RequestProperties::SupportsJsDefer(bool allow_mobile) const {
   return (supports_js_defer_ == kTrue);
 }
 
-bool RequestProperties::SupportsWebpInPlace() const {
-  if (supports_webp_in_place_ == kNotSet) {
-    supports_webp_in_place_ =
+bool RequestProperties::SupportsWebp() const {
+  if (supports_webp_ == kNotSet) {
+    supports_webp_ =
         (downstream_caching_directives_->SupportsWebp() &&
-         device_properties_->SupportsWebpInPlace()) ?
+         device_properties_->SupportsWebp()) ?
         kTrue :
         kFalse;
   }
-  return (supports_webp_in_place_ == kTrue);
-}
-
-bool RequestProperties::SupportsWebpRewrittenUrls() const {
-  if (supports_webp_rewritten_urls_ == kNotSet) {
-    supports_webp_rewritten_urls_ =
-        (downstream_caching_directives_->SupportsWebp() &&
-         device_properties_->SupportsWebpRewrittenUrls()) ?
-        kTrue :
-        kFalse;
-  }
-  return (supports_webp_rewritten_urls_ == kTrue);
+  return (supports_webp_ == kTrue);
 }
 
 bool RequestProperties::SupportsWebpLosslessAlpha() const {
@@ -193,8 +169,7 @@ void RequestProperties::LogDeviceInfo(
       SupportsLazyloadImages(),
       SupportsCriticalImagesBeacon(),
       SupportsJsDefer(enable_aggressive_rewriters_for_mobile),
-      SupportsWebpInPlace(),
-      SupportsWebpRewrittenUrls(),
+      SupportsWebp(),
       SupportsWebpLosslessAlpha(),
       IsBot(),
       SupportsSplitHtml(enable_aggressive_rewriters_for_mobile),

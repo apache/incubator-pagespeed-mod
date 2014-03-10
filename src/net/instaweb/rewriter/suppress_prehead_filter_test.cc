@@ -142,11 +142,12 @@ TEST_F(SuppressPreheadFilterTest, UpdateFetchLatencyInFlushEarlyProto) {
 
 TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
   InitResources();
-  const char pre_head_input[] = "<!DOCTYPE html><html><head>";
+  const char pre_head_input[] = "<!DOCTYPE html><html>";
   const char post_head_input[] =
-      "<link type=\"text/css\" rel=\"stylesheet\""
-      " href=\"http://test.com/a.css\"/>"
-      "<script src=\"http://test.com/b.js\"></script>"
+        "<a></a><head>"
+        "<link type=\"text/css\" rel=\"stylesheet\""
+        " href=\"http://test.com/a.css\"/>"
+        "<script src=\"http://test.com/b.js\"></script>"
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
@@ -182,9 +183,9 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppressWithCacheableHtml) {
   InitResources();
   const char pre_head_input[] = "<!DOCTYPE html><html><head>";
   const char post_head_input[] =
-      "<link type=\"text/css\" rel=\"stylesheet\""
-      " href=\"http://test.com/a.css\"/>"
-      "<script src=\"http://test.com/b.js\"></script>"
+        "<link type=\"text/css\" rel=\"stylesheet\""
+        " href=\"http://test.com/a.css\"/>"
+        "<script src=\"http://test.com/b.js\"></script>"
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
@@ -256,12 +257,13 @@ TEST_F(SuppressPreheadFilterTest, MetaTagsOutsideHead) {
   InitResources();
   const char html_input[] =
       "<!DOCTYPE html>"
-      "<html><head></head>"
+      "<html>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
+      "<head></head>"
       "<body></body></html>";
   const char html_without_prehead[] =
-      "</head>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
+      "<head></head>"
       "<body></body></html>";
 
   Parse("not_flushed_early", html_input);
@@ -329,19 +331,18 @@ TEST_F(SuppressPreheadFilterTest, NoHead) {
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
       "<body></body></html>";
 
-  const char html_output_with_head_tag[] =
+  const char html_input_with_head_tag[] =
       "<!DOCTYPE html>"
-      "<html><head></head>"
+      "<html>"
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<body></body></html>";
+      "<head/><body></body></html>";
 
-  const char html_output_without_prehead[] =
-      "</head>"
+  const char html_input_without_prehead[] =
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
-      "<body></body></html>";
+      "<head/><body></body></html>";
 
   Parse("not_flushed_early", html_input);
-  EXPECT_EQ(html_output_with_head_tag, output_);
+  EXPECT_EQ(html_input_with_head_tag, output_);
 
   VerifyCharset("text/html;charset=utf-8");
 
@@ -349,7 +350,7 @@ TEST_F(SuppressPreheadFilterTest, NoHead) {
   output_.clear();
   rewrite_driver()->set_flushed_early(true);
   Parse("flushed_early", html_input);
-  EXPECT_EQ(html_output_without_prehead, output_);
+  EXPECT_EQ(html_input_without_prehead, output_);
 }
 
 TEST_F(SuppressPreheadFilterTest, FlushEarlyCharset) {

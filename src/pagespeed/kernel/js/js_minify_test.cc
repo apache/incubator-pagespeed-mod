@@ -14,17 +14,12 @@
 
 #include "pagespeed/kernel/js/js_minify.h"
 
-
-#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_keywords.h"
 
-namespace {
-
-using net_instaweb::StrAppend;
+namespace pagespeed {
 
 // This sample code comes from Douglas Crockford's jsmin example.
 const char* kBeforeCompilation =
@@ -63,7 +58,7 @@ const char* kBeforeCompilation =
     "    is.gecko = true;\n"
     "}\n";
 
-const char* kAfterCompilationOld =
+const char* kAfterCompilation =
     "var is={ie:navigator.appName=='Microsoft Internet Explorer',"
     "java:navigator.javaEnabled(),ns:navigator.appName=='Netscape',"
     "ua:navigator.userAgent.toLowerCase(),version:parseFloat("
@@ -73,21 +68,10 @@ const char* kAfterCompilationOld =
     "is.ie=is.ns=false;is.opera=true;}\n"
     "if(is.ua.indexOf('gecko')>=0){is.ie=is.ns=false;is.gecko=true;}";
 
-const char* kAfterCompilationNew =
-    "var is={ie:navigator.appName=='Microsoft Internet Explorer',"
-    "java:navigator.javaEnabled(),ns:navigator.appName=='Netscape',"
-    "ua:navigator.userAgent.toLowerCase(),version:parseFloat("
-    "navigator.appVersion.substr(21))||parseFloat(navigator.appVersion)"
-    ",win:navigator.platform=='Win32'}\n"
-    "is.mac=is.ua.indexOf('mac')>=0;if(is.ua.indexOf('opera')>=0){"
-    "is.ie=is.ns=false;is.opera=true;}"
-    "if(is.ua.indexOf('gecko')>=0){is.ie=is.ns=false;is.gecko=true;}";
-
-const char kTestRootDir[] = "/pagespeed/kernel/js/testdata/third_party/";
-
 class JsMinifyTest : public testing::Test {
  protected:
-  void CheckOldMinification(StringPiece before, StringPiece after) {
+  void CheckMinification(const StringPiece& before,
+                         const StringPiece& after) {
     GoogleString output;
     EXPECT_TRUE(pagespeed::js::MinifyJs(before, &output));
     EXPECT_EQ(after, output);
@@ -97,71 +81,23 @@ class JsMinifyTest : public testing::Test {
     EXPECT_EQ(static_cast<int>(after.size()), output_size);
   }
 
-  void CheckNewMinification(StringPiece before, StringPiece after) {
-    GoogleString output;
-    EXPECT_TRUE(pagespeed::js::MinifyUtf8Js(&patterns_, before, &output));
-    EXPECT_EQ(after, output);
-  }
-
-  void CheckMinification(StringPiece before, StringPiece after) {
-    CheckOldMinification(before, after);
-    CheckNewMinification(before, after);
-  }
-
-  void CheckOldError(StringPiece input) {
+  void CheckError(const StringPiece& input) {
     GoogleString output;
     EXPECT_FALSE(pagespeed::js::MinifyJs(input, &output));
+    EXPECT_TRUE(output.empty());
 
     int output_size = -1;
     EXPECT_FALSE(pagespeed::js::GetMinifiedJsSize(input, &output_size));
     EXPECT_EQ(-1, output_size);
   }
-
-  void CheckNewError(StringPiece input) {
-    GoogleString output;
-    EXPECT_FALSE(pagespeed::js::MinifyUtf8Js(&patterns_, input, &output));
-  }
-
-  void CheckError(StringPiece input) {
-    CheckOldError(input);
-    CheckNewError(input);
-  }
-
-  void CheckFileMinification(StringPiece before_filename,
-                             StringPiece after_filename) {
-    net_instaweb::StdioFileSystem file_system;
-    net_instaweb::GoogleMessageHandler message_handler;
-    GoogleString original;
-    {
-      const GoogleString filepath = net_instaweb::StrCat(
-          net_instaweb::GTestSrcDir(), kTestRootDir, before_filename);
-      ASSERT_TRUE(file_system.ReadFile(
-          filepath.c_str(), &original, &message_handler));
-    }
-    GoogleString expected;
-    {
-      const GoogleString filepath = net_instaweb::StrCat(
-          net_instaweb::GTestSrcDir(), kTestRootDir, after_filename);
-      ASSERT_TRUE(file_system.ReadFile(
-          filepath.c_str(), &expected, &message_handler));
-    }
-    GoogleString actual;
-    EXPECT_TRUE(pagespeed::js::MinifyUtf8Js(&patterns_, original, &actual));
-    EXPECT_STREQ(expected, actual);
-  }
-
-  pagespeed::js::JsTokenizerPatterns patterns_;
 };
 
 TEST_F(JsMinifyTest, Basic) {
-  // Our new minifier is slightly better at removing linebreaks than our old
-  // minifier, so they get slightly different results for this test.
-  CheckOldMinification(kBeforeCompilation, kAfterCompilationOld);
-  CheckNewMinification(kBeforeCompilation, kAfterCompilationNew);
+  CheckMinification(kBeforeCompilation, kAfterCompilation);
 }
 
 TEST_F(JsMinifyTest, AlreadyMinified) {
-  CheckMinification(kAfterCompilationNew, kAfterCompilationNew);
+  CheckMinification(kAfterCompilation, kAfterCompilation);
 }
 
 TEST_F(JsMinifyTest, ErrorUnclosedComment) {
@@ -181,7 +117,7 @@ TEST_F(JsMinifyTest, ErrorRegexNewline) {
 }
 
 TEST_F(JsMinifyTest, SignedCharDoesntSignExtend) {
-  const unsigned char input[] = { 0xe0, 0xb2, 0xa0, 0x00 };
+  const unsigned char input[] = { 0xff, 0x00 };
   const char* input_nosign = reinterpret_cast<const char*>(input);
   CheckMinification(input_nosign, input_nosign);
 }
@@ -213,9 +149,7 @@ TEST_F(JsMinifyTest, CarriageReturnEndsLineComment) {
 
 // See http://code.google.com/p/page-speed/issues/detail?id=198
 TEST_F(JsMinifyTest, LeaveIEConditionalCompilationComments) {
-  // Our new minifier is slightly better at removing linebreaks than our old
-  // minifier, so they get slightly different results for this test.
-  CheckOldMinification(
+  CheckMinification(
       "/*@cc_on\n"
       "  /*@if (@_win32)\n"
       "    document.write('IE');\n"
@@ -228,19 +162,6 @@ TEST_F(JsMinifyTest, LeaveIEConditionalCompilationComments) {
       "    document.write('IE');\n"
       "  @else @*/\n"
       "document.write('other');/*@end\n"
-      "@*/");
-  CheckNewMinification(
-      "/*@cc_on\n"
-      "  /*@if (@_win32)\n"
-      "    document.write('IE');\n"
-      "  @else @*/\n"
-      "    document.write('other');\n"
-      "  /*@end\n"
-      "@*/",
-      "/*@cc_on\n"
-      "  /*@if (@_win32)\n"
-      "    document.write('IE');\n"
-      "  @else @*/document.write('other');/*@end\n"
       "@*/");
 }
 
@@ -316,43 +237,11 @@ TEST_F(JsMinifyTest, DoNotCreateSgmlLineComment2) {
   CheckMinification("if (x < !--y) { x = 0; }\n", "if(x< !--y){x=0;}");
 }
 
-TEST_F(JsMinifyTest, DoNotJoinDecimalIntegerAndDot) {
-  // 34 .toString() is legal code, but 34.toString() isn't, because the . in
-  // the second example gets parsed as part of the literal (decimal point).  So
-  // we need to leave a space in there.  Our old minifier gets this wrong, but
-  // the new minifier should handle it correctly.
-  CheckNewMinification("0192  . toString()", "0192 .toString()");
-}
-
-TEST_F(JsMinifyTest, DoJoinHexOctalIntegerAndDot) {
-  // On the other hand, hex and octal literals can't have decimal points, so we
-  // don't need the space here.
-  CheckMinification("0x3e2  . toString() + 0172  . toString()",
-                    "0x3e2.toString()+0172.toString()");
-}
-
-TEST_F(JsMinifyTest, DoJoinDecimalFractionAndDot) {
-  // Also, if the decimal literal can't take another decimal point, then we can
-  // safely remove the space.
-  CheckMinification("3.5 . toString() + 3e2 . toString()",
-                    "3.5.toString()+3e2.toString()");
-}
-
 TEST_F(JsMinifyTest, TrickyRegexLiteral) {
   // The first assignment is two divisions; the second assignment is a regex
   // literal.  JSMin gets this wrong (it removes whitespace from the regex).
   CheckMinification("var x = a[0] / b /i;\n var y = a[0] + / b /i;",
                     "var x=a[0]/b/i;var y=a[0]+/ b /i;");
-}
-
-TEST_F(JsMinifyTest, ObjectLiteralRegexLiteral) {
-  // On the first line, this looks like it should be an object literal divided
-  // by x divided by i, but nope, that's a block with a labelled expression
-  // statement, followed by a regex literal.  The second line, on the other
-  // hand, _is_ an object literal, followed by division.  Our old minifier gets
-  // the second one wrong, but the new minifier should handle it correctly.
-  CheckMinification("{foo: 123} / x /i;", "{foo:123}/ x /i;");
-  CheckNewMinification("x={foo: 1} / x /i;", "x={foo:1}/x/i;");
 }
 
 // See http://code.google.com/p/modpagespeed/issues/detail?id=327
@@ -399,30 +288,14 @@ TEST_F(JsMinifyTest, KeywordPrecedesRegex) {
   // If it thinks it's a division then it will treat the "/    /" as a regex
   // and not remove the comment.  Do the same for all such keywords.
   // Example, "typeof /./    /* hi there */;" ->  "typeof/./;"
-  for (pagespeed::JsKeywords::Iterator iter; !iter.AtEnd(); iter.Next()) {
-    if (pagespeed::JsKeywords::CanKeywordPrecedeRegEx(iter.name())) {
+  for (JsKeywords::Iterator iter; !iter.AtEnd(); iter.Next()) {
+    if (JsKeywords::CanKeywordPrecedeRegEx(iter.name())) {
       GoogleString input =
           net_instaweb::StrCat(iter.name(), " /./   /* hi there */;");
       GoogleString expected = net_instaweb::StrCat(iter.name(), "/./;");
       CheckMinification(input, expected);
     }
   }
-}
-
-TEST_F(JsMinifyTest, LoopRegex) {
-  // Make sure we understand that a slash after "while (...)" or "for (...)" is
-  // a regex, not division.  Our old minifier gets this wrong, but the new
-  // minifier should handle it correctly.
-  CheckNewMinification("while (0) /\\//.exec('');",
-                       "while(0)/\\//.exec('');");
-  CheckNewMinification("for (x in y) / z /.exec(x);",
-                       "for(x in y)/ z /.exec(x);");
-}
-
-TEST_F(JsMinifyTest, LabelRegex) {
-  // Make sure we understand that a slash after a label is a regex, not
-  // division.
-  CheckMinification("{ foo: / x /.exec(''); }", "{foo:/ x /.exec('');}");
 }
 
 const char kCrashTestString[] =
@@ -446,14 +319,10 @@ TEST_F(JsMinifyTest, DoNotCrash) {
 
 TEST_F(JsMinifyTest, SemicolonInsertionIncrement) {
   CheckMinification("a\n++b\nc++\nd", "a\n++b\nc++\nd");
-  // A trickier case that only the new minifier gets right:
-  CheckNewMinification("a\n++\nb\nc++\nd", "a\n++b\nc++\nd");
 }
 
 TEST_F(JsMinifyTest, SemicolonInsertionDecrement) {
   CheckMinification("a\n--b\nc--\nd", "a\n--b\nc--\nd");
-  // A trickier case that only the new minifier gets right:
-  CheckNewMinification("a\n--\nb\nc--\nd", "a\n--b\nc--\nd");
 }
 
 TEST_F(JsMinifyTest, SemicolonInsertionAddition) {
@@ -481,10 +350,6 @@ TEST_F(JsMinifyTest, SemicolonInsertionRegex) {
   // No semicolon will be inserted, so the linebreak and spaces can be removed
   // (this is two divisions, not a regex).
   CheckMinification("i=0\n/ [a-z] /g.exec(s)", "i=0/[a-z]/g.exec(s)");
-}
-
-TEST_F(JsMinifyTest, SemicolonInsertionComment) {
-  CheckMinification("a=b\n /*hello*/ c=d\n", "a=b\nc=d");
 }
 
 TEST_F(JsMinifyTest, SemicolonInsertionWhileStmt) {
@@ -518,11 +383,6 @@ TEST_F(JsMinifyTest, SemicolonInsertionContinueStmt) {
   CheckMinification("continue\nlabel;", "continue\nlabel;");
 }
 
-TEST_F(JsMinifyTest, SemicolonInsertionDebuggerStmt) {
-  // A semicolon _will_ be inserted, so the linebreak _cannot_ be removed.
-  CheckMinification("debugger\nfoo;", "debugger\nfoo;");
-}
-
 const char kCollapsingStringTestString[] =
     "var x = 'asd \\' lse'\n"
     "var y /*comment*/ = /re'gex/\n"
@@ -547,235 +407,4 @@ TEST_F(JsMinifyTest, CollapsingStringTest) {
     ASSERT_EQ(static_cast<int>(strlen(kCollapsedTestString)), size);
 }
 
-TEST_F(JsMinifyTest, MinifyAngular) {
-  CheckFileMinification("angular.original", "angular.minified");
-}
-
-TEST_F(JsMinifyTest, MinifyJQuery) {
-  CheckFileMinification("jquery.original", "jquery.minified");
-}
-
-TEST_F(JsMinifyTest, MinifyPrototype) {
-  CheckFileMinification("prototype.original", "prototype.minified");
-}
-
-// Simple method for serializing Mappings so that they can be compared against
-// gold versions.
-GoogleString MappingsToString(
-    const std::vector<net_instaweb::source_map::Mapping>& mappings) {
-  GoogleString result("{");
-  for (int i = 0, n = mappings.size(); i < n; ++i) {
-    StrAppend(&result, "(",
-              net_instaweb::IntegerToString(mappings[i].gen_line), ", ",
-              net_instaweb::IntegerToString(mappings[i].gen_col),  ", ");
-    StrAppend(&result,
-              net_instaweb::IntegerToString(mappings[i].src_file), ", ",
-              net_instaweb::IntegerToString(mappings[i].src_line), ", ",
-              net_instaweb::IntegerToString(mappings[i].src_col),  "), ");
-  }
-  result += "}";
-  return result;
-}
-
-TEST_F(JsMinifyTest, SourceMapsSimple) {
-  const char js_before[] =
-      "/* Simple hello world program. */\n"
-      "alert( 'Hello, World!' );\n";
-  const char expected_js_after[] =
-      "alert('Hello, World!');";
-  const char expected_map[] =
-      "{"
-      "(0, 0, 0, 1, 0), "    // alert
-      "(0, 5, 0, 1, 5), "    // (
-      "(0, 6, 0, 1, 7), "    // 'Hello, World!'
-      "(0, 21, 0, 1, 23), "  // )
-      "(0, 22, 0, 1, 24), "  // ;
-      "}";
-
-  GoogleString output;
-  std::vector<net_instaweb::source_map::Mapping> mappings;
-  EXPECT_TRUE(pagespeed::js::MinifyUtf8JsWithSourceMap(
-      &patterns_, js_before, &output, &mappings));
-
-  EXPECT_EQ(expected_js_after, output);
-
-  EXPECT_EQ(expected_map, MappingsToString(mappings));
-}
-
-TEST_F(JsMinifyTest, SourceMapsComplex) {
-  GoogleString output;
-  std::vector<net_instaweb::source_map::Mapping> mappings;
-  EXPECT_TRUE(pagespeed::js::MinifyUtf8JsWithSourceMap(
-      &patterns_, kBeforeCompilation, &output, &mappings));
-
-  EXPECT_EQ(kAfterCompilationNew, output);
-
-  // TODO(sligocki): Combine adjacent sections of this mapping if no chars were
-  // removed from those sections.
-  const char expected_map[] =
-      "{"
-      "(0, 0, 0, 14, 0), "  // var
-      "(0, 3, 0, 14, 3), "  // [space]
-      "(0, 4, 0, 14, 4), "  // is
-      "(0, 6, 0, 14, 7), "  // =
-      "(0, 7, 0, 14, 9), "  // {
-
-      "(0, 8, 0, 15, 4), "  // ie
-      "(0, 10, 0, 15, 6), "  // :
-      "(0, 11, 0, 15, 13), "  // navigator
-      "(0, 20, 0, 15, 22), "  // .
-      "(0, 21, 0, 15, 23), "  // appName
-      "(0, 28, 0, 15, 31), "  // ==
-      "(0, 30, 0, 15, 34), "  // 'Microsoft Internet Explorer'
-      "(0, 59, 0, 15, 63), "  // ,
-
-      "(0, 60, 0, 16, 4), "  // java
-      "(0, 64, 0, 16, 8), "  // :
-      "(0, 65, 0, 16, 13), "  // navigator
-      "(0, 74, 0, 16, 22), "  // .
-      "(0, 75, 0, 16, 23), "  // javaEnabled
-      "(0, 86, 0, 16, 34), "  // (
-      "(0, 87, 0, 16, 35), "  // )
-      "(0, 88, 0, 16, 36), "  // ,
-
-      "(0, 89, 0, 17, 4), "  // ns
-      "(0, 91, 0, 17, 6), "  // :
-      "(0, 92, 0, 17, 13), "  // navigator
-      "(0, 101, 0, 17, 22), "  // .
-      "(0, 102, 0, 17, 23), "  // appName
-      "(0, 109, 0, 17, 31), "  // ==
-      "(0, 111, 0, 17, 34), "  // 'Netscape'
-      "(0, 121, 0, 17, 44), "  // ,
-
-      "(0, 122, 0, 18, 4), "  // ua
-      "(0, 124, 0, 18, 6), "  // :
-      "(0, 125, 0, 18, 13), "  // navigator
-      "(0, 134, 0, 18, 22), "  // .
-      "(0, 135, 0, 18, 23), "  // userAgent
-      "(0, 144, 0, 18, 32), "  // .
-      "(0, 145, 0, 18, 33), "  // toLowerCase
-      "(0, 156, 0, 18, 44), "  // (
-      "(0, 157, 0, 18, 45), "  // )
-      "(0, 158, 0, 18, 46), "  // ,
-
-      "(0, 159, 0, 19, 4), "  // version
-      "(0, 166, 0, 19, 11), "  // :
-      "(0, 167, 0, 19, 13), "  // parseFloat
-      "(0, 177, 0, 19, 23), "  // (
-      "(0, 178, 0, 19, 24), "  // navigator
-      "(0, 187, 0, 19, 33), "  // .
-      "(0, 188, 0, 19, 34), "  // appVersion
-      "(0, 198, 0, 19, 44), "  // .
-      "(0, 199, 0, 19, 45), "  // substr
-      "(0, 205, 0, 19, 51), "  // (
-      "(0, 206, 0, 19, 52), "  // 21
-      "(0, 208, 0, 19, 54), "  // )
-      "(0, 209, 0, 19, 55), "  // )
-      "(0, 210, 0, 19, 57), "  // ||
-      "(0, 212, 0, 20, 13), "  // parseFloat
-      "(0, 222, 0, 20, 23), "  // (
-      "(0, 223, 0, 20, 24), "  // navigator
-      "(0, 232, 0, 20, 33), "  // .
-      "(0, 233, 0, 20, 34), "  // appVersion
-      "(0, 243, 0, 20, 44), "  // )
-      "(0, 244, 0, 20, 45), "  // ,
-
-      "(0, 245, 0, 21, 4), "  // win
-      "(0, 248, 0, 21, 7), "  // :
-      "(0, 249, 0, 21, 13), "  // navigator
-      "(0, 258, 0, 21, 22), "  // .
-      "(0, 259, 0, 21, 23), "  // platform
-      "(0, 267, 0, 21, 32), "  // ==
-      "(0, 269, 0, 21, 35), "  // 'Win32'
-      "(0, 276, 0, 22, 0), "  // }
-      "(0, 277, 0, 22, 1), "  // [newline]
-
-      "(1, 0, 0, 23, 0), "  // is
-      "(1, 2, 0, 23, 2), "  // .
-      "(1, 3, 0, 23, 3), "  // mac
-      "(1, 6, 0, 23, 7), "  // =
-      "(1, 7, 0, 23, 9), "  // is
-      "(1, 9, 0, 23, 11), "  // .
-      "(1, 10, 0, 23, 12), "  // ua
-      "(1, 12, 0, 23, 14), "  // .
-      "(1, 13, 0, 23, 15), "  // indexOf
-      "(1, 20, 0, 23, 22), "  // (
-      "(1, 21, 0, 23, 23), "  // 'mac'
-      "(1, 26, 0, 23, 28), "  // )
-      "(1, 27, 0, 23, 30), "  // >=
-      "(1, 29, 0, 23, 33), "  // 0
-      "(1, 30, 0, 23, 34), "  // ;
-
-      "(1, 31, 0, 24, 0), "  // if
-      "(1, 33, 0, 24, 3), "  // (
-      "(1, 34, 0, 24, 4), "  // is
-      "(1, 36, 0, 24, 6), "  // .
-      "(1, 37, 0, 24, 7), "  // ua
-      "(1, 39, 0, 24, 9), "  // .
-      "(1, 40, 0, 24, 10), "  // indexOf
-      "(1, 47, 0, 24, 17), "  // (
-      "(1, 48, 0, 24, 18), "  // 'opera'
-      "(1, 55, 0, 24, 25), "  // )
-      "(1, 56, 0, 24, 27), "  // >=
-      "(1, 58, 0, 24, 30), "  // 0
-      "(1, 59, 0, 24, 31), "  // )
-      "(1, 60, 0, 24, 33), "  // {
-
-      "(1, 61, 0, 25, 4), "  // is
-      "(1, 63, 0, 25, 6), "  // .
-      "(1, 64, 0, 25, 7), "  // ie
-      "(1, 66, 0, 25, 10), "  // =
-      "(1, 67, 0, 25, 12), "  // is
-      "(1, 69, 0, 25, 14), "  // .
-      "(1, 70, 0, 25, 15), "  // ns
-      "(1, 72, 0, 25, 18), "  // =
-      "(1, 73, 0, 25, 20), "  // false
-      "(1, 78, 0, 25, 25), "  // ;
-
-      "(1, 79, 0, 26, 4), "  // is
-      "(1, 81, 0, 26, 6), "  // .
-      "(1, 82, 0, 26, 7), "  // opera
-      "(1, 87, 0, 26, 13), "  // =
-      "(1, 88, 0, 26, 15), "  // true
-      "(1, 92, 0, 26, 19), "  // ;
-      "(1, 93, 0, 27, 0), "  // }
-
-      "(1, 94, 0, 28, 0), "  // if
-      "(1, 96, 0, 28, 3), "  // (
-      "(1, 97, 0, 28, 4), "  // is
-      "(1, 99, 0, 28, 6), "  // .
-      "(1, 100, 0, 28, 7), "  // ua
-      "(1, 102, 0, 28, 9), "  // .
-      "(1, 103, 0, 28, 10), "  // indexOf
-      "(1, 110, 0, 28, 17), "  // (
-      "(1, 111, 0, 28, 18), "  // 'gecko'
-      "(1, 118, 0, 28, 25), "  // )
-      "(1, 119, 0, 28, 27), "  // >=
-      "(1, 121, 0, 28, 30), "  // 0
-      "(1, 122, 0, 28, 31), "  // )
-      "(1, 123, 0, 28, 33), "  // {
-
-      "(1, 124, 0, 29, 4), "  // is
-      "(1, 126, 0, 29, 6), "  // .
-      "(1, 127, 0, 29, 7), "  // ie
-      "(1, 129, 0, 29, 10), "  // =
-      "(1, 130, 0, 29, 12), "  // is
-      "(1, 132, 0, 29, 14), "  // .
-      "(1, 133, 0, 29, 15), "  // ns
-      "(1, 135, 0, 29, 18), "  // =
-      "(1, 136, 0, 29, 20), "  // false
-      "(1, 141, 0, 29, 25), "  // ;
-
-      "(1, 142, 0, 30, 4), "  // is
-      "(1, 144, 0, 30, 6), "  // .
-      "(1, 145, 0, 30, 7), "  // gecko
-      "(1, 150, 0, 30, 13), "  // =
-      "(1, 151, 0, 30, 15), "  // true
-      "(1, 155, 0, 30, 19), "  // ;
-      "(1, 156, 0, 31, 0), "  // }
-      "}";
-
-  EXPECT_EQ(expected_map, MappingsToString(mappings));
-}
-
-}  // namespace
+}  // namespace pagespeed

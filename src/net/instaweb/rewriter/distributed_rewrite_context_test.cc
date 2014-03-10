@@ -17,8 +17,6 @@
 // Author: jkarlin@google.com (Josh Karlin)
 
 // Unit-test the distributed pathways through the RewriteContext class.
-// In these tests the RewriteTestBase::other_* objects represent the task
-// that gets distributed to.
 
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 
@@ -27,7 +25,7 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
-#include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/fake_filter.h"
@@ -50,8 +48,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/timer.h"  // for Timer, etc
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
 
 namespace net_instaweb {
 
@@ -70,8 +66,7 @@ class CreateFilterCallback
   virtual ~CreateFilterCallback() {}
 
   virtual HtmlFilter* Done(RewriteDriver* driver) {
-    FakeFilter* filter = new FakeFilter(id_.c_str(), driver,
-                                        semantic_type::kStylesheet);
+    FakeFilter* filter = new FakeFilter(id_.c_str(), driver);
     if (blocking_) {
       filter->set_exceed_deadline(true);
     }
@@ -205,37 +200,6 @@ class DistributedRewriteContextTest : public RewriteContextTestBase {
   Variable* distributed_rewrite_successes_;
   Variable* distributed_metadata_failures_;
 };
-
-TEST_F(DistributedRewriteContextTest,
-       NoDistributedHtmlRewriteWithoutSettingKeyOnDistributedTask) {
-  SetupDistributedTest();
-  // Clear the distributed task's key. The end result should be unoptimized
-  // due to no metadata being returned since the key couldn't be validated.
-  other_options()->ClearSignatureForTesting();
-  other_options()->set_distributed_rewrite_key("");
-  other_server_context()->ComputeSignature(other_options());
-  ValidateNoChanges("trimmable", CssLinkHref("a.css"));
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
-}
-
-TEST_F(DistributedRewriteContextTest,
-       NoDistributedHtmlRewriteWithDifferentKeyOnDistributedTask) {
-  SetupDistributedTest();
-  // Set a different distributed task key from the ingress task. The end result
-  // should be unoptimized due to no metadata being returned since the key
-  // couldn't be validated.
-  other_options()->ClearSignatureForTesting();
-  other_options()->set_distributed_rewrite_key("wrong key");
-  other_server_context()->ComputeSignature(other_options());
-  ValidateNoChanges("trimmable", CssLinkHref("a.css"));
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
-  // But the optimization should have happened on the distributed task and
-  // should be cached.
-  EXPECT_EQ(
-      3, lru_cache()->num_inserts());  // metadata, resource, optimized resource
-  EXPECT_EQ(1, other_trim_filter_->num_rewrites());
-  EXPECT_EQ(0, trim_filter_->num_rewrites());
-}
 
 // Copy of the RewriteContextTest.TrimRewrittenOptimizable test modified for
 // distributed rewrites.
@@ -373,7 +337,6 @@ TEST_F(DistributedRewriteContextTest, TwoFiltersDelayedFetches) {
 
   ValidateNoChanges("trimmable1", CssLinkHref("a.css"));
   OtherCallFetcherCallbacks();
-  rewrite_driver_->WaitForShutDown();
   ValidateExpected(
       "delayed_fetches", CssLinkHref("a.css"),
       CssLinkHref(
@@ -461,15 +424,12 @@ TEST_F(DistributedRewriteContextTest, ReconstructDistributedTwoFilterBlocks) {
   // we use a fake CSS filter and combiner. We give the ingress task one of each
   // and a fake filter to the distributed task, which times out.
   FakeFilter* fake_css_filter =
-      new FakeFilter(RewriteOptions::kCssFilterId, rewrite_driver(),
-                     semantic_type::kStylesheet);
+      new FakeFilter(RewriteOptions::kCssFilterId, rewrite_driver());
   fake_css_filter->set_exceed_deadline(true);
   FakeFilter* fake_css_combiner =
-      new FakeFilter(RewriteOptions::kCssCombinerId, rewrite_driver(),
-                     semantic_type::kStylesheet);
+      new FakeFilter(RewriteOptions::kCssCombinerId, rewrite_driver());
   FakeFilter* other_fake_css_filter =
-      new FakeFilter(RewriteOptions::kCssFilterId, other_rewrite_driver(),
-                     semantic_type::kStylesheet);
+      new FakeFilter(RewriteOptions::kCssFilterId, other_rewrite_driver());
   other_fake_css_filter->set_exceed_deadline(true);
   rewrite_driver()->AppendRewriteFilter(fake_css_filter);
   rewrite_driver()->AppendRewriteFilter(fake_css_combiner);
@@ -1135,57 +1095,6 @@ TEST_F(DistributedRewriteContextTest, GracefullyHandleURLTooLong) {
   EXPECT_EQ(0, trim_filter_->num_rewrites());
   EXPECT_EQ(0, other_trim_filter_->num_rewrites());
   EXPECT_EQ(0, distributed_metadata_failures_->Get());
-}
-
-// The distributed task should recognize if a distributed task can be rate
-// controlled.
-TEST_F(DistributedRewriteContextTest, QueueFetchOnDistributedHtmlTask) {
-  SetupDistributedTest();
-
-  // Tack on a rate controlling fetcher which does not allow queueing of any
-  // fetches on the distributed task. A distribution of a background rewrite
-  // should be dropped by the rate controller since it can't queue.
-  other_rewrite_driver_->SetSessionFetcher(new RateControllingUrlAsyncFetcher(
-      other_rewrite_driver_->async_fetcher(),
-      0,  // max fetch global queue size
-      0,  // fetches per host outgoing queueing threshold
-      0,  // fetches per host queued request threshold
-      other_server_context_->thread_system(),
-      other_server_context_->statistics()));
-
-  ValidateNoChanges("trimmable", CssLinkHref("a.css"));
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
-  EXPECT_EQ(0, other_factory_->counting_url_async_fetcher()->fetch_count());
-}
-
-// The distributed task should recognize that a distributed fetch cannot be rate
-// controlled.
-TEST_F(DistributedRewriteContextTest, QueueFetchOnDistributedFetchTask) {
-  SetupDistributedTest();
-
-  // Tack on a rate controlling fetcher which does not allow queueing of any
-  // fetches on the distributed task. A distribution of a fetch request should
-  // bypass rate controlling.
-  other_rewrite_driver_->SetSessionFetcher(new RateControllingUrlAsyncFetcher(
-      other_rewrite_driver_->async_fetcher(),
-      0,  // max fetch global queue size
-      0,  // fetches per host outgoing queueing threshold
-      0,  // fetches per host queued request threshold
-      other_server_context_->thread_system(),
-      other_server_context_->statistics()));
-
-  GoogleString encoded_url = Encode(
-      kTestDomain, TrimWhitespaceRewriter::kFilterId, "0", "a.css", "css");
-
-  GoogleString content;
-  ResponseHeaders response_headers;
-  RequestHeaders request_headers;
-  EXPECT_TRUE(FetchResourceUrl(encoded_url, &request_headers, &content,
-                               &response_headers));
-  // Content should be optimized.
-  EXPECT_EQ("a", content);
-  EXPECT_EQ(1, counting_distributed_fetcher()->fetch_count());
-  EXPECT_EQ(1, other_factory_->counting_url_async_fetcher()->fetch_count());
 }
 
 }  // namespace net_instaweb

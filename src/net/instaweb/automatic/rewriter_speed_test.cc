@@ -32,12 +32,10 @@
 
 #include <algorithm>
 #include <cstdlib>  // for exit
-#include <memory>
 #include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/static_rewriter.h"
-#include "net/instaweb/rewriter/public/process_context.h"
 #include "net/instaweb/util/public/benchmark.h"
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/null_writer.h"
@@ -57,11 +55,9 @@ namespace {
 // net/instaweb/htmlparse/html_parse_speed_test.cc and should possibly
 // be factored out.
 GoogleString* sHtmlText = NULL;
-ProcessContext* process_context = NULL;
 const StringPiece GetHtmlText() {
   if (sHtmlText == NULL) {
     sHtmlText = new GoogleString;
-    process_context = new ProcessContext;
     StdioFileSystem file_system;
     StringVector files;
     GoogleMessageHandler handler;
@@ -106,7 +102,7 @@ static void BM_ParseAndSerializeReuseParserX50(int iters) {
     StrAppend(&text, orig);
   }
 
-  StaticRewriter rewriter(*process_context);
+  StaticRewriter rewriter;
   StartBenchmarkTiming();
   for (int i = 0; i < iters; ++i) {
     NullWriter writer;

@@ -794,10 +794,9 @@ class RewriteContext::DistributedRewriteFetch : public AsyncFetch {
 
   void DispatchForHTML() {
     DCHECK(fetcher_ != NULL);
+    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteForHtml, "");
     StringPiece distributed_key =
         rewrite_context_->Options()->distributed_rewrite_key();
-    request_headers()->Add(HttpAttributes::kXPsaDistributedRewriteForHtml,
-                           distributed_key);
     request_headers()->Add(HttpAttributes::kXPsaRequestMetadata,
                            distributed_key);
     // Note: We're defaulting to a kGet request. We don't always *have* to do a
@@ -866,7 +865,6 @@ class RewriteContext::FetchContext {
       : rewrite_context_(rewrite_context),
         async_fetch_(fetch),
         output_resource_(output_resource),
-        original_output_url_(output_resource->UrlEvenIfHashNotSet()),
         handler_(handler),
         deadline_alarm_(NULL),
         success_(false),
@@ -1051,11 +1049,7 @@ class RewriteContext::FetchContext {
           // fetch path.
 
           response_headers->CopyFrom(*input_resource->response_headers());
-          const CachedResult* cached_result =
-              rewrite_context_->output_partition(0);
-          CHECK(cached_result != NULL);
-          rewrite_context_->FixFetchFallbackHeaders(*cached_result,
-                                                    response_headers);
+          rewrite_context_->FixFetchFallbackHeaders(response_headers);
           // Use the most conservative Cache-Control considering all inputs.
           // Note that this is needed because FixFetchFallbackHeaders might
           // actually relax things a bit if the input was no-cache.
@@ -1064,7 +1058,7 @@ class RewriteContext::FetchContext {
           async_fetch_->set_content_length(contents.size());
           async_fetch_->HeadersComplete();
           ok = rewrite_context_->AbsolutifyIfNeeded(
-              original_output_url_, contents, async_fetch_, handler_);
+              contents, async_fetch_, handler_);
         } else {
           GoogleString url = input_resource->url();
           handler_->Warning(
@@ -1104,11 +1098,7 @@ class RewriteContext::FetchContext {
   void FetchFallbackDoneImpl(const StringPiece& contents,
                              const ResponseHeaders* headers) {
     async_fetch_->response_headers()->CopyFrom(*headers);
-    CHECK_EQ(1, rewrite_context_->num_output_partitions());
-    const CachedResult* cached_result = rewrite_context_->output_partition(0);
-    CHECK(cached_result != NULL);
-    rewrite_context_->FixFetchFallbackHeaders(*cached_result,
-                                              async_fetch_->response_headers());
+    rewrite_context_->FixFetchFallbackHeaders(async_fetch_->response_headers());
     // Use the most conservative Cache-Control considering all inputs.
     ApplyInputCacheControl(async_fetch_->response_headers());
     if (!detached_) {
@@ -1119,9 +1109,7 @@ class RewriteContext::FetchContext {
     }
     async_fetch_->set_content_length(contents.size());
     async_fetch_->HeadersComplete();
-
-    bool ok = rewrite_context_->AbsolutifyIfNeeded(original_output_url_,
-                                                   contents, async_fetch_,
+    bool ok = rewrite_context_->AbsolutifyIfNeeded(contents, async_fetch_,
                                                    handler_);
     // Like FetchDone, we success false if not a 200.
     ok &= headers->status_code() == HttpStatus::kOK;
@@ -1159,11 +1147,6 @@ class RewriteContext::FetchContext {
   RewriteContext* rewrite_context_;
   AsyncFetch* async_fetch_;
   OutputResourcePtr output_resource_;
-
-  // Roughly the URL we were requested under (may have wrong hash or extension);
-  // for use in absolutification. We need this since we may be doing a fallback
-  // simultaneously to a rewrite which may be mutating output_resource_.
-  GoogleString original_output_url_;
   MessageHandler* handler_;
   GoogleString requested_hash_;  // hash we were requested as. May be empty.
   QueuedAlarm* deadline_alarm_;
@@ -1651,9 +1634,9 @@ void RewriteContext::OutputCacheMiss() {
 
 bool RewriteContext::IsDistributedRewriteForHtml() const {
   const RequestHeaders* request_headers = Driver()->request_headers();
+  DCHECK(request_headers != NULL);
   if (request_headers != NULL &&
-      request_headers->HasValue(HttpAttributes::kXPsaDistributedRewriteForHtml,
-                                Options()->distributed_rewrite_key())) {
+      request_headers->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
     return true;
   }
   return false;
@@ -1689,8 +1672,7 @@ bool RewriteContext::ShouldDistributeRewrite() const {
   // filter. For instance, if this is a distributed CSS request, we don't want
   // to redistribute the CSS rewrite but its nested image filters should be
   // allowed to be distributed.  The rewrite task of the nested filter will
-  // not redistribute it. Note: We don't verify the distributed rewrite key
-  // because we want to be conservative about loop detection.
+  // not redistribute it.
   if (request_headers != NULL && parent() == NULL) {
     if (request_headers->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
         request_headers->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
@@ -2781,9 +2763,7 @@ bool RewriteContext::PrepareFetch(
          is_valid = false;
          break;
       }
-      if (!IsDistributedRewriteForHtml()) {
-        resource->set_is_background_fetch(false);
-      }
+      resource->set_is_background_fetch(false);
       ResourceSlotPtr slot(new FetchResourceSlot(resource));
       AddSlot(slot);
     }
@@ -3001,16 +2981,16 @@ const RewriteOptions* RewriteContext::Options() const {
   return Driver()->options();
 }
 
-void RewriteContext::FixFetchFallbackHeaders(
-    const CachedResult& cached_result, ResponseHeaders* headers) {
+void RewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (headers->Sanitize()) {
     headers->ComputeCaching();
   }
 
   // In the case of a resource fetch with hash mismatch, we will not have
-  // inputs, so fix headers based on the metadata. As we do not consider
-  // FILE_BASED inputs here, if all inputs are FILE_BASED, the TTL will be the
-  // minimum of headers->cache_ttl_ms() and headers->implicit_cache_ttl_ms().
+  // inputs.  So fix headers based on metadata.  We do not consider
+  // FILE_BASED inputs here.  Hence if all inputs are FILED_BASED then the TTL
+  // wil be min of headers->cache_ttl_ms() and
+  // ResponseHeaders::kDefaultImplicitCacheTtlMs.
   int64 min_cache_expiry_time_ms = headers->cache_ttl_ms() + headers->date_ms();
   for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
     const CachedResult& partition = partitions_->partition(i);
@@ -3032,9 +3012,8 @@ void RewriteContext::FixFetchFallbackHeaders(
   headers->SetDateAndCaching(
       headers->date_ms(),
       std::min(min_cache_expiry_time_ms - headers->date_ms(),
-               headers->implicit_cache_ttl_ms()),
+               ResponseHeaders::kDefaultImplicitCacheTtlMs),
       ",private");
-  headers->RemoveAll(HttpAttributes::kEtag);
   headers->ComputeCaching();
 }
 
@@ -3043,8 +3022,7 @@ bool RewriteContext::FetchContextDetached() {
   return fetch_->detached();
 }
 
-bool RewriteContext::AbsolutifyIfNeeded(const StringPiece& /*output_url_base*/,
-                                        const StringPiece& input_contents,
+bool RewriteContext::AbsolutifyIfNeeded(const StringPiece& input_contents,
                                         Writer* writer,
                                         MessageHandler* handler) {
   return writer->Write(input_contents, handler);

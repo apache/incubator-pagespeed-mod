@@ -29,23 +29,20 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/enum_set.h"
 #include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/md5_hasher.h"
-#include "net/instaweb/util/public/proto_util.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "pagespeed/kernel/base/dense_hash_map.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/wildcard.h"
 #include "pagespeed/kernel/util/copy_on_write.h"
 
@@ -89,15 +86,7 @@ class RewriteOptions {
   // If you add or remove anything from this list, you must also update the
   // kFilterVectorStaticInitializer array in rewrite_options.cc.  If you add
   // an image-related filter or a css-related filter, you must add it to the
-  // kRelatedFilters array in image_rewrite_filter.cc and/or css_filter.cc
-  //
-  // Each filter added here should go into at least one of the filter-arrays
-  // in rewrite_options.cc, even if it's just kDangerousFilterSet.
-  //
-  // Filters that can improve bandwidth but have basically zero risk
-  // of breaking pages should be added to
-  // kOptimizeForBandwidthFilterSet.  Filters with relatively low risk
-  // should be added to kCoreFilterSet.
+  // kRelatedFilters array in image_rewrite_filter.cc and/or css_filter.cc.
   enum Filter {
     kAddBaseTag,  // Update kFirstFilter if you add something before this.
     kAddHead,
@@ -128,7 +117,6 @@ class RewriteOptions {
     kDisableJavascript,
     kDivStructure,
     kElideAttributes,
-    kExperimentSpdy,  // Temporary and will be removed soon.
     kExplicitCloseTags,
     kExtendCacheCss,
     kExtendCacheImages,
@@ -232,7 +220,6 @@ class RewriteOptions {
   static const char kDomainRewriteHyperlinks[];
   static const char kDomainShardCount[];
   static const char kDownstreamCachePurgeMethod[];
-  static const char kDownstreamCacheRebeaconingKey[];
   static const char kDownstreamCacheRewrittenPercentageThreshold[];
   static const char kEnableAggressiveRewritersForMobile[];
   static const char kEnableBlinkHtmlChangeDetection[];
@@ -244,7 +231,6 @@ class RewriteOptions {
   static const char kEnableLazyLoadHighResImages[];
   static const char kEnablePrioritizingScripts[];
   static const char kEnabled[];
-  static const char kEnrollExperiment[];
   static const char kExperimentCookieDurationMs[];
   static const char kExperimentSlot[];
   static const char kFetcherTimeOutMs[];
@@ -325,6 +311,7 @@ class RewriteOptions {
   static const char kRewriteDeadlineMs[];
   static const char kRewriteLevel[];
   static const char kRewriteRandomDropPercentage[];
+  static const char kRewriteRequestUrlsEarly[];
   static const char kRewriteUncacheableResources[];
   static const char kRunningExperiment[];
   static const char kServeGhostClickBusterWithSplitHtml[];
@@ -335,7 +322,6 @@ class RewriteOptions {
   static const char kSupportNoScriptEnabled[];
   static const char kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss[];
   static const char kUseBlankImageForInlinePreview[];
-  static const char kUseExperimentalJsMinifier[];
   static const char kUseFallbackPropertyCacheValues[];
   static const char kUseImageScanlineApi[];
   static const char kUseSelectorsForCriticalCss[];
@@ -354,7 +340,6 @@ class RewriteOptions {
   static const char kExperimentVariable[];
   static const char kExperimentSpec[];
   static const char kForbidFilters[];
-  static const char kInlineResourcesWithoutExplicitAuthorization[];
   static const char kRetainComment[];
   // 2-argument ones:
   static const char kCustomFetchHeader[];
@@ -388,7 +373,6 @@ class RewriteOptions {
   static const char kMemcachedThreads[];
   static const char kMemcachedTimeoutUs[];
   static const char kRateLimitBackgroundFetches[];
-  static const char kServeWebpToAnyAgent[];
   static const char kSlurpDirectory[];
   static const char kSlurpFlushLimit[];
   static const char kSlurpReadOnly[];
@@ -454,11 +438,7 @@ class RewriteOptions {
   // for example, kDirectoryScope indicates it can be changed via .htaccess
   // files, which is the only way that sites using shared hosting can change
   // settings.
-  //
-  // The options are ordered from most permissive to least permissive.
   enum OptionScope {
-    kQueryScope,      // customized at query (query-param, request headers,
-                      // response headers)
     kDirectoryScope,  // customized at directory level (.htaccess, <Directory>)
     kServerScope,     // customized at server level (e.g. VirtualHost)
     kProcessScope,    // customized at process level only (command-line flags)
@@ -526,11 +506,7 @@ class RewriteOptions {
     OptionBase() {}
     virtual ~OptionBase();
 
-    // Returns if parsing was successful. error_detail will be appended to
-    // to an error message if this returns false. Implementors are not
-    // required to set *error_detail; its the callers responsibility to do so.
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail) = 0;
+    virtual bool SetFromString(StringPiece value_string) = 0;
     virtual void Merge(const OptionBase* src) = 0;
     virtual bool was_set() const = 0;
     virtual GoogleString Signature(const Hasher* hasher) const = 0;
@@ -554,11 +530,6 @@ class RewriteOptions {
     // explicitly enable the kCoreFilters level by calling
     // SetRewriteLevel(kCoreFilters).
     kPassThrough,
-
-    // Enable filters that make resources smaller, but carry no risk
-    // of site breakage.  Turning this on implies inplace resource
-    // optimization and preserve-URLs.
-    kOptimizeForBandwidth,
 
     // Enable the core set of filters. These filters are considered
     // generally safe for most sites, though even safe filters can
@@ -688,8 +659,9 @@ class RewriteOptions {
   // These options can be specified by a spec string that looks like:
   // "id=<number greater than 0>;level=<rewrite level>;enabled=
   // <comma-separated-list of filters to enable>;disabled=
-  // <comma-separated-list of filters to disable>;options=
-  // <comma-separated-list of option=value pairs to set>.
+  // <comma-separated-list of filters to disable>;css_inline_threshold=
+  // <max size of css to inline>;image_inline_threshold=<max size of
+  // image to inline>;js_inline_threshold=<max size of js to inline>.
   class ExperimentSpec {
    public:
     // Creates a ExperimentSpec parsed from spec.
@@ -720,14 +692,15 @@ class RewriteOptions {
     FilterSet enabled_filters() const { return enabled_filters_; }
     FilterSet disabled_filters() const { return disabled_filters_; }
     OptionSet filter_options() const { return filter_options_; }
+    int64 css_inline_max_bytes() const { return css_inline_max_bytes_; }
+    int64 js_inline_max_bytes() const { return js_inline_max_bytes_; }
+    int64 image_inline_max_bytes() const { return image_inline_max_bytes_; }
     bool use_default() const { return use_default_; }
-    GoogleString ToString() const;
 
    protected:
     // Merges a spec into this. This follows the same semantics as
     // RewriteOptions. Specifically, filter/options list get unioned, and
-    // vars get overwritten, except ID.  In the event of a conflict, e.g.
-    // preserve vs extend_cache, *this will take precedence.
+    // vars get overwritten, except ID.
     void Merge(const ExperimentSpec& spec);
 
    private:
@@ -745,6 +718,9 @@ class RewriteOptions {
     FilterSet enabled_filters_;
     FilterSet disabled_filters_;
     OptionSet filter_options_;
+    int64 css_inline_max_bytes_;
+    int64 js_inline_max_bytes_;
+    int64 image_inline_max_bytes_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
@@ -831,12 +807,6 @@ class RewriteOptions {
 
   static bool ParseRewriteLevel(const StringPiece& in, RewriteLevel* out);
 
-  typedef std::set<semantic_type::Category> ResourceCategorySet;
-
-  static bool ParseInlineUnauthorizedResourceType(
-      const StringPiece& in,
-      ResourceCategorySet* resource_types);
-
   // Parse a beacon url, or a pair of beacon urls (http https) separated by a
   // space.  If only an http url is given, the https url is derived from it
   // by simply substituting the protocol.
@@ -915,10 +885,10 @@ class RewriteOptions {
   // with that id.
   bool AvailableExperimentId(int id);
 
-  // Creates a ExperimentSpec from spec and adds it to the configuration,
-  // returning it on success and NULL on failure.
-  virtual ExperimentSpec* AddExperimentSpec(const StringPiece& spec,
-                                            MessageHandler* handler);
+  // Creates a ExperimentSpec from spec and adds it to the configuration.
+  // Returns true if it was added successfully.
+  virtual bool AddExperimentSpec(const StringPiece& spec,
+                                 MessageHandler* handler);
 
   // Sets which side of the experiment these RewriteOptions are on.
   // Cookie-setting must be done separately.
@@ -952,10 +922,6 @@ class RewriteOptions {
 
   int num_experiments() const { return experiment_specs_.size(); }
 
-  bool enroll_experiment() const {
-    return enroll_experiment_id() != experiment::kForceNoExperiment;
-  }
-
   // Store that when we see <element attribute=X> we should treat X as a URL
   // pointing to a resource of the type indicated by category.  For example,
   // while by default we would treat the 'src' attribute of an a 'img' element
@@ -985,12 +951,6 @@ class RewriteOptions {
       return url_valued_attributes_->size();
     }
   }
-
-  void AddInlineUnauthorizedResourceType(semantic_type::Category category);
-  bool HasInlineUnauthorizedResourceType(
-      semantic_type::Category category) const;
-  void ClearInlineUnauthorizedResourceTypes();
-  void set_inline_unauthorized_resource_types(ResourceCategorySet x);
 
   // Store size, md5 hash and canonical url for library recognition.
   bool RegisterLibrary(
@@ -1069,7 +1029,6 @@ class RewriteOptions {
   // of disabled filters by removing it from disabled & forbidden filter lists.
   void ForceEnableFilter(Filter filter);
   void DisableFilter(Filter filter);
-  void DisableIfNotExplictlyEnabled(Filter filter);
   void ForbidFilter(Filter filter);
   void EnableFilters(const FilterSet& filter_set);
   void DisableFilters(const FilterSet& filter_set);
@@ -1077,25 +1036,6 @@ class RewriteOptions {
   // Clear all explicitly enabled and disabled filters. Some filters may still
   // be enabled by the rewrite level and HtmlWriterFilter will be enabled.
   void ClearFilters();
-
-  // Induces a filter to be considered enabled by turning on the AllFilters
-  // level and disabling the filters that are not wanted.  This is used for
-  // testing the desired behavior of PreserveUrls, which is to disable inlining
-  // and combining when the level is CoreFilters, but allow explictly enabled
-  // combiners and inliners to work.
-  //
-  // Beware: this mode of enabling filters is difficult to manage
-  // across multiple levels of test inheritance.  In particular, once
-  // SoftEnableFilterForTesting is called, EnableFilter will no longer
-  // work due to the explicit disables.  It does work to call
-  // SoftEnableFilterForTesting multiple times to enable several
-  // filters, and it also works to call EnableFilter first.  ForceEnable
-  // also works.
-  //
-  // It is only necessary to call this in tests with PreserveUrls.
-  //
-  // Caveat emptor.
-  void SoftEnableFilterForTesting(Filter filter);
 
   // Enables extend_cache_css, extend_cache_images, and extend_cache_scripts.
   // Does not enable extend_cache_pdfs.
@@ -1125,15 +1065,6 @@ class RewriteOptions {
   OptionSettingResult SetOptionFromName(
       StringPiece name, StringPiece value, GoogleString* msg);
 
-  // Like above, but doesn't bother formatting the error message.
-  OptionSettingResult SetOptionFromName(
-      StringPiece name, StringPiece value);
-
-  // Same as SetOptionFromName, but only works with options that are valid
-  // to use as query parameters, returning kOptionNameUnknown for properties
-  // where the scope() is not kQueryScope.
-  OptionSettingResult SetOptionFromQuery(StringPiece name, StringPiece value);
-
   // Advanced option parsing, that can understand non-scalar values
   // (unlike SetOptionFromName), and which is extensible by platforms.
   // Returns whether succeeded or the kind of failure, and writes the
@@ -1150,6 +1081,12 @@ class RewriteOptions {
       StringPiece name, StringPiece arg1, StringPiece arg2, StringPiece arg3,
       GoogleString* msg, MessageHandler* handler);
 
+  // Given an option's name and a scalar value (cf. ParseAndSetOptionFromNameX),
+  // set the option to the parsed value. The scalar types supported are those
+  // for which we have a ParseFromString method below - currently supports
+  // bool, EnabledEnum, int, int64, GoogleString, RewriteLevel, and BeaconUrl.
+  OptionSettingResult SetOptionFromName(StringPiece name, StringPiece value);
+
   // Returns the id and value of the specified option-enum in *id and *value.
   // Sets *was_set to true if this option has been altered from the default.
   //
@@ -1160,7 +1097,7 @@ class RewriteOptions {
 
   // Set all of the options to their values specified in the option set.
   // Returns true if all options in the set were successful, false if not.
-  bool SetOptionsFromName(const OptionSet& option_set, MessageHandler* handler);
+  bool SetOptionsFromName(const OptionSet& option_set);
 
   // Sets Option 'name' to 'value'. Returns whether it succeeded and logs
   // any warnings to 'handler'.
@@ -1185,15 +1122,9 @@ class RewriteOptions {
   static bool ParseFromString(StringPiece value_string, RewriteLevel* value) {
     return ParseRewriteLevel(value_string, value);
   }
-  static bool ParseFromString(StringPiece value_string,
-                              ResourceCategorySet* value) {
-    return ParseInlineUnauthorizedResourceType(value_string, value);
-  }
   static bool ParseFromString(StringPiece value_string, BeaconUrl* value) {
     return ParseBeaconUrl(value_string, value);
   }
-  static bool ParseFromString(StringPiece value_string,
-                              protobuf::MessageLite* proto);
 
   // TODO(jmarantz): consider setting flags in the set_ methods so that
   // first's explicit settings can override default values from second.
@@ -1332,13 +1263,16 @@ class RewriteOptions {
     set_option(x, &preserve_url_relativity_);
   }
 
+  bool use_image_scanline_api() const {
+    return use_image_scanline_api_.value();
+  }
+  void set_use_image_scanline_api(bool x) {
+    set_option(x, &use_image_scanline_api_);
+  }
+
   // Returns false if there is an entry in url_cache_invalidation_entries_ with
   // its timestamp_ms > time_ms and url matches the url_pattern.  Else, return
   // true.
-  //
-  // In most contexts where you'd call this you should consider instead
-  // calling OptionsAwareHTTPCacheCallback::IsCacheValid instead, which takes
-  // into account request-headers.
   bool IsUrlCacheValid(StringPiece url, int64 time_ms) const;
 
   // Returns true if PurgeCacheUrl has been called on url with a timestamp
@@ -1403,8 +1337,7 @@ class RewriteOptions {
   //
   // This function ignores requests to move the invalidation timestamp
   // backwards.  It returns true if the timestamp was actually changed.
-  bool UpdateCacheInvalidationTimestampMs(int64 timestamp_ms)
-      LOCKS_EXCLUDED(cache_invalidation_timestamp_.mutex());
+  bool UpdateCacheInvalidationTimestampMs(int64 timestamp_ms);
 
   // How much inactivity of HTML input will result in PSA introducing a flush.
   // Values <= 0 disable the feature.
@@ -1502,7 +1435,7 @@ class RewriteOptions {
   }
 
   bool in_place_rewriting_enabled() const {
-    return CheckBandwidthOption(in_place_rewriting_enabled_);
+    return in_place_rewriting_enabled_.value();
   }
 
   void set_in_place_wait_for_optimized(bool x) {
@@ -1510,8 +1443,7 @@ class RewriteOptions {
   }
 
   bool in_place_wait_for_optimized() const {
-    return (in_place_wait_for_optimized_.value() ||
-            (in_place_rewrite_deadline_ms() < 0));
+    return in_place_wait_for_optimized_.value();
   }
 
   void set_in_place_rewrite_deadline_ms(int x) {
@@ -1526,28 +1458,28 @@ class RewriteOptions {
     set_option(x, &in_place_preemptive_rewrite_css_);
   }
   bool in_place_preemptive_rewrite_css() const {
-    return CheckBandwidthOption(in_place_preemptive_rewrite_css_);
+    return in_place_preemptive_rewrite_css_.value();
   }
 
   void set_in_place_preemptive_rewrite_css_images(bool x) {
     set_option(x, &in_place_preemptive_rewrite_css_images_);
   }
   bool in_place_preemptive_rewrite_css_images() const {
-    return CheckBandwidthOption(in_place_preemptive_rewrite_css_images_);
+    return in_place_preemptive_rewrite_css_images_.value();
   }
 
   void set_in_place_preemptive_rewrite_images(bool x) {
     set_option(x, &in_place_preemptive_rewrite_images_);
   }
   bool in_place_preemptive_rewrite_images() const {
-    return CheckBandwidthOption(in_place_preemptive_rewrite_images_);
+    return in_place_preemptive_rewrite_images_.value();
   }
 
   void set_in_place_preemptive_rewrite_javascript(bool x) {
     set_option(x, &in_place_preemptive_rewrite_javascript_);
   }
   bool in_place_preemptive_rewrite_javascript() const {
-    return CheckBandwidthOption(in_place_preemptive_rewrite_javascript_);
+    return in_place_preemptive_rewrite_javascript_.value();
   }
 
   void set_combine_across_paths(bool x) {
@@ -1677,7 +1609,7 @@ class RewriteOptions {
     return critical_images_beacon_enabled_.value();
   }
 
-  void set_beacon_reinstrument_time_sec(int x) {
+  void set_beacon_reinstrument_beacon_time_sec(int x) {
     set_option(x, &beacon_reinstrument_time_sec_);
   }
   int beacon_reinstrument_time_sec() const {
@@ -1755,24 +1687,31 @@ class RewriteOptions {
   }
 
   bool css_preserve_urls() const {
-    return CheckBandwidthOption(css_preserve_urls_);
+    return css_preserve_urls_.value();
   }
   void set_css_preserve_urls(bool x) {
     set_option(x, &css_preserve_urls_);
   }
 
   bool image_preserve_urls() const {
-    return CheckBandwidthOption(image_preserve_urls_);
+    return image_preserve_urls_.value();
   }
   void set_image_preserve_urls(bool x) {
     set_option(x, &image_preserve_urls_);
   }
 
   bool js_preserve_urls() const {
-    return CheckBandwidthOption(js_preserve_urls_);
+    return js_preserve_urls_.value();
   }
   void set_js_preserve_urls(bool x) {
     set_option(x, &js_preserve_urls_);
+  }
+
+  bool rewrite_request_urls_early() const {
+    return rewrite_request_urls_early_.value();
+  }
+  void set_rewrite_request_urls_early(bool x) {
+    set_option(x, &rewrite_request_urls_early_);
   }
 
   void set_metadata_cache_staleness_threshold_ms(int64 x) {
@@ -1802,27 +1741,6 @@ class RewriteOptions {
   void set_downstream_cache_purge_location_prefix(const StringPiece& p) {
     set_option(p.as_string(), &downstream_cache_purge_location_prefix_);
   }
-  bool IsDownstreamCacheIntegrationEnabled() const {
-    return !downstream_cache_purge_location_prefix().empty();
-  }
-
-  void set_downstream_cache_rebeaconing_key(const StringPiece& p) {
-      set_option(p.as_string(), &downstream_cache_rebeaconing_key_);
-  }
-  const GoogleString& downstream_cache_rebeaconing_key() const {
-    return downstream_cache_rebeaconing_key_.value();
-  }
-  bool IsDownstreamCacheRebeaconingKeyConfigured() const {
-    return !downstream_cache_rebeaconing_key().empty();
-  }
-  // Return true only if downstream cache rebeaconing key is configured and
-  // the key argument matches the configured key.
-  bool MatchesDownstreamCacheRebeaconingKey(StringPiece key) const {
-    if (!IsDownstreamCacheRebeaconingKeyConfigured()) {
-      return false;
-    }
-    return StringCaseEqual(key, downstream_cache_rebeaconing_key());
-  }
 
   void set_downstream_cache_rewritten_percentage_threshold(int64 x) {
     set_option(x, &downstream_cache_rewritten_percentage_threshold_);
@@ -1833,8 +1751,7 @@ class RewriteOptions {
 
   const BeaconUrl& beacon_url() const { return beacon_url_.value(); }
   void set_beacon_url(const GoogleString& beacon_url) {
-    GoogleString ignored_error_detail;
-    beacon_url_.SetFromString(beacon_url, &ignored_error_detail);
+    beacon_url_.SetFromString(beacon_url);
   }
 
   // Return false in a subclass if you want to disallow all URL trimming in CSS.
@@ -2058,15 +1975,15 @@ class RewriteOptions {
   void EnableBlockingRewriteForRefererUrlPattern(
       const StringPiece& url_pattern) {
     Modify();
-    blocking_rewrite_referer_urls_.MakeWriteable()->Allow(url_pattern);
+    blocking_rewrite_referer_urls_.Allow(url_pattern);
   }
 
   bool IsBlockingRewriteEnabledForReferer(const StringPiece& url) const {
-    return blocking_rewrite_referer_urls_->Match(url, false);
+    return blocking_rewrite_referer_urls_.Match(url, false);
   }
 
   bool IsBlockingRewriteRefererUrlPatternPresent() const {
-    return blocking_rewrite_referer_urls_->num_wildcards() > 0;
+    return blocking_rewrite_referer_urls_.num_wildcards() > 0;
   }
 
   bool rewrite_uncacheable_resources() const {
@@ -2088,12 +2005,8 @@ class RewriteOptions {
   void set_experiment_ga_slot(int x) {
     set_option(x, &experiment_ga_slot_);
   }
-  int experiment_ga_slot() const { return experiment_ga_slot_.value(); }
 
-  void set_enroll_experiment_id(int x) {
-    set_option(x, &enroll_experiment_id_);
-  }
-  int enroll_experiment_id() const { return enroll_experiment_id_.value(); }
+  int experiment_ga_slot() const { return experiment_ga_slot_.value(); }
 
   void set_report_unload_time(bool x) {
     set_option(x, &report_unload_time_);
@@ -2199,13 +2112,6 @@ class RewriteOptions {
     set_option(x, &enable_extended_instrumentation_);
   }
 
-  bool use_experimental_js_minifier() const {
-    return use_experimental_js_minifier_.value();
-  }
-  void set_use_experimental_js_minifier(bool x) {
-    set_option(x, &use_experimental_js_minifier_);
-  }
-
   void set_max_combined_css_bytes(int64 x) {
     set_option(x, &max_combined_css_bytes_);
   }
@@ -2289,13 +2195,6 @@ class RewriteOptions {
     return max_low_res_to_full_res_image_size_percentage_.value();
   }
 
-  void set_serve_rewritten_webp_urls_to_any_agent(bool x) {
-    set_option(x, &serve_rewritten_webp_urls_to_any_agent_);
-  }
-  bool serve_rewritten_webp_urls_to_any_agent() const {
-    return serve_rewritten_webp_urls_to_any_agent_.value();
-  }
-
   // Merge src into 'this'.  Generally, options that are explicitly
   // set in src will override those explicitly set in 'this' (except that
   // filters forbidden in 'this' cannot be enabled by 'src'), although
@@ -2317,34 +2216,14 @@ class RewriteOptions {
   // previous Disallow wildcards.
   void Allow(const StringPiece& wildcard_pattern) {
     Modify();
-    allow_resources_.MakeWriteable()->Allow(wildcard_pattern);
+    allow_resources_.Allow(wildcard_pattern);
   }
 
   // Registers a wildcard pattern for to be disallowed, potentially overriding
   // previous Allow wildcards.
   void Disallow(const StringPiece& wildcard_pattern) {
     Modify();
-    allow_resources_.MakeWriteable()->Disallow(wildcard_pattern);
-  }
-
-  // Like Allow().  See IsAllowedWhenInlining().
-  void AllowWhenInlining(const StringPiece& wildcard_pattern) {
-    Modify();
-    allow_when_inlining_resources_.MakeWriteable()->Allow(wildcard_pattern);
-  }
-
-  // Helper function to Disallow something except when inlining.  Useful for
-  // resources that you expect to be on good CDNs but may still be worth
-  // inlining if small enough.
-  void AllowOnlyWhenInlining(const StringPiece& wildcard_pattern) {
-    Disallow(wildcard_pattern);
-    AllowWhenInlining(wildcard_pattern);
-  }
-
-  // Like Disallow().  See IsAllowedWhenInlining().
-  void DisallowWhenInlining(const StringPiece& wildcard_pattern) {
-    Modify();
-    allow_when_inlining_resources_.MakeWriteable()->Disallow(wildcard_pattern);
+    allow_resources_.Disallow(wildcard_pattern);
   }
 
   // Blacklist of javascript files that don't like their names changed.
@@ -2387,43 +2266,31 @@ class RewriteOptions {
   // Determines, based on the sequence of Allow/Disallow calls above, whether
   // a url is allowed.
   bool IsAllowed(const StringPiece& url) const {
-    return allow_resources_->Match(url, true /* default allow */);
-  }
-
-  // Call this when:
-  //
-  //  1. IsAllowed() returns false and
-  //  2. The url is for a resource we're planning to inline if successful.
-  //
-  // If it returns true, it's ok to fetch, rewrite, and inline this resource as
-  // if IsAllowed() had returned true.
-  bool IsAllowedWhenInlining(const StringPiece& url) const {
-    return allow_when_inlining_resources_->Match(
-        url, false /* default disallow */);
+    return allow_resources_.Match(url, true);
   }
 
   // Adds a new comment wildcard pattern to be retained.
   void RetainComment(const StringPiece& comment) {
     Modify();
-    retain_comments_.MakeWriteable()->Allow(comment);
+    retain_comments_.Allow(comment);
   }
 
   // If enabled, the 'remove_comments' filter will remove all HTML comments.
   // As discussed in Issue 237, some comments have semantic value and must
   // be retained.
   bool IsRetainedComment(const StringPiece& comment) const {
-    return retain_comments_->Match(comment, false);
+    return retain_comments_.Match(comment, false);
   }
 
   // Adds a new class name for which lazyload should be disabled.
   void DisableLazyloadForClassName(const StringPiece& class_name) {
     Modify();
-    lazyload_enabled_classes_.MakeWriteable()->Disallow(class_name);
+    lazyload_enabled_classes_.Disallow(class_name);
   }
 
   // Checks if lazyload images is enabled for the specified class.
   bool IsLazyloadEnabledForClassName(const StringPiece& class_name) const {
-    return lazyload_enabled_classes_->Match(class_name, true);
+    return lazyload_enabled_classes_.Match(class_name, true);
   }
 
   void set_override_caching_ttl_ms(int64 x) {
@@ -2437,12 +2304,12 @@ class RewriteOptions {
   // override_caching_ttl_ms().
   void AddOverrideCacheTtl(const StringPiece& wildcard) {
     Modify();
-    override_caching_wildcard_.MakeWriteable()->Allow(wildcard);
+    override_caching_wildcard_.Allow(wildcard);
   }
 
   // Is the cache TTL overridden for the given url?
   bool IsCacheTtlOverridden(const StringPiece& url) const {
-    return override_caching_wildcard_->Match(url, false);
+    return override_caching_wildcard_.Match(url, false);
   }
 
   void AddRejectedUrlWildcard(const GoogleString& wildcard) {
@@ -2606,7 +2473,6 @@ class RewriteOptions {
     }
 
     const T& value() const { return value_; }
-    T& mutable_value() { was_set_ = true; return value_; }
 
     // The signature of the Merge implementation must match the base-class.  The
     // caller is responsible for ensuring that only the same typed Options are
@@ -2682,8 +2548,7 @@ class RewriteOptions {
     Option() {}
 
     // Sets value_ from value_string.
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail) {
+    virtual bool SetFromString(StringPiece value_string) {
       T value;
       bool success = RewriteOptions::ParseFromString(value_string, &value);
       if (success) {
@@ -2723,14 +2588,9 @@ class RewriteOptions {
 
     // Merges src_base into this by taking the maximum of the two values.
     //
-    // We expect to have exclusive access to 'this' and don't need to lock it,
+    // We expect ot have exclusive access to 'this' and don't need to lock it,
     // but we use locked access to src_base->value().
     virtual void Merge(const OptionBase* src_base);
-
-    // We provide a more specific Merge here so that we can use an unaliased
-    // name for src to provide lock annotation.
-    void Merge(const MutexedOptionInt64MergeWithMax* src)
-        LOCKS_EXCLUDED(src->mutex());
 
     // The value() must only be taken when the mutex is held.  This is
     // only called by RewriteOptions::UpdateCacheInvalidationTimestampMs
@@ -2742,7 +2602,7 @@ class RewriteOptions {
     // a lock and can't take it again.  When writing the invalidation
     // timestamp at initial configuration time, we don't need the
     // lock.
-    void checked_set(const int64& value) EXCLUSIVE_LOCKS_REQUIRED(mutex()) {
+    void checked_set(const int64& value) {
       mutex_->DCheckLocked();
       Option<int64>::set(value);
     }
@@ -2760,9 +2620,7 @@ class RewriteOptions {
     // Also note that this mutex, when installed, is also used to
     // lock access to RewriteOptions::signature(), which depends on
     // the cache invalidation timestamp.
-    ThreadSystem::RWLock* mutex() const LOCK_RETURNED(mutex_) {
-      return mutex_.get();
-    }
+    ThreadSystem::RWLock* mutex() const { return mutex_.get(); }
 
     // Takes ownership of mutex.  Note that by default, mutex()
     // has a NullRWLock.  Only by calling set_mutex do we add locking
@@ -2808,6 +2666,9 @@ class RewriteOptions {
   // for use during construction.  However, we use a global sorted
   // list for fast merging and setting-by-option-name.
   static void MergeSubclassProperties(Properties* properties);
+
+  // Forbid filters that PreserveUrls is incompatible with.
+  void ForbidFiltersForPreserveUrl();
 
   // Populates all_options_, based on the passed-in index, which
   // should correspond to the property index calculated after
@@ -2862,12 +2723,6 @@ class RewriteOptions {
 
  private:
   struct OptionIdCompare;
-
-  // Enum type used to record what action must be taken to resolve conflicts
-  // between "preserve URLs" and "extend cache" directives at different levels
-  // of the merge.  The lower priority wins.  These must be calculated before
-  // option/filter merging, and then performed after option/filter merging.
-  enum MergeOverride { kNoAction, kDisablePreserve, kDisableFilter };
 
   // The base class for a Property.  This class contains fields of
   // Properties that are independent of type.
@@ -3135,23 +2990,24 @@ class RewriteOptions {
       const StringPiece& filters, FilterSet* set, MessageHandler* handler);
   static bool AddCommaSeparatedListToFilterSet(
       const StringPiece& filters, FilterSet* set, MessageHandler* handler);
+  // Fix any option conflicts (e.g., if two options are mutually exclusive, then
+  // disable one.)
+  void ResolveConflicts();
   // Initialize the Filter id to enum reverse array used for fast lookups.
   static void InitFilterIdToEnumArray();
   static void InitOptionIdToPropertyArray();
   static void InitOptionNameToPropertyArray();
+  // If str match a cacheable family pattern then returns the
+  // PrioritizeVisibleContentFamily that it matches, else returns NULL.
+  const PrioritizeVisibleContentFamily* FindPrioritizeVisibleContentFamily(
+      const StringPiece str) const;
 
-  // Helper for converting the result of SetOptionFromNameInternal into
+  // Helper for converting the result of SetOptionFromName into
   // a status/message pair. The returned result may be adjusted from the passed
   // in one (in particular when option_name is kNullOption).
   OptionSettingResult FormatSetOptionMessage(
       OptionSettingResult result, StringPiece name, StringPiece value,
-      StringPiece error_detail, GoogleString* msg);
-
-  // Backend to SetOptionFromName that doesn't do full message formatting.
-  // *error_detail may not be always set.
-  OptionSettingResult SetOptionFromNameInternal(
-      StringPiece name, StringPiece value, bool from_query,
-      GoogleString* error_detail);
+      GoogleString* msg);
 
   // These static methods enable us to generate signatures for all
   // instantiated option-types from Option<T>::Signature().
@@ -3168,13 +3024,8 @@ class RewriteOptions {
                                       const Hasher* hasher);
   static GoogleString OptionSignature(RewriteLevel x,
                                       const Hasher* hasher);
-  static GoogleString OptionSignature(ResourceCategorySet x,
-                                      const Hasher* hasher);
   static GoogleString OptionSignature(const BeaconUrl& beacon_url,
                                       const Hasher* hasher);
-  static GoogleString OptionSignature(
-      const protobuf::MessageLite& proto,
-      const Hasher* hasher);
 
   // These static methods enable us to generate strings for all
   // instantiated option-types from Option<T>::Signature().
@@ -3191,9 +3042,7 @@ class RewriteOptions {
     return x;
   }
   static GoogleString ToString(RewriteLevel x);
-  static GoogleString ToString(const ResourceCategorySet &x);
   static GoogleString ToString(const BeaconUrl& beacon_url);
-  static GoogleString ToString(const protobuf::MessageLite& proto);
 
   // Returns true if p1's option_name is less than p2's. Used to order
   // all_properties_ and all_options_.
@@ -3218,37 +3067,6 @@ class RewriteOptions {
       const FilterEnumToIdAndNameEntry* e2) {
     return strcmp(e1->filter_id, e2->filter_id) < 0;
   }
-
-  // Return the effective option name. If the name is deprecated, the new name
-  // will be returned; otherwise the name will be returned as is.
-  static StringPiece GetEffectiveOptionName(StringPiece name);
-
-  // In OptimizeForBandwidth mode, this sets up certain default filters
-  // and options, which take effect only if not explicitly overridden.
-  bool CheckBandwidthOption(const Option<bool>& option) const {
-    if (option.was_set() || (level() != kOptimizeForBandwidth)) {
-      return option.value();
-    }
-    return true;
-  }
-
-  // Helps resolve the conflict between explicit extend_cache filters and
-  // preserve settings, but does not perform the action itself.  This is so
-  // that the standard option-merging and filter-merging that works over
-  // all filters can function.  This function is called prior to merging
-  // options and filters.  The resulting value is then passed to
-  // ApplyMergeOverride, which must be run after the filter/option merging.
-  MergeOverride ComputeMergeOverride(
-      Filter filter,
-      const Option<bool>& src_preserve_option,
-      const Option<bool>& preserve_option,
-      const RewriteOptions& src);
-
-  // Applies the results of ComputeMergeOverride.
-  void ApplyMergeOverride(
-      MergeOverride merge_override,
-      Filter filter,
-      Option<bool>* preserve_option);
 
   bool modified_;
   bool frozen_;
@@ -3287,6 +3105,10 @@ class RewriteOptions {
   Option<bool> css_preserve_urls_;
   Option<bool> js_preserve_urls_;
   Option<bool> image_preserve_urls_;
+
+  // Option to rewrite the request to origin url before we start processing
+  // the request.
+  Option<bool> rewrite_request_urls_early_;
 
   Option<int64> image_inline_max_bytes_;
   Option<int64> js_inline_max_bytes_;
@@ -3433,9 +3255,6 @@ class RewriteOptions {
   // The experiment framework reports to Google Analytice in a custom variable
   // slot.  Specify which one to use.
   Option<int> experiment_ga_slot_;
-  // For testing purposes you can force users to be enrolled in a specific
-  // experiment.  This makes most sense in a query param.
-  Option<int> enroll_experiment_id_;
 
   // Increase the percentage of hits to 10% (current max) that have
   // site speed tracking in Google Analytics.
@@ -3445,8 +3264,6 @@ class RewriteOptions {
   // won't have effect, if onload beacon is sent before unload event is
   // trigggered.
   Option<bool> report_unload_time_;
-
-  Option<bool> serve_rewritten_webp_urls_to_any_agent_;
 
   // Flush more resources if origin is slow to respond.
   Option<bool> flush_more_resources_early_if_time_permits_;
@@ -3553,10 +3370,6 @@ class RewriteOptions {
   // The host:port/path prefix to be used for purging the cached responses.
   Option<GoogleString> downstream_cache_purge_location_prefix_;
 
-  // The webmaster-provided key used to authenticate rebeaconing requests from
-  // downstream caches.
-  Option<GoogleString> downstream_cache_rebeaconing_key_;
-
   // Threshold for amount of rewriting finished before the response was served
   // out (expressed as a percentage) and simultaneously stored in the downstream
   // cache  beyond which the response will not be purged from the cache even if
@@ -3644,8 +3457,6 @@ class RewriteOptions {
   // reports more information in the beacon.
   Option<bool> enable_extended_instrumentation_;
 
-  Option<bool> use_experimental_js_minifier_;
-
   // Maximum size allowed for the combined CSS resource.
   // Negative value will bypass the size check.
   Option<int64> max_combined_css_bytes_;
@@ -3667,7 +3478,7 @@ class RewriteOptions {
   // for any urls if this value is negative. The same TTL value is used for all
   // urls that match override_caching_wildcard_.
   Option<int64> override_caching_ttl_ms_;
-  CopyOnWrite<FastWildcardGroup> override_caching_wildcard_;
+  FastWildcardGroup override_caching_wildcard_;
 
   // The minimum milliseconds of cache TTL for all resources that are
   // explicitly cacheable. This overrides the max-age even when it is set on
@@ -3694,6 +3505,8 @@ class RewriteOptions {
   // b. low-res image is not small enough compared to the full-res version.
   Option<int64> max_low_res_image_size_bytes_;
   Option<int> max_low_res_to_full_res_image_size_percentage_;
+
+  Option<bool> use_image_scanline_api_;
 
   // Be sure to update constructor when new fields are added so that they are
   // added to all_options_, which is used for Merge, and eventually, Compare.
@@ -3731,22 +3544,18 @@ class RewriteOptions {
   // interpreted as containing urls.
   scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
 
-  Option<ResourceCategorySet> inline_unauthorized_resource_types_;
-
   CopyOnWrite<JavascriptLibraryIdentification>
       javascript_library_identification_;
 
   CopyOnWrite<DomainLawyer> domain_lawyer_;
   FileLoadPolicy file_load_policy_;
 
-  CopyOnWrite<FastWildcardGroup> allow_resources_;
-  CopyOnWrite<FastWildcardGroup> allow_when_inlining_resources_;
-  CopyOnWrite<FastWildcardGroup> retain_comments_;
-  CopyOnWrite<FastWildcardGroup> lazyload_enabled_classes_;
-
+  FastWildcardGroup allow_resources_;
+  FastWildcardGroup retain_comments_;
+  FastWildcardGroup lazyload_enabled_classes_;
   // When certain url patterns are in the referer we want to do a blocking
   // rewrite.
-  CopyOnWrite<FastWildcardGroup> blocking_rewrite_referer_urls_;
+  FastWildcardGroup blocking_rewrite_referer_urls_;
 
   // Using StringPiece here is safe since all entries in this map have static
   // strings as the key.

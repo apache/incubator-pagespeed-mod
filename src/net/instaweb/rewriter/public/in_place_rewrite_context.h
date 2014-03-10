@@ -39,7 +39,6 @@
 
 namespace net_instaweb {
 
-class CachedResult;
 class CacheUrlAsyncFetcher;
 class InputInfo;
 class MessageHandler;
@@ -117,8 +116,7 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   virtual void Harvest();
   void StartFetchReconstructionParent();
   // Implements RewriteContext::FixFetchFallbackHeaders().
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers);
+  virtual void FixFetchFallbackHeaders(ResponseHeaders* headers);
   // Implements RewriteContext::FetchTryFallback().
   virtual void FetchTryFallback(const GoogleString& url,
                                 const StringPiece& hash);
@@ -133,10 +131,9 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   // Returns true if kInPlaceOptimizeForBrowser is enabled and we
   // actually need to do browser specific rewriting based on options.
   bool InPlaceOptimizeForBrowserEnabled() const;
-  // Add a Vary: user-agent or Vary: Accept header as appropriate
-  // if the fetch result may be browser dependent.
-  void AddVaryIfRequired(const CachedResult& cached_result,
-                         ResponseHeaders* headers) const;
+  // Returns true if the "Vary: User-Agent" header should be added for the
+  // rewritten resource.
+  bool ShouldAddVaryUserAgent() const;
 
   RewriteDriver* driver_;
   GoogleString url_;

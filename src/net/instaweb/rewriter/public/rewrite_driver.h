@@ -48,9 +48,7 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/url_segment_encoder.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/util/categorized_refcount.h"
 
 namespace net_instaweb {
@@ -58,9 +56,10 @@ namespace net_instaweb {
 class AbstractLogRecord;
 class AbstractMutex;
 class AbstractPropertyPage;
+class AddInstrumentationFilter;
 class AsyncFetch;
+class CommonFilter;
 class CriticalCssResult;
-class CriticalKeys;
 class CriticalLineInfo;
 class DebugFilter;
 class DomStatsFilter;
@@ -80,6 +79,7 @@ class RequestProperties;
 class RequestTrace;
 class ResourceContext;
 class ResourceNamer;
+class ResponseHeaders;
 class RewriteContext;
 class RewriteDriverPool;
 class RewriteFilter;
@@ -87,7 +87,6 @@ class SplitHtmlConfig;
 class Statistics;
 class UrlAsyncFetcher;
 class UrlLeftTrimFilter;
-class UrlNamer;
 class Writer;
 
 // This extends class HtmlParse (which should renamed HtmlContext) by providing
@@ -128,17 +127,13 @@ class RewriteDriver : public HtmlParse {
     kIsNotXhtml
   };
 
-  // See CreateInputResource.
-  enum InlineAuthorizationPolicy {
-    kInlineUnauthorizedResources,
-    kInlineOnlyAuthorizedResources
-  };
-
-  // See CreateInputResource.
-  enum IntendedFor {
-    kIntendedForInlining,
-    kIntendedForGeneral
-  };
+  // A list of HTTP request headers.  These are the headers which
+  // should be passed through from the client request into the
+  // ResponseHeaders request_headers sent to the rewrite driver.
+  // Headers not in this list will be ignored so there is no need to
+  // copy them over.
+  // TODO(sligocki): Use these in ProxyInterface flow.
+  static const char* kPassThroughRequestAttributes[7];
 
   // This string identifies, for the PropertyCache, a group of properties
   // that are computed from the DOM, and thus can, if desired, be rewritten
@@ -156,6 +151,9 @@ class RewriteDriver : public HtmlParse {
   static const char kSubresourcesPropertyName[];
   // Status codes of previous responses.
   static const char kStatusCodePropertyName[];
+  // Value of the kXPsaBlockingRewriteMode header which causes the blocking
+  // rewrite to wait for async events.
+  static const char kXPsaBlockingRewriteModeSlow[];
 
   RewriteDriver(MessageHandler* message_handler,
                 FileSystem* file_system,
@@ -303,15 +301,6 @@ class RewriteDriver : public HtmlParse {
   // pre-render chain.
   void PrependRewriteFilter(RewriteFilter* filter);
 
-  // Tells RewriteDriver that a certain portion of URL namespace should not
-  // be handled via usual (HTTP proxy semantics) means. It's up to
-  // the filters to actually arrange for that to do something.
-  // Takes ownership of the claimant object. Note that it's important for the
-  // claims to be disjoint, since the RewriteContext framework needs to
-  // be able to assign compatible Resource objects for same URLs/slots among
-  // all filters that deal with them.
-  void AddResourceUrlClaimant(ResourceUrlClaimant* claimant);
-
   // Controls how HTML output is written.  Be sure to call this last, after
   // all other filters have been established.
   //
@@ -393,11 +382,7 @@ class RewriteDriver : public HtmlParse {
   // As above, but does not actually create a resource object,
   // and instead outputs the decoded information into the various out
   // parameters. Returns whether decoding successful or not.
-  // Uses options_to_use rather than this->options() to determine which
-  // drivers are forbidden from applying, etc.
   bool DecodeOutputResourceName(const GoogleUrl& url,
-                                const RewriteOptions* options_to_use,
-                                const UrlNamer* url_namer,
                                 ResourceNamer* name_out,
                                 OutputResourceKind* kind_out,
                                 RewriteFilter** filter_out) const;
@@ -405,13 +390,6 @@ class RewriteDriver : public HtmlParse {
   // Decodes the incoming pagespeed url to original url(s).
   bool DecodeUrl(const GoogleUrl& url,
                  StringVector* decoded_urls) const;
-
-  // As above, but lets one specify the options and URL namer to use.
-  // Meant for use with the decoding_driver.
-  bool DecodeUrlGivenOptions(const GoogleUrl& url,
-                             const RewriteOptions* options,
-                             const UrlNamer* url_namer,
-                             StringVector* decoded_urls) const;
 
   FileSystem* file_system() { return file_system_; }
   UrlAsyncFetcher* async_fetcher() { return url_async_fetcher_; }
@@ -436,6 +414,10 @@ class RewriteDriver : public HtmlParse {
 
   ServerContext* server_context() const { return server_context_; }
   Statistics* statistics() const;
+
+  AddInstrumentationFilter* add_instrumentation_filter() {
+    return add_instrumentation_filter_;
+  }
 
   // Takes ownership of 'options'.
   void set_custom_options(RewriteOptions* options) {
@@ -555,27 +537,8 @@ class RewriteDriver : public HtmlParse {
 
   // Creates an input resource based on input_url.  Returns NULL if
   // the input resource url isn't valid, or can't legally be rewritten in the
-  // context of this page.  Assumes resources from unauthorized domains may not
-  // be rewritten and the resource is not intended exclusively for inlining.
+  // context of this page.
   ResourcePtr CreateInputResource(const GoogleUrl& input_url);
-
-  // Creates an input resource.  Returns NULL if the input resource url isn't
-  // valid, or can't legally be rewritten in the context of this page (which
-  // could mean that it was a resource from an unauthorized domain being
-  // processed by a filter that does not allow unauthorized resources).
-  //
-  // There are two options, and if you don't care about them you should just
-  // call CreateInputResource(input_url) to use its defaults:
-  // * If resources from unauthorized domains may be inlined, set
-  //   inline_authorization_policy to kInlineUnauthorizedResources, otherwise
-  //   set it to kInlineOnlyAuthorizedResources.
-  // * If this resource will be inlined after fetching, then set intended_for to
-  //   kIntendedForInlining, otherwise use kIntendedForGeneral.  This is to
-  //   support AllowWhenInlining.
-  ResourcePtr CreateInputResource(
-      const GoogleUrl& input_url,
-      InlineAuthorizationPolicy inline_authorization_policy,
-      IntendedFor intended_for);
 
   // Creates an input resource from the given absolute url.  Requires that the
   // provided url has been checked, and can legally be rewritten in the current
@@ -583,27 +546,17 @@ class RewriteDriver : public HtmlParse {
   ResourcePtr CreateInputResourceAbsoluteUnchecked(
       const StringPiece& absolute_url);
 
-  // Returns true if some ResourceUrlClaimant has staked a claim on given URL.
-  // If this returns true, CreateInputResource will fail, but it's probably
-  // not worth logging any debug filter hints about that.
-  bool IsResourceUrlClaimed(const GoogleUrl& url) const;
-
   // Checks to see if the input_url has the same origin as and the base url, to
   // make sure we're not fetching from another server. Does not consult the
   // domain lawyer, and is not affected by AddDomain().
   // Precondition: input_url.IsWebValid()
   bool MatchesBaseUrl(const GoogleUrl& input_url) const;
 
-  // Checks to see if we can write the input_url resource in the domain_url
-  // taking into account domain authorization, wildcard allow/disallow from
-  // RewriteOptions, and the intended use of the url's resource.  After the
-  // function is executed, is_authorized_domain will indicate whether input_url
-  // was found to belong to an authorized domain or not.
+  // Checks to see if we can write the input_url resource in the
+  // domain_url taking into account domain authorization and
+  // wildcard allow/disallow from RewriteOptions.
   bool MayRewriteUrl(const GoogleUrl& domain_url,
-                     const GoogleUrl& input_url,
-                     InlineAuthorizationPolicy inline_authorization_policy,
-                     IntendedFor intended_for,
-                     bool* is_authorized_domain) const;
+                     const GoogleUrl& input_url) const;
 
   // Returns the appropriate base gurl to be used for resolving hrefs
   // in the document.  Note that HtmlParse::google_url() is the URL
@@ -654,8 +607,7 @@ class RewriteDriver : public HtmlParse {
   // parsing, although the Rewrite might continue after deadlines expire
   // and the rewritten HTML must be flushed.  Returns InitiateRewrite returns
   // false if the system is not healthy enough to support resource rewrites.
-  bool InitiateRewrite(RewriteContext* rewrite_context)
-      LOCKS_EXCLUDED(rewrite_mutex());
+  bool InitiateRewrite(RewriteContext* rewrite_context);
   void InitiateFetch(RewriteContext* rewrite_context);
 
   // Provides a mechanism for a RewriteContext to notify a
@@ -707,8 +659,7 @@ class RewriteDriver : public HtmlParse {
   // As above, but with a time bound, and taking a mode parameter to decide
   // between WaitForCompletion or WaitForShutDown behavior.
   // If timeout_ms <= 0, no time bound will be used.
-  void BoundedWaitFor(WaitMode mode, int64 timeout_ms)
-      LOCKS_EXCLUDED(rewrite_mutex());
+  void BoundedWaitFor(WaitMode mode, int64 timeout_ms);
 
   // If this is set to true, during a Flush of HTML the system will
   // wait for results of all rewrites rather than just waiting for
@@ -894,6 +845,9 @@ class RewriteDriver : public HtmlParse {
       StringPiece property_name,
       StringPiece property_value);
 
+  void set_client_id(const StringPiece& id) { client_id_ = id.as_string(); }
+  const GoogleString& client_id() const { return client_id_; }
+
   // Returns the property page which contains the cached properties associated
   // with the current URL.
   PropertyPage* property_page() const;
@@ -917,9 +871,6 @@ class RewriteDriver : public HtmlParse {
   // Inserts the critical images present on the requested html page. It takes
   // the ownership of critical_line_info.
   void set_critical_line_info(CriticalLineInfo* critical_line_info);
-
-  CriticalKeys* beacon_critical_line_info() const;
-  void set_beacon_critical_line_info(CriticalKeys* beacon_critical_line_info);
 
   const SplitHtmlConfig* split_html_config();
 
@@ -1028,6 +979,12 @@ class RewriteDriver : public HtmlParse {
   void set_flush_early_render_info(
       FlushEarlyRenderInfo* flush_early_render_info);
 
+  void set_serve_blink_non_critical(bool x) { serve_blink_non_critical_ = x; }
+  bool serve_blink_non_critical() const { return serve_blink_non_critical_; }
+
+  void set_is_blink_request(bool x) { is_blink_request_ = x; }
+  bool is_blink_request() const { return is_blink_request_; }
+
   // Determines whether we are currently in Debug mode; meaning that the
   // site owner or user has enabled filter kDebug.
   bool DebugMode() const { return options()->Enabled(RewriteOptions::kDebug); }
@@ -1113,24 +1070,23 @@ class RewriteDriver : public HtmlParse {
   bool DistributeFetch(const StringPiece& url, const StringPiece& filter_id,
                        AsyncFetch* async_fetch);
 
-  // Checks whether outstanding rewrites are completed in a satisfactory fashion
-  // with respect to given wait_mode and timeout, and invokes done->Run() (with
-  // rewrite_mutex released) when either finished or timed out. May relinquish
-  // rewrite_mutex() temporarily to invoke done.
+  // Checks whether outstanding rewrites are completed in a satisfactory
+  // fashion with respect to given wait_mode and timeout, and invokes
+  // done->Run() (with rewrite_mutex released) when either finished or timed
+  // out. Assumes rewrite_mutex held. May relinquish it temporarily to invoke
+  // done.
   void CheckForCompletionAsync(WaitMode wait_mode, int64 timeout_ms,
-                               Function* done)
-      EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
+                               Function* done);
 
-  // A single check attempt for the above. Will either invoke callback (with
-  // rewrite_mutex released) or ask scheduler to check again. May relinquish
-  // rewrite_mutex() temporarily to invoke done.
+  // A single check attempt for the above. Will either invoke callback
+  // (with rewrite_mutex released) or ask scheduler to check again.
+  // Assumes rewrite_mutex held. May relinquish it temporarily to invoke
+  // done.
   void TryCheckForCompletion(WaitMode wait_mode, int64 end_time_ms,
-                             Function* done)
-      EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
+                             Function* done);
 
-  // Termination predicate for above.
-  bool IsDone(WaitMode wait_mode, bool deadline_reached)
-      EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
+  // Termination predicate for above; assumes locks held.
+  bool IsDone(WaitMode wait_mode, bool deadline_reached);
 
   // Always wait for pending async events during shutdown or while waiting for
   // the completion of all rewriting (except in fast_blocking_rewrite mode).
@@ -1158,7 +1114,8 @@ class RewriteDriver : public HtmlParse {
   void QueueFinishParseAfterFlush(Function* user_callback);
   void FinishParseAfterFlush(Function* user_callback);
 
-  bool RewritesComplete() const EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
+  // Must be called with rewrites_mutex_ held.
+  bool RewritesComplete() const;
 
   // Sets the base GURL in response to a base-tag being parsed.  This
   // should only be called by ScanFilter.
@@ -1173,9 +1130,7 @@ class RewriteDriver : public HtmlParse {
   void SetDecodedUrlFromBase();
 
   // The rewrite_mutex is owned by the scheduler.
-  AbstractMutex* rewrite_mutex() const LOCK_RETURNED(scheduler_->mutex()) {
-    return scheduler_->mutex();
-  }
+  AbstractMutex* rewrite_mutex() { return scheduler_->mutex(); }
 
   // Parses an arbitrary block of an html file
   virtual void ParseTextInternal(const char* content, int size);
@@ -1184,6 +1139,11 @@ class RewriteDriver : public HtmlParse {
   bool ShouldSkipParsing();
 
   friend class ScanFilter;
+
+  // Adds a CommonFilter into the HtmlParse filter-list, and into the
+  // Scan filter-list for initiating async resource fetches.   See
+  // ScanRequestUrl above.
+  void AddCommonFilter(CommonFilter* filter);
 
   // Registers RewriteFilter in the map, but does not put it in the
   // html parse filter chain.  This allows it to serve resource
@@ -1198,19 +1158,14 @@ class RewriteDriver : public HtmlParse {
 
   // Internal low-level helper for resource creation.
   // Use only when permission checking has been done explicitly on the
-  // caller side. is_authorized_domain is passed along to Resource object
-  // creation, in order to decide whether to keep the resource in the usual
-  // key space or a separate one meant for unauthorized resources only.
-  ResourcePtr CreateInputResourceUnchecked(const GoogleUrl& gurl,
-                                           bool is_authorized_domain);
+  // caller side.
+  ResourcePtr CreateInputResourceUnchecked(const GoogleUrl& gurl);
 
   void AddPreRenderFilters();
   void AddPostRenderFilters();
 
   // Helper function to decode the pagespeed url.
   bool DecodeOutputResourceNameHelper(const GoogleUrl& url,
-                                      const RewriteOptions* options_to_use,
-                                      const UrlNamer* url_namer,
                                       ResourceNamer* name_out,
                                       OutputResourceKind* kind_out,
                                       RewriteFilter** filter_out,
@@ -1227,6 +1182,8 @@ class RewriteDriver : public HtmlParse {
   // a RewriteFilter, should override
   // RewriteFilter::UsesPropertyCacheDomCohort() to return true.
   void WriteDomCohortIntoPropertyCache();
+
+  void FinalizeFilterLogging();
 
   // Used by CreateCacheFetcher() and CreateCacheOnlyFetcher().
   CacheUrlAsyncFetcher* CreateCustomCacheFetcher(UrlAsyncFetcher* base_fetcher);
@@ -1271,12 +1228,12 @@ class RewriteDriver : public HtmlParse {
   //
   //   SignalIfRequired(should_signal_cookie);
   //
-  // WARNING: SignalIfRequired() drops the lock on rewrite_mutex() temporarily,
-  // so 'this' could get deleted after it returns, so it should not be accessed
+  // Precondition: rewrite_mutex() is held.
+  // WARNING: SignalIfRequired() drops the lock temporarily, so 'this'
+  // could get deleted after it returns, so it should not be accessed
   // afterwards.
-  bool PrepareShouldSignal() EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
-  void SignalIfRequired(bool result_of_prepare_should_signal)
-      EXCLUSIVE_LOCKS_REQUIRED(rewrite_mutex());
+  bool PrepareShouldSignal();
+  void SignalIfRequired(bool result_of_prepare_should_signal);
 
   // Only the first base-tag is significant for a document -- any subsequent
   // ones are ignored.  There should be no URLs referenced prior to the base
@@ -1299,10 +1256,6 @@ class RewriteDriver : public HtmlParse {
 
   // The charset of the containing HTML page.
   GoogleString containing_charset_;
-
-  // Copies properties from the request headers to the request context,
-  // if both are non-null.
-  void PopulateRequestContext();
 
   bool filters_added_;
   bool externally_managed_;
@@ -1355,7 +1308,7 @@ class RewriteDriver : public HtmlParse {
 
   friend class CategorizedRefcount<RewriteDriver, RefCategory>;
 
-  // Protected by rewrite_mutex().
+  // protected by rewrite_mutex()
   CategorizedRefcount<RewriteDriver, RefCategory> ref_counts_;
 
   // Interface to CategorizedRefcount
@@ -1372,15 +1325,15 @@ class RewriteDriver : public HtmlParse {
 
   // Indicates that the rewrite driver is currently parsing the HTML,
   // and thus should not be recycled under FinishParse() is called.
-  bool parsing_ GUARDED_BY(rewrite_mutex());
+  bool parsing_;  // protected by rewrite_mutex()
 
   // If not kNoWait, indicates that WaitForCompletion or similar method
   // have been called, and an another thread is waiting for us to notify it of
   // everything having been finished in a given mode.
-  WaitMode waiting_ GUARDED_BY(rewrite_mutex());
+  WaitMode waiting_;  // protected by rewrite_mutex()
 
   // This is set to true if the current wait's deadline has expired.
-  bool waiting_deadline_reached_ GUARDED_BY(rewrite_mutex());
+  bool waiting_deadline_reached_;  // protected by rewrite_mutex()
 
   // If this is true, the usual HTML streaming interface will let rendering
   // of every flush window fully complete before proceeding rather than
@@ -1464,10 +1417,10 @@ class RewriteDriver : public HtmlParse {
   // RewriteThread, but have not gotten to the point where
   // RewriteComplete() has been called.  This set is cleared
   // one the rewrite_deadline_ms has passed.
-  RewriteContextSet initiated_rewrites_ GUARDED_BY(rewrite_mutex());
+  RewriteContextSet initiated_rewrites_;  // protected by rewrite_mutex()
 
   // Number of total initiated rewrites for the request.
-  int64 num_initiated_rewrites_ GUARDED_BY(rewrite_mutex());
+  int64 num_initiated_rewrites_;          // protected by rewrite_mutex()
 
   // Number of total detached rewrites for the request, i.e. rewrites whose
   // results did not make it to the response. This is different from
@@ -1476,7 +1429,7 @@ class RewriteDriver : public HtmlParse {
   // currently in the detached state for the current flush window,
   // while this variable is total that ever got detached over all of the
   // document.
-  int64 num_detached_rewrites_ GUARDED_BY(rewrite_mutex());
+  int64 num_detached_rewrites_;           // protected by rewrite_mutex()
 
   // Contains the RewriteContext* that were still running at the deadline.
   // They are said to be in a "detached" state although the RewriteContexts
@@ -1485,10 +1438,10 @@ class RewriteDriver : public HtmlParse {
   // they complete, the RewriteDriver must stay alive and not be Recycled
   // or deleted.  WaitForCompletion() blocks until all detached_rewrites
   // have been retired.
-  RewriteContextSet detached_rewrites_ GUARDED_BY(rewrite_mutex());
+  RewriteContextSet detached_rewrites_;   // protected by rewrite_mutex()
 
   // Rewrites that may possibly be satisfied from metadata cache alone.
-  int possibly_quick_rewrites_ GUARDED_BY(rewrite_mutex());
+  int possibly_quick_rewrites_;           // protected by rewrite_mutex()
 
   // List of RewriteContext objects for fetch to delete. We do it in
   // clear as a simplification.
@@ -1515,6 +1468,7 @@ class RewriteDriver : public HtmlParse {
   // SetSessionFetcher.
   std::vector<UrlAsyncFetcher*> owned_url_async_fetchers_;
 
+  AddInstrumentationFilter* add_instrumentation_filter_;
   DomStatsFilter* dom_stats_filter_;
   scoped_ptr<HtmlWriterFilter> html_writer_filter_;
 
@@ -1545,9 +1499,6 @@ class RewriteDriver : public HtmlParse {
   // The second chain of filters called before waiting for Rewrites to complete.
   FilterList pre_render_filters_;
 
-  // Owned by us.
-  std::vector<ResourceUrlClaimant*> resource_claimants_;
-
   // A container of filters to delete when RewriteDriver is deleted.  This
   // can include pre_render_filters as well as those added to the post-render
   // chain owned by HtmlParse.
@@ -1558,6 +1509,9 @@ class RewriteDriver : public HtmlParse {
   QueuedWorkerPool::Sequence* low_priority_rewrite_worker_;
 
   Writer* writer_;
+
+  // Stores a client identifier associated with this request, if any.
+  GoogleString client_id_;
 
   // Stores any cached properties associated with the current URL and fallback
   // URL (i.e. without query params).
@@ -1570,7 +1524,6 @@ class RewriteDriver : public HtmlParse {
   UserAgentMatcher::DeviceType device_type_;
 
   scoped_ptr<CriticalLineInfo> critical_line_info_;
-  scoped_ptr<CriticalKeys> beacon_critical_line_info_;
 
   scoped_ptr<SplitHtmlConfig> split_html_config_;
 
@@ -1600,6 +1553,12 @@ class RewriteDriver : public HtmlParse {
   scoped_ptr<FlushEarlyInfo> flush_early_info_;
   scoped_ptr<FlushEarlyRenderInfo> flush_early_render_info_;
 
+  // When non-cacheable panels are absent, non-critical content is already
+  // served in blink flow. This flag indicates whether to serve non-critical
+  // from panel_filter / blink_filter or not.
+  bool serve_blink_non_critical_;
+  // Is this a blink request?
+  bool is_blink_request_;
   bool can_rewrite_resources_;
   bool is_nested_;
 
@@ -1636,16 +1595,6 @@ class OptionsAwareHTTPCacheCallback : public HTTPCache::Callback {
   virtual bool IsCacheValid(const GoogleString& key,
                             const ResponseHeaders& headers);
   virtual int64 OverrideCacheTtlMs(const GoogleString& key);
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const;
-
-  // Validates the specified response for the URL, request, given the specified
-  // options.  This is for checking if cache response can still be used, not for
-  // determining whether an entry should be written to an HTTP cache.
-  static bool IsCacheValid(const GoogleString& key,
-                           const RewriteOptions& rewrite_options,
-                           const RequestContextPtr& request_ctx,
-                           const ResponseHeaders& headers);
-
  protected:
   // Sub-classes need to ensure that rewrite_options remains valid till
   // Callback::Done finishes.

@@ -20,9 +20,7 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
-#include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -33,9 +31,9 @@
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -140,6 +138,16 @@ class CssInlineFilterTestCustomOptions : public CssInlineFilterTest {
   // CssInlineFilterTest::SetUp().
   virtual void SetUp() {}
 };
+
+TEST_F(CssInlineFilterTestCustomOptions, InlineCssPreserveURLSOn) {
+  // Make sure that we don't inline when preserve urls is on.
+  options()->set_css_preserve_urls(true);
+  CssInlineFilterTest::SetUp();
+  const GoogleString css = "BODY { color: red; }\n";
+  TestInlineCss("http://www.example.com/index.html",
+                "http://www.example.com/styles.css",
+                "", css, false, css);
+}
 
 TEST_F(CssInlineFilterTest, InlineCssUnhealthy) {
   lru_cache()->set_is_healthy(false);
@@ -278,23 +286,11 @@ TEST_F(CssInlineFilterTest, DoNotInlineCssTooBig) {
                 false, "");
 }
 
-TEST_F(CssInlineFilterTest, DoInlineCssDifferentDomain) {
-  const GoogleString css = "BODY { color: red; }\n";
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
-  TestInlineCss("http://www.example.com/index.html",
-                "http://unauth.com/styles.css",
-                "", css, true, css);
-  EXPECT_EQ(1,
-            statistics()->GetVariable(CssInlineFilter::kNumCssInlined)->Get());
-}
-
 TEST_F(CssInlineFilterTest, DoNotInlineCssDifferentDomain) {
-  // Note: This only fails because we haven't authorized unauth.com
+  // Note: This only fails because we haven't authorized www.example.org
   TestInlineCss("http://www.example.com/index.html",
-                "http://unauth.com/styles.css",
+                "http://www.example.org/styles.css",
                 "", "BODY { color: red; }\n", false, "");
-  EXPECT_EQ(0,
-            statistics()->GetVariable(CssInlineFilter::kNumCssInlined)->Get());
 }
 
 TEST_F(CssInlineFilterTest, CorrectlyInlineCssWithImports) {

@@ -35,7 +35,6 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
@@ -96,7 +95,7 @@ class QueuedWorkerPool {
     //
     // If the pool is being shut down at the time Add is being called,
     // this method will call function->Cancel().
-    void Add(Function* function) LOCKS_EXCLUDED(sequence_mutex_);
+    void Add(Function* function);
 
     void set_queue_size_stat(Waveform* x) { queue_size_ = x; }
 
@@ -106,7 +105,7 @@ class QueuedWorkerPool {
     void set_max_queue_size(size_t x) { max_queue_size_ = x; }
 
     // Calls Cancel on all pending functions in the queue.
-    void CancelPendingFunctions() LOCKS_EXCLUDED(sequence_mutex_);
+    void CancelPendingFunctions();
 
    private:
     // Construct using QueuedWorkerPool::NewSequence().
@@ -124,24 +123,26 @@ class QueuedWorkerPool {
     // added to it from another thread.
     //
     // This function blocks until shutdown is complete.
-    void WaitForShutDown() LOCKS_EXCLUDED(sequence_mutex_);
+    void WaitForShutDown();
 
     // Puts the Sequence in shutdown mode, but does not block until shutdown
     // is complete.  Return 'true' if the sequence is inactive and thus can
     // be immediately recycled.
-    bool InitiateShutDown() LOCKS_EXCLUDED(sequence_mutex_);
+    bool InitiateShutDown();
 
     // Gets the next function in the sequence, and transfers ownership
     // the the caller.
-    Function* NextFunction() LOCKS_EXCLUDED(sequence_mutex_);
+    Function* NextFunction();
 
-    bool IsBusy() EXCLUSIVE_LOCKS_REQUIRED(sequence_mutex_);
+    // Assumes sequence_mutex_ held
+    bool IsBusy();
 
-    // Returns number of tasks that were canceled.
-    int CancelTasksOnWorkQueue() EXCLUSIVE_LOCKS_REQUIRED(sequence_mutex_);
+    // Assumes sequence_mutex_ held. Returns number of tasks that were canceled.
+    int CancelTasksOnWorkQueue();
 
     // Cancels all pending tasks (and updates stats appropriately).
-    void Cancel() LOCKS_EXCLUDED(sequence_mutex_);
+    // Assumes sequence_mutex_ not held.
+    void Cancel();
 
     friend class QueuedWorkerPool;
     std::deque<Function*> work_queue_;

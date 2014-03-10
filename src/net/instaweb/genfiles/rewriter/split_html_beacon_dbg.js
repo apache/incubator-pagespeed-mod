@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -17,7 +17,8 @@
   if (!httpRequest) {
     return!1;
   }
-  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  var query_param_char = -1 == beaconUrl.indexOf("?") ? "?" : "&", url = beaconUrl + query_param_char + "url=" + encodeURIComponent(htmlUrl);
+  httpRequest.open("POST", url);
   httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   httpRequest.send(data);
   return!0;
@@ -41,13 +42,13 @@
   }
   return{top:top, left:left};
 }, getWindowSize:function() {
-  return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
+  var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  return{height:height, width:width};
 }, inViewport:function(element, windowSize) {
-  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+  var position = pagespeedutils.getPosition(element);
+  return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 pagespeedutils.CriticalXPaths = function(viewportWidth, viewportHeight) {
   this.windowSize_ = {height:viewportHeight, width:viewportWidth};
@@ -80,7 +81,7 @@ pagespeed.SplitHtmlBeacon = function(beaconUrl, htmlUrl, optionsHash, nonce) {
 };
 pagespeed.SplitHtmlBeacon.prototype.walkDom_ = function(node) {
   for (var allChildrenBtf = !0, btfChildren = [], currChild = node.firstChild;null != currChild;currChild = currChild.nextSibling) {
-    currChild.nodeType === Node.ELEMENT_NODE && "SCRIPT" != currChild.tagName && "NOSCRIPT" != currChild.tagName && "STYLE" != currChild.tagName && "LINK" != currChild.tagName && (this.walkDom_(currChild) ? btfChildren.push(currChild) : allChildrenBtf = !1);
+    currChild.nodeType === node.ELEMENT_NODE && "SCRIPT" != currChild.tagName && "NOSCRIPT" != currChild.tagName && "STYLE" != currChild.tagName && "LINK" != currChild.tagName && (this.walkDom_(currChild) ? btfChildren.push(currChild) : allChildrenBtf = !1);
   }
   if (allChildrenBtf && !pagespeedutils.inViewport(node, this.windowSize_)) {
     return!0;
@@ -95,7 +96,7 @@ pagespeed.SplitHtmlBeacon.prototype.checkSplitHtml_ = function() {
   if (0 != this.btfNodes_.length) {
     for (var data = "oh=" + this.optionsHash_ + "&n=" + this.nonce_, data = data + ("&xp=" + encodeURIComponent(this.btfNodes_[0])), i = 1;i < this.btfNodes_.length;++i) {
       var tmp = "," + encodeURIComponent(this.btfNodes_[i]);
-      if (data.length + tmp.length > pagespeedutils.MAX_POST_SIZE) {
+      if (131072 < data.length + tmp.length) {
         break;
       }
       data += tmp;
@@ -104,10 +105,10 @@ pagespeed.SplitHtmlBeacon.prototype.checkSplitHtml_ = function() {
   }
 };
 pagespeed.splitHtmlBeaconInit = function(beaconUrl, htmlUrl, optionsHash, nonce) {
-  var temp = new pagespeed.SplitHtmlBeacon(beaconUrl, htmlUrl, optionsHash, nonce);
-  pagespeedutils.addHandler(window, "load", function() {
+  var temp = new pagespeed.SplitHtmlBeacon(beaconUrl, htmlUrl, optionsHash, nonce), beaconOnload = function() {
     temp.checkSplitHtml_();
-  });
+  };
+  pagespeedutils.addHandler(window, "load", beaconOnload);
 };
 pagespeed.splitHtmlBeaconInit = pagespeed.splitHtmlBeaconInit;
 })();

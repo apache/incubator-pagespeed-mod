@@ -34,29 +34,6 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
   enum Method { kOptions, kGet, kHead, kPost, kPut, kDelete, kTrace, kConnect,
                 kPatch, kPurge, kError };
 
-  // To compute cacheability, we have to know a few properties of the request
-  // headers, potentially carrying them through cache lookups.  The request
-  // headers themselves can be expensive and we don't need (for example) the
-  // entire contents of cookies to understand whether there were cookies.  In
-  // fact we can store the request properties we need in the space of a single
-  // int (for now).
-  struct Properties {
-    Properties()                 // The default constructor assumes all
-        : has_cookie(true),      // anti-caching signals are present.
-          has_cookie2(true),
-          has_authorization(false) {  // But we assume no authorization
-                                      // unless populated.
-    }
-    Properties(bool cookie, bool cookie2, bool authorization)
-        : has_cookie(cookie),
-          has_cookie2(cookie2),
-          has_authorization(authorization) {
-    }
-    bool has_cookie;
-    bool has_cookie2;
-    bool has_authorization;
-  };
-
   RequestHeaders();
 
   virtual void Clear();
@@ -90,8 +67,6 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
   // operations called on it afterwards will ensure that it will not do any
   // lazy initialization behind the scenes.
   void PopulateLazyCaches() { PopulateMap(); }
-
-  Properties GetProperties() const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RequestHeaders);

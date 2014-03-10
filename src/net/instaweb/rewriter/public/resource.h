@@ -37,13 +37,11 @@
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/callback.h"
 
 namespace net_instaweb {
 
 class CachedResult;
 struct ContentType;
-class GoogleUrl;
 class InputInfo;
 class MessageHandler;
 class Resource;
@@ -86,14 +84,6 @@ class Resource : public RefCounted<Resource> {
   // Checks if the contents are loaded and valid and also if the resource is
   // up-to-date and cacheable by a proxy like us.
   virtual bool IsValidAndCacheable() const;
-
-  // Whether the domain on which the resource is present is explicitly
-  // authorized or not. Unauthorized resources can be created for the purpose
-  // of inlining content into the HTML.
-  bool is_authorized_domain() { return is_authorized_domain_; }
-  void set_is_authorized_domain(bool is_authorized) {
-    is_authorized_domain_ = is_authorized;
-  }
 
   // Answers question: Are we allowed to rewrite the contents now?
   // Checks if valid and cacheable and if it has a no-transform header.
@@ -281,8 +271,6 @@ class Resource : public RefCounted<Resource> {
                                AsyncCallback* callback) = 0;
 
   void set_enable_cache_purge(bool x) { enable_cache_purge_ = x; }
-  ResponseHeaders::VaryOption respect_vary() const { return respect_vary_; }
-  void set_respect_vary(ResponseHeaders::VaryOption x) { respect_vary_ = x; }
   void set_proactive_resource_freshening(bool x) {
     proactive_resource_freshening_ = x;
   }
@@ -315,17 +303,9 @@ class Resource : public RefCounted<Resource> {
   bool enable_cache_purge_;
   bool proactive_resource_freshening_;
   bool disable_rewrite_on_no_transform_;
-  bool is_authorized_domain_;
-  ResponseHeaders::VaryOption respect_vary_;
 
   DISALLOW_COPY_AND_ASSIGN(Resource);
 };
-
-// Sometimes some portions of URL space need to be handled differently
-// by dedicated resource subclasses. ResourceProvider callbacks are used
-// to teach RewriteDriver about these, so it knows not to build regular
-// UrlInputResource objects.
-typedef Callback2<const GoogleUrl&, bool*> ResourceUrlClaimant;
 
 }  // namespace net_instaweb
 

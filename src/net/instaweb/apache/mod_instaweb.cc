@@ -54,6 +54,7 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 #include "net/instaweb/system/public/loopback_route_fetcher.h"
+#include "net/instaweb/system/public/serf_url_async_fetcher.h"
 #include "net/instaweb/system/public/system_caches.h"
 #include "net/instaweb/system/public/system_rewrite_driver_factory.h"
 #include "net/instaweb/system/public/system_server_context.h"
@@ -133,6 +134,7 @@ const char kModPagespeedDomain[] = "ModPagespeedDomain";
 const char kModPagespeedDownstreamCachePurgeLocationPrefix[] =
     "ModPagespeedDownstreamCachePurgeLocationPrefix";
 const char kModPagespeedEnableFilters[] = "ModPagespeedEnableFilters";
+const char kModPagespeedFetchHttps[] = "ModPagespeedFetchHttps";
 const char kModPagespeedFetchProxy[] = "ModPagespeedFetchProxy";
 const char kModPagespeedFetcherTimeoutMs[] = "ModPagespeedFetcherTimeOutMs";
 const char kModPagespeedFileCachePath[] = "ModPagespeedFileCachePath";
@@ -179,14 +181,10 @@ const char kModPagespeedUrlValuedAttribute[] = "ModPagespeedUrlValuedAttribute";
 const char kModPagespeedUsePerVHostStatistics[] =
     "ModPagespeedUsePerVHostStatistics";
 
-// The following are deprecated due to spelling
+// The following two are deprecated due to spelling
 const char kModPagespeedImgInlineMaxBytes[] = "ModPagespeedImgInlineMaxBytes";
 const char kModPagespeedImgMaxRewritesAtOnce[] =
     "ModPagespeedImgMaxRewritesAtOnce";
-const char kModPagespeedImageWebpRecompressionQuality[] =
-    "ModPagespeedImageWebpRecompressionQuality";
-const char kModPagespeedImageWebpRecompressionQualityForSmallScreens[] =
-    "ModPagespeedImageWebpRecompressionQualityForSmallScreens";
 
 // The following three are deprecated because we didn't finish the feature.
 const char kModPagespeedCollectRefererStatistics[] =
@@ -322,7 +320,7 @@ class ApacheProcessContext {
     // Apache.
     if (factory_.get() == NULL) {
       factory_.reset(new ApacheRewriteDriverFactory(
-          process_context_, server, kModPagespeedVersion));
+          server, kModPagespeedVersion));
     }
     return factory_.get();
   }
@@ -378,8 +376,8 @@ const RewriteOptions* compute_request_options(
 
   bool using_spdy = request_context->using_spdy();
   const RewriteOptions* host_options = server_context->global_options();
-  if (using_spdy && server_context->SpdyGlobalConfig() != NULL) {
-    host_options = server_context->SpdyGlobalConfig();
+  if (using_spdy && server_context->SpdyConfig() != NULL) {
+    host_options = server_context->SpdyConfig();
   }
   const RewriteOptions* options = host_options;
 
@@ -402,7 +400,7 @@ const RewriteOptions* get_request_options(
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return NULL;
   }
   ApacheRewriteDriverFactory* factory = server_context->apache_factory();
@@ -426,7 +424,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return NULL;
   }
   ApacheRewriteDriverFactory* factory = server_context->apache_factory();
@@ -506,8 +504,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
   }
 
   // Determine the absolute URL for this request.
-  const char* absolute_url = InstawebContext::MakeRequestUrl(
-      *server_context->global_config(), request);
+  const char* absolute_url = InstawebContext::MakeRequestUrl(*options, request);
   apache_request->set_url(absolute_url);
 
   // The final URL.  This is same as absolute_url but with ModPagespeed* query
@@ -550,11 +547,8 @@ InstawebContext* build_context_for_request(request_rec* request) {
       RewriteOptions* merged_options = factory->NewRewriteOptions();
       merged_options->Merge(*options);
       merged_options->Merge(*query_options.get());
-      // Don't run any experiments if we're handling a query params request
-      // unless EnrollExperiment is on.
-      if (!merged_options->enroll_experiment()) {
-        merged_options->set_running_experiment(false);
-      }
+      // Don't run any experiments if we're handling a query params request.
+      merged_options->set_running_experiment(false);
       server_context->ComputeSignature(merged_options);
       custom_options.reset(merged_options);
       options = merged_options;
@@ -774,26 +768,18 @@ apr_status_t instaweb_out_filter(ap_filter_t* filter, apr_bucket_brigade* bb) {
   return return_code;
 }
 
-// This is called when mod_pagespeed rewrites HTML, so that headers related to
-// caching maybe updated correctly.
+// This is called when mod_pagespeed rewrites HTML.  At this time we do
+// not want rewritten HTML to be cached, though we may relax that policy
+// with some pagespeed.conf settings in the future.
+//
+// This function removes any expires or cache-control settings added
+// by the user's .conf files, and puts in headers to disable caching.
 //
 // We expect this to run after mod_headers and mod_expires, triggered
 // by the call to ap_add_output_filter(kModPagespeedFixHeadersName...)
 // in build_context_for_request.
-// This method is not called if users set "ModifyCachingHeaders off".
 //
-// This function removes any Expires, Last-Modified or Etag settings added
-// by the user's .conf files.
-//
-// This function also replaces the Cache-Control header with a no-cache value
-// if one of the following conditions are met:
-// 1) Downstream caching integration is disabled.
-// 2) Downstream caching is enabled, downstream cache beaconing key is
-//    configured, and the value of the PS-ShouldBeacon header on the request
-//    matches the configured beaconing key.
-// It retains the original Cache-Control header in all other cases, which
-// correspond to downstream caching integration being enabled and the page
-// being served not being instrumented for beaconing.
+// NOTE: This is disabled if users set "ModifyCachingHeaders false".
 apr_status_t instaweb_fix_headers_filter(
     ap_filter_t* filter, apr_bucket_brigade* bb) {
   request_rec* request = filter->r;
@@ -801,7 +787,7 @@ apr_status_t instaweb_fix_headers_filter(
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -823,20 +809,8 @@ apr_status_t instaweb_fix_headers_filter(
 
   scoped_ptr<RewriteOptions> custom_options;
   const RewriteOptions* options = get_request_options(request, &custom_options);
-  if (!options->IsDownstreamCacheIntegrationEnabled()) {
-    // Downstream cache integration is not enabled. Disable original
-    // Cache-Control headers.
+  if (options->downstream_cache_purge_location_prefix().empty()) {
     DisableCacheControlHeader(request);
-  } else {
-    // Downstream cache integration is enabled. If a rebeaconing key has been
-    // configured and there is a ShouldBeacon header with the correct key,
-    // disable original Cache-Control headers so that the instrumented page is
-    // served out with no-cache.
-    const char* should_beacon = apr_table_get(request->headers_in,
-                                              kPsaShouldBeacon);
-    if (options->MatchesDownstreamCacheRebeaconingKey(should_beacon)) {
-      DisableCacheControlHeader(request);
-    }
   }
 
   // TODO(sligocki): Why remove ourselves? Is it to assure that this filter
@@ -860,7 +834,7 @@ apr_status_t instaweb_in_place_filter(ap_filter_t* filter,
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -941,7 +915,7 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   // Escape ASAP if we're in unplugged mode.
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     ap_remove_output_filter(filter);
     return ap_pass_brigade(filter->next, bb);
   }
@@ -958,8 +932,6 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
        bucket = APR_BUCKET_NEXT(bucket)) {
     if (APR_BUCKET_IS_EOS(bucket)) {
       ResponseHeaders response_headers;
-      response_headers.set_implicit_cache_ttl_ms(
-          recorder->implicit_cache_ttl_ms());
 
       // Note: Since we're post-AP_FTYPE_PROTOCOL the error headers and regular
       // headers have already been merged in Apache, so no need to gather
@@ -994,7 +966,7 @@ void pagespeed_child_init(apr_pool_t* pool, server_rec* server_list) {
        server = server->next) {
     ApacheServerContext* server_context =
         InstawebContext::ServerContextFromServerRec(server);
-    if (!server_context->global_config()->unplugged()) {
+    if (!server_context->config()->unplugged()) {
       if (need_init) {
         ApacheRewriteDriverFactory* factory = apache_process_context.factory(
             server_list);
@@ -1152,7 +1124,7 @@ int pagespeed_modify_request(request_rec* r) {
   // Escape ASAP if we're in unplugged mode.
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(r->server);
-  if (server_context->global_config()->unplugged()) {
+  if (server_context->config()->unplugged()) {
     return OK;
   }
 
@@ -1385,7 +1357,7 @@ static const char* CmdOptions(const cmd_parms* cmd, void* data,
     } else {
       ApacheServerContext* server_context =
           InstawebContext::ServerContextFromServerRec(cmd->server);
-      config = server_context->global_config();
+      config = server_context->config();
     }
   } else {
     // If we're here, we are inside path-specific configuration, so we should
@@ -1532,6 +1504,16 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     ret = ParseOption<RewriteOptions::EnabledEnum>(
         static_cast<RewriteOptions*>(config), cmd, &RewriteOptions::set_enabled,
         arg);
+  } else if (StringCaseEqual(directive, kModPagespeedFetchHttps)) {
+    ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
+    if (ret == NULL) {
+      GoogleString error_message;
+      if (!factory->SetHttpsOptions(arg, &error_message)) {
+        ret = apr_pstrcat(cmd->pool, "Invalid argument '", arg, "' to ",
+                          cmd->directive->directive, ": ",
+                          error_message.c_str(), NULL);
+      }
+    }
   } else if (StringCaseEqual(directive, kModPagespeedForceCaching)) {
     ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
     if (ret == NULL) {
@@ -1887,16 +1869,14 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Deprecated.  Does nothing."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedStatisticsLoggingFile,
         "Deprecated.  Does nothing."),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedImageWebpRecompressionQuality,
-        "Deprecated.  Use ModPagespeedWebpRecompressionQuality"),
-  APACHE_CONFIG_DIR_OPTION(
-        kModPagespeedImageWebpRecompressionQualityForSmallScreens,
-        "Deprecated.  Use ModPagespeedWebpRecompressionQualityForSmallScreens"),
 
   // All one parameter options that can only be specified at the server level.
   // (Not in <Directory> blocks.)
   APACHE_CONFIG_OPTION(kModPagespeedFetcherTimeoutMs,
         "Set internal fetcher timeout in milliseconds"),
+  APACHE_CONFIG_OPTION(kModPagespeedFetchHttps,
+        "Controls direct fetching of HTTPS resources.  Value is "
+        "comma-separated list of keywords: " SERF_HTTPS_KEYWORDS),
   APACHE_CONFIG_OPTION(kModPagespeedFetchProxy, "Set the fetch proxy"),
   APACHE_CONFIG_OPTION(kModPagespeedForceCaching,
         "Ignore HTTP cache headers and TTLs"),
@@ -1928,8 +1908,8 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
   // All two parameter options that are allowed in <Directory> blocks.
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedCustomFetchHeader,
         "custom_header_name custom_header_value"),
-  APACHE_CONFIG_DIR_OPTION23(kModPagespeedMapOriginDomain,
-        "to_domain from_domain[,from_domain]* [host_header]"),
+  APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapOriginDomain,
+        "to_domain from_domain[,from_domain]*"),
   APACHE_CONFIG_DIR_OPTION23(kModPagespeedMapProxyDomain,
         "proxy_domain origin_domain [to_domain]"),
   APACHE_CONFIG_DIR_OPTION2(kModPagespeedMapRewriteDomain,
@@ -2027,9 +2007,8 @@ void* merge_server_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
   ApacheServerContext* vhost_context =
       static_cast<ApacheServerContext*>(new_conf);
   if (global_context->apache_factory()->inherit_vhost_config()) {
-    scoped_ptr<ApacheConfig> merged_config(
-        global_context->global_config()->Clone());
-    merged_config->Merge(*vhost_context->global_config());
+    scoped_ptr<ApacheConfig> merged_config(global_context->config()->Clone());
+    merged_config->Merge(*vhost_context->config());
     // Note that we don't need to do any special handling of cache paths here,
     // since it's all related to actually creating the directories + giving
     // permissions, so doing it at top-level is sufficient.
@@ -2131,7 +2110,6 @@ void ApacheProcessContext::InstallCommands() {
       cmd->cmd_data = NULL;
       switch (option->scope()) {
         case RewriteOptions::kDirectoryScope:
-        case RewriteOptions::kQueryScope:
           cmd->req_override = OR_ALL;
           break;
         case RewriteOptions::kServerScope:

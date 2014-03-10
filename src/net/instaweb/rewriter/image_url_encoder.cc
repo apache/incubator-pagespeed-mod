@@ -20,14 +20,11 @@
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/url_escaper.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
@@ -253,44 +250,15 @@ bool ImageUrlEncoder::Decode(const StringPiece& encoded,
 }
 
 void ImageUrlEncoder::SetLibWebpLevel(
-    const RewriteOptions& options,
     const RequestProperties& request_properties,
     ResourceContext* resource_context) {
   ResourceContext::LibWebpLevel libwebp_level = ResourceContext::LIBWEBP_NONE;
-  // We do enabled checks before Setting the Webp Level, since it avoids writing
-  // two metadata cache keys for same output if webp rewriting is disabled.
-  if (request_properties.SupportsWebpRewrittenUrls() &&
-      (options.Enabled(RewriteOptions::kRecompressWebp) ||
-       options.Enabled(RewriteOptions::kConvertToWebpLossless) ||
-       options.Enabled(RewriteOptions::kConvertJpegToWebp))) {
-    if (request_properties.SupportsWebpLosslessAlpha() &&
-        (options.Enabled(RewriteOptions::kRecompressWebp) ||
-         options.Enabled(RewriteOptions::kConvertToWebpLossless))) {
-      libwebp_level = ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA;
-    } else {
-      libwebp_level = ResourceContext::LIBWEBP_LOSSY_ONLY;
-    }
+  if (request_properties.SupportsWebpLosslessAlpha()) {
+    libwebp_level = ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA;
+  } else if (request_properties.SupportsWebp()) {
+    libwebp_level = ResourceContext::LIBWEBP_LOSSY_ONLY;
   }
   resource_context->set_libwebp_level(libwebp_level);
-}
-
-bool ImageUrlEncoder::IsWebpRewrittenUrl(const GoogleUrl& gurl) {
-  ResourceNamer namer;
-  if (!namer.Decode(gurl.LeafSansQuery())) {
-    return false;
-  }
-
-  // We only convert images to WebP whose URLs were created by
-  // ImageRewriteFilter, whose ID is "ic".  Note that this code will
-  // not ordinarily be awakened for other filters (notabley .ce.) but
-  // is left in for paranoia in case this code is live for some path
-  // of in-place resource optimization of cache-extended images.
-  if (namer.id() != RewriteOptions::kImageCompressionId) {
-    return false;
-  }
-
-  StringPiece webp_extension_with_dot = kContentTypeWebp.file_extension();
-  return namer.ext() == webp_extension_with_dot.substr(1);
 }
 
 void ImageUrlEncoder::SetWebpAndMobileUserAgent(
@@ -301,16 +269,9 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
     return;
   }
 
-  if (driver.options()->serve_rewritten_webp_urls_to_any_agent() &&
-      !driver.fetch_url().empty() &&
-      IsWebpRewrittenUrl(driver.decoded_base_url())) {
-    // See https://developers.google.com/speed/webp/faq#which_web_browsers_natively_support_webp
-    // which indicates that the latest versions of all browsers that support
-    // webp, support webp lossless as well.
-    context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA);
-  } else {
-    SetLibWebpLevel(*options, *driver.request_properties(), context);
-  }
+  // TODO(poojatandon): Do enabled checks before Setting the Webp Level, since
+  // it avoids writing two metadata cache keys for same output.
+  SetLibWebpLevel(*driver.request_properties(), context);
 
   if (options->Enabled(RewriteOptions::kDelayImages) &&
       options->Enabled(RewriteOptions::kResizeMobileImages) &&

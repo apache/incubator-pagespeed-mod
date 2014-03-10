@@ -160,12 +160,11 @@ class StrippingFetch : public StringAsyncFetch {
     // sharded domains, we apply mapping origin domain here.  Simply map all
     // the shards back into the origin domain in pagespeed.conf.
     GoogleString origin_url;
-    GoogleString host_header;
     bool is_proxy = false;
-    if (lawyer_->MapOrigin(url_, &origin_url, &host_header, &is_proxy)) {
+    if (lawyer_->MapOrigin(url_, &origin_url, &is_proxy)) {
       url_ = origin_url;
       GoogleUrl gurl(url_);
-      request_headers()->Replace(HttpAttributes::kHost, host_header);
+      request_headers()->Replace(HttpAttributes::kHost, gurl.Host());
     }
 
     fetcher_->Fetch(url_, message_handler_, this);
@@ -244,11 +243,10 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
   UrlAsyncFetcher* fetcher = server_context->DefaultSystemFetcher();
   scoped_ptr<HttpDumpUrlFetcher> slurp_fetcher;
 
-  ApacheConfig* global_config = server_context->global_config();
-  if (global_config->test_proxy() &&
-      !global_config->test_proxy_slurp().empty()) {
+  ApacheConfig* config = server_context->config();
+  if (config->test_proxy() && !config->test_proxy_slurp().empty()) {
     slurp_fetcher.reset(new HttpDumpUrlFetcher(
-        global_config->test_proxy_slurp(), server_context->file_system(),
+        config->test_proxy_slurp(), server_context->file_system(),
         server_context->timer()));
     fetcher = slurp_fetcher.get();
   }
@@ -257,7 +255,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
   RequestContextPtr request_context(
       new RequestContext(server_context->thread_system()->NewMutex(),
                          server_context->timer()));
-  StrippingFetch fetch(stripped_url, global_config->domain_lawyer(),
+  StrippingFetch fetch(stripped_url, server_context->config()->domain_lawyer(),
                        fetcher, server_context->thread_system(),
                        request_context, handler);
   ApacheRequestToRequestHeaders(*r, fetch.request_headers());
@@ -270,7 +268,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
     ApacheWriter apache_writer(r);
     apache_writer.set_disable_downstream_header_filters(true);
     ChunkingWriter chunking_writer(
-        &apache_writer, global_config->slurp_flush_limit());
+        &apache_writer, server_context->config()->slurp_flush_limit());
     apache_writer.OutputHeaders(fetch.response_headers());
     chunking_writer.Write(fetch.buffer(), handler);
   } else {

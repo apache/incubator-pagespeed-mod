@@ -163,9 +163,6 @@ class SystemRewriteOptions : public RewriteOptions {
     return cache_flush_filename_.value();
   }
 
-  const GoogleString& https_options() const {
-    return https_options_.value();
-  }
   const GoogleString& ssl_cert_directory() const {
     return ssl_cert_directory_.value();
   }
@@ -262,14 +259,6 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<GoogleString> statistics_handler_path_;
 
  private:
-  // We have some special parsing error-checking requirements for
-  // FetchHttps
-  class HttpsOptions : public Option<GoogleString> {
-   public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
-  };
-
   // Keeps the properties added by this subclass.  These are merged into
   // RewriteOptions::all_properties_ during Initialize().
   static Properties* system_properties_;
@@ -314,7 +303,6 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<GoogleString> cache_flush_filename_;
   Option<GoogleString> ssl_cert_directory_;
   Option<GoogleString> ssl_cert_file_;
-  HttpsOptions https_options_;
 
   Option<GoogleString> slurp_directory_;
   Option<GoogleString> test_proxy_slurp_;

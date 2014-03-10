@@ -42,11 +42,14 @@ SupportNoscriptFilter::SupportNoscriptFilter(RewriteDriver* rewrite_driver)
 SupportNoscriptFilter::~SupportNoscriptFilter() {
 }
 
-void SupportNoscriptFilter::DetermineEnabled() {
+void SupportNoscriptFilter::StartDocument() {
   // Insert a NOSCRIPT tag only if at least one of the filters requiring
   // JavaScript for execution is enabled.
-  should_insert_noscript_ = IsAnyFilterRequiringScriptExecutionEnabled();
-  set_is_enabled(should_insert_noscript_);
+  if (IsAnyFilterRequiringScriptExecutionEnabled()) {
+    should_insert_noscript_ = true;
+  } else {
+    should_insert_noscript_ = false;
+  }
 }
 
 void SupportNoscriptFilter::StartElement(HtmlElement* element) {

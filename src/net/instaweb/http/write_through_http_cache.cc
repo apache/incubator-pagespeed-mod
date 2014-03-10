@@ -46,8 +46,7 @@ class FallbackCacheCallback: public HTTPCache::Callback {
                         HTTPCache* cache1,
                         HTTPCache::Callback* client_callback,
                         UpdateCache1HandlerFunction function)
-      : HTTPCache::Callback(client_callback->request_context(),
-                            client_callback->req_properties()),
+      : HTTPCache::Callback(client_callback->request_context()),
         key_(key),
         write_through_http_cache_(write_through_http_cache),
         cache1_(cache1),
@@ -55,10 +54,6 @@ class FallbackCacheCallback: public HTTPCache::Callback {
         function_(function) {}
 
   virtual ~FallbackCacheCallback() {}
-
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-    return client_callback_->RespectVaryOnResources();
-  }
 
   virtual void Done(HTTPCache::FindResult find_result) {
     HTTPValue* client_fallback = client_callback_->fallback_http_value();
@@ -120,8 +115,7 @@ class Cache1Callback: public HTTPCache::Callback {
                  MessageHandler* handler,
                  HTTPCache::Callback* client_callback,
                  HTTPCache::Callback* fallback_cache_callback)
-      : HTTPCache::Callback(client_callback->request_context(),
-                            client_callback->req_properties()),
+      : HTTPCache::Callback(client_callback->request_context()),
         key_(key),
         fallback_cache_(fallback_cache),
         handler_(handler),
@@ -145,10 +139,6 @@ class Cache1Callback: public HTTPCache::Callback {
       client_callback_->Done(find_result);
     }
     delete this;
-  }
-
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-    return client_callback_->RespectVaryOnResources();
   }
 
   virtual bool IsCacheValid(const GoogleString& key,

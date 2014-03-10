@@ -222,9 +222,7 @@ int GlobalReplaceSubstring(const StringPiece& substring,
                            const StringPiece& replacement,
                            GoogleString* s);
 
-// Returns the index of the start of needle in haystack, or
-// StringPiece::npos if it's not present.
-stringpiece_ssize_type FindIgnoreCase(StringPiece haystack, StringPiece needle);
+int FindIgnoreCase(StringPiece haystack, StringPiece needle);
 
 
 // Output a string which is the combination of all values in vector, separated
