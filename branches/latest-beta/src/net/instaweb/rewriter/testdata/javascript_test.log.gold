@@ -1,0 +1,7 @@
+Info: javascript_test.html:31: Unexpected close-tag `script', no tags are open
+Info: javascript_test.html:45: Unexpected close-tag `script', no tags are open
+Info: javascript_test.html:16: Unrecognized script:'<script type="text/html"></script> 16...19'
+Info: javascript_test.html:35: Retaining contents of script tag; probably data for external script.
+Info: javascript_test.html:40: Retaining contents of script tag; probably data for external script.
+Info: javascript_test.html:49: Unrecognized script:'<script language="tcl"></script> 49...49'
+Info: Canonical script http://file.name/third_party.js is http://ajax.googleapis.com/ajax/libs/prototype/1.6.1.0/prototype.js
