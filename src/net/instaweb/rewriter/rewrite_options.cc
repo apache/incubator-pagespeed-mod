@@ -55,8 +55,6 @@ const char RewriteOptions::kAccessControlAllowOrigins[] =
     "AccessControlAllowOrigins";
 const char RewriteOptions::kAllowLoggingUrlsInLogRecord[] =
     "AllowLoggingUrlsInLogRecord";
-const char RewriteOptions::kAllowOptionsToBeSetByCookies[] =
-    "AllowOptionsToBeSetByCookies";
 const char RewriteOptions::kAlwaysRewriteCss[] = "AlwaysRewriteCss";
 const char RewriteOptions::kAnalyticsID[] = "AnalyticsID";
 const char RewriteOptions::kAvoidRenamingIntrospectiveJavascript[] =
@@ -1523,7 +1521,7 @@ void RewriteOptions::AddProperties() {
       "Allows individual resources to be flushed; adding some overhead to "
       "the metadata cache");
   AddBaseProperty(
-      true, &RewriteOptions::proactive_resource_freshening_, "prf",
+      false, &RewriteOptions::proactive_resource_freshening_, "prf",
       kProactiveResourceFreshening,
       kServerScope,
       "If true, allows proactive freshening of inputs to the resource when "
@@ -2053,12 +2051,6 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::allow_logging_urls_in_log_record_,
       "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
       NULL);   // Not applicable for mod_pagespeed.
-
-  AddBaseProperty(
-      true, &RewriteOptions::allow_options_to_be_set_by_cookies_,
-      "aotbsbc", kAllowOptionsToBeSetByCookies, kDirectoryScope,
-      "Allow options to be set by cookies in addition to query parameters "
-      "and request headers.");
 
   AddBaseProperty(
       "", &RewriteOptions::non_cacheables_for_cache_partial_html_, "nccp",

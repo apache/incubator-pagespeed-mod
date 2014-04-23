@@ -1161,9 +1161,9 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   $SUDO touch ${MOD_PAGESPEED_CACHE}_ipro_for_browser/cache.flush
   sleep 1
 
-  URL_PATH=cache_flush/cache_flush_test.html
+  URL_PATH=cache_flush_test.html?PageSpeedFilters=inline_css
   URL=$TEST_ROOT/$URL_PATH
-  CSS_FILE=$APACHE_DOC_ROOT/mod_pagespeed_test/cache_flush/update.css
+  CSS_FILE=$APACHE_DOC_ROOT/mod_pagespeed_test/update.css
   TMP_CSS_FILE=$TEMPDIR/update.css.$$
 
   # First, write color 0 into the css file and make sure it gets inlined into
@@ -1919,7 +1919,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # Verify that downstream caches and rebeaconing interact correctly for css.
   test_filter prioritize_critical_css
   HOST_NAME="http://downstreamcacherebeacon.example.com"
-  URL="$HOST_NAME/mod_pagespeed_test/downstream_caching.html"
+  URL="$HOST_NAME/mod_pagespeed_test/downstream_caching.html?"
   URL+="?ModPagespeedFilters=prioritize_critical_css"
   # 1. Even with blocking rewrite, we don't get an instrumented page when the
   # PS-ShouldBeacon header is missing.
@@ -1927,13 +1927,13 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
             $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL)
   check_not_from "$OUT1" egrep -q 'pagespeed\.criticalCssBeaconInit'
   check_from "$OUT1" grep -q "Cache-Control: private, max-age=3000"
-
   # 2. We get an instrumented page if the correct key is present.
-  http_proxy=$SECONDARY_HOSTNAME \
-    fetch_until -save $URL 'grep -c criticalCssBeaconInit' 2 \
-    "--header=PS-ShouldBeacon:random_rebeaconing_key --save-headers"
-  check grep -q "Cache-Control: max-age=0, no-cache" $FETCH_UNTIL_OUTFILE
-
+  OUT2=$(http_proxy=$SECONDARY_HOSTNAME \
+            $WGET_DUMP $WGET_ARGS \
+            --header 'X-PSA-Blocking-Rewrite: psatest' \
+            --header="PS-ShouldBeacon: random_rebeaconing_key" $URL)
+  check_from "$OUT2" egrep -q "pagespeed\.criticalCssBeaconInit"
+  check_from "$OUT2" grep -q "Cache-Control: max-age=0, no-cache"
   # 3. We do not get an instrumented page if the wrong key is present.
   WGET_ARGS="--header=\"PS-ShouldBeacon: wrong_rebeaconing_key\""
   OUT3=$(http_proxy=$SECONDARY_HOSTNAME \
@@ -2333,34 +2333,6 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
     "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14"
 
   WGETRC=$OLD_WGETRC
-
-  test_filter collapse_whitespace
-  start_test Cookie options on: by default comments not removed, whitespace is
-  HOST_NAME="http://options-by-cookies-enabled.example.com"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html"
-  echo wget $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  check_from     "$OUT" grep -q '<!--'
-  check_not_from "$OUT" grep -q '  '
-  start_test Cookie options on: set option by cookie takes effect
-  echo wget --header=Cookie:PageSpeedFilters=+remove_comments $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP --no-cookies \
-         --header=Cookie:PageSpeedFilters=+remove_comments $URL)"
-  check_not_from "$OUT" grep -q '<!--'
-  check_not_from "$OUT" grep -q '  '
-  start_test Cookie options off: by default comments nor whitespace removed
-  HOST_NAME="http://options-by-cookies-disabled.example.com"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html"
-  echo wget $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  check_from "$OUT" grep -q '<!--'
-  check_from "$OUT" grep -q '  '
-  start_test Cookie options off: set option by cookie has no effect
-  echo wget --header=Cookie:PageSpeedFilters=+remove_comments $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP --no-cookies \
-         --header=Cookie:PageSpeedFilters=+remove_comments $URL)"
-  check_from "$OUT" grep -q '<!--'
-  check_from "$OUT" grep -q '  '
 fi
 
 WGET_ARGS=""

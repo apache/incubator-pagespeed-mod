@@ -104,15 +104,14 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
       StringPiece local_option_val,
       bool expect_script,
       bool expect_stylesheet) {
-    scoped_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
+    RewriteOptions new_options(&thread_system_);
     // Initialize global options.
-    scoped_ptr<RewriteOptions> global_options(
-        new RewriteOptions(&thread_system_));
+    RewriteOptions global_options(&thread_system_);
     if (!global_option_val.empty()) {
       RewriteOptions::ResourceCategorySet x;
       ASSERT_TRUE(RewriteOptions::ParseInlineUnauthorizedResourceType(
                       global_option_val, &x));
-      global_options->set_inline_unauthorized_resource_types(x);
+      global_options.set_inline_unauthorized_resource_types(x);
     }
     // Initialize local options.
     RewriteOptions local_options(&thread_system_);
@@ -124,17 +123,17 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
     }
 
     // Merge the options.
-    new_options->Merge(*global_options);
-    new_options->Merge(local_options);
+    new_options.Merge(global_options);
+    new_options.Merge(local_options);
 
     // Check what resource types have been authorized.
     EXPECT_EQ(
         expect_script,
-        new_options->HasInlineUnauthorizedResourceType(semantic_type::kScript))
+        new_options.HasInlineUnauthorizedResourceType(semantic_type::kScript))
         << "Global: " << global_option_val << ", local: " << local_option_val;
     EXPECT_EQ(
         expect_stylesheet,
-        new_options->HasInlineUnauthorizedResourceType(
+        new_options.HasInlineUnauthorizedResourceType(
             semantic_type::kStylesheet))
         << "Global: " << global_option_val << ", local: " << local_option_val;
   }
@@ -838,7 +837,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   PassLookupOptionByName(RewriteOptions::kAccessControlAllowOrigins);
   PassLookupOptionByName(RewriteOptions::kAddOptionsToUrls);
   PassLookupOptionByName(RewriteOptions::kAllowLoggingUrlsInLogRecord);
-  PassLookupOptionByName(RewriteOptions::kAllowOptionsToBeSetByCookies);
   PassLookupOptionByName(RewriteOptions::kAlwaysRewriteCss);
   PassLookupOptionByName(RewriteOptions::kAnalyticsID);
   PassLookupOptionByName(RewriteOptions::kAvoidRenamingIntrospectiveJavascript);

@@ -367,10 +367,7 @@ class ServerContext {
 
   // Runs the rewrite_query parser for any options set in query-params
   // or in the headers. If all the pagespeed options that were parsed
-  // were valid, they are available in rewrite_query->options(). The passed-in
-  // domain options control how options are handled, notably whether we allow
-  // related options or allow options to be specified by cookies. If you don't
-  // have domain specific options, pass NULL and global_options() will be used.
+  // were valid, they are available in rewrite_query->options().
   //
   // True is returned in two cases:
   //    - Valid PageSpeed query params or headers were parsed
@@ -381,8 +378,7 @@ class ServerContext {
   // It also strips off the PageSpeed query parameters and headers from the
   // request_url, request headers, and response headers respectively. Stripped
   // query params are copied into rewrite_query->pagespeed_query_params().
-  bool GetQueryOptions(const RewriteOptions* domain_options,
-                       GoogleUrl* request_url,
+  bool GetQueryOptions(GoogleUrl* request_url,
                        RequestHeaders* request_headers,
                        ResponseHeaders* response_headers,
                        RewriteQuery* rewrite_query);
