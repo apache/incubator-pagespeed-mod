@@ -30,27 +30,10 @@ PSA_JS_LIBRARY_URL_PREFIX="mod_pagespeed_static"
 CACHE_FLUSH_TEST=${CACHE_FLUSH_TEST:-off}
 NO_VHOST_MERGE=${NO_VHOST_MERGE:-off}
 SUDO=${SUDO:-}
+SECONDARY_HOSTNAME=${SECONDARY_HOSTNAME:-}
 # TODO(jkarlin): Should we just use a vhost instead?  If so, remember to update
 # all scripts that use TEST_PROXY_ORIGIN.
 PAGESPEED_TEST_HOST=${PAGESPEED_TEST_HOST:-modpagespeed.com}
-
-# Extract secondary hostname when set. Currently it's only set when doing the
-# cache flush test, but it can be used in other tests we run in that run.
-# Note that we use $1 not $HOSTNAME as that is only set up later by _helpers.sh.
-if [ "$CACHE_FLUSH_TEST" = "on" ]; then
-  # Replace any trailing :<port> with :<secondary-port>.
-  SECONDARY_HOSTNAME=${1/%:*/:$APACHE_SECONDARY_PORT}
-  if [ "$SECONDARY_HOSTNAME" = "$1" ]; then
-    SECONDARY_HOSTNAME=${1}:$APACHE_SECONDARY_PORT
-  fi
-
-  # To fetch from the secondary test root, we must set
-  # http_proxy=${SECONDARY_HOSTNAME} during fetches.
-  SECONDARY_TEST_ROOT=http://secondary.example.com/mod_pagespeed_test
-else
-  # Force the variable to be set albeit blank so tests don't fail.
-  : ${SECONDARY_HOSTNAME:=}
-fi
 
 # Run General system tests.
 #
@@ -86,6 +69,20 @@ function run_post_cache_flush() {
     $test
   done
 }
+
+# Extract secondary hostname when set. Currently it's only set
+# when doing the cache flush test, but it can be used in other
+# tests we run in that run.
+if [ "$CACHE_FLUSH_TEST" = "on" ]; then
+  SECONDARY_HOSTNAME=$(echo $HOSTNAME | sed -e "s/:.*$/:$APACHE_SECONDARY_PORT/g")
+  if [ "$SECONDARY_HOSTNAME" = "$HOSTNAME" ]; then
+    SECONDARY_HOSTNAME=${HOSTNAME}:$APACHE_SECONDARY_PORT
+  fi
+
+  # To fetch from the secondary test root, we must set
+  # http_proxy=${SECONDARY_HOSTNAME} during fetches.
+  SECONDARY_TEST_ROOT=http://secondary.example.com/mod_pagespeed_test
+fi
 
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
@@ -615,16 +612,6 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   http_proxy=$SECONDARY_HOSTNAME \
       $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL > $OUTFILE
   check egrep -q 'script[[:space:]]src=' $OUTFILE
-
-  # Verify that we can control pagespeed settings via a response
-  # header passed from an origin to a reverse proxy.
-  start_test Honor response header direcives from origin
-  URL="http://rproxy.rmcomments.example.com/"
-  URL+="mod_pagespeed_example/remove_comments.html"
-  echo http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL ...
-  OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)
-  check_from "$OUT" fgrep -q "remove_comments example"
-  check_not_from "$OUT" fgrep -q "This comment will be removed"
 fi
 
 test_filter inline_css inlines a small CSS file
@@ -1174,9 +1161,9 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   $SUDO touch ${MOD_PAGESPEED_CACHE}_ipro_for_browser/cache.flush
   sleep 1
 
-  URL_PATH=cache_flush/cache_flush_test.html
+  URL_PATH=cache_flush_test.html?PageSpeedFilters=inline_css
   URL=$TEST_ROOT/$URL_PATH
-  CSS_FILE=$APACHE_DOC_ROOT/mod_pagespeed_test/cache_flush/update.css
+  CSS_FILE=$APACHE_DOC_ROOT/mod_pagespeed_test/update.css
   TMP_CSS_FILE=$TEMPDIR/update.css.$$
 
   # First, write color 0 into the css file and make sure it gets inlined into
@@ -1243,30 +1230,6 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   echo $SUDO rm -f $CSS_FILE
   $SUDO rm -f $CSS_FILE
   rm -f $TMP_CSS_FILE
-
-  # Test that redirecting to the same domain retains MPS query parameters.
-  # The test domain is configured for collapse_whitepsace,add_instrumentation
-  # so if the QPs are retained we should get the former but not the latter.
-  WGET_STDERR="${WGET_OUTPUT}.stderr"
-  MY_WGET_DUMP="$WGET -O $WGET_OUTPUT --server-response"
-  HOST_NAME="http://redirect.example.com"
-  OPTS="?PageSpeedFilters=-add_instrumentation"
-  # First fetch the version of the URL that will NOT be redirected.
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html"
-  echo wget $URL$OPTS
-  http_proxy=$SECONDARY_HOSTNAME $MY_WGET_DUMP $URL$OPTS 2>$WGET_STDERR
-  check_not_from "$(< $WGET_STDERR)" grep -q ' 302 Found'
-  check_not_from "$(< $WGET_STDERR)" grep -q '^ *Location:'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q 'pagespeed.addInstrumentationInit'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q '  '
-  # Then fetch the version of the URL that WILL be redirected.
-  URL="$HOST_NAME/redirect/mod_pagespeed_test/forbidden.html"
-  echo wget $URL$OPTS
-  http_proxy=$SECONDARY_HOSTNAME $MY_WGET_DUMP $URL$OPTS 2>$WGET_STDERR
-  check_from     "$(< $WGET_STDERR)" grep -q ' 302 Found'
-  check_from     "$(< $WGET_STDERR)" grep -q '^ *Location:.*=-add_instrumentati'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q 'pagespeed.addInstrumentationInit'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q '  '
 
   # connection_refused.html references modpagespeed.com:1023/someimage.png.
   # mod_pagespeed will attempt to connect to that host and port to fetch the
@@ -1956,7 +1919,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   # Verify that downstream caches and rebeaconing interact correctly for css.
   test_filter prioritize_critical_css
   HOST_NAME="http://downstreamcacherebeacon.example.com"
-  URL="$HOST_NAME/mod_pagespeed_test/downstream_caching.html"
+  URL="$HOST_NAME/mod_pagespeed_test/downstream_caching.html?"
   URL+="?ModPagespeedFilters=prioritize_critical_css"
   # 1. Even with blocking rewrite, we don't get an instrumented page when the
   # PS-ShouldBeacon header is missing.
@@ -1964,13 +1927,13 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
             $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL)
   check_not_from "$OUT1" egrep -q 'pagespeed\.criticalCssBeaconInit'
   check_from "$OUT1" grep -q "Cache-Control: private, max-age=3000"
-
   # 2. We get an instrumented page if the correct key is present.
-  http_proxy=$SECONDARY_HOSTNAME \
-    fetch_until -save $URL 'grep -c criticalCssBeaconInit' 2 \
-    "--header=PS-ShouldBeacon:random_rebeaconing_key --save-headers"
-  check grep -q "Cache-Control: max-age=0, no-cache" $FETCH_UNTIL_OUTFILE
-
+  OUT2=$(http_proxy=$SECONDARY_HOSTNAME \
+            $WGET_DUMP $WGET_ARGS \
+            --header 'X-PSA-Blocking-Rewrite: psatest' \
+            --header="PS-ShouldBeacon: random_rebeaconing_key" $URL)
+  check_from "$OUT2" egrep -q "pagespeed\.criticalCssBeaconInit"
+  check_from "$OUT2" grep -q "Cache-Control: max-age=0, no-cache"
   # 3. We do not get an instrumented page if the wrong key is present.
   WGET_ARGS="--header=\"PS-ShouldBeacon: wrong_rebeaconing_key\""
   OUT3=$(http_proxy=$SECONDARY_HOSTNAME \
@@ -2370,47 +2333,6 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
     "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14"
 
   WGETRC=$OLD_WGETRC
-
-  # Test RequestOptionOverride.
-  start_test Request Option Override : Correct values are passed
-  HOST_NAME="http://request-option-override.example.com"
-  OPTS="?ModPagespeed=on"
-  OPTS+="&ModPagespeedFilters=+collapse_whitespace,+remove_comments"
-  OPTS+="&PageSpeedRequestOptionOverride=abc"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html$OPTS"
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  echo wget $URL
-  check_not_from "$OUT" grep -q '<!--'
-
-  start_test Request Option Override : Incorrect values are passed
-  HOST_NAME="http://request-option-override.example.com"
-  OPTS="?ModPagespeed=on"
-  OPTS+="&ModPagespeedFilters=+collapse_whitespace,+remove_comments"
-  OPTS+="&PageSpeedRequestOptionOverride=notabc"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html$OPTS"
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  echo wget $URL
-  check_from "$OUT" grep -q '<!--'
-
-  start_test Request Option Override : Correct values are passed as headers
-  HOST_NAME="http://request-option-override.example.com"
-  OPTS="--header=ModPagespeed:on"
-  OPTS+=" --header=ModPagespeedFilters:+collapse_whitespace,+remove_comments"
-  OPTS+=" --header=PageSpeedRequestOptionOverride:abc"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html"
-  echo wget $OPTS $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $OPTS $URL)"
-  check_not_from "$OUT" grep -q '<!--'
-
-  start_test Request Option Override : Incorrect values are passed as headers
-  HOST_NAME="http://request-option-override.example.com"
-  OPTS="--header=ModPagespeed:on"
-  OPTS+=" --header=ModPagespeedFilters:+collapse_whitespace,+remove_comments"
-  OPTS+=" --header=PageSpeedRequestOptionOverride:notabc"
-  URL="$HOST_NAME/mod_pagespeed_test/forbidden.html"
-  echo wget $OPTS $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $OPTS $URL)"
-  check_from "$OUT" grep -q '<!--'
 fi
 
 WGET_ARGS=""
@@ -2431,14 +2353,6 @@ if [ $statistics_enabled = "1" ]; then
   check_stat $OLDSTATS $NEWSTATS cache_hits 1
   check_stat $OLDSTATS $NEWSTATS cache_misses 0
 fi
-
-start_test Do not proxy content with unknown type
-URL="$PRIMARY_SERVER/modpagespeed_http/unknown_file.unknown"
-OUT=$($CURL --include --silent $URL)
-check_from "$OUT" fgrep -q "403 Forbidden"
-check_from "$OUT" fgrep -q \
-    "Missing Content-Type required for proxied resource"
-check_not_from "$OUT" fgrep -q "This file should not be proxied"
 
 start_test proxying from external domain should optimize images in-place.
 # Puzzle.jpg on disk is 241260 bytes, but we will optimize it with default

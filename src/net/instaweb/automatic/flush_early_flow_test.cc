@@ -61,6 +61,7 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
+#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -996,8 +997,8 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
   FetchFromProxy(fallback_url, request_headers, true, &text, &headers);
   EXPECT_STREQ(kOutputHtml, text);
 
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Request another url with different query params so that fallback values
   // will be used. Since the content type is different here, this request
@@ -1008,8 +1009,8 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
 
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestDisabled) {
@@ -1105,8 +1106,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, true),
       text);
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   SetFetchResponse404(request_url_);
   // Fetch again so that 404 is populated in response headers.
@@ -1115,8 +1116,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Fetch the url again. This time FlushEarlyFlow should not be triggered as
   // the status code is not stable.
@@ -1149,8 +1150,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(2, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(2, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestMobile) {

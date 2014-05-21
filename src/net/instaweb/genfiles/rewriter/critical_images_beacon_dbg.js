@@ -22,7 +22,7 @@ goog.provide = function(name) {
 };
 goog.setTestOnly = function(opt_message) {
   if (!goog.DEBUG) {
-    throw opt_message = opt_message || "", Error("Importing test-only code into non-debug environment" + (opt_message ? ": " + opt_message : "."));
+    throw opt_message = opt_message || "", Error("Importing test-only code into non-debug environment" + opt_message ? ": " + opt_message : ".");
   }
 };
 goog.forwardDeclare = function() {
@@ -383,40 +383,6 @@ goog.MODIFY_FUNCTION_PROTOTYPES && (Function.prototype.bind = Function.prototype
 }, Function.prototype.mixin = function(source) {
   goog.mixin(this.prototype, source);
 });
-goog.defineClass = function(superClass, def) {
-  var constructor = def.constructor, statics = def.statics;
-  if (!constructor || constructor == Object.prototype.constructor) {
-    throw Error("constructor property is required.");
-  }
-  var cls = goog.defineClass.createSealingConstructor_(constructor);
-  superClass && goog.inherits(cls, superClass);
-  delete def.constructor;
-  delete def.statics;
-  goog.defineClass.applyProperties_(cls.prototype, def);
-  null != statics && (statics instanceof Function ? statics(cls) : goog.defineClass.applyProperties_(cls, statics));
-  return cls;
-};
-goog.defineClass.SEAL_CLASS_INSTANCES = goog.DEBUG;
-goog.defineClass.createSealingConstructor_ = function(ctr) {
-  if (goog.defineClass.SEAL_CLASS_INSTANCES && Object.seal instanceof Function) {
-    var wrappedCtr = function() {
-      var instance = ctr.apply(this, arguments) || this;
-      this.constructor === wrappedCtr && Object.seal(instance);
-      return instance;
-    };
-    return wrappedCtr;
-  }
-  return ctr;
-};
-goog.defineClass.OBJECT_PROTOTYPE_FIELDS_ = "constructor hasOwnProperty isPrototypeOf propertyIsEnumerable toLocaleString toString valueOf".split(" ");
-goog.defineClass.applyProperties_ = function(target, source) {
-  for (var key in source) {
-    Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-  for (var i = 0;i < goog.defineClass.OBJECT_PROTOTYPE_FIELDS_.length;i++) {
-    key = goog.defineClass.OBJECT_PROTOTYPE_FIELDS_[i], Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-};
 goog.debug = {};
 goog.debug.Error = function(opt_msg) {
   if (Error.captureStackTrace) {
@@ -431,7 +397,6 @@ goog.inherits(goog.debug.Error, Error);
 goog.dom = {};
 goog.dom.NodeType = {ELEMENT:1, ATTRIBUTE:2, TEXT:3, CDATA_SECTION:4, ENTITY_REFERENCE:5, ENTITY:6, PROCESSING_INSTRUCTION:7, COMMENT:8, DOCUMENT:9, DOCUMENT_TYPE:10, DOCUMENT_FRAGMENT:11, NOTATION:12};
 goog.string = {};
-goog.string.DETECT_DOUBLE_ESCAPING = !1;
 goog.string.Unicode = {NBSP:"\u00a0"};
 goog.string.startsWith = function(str, prefix) {
   return 0 == str.lastIndexOf(prefix, 0);
@@ -547,29 +512,24 @@ goog.string.newLineToBr = function(str, opt_xml) {
 };
 goog.string.htmlEscape = function(str, opt_isLikelyToContainHtmlChars) {
   if (opt_isLikelyToContainHtmlChars) {
-    str = str.replace(goog.string.AMP_RE_, "&amp;").replace(goog.string.LT_RE_, "&lt;").replace(goog.string.GT_RE_, "&gt;").replace(goog.string.QUOT_RE_, "&quot;").replace(goog.string.SINGLE_QUOTE_RE_, "&#39;").replace(goog.string.NULL_RE_, "&#0;"), goog.string.DETECT_DOUBLE_ESCAPING && (str = str.replace(goog.string.E_RE_, "&#101;"));
-  } else {
-    if (!goog.string.ALL_RE_.test(str)) {
-      return str;
-    }
-    -1 != str.indexOf("&") && (str = str.replace(goog.string.AMP_RE_, "&amp;"));
-    -1 != str.indexOf("<") && (str = str.replace(goog.string.LT_RE_, "&lt;"));
-    -1 != str.indexOf(">") && (str = str.replace(goog.string.GT_RE_, "&gt;"));
-    -1 != str.indexOf('"') && (str = str.replace(goog.string.QUOT_RE_, "&quot;"));
-    -1 != str.indexOf("'") && (str = str.replace(goog.string.SINGLE_QUOTE_RE_, "&#39;"));
-    -1 != str.indexOf("\x00") && (str = str.replace(goog.string.NULL_RE_, "&#0;"));
-    goog.string.DETECT_DOUBLE_ESCAPING && -1 != str.indexOf("e") && (str = str.replace(goog.string.E_RE_, "&#101;"));
+    return str.replace(goog.string.amperRe_, "&amp;").replace(goog.string.ltRe_, "&lt;").replace(goog.string.gtRe_, "&gt;").replace(goog.string.quotRe_, "&quot;").replace(goog.string.singleQuoteRe_, "&#39;");
   }
+  if (!goog.string.allRe_.test(str)) {
+    return str;
+  }
+  -1 != str.indexOf("&") && (str = str.replace(goog.string.amperRe_, "&amp;"));
+  -1 != str.indexOf("<") && (str = str.replace(goog.string.ltRe_, "&lt;"));
+  -1 != str.indexOf(">") && (str = str.replace(goog.string.gtRe_, "&gt;"));
+  -1 != str.indexOf('"') && (str = str.replace(goog.string.quotRe_, "&quot;"));
+  -1 != str.indexOf("'") && (str = str.replace(goog.string.singleQuoteRe_, "&#39;"));
   return str;
 };
-goog.string.AMP_RE_ = /&/g;
-goog.string.LT_RE_ = /</g;
-goog.string.GT_RE_ = />/g;
-goog.string.QUOT_RE_ = /"/g;
-goog.string.SINGLE_QUOTE_RE_ = /'/g;
-goog.string.NULL_RE_ = /\x00/g;
-goog.string.E_RE_ = /e/g;
-goog.string.ALL_RE_ = goog.string.DETECT_DOUBLE_ESCAPING ? /[\x00&<>"'e]/ : /[\x00&<>"']/;
+goog.string.amperRe_ = /&/g;
+goog.string.ltRe_ = /</g;
+goog.string.gtRe_ = />/g;
+goog.string.quotRe_ = /"/g;
+goog.string.singleQuoteRe_ = /'/g;
+goog.string.allRe_ = /[&<>"']/;
 goog.string.unescapeEntities = function(str) {
   return goog.string.contains(str, "&") ? "document" in goog.global ? goog.string.unescapeEntitiesUsingDom_(str) : goog.string.unescapePureXmlEntities_(str) : str;
 };
@@ -578,7 +538,7 @@ goog.string.unescapeEntitiesWithDocument = function(str, document) {
 };
 goog.string.unescapeEntitiesUsingDom_ = function(str, opt_document) {
   var seen = {"&amp;":"&", "&lt;":"<", "&gt;":">", "&quot;":'"'}, div;
-  div = opt_document ? opt_document.createElement("div") : goog.global.document.createElement("div");
+  div = opt_document ? opt_document.createElement("div") : document.createElement("div");
   return str.replace(goog.string.HTML_ENTITY_PATTERN_, function(s, entity) {
     var value = seen[s];
     if (value) {
@@ -617,9 +577,6 @@ goog.string.unescapePureXmlEntities_ = function(str) {
 goog.string.HTML_ENTITY_PATTERN_ = /&([^;\s<&]+);?/g;
 goog.string.whitespaceEscape = function(str, opt_xml) {
   return goog.string.newLineToBr(str.replace(/  /g, " &#160;"), opt_xml);
-};
-goog.string.preserveSpaces = function(str) {
-  return str.replace(/(^|[\n ]) /g, "$1" + goog.string.Unicode.NBSP);
 };
 goog.string.stripQuotes = function(str, quoteChars) {
   for (var length = quoteChars.length, i = 0;i < length;i++) {

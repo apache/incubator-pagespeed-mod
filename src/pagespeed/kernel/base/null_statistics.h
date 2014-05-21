@@ -27,7 +27,7 @@
 
 namespace net_instaweb {
 
-class NullStatisticsVariable : public UpDownCounter {
+class NullStatisticsVariable : public Variable {
  public:
   NullStatisticsVariable() {}
   virtual ~NullStatisticsVariable();
@@ -40,8 +40,7 @@ class NullStatisticsVariable : public UpDownCounter {
 };
 
 // Simple name/value pair statistics implementation.
-class NullStatistics :
-      public ScalarStatisticsTemplate<NullStatisticsVariable> {
+class NullStatistics : public ScalarStatisticsTemplate<NullStatisticsVariable> {
  public:
   static const int kNotFound;
 
@@ -51,10 +50,6 @@ class NullStatistics :
  protected:
   virtual NullStatisticsVariable* NewVariable(const StringPiece& name,
                                               int index);
-  virtual NullStatisticsVariable* NewUpDownCounter(const StringPiece& name,
-                                                int index) {
-    return NewVariable(name, index);
-  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);

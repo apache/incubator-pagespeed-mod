@@ -28,8 +28,8 @@ namespace {
 TEST(NullStatisticsTest, CanGetAllVarTypes) {
   NullStatistics stats;
 
-  stats.AddUpDownCounter("var");
-  UpDownCounter* var = stats.GetUpDownCounter("var");
+  stats.AddVariable("var");
+  Variable* var = stats.GetVariable("var");
   var->Add(1);
   var->Add(-5);
   EXPECT_EQ(0, var->SetReturningPreviousValue(10));

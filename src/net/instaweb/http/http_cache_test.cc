@@ -38,7 +38,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace {
 // Set the cache size large enough so nothing gets evicted during this test.
@@ -123,12 +122,7 @@ class HTTPCacheTest : public testing::Test {
   }
 
   int GetStat(const char* stat_name) {
-    Variable* var = simple_stats_->FindVariable(stat_name);
-    if (var == NULL) {
-      var = simple_stats_->FindUpDownCounter(stat_name);
-      CHECK(var) << stat_name;
-    }
-    return var->Get();
+    return simple_stats_->FindVariable(stat_name)->Get();
   }
 
   static void SetUpTestCase() {

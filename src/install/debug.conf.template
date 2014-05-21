@@ -396,14 +396,6 @@ ModPagespeedRespectXForwardedProto on
 
 ModPagespeedCompressMetadataCache true
 
-# Make a non-empty subdirectory config to make sure that
-# cache.flush updates get transmitted to nested configurations.
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cache_flush/" >
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters inline_css
-  ModPagespeedDisableFilters add_instrumentation
-</Directory>
-
 # Another VirtualHost can be enabled by default as it does no harm.  This can
 # be used for testing alternate configuration settings in system tests without
 # restarting Apache.
@@ -436,14 +428,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 
   # Helps testing whether the configuration of reporting 'unload' time works.
   ModPagespeedReportUnloadTime on
-
-  # Make a non-empty subdirectory config to make sure that
-  # cache.flush updates get transmitted to nested configurations.
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cache_flush/" >
-    ModPagespeedRewriteLevel PassThrough
-    ModPagespeedEnableFilters inline_css
-    ModPagespeedDisableFilters add_instrumentation
-  </Directory>
 
 #REWRITE   # These lines are only needed for the mod_rewrite test, where
 #REWRITE   # we are just trying to prove that we remove mod_rewrite from
@@ -698,46 +682,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeed unplugged
 </VirtualHost>
 
-# For testing setting options by cookies.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName options-by-cookies-enabled.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_optionsbycookieson"
-  ModPagespeedAllowOptionsToBeSetByCookies true
-  ModPagespeedStickyQueryParameters sticky_secret
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters collapse_whitespace
-  ModPagespeedDisableFilters remove_comments,add_instrumentation
-</VirtualHost>
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName options-by-cookies-disabled.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_optionsbycookiesoff"
-  ModPagespeedAllowOptionsToBeSetByCookies false
-  ModPagespeedDisableFilters add_instrumentation
-</VirtualHost>
-
-# For testing request option overriding.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName request-option-override.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRequestOptionOverride abc
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters collapse_whitespace
-  ModPagespeedDisableFilters remove_comments,add_instrumentation
-</VirtualHost>
-
-# For testing handling of redirected requests.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName redirect.example.com
-  Redirect /redirect/ /
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters add_instrumentation,collapse_whitespace
-</VirtualHost>
-
 # Proxy + IPRO a gzip'd file for testing Issue 896.
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName ipro-proxy.example.com
@@ -754,7 +698,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   AddOutputFilterByType DEFLATE text/css
 </VirtualHost>
 
-# Backend for ipro-proxy.example.com
+# Backend for ipro-proxy.exampe.com
 Listen 127.0.0.1:@@APACHE_TERTIARY_PORT@@
 NameVirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@
 <VirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@>
@@ -903,28 +847,6 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedEnableFilters rewrite_images
   ModPagespeedDownstreamCachePurgeLocationPrefix \
     "http://localhost:@@APACHE_SECONDARY_PORT@@/purge"
-</VirtualHost>
-
-# Set up a reverse proxy (rproxy.) and origin (origin.) as vhosts for
-# showing that we can configure PageSpeed via response headers.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName rproxy.rmcomments.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedDisableFilters add_instrumentation,remove_comments
-  # Note that we don't enable remove_comments here; that setting
-  # comes from the response headers from origin.rmcomments.example.com
-  ProxyRemote * http://localhost:@@APACHE_SECONDARY_PORT@@
-  ProxyPass / http://origin.rmcomments.example.com/
-  ProxyPassReverse / http://origin.rmcomments.example.com/
-</VirtualHost>
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName origin.rmcomments.example.com
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeed unplugged
-  Header add PageSpeedFilters remove_comments
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
@@ -1429,7 +1351,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedAllow foo
 #ALL_DIRECTIVES ModPagespeedAnalyticsID 1234
 #ALL_DIRECTIVES ModPagespeedAvoidRenamingIntrospectiveJavascript true
-#ALL_DIRECTIVES ModPagespeedAllowOptionsToBeSetByCookies true
 #ALL_DIRECTIVES ModPagespeedBeaconUrl "http://example.com/beacon"
 #ALL_DIRECTIVES ModPagespeedBlockingRewriteKey test
 #ALL_DIRECTIVES ModPagespeedCacheFlushFilename /tmp/cache.flush
@@ -1510,7 +1431,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedModifyCachingHeaders true
 #ALL_DIRECTIVES ModPagespeedNumExpensiveRewriteThreads 2
 #ALL_DIRECTIVES ModPagespeedNumRewriteThreads 4
-#ALL_DIRECTIVES ModPagespeedOptionCookiesDurationMs 12345
 #ALL_DIRECTIVES ModPagespeedPreserveUrlRelativity on
 #ALL_DIRECTIVES ModPagespeedProgressiveJpegMinBytes 1000
 #ALL_DIRECTIVES ModPagespeedRateLimitBackgroundFetches true
@@ -1536,7 +1456,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile /tmp/log/stats.log
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingIntervalMs 3000
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingMaxFileSizeKb 1024
-#ALL_DIRECTIVES ModPagespeedStickyQueryParameters something-private
 #ALL_DIRECTIVES ModPagespeedSupportNoScriptEnabled true
 #ALL_DIRECTIVES ModPagespeedTestProxy off
 #ALL_DIRECTIVES ModPagespeedUrlValuedAttribute span src Hyperlink

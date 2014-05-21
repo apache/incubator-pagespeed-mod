@@ -311,7 +311,7 @@ void RewriteTestBase::PopulateDefaultHeaders(
   // Reset mock timer so synthetic headers match original.  This temporarily
   // fakes out the mock_scheduler, but we will repair the damage below.
   AdjustTimeUsWithoutWakingAlarms(start_time_ms() * Timer::kMsUs);
-  SetDefaultLongCacheHeaders(&content_type, headers);
+  server_context_->SetDefaultLongCacheHeaders(&content_type, headers);
   // Then set it back.  Note that no alarms should fire at this point
   // because alarms work on absolute time.
   AdjustTimeUsWithoutWakingAlarms(time);
@@ -566,7 +566,7 @@ void RewriteTestBase::TestServeFiles(
   // When we start, there are no mock fetchers, so we'll need to get it
   // from the cache.
   ResponseHeaders headers;
-  SetDefaultLongCacheHeaders(content_type, &headers);
+  server_context_->SetDefaultLongCacheHeaders(content_type, &headers);
   HTTPCache* http_cache = server_context_->http_cache();
   http_cache->Put(expected_rewritten_path, rewrite_driver_->CacheFragment(),
                   RequestHeaders::Properties(),
@@ -1273,10 +1273,6 @@ GoogleString RewriteTestBase::ExpectedNonce() {
 
 const ProcessContext& RewriteTestBase::process_context() {
   return rewrite_test_base_process_context;
-}
-
-int RewriteTestBase::TimedValue(StringPiece name) {
-  return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
 }
 
 }  // namespace net_instaweb

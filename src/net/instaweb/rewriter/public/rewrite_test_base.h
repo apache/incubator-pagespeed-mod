@@ -427,8 +427,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   void SetDefaultLongCacheHeaders(const ContentType* content_type,
                                   ResponseHeaders* header) {
-    server_context_->SetDefaultLongCacheHeaders(
-        content_type, StringPiece(), StringPiece(), header);
+    server_context_->SetDefaultLongCacheHeaders(content_type, header);
   }
 
   void SetFetchResponse(const StringPiece& url,
@@ -731,9 +730,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   GoogleString HttpCacheKey(StringPiece url) {
     return HTTPCache::CompositeKey(url, rewrite_driver_->CacheFragment());
   }
-
-  // Returns the value of a TimedVariable, specified by name.
-  int TimedValue(StringPiece name);
 
   // The mock fetchers & stats are global across all Factories used in the
   // tests.

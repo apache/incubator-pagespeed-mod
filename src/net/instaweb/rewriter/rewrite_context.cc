@@ -1290,7 +1290,12 @@ CachedResult* RewriteContext::output_partition(int i) {
 
 void RewriteContext::AddSlot(const ResourceSlotPtr& slot) {
   CHECK(!started_);
-  CHECK(slot.get() != NULL);
+
+  // TODO(jmarantz): eliminate this transitional code to allow JavascriptFilter
+  // to straddle the old rewrite flow and the new async flow.
+  if (slot.get() == NULL) {
+    return;
+  }
 
   slots_.push_back(slot);
   render_slots_.push_back(false);
@@ -2992,14 +2997,11 @@ void RewriteContext::FixFetchFallbackHeaders(
     headers->ComputeCaching();
   }
 
-  const char* cache_control_suffix = "";
-
   // In the case of a resource fetch with hash mismatch, we will not have
   // inputs, so fix headers based on the metadata. As we do not consider
   // FILE_BASED inputs here, if all inputs are FILE_BASED, the TTL will be the
   // minimum of headers->cache_ttl_ms() and headers->implicit_cache_ttl_ms().
-  int64 date_ms = headers->date_ms();
-  int64 min_cache_expiry_time_ms = headers->cache_ttl_ms() + date_ms;
+  int64 min_cache_expiry_time_ms = headers->cache_ttl_ms() + headers->date_ms();
   for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
     const CachedResult& partition = partitions_->partition(i);
     for (int j = 0, m = partition.input_size(); j < m; ++j) {
@@ -3014,18 +3016,14 @@ void RewriteContext::FixFetchFallbackHeaders(
       }
     }
   }
-  int64 ttl_ms = min_cache_expiry_time_ms - date_ms;
-  if (!Options()->publicly_cache_mismatched_hashes_experimental()) {
-    // Shorten cache length, and prevent proxies caching this, as it's under
-    // the "wrong" URL.
-    cache_control_suffix = ",private";
-    ttl_ms = std::min(ttl_ms, headers->implicit_cache_ttl_ms());
-  }
-  headers->SetDateAndCaching(date_ms, ttl_ms, cache_control_suffix);
 
-  // TODO(jmarantz): Use the actual content-hash to replace the W/"0" etag
-  // rather than removing the etag altogether.  This requires adding code to
-  // validate the etag of course.
+  // Shorten cache length, and prevent proxies caching this, as it's under
+  // the "wrong" URL.
+  headers->SetDateAndCaching(
+      headers->date_ms(),
+      std::min(min_cache_expiry_time_ms - headers->date_ms(),
+               headers->implicit_cache_ttl_ms()),
+      ",private");
   headers->RemoveAll(HttpAttributes::kEtag);
   headers->ComputeCaching();
 }

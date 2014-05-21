@@ -25,15 +25,9 @@
 
 namespace net_instaweb {
 
-void QueryParams::ParseFromUrl(const GoogleUrl& gurl) {
+void QueryParams::Parse(const StringPiece& text) {
   CHECK_EQ(0, size());
-  map_.AddFromNameValuePairs(gurl.Query(), "&", '=',
-                             /* omit_if_no_value= */ false);
-}
-
-void QueryParams::ParseFromUntrustedString(StringPiece query_param_string) {
-  GoogleUrl gurl(StrCat("http://www.example.com/?", query_param_string));
-  ParseFromUrl(gurl);
+  map_.AddFromNameValuePairs(text, "&", '=', false);
 }
 
 bool QueryParams::UnescapedValue(int index, GoogleString* unescaped_val) const {

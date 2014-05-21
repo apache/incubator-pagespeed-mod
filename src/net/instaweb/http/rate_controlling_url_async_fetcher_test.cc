@@ -119,11 +119,6 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
     mock_fetcher_.SetResponse(url, headers, body);
   }
 
-  int global_fetch_queue_size() {
-    return stats_.GetUpDownCounter(
-        RateController::kCurrentGlobalFetchQueueSize)->Get();
-  }
-
   SimpleStats stats_;
   MockUrlFetcher mock_fetcher_;
   scoped_ptr<ThreadSystem> thread_system_;
@@ -173,7 +168,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   for (int i = 0; i < 6; ++i) {
     EXPECT_FALSE(fetch_vector[i]->done());
   }
-  EXPECT_EQ(4, global_fetch_queue_size());
+  EXPECT_EQ(4, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   // The next 94 fetches get shedded due to load.
   for (int i = 6; i < 100; ++i) {
@@ -210,7 +206,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   EXPECT_EQ(94, stats_.GetTimedVariable(
       RateController::kDroppedFetchCount)->Get(
           TimedVariable::START));
-  EXPECT_EQ(0, global_fetch_queue_size());
+  EXPECT_EQ(0, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -239,7 +236,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
   for (int i = 0; i < 104; ++i) {
     EXPECT_FALSE(fetch_vector[i]->done());
   }
-  EXPECT_EQ(4, global_fetch_queue_size());
+  EXPECT_EQ(4, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   for (int i = 104; i < 300; ++i) {
     EXPECT_TRUE(fetch_vector[i]->done());
@@ -292,7 +290,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest, MultipleRequestsForSingleHost) {
   EXPECT_EQ(196, stats_.GetTimedVariable(
       RateController::kDroppedFetchCount)->Get(
           TimedVariable::START));
-  EXPECT_EQ(0, global_fetch_queue_size());
+  EXPECT_EQ(0, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }
@@ -332,7 +331,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   for (int i = 100; i < 104; ++i) {
     EXPECT_FALSE(fetch_vector[i]->done());
   }
-  EXPECT_EQ(10, global_fetch_queue_size());
+  EXPECT_EQ(10, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   // 94 fetches get shedded due to load.
   for (int i = 12; i < 100; ++i) {
@@ -399,7 +399,8 @@ TEST_F(RateControllingUrlAsyncFetcherTest,
   EXPECT_EQ(94, stats_.GetTimedVariable(
       RateController::kDroppedFetchCount)->Get(
           TimedVariable::START));
-  EXPECT_EQ(0, global_fetch_queue_size());
+  EXPECT_EQ(0, stats_.GetVariable(
+      RateController::kCurrentGlobalFetchQueueSize)->Get());
 
   STLDeleteContainerPointers(fetch_vector.begin(), fetch_vector.end());
 }

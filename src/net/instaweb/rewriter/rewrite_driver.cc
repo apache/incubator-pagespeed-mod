@@ -454,8 +454,6 @@ void RewriteDriver::Clear() NO_THREAD_SAFETY_ANALYSIS {
   fallback_property_page_ = NULL;
   owns_property_page_ = false;
   device_type_ = UserAgentMatcher::kDesktop;
-  pagespeed_query_params_.clear();
-  pagespeed_option_cookies_.clear();
 
   // Reset to the default fetcher from any session fetcher
   // (as the request is over).
@@ -2953,9 +2951,6 @@ OptionsAwareHTTPCacheCallback::OptionsAwareHTTPCacheCallback(
   // mapping, we don't know for sure whether cookies should apply
   // to Vary:Cacheable resources.  So we pessimistically assume there
   // are cookies by initializing a blank one.
-
-  response_headers()->set_implicit_cache_ttl_ms(
-      rewrite_options->implicit_cache_ttl_ms());
 }
 
 OptionsAwareHTTPCacheCallback::~OptionsAwareHTTPCacheCallback() {}
@@ -3277,8 +3272,8 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
   output->SetType(type);
   output->set_charset(charset);
   ResponseHeaders* meta_data = output->response_headers();
-  server_context_->SetDefaultLongCacheHeaders(
-      type, charset, output->cache_control_suffix(), meta_data);
+  server_context_->SetDefaultLongCacheHeadersWithCharset(
+      type, charset, meta_data);
   meta_data->SetStatusAndReason(HttpStatus::kOK);
   server_context_->ApplyInputCacheControl(inputs, meta_data);
   server_context_->AddOriginalContentLengthHeader(inputs, meta_data);
@@ -3368,71 +3363,6 @@ const GoogleString& RewriteDriver::CacheFragment() const {
   CHECK(request_context_.get() != NULL) << "NULL request context in "
                                         << "RewriteDriver::CacheFragment";
   return request_context_->minimal_private_suffix();
-}
-
-bool RewriteDriver::SetOrClearPageSpeedOptionCookies(
-    const GoogleUrl& gurl, ResponseHeaders* response_headers) {
-  StringPiece required_token(options_->sticky_query_parameters());
-  StringPiece provided_token(request_context_->sticky_query_parameters_token());
-  // These are mutually exclusive but provide a way of specifying "do nothing".
-  bool set_cookies = false;
-  bool clear_cookies = false;
-
-  if (options_->allow_options_to_be_set_by_cookies() &&
-      !required_token.empty() &&
-      required_token == provided_token) {
-    // Make the current options sticky if we allow options to be set by
-    // cookies (otherwise why bother?), there is a token specified in the
-    // configuration, and the token specified in the request matches the
-    // one in the configuration.
-    set_cookies = true;
-  } else if (!pagespeed_option_cookies_.empty() &&
-             !required_token.empty() && !provided_token.empty() &&
-             required_token != provided_token) {
-    // Clear the current option cookies if there are any, there is a token
-    // specified in the configuration, there is a token in the request, and
-    // the token specified in the request does NOT match the one in the
-    // configuration - treat that as a specific request to clear the cookies.
-    clear_cookies = true;
-  } else if (!pagespeed_option_cookies_.empty() &&
-             !options_->allow_options_to_be_set_by_cookies()) {
-    // Clear the current option cookies if there any but we no longer allow
-    // options to be set by cookies.
-    clear_cookies = true;
-  }
-
-  if (!set_cookies && !clear_cookies) {
-    return false;
-  }
-
-  // We need to not set cookies for the option that triggered this.
-  const GoogleString old_option_name(
-      StrCat(RewriteQuery::kPageSpeed,
-             RewriteOptions::kStickyQueryParameters));
-  const GoogleString new_option_name(
-      StrCat(RewriteQuery::kModPagespeed,
-             RewriteOptions::kStickyQueryParameters));
-  StringPieceVector exclusions;
-  exclusions.push_back(old_option_name);
-  exclusions.push_back(new_option_name);
-  bool result = false;
-  if (set_cookies) {
-    int64 expiration_time_ms = (server_context()->timer()->NowMs() +
-                                options_->option_cookies_duration_ms());
-    result = response_headers->SetQueryParamsAsCookies(gurl,
-                                                       pagespeed_query_params_,
-                                                       exclusions,
-                                                       expiration_time_ms);
-  } else /* ASSERT: clear_cookies == true */ {
-    result = response_headers->ClearOptionCookies(gurl,
-                                                  pagespeed_option_cookies_,
-                                                  exclusions);
-  }
-  if (result) {
-    response_headers->ComputeCaching();
-  }
-
-  return result;
 }
 
 bool RewriteDriver::LookupMetadataForOutputResource(

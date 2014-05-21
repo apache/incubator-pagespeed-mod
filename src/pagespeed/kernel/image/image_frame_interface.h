@@ -42,9 +42,8 @@ struct ImageSpec {
   ImageSpec();
   void Reset();
 
-  int width;
-  int height;
-  int num_frames;
+  size_t width;
+  size_t height;
 };
 
 struct FrameSpec {
@@ -139,7 +138,7 @@ class MultipleFrameReader {
     return message_handler_;
   }
 
-  // Convenience forms of the methods above. If 'status' indicates an
+  // Convenience forms for the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns
   // false. Otherwise, it calls the corresponding method above,
   // updates 'status', and returns true iff the call succeeded.
@@ -224,25 +223,25 @@ class MultipleFrameWriter {
     return message_handler_;
   }
 
-  // Convenience forms of the methods above. If 'status' indicates an
+  // Convenience forms for the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns
   // false. Otherwise, it calls the corresponding method above,
   // updates 'status', and returns true iff the call succeeded.
 
   bool Initialize(const void* config, GoogleString* out,
-                  ScanlineStatus* status) {
+                  ScanlineStatus*status) {
     IF_OK_RUN(status, Initialize(config, out));
   }
-  bool PrepareImage(const ImageSpec* image_spec, ScanlineStatus* status) {
+  bool PrepareImage(const ImageSpec* image_spec, ScanlineStatus*status) {
     IF_OK_RUN(status, PrepareImage(image_spec));
   }
-  bool PrepareNextFrame(const FrameSpec* frame_spec, ScanlineStatus* status) {
+  bool PrepareNextFrame(const FrameSpec* frame_spec, ScanlineStatus*status) {
     IF_OK_RUN(status, PrepareNextFrame(frame_spec));
   }
-  bool WriteNextScanline(const void* scanline_bytes, ScanlineStatus* status) {
+  bool WriteNextScanline(const void *scanline_bytes, ScanlineStatus*status) {
     IF_OK_RUN(status, WriteNextScanline(scanline_bytes));
   }
-  bool FinalizeWrite(ScanlineStatus* status) {
+  bool FinalizeWrite(ScanlineStatus*status) {
     IF_OK_RUN(status, FinalizeWrite());
   }
 

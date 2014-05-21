@@ -344,10 +344,10 @@ class ServerContextTest : public RewriteTestBase {
     RewriteOptions* copy_options = domain_options != NULL ?
         domain_options->Clone() : NULL;
     RewriteQuery rewrite_query;
-    RequestContextPtr null_request_context;
-    EXPECT_TRUE(server_context()->GetQueryOptions(
-        null_request_context, NULL, &gurl, request_headers, NULL,
-        &rewrite_query));
+    bool success = server_context()->GetQueryOptions(&gurl,
+                                                     request_headers, NULL,
+                                                     &rewrite_query);
+    EXPECT_TRUE(success);
     RewriteOptions* options =
         server_context()->GetCustomOptions(request_headers, copy_options,
                                            rewrite_query.ReleaseOptions());
@@ -403,10 +403,8 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   // options to be uncomputable.
   GoogleUrl gurl("http://example.com/?PageSpeedFilters=bogus_filter");
   RewriteQuery rewrite_query;
-  RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
-      &rewrite_query));
+      &gurl, &request_headers, NULL, &rewrite_query));
 
   // The default url_namer does not yield any name-derived options, and we
   // have not specified any URL params or request-headers, and kXRequestedWith
@@ -500,10 +498,8 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   // options to be uncomputable.
   GoogleUrl gurl("http://example.com/?PageSpeedFilters=bogus_filter");
   RewriteQuery rewrite_query;
-  RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
-      &rewrite_query));
+      &gurl, &request_headers, NULL, &rewrite_query));
 
   request_headers.Add(
       HttpAttributes::kXRequestedWith, "bogus");
@@ -872,7 +868,7 @@ TEST_F(ServerContextTest, TestRememberDropped) {
 }
 
 TEST_F(ServerContextTest, TestNonCacheable) {
-  const char kContents[] = "ok";
+  const GoogleString kContents = "ok";
 
   // Make sure that when we get non-cacheable resources
   // we mark the fetch as not cacheable in the cache.
@@ -931,7 +927,7 @@ TEST_F(ServerContextTest, TestVaryOption) {
   // we mark the fetch as not-cacheable in the cache.
   options()->set_respect_vary(true);
   ResponseHeaders no_cache;
-  const char kContents[] = "ok";
+  const GoogleString kContents = "ok";
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &no_cache);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kAcceptEncoding);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kUserAgent);
@@ -1183,7 +1179,9 @@ class BeaconTest : public ServerContextTest {
       StrAppend(&beacon_url, "&rd=", *rendered_images_json_map);
     }
     EXPECT_TRUE(server_context()->HandleBeacon(
-        beacon_url, user_agent, CreateRequestContext()));
+        beacon_url,
+        user_agent,
+        CreateRequestContext()));
 
     // Read the property cache value for critical images, and verify that it has
     // the expected value.
@@ -1303,9 +1301,9 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
 TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   InsertCssBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   StringSet critical_css_selector;
-  critical_css_selector.insert("%23foo");
+  critical_css_selector.insert("#foo");
   critical_css_selector.insert(".bar");
-  critical_css_selector.insert("%23noncandidate");
+  critical_css_selector.insert("#noncandidate");
   TestBeacon(NULL, &critical_css_selector, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar",
@@ -1317,7 +1315,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.clear();
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("img");
-  critical_css_selector.insert("%23noncandidate");
+  critical_css_selector.insert("#noncandidate");
   TestBeacon(NULL, &critical_css_selector, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar,img",
@@ -1334,6 +1332,8 @@ TEST_F(BeaconTest, EmptyCriticalCss) {
 
 class ResourceFreshenTest : public ServerContextTest {
  protected:
+  static const char kContents[];
+
   virtual void SetUp() {
     ServerContextTest::SetUp();
     HTTPCache::InitStats(statistics());
@@ -1348,6 +1348,8 @@ class ResourceFreshenTest : public ServerContextTest {
   Variable* expirations_;
   ResponseHeaders response_headers_;
 };
+
+const char ResourceFreshenTest::kContents[] = "ok";
 
 // Many resources expire in 5 minutes, because that is our default for
 // when caching headers are not present.  This test ensures that iff
@@ -1397,6 +1399,7 @@ TEST_F(ResourceFreshenTest, TestFreshenImminentlyExpiringResources) {
 // forced.  Nothing will ever be evicted due to time, so there is no
 // need to freshen.
 TEST_F(ResourceFreshenTest, NoFreshenOfForcedCachedResources) {
+  const GoogleString kContents = "ok";
   http_cache()->set_force_caching(true);
   FetcherUpdateDateHeaders();
 
@@ -1424,6 +1427,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfForcedCachedResources) {
 // Tests that freshining will not occur for short-lived resources,
 // which could impact the performance of the server.
 TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
+  const GoogleString kContents = "ok";
   FetcherUpdateDateHeaders();
 
   int max_age_sec =

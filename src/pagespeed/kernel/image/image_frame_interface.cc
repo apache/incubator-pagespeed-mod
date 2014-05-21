@@ -32,7 +32,6 @@ ImageSpec::ImageSpec() {
 void ImageSpec::Reset() {
     width = 0;
     height = 0;
-    num_frames = 0;
 }
 
 ////////// FrameSpec
