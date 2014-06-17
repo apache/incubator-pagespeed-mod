@@ -73,10 +73,10 @@ vars = {
   #
   # The revision we are picking here is to a specific commit found on
   # http://git.chromium.org/gitweb/?p=chromium/deps/openssl.git;a=summary :
-  # 2013-03-26 digit@chromium.org Restore the x509_hash_name_alpgorithm_change
-  #                               patch.
+  # 2014-06-05 agl@chromium.org  OpenSSL: fix copy of ssl3.h
+  # This point includes all CVE fixes in 1.0.1h, including the CCS fix.
   "openssl_src": "http://git.chromium.org/chromium/deps/openssl.git",
-  "openssl_revision": "@67ccadeefe503dad566639ac02c772945a72a08d",
+  "openssl_revision": "@91df33371f74906f255df571daa236be67565c4f",
 }
 
 deps = {
