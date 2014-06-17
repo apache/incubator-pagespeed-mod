@@ -27,13 +27,11 @@
 #include "pagespeed/kernel/base/string_util.h"
 
 
-#if !defined(CHROMIUM_REVISION) || CHROMIUM_REVISION >= 193439
+#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 193439
 #  include "third_party/chromium/src/url/gurl.h"
-#  include "third_party/chromium/src/url/url_parse.h"
 #else
 #  include "googleurl/src/gurl.h"
-#  include "googleurl/src/url_parse.h"
-#endif  // !defined(CHROMIUM_REVISION) || CHROMIUM_REVISION >= 193439
+#endif  // defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 193439
 
 namespace net_instaweb {
 
@@ -80,8 +78,8 @@ class GoogleUrl {
   // This is a factory method that returns a pointer, the caller is responsible
   // for the management of the new object's memory (the caller owns the
   // pointer).
-  GoogleUrl* CopyAndAddEscapedQueryParam(
-      const StringPiece& name, const StringPiece& escaped_value) const;
+  GoogleUrl* CopyAndAddQueryParam(const StringPiece& name,
+                                  const StringPiece& value) const;
 
   // For "http://a.com/b/c/d?e=f/g#r" returns "http://a.com/b/c/d"
   // Returns a StringPiece, only valid for the lifetime of this object.
@@ -143,9 +141,6 @@ class GoogleUrl {
   // Returns a StringPiece, only valid for the lifetime of this object.
   StringPiece Origin() const;
 
-  // Returns the query-string, not including the "?".  Note that the
-  // query will be in escaped syntax, and is suitable for passing to
-  // QueryParams for parsing and unescaping.
   StringPiece Query() const;
 
   // Returns scheme of stored url.
@@ -201,29 +196,6 @@ class GoogleUrl {
     return gurl_ != other.gurl_;
   }
 
-  // Unescape a url, converting all %XX to the the actual char 0xXX.
-  // For example, this will convert "foo%21bar" to "foo!bar".
-  //
-  // This will work with strings that have embedded NULs and %00s.
-  //
-  // TODO(jmarantz): Change signature to return a bool so if the escaped
-  // syntax was not valid, we can help the caller avoid relying on this value.
-  static GoogleString Unescape(const StringPiece& escaped_url) {
-    return UnescapeHelper(escaped_url, true);
-  }
-
-  // Unescape converts "+" to " ", but that is not ideal for
-  // unescaping filenames, where "+" is fine, and space needs to be
-  // escaped to ",20", so a special hook is provided for that
-  // use-case.
-  static GoogleString UnescapeIgnorePlus(const StringPiece& escaped_url) {
-    return UnescapeHelper(escaped_url, false);
-  }
-
-  // Escapes a string according to the rules in
-  // http://en.wikipedia.org/wiki/Query_string#URL_encoding
-  static GoogleString Escape(const StringPiece& unescaped_url);
-
  private:
   // Returned by *Position methods when that position is not well-defined.
   static const size_t npos;
@@ -237,8 +209,6 @@ class GoogleUrl {
   size_t LeafEndPosition() const;
   size_t LeafStartPosition() const;
   size_t PathStartPosition() const;
-  static GoogleString UnescapeHelper(const StringPiece& escaped_url,
-                                     bool convert_plus_to_space);
 
   // Resolves a URL against a base. Returns whether the resolution worked.
   inline bool ResolveHelper(const GURL& base, const std::string& path_and_leaf);

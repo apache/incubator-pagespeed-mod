@@ -99,6 +99,7 @@ class MockFilter : public EmptyHtmlFilter {
   RewriteDriver* driver_;
   int num_elements_;
   PropertyValue* num_elements_property_;
+  GoogleString client_id_;
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 

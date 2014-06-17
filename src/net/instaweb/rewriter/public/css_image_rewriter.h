@@ -47,6 +47,7 @@ class CssImageRewriter {
  public:
   CssImageRewriter(CssFilter::Context* root_context,
                    CssFilter* filter,
+                   RewriteDriver* driver,
                    CacheExtender* cache_extender,
                    ImageRewriteFilter* image_rewriter,
                    ImageCombineFilter* image_combiner);
@@ -76,16 +77,20 @@ class CssImageRewriter {
                    RewriteContext* parent);
 
  private:
-  RewriteDriver* driver() const {
-    return filter_->driver();
-  }
-  bool RewriteImport(RewriteContext* parent, CssHierarchy* hierarchy);
-  bool RewriteImage(int64 image_inline_max_bytes, const GoogleUrl& trim_url,
-                    const GoogleUrl& original_url, RewriteContext* parent,
+  void RewriteImport(RewriteContext* parent,
+                     CssHierarchy* hierarchy);
+
+  void RewriteImage(int64 image_inline_max_bytes,
+                    const GoogleUrl& trim_url,
+                    const GoogleUrl& original_url,
+                    RewriteContext* parent,
                     Css::Values* values, size_t value_index);
 
   // Needed for import flattening.
   CssFilter* filter_;
+
+  // Needed for server_context and options.
+  RewriteDriver* driver_;
 
   // Top level context for rewriting root CSS file itself.
   CssFilter::Context* root_context_;

@@ -35,6 +35,7 @@
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/message_handler.h"
@@ -42,8 +43,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/util/url_to_filename_encoder.h"
 
 namespace net_instaweb {
 
@@ -88,7 +87,6 @@ OutputResource::OutputResource(ServerContext* server_context,
   CHECK(EndsInSlash(resolved_base)) <<
       "resolved_base must end in a slash, was: " << resolved_base;
   set_enable_cache_purge(options->enable_cache_purge());
-  set_respect_vary(ResponseHeaders::GetVaryOption(options->respect_vary()));
   set_proactive_resource_freshening(options->proactive_resource_freshening());
 }
 
@@ -137,7 +135,6 @@ void OutputResource::EndWrite(MessageHandler* handler) {
   value_.SetHeaders(&response_headers_);
   Hasher* hasher = server_context_->hasher();
   full_name_.set_hash(hasher->Hash(contents()));
-  full_name_.set_signature(ComputeSignature());
   computed_url_.clear();  // Since dependent on full_name_.
   writing_complete_ = true;
 }
@@ -149,8 +146,8 @@ StringPiece OutputResource::suffix() const {
 
 GoogleString OutputResource::DumpFileName() const {
   GoogleString filename;
-  UrlToFilenameEncoder::EncodeSegment(
-      server_context_->filename_prefix(), url(), '/', &filename);
+  server_context_->filename_encoder()->Encode(
+      server_context_->filename_prefix(), url(), &filename);
   return filename;
 }
 
@@ -272,31 +269,6 @@ void OutputResource::clear_cached_result() {
     cached_result_owned_ = false;
   }
   cached_result_ = NULL;
-}
-
-GoogleString OutputResource::ComputeSignature() {
-  GoogleString signing_key = rewrite_options_->url_signing_key();
-  GoogleString computed_signature;
-  if (!signing_key.empty()) {
-    GoogleString data = HttpCacheKey();
-    int data_length =
-        data.size() -
-        (full_name_.ext().size() + full_name_.hash().size() +
-         full_name_.signature().size() + 2);  // For the two separating dots.
-    const SHA1Signature* signature = rewrite_options_->sha1signature();
-    computed_signature =
-        signature->Sign(signing_key, data.substr(0, data_length));
-  }
-  return computed_signature;
-}
-
-bool OutputResource::CheckSignature() {
-  // If signing isn't enforced, then consider all URLs to be valid and just
-  // ignore the passed signature if there is one.
-  if (rewrite_options_->url_signing_key().empty()) {
-    return true;
-  }
-  return full_name_.signature() == ComputeSignature();
 }
 
 }  // namespace net_instaweb

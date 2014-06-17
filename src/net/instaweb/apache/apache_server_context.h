@@ -57,7 +57,7 @@ class ApacheServerContext : public SystemServerContext {
   static void InitStats(Statistics* statistics);
 
   ApacheRewriteDriverFactory* apache_factory() { return apache_factory_; }
-  ApacheConfig* global_config();
+  ApacheConfig* config();
   bool InitPath(const GoogleString& path);
 
   // These return configuration objects that hold settings from
@@ -90,11 +90,8 @@ class ApacheServerContext : public SystemServerContext {
   }
 
   // Returns special configuration that should be used for SPDY sessions
-  // instead of global_config(). Returns NULL if global_config() should be
-  // used instead.
-  virtual const ApacheConfig* SpdyGlobalConfig() const {
-    return spdy_specific_config_.get();
-  }
+  // instead of config(). Returns NULL if config() should be used instead.
+  ApacheConfig* SpdyConfig() { return spdy_specific_config_.get(); }
 
   // Pool to pass to NewRewriteDriverFromPool to get a RewriteDriver configured
   // with SPDY-specific options. May be NULL in case there is no spdy-specific
@@ -129,15 +126,6 @@ class ApacheServerContext : public SystemServerContext {
   // let mod_pagespeed behave as an origin fetcher.
   virtual bool ProxiesHtml() const { return false; }
 
-  // Creates a request context which is suitable for resolving
-  // options, but is not yet suitable for establishing a context from
-  // which to do fetches.  Establishing that context is slightly
-  // expensive so we want to only do that in request-paths that can
-  // lead to spdy fetches.
-  //
-  // To enable a rewrite context for fetching, call
-  //   apache_request_context->SetupSpdyConnectionIfNeeded(request);
-  // after the object is context is constructed.
   ApacheRequestContext* NewApacheRequestContext(request_rec* request);
 
   // Reports an error status to the HTTP resource request, and logs

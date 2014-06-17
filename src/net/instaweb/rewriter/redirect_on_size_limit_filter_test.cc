@@ -33,7 +33,7 @@ namespace net_instaweb {
 namespace {
 
 static const char kScript[] = "<script type=\"text/javascript\">"
-    "window.location=\"http://test.com/in.html?PageSpeed=off\";"
+    "window.location=\"http://test.com/in.html?ModPagespeed=off\";"
     "</script>";
 
 }  // namespace
@@ -140,7 +140,7 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestFlushBeforeLimit) {
 
   CheckOutput(57, 79, true, input,
       StringPrintf("<html><input type=\"text\"/>"
-                   "%s<script type=\"text/javascript\">alert('123');</script>"
+                   "<script type=\"text/javascript\">alert('123');</script>%s"
                    "</html>", kScript));
 
   CheckOutput(79, 113, true, input,
@@ -184,14 +184,13 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestFlushBeforeLimit) {
 
 TEST_F(RedirectOnSizeLimitFilterTest, TestEscapingAndFlush) {
   SetupDriver(100);
-  static const char kOutput[] =
+  GoogleString output = StringPrintf(
       "<html>"
       "<input type=\"text\"/>"
-      "<script type=\"text/javascript\">"
-      "window.location=\"http://test.com/in.html?%27(&PageSpeed=off\";"
-      "</script>"
       "<script type=\"text/javascript\">alert('123');</script>"
-      "</html>";
+      "<script type=\"text/javascript\">"
+      "window.location=\"http://test.com/in.html?\\'(&ModPagespeed=off\";"
+      "</script></html>");
 
   html_parse()->StartParse("http://test.com/in.html?'(");
   html_parse()->ParseText(
@@ -204,7 +203,7 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestEscapingAndFlush) {
       "<table><tr><td>blah</td></tr></table></html>");
   html_parse()->FinishParse();
 
-  EXPECT_STREQ(kOutput, output_);
+  EXPECT_EQ(output, output_);
 }
 
 }  // namespace net_instaweb

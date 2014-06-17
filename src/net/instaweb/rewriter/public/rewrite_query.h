@@ -17,19 +17,16 @@
 
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/util/public/gtest_prod.h"
-#include "net/instaweb/util/public/query_params.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/http/headers.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
 class GoogleUrl;
 class MessageHandler;
+class QueryParams;
+class RequestHeaders;
 class RequestProperties;
 class ResponseHeaders;
 class RewriteDriver;
@@ -57,23 +54,16 @@ class RewriteQuery {
     kNoneFound
   };
 
-  RewriteQuery();
-  ~RewriteQuery();
-
   // Scans request_url's query parameters and request_headers for "ModPagespeed"
-  // and "PageSpeed" flags, creating and populating options_ or request_context
-  // if any were found that were all parsed successfully. If any were parsed
-  // unsuccessfully, kInvalid is returned. If none were found, kNoneFound is
-  // returned. Also removes the options from the query_params of the url and the
-  // request_headers, populates pagespeed_query_params() with the removed query
-  // parameters, and populates pagespeed_option_cookies() with any PageSpeed
-  // option cookies in the request headers (which are NOT removed).
+  // and "PageSpeed" flags, creating and populating *'options' if any were found
+  // they were all parsed successfully.  If any were parsed unsuccessfully
+  // kInvalid is returned.  If none found, kNoneFound is returned. It also
+  // removes the flags from the query_params of the url and the request_headers.
   //
-  // First cookies are processed, then query parameters, then request headers,
-  // then response headers. Therefore parameters set by response headers take
-  // precedence over request headers over query parameters over cookies. The
-  // exception is filter disables, which always take precedence over enables,
-  // even those processed later.
+  // First queries are processed, then request headers, then response headers.
+  // Therefore parameters set by response headers take precedence over request
+  // headers over query parameters. The exception is filter disables, which
+  // always take precedence over enables, even those processed later.
   //
   // If NULL is passed for request_headers or response_headers those particular
   // headers will be skipped in the scan.
@@ -83,19 +73,14 @@ class RewriteQuery {
   // declared in the RelatedOptions() and RelatedFilters() methods of
   // the filter identified in the .pagespeed. URL.  See GenerateResourceOption
   // for how they get into URLs in the first place.
-  //
-  // 'allow_options_to_be_specified_by_cookies' controls whether we parse
-  // cookies for options.
-  Status Scan(bool allow_related_options,
-              bool allow_options_to_be_specified_by_cookies,
-              const GoogleString& request_option_override,
-              const RequestContextPtr& request_context,
-              RewriteDriverFactory* factory,
-              ServerContext* server_context,
-              GoogleUrl* request_url,
-              RequestHeaders* request_headers,
-              ResponseHeaders* response_headers,
-              MessageHandler* handler);
+  static Status Scan(bool allow_related_options,
+                     RewriteDriverFactory* factory,
+                     ServerContext* server_context,
+                     GoogleUrl* request_url,
+                     RequestHeaders* request_headers,
+                     ResponseHeaders* response_headers,
+                     scoped_ptr<RewriteOptions>* options,
+                     MessageHandler* handler);
 
   // Performs the request and response header scanning for Scan(). If any
   // "ModPagespeed" or "PageSpeed" options are found in the headers they are
@@ -105,10 +90,7 @@ class RewriteQuery {
   // assumes that headers will be stripped from the headers if options are found
   // and that headers will not grow in this call.
   template <class HeaderT>
-  static Status ScanHeader(bool allow_options,
-                           const GoogleString& request_option_override,
-                           const RequestContextPtr& request_context,
-                           HeaderT* headers,
+  static Status ScanHeader(HeaderT* headers,
                            RequestProperties* request_properties,
                            RewriteOptions* options,
                            MessageHandler* handler);
@@ -120,26 +102,6 @@ class RewriteQuery {
   // empty string is returned.
   static GoogleString GenerateResourceOption(StringPiece filter_id,
                                              RewriteDriver* driver);
-
-  // Indicates whether the specified name is likely to identify a
-  // custom header or query param.
-  static bool MightBeCustomOption(StringPiece name);
-
-  const QueryParams& query_params() const { return query_params_; }
-  const QueryParams& pagespeed_query_params() const {
-    return pagespeed_query_params_;
-  }
-  const QueryParams& pagespeed_option_cookies() const {
-    return pagespeed_option_cookies_;
-  }
-  const RewriteOptions* options() const { return options_.get(); }
-  RewriteOptions* ReleaseOptions() { return options_.release(); }
-
-  // Determines whether the status code is one that is acceptable for
-  // processing requests.
-  static bool IsOK(Status status) {
-    return (status == kNoneFound) || (status == kSuccess);
-  }
 
  private:
   friend class RewriteQueryTest;
@@ -162,28 +124,21 @@ class RewriteQuery {
     kProxyModeNoTransform,
   };
 
-  // Returns true if the params/headers/cookies look like they might have
-  // some options.  This is used as a cheap pre-scan before doing the more
+  // Returns true if the params/headers look like they might have some
+  // options.  This is used as a cheap pre-scan before doing the more
   // expensive query processing.
-  static bool MayHaveCustomOptions(
-      const QueryParams& params, const RequestHeaders* req_headers,
-      const ResponseHeaders* resp_headers,
-      const RequestHeaders::CookieMultimap& cookies);
+  static bool MayHaveCustomOptions(const QueryParams& params,
+                                   const RequestHeaders* req_headers,
+                                   const ResponseHeaders* resp_headers);
 
   // As above, but only for headers.
   template <class HeaderT>
   static bool HeadersMayHaveCustomOptions(const QueryParams& params,
                                           const HeaderT* headers);
 
-  // As above, but only for cookies.
-  static bool CookiesMayHaveCustomOptions(
-      const RequestHeaders::CookieMultimap& cookies);
-
   // Examines a name/value pair for options.
   static Status ScanNameValue(const StringPiece& name,
-                              const StringPiece& value,
-                              bool allow_options,
-                              const RequestContextPtr& request_context,
+                              const GoogleString& value,
                               RequestProperties* request_properties,
                               RewriteOptions* options,
                               MessageHandler* handler);
@@ -218,13 +173,6 @@ class RewriteQuery {
   static bool ParseImageQualityPreference(
       const GoogleString* preference_name,
       DeviceProperties::ImageQualityPreference* preference);
-
-  QueryParams query_params_;
-  QueryParams pagespeed_query_params_;
-  QueryParams pagespeed_option_cookies_;
-  scoped_ptr<RewriteOptions> options_;
-
-  DISALLOW_COPY_AND_ASSIGN(RewriteQuery);
 };
 
 }  // namespace net_instaweb

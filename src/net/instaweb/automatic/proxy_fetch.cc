@@ -32,6 +32,7 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
+#include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -359,7 +360,7 @@ void ProxyFetchPropertyCallbackCollector::ExecuteConnectProxyFetch(
   if (!options->await_pcache_lookup()) {
     std::set<ProxyFetchPropertyCallback*>::iterator iter;
     for (iter = pending_callbacks_.begin(); iter != pending_callbacks_.end();
-         ++iter) {
+        ++iter) {
       // Finish all the PropertyCache lookups as soon as possible as origin
       // starts sending content.
       (*iter)->FastFinishLookup();
@@ -482,12 +483,18 @@ ProxyFetch::ProxyFetch(
   set_request_headers(async_fetch->request_headers());
   set_response_headers(async_fetch->response_headers());
 
-  // Was this proxy_fetch created on behalf of a distributed rewrite? Note: We
-  // don't verify the distributed rewrite key because we want to be conservative
-  // about when we apply rewriting.
+  // Was this proxy_fetch created on behalf of a distributed rewrite?
   if (request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteFetch) ||
       request_headers()->Has(HttpAttributes::kXPsaDistributedRewriteForHtml)) {
     distributed_fetch_ = true;
+  }
+
+  // Now that we've created the RewriteDriver, include the client_id generated
+  // from the original request headers, if any.
+  const char* client_id = async_fetch->request_headers()->Lookup1(
+      HttpAttributes::kXGooglePagespeedClientId);
+  if (client_id != NULL) {
+    driver_->set_client_id(client_id);
   }
 
   DCHECK(driver_->request_headers() != NULL);
@@ -570,31 +577,15 @@ const RewriteOptions* ProxyFetch::Options() {
 void ProxyFetch::HandleHeadersComplete() {
   // If domain rewrite filter is enabled we need to also rewrite the location
   // headers when origin is serving redirects.
-  // TODO(matterbury): Consider other 3xx responses.
-  // [but note that doing this for 304 Not Modified is probably a dumb idea]
   if (response_headers() != NULL &&
+      driver_->options()->Enabled(RewriteOptions::kRewriteDomains) &&
+      driver_->domain_rewriter() != NULL &&
       (response_headers()->status_code() == HttpStatus::kFound ||
        response_headers()->status_code() == HttpStatus::kMovedPermanently)) {
-    const char* loc = response_headers()->Lookup1(HttpAttributes::kLocation);
-    if (loc != NULL && !driver_->pagespeed_query_params().empty()) {
-      GoogleUrl base_url(url_);
-      GoogleUrl locn_url(base_url, loc);
-      // Only add them back if we're being redirected back to the same domain.
-      if (base_url.Origin() == locn_url.Origin()) {
-        // TODO(jmarantz): Add a method to GoogleUrl that makes this easy.
-        GoogleString new_loc(loc);
-        StrAppend(&new_loc, locn_url.has_query() ? "&" : "?",
-                  driver_->pagespeed_query_params());
-        response_headers()->Replace(HttpAttributes::kLocation, new_loc);
-        response_headers()->ComputeCaching();
-      }
-    }
-  }
-
-  // Set or clear sticky option cookies as appropriate.
-  if (response_headers() != NULL) {
     GoogleUrl gurl(url_);
-    driver_->SetOrClearPageSpeedOptionCookies(gurl, response_headers());
+    driver_->domain_rewriter()->UpdateLocationHeader(gurl, driver_,
+                                                     response_headers());
+    response_headers()->ComputeCaching();
   }
 
   // Figure out semantic info from response_headers_
@@ -605,7 +596,7 @@ void ProxyFetch::HandleHeadersComplete() {
 
     if (!server_context_->ProxiesHtml() && claims_html_) {
       LOG(DFATAL) << "Investigate how servers that don't proxy HTML can be "
-                     "initiated with original_content_fetch_ non-null";
+          "initiated with original_content_fetch_ non-null";
       headers->SetStatusAndReason(HttpStatus::kForbidden);
     }
     original_content_fetch_->HeadersComplete();
@@ -848,9 +839,7 @@ bool ProxyFetch::HandleWrite(const StringPiece& str,
       if ((property_cache_callback_ != NULL) && started_parse_) {
         // Connect the ProxyFetch in the PropertyCacheCallbackCollector.  This
         // ensures that we will not start executing HTML filters until
-        // property cache lookups are complete --- we will keep collecting
-        // things into our queue below, but ScheduleQueueExecutionIfNeeded will
-        // wait until lookup completed before scheduling the actual parse.
+        // property cache lookups are complete.
         property_cache_callback_->ConnectProxyFetch(this);
       }
 
@@ -965,8 +954,8 @@ void ProxyFetch::HandleDone(bool success) {
 }
 
 bool ProxyFetch::IsCachedResultValid(const ResponseHeaders& headers) {
-  return OptionsAwareHTTPCacheCallback::IsCacheValid(
-      url_, *Options(), request_context(), headers);
+  return (headers.has_date_ms() &&
+          Options()->IsUrlCacheValid(url_, headers.date_ms()));
 }
 
 void ProxyFetch::FlushDone() {
@@ -1074,6 +1063,7 @@ void ProxyFetch::ExecuteQueued() {
   }
 }
 
+
 void ProxyFetch::Finish(bool success) {
   ProxyFetchPropertyCallbackCollector* detach_callback = NULL;
   {
@@ -1107,7 +1097,7 @@ void ProxyFetch::Finish(bool success) {
   if (driver_ != NULL) {
     if (started_parse_) {
       driver_->FinishParseAsync(
-          MakeFunction(this, &ProxyFetch::CompleteFinishParse, success));
+        MakeFunction(this, &ProxyFetch::CompleteFinishParse, success));
       return;
 
     } else {
@@ -1233,7 +1223,6 @@ bool UrlMightHavePropertyCacheEntry(const GoogleUrl& url) {
     case ContentType::kPdf:
     case ContentType::kOther:
     case ContentType::kJson:
-    case ContentType::kSourceMap:
     case ContentType::kVideo:
     case ContentType::kAudio:
     case ContentType::kOctetStream:

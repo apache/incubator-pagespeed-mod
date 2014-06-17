@@ -17,7 +17,6 @@
 #include "net/instaweb/system/public/system_rewrite_options.h"
 
 #include "base/logging.h"
-#include "net/instaweb/system/public/serf_url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/timer.h"
 
@@ -28,8 +27,6 @@ class ThreadSystem;
 namespace {
 
 const int64 kDefaultCacheFlushIntervalSec = 5;
-
-const char kFetchHttps[] = "FetchHttps";
 
 }  // namespace
 
@@ -85,14 +82,17 @@ void SystemRewriteOptions::AddProperties() {
                     RewriteOptions::kMemcachedThreads,
                     "Number of background threads to use to run "
                         "memcached fetches");
-  AddSystemProperty(500 * Timer::kMsUs,  // half a second
-                    &SystemRewriteOptions::memcached_timeout_us_, "amo",
+  AddSystemProperty(0, &SystemRewriteOptions::memcached_timeout_us_, "amo",
                     RewriteOptions::kMemcachedTimeoutUs,
                     "Maximum time in microseconds to allow for memcached "
                         "transactions");
   AddSystemProperty(true, &SystemRewriteOptions::statistics_enabled_, "ase",
                     RewriteOptions::kStatisticsEnabled,
                     "Whether to collect cross-process statistics.");
+  AddSystemProperty("/pagespeed_statistics",
+                    &SystemRewriteOptions::statistics_handler_path_, "ashp",
+                    RewriteOptions::kStatisticsHandlerPath,
+                    "Absolute path URL to statistics handler.");
   AddSystemProperty("", &SystemRewriteOptions::statistics_logging_charts_css_,
                     "aslcc", RewriteOptions::kStatisticsLoggingChartsCSS,
                     "Where to find an offline copy of the Google Charts Tools "
@@ -154,15 +154,11 @@ void SystemRewriteOptions::AddProperties() {
                     "acfpi", RewriteOptions::kCacheFlushPollIntervalSec,
                     "Number of seconds to wait between polling for cache-flush "
                         "requests");
-  AddSystemProperty(true,
+  AddSystemProperty(false,
                     &SystemRewriteOptions::compress_metadata_cache_,
                     "cc", RewriteOptions::kCompressMetadataCache,
                     "Whether to compress cache entries before writing them to "
                     "memory or disk.");
-  AddSystemProperty("disable", &SystemRewriteOptions::https_options_, "fhs",
-                    kFetchHttps, "Controls direct fetching of HTTPS resources."
-                    "  Value is comma-separated list of keywords: "
-                    SERF_HTTPS_KEYWORDS);
   AddSystemProperty("", &SystemRewriteOptions::ssl_cert_directory_, "assld",
                     RewriteOptions::kSslCertDirectory,
                     "Directory to find SSL certificates.");
@@ -256,15 +252,6 @@ SystemRewriteOptions* SystemRewriteOptions::DynamicCast(
   SystemRewriteOptions* config = dynamic_cast<SystemRewriteOptions*>(instance);
   DCHECK(config != NULL);
   return config;
-}
-
-bool SystemRewriteOptions::HttpsOptions::SetFromString(
-    StringPiece value, GoogleString* error_detail) {
-  bool success = SerfUrlAsyncFetcher::ValidateHttpsOptions(value, error_detail);
-  if (success) {
-    set(value.as_string());
-  }
-  return success;
 }
 
 }  // namespace net_instaweb

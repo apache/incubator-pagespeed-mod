@@ -67,7 +67,8 @@ class CacheExtender::Context : public SingleRewriteContext {
           RewriteContext* parent)
       : SingleRewriteContext(driver, parent,
                              NULL /* no resource context */),
-        extender_(extender) {}
+        extender_(extender),
+        driver_(driver) {}
   virtual ~Context() {}
 
   virtual void Render();
@@ -78,12 +79,13 @@ class CacheExtender::Context : public SingleRewriteContext {
 
  private:
   CacheExtender* extender_;
+  RewriteDriver* driver_;
   DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
 CacheExtender::CacheExtender(RewriteDriver* driver)
     : RewriteFilter(driver) {
-  Statistics* stats = server_context()->statistics();
+  Statistics* stats = server_context_->statistics();
   extension_count_ = stats->GetVariable(kCacheExtensions);
   not_cacheable_count_ = stats->GetVariable(kNotCacheable);
 }
@@ -103,7 +105,7 @@ bool CacheExtender::ShouldRewriteResource(
     return false;
   }
   if (input_resource_type->type() == ContentType::kJavascript &&
-      driver()->options()->avoid_renaming_introspective_javascript() &&
+      driver_->options()->avoid_renaming_introspective_javascript() &&
       JavascriptCodeBlock::UnsafeToRename(input_resource->contents())) {
     return false;
   }
@@ -111,7 +113,7 @@ bool CacheExtender::ShouldRewriteResource(
     // This also includes the case where a previous filter rewrote this.
     return true;
   }
-  UrlNamer* url_namer = driver()->server_context()->url_namer();
+  UrlNamer* url_namer = driver_->server_context()->url_namer();
   GoogleUrl origin_gurl(url);
 
   // We won't initiate a CacheExtender::Context with a pagespeed
@@ -119,14 +121,14 @@ bool CacheExtender::ShouldRewriteResource(
   // the resource after we queued the request, but before our
   // context is asked to rewrite it.  So we have to check again now
   // that the resource URL is finalized.
-  if (server_context()->IsPagespeedResource(origin_gurl)) {
+  if (server_context_->IsPagespeedResource(origin_gurl)) {
     return false;
   }
 
   if (url_namer->ProxyMode()) {
     return !url_namer->IsProxyEncoded(origin_gurl);
   }
-  const DomainLawyer* lawyer = driver()->options()->domain_lawyer();
+  const DomainLawyer* lawyer = driver_->options()->domain_lawyer();
 
   // We return true for IsProxyMapped because when reconstructing
   // MAPPED_DOMAIN/file.pagespeed.ce.HASH.ext we won't be changing
@@ -140,24 +142,24 @@ bool CacheExtender::ShouldRewriteResource(
 
 void CacheExtender::StartElementImpl(HtmlElement* element) {
   resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
+  resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     bool may_load = false;
     switch (attributes[i].category) {
       case semantic_type::kStylesheet:
-        may_load = driver()->MayCacheExtendCss();
+        may_load = driver_->MayCacheExtendCss();
         break;
       case semantic_type::kImage:
-        may_load = driver()->MayCacheExtendImages();
+        may_load = driver_->MayCacheExtendImages();
         break;
       case semantic_type::kScript:
-        may_load = driver()->MayCacheExtendScripts();
+        may_load = driver_->MayCacheExtendScripts();
         break;
       default:
         // Does the url in the attribute end in .pdf, ignoring query params?
         if (attributes[i].url->DecodedValueOrNull() != NULL
-            && driver()->MayCacheExtendPdfs()) {
-        GoogleUrl url(driver()->base_url(),
+            && driver_->MayCacheExtendPdfs()) {
+        GoogleUrl url(driver_->base_url(),
                       attributes[i].url->DecodedValueOrNull());
         if (url.IsWebValid() && StringCaseEndsWith(
                 url.LeafSansQuery(), kContentTypePdf.file_extension())) {
@@ -172,7 +174,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
 
     // TODO(jmarantz): We ought to be able to domain-shard even if the
     // resources are non-cacheable or privately cacheable.
-    if (driver()->IsRewritable(element)) {
+    if (driver_->IsRewritable(element)) {
       ResourcePtr input_resource(CreateInputResource(
           attributes[i].url->DecodedValueOrNull()));
       if (input_resource.get() == NULL) {
@@ -180,15 +182,15 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
       }
 
       GoogleUrl input_gurl(input_resource->url());
-      if (server_context()->IsPagespeedResource(input_gurl)) {
+      if (server_context_->IsPagespeedResource(input_gurl)) {
         continue;
       }
 
-      ResourceSlotPtr slot(driver()->GetSlot(
+      ResourceSlotPtr slot(driver_->GetSlot(
           input_resource, element, attributes[i].url));
-      Context* context = new Context(this, driver(), NULL /* not nested */);
+      Context* context = new Context(this, driver_, NULL /* not nested */);
       context->AddSlot(slot);
-      driver()->InitiateRewrite(context);
+      driver_->InitiateRewrite(context);
     }
   }
 }
@@ -210,7 +212,7 @@ void CacheExtender::Context::Render() {
     // Log applied rewriter id. Here, we care only about non-nested
     // cache extensions, and that too, those occurring in synchronous
     // flows only.
-    if (Driver() != NULL) {
+    if (driver_ != NULL) {
       if (slot(0)->resource().get() != NULL &&
           slot(0)->resource()->type() != NULL) {
         const char* filter_id = id();
@@ -226,7 +228,7 @@ void CacheExtender::Context::Render() {
               RewriteOptions::kExtendCacheImages);
         }
         // TODO(anupama): Log cache extension for pdfs etc.
-        Driver()->log_record()->SetRewriterLoggingStatus(
+        driver_->log_record()->SetRewriterLoggingStatus(
             filter_id,
             slot(0)->resource()->url(),
             RewriterApplication::APPLIED_OK);
@@ -240,16 +242,16 @@ RewriteResult CacheExtender::RewriteLoadedResource(
     const OutputResourcePtr& output_resource) {
   CHECK(input_resource->loaded());
 
-  MessageHandler* message_handler = driver()->message_handler();
+  MessageHandler* message_handler = driver_->message_handler();
   const ResponseHeaders* headers = input_resource->response_headers();
   GoogleString url = input_resource->url();
-  int64 now_ms = server_context()->timer()->NowMs();
+  int64 now_ms = server_context_->timer()->NowMs();
 
   // See if the resource is cacheable; and if so whether there is any need
   // to cache extend it.
   bool ok = false;
   const ContentType* output_type = NULL;
-  if (!server_context()->http_cache()->force_caching() &&
+  if (!server_context_->http_cache()->force_caching() &&
       !headers->IsProxyCacheable()) {
     // Note: RewriteContextTest.PreserveNoCacheWithFailedRewrites
     // relies on CacheExtender failing rewrites in this case.
@@ -270,7 +272,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
     const ContentType* input_type = input_resource->type();
     if (input_type->IsImage() ||  // images get sniffed only to other images
         (input_type->type() == ContentType::kPdf &&
-         driver()->MayCacheExtendPdfs()) ||  // Don't accept PDFs by default.
+         driver_->MayCacheExtendPdfs()) ||  // Don't accept PDFs by default.
         input_type->type() == ContentType::kCss ||  // CSS + JS left as-is.
         input_type->type() == ContentType::kJavascript) {
       output_type = input_type;
@@ -296,9 +298,9 @@ RewriteResult CacheExtender::RewriteLoadedResource(
   StringWriter writer(&transformed_contents);
   GoogleUrl input_resource_gurl(input_resource->url());
   if (output_type->type() == ContentType::kCss) {
-    switch (driver()->ResolveCssUrls(input_resource_gurl,
-                                     output_resource->resolved_base(),
-                                     contents, &writer, message_handler)) {
+    switch (driver_->ResolveCssUrls(input_resource_gurl,
+                                    output_resource->resolved_base(),
+                                    contents, &writer, message_handler)) {
       case RewriteDriver::kNoResolutionNeeded:
         break;
       case RewriteDriver::kWriteFailed:
@@ -312,13 +314,13 @@ RewriteResult CacheExtender::RewriteLoadedResource(
     }
   }
 
-  server_context()->MergeNonCachingResponseHeaders(
+  server_context_->MergeNonCachingResponseHeaders(
       input_resource, output_resource);
-  if (driver()->Write(ResourceVector(1, input_resource),
-                      contents,
-                      output_type,
-                      input_resource->charset(),
-                      output_resource.get())) {
+  if (driver_->Write(ResourceVector(1, input_resource),
+                     contents,
+                     output_type,
+                     input_resource->charset(),
+                     output_resource.get())) {
     return kRewriteOk;
   } else {
     return kRewriteFailed;
@@ -326,7 +328,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
 }
 
 RewriteContext* CacheExtender::MakeRewriteContext() {
-  return new Context(this, driver(), NULL /*not nested*/);
+  return new Context(this, driver_, NULL /*not nested*/);
 }
 
 RewriteContext* CacheExtender::MakeNestedContext(

@@ -73,8 +73,6 @@ class JavascriptFilter : public RewriteFilter {
   virtual const char* id() const { return RewriteOptions::kJavascriptMinId; }
   virtual RewriteContext* MakeRewriteContext();
 
-  static JavascriptRewriteConfig* InitializeConfig(RewriteDriver* driver);
-
  protected:
   virtual RewriteContext* MakeNestedRewriteContext(
       RewriteContext* parent, const ResourceSlotPtr& slot);
@@ -91,15 +89,14 @@ class JavascriptFilter : public RewriteFilter {
   inline void RewriteInlineScript(HtmlCharactersNode* body_node);
   inline void RewriteExternalScript(
       HtmlElement* script_in_progress, HtmlElement::Attribute* script_src);
-
-  // Set up config_ if it has not already been initialized.  We must do this
-  // lazily because at filter creation time many of the options have not yet
-  // been set up correctly.
-  void InitializeConfigIfNecessary();
-
-  // Used to distinguish requests for jm (Minified JavaScript) and
-  // sm (JavaScript Source Map) resources.
-  virtual bool output_source_map() const { return false; }
+  // Lazily initialize config_ if it wasn't already.
+  void InitializeConfigIfNecessary() {
+    if (config_.get() != NULL) {
+      return;
+    }
+    InitializeConfig();
+  }
+  void InitializeConfig();
 
   ScriptType script_type_;
   // some_missing_scripts indicates that we stopped processing a script and
@@ -109,20 +106,6 @@ class JavascriptFilter : public RewriteFilter {
   ScriptTagScanner script_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptFilter);
-};
-
-class JavascriptSourceMapFilter : public JavascriptFilter {
- public:
-  explicit JavascriptSourceMapFilter(RewriteDriver* rewrite_driver);
-  virtual ~JavascriptSourceMapFilter();
-
-  virtual const char* Name() const { return "Javascript_Source_Map"; }
-  virtual const char* id() const {
-    return RewriteOptions::kJavascriptMinSourceMapId;
-  }
-
- private:
-  virtual bool output_source_map() const { return true; }
 };
 
 }  // namespace net_instaweb

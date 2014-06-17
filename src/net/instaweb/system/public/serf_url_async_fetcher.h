@@ -18,11 +18,11 @@
 #ifndef NET_INSTAWEB_SYSTEM_PUBLIC_SERF_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_SYSTEM_PUBLIC_SERF_URL_ASYNC_FETCHER_H_
 
+#include <set>
 #include <vector>
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/pool.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -43,7 +43,6 @@
 #endif
 
 struct apr_pool_t;
-struct apr_uri_t;
 struct serf_context_t;
 
 namespace net_instaweb {
@@ -54,8 +53,8 @@ class Statistics;
 class SerfFetch;
 class SerfThreadedFetcher;
 class Timer;
-class UpDownCounter;
 class Variable;
+struct ContentType;
 
 struct SerfStats {
   static const char kSerfFetchRequestCount[];
@@ -139,6 +138,11 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
     return track_original_content_length_;
   }
   void set_track_original_content_length(bool x);
+
+  void set_inflation_content_type_blacklist(
+      const std::set<const ContentType*>& bypass_set) {
+    inflation_content_type_blacklist_ = bypass_set;
+  }
 
   // Indicates that direct HTTPS fetching should be allowed, and how picky
   // to be about certificates.  The directive is a comma separated list of
@@ -229,20 +233,10 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
 
   // This is protected because it's updated along with active_fetches_,
   // which happens in subclass SerfThreadedFetcher as well as this class.
-  UpDownCounter* active_count_;
+  Variable* active_count_;
 
  private:
   friend class SerfFetch;  // To access stats variables below.
-
-  // Note: returned string memory substring of memory in the pool.
-  static const char* ExtractHostHeader(const apr_uri_t& uri,
-                                       apr_pool_t* pool);
-  FRIEND_TEST(SerfUrlAsyncFetcherTest, TestHostConstruction);
-
-  // Transforms Host: header into SNI host name by dropping the port.
-  // Exposed for testability
-  static GoogleString RemovePortFromHostHeader(const GoogleString& in);
-  FRIEND_TEST(SerfUrlAsyncFetcherTest, TestPortRemoval);
 
   static bool ParseHttpsOptions(StringPiece directive, uint32* options,
                                 GoogleString* error_message);
@@ -262,6 +256,10 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   MessageHandler* message_handler_;
   GoogleString ssl_certificates_dir_;
   GoogleString ssl_certificates_file_;
+
+  // Set of content types that will not be inflated, when passing through
+  // inflating fetch.
+  std::set<const ContentType*> inflation_content_type_blacklist_;
 
   DISALLOW_COPY_AND_ASSIGN(SerfUrlAsyncFetcher);
 };

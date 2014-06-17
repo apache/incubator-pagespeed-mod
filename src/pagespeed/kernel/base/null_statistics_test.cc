@@ -19,7 +19,6 @@
 #include "pagespeed/kernel/base/null_statistics.h"
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -29,8 +28,8 @@ namespace {
 TEST(NullStatisticsTest, CanGetAllVarTypes) {
   NullStatistics stats;
 
-  stats.AddUpDownCounter("var");
-  UpDownCounter* var = stats.GetUpDownCounter("var");
+  stats.AddVariable("var");
+  Variable* var = stats.GetVariable("var");
   var->Add(1);
   var->Add(-5);
   EXPECT_EQ(0, var->SetReturningPreviousValue(10));
@@ -43,7 +42,7 @@ TEST(NullStatisticsTest, CanGetAllVarTypes) {
   stats.AddTimedVariable("timed_var", "group");
   TimedVariable* timed_var = stats.GetTimedVariable("timed_var");
   timed_var->IncBy(1);
-  timed_var->IncBy(13);
+  timed_var->IncBy(-13);
 }
 
 }  // namespace

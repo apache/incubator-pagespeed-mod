@@ -63,8 +63,8 @@ APACHE_PROGRAM           = /usr/sbin/apache2
 
 # For testing proxying of an external domain, this represents the domain we
 # are proxying from.
-PAGESPEED_TEST_HOST ?= modpagespeed.com
-export PAGESPEED_TEST_HOST
+TEST_PROXY_ORIGIN ?= modpagespeed.com
+export TEST_PROXY_ORIGIN
 
 # The installation directory for executables
 BINDIR = /usr/bin
@@ -111,7 +111,7 @@ echo_vars :
 	@echo These configuration variables can be reset on the make command line,
 	@echo e.g. \"make config_file\"
 	@echo ""
-	@echo "   APACHE_CONF_FILE=$(APACHE_CONF_FILE)"
+	@echo "   APACHE_CONF=$(APACHE_CONF)"
 	@echo "   APACHE_MODULES=$(APACHE_MODULES)"
 	@echo "   APACHE_ROOT=$(APACHE_ROOT)"
 	@echo "   APACHE_START=$(APACHE_START)"
@@ -145,7 +145,7 @@ ifeq ($(MODS_ENABLED_DIR),)
 
 # This is a CentOS-like installation, where there is no explicit .load
 # file, and we instead pre-pend the LoadModule command to the .conf file.
-APACHE_CONF_DIR = $(APACHE_CONF_D)
+APACHE_CONF = $(APACHE_CONF_D)
 CONF_SOURCES = $(STAGING_DIR)/pagespeed.load $(STAGING_DIR)/pagespeed.conf
 
 else
@@ -162,7 +162,7 @@ MODS_ENABLED_INSTALL_COMMANDS = \
 	rm -f $(MODS_ENABLED_DIR)/deflate.load ; \
 	cd $(MODS_ENABLED_DIR) && ln -s ../mods-available/deflate.load
 
-APACHE_CONF_DIR = $(MODS_AVAILABLE_DIR)
+APACHE_CONF = $(MODS_AVAILABLE_DIR)
 CONF_SOURCES = $(STAGING_DIR)/pagespeed.conf
 
 endif
@@ -268,20 +268,6 @@ else
   PURGING_COVERAGE_TEST_SED_PATTERN=^\#PURGING_COVERAGE.*\n
 endif
 
-ifeq ($(IUR_COVERAGE_TEST),1)
-  # remove prefix
-  IUR_COVERAGE_TEST_SED_PATTERN=^\#IUR_COVERAGE
-  # remove whole explicit domain authorization line
-  DOMAIN_AUTH_SED_PATTERN=^\#DOMAIN_AUTH_COVERAGE.*\n
-else
-  # remove whole line
-  IUR_COVERAGE_TEST_SED_PATTERN=^\#IUR_COVERAGE.*\n
-  ifeq ($(COVERAGE_TRACE_TEST),1)
-    # remove prefix for explicit domain authorization line
-    DOMAIN_AUTH_SED_PATTERN=^\#DOMAIN_AUTH_COVERAGE
-  endif
-endif
-
 ifeq ($(SPELING_TEST),1)
   # remove prefix
   SPELING_TEST_SED_PATTERN=^\#SPELING
@@ -372,7 +358,7 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s!@@APACHE_MODULES@@!$(APACHE_MODULES)!g" \
 	    -e "s!@@APACHE_SECONDARY_PORT@@!$(APACHE_SECONDARY_PORT)!g" \
 	    -e "s!@@APACHE_TERTIARY_PORT@@!$(APACHE_TERTIARY_PORT)!g" \
-	    -e "s!@@PAGESPEED-TEST-HOST@@!$(PAGESPEED_TEST_HOST)!g" \
+	    -e "s!@@TEST_PROXY_ORIGIN@@!$(TEST_PROXY_ORIGIN)!g" \
 	    -e "s!@@MOD_PAGESPEED_CACHE@@!$(MOD_PAGESPEED_CACHE)!g" \
 	    -e "s!@@MOD_PAGESPEED_LOG@@!$(MOD_PAGESPEED_LOG)!g" \
 	    -e "s!@@SSL_CERT_DIR@@!$(SSL_CERT_DIR)!g" \
@@ -380,7 +366,6 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s@# ModPagespeedSlurpDirectory ...@$(APACHE_SLURP_DIR_COMMAND)@g" \
 	    -e "s@# ModPagespeedSlurpReadOnly on@$(APACHE_SLURP_READ_ONLY_COMMAND)@g" \
 	    -e "s|@@TMP_SLURP_DIR@@|$(TMP_SLURP_DIR)|g" \
-	    -e "s|@@MEMCACHED_PORT@@|$(MEMCACHED_PORT)|g" \
 	    -e "s@$(STRESS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(REWRITE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(COVERAGE_TEST_SED_PATTERN)@@" \
@@ -392,8 +377,6 @@ $(STAGING_DIR)/pagespeed.conf : common/pagespeed.conf.template debug.conf.templa
 	    -e "s@$(IPRO_PRESERVE_COVERAGE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(MEMCACHE_COVERAGE_TEST_SED_PATTERN)@@" \
 	    -e "s@$(PURGING_COVERAGE_TEST_SED_PATTERN)@@" \
-	    -e "s@$(IUR_COVERAGE_TEST_SED_PATTERN)@@" \
-	    -e "s@$(DOMAIN_AUTH_SED_PATTERN)@@" \
 	    -e "s@$(GZIP_TEST_SED_PATTERN)@@" \
 	    -e "s@$(HTTPS_TEST_SED_PATTERN)@@" \
 	    -e "s@$(EXPERIMENT_GA_TEST_SED_PATTERN)@@" \
@@ -436,7 +419,7 @@ staging : staging_except_module
 
 install_except_module : mod_pagespeed_file_root
 	$(MODS_ENABLED_INSTALL_COMMANDS)
-	cat $(CONF_SOURCES) > $(APACHE_CONF_DIR)/pagespeed.conf
+	cat $(CONF_SOURCES) > $(APACHE_CONF)/pagespeed.conf
 	cp -f $(STAGING_DIR)/pagespeed_libraries.conf \
 	      $(APACHE_CONF_D)/pagespeed_libraries.conf
 	rm -rf $(APACHE_DOC_ROOT)/mod_pagespeed_example \
@@ -487,7 +470,7 @@ restart : stop
 	    APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
 	    APACHE_ROOT=$(APACHE_ROOT) \
 	    STAGING_DIR=$(STAGING_DIR) \
-	    APACHE_CONF_FILE=$(APACHE_CONF_FILE) \
+	    APACHE_CONF=$(APACHE_CONF) \
 	    APACHE_MODULES=$(APACHE_MODULES) \
 	    MODS_ENABLED_DIR=$(MODS_ENABLED_DIR) \
 	    MODS_AVAILABLE_DIR=$(MODS_AVAILABLE_DIR) \
@@ -511,7 +494,6 @@ apache_install_conf :
 	    $(OPT_IPRO_PRESERVE_COVERAGE_TEST) \
 	    $(OPT_MEMCACHE_COVERAGE_TEST) \
 	    $(OPT_PURGING_COVERAGE_TEST) \
-	    $(OPT_IUR_COVERAGE_TEST) \
 	    $(OPT_SPELING_TEST) \
 	    $(OPT_COVERAGE_TRACE_TEST) \
 	    $(OPT_STRESS_TEST) \
@@ -532,7 +514,6 @@ apache_install_conf :
 	    $(OPT_IPRO_PRESERVE_COVERAGE_TEST) \
 	    $(OPT_MEMCACHE_COVERAGE_TEST) \
 	    $(OPT_PURGING_COVERAGE_TEST) \
-	    $(OPT_IUR_COVERAGE_TEST) \
 	    $(OPT_SPELING_TEST) \
 	    $(OPT_COVERAGE_TRACE_TEST) \
 	    $(OPT_STRESS_TEST) \
@@ -545,18 +526,6 @@ apache_install_conf :
 	    $(OPT_PER_VHOST_STATS_TEST) \
 	    $(OPT_NO_PER_VHOST_STATS_TEST) \
 	    $(OPT_STATS_LOGGING_TEST)
-
-# Sets up a machine to run as a server for running mod_pagespeed tests.
-# The tests include the fetching and proxying of a variety of content,
-# including some of the /mod_pagespeed_example directory, plus some other
-# content in /do_not_modify and /no_content.
-setup_test_machine :
-	APACHE_DOC_ROOT=$(APACHE_DOC_ROOT) \
-	APACHE_CONF_FILE=$(APACHE_CONF_FILE) \
-	MOD_PAGESPEED_ROOT=$(MOD_PAGESPEED_ROOT) \
-	APACHE_CONF_D=$(APACHE_CONF_D) \
-	./setup_test_machine.sh
-	sudo $(APACHE_CONTROL_PROGRAM) restart
 
 apache_debug_restart :
 	$(APACHE_CONTROL_PROGRAM) restart
@@ -595,7 +564,7 @@ apache_debug_proxy_test :
 apache_debug_slurp_test :
 
 APACHE_HTTPS_PORT=
-APACHE_DEBUG_PAGESPEED_CONF=$(APACHE_CONF_DIR)/pagespeed.conf
+APACHE_DEBUG_PAGESPEED_CONF=$(APACHE_CONF)/pagespeed.conf
 INSTALL_DATA_DIR=.
 
 include Makefile.tests

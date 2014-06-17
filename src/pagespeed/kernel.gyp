@@ -37,7 +37,6 @@
       'type': '<(library)',
       'sources': [
         'kernel/base/abstract_mutex.cc',
-        'kernel/base/annotated_message_handler.cc',
         'kernel/base/atom.cc',
         'kernel/base/debug.cc',
         'kernel/base/file_message_handler.cc',
@@ -103,10 +102,7 @@
         'kernel/base/posix_timer.cc',
         'kernel/base/request_trace.cc',
         'kernel/base/rolling_hash.cc',
-        'kernel/base/sha1_signature.cc',
         'kernel/base/shared_string.cc',
-        'kernel/base/signature.cc',
-        'kernel/base/source_map.cc',
         'kernel/base/split_statistics.cc',
         'kernel/base/split_writer.cc',
         'kernel/base/thread.cc',
@@ -116,7 +112,6 @@
       'dependencies': [
         'pagespeed_base_core',
         '<(DEPTH)/third_party/jsoncpp/jsoncpp.gyp:jsoncpp',
-        '<(DEPTH)/third_party/serf/openssl.gyp:openssl',
       ],
     },
     {
@@ -155,8 +150,6 @@
       'sources': [
         'kernel/base/file_system_test_base.cc',
         'kernel/base/gtest.cc',
-        'kernel/base/message_handler_test_base.cc',
-        'kernel/cache/cache_spammer.cc',
         'kernel/http/user_agent_matcher_test_base.cc',
         'kernel/sharedmem/shared_circular_buffer_test_base.cc',
         'kernel/sharedmem/shared_dynamic_string_map_test_base.cc',
@@ -180,7 +173,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/testing/gtest.gyp:gtest_main',
-        'pagespeed_sharedmem',
         'util',
       ],
     },
@@ -263,7 +255,7 @@
       ],
       'dependencies': [
         'pagespeed_base_core',
-        '<(DEPTH)/url/url.gyp:url_lib',
+        '<(DEPTH)/build/temp_gyp/googleurl.gyp:googleurl',
       ],
     },
     {
@@ -283,11 +275,17 @@
         'pagespeed_http_gperf',
         'pagespeed_http_pb',
         'util',
+#        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
       ],
       'include_dirs': [
         '<(instaweb_root)',
         '<(DEPTH)',
       ],
+      'all_dependent_settings': {
+        'include_dirs': [
+          '<(DEPTH)/third_party/protobuf/src',
+        ],
+      },
     },
     {
       'target_name': 'pagespeed_http_gperf',
@@ -328,23 +326,7 @@
       ],
       'dependencies': [
         'pagespeed_base_core',
-        'js_tokenizer',
         'pagespeed_javascript_gperf',
-      ],
-    },
-    {
-      'target_name': 'js_tokenizer',
-      'type': '<(library)',
-      'sources': [
-        'kernel/js/js_tokenizer.cc',
-      ],
-      'include_dirs': [
-        '<(DEPTH)',
-      ],
-      'dependencies': [
-        'pagespeed_base_core',
-        'pagespeed_javascript_gperf',
-        '<(DEPTH)/third_party/re2/re2.gyp:re2',
       ],
     },
     {
@@ -367,6 +349,7 @@
       'type': '<(library)',
       'sources': [
         'kernel/util/file_system_lock_manager.cc',
+        'kernel/util/filename_encoder.cc',
         'kernel/util/gzip_inflater.cc',
         'kernel/util/hashed_nonce_generator.cc',
         'kernel/util/input_file_nonce_generator.cc',
@@ -405,18 +388,13 @@
       ],
       'sources': [
         'kernel/image/gif_reader.cc',
-        'kernel/image/image_analysis.cc',
         'kernel/image/image_converter.cc',
-        'kernel/image/image_frame_interface.cc',
         'kernel/image/image_resizer.cc',
-        'kernel/image/image_util.cc',
         'kernel/image/jpeg_optimizer.cc',
         'kernel/image/jpeg_reader.cc',
         'kernel/image/jpeg_utils.cc',
-        'kernel/image/pixel_format_optimizer.cc',
         'kernel/image/png_optimizer.cc',
         'kernel/image/read_image.cc',
-        'kernel/image/scanline_interface_frame_adapter.cc',
         'kernel/image/scanline_utils.cc',
         'kernel/image/webp_optimizer.cc',
       ],
@@ -456,19 +434,6 @@
       ],
     },
     {
-      'target_name': 'pagespeed_sharedmem_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'pagespeed/kernel/sharedmem',
-      },
-      'sources': [
-        'kernel/sharedmem/shared_mem_cache_snapshot.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/shared_mem_cache_snapshot.pb.cc',
-      ],
-      'includes': [
-        '../net/instaweb/protoc.gypi',
-      ],
-    },
-    {
       'target_name': 'pagespeed_sharedmem',
       'type': '<(library)',
       'sources': [
@@ -482,7 +447,6 @@
       ],
       'dependencies': [
         'pagespeed_base',
-        'pagespeed_sharedmem_pb',
       ],
       'include_dirs': [
         '<(DEPTH)',
@@ -504,29 +468,6 @@
       ],
       'dependencies': [
         'pagespeed_base',
-      ],
-      'include_dirs': [
-        '<(DEPTH)',
-      ],
-    },
-    {
-      # We use a library called protobuf_full_do_not_use because it enables
-      # protobuf introspection, which in turn enables us to show an admin page
-      # with detail about the contents of caches.  This makes 64-bit Release
-      # libmod_pagespeed.so 639k larger (8.5M vs 7.9M).  If we decide this is
-      # not worth it, we could write and maintain hand-serializers for the
-      # protobufs of interest, or find some less expensive way to display
-      # the contents of protobufs in a human-readable form.
-      #
-      # The 'do_not_use' part of this name is only in reference to official
-      # builds of Chrome.
-      'target_name': 'proto_util',
-      'type': '<(library)',
-      'dependencies': [
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_full_do_not_use',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_full_do_not_use',
       ],
       'include_dirs': [
         '<(DEPTH)',

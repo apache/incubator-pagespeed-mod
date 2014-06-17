@@ -22,7 +22,7 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
-#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource.h"  // for Resource, etc
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -160,8 +160,7 @@ TEST_F(GoogleFontServiceInputResourceTest, UANormalization) {
       ".NET CLR 2.0.50727; .NET CLR 3.0.4506.2152; .NET CLR 3.5.30729)";
 
   GoogleUrl url(kRoboto);
-  scoped_ptr<GoogleUrl> url_plus_ua(
-      url.CopyAndAddEscapedQueryParam("UA", GoogleUrl::Escape(kIE7a)));
+  scoped_ptr<GoogleUrl> url_plus_ua(url.CopyAndAddQueryParam("UA", kIE7a));
   ResponseHeaders response_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &response_headers);
   response_headers.SetDateAndCaching(
@@ -291,17 +290,6 @@ TEST_F(GoogleFontServiceInputResourceTest, DontLoadNonCss) {
   EXPECT_TRUE(callback2.done());
   EXPECT_FALSE(resource->HttpStatusOk());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-}
-
-TEST_F(GoogleFontServiceInputResourceTest, IsFontServiceUrlTest) {
-  GoogleUrl roboto_url(kRoboto);
-  EXPECT_TRUE(GoogleFontServiceInputResource::IsFontServiceUrl(roboto_url));
-
-  GoogleUrl roboto_ssl_url(kRobotoSsl);
-  EXPECT_TRUE(GoogleFontServiceInputResource::IsFontServiceUrl(roboto_ssl_url));
-
-  GoogleUrl example_url("http://example.com/");
-  EXPECT_FALSE(GoogleFontServiceInputResource::IsFontServiceUrl(example_url));
 }
 
 }  // namespace

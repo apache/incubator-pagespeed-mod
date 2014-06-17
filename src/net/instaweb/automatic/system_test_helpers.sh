@@ -95,14 +95,12 @@ user_agent = Mozilla/5.0 (X11; U; Linux x86_64; en-US) AppleWebKit/534.0 (KHTML,
 EOF
 
 HOSTNAME=$1
-PRIMARY_SERVER=http://$HOSTNAME
-EXAMPLE_ROOT=$PRIMARY_SERVER/mod_pagespeed_example
+EXAMPLE_ROOT=http://$HOSTNAME/mod_pagespeed_example
 # TODO(sligocki): Should we be rewriting the statistics page by default?
 # Currently we are, so disable that so that it doesn't spoil our stats.
-STATISTICS_URL="$PRIMARY_SERVER/mod_pagespeed_statistics?PageSpeed=off"
-BAD_RESOURCE_URL=$PRIMARY_SERVER/mod_pagespeed/W.bad.pagespeed.cf.hash.css
-MESSAGE_URL=$PRIMARY_SERVER/pagespeed_admin/message_history
-CONSOLE_URL=$PRIMARY_SERVER/pagespeed_admin/console
+STATISTICS_URL="http://$HOSTNAME/mod_pagespeed_statistics?PageSpeed=off"
+BAD_RESOURCE_URL=http://$HOSTNAME/mod_pagespeed/W.bad.pagespeed.cf.hash.css
+MESSAGE_URL=http://$HOSTNAME/mod_pagespeed_message
 
 # The following shake-and-bake ensures that we set REWRITTEN_TEST_ROOT based on
 # the TEST_ROOT in effect when we start up, if any, but if it was not set before
@@ -110,7 +108,7 @@ CONSOLE_URL=$PRIMARY_SERVER/pagespeed_admin/console
 # this from other test scripts that use different host prefixes for rewritten
 # content.
 REWRITTEN_TEST_ROOT=${TEST_ROOT:-}
-TEST_ROOT=$PRIMARY_SERVER/mod_pagespeed_test
+TEST_ROOT=http://$HOSTNAME/mod_pagespeed_test
 REWRITTEN_TEST_ROOT=${REWRITTEN_TEST_ROOT:-$TEST_ROOT}
 
 # This sets up similar naming for https requests.
@@ -141,7 +139,7 @@ export ftp_proxy=${3:-}
 export no_proxy=""
 
 # Version timestamped with nanoseconds, making it extremely unlikely to hit.
-BAD_RND_RESOURCE_URL="$PRIMARY_SERVER/mod_pagespeed/bad$(date +%N).\
+BAD_RND_RESOURCE_URL="http://$HOSTNAME/mod_pagespeed/bad$(date +%N).\
 pagespeed.cf.hash.css"
 
 combine_css_filename=\
@@ -395,9 +393,8 @@ function fetch_until() {
 
   # TIMEOUT is how long to keep trying, in seconds.
   if is_expected_failure ; then
-    # For tests that we expect to fail, don't wait long hoping for the right
-    # result.
-    TIMEOUT=10
+    # For tests that we expect to fail, don't wait hoping for the right result.
+    TIMEOUT=0
   else
     # This is longer than PageSpeed should normally ever take to rewrite
     # resources, but if it's running under Valgrind it might occasionally take a
@@ -412,7 +409,7 @@ function fetch_until() {
   echo " until \$($COMMAND) $OP $RESULT"
   echo "$WGET_HERE $REQUESTURL and checking with $COMMAND"
   while test -t; do
-    # Clean out WGET_DIR so that wget doesn't create .1 files.
+    # Clean out OUTDIR so that wget doesn't create .1 files.
     rm -rf $WGET_DIR
     mkdir -p $WGET_DIR
 
@@ -510,23 +507,4 @@ function extract_headers {
   carriage_return=$(printf "\r")
   last_line_number=$(grep --text -n \^${carriage_return}\$ $1 | cut -f1 -d:)
   head --lines=$last_line_number "$1" | sed -e "s/$carriage_return//"
-}
-
-# Extracts the cookies from a 'wget --save-headers' dump.
-function extract_cookies {
-  grep "Set-Cookie" | \
-  sed -e 's/;.*//' -e 's/^.*Set-Cookie: */ --header=Cookie:/'
-}
-
-# Returns the "URL" suitable for either Apache or Nginx
-function generate_url {
-  DOMAIN="$1"  # Must not have leading 'http://'
-  PATH="$2"    # Must have leading '/'.
-  if [ -z "${STATIC_DOMAIN:-}" ]; then
-    RESULT="http://$DOMAIN$PATH"
-  else
-    RESULT="--header X-Google-Pagespeed-Config-Domain:$DOMAIN"
-    RESULT+=" $STATIC_DOMAIN$PATH"
-  fi
-  echo $RESULT
 }

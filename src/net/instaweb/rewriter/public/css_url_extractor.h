@@ -35,7 +35,9 @@ class CssUrlExtractor : public CssTagScanner::Transformer {
 
   void ExtractUrl(const StringPiece& in_text, StringVector* urls);
 
-  virtual TransformStatus Transform(GoogleString* str);
+ protected:
+  virtual CssTagScanner::Transformer::TransformStatus Transform(
+      const StringPiece& in, GoogleString* out);
 
  private:
   StringVector* out_urls_;
@@ -46,3 +48,4 @@ class CssUrlExtractor : public CssTagScanner::Transformer {
 }  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSS_URL_EXTRACTOR_H_
+

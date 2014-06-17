@@ -35,12 +35,12 @@ RewriteFilter::~RewriteFilter() {
 void RewriteFilter::DetermineEnabled() {
   set_is_enabled(true);
   if (UsesPropertyCacheDomCohort()) {
-    driver()->set_write_property_cache_dom_cohort(true);
+    driver_->set_write_property_cache_dom_cohort(true);
   }
 }
 
 const UrlSegmentEncoder* RewriteFilter::encoder() const {
-  return driver()->default_encoder();
+  return driver_->default_encoder();
 }
 
 bool RewriteFilter::ComputeOnTheFly() const {

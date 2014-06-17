@@ -197,10 +197,10 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
     // longjmp(env). It will reset the object to a state where it can be used
     // again.
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             SCANLINE_JPEGREADER,
-                            "libjpeg failed to decode the image.");
+                            "longjmp()");
   }
 
   jpeg_error_mgr* decompress_error = &(jpeg_env_->decompress_error_);
@@ -241,11 +241,10 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
 ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
     void** out_scanline_bytes) {
   if (!was_initialized_ || !HasMoreScanLines()) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             SCANLINE_JPEGREADER,
-                            "The reader was not initialized or does not "
-                            "have any more scanlines.");
+                            "not initialized or no more scanlines");
   }
 
   if (setjmp(jpeg_env_->jmp_buf_env_)) {
@@ -253,10 +252,10 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
     // longjmp(env). It will reset the object to a state where it can be used
     // again.
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             SCANLINE_JPEGREADER,
-                            "libjpeg failed to decode the image.");
+                            "longjmp()");
   }
 
   // At the time when ReadNextScanline is called, allocate buffer for holding
@@ -272,10 +271,10 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
       jpeg_read_scanlines(jpeg_decompress, row_pointer_, 1);
   if (num_scanlines_read != 1) {
     Reset();
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_PARSE_ERROR,
                             SCANLINE_JPEGREADER,
-                            "libjpeg failed to read a scanline.");
+                            "jpeg_read_scanlines()");
   }
   *out_scanline_bytes = row_pointer_[0];
   ++row_;

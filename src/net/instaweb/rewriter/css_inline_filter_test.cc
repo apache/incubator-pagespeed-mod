@@ -20,24 +20,20 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
-#include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -61,8 +57,7 @@ class CssInlineFilterTest : public RewriteTestBase {
                      const GoogleString& other_attrs,
                      const GoogleString& css_original_body,
                      bool expect_inline,
-                     const GoogleString& css_rewritten_body,
-                     const GoogleString& debug_string) {
+                     const GoogleString& css_rewritten_body) {
     if (!filters_added_) {
       AddFilter(RewriteOptions::kInlineCss);
       filters_added_ = true;
@@ -72,20 +67,15 @@ class CssInlineFilterTest : public RewriteTestBase {
         "<head>\n",
         head_extras,
         "  <link rel=\"stylesheet\" href=\"%s\"",
-        (other_attrs.empty() ? "" : " " + other_attrs) + ">",
-        "%s\n</head>\n"
+        (other_attrs.empty() ? "" : " " + other_attrs) + ">\n",
+        "</head>\n"
         "<body>Hello, world!</body>\n");
 
     const GoogleString html_input =
-        StringPrintf(html_template.c_str(), css_url.c_str(), "");
+        StringPrintf(html_template.c_str(), css_url.c_str());
 
     const GoogleString outline_html_output =
-        StringPrintf(html_template.c_str(), css_out_url.c_str(), "");
-
-    const GoogleString outline_debug_html_output = debug_string.empty()
-        ? outline_html_output
-        : StringPrintf(html_template.c_str(), css_out_url.c_str(),
-                       StrCat("<!--", debug_string, "-->").c_str());
+        StringPrintf(html_template.c_str(), css_out_url.c_str());
 
     // Put original CSS file into our fetcher.
     ResponseHeaders default_css_header;
@@ -106,13 +96,6 @@ class CssInlineFilterTest : public RewriteTestBase {
                 "</head>\n"
                 "<body>Hello, world!</body>\n"));
     EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
-
-    if (!expect_inline) {
-      output_buffer_.clear();
-      TurnOnDebug();
-      ParseUrl(html_url, html_input);
-      EXPECT_EQ(AddHtmlBody(outline_debug_html_output), output_buffer_);
-    }
   }
 
   void TestInlineCss(const GoogleString& html_url,
@@ -123,18 +106,7 @@ class CssInlineFilterTest : public RewriteTestBase {
                      const GoogleString& css_rewritten_body) {
     TestInlineCssWithOutputUrl(
         html_url, "", css_url, css_url, other_attrs, css_original_body,
-        expect_inline, css_rewritten_body, "");
-  }
-
-  void TestNoInlineCss(const GoogleString& html_url,
-                       const GoogleString& css_url,
-                       const GoogleString& other_attrs,
-                       const GoogleString& css_original_body,
-                       const GoogleString& css_rewritten_body,
-                       const GoogleString& debug_string) {
-    TestInlineCssWithOutputUrl(
-        html_url, "", css_url, css_url, other_attrs, css_original_body,
-        false, css_rewritten_body, debug_string);
+        expect_inline, css_rewritten_body);
   }
 
   void VerifyNoInliningForClosingStyleTag(
@@ -147,19 +119,6 @@ class CssInlineFilterTest : public RewriteTestBase {
     // We don't mess with links that contain a closing style tag.
     ValidateNoChanges("no_inlining_of_close_style_tag",
                       "<link rel='stylesheet' href='foo.css'>");
-
-    TurnOnDebug();
-    ValidateExpected("no_inlining_of_close_style_tag+debug",
-                     "<link rel='stylesheet' href='foo.css'>",
-                     "<link rel='stylesheet' href='foo.css'>"
-                     "<!--CSS not inlined since it contains "
-                          "style closing tag-->");
-  }
-
-  void TurnOnDebug() {
-    options()->ClearSignatureForTesting();
-    options()->EnableFilter(RewriteOptions::kDebug);
-    server_context()->ComputeSignature(options());
   }
 
  private:
@@ -179,6 +138,16 @@ class CssInlineFilterTestCustomOptions : public CssInlineFilterTest {
   // CssInlineFilterTest::SetUp().
   virtual void SetUp() {}
 };
+
+TEST_F(CssInlineFilterTestCustomOptions, InlineCssPreserveURLSOn) {
+  // Make sure that we don't inline when preserve urls is on.
+  options()->set_css_preserve_urls(true);
+  CssInlineFilterTest::SetUp();
+  const GoogleString css = "BODY { color: red; }\n";
+  TestInlineCss("http://www.example.com/index.html",
+                "http://www.example.com/styles.css",
+                "", css, false, css);
+}
 
 TEST_F(CssInlineFilterTest, InlineCssUnhealthy) {
   lru_cache()->set_is_healthy(false);
@@ -256,10 +225,9 @@ TEST_F(CssInlineFilterTest, ShardSubresources) {
 
 TEST_F(CssInlineFilterTest, DoNotInlineCssWithMediaNotScreen) {
   const GoogleString css = "BODY { color: red; }\n";
-  TestNoInlineCss("http://www.example.com/index.html",
-                  "http://www.example.com/styles.css",
-                  "media=\"print\"", css, "",
-                  "CSS not inlined because media does not match screen");
+  TestInlineCss("http://www.example.com/index.html",
+                "http://www.example.com/styles.css",
+                "media=\"print\"", css, false, "");
 }
 
 TEST_F(CssInlineFilterTest, DoInlineCssWithMediaAll) {
@@ -296,10 +264,9 @@ TEST_F(CssInlineFilterTest, InlineCssWithInvalidMedia) {
   // Now do the actual test that we don't inline the CSS with an invalid
   // media type (and not screen or all as well).
   media = StrCat("media=\"", kNotValid, "\"");
-  TestNoInlineCss("http://www.example.com/index.html",
-                  "http://www.example.com/styles.css",
-                  media, css, "",
-                  "CSS not inlined because media does not match screen");
+  TestInlineCss("http://www.example.com/index.html",
+                "http://www.example.com/styles.css",
+                media, css, false, "");
 
   // And now test that we DO inline the CSS with an invalid media type
   // if there's also an instance of "screen" in the media attribute.
@@ -312,32 +279,18 @@ TEST_F(CssInlineFilterTest, InlineCssWithInvalidMedia) {
 TEST_F(CssInlineFilterTest, DoNotInlineCssTooBig) {
   // CSS too large to inline:
   const int64 length = 2 * RewriteOptions::kDefaultCssInlineMaxBytes;
-  TestNoInlineCss("http://www.example.com/index.html",
-                  "http://www.example.com/styles.css", "",
-                  ("BODY { background-image: url('" +
-                   GoogleString(length, 'z') + ".png'); }\n"),
-                  "", "CSS not inlined since it's bigger than 2048 bytes");
-}
-
-TEST_F(CssInlineFilterTest, DoInlineCssDifferentDomain) {
-  const GoogleString css = "BODY { color: red; }\n";
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
   TestInlineCss("http://www.example.com/index.html",
-                "http://unauth.com/styles.css",
-                "", css, true, css);
-  EXPECT_EQ(1,
-            statistics()->GetVariable(CssInlineFilter::kNumCssInlined)->Get());
+                "http://www.example.com/styles.css", "",
+                ("BODY { background-image: url('" +
+                 GoogleString(length, 'z') + ".png'); }\n"),
+                false, "");
 }
 
 TEST_F(CssInlineFilterTest, DoNotInlineCssDifferentDomain) {
-  // Note: This only fails because we haven't authorized unauth.com
-  TestNoInlineCss("http://www.example.com/index.html",
-                  "http://unauth.com/styles.css",
-                  "", "BODY { color: red; }\n", "",
-                  StrCat("InlineCss: ",
-                         CommonFilter::kCreateResourceFailedDebugMsg));
-  EXPECT_EQ(0,
-            statistics()->GetVariable(CssInlineFilter::kNumCssInlined)->Get());
+  // Note: This only fails because we haven't authorized www.example.org
+  TestInlineCss("http://www.example.com/index.html",
+                "http://www.example.org/styles.css",
+                "", "BODY { color: red; }\n", false, "");
 }
 
 TEST_F(CssInlineFilterTest, CorrectlyInlineCssWithImports) {
@@ -444,8 +397,7 @@ TEST_F(CssInlineFilterTest, InlineMinimizeInteraction) {
       "", /* no other attributes*/
       "div{display: none;}",
       false,
-      "div{display: none}",
-      "CSS not inlined since it's bigger than 4 bytes");
+      "div{display: none}");
 }
 
 TEST_F(CssInlineFilterTest, InlineCacheExtendInteraction) {
@@ -574,7 +526,7 @@ TEST_F(CssInlineFilterTest, InlineWithCompatibleBom) {
                              "  <meta charset=\"UTF-8\">\n",
                              "http://www.example.com/styles.css",
                              "http://www.example.com/styles.css",
-                             "", css_with_bom, true, css, "");
+                             "", css_with_bom, true, css);
 }
 
 TEST_F(CssInlineFilterTest, DoNotInlineWithIncompatibleBom) {
@@ -584,10 +536,7 @@ TEST_F(CssInlineFilterTest, DoNotInlineWithIncompatibleBom) {
                              "  <meta charset=\"ISO-8859-1\">\n",
                              "http://www.example.com/styles.css",
                              "http://www.example.com/styles.css",
-                             "", css_with_bom, false, "",
-                             "CSS not inlined due to apparent charset "
-                             "incompatibility; we think the HTML is ISO-8859-1 "
-                             "while the CSS is utf-8");
+                             "", css_with_bom, false, "");
 }
 
 // See: http://www.alistapart.com/articles/alternate/

@@ -50,7 +50,6 @@
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/statistics_template.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 
 namespace net_instaweb {
@@ -79,11 +78,8 @@ class MockFetch : public AsyncFetch {
   virtual ~MockFetch() {}
 
   virtual void HandleHeadersComplete() {
-    // Make sure that we've called
-    // response_headers()->ComputeCaching() before this and that this
-    // call succeeds.  We don't care about the return value in this
-    // context, we are just trying to ensure that the caching is not
-    // dirty when this is called.
+    // Make sure that we've called response_headers()->ComputeCaching() before
+    // this and that this call succeeds.
     response_headers()->IsProxyCacheable();
   }
 
@@ -207,13 +203,6 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
       // For unit testing, we are simply stubbing IsFresh.
       return fresh_;
     }
-
-    // The detailed Vary testing is handled in response_headers_test.cc and
-    // is not needed here.
-    virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-      return ResponseHeaders::kRespectVaryOnResources;
-    }
-
     bool called_;
     HTTPCache::FindResult result_;
     bool cache_valid_;
@@ -222,9 +211,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
 
   CacheUrlAsyncFetcherTest()
       : lru_cache_(1000),
-        thread_system_(Platform::CreateThreadSystem()),
-        statistics_(thread_system_.get()),
-        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+        timer_(MockTimer::kApr_5_2010_ms),
         cache_url_("http://www.example.com/cacheable.html"),
         cache_css_url_("http://www.example.com/cacheable.css"),
         cache_https_html_url_("https://www.example.com/cacheable.html"),
@@ -239,7 +226,6 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
         conditional_etag_url_("http://www.example.com/cond_etag.jpg"),
         implicit_cache_url_("http://www.example.com/implicit_cache.jpg"),
         vary_url_("http://www.example.com/vary"),
-        fragment_("www.example.com"),
         cache_body_("good"), nocache_body_("bad"), bad_body_("ugly"),
         vary_body_("vary"),
         etag_("123456790ABCDEF"),
@@ -247,6 +233,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
         implicit_cache_ttl_ms_(500 * Timer::kSecondMs),
         min_cache_ttl_ms_(-1),
         cache_result_valid_(true),
+        thread_system_(Platform::CreateThreadSystem()),
         thread_synchronizer_(new ThreadSynchronizer(thread_system_.get())),
         mock_fetcher_(thread_synchronizer_.get()),
         counting_fetcher_(&mock_fetcher_),
@@ -261,7 +248,6 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
             &mock_hasher_,
             &lock_manager_,
             http_cache_.get(),
-            fragment_,
             &mock_async_op_hooks_,
             &counting_fetcher_));
     // Enable serving of stale content if the fetch fails.
@@ -348,7 +334,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   HTTPCache::FindResult FindWithCallback(
       const GoogleString& key, HTTPValue* value, ResponseHeaders* headers,
       MessageHandler* handler, Callback* callback) {
-    http_cache_->Find(key, fragment_, handler, callback);
+    http_cache_->Find(key, handler, callback);
     EXPECT_TRUE(callback->called_);
     if (callback->result_ == HTTPCache::kFound) {
       value->Link(callback->http_value());
@@ -588,9 +574,9 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     headers->ComputeCaching();
   }
 
-  LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
+
+  LRUCache lru_cache_;
   MockTimer timer_;
   MockHasher mock_hasher_;
   scoped_ptr<HTTPCache> http_cache_;
@@ -614,8 +600,6 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   const GoogleString implicit_cache_url_;
   const GoogleString vary_url_;
 
-  const GoogleString fragment_;
-
   ResponseHeaders mutable_vary_headers_;
 
   const GoogleString cache_body_;
@@ -631,6 +615,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
 
   bool cache_result_valid_;
 
+  scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
   DelayedMockUrlFetcher mock_fetcher_;
   CountingUrlAsyncFetcher counting_fetcher_;
@@ -670,14 +655,8 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheableUrl) {
   // Advance the time so that cache is about to expire.
   timer_.AdvanceMs(ttl_ms_ - 3 * Timer::kMinuteMs);
   ClearStats();
-
-  // Make sure that if the request that triggers proactive fetching is a HEAD
-  // we don't mess stuff up.
-  RequestHeaders head_headers;
-  head_headers.CopyFrom(empty_request_headers_);
-  head_headers.set_method(RequestHeaders::kHead);
-  FetchAndValidate(cache_url_, head_headers, true, HttpStatus::kOK,
-                   "", kBackendFetch, false);
+  FetchAndValidate(cache_url_, empty_request_headers_, true, HttpStatus::kOK,
+                   cache_body_, kBackendFetch, true);
   // Fetch hits initial cache lookup ...
   EXPECT_EQ(0, http_cache_->cache_expirations()->Get());
   EXPECT_EQ(1, http_cache_->cache_hits()->Get());
@@ -688,7 +667,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheableUrl) {
   EXPECT_EQ(0, cache_fetcher_->fallback_responses_served()->Get());
 
   ClearStats();
-  // This one is a GET, so it should actually get the bits.
   FetchAndValidate(cache_url_, empty_request_headers_, true, HttpStatus::kOK,
                    cache_body_, kBackendFetch, true);
   // Fetch hits initial cache lookup ...
@@ -1401,7 +1379,7 @@ TEST_F(CacheUrlAsyncFetcherTest, FetchFailedNoIgnore) {
   EXPECT_EQ(1, counting_fetcher_.fetch_count());
   EXPECT_EQ(0, http_cache_->cache_inserts()->Get());
 
-  http_cache_->RememberFetchFailed(bad_url_, fragment_, &handler_);
+  http_cache_->RememberFetchFailed(bad_url_, &handler_);
   EXPECT_EQ(1, http_cache_->cache_inserts()->Get());
 
   // bad_url_, is not fetched the second time.
@@ -1423,7 +1401,7 @@ TEST_F(CacheUrlAsyncFetcherTest, FetchFailedIgnore) {
   EXPECT_EQ(1, counting_fetcher_.fetch_count());
   EXPECT_EQ(0, http_cache_->cache_inserts()->Get());
 
-  http_cache_->RememberFetchFailed(bad_url_, fragment_, &handler_);
+  http_cache_->RememberFetchFailed(bad_url_, &handler_);
   EXPECT_EQ(1, http_cache_->cache_inserts()->Get());
 
   // bad_url_, is fetched again the second time.
@@ -1517,31 +1495,35 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForNonHtml) {
   ExpectCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
-  // Respect Vary is disabled, but we still respect Vary: Cookie for
-  // non-html, whether or not the request has cookies.
+  // Respect Vary is disabled. Vary: Cookie is cached. Note that the request has
+  // no cookies.
   mutable_vary_headers_.Replace(HttpAttributes::kVary, "Cookie");
   mock_fetcher_.SetResponse(vary_url_, mutable_vary_headers_, vary_body_);
-  ExpectNoCache(vary_url_, vary_body_);
+  ExpectCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
-  // Respect Vary is enabled. Vary: Cookie is not cached.
+  // Respect Vary is enabled. Vary: Cookie is cached. Note that the request has
+  // no cookies.
   cache_fetcher_->set_respect_vary(true);
-  ExpectNoCache(vary_url_, vary_body_);
+  ExpectCache(vary_url_, vary_body_);
 
   // Without clearing the cache send a request with cookies in the request. This
-  // is not served from cache.
-  ExpectNoCache(vary_url_, vary_body_);
-  lru_cache_.Clear();
-
-  // Respect Vary is enabled. Vary: Cookie is not cached.
+  // is not served from cahce.
   ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
                                   request_headers_with_cookies);
   lru_cache_.Clear();
 
-  // Respect Vary is disabled, but Vary: Cookie is still not cached.
+  // Respect Vary is enabled. Vary: Cookie is not cached since the request
+  // has cookies set.
+  ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
+                                  request_headers_with_cookies);
+  lru_cache_.Clear();
+
+  // Respect Vary is disabled. Vary: Cookie is cached even though the request
+  // has cookies set.
   cache_fetcher_->set_respect_vary(false);
-  ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
-                                  request_headers_with_cookies);
+  ExpectCacheWithRequestHeaders(vary_url_, vary_body_,
+                                request_headers_with_cookies);
 
   // Without clearing the cache, change respect vary to true. We should not
   // fetch the response that was inserted into the cache above.
@@ -1597,7 +1579,7 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForHtml) {
   ExpectCache(vary_url_, vary_body_);
 
   // Without clearing the cache send a request with cookies in the request. This
-  // is not served from cache.
+  // is not served from cahce.
   ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
                                   request_headers_with_cookies);
   lru_cache_.Clear();
@@ -1735,7 +1717,6 @@ TEST_F(CacheUrlAsyncFetcherTest, NotInCache) {
       &mock_hasher_,
       &lock_manager_,
       http_cache_.get(),
-      fragment_,
       &mock_async_op_hooks_,
       NULL);
   StringAsyncFetch fetch(
@@ -1755,7 +1736,6 @@ TEST_F(CacheUrlAsyncFetcherTest, NotInCachePost) {
       &mock_hasher_,
       &lock_manager_,
       http_cache_.get(),
-      fragment_,
       &mock_async_op_hooks_,
       NULL);
   StringAsyncFetch fetch(
@@ -1765,10 +1745,8 @@ TEST_F(CacheUrlAsyncFetcherTest, NotInCachePost) {
   // Put result in cache.
   ResponseHeaders headers;
   DefaultResponseHeaders(kContentTypeCss, 100, &headers);
-  http_cache_->Put(cache_url_, fragment_,
-                   fetch.request_headers()->GetProperties(),
-                   ResponseHeaders::kRespectVaryOnResources,
-                   &headers, ".a { color: red; }", &handler_);
+  http_cache_->Put(cache_url_, &headers, ".a { color: red; }", &handler_);
+
   fetcher.Fetch(cache_url_, &handler_, &fetch);
   EXPECT_TRUE(fetch.done());
   EXPECT_FALSE(fetch.success());

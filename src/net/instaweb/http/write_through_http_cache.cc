@@ -39,29 +39,21 @@ namespace {
 class FallbackCacheCallback: public HTTPCache::Callback {
  public:
   typedef void (WriteThroughHTTPCache::*UpdateCache1HandlerFunction) (
-      const GoogleString& key,
-      const GoogleString& fragment,
-      HTTPValue* http_value);
+      const GoogleString& key, HTTPValue* http_value);
 
-  FallbackCacheCallback(const GoogleString& key, const GoogleString& fragment,
+  FallbackCacheCallback(const GoogleString& key,
                         WriteThroughHTTPCache* write_through_http_cache,
                         HTTPCache* cache1,
                         HTTPCache::Callback* client_callback,
                         UpdateCache1HandlerFunction function)
-      : HTTPCache::Callback(client_callback->request_context(),
-                            client_callback->req_properties()),
+      : HTTPCache::Callback(client_callback->request_context()),
         key_(key),
-        fragment_(fragment),
         write_through_http_cache_(write_through_http_cache),
         cache1_(cache1),
         client_callback_(client_callback),
         function_(function) {}
 
   virtual ~FallbackCacheCallback() {}
-
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-    return client_callback_->RespectVaryOnResources();
-  }
 
   virtual void Done(HTTPCache::FindResult find_result) {
     HTTPValue* client_fallback = client_callback_->fallback_http_value();
@@ -73,7 +65,7 @@ class FallbackCacheCallback: public HTTPCache::Callback {
       // fresh response.
       client_fallback->Clear();
       // Insert the response into cache1.
-      (write_through_http_cache_->*function_)(key_, fragment_, http_value());
+      (write_through_http_cache_->*function_)(key_, http_value());
       if (has_cache1_fallback) {
         cache1_->cache_fallbacks()->Add(-1);
       }
@@ -108,7 +100,6 @@ class FallbackCacheCallback: public HTTPCache::Callback {
 
  private:
   GoogleString key_;
-  GoogleString fragment_;
   WriteThroughHTTPCache* write_through_http_cache_;
   HTTPCache* cache1_;
   HTTPCache::Callback* client_callback_;
@@ -120,15 +111,12 @@ class FallbackCacheCallback: public HTTPCache::Callback {
 class Cache1Callback: public HTTPCache::Callback {
  public:
   Cache1Callback(const GoogleString& key,
-                 const GoogleString& fragment,
                  HTTPCache* fallback_cache,
                  MessageHandler* handler,
                  HTTPCache::Callback* client_callback,
                  HTTPCache::Callback* fallback_cache_callback)
-      : HTTPCache::Callback(client_callback->request_context(),
-                            client_callback->req_properties()),
+      : HTTPCache::Callback(client_callback->request_context()),
         key_(key),
-        fragment_(fragment),
         fallback_cache_(fallback_cache),
         handler_(handler),
         client_callback_(client_callback),
@@ -144,18 +132,13 @@ class Cache1Callback: public HTTPCache::Callback {
         client_callback_->fallback_http_value()->Link(fallback_http_value());
       }
       fallback_cache_->cache_misses()->Add(-1);
-      fallback_cache_->Find(
-          key_, fragment_, handler_, fallback_cache_callback_.release());
+      fallback_cache_->Find(key_, handler_, fallback_cache_callback_.release());
     } else {
       client_callback_->http_value()->Link(http_value());
       client_callback_->response_headers()->CopyFrom(*response_headers());
       client_callback_->Done(find_result);
     }
     delete this;
-  }
-
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-    return client_callback_->RespectVaryOnResources();
   }
 
   virtual bool IsCacheValid(const GoogleString& key,
@@ -169,7 +152,6 @@ class Cache1Callback: public HTTPCache::Callback {
 
  private:
   GoogleString key_;
-  GoogleString fragment_;
   HTTPCache* fallback_cache_;
   MessageHandler* handler_;
   HTTPCache::Callback* client_callback_;
@@ -202,11 +184,10 @@ WriteThroughHTTPCache::~WriteThroughHTTPCache() {
 }
 
 void WriteThroughHTTPCache::PutInCache1(const GoogleString& key,
-                                        const GoogleString& fragment,
                                         HTTPValue* value) {
   if ((cache1_size_limit_ == kUnlimited) ||
-      (key.size() + fragment.size() + value->size() < cache1_size_limit_)) {
-    cache1_->PutInternal(key, fragment, timer()->NowUs(), value);
+      (key.size() + value->size() < cache1_size_limit_)) {
+    cache1_->PutInternal(key, timer()->NowUs(), value);
     // Avoid double counting the put.
     cache_inserts()->Add(-1);
   }
@@ -218,31 +199,26 @@ void WriteThroughHTTPCache::SetIgnoreFailurePuts() {
 }
 
 void WriteThroughHTTPCache::Find(const GoogleString& key,
-                                 const GoogleString& fragment,
                                  MessageHandler* handler,
                                  Callback* callback) {
   FallbackCacheCallback* fallback_cache_callback = new FallbackCacheCallback(
-      key, fragment, this, cache1_.get(), callback,
-      &WriteThroughHTTPCache::PutInCache1);
+      key, this, cache1_.get(), callback, &WriteThroughHTTPCache::PutInCache1);
   Cache1Callback* cache1_callback = new Cache1Callback(
-      key, fragment, cache2_.get(), handler, callback, fallback_cache_callback);
-  cache1_->Find(key, fragment, handler, cache1_callback);
+      key, cache2_.get(), handler, callback, fallback_cache_callback);
+  cache1_->Find(key, handler, cache1_callback);
 }
 
-void WriteThroughHTTPCache::PutInternal(const GoogleString& key,
-                                        const GoogleString& fragment,
-                                        int64 start_us,
+void WriteThroughHTTPCache::PutInternal(const GoogleString& key, int64 start_us,
                                         HTTPValue* value) {
   // Put into cache2_'s underlying cache.
-  cache2_->PutInternal(key, fragment, start_us, value);
+  cache2_->PutInternal(key, start_us, value);
   // Put into cache1_'s underlying cache if required.
-  PutInCache1(key, fragment, value);
+  PutInCache1(key, value);
 }
 
-void WriteThroughHTTPCache::Delete(const GoogleString& key,
-                                   const GoogleString& fragment) {
-  cache1_->Delete(key, fragment);
-  cache2_->Delete(key, fragment);
+void WriteThroughHTTPCache::Delete(const GoogleString& key) {
+  cache1_->Delete(key);
+  cache2_->Delete(key);
   cache_deletes()->Add(-1);  // To avoid double counting.
 }
 
@@ -286,26 +262,25 @@ void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
   cache2_->set_max_cacheable_response_content_length(value);
 }
 
-void WriteThroughHTTPCache::RememberNotCacheable(const GoogleString& key,
-                                                 const GoogleString& fragment,
-                                                 bool is_200_status_code,
-                                                 MessageHandler* handler) {
-  cache1_->RememberNotCacheable(key, fragment, is_200_status_code, handler);
-  cache2_->RememberNotCacheable(key, fragment, is_200_status_code, handler);
+void WriteThroughHTTPCache::RememberNotCacheable(
+    const GoogleString& key,
+    bool is_200_status_code,
+    MessageHandler* handler) {
+  cache1_->RememberNotCacheable(key, is_200_status_code, handler);
+  cache2_->RememberNotCacheable(key, is_200_status_code, handler);
 }
 
-void WriteThroughHTTPCache::RememberFetchFailed(const GoogleString& key,
-                                                const GoogleString& fragment,
-                                                MessageHandler* handler) {
-  cache1_->RememberFetchFailed(key, fragment, handler);
-  cache2_->RememberFetchFailed(key, fragment, handler);
+void WriteThroughHTTPCache::RememberFetchFailed(
+    const GoogleString& key,
+    MessageHandler* handler) {
+  cache1_->RememberFetchFailed(key, handler);
+  cache2_->RememberFetchFailed(key, handler);
 }
 
 void WriteThroughHTTPCache::RememberFetchDropped(const GoogleString& key,
-                                                 const GoogleString& fragment,
                                                  MessageHandler * handler) {
-  cache1_->RememberFetchDropped(key, fragment, handler);
-  cache2_->RememberFetchDropped(key, fragment, handler);
+  cache1_->RememberFetchDropped(key, handler);
+  cache2_->RememberFetchDropped(key, handler);
 }
 
 }  // namespace net_instaweb

@@ -45,8 +45,8 @@ const int64 kStartTime = 3456;
 class MockTimeCacheTest : public CacheTestBase {
  protected:
   MockTimeCacheTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), kStartTime),
+      : timer_(kStartTime),
+        thread_system_(Platform::CreateThreadSystem()),
         scheduler_(thread_system_.get(), &timer_),
         lru_cache_(kMaxSize),
         cache_(&scheduler_, &lru_cache_) {
@@ -59,8 +59,8 @@ class MockTimeCacheTest : public CacheTestBase {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
+  scoped_ptr<ThreadSystem> thread_system_;
   MockScheduler scheduler_;
   LRUCache lru_cache_;
   MockTimeCache cache_;

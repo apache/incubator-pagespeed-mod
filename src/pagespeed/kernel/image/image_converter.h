@@ -35,8 +35,6 @@ namespace image_compression {
 
 using net_instaweb::MessageHandler;
 
-class MultipleFrameReader;
-class MultipleFrameWriter;
 class PngReaderInterface;
 class ScanlineReaderInterface;
 class ScanlineWriterInterface;
@@ -50,22 +48,14 @@ class ImageConverter {
     IMAGE_WEBP
   };
 
-  // Converts image one line at a time, between different image
-  // formats. Both 'reader' and 'writer' must be non-NULL.
+  // Converts image one line at a time, between different image formats.
   static ScanlineStatus ConvertImageWithStatus(
       ScanlineReaderInterface* reader,
       ScanlineWriterInterface* writer);
-
   inline static bool ConvertImage(ScanlineReaderInterface* reader,
                                   ScanlineWriterInterface* writer) {
     return ConvertImageWithStatus(reader, writer).Success();
   }
-
-  // Converts image frame by frame, and then line by line within each
-  // frame, between different image formats. Both 'reader' and
-  // 'writer' must be non-NULL.
-  static ScanlineStatus ConvertMultipleFrameImage(MultipleFrameReader* reader,
-                                                  MultipleFrameWriter* writer);
 
   static bool ConvertPngToJpeg(
       const PngReaderInterface& png_struct_reader,
@@ -94,16 +84,17 @@ class ImageConverter {
   // this function will fail when attempting to convert an image with
   // transparent pixels. Returns is_opaque set to true iff the 'in'
   // image was opaque. On entry, '*webp_writer' must be NULL; on exit,
-  // it contains the webp writer that was used to write the WebP, and
-  // the caller is responsible for deleting it. Most clients will
-  // prefer to use the other form ConvertPngToWebp.
+  // it contains the WebpScanlineWriter instance that was used to
+  // write the WebP, and the caller is responsible for deleting
+  // it. Most clients will prefer to use the other form
+  // ConvertPngToWebp.
   static bool ConvertPngToWebp(
       const PngReaderInterface& png_struct_reader,
       const GoogleString& in,
       const WebpConfiguration& config,
       GoogleString* out,
       bool* is_opaque,
-      ScanlineWriterInterface** webp_writer,
+      WebpScanlineWriter** webp_writer,
       MessageHandler* handler);
 
   // Optimizes the given png image, also converts to jpeg and take the

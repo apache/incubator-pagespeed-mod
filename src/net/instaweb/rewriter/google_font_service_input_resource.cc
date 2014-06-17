@@ -33,12 +33,6 @@
 
 namespace net_instaweb {
 
-namespace {
-
-const char kFontApiHost[] = "fonts.googleapis.com";
-
-}  // namespace
-
 GoogleFontServiceInputResource::GoogleFontServiceInputResource(
     RewriteDriver* rewrite_driver,
     bool is_https,
@@ -54,13 +48,13 @@ GoogleFontServiceInputResource::GoogleFontServiceInputResource(
 GoogleFontServiceInputResource::~GoogleFontServiceInputResource() {
 }
 
-bool GoogleFontServiceInputResource::IsFontServiceUrl(const GoogleUrl& url) {
-  return url.IsWebValid() && url.Host() == kFontApiHost;
-}
-
 GoogleFontServiceInputResource* GoogleFontServiceInputResource::Make(
     const GoogleUrl& parsed_url, RewriteDriver* rewrite_driver) {
-  if (!IsFontServiceUrl(parsed_url)) {
+  if (!parsed_url.IsWebValid()) {
+    return NULL;
+  }
+
+  if (parsed_url.Host() != "fonts.googleapis.com") {
     return NULL;
   }
 
@@ -73,7 +67,7 @@ GoogleFontServiceInputResource* GoogleFontServiceInputResource::Make(
 
   StringPiece url_plus_ua_spec;
   scoped_ptr<GoogleUrl> url_plus_ua(
-      parsed_url.CopyAndAddEscapedQueryParam("X-PS-UA", GoogleUrl::Escape(ua)));
+      parsed_url.CopyAndAddQueryParam("X-PS-UA", ua));
   url_plus_ua_spec = url_plus_ua->Spec();
 
   GoogleString cache_key;

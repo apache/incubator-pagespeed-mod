@@ -112,7 +112,6 @@ void AsyncFetch::Done(bool success) {
       // successful ones to.
       response_headers()->set_status_code(HttpStatus::kNotFound);
     }
-    response_headers()->ComputeCaching();
     HeadersComplete();
   }
   HandleDone(success);

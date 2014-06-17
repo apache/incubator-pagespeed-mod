@@ -134,16 +134,13 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   virtual void Finished() {}
 
   // Update the URL in the slot target without touching the resource. This is
-  // intended for when we're inlining things as data: URLs and also for placing
-  // the rewritten version of the URL in the slot. The method returns true if
-  // it successfully updates the slot target. Resources that are not explicitly
-  // authorized will get rejected at this point. Note that if you
+  // intended for when we're inlining things as data: URLs. Note that if you
   // call this you should also call set_disable_rendering(true), or otherwise
   // the result will be overwritten. Does not alter the URL in any way.  Not
   // supported on all slot types --- presently only slots representing things
   // within CSS and HTML have this operation (others will DCHECK-fail).  Must be
   // called from within a context's Render() method.
-  virtual bool DirectSetUrl(const StringPiece& url);
+  virtual void DirectSetUrl(const StringPiece& url);
 
   // Returns true if DirectSetUrl is supported by this slot (html and css right
   // now).
@@ -159,10 +156,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   // Detaches a context from the slot.  This must be the first or last context
   // that was added.
   void DetachContext(RewriteContext* context);
-
-  // Inserts a debug comment near the slot.  The base class implementation
-  // calls LOG(DFATAL) as we only expect this to be called for HtmlResourceSlot.
-  virtual void InsertDebugComment(StringPiece message);
 
   // Returns a human-readable description of where this slot occurs, for use
   // in log messages.
@@ -225,15 +218,12 @@ class HtmlResourceSlot : public ResourceSlot {
 
   virtual void Render();
   virtual GoogleString LocationString();
-  virtual bool DirectSetUrl(const StringPiece& url);
+  virtual void DirectSetUrl(const StringPiece& url);
   virtual bool CanDirectSetUrl() { return true; }
 
   // How relative the original URL was. If PreserveUrlRelativity is enabled,
   // Render will try to make the final URL just as relative.
   UrlRelativity url_relativity() const { return url_relativity_; }
-
-  // Inserts a message into the HTML stream above element_.
-  virtual void InsertDebugComment(StringPiece message);
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);

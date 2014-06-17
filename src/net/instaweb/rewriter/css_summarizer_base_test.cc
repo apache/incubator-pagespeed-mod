@@ -22,7 +22,6 @@
 #include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -38,10 +37,8 @@ namespace net_instaweb {
 namespace {
 
 const char kExpectedResult[] =
-    "OK/*{display:|OK/div{displa/rel=stylesheet|ParseOrCloseStyleTagError//"
-    "rel=stylesheet|ParseOrCloseStyleTagError//rel=stylesheet|"
-    "ParseOrCloseStyleTagError//rel=stylesheet|FetchError//rel=stylesheet|"
-    "ResourceError/|";
+    "OK/*{display:|OK/div{displa/rel=stylesheet|ParseError//rel=stylesheet|"
+    "FetchError//rel=stylesheet|ResourceError/|";
 
 // Extracts first 10 characters of minified form of every stylesheet.
 class MinifyExcerptFilter : public CssSummarizerBase {
@@ -62,7 +59,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
   virtual void Summarize(Css::Stylesheet* stylesheet,
                          GoogleString* out) const {
     StringWriter write_out(out);
-    CssMinify::Stylesheet(*stylesheet, &write_out, driver()->message_handler());
+    CssMinify::Stylesheet(*stylesheet, &write_out, driver_->message_handler());
     if (out->length() > 10) {
       out->resize(10);
     }
@@ -75,7 +72,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
       case kSummaryStillPending:
         return "Pending";
       case kSummaryCssParseError:
-        return "ParseOrCloseStyleTagError";
+        return "ParseError";
       case kSummaryResourceCreationFailed:
         return "ResourceError";
       case kSummaryInputUnavailable:
@@ -100,13 +97,13 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     } else {
       // Replace link with style. Note: real one should also keep media,
       // test code does not have to.
-      HtmlElement* style_element = driver()->NewElement(NULL, HtmlName::kStyle);
-      driver()->InsertNodeBeforeNode(element, style_element);
+      HtmlElement* style_element = driver_->NewElement(NULL, HtmlName::kStyle);
+      driver_->InsertNodeBeforeNode(element, style_element);
 
       HtmlCharactersNode* content =
-          driver()->NewCharactersNode(style_element, summary.data);
-      driver()->AppendChild(style_element, content);
-      EXPECT_TRUE(driver()->DeleteNode(element));
+          driver_->NewCharactersNode(style_element, summary.data);
+      driver_->AppendChild(style_element, content);
+      EXPECT_TRUE(driver_->DeleteNode(element));
       *is_element_deleted = true;
     }
   }
@@ -125,8 +122,8 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     const SummaryInfo& sum = GetSummaryForStyle(pos);
     GoogleString annotation = StrCat("WillNotRender:", IntegerToString(pos),
                                      " --- ", EncodeState(sum.state));
-    driver()->InsertNodeBeforeNode(
-        element, driver()->NewCommentNode(NULL, annotation));
+    driver_->InsertNodeBeforeNode(
+        element, driver_->NewCommentNode(NULL, annotation));
   }
 
   virtual void SummariesDone() {
@@ -173,8 +170,6 @@ class CssSummarizerBaseTest : public RewriteTestBase {
                      "<style>* {display: none; }</style>",
                      CssLinkHref("a.css"),  // ok
                      CssLinkHref("b.css"),  // parse error
-                     CssLinkHref("c.css"),  // parse error due to bad URL
-                     CssLinkHref("close_style_tag.css"),  // closing style tag
                      CssLinkHref("404.css"),  // fetch error
                      CssLinkHref("http://evil.com/d.css"))) { }
   virtual ~CssSummarizerBaseTest() { }
@@ -194,14 +189,6 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     // Parse error.
     SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
                                   "div { ", 100);
-    SetResponseWithDefaultHeaders(
-        "c.css", kContentTypeCss,
-        ".z{background-image:url(\"</style>\");", 100);
-
-    // Contents that include a closing style tag.
-    SetResponseWithDefaultHeaders("close_style_tag.css",
-                                  kContentTypeCss,
-                                  ".x </style> {color: white }", 100);
 
     // Permit testing a 404.
     SetFetchFailOnUnexpected(false);
@@ -244,26 +231,6 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     return FinishTest(full_pre_comment, post_comment);
   }
 
-  void VerifyUnauthNotRendered() {
-    FullTest("will_not_render", "", "");
-    EXPECT_STREQ(
-        StrCat("<html>\n",
-               "<style>* {display: none; }</style>",
-               CssLinkHref("a.css"),
-               StrCat("<!--WillNotRender:2 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("b.css")),
-               StrCat("<!--WillNotRender:3 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("c.css")),
-               StrCat("<!--WillNotRender:4 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("close_style_tag.css")),
-               StrCat("<!--WillNotRender:5 --- FetchError-->",
-                       CssLinkHref("404.css")),
-               StrCat("<!--WillNotRender:6 --- ResourceError-->",
-                       CssLinkHref("http://evil.com/d.css")),
-               StrCat("<!--", kExpectedResult, "-->")),
-        output_buffer_);
-  }
-
   MinifyExcerptFilter* filter_;  // owned by the driver;
   const GoogleString head_;
 
@@ -294,15 +261,18 @@ TEST_F(CssSummarizerBaseTest, RenderSummary) {
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummary) {
   filter_->set_will_not_render_summaries_in_place(true);
-  VerifyUnauthNotRendered();
-}
-
-TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWithUnauthEnabled) {
-  filter_->set_will_not_render_summaries_in_place(true);
-  options()->ClearSignatureForTesting();
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
-  server_context()->ComputeSignature(options());
-  VerifyUnauthNotRendered();
+  FullTest("will_not_render", "", "");
+  EXPECT_STREQ(StrCat("<html>\n",
+                      "<style>* {display: none; }</style>",
+                      CssLinkHref("a.css"),
+                      StrCat("<!--WillNotRender:2 --- ParseError-->",
+                             CssLinkHref("b.css")),
+                      StrCat("<!--WillNotRender:3 --- FetchError-->",
+                             CssLinkHref("404.css")),
+                      StrCat("<!--WillNotRender:4 --- ResourceError-->",
+                             CssLinkHref("http://evil.com/d.css")),
+                      StrCat("<!--", kExpectedResult, "-->")),
+               output_buffer_);
 }
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWait) {

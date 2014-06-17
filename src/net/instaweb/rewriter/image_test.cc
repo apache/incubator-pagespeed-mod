@@ -35,20 +35,17 @@
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/read_image.h"
+#include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/kernel/util/platform.h"
 
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
@@ -70,16 +67,13 @@ const char kProgressiveHeader[] = "\xFF\xC2";
 const int kProgressiveHeaderStartIndex = 158;
 const char kMessagePatternDataTruncated[] = "*data truncated*";
 const char kMessagePatternFailedToCreateWebp[] = "*Failed to create webp*";
-const char kMessagePatternFailedToEncodeWebp[] = "*Could not encode webp data*";
-const char kMessagePatternNoDimension[] = "*Couldn't find * dimensions*";
+const char kMessagePatternFailedToEncodeWebp[] = "Could not encode webp data*";
+const char kMessagePatternNoWebpDimension[] = "*Couldn't find * dimensions*";
 const char kMessagePatternTimedOut[] = "*conversion timed out*";
-const char kMessagePatternFailedToDecoode[] = "*failed to decode the image*";
 
 class ConversionVarChecker {
  public:
-  explicit ConversionVarChecker(Image::CompressionOptions* options)
-      : thread_system_(Platform::CreateThreadSystem()),
-        simple_stats_(thread_system_.get()) {
+  explicit ConversionVarChecker(Image::CompressionOptions* options) {
     webp_conversion_variables_.Get(
         Image::ConversionVariables::FROM_GIF)->timeout_count =
         simple_stats_.AddVariable("gif_webp_timeout");
@@ -213,7 +207,6 @@ class ConversionVarChecker {
   }
 
  private:
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats simple_stats_;
   Image::ConversionVariables webp_conversion_variables_;
 };
@@ -232,10 +225,9 @@ class ImageTest : public ImageTestBase {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
     message_handler_.AddPatternToSkipPrinting(
         kMessagePatternFailedToCreateWebp);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToDecoode);
     message_handler_.AddPatternToSkipPrinting(
         kMessagePatternFailedToEncodeWebp);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternNoDimension);
+    message_handler_.AddPatternToSkipPrinting(kMessagePatternNoWebpDimension);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternTimedOut);
@@ -548,18 +540,18 @@ TEST_F(ImageTest, PngToWebpLaTest) {
   ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kCuppa, IMAGE_PNG, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
+      kBikeCrash, IMAGE_PNG, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
       ImageHeaders::kPngHeaderLength,
       ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize * 2,
-      65, 70,
-      1763, true);
+      100, 100,
+      26548, true);
   conversion_var_checker.Test(0, 0, 0,   // gif
                               0, 1, 0,   // png
                               0, 0, 0,   // jpeg
                               true);
 }
 
-TEST_F(ImageTest, PngAlphaFailToWebpLossyTest) {
+TEST_F(ImageTest, PngAlphaToWebpFailToPngTest) {
   // FYI: This test will also probably take very long to run under Valgrind.
   if (RunningOnValgrind()) {
     return;
@@ -578,25 +570,21 @@ TEST_F(ImageTest, PngAlphaFailToWebpLossyTest) {
   ImagePtr image(ReadFromFileWithOptions(kCuppaTransparent, &buffer, options));
   image->output_size();
   EXPECT_EQ(ContentType::kPng, image->content_type()->type());
-
-  // "kCuppaTransparent" is a graphic. It should be compressed losslessly,
-  // but the configuration only allows lossy compression, so no compression
-  // will be attempted.
-  EXPECT_EQ(0, options->conversions_attempted);
+  EXPECT_EQ(2, options->conversions_attempted);
   conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
+                              0, 0, 1,   // png
                               0, 0, 0,   // jpeg
                               true);
 }
 
-TEST_F(ImageTest, PngAlphaToWebpLaTest) {
+TEST_F(ImageTest, PngAlphaToWebpTest) {
   // FYI: This test will also probably take very long to run under Valgrind.
   if (RunningOnValgrind()) {
     return;
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
   ConversionVarChecker conversion_var_checker(options);
-  options->preferred_webp = Image::WEBP_LOSSLESS;
+  options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
   options->convert_jpeg_to_webp = true;
@@ -622,7 +610,7 @@ TEST_F(ImageTest, PngAlphaToWebpTestFailsBecauseTooManyTries) {
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
   ConversionVarChecker conversion_var_checker(options);
-  options->preferred_webp = Image::WEBP_LOSSLESS;
+  options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
   options->convert_jpeg_to_webp = true;
@@ -635,10 +623,36 @@ TEST_F(ImageTest, PngAlphaToWebpTestFailsBecauseTooManyTries) {
   image->output_size();
   EXPECT_EQ(ContentType::kPng, image->content_type()->type());
   EXPECT_EQ(2, options->conversions_attempted);
-  // There were already enough (2) attempts, so we shouldn't try any
-  // more conversions.
   conversion_var_checker.Test(0, 0, 0,   // gif
-                              0, 0, 0,   // png
+                              0, 0, 1,   // png
+                              0, 0, 0,   // jpeg
+                              false);
+}
+
+// This tests that we compress the alpha channel on the webp. If we
+// don't on this image, it becomes larger than the original.
+TEST_F(ImageTest, PngLargeAlphaToWebpTest) {
+  // FYI: This test will also probably take very long to run under Valgrind.
+  if (RunningOnValgrind()) {
+    return;
+  }
+  Image::CompressionOptions* options = new Image::CompressionOptions;
+  ConversionVarChecker conversion_var_checker(options);
+  options->preferred_webp = Image::WEBP_LOSSY;
+  options->allow_webp_alpha = true;
+  options->convert_png_to_jpeg = true;
+  options->convert_jpeg_to_webp = true;
+  options->webp_quality = 75;
+  options->jpeg_quality = 85;
+  EXPECT_EQ(0, options->conversions_attempted);
+
+  GoogleString buffer;
+  ImagePtr image(ReadFromFileWithOptions(kRedbrush, &buffer, options));
+  EXPECT_GT(image->input_size(), image->output_size());
+  EXPECT_EQ(ContentType::kWebp, image->content_type()->type());
+  EXPECT_EQ(1, options->conversions_attempted);
+  conversion_var_checker.Test(0, 0, 0,   // gif
+                              0, 1, 0,   // png
                               0, 0, 0,   // jpeg
                               false);
 }
@@ -681,7 +695,7 @@ TEST_F(ImageTest, PngLargeAlphaToWebpTimesOutToPngTest) {
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
   ConversionVarChecker conversion_var_checker(options);
-  options->preferred_webp = Image::WEBP_LOSSLESS;
+  options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
   options->convert_jpeg_to_webp = true;
@@ -721,7 +735,7 @@ TEST_F(ImageTest, PngLargeAlphaToWebpDoesNotTimeOutTest) {
   }
   Image::CompressionOptions* options = new Image::CompressionOptions;
   ConversionVarChecker conversion_var_checker(options);
-  options->preferred_webp = Image::WEBP_LOSSLESS;
+  options->preferred_webp = Image::WEBP_LOSSY;
   options->allow_webp_alpha = true;
   options->convert_png_to_jpeg = true;
   options->convert_jpeg_to_webp = true;
@@ -844,15 +858,15 @@ TEST_F(ImageTest, GifToWebpLaTest) {
   ConversionVarChecker conversion_var_checker(options_.get());
   options_->webp_quality = 75;
   CheckImageFromFile(
-      kTransparent, IMAGE_GIF, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
+      kIronChef, IMAGE_GIF, IMAGE_WEBP_LOSSLESS_OR_ALPHA,
       8,  // Min bytes to bother checking file type at all.
       ImageHeaders::kGifDimStart + ImageHeaders::kGifIntSize * 2,
-      320, 320,
-      55800, true);
+      192, 256,
+      24941, true);
   conversion_var_checker.Test(0, 1, 0,   // gif
                               0, 0, 0,   // png
                               0, 0, 0,   // jpeg
-                              false);
+                              true);
 }
 
 TEST_F(ImageTest, AnimationTest) {

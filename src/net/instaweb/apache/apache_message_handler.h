@@ -56,7 +56,7 @@ class ApacheMessageHandler : public MessageHandler {
     pid_string_ = StrCat("[", Integer64ToString(pid), "]");
   }
   // Dump contents of SharedCircularBuffer.
-  virtual bool Dump(Writer* writer);
+  bool Dump(Writer* writer);
 
  protected:
   virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
@@ -66,6 +66,7 @@ class ApacheMessageHandler : public MessageHandler {
 
  private:
   int GetApacheLogLevel(MessageType type);
+  GoogleString Format(const char* msg, va_list args);
 
   const server_rec* server_rec_;
   const GoogleString version_;

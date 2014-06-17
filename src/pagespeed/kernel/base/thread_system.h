@@ -29,7 +29,6 @@
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 
 namespace net_instaweb {
 
@@ -43,7 +42,7 @@ class ThreadSystem {
   class Thread;
   class ThreadImpl;
 
-  class LOCKABLE CondvarCapableMutex : public AbstractMutex {
+  class CondvarCapableMutex : public AbstractMutex {
    public:
     CondvarCapableMutex() { }
     virtual ~CondvarCapableMutex();
@@ -58,7 +57,7 @@ class ThreadSystem {
   // Interface for a Mutex with ReaderLocks().  It is possible for multiple
   // Readers to simultaneously hold an RWLock.  A reader cannot hold the
   // lock at the same time as a Writer, nor can two Writers hold the lock.
-  class LOCKABLE RWLock : public AbstractMutex {
+  class RWLock : public AbstractMutex {
    public:
     RWLock() {}
     virtual ~RWLock();
@@ -67,11 +66,11 @@ class ThreadSystem {
     // shared while normal locks are exclusive. Normal lock cannot happen when
     // reader has a lock.
     // Try to acquire a read share of this lock without blocking.
-    virtual bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true) = 0;
+    virtual bool ReaderTryLock() = 0;
     // Block until this Mutex is free, or shared, then acquire a share of it.
-    virtual void ReaderLock() SHARED_LOCK_FUNCTION() = 0;
+    virtual void ReaderLock() = 0;
     // Release a read share of this Mutex.
-    virtual void ReaderUnlock() UNLOCK_FUNCTION() = 0;
+    virtual void ReaderUnlock() = 0;
 
     // Optionally checks that reader lock is held (for invariant checking
     // purposes). Default implementation does no checking.
@@ -86,14 +85,13 @@ class ThreadSystem {
   // Similar to ScopedMutex found in AbstractMutex, except that
   // multiple ScopedReaders can be simultaneously instantiated on
   // the same RWLock*.
-  class SCOPED_LOCKABLE ScopedReader {
+  class ScopedReader {
    public:
-    explicit ScopedReader(RWLock* lock) SHARED_LOCK_FUNCTION(lock)
-        : lock_(lock) {
+    explicit ScopedReader(RWLock* lock) : lock_(lock) {
       lock_->ReaderLock();
     }
 
-    void Release() UNLOCK_FUNCTION() {
+    void Release() {
       // We allow Release called explicitly, before the ScopedReader goes
       // out of scope and is destructed, calling Release again.
       if (lock_ != NULL) {
@@ -102,7 +100,9 @@ class ThreadSystem {
       }
     }
 
-    ~ScopedReader() UNLOCK_FUNCTION() { Release(); }
+    ~ScopedReader() {
+      Release();
+    }
 
    private:
     RWLock* lock_;

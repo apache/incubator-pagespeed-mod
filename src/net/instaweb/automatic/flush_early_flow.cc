@@ -64,7 +64,18 @@
 
 namespace {
 
+const char kPreloadScript[] = "function preload(x){"
+    "var obj=document.createElement('object');"
+    "obj.data=x;"
+    "obj.width=0;"
+    "obj.height=0;}";
+const char kScriptBlock[] =
+    "<script type=\"text/javascript\">(function(){%s})()</script>";
 const char kJavascriptInline[] = "<script type=\"text/javascript\">%s</script>";
+
+const char kFlushSubresourcesFilter[] = "FlushSubresourcesFilter";
+
+const char kPrefetchObjectTagHtml[] = "preload(%s);";
 
 const int kMaxParallelConnections = 6;
 
@@ -288,8 +299,9 @@ class FlushEarlyFlow::FlushEarlyAsyncFetch : public AsyncFetch {
   void SendRedirectToPsaOff() {
     num_flush_early_requests_redirected_->IncBy(1);
     GoogleUrl gurl(url_);
-    scoped_ptr<GoogleUrl> url_with_psa_off(gurl.CopyAndAddEscapedQueryParam(
-        RewriteQuery::kPageSpeed, RewriteQuery::kNoscriptValue));
+    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
+    scoped_ptr<GoogleUrl> url_with_psa_off(gurl.CopyAndAddQueryParam(
+        RewriteQuery::kModPagespeed, RewriteQuery::kNoscriptValue));
     GoogleString escaped_url;
     EscapeToJsStringLiteral(url_with_psa_off->Spec(), false,
                             &escaped_url);

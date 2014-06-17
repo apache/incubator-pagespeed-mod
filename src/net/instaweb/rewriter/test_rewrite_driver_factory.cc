@@ -61,7 +61,6 @@ class Hasher;
 class HtmlFilter;
 class MessageHandler;
 class NonceGenerator;
-class ProcessContext;
 class RewriteFilter;
 class Scheduler;
 class Statistics;
@@ -96,11 +95,9 @@ const int TestRewriteDriverFactory::kFetchesPerHostQueuedRequestThreshold;
 const char TestRewriteDriverFactory::kUrlNamerScheme[] = "URL_NAMER_SCHEME";
 
 TestRewriteDriverFactory::TestRewriteDriverFactory(
-    const ProcessContext& process_context,
-    const StringPiece& temp_dir,
-    MockUrlFetcher* mock_fetcher,
+    const StringPiece& temp_dir, MockUrlFetcher* mock_fetcher,
     TestDistributedFetcher* test_distributed_fetcher)
-    : RewriteDriverFactory(process_context, Platform::CreateThreadSystem()),
+    : RewriteDriverFactory(Platform::CreateThreadSystem()),
       mock_timer_(NULL),
       mock_scheduler_(NULL),
       delay_cache_(NULL),
@@ -110,13 +107,13 @@ TestRewriteDriverFactory::TestRewriteDriverFactory(
       counting_distributed_async_fetcher_(NULL),
       mem_file_system_(NULL),
       mock_hasher_(NULL),
-      simple_stats_(thread_system()),
       mock_message_handler_(NULL),
       mock_html_message_handler_(NULL),
       use_beacon_results_in_filters_(false),
-      use_test_url_namer_(false),
       add_platform_specific_decoding_passes_(true) {
   set_filename_prefix(StrCat(temp_dir, "/"));
+  use_test_url_namer_ = (getenv(kUrlNamerScheme) != NULL &&
+                         strcmp(getenv(kUrlNamerScheme), "test") == 0);
 }
 
 TestRewriteDriverFactory::~TestRewriteDriverFactory() {
@@ -188,7 +185,7 @@ NonceGenerator* TestRewriteDriverFactory::DefaultNonceGenerator() {
 
 Timer* TestRewriteDriverFactory::DefaultTimer() {
   DCHECK(mock_timer_ == NULL);
-  mock_timer_ = new MockTimer(thread_system()->NewMutex(), kStartTimeMs);
+  mock_timer_ = new MockTimer(kStartTimeMs);
   return mock_timer_;
 }
 
@@ -260,17 +257,14 @@ RewriteOptions* TestRewriteDriverFactory::NewRewriteOptions() {
   // as otherwise when running under Valgrind some tests will finish
   // with different HTML headers than expected.
   options->set_rewrite_deadline_ms(20);
+  // TODO(sligocki): Once this becomes default on in RewriteOptions, remove
+  // this set here.
+  options->set_preserve_url_relativity(true);
   return options;
 }
 
 ServerContext* TestRewriteDriverFactory::NewServerContext() {
   return new TestServerContext(this);
-}
-
-ServerContext* TestRewriteDriverFactory::NewDecodingServerContext() {
-  ServerContext* sc = NewServerContext();
-  InitStubDecodingServerContext(sc);
-  return sc;
 }
 
 void TestRewriteDriverFactory::AddPlatformSpecificDecodingPasses(

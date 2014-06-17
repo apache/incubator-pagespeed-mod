@@ -24,12 +24,11 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/headers.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
-class GoogleUrl;
 class HttpResponseHeaders;
+class RequestHeaders;
 class MessageHandler;
 class Writer;
 
@@ -46,9 +45,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // option. This will be set to the correct default value after conclusive
   // experiments.
   static const int64 kDefaultMinCacheTtlMs = -1;
-
-  enum VaryOption { kRespectVaryOnResources, kIgnoreVaryOnResources };
-  enum ValidatorOption { kHasValidator, kNoValidator };
 
   ResponseHeaders();
   virtual ~ResponseHeaders();
@@ -101,6 +97,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // accessors before ComputeCaching is called.
   void ComputeCaching();
 
+
   // Returns true if these response headers indicate the response is
   // publicly cacheable if it was fetched w/o special authorization
   // headers.
@@ -108,26 +105,14 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // See also RequiresProxyRevalidation(), which must be used to
   // determine whether stale content can be re-used by a proxy.
   //
-  // The difference between HTML and non-HTML is tolerance for Vary:Cookie.
-  // In HTML we are willing to cache cookieless responses and serve them
-  // to other cookieless requests, but this requires the requests to
-  // be validated.  Callers can indicate their ability to validate requests
-  // by passing kHasRequestValidator for has_request_validator.
-  bool IsProxyCacheable(RequestHeaders::Properties properties,
-                        VaryOption respect_vary_on_resources,
-                        ValidatorOption has_request_validator) const;
+  // Generally you want to use IsProxyCacheableGivenRequest() instead which will
+  // also take the request headers into account, unless you know the request
+  // was synthesized with known headers which do not include authorization.
+  bool IsProxyCacheable() const;
 
-  static VaryOption GetVaryOption(bool respect_vary) {
-    return respect_vary ? kRespectVaryOnResources : kIgnoreVaryOnResources;
-  }
-
-  // The zero-arg version of IsProxyCacheable gives a pessimistic answer,
-  // assuming the request has cookies, there is no validator, and we
-  // respect Vary.
-  bool IsProxyCacheable() const {
-    return IsProxyCacheable(
-        RequestHeaders::Properties(), kRespectVaryOnResources, kNoValidator);
-  }
+  // Returns true if these response header indicate the response is cacheable
+  // if it was fetched with given 'request_headers'.
+  bool IsProxyCacheableGivenRequest(const RequestHeaders& req_headers) const;
 
   // Returns true if the response is privately cacheable.
   //
@@ -144,6 +129,13 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // in any Cache-Control setting.  These must be checked to see whether
   // it's OK to serve stale content while freshening in the background.
   bool RequiresProxyRevalidation() const;
+
+  // Returns whether or not we can proxy cache these headers if we take into
+  // account the Vary: headers. Note that we consider Vary: Cookie as cacheable
+  // if request_has_cookie is false.
+  //
+  // TODO(sligocki): Rename to IsVaryCacheable().
+  bool VaryCacheable(bool request_has_cookie) const;
 
   // Note(sligocki): I think CacheExpirationTimeMs will return 0 if !IsCacheable
   // TODO(sligocki): Look through callsites and make sure this is being
@@ -305,40 +297,15 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // format.
   bool GetCookieString(GoogleString* cookie_str) const;
 
-  // Returns true if the response headers have a cookie with the given name.
-  // 'values' gives the associated values. 'attributes' gives the attributes.
-  // name            results in "" in values and nothing in attributes.
-  // name=; HttpOnly results in "" in values and "HttpOnly" in attributes.
-  // name=value      results in "value" in values and nothing in attributes.
-  // name=value; Expires=yaddayadda; HttpOnly results in "value" in values and
-  //                 " Expires=yaddayadda" and " HttpOnly" in attributes.
-  //                 Note that the attributes are not trimmed of whitespace.
+  // Returns true in the response headers have a cookie attribute with the given
+  // name. values gives the associated values.
+  // name=value results in "value" in values.
+  // name=      results in "" in values.
+  // name       results in nothing being added to values.
   // The return value is true in all the above cases.
-  // It is a limitation of this API that a cookie with no value set is
-  // indistinguishable from a cookie with an empty value. Furthermore, if the
-  // cookie is set in multiple headers, values and attributes will be the union
-  // of those headers' contents.
-  // TODO(matterbury): Fix this to implement the correct behavior, which should
-  // take into account the domain and path of the cookie as part of uniqueness.
-  bool HasCookie(StringPiece name, StringPieceVector* values,
-                 StringPieceVector* attributes) const;
-
-  // Returns true if any cookies in the response headers have an attribute with
-  // the given name, returning the value for the first one found in
-  // '*attribute_value' iff it isn't NULL.
-  bool HasAnyCookiesWithAttribute(StringPiece attribute_name,
-                                  StringPiece* attribute_value);
-
-  // Set or clears the given query parameters as response header cookies,
-  // skipping any in to_exclude. query_params and option_cookies are both
-  // query parameters (name=value separated by '&'s) and are treated as
-  // untrusted data. Sets the cookies' Expires attributes to the given value.
-  // Returns true if any cookies were set, false if not.
-  bool SetQueryParamsAsCookies(const GoogleUrl& gurl, StringPiece query_params,
-                               const StringPieceVector& to_exclude,
-                               int64 expiration_time);
-  bool ClearOptionCookies(const GoogleUrl& gurl, StringPiece option_cookies,
-                          const StringPieceVector& to_exclude);
+  // It is a limitation of this API that a cookie value of "name=value;name" is
+  // indistinguishable from a cookie value of "name=value".
+  bool HasCookie(StringPiece name, StringPieceVector* values) const;
 
  protected:
   virtual void UpdateHook();

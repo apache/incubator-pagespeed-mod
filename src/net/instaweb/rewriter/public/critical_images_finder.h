@@ -48,7 +48,7 @@ typedef std::map<GoogleString, std::pair<int32, int32> >
 // TODO(jud): Instead of a separate CriticalImagesInfo that gets populated from
 // the CriticalImages protobuf value, we could just store the protobuf value in
 // RewriteDriver and eliminate CriticalImagesInfo. Revisit this when updating
-// this class to support multiple beacon responses.
+// this class to support multiple beacon response.
 struct CriticalImagesInfo {
   CriticalImagesInfo()
       : is_critical_image_info_present(false) {}
@@ -64,11 +64,6 @@ struct CriticalImagesInfo {
 // This information may be used by DelayImagesFilter.
 class CriticalImagesFinder {
  public:
-  enum Availability {
-    kDisabled,   // Data will never be forthcoming
-    kNoDataYet,  // Data is expected but we don't have it yet
-    kAvailable,  // Data is available
-  };
   static const char kCriticalImagesValidCount[];
   static const char kCriticalImagesExpiredCount[];
   static const char kCriticalImagesNotFoundCount[];
@@ -84,8 +79,8 @@ class CriticalImagesFinder {
 
   // Checks whether IsHtmlCriticalImage will return meaningful results about
   // critical images. Users of IsHtmlCriticalImage should check this function
-  // and supply default behaviors when Available != kAvailable.
-  virtual Availability Available(RewriteDriver* driver);
+  // and supply a default behavior if IsMeaningful returns false.
+  virtual bool IsMeaningful(const RewriteDriver* driver) const = 0;
 
   // In order to handle varying critical image sets returned by the beacon, we
   // store a history of the last N critical images, and only declare an image
@@ -108,18 +103,15 @@ class CriticalImagesFinder {
   }
 
   // Checks whether the requested image is present in the critical set or not.
-  // Users of this function should also check Available() to see if the
+  // Users of this function should also check IsMeaningful() to see if the
   // implementation of this function returns meaningful results and provide a
   // default behavior if it does not.  If no critical set value has been
   // obtained, returns false (not critical).
-  // TODO(jud): It would be simpler to modify these interfaces to take
-  // HtmlElement* instead of GoogleStrings. This would move some complexity in
-  // getting the correct URL from the caller into this function. For instance,
-  // if an image has been modified by LazyloadImages then the actual src we want
-  // to check is in the pagespeed_lazyload_src attribute, not in src.
-  bool IsHtmlCriticalImage(StringPiece image_url, RewriteDriver* driver);
+  bool IsHtmlCriticalImage(const GoogleString& image_url,
+                           RewriteDriver* driver);
 
-  bool IsCssCriticalImage(StringPiece image_url, RewriteDriver* driver);
+  bool IsCssCriticalImage(const GoogleString& image_url,
+                          RewriteDriver* driver);
 
   // Returns true if rendered dimensions exist for the image_src_url and
   // populates dimensions in the std::pair.
@@ -196,10 +188,6 @@ class CriticalImagesFinder {
   RenderedImages* JsonMapToRenderedImagesMap(const GoogleString& str,
                                              const RewriteOptions* options);
 
-  // Returns true if it's time to inject a beacon onto the page. The default
-  // finder doesn't use beaconing, so it always returns false.
-  virtual bool ShouldBeacon(RewriteDriver* driver) { return false; }
-
   // Check property cache state and prepare to insert beacon.  Returns the
   // metadata where result.status == kDoNotBeacon if no beaconing should occur,
   // and result.nonce contains the nonce if required (default implementation
@@ -209,15 +197,6 @@ class CriticalImagesFinder {
     result.status = kBeaconNoNonce;
     return result;
   }
-
-  // For implementations that use beaconing, update the candidate images in the
-  // property cache. New images are a signal that we should beacon more often
-  // for a few requests. The beaconing argument should indicate if the current
-  // request is injecting a beacon. If so, we don't need to trigger a beacon on
-  // the next request even if the candidate images have changed.
-  virtual void UpdateCandidateImagesForBeaconing(const StringSet& images,
-                                                 RewriteDriver* driver,
-                                                 bool beaconing) {}
 
  protected:
   // Completes a critical image set update operation and writes the data back to
@@ -237,7 +216,9 @@ class CriticalImagesFinder {
   // after this function has been called.
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
 
-  virtual GoogleString GetKeyForUrl(StringPiece url) { return url.as_string(); }
+  virtual GoogleString GetKeyForUrl(const GoogleString& url) {
+    return url;
+  }
 
   // Extracts the critical images from the given property_value into
   // critical_images_info, after checking if the property value is still valid

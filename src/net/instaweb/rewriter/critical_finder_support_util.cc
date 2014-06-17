@@ -24,12 +24,8 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/request_headers.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/critical_keys.pb.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -57,8 +53,13 @@ bool LessBySupportMapValue(const SupportMap::value_type& pair1,
 }
 
 SupportMap ConvertCriticalKeysProtoToSupportMap(
-    const CriticalKeys& critical_keys) {
+    const CriticalKeys& critical_keys, int legacy_support_value) {
   SupportMap support_map;
+  // Invariant: we have at most one of legacy beacon history data or evidence
+  // data.
+  DCHECK(critical_keys.beacon_history_size() == 0 ||
+         critical_keys.key_evidence_size() == 0);
+
   // Start by reading in the support data.
   for (int i = 0; i < critical_keys.key_evidence_size(); ++i) {
     const CriticalKeys::KeyEvidence& evidence = critical_keys.key_evidence(i);
@@ -67,12 +68,35 @@ SupportMap ConvertCriticalKeysProtoToSupportMap(
       SaturatingAddTo(evidence.support(), &support_map[evidence.key()]);
     }
   }
+
+  // Now migrate legacy data into support_map. Start with the response history.
+  for (int i = 0; i < critical_keys.beacon_history_size(); ++i) {
+    const CriticalKeys::BeaconResponse& response =
+        critical_keys.beacon_history(i);
+    for (int j = 0; j < response.keys_size(); ++j) {
+      SaturatingAddTo(legacy_support_value, &support_map[response.keys(j)]);
+    }
+  }
+
+  // Sometimes we have critical_keys with no response history (eg when only a
+  // single legacy beacon result was computed). Inject support for critical_keys
+  // if they weren't supported by the response history. This avoids
+  // double-counting beacon results.
+  for (int i = 0; i < critical_keys.critical_keys_size(); ++i) {
+    int& map_value = support_map[critical_keys.critical_keys(i)];
+    if (map_value == 0) {
+      SaturatingAddTo(legacy_support_value, &map_value);
+    }
+  }
+
   return support_map;
 }
 
 void WriteSupportMapToCriticalKeysProto(const SupportMap& support_map,
                                         CriticalKeys* critical_keys) {
-  // Clean out the existing evidence and inject the fresh evidence.
+  // Clean out the legacy data and inject the fresh data.
+  critical_keys->clear_beacon_history();
+  critical_keys->clear_critical_keys();
   critical_keys->clear_key_evidence();
   for (SupportMap::const_iterator entry = support_map.begin();
        entry != support_map.end(); ++entry) {
@@ -124,8 +148,6 @@ void ClearInvalidNonces(const int64 now_ms, CriticalKeys* critical_keys) {
     } else if ((entry->timestamp_ms() + kBeaconTimeoutIntervalMs) < now_ms) {
       entry->clear_timestamp_ms();
       entry->clear_nonce();
-      critical_keys->set_nonces_recently_expired(
-          critical_keys->nonces_recently_expired() + 1);
     } else {
       found_valid_nonce = true;
     }
@@ -200,6 +222,10 @@ void GetCriticalKeysFromProto(int64 support_percentage,
   int64 support_threshold =
       (support_percentage == 0) ?
       1 : (support_percentage * critical_keys.maximum_possible_support());
+  // Collect legacy beacon results
+  for (int i = 0; i < critical_keys.critical_keys_size(); ++i) {
+    keys->insert(critical_keys.critical_keys(i));
+  }
   // Collect supported beacon results
   for (int i = 0; i < critical_keys.key_evidence_size(); ++i) {
     const CriticalKeys::KeyEvidence& evidence = critical_keys.key_evidence(i);
@@ -217,7 +243,8 @@ void UpdateCriticalKeys(bool require_prior_support,
                         const StringSet& new_set, int support_value,
                         CriticalKeys* critical_keys) {
   DCHECK(critical_keys != NULL);
-  SupportMap support_map = ConvertCriticalKeysProtoToSupportMap(*critical_keys);
+  SupportMap support_map =
+      ConvertCriticalKeysProtoToSupportMap(*critical_keys, support_value);
   DecaySupportMap(support_value, &support_map);
   // Update maximum_possible_support.  Initial value must account for legacy
   // data.
@@ -228,8 +255,9 @@ void UpdateCriticalKeys(bool require_prior_support,
   } else if (support_map.empty()) {
     maximum_support = 0;
   } else {
-    maximum_support = std::max_element(support_map.begin(), support_map.end(),
-                                       LessBySupportMapValue)->second;
+    maximum_support =
+        std::max_element(support_map.begin(), support_map.end(),
+                         LessBySupportMapValue)->second;
   }
   SaturatingAddTo(support_value, &maximum_support);
   critical_keys->set_maximum_possible_support(maximum_support);
@@ -252,9 +280,6 @@ void UpdateCriticalKeys(bool require_prior_support,
       SaturatingAddTo(support_value, &support_map[*s]);
     }
   }
-  critical_keys->set_valid_beacons_received(
-      critical_keys->valid_beacons_received() + 1);
-  critical_keys->set_nonces_recently_expired(0);
   WriteSupportMapToCriticalKeysProto(support_map, critical_keys);
 }
 
@@ -326,95 +351,46 @@ void WriteCriticalKeysToPropertyCache(
   }
 }
 
-bool ShouldBeacon(const CriticalKeys& proto, const RewriteDriver& driver) {
-  // When downstream cache integration is enabled, and there is a rebeaconing
-  // key already specified in the config, we should only rebeacon when there
-  // is a matching key in the beacon requesting header.
-  if (driver.options()->IsDownstreamCacheIntegrationEnabled() &&
-      driver.options()->IsDownstreamCacheRebeaconingKeyConfigured()) {
-    return driver.options()->MatchesDownstreamCacheRebeaconingKey(
-        driver.request_headers()->Lookup1(kPsaShouldBeacon));
-  }
-  int64 now_ms = driver.timer()->NowMs();
-  return now_ms >= proto.next_beacon_timestamp_ms();
-}
-
-void PrepareForBeaconInsertionHelper(CriticalKeys* proto,
-                                     NonceGenerator* nonce_generator,
-                                     RewriteDriver* driver,
-                                     bool using_candidate_key_detection,
-                                     BeaconMetadata* result) {
+void PrepareForBeaconInsertion(
+    const StringSet& keys, CriticalKeys* proto, int support_interval,
+    NonceGenerator* nonce_generator, Timer* timer,
+    BeaconMetadata* result) {
   result->status = kDoNotBeacon;
-  if (!ShouldBeacon(*proto, *driver)) {
-    return;
+  bool changed = false;
+  int64 now_ms = timer->NowMs();
+  if (now_ms >= proto->next_beacon_timestamp_ms()) {
+    // TODO(jmaessen): Add noise to inter-beacon interval.  How?
+    // Currently first visit to page after next_beacon_timestamp_ms will beacon.
+    proto->set_next_beacon_timestamp_ms(now_ms + kMinBeaconIntervalMs);
+    changed = true;  // Timestamp definitely changed.
   }
-
-  if (driver->options()->IsDownstreamCacheIntegrationEnabled()) {
-    // We can only get here if downstream cache integration was enabled, but
-    // no downstream cache rebeaconing key was specified. So, put out a
-    // warning message. Note that we do not put out this message on a per
-    // request basis, because it will clutter up the logs. Instead we do it
-    // only once every beaconing interval.
-    driver->message_handler()->Message(
-        kWarning,
-        "You seem to have downstream caching configured on your server. "
-        "DownstreamCacheRebeaconingKey should also be set for this to work "
-        "correctly. Refer to "
-        "https://developers.google.com/speed/pagespeed/module/downstream-caching#beaconing "
-        "for more details.");
-  }
-  // We need to rebeacon so update the timestamp for the next time to
-  // rebeacon. If we are using candidate key detection, then check how many
-  // valid beacons we have received since the last time the candidate keys
-  // changed to determine if we are doing high frequency vs low frequency
-  // beaconing.
-  // TODO(jmaessen): Add noise to inter-beacon interval.  How? Currently first
-  // visit to page after next_beacon_timestamp_ms will beacon.
-  int64 beacon_reinstrument_time_ms =
-      driver->options()->beacon_reinstrument_time_sec() * Timer::kSecondMs;
-  if ((proto->nonces_recently_expired() > kNonceExpirationLimit) ||
-      (using_candidate_key_detection &&
-       (proto->valid_beacons_received() >= kHighFreqBeaconCount))) {
-    beacon_reinstrument_time_ms *= kLowFreqBeaconMult;
-  }
-  int64 now_ms = driver->timer()->NowMs();
-  proto->set_next_beacon_timestamp_ms(now_ms + beacon_reinstrument_time_ms);
-
-  AddNonceToCriticalSelectors(now_ms, nonce_generator, proto, &result->nonce);
-  result->status = kBeaconWithNonce;
-}
-
-bool UpdateCandidateKeys(const StringSet& keys, CriticalKeys* proto,
-                         bool clear_rebeacon_timestamp) {
-  // Check to see if candidate keys are already known to pcache.  Insert
-  // previously-unknown candidates with a support of 0, to indicate that beacon
-  // results for those keys will be considered valid.  Other keys returned in a
-  // beacon result will simply be ignored, avoiding DoSing the pcache.  New
-  // candidate keys cause us to re-beacon.
-  SupportMap support_map = ConvertCriticalKeysProtoToSupportMap(*proto);
-  bool support_map_changed = false;
-  for (StringSet::const_iterator i = keys.begin(), end = keys.end(); i != end;
-       ++i) {
-    if (support_map.insert(pair<GoogleString, int>(*i, 0)).second) {
-      support_map_changed = true;
+  if (!keys.empty()) {
+    // Check to see if candidate keys are already known to pcache.  Insert
+    // previously-unknown candidates with a support of 0, to indicate that
+    // beacon results for those keys will be considered valid.  Other keys
+    // returned in a beacon result will simply be ignored, avoiding DoSing the
+    // pcache.  New candidate keys cause us to re-beacon.
+    SupportMap support_map =
+        ConvertCriticalKeysProtoToSupportMap(*proto, support_interval);
+    bool support_map_changed = false;
+    for (StringSet::const_iterator i = keys.begin(), end = keys.end();
+         i != end; ++i) {
+      if (support_map.insert(pair<GoogleString, int>(*i, 0)).second) {
+        support_map_changed = true;
+      }
+    }
+    if (support_map_changed) {
+      // Update the proto value with the new set of keys. Note that we are not
+      // changing the calculated set of critical keys, so we don't need to
+      // update the state in the RewriteDriver.
+      WriteSupportMapToCriticalKeysProto(support_map, proto);
+      changed = true;
     }
   }
-  if (support_map_changed) {
-    // The candidate keys changed, so we need to go into high frequency
-    // beaconing mode. Reset the number of beacons received to signal this.
-    proto->set_valid_beacons_received(0);
-    // Clear the rebeaconing timestamp to force rebeaconing if requested.
-    if (clear_rebeacon_timestamp) {
-      proto->clear_next_beacon_timestamp_ms();
-    }
-    // Update the proto value with the new set of keys. Note that we are not
-    // changing the calculated set of critical keys, so we don't need to
-    // update the state in the RewriteDriver.
-    WriteSupportMapToCriticalKeysProto(support_map, proto);
-    return true;
+  if (changed) {
+    AddNonceToCriticalSelectors(now_ms, nonce_generator, proto, &result->nonce);
+    result->status = kBeaconWithNonce;
   }
-
-  return false;
 }
 
 }  // namespace net_instaweb

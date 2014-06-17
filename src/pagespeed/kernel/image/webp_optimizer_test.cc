@@ -43,6 +43,7 @@ using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::ScanlineWriterInterface;
 using pagespeed::image_compression::WebpConfiguration;
 using pagespeed::image_compression::WebpScanlineReader;
+using pagespeed::image_compression::WebpScanlineWriter;
 using pagespeed::image_compression::kMessagePatternPixelFormat;
 using pagespeed::image_compression::kMessagePatternStats;
 using pagespeed::image_compression::kMessagePatternWritingToWebp;
@@ -218,18 +219,7 @@ TEST_F(WebpScanlineOptimizerTest, ReInitializeAfterLastRow) {
   while (reader_.HasMoreScanLines()) {
     ASSERT_TRUE(reader_.ReadNextScanline(&scanline_));
   }
-
-  // After depleting the scanlines, any further call to
-  // ReadNextScanline leads to death in debugging mode, or a
-  // false in release mode.
-#ifdef NDEBUG
-  EXPECT_FALSE(reader_.ReadNextScanline(&scanline_));
-#else
-  EXPECT_DEATH(reader_.ReadNextScanline(&scanline_),
-               "The reader was not initialized or the image does not "
-               "have any more scanlines.");
-#endif
-
+  ASSERT_FALSE(reader_.ReadNextScanline(&scanline_));
   ASSERT_TRUE(Initialize(kValidImages[1].original_file));
   ASSERT_TRUE(reader_.ReadNextScanline(&scanline_));
 }

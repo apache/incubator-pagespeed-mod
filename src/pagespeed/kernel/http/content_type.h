@@ -46,7 +46,6 @@ struct ContentType {
     kWebp,
     kIco,
     kJson,
-    kSourceMap,
     kPdf,
     kVideo,
     kAudio,
@@ -66,9 +65,6 @@ struct ContentType {
 
   // Return true iff this content type is CSS.
   bool IsCss() const;
-
-  // Return true iff this content type is JS.
-  bool IsJs() const;
 
   // Return true iff this content type is HTML, or XHTML, or some other such
   // thing (e.g. CE-HTML) that we can rewrite.
@@ -111,7 +107,6 @@ extern const ContentType& kContentTypeCss;
 extern const ContentType& kContentTypeText;
 extern const ContentType& kContentTypeXml;
 extern const ContentType& kContentTypeJson;
-extern const ContentType& kContentTypeSourceMap;
 // Images:
 extern const ContentType& kContentTypePng;
 extern const ContentType& kContentTypeGif;

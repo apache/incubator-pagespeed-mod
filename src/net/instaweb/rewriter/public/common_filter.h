@@ -47,9 +47,6 @@ class ServerContext;
 // accessed via a convenience method here for historical reasons.
 class CommonFilter : public EmptyHtmlFilter {
  public:
-  // Debug message to be inserted when resource creation fails.
-  static const char kCreateResourceFailedDebugMsg[];
-
   explicit CommonFilter(RewriteDriver* driver);
   virtual ~CommonFilter();
 
@@ -62,7 +59,6 @@ class CommonFilter : public EmptyHtmlFilter {
   // (un-rewritten) resource's URL.
   const GoogleUrl& decoded_base_url() const;
 
-  RewriteDriver* driver() const { return driver_; }
   HtmlElement* noscript_element() const { return noscript_element_; }
 
   // Insert a node at the best available location in or near the closing body
@@ -90,21 +86,11 @@ class CommonFilter : public EmptyHtmlFilter {
   // for InsertNodeAtBodyEnd() to work correctly.
   virtual void Characters(HtmlCharactersNode* characters);
 
-  // TODO(matterbury): Remove this TEMPORARY wrapper when all call sites fixed.
-  ResourcePtr CreateInputResource(StringPiece input_url) {
-    bool unused;
-    return CreateInputResource(input_url, &unused);
-  }
-
   // Creates an input resource with the url evaluated based on input_url
-  // which may need to be absolutified relative to base_url(). Returns NULL
-  // if input resource url isn't valid, or can't legally be rewritten in the
-  // context of this page. *is_authorized will be set to false if the domain
-  // of input_url is not authorized, which could true of false regardless of
-  // the return value: for example if we are allowing inlining of resources
-  // from unauthorized domains we will return non-NULL but *is_authorized will
-  // be false; converse cases are possible too (e.g. input_url is a data URI).
-  ResourcePtr CreateInputResource(StringPiece input_url, bool* is_authorized);
+  // which may need to be absolutified relative to base_url().  Returns NULL if
+  // the input resource url isn't valid, or can't legally be rewritten in the
+  // context of this page.
+  ResourcePtr CreateInputResource(const StringPiece& input_url);
 
   // Resolves input_url based on the driver's location and any base tag into
   // out_url. If resolution fails, the resulting URL may be invalid.
@@ -115,6 +101,8 @@ class CommonFilter : public EmptyHtmlFilter {
   // the base tag is reached, it will return false until the filter sees the
   // base tag.  After the filter sees the base tag, it will return true.
   bool BaseUrlIsValid() const;
+
+  RewriteDriver* driver() const { return driver_; }
 
   // Returns whether the current options specify the "debug" filter.
   // If set, then other filters can annotate output HTML with HTML
@@ -140,33 +128,13 @@ class CommonFilter : public EmptyHtmlFilter {
                                     GoogleString* mime_type,
                                     GoogleString* charset);
 
-  // Returns true if the image element is not in a <noscript> block and it has
-  // a) no onload attribute or
-  // b) an onload attribute exists with the value being equal to the
-  //    CriticalImagesBeaconFilter::kImageOnloadCode.
-  bool CanAddPagespeedOnloadToImage(const HtmlElement&);
-
   // Add this filter to the logged list of applied rewriters. The intended
   // semantics of this are that it should only include filters that modified the
   // content of the response to the request being processed.
   // This class logs using Name(); subclasses may do otherwise.
   virtual void LogFilterModifiedContent();
 
-  // Returns true if this filter allows domains not authorized by any pagespeed
-  // directive to be optimized. Filters that end up inlining content onto the
-  // HTML are almost the only ones that can safely do this.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const { return RewriteDriver::kInlineOnlyAuthorizedResources; }
-
-  // Returns true if the filter intends to inline the resource it fetches.  This
-  // is to support AllowWhenInlining.  Unlike AllowUnauthorizedDomain() this
-  // doesn't have security implications and is just used for performance tuning.
-  virtual bool IntendedForInlining() const { return false; }
-
  protected:
-  ServerContext* server_context() const { return server_context_; }
-  const RewriteOptions* rewrite_options() { return rewrite_options_; }
-
   // Overload these implementer methods:
   // Intentionally left abstract so that implementers don't forget to change
   // the name from Blah to BlahImpl.
@@ -177,14 +145,13 @@ class CommonFilter : public EmptyHtmlFilter {
   // ID string used in logging. Inheritors should supply whatever short ID
   // string they use.
   virtual const char* LoggingId() { return Name(); }
-
- private:
-  // These fields are gettable by inheritors.
+  // Protected pointers for inheritors to use.
   RewriteDriver* driver_;
   ServerContext* server_context_;
   const RewriteOptions* rewrite_options_;
+
+ private:
   HtmlElement* noscript_element_;
-  // These are private.
   HtmlElement* end_body_point_;
   bool seen_base_;
 

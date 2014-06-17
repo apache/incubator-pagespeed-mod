@@ -59,7 +59,7 @@ class RequestContext : public RefCounted<RequestContext> {
   // (threaded) environment, pass in a real mutex. If not, a NullMutex is fine.
   // |timer| will be passed to the TimingInfo, which will *not* take ownership.
   // Passing NULL for |timer| is allowed.
-  RequestContext(AbstractMutex* logging_mutex, Timer* timer);
+  explicit RequestContext(AbstractMutex* logging_mutex, Timer* timer);
 
   // TODO(marq): Move this test context factory to a test-specific file.
   //             Makes a request context for running tests.
@@ -118,30 +118,6 @@ class RequestContext : public RefCounted<RequestContext> {
   bool using_spdy() const { return using_spdy_; }
   void set_using_spdy(bool x) { using_spdy_ = x; }
 
-  // The minimal private suffix for the hostname specified in this request.
-  // This should be calculated from the hostname by considering the list of
-  // public suffixes and including one additional component.  So if a host is
-  // "a.b.c.d.e.f.g" and "e.f.g" is on the public suffix list then the minimal
-  // private suffix is "d.e.f.g".
-  //
-  // There are two ways of specifying the host -- with the Host header, or on
-  // the initial request line.  The caller should make sure to look in both
-  // places.
-  //
-  // If a system doesn't want to fragment the cache by minimal private suffix,
-  // it may set value to the empty string.
-  const GoogleString& minimal_private_suffix() const {
-    return minimal_private_suffix_;
-  }
-  void set_minimal_private_suffix(StringPiece minimal_private_suffix) {
-    minimal_private_suffix.CopyToString(&minimal_private_suffix_);
-  }
-
-  // Indicates whether the request-headers tell us that a browser can
-  // render webp images.
-  void set_accepts_webp(bool x) { accepts_webp_ = x; }
-  bool accepts_webp() const { return accepts_webp_; }
-
   // Indicates the type of split html request.
   SplitRequestType split_request_type() const {
     return split_request_type_;
@@ -155,13 +131,6 @@ class RequestContext : public RefCounted<RequestContext> {
   }
   void set_request_id(int64 x) {
     request_id_ = x;
-  }
-
-  const GoogleString& sticky_query_parameters_token() const {
-    return sticky_query_parameters_token_;
-  }
-  void set_sticky_query_parameters_token(StringPiece x) {
-    x.CopyToString(&sticky_query_parameters_token_);
   }
 
   // Authorized a particular external domain to be fetched from. The caller of
@@ -378,15 +347,8 @@ class RequestContext : public RefCounted<RequestContext> {
   StringSet session_authorized_fetch_origins_;
 
   bool using_spdy_;
-  bool accepts_webp_;
-  GoogleString minimal_private_suffix_;
-
-  SplitRequestType split_request_type_;
+  SplitRequestType split_request_type_;;
   int64 request_id_;
-
-  // The token specified by query parameter or header that must match the
-  // configured value for options to be converted to cookies.
-  GoogleString sticky_query_parameters_token_;
 
   DISALLOW_COPY_AND_ASSIGN(RequestContext);
 };

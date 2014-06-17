@@ -7,6 +7,7 @@ COMPILE_OPTS = -g -Wall -Werror -Wno-sign-compare -Wno-return-type \
 #GPERF = false  # Must explicitly set GPERF
 #GPERF_OPTS = --ignore-case -L C++ -S 1 -t -C -c -E -G -o
 
+SRC_DIR = /home/sligocki/src/css_parsing
 PAGE_SPEED_DIR = $(SRC_DIR)/pagespeed/src
 CHROMIUM_DIR = $(PAGE_SPEED_DIR)/third_party/chromium/src
 GFLAGS_ROOT = $(SRC_DIR)/gflags-1.3/install
@@ -101,20 +102,9 @@ prepare_files:
 	    >> webutil/html/$$f; \
 	  rm -f original/webutil/html/$$f; \
 	done
-	mkdir -p webutil/css; \
-	for f in `ls original/webutil/css/`; do \
-	  cp apache-license.txt webutil/css/$$f; \
-	  sed 's@#include "base/macros.h"@#include "base/css_macros.h"@' \
-	    < original/webutil/css/$$f \
-	    >> webutil/css/$$f; \
-	  rm -f original/webutil/css/$$f; \
-	done
 # The rest of the files just need to have licenses added.
 	for f in `cd original/ && find . -type f`; do \
 	  mkdir -p `dirname $$f`; \
 	  cat apache-license.txt original/$$f > $$f; \
 	done
 	rm -rf original/
-	patch -p0 -i *.diff
-	rm *.diff
-	find . -name '*.orig' -delete

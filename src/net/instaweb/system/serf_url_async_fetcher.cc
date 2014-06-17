@@ -26,7 +26,6 @@
 #include <list>
 #include <vector>
 
-#include "apr.h"
 #include "apr_strings.h"
 #include "apr_pools.h"
 #include "apr_thread_proc.h"
@@ -125,8 +124,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
         message_handler_(message_handler),
         pool_(NULL),  // filled in once assigned to a thread, to use its pool.
         bucket_alloc_(NULL),
-        host_header_(NULL),
-        sni_host_(NULL),
         connection_(NULL),
         bytes_received_(0),
         fetch_start_ms_(0),
@@ -309,7 +306,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
                                               SSLCertError, SSLCertChainError,
                                               fetch);
 
-      serf_ssl_set_hostname(fetch->ssl_context_, fetch->sni_host_);
+      serf_ssl_set_hostname(fetch->ssl_context_, fetch->url_.hostinfo);
       *write_bkt = serf_bucket_ssl_encrypt_create(*write_bkt,
                                                   fetch->ssl_context_,
                                                   fetch->bucket_alloc_);
@@ -643,14 +640,20 @@ class SerfFetch : public PoolElement<SerfFetch> {
     // by hacking source.  We hacked source.
     //
     // See src/third_party/serf/src/instaweb_context.c
+    ConstStringStarVector v;
+    const char* host = NULL;
+    RequestHeaders* request_headers = fetch->async_fetch_->request_headers();
+    if (request_headers->Lookup(HttpAttributes::kHost, &v) &&
+        (v.size() == 1) && (v[0] != NULL)) {
+      host = v[0]->c_str();
+    }
 
     fetch->FixUserAgent();
 
-    RequestHeaders* request_headers = fetch->async_fetch_->request_headers();
     *req_bkt = serf_request_bucket_request_create_for_host(
         request, request_headers->method_string(),
         url_path, NULL,
-        serf_request_get_alloc(request), fetch->host_header_);
+        serf_request_get_alloc(request), host);
     serf_bucket_t* hdrs_bkt = serf_bucket_request_get_headers(*req_bkt);
 
     // Add other headers from the caller's request.  Skip the "Host:" header
@@ -681,8 +684,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
     if (status != APR_SUCCESS) {
       return false;  // Failed to parse URL.
     }
-    bool is_https = StringCaseEqual(url_.scheme, "https");
-    if (is_https && !fetcher_->allow_https()) {
+    if (!fetcher_->allow_https() && StringCaseEqual(url_.scheme, "https")) {
       return false;
     }
     if (!url_.port) {
@@ -691,24 +693,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
     if (!url_.path) {
       url_.path = apr_pstrdup(pool_, "/");
     }
-
-    // Compute our host header. First see if there is an explicit specified
-    // Host: in the fetch object.
-    RequestHeaders* request_headers = async_fetch_->request_headers();
-    const char* host = request_headers->Lookup1(HttpAttributes::kHost);
-    if (host == NULL) {
-      host = SerfUrlAsyncFetcher::ExtractHostHeader(url_, pool_);
-    }
-
-    host_header_ = apr_pstrdup(pool_, host);
-
-    if (is_https) {
-      // SNI hosts, unlike Host: do not have a port number.
-      GoogleString sni_host =
-          SerfUrlAsyncFetcher::RemovePortFromHostHeader(host_header_);
-      sni_host_ = apr_pstrdup(pool_, sni_host.c_str());
-    }
-
     return true;
   }
 
@@ -726,8 +710,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
   apr_pool_t* pool_;
   serf_bucket_alloc_t* bucket_alloc_;
   apr_uri_t url_;
-  const char* host_header_;  // in pool_
-  const char* sni_host_;  // in pool_
   serf_connection_t* connection_;
   size_t bytes_received_;
   int64 fetch_start_ms_;
@@ -845,8 +827,7 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
   }
 
  private:
-  static void* APR_THREAD_FUNC SerfThreadFn(apr_thread_t* thread_id,
-                                            void* context) {
+  static void* SerfThreadFn(apr_thread_t* thread_id, void* context) {
     SerfThreadedFetcher* stc = static_cast<SerfThreadedFetcher*>(context);
     CHECK_EQ(thread_id, stc->thread_id_);
     stc->SerfThread();
@@ -1077,8 +1058,7 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
   time_duration_ms_ =
       statistics->GetVariable(SerfStats::kSerfFetchTimeDurationMs);
   cancel_count_ = statistics->GetVariable(SerfStats::kSerfFetchCancelCount);
-  active_count_ = statistics->GetUpDownCounter(
-      SerfStats::kSerfFetchActiveCount);
+  active_count_ = statistics->GetVariable(SerfStats::kSerfFetchActiveCount);
   timeout_count_ = statistics->GetVariable(SerfStats::kSerfFetchTimeoutCount);
   failure_count_ = statistics->GetVariable(SerfStats::kSerfFetchFailureCount);
   cert_errors_ = statistics->GetVariable(SerfStats::kSerfFetchCertErrors);
@@ -1190,8 +1170,7 @@ bool SerfUrlAsyncFetcher::StartFetch(SerfFetch* fetch) {
     active_fetches_.Add(fetch);
     active_count_->Add(1);
   } else {
-    fetch->message_handler()->Message(kWarning, "Fetch failed to start: %s",
-                                      fetch->str_url());
+    LOG(WARNING) << "Fetch failed to start: " << fetch->str_url();
     fetch->CallbackDone(false);
     delete fetch;
   }
@@ -1201,7 +1180,8 @@ bool SerfUrlAsyncFetcher::StartFetch(SerfFetch* fetch) {
 void SerfUrlAsyncFetcher::Fetch(const GoogleString& url,
                                 MessageHandler* message_handler,
                                 AsyncFetch* async_fetch) {
-  async_fetch = EnableInflation(async_fetch);
+  async_fetch = EnableInflation(
+      async_fetch, &inflation_content_type_blacklist_);
   SerfFetch* fetch = new SerfFetch(url, async_fetch, message_handler, timer_);
 
   request_count_->Add(1);
@@ -1392,7 +1372,7 @@ void SerfUrlAsyncFetcher::InitStats(Statistics* statistics) {
   statistics->AddVariable(SerfStats::kSerfFetchByteCount);
   statistics->AddVariable(SerfStats::kSerfFetchTimeDurationMs);
   statistics->AddVariable(SerfStats::kSerfFetchCancelCount);
-  statistics->AddUpDownCounter(SerfStats::kSerfFetchActiveCount);
+  statistics->AddVariable(SerfStats::kSerfFetchActiveCount);
   statistics->AddVariable(SerfStats::kSerfFetchTimeoutCount);
   statistics->AddVariable(SerfStats::kSerfFetchFailureCount);
   statistics->AddVariable(SerfStats::kSerfFetchCertErrors);
@@ -1439,40 +1419,6 @@ bool SerfUrlAsyncFetcher::ParseHttpsOptions(StringPiece directive,
   }
   *options = https_options;
   return true;
-}
-
-const char* SerfUrlAsyncFetcher::ExtractHostHeader(
-    const apr_uri_t& uri, apr_pool_t* pool) {
-  // Construct it ourselves from URL. Note that we shouldn't include the
-  // user info here, just host and any explicit port. The reason this is done
-  // with APR functions and not GoogleUrl is that APR URLs are what we have,
-  // as that's what Serf takes.
-  const char* host = apr_uri_unparse(pool, &uri,
-                                     APR_URI_UNP_OMITPATHINFO |
-                                     APR_URI_UNP_OMITUSERINFO);
-  // This still normally has the scheme, which we should drop.
-  stringpiece_ssize_type slash_pos = StringPiece(host).find_last_of('/');
-  if (slash_pos != StringPiece::npos) {
-    host += (slash_pos + 1);
-  }
-  return host;
-}
-
-
-GoogleString SerfUrlAsyncFetcher::RemovePortFromHostHeader(
-    const GoogleString& host) {
-  // SNI hosts, unlike Host: do not have a port number, so remove it.
-  // Note that the input isn't a URL, so using GoogleUrl would be awkward and
-  // a bit of an overkill. We need to be a bit careful, however, since IPv6
-  // Also uses :, but inside [].
-  size_t colon_pos = StringPiece(host).find_last_of(':');
-  size_t bracket_pos = StringPiece(host).find_last_of(']');
-  if (colon_pos == std::string::npos ||
-      (bracket_pos != std::string::npos && colon_pos < bracket_pos)) {
-    return host;
-  } else {
-    return host.substr(0, colon_pos);
-  }
 }
 
 bool SerfUrlAsyncFetcher::SetHttpsOptions(StringPiece directive) {

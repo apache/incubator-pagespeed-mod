@@ -31,7 +31,6 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -45,7 +44,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/writer.h"  // for Writer
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
 
@@ -138,7 +136,7 @@ void RecordingFetch::HandleHeadersComplete() {
 void RecordingFetch::FreeDriver() {
   // This cleans up the context and frees the driver. Leaving this context
   // around causes problems in the html flow in particular.
-  context_->Driver()->FetchComplete();
+  context_->driver_->FetchComplete();
 }
 
 bool RecordingFetch::ShouldStream() const {
@@ -218,7 +216,7 @@ void RecordingFetch::HandleDone(bool success) {
     }
     context_->StartFetchReconstructionParent();
     if (streaming_) {
-      context_->Driver()->FetchComplete();
+      context_->driver_->FetchComplete();
     }
   }
   delete this;
@@ -238,20 +236,16 @@ bool RecordingFetch::CanInPlaceRewrite() {
   }
 
   // Note that this only checks the length, not the caching headers; the
-  // latter are checked in IsProxyCacheable.
+  // latter are checked in IsAlreadyExpired.
   if (!cache_value_writer_.CheckCanCacheElseClear(response_headers())) {
     return false;
   }
   if (type->type() == ContentType::kCss ||
       type->type() == ContentType::kJavascript ||
       type->IsImage()) {
-    RewriteDriver* driver = context_->Driver();
+    RewriteDriver* driver = context_->driver_;
     HTTPCache* const cache = driver->server_context()->http_cache();
-    if (response_headers()->IsProxyCacheable(
-            request_headers()->GetProperties(),
-            ResponseHeaders::GetVaryOption(driver->options()->respect_vary()),
-            ResponseHeaders::kNoValidator) &&
-        !cache->IsExpired(*response_headers())) {
+    if (!cache->IsAlreadyExpired(request_headers(), *response_headers())) {
       return true;
     } else if (context_->rewrite_uncacheable()) {
       in_place_uncacheable_rewrites_->Add(1);
@@ -266,6 +260,7 @@ bool RecordingFetch::CanInPlaceRewrite() {
 InPlaceRewriteContext::InPlaceRewriteContext(RewriteDriver* driver,
                                        const StringPiece& url)
     : SingleRewriteContext(driver, NULL, new ResourceContext),
+      driver_(driver),
       url_(url.data(), url.size()),
       is_rewritten_(true),
       proxy_mode_(true) {
@@ -297,19 +292,11 @@ void InPlaceRewriteContext::Harvest() {
         nested_context->slot(0)->was_optimized()) {
       ResourcePtr nested_resource = nested_context->slot(0)->resource();
       CachedResult* partition = output_partition(0);
-      CachedResult* nested_partition = nested_context->output_partition(0);
       VLOG(1) << "In-place rewrite succeeded for " << url_
               << " and the rewritten resource is "
               << nested_resource->url();
       partition->set_url(nested_resource->url());
       partition->set_optimizable(true);
-      CHECK(nested_partition != NULL);
-      // TODO(jmaessen): Does any more state need to find its way into the
-      // enclosing CachedResult from the nested one?
-      if (nested_partition->has_minimal_webp_support()) {
-        partition->set_minimal_webp_support(
-            nested_partition->minimal_webp_support());
-      }
       if (partitions()->other_dependency_size() == 1) {
         // If there is only one other dependency, then the InputInfo is
         // already covered in the first partition. We're clearing this here
@@ -325,14 +312,15 @@ void InPlaceRewriteContext::Harvest() {
         output_resource_->response_headers()->CopyFrom(
             *(nested_resource->response_headers()));
         Writer* writer = output_resource_->BeginWrite(
-            Driver()->message_handler());
+            driver_->message_handler());
         writer->Write(nested_resource->contents(),
-                      Driver()->message_handler());
-        output_resource_->EndWrite(Driver()->message_handler());
+                      driver_->message_handler());
+        output_resource_->EndWrite(driver_->message_handler());
 
         is_rewritten_ = true;
         // EndWrite updated the hash in output_resource_.
         output_resource_->full_name().hash().CopyToString(&rewritten_hash_);
+        FixFetchFallbackHeaders(output_resource_->response_headers());
 
         // Use the most conservative Cache-Control considering the input.
         // TODO(jkarlin): Is ApplyInputCacheControl needed here?
@@ -359,7 +347,7 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
     async_fetch()->response_headers()->SetStatusAndReason(
         HttpStatus::kNotModified);
     async_fetch()->Done(true);
-    Driver()->FetchComplete();
+    driver_->FetchComplete();
   } else {
     if (url == url_) {
       // If the fallback url is the same as the original url, no rewriting is
@@ -376,14 +364,15 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
   }
 }
 
-void InPlaceRewriteContext::FixFetchFallbackHeaders(
-    const CachedResult& cached_result, ResponseHeaders* headers) {
+void InPlaceRewriteContext::FixFetchFallbackHeaders(ResponseHeaders* headers) {
   if (is_rewritten_) {
     if (!rewritten_hash_.empty()) {
       headers->Replace(HttpAttributes::kEtag, HTTPCache::FormatEtag(StrCat(
                                                   id(), "-", rewritten_hash_)));
     }
-    headers->set_implicit_cache_ttl_ms(Options()->implicit_cache_ttl_ms());
+    if (ShouldAddVaryUserAgent()) {
+      headers->Replace(HttpAttributes::kVary, HttpAttributes::kUserAgent);
+    }
     headers->ComputeCaching();
     int64 expire_at_ms = kint64max;
     int64 date_ms = kint64max;
@@ -401,29 +390,11 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
       expire_at_ms = now_ms + headers->implicit_cache_ttl_ms();
     } else if (stale_rewrite()) {
       // If we are serving a stale rewrite, set the cache ttl to the minimum of
-      // the implicit cache TTL and the original ttl.
-      // TODO(matterbury): Consider a better way to handle stale resources.
-      // Let's say that we get some requests over time for a resource:
-      // 1. At 00:00:00 we get a request and the resource has a TTL of 10:00.
-      //    We will return it with a max-age of 600 (10 minutes).
-      // 2. At 00:09:00 we get a request for the same resource.
-      //    We will return it with a max-age of 60 (1 minute) because of the
-      //    'expire_at_ms - now_ms' below as we don't trigger either condition
-      //    that changes expire_at_ms.
-      // 3. At 00:11:00 we get a request for the same resource.
-      //    It is now stale because its max age has expired but it's still
-      //    within the options()->metadata_cache_staleness_threshold_ms(), or
-      //    so we shall assume.
-      // In this case, we need to pick a reasonable max age. One possibility is
-      // "however much of the cache_staleness_threshold is left", but what do
-      // we do if that's none?
-      // Currently we set it as the lesser of our implicit cache TTL and the
-      // original resource's TTL since that seems to be a reasonable value.
-      expire_at_ms = now_ms + std::min(headers->implicit_cache_ttl_ms(),
-                                       expire_at_ms - date_ms);
+      // kDefaultImplicitCacheTtlMs and the original ttl.
+      expire_at_ms = now_ms + std::min(
+          ResponseHeaders::kDefaultImplicitCacheTtlMs, expire_at_ms - date_ms);
     }
     headers->SetDateAndCaching(now_ms, expire_at_ms - now_ms);
-    AddVaryIfRequired(cached_result, headers);
   }
 }
 
@@ -454,19 +425,19 @@ void InPlaceRewriteContext::FetchCallbackDone(bool success) {
 
 RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
     const ContentType& type) {
-  const RewriteOptions* options = Driver()->options();
+  const RewriteOptions* options = driver_->options();
   if (type.type() == ContentType::kCss &&
       options->Enabled(RewriteOptions::kRewriteCss)) {
-    return Driver()->FindFilter(RewriteOptions::kCssFilterId);
+    return driver_->FindFilter(RewriteOptions::kCssFilterId);
   }
   if (type.type() == ContentType::kJavascript &&
       options->Enabled(RewriteOptions::kRewriteJavascript)) {
-    return Driver()->FindFilter(RewriteOptions::kJavascriptMinId);
+    return driver_->FindFilter(RewriteOptions::kJavascriptMinId);
   }
   if (type.IsImage() && options->ImageOptimizationEnabled()) {
     // TODO(nikhilmadan): This converts one image format to another. We
     // shouldn't do inter-conversion since we can't change the file extension.
-    return Driver()->FindFilter(RewriteOptions::kImageCompressionId);
+    return driver_->FindFilter(RewriteOptions::kImageCompressionId);
   }
   return NULL;
 }
@@ -596,12 +567,12 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
                            fetch_message_handler());
     if (resource->UseHttpCache()) {
       if (proxy_mode_) {
-        cache_fetcher_.reset(Driver()->CreateCacheFetcher());
+        cache_fetcher_.reset(driver_->CreateCacheFetcher());
         // Since we are proxying resources to user, we want to fetch it even
         // if there is a kRecentFetchNotCacheable message in the cache.
         cache_fetcher_->set_ignore_recent_fetch_failed(true);
       } else {
-        cache_fetcher_.reset(Driver()->CreateCacheOnlyFetcher());
+        cache_fetcher_.reset(driver_->CreateCacheOnlyFetcher());
         // Since we are not proxying resources to user, we can respect
         // kRecentFetchNotCacheable messages.
         cache_fetcher_->set_ignore_recent_fetch_failed(false);
@@ -632,80 +603,16 @@ bool InPlaceRewriteContext::InPlaceOptimizeForBrowserEnabled() const {
        Options()->Enabled(RewriteOptions::kSquashImagesForMobileScreen));
 }
 
-// TODO(jmaessen): Sharpen this up.  Mark CSS vary:User-Agent because it doesn't
-// see the Accept:image/webp header; we can skip this if all its images will be
-// IPRO'd.  We don't need to mark non-webp-eligible images, which may require
-// some fiddly options checking.  We need to treat webp lossless differently, so
-// we can't just look at the extension and content type; right now we just
-// disable lossless.
-void InPlaceRewriteContext::AddVaryIfRequired(
-    const CachedResult& cached_result, ResponseHeaders* headers) const {
+bool InPlaceRewriteContext::ShouldAddVaryUserAgent() const {
   if (!InPlaceOptimizeForBrowserEnabled() || num_output_partitions() != 1) {
-    // No browser-dependent rewrites => no need for vary
-    return;
+    return false;
   }
-  const ContentType* type = headers->DetermineContentType();
+  const CachedResult* result = output_partition(0);
+  // We trust the extension at this point as we put it there.
+  const ContentType* type = NameExtensionToContentType(result->url());
   // Returns true if we may return different rewritten content based
   // on the user agent.
-  const char* new_vary = NULL;
-  if (type->IsImage()) {
-    // If it's an image, conservatively assume we might convert to webp.
-    // Fix this up if we discover that this can't happen.
-    new_vary = HttpAttributes::kAccept;
-    if (Options()->Enabled(RewriteOptions::kSquashImagesForMobileScreen)) {
-      new_vary = HttpAttributes::kUserAgent;
-    } else if (!Options()->Enabled(RewriteOptions::kConvertJpegToWebp)) {
-      // Lossy webp conversion won't happen, so no need to vary.
-      new_vary = NULL;
-    } else if (cached_result.minimal_webp_support() !=
-               ResourceContext::LIBWEBP_LOSSY_ONLY) {
-      // Can't do a lossy-only conversion, so we won't convert to webp in
-      // place.
-      new_vary = NULL;
-    }
-  } else if (type->IsCss()) {
-    // If it's CSS, constituent images can be rewritten in a UA-dependent
-    // manner.  But we don't necessarily see Accept:image/webp on the request,
-    // so we must Vary: User-Agent.
-    if (Options()->Enabled(RewriteOptions::kRewriteCss) &&
-        (Options()->Enabled(RewriteOptions::kConvertJpegToWebp) ||
-         Options()->Enabled(RewriteOptions::kConvertToWebpLossless))) {
-      new_vary = HttpAttributes::kUserAgent;
-    }
-  }
-  if (new_vary == NULL) {
-    return;
-  }
-  if (Options()->private_not_vary_for_ie() &&
-      Driver()->user_agent_matcher()->IsIe(Driver()->user_agent())) {
-    // IE stores Vary: Accept resources in its cache, but must revalidate them
-    // every single time they're fetched (except for older IE, which doesn't
-    // cache them at all).  To avoid the re-validation cost (which imposes load
-    // on the server unless a proxy cache deals with it) we by default serve
-    // these resource cache-control: private to IE.  This will invalidate all
-    // Vary: capable proxy caches along the way, though.  In practice this is
-    // usually not be a big deal: few proxies handle Vary: Accept, though some
-    // CDNs do, and none we've heard of handle Vary: User-Agent without special
-    // configuration.
-    headers->Add(HttpAttributes::kCacheControl, HttpAttributes::kPrivate);
-    return;
-  }
-  ConstStringStarVector varies;
-  if (headers->Lookup(HttpAttributes::kVary, &varies)) {
-    // Need to add to the existing Vary header.  But first, check that the vary
-    // header doesn't already encompass new_vary.
-    for (int i = 0, s = varies.size(); i < s; ++i) {
-      StringPiece vary(*varies[i]);
-      if (StringPiece("*") == vary ||
-          StringCaseEqual(HttpAttributes::kUserAgent, vary) ||
-          (type->IsImage() &&
-           StringCaseEqual(HttpAttributes::kAccept, vary))) {
-        // Current Vary: header captures necessary vary information.
-        return;
-      }
-    }
-  }
-  headers->Add(HttpAttributes::kVary, new_vary);
+  return type->IsImage() || type->IsCss();
 }
 
 GoogleString InPlaceRewriteContext::UserAgentCacheKey(
@@ -733,10 +640,6 @@ void InPlaceRewriteContext::EncodeUserAgentIntoResourceContext(
   if (!InPlaceOptimizeForBrowserEnabled()) {
     return;
   }
-  // TODO(jmaessen): filter->EncodeUserAgentIntoResourceContext(context)
-  // actually calls the same method twice here.  In both cases we are also
-  // dealing with possible mobile user agents and SetUserAgentScreenResolution,
-  // which requires a different set of vary: headers.
   const ContentType* type = NameExtensionToContentType(url_);
   if (type == NULL) {
     // Get ImageRewriteFilter with any image type.
@@ -752,27 +655,6 @@ void InPlaceRewriteContext::EncodeUserAgentIntoResourceContext(
     RewriteFilter* filter = GetRewriteFilter(*type);
     if (filter != NULL) {
       filter->EncodeUserAgentIntoResourceContext(context);
-    }
-  }
-  // If we care about generating webp images, the above calls will have set
-  // context->libwebp_level() != LIBWEBP_NONE.  InPlaceRewriteContext can only
-  // serve webp resources if the browser sends the Accept: image/webp header
-  // since the url cannot change based on content type.  This doesn't permit us
-  // to serve webp lossless / alpha, as some older Opera versions send this
-  // header but do not include such support.  This also means that some
-  // webp-capable browsers (such as the stock Android browser) that don't send
-  // Accept: image/webp will receive jpeg images.  Thus, if we thought WEBP
-  // images were a possibility we disable webp generation unless we actually saw
-  // the Accept: header, and we disable webp lossless entirely (falling back to
-  // webp).
-  // TODO(jmaessen): When non-webp-lossless capable versions of Opera are old
-  // enough, enable lossless encoding if it was requested.  But note similar
-  // nonsense will required for other new webp features such as animated webp.
-  if (context->libwebp_level() != ResourceContext::LIBWEBP_NONE) {
-    if (Driver()->request_properties()->SupportsWebpInPlace()) {
-      context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
-    } else {
-      context->set_libwebp_level(ResourceContext::LIBWEBP_NONE);
     }
   }
 }

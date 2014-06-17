@@ -1,33 +1,20 @@
-// Copyright 2012 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+// Copyright 2012 Google Inc. All Rights Reserved.
 // Author: jmarantz@google.com (Matt Atterbury)
 
 // Unit-test base-class url naming.
 
-#include "net/instaweb/rewriter/public/url_namer.h"
-
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/string_util.h"
+
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 
 namespace net_instaweb {
 
@@ -58,6 +45,56 @@ TEST_F(UrlNamerTest, UrlNamerEncoding) {
   EXPECT_EQ(Encode(kRewriteDomain, "cf", "0", "file.css", "css"),
             url_namer.Encode(options(), *resource.get(), UrlNamer::kUnsharded))
       << "without sharding";
+}
+
+TEST_F(UrlNamerTest, ResolveToOriginUrlWithoutReferer) {
+  UrlNamer url_namer;
+  // There is no origin mappings so nothings will get updated.
+  GoogleUrl url("http://www1.test.com/index.html");
+  StringPiece referer;
+  EXPECT_FALSE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+
+  NullMessageHandler handler;
+  options()->WriteableDomainLawyer()->AddOriginDomainMapping(
+      "www.test.com", "www1.test.com/www.test.com", &handler);
+
+  EXPECT_FALSE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+
+  url.Reset("http://www1.test.com/www.test.com/index.html");
+  EXPECT_TRUE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+  EXPECT_EQ("http://www.test.com/index.html", url.Spec());
+
+  url.Reset("http://www1.test.com/img/index.html");
+  EXPECT_FALSE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+}
+
+TEST_F(UrlNamerTest, ResolveToOriginUrl) {
+  UrlNamer url_namer;
+  // There is no origin mappings so nothings will get updated.
+  GoogleUrl url("http://www1.test.com/index.html");
+  StringPiece referer;
+  referer = "http://www1.test.com/www.test.com/img/";
+  EXPECT_FALSE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+
+  NullMessageHandler handler;
+  options()->WriteableDomainLawyer()->AddOriginDomainMapping(
+      "www.test.com", "www1.test.com/www.test.com", &handler);
+
+  EXPECT_TRUE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+  EXPECT_EQ("http://www.test.com/index.html", url.Spec());
+
+  // There is not origin rule for "www1.test.com/m.test.com", so referer is
+  // used for determining origin domain.
+  url.Reset("http://www1.test.com/m.test.com/index.html");
+  EXPECT_TRUE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+  EXPECT_EQ("http://www.test.com/m.test.com/index.html", url.Spec());
+
+  // If request url has origin rule, then referer origin rule is ignored.
+  options()->WriteableDomainLawyer()->AddOriginDomainMapping(
+      "m.test.com", "www1.test.com/m.test.com", &handler);
+  url.Reset("http://www1.test.com/m.test.com/index.html");
+  EXPECT_TRUE(url_namer.ResolveToOriginUrl(*options(), referer, &url));
+  EXPECT_EQ("http://m.test.com/index.html", url.Spec());
 }
 
 }  // namespace net_instaweb

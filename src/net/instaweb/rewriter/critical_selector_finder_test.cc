@@ -31,7 +31,6 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
 
@@ -74,28 +73,19 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     pcache->Read(page);
   }
 
-  void WriteToPropertyCache() {
+  void WriteBackAndResetDriver() {
     rewrite_driver()->property_page()->WriteCohort(
         server_context()->beacon_cohort());
-  }
-
-  void WriteBackAndResetDriver() {
-    WriteToPropertyCache();
     ResetDriver();
-    SetDummyRequestHeaders();
-  }
-
-  int TimedValue(StringPiece name) {
-    return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
   }
 
   void CheckCriticalSelectorFinderStats(int hits, int expiries, int not_found) {
-    EXPECT_EQ(hits, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsValidCount));
-    EXPECT_EQ(expiries, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsExpiredCount));
-    EXPECT_EQ(not_found, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsNotFoundCount));
+    EXPECT_EQ(hits, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsValidCount)->Get());
+    EXPECT_EQ(expiries, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsExpiredCount)->Get());
+    EXPECT_EQ(not_found, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsNotFoundCount)->Get());
   }
 
   GoogleString CriticalSelectorsString() {
@@ -128,31 +118,29 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
   // Simulate beacon insertion, with candidates_.
   void Beacon() {
     WriteBackAndResetDriver();
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs);
-    VerifyBeaconStatus(ExpectedBeaconStatus());
-  }
-
-  // Verify that no beacon injection occurs.
-  void VerifyNoBeaconing() {
-    VerifyBeaconStatus(kDoNotBeacon);
-  }
-
-  // Verify that beacon injection occurs.
-  void VerifyBeaconing() {
-    VerifyBeaconStatus(kBeaconWithNonce);
-  }
-
-  // Helper method used for verifying beacon injection status.
-  void VerifyBeaconStatus(BeaconStatus status) {
+    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
     last_beacon_metadata_ =
         finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
-    EXPECT_EQ(status, last_beacon_metadata_.status);
-    if (status == kBeaconWithNonce) {
-      EXPECT_STREQ(ExpectedNonce(), last_beacon_metadata_.nonce);
-    } else {
-      EXPECT_TRUE(last_beacon_metadata_.nonce.empty());
+    ASSERT_EQ(ExpectedBeaconStatus(), last_beacon_metadata_.status);
+  }
+
+  // Set up legacy critical selectors value.  We have to do this by hand using
+  // the protos and direct pcache writes, since the new finder by design doesn't
+  // write legacy data.
+  void SetupLegacyCriticalSelectors(bool include_history) {
+    CriticalKeys legacy_selectors;
+    legacy_selectors.add_critical_keys("#bar");
+    legacy_selectors.add_critical_keys(".foo");
+    if (include_history) {
+      CriticalKeys::BeaconResponse* first_set =
+          legacy_selectors.add_beacon_history();
+      first_set->add_keys("#bar");
+      CriticalKeys::BeaconResponse* second_set =
+          legacy_selectors.add_beacon_history();
+      second_set->add_keys("#bar");
+      second_set->add_keys(".foo");
     }
+    WriteCriticalSelectorSetToPropertyCache(legacy_selectors);
   }
 
   CriticalKeys* RawCriticalSelectorSet(int expected_size) {
@@ -161,9 +149,11 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     CriticalKeys* selectors =
         &rewrite_driver()->critical_selector_info()->proto;
     if (selectors != NULL) {
-      EXPECT_EQ(expected_size, selectors->key_evidence_size());
-    } else {
-      EXPECT_EQ(expected_size, 0);
+      EXPECT_EQ(0, selectors->critical_keys_size());
+      EXPECT_EQ(0, selectors->beacon_history_size());
+      if (selectors->key_evidence_size() != expected_size) {
+        EXPECT_EQ(expected_size, selectors->key_evidence_size());
+      }
     }
     return selectors;
   }
@@ -242,12 +232,6 @@ TEST_F(CriticalSelectorFinderTest, StoreMultiple) {
     Beacon();
     WriteCriticalSelectorsToPropertyCache(selectors);
     EXPECT_STREQ(".a,.b", CriticalSelectorsString());
-    // We are sending enough beacons with the same selector set here that we
-    // will enter low frequency beaconing mode, so advance time more to ensure
-    // rebeaconing actually occurs.
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs *
-        kLowFreqBeaconMult);
   }
 
   // We send one more beacon response, which should kick .a out of the critical
@@ -262,10 +246,6 @@ TEST_F(CriticalSelectorFinderTest, StoreMultiple) {
 // Make sure beacon results can arrive out of order (so long as the nonce
 // doesn't time out).
 TEST_F(CriticalSelectorFinderTest, OutOfOrder) {
-  // Make sure that the rebeaconing time is less than the time a nonce is valid,
-  // so that we can test having multiple outstanding nonces.
-  options()->set_beacon_reinstrument_time_sec(kBeaconTimeoutIntervalMs /
-                                              Timer::kSecondMs / 2);
   Beacon();
   GoogleString initial_nonce(last_beacon_metadata_.nonce);
   // A second beacon occurs and the result comes back first.
@@ -297,8 +277,7 @@ TEST_F(CriticalSelectorFinderTest, NonceTimeout) {
   // Make sure that beacons time out after kBeaconTimeoutIntervalMs.
   Beacon();
   GoogleString initial_nonce(last_beacon_metadata_.nonce);
-  // beacon_reinstrument_time_sec() passes (in mock time) before the next call
-  // completes:
+  // kMinBeaconIntervalMs passes (in mock time) before the next call completes:
   Beacon();
   factory()->mock_timer()->AdvanceMs(kBeaconTimeoutIntervalMs);
   StringSet selectors;
@@ -323,6 +302,46 @@ TEST_F(CriticalSelectorFinderTest, StoreNonCandidate) {
   selectors.insert("#noncandidate");
   WriteCriticalSelectorsToPropertyCache(selectors);
   EXPECT_STREQ(".a", CriticalSelectorsString());
+}
+
+// Test migration of legacy critical selectors to support format during beacon
+// insertion.  This tests the case where only critical_selectors were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetBeaconMigration) {
+  // First set up legacy pcache entry.
+  SetupLegacyCriticalSelectors(false /* include_history */);
+  Beacon();
+  CheckFooBarBeaconSupport(finder_->SupportInterval());
+}
+
+// Test migration of legacy critical selectors to support format during critical
+// selector return.  This tests the case where only critical_selectors were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetMigration) {
+  SetupLegacyCriticalSelectors(false /* include_history */);
+  // Create a new critical selector set and add it.  The legacy data will have
+  // migrated, and we'll add support for ".foo".
+  Beacon();
+  StringSet selectors;
+  selectors.insert(".noncandidate");
+  selectors.insert(".foo");
+  WriteCriticalSelectorsToPropertyCache(selectors);
+  CheckFooBarBeaconSupport(2 * finder_->SupportInterval() - 1,
+                           finder_->SupportInterval() - 1);
+}
+
+// Test migration of legacy selector history to the new format (using support).
+// This tests the case where both critical_selectors and selector_set_history
+// were set.
+TEST_F(CriticalSelectorFinderTest, LegacySelectorSetHistoryMigration) {
+  SetupLegacyCriticalSelectors(true /* include_history */);
+  // Create a new critical selector set and add it.  The legacy data will have
+  // migrated, and we'll add support for ".foo".
+  Beacon();
+  StringSet selectors;
+  selectors.insert(".noncandidate");
+  selectors.insert(".foo");
+  WriteCriticalSelectorsToPropertyCache(selectors);
+  CheckFooBarBeaconSupport(2 * finder_->SupportInterval() - 1,
+                           2 * finder_->SupportInterval() - 2);
 }
 
 // Make sure we aggregate duplicate beacon results.
@@ -375,18 +394,11 @@ TEST_F(CriticalSelectorFinderTest, EvidenceOverflow) {
     Beacon();
     WriteCriticalSelectorsToPropertyCache(new_selectors);
     EXPECT_STREQ(".a", CriticalSelectorsString());
-    // We are sending enough beacons with the same selector set here that we
-    // will enter low frequency beaconing mode, so advance time more to ensure
-    // rebeaconing actually occurs.
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs *
-        kLowFreqBeaconMult);
   }
 }
 
 // Make sure we don't beacon if we have an empty set of candidate selectors.
 TEST_F(CriticalSelectorFinderTest, NoCandidatesNoBeacon) {
-  WriteBackAndResetDriver();
   StringSet empty;
   BeaconMetadata last_beacon_metadata =
       finder_->PrepareForBeaconInsertion(empty, rewrite_driver());
@@ -397,88 +409,12 @@ TEST_F(CriticalSelectorFinderTest, DontRebeaconBeforeTimeout) {
   Beacon();
   // Now simulate a beacon insertion attempt without timing out.
   WriteBackAndResetDriver();
-  factory()->mock_timer()->AdvanceMs(options()->beacon_reinstrument_time_sec() *
-                                     Timer::kSecondMs / 2);
+  factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs / 2);
   BeaconMetadata last_beacon_metadata =
       finder_->PrepareForBeaconInsertion(candidates_, rewrite_driver());
   EXPECT_EQ(kDoNotBeacon, last_beacon_metadata.status);
   // But we'll re-beacon if some more time passes.
-  Beacon();  // beacon_reinstrument_time_sec() passes in Beacon() call.
-}
-
-TEST_F(CriticalSelectorFinderTest, RebeaconBeforeTimeoutWithHeader) {
-  Beacon();
-
-  // Write a dummy value to the property cache.
-  WriteToPropertyCache();
-
-  // If downstream caching is disabled, any beaconing key configuration and/or
-  // presence of PS-ShouldBeacon header should be ignored. In such situations,
-  // unless the reinstrumentation time interval is exceeded, beacon injection
-  // should not happen.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "", kConfiguredBeaconingKey);
-  SetShouldBeaconHeader(kConfiguredBeaconingKey);
-  VerifyNoBeaconing();
-  // Advance the timer past the beacon interval.
-  factory()->mock_timer()->AdvanceMs(options()->beacon_reinstrument_time_sec() *
-                                     Timer::kSecondMs + 1);
-  // When the reinstrumentation time interval is exceeded, beacon injection
-  // should happen as usual.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "", kConfiguredBeaconingKey);
-  SetShouldBeaconHeader(kConfiguredBeaconingKey);
-  VerifyBeaconing();
-
-  // Beacon injection should not happen when rebeaconing key is not configured.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", "");
-  SetShouldBeaconHeader(kConfiguredBeaconingKey);
-  VerifyNoBeaconing();
-
-  // Beacon injection should not happen when the PS-ShouldBeacon header is
-  // absent and both downstream caching and the associated rebeaconing key
-  // are configured.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", kConfiguredBeaconingKey);
-  SetDummyRequestHeaders();
-  VerifyNoBeaconing();
-
-  // Beacon injection should not happen when the PS-ShouldBeacon header is
-  // incorrect.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", kConfiguredBeaconingKey);
-  SetShouldBeaconHeader(kWrongBeaconingKey);
-  VerifyNoBeaconing();
-
-  // Beacon injection happens when the PS-ShouldBeacon header is present even
-  // when the pcache value has not expired and the reinstrumentation time
-  // interval has not been exceeded.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", kConfiguredBeaconingKey);
-  SetShouldBeaconHeader(kConfiguredBeaconingKey);
-  VerifyBeaconing();
-
-  // Advance the timer past the beacon interval.
-  factory()->mock_timer()->AdvanceMs(
-      options()->beacon_reinstrument_time_sec() * Timer::kSecondMs + 1);
-  // Beacon injection should happen after reinstrumentation time interval has
-  // passed when downstream caching is enabled but rebeaconing key is not
-  // configured.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", "");
-  SetShouldBeaconHeader(kConfiguredBeaconingKey);
-  VerifyBeaconing();
-
-  // Advance the timer past the beacon interval.
-  factory()->mock_timer()->AdvanceMs(
-      options()->beacon_reinstrument_time_sec() * Timer::kSecondMs + 1);
-  // Beacon injection should not happen when the PS-ShouldBeacon header is
-  // incorrect even if the reinstrumentation time interval has been exceeded.
-  ResetDriver();
-  SetDownstreamCacheDirectives("", "localhost:80", kConfiguredBeaconingKey);
-  SetShouldBeaconHeader(kWrongBeaconingKey);
-  VerifyNoBeaconing();
+  Beacon();  // kMinBeaconIntervalMs passes in Beacon() call.
 }
 
 // If ShouldReplacePriorResult returns true, then a beacon result

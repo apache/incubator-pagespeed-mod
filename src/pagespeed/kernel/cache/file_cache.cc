@@ -36,7 +36,7 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/thread/slow_worker.h"
-#include "pagespeed/kernel/util/url_to_filename_encoder.h"
+#include "pagespeed/kernel/util/filename_encoder.h"
 
 namespace net_instaweb {
 
@@ -70,12 +70,11 @@ class FileCache::CacheCleanFunction : public Function {
   DISALLOW_COPY_AND_ASSIGN(CacheCleanFunction);
 };
 
+const char FileCache::kDiskChecks[] = "file_cache_disk_checks";
+const char FileCache::kCleanups[] = "file_cache_cleanups";
+const char FileCache::kEvictions[] = "file_cache_evictions";
 const char FileCache::kBytesFreedInCleanup[] =
     "file_cache_bytes_freed_in_cleanup";
-const char FileCache::kCleanups[] = "file_cache_cleanups";
-const char FileCache::kDiskChecks[] = "file_cache_disk_checks";
-const char FileCache::kEvictions[] = "file_cache_evictions";
-const char FileCache::kWriteErrors[] = "file_cache_write_errors";
 
 // Filenames for the next scheduled clean time and the lockfile.  In
 // order to prevent these from colliding with actual cachefiles, they
@@ -87,12 +86,14 @@ const char FileCache::kCleanLockName[] = "!clean!lock!";
 // and setters below.
 FileCache::FileCache(const GoogleString& path, FileSystem* file_system,
                      SlowWorker* worker,
+                     FilenameEncoder* filename_encoder,
                      CachePolicy* policy,
                      Statistics* stats,
                      MessageHandler* handler)
     : path_(path),
       file_system_(file_system),
       worker_(worker),
+      filename_encoder_(filename_encoder),
       message_handler_(handler),
       cache_policy_(policy),
       path_length_limit_(file_system_->MaxPathLength(path)),
@@ -101,8 +102,7 @@ FileCache::FileCache(const GoogleString& path, FileSystem* file_system,
       disk_checks_(stats->GetVariable(kDiskChecks)),
       cleanups_(stats->GetVariable(kCleanups)),
       evictions_(stats->GetVariable(kEvictions)),
-      bytes_freed_in_cleanup_(stats->GetVariable(kBytesFreedInCleanup)),
-      write_errors_(stats->GetVariable(kWriteErrors)) {
+      bytes_freed_in_cleanup_(stats->GetVariable(kBytesFreedInCleanup)) {
   next_clean_ms_ = policy->timer->NowMs() + policy->clean_interval_ms / 2;
   EnsureEndsInSlash(&clean_time_path_);
   StrAppend(&clean_time_path_, kCleanTimeName);
@@ -114,11 +114,10 @@ FileCache::~FileCache() {
 }
 
 void FileCache::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kBytesFreedInCleanup);
-  statistics->AddVariable(kCleanups);
   statistics->AddVariable(kDiskChecks);
+  statistics->AddVariable(kCleanups);
   statistics->AddVariable(kEvictions);
-  statistics->AddVariable(kWriteErrors);
+  statistics->AddVariable(kBytesFreedInCleanup);
 }
 
 void FileCache::Get(const GoogleString& key, Callback* callback) {
@@ -139,10 +138,13 @@ void FileCache::Get(const GoogleString& key, Callback* callback) {
 
 void FileCache::Put(const GoogleString& key, SharedString* value) {
   GoogleString filename;
-  if (EncodeFilename(key, &filename) &&
-      !file_system_->WriteFileAtomic(filename, value->Value(),
-                                     message_handler_)) {
-    write_errors_->Add(1);
+  if (EncodeFilename(key, &filename)) {
+    GoogleString temp_filename;
+    if (file_system_->WriteTempFile(filename, value->Value(),
+                                    &temp_filename, message_handler_)) {
+      file_system_->RenameFile(temp_filename.c_str(), filename.c_str(),
+                               message_handler_);
+    }
   }
   CleanIfNeeded();
 }
@@ -154,6 +156,7 @@ void FileCache::Delete(const GoogleString& key) {
   }
   NullMessageHandler null_handler;  // Do not emit messages on delete failures.
   file_system_->RemoveFile(filename.c_str(), &null_handler);
+  return;
 }
 
 bool FileCache::EncodeFilename(const GoogleString& key,
@@ -162,13 +165,13 @@ bool FileCache::EncodeFilename(const GoogleString& key,
   // TODO(abliss): unify and make explicit everyone's assumptions
   // about trailing slashes.
   EnsureEndsInSlash(&prefix);
-  UrlToFilenameEncoder::EncodeSegment(prefix, key, '/', filename);
+  filename_encoder_->Encode(prefix, key, filename);
 
   // Make sure the length isn't too big for filesystem to handle; if it is
   // just name the object using a hash.
   if (static_cast<int>(filename->length()) > path_length_limit_) {
-    UrlToFilenameEncoder::EncodeSegment(
-        prefix, cache_policy_->hasher->Hash(key), '/', filename);
+    filename_encoder_->Encode(prefix, cache_policy_->hasher->Hash(key),
+                              filename);
   }
 
   return true;
@@ -182,13 +185,13 @@ namespace {
 const int64 kEmptyDirCleanAgeSec = 60;
 }  // namespace
 
-bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
+bool FileCache::Clean(int64 target_size, int64 target_inode_count) {
   // TODO(jud): this function can delete .lock and .outputlock files, is this
   // problematic?
   message_handler_->Message(kInfo,
                             "Checking cache size against target %s and inode "
                             "count against target %s",
-                            Integer64ToString(target_size_bytes).c_str(),
+                            Integer64ToString(target_size).c_str(),
                             Integer64ToString(target_inode_count).c_str());
   disk_checks_->Add(1);
 
@@ -202,7 +205,7 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
   // target_inode_count of 0 indicates no inode limit.
   int64 cache_size = dir_info.size_bytes;
   int64 cache_inode_count = dir_info.inode_count;
-  if (cache_size < target_size_bytes &&
+  if (cache_size < target_size &&
       (target_inode_count == 0 ||
        cache_inode_count < target_inode_count)) {
     message_handler_->Message(kInfo,
@@ -248,13 +251,13 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
   std::sort(dir_info.files.begin(), dir_info.files.end(), CompareByAtime());
 
   // Set the target size to clean to.
-  target_size_bytes = (target_size_bytes * 3) / 4;
+  target_size = (target_size * 3) / 4;
   target_inode_count = (target_inode_count * 3) / 4;
 
   // Delete files until we are under our targets.
   std::vector<FileSystem::FileInfo>::iterator file_itr = dir_info.files.begin();
   while (file_itr != dir_info.files.end() &&
-         (cache_size > target_size_bytes ||
+         (cache_size > target_size ||
           (target_inode_count != 0 &&
            cache_inode_count > target_inode_count))) {
     FileSystem::FileInfo file = *file_itr;
@@ -292,14 +295,12 @@ bool FileCache::CleanWithLocking(int64 next_clean_time_ms) {
           message_handler_).is_true()) {
     // Update the timestamp file..
     next_clean_ms_ = next_clean_time_ms;
-    if (!file_system_->WriteFileAtomic(clean_time_path_,
-                                       Integer64ToString(next_clean_time_ms),
-                                       message_handler_)) {
-      write_errors_->Add(1);
-    }
+    file_system_->WriteFile(clean_time_path_.c_str(),
+                            Integer64ToString(next_clean_time_ms),
+                            message_handler_);
 
     // Now actually clean.
-    to_return = Clean(cache_policy_->target_size_bytes,
+    to_return = Clean(cache_policy_->target_size,
                       cache_policy_->target_inode_count);
     file_system_->Unlock(clean_lock_path_, message_handler_);
   }
@@ -332,7 +333,7 @@ bool FileCache::ShouldClean(int64* suggested_next_clean_time_ms) {
   if (clean_time_ms < now_ms) {
     message_handler_->Message(
         kInfo, "Need to check cache size against target %s",
-        Integer64ToString(cache_policy_->target_size_bytes).c_str());
+        Integer64ToString(cache_policy_->target_size).c_str());
     to_return = true;
   }
   // If the "clean time" is later than now plus one interval, something

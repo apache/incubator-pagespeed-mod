@@ -17,9 +17,7 @@
 #ifndef BASE_STRINGPRINTF_H_
 #define BASE_STRINGPRINTF_H_
 
-//#include "third_party/chromium/src/base/strings/stringprintf.h"
-#include "base/strings/stringprintf.h"
-
-using base::StringPrintf;
+//#include "third_party/chromium/src/base/string_util.h"
+#include "base/string_util.h"
 
 #endif  // BASE_STRINGPRINTF_H_

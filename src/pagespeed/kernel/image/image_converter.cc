@@ -35,12 +35,9 @@ extern "C" {
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_frame_interface.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
-#include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 
 namespace {
 // In some cases, converting a PNG to JPEG results in a smaller
@@ -113,32 +110,6 @@ ScanlineStatus ImageConverter::ConvertImageWithStatus(
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
 
-ScanlineStatus ImageConverter::ConvertMultipleFrameImage(
-    MultipleFrameReader* reader,
-    MultipleFrameWriter* writer) {
-  const ImageSpec* image_spec = NULL;
-  const FrameSpec* frame_spec = NULL;
-  const void* scan_row = NULL;
-
-  ScanlineStatus status;
-  if (reader->GetImageSpec(&image_spec, &status) &&
-      writer->PrepareImage(image_spec, &status)) {
-    while (reader->HasMoreFrames() &&
-           reader->PrepareNextFrame(&status) &&
-           reader->GetFrameSpec(&frame_spec, &status) &&
-           writer->PrepareNextFrame(frame_spec, &status)) {
-      while (reader->HasMoreScanlines() &&
-             reader->ReadNextScanline(&scan_row, &status) &&
-             writer->WriteNextScanline(scan_row, &status)) {
-        // intentional empty loop body
-      }
-    }
-  }
-  writer->FinalizeWrite(&status);
-  return status;
-}
-
-
 bool ImageConverter::ConvertPngToJpeg(
     const PngReaderInterface& png_struct_reader,
     const GoogleString& in,
@@ -164,7 +135,7 @@ bool ImageConverter::ConvertPngToJpeg(
 
   // Configure png reader error handlers.
   if (setjmp(*png_reader.GetJmpBuf())) {
-    PS_LOG_INFO(handler, "libpng failed to decode the PNG image.");
+    PS_LOG_DFATAL(handler, "png_jmpbuf not set locally: risk of memory leaks");
     return false;
   }
 
@@ -235,7 +206,7 @@ bool ImageConverter::ConvertPngToWebp(
     GoogleString* const out,
     bool* is_opaque,
     MessageHandler* handler) {
-    ScanlineWriterInterface* webp_writer = NULL;
+    WebpScanlineWriter* webp_writer = NULL;
     bool success = ConvertPngToWebp(png_struct_reader, in, webp_config,
                                     out, is_opaque, &webp_writer, handler);
     delete webp_writer;
@@ -248,13 +219,13 @@ bool ImageConverter::ConvertPngToWebp(
     const WebpConfiguration& webp_config,
     GoogleString* const out,
     bool* is_opaque,
-    ScanlineWriterInterface** webp_writer,
+    WebpScanlineWriter** webp_writer,
     MessageHandler* handler) {
   DCHECK(out->empty());
   out->clear();
 
   if (*webp_writer != NULL) {
-    PS_LOG_DFATAL(handler, "Expected *webp_writer == NULL");
+    PS_LOG_INFO(handler, "Expected *webp_writer == NULL");
     return false;
   }
 
@@ -276,7 +247,7 @@ bool ImageConverter::ConvertPngToWebp(
 
   // Configure png reader error handlers.
   if (setjmp(*png_reader.GetJmpBuf())) {
-    PS_LOG_INFO(handler, "libpng failed to decoded the PNG image.");
+    PS_LOG_DFATAL(handler, "png_jmpbuf not set locally: risk of memory leaks");
     return false;
   }
   if (!png_reader.InitializeRead(png_struct_reader, in, is_opaque)) {
@@ -288,8 +259,7 @@ bool ImageConverter::ConvertPngToWebp(
   size_t height = png_reader.GetImageHeight();
   PixelFormat format = png_reader.GetPixelFormat();
 
-  (*webp_writer) =
-      new FrameToScanlineWriterAdapter(new WebpFrameWriter(handler));
+  (*webp_writer) = new WebpScanlineWriter(handler);
 
   if (height > 0 && width > 0 && format != UNSUPPORTED) {
     if ((*webp_writer)->Init(width, height, format) &&
@@ -316,7 +286,7 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
   ImageType best_lossy_image_type = IMAGE_NONE;
   ImageType best_image_type = IMAGE_NONE;
 
-  ScanlineWriterInterface* webp_writer = NULL;
+  WebpScanlineWriter* webp_writer = NULL;
   WebpConfiguration webp_config_lossless;
   bool is_opaque = false;
   if (!ConvertPngToWebp(png_struct_reader, in, webp_config_lossless,

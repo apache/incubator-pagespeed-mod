@@ -21,12 +21,9 @@
 
 #include <cstddef>
 
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -36,14 +33,11 @@ namespace net_instaweb {
 class CachedResult;
 class GoogleUrl;
 class HtmlElement;
-class Statistics;
-class Variable;
+class RewriteDriver;
 
 // Inline small CSS files.
 class CssInlineFilter : public CommonFilter {
  public:
-  static const char kNumCssInlined[];
-
   explicit CssInlineFilter(RewriteDriver* driver);
   virtual ~CssInlineFilter();
 
@@ -51,20 +45,6 @@ class CssInlineFilter : public CommonFilter {
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "InlineCss"; }
-  // Inlining css from unauthorized domains into HTML is considered
-  // safe because it does not cause any new content to be executed compared
-  // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
-    return driver()->options()->HasInlineUnauthorizedResourceType(
-               semantic_type::kStylesheet) ?
-           RewriteDriver::kInlineUnauthorizedResources :
-           RewriteDriver::kInlineOnlyAuthorizedResources;
-  }
-  virtual bool IntendedForInlining() const { return true; }
-
-  static void InitStats(Statistics* statistics);
-  static bool HasClosingStyleTag(StringPiece contents);
 
  protected:
   // Changes filter id code (which shows up in cache keys and
@@ -73,15 +53,14 @@ class CssInlineFilter : public CommonFilter {
 
   // Delegated from InlineRewriteContext::CreateResource --- see there
   // for semantics.
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  virtual ResourcePtr CreateResource(const char* url);
 
  private:
   class Context;
   friend class Context;
 
   bool ShouldInline(const ResourcePtr& resource,
-                    const StringPiece& attrs_attribute,
-                    GoogleString* reason) const;
+                    const StringPiece& attrs_attribute) const;
   void RenderInline(const ResourcePtr& resource, const CachedResult& cached,
                     const GoogleUrl& base_url, const StringPiece& text,
                     HtmlElement* element);
@@ -91,8 +70,6 @@ class CssInlineFilter : public CommonFilter {
 
   GoogleString domain_;
   CssTagScanner css_tag_scanner_;
-
-  Variable* num_css_inlined_;
 
   DISALLOW_COPY_AND_ASSIGN(CssInlineFilter);
 };

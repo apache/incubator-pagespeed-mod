@@ -20,7 +20,6 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/inline_rewrite_context.h"
@@ -29,17 +28,12 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/google_url.h"
-#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
-
-class MessageHandler;
-
-const char CssInlineFilter::kNumCssInlined[] = "num_css_inlined";
 
 class CssInlineFilter::Context : public InlineRewriteContext {
  public:
@@ -54,14 +48,12 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     }
   }
 
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* reason) const {
-    return filter_->ShouldInline(resource, attrs_charset_, reason);
+  virtual bool ShouldInline(const ResourcePtr& resource) const {
+    return filter_->ShouldInline(resource, attrs_charset_);
   }
 
   virtual void Render() {
-    if (num_output_partitions() < 1 ||
-        !output_partition(0)->has_inlined_data()) {
+    if (num_output_partitions() < 1) {
       // Remove any LSC attributes as they're pointless if we don't inline.
       LocalStorageCacheFilter::RemoveLscAttributes(get_element(),
                                                    filter_->driver());
@@ -76,8 +68,8 @@ class CssInlineFilter::Context : public InlineRewriteContext {
                           base_url_, text, element);
   }
 
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized) {
-    return filter_->CreateResource(url, is_authorized);
+  virtual ResourcePtr CreateResource(const char* url) {
+    return filter_->CreateResource(url);
   }
 
   virtual const char* id() const { return filter_->id_; }
@@ -94,14 +86,7 @@ CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       id_(RewriteOptions::kCssInlineId),
       size_threshold_bytes_(driver->options()->css_inline_max_bytes()),
-      css_tag_scanner_(driver) {
-  Statistics* stats = server_context()->statistics();
-  num_css_inlined_ = stats->GetVariable(kNumCssInlined);
-}
-
-void CssInlineFilter::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kNumCssInlined);
-}
+      css_tag_scanner_(driver_) {}
 
 void CssInlineFilter::StartDocumentImpl() {
 }
@@ -116,13 +101,14 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href = NULL;
   const char* media = NULL;
   if (css_tag_scanner_.ParseCssElement(element, &href, &media) &&
-      !driver()->HasChildrenInFlushWindow(element)) {
+      !driver_->HasChildrenInFlushWindow(element)) {
     // Only inline if the media type affects "screen".  We don't inline other
     // types since they're very unlikely to change the initial page view, and
     // inlining them would actually slow down the 99% case of "screen".
     if (!css_util::CanMediaAffectScreen(media)) {
-      driver()->InsertDebugComment(
-          "CSS not inlined because media does not match screen", element);
+      driver_->message_handler()->Message(
+          kInfo, "Stylesheet media=%s is not for screen href=%s",
+          media, href->DecodedValueOrNull());
       return;
     }
     // Ask the LSC filter to work out how to handle this element. A return
@@ -131,7 +117,7 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     // we might still have to modify the element.
     LocalStorageCacheFilter::InlineState state;
     if (!LocalStorageCacheFilter::AddStorableResource(
-            href->DecodedValueOrNull(), driver(), false /* check cookie */,
+            href->DecodedValueOrNull(), driver_, false /* check cookie */,
             element, &state)) {
       // StartInlining() transfers possession of ctx to RewriteDriver or
       // deletes it on failure.
@@ -142,7 +128,7 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
       // attribute so that it knows to insert the LSC specific javascript.
       if (initiated) {
         LocalStorageCacheFilter::AddStorableResource(href->DecodedValueOrNull(),
-                                                     driver(),
+                                                     driver_,
                                                      true /* ignore cookie */,
                                                      element, &state);
       }
@@ -150,40 +136,29 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   }
 }
 
-ResourcePtr CssInlineFilter::CreateResource(const char* url,
-                                            bool* is_authorized) {
-  return CreateInputResource(url, is_authorized);
-}
-
-bool CssInlineFilter::HasClosingStyleTag(StringPiece contents) {
-  return FindIgnoreCase(contents, "</style") != StringPiece::npos;
+ResourcePtr CssInlineFilter::CreateResource(const char* url) {
+  return CreateInputResource(url);
 }
 
 bool CssInlineFilter::ShouldInline(const ResourcePtr& resource,
-                                   const StringPiece& attrs_charset,
-                                   GoogleString* reason) const {
+                                   const StringPiece& attrs_charset) const {
   // If the contents are bigger than our threshold or the contents contain
   // "</style>" anywhere, don't inline. If we inline an external stylesheet
   // containing a "</style>", the <style> tag will be ended early.
   if (resource->contents().size() > size_threshold_bytes_) {
-    *reason = StrCat("CSS not inlined since it's bigger than ",
-                     Integer64ToString(size_threshold_bytes_),
-                     " bytes");
     return false;
   }
-  if (HasClosingStyleTag(resource->contents())) {
-    *reason = "CSS not inlined since it contains style closing tag";
+  size_t possible_end_style_pos = FindIgnoreCase(resource->contents(),
+                                                 "</style");
+  if (possible_end_style_pos != StringPiece::npos) {
     return false;
   }
 
   // If the charset is incompatible with the HTML's, don't inline.
-  StringPiece htmls_charset(driver()->containing_charset());
+  StringPiece htmls_charset(driver_->containing_charset());
   GoogleString css_charset = RewriteFilter::GetCharsetForStylesheet(
       resource.get(), attrs_charset, htmls_charset);
   if (!StringCaseEqual(htmls_charset, css_charset)) {
-    *reason = StrCat("CSS not inlined due to apparent charset incompatibility;"
-                     " we think the HTML is ", htmls_charset,
-                     " while the CSS is ", css_charset);
     return false;
   }
 
@@ -195,7 +170,7 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
                                    const GoogleUrl& base_url,
                                    const StringPiece& contents,
                                    HtmlElement* element) {
-  MessageHandler* message_handler = driver()->message_handler();
+  MessageHandler* message_handler = driver_->message_handler();
 
   // Absolutify the URLs in the CSS -- relative URLs will break otherwise.
   // Note that we have to do this at rendering stage, since the same stylesheet
@@ -207,9 +182,8 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
   StringWriter writer(&rewritten_contents);
   GoogleUrl resource_url(resource->url());
   bool resolved_ok = true;
-  switch (driver()->ResolveCssUrls(
-      resource_url, base_url.Spec(), clean_contents,
-      &writer, message_handler)) {
+  switch (driver_->ResolveCssUrls(resource_url, base_url.Spec(), clean_contents,
+                                  &writer, message_handler)) {
     case RewriteDriver::kNoResolutionNeeded:
       // We don't need to absolutify URLs if input directory is same as base.
       if (!writer.Write(clean_contents, message_handler)) {
@@ -225,20 +199,20 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
 
   if (!resolved_ok) {
     // Remove any LSC attributes as they're now pointless.
-    LocalStorageCacheFilter::RemoveLscAttributes(element, driver());
+    LocalStorageCacheFilter::RemoveLscAttributes(element, driver_);
     return;
   }
 
   // Inline the CSS.
   HtmlElement* style_element =
-      driver()->NewElement(element->parent(), HtmlName::kStyle);
-  if (!driver()->ReplaceNode(element, style_element)) {
-    DCHECK(false) << "!driver()->ReplaceNode(element, style_element)";
+      driver_->NewElement(element->parent(), HtmlName::kStyle);
+  if (!driver_->ReplaceNode(element, style_element)) {
+    DCHECK(false) << "!driver_->ReplaceNode(element, style_element)";
     return;
   }
-  driver()->AppendChild(style_element,
-                        driver()->NewCharactersNode(element,
-                                                    rewritten_contents));
+  driver_->AppendChild(style_element,
+                       driver_->NewCharactersNode(element,
+                                                  rewritten_contents));
 
   // Copy over most attributes from the original link, discarding those that
   // we convert (href, rel), and dropping those that are irrelevant (type).
@@ -266,13 +240,13 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
         break;
     }
   }
-  if (driver()->options()->Enabled(RewriteOptions::kComputeCriticalCss)) {
+  if (driver_->options()->Enabled(RewriteOptions::kComputeCriticalCss)) {
     // If compute_critical_css is enabled, add 'href' attribute to the style
     // node.
     // Computing critical css needs this url to store the critical
     // css in the map.
-    driver()->AddAttribute(style_element, HtmlName::kDataPagespeedHref,
-                           resource_url.Spec());
+    driver_->AddAttribute(style_element, HtmlName::kDataPagespeedHref,
+                          resource_url.Spec());
   }
   // If we don't already have a pagespeed_lsc_url then EndElementImpl must not
   // have called AddStorableResource or LSC is disabled; in either case there
@@ -280,9 +254,8 @@ void CssInlineFilter::RenderInline(const ResourcePtr& resource,
   // a hash then we've already got all the attributes we need.
   if (has_pagespeed_lsc_url && !has_pagespeed_lsc_hash) {
     LocalStorageCacheFilter::AddLscAttributes(resource_url.Spec(), cached,
-                                              driver(), style_element);
+                                              driver_, style_element);
   }
-  num_css_inlined_->Add(1);
 }
 
 }  // namespace net_instaweb

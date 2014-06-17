@@ -36,6 +36,7 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/thread/slow_worker.h"
+#include "pagespeed/kernel/util/filename_encoder.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 
@@ -46,14 +47,14 @@ class FileCacheTest : public CacheTestBase {
   FileCacheTest()
       : thread_system_(Platform::CreateThreadSystem()),
         worker_("cleaner", thread_system_.get()),
-        mock_timer_(thread_system_->NewMutex(), 0),
+        mock_timer_(0),
         file_system_(thread_system_.get(), &mock_timer_),
         kCleanIntervalMs(Timer::kMinuteMs),
         kTargetSize(12),  // Small enough to overflow with a few strings.
-        kTargetInodeLimit(10),
-        stats_(thread_system_.get()) {
+        kTargetInodeLimit(10) {
     FileCache::InitStats(&stats_);
     cache_.reset(new FileCache(GTestTempDir(), &file_system_, &worker_,
+                               &filename_encoder_,
                                new FileCache::CachePolicy(
                                    &mock_timer_, &hasher_, kCleanIntervalMs,
                                    kTargetSize, kTargetInodeLimit),
@@ -66,7 +67,9 @@ class FileCacheTest : public CacheTestBase {
         FileCache::kBytesFreedInCleanup);
 
     // TODO(jmarantz): consider using mock_thread_system if we want
-    // explicit control of time.
+    // explicit control of time.  For now, just mutex-protect the
+    // MockTimer.
+    mock_timer_.set_mutex(thread_system_->NewMutex());
     file_system_.set_advance_time_on_update(true, &mock_timer_);
   }
 
@@ -106,6 +109,7 @@ class FileCacheTest : public CacheTestBase {
   SlowWorker worker_;
   MockTimer mock_timer_;
   MemFileSystem file_system_;
+  FilenameEncoder filename_encoder_;
   const int64 kCleanIntervalMs;
   const int64 kTargetSize;
   const int64 kTargetInodeLimit;

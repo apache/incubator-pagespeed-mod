@@ -56,9 +56,8 @@ class CachePropertyStoreTest : public testing::Test {
  public:
   CachePropertyStoreTest()
      : lru_cache_(kMaxCacheSize),
+       timer_(MockTimer::kApr_5_2010_ms),
        thread_system_(Platform::CreateThreadSystem()),
-       stats_(thread_system_.get()),
-       timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
        cache_property_store_(
            "test/", &lru_cache_, &timer_, &stats_, thread_system_.get()),
        property_cache_(&cache_property_store_,
@@ -111,9 +110,9 @@ class CachePropertyStoreTest : public testing::Test {
 
  protected:
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
-  SimpleStats stats_;
   MockTimer timer_;
+  SimpleStats stats_;
+  scoped_ptr<ThreadSystem> thread_system_;
   CachePropertyStore cache_property_store_;
   PropertyCache property_cache_;
   const PropertyCache::Cohort* cohort_;

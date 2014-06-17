@@ -476,7 +476,7 @@ namespace {
 
 class AnnotatingHtmlFilter : public EmptyHtmlFilter {
  public:
-  AnnotatingHtmlFilter() : annotate_flush_(false) {}
+  AnnotatingHtmlFilter() {}
   virtual ~AnnotatingHtmlFilter() {}
 
   virtual void StartElement(HtmlElement* element) {
@@ -517,16 +517,7 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
   const GoogleString& buffer() const { return buffer_; }
   void Clear() { buffer_.clear(); }
 
-  virtual void Flush() {
-    if (annotate_flush_) {
-      buffer_ += "[F]";
-    }
-  }
-
-  void set_annotate_flush(bool x) { annotate_flush_ = x; }
-
  private:
-  bool annotate_flush_;
   GoogleString buffer_;
 };
 
@@ -543,7 +534,7 @@ class HtmlAnnotationTest : public HtmlParseTestNoBody {
   void ResetAnnotation() { annotation_.Clear(); }
   virtual bool AddHtmlTags() const { return false; }
 
- protected:
+ private:
   AnnotatingHtmlFilter annotation_;
 };
 
@@ -925,182 +916,11 @@ TEST_F(HtmlAnnotationTest, AttrEndingWithOpenAngle) {
   EXPECT_EQ("+script:src=foo<bar 'Content' -script(u)", annotation());
 }
 
-TEST_F(HtmlAnnotationTest, ScriptQuirkBasic) {
-  ValidateNoChanges("script_quirk_1",
-                    "<script><!--<script></script>a</script>b");
-  EXPECT_EQ("+script '<!--<script></script>a' -script(e) 'b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_2",
-                    "<script><!--</script>a</script>b");
-  EXPECT_EQ("+script '<!--' -script(e) 'a</script>b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_3",
-                    "<script><script></script>a</script>b");
-  EXPECT_EQ("+script '<script>' -script(e) 'a</script>b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_4",
-                    "<script><!--<script>--></script>a</script>b");
-  EXPECT_EQ("+script '<!--<script>-->' -script(e) 'a</script>b'", annotation());
-}
-
-TEST_F(HtmlAnnotationTest, ScriptQuirkCloseAttr) {
-  // HTML5 script parsing is weird in that </script> actually gets attribute
-  // parsing.
-  ValidateExpected("script_quirk_close",
-                   "<script></script a=\"foo>\">Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close2",
-                   "<script></script a=\"foo>\" bar=\'>' bax>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close_slash",
-                   "<script></script a=\"foo>\"/>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-}
-
-TEST_F(HtmlAnnotationTest, ScriptQuirkBriefClose) {
-  // HTML5 script parsing --- closing </style />
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script/>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script /foo>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-}
-
 // TODO(jmarantz): fix this case; we lose the stray "=".
 // TEST_F(HtmlAnnotationTest, StrayEq) {
 //   ValidateNoChanges("stray_eq", "<a href='foo.html'=>b</a>");
 //   EXPECT_EQ("+a:href=foo.html -a(e)", annotation());
 // }
-
-TEST_F(HtmlAnnotationTest, FlushDoesNotBreakCharacterBlock) {
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<div></div>");  // will get flushed.
-  html_parse_.ParseText("bytes:");       // will not get flushed till the end.
-  html_parse_.Flush();
-  html_parse_.ParseText(":more:");
-  html_parse_.Flush();
-  html_parse_.ParseText(":still more:");
-  html_parse_.Flush();
-  html_parse_.ParseText(":final bytes:");
-  html_parse_.FinishParse();
-  EXPECT_STREQ(
-      "+div -div(e)[F][F][F] 'bytes::more::still more::final bytes:'[F]",
-      annotation());
-}
-
-TEST_F(HtmlAnnotationTest, FlushDoesNotBreakScriptTag) {
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<script>");
-  html_parse_.Flush();
-  html_parse_.ParseText("a=b;");
-  html_parse_.Flush();
-  html_parse_.ParseText("c=d;");
-  html_parse_.Flush();
-  html_parse_.ParseText("</scr");
-  html_parse_.Flush();
-  html_parse_.ParseText("ipt><script>");
-  html_parse_.Flush();
-  html_parse_.ParseText("e=f;");
-  html_parse_.Flush();
-  html_parse_.ParseText("g=h;");
-  // No explicit </script> but the lexer will help us close it.
-  html_parse_.FinishParse();
-  EXPECT_STREQ("[F][F][F][F] +script 'a=b;c=d;' -script(e)[F][F]"
-               " +script 'e=f;g=h;' -script(u)[F]",  // "(u)" for unclosed.
-               annotation());
-}
-
-TEST_F(HtmlAnnotationTest, FlushDoesNotBreakScriptTagWithComment) {
-  SetupWriter();
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<script>");
-  html_parse_.InsertComment("c1");
-  html_parse_.Flush();
-  html_parse_.ParseText("a=b;");
-  html_parse_.Flush();
-  html_parse_.ParseText("</script><script>");
-  html_parse_.InsertComment("c2");
-  html_parse_.Flush();
-  html_parse_.ParseText("</script>");
-  html_parse_.FinishParse();
-  EXPECT_STREQ("[F][F] +script 'a=b;' -script(e)[F] +script -script(e)[F]",
-               annotation());
-  EXPECT_STREQ("<!--c1--><script>a=b;</script><!--c2--><script></script>",
-               output_buffer_);
-}
-
-TEST_F(HtmlAnnotationTest, FlushDoesNotBreakStyleTag) {
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<style>");
-  html_parse_.Flush();
-  html_parse_.ParseText(".blue {color: ");
-  html_parse_.Flush();
-  html_parse_.ParseText("blue;}");
-  html_parse_.Flush();
-  html_parse_.ParseText("</style>");
-  html_parse_.FinishParse();
-  EXPECT_STREQ("[F][F][F] +style '.blue {color: blue;}' -style(e)[F]",
-               annotation());
-}
-
-TEST_F(HtmlAnnotationTest, UnclosedScriptOnly) {
-  SetupWriter();
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<script>");
-  html_parse_.FinishParse();
-
-  // Note that we will get an EndElement callback.  See -script(u) in annotation.
-  // However we will not insert a </script> in the output, since there was none
-  // in the input.
-  EXPECT_STREQ("+script -script(u)[F]", annotation());
-  EXPECT_STREQ("<script>", output_buffer_);
-}
-
-TEST_F(HtmlAnnotationTest, UnclosedScriptOnlyWithFlush) {
-  SetupWriter();
-  annotation_.set_annotate_flush(true);
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<script>");
-  html_parse_.Flush();
-  html_parse_.FinishParse();
-
-  // Note that we will get an EndElement callback.  See -script(u) in annotation.
-  // However we will not insert a </script> in the output, since there was none
-  // in the input.
-  EXPECT_STREQ("[F] +script -script(u)[F]", annotation());
-  EXPECT_STREQ("<script>", output_buffer_);
-}
-
-TEST_F(HtmlAnnotationTest, NulInAttrName) {
-  // Tests that we don't crash with an embedded NUL in an attribute name.
-  SetupWriter();
-  html_parse_.StartParse("http://test.com/nul_in_attr.html");
-  html_parse_.ParseText("<img src");
-  html_parse_.ParseText(StringPiece("\0", 1));
-  html_parse_.ParseText("file:-1675375991 />");
-  html_parse_.FinishParse();
-}
 
 TEST_F(HtmlParseTest, MakeName) {
   EXPECT_EQ(0, HtmlTestingPeer::symbol_table_size(&html_parse_));
@@ -1805,22 +1625,6 @@ TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInLargeCharactersBlock) {
 
   EXPECT_EQ("<!--FLUSH1--><style>bytes::more::still more::final bytes:</style>"
             "<!--FLUSH3-->",
-            output_buffer_);
-}
-
-TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInEmptyCharactersBlock) {
-  SetupWriter();
-  html_parse_.StartParse("http://test.com/blank_flush.html");
-  html_parse_.ParseText("<style>");
-  // This should be inserted before <style>.
-  EXPECT_TRUE(html_parse_.InsertComment("FLUSH1"));
-  EXPECT_TRUE(html_parse_.InsertComment("FLUSH2"));
-  html_parse_.Flush();
-  html_parse_.ParseText("</style>");
-  EXPECT_TRUE(html_parse_.InsertComment("FLUSH3"));
-  html_parse_.FinishParse();
-
-  EXPECT_EQ("<!--FLUSH1--><!--FLUSH2--><style></style><!--FLUSH3-->",
             output_buffer_);
 }
 

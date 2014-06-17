@@ -43,7 +43,6 @@ const char kMisses[] = "_misses";
 // but for now I want to get discrete counts in each bucket.
 const int kGetCountHistogramMaxValue = 500;
 const int kSizeHistogramMaxValue = 5*1000*1000;
-const int kLatencyHistogramMaxValueUs = 1*1000*1000;
 
 }  // namespace
 
@@ -73,8 +72,6 @@ CacheStats::CacheStats(StringPiece prefix,
   get_count_histogram_->SetMaxValue(kGetCountHistogramMaxValue);
   insert_size_bytes_histogram_->SetMaxValue(kSizeHistogramMaxValue);
   lookup_size_bytes_histogram_->SetMaxValue(kSizeHistogramMaxValue);
-  hit_latency_us_histogram_->SetMaxValue(kLatencyHistogramMaxValueUs);
-  insert_latency_us_histogram_->SetMaxValue(kLatencyHistogramMaxValueUs);
 }
 
 CacheStats::~CacheStats() {

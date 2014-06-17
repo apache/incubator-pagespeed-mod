@@ -19,10 +19,21 @@
 #include "pagespeed/kernel/util/url_to_filename_encoder.h"
 
 #include "base/logging.h"
+#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
+
+namespace {
+
+// Convenience functions.
+bool IsHexDigit(char c) {
+  return ('0' <= c && c <= '9') ||
+         ('A' <= c && c <= 'F') ||
+         ('a' <= c && c <= 'f');
+}
+
+}
 
 // The escape character choice is made here -- all code and tests in this
 // directory are based off of this constant.  However, lots of tests
@@ -72,10 +83,7 @@ void UrlToFilenameEncoder::EncodeSegment(const StringPiece& filename_prefix,
                                          const StringPiece& escaped_ending,
                                          char dir_separator,
                                          GoogleString* encoded_filename) {
-  // We want to unescape URLs so that an %-encodings are cleaned up. However,
-  // we do not want to convert "+" to " " in this context, since
-  // "+" is fine in a filename, and " " will be escaped here to ",20" below.
-  GoogleString filename_ending = GoogleUrl::UnescapeIgnorePlus(escaped_ending);
+  GoogleString filename_ending = Unescape(escaped_ending);
 
   char encoded[3];
   int encoded_len;
@@ -150,6 +158,158 @@ void UrlToFilenameEncoder::EncodeSegment(const StringPiece& filename_prefix,
     encoded_filename->push_back(dir_separator);
     encoded_filename->append(segment);
   }
+}
+
+// Note: this decoder is not the exact inverse of the EncodeSegment above,
+// because it does not take into account a prefix.
+bool UrlToFilenameEncoder::Decode(const StringPiece& encoded_filename,
+                                  char dir_separator,
+                                  GoogleString* decoded_url) {
+  enum State {
+    kStart,
+    kEscape,
+    kFirstDigit,
+    kTruncate,
+    kEscapeDot
+  };
+  State state = kStart;
+  char hex_buffer[3] = { '\0', '\0', '\0' };
+  for (int i = 0, n = encoded_filename.size(); i < n; ++i) {
+    char ch = encoded_filename[i];
+    switch (state) {
+      case kStart:
+        if (ch == kEscapeChar) {
+          state = kEscape;
+        } else if (ch == dir_separator) {
+          decoded_url->push_back('/');  // URLs only use '/' not '\\'
+        } else {
+          decoded_url->push_back(ch);
+        }
+        break;
+      case kEscape:
+        if (IsHexDigit(ch)) {
+          hex_buffer[0] = ch;
+          state = kFirstDigit;
+        } else if (ch == kTruncationChar) {
+          state = kTruncate;
+        } else if (ch == '.') {
+          decoded_url->push_back('.');
+          state = kEscapeDot;  // Look for at most one more dot.
+        } else if (ch == dir_separator) {
+          // Consider url "//x".  This was once encoded to "/,/x,".
+          // This code is what skips the first Escape.
+          decoded_url->push_back('/');  // URLs only use '/' not '\\'
+          state = kStart;
+        } else {
+          return false;
+        }
+        break;
+      case kFirstDigit:
+        if (IsHexDigit(ch)) {
+          hex_buffer[1] = ch;
+          uint32 hex_value = 0;
+          bool ok = AccumulateHexValue(hex_buffer[0], &hex_value);
+          ok = ok && AccumulateHexValue(hex_buffer[1], &hex_value);
+          DCHECK(ok) << "Should not have gotten here unless both were hex";
+          decoded_url->push_back(static_cast<char>(hex_value));
+          state = kStart;
+        } else {
+          return false;
+        }
+        break;
+      case kTruncate:
+        if (ch == dir_separator) {
+          // Skip this separator, it was only put in to break up long
+          // path segments, but is not part of the URL.
+          state = kStart;
+        } else {
+          return false;
+        }
+        break;
+      case kEscapeDot:
+        decoded_url->push_back(ch);
+        state = kStart;
+        break;
+    }
+  }
+
+  // All legal encoded filenames end in kEscapeChar.
+  return (state == kEscape);
+}
+
+namespace {
+
+// Parsing states for UrlToFilenameEncoder::Unescape
+enum UnescapeState {
+  NORMAL,   // We are not in the middle of parsing an escape.
+  ESCAPE1,  // We just parsed % .
+  ESCAPE2   // We just parsed %X for some hex digit X.
+};
+
+int HexStringToInt(const GoogleString& value) {
+  uint32 good_val = 0;
+  for (int c = 0, n = value.size(); c < n; ++c) {
+    bool ok = AccumulateHexValue(value[c], &good_val);
+    if (!ok) {
+      return -1;
+    }
+  }
+  return static_cast<int>(good_val);
+}
+
+}  // namespace
+
+GoogleString UrlToFilenameEncoder::Unescape(const StringPiece& escaped_url) {
+  GoogleString unescaped_url, escape_text;
+  unsigned char escape_value;
+  UnescapeState state = NORMAL;
+  int iter = 0;
+  int n = escaped_url.size();
+  while (iter < n) {
+    char c = escaped_url[iter];
+    switch (state) {
+      case NORMAL:
+        if (c == '%') {
+          escape_text.clear();
+          state = ESCAPE1;
+        } else {
+          unescaped_url.push_back(c);
+        }
+        ++iter;
+        break;
+      case ESCAPE1:
+        if (IsHexDigit(c)) {
+          escape_text.push_back(c);
+          state = ESCAPE2;
+          ++iter;
+        } else {
+          // Unexpected, % followed by non-hex chars, pass it through.
+          unescaped_url.push_back('%');
+          state = NORMAL;
+        }
+        break;
+      case ESCAPE2:
+        if (IsHexDigit(c)) {
+          escape_text.push_back(c);
+          escape_value = HexStringToInt(escape_text);
+          unescaped_url.push_back(escape_value);
+          state = NORMAL;
+          ++iter;
+        } else {
+          // Unexpected, % followed by non-hex chars, pass it through.
+          unescaped_url.push_back('%');
+          unescaped_url.append(escape_text);
+          state = NORMAL;
+        }
+        break;
+    }
+  }
+  // Unexpected, % followed by end of string, pass it through.
+  if (state == ESCAPE1 || state == ESCAPE2) {
+    unescaped_url.push_back('%');
+    unescaped_url.append(escape_text);
+  }
+  return unescaped_url;
 }
 
 }  // namespace net_instaweb

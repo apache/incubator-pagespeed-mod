@@ -21,8 +21,6 @@
 
 #include <cstddef>
 
-#include <vector>
-
 #include "base/logging.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/escaping.h"
@@ -31,8 +29,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
-
 namespace net_instaweb {
 
 class JavascriptLibraryIdentification;
@@ -40,45 +36,22 @@ class MessageHandler;
 class Statistics;
 class Variable;
 
-namespace source_map { struct Mapping; }
-
 // Class wrapping up configuration information for javascript
 // rewriting, in order to minimize footprint of later changes
 // to javascript rewriting.
 class JavascriptRewriteConfig {
  public:
-  // Statistics names.
-  static const char kBlocksMinified[];
-  static const char kLibrariesIdentified[];
-  static const char kMinificationFailures[];
-  static const char kTotalBytesSaved[];
-  static const char kTotalOriginalBytes[];
-  static const char kMinifyUses[];
-  static const char kNumReducingMinifications[];
-
-  // Those are JS rewrite failure type statistics.
-  static const char kJSMinificationDisabled[];
-  static const char kJSDidNotShrink[];
-  static const char kJSFailedToWrite[];
-
   JavascriptRewriteConfig(
-      Statistics* statistics, bool minify, bool use_experimental_minifier,
-      const JavascriptLibraryIdentification* identification,
-      const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns);
+      Statistics* statistics, bool minify,
+      const JavascriptLibraryIdentification* identification);
 
   static void InitStats(Statistics* statistics);
 
-  // Whether to minify javascript output.
+  // Whether to minify javascript output (using jsminify).
+  // true by default.
   bool minify() const { return minify_; }
-  // Whether to use the new JsTokenizer-based minifier.
-  // TODO(sligocki): Once that minifier has been around for a while, we
-  // should deprecate this option.
-  bool use_experimental_minifier() const { return use_experimental_minifier_; }
   const JavascriptLibraryIdentification* library_identification() const {
     return library_identification_;
-  }
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns() const {
-    return js_tokenizer_patterns_;
   }
 
   Variable* blocks_minified() { return blocks_minified_; }
@@ -93,12 +66,24 @@ class JavascriptRewriteConfig {
   Variable* did_not_shrink() { return did_not_shrink_; }
   Variable* failed_to_write() { return failed_to_write_; }
 
+  // Statistics names.
+  static const char kBlocksMinified[];
+  static const char kLibrariesIdentified[];
+  static const char kMinificationFailures[];
+  static const char kTotalBytesSaved[];
+  static const char kTotalOriginalBytes[];
+  static const char kMinifyUses[];
+  static const char kNumReducingMinifications[];
+
+  // Those are JS rewrite failure type statistics.
+  static const char kJSMinificationDisabled[];
+  static const char kJSDidNotShrink[];
+  static const char kJSFailedToWrite[];
+
  private:
   bool minify_;
-  bool use_experimental_minifier_;
   // Library identifier.  NULL if library identification should be skipped.
   const JavascriptLibraryIdentification* library_identification_;
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns_;
 
   // Statistics
   // # of JS blocks (JS files and <script> blocks) successfully minified:
@@ -141,11 +126,6 @@ class JavascriptRewriteConfig {
 // For now, we're content just being able to pull data in and parse it at all.
 class JavascriptCodeBlock {
  public:
-  // If debug_filter and AvoidRenamingIntrospectiveJavascript option are
-  // turned on, this comment will be injected right after the introspective
-  // Javascript context for debugging.
-  static const char kIntrospectionComment[];
-
   JavascriptCodeBlock(const StringPiece& original_code,
                       JavascriptRewriteConfig* config,
                       const StringPiece& message_id,
@@ -153,59 +133,38 @@ class JavascriptCodeBlock {
 
   virtual ~JavascriptCodeBlock();
 
-  // Attempt to rewrite the file. Returns true if we should use the
-  // rewritten version. Must be called before successfully_rewritten(),
-  // rewritten_code() and ComputeJavascriptLibrary().
-  bool Rewrite();
+  // Determines whether the javascript is brittle and will likely
+  // break if we alter its URL.
+  static bool UnsafeToRename(const StringPiece& script);
 
-  // Should we use the rewritten version?
-  // PRECONDITION: Rewrite() must have been called first.
-  bool successfully_rewritten() const {
-    DCHECK(rewritten_);
-    return successfully_rewritten_;
-  }
-  // PRECONDITION: Rewrite() must have been called first and
-  // successfully_rewritten() must be true.
-  StringPiece rewritten_code() const {
-    DCHECK(rewritten_);
-    DCHECK(successfully_rewritten_);
-    return rewritten_code_;
+  // Rewrites the javascript code and returns whether that
+  // successfully made it smaller.
+  bool ProfitableToRewrite() const {
+    RewriteIfNecessary();
+    return (output_code_.size() < original_code_.size());
   }
 
-  // Returns the contents of a source map from original to rewritten.
-  // PRECONDITION: Rewrite() must have been called first and
-  // successfully_rewritten() must be true.
-  const std::vector<source_map::Mapping>& SourceMappings() const {
-    DCHECK(rewritten_);
-    DCHECK(successfully_rewritten_);
-    return source_mappings_;
+  // Returns the current (maximally-rewritten) contents of the
+  // code block.
+  const StringPiece Rewritten() const {
+    RewriteIfNecessary();
+    return output_code_;
   }
 
-  // Annotate rewritten_code() with a source map URL.
-  //
-  // Call this after Rewrite() and before rewritten_code() if you want to
-  // append a comment to the minified JS indicating  the URL for the source map.
-  // Note: Source map URL may not be appended if url is unsanitary, but
-  // this probably shouldn't happen in practice.
-  void AppendSourceMapUrl(StringPiece url);
+  // Returns the rewritten contents as a mutable GoogleString* suitable for
+  // swap() (but owned by the code block).  This should only be used if
+  // ProfitableToRewrite() holds.
+  GoogleString* RewrittenString() const {
+    RewriteIfNecessary();
+    DCHECK(rewritten_code_.size() < original_code_.size());
+    return &rewritten_code_;
+  }
 
   // Is the current block a JS library that can be redirected to a canonical
   // URL?  If so, return that canonical URL (storage owned by the underlying
   // config object passed in at construction), otherwise return an empty
   // StringPiece.
-  //
-  // PRECONDITION: Rewrite() must have been called first.
   StringPiece ComputeJavascriptLibrary() const;
-
-  // Swaps rewritten_code_ into *other. Afterward the JavascriptCodeBlock will
-  // be cleared and unusable.
-  // PRECONDITION: Rewrite() must have been called first and
-  // successfully_rewritten() must be true.
-  void SwapRewrittenString(GoogleString* other);
-
-  // Determines whether the javascript is brittle and will likely
-  // break if we alter its URL.
-  static bool UnsafeToRename(const StringPiece& script);
 
   // Converts a regular string to what can be used in Javascript directly. Note
   // that output also contains starting and ending quotes, to facilitate
@@ -230,28 +189,36 @@ class JavascriptCodeBlock {
   }
 
   // Get message id passed in at creation time, for external diagnostics.
-  const GoogleString& message_id() const { return message_id_; }
+  const GoogleString& message_id() const {
+    return message_id_;
+  }
 
- private:
-  // Is this URL sanitary to be appended (in a line comment) to the JS doc?
-  static bool IsSanitarySourceMapUrl(StringPiece url);
-
-  // Temporary wrapper around calling new or old version of JS minifier.
-  bool MinifyJs(StringPiece input, GoogleString* output,
-                std::vector<source_map::Mapping>* source_mappings);
+ protected:
+  // Note that Rewrite must mutate lazily-initialized mutable state only.
+  void Rewrite() const;
 
   JavascriptRewriteConfig* config_;
   const GoogleString message_id_;  // ID to stick at begining of message.
-  const GoogleString original_code_;
-  GoogleString rewritten_code_;
-  std::vector<source_map::Mapping> source_mappings_;
-
-  // Used to make sure we don't rewrite twice and that results aren't looked at
-  // before produced.
-  bool rewritten_;
-  bool successfully_rewritten_;
-
   MessageHandler* handler_;
+  const GoogleString original_code_;
+
+ private:
+  void RewriteIfNecessary() const {
+    if (!rewritten_) {
+      Rewrite();
+      rewritten_ = true;
+    }
+  }
+
+  // All of the subsequent fields are lazily initialized / mutated, with
+  // rewritten_ used as the flag indicating whether they're valid or not.
+  mutable bool rewritten_;
+
+  // Note that output_code_ points to either original_code_ or
+  // to rewritten_code_ depending upon the results of processing
+  // (ie it's an indirection to locally-owned data).
+  mutable StringPiece output_code_;
+  mutable GoogleString rewritten_code_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptCodeBlock);
 };

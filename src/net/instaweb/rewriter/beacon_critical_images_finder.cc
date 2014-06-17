@@ -69,57 +69,41 @@ bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
       kBeaconImageSupportInterval, cohort, page, &critical_images);
 }
 
-GoogleString BeaconCriticalImagesFinder::GetKeyForUrl(StringPiece url) {
-  unsigned int hash_val =
-      HashString<CasePreserve, unsigned int>(url.data(), url.size());
+GoogleString BeaconCriticalImagesFinder::GetKeyForUrl(const GoogleString& url) {
+  unsigned int hash_val = HashString<CasePreserve, unsigned int>(
+      url.c_str(), url.size());
   return UintToString(hash_val);
 }
 
-CriticalImagesFinder::Availability BeaconCriticalImagesFinder::Available(
-    RewriteDriver* driver) {
-  if (driver->options()->critical_images_beacon_enabled() &&
-      driver->server_context()->factory()->UseBeaconResultsInFilters()) {
-    return CriticalImagesFinder::Available(driver);
-  } else {
-    return CriticalImagesFinder::kDisabled;
+bool BeaconCriticalImagesFinder::IsMeaningful(
+    const RewriteDriver* driver) const {
+  CriticalImagesInfo* info = driver->critical_images_info();
+  // The finder is meaningful if the critical images info was set by the split
+  // html helper.
+  if (info != NULL && info->is_critical_image_info_present) {
+    return true;
   }
-}
-
-bool BeaconCriticalImagesFinder::ShouldBeacon(RewriteDriver* driver) {
-  UpdateCriticalImagesSetInDriver(driver);
-  return ::net_instaweb::ShouldBeacon(
-      driver->critical_images_info()->proto.html_critical_image_support(),
-      *driver);
+  return driver->options()->critical_images_beacon_enabled() &&
+      driver->server_context()->factory()->UseBeaconResultsInFilters();
 }
 
 BeaconMetadata BeaconCriticalImagesFinder::PrepareForBeaconInsertion(
     RewriteDriver* driver) {
   BeaconMetadata metadata;
   UpdateCriticalImagesSetInDriver(driver);
+  const StringSet empty;
   CriticalImages& proto = driver->critical_images_info()->proto;
   // We store the metadata about last beacon time and nonce generation in the
   // html_critical_image_support field of the CriticalImages proto.
-  net_instaweb::PrepareForBeaconInsertionHelper(
-      proto.mutable_html_critical_image_support(), nonce_generator_, driver,
-      true /* using_candidate_key_detection */, &metadata);
+  net_instaweb::PrepareForBeaconInsertion(
+      empty, proto.mutable_html_critical_image_support(), SupportInterval(),
+      nonce_generator_, driver->timer(), &metadata);
   if (metadata.status != kDoNotBeacon) {
     UpdateInPropertyCache(proto, cohort(), kCriticalImagesPropertyName,
                           true /* write_cohort */,
                           driver->fallback_property_page());
   }
   return metadata;
-}
-
-void BeaconCriticalImagesFinder::UpdateCandidateImagesForBeaconing(
-    const StringSet& images, RewriteDriver* driver, bool beaconing) {
-  UpdateCriticalImagesSetInDriver(driver);
-  CriticalImages& proto = driver->critical_images_info()->proto;
-  if (::net_instaweb::UpdateCandidateKeys(
-          images, proto.mutable_html_critical_image_support(), !beaconing)) {
-    UpdateInPropertyCache(proto, cohort(), kCriticalImagesPropertyName,
-                          true /* write_cohort */,
-                          driver->fallback_property_page());
-  }
 }
 
 }  // namespace net_instaweb

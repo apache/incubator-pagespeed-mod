@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -17,7 +17,8 @@
   if (!httpRequest) {
     return!1;
   }
-  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  var query_param_char = -1 == beaconUrl.indexOf("?") ? "?" : "&", url = beaconUrl + query_param_char + "url=" + encodeURIComponent(htmlUrl);
+  httpRequest.open("POST", url);
   httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   httpRequest.send(data);
   return!0;
@@ -41,13 +42,13 @@
   }
   return{top:top, left:left};
 }, getWindowSize:function() {
-  return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
+  var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  return{height:height, width:width};
 }, inViewport:function(element, windowSize) {
-  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+  var position = pagespeedutils.getPosition(element);
+  return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;
@@ -65,12 +66,12 @@ pagespeed.DelayImages.prototype.registerLazyLoadHighRes = function() {
   if (this.lazyLoadHighResHandlersRegistered_) {
     this.highResReplaced_ = !1;
   } else {
-    var elem = document.body, tapStart, tapEnd = 0, me = this;
+    var elem = document.body, interval = 500, tapStart, tapEnd = 0, me = this;
     "ontouchstart" in elem ? (pagespeedutils.addHandler(elem, "touchstart", function() {
       tapStart = Date.now();
     }), pagespeedutils.addHandler(elem, "touchend", function(e) {
       tapEnd = Date.now();
-      (null != e.changedTouches && 2 == e.changedTouches.length || null != e.touches && 2 == e.touches.length || 500 > tapEnd - tapStart) && me.loadHighRes();
+      (null != e.changedTouches && 2 == e.changedTouches.length || null != e.touches && 2 == e.touches.length || tapEnd - tapStart < interval) && me.loadHighRes();
     })) : pagespeedutils.addHandler(window, "click", function() {
       me.loadHighRes();
     });
@@ -90,7 +91,8 @@ pagespeed.DelayImages.prototype.replaceWithHighRes = function() {
 };
 pagespeed.DelayImages.prototype.replaceWithHighRes = pagespeed.DelayImages.prototype.replaceWithHighRes;
 pagespeed.delayImagesInit = function() {
-  pagespeed.delayImages = new pagespeed.DelayImages;
+  var temp = new pagespeed.DelayImages;
+  pagespeed.delayImages = temp;
 };
 pagespeed.delayImagesInit = pagespeed.delayImagesInit;
 })();

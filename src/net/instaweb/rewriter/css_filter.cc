@@ -27,13 +27,11 @@
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/htmlparse/public/html_node.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/association_transformer.h"
-#include "net/instaweb/rewriter/public/css_absolutify.h"
 #include "net/instaweb/rewriter/public/css_flatten_imports_context.h"
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
 #include "net/instaweb/rewriter/public/css_image_rewriter.h"
@@ -66,6 +64,7 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "webutil/css/parser.h"
 
@@ -109,10 +108,10 @@ class SimpleAbsolutifyTransformer : public CssTagScanner::Transformer {
       : base_url_(base_url) {}
   virtual ~SimpleAbsolutifyTransformer() {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
-    GoogleUrl abs(*base_url_, *str);
+  virtual TransformStatus Transform(const StringPiece& in, GoogleString* out) {
+    GoogleUrl abs(*base_url_, in);
     if (abs.IsWebValid()) {
-      abs.Spec().CopyToString(str);
+      abs.Spec().CopyToString(out);
       return kSuccess;
     } else {
       return kNoChange;
@@ -181,8 +180,9 @@ CssFilter::Context::Context(CssFilter* filter, RewriteDriver* driver,
                             ResourceContext* context)
     : SingleRewriteContext(driver, parent, context),
       filter_(filter),
+      driver_(driver),
       css_image_rewriter_(
-          new CssImageRewriter(this, filter,
+          new CssImageRewriter(this, filter, filter->driver_,
                                cache_extender, image_rewriter,
                                image_combiner)),
       hierarchy_(filter),
@@ -195,88 +195,26 @@ CssFilter::Context::Context(CssFilter* filter, RewriteDriver* driver,
       rewrite_inline_attribute_(NULL),
       rewrite_inline_css_kind_(kInsideStyleTag),
       in_text_size_(-1) {
-  initial_css_base_gurl_.Reset(filter_->decoded_base_url());
-  DCHECK(initial_css_base_gurl_.IsWebValid());
-  initial_css_trim_gurl_.Reset(initial_css_base_gurl_);
+  css_base_gurl_.Reset(filter_->decoded_base_url());
+  DCHECK(css_base_gurl_.IsWebValid());
+  css_trim_gurl_.Reset(css_base_gurl_);
+
+  if (parent != NULL) {
+    // If the context is nested.
+    DCHECK(driver_ == NULL);
+    driver_ = filter_->driver_;
+  }
 }
 
 CssFilter::Context::~Context() {
 }
 
-// The base URL used when absolutifying sub-resources must be the input
-// URL of this rewrite.
-//
-// The only exception is the case of inline CSS, where we define the
-// input URL to be a data: URL. In this case the base URL is the URL of
-// the HTML page, which we save to initial_... in the constructor.
-//
-// When our input is the output of CssCombiner, the initial_css_base_gurl_ here
-// is stale (it's the first input to the combination). It ought to be
-// the URL of the output of the combination. Similarly css_trim_gurl
-// needs to be set from the ultimate output resource and not just
-// initial_css_trim_gurl_. This matters because for a cross-directory
-// combine we can end up moving a few directories up, and further a UrlNamer
-// might even end up moving some things to a separate cookieless domain.
-//
-// Note that we have to do it functionally and not in RewriteSingle since these
-// may be invoked from Absolutify, which may be invoked from a
-// different thread when doing fallback due to a deadline. This also means that
-// initial_css_base_gurl_ and initial_css_trim_gurl_ must indeed just be
-// initials and not be mutated.
-void CssFilter::Context::GetCssBaseUrlToUse(
-    const ResourcePtr& input_resource, GoogleUrl* css_base_gurl_to_use) {
-  if (!IsDataUrl(input_resource->url())) {
-    css_base_gurl_to_use->Reset(input_resource->url());
-  } else {
-    css_base_gurl_to_use->Reset(initial_css_base_gurl_);
-  }
-}
-
-void CssFilter::Context::GetCssTrimUrlToUse(
-    const ResourcePtr& input_resource,
-    const StringPiece& output_url_base,
-    GoogleUrl* css_trim_gurl_to_use) {
-  if (!IsDataUrl(input_resource->url())) {
-    css_trim_gurl_to_use->Reset(output_url_base);
-  } else {
-    css_trim_gurl_to_use->Reset(initial_css_trim_gurl_);
-  }
-}
-
-void CssFilter::Context::GetCssTrimUrlToUse(
-    const ResourcePtr& input_resource,
-    const OutputResourcePtr& output_resource,
-    GoogleUrl* css_trim_gurl_to_use) {
-  if (!IsDataUrl(input_resource->url())) {
-    css_trim_gurl_to_use->Reset(output_resource->UrlEvenIfHashNotSet());
-  } else {
-    css_trim_gurl_to_use->Reset(initial_css_trim_gurl_);
-  }
-}
-
-bool CssFilter::Context::SendFallbackResponse(
-    StringPiece output_url_base,
-    StringPiece input_contents,
-    AsyncFetch* async_fetch,
+bool CssFilter::Context::AbsolutifyIfNeeded(
+    const StringPiece& input_contents, Writer* writer,
     MessageHandler* handler) {
-  // Do not set the content length, since we may need to mutate the
-  // content as we stream out the bytes to correct for URL changes.
-  async_fetch->HeadersComplete();
-
-  DCHECK_EQ(1, num_slots());
-  ResourcePtr input_resource(slot(0)->resource());
-  DCHECK(input_resource.get() != NULL);
-
-  GoogleUrl css_base_gurl_to_use;
-  GetCssBaseUrlToUse(input_resource, &css_base_gurl_to_use);
-
-  GoogleUrl css_trim_gurl_to_use;
-  GetCssTrimUrlToUse(input_resource, output_url_base, &css_trim_gurl_to_use);
-
   bool ret = false;
-  switch (Driver()->ResolveCssUrls(css_base_gurl_to_use,
-                                   css_trim_gurl_to_use.Spec(),
-                                   input_contents, async_fetch, handler)) {
+  switch (driver_->ResolveCssUrls(css_base_gurl_, css_trim_gurl_.Spec(),
+                                  input_contents, writer, handler)) {
     case RewriteDriver::kNoResolutionNeeded:
     case RewriteDriver::kWriteFailed:
       // If kNoResolutionNeeded, we just write out the input_contents, because
@@ -289,7 +227,7 @@ bool CssFilter::Context::SendFallbackResponse(
       //
       // TODO(sligocki): In the fetch path ResolveCssUrls should never fail
       // to transform URLs. We should just absolutify all the ones we can.
-      ret = async_fetch->Write(input_contents, handler);
+      ret = writer->Write(input_contents, handler);
       break;
     case RewriteDriver::kSuccess:
       ret = true;
@@ -313,20 +251,32 @@ void CssFilter::Context::Render() {
     // these specific difference, but we don't currently.
     if (rewrite_inline_char_node_ != NULL) {
       HtmlCharactersNode* new_style_char_node =
-          Driver()->NewCharactersNode(rewrite_inline_char_node_->parent(),
-                                      result.inlined_data());
-      Driver()->ReplaceNode(rewrite_inline_char_node_, new_style_char_node);
+          driver_->NewCharactersNode(rewrite_inline_char_node_->parent(),
+                                     result.inlined_data());
+      driver_->ReplaceNode(rewrite_inline_char_node_, new_style_char_node);
     } else if (rewrite_inline_attribute_ != NULL) {
       rewrite_inline_attribute_->SetValue(result.inlined_data());
     } else {
       // External css.
-      Driver()->log_record()->SetRewriterLoggingStatus(
+      driver_->log_record()->SetRewriterLoggingStatus(
           id(), slot(0)->resource()->url(), RewriterApplication::APPLIED_OK);
     }
 
     // If +debug is enabled and we have any debug messages, insert a comment
-    // for each one, iff the original element hasn't been flushed yet.
-    Driver()->InsertDebugComment(result.debug_message(), rewrite_element_);
+    // for each one (iff the original element hasn't been flushed yet).
+    if (result.debug_message_size() > 0 &&
+        driver_->DebugMode() &&
+        rewrite_element_ != NULL /* not in IPRO */ &&
+        driver_->IsRewritable(rewrite_element_)) {
+      HtmlNode* preceding_node = rewrite_element_;
+      for (int i = 0; i < result.debug_message_size(); ++i) {
+        HtmlNode* comment_node =
+            driver_->NewCommentNode(preceding_node->parent(),
+                                    result.debug_message(i));
+        driver_->InsertNodeAfterNode(preceding_node, comment_node);
+        preceding_node = comment_node;
+      }
+    }
 
     filter_->num_uses_->Add(1);
   }
@@ -357,13 +307,14 @@ void CssFilter::Context::SetupExternalRewrite(HtmlElement* element,
                                               const GoogleUrl& base_gurl,
                                               const GoogleUrl& trim_gurl) {
   rewrite_element_ = element;
-  initial_css_base_gurl_.Reset(base_gurl);
-  initial_css_trim_gurl_.Reset(trim_gurl);
+  css_base_gurl_.Reset(base_gurl);
+  css_trim_gurl_.Reset(trim_gurl);
 }
 
 void CssFilter::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
+
   int drop_percentage = Options()->rewrite_random_drop_percentage();
   if (drop_percentage > 0) {
     SimpleRandom* simple_random = FindServerContext()->simple_random();
@@ -377,17 +328,28 @@ void CssFilter::Context::RewriteSingle(
   input_resource_ = input_resource;
   output_resource_ = output_resource;
   StringPiece input_contents = input_resource_->contents();
+  // The base URL used when absolutifying sub-resources must be the input
+  // URL of this rewrite.
+  //
+  // The only exception is the case of inline CSS, where we define the
+  // input URL to be a data: URL. In this case the base URL is the URL of
+  // the HTML page set in the constructor.
+  //
+  // When our input is the output of CssCombiner, the css_base_gurl_ here
+  // is stale (it's the first input to the combination). It ought to be
+  // the URL of the output of the combination. Similarly the css_trim_gurl_
+  // needs to be set from the ultimate output resource.
+  if (!IsDataUrl(input_resource_->url())) {
+    css_base_gurl_.Reset(input_resource_->url());
+    css_trim_gurl_.Reset(output_resource_->UrlEvenIfHashNotSet());
+    TracePrintf("RewriteCss: %s", input_resource_->url().c_str());
+  }
   in_text_size_ = input_contents.size();
   has_utf8_bom_ = StripUtf8Bom(&input_contents);
-
-  GoogleUrl css_base_gurl_to_use;
-  GetCssBaseUrlToUse(input_resource, &css_base_gurl_to_use);
-  GoogleUrl css_trim_gurl_to_use;
-  GetCssTrimUrlToUse(input_resource, output_resource_, &css_trim_gurl_to_use);
   bool parsed = RewriteCssText(
-      css_base_gurl_to_use, css_trim_gurl_to_use, input_contents, in_text_size_,
+      css_base_gurl_, css_trim_gurl_, input_contents, in_text_size_,
       IsInlineAttribute() /* text_is_declarations */,
-      Driver()->message_handler());
+      driver_->message_handler());
 
   if (parsed) {
     if (num_nested() > 0) {
@@ -438,15 +400,15 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
   if (stylesheet.get() == NULL ||
       parser.errors_seen_mask() != Css::Parser::kNoError) {
     parsed = false;
-    Driver()->InfoAt(this, "CSS parsing error in %s",
-                     css_base_gurl.spec_c_str());
+    driver_->InfoAt(this, "CSS parsing error in %s",
+                    css_base_gurl.spec_c_str());
     filter_->num_parse_failures_->Add(1);
 
     // Report all parse errors (Note: Some of these are errors we recovered
     // from by passing through unparsed sections of text).
     for (int i = 0, n = parser.errors_seen().size(); i < n; ++i) {
       Css::Parser::ErrorInfo error = parser.errors_seen()[i];
-      Driver()->server_context()->usage_data_reporter()->ReportWarning(
+      driver_->server_context()->usage_data_reporter()->ReportWarning(
           css_base_gurl, error.error_num, error.message);
     }
   } else {
@@ -456,64 +418,53 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
     // successfully, thus, flattening is safe.
     bool has_unparseables = (parser.unparseable_sections_seen_mask() !=
                              Css::Parser::kNoError);
-    RewriteCssFromRoot(css_base_gurl, css_trim_gurl, in_text, in_text_size,
+    RewriteCssFromRoot(in_text, in_text_size,
                        has_unparseables, stylesheet.release());
   }
 
   if (!parsed &&
-      Driver()->options()->Enabled(RewriteOptions::kFallbackRewriteCssUrls)) {
-    parsed = FallbackRewriteUrls(css_base_gurl, css_trim_gurl, in_text);
+      driver_->options()->Enabled(RewriteOptions::kFallbackRewriteCssUrls)) {
+    parsed = FallbackRewriteUrls(in_text);
   }
 
   return parsed;
 }
 
-void CssFilter::Context::RewriteCssFromRoot(const GoogleUrl& css_base_gurl,
-                                            const GoogleUrl& css_trim_gurl,
-                                            const StringPiece& contents,
+void CssFilter::Context::RewriteCssFromRoot(const StringPiece& contents,
                                             int64 in_text_size,
                                             bool has_unparseables,
                                             Css::Stylesheet* stylesheet) {
   DCHECK_EQ(in_text_size_, in_text_size);
 
-  hierarchy_.InitializeRoot(css_base_gurl, css_trim_gurl,
+  hierarchy_.InitializeRoot(css_base_gurl_, css_trim_gurl_,
                             contents, has_unparseables,
-                            Driver()->options()->css_flatten_max_bytes(),
-                            stylesheet, Driver()->message_handler());
+                            driver_->options()->css_flatten_max_bytes(),
+                            stylesheet, driver_->message_handler());
 
   css_rewritten_ = css_image_rewriter_->RewriteCss(ImageInlineMaxBytes(),
                                                    this,
                                                    &hierarchy_,
-                                                   Driver()->message_handler());
+                                                   driver_->message_handler());
 }
 
 void CssFilter::Context::RewriteCssFromNested(RewriteContext* parent,
                                               CssHierarchy* hierarchy) {
   css_image_rewriter_->RewriteCss(ImageInlineMaxBytes(), parent, hierarchy,
-                                  Driver()->message_handler());
+                                  driver_->message_handler());
 }
 
 // Fallback to rewriting URLs using CssTagScanner because of failure to parse.
 // Note: We do not flatten CSS during fallback processing.
 // TODO(sligocki): Allow recursive rewriting of @imported CSS files.
-bool CssFilter::Context::FallbackRewriteUrls(
-    const GoogleUrl& css_base_gurl, const GoogleUrl& css_trim_gurl,
-    const StringPiece& in_text) {
+bool CssFilter::Context::FallbackRewriteUrls(const StringPiece& in_text) {
   fallback_mode_ = true;
-
-  // We need permanent copies of these since fallback transformers
-  // keep pointers.
-  base_gurl_for_fallback_.reset(new GoogleUrl());
-  base_gurl_for_fallback_->Reset(css_base_gurl);
-  trim_gurl_for_fallback_.reset(new GoogleUrl());
-  trim_gurl_for_fallback_->Reset(css_trim_gurl);
 
   bool ret = false;
   // In order to rewrite CSS using only the CssTagScanner, we run two scans.
   // Here we just record all URLs found with the CssUrlCounter.
   // The second run will be in Harvest() after all the subresources have been
   // rewritten.
-  CssUrlCounter url_counter(&css_base_gurl, Driver()->message_handler());
+  CssUrlCounter url_counter(&css_base_gurl_, driver_->message_handler());
   if (url_counter.Count(in_text)) {
     // TransformUrls will succeed only if all the URLs in the CSS file
     // were parseable. If we encounter any unparseable URLs, we will not
@@ -523,11 +474,10 @@ bool CssFilter::Context::FallbackRewriteUrls(
     // Setup absolutifier used by fallback_transformer_. Only enable it if
     // we need to absolutify resources. Otherwise leave it as NULL.
     bool proxy_mode;
-    if (Driver()->ShouldAbsolutifyUrl(css_base_gurl, css_trim_gurl,
-                                      &proxy_mode)) {
+    if (driver_->ShouldAbsolutifyUrl(css_base_gurl_, css_trim_gurl_,
+                                     &proxy_mode)) {
       absolutifier_.reset(new RewriteDomainTransformer(
-          base_gurl_for_fallback_.get(), trim_gurl_for_fallback_.get(),
-          Driver()));
+          &css_base_gurl_, &css_trim_gurl_, driver_));
       if (proxy_mode) {
         absolutifier_->set_trim_urls(false);
       }
@@ -538,8 +488,8 @@ bool CssFilter::Context::FallbackRewriteUrls(
     // into it. When they are rendered they will set the map used by
     // AssociationTransformer.
     fallback_transformer_.reset(new AssociationTransformer(
-        base_gurl_for_fallback_.get(), Driver()->options(), absolutifier_.get(),
-        Driver()->message_handler()));
+        &css_base_gurl_, driver_->options(), absolutifier_.get(),
+        driver_->message_handler()));
 
     const StringIntMap& url_counts = url_counter.url_counts();
     for (StringIntMap::const_iterator it = url_counts.begin();
@@ -551,7 +501,7 @@ bool CssFilter::Context::FallbackRewriteUrls(
       // This is guaranteed by CssUrlCounter.
       CHECK(url.IsAnyValid()) << it->first;
       // Add slot.
-      ResourcePtr resource = Driver()->CreateInputResource(url);
+      ResourcePtr resource = driver_->CreateInputResource(url);
       if (resource.get()) {
         ResourceSlotPtr slot(new AssociationSlot(
             resource, fallback_transformer_->map(), url.Spec()));
@@ -572,7 +522,7 @@ void CssFilter::Context::Harvest() {
       StringWriter out(&out_text);
       ok = CssTagScanner::TransformUrls(input_resource_->contents(), &out,
                                         fallback_transformer_.get(),
-                                        Driver()->message_handler());
+                                        driver_->message_handler());
     }
     if (ok) {
       filter_->num_fallback_rewrites_->Add(1);
@@ -602,24 +552,17 @@ void CssFilter::Context::Harvest() {
       }
     }
 
-    GoogleUrl css_base_gurl_to_use;
-    GetCssBaseUrlToUse(input_resource_, &css_base_gurl_to_use);
-
-    GoogleUrl css_trim_gurl_to_use;
-    GetCssTrimUrlToUse(input_resource_, output_resource_,
-                       &css_trim_gurl_to_use);
-
     // May need to absolutify @import and/or url() URLs. Note we must invoke
     // ShouldAbsolutifyUrl first because we need 'proxying' to be calculated.
     bool absolutified_urls = false;
     bool proxying = false;
-    bool should_absolutify = Driver()->ShouldAbsolutifyUrl(css_base_gurl_to_use,
-                                                           css_trim_gurl_to_use,
-                                                           &proxying);
+    bool should_absolutify = driver_->ShouldAbsolutifyUrl(css_base_gurl_,
+                                                          css_trim_gurl_,
+                                                          &proxying);
     if (should_absolutify) {
       absolutified_urls =
-          CssAbsolutify::AbsolutifyImports(hierarchy_.mutable_stylesheet(),
-                                           css_base_gurl_to_use);
+          CssMinify::AbsolutifyImports(hierarchy_.mutable_stylesheet(),
+                                       css_base_gurl_);
     }
 
     // If we have determined that we need to absolutify URLs, or if we are
@@ -630,21 +573,21 @@ void CssFilter::Context::Harvest() {
     // absolutify.
     if (should_absolutify || proxying) {
       if (!css_rewritten_ || hierarchy_.unparseable_detected()) {
-        absolutified_urls |= CssAbsolutify::AbsolutifyUrls(
+        absolutified_urls |= CssMinify::AbsolutifyUrls(
             hierarchy_.mutable_stylesheet(),
-            css_base_gurl_to_use,
+            css_base_gurl_,
             !css_rewritten_,                   /* handle_parseable_sections */
             hierarchy_.unparseable_detected(), /* handle_unparseable_sections */
-            Driver(),
-            Driver()->message_handler());
+            driver_,
+            driver_->message_handler());
       }
     }
 
     ok = SerializeCss(
-        in_text_size_, hierarchy_.mutable_stylesheet(), css_base_gurl_to_use,
-        css_trim_gurl_to_use, previously_optimized || absolutified_urls,
+        in_text_size_, hierarchy_.mutable_stylesheet(), css_base_gurl_,
+        css_trim_gurl_, previously_optimized || absolutified_urls,
         IsInlineAttribute() /* stylesheet_is_declarations */, has_utf8_bom_,
-        &out_text, Driver()->message_handler());
+        &out_text, driver_->message_handler());
   }
 
   if (ok) {
@@ -652,11 +595,11 @@ void CssFilter::Context::Harvest() {
       ServerContext* server_context = FindServerContext();
       server_context->MergeNonCachingResponseHeaders(input_resource_,
                                                      output_resource_);
-      ok = Driver()->Write(ResourceVector(1, input_resource_),
-                           out_text,
-                           &kContentTypeCss,
-                           input_resource_->charset(),
-                           output_resource_.get());
+      ok = driver_->Write(ResourceVector(1, input_resource_),
+                          out_text,
+                          &kContentTypeCss,
+                          input_resource_->charset(),
+                          output_resource_.get());
     } else {
       output_partition(0)->set_inlined_data(out_text);
     }
@@ -703,11 +646,11 @@ bool CssFilter::Context::SerializeCss(int64 in_text_size,
   int64 out_text_size = static_cast<int64>(out_text->size());
   int64 bytes_saved = in_text_size - out_text_size;
 
-  if (!Driver()->options()->always_rewrite_css()) {
+  if (!driver_->options()->always_rewrite_css()) {
     // Don't rewrite if we didn't edit it or make it any smaller.
     if (!previously_optimized && bytes_saved <= 0) {
       ret = false;
-      Driver()->InfoAt(this, "CSS parser increased size of CSS file %s by %s "
+      driver_->InfoAt(this, "CSS parser increased size of CSS file %s by %s "
                       "bytes.", css_base_gurl.spec_c_str(),
                       Integer64ToString(-bytes_saved).c_str());
       filter_->num_rewrites_dropped_->Add(1);
@@ -728,11 +671,11 @@ int64 CssFilter::Context::ImageInlineMaxBytes() const {
     if (rewrite_inline_element_ != NULL) {
       // We're in an html context.
       return std::min(
-          Driver()->options()->ImageInlineMaxBytes(),
-          Driver()->options()->CssImageInlineMaxBytes());
+          driver_->options()->ImageInlineMaxBytes(),
+          driver_->options()->CssImageInlineMaxBytes());
     } else {
       // We're in a standalone CSS file.
-      return Driver()->options()->CssImageInlineMaxBytes();
+      return driver_->options()->CssImageInlineMaxBytes();
     }
   }
 
@@ -781,8 +724,7 @@ GoogleString CssFilter::Context::CacheKeySuffix() const {
     switch (rewrite_inline_css_kind_) {
       case kInsideStyleTag: {
         const Hasher* hasher = FindServerContext()->lock_hasher();
-        StrAppend(&suffix, "_@",
-                  hasher->Hash(initial_css_base_gurl_.AllExceptLeaf()));
+        StrAppend(&suffix, "_@", hasher->Hash(css_base_gurl_.AllExceptLeaf()));
         break;
       }
 
@@ -795,11 +737,11 @@ GoogleString CssFilter::Context::CacheKeySuffix() const {
         // as a disambiguator, so that paths that resolve URLs the same way
         // get the same keys.
         GoogleString absolutified_version;
-        SimpleAbsolutifyTransformer transformer(&Driver()->decoded_base_url());
+        SimpleAbsolutifyTransformer transformer(&driver_->decoded_base_url());
         StringWriter writer(&absolutified_version);
         CssTagScanner::TransformUrls(
             slot(0)->resource()->contents(), &writer, &transformer,
-            Driver()->message_handler());
+            driver_->message_handler());
 
         const Hasher* hasher = FindServerContext()->lock_hasher();
         StrAppend(&suffix, "_@", hasher->Hash(absolutified_version));
@@ -827,13 +769,13 @@ CssFilter::CssFilter(RewriteDriver* driver,
       cache_extender_(cache_extender),
       image_rewrite_filter_(image_rewriter),
       image_combiner_(image_combiner) {
-  Statistics* stats = server_context()->statistics();
+  Statistics* stats = server_context_->statistics();
   num_blocks_rewritten_ = stats->GetVariable(CssFilter::kBlocksRewritten);
   num_parse_failures_ = stats->GetVariable(CssFilter::kParseFailures);
   num_fallback_rewrites_ = stats->GetVariable(CssFilter::kFallbackRewrites);
   num_fallback_failures_ = stats->GetVariable(CssFilter::kFallbackFailures);
   num_rewrites_dropped_ = stats->GetVariable(CssFilter::kRewritesDropped);
-  total_bytes_saved_ = stats->GetUpDownCounter(CssFilter::kTotalBytesSaved);
+  total_bytes_saved_ = stats->GetVariable(CssFilter::kTotalBytesSaved);
   total_original_bytes_ = stats->GetVariable(CssFilter::kTotalOriginalBytes);
   num_uses_ = stats->GetVariable(CssFilter::kUses);
   num_flatten_imports_charset_mismatch_ = stats->GetVariable(kCharsetMismatch);
@@ -852,7 +794,7 @@ void CssFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(CssFilter::kFallbackRewrites);
   statistics->AddVariable(CssFilter::kFallbackFailures);
   statistics->AddVariable(CssFilter::kRewritesDropped);
-  statistics->AddUpDownCounter(CssFilter::kTotalBytesSaved);
+  statistics->AddVariable(CssFilter::kTotalBytesSaved);
   statistics->AddVariable(CssFilter::kTotalOriginalBytes);
   statistics->AddVariable(CssFilter::kUses);
   statistics->AddVariable(CssFilter::kCharsetMismatch);
@@ -941,12 +883,12 @@ void CssFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kStyle) {
     in_style_element_ = true;
     style_element_ = element;
-  } else if (driver()->can_rewrite_resources()) {
+  } else if (driver_->can_rewrite_resources()) {
     bool do_rewrite = false;
     bool check_for_url = false;
-    if (driver()->options()->Enabled(RewriteOptions::kRewriteStyleAttributes)) {
+    if (driver_->options()->Enabled(RewriteOptions::kRewriteStyleAttributes)) {
       do_rewrite = true;
-    } else if (driver()->options()->Enabled(
+    } else if (driver_->options()->Enabled(
         RewriteOptions::kRewriteStyleAttributesWithUrl)) {
       check_for_url = true;
     }
@@ -972,7 +914,7 @@ void CssFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void CssFilter::Characters(HtmlCharactersNode* characters_node) {
-  if (in_style_element_ && driver()->can_rewrite_resources()) {
+  if (in_style_element_ && driver_->can_rewrite_resources()) {
     // Note: HtmlParse should guarantee that we only get one CharactersNode
     // per <style> block even if it is split by a flush. However, this code
     // will still mostly work if we somehow got multiple CharacterNodes.
@@ -988,7 +930,7 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
 
   // Rewrite an external style.
   } else if (element->keyword() == HtmlName::kLink &&
-             driver()->IsRewritable(element)) {
+             driver_->IsRewritable(element)) {
     if (CssTagScanner::IsStylesheetOrAlternate(
             element->AttributeValue(HtmlName::kRel))) {
       HtmlElement::Attribute* element_href = element->FindAttribute(
@@ -1055,10 +997,10 @@ void CssFilter::StartExternalRewrite(HtmlElement* link,
                                      HtmlElement::Attribute* src) {
   // Create the input resource for the slot.
   ResourcePtr input_resource(CreateInputResource(src->DecodedValueOrNull()));
-  if ((input_resource.get() == NULL) || !driver()->can_rewrite_resources()) {
+  if ((input_resource.get() == NULL) || !driver_->can_rewrite_resources()) {
     return;
   }
-  ResourceSlotPtr slot(driver()->GetSlot(input_resource, link, src));
+  ResourceSlotPtr slot(driver_->GetSlot(input_resource, link, src));
   CssFilter::Context* rewriter = StartRewriting(slot);
   if (rewriter == NULL) {
     return;
@@ -1090,20 +1032,20 @@ ResourceSlot* CssFilter::MakeSlotForInlineCss(const StringPiece& content) {
   // copying. Get rid of them.
   DataUrl(kContentTypeCss, PLAIN, content, &data_url);
   ResourcePtr input_resource(DataUrlInputResource::Make(data_url,
-                                                        server_context()));
-  return new InlineCssSlot(input_resource, driver()->UrlLine());
+                                                        server_context_));
+  return new InlineCssSlot(input_resource, driver_->UrlLine());
 }
 
 CssFilter::Context* CssFilter::StartRewriting(const ResourceSlotPtr& slot) {
   // Create the context add it to the slot, then kick everything off.
-  DCHECK(driver()->can_rewrite_resources());
-  CssFilter::Context* rewriter = MakeContext(driver(), NULL);
+  DCHECK(driver_->can_rewrite_resources());
+  CssFilter::Context* rewriter = MakeContext(driver_, NULL);
   rewriter->AddSlot(slot);
   // Don't render if we're preserving URLs
-  if (driver()->options()->css_preserve_urls()) {
+  if (driver_->options()->css_preserve_urls()) {
     slot->set_disable_rendering(true);
   }
-  if (!driver()->InitiateRewrite(rewriter)) {
+  if (!driver_->InitiateRewrite(rewriter)) {
     rewriter = NULL;
   }
   return rewriter;
@@ -1120,7 +1062,7 @@ bool CssFilter::GetApplicableCharset(const HtmlElement* element,
   StringPiece our_charset("iso-8859-1");
   const char* our_charset_source = "the default";
   GoogleString headers_charset;
-  const ResponseHeaders* headers = driver()->response_headers();
+  const ResponseHeaders* headers = driver_->response_headers();
   if (headers != NULL) {
     headers_charset = headers->DetermineCharset();
     if (!headers_charset.empty()) {
@@ -1182,7 +1124,7 @@ CssFilter::Context* CssFilter::MakeContext(RewriteDriver* driver,
 }
 
 RewriteContext* CssFilter::MakeRewriteContext() {
-  return MakeContext(driver(), NULL);
+  return MakeContext(driver_, NULL);
 }
 
 const UrlSegmentEncoder* CssFilter::encoder() const {

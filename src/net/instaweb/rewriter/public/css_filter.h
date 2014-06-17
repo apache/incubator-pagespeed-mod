@@ -45,7 +45,6 @@ class Stylesheet;
 namespace net_instaweb {
 
 class AssociationTransformer;
-class AsyncFetch;
 class CssImageRewriter;
 class CacheExtender;
 class HtmlCharactersNode;
@@ -58,9 +57,9 @@ class RewriteContext;
 class RewriteDriver;
 class RewriteDomainTransformer;
 class Statistics;
-class UpDownCounter;
 class UrlSegmentEncoder;
 class Variable;
+class Writer;
 
 // Find and parse all CSS in the page and apply transformations including:
 // minification, combining, refactoring, and optimizing sub-resources.
@@ -219,7 +218,7 @@ class CssFilter : public RewriteFilter {
   // from @import flattening).
   // TODO(sligocki): This should consider the input size to be the input sizes
   // of all CSS files flattened into this one. Currently it does not.
-  UpDownCounter* total_bytes_saved_;
+  Variable* total_bytes_saved_;
   // Sum of original bytes of all successfully rewritten CSS blocks.
   // total_bytes_saved_ / total_original_bytes_ should be the
   // average percentage reduction of CSS block size.
@@ -278,10 +277,8 @@ class CssFilter::Context : public SingleRewriteContext {
 
   // Specialization to absolutify URLs in input resource in case of rewrite
   // fail or deadline exceeded.
-  virtual bool SendFallbackResponse(StringPiece output_url_base,
-                                    StringPiece input_contents,
-                                    AsyncFetch* async_fetch,
-                                    MessageHandler* handler);
+  virtual bool AbsolutifyIfNeeded(const StringPiece& input_contents,
+                                  Writer* writer, MessageHandler* handler);
 
   CssResourceSlotFactory* slot_factory() { return &slot_factory_; }
 
@@ -304,17 +301,6 @@ class CssFilter::Context : public SingleRewriteContext {
       const ResourceContext* resource_context) const;
 
  private:
-  void GetCssBaseUrlToUse(const ResourcePtr& input_resource,
-                          GoogleUrl* css_base_gurl_to_use);
-
-  void GetCssTrimUrlToUse(const ResourcePtr& input_resource,
-                          const StringPiece& output_url_base,
-                          GoogleUrl* css_base_gurl_to_use);
-
-  void GetCssTrimUrlToUse(const ResourcePtr& input_resource,
-                          const OutputResourcePtr& output_resource,
-                          GoogleUrl* css_base_gurl_to_use);
-
   bool RewriteCssText(const GoogleUrl& css_base_gurl,
                       const GoogleUrl& css_trim_gurl,
                       const StringPiece& in_text,
@@ -323,9 +309,7 @@ class CssFilter::Context : public SingleRewriteContext {
                       MessageHandler* handler);
 
   // Starts nested rewrite jobs for any imports or images contained in the CSS.
-  void RewriteCssFromRoot(const GoogleUrl& css_base_gurl,
-                          const GoogleUrl& css_trim_gurl,
-                          const StringPiece& in_text, int64 in_text_size,
+  void RewriteCssFromRoot(const StringPiece& in_text, int64 in_text_size,
                           bool has_unparseables, Css::Stylesheet* stylesheet);
 
   // Fall back to using CssTagScanner to find the URLs and rewrite them
@@ -333,9 +317,7 @@ class CssFilter::Context : public SingleRewriteContext {
   // resource in Harvest(). Called if CSS Parser fails to parse doc.
   // Returns whether or not fallback rewriting succeeds. Fallback can fail
   // if URLs in CSS are not parseable.
-  bool FallbackRewriteUrls(const GoogleUrl& css_base_gurl,
-                           const GoogleUrl& css_trim_gurl,
-                           const StringPiece& in_text);
+  bool FallbackRewriteUrls(const StringPiece& in_text);
 
   // Tries to write out a (potentially edited) stylesheet out to out_text,
   // and returns whether we should consider the result as an improvement.
@@ -362,6 +344,7 @@ class CssFilter::Context : public SingleRewriteContext {
   int64 ImageInlineMaxBytes() const;
 
   CssFilter* filter_;
+  RewriteDriver* driver_;
   scoped_ptr<CssImageRewriter> css_image_rewriter_;
   CssResourceSlotFactory slot_factory_;
   CssHierarchy hierarchy_;
@@ -401,10 +384,8 @@ class CssFilter::Context : public SingleRewriteContext {
 
   // Information needed for nested rewrites or finishing up serialization.
   int64 in_text_size_;
-  GoogleUrl initial_css_base_gurl_;
-  GoogleUrl initial_css_trim_gurl_;
-  scoped_ptr<GoogleUrl> base_gurl_for_fallback_;
-  scoped_ptr<GoogleUrl> trim_gurl_for_fallback_;
+  GoogleUrl css_base_gurl_;
+  GoogleUrl css_trim_gurl_;
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 

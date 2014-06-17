@@ -26,16 +26,10 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/re2.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
-
-const char JsInlineFilter::kNumJsInlined[] = "num_js_inlined";
 
 class JsInlineFilter::Context : public InlineRewriteContext {
  public:
@@ -43,9 +37,8 @@ class JsInlineFilter::Context : public InlineRewriteContext {
           HtmlElement::Attribute* src)
       : InlineRewriteContext(filter, element, src), filter_(filter) {}
 
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* reason) const {
-    return filter_->ShouldInline(resource, reason);
+  virtual bool ShouldInline(const ResourcePtr& resource) const {
+    return filter_->ShouldInline(resource);
   }
 
   virtual void RenderInline(
@@ -64,17 +57,10 @@ class JsInlineFilter::Context : public InlineRewriteContext {
 JsInlineFilter::JsInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       size_threshold_bytes_(driver->options()->js_inline_max_bytes()),
-      script_tag_scanner_(driver),
-      should_inline_(false) {
-  Statistics* stats = server_context()->statistics();
-  num_js_inlined_ = stats->GetVariable(kNumJsInlined);
-}
+      script_tag_scanner_(driver_),
+      should_inline_(false) {}
 
 JsInlineFilter::~JsInlineFilter() {}
-
-void JsInlineFilter::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kNumJsInlined);
-}
 
 void JsInlineFilter::StartDocumentImpl() {
   should_inline_ = false;
@@ -94,7 +80,7 @@ void JsInlineFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void JsInlineFilter::EndElementImpl(HtmlElement* element) {
-  if (should_inline_ && driver()->IsRewritable(element)) {
+  if (should_inline_ && driver_->IsRewritable(element)) {
     DCHECK(element->keyword() == HtmlName::kScript);
     HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kSrc);
     CHECK(attr != NULL);
@@ -111,120 +97,60 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
   should_inline_ = false;
 }
 
-bool JsInlineFilter::ShouldInline(const ResourcePtr& resource,
-                                  GoogleString* reason) const {
-  // Don't inline if it's too big or looks like it's trying to get at its own
-  // url.
-
+bool JsInlineFilter::ShouldInline(const ResourcePtr& resource) const {
   StringPiece contents(resource->contents());
+
+  // Only inline if it's small enough, and if it doesn't contain
+  // "</script" anywhere.  If we inline an external script containing
+  // "</script>" and a few variations like </script    > or even
+  // </script foo >, the <script> tag will be ended early.
+  // See http://code.google.com/p/modpagespeed/issues/detail?id=106
+  // TODO(mdsteele): We should consider rewriting "</script>" to
+  //   "<\/script>" instead of just bailing.  But we can't blindly search
+  //   and replace because that would break legal (if contrived) code such
+  //   as "if(x</script>/){...}", which is comparing x to a regex literal.
   if (contents.size() > size_threshold_bytes_) {
-    *reason = StrCat("JS not inlined since it's bigger than ",
-                     Integer64ToString(size_threshold_bytes_),
-                     " bytes");
     return false;
   }
 
-  if (driver()->options()->avoid_renaming_introspective_javascript() &&
+  if (driver_->options()->avoid_renaming_introspective_javascript() &&
       JavascriptCodeBlock::UnsafeToRename(contents)) {
-    *reason = "JS not inlined since it may be looking for its source";
     return false;
   }
 
-  return true;
+  size_t possible_end_script_pos = FindIgnoreCase(contents, "</script");
+  return (possible_end_script_pos == StringPiece::npos);
 }
 
 void JsInlineFilter::RenderInline(
     const ResourcePtr& resource, const StringPiece& contents,
     HtmlElement* element) {
-  // If it contains '</script' we need to escape.  The standard way to do this
-  // is to replace </script with <\/script, but escaping / with \ is only valid
-  // inside strings, and the following is legal javascript:
-  //
-  //   pathological.js:
-  //     if(2</script>/) {
-  //       alert("foo");
-  //     } else {
-  //       alert("bar");
-  //     }
-  //
-  // This checks whether 2 is less than the regexp "/script>/".  While I would
-  // be fine just abandoning this as too unlikely to worry about, we can
-  // actually support this by encoding 's' as \x73 and using <\x73cript instead.
-  // The html parser won't read that as </script> but the js parser will.
-  //
-  // Unfortunately escaping </script> can expose a different bug where browsers
-  // treat <script> specially inside inline scripts after <!--.  So if we
-  // currently have:
-  //
-  //   nested.js:
-  //     <!--
-  //     document.write("<script>...</script>");
-  //
-  // and we inline it as:
-  //
-  //   <script><!--
-  //     document.write("<script>...</\x73cript>");
-  //   </script>
-  //
-  // then the browser will treat the </script> tag as closing the <script>
-  // that's inside the document.write, and will continue parsing the rest of the
-  // document as javascript.  We were already open to this bug with code that
-  // included <script> without </script> but that's probably less common.  So we
-  // should escape <script> too.
-  //
-  // Because there are legitimate uses of "<script" where it's part of an
-  // identifier we can't use the shorter \xNN notation but need \uNNNN notation
-  // instead.  I don't know why they decided \uNNNN would be good for both
-  // strings and identifiers but \xNN would be good only for strings, but that's
-  // the way it is.  For clarity (and gzip?) we'll just use \uNNNN everywhere.
-  GoogleString contents_for_escaping;
-  StringPiece escaped_contents;
-  // First quickly scan to see if there's anything we need to fix.
-  if (FindIgnoreCase(contents, "<script") != StringPiece::npos ||
-      FindIgnoreCase(contents, "</script") != StringPiece::npos) {
-    contents.CopyToString(&contents_for_escaping);
-
-    // To keep the case of the original 'script' text we need to run twice, once
-    // for 's' and once for 'S'.
-    RE2::GlobalReplace(&contents_for_escaping,
-                       "<(/?)s([cC][rR][iI][pP][tT])",
-                       "<\\1\\\\u0073\\2");
-    RE2::GlobalReplace(&contents_for_escaping,
-                       "<(/?)S([cC][rR][iI][pP][tT])",
-                       "<\\1\\\\u0053\\2");
-
-    escaped_contents = contents_for_escaping;
-  } else {
-    escaped_contents = contents;
-  }
-
   // If we're in XHTML, we should wrap the script in a <!CDATA[...]]>
   // block to ensure that we don't break well-formedness.  Since XHTML is
   // sometimes interpreted as HTML (which will ignore CDATA delimiters),
   // we have to hide the CDATA delimiters behind Javascript comments.
   // See http://lachy.id.au/log/2006/11/xhtml-script
   // and http://code.google.com/p/modpagespeed/issues/detail?id=125
-  if (driver()->MimeTypeXhtmlStatus() != RewriteDriver::kIsNotXhtml) {
+  if (driver_->MimeTypeXhtmlStatus() != RewriteDriver::kIsNotXhtml) {
     // CDATA sections cannot be nested because they end with the first
     // occurrence of "]]>", so if the script contains that string
     // anywhere (and we're in XHTML) we can't inline.
-    // TODO(mdsteele): We should consider escaping somehow.
-    if (escaped_contents.find("]]>") == StringPiece::npos) {
+    // TODO(mdsteele): Again, we should consider escaping somehow.
+    if (contents.find("]]>") == StringPiece::npos) {
       HtmlCharactersNode* node =
-          driver()->NewCharactersNode(element, "//<![CDATA[\n");
-      node->Append(escaped_contents);
+          driver_->NewCharactersNode(element, "//<![CDATA[\n");
+      node->Append(contents);
       node->Append("\n//]]>");
-      driver()->AppendChild(element, node);
+      driver_->AppendChild(element, node);
       element->DeleteAttribute(HtmlName::kSrc);
     }
   } else {
     // If we're not in XHTML, we can simply paste in the external script
     // verbatim.
-    driver()->AppendChild(
-        element, driver()->NewCharactersNode(element, escaped_contents));
+    driver_->AppendChild(
+        element, driver_->NewCharactersNode(element, contents));
     element->DeleteAttribute(HtmlName::kSrc);
   }
-  num_js_inlined_->Add(1);
 }
 
 void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
@@ -232,11 +158,11 @@ void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
     HtmlElement* script_element = characters->parent();
     DCHECK(script_element != NULL);
     DCHECK_EQ(HtmlName::kScript, script_element->keyword());
-    if (driver()->IsRewritable(script_element) &&
+    if (driver_->IsRewritable(script_element) &&
         OnlyWhitespace(characters->contents())) {
       // If it's just whitespace inside the script tag, it's (probably) safe to
       // just remove it.
-      driver()->DeleteNode(characters);
+      driver_->DeleteNode(characters);
     } else {
       // This script tag isn't empty, despite having a src field.  The contents
       // won't be executed by the browser, but will still be in the DOM; some

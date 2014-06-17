@@ -353,7 +353,7 @@ class CssCombineFilter::Context : public RewriteContext {
 // make this convention consistent and fix all code.
 CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
-      css_tag_scanner_(driver),
+      css_tag_scanner_(driver_),
       end_document_found_(false),
       css_links_(0),
       css_combine_opportunities_(driver->statistics()->GetVariable(
@@ -386,7 +386,7 @@ void CssCombineFilter::EndDocument() {
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  StringPieceVector nonstandard_attributes;
+  int num_nonstandard_attributes;
   if (element->keyword() == HtmlName::kStyle) {
     // We can't reorder styles on a page, so if we are only combining <link>
     // tags, we can't combine them across a <style> tag.
@@ -395,45 +395,19 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     NextCombination("inline style");
     return;
   } else if (css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                              &nonstandard_attributes)) {
+                                              &num_nonstandard_attributes)) {
     ++css_links_;
     // Element is a <link rel="stylesheet" ...>.
-    if (driver()->HasChildrenInFlushWindow(element)) {
+    if (driver_->HasChildrenInFlushWindow(element)) {
       LOG(DFATAL) << "HTML lexer allowed children in <link>.";
       NextCombination("children in flush window");
       return;
     }
-    if (!nonstandard_attributes.empty()) {
+    if (num_nonstandard_attributes > 0) {
       // TODO(jmaessen): allow more attributes.  This is the place it's
       // riskiest:  we can't combine multiple elements with an id, for
       // example, so we'd need to explicitly catch and handle that case.
-      // TODO(jefftk): figure out how likely things are to break if you do go
-      // ahead and combine multiple elements with an id; various templates seem
-      // to put in ids when they're not actually referenced and we've gotten
-      // several mailing list questions about why we don't combine in this
-      // case.  Is there actually javascript referencing css link tags by id?
-      GoogleString message("potentially non-combinable attribute");
-      if (DebugMode()) {
-        if (nonstandard_attributes.size() > 1) {
-          message.append("s");
-        }
-        for (int i = 0, n = nonstandard_attributes.size(); i < n; ++i) {
-          if (i == 0) {
-            message.append(": ");
-          } else if (i == n - 1) {
-            message.append(" and ");
-          } else {
-            message.append(", ");
-          }
-          message.append("'");
-          message.append(nonstandard_attributes[i].as_string());
-          message.append("'");
-        }
-      } else {
-        // If we didn't count the number, indicate that it might be plural.
-        message.append("(s)");
-      }
-      NextCombination(message);
+      NextCombination("non-standard attributes");
       return;
     }
     // We cannot combine with a link in <noscript> tag and we cannot combine
@@ -452,9 +426,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
       // thing?  sligocki thinks mdsteele looked into this and it
       // depended on HTML version.  In one display was default, in the
       // other screen was IIRC.
-      NextCombination(StrCat(
-          "media mismatch: looking for media '", combiner()->media(),
-          "' but found media='", media, "'."));
+      NextCombination("media mismatch");
       context_->SetMedia(media);
     }
     if (!context_->AddElement(element, href)) {
@@ -466,10 +438,10 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
 void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
   if (!context_->empty()) {
     if (DebugMode() && !debug_failure_reason.empty()) {
-      driver()->InsertComment(StrCat("combine_css: Could not combine over "
-                                     "barrier: ", debug_failure_reason));
+      driver_->InsertComment(StrCat("combine_css: Could not combine over "
+                                    "barrier: ", debug_failure_reason));
     }
-    driver()->InitiateRewrite(context_.release());
+    driver_->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
   }
   context_->Reset();
@@ -519,7 +491,7 @@ CssCombineFilter::CssCombiner* CssCombineFilter::combiner() {
 }
 
 CssCombineFilter::Context* CssCombineFilter::MakeContext() {
-  return new Context(driver(), this);
+  return new Context(driver_, this);
 }
 
 RewriteContext* CssCombineFilter::MakeRewriteContext() {
@@ -527,7 +499,7 @@ RewriteContext* CssCombineFilter::MakeRewriteContext() {
 }
 
 void CssCombineFilter::DetermineEnabled() {
-  set_is_enabled(!driver()->flushed_cached_html());
+  set_is_enabled(!driver_->flushed_cached_html());
 }
 
 }  // namespace net_instaweb

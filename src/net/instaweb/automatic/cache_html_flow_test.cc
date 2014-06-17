@@ -23,14 +23,15 @@
 
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/cache_html_flow.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/automatic/public/proxy_interface.h"
-#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
+#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
@@ -40,15 +41,14 @@
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
+#include "net/instaweb/rewriter/public/critical_selector_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/delay_images_filter.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 #include "net/instaweb/rewriter/public/mock_critical_css_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/util/public/basictypes.h"
@@ -60,27 +60,26 @@
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
-#include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_synchronizer.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/worker_test_base.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/wildcard.h"
 
 namespace net_instaweb {
 
 class AbstractMutex;
 class AsyncFetch;
-class Statistics;
 
 namespace {
 
@@ -226,10 +225,10 @@ const char kHtmlInputForNoBlink[] =
 const char kBlinkOutputCommon[] =
     "<html><head></head><body>"
     "<noscript><meta HTTP-EQUIV=\"refresh\" content=\"0;"
-    "url='%s?PageSpeed=noscript'\" />"
+    "url='%s?ModPagespeed=noscript'\" />"
     "<style><!--table,div,span,font,p{display:none} --></style>"
     "<div style=\"display:block\">Please click "
-    "<a href=\"%s?PageSpeed=noscript\">here</a> "
+    "<a href=\"%s?ModPagespeed=noscript\">here</a> "
     "if you are not redirected within a few seconds.</div></noscript>"
     "\n<div id=\"header\"> This is the header </div>"
     "<div id=\"container\" class>"
@@ -287,10 +286,37 @@ const char kFlushSubresourcesHtmlInput[] =
       "</div>"
     "</body></html>";
 
-const char kNoBlinkUrl[] =
-    "http://test.com/noblink_text.html?PageSpeed=noscript";
+const char kLazyLoadHtml[] =
+    "<html>"
+    "<head>"
+    "</head>"
+    "<body>%s\n"
+    "<div id=\"header\"> This is the header </div>"
+    "<div id=\"container\" class>"
+      "<h2 id=\"beforeItems\"> This is before Items </h2>"
+      "<div class=\"item\">%s"
+         "<img pagespeed_lazy_src=\"image1\" src=\"/psajs/1.0.gif\" "
+         "onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\">"
+         "<img pagespeed_lazy_src=\"image2\" src=\"/psajs/1.0.gif\" "
+         "onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\">"
+         "</div>"
+         "<div class=\"item\">"
+           "<img pagespeed_lazy_src=\"image3\" src=\"/psajs/1.0.gif\" "
+           "onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\">"
+           "<div class=\"item\">"
+             "<img pagespeed_lazy_src=\"image4\" src=\"/psajs/1.0.gif\" "
+             "onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\">"
+          "</div>"
+      "</div>"
+      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
+      "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
+    "</body></html>";
 
-const char kNoScriptTextUrl[] = "http://test.com/text.html?PageSpeed=noscript";
+const char kNoBlinkUrl[] =
+    "http://test.com/noblink_text.html?ModPagespeed=noscript";
+
+const char kNoScriptTextUrl[] =
+    "http://test.com/text.html?ModPagespeed=noscript";
 
 // Like ExpectStringAsyncFetch but for asynchronous invocation -- it lets
 // one specify a WorkerTestBase::SyncPoint to help block until completion.
@@ -377,8 +403,8 @@ class ProxyInterfaceWithDelayCache : public ProxyInterface {
 // time.
 class TestRequestContext : public RequestContext {
  public:
-  TestRequestContext(ThreadSystem* threads, LoggingInfo* logging_info)
-      : RequestContext(threads->NewMutex(), NULL),
+  explicit TestRequestContext(LoggingInfo* logging_info)
+      : RequestContext(new NullMutex, NULL),
         logging_info_copy_(logging_info) {}
 
   virtual AbstractLogRecord* NewSubordinateLogRecord(
@@ -400,8 +426,7 @@ class CacheHtmlFlowTest : public ProxyInterfaceTestBase {
   static const int kHtmlCacheTimeSec = 5000;
 
   CacheHtmlFlowTest() : test_request_context_(TestRequestContextPtr(
-      new TestRequestContext(server_context()->thread_system(),
-                             &cache_html_logging_info_))) {
+      new TestRequestContext(&cache_html_logging_info_))) {
     ConvertTimeToString(MockTimer::kApr_5_2010_ms, &start_time_string_);
   }
 
@@ -794,15 +819,18 @@ class CacheHtmlFlowTest : public ProxyInterfaceTestBase {
   void CheckStats(int diff_matches, int diff_mismatches,
                   int smart_diff_matches, int smart_diff_mismatches,
                   int hits, int misses) {
-    EXPECT_EQ(diff_matches, TimedValue(CacheHtmlFlow::kNumCacheHtmlMatches));
-    EXPECT_EQ(diff_mismatches, TimedValue(
-        CacheHtmlFlow::kNumCacheHtmlMismatches));
-    EXPECT_EQ(smart_diff_matches, TimedValue(
-        CacheHtmlFlow::kNumCacheHtmlSmartdiffMatches));
-    EXPECT_EQ(smart_diff_mismatches, TimedValue(
-        CacheHtmlFlow::kNumCacheHtmlSmartdiffMismatches));
-    EXPECT_EQ(hits, TimedValue(CacheHtmlFlow::kNumCacheHtmlHits));
-    EXPECT_EQ(misses, TimedValue(CacheHtmlFlow::kNumCacheHtmlMisses));
+    EXPECT_EQ(diff_matches, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlMatches)->Get());
+    EXPECT_EQ(diff_mismatches, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlMismatches)->Get());
+    EXPECT_EQ(smart_diff_matches, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlSmartdiffMatches)->Get());
+    EXPECT_EQ(smart_diff_mismatches, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlSmartdiffMismatches)->Get());
+    EXPECT_EQ(hits, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlHits)->Get());
+    EXPECT_EQ(misses, statistics()->FindVariable(
+        CacheHtmlFlow::kNumCacheHtmlMisses)->Get());
   }
 
   void TestCacheHtmlChangeDetection(bool use_smart_diff) {
@@ -882,12 +910,6 @@ class CacheHtmlFlowTest : public ProxyInterfaceTestBase {
     CheckStats(0, 1, 0, 1, 1, 0);
   }
 
-  GoogleString GetImageOnloadScriptBlock() const {
-    return StrCat("<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-                  DelayImagesFilter::kImageOnloadJsSnippet,
-                  "</script>");
-  }
-
   LoggingInfo cache_html_logging_info_;
   ResponseHeaders response_headers_;
   GoogleString noblink_output_;
@@ -928,7 +950,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlCacheMissAndHit) {
   // First request updates the property cache with cached html.
   FetchFromProxyWaitForBackground("text.html", true, &text, &response_headers);
   VerifyNonCacheHtmlResponse(response_headers);
-  EXPECT_EQ(1, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
   VerifyCacheHtmlLoggingInfo(
       CacheHtmlLoggingInfo::CACHE_HTML_MISS_TRIGGERED_REWRITE, false,
       "http://test.com/text.html");
@@ -1069,17 +1092,16 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlCacheHitWithInlinePreviewImages) {
   const char kBlinkOutputWithInlinePreviewImages[] =
       "<html><head></head><body>"
       "<noscript><meta HTTP-EQUIV=\"refresh\" content=\"0;"
-      "url='%s?PageSpeed=noscript'\" />"
+      "url='%s?ModPagespeed=noscript'\" />"
       "<style><!--table,div,span,font,p{display:none} --></style>"
       "<div style=\"display:block\">Please click "
-      "<a href=\"%s?PageSpeed=noscript\">here</a> "
+      "<a href=\"%s?ModPagespeed=noscript\">here</a> "
       "if you are not redirected within a few seconds.</div></noscript>"
       "\n<div id=\"header\"> This is the header </div>"
       "<div id=\"container\" class>"
       "<!--GooglePanel begin panel-id-1.0-->"
       "<!--GooglePanel end panel-id-1.0-->"
       "<div class=\"item1\">%s"  // Inlined Image tag with script.
-      "%s"  // image-onload js snippet.
       "<img src=\"image2\">"
       "</div>"
       "<!--GooglePanel begin panel-id-0.0-->"
@@ -1098,7 +1120,6 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlCacheHitWithInlinePreviewImages) {
 
   GoogleString inlined_image_wildcard =
       StringPrintf(kBlinkOutputWithInlinePreviewImages, kTestUrl, kTestUrl,
-                  GetImageOnloadScriptBlock().c_str(),
                    "<img pagespeed_high_res_src=\"image1\" "
                    "src=\"data:image/jpeg;base64*",
                    GetJsDisableScriptSnippet(options_.get()).c_str(),
@@ -1187,7 +1208,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlHeaderOverThreshold) {
   // 1 Miss for Blink Cohort.
   EXPECT_EQ(2, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(1, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, Non200StatusCode) {
@@ -1295,7 +1317,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithHttpsUrl) {
              GetJsDisableScriptSnippet(options_.get()),
              "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
              "</script></body></html>"), text);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithWhitespace) {
@@ -1303,9 +1326,12 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlWithWhitespace) {
   ResponseHeaders response_headers;
   FetchFromProxyWaitForBackground(
       "ws_text.html", true, &text, &response_headers);
-  EXPECT_EQ(0, TimedValue(CacheHtmlFlow::kNumCacheHtmlHits));
-  EXPECT_EQ(1, TimedValue(CacheHtmlFlow::kNumCacheHtmlMisses));
-  EXPECT_EQ(1, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      CacheHtmlFlow::kNumCacheHtmlHits)->Get());
+  EXPECT_EQ(1, statistics()->FindVariable(
+      CacheHtmlFlow::kNumCacheHtmlMisses)->Get());
+  EXPECT_EQ(1, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlushSubresources) {
@@ -1320,7 +1346,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlushSubresources) {
                  "?PageSpeedFilters=+extend_cache_css,-inline_css", true,
                  request_headers, &text, &response_headers, NULL, false);
   VerifyNonCacheHtmlResponse(response_headers);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 
   // Requesting again.
   flush_early_info_finder_->Clear();
@@ -1329,7 +1356,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlushSubresources) {
                  "?PageSpeedFilters=+extend_cache_css,-inline_css", true,
                  request_headers, &text, &response_headers, NULL, false);
   VerifyFlushSubresourcesResponse(text, true);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowUrlCacheInvalidation) {
@@ -1429,7 +1457,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithHeadRequest) {
   request_headers.set_method(RequestHeaders::kHead);
   FetchFromProxy("text.html", true, request_headers,
                  &text, &response_headers, false);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowDataMissDelayCache) {
@@ -1476,7 +1505,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowDataMissDelayCache) {
   VerifyNonCacheHtmlResponse(response_headers);
   EXPECT_EQ(2, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(1, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 }
 
 TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
@@ -1490,7 +1520,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
                  &response_headers, NULL, false, false);
   EXPECT_STREQ(kHtmlInput, text);
   VerifyBlacklistUserAgent(response_headers);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
   ClearStats();
 
   // NULL User Agent.
@@ -1503,7 +1534,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
              GetJsDisableScriptSnippet(options_.get()),
              "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
              "</script></body></html>"), text);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
   ClearStats();
 
   // Empty User Agent.
@@ -1516,7 +1548,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
              GetJsDisableScriptSnippet(options_.get()),
              "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\">"
              "</script></body></html>"), text);
-  EXPECT_EQ(0, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
   ClearStats();
 
   // Mobile User Agent.
@@ -1529,7 +1562,8 @@ TEST_F(CacheHtmlFlowTest, TestCacheHtmlFlowWithDifferentUserAgents) {
   FetchFromProxy("text.html", true, request_headers, &text, &response_headers,
                  true);
   VerifyNonCacheHtmlResponse(response_headers);
-  EXPECT_EQ(1, TimedValue(ProxyInterface::kCacheHtmlRequestCount));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      ProxyInterface::kCacheHtmlRequestCount)->Get());
 
   ClearStats();
   // Hit case.
@@ -1735,13 +1769,13 @@ TEST_F(CacheHtmlPrioritizeCriticalCssTest, CacheHtmlWithCriticalSelectors) {
   GoogleString full_styles_html = StrCat(
       "<noscript class=\"psa_add_styles\">",
       // URLs are encoded because CSS rewrite is enabled with selectors filter.
-      CssLinkEncodedHref("a.css"), CssLinkEncodedHref("b.css?x=1&y=2"),
+      CssLinkEncodedHref("a.css"),
+      CssLinkEncodedHref("b.css?x=1&y=2"),
       "</noscript>"
       "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-      rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-          StaticAssetManager::kCriticalCssLoaderJs,
-          rewrite_driver()->options()),
-      "pagespeed.CriticalCssLoader.Run();</script>");
+      CriticalSelectorFilter::kAddStylesFunction,
+      CriticalSelectorFilter::kAddStylesInvocation,
+      "</script>");
   ValidateCacheHtml(
       "critical_selector", InputHtml(), ExpectedHtml(full_styles_html));
 }

@@ -42,8 +42,6 @@ DEFINE_string(filename_prefix, "/tmp/instaweb/",
 DEFINE_string(rewrite_level, "CoreFilters",
               "Base rewrite level. Must be one of: "
               "PassThrough, CoreFilters, TestingCoreFilters, AllFilters.");
-DEFINE_string(rewrite_options, "",
-              "semicolon-separated list of name=value pairs for options");
 DEFINE_string(rewriters, "", "Comma-separated list of rewriters");
 // distributable_filters is for experimentation and may be removed later.
 DEFINE_string(distributable_filters, "",
@@ -165,11 +163,6 @@ DEFINE_bool(in_place_preemptive_rewrite_javascript, true,
             "If set, issue preemptive rewrites of javascript on the HTML path "
             "when configured to use IPRO. If --js_preserve_urls is not set, "
             "this flag has no effect.");
-DEFINE_bool(private_not_vary_for_ie, true,
-            "If set, use Cache-Control: private rather than Vary: Accept when "
-            "serving IPRO resources to IE.  This avoids the need for an "
-            "if-modified-since request from IE, but prevents proxy caching of "
-            "these resources.");
 DEFINE_bool(image_preserve_urls, false, "Boolean to indicate whether image"
             "URLs should be preserved.");
 DEFINE_bool(css_preserve_urls, false, "Boolean to indicate whether CSS URLS"
@@ -396,10 +389,6 @@ DEFINE_bool(enable_extended_instrumentation, false,
             "If set to true, additional instrumentation js added to that "
             "page that adds more information to the beacon.");
 
-DEFINE_bool(use_experimental_js_minifier, false,
-            "If set to true, uses the new JsTokenizer-based minifier. "
-            "This option will be removed when that minifier has matured.");
-
 DEFINE_string(blocking_rewrite_key,
               RewriteOptions::kDefaultBlockingRewriteKey,
               "Enables rewrites to finish before the response is sent to "
@@ -523,39 +512,19 @@ DEFINE_string(access_control_allow_origins, "",
               "cross-origin requests. These domain requests are served with "
               "Access-Control-Allow-Origin header.");
 
+DEFINE_bool(use_image_scanline_api, true,
+            "If set to true, do not use OpenCV for image rewrites.");
+
 namespace net_instaweb {
 
 namespace {
 
-bool DomainMapRewriteDomain(DomainLawyer* lawyer,
-                            const StringPiece& to_domain,
-                            const StringPiece& from,
-                            MessageHandler* handler) {
-  return lawyer->AddRewriteDomainMapping(to_domain, from, handler);
-}
-
-bool DomainMapOriginDomain(DomainLawyer* lawyer,
-                           const StringPiece& to_domain,
-                           const StringPiece& from,
-                           MessageHandler* handler) {
-  // Note that we don't currently have a syntax to specify a Host header
-  // from flags.  This can be created as the need arises.
-  return lawyer->AddOriginDomainMapping(to_domain, from, "" /* host_header */,
-                                        handler);
-}
-
-bool DomainAddShard(DomainLawyer* lawyer,
-                            const StringPiece& to_domain,
-                            const StringPiece& from,
-                            MessageHandler* handler) {
-  return lawyer->AddShard(to_domain, from, handler);
-}
+#define CALL_MEMBER_FN(object, var) (object->*(var))
 
 bool AddDomainMap(const StringPiece& flag_value, DomainLawyer* lawyer,
-                  bool (*fn)(DomainLawyer* lawyer,
-                             const StringPiece& to_domain,
-                             const StringPiece& from,
-                             MessageHandler* handler),
+                  bool (DomainLawyer::*fn)(const StringPiece& to_domain,
+                                           const StringPiece& from,
+                                           MessageHandler* handler),
                   MessageHandler* message_handler) {
   bool ret = true;
   StringPieceVector maps;
@@ -570,7 +539,8 @@ bool AddDomainMap(const StringPiece& flag_value, DomainLawyer* lawyer,
                                maps[i].as_string().c_str());
       ret = false;
     } else {
-      ret &= (*fn)(lawyer, name_values[0], name_values[1], message_handler);
+      ret &= CALL_MEMBER_FN(lawyer, fn)(name_values[0], name_values[1],
+                                        message_handler);
     }
   }
   return ret;
@@ -957,9 +927,6 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->set_in_place_preemptive_rewrite_javascript(
         FLAGS_in_place_preemptive_rewrite_javascript);
   }
-  if (WasExplicitlySet("private_not_vary_for_ie")) {
-    options->set_private_not_vary_for_ie(FLAGS_private_not_vary_for_ie);
-  }
   if (WasExplicitlySet("serve_ghost_click_buster_with_split_html")) {
     options->set_serve_ghost_click_buster_with_split_html(
         FLAGS_serve_ghost_click_buster_with_split_html);
@@ -1002,27 +969,23 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
   if (WasExplicitlySet("rewrite_domain_map")) {
     ret &= AddDomainMap(FLAGS_rewrite_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainMapRewriteDomain, handler);
+                        &DomainLawyer::AddRewriteDomainMapping, handler);
   }
 
   if (WasExplicitlySet("shard_domain_map")) {
     ret &= AddDomainMap(FLAGS_shard_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainAddShard, handler);
+                        &DomainLawyer::AddShard, handler);
   }
 
   if (WasExplicitlySet("origin_domain_map")) {
     ret &= AddDomainMap(FLAGS_origin_domain_map,
                         options->WriteableDomainLawyer(),
-                        DomainMapOriginDomain, handler);
+                        &DomainLawyer::AddOriginDomainMapping, handler);
   }
   if (WasExplicitlySet("enable_extended_instrumentation")) {
     options->set_enable_extended_instrumentation(
         FLAGS_enable_extended_instrumentation);
-  }
-  if (WasExplicitlySet("use_experimental_js_minifier")) {
-    options->set_use_experimental_js_minifier(
-        FLAGS_use_experimental_js_minifier);
   }
   if (WasExplicitlySet("enable_cache_purge")) {
     options->set_enable_cache_purge(FLAGS_enable_cache_purge);
@@ -1076,35 +1039,13 @@ bool RewriteGflags::SetOptions(RewriteDriverFactory* factory,
     options->DistributeFiltersByCommaSeparatedList(FLAGS_distributable_filters,
                                                    handler);
   }
+  if (WasExplicitlySet("use_image_scanline_api")) {
+    options->set_use_image_scanline_api(FLAGS_use_image_scanline_api);
+  }
 
   ret &= SetRewriters("rewriters", FLAGS_rewriters.c_str(),
                       "rewrite_level", FLAGS_rewrite_level.c_str(),
                       options, handler);
-
-  StringPieceVector option_name_values;
-  SplitStringPieceToVector(FLAGS_rewrite_options, ";", &option_name_values,
-                           true);
-  for (int i = 0, n = option_name_values.size(); i < n; ++i) {
-    stringpiece_ssize_type pos = option_name_values[i].find('=');
-    if (pos == StringPiece::npos) {
-      LOG(ERROR) << "Could not find =, expected name=value: "
-                 << option_name_values[i];
-      ret = false;
-    } else {
-      StringPiece name = option_name_values[i].substr(0, pos);
-      TrimWhitespace(&name);
-      StringPiece value = option_name_values[i].substr(pos + 1);
-      TrimWhitespace(&value);
-      GoogleString errmsg;
-      if (options->ParseAndSetOptionFromName1(name, value, &errmsg, handler) !=
-          RewriteOptions::kOptionOk) {
-        LOG(ERROR) << "Invalid option name=value: " << option_name_values[i]
-                   << ": " << errmsg;
-        ret = false;
-      }
-    }
-  }
-
   return ret;
 }
 

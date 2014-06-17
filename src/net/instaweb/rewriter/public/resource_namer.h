@@ -25,6 +25,7 @@
 namespace net_instaweb {
 
 class Hasher;
+struct ContentType;
 
 // Encapsulates the naming of resource URL leafs.  The class holds the context
 // of a single resource, and is not intended for re-use.  We could, of course,
@@ -40,17 +41,12 @@ class ResourceNamer {
 
   // Encoding and decoding in various formats.
 
-  // Decodes an entire resource name (NAME.pagespeed[.EXPT].ID.HASH[|SIG].EXT),
+  // Decodes an entire resource name (NAME.pagespeed[.EXPT].ID.HASH.EXT),
   // placing the result in the fields in this encoder.
-  bool Decode(const StringPiece& encoded_string, int hash_length,
-              int signature_length);
-
-  // Calls Decode() passing values of -1, -1 for hash and signature lengths.
-  // Hash and signature outputs from this must not be used.
-  bool DecodeIgnoreHashAndSignature(StringPiece encoded_string);
+  bool Decode(const StringPiece& encoded_string);
 
   // Encodes the fields in this encoder into an absolute url, with the
-  // trailing portion "NAME.pagespeed[.(EXPT|PsolOpts)].ID.HASH[.SIG].EXT".
+  // trailing portion "NAME.pagespeed[.(EXPT|PsolOpts)].ID.HASH.EXT".
   GoogleString Encode() const;
 
   // Encode a key that can used to do a lookup based on an id
@@ -63,10 +59,9 @@ class ResourceNamer {
 
   // Note: there is no need at this time to decode the name key.
 
-  // Eventual length of name. Gets eventual hash length from passed in hasher
-  // and signature_length.
+  // Eventual length of name. Gets eventual hash length from passed in hasher.
   // Needed by RewriteDriver to check that filenames aren't too long.
-  int EventualSize(const Hasher& hasher, int signature_length) const;
+  int EventualSize(const Hasher& hasher) const;
 
   // Simple getters
   StringPiece id() const { return id_; }
@@ -75,7 +70,6 @@ class ResourceNamer {
   StringPiece hash() const { return hash_; }
   StringPiece ext() const { return ext_; }
   StringPiece experiment() const { return experiment_; }
-  StringPiece signature() const { return signature_; }
 
   bool has_experiment() const { return !experiment_.empty(); }
   bool has_options() const { return !options_.empty(); }
@@ -92,7 +86,6 @@ class ResourceNamer {
     e.CopyToString(&ext_);
   }
   void set_experiment(const StringPiece& e) { e.CopyToString(&experiment_); }
-  void set_signature(const StringPiece& s) { s.CopyToString(&signature_); }
 
   // Other setter-like operations
   void ClearHash() { hash_.clear(); }
@@ -102,6 +95,9 @@ class ResourceNamer {
 
   // Name suitable for debugging and logging
   GoogleString PrettyName() const {return  InternalEncode(); }
+
+  // Compute a content-type based on ext().  NULL if unrecognized.
+  const ContentType* ContentTypeFromExt() const;
 
  private:
   GoogleString InternalEncode() const;
@@ -113,7 +109,6 @@ class ResourceNamer {
   GoogleString hash_;
   GoogleString ext_;
   GoogleString experiment_;
-  GoogleString signature_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceNamer);
 };

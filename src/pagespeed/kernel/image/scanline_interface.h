@@ -22,12 +22,83 @@
 #include <cstddef>
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 
 namespace pagespeed {
 
 namespace image_compression {
+
+#if defined(PAGESPEED_SCANLINE_IMAGE_FORMAT) ||         \
+  defined(PAGESPEED_SCANLINE_FORMAT_ENUM_NAME) ||       \
+  defined(PAGESPEED_SCANLINE_FORMAT_ENUM_STRING) ||     \
+  defined(PAGESPEED_SCANLINE_FORMAT_MIME_STRING)
+#error "Preprocessor macro collision"
+#endif
+
+#define PAGESPEED_SCANLINE_IMAGE_FORMAT(_X)                   \
+    _X(IMAGE_UNKNOWN, ""),                                    \
+    _X(IMAGE_JPEG, "image/jpeg"),                             \
+    _X(IMAGE_PNG, "image/png"),                               \
+    _X(IMAGE_GIF, "image/gif"),                               \
+    _X(IMAGE_WEBP, "image/webp")
+
+#define PAGESPEED_SCANLINE_FORMAT_ENUM_NAME(_S, _M) _S
+#define PAGESPEED_SCANLINE_FORMAT_ENUM_STRING(_S, _M) #_S
+#define PAGESPEED_SCANLINE_FORMAT_MIME_STRING(_S, _M) _M
+
+enum ImageFormat {
+  PAGESPEED_SCANLINE_IMAGE_FORMAT(PAGESPEED_SCANLINE_FORMAT_ENUM_NAME)
+};
+
+// Returns a string representation of the given ImageFormat.
+inline const char* ImageFormatToMimeTypeString(ImageFormat img_type) {
+  static const char* kImageMimeType[] = {
+    PAGESPEED_SCANLINE_IMAGE_FORMAT(PAGESPEED_SCANLINE_FORMAT_MIME_STRING)
+  };
+  return kImageMimeType[img_type];
+}
+
+// Returns the MIME-type string corresponding to the given ImageFormat.
+inline const char* ImageFormatToString(ImageFormat img_type) {
+  static const char* kImageFormatName[] = {
+    PAGESPEED_SCANLINE_IMAGE_FORMAT(PAGESPEED_SCANLINE_FORMAT_ENUM_STRING)
+  };
+  return kImageFormatName[img_type];
+}
+
+#undef PAGESPEED_SCANLINE_FORMAT_MIME_STRING
+#undef PAGESPEED_SCANLINE_FORMAT_ENUM_STRING
+#undef PAGESPEED_SCANLINE_FORMAT_ENUM_NAME
+#undef PAGESPEED_SCANLINE_IMAGE_FORMAT
+
+#if defined(PAGESPEED_SCANLINE_PIXEL_FORMAT) ||         \
+  defined(PAGESPEED_SCANLINE_PIXEL_ENUM_NAME) ||        \
+  defined(PAGESPEED_SCANLINE_PIXEL_ENUM_STRING)
+#error "Preprocessor macro collision."
+#endif
+
+#define PAGESPEED_SCANLINE_PIXEL_FORMAT(_X)  \
+  _X(UNSUPPORTED),   /* Not supported for reading the image. */         \
+  _X(RGB_888),       /* RGB triplets, 24 bits per pixel */              \
+  _X(RGBA_8888),     /* RGB triplet plus alpha channel, 32 bits per pixel */ \
+  _X(GRAY_8)         /* Grayscale, 8 bits per pixel */
+
+#define PAGESPEED_SCANLINE_PIXEL_ENUM_NAME(_Y) _Y
+#define PAGESPEED_SCANLINE_PIXEL_ENUM_STRING(_Y) #_Y
+
+enum PixelFormat {
+    PAGESPEED_SCANLINE_PIXEL_FORMAT(PAGESPEED_SCANLINE_PIXEL_ENUM_NAME)
+};
+
+inline const char* GetPixelFormatString(PixelFormat pf) {
+  static const char* kFormatNames[] = {
+    PAGESPEED_SCANLINE_PIXEL_FORMAT(PAGESPEED_SCANLINE_PIXEL_ENUM_STRING)
+  };
+  return kFormatNames[pf];
+}
+#undef PAGESPEED_SCANLINE_PIXEL_ENUM_STRING
+#undef PAGESPEED_SCANLINE_PIXEL_ENUM_NAME
+#undef PAGESPEED_SCANLINE_PIXEL_FORMAT
 
 class ScanlineReaderInterface {
  public:
@@ -97,9 +168,8 @@ class ScanlineWriterInterface {
 
   // Writes the current scan line with data provided. Returns false
   // if the write fails.
-  virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes) = 0;
-  inline bool WriteNextScanline(const void *scanline_bytes) {
+  virtual ScanlineStatus WriteNextScanlineWithStatus(void *scanline_bytes) = 0;
+  inline bool WriteNextScanline(void *scanline_bytes) {
     return WriteNextScanlineWithStatus(scanline_bytes).Success();
   }
 

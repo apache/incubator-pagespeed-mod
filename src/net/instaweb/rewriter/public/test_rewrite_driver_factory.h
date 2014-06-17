@@ -47,7 +47,6 @@ class MockTimer;
 class MockTimeCache;
 class MockUrlFetcher;
 class NonceGenerator;
-class ProcessContext;
 class RateControllingUrlAsyncFetcher;
 class ServerContext;
 class RewriteDriver;
@@ -106,8 +105,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     DISALLOW_COPY_AND_ASSIGN(PlatformSpecificConfigurationCallback);
   };
 
-  TestRewriteDriverFactory(const ProcessContext& process_context,
-                           const StringPiece& temp_dir,
+  TestRewriteDriverFactory(const StringPiece& temp_dir,
                            MockUrlFetcher* mock_fetcher,
                            TestDistributedFetcher* test_distributed_fetcher);
   virtual ~TestRewriteDriverFactory();
@@ -183,15 +181,12 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   // Note that this enables html proxying.
   virtual ServerContext* NewServerContext();
 
-  virtual ServerContext* NewDecodingServerContext();
-
   virtual bool IsDebugClient(const GoogleString& ip) const {
     return ip == "127.0.0.1";
   }
 
   // Enable or disable adding the contents of rewriter_callback_vector_ within
-  // AddPlatformSpecificRewritePasses. You'll also want to call
-  // RebuildDecodingDriverForTests.
+  // AddPlatformSpecificRewritePasses.
   void set_add_platform_specific_decoding_passes(bool value) {
     add_platform_specific_decoding_passes_ = value;
   }
@@ -199,9 +194,6 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   bool add_platform_specific_decoding_passes() const {
     return add_platform_specific_decoding_passes_;
   }
-
-  // Make this visible at this level.
-  using RewriteDriverFactory::RebuildDecodingDriverForTests;
 
   // Advances the mock scheduler by delta_ms.
   void AdvanceTimeMs(int64 delta_ms);

@@ -21,38 +21,14 @@
 #include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
-namespace {
-
-// Basic default implementation.
-class OptionsImpl : public RemoveCommentsFilter::OptionsInterface {
-  public:
-  OptionsImpl() {}
-
-  void RetainComment(const StringPiece& comment) {
-    retain_comments_.Allow(comment);
-  }
-
-  virtual bool IsRetainedComment(const StringPiece& comment) const {
-    return retain_comments_.Match(comment, false);
-  }
-
-  private:
-  FastWildcardGroup retain_comments_;
-
-  DISALLOW_COPY_AND_ASSIGN(OptionsImpl);
-};
-
-}  // namespace
-
 class RemoveCommentsFilterTest : public HtmlParseTestBase {
  protected:
   RemoveCommentsFilterTest()
-      : options_(new OptionsImpl()),
+      : options_(new RemoveCommentsFilter::OptionsImpl()),
         remove_comments_filter_(&html_parse_, options_) {
     html_parse_.AddFilter(&remove_comments_filter_);
   }
@@ -62,7 +38,7 @@ class RemoveCommentsFilterTest : public HtmlParseTestBase {
  protected:
   // NOTE: The options_ instance is owned by the
   // remove_comments_filter_ instance.
-  OptionsImpl* options_;
+  RemoveCommentsFilter::OptionsImpl* options_;
   RemoveCommentsFilter remove_comments_filter_;
 
  private:

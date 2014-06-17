@@ -20,7 +20,6 @@
 #include "net/instaweb/rewriter/public/css_filter.h"
 
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
@@ -201,22 +200,6 @@ class CssFilterTest : public CssRewriteTestBase {
                                  &actual_output));
     EXPECT_STREQ(css_output, actual_output);
   }
-
-  void TestFallbackFetch(const GoogleString& url, StringPiece expected_output) {
-    GoogleString content;
-    StringAsyncFetch async_fetch(rewrite_driver_->request_context(), &content);
-    bool fetched = rewrite_driver_->FetchResource(url, &async_fetch);
-    ASSERT_TRUE(fetched);
-    rewrite_driver_->WaitForShutDown();
-    ClearRewriteDriver();
-    EXPECT_TRUE(async_fetch.done());
-    EXPECT_TRUE(async_fetch.success());
-
-    EXPECT_STREQ(expected_output, content);
-    if (async_fetch.content_length_known()) {
-      EXPECT_EQ(content.size(), async_fetch.content_length());
-    }
-  }
 };
 
 TEST_F(CssFilterTest, SimpleRewriteCssTest) {
@@ -277,8 +260,7 @@ class CssFilterTestCustomOptions : public CssFilterTest {
 };
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+  options()->EnableFilter(RewriteOptions::kInlineCss);
   options()->set_css_preserve_urls(true);
   CssFilterTest::SetUp();
   // Verify that preserve had a chance to forbid some filters.
@@ -304,83 +286,8 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
   EXPECT_EQ(kOutputStyle, out_css);
 }
 
-TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsOverridingExtend) {
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
-  global_options->EnableFilter(RewriteOptions::kExtendCacheCss);
-
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
-  vhost_options->EnableFilter(RewriteOptions::kRewriteCss);
-  vhost_options->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
-  vhost_options->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
-  vhost_options->set_css_preserve_urls(true);  // This will win over ExtendCache
-  options()->Merge(*global_options);
-  options()->Merge(*vhost_options);
-
-  CssFilterTest::SetUp();
-  // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(RewriteOptions::kInlineCss));
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kInputStyle, 100);
-
-  // The URL shouldn't change.
-  ValidateNoChanges("css_preserve_urls_on", "<link rel=StyleSheet href=a.css>");
-
-  // We should have the optimized CSS even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", "a.css", "css");
-  GoogleString out_css;
-  EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Was the CSS minified?
-  EXPECT_EQ(kOutputStyle, out_css);
-}
-
-TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsWithMergedCacheExtend) {
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
-  global_options->EnableFilter(RewriteOptions::kRewriteCss);
-  global_options->set_css_preserve_urls(true);
-
-  // Because we set extend_cache at a "lower level", it takes priority
-  // over preserve_css_urls and enables URL-rewriting for CSS.
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
-  vhost_options->EnableFilter(RewriteOptions::kExtendCacheCss);
-  options()->Merge(*global_options);
-  options()->Merge(*vhost_options);
-
-  CssFilterTest::SetUp();
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kInputStyle, 100);
-
-  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", "a.css", "css");
-
-  // The URL should be updated since by specifying "extend_cache_css" the user
-  // has signaled its OK to change the URLS.
-  ValidateExpected("css_preserve_urls_on",
-                   "<link rel=StyleSheet href=a.css>",
-                   StrCat("<link rel=StyleSheet href=",
-                          ExpectedUrlForCss("a", kOutputStyle), ">"));
-
-  // We should have the optimized CSS even though we didn't render the URL.
-  ClearStats();
-  GoogleString out_css;
-  EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css));
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-  EXPECT_EQ(1, static_cast<int>(lru_cache()->num_hits()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_misses()));
-  EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
-
-  // Was the CSS minified?
-  EXPECT_EQ(kOutputStyle, out_css);
-}
-
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsNoPreemptiveRewrite) {
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
+  options()->EnableFilter(RewriteOptions::kInlineCss);
   options()->set_css_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_css(false);
   CssFilterTest::SetUp();
@@ -2042,11 +1949,6 @@ TEST_F(CssFilterTest, EmptyLeafFull) {
                                 kInputStyle, kOutputStyle, kExpectSuccess);
 }
 
-TEST_F(CssFilterTest, UnauthorizedCssResource) {
-  ValidateRewriteExternalCssUrl("unauth", "http://unauth.example.com/style.css",
-                                kInputStyle, kInputStyle, kExpectNoChange);
-}
-
 TEST_F(CssFilterTest, FlushInInlineCss) {
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
@@ -2078,7 +1980,7 @@ TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
   server_context()->ComputeSignature(options());
 
   // Delay the http cache lookup for the image so that it is not rewritten.
-  delay_cache()->DelayKey(HttpCacheKey(img_url));
+  delay_cache()->DelayKey(img_url);
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
@@ -2087,7 +1989,7 @@ TEST_F(CssFilterTest, InlineCssWithExternalUrlAndDelayCache) {
       "<style>body{background:url(a.jpg)}</style>");
   rewrite_driver()->Flush();
   rewrite_driver()->ParseText("</body></html>");
-  delay_cache()->ReleaseKey(HttpCacheKey(img_url));
+  delay_cache()->ReleaseKey(img_url);
   rewrite_driver()->FinishParse();
 
   EXPECT_EQ("<html><body><style>body{background:url(a.jpg)}</style>"
@@ -2148,32 +2050,6 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
   ValidateNoChanges("alternate_not_stylesheet",
                     StringPrintf(html_format, "alternate snowflake",
                                  "foo.css"));
-}
-
-TEST_F(CssFilterTest, AbsolutifyServingFallback) {
-  const char css_input[] =
-      "@import url(x.ss);\n"
-      "body { background: url(a.png); }\n";
-  const char expected_output[] =
-      "@import url(http://cdn.example.com/x.ss) ;"
-      "body{background:url(http://cdn.example.com/a.png)}";
-
-  UseMd5Hasher();
-  options()->ClearSignatureForTesting();
-  options()->SetRewriteLevel(RewriteOptions::kPassThrough);
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  options()->EnableFilter(RewriteOptions::kRewriteDomains);
-  DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
-  domain_lawyer->AddRewriteDomainMapping("http://cdn.example.com", kTestDomain,
-                                         message_handler());
-  server_context()->ComputeSignature(options());
-  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss, css_input, 100);
-
-  GoogleString url = Encode(kTestDomain, "cf", "0" /* wrong hash */,
-                            "foo.css", "css");
-
-  TestFallbackFetch(url, expected_output);
-  TestFallbackFetch(url, expected_output);
 }
 
 class CssFilterTestUrlNamer : public CssFilterTest {

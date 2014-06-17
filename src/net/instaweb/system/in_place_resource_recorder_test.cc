@@ -22,7 +22,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -65,14 +64,12 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
   }
 
   InPlaceResourceRecorder* MakeRecorder(StringPiece url) {
-    RequestHeaders headers;
+    RequestHeaders* headers = new RequestHeaders;
     return new InPlaceResourceRecorder(
         RequestContext::NewTestRequestContext(
             server_context()->thread_system()),
-        url, rewrite_driver_->CacheFragment(), headers.GetProperties(),
-        true /* respect_vary*/,
+        url, headers, true /* respect_vary*/,
         kMaxResponseBytes, 4, /* max_concurrent_recordings*/
-        300 * Timer::kSecondMs /* implicit_cache_ttl_ms*/,
         http_cache(), statistics(), message_handler());
   }
 

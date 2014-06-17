@@ -28,7 +28,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/arena.h"
 #include "pagespeed/kernel/base/printf_format.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/symbol_table.h"
@@ -284,11 +283,6 @@ class HtmlParse {
     return element->AddAttribute(MakeName(keyword), value,
                                  HtmlElement::DOUBLE_QUOTE);
   }
-  void AddAttribute(HtmlElement* element, StringPiece name,
-                    const StringPiece& value) {
-    return element->AddAttribute(MakeName(name), value,
-                                 HtmlElement::DOUBLE_QUOTE);
-  }
   void AddEscapedAttribute(HtmlElement* element, HtmlName::Keyword keyword,
                     const StringPiece& escaped_value) {
     return element->AddEscapedAttribute(MakeName(keyword), escaped_value,
@@ -448,10 +442,6 @@ class HtmlParse {
   void BeginFinishParse();
   void EndFinishParse();
 
-  // Clears any cached state we have while this object is laying
-  // around for recycling.
-  void Clear();
-
   // Returns the number of events on the event queue.
   size_t GetEventQueueSize();
 
@@ -504,13 +494,6 @@ class HtmlParse {
     return string_table_.string_bytes_allocated();
   }
 
-  // If a FLUSH occurs in the middle of a script, style, or other tag
-  // whose contents can only be a Characters block, then we will buffer
-  // up the start of the script tag and not emit it and the Characters block
-  // until after we see the close script tag.  This function enforces that
-  // right before calling the Filters.
-  void DelayLiteralTag();
-
   FilterVector event_listeners_;
   SymbolTableSensitive string_table_;
   FilterVector filters_;
@@ -525,7 +508,6 @@ class HtmlParse {
   GoogleString id_;  // Per-request identifier string used in error messages.
   int line_number_;
   bool deleted_current_;
-  bool skip_increment_;
   bool determine_enabled_filters_called_;
   bool need_sanity_check_;
   bool coalesce_characters_;
@@ -534,7 +516,6 @@ class HtmlParse {
   bool log_rewrite_timing_;  // Should we time the speed of parsing?
   bool running_filters_;
   int64 parse_start_time_us_;
-  scoped_ptr<HtmlEvent> delayed_start_literal_;
   Timer* timer_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlParse);

@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/css_macros.h"
+#include "base/macros.h"
 #include "base/scoped_ptr.h"
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
@@ -617,7 +617,7 @@ HtmlColor Parser::ParseColor() {
     string ident = UnicodeTextToUTF8(ParseStringOrIdent());
     HtmlColor val("", 0);
     if (name_valid) {
-      val.SetValueFromName(ident);
+      val.SetValueFromName(ident.c_str());
       if (!val.IsDefined() && !preservation_mode_)
         Util::GetSystemColor(ident, &val);
     }

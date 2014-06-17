@@ -14,22 +14,13 @@
 //
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/rewriter/public/process_context.h"
-
-#include "base/logging.h"
+#include "googleurl/src/url_util.h"
 #include "net/instaweb/htmlparse/public/html_keywords.h"
+#include "net/instaweb/rewriter/public/process_context.h"
 #include "net/instaweb/util/public/gflags.h"
-#include "pagespeed/kernel/js/js_tokenizer.h"
 
 #include "third_party/protobuf/src/google/protobuf/stubs/common.h"
-#include "url/url_util.h"
 using namespace google;  // NOLINT
-
-namespace {
-
-int construction_count = 0;
-
-}
 
 // Clean up valgrind-based memory-leak checks by deleting statically allocated
 // data from various libraries.  This must be called both from unit-tests
@@ -37,17 +28,13 @@ int construction_count = 0;
 
 namespace net_instaweb {
 
-ProcessContext::ProcessContext()
-    : js_tokenizer_patterns_(new pagespeed::js::JsTokenizerPatterns) {
-  ++construction_count;
-  CHECK_EQ(1, construction_count)
-      << "ProcessContext must only be constructed once.";
-
+ProcessContext::ProcessContext() {
   HtmlKeywords::Init();
 
-  // url/url_util.cc lazily initializes its "standard_schemes" table in a
-  // thread-unsafe way and so it must be explicitly initialized prior to thread
-  // creation, and explicitly terminated after thread quiescence.
+  // googleurl/src/url_util.cc lazily initializes its
+  // "standard_schemes" table in a thread-unsafe way and so it must be
+  // explicitly initialized prior to thread creation, and explicitly
+  // terminated after thread quiescence.
   url_util::Initialize();
 }
 

@@ -21,6 +21,7 @@
 
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -85,9 +86,16 @@ class UrlNamer {
   // proxy domain.
   virtual bool IsProxyEncoded(const GoogleUrl& url) const { return false; }
 
-  const GoogleString& proxy_domain() const { return proxy_domain_; }
+  // Resolve the given url to origin url based on the rewrite options
+  // and referer information. Returns true if the url is updated.
+  virtual bool ResolveToOriginUrl(const RewriteOptions& options,
+                                  const StringPiece& referer_url_str,
+                                  GoogleUrl* request_url) const;
+  const GoogleString& get_proxy_domain() {
+    return proxy_domain_;
+  }
 
-  void set_proxy_domain(const GoogleString& proxy_domain) {
+  void set_proxy_domain(const GoogleString proxy_domain) {
     proxy_domain_ = proxy_domain;
   }
 

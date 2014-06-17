@@ -21,7 +21,6 @@
 
 #include <vector>
 
-#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
@@ -32,7 +31,6 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
@@ -88,7 +86,7 @@ class ResourceUpdateTest : public RewriteContextTestBase {
 
     // Check that hash code is correct.
     ResourceNamer namer;
-    rewrite_driver()->Decode(url, &namer);
+    namer.Decode(url);
     EXPECT_EQ(hasher()->Hash(contents), namer.hash());
 
     return contents;
@@ -456,7 +454,7 @@ TEST_F(ResourceUpdateTest, NestedTestExpireNested404) {
   EXPECT_EQ("http://test.com/a.css\n", contents);
 
   // Determine if we're using the TestUrlNamer, for the hash later.
-  CHECK(!factory_->use_test_url_namer());
+  bool test_url_namer = factory_->use_test_url_namer();
 
   // Now move forward two decades, and upload a new version. We should
   // be ready to optimize at that point, but input should not be expired.
@@ -464,7 +462,8 @@ TEST_F(ResourceUpdateTest, NestedTestExpireNested404) {
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, " lowercase ", 100);
   ReconfigureNestedFilter(NestedFilter::kExpectNestedRewritesSucceed);
   const GoogleString kFullOutUrl =
-      Encode("", "nf", "G60oQsKZ9F", "main.txt", "css");
+      Encode("", "nf", test_url_namer ? "jPITKUE2Yd" : "G60oQsKZ9F",
+             "main.txt", "css");
   const GoogleString kInnerUrl = StrCat(Encode("", "uc", "N4LKMOq9ms",
                                                "a.css", "css"), "\n");
   ValidateExpected("nested_404", CssLinkHref("main.txt"),

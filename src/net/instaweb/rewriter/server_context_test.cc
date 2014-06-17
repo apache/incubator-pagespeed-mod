@@ -51,23 +51,31 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
+#include "net/instaweb/util/public/atomic_int32.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
 #include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_hash.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/threadsafe_cache.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/public/url_escaper.h"
 #include "pagespeed/kernel/base/mock_timer.h"
@@ -87,6 +95,7 @@ const size_t kUrlPrefixLength = STATIC_STRLEN(kUrlPrefix);
 namespace net_instaweb {
 
 class HtmlElement;
+class SharedString;
 
 class VerifyContentsCallback : public Resource::AsyncCallback {
  public:
@@ -330,8 +339,8 @@ class ServerContextTest : public RewriteTestBase {
     SetDefaultLongCacheHeaders(&kContentTypeCss, headers);
   }
 
-  const RewriteDriver* decoding_driver() {
-    return server_context()->decoding_driver_;
+  RewriteDriver* decoding_driver() {
+    return server_context()->decoding_driver_.get();
   }
 
   RewriteOptions* GetCustomOptions(const StringPiece& url,
@@ -343,14 +352,13 @@ class ServerContextTest : public RewriteTestBase {
     GoogleUrl gurl(url);
     RewriteOptions* copy_options = domain_options != NULL ?
         domain_options->Clone() : NULL;
-    RewriteQuery rewrite_query;
-    RequestContextPtr null_request_context;
-    EXPECT_TRUE(server_context()->GetQueryOptions(
-        null_request_context, NULL, &gurl, request_headers, NULL,
-        &rewrite_query));
+    ServerContext::OptionsBoolPair query_options_success =
+        server_context()->GetQueryOptions(&gurl,
+                                          request_headers, NULL);
+    EXPECT_TRUE(query_options_success.second);
     RewriteOptions* options =
         server_context()->GetCustomOptions(request_headers, copy_options,
-                                           rewrite_query.ReleaseOptions());
+                                           query_options_success.first);
     return options;
   }
 
@@ -402,11 +410,8 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   // Now explicitly enable a bogus filter, which should will cause the
   // options to be uncomputable.
   GoogleUrl gurl("http://example.com/?PageSpeedFilters=bogus_filter");
-  RewriteQuery rewrite_query;
-  RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
-      &rewrite_query));
+      &gurl, &request_headers, NULL).second);
 
   // The default url_namer does not yield any name-derived options, and we
   // have not specified any URL params or request-headers, and kXRequestedWith
@@ -499,11 +504,8 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   // Now explicitly enable a bogus filter, which should will cause the
   // options to be uncomputable.
   GoogleUrl gurl("http://example.com/?PageSpeedFilters=bogus_filter");
-  RewriteQuery rewrite_query;
-  RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
-      &rewrite_query));
+      &gurl, &request_headers, NULL).second);
 
   request_headers.Add(
       HttpAttributes::kXRequestedWith, "bogus");
@@ -569,7 +571,7 @@ TEST_F(ServerContextTest, TestOutputInputUrlEvil) {
 
 TEST_F(ServerContextTest, TestOutputInputUrlBusy) {
   EXPECT_TRUE(options()->WriteableDomainLawyer()->AddOriginDomainMapping(
-      "www.busy.com", "example.com", "", message_handler()));
+      "www.busy.com", "example.com", message_handler()));
   options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   rewrite_driver()->AddFilters();
 
@@ -590,7 +592,7 @@ TEST_F(ServerContextTest, TestOutputInputUrlBusy) {
 // fetching the URL.
 TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
   ASSERT_TRUE(options()->WriteableDomainLawyer()->AddOriginDomainMapping(
-      "localhost", kTestDomain, "", message_handler()));
+      "localhost", kTestDomain, message_handler()));
   EXPECT_TRUE(options()->WriteableDomainLawyer()->AddRewriteDomainMapping(
       "cdn.com", kTestDomain, message_handler()));
 
@@ -765,7 +767,7 @@ TEST_F(ServerContextTest, TestPlatformSpecificRewritersDecoding) {
   CreateMockRewriterCallback callback;
   factory()->AddCreateRewriterCallback(&callback);
   factory()->set_add_platform_specific_decoding_passes(true);
-  factory()->RebuildDecodingDriverForTests(server_context());
+  server_context()->InitWorkersAndDecodingDriver();
   // TODO(sligocki): Do we still want to expose decoding_driver() for
   // platform-specific rewriters? Or should we just use IsPagespeedResource()
   // in these tests?
@@ -789,7 +791,7 @@ TEST_F(ServerContextTest, TestPlatformSpecificRewritersImplicitDecoding) {
   CreateMockRewriterCallback callback;
   factory()->AddCreateRewriterCallback(&callback);
   factory()->set_add_platform_specific_decoding_passes(false);
-  factory()->RebuildDecodingDriverForTests(server_context());
+  server_context()->InitWorkersAndDecodingDriver();
   OutputResourcePtr good_output(
       decoding_driver()->DecodeOutputResource(gurl, &dummy));
   ASSERT_TRUE(good_output.get() != NULL);
@@ -872,7 +874,7 @@ TEST_F(ServerContextTest, TestRememberDropped) {
 }
 
 TEST_F(ServerContextTest, TestNonCacheable) {
-  const char kContents[] = "ok";
+  const GoogleString kContents = "ok";
 
   // Make sure that when we get non-cacheable resources
   // we mark the fetch as not cacheable in the cache.
@@ -931,7 +933,7 @@ TEST_F(ServerContextTest, TestVaryOption) {
   // we mark the fetch as not-cacheable in the cache.
   options()->set_respect_vary(true);
   ResponseHeaders no_cache;
-  const char kContents[] = "ok";
+  const GoogleString kContents = "ok";
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &no_cache);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kAcceptEncoding);
   no_cache.Add(HttpAttributes::kVary, HttpAttributes::kUserAgent);
@@ -1113,7 +1115,6 @@ class BeaconTest : public ServerContextTest {
 
   void ResetDriver() {
     rewrite_driver()->Clear();
-    SetDummyRequestHeaders();
   }
 
   MockPropertyPage* MockPageForUA(StringPiece user_agent) {
@@ -1129,8 +1130,7 @@ class BeaconTest : public ServerContextTest {
   void InsertCssBeacon(StringPiece user_agent) {
     // Simulate effects on pcache of CSS beacon insertion.
     rewrite_driver()->set_property_page(MockPageForUA(user_agent));
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs);
+    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
     last_beacon_metadata_ =
         server_context()->critical_selector_finder()->
             PrepareForBeaconInsertion(candidates_, rewrite_driver());
@@ -1143,12 +1143,7 @@ class BeaconTest : public ServerContextTest {
   void InsertImageBeacon(StringPiece user_agent) {
     // Simulate effects on pcache of image beacon insertion.
     rewrite_driver()->set_property_page(MockPageForUA(user_agent));
-    // Some of the critical image tests send enough beacons with the same set of
-    // images that we can go into low frequency beaconing mode, so advance time
-    // by the low frequency rebeacon interval.
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs *
-        kLowFreqBeaconMult);
+    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
     last_beacon_metadata_ =
         server_context()->critical_images_finder()->
             PrepareForBeaconInsertion(rewrite_driver());
@@ -1183,7 +1178,9 @@ class BeaconTest : public ServerContextTest {
       StrAppend(&beacon_url, "&rd=", *rendered_images_json_map);
     }
     EXPECT_TRUE(server_context()->HandleBeacon(
-        beacon_url, user_agent, CreateRequestContext()));
+        beacon_url,
+        user_agent,
+        CreateRequestContext()));
 
     // Read the property cache value for critical images, and verify that it has
     // the expected value.
@@ -1241,7 +1238,8 @@ TEST_F(BeaconTest, HandleBeaconRenderedDimensionsofImages) {
   images->set_rendered_width(40);
   images->set_rendered_height(50);
   GoogleString json_map_rendered_dimensions = StrCat(
-      "{\"", hash1, "\":{\"rw\":40,", "\"rh\":50,\"ow\":160,\"oh\":200}}");
+      "{\"", hash1, "\":{\"renderedWidth\":40,",
+      "\"renderedHeight\":50,\"originalWidth\":160,\"originalHeight\":200}}");
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   TestBeacon(NULL, NULL, &json_map_rendered_dimensions,
               UserAgentMatcherTestBase::kChromeUserAgent);
@@ -1303,9 +1301,9 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
 TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   InsertCssBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   StringSet critical_css_selector;
-  critical_css_selector.insert("%23foo");
+  critical_css_selector.insert("#foo");
   critical_css_selector.insert(".bar");
-  critical_css_selector.insert("%23noncandidate");
+  critical_css_selector.insert("#noncandidate");
   TestBeacon(NULL, &critical_css_selector, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar",
@@ -1317,7 +1315,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.clear();
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("img");
-  critical_css_selector.insert("%23noncandidate");
+  critical_css_selector.insert("#noncandidate");
   TestBeacon(NULL, &critical_css_selector, NULL,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar,img",
@@ -1334,6 +1332,8 @@ TEST_F(BeaconTest, EmptyCriticalCss) {
 
 class ResourceFreshenTest : public ServerContextTest {
  protected:
+  static const char kContents[];
+
   virtual void SetUp() {
     ServerContextTest::SetUp();
     HTTPCache::InitStats(statistics());
@@ -1348,6 +1348,8 @@ class ResourceFreshenTest : public ServerContextTest {
   Variable* expirations_;
   ResponseHeaders response_headers_;
 };
+
+const char ResourceFreshenTest::kContents[] = "ok";
 
 // Many resources expire in 5 minutes, because that is our default for
 // when caching headers are not present.  This test ensures that iff
@@ -1397,6 +1399,7 @@ TEST_F(ResourceFreshenTest, TestFreshenImminentlyExpiringResources) {
 // forced.  Nothing will ever be evicted due to time, so there is no
 // need to freshen.
 TEST_F(ResourceFreshenTest, NoFreshenOfForcedCachedResources) {
+  const GoogleString kContents = "ok";
   http_cache()->set_force_caching(true);
   FetcherUpdateDateHeaders();
 
@@ -1424,6 +1427,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfForcedCachedResources) {
 // Tests that freshining will not occur for short-lived resources,
 // which could impact the performance of the server.
 TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
+  const GoogleString kContents = "ok";
   FetcherUpdateDateHeaders();
 
   int max_age_sec =
@@ -1729,6 +1733,176 @@ TEST_F(ServerContextTest, FillInPartitionInputInfo) {
   ASSERT_TRUE(with_hash.has_input_content_hash());
   EXPECT_STREQ("zEEebBNnDlISRim4rIP30", with_hash.input_content_hash());
   EXPECT_FALSE(without_hash.has_input_content_hash());
+}
+
+namespace {
+
+// This is an adapter cache class that distributes cache operations
+// on multiple threads, in order to help test thread safety with
+// multi-threaded caches.
+class ThreadAlternatingCache : public CacheInterface {
+ public:
+  ThreadAlternatingCache(Scheduler* scheduler,
+                         CacheInterface* backend,
+                         QueuedWorkerPool* pool)
+      : scheduler_(scheduler), backend_(backend), pool_(pool) {
+    sequence1_ = pool->NewSequence();
+    sequence2_ = pool->NewSequence();
+    scheduler_->RegisterWorker(sequence1_);
+    scheduler_->RegisterWorker(sequence2_);
+  }
+
+  virtual ~ThreadAlternatingCache() {
+    scheduler_->UnregisterWorker(sequence1_);
+    scheduler_->UnregisterWorker(sequence2_);
+    pool_->ShutDown();
+  }
+
+  virtual void Get(const GoogleString& key, Callback* callback) {
+    int32 pos = position_.NoBarrierIncrement(1);
+    QueuedWorkerPool::Sequence* site = (pos & 1) ? sequence1_ : sequence2_;
+    GoogleString key_copy(key);
+    site->Add(MakeFunction(
+        this, &ThreadAlternatingCache::GetImpl, key_copy, callback));
+  }
+
+  virtual void Put(const GoogleString& key, SharedString* value) {
+    backend_->Put(key, value);
+  }
+
+  virtual void Delete(const GoogleString& key) {
+    backend_->Delete(key);
+  }
+
+  virtual GoogleString Name() const { return "ThreadAlternatingCache"; }
+  virtual bool IsBlocking() const { return false; }
+  virtual bool IsHealthy() const { return backend_->IsHealthy(); }
+  virtual void ShutDown() { backend_->ShutDown(); }
+
+ private:
+  void GetImpl(GoogleString key, Callback* callback) {
+    backend_->Get(key, callback);
+  }
+
+  AtomicInt32 position_;
+  Scheduler* scheduler_;
+  scoped_ptr<CacheInterface> backend_;
+  scoped_ptr<QueuedWorkerPool> pool_;
+  QueuedWorkerPool::Sequence* sequence1_;
+  QueuedWorkerPool::Sequence* sequence2_;
+
+  DISALLOW_COPY_AND_ASSIGN(ThreadAlternatingCache);
+};
+
+// Hooks up an instances of a ThreadAlternatingCache as the http cache
+// on server_context()
+class ServerContextTestThreadedCache : public ServerContextTest {
+ public:
+  ServerContextTestThreadedCache()
+      : threads_(Platform::CreateThreadSystem()),
+        cache_backend_(new LRUCache(100000)),
+        cache_(new ThreadAlternatingCache(
+            mock_scheduler(),
+            new ThreadsafeCache(cache_backend_.get(), threads_->NewMutex()),
+            new QueuedWorkerPool(2, "alternator", threads_.get()))),
+        http_cache_(new HTTPCache(cache_.get(), timer(), hasher(),
+                                  statistics())) {
+  }
+
+  virtual void SetUp() {
+    ServerContextTest::SetUp();
+    HTTPCache* cache = http_cache_.release();
+    server_context()->set_http_cache(cache);
+  }
+
+  void ClearHTTPCache() { cache_backend_->Clear(); }
+
+  ThreadSystem* threads() { return threads_.get(); }
+
+ private:
+  scoped_ptr<ThreadSystem> threads_;
+  scoped_ptr<LRUCache> cache_backend_;
+  scoped_ptr<CacheInterface> cache_;
+  scoped_ptr<HTTPCache> http_cache_;
+};
+
+}  // namespace
+
+TEST_F(ServerContextTestThreadedCache, RepeatedFetches) {
+  // Test of a crash scenario where we were aliasing resources between
+  // many slots due to repeated rewrite handling, and then doing fetches on
+  // all copies, which is not safe as the cache might be threaded (as it is in
+  // this case), as can be the fetches.
+  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
+  options()->EnableFilter(RewriteOptions::kCombineJavascript);
+  rewrite_driver()->AddFilters();
+  SetupWaitFetcher();
+
+  GoogleString a_url = AbsolutifyUrl("a.js");
+  GoogleString b_url = AbsolutifyUrl("b.js");
+
+  const char kScriptA[] = "<script src=a.js></script>";
+  const char kScriptB[] = "<script src=b.js></script>";
+
+  // This used to reproduce a failure in a single iteration virtually all the
+  // time, but we do ten runs for extra caution.
+  for (int run = 0; run < 10; ++run) {
+    lru_cache()->Clear();
+    ClearHTTPCache();
+    SetResponseWithDefaultHeaders(a_url, kContentTypeJavascript,
+                                  "var a = 42  ;", 1000);
+    SetResponseWithDefaultHeaders(b_url, kContentTypeJavascript,
+                                  "var b = 42  ;", 1);
+
+    // First rewrite try --- this in particular caches the minifications of
+    // A and B.
+    ValidateNoChanges(
+        "par",
+        StrCat(kScriptA, kScriptA, kScriptB, kScriptA, kScriptA));
+    CallFetcherCallbacks();
+
+    // Make sure all cache ops finish.
+    mock_scheduler()->AwaitQuiescence();
+
+    // At this point, we advance the clock to force invalidation of B, and
+    // hence the combination; while the minified version of A is still OK.
+    // Further, make sure that B will simply not be available, so we will not
+    // include it in combinations here and below.
+    AdvanceTimeMs(2 * Timer::kSecondMs);
+    SetFetchResponse404(b_url);
+
+    // Here we will be rewriting the combination with its input
+    // coming in from cached previous rewrites, which have repeats.
+    GoogleString minified_a(
+        StrCat("<script src=", Encode("", "jm", "0", "a.js", "js"),
+               "></script>"));
+    ValidateExpected(
+        "par",
+        StrCat(kScriptA, kScriptA, kScriptB, kScriptA, kScriptA),
+        StrCat(minified_a, minified_a, kScriptB, minified_a, minified_a));
+    CallFetcherCallbacks();
+
+    // Make sure all cache ops finish.
+    mock_scheduler()->AwaitQuiescence();
+
+    // Now make sure that the last rewrite in the chain (the combiner)
+    // produces the expected output (suggesting that its inputs are at least
+    // somewhat sane).
+    GoogleString minified_a_leaf(Encode("", "jm", "0", "a.js", "js"));
+    GoogleString combination(
+      StrCat("<script src=\"",
+             Encode("", "jc", "0",
+                    MultiUrl(minified_a_leaf,  minified_a_leaf), "js"),
+             "\"></script>"));
+    const char kEval[] = "<script>eval(mod_pagespeed_0);</script>";
+    ValidateExpected(
+        "par",
+        StrCat(kScriptA, kScriptA, kScriptB, kScriptA, kScriptA),
+        StrCat(combination, kEval, kEval, kScriptB, combination, kEval, kEval));
+
+    // Make sure all cache ops finish, so we can clear them next time.
+    mock_scheduler()->AwaitQuiescence();
+  }
 }
 
 // Test of referer for BackgroundFetch: When the resource fetching request

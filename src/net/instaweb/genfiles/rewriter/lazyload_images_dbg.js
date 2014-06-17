@@ -1,4 +1,4 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+(function(){var pagespeedutils = {sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {
     httpRequest = new XMLHttpRequest;
@@ -17,7 +17,8 @@
   if (!httpRequest) {
     return!1;
   }
-  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  var query_param_char = -1 == beaconUrl.indexOf("?") ? "?" : "&", url = beaconUrl + query_param_char + "url=" + encodeURIComponent(htmlUrl);
+  httpRequest.open("POST", url);
   httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   httpRequest.send(data);
   return!0;
@@ -41,13 +42,13 @@
   }
   return{top:top, left:left};
 }, getWindowSize:function() {
-  return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
+  var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  return{height:height, width:width};
 }, inViewport:function(element, windowSize) {
-  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+  var position = pagespeedutils.getPosition(element);
+  return pagespeedutils.positionInViewport(position, windowSize);
 }, positionInViewport:function(pos, windowSize) {
   return pos.top < windowSize.height && pos.left < windowSize.width;
-}, getRequestAnimationFrame:function() {
-  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;
@@ -60,13 +61,6 @@ pagespeed.LazyloadImages = function(blankImageSrc) {
   this.last_scroll_time_ = 0;
   this.min_scroll_time_ = 200;
   this.onload_done_ = !1;
-  this.imgs_to_load_before_beaconing_ = 0;
-};
-pagespeed.LazyloadImages.prototype.countDeferredImgs_ = function() {
-  for (var deferredImgCount = 0, imgs = document.getElementsByTagName("img"), i = 0, img;img = imgs[i];i++) {
-    -1 != img.src.indexOf(this.blank_image_src_) && this.hasAttribute_(img, "pagespeed_lazy_src") && deferredImgCount++;
-  }
-  return deferredImgCount;
 };
 pagespeed.LazyloadImages.prototype.viewport_ = function() {
   var scrollY = 0;
@@ -105,7 +99,8 @@ pagespeed.LazyloadImages.prototype.isVisible_ = function(element) {
   if (!this.onload_done_ && (0 == element.offsetHeight || 0 == element.offsetWidth)) {
     return!1;
   }
-  if ("relative" == this.getStyle_(element, "position")) {
+  var element_position = this.getStyle_(element, "position");
+  if ("relative" == element_position) {
     return!0;
   }
   var viewport = this.viewport_(), rect = element.getBoundingClientRect(), top_diff, bottom_diff;
@@ -118,7 +113,7 @@ pagespeed.LazyloadImages.prototype.isVisible_ = function(element) {
   }
   return top_diff <= this.buffer_ && 0 <= bottom_diff + this.buffer_;
 };
-pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon = function(element) {
+pagespeed.LazyloadImages.prototype.loadIfVisible = function(element) {
   this.overrideAttributeFunctionsInternal_(element);
   var context = this;
   window.setTimeout(function() {
@@ -129,10 +124,6 @@ pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon = function(elemen
         parent_node && parent_node.removeChild(element);
         element._getAttribute && (element.getAttribute = element._getAttribute);
         element.removeAttribute("onload");
-        element.tagName && "IMG" == element.tagName && pagespeed.CriticalImages && pagespeedutils.addHandler(element, "load", function() {
-          pagespeed.CriticalImages.checkImageForCriticality(this);
-          context.onload_done_ && (context.imgs_to_load_before_beaconing_--, 0 == context.imgs_to_load_before_beaconing_ && pagespeed.CriticalImages.checkCriticalImages());
-        });
         element.removeAttribute("pagespeed_lazy_src");
         element.removeAttribute("pagespeed_lazy_replaced_functions");
         parent_node && parent_node.insertBefore(element, next_sibling);
@@ -143,7 +134,7 @@ pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon = function(elemen
     }
   }, 0);
 };
-pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon = pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon;
+pagespeed.LazyloadImages.prototype.loadIfVisible = pagespeed.LazyloadImages.prototype.loadIfVisible;
 pagespeed.LazyloadImages.prototype.loadAllImages = function() {
   this.force_load_ = !0;
   this.loadVisible_();
@@ -153,14 +144,15 @@ pagespeed.LazyloadImages.prototype.loadVisible_ = function() {
   var old_deferred = this.deferred_, len = old_deferred.length;
   this.deferred_ = [];
   for (var i = 0;i < len;++i) {
-    this.loadIfVisibleAndMaybeBeacon(old_deferred[i]);
+    this.loadIfVisible(old_deferred[i]);
   }
 };
 pagespeed.LazyloadImages.prototype.hasAttribute_ = function(element, attribute) {
   return element.getAttribute_ ? null != element.getAttribute_(attribute) : null != element.getAttribute(attribute);
 };
 pagespeed.LazyloadImages.prototype.overrideAttributeFunctions = function() {
-  for (var images = document.getElementsByTagName("img"), i = 0, element;element = images[i];i++) {
+  for (var images = document.getElementsByTagName("img"), i = 0;i < images.length;++i) {
+    var element = images[i];
     this.hasAttribute_(element, "pagespeed_lazy_src") && this.overrideAttributeFunctionsInternal_(element);
   }
 };
@@ -175,18 +167,18 @@ pagespeed.LazyloadImages.prototype.overrideAttributeFunctionsInternal_ = functio
 pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
   var context = new pagespeed.LazyloadImages(blankImageSrc);
   pagespeed.lazyLoadImages = context;
-  pagespeedutils.addHandler(window, "load", function() {
+  var lazy_onload = function() {
     context.onload_done_ = !0;
     context.force_load_ = loadAfterOnload;
     context.buffer_ = 200;
-    pagespeed.CriticalImages && (context.imgs_to_load_before_beaconing_ = context.countDeferredImgs_(), 0 == context.imgs_to_load_before_beaconing_ && pagespeed.CriticalImages.checkCriticalImages());
     context.loadVisible_();
-  });
+  };
+  pagespeedutils.addHandler(window, "load", lazy_onload);
   0 != blankImageSrc.indexOf("data") && ((new Image).src = blankImageSrc);
   var lazy_onscroll = function() {
     if (!(context.onload_done_ && loadAfterOnload || context.scroll_timer_)) {
-      var timeout_ms = context.min_scroll_time_;
-      (new Date).getTime() - context.last_scroll_time_ > context.min_scroll_time_ && (timeout_ms = 0);
+      var now = (new Date).getTime(), timeout_ms = context.min_scroll_time_;
+      now - context.last_scroll_time_ > context.min_scroll_time_ && (timeout_ms = 0);
       context.scroll_timer_ = window.setTimeout(function() {
         context.last_scroll_time_ = (new Date).getTime();
         context.loadVisible_();

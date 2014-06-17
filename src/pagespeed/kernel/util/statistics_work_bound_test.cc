@@ -24,31 +24,26 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 
 namespace net_instaweb {
-class UpDownCounter;
+class Variable;
 
 namespace {
 
 class StatisticsWorkBoundTest : public testing::Test {
  public:
   StatisticsWorkBoundTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        stats_(thread_system_.get()),
-        var1_(stats_.AddUpDownCounter("var1")),
-        var2_(stats_.AddUpDownCounter("var2")) { }
+      : stats_(),
+        var1_(stats_.AddVariable("var1")),
+        var2_(stats_.AddVariable("var2")) { }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  UpDownCounter* var1_;
-  UpDownCounter* var2_;
+  Variable* var1_;
+  Variable* var2_;
 
-  StatisticsWorkBound* MakeBound(UpDownCounter* var, int bound) {
+  StatisticsWorkBound* MakeBound(Variable* var, int bound) {
     StatisticsWorkBound* result = new StatisticsWorkBound(var, bound);
     CHECK(NULL != result);
     return result;

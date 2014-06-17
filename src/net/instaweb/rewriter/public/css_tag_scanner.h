@@ -43,13 +43,11 @@ class CssTagScanner {
     virtual ~Transformer();
 
     enum TransformStatus { kSuccess, kNoChange, kFailure };
-    // Transforms str in-place.
-    // If kSuccess -> transformation succeeded and str may have changed
-    // (Generally implementers should only return kSuccess if str changed, but
-    // this is merely an optimization. Functionally it doesn't matter).
-    // If kNoChange -> transformation succeeded and str was unchanged.
-    // If kFailure -> transformation failed. str is undefined, do not use.
-    virtual TransformStatus Transform(GoogleString* str) = 0;
+    // Note: out is NOT necessarily set if kNoChange is returned.
+    // TODO(sligocki): Standardize this behavior, perhaps by simplifying
+    // interface to Transform(GoogleString* str).
+    virtual TransformStatus Transform(const StringPiece& in,
+                                      GoogleString* out) = 0;
   };
 
   static const char kStylesheet[];
@@ -59,22 +57,21 @@ class CssTagScanner {
   explicit CssTagScanner(HtmlParse* html_parse);
 
   // Examines an HTML element to determine if it's a CSS link, extracting out
-  // the href, the media type (if any) and any nonstandard attributes.  If it's
-  // not CSS, href is set to NULL, media is set to "", and no nonstandard
-  // attributes are identified.  NULL may be passed for nonstandard_attributes
-  // to indicate the caller doesn't need them collected.
+  // the href, the media type (if any) and the number of nonstandard attributes
+  // found.  If it's not CSS, href is set to NULL, media is set to "", and
+  // num_nonstandard_attributes is set to 0.
   bool ParseCssElement(HtmlElement* element,
                        HtmlElement::Attribute** href,
                        const char** media,
-                       StringPieceVector* nonstandard_attributes);
+                       int* num_nonstandard_attributes);
 
-  // Many callers don't care about nonstandard attributes, so we provide a
-  // version that discards that information.
+  // Many callers don't care about num_nonstandard_attributes, so we provide
+  // a version that discards that information.
   bool ParseCssElement(HtmlElement* element,
                        HtmlElement::Attribute** href,
                        const char** media) {
-    return ParseCssElement(element, href, media,
-                           NULL /* nonstandard attributes */);
+    int num_nonstandard_attributes;
+    return ParseCssElement(element, href, media, &num_nonstandard_attributes);
   }
 
   // Scans the contents of a CSS file, looking for the pattern url(xxx).
@@ -114,7 +111,7 @@ class RewriteDomainTransformer : public CssTagScanner::Transformer {
                            RewriteDriver* driver);
   virtual ~RewriteDomainTransformer();
 
-  virtual TransformStatus Transform(GoogleString* str);
+  virtual TransformStatus Transform(const StringPiece& in, GoogleString* out);
 
   void set_trim_urls(bool x) { trim_urls_ = x; }
 

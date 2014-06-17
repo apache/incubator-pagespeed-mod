@@ -21,23 +21,21 @@
 #include "base/logging.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/http_dump_url_async_writer.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
-#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/http_dump_url_async_writer.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
+#include "net/instaweb/rewriter/public/critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
-#include "net/instaweb/rewriter/public/process_context.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
@@ -46,6 +44,7 @@
 #include "net/instaweb/util/public/checking_thread_system.h"
 #include "net/instaweb/util/public/file_system.h"
 #include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/filename_encoder.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/hostname_util.h"
@@ -60,7 +59,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 
@@ -76,9 +74,7 @@ const int kJpegQualityArray[] = {30, 50, 65, 80, 90};
 
 class Statistics;
 
-RewriteDriverFactory::RewriteDriverFactory(
-    const ProcessContext& process_context, ThreadSystem* thread_system)
-    : js_tokenizer_patterns_(process_context.js_tokenizer_patterns()) {
+RewriteDriverFactory::RewriteDriverFactory(ThreadSystem* thread_system) {
 #ifdef NDEBUG
   // For release binaries, use the thread-system directly.
   thread_system_.reset(thread_system);
@@ -216,12 +212,12 @@ void RewriteDriverFactory::set_hasher(Hasher* hasher) {
   hasher_.reset(hasher);
 }
 
-void RewriteDriverFactory::set_signature(SHA1Signature* signature) {
-  signature_.reset(signature);
-}
-
 void RewriteDriverFactory::set_timer(Timer* timer) {
   timer_.reset(timer);
+}
+
+void RewriteDriverFactory::set_filename_encoder(FilenameEncoder* e) {
+  filename_encoder_.reset(e);
 }
 
 void RewriteDriverFactory::set_nonce_generator(NonceGenerator* gen) {
@@ -321,13 +317,6 @@ Hasher* RewriteDriverFactory::hasher() {
   return hasher_.get();
 }
 
-SHA1Signature* RewriteDriverFactory::signature() {
-  if (signature_ == NULL) {
-    signature_.reset(DefaultSignature());
-  }
-  return signature_.get();
-}
-
 UsageDataReporter* RewriteDriverFactory::usage_data_reporter() {
   if (usage_data_reporter_ == NULL) {
     usage_data_reporter_.reset(DefaultUsageDataReporter());
@@ -367,7 +356,7 @@ UserAgentMatcher* RewriteDriverFactory::DefaultUserAgentMatcher() {
 }
 
 StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
-  return new StaticAssetManager(url_namer()->proxy_domain(),
+  return new StaticAssetManager(url_namer()->get_proxy_domain(),
                                 hasher(),
                                 message_handler());
 }
@@ -393,10 +382,6 @@ CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
   return NULL;
 }
 
-SHA1Signature* RewriteDriverFactory::DefaultSignature() {
-  return new SHA1Signature();
-}
-
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
   return NULL;
 }
@@ -408,8 +393,9 @@ CacheHtmlInfoFinder* RewriteDriverFactory::DefaultCacheHtmlInfoFinder(
 
 CriticalLineInfoFinder* RewriteDriverFactory::DefaultCriticalLineInfoFinder(
     ServerContext* server_context) {
-  return new BeaconCriticalLineInfoFinder(server_context->beacon_cohort(),
-                                          nonce_generator());
+  // TODO(jud): Return a BeaconCriticalLineInfoFinder for split_html beacon
+  // support when that class exists.
+  return new CriticalLineInfoFinder(server_context->beacon_cohort());
 }
 
 UsageDataReporter* RewriteDriverFactory::DefaultUsageDataReporter() {
@@ -500,7 +486,6 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
 
   server_context->ComputeSignature(server_context->global_options());
   server_context->set_scheduler(scheduler());
-  server_context->set_timer(timer());
   if (server_context->statistics() == NULL) {
     server_context->set_statistics(statistics());
   }
@@ -523,10 +508,10 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_url_namer(url_namer());
   server_context->SetRewriteOptionsManager(NewRewriteOptionsManager());
   server_context->set_user_agent_matcher(user_agent_matcher());
+  server_context->set_filename_encoder(filename_encoder());
   server_context->set_file_system(file_system());
   server_context->set_filename_prefix(filename_prefix_);
   server_context->set_hasher(hasher());
-  server_context->set_signature(signature());
   server_context->set_message_handler(message_handler());
   server_context->set_static_asset_manager(static_asset_manager());
   PropertyCache* pcache = server_context->page_property_cache();
@@ -541,57 +526,12 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_critical_line_info_finder(
       DefaultCriticalLineInfoFinder(server_context));
   server_context->set_hostname(hostname_);
-  server_context->PostInitHook();
-  InitDecodingDriver(server_context);
+  server_context->InitWorkersAndDecodingDriver();
   server_contexts_.insert(server_context);
 
   // Make sure that all lazy state gets initialized, even if we don't copy it to
   // ServerContext
   user_agent_normalizers();
-}
-
-void RewriteDriverFactory::RebuildDecodingDriverForTests(
-    ServerContext* server_context) {
-  decoding_driver_.reset(NULL);
-  InitDecodingDriver(server_context);
-}
-
-void RewriteDriverFactory::InitDecodingDriver(ServerContext* server_context) {
-  if (decoding_driver_.get() == NULL) {
-    decoding_server_context_.reset(NewDecodingServerContext());
-    decoding_driver_.reset(
-        decoding_server_context_->NewUnmanagedRewriteDriver(
-            NULL, default_options_->Clone(), RequestContextPtr(NULL)));
-    decoding_driver_->set_externally_managed(true);
-
-    // Apply platform configuration mutation for consistency's sake.
-    ApplyPlatformSpecificConfiguration(decoding_driver_.get());
-    // Inserts platform-specific rewriters into the resource_filter_map_, so
-    // that the decoding process can recognize those rewriter ids.
-    AddPlatformSpecificDecodingPasses(decoding_driver_.get());
-    // This call is for backwards compatibility.  When adding new platform
-    // specific rewriters to implementations of RewriteDriverFactory, please
-    // do not rely on this call to include them in the decoding process.
-    // Instead, add them to your implementation of
-    // AddPlatformSpecificDecodingPasses.
-    AddPlatformSpecificRewritePasses(decoding_driver_.get());
-    decoding_server_context_->set_decoding_driver(decoding_driver_.get());
-  }
-  server_context->set_decoding_driver(decoding_driver_.get());
-}
-
-void RewriteDriverFactory::InitStubDecodingServerContext(ServerContext* sc) {
-  sc->set_timer(timer());
-  sc->set_url_namer(url_namer());
-  sc->set_hasher(hasher());
-  sc->set_message_handler(message_handler());
-  NullStatistics* null_stats = new NullStatistics();
-  TakeOwnership(null_stats);
-  InitStats(null_stats);
-  sc->set_statistics(null_stats);
-  sc->set_hasher(hasher());
-  sc->set_signature(signature());
-  sc->PostInitHook();
 }
 
 void RewriteDriverFactory::AddPlatformSpecificDecodingPasses(
@@ -728,16 +668,6 @@ void RewriteDriverFactory::ShutDown() {
       worker_pool->ShutDown();
     }
   }
-
-  // Make sure we destroy the decoding driver here, before any of the
-  // server contexts get destroyed, since it's tied to one. Also clear
-  // all of the references to it.
-  for (ServerContextSet::iterator p = server_contexts_.begin();
-       p != server_contexts_.end(); ++p) {
-    ServerContext* server_context = *p;
-    server_context->set_decoding_driver(NULL);
-  }
-  decoding_driver_.reset(NULL);
 }
 
 void RewriteDriverFactory::AddCreatedDirectory(const GoogleString& dir) {

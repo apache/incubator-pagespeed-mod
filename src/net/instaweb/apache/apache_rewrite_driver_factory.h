@@ -37,19 +37,22 @@ class ApacheMessageHandler;
 class ApacheServerContext;
 class MessageHandler;
 class ModSpdyFetchController;
-class ProcessContext;
 class QueuedWorkerPool;
 class ServerContext;
 class SharedCircularBuffer;
 class SlowWorker;
+class StaticAssetManager;
 class Statistics;
 class Timer;
 
 // Creates an Apache RewriteDriver.
 class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
  public:
-  ApacheRewriteDriverFactory(const ProcessContext& process_context,
-                             server_rec* server, const StringPiece& version);
+  // Path prefix where we serve static assets (primarily images and js
+  // resources) needed by some filters.
+  static const char kStaticAssetPrefix[];
+
+  ApacheRewriteDriverFactory(server_rec* server, const StringPiece& version);
   virtual ~ApacheRewriteDriverFactory();
 
   // Give access to apache_message_handler_ for the cases we need
@@ -167,7 +170,8 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   virtual void SetCircularBuffer(SharedCircularBuffer* buffer);
 
-  virtual ServerContext* NewDecodingServerContext();
+  // Initializes the StaticAssetManager.
+  virtual void InitStaticAssetManager(StaticAssetManager* static_asset_manager);
 
  private:
   // Updates num_rewrite_threads_ and num_expensive_rewrite_threads_

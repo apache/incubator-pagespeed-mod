@@ -27,6 +27,7 @@
 namespace net_instaweb {
 
 class FileSystem;
+class FilenameEncoder;
 class Hasher;
 class MessageHandler;
 class SharedString;
@@ -40,22 +41,21 @@ class FileCache : public CacheInterface {
  public:
   struct CachePolicy {
     CachePolicy(Timer* timer, Hasher* hasher, int64 clean_interval_ms,
-                int64 target_size_bytes, int64 target_inode_count)
+                int64 target_size, int64 target_inode_count)
         : timer(timer), hasher(hasher), clean_interval_ms(clean_interval_ms),
-          target_size_bytes(target_size_bytes),
-          target_inode_count(target_inode_count) {}
+          target_size(target_size), target_inode_count(target_inode_count) {}
     const Timer* timer;
     const Hasher* hasher;
-    int64 clean_interval_ms;
-    int64 target_size_bytes;
-    int64 target_inode_count;
+    const int64 clean_interval_ms;
+    const int64 target_size;
+    const int64 target_inode_count;
    private:
     DISALLOW_COPY_AND_ASSIGN(CachePolicy);
   };
 
   FileCache(const GoogleString& path, FileSystem* file_system,
-            SlowWorker* worker, CachePolicy* policy, Statistics* stats,
-            MessageHandler* handler);
+            SlowWorker* worker, FilenameEncoder* filename_encoder,
+            CachePolicy* policy, Statistics* stats, MessageHandler* handler);
   virtual ~FileCache();
 
   static void InitStats(Statistics* statistics);
@@ -74,18 +74,16 @@ class FileCache : public CacheInterface {
   virtual void ShutDown() {}  // TODO(jmarantz): implement.
 
   const CachePolicy* cache_policy() const { return cache_policy_.get(); }
-  CachePolicy* mutable_cache_policy() { return cache_policy_.get(); }
   const GoogleString& path() const { return path_; }
 
   // Variable names.
-  static const char kBytesFreedInCleanup[];
-  // Number of times we actually cleaned cache because usage was high enough.
-  static const char kCleanups[];
   // Number of times we checked disk usage in preparation from cleanup.
   static const char kDiskChecks[];
+  // Number of times we actually cleaned cache because usage was high enough.
+  static const char kCleanups[];
   // Files evicted from cache during cleanup.
   static const char kEvictions[];
-  static const char kWriteErrors[];
+  static const char kBytesFreedInCleanup[];
 
  private:
   class CacheCleanFunction;
@@ -97,7 +95,7 @@ class FileCache : public CacheInterface {
   // while. It's OK for others to write and read from the cache while this is
   // going on, but try to avoid Cleaning from two threads at the same time. A
   // target_inode_count of 0 means no inode limit is applied.
-  bool Clean(int64 target_size_bytes, int64 target_inode_count);
+  bool Clean(int64 target_size, int64 target_inode_count);
 
   // Clean the cache, taking care of interprocess locking, as well as
   // timestamp update. Returns true if the cache was actually cleaned.
@@ -118,6 +116,7 @@ class FileCache : public CacheInterface {
   const GoogleString path_;
   FileSystem* file_system_;
   SlowWorker* worker_;
+  FilenameEncoder* filename_encoder_;
   MessageHandler* message_handler_;
   const scoped_ptr<CachePolicy> cache_policy_;
   int64 next_clean_ms_;
@@ -131,7 +130,6 @@ class FileCache : public CacheInterface {
   Variable* cleanups_;
   Variable* evictions_;
   Variable* bytes_freed_in_cleanup_;
-  Variable* write_errors_;
 
   // The filename where we keep the next scheduled cleanup time in seconds.
   static const char kCleanTimeName[];

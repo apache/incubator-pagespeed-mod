@@ -40,12 +40,9 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
-
 namespace net_instaweb {
 
 class AbstractMutex;
-class AsyncFetch;
 class CacheHtmlInfoFinder;
 class CacheInterface;
 class CachePropertyStore;
@@ -56,6 +53,7 @@ class CriticalSelectorFinder;
 class RequestProperties;
 class ExperimentMatcher;
 class FileSystem;
+class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class Function;
 class GoogleUrl;
@@ -69,12 +67,9 @@ class ResponseHeaders;
 class RewriteDriver;
 class RewriteDriverFactory;
 class RewriteDriverPool;
-class RewriteFilter;
 class RewriteOptions;
 class RewriteOptionsManager;
-class RewriteQuery;
 class RewriteStats;
-class SHA1Signature;
 class Scheduler;
 class StaticAssetManager;
 class Statistics;
@@ -121,13 +116,19 @@ class ServerContext {
   //
   // Also sets Content-Type headers if content_type is provided.
   // If content_type is null, the Content-Type header is omitted.
-  //
-  // Sets charset if it's non-empty and content_type is non-NULL.
-  //
-  // If cache_control suffix is non-empty, adds that to the Cache-Control
-  void SetDefaultLongCacheHeaders(
+  void SetDefaultLongCacheHeaders(const ContentType* content_type,
+                                  ResponseHeaders* header) const {
+    SetDefaultLongCacheHeadersWithCharset(content_type, StringPiece(), header);
+  }
+
+  // As above, but also sets charset if it's non-empty and content_type
+  // is non-NULL.
+  void SetDefaultLongCacheHeadersWithCharset(
       const ContentType* content_type, StringPiece charset,
-      StringPiece cache_control_suffix, ResponseHeaders* header) const;
+      ResponseHeaders* header) const;
+
+  // Changes the content type of a pre-initialized header.
+  void SetContentType(const ContentType* content_type, ResponseHeaders* header);
 
   void set_filename_prefix(const StringPiece& file_prefix);
   void set_statistics(Statistics* x) { statistics_ = x; }
@@ -159,16 +160,6 @@ class ServerContext {
   // Is this URL a ref to a Pagespeed resource?
   bool IsPagespeedResource(const GoogleUrl& url);
 
-  // Returns a filter to be used for decoding URLs & options for given
-  // filter id. This should not be used for actual fetches.
-  const RewriteFilter* FindFilterForDecoding(const StringPiece& id) const;
-
-  // See RewriteDriver::DecodeUrl.
-  bool DecodeUrlGivenOptions(const GoogleUrl& url,
-                             const RewriteOptions* options,
-                             const UrlNamer* url_namer,
-                             StringVector* decoded_urls) const;
-
   void ComputeSignature(RewriteOptions* rewrite_options) const;
 
   // TODO(jmarantz): check thread safety in Apache.
@@ -177,12 +168,13 @@ class ServerContext {
   const Hasher* contents_hasher() const { return &contents_hasher_; }
   FileSystem* file_system() { return file_system_; }
   void set_file_system(FileSystem* fs ) { file_system_ = fs; }
+  FilenameEncoder* filename_encoder() const { return filename_encoder_; }
+  void set_filename_encoder(FilenameEncoder* x) { filename_encoder_ = x; }
   UrlNamer* url_namer() const { return url_namer_; }
   void set_url_namer(UrlNamer* n) { url_namer_ = n; }
   RewriteOptionsManager* rewrite_options_manager() const {
     return rewrite_options_manager_.get();
   }
-  SHA1Signature* signature() const { return signature_; }
   // Takes ownership of RewriteOptionsManager.
   void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
@@ -207,10 +199,7 @@ class ServerContext {
     return default_distributed_fetcher_;
   }
 
-  Timer* timer() const { return timer_; }
-
-  // Note: doesn't take ownership.
-  void set_timer(Timer* timer) { timer_ = timer; }
+  Timer* timer() const { return http_cache_->timer(); }
 
   HTTPCache* http_cache() const { return http_cache_.get(); }
   void set_http_cache(HTTPCache* x) { http_cache_.reset(x); }
@@ -295,7 +284,6 @@ class ServerContext {
     return critical_line_info_finder_.get();
   }
 
-  // Takes ownership of the passed in finder.
   void set_critical_line_info_finder(CriticalLineInfoFinder* finder);
 
   // Whether or not dumps of rewritten resources should be stored to
@@ -328,7 +316,6 @@ class ServerContext {
 
   // Setters should probably only be used in testing.
   void set_hasher(Hasher* hasher) { hasher_ = hasher; }
-  void set_signature(SHA1Signature* signature) { signature_ = signature; }
   void set_default_system_fetcher(UrlAsyncFetcher* fetcher) {
     default_system_fetcher_ = fetcher;
   }
@@ -365,31 +352,18 @@ class ServerContext {
   // Makes a new, empty set of RewriteOptions.
   RewriteOptions* NewOptions();
 
-  // Runs the rewrite_query parser for any options set in query-params
-  // or in the headers. If all the pagespeed options that were parsed
-  // were valid, they are available either in rewrite_query->options() or in
-  // request_context if they are not actual options. The passed-in domain
-  // options control how options are handled, notably whether we allow related
-  // options or allow options to be specified by cookies. If you don't have
-  // domain specific options, pass NULL and global_options() will be used.
-  //
-  // True is returned in two cases:
-  //    - Valid PageSpeed query params or headers were parsed
-  //    - No PageSpeed query-parameters or headers were found.
-  // False is returned if there were PageSpeed-related options but they were
-  // not valid.
-  //
-  // It also strips off the PageSpeed query parameters and headers from the
-  // request_url, request headers, and response headers respectively. Stripped
-  // query params are copied into rewrite_query->pagespeed_query_params() and
-  // any PageSpeed option cookies are copied into
-  // rewrite_query->pagespeed_option_cookies().
-  bool GetQueryOptions(const RequestContextPtr& request_context,
-                       const RewriteOptions* domain_options,
-                       GoogleUrl* request_url,
-                       RequestHeaders* request_headers,
-                       ResponseHeaders* response_headers,
-                       RewriteQuery* rewrite_query);
+  // Returns any options set in query-params or in the headers. Possible
+  // return-value scenarios for the pair are:
+  // * first==*, .second==false:  query-params or headers failed in parse.
+  //   We return 405 in this case (see ProxyInterface::ProxyRequest).
+  // * first==NULL, .second==true: No query-params or headers are present.
+  //   This is treated as if there are no query param (or header) options.
+  // * first!=NULL, .second==true: Use query-params.
+  // It also strips off the ModPageSpeed query parameters and headers from the
+  // request_url, request headers, and response headers respectively.
+  OptionsBoolPair GetQueryOptions(GoogleUrl* request_url,
+                                  RequestHeaders* request_headers,
+                                  ResponseHeaders* response_headers);
 
   // Checks the url for the split html ATF/BTF query param. If present, it
   // strips the param from the url, and sets a bit in the request context
@@ -542,11 +516,9 @@ class ServerContext {
   size_t num_active_rewrite_drivers();
 
   // A ServerContext may be created in one phase, and later populated
-  // with all its dependencies.  This populates the worker threads.
-  void InitWorkers();
-
-  // To set up AdminSite for SystemServerContext.
-  virtual void PostInitHook();
+  // with all its dependencies.  This populates the worker threads and
+  // a RewriteDriver used just for quickly decoding (but not serving) URLs.
+  void InitWorkersAndDecodingDriver();
 
   // Returns whether or not this attribute can be merged into headers
   // without additional considerations.
@@ -594,6 +566,10 @@ class ServerContext {
   virtual void ApplySessionFetchers(const RequestContextPtr& req,
                                     RewriteDriver* driver);
 
+  const RewriteDriver* decoding_driver() const {
+    return decoding_driver_.get();
+  }
+
   // Determines whether in this server, it makes sense to proxy HTML
   // from external sources.  If we're acting as a reverse proxy that
   // talks to the backend over HTTP, it makes sense to set this to
@@ -614,10 +590,6 @@ class ServerContext {
   void DeleteCacheOnDestruction(CacheInterface* cache);
 
   void set_cache_property_store(CachePropertyStore* p);
-
-  // Set the RewriteDriver that will be used to decode .pagespeed. URLs.
-  // Does not take ownership.
-  void set_decoding_driver(RewriteDriver* rd) { decoding_driver_ = rd; }
 
   // Creates CachePropertyStore object which will be used by PagePropertyCache.
   virtual PropertyStore* CreatePropertyStore(CacheInterface* cache_backend);
@@ -642,20 +614,6 @@ class ServerContext {
   // Returns NULL if non-CachePropertyStore is used.
   const CacheInterface* pcache_cache_backend();
 
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns() const {
-    return js_tokenizer_patterns_;
-  }
-
-  // Shows cached data related to a URL.  Ownership of options is transferred
-  // to this function.
-  void ShowCacheHandler(StringPiece url, AsyncFetch* fetch,
-                        RewriteOptions* options);
-
-  // Returns an HTML form for entering a URL for ShowCacheHandler.  If
-  // the user_agent is non-null, then it's used to prepopulate the
-  // "User Agent" field in the form.
-  GoogleString ShowCacheForm(const char* user_agent) const;
-
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
   // appropriate spot during shutdown.
@@ -675,6 +633,7 @@ class ServerContext {
   RewriteStats* rewrite_stats_;
   GoogleString file_prefix_;
   FileSystem* file_system_;
+  FilenameEncoder* filename_encoder_;
   UrlNamer* url_namer_;
   scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
   UserAgentMatcher* user_agent_matcher_;
@@ -682,7 +641,6 @@ class ServerContext {
   UrlAsyncFetcher* default_system_fetcher_;
   UrlAsyncFetcher* default_distributed_fetcher_;
   Hasher* hasher_;
-  SHA1Signature* signature_;
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
@@ -701,7 +659,6 @@ class ServerContext {
 
   Statistics* statistics_;
 
-  Timer* timer_;
   scoped_ptr<HTTPCache> http_cache_;
   scoped_ptr<PropertyCache> page_property_cache_;
   CacheInterface* filesystem_metadata_cache_;
@@ -753,14 +710,21 @@ class ServerContext {
 
   scoped_ptr<AbstractMutex> rewrite_drivers_mutex_;
 
+  // Note: this must be before decoding_driver_ since it's needed to init it.
   // All access, even internal to the class, should be via options() so
   // subclasses can override.
   scoped_ptr<RewriteOptions> base_class_options_;
 
-  // This is owned by the RewriteDriverFactory. We use it for just for decoding
-  // resource URLs, using the default options.  This is possible because the
-  // id->RewriteFilter table is fully constructed independent of the options.
-  RewriteDriver* decoding_driver_;
+  // Keep around a RewriteDriver just for decoding resource URLs, using
+  // the default options.  This is possible because the id->RewriteFilter
+  // table is fully constructed independent of the options.
+  //
+  // TODO(jmarantz): If domain-sharding or domain-rewriting is
+  // specified in a Directory scope or .htaccess file, the decoding
+  // driver will not see them.  This is blocks effective
+  // implementation of these features in environments where all
+  // configuration must be done by .htaccess.
+  scoped_ptr<RewriteDriver> decoding_driver_;
 
   QueuedWorkerPool* html_workers_;  // Owned by the factory
   QueuedWorkerPool* rewrite_workers_;  // Owned by the factory
@@ -786,8 +750,6 @@ class ServerContext {
   // A simple (and always seeded with the same default!) random number
   // generator.  Do not use for security purposes.
   SimpleRandom simple_random_;
-  // Owned by RewriteDriverFactory.
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns_;
 
   scoped_ptr<CachePropertyStore> cache_property_store_;
 

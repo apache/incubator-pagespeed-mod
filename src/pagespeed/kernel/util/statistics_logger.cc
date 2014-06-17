@@ -85,7 +85,7 @@ const char* const kOtherLoggedVars[] = {
 
 StatisticsLogger::StatisticsLogger(
     int64 update_interval_ms, int64 max_logfile_size_kb,
-    const StringPiece& logfile_name, MutexedScalar* last_dump_timestamp,
+    const StringPiece& logfile_name, MutexedVariable* last_dump_timestamp,
     MessageHandler* message_handler, Statistics* stats,
     FileSystem* file_system, Timer* timer)
     : last_dump_timestamp_(last_dump_timestamp),
@@ -161,16 +161,13 @@ void StatisticsLogger::DumpConsoleVarsToWriter(
   writer->Write(StringPrintf("timestamp: %s\n",
       Integer64ToString(current_time_ms).c_str()), message_handler_);
 
-  for (StringSet::const_iterator iter = variables_to_log_.begin();
+  for (std::set<GoogleString>::const_iterator iter = variables_to_log_.begin();
        iter != variables_to_log_.end(); ++iter) {
     GoogleString var_name = *iter;
-
-    // TODO(jmarantz): Do the Variable/TimedVariable/UpDownCounter lookup
-    // in the constructor rather than doing the lookup each time we want to
-    // see the values.  Statistics::LookupValue is intended only for testing.
-    int64 val = statistics_->LookupValue(var_name);
-    writer->Write(StrCat(var_name, ": ", Integer64ToString(val), "\n"),
-                  message_handler_);
+    GoogleString var_as_str = Integer64ToString(
+        statistics_->GetVariable(var_name)->Get());
+    writer->Write(StringPrintf("%s: %s\n", var_name.c_str(),
+        var_as_str.c_str()), message_handler_);
   }
 
   writer->Flush(message_handler_);
@@ -189,7 +186,7 @@ void StatisticsLogger::TrimLogfileIfNeeded() {
 }
 
 void StatisticsLogger::DumpJSON(
-    const StringSet& var_titles,
+    const std::set<GoogleString>& var_titles,
     int64 start_time, int64 end_time, int64 granularity_ms,
     Writer* writer, MessageHandler* message_handler) const {
   FileSystem::InputFile* log_file =
@@ -211,7 +208,7 @@ void StatisticsLogger::DumpJSON(
 }
 
 void StatisticsLogger::ParseDataFromReader(
-    const StringSet& var_titles,
+    const std::set<GoogleString>& var_titles,
     StatisticsLogfileReader* reader,
     std::vector<int64>* timestamps, VarMap* var_values) const {
   // curr_timestamp starts as 0 because we need to compare it to the first
@@ -229,7 +226,7 @@ void StatisticsLogger::ParseDataFromReader(
     timestamps->push_back(curr_timestamp);
     // Push all variable values. Note: We only save the variables listed in
     // var_titles, the rest are disregarded.
-    for (StringSet::const_iterator iter = var_titles.begin();
+    for (std::set<GoogleString>::const_iterator iter = var_titles.begin();
          iter != var_titles.end(); ++iter) {
       const GoogleString& var_title = *iter;
 

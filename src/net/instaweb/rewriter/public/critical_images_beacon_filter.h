@@ -22,7 +22,6 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -37,7 +36,6 @@ class Variable;
 // rewriting or inlining.
 class CriticalImagesBeaconFilter : public CommonFilter {
  public:
-  static const char* kImageOnloadCode;
   // Counters.
   static const char kCriticalImagesBeaconAddedCount[];
 
@@ -54,26 +52,17 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "CriticalImagesBeacon"; }
 
-  // Returns true if this filter is going to inject a beacon. Filters that need
-  // to disabled when beaconing run, like the rendered_image_dimensions filter,
-  // can check this function.
-  static bool ShouldApply(RewriteDriver* rewrite_driver);
+  // Returns true if this filter is going to include rendered image dimensions
+  // in the beacon.
+  static bool IncludeRenderedImagesInBeacon(RewriteDriver* rewrite_driver);
 
  private:
   // Clear all state associated with filter.
   void Clear();
 
-  // Adds the beaconing javascript just before the current element if it has
-  // not already been added and insert_beacon_js_ is true.
-  void MaybeAddBeaconJavascript(HtmlElement* element);
-
   BeaconMetadata beacon_metadata_;
-  StringSet image_url_hashes_;
-  bool insert_beacon_js_;
   // The total number of times the beacon is added.
   Variable* critical_images_beacon_added_count_;
-
-  bool added_beacon_js_;
 
   DISALLOW_COPY_AND_ASSIGN(CriticalImagesBeaconFilter);
 };

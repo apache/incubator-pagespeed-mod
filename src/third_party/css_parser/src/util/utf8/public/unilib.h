@@ -32,7 +32,7 @@
 #define UTIL_UTF8_UNILIB_H__
 
 #include <string>
-#include "base/integral_types.h"
+#include "base/basictypes.h"
 
 namespace UniLib {
 

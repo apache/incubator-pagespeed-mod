@@ -165,30 +165,6 @@ void DecodeAndCompareImagesByPSNR(
   free(pixels2);
 }
 
-void CompareImageReaders(ScanlineReaderInterface* reader1,
-                         ScanlineReaderInterface* reader2) {
-  ASSERT_NE(reinterpret_cast<ScanlineReaderInterface*>(NULL), reader1);
-  ASSERT_NE(reinterpret_cast<ScanlineReaderInterface*>(NULL), reader2);
-  ASSERT_EQ(reader1->GetPixelFormat(), reader2->GetPixelFormat());
-  ASSERT_EQ(reader1->GetImageHeight(), reader2->GetImageHeight());
-  ASSERT_EQ(reader1->GetImageWidth(), reader2->GetImageWidth());
-  ASSERT_EQ(reader1->GetBytesPerScanline(), reader2->GetBytesPerScanline());
-
-  while (reader1->HasMoreScanLines() && reader2->HasMoreScanLines()) {
-    uint8_t* scanline1 = NULL;
-    uint8_t* scanline2 = NULL;
-    ASSERT_TRUE(reader1->ReadNextScanline(
-        reinterpret_cast<void**>(&scanline1)));
-    ASSERT_TRUE(reader2->ReadNextScanline(
-        reinterpret_cast<void**>(&scanline2)));
-    EXPECT_EQ(0, memcmp(scanline1, scanline2, reader1->GetBytesPerScanline()));
-  }
-
-  // Make sure both readers have exhausted all of the scanlines.
-  EXPECT_FALSE(reader1->HasMoreScanLines());
-  EXPECT_FALSE(reader2->HasMoreScanLines());
-}
-
 void CompareImageRegions(const uint8_t* image1, PixelFormat format1,
                          int bytes_per_row1, int col1, int row1,
                          const uint8_t* image2, PixelFormat format2,
@@ -211,8 +187,8 @@ void CompareImageRegions(const uint8_t* image1, PixelFormat format1,
   }
   int bytes_per_line = num_cols * num_channels;
 
-  net_instaweb::scoped_array<uint8_t> line1(new uint8_t[bytes_per_line]);
-  net_instaweb::scoped_array<uint8_t> line2(new uint8_t[bytes_per_line]);
+  scoped_array<uint8_t> line1(new uint8_t[bytes_per_line]);
+  scoped_array<uint8_t> line2(new uint8_t[bytes_per_line]);
   ASSERT_TRUE(line1 != NULL && line2 != NULL);
 
   image1 += row1 * bytes_per_row1;
@@ -239,35 +215,6 @@ void CompareImageRegions(const uint8_t* image1, PixelFormat format1,
 
     image1 += bytes_per_row1;
     image2 += bytes_per_row2;
-  }
-}
-
-void SynthesizeImage(int width, int height, int bytes_per_line,
-                     int num_channels, const uint8_t* seed_value,
-                     const int* delta_x, const int* delta_y, uint8_t* image) {
-  ASSERT_TRUE(image != NULL);
-  ASSERT_GT(width, 0);
-  ASSERT_GT(height, 0);
-  ASSERT_GE(bytes_per_line, width);
-
-  net_instaweb::scoped_array<uint8_t> current_value(new uint8_t[num_channels]);
-  memcpy(current_value.get(), seed_value,
-         num_channels * sizeof(seed_value[0]));
-
-  for (int y = 0; y < height; ++y) {
-    uint8_t* pixel = image + y * bytes_per_line;
-    for (int x = 0; x < width; ++x) {
-      for (int ch = 0; ch < num_channels; ++ch) {
-        pixel[ch] = current_value[ch];
-        current_value[ch] += delta_x[ch];
-      }
-      pixel += num_channels;
-    }
-    // Compute the value for the first pixel in the next line. The next line
-    // has values increased from those of the current line by delta_y.
-    for (int ch = 0; ch < num_channels; ++ch) {
-      current_value[ch] = image[y * bytes_per_line + ch] + delta_y[ch];
-    }
   }
 }
 

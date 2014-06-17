@@ -19,7 +19,6 @@
 #include "net/instaweb/rewriter/public/css_summarizer_base.h"
 
 #include <cstddef>
-#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_element.h"
@@ -28,7 +27,6 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/css_inline_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
@@ -43,7 +41,6 @@
 #include "net/instaweb/util/public/charset_util.h"
 #include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
-#include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
@@ -234,9 +231,6 @@ void CssSummarizerBase::Context::RewriteSingle(
   } else {
     filter_->Summarize(stylesheet.get(), result->mutable_inlined_data());
   }
-  if (CssInlineFilter::HasClosingStyleTag(result->inlined_data())) {
-    result->clear_inlined_data();
-  }
 
   // We never produce output --- just write to the CachedResult; so we
   // technically fail.
@@ -245,50 +239,36 @@ void CssSummarizerBase::Context::RewriteSingle(
 
 bool CssSummarizerBase::Context::Partition(OutputPartitions* partitions,
                                            OutputResourceVector* outputs) {
-  if (num_slots() != 1) {
-    return false;
+  bool ok;
+  if (!rewrite_inline_) {
+    ok = SingleRewriteContext::Partition(partitions, outputs);
+    ok = ok && (partitions->partition_size() != 0);
+  } else {
+    // In the case where we're rewriting inline CSS, we don't want an output
+    // resource but still want a non-trivial partition.
+    // We use kOmitInputHash here as this is for inline content.
+    CachedResult* partition = partitions->add_partition();
+    slot(0)->resource()->AddInputInfoToPartition(
+        Resource::kOmitInputHash, 0, partition);
+    outputs->push_back(OutputResourcePtr(NULL));
+    ok = true;
   }
-  ResourcePtr resource(slot(0)->resource());
-  if (!rewrite_inline_ && !resource->IsSafeToRewrite(rewrite_uncacheable())) {
-    // TODO(anupama): Shouldn't we check the closing style tag portion of
-    // ShouldInline(resource) here?
-    return false;
-  }
-  // We don't want an output resource but still want a non-trivial partition.
-  // We use kOmitInputHash here as this is for content that will be inlined.
-  CachedResult* partition = partitions->add_partition();
-  resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
-  outputs->push_back(OutputResourcePtr(NULL));
-  return true;
+
+  return ok;
 }
 
 GoogleString CssSummarizerBase::Context::CacheKeySuffix() const {
   return filter_->CacheKeySuffix();
 }
 
-const char CssSummarizerBase::kNumCssUsedForCriticalCssComputation[] =
-    "num_css_used_for_critical_css_computation";
-const char CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation[] =
-    "num_css_not_used_for_critical_css_computation";
-
 CssSummarizerBase::CssSummarizerBase(RewriteDriver* driver)
     : RewriteFilter(driver),
       progress_lock_(driver->server_context()->thread_system()->NewMutex()) {
-  Statistics* stats = server_context()->statistics();
-  num_css_used_for_critical_css_computation_ =
-      stats->GetVariable(kNumCssUsedForCriticalCssComputation);
-  num_css_not_used_for_critical_css_computation_ =
-      stats->GetVariable(kNumCssNotUsedForCriticalCssComputation);
   Clear();
 }
 
 CssSummarizerBase::~CssSummarizerBase() {
   Clear();
-}
-
-void CssSummarizerBase::InitStats(Statistics* statistics) {
-  statistics->AddVariable(kNumCssUsedForCriticalCssComputation);
-  statistics->AddVariable(kNumCssNotUsedForCriticalCssComputation);
 }
 
 GoogleString CssSummarizerBase::CacheKeySuffix() const {
@@ -422,11 +402,11 @@ void CssSummarizerBase::ReportSummariesDone() {
           StrAppend(&comment, "Computation still pending\n");
           break;
         case kSummaryCssParseError:
-          StrAppend(&comment, "Unrecoverable CSS parse error or resource "
-                              "contains closing style tag\n");
+          StrAppend(&comment, "Unrecoverable CSS parse error\n");
           break;
         case kSummaryResourceCreationFailed:
-          StrAppend(&comment, kCreateResourceFailedDebugMsg, "\n");
+          StrAppend(&comment, "Cannot create resource; is it authorized and "
+                              "is URL well-formed?\n");
           break;
         case kSummaryInputUnavailable:
           StrAppend(&comment,
@@ -440,13 +420,7 @@ void CssSummarizerBase::ReportSummariesDone() {
     }
     InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, comment));
   }
-  for (int i = 0, n = summaries_.size(); i < n; ++i) {
-    if (summaries_[i].state == kSummaryOk) {
-      num_css_used_for_critical_css_computation_->Add(1);
-    } else {
-      num_css_not_used_for_critical_css_computation_->Add(1);
-    }
-  }
+
   SummariesDone();
 }
 
@@ -456,10 +430,10 @@ void CssSummarizerBase::StartInlineRewrite(
   Context* context =
       CreateContextAndSummaryInfo(style, false /* not external */,
                                   slot, slot->LocationString(),
-                                  driver()->decoded_base(),
+                                  driver_->decoded_base(),
                                   StringPiece() /* rel, none since inline */);
   context->SetupInlineRewrite(style, text);
-  driver()->InitiateRewrite(context);
+  driver_->InitiateRewrite(context);
 }
 
 void CssSummarizerBase::StartExternalRewrite(
@@ -471,7 +445,7 @@ void CssSummarizerBase::StartExternalRewrite(
     summaries_.push_back(SummaryInfo());
     summaries_.back().state = kSummaryResourceCreationFailed;
     const char* url = src->DecodedValueOrNull();
-    summaries_.back().location = (url != NULL ? url : driver()->UrlLine());
+    summaries_.back().location = (url != NULL ? url : driver_->UrlLine());
 
     bool is_element_deleted = false;  // unused after call because no slot here
     WillNotRenderSummary(summaries_.size() - 1, link, NULL /* char_node */,
@@ -479,17 +453,17 @@ void CssSummarizerBase::StartExternalRewrite(
 
     // TODO(morlovich): Stat?
     if (DebugMode()) {
-      driver()->InsertComment(StrCat(
-          Name(), ": ", kCreateResourceFailedDebugMsg));
+      driver_->InsertComment(StrCat(
+          Name(), ": unable to create resource; is it authorized?"));
     }
     return;
   }
-  ResourceSlotPtr slot(driver()->GetSlot(input_resource, link, src));
+  ResourceSlotPtr slot(driver_->GetSlot(input_resource, link, src));
   Context* context = CreateContextAndSummaryInfo(
       link, true /* external*/, slot, input_resource->url() /* location*/,
       input_resource->url() /* base */, rel);
   context->SetupExternalRewrite(link);
-  driver()->InitiateRewrite(context);
+  driver_->InitiateRewrite(context);
 }
 
 ResourceSlot* CssSummarizerBase::MakeSlotForInlineCss(
@@ -500,8 +474,8 @@ ResourceSlot* CssSummarizerBase::MakeSlotForInlineCss(
   // copying. Get rid of them.
   DataUrl(kContentTypeCss, PLAIN, content, &data_url);
   ResourcePtr input_resource(DataUrlInputResource::Make(data_url,
-                                                        server_context()));
-  return new InlineCssSlot(input_resource, driver()->UrlLine());
+                                                        server_context_));
+  return new InlineCssSlot(input_resource, driver_->UrlLine());
 }
 
 CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(
@@ -525,7 +499,7 @@ CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(
 
   ++outstanding_rewrites_;
 
-  Context* context = new Context(id, this, driver());
+  Context* context = new Context(id, this, driver_);
   context->AddSlot(slot);
   return context;
 }

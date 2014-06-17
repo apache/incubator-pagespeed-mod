@@ -21,51 +21,22 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
-void QueryParams::ParseFromUrl(const GoogleUrl& gurl) {
+void QueryParams::Parse(const StringPiece& text) {
   CHECK_EQ(0, size());
-  map_.AddFromNameValuePairs(gurl.Query(), "&", '=',
-                             /* omit_if_no_value= */ false);
+  AddFromNameValuePairs(text, "&", '=', false);
 }
 
-void QueryParams::ParseFromUntrustedString(StringPiece query_param_string) {
-  GoogleUrl gurl(StrCat("http://www.example.com/?", query_param_string));
-  ParseFromUrl(gurl);
-}
-
-bool QueryParams::UnescapedValue(int index, GoogleString* unescaped_val) const {
-  const GoogleString* val = map_.value(index);
-  if (val == NULL) {
-    return false;
-  }
-  // TODO(jmarantz): make GoogleUrl::Unescape check for invalid encodings.
-  *unescaped_val = GoogleUrl::Unescape(*val);
-  return true;
-}
-
-bool QueryParams::Lookup1Unescaped(const StringPiece& name,
-                                   GoogleString* unescaped_val) const {
-  const GoogleString* val = map_.Lookup1(name);
-  if (val == NULL) {
-    return false;
-  }
-  // TODO(jmarantz): make GoogleUrl::Unescape check for invalid encodings.
-  *unescaped_val = GoogleUrl::Unescape(*val);
-  return true;
-}
-
-GoogleString QueryParams::ToEscapedString() const {
+GoogleString QueryParams::ToString() const {
   GoogleString str;
   const char* prefix="";
   for (int i = 0; i < size(); ++i) {
-    const GoogleString* escaped_value = EscapedValue(i);
-    if (escaped_value == NULL) {
+    if (value(i) == NULL) {
       StrAppend(&str, prefix, name(i));
     } else {
-      StrAppend(&str, prefix, name(i), "=", *escaped_value);
+      StrAppend(&str, prefix, name(i), "=", *(value(i)));
     }
     prefix = "&";
   }

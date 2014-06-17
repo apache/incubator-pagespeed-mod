@@ -68,6 +68,13 @@ class CssInlineImportToLinkFilterTest : public RewriteTestBase {
   }
 };
 
+TEST_F(CssInlineImportToLinkFilterTest, CssPreserveURL) {
+  options()->EnableFilter(RewriteOptions::kInlineImportToLink);
+  options()->set_css_preserve_urls(true);
+  rewrite_driver()->AddFilters();
+  ValidateStyleUnchanged("<style>@import url(assets/styles.css);</style>");
+}
+
 TEST_F(CssInlineImportToLinkFilterTest, CssPreserveURLOff) {
   options()->EnableFilter(RewriteOptions::kInlineImportToLink);
   options()->set_css_preserve_urls(false);
@@ -75,15 +82,6 @@ TEST_F(CssInlineImportToLinkFilterTest, CssPreserveURLOff) {
       "<link rel=\"stylesheet\" href=\"assets/styles.css\">";
   rewrite_driver()->AddFilters();
   ValidateStyleToLink("<style>@import url(assets/styles.css);</style>", kLink);
-}
-
-TEST_F(CssInlineImportToLinkFilterTest, AlwaysAllowUnauthorizedDomain) {
-  options()->EnableFilter(RewriteOptions::kInlineImportToLink);
-  options()->set_css_preserve_urls(false);
-  rewrite_driver()->AddFilters();
-  ValidateStyleToLink(
-      "<style>@import url(http://unauth.com/assets/styles.css);</style>",
-      "<link rel=\"stylesheet\" href=\"http://unauth.com/assets/styles.css\">");
 }
 
 // Tests for converting styles to links.
@@ -110,14 +108,6 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertGoodStyle) {
   // final semicolon, however according to the 2003 spec it is valid. Some
   // browsers seem to accept it and some don't, so we will accept it.
   ValidateStyleToLink("<style>@import url(assets/styles.css)</style>", kLink);
-}
-
-TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertScoped) {
-  // <style scoped> can't be converted to a link.
-  // (https://code.google.com/p/modpagespeed/issues/detail?id=918)
-  AddFilter(RewriteOptions::kInlineImportToLink);
-  ValidateStyleUnchanged("<style type=\"text/css\" scoped>"
-                         "@import url(assets/styles.css);</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithMultipleImports) {

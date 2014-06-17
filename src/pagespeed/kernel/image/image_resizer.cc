@@ -354,7 +354,7 @@ class ResizeRowArea : public ResizeRow {
  protected:
   int pixels_per_row_;
   float* output_buffer_;  // Not owned
-  net_instaweb::scoped_array<ResizeTableEntry> table_;
+  scoped_array<ResizeTableEntry> table_;
 };
 
 template<int num_channels>
@@ -428,8 +428,8 @@ class ResizeColArea : public ResizeCol {
   void ComputeOutput(const float* in_data, uint8_t* out_data);
 
  private:
-  net_instaweb::scoped_array<ResizeTableEntry> table_;
-  net_instaweb::scoped_array<float> buffer_;
+  scoped_array<ResizeTableEntry> table_;
+  scoped_array<float> buffer_;
   uint8_t* output_buffer_;  // Not owned
   int elements_per_row_;
   // elements_per_row_4_ is the largest multiple of 4 which is smaller than
@@ -666,7 +666,7 @@ ScanlineStatus ScanlineResizer::InitializeWithStatus(
 ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
     void** out_scanline_bytes) {
   if (reader_ == NULL || !HasMoreScanLines()) {
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_RESIZER,
                             "null reader or no more scanlines");
@@ -677,7 +677,7 @@ ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
   resizer_y_->InitializeResize();
   while (resizer_y_->NeedMoreScanlines()) {
     if (!reader_->HasMoreScanLines()) {
-      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+      return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                               SCANLINE_STATUS_INTERNAL_ERROR,
                               SCANLINE_RESIZER,
                               "HasMoreScanLines()");
@@ -685,7 +685,7 @@ ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
     void* in_scanline_bytes = NULL;
     if (!reader_->ReadNextScanline(&in_scanline_bytes)) {
       Reset();
-      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                               SCANLINE_STATUS_INTERNAL_ERROR,
                               SCANLINE_RESIZER,
                               "ReadNextScanline()");

@@ -36,10 +36,9 @@ void ResourceSlot::SetResource(const ResourcePtr& resource) {
   resource_ = ResourcePtr(resource);
 }
 
-bool ResourceSlot::DirectSetUrl(const StringPiece& url) {
+void ResourceSlot::DirectSetUrl(const StringPiece& url) {
   LOG(DFATAL) << "Trying to direct-set a URL on a slot that does not "
       "support it: " << LocationString();
-  return false;
 }
 
 RewriteContext* ResourceSlot::LastContext() const {
@@ -57,12 +56,6 @@ void ResourceSlot::DetachContext(RewriteContext* context) {
   } else {
     DLOG(FATAL) << "Can only detach first or last context";
   }
-}
-
-void ResourceSlot::InsertDebugComment(StringPiece message) {
-  // TODO(jmarantz): this get scalled for InlineCssSlot, at least.  Implement
-  // this to propgagte the error up to the HtmlResourceSlot.
-  // LOG(DFATAL) << "Can only insert debug comments for HTML slots";
 }
 
 GoogleString ResourceSlot::RelativizeOrPassthrough(
@@ -131,10 +124,6 @@ void HtmlResourceSlot::Render() {
   }
 }
 
-void HtmlResourceSlot::InsertDebugComment(StringPiece message) {
-  driver_->InsertDebugComment(message, element_);
-}
-
 GoogleString HtmlResourceSlot::LocationString() {
   if (begin_line_number_ == end_line_number_) {
     return StrCat(driver_->id(), ":", IntegerToString(begin_line_number_));
@@ -145,17 +134,11 @@ GoogleString HtmlResourceSlot::LocationString() {
   }
 }
 
-bool HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
-  // We should never try to render unauthorized resource URLs as is.
-  if (!resource()->is_authorized_domain()) {
-    return false;
-  }
+void HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
   DCHECK(attribute_ != NULL);
   if (attribute_ != NULL) {
     attribute_->SetValue(url);
-    return true;
   }
-  return false;
 }
 
 // TODO(jmarantz): test sanity of set maintenance using this comparator.

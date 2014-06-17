@@ -17,24 +17,23 @@
 // Author: jkarlin@google.com (Josh Karlin)
 
 #include "net/instaweb/rewriter/public/fake_filter.h"
-#include <memory>
 
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/scheduler.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
 
@@ -43,9 +42,8 @@ FakeFilter::Context::~Context() {}
 void FakeFilter::Context::RewriteSingle(const ResourcePtr& input,
                                         const OutputResourcePtr& output) {
   if (filter_->exceed_deadline()) {
-    // Wake up 1us past the deadline.
     int64 wakeup_us = Driver()->scheduler()->timer()->NowUs() +
-                      (Timer::kMsUs * GetRewriteDeadlineAlarmMs() + 1);
+                      (1000 * GetRewriteDeadlineAlarmMs());
     Function* closure =
         MakeFunction(this, &Context::DoRewriteSingle, input, output);
     Driver()->scheduler()->AddAlarmAtUs(wakeup_us, closure);
@@ -93,25 +91,6 @@ GoogleString FakeFilter::Context::UserAgentCacheKey(
 
 FakeFilter::~FakeFilter() {}
 
-void FakeFilter::StartElementImpl(HtmlElement* element) {
-  resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(element, rewrite_options(), &attributes);
-  for (int i = 0, n = attributes.size(); i < n; ++i) {
-    if (attributes[i].category == category_) {
-      ResourcePtr input_resource(
-          CreateInputResource(attributes[i].url->DecodedValueOrNull()));
-      if (input_resource.get() == NULL) {
-        return;
-      }
-      ResourceSlotPtr slot(
-          driver()->GetSlot(input_resource, element, attributes[i].url));
-      RewriteContext* context = MakeRewriteContext();
-      context->AddSlot(slot);
-      driver()->InitiateRewrite(context);
-    }
-  }
-}
-
 RewriteContext* FakeFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
   ResourceContext* resource_context = new ResourceContext;
@@ -119,7 +98,7 @@ RewriteContext* FakeFilter::MakeNestedRewriteContext(
     resource_context->CopyFrom(*parent->resource_context());
   }
   RewriteContext* context =
-      MakeFakeContext(NULL, parent, resource_context);
+      new FakeFilter::Context(this, NULL, parent, resource_context);
   context->AddSlot(slot);
   return context;
 }
@@ -131,7 +110,9 @@ void FakeFilter::ClearStats() {
 
 void FakeFilter::EncodeUserAgentIntoResourceContext(
     ResourceContext* context) const {
-  ImageUrlEncoder::SetWebpAndMobileUserAgent(*driver(), context);
+  if (driver_->user_agent() == UserAgentMatcher::kTestUserAgentWebP) {
+    context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
+  }
   ++num_calls_to_encode_user_agent_;
 }
 

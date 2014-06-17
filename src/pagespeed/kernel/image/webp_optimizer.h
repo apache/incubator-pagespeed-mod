@@ -24,8 +24,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_frame_interface.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 
@@ -77,35 +75,30 @@ struct WebpConfiguration {
   // WebPConfig, please update the CopyTo() method.
 };
 
-class WebpFrameWriter : public MultipleFrameWriter {
+
+class WebpScanlineWriter : public ScanlineWriterInterface {
  public:
-  explicit WebpFrameWriter(MessageHandler* handler);
-  virtual ~WebpFrameWriter();
+  explicit WebpScanlineWriter(MessageHandler* handler);
+  virtual ~WebpScanlineWriter();
 
-  // Sets the WebP configuration to be 'config', which should be a
+  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
+                                        PixelFormat pixel_format);
+  // Sets the WebP configuration to be 'params', which should be a
   // WebpConfiguration* and should not be NULL.
-  virtual ScanlineStatus Initialize(const void* config, GoogleString* out);
-
-  // image_spec must remain valid for the lifetime of
-  // WebpFrameWriter.
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
-
-  // frame_spec must remain valid while the frame is being written.
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
-
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
+  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
+                                                   GoogleString* const out);
+  virtual ScanlineStatus WriteNextScanlineWithStatus(void *scanline_bytes);
 
   // Note that even after WriteNextScanline() has been called,
-  // Initialize() and FinalizeWrite() may be called repeatedly to
+  // InitializeWrite() and FinalizeWrite() may be called repeatedly to
   // write the image with, say, different configs.
-  virtual ScanlineStatus FinalizeWrite();
+  virtual ScanlineStatus FinalizeWriteWithStatus();
+
+  MessageHandler* message_handler() {
+    return message_handler_;
+  }
 
  private:
-  // This class does NOT own image_spec_.
-  const ImageSpec* image_spec_;
-
-  int next_frame_;
-
   // Number of bytes per row. See
   // https://developers.google.com/speed/webp/docs/api#encodingapi
   int stride_bytes_;
@@ -133,8 +126,8 @@ class WebpFrameWriter : public MultipleFrameWriter {
   // Whether the image has an alpha channel.
   bool has_alpha_;
 
-  // Whether PrepareImage() has been called successfully.
-  bool image_prepared_;
+  // Whether Init() has been called successfully.
+  bool init_ok_;
 
   // Whether WebPPictureImport* has been called.
   bool imported_;
@@ -160,7 +153,9 @@ class WebpFrameWriter : public MultipleFrameWriter {
   // images efficiently.
   bool should_expand_gray_to_rgb_;
 
-  DISALLOW_COPY_AND_ASSIGN(WebpFrameWriter);
+  MessageHandler* message_handler_;
+
+  DISALLOW_COPY_AND_ASSIGN(WebpScanlineWriter);
 };
 
 // WebpScanlineReader decodes WebP images. It returns a scanline (a row of
@@ -206,7 +201,7 @@ class WebpScanlineReader : public ScanlineReaderInterface {
   bool was_initialized_;
 
   // Buffer for holding the decoded pixels.
-  net_instaweb::scoped_array<uint8_t> pixels_;
+  scoped_array<uint8_t> pixels_;
 
   MessageHandler* message_handler_;
 

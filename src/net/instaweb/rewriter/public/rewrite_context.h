@@ -28,6 +28,7 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
@@ -47,6 +48,7 @@ class RewriteDriver;
 class RewriteOptions;
 class Statistics;
 class Variable;
+class Writer;
 class FreshenMetadataUpdateManager;
 
 // RewriteContext manages asynchronous rewriting of some n >= 1 resources (think
@@ -144,7 +146,6 @@ class FreshenMetadataUpdateManager;
 class RewriteContext {
  public:
   typedef std::vector<InputInfo*> InputInfoStarVector;
-  static const char kNumRewritesAbandonedForLockContention[];
   static const char kNumDeadlineAlarmInvocations[];
   static const char kNumDistributedRewriteSuccesses[];
   static const char kNumDistributedRewriteFailures[];
@@ -248,6 +249,25 @@ class RewriteContext {
              AsyncFetch* fetch,
              MessageHandler* message_handler);
 
+  // Attempts to lookup the metadata cache info that would be used for the
+  // output resource at url with the RewriteOptions set on driver.
+  //
+  // If there is a problem with the URL, returns false, and *error_out
+  // will contain an error message.
+  //
+  // If it can determine the metadata cache key successfully, returns true,
+  // and eventually callback will be invoked with the metadata cache key
+  // and the decoding results.
+  //
+  // Do not use the driver passed to this method for anything else.
+  //
+  // Note: this method is meant for debugging use only.
+  static bool LookupMetadataForOutputResource(
+      const GoogleString& url,
+      RewriteDriver* driver,
+      GoogleString* error_out,
+      CacheLookupResultCallback* callback);
+
   // If true, we have determined that this job can't be rendered just
   // from metadata cache (including all prerequisites).
   bool slow() const { return slow_; }
@@ -297,9 +317,7 @@ class RewriteContext {
   // not a deep tree.  Same with Driver() and Options().
   ServerContext* FindServerContext() const;
   const RewriteOptions* Options() const;
-  RewriteDriver* Driver() const {
-    return driver_;
-  }
+  RewriteDriver* Driver() const;
 
   // Accessors for the nested rewrites.
   int num_nested() const { return nested_.size(); }
@@ -347,11 +365,11 @@ class RewriteContext {
   // Call this from the main rewrite sequence to report results of
   // PartitionAsync. If the client is not in the main rewrite sequence,
   // use CrossThreadPartitionDone() instead.
-  void PartitionDone(RewriteResult result);
+  void PartitionDone(bool result);
 
   // Helper for queuing invocation of PartitionDone to run in the
   // main rewrite sequence.
-  void CrossThreadPartitionDone(RewriteResult result);
+  void CrossThreadPartitionDone(bool result);
 
   // Takes a completed rewrite partition and rewrites it.  When
   // complete, implementations should call RewriteDone(kRewriteOk) if
@@ -381,19 +399,14 @@ class RewriteContext {
   // This method can run in any thread.
   void RewriteDone(RewriteResult result, int partition_index);
 
-  // Sends a a response to the the client via the AsyncFetch, transforming
-  // output if needed (e.g. css absolutification) and controlling chunked
-  // encoding hints as needed.
-  //
+  // Absolutify contents of an input resource and write it into writer.
   // This is called in case a rewrite fails in the fetch path or a deadline
   // is exceeded. Default implementation is just to write the input.
   // But contexts may need to specialize this to actually absolutify
   // subresources if the fetched resource is served on a different path
   // than the input resource.
-  virtual bool SendFallbackResponse(StringPiece output_url_base,
-                                    StringPiece contents,
-                                    AsyncFetch* async_fetch,
-                                    MessageHandler* handler);
+  virtual bool AbsolutifyIfNeeded(const StringPiece& input_contents,
+                                  Writer* writer, MessageHandler* handler);
 
   // Called on the parent to initiate all nested tasks.  This is so
   // that they can all be added before any of them are started.
@@ -525,7 +538,7 @@ class RewriteContext {
   bool ShouldDistributeRewrite() const;
 
   // Determines if this rewrite-context is acting on behalf of a distributed
-  // rewrite request from an HTML rewrite. Verifies the distributed rewrite key.
+  // rewrite request from an HTML rewrite.
   bool IsDistributedRewriteForHtml() const;
 
   // Dispatches the rewrite to another task with a distributed fetcher. Should
@@ -548,12 +561,10 @@ class RewriteContext {
                                MessageHandler* message_handler,
                                GoogleUrlStarVector* url_vector);
 
-  // Adjust headers sent out for a stale or in-place result. We may send out
-  // stale results in the fallback fetch pathway, but these results should not
-  // be cached much.  By default we strip Set-Cookie* headers and Etags, and
-  // convert Cache-Control headers to private, max-age=300.
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers);
+  // Fixes the headers resulting from a fetch fallback. This is called when a
+  // fetch fallback is found in cache. The default implementation strips cookies
+  // and sets the cache ttl to the implicit cache ttl ms.
+  virtual void FixFetchFallbackHeaders(ResponseHeaders* headers);
 
   // Callback once the fetch is done. This calls Driver()->FetchComplete() if
   // notify_driver_on_fetch_done is true.
@@ -604,17 +615,6 @@ class RewriteContext {
 
   // Should the context call LockForCreation before checking the cache?
   virtual bool CreationLockBeforeStartFetch() { return true; }
-
-  // Backend to RewriteDriver::LookupMetadataForOutputResource, with
-  // the RewriteContext of appropriate type and the OutputResource already
-  // created. Takes ownership of rewrite_context.
-  static bool LookupMetadataForOutputResourceImpl(
-      OutputResourcePtr output_resource,
-      const GoogleUrl& gurl,
-      RewriteContext* rewrite_context,
-      RewriteDriver* driver,
-      GoogleString* error_out,
-      CacheLookupResultCallback* callback);
 
  private:
   class DistributedRewriteCallback;
@@ -938,8 +938,9 @@ class RewriteContext {
   // That way it can stay around and 'own' all the resources associated
   // with all the resources it spawns, directly or indirectly.
   //
-  // Nested RewriteContexts obtain their driver from their parent, but
-  // store it here to permit Driver() to be a simple getter.
+  // Nested RewriteContexts have a null driver_ but can always get to a
+  // driver by walking up the parent tree, which we generally expect
+  // to be very shallow.
   RewriteDriver* driver_;
 
   // Track the number of ResourceContexts that must be run before this one.
@@ -974,18 +975,10 @@ class RewriteContext {
   // We would *not* want to do that if one of the Rewrites completed
   // with status kTooBusy or if we've just read these very partitions from
   // the metadata cache.
-  //
-  // Because both failure (kTooBusy) and success (we just read this from cache)
-  // lead to ok_to_write_output_partitions_ being turned off, this is not copied
-  // from nested rewrite contexts.  In the success case we want the parent to
-  // write iff it has made changes, which is what it will do if we copy nothing;
-  // in the failure case we also set was_too_busy_, which does get copied to the
-  // parent.
   bool ok_to_write_output_partitions_;
 
   // True if the rewrite was incomplete due to heavy load; if this is true
-  // ok_to_write_output_partitions_ must be false.  This is copied from nested
-  // rewrite contexts because if one rewrite fails none should be saved.
+  // ok_to_write_output_partitions_ must be false.
   bool was_too_busy_;
 
   // We mark a job as "slow" when we cannot render it entirely from the
@@ -1030,7 +1023,6 @@ class RewriteContext {
   // Map to dedup partitions other dependency field.
   StringIntMap other_dependency_map_;
 
-  Variable* const num_rewrites_abandoned_for_lock_contention_;
   Variable* const num_distributed_rewrite_failures_;
   Variable* const num_distributed_rewrite_successes_;
   Variable* const num_distributed_metadata_failures_;

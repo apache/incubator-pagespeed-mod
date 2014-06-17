@@ -76,18 +76,18 @@ void SimpleTextFilter::StartElementImpl(HtmlElement* element) {
   if (attr != NULL) {
     ResourcePtr resource = CreateInputResource(attr->DecodedValueOrNull());
     if (resource.get() != NULL) {
-      ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
+      ResourceSlotPtr slot(driver_->GetSlot(resource, element, attr));
 
       // This 'new' is paired with a delete in RewriteContext::FinishFetch()
-      Context* context = new Context(rewriter_, driver(), NULL);
+      Context* context = new Context(rewriter_, driver_, NULL);
       context->AddSlot(slot);
-      driver()->InitiateRewrite(context);
+      driver_->InitiateRewrite(context);
     }
   }
 }
 
 RewriteContext* SimpleTextFilter::MakeRewriteContext() {
-  return new Context(rewriter_, driver(), NULL);
+  return new Context(rewriter_, driver_, NULL);
 }
 
 RewriteContext* SimpleTextFilter::MakeNestedRewriteContext(

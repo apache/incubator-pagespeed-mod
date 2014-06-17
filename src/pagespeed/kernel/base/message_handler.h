@@ -22,12 +22,9 @@
 #include <cstdarg>
 
 #include "pagespeed/kernel/base/printf_format.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
-
-class Writer;
 
 enum MessageType {
   kInfo,
@@ -93,20 +90,11 @@ class MessageHandler {
     FileMessageV(kFatal, fname, line, msg, a);
   }
 
-  // 'MessageVImpl' and 'FileMessageVImpl' are public methods in order to
-  // simplify delegation.
+ protected:
   virtual void MessageVImpl(MessageType type, const char* msg,
                             va_list args) = 0;
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args) = 0;
-
-  // Dumps recent messages, or returns false if this was not possible.
-  // The default implementation returns false, but derived classes may
-  // add a circular buffer to implement this, e.g. SharedCircularBuffer.
-  virtual bool Dump(Writer* writer);
-
- protected:
-  GoogleString Format(const char* msg, va_list args);
 
  private:
   // The minimum message type to log at. Any messages below this level

@@ -19,7 +19,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOCK_CRITICAL_IMAGES_FINDER_H_
 
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/string_util.h"
@@ -44,9 +43,7 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
 
   ~MockCriticalImagesFinder();
 
-  virtual Availability Available(RewriteDriver* driver) {
-    return kAvailable;
-  }
+  virtual bool IsMeaningful(const RewriteDriver* driver) const { return true; }
 
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
 

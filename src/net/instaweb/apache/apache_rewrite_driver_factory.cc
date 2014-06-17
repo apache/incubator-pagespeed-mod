@@ -33,6 +33,7 @@
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/mod_spdy_fetch_controller.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/system/public/system_caches.h"
 #include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/null_shared_mem.h"
@@ -46,14 +47,14 @@
 
 namespace net_instaweb {
 
-class ProcessContext;
 class SharedCircularBuffer;
 
+const char ApacheRewriteDriverFactory::kStaticAssetPrefix[] =
+    "/mod_pagespeed_static/";
+
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
-    const ProcessContext& process_context,
     server_rec* server, const StringPiece& version)
     : SystemRewriteDriverFactory(
-          process_context,
           new ApacheThreadSystem,
           NULL, /* default shared memory runtime */
           server->server_hostname,
@@ -127,6 +128,11 @@ void ApacheRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
       dynamic_cast<ApacheServerContext*>(server_context);
   CHECK(apache_server_context != NULL);
   apache_server_context->InitProxyFetchFactory();
+}
+
+void ApacheRewriteDriverFactory::InitStaticAssetManager(
+    StaticAssetManager* static_asset_manager) {
+  static_asset_manager->set_library_url_prefix(kStaticAssetPrefix);
 }
 
 QueuedWorkerPool* ApacheRewriteDriverFactory::CreateWorkerPool(
@@ -273,12 +279,6 @@ ApacheServerContext* ApacheRewriteDriverFactory::MakeApacheServerContext(
       new ApacheServerContext(this, server, version_);
   uninitialized_server_contexts_.insert(server_context);
   return server_context;
-}
-
-ServerContext* ApacheRewriteDriverFactory::NewDecodingServerContext() {
-  ServerContext* sc = new ApacheServerContext(this, server_rec_, version_);
-  InitStubDecodingServerContext(sc);
-  return sc;
 }
 
 bool ApacheRewriteDriverFactory::PoolDestroyed(

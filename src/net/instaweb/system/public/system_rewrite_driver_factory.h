@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+
 #include "net/instaweb/util/public/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -34,11 +35,9 @@ class FileSystem;
 class Hasher;
 class NamedLockManager;
 class NonceGenerator;
-class ProcessContext;
 class ServerContext;
 class SharedCircularBuffer;
 class SharedMemStatistics;
-class StaticAssetManager;
 class Statistics;
 class SystemCaches;
 class SystemRewriteOptions;
@@ -58,15 +57,10 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // runtime if one is passed in.  Implementors who don't want to support shared
   // memory at all should set PAGESPEED_SUPPORT_POSIX_SHARED_MEM to false and
   // pass in NULL, and the factory will use a NullSharedMem.
-  SystemRewriteDriverFactory(const ProcessContext& process_context,
-                             SystemThreadSystem* thread_system,
+  SystemRewriteDriverFactory(SystemThreadSystem* thread_system,
                              AbstractSharedMem* shared_mem_runtime,
                              StringPiece hostname, int port);
   virtual ~SystemRewriteDriverFactory();
-
-  // If the server using this isn't using APR natively, call this to initialize
-  // the APR library.
-  static void InitApr();
 
   AbstractSharedMem* shared_mem_runtime() const {
     return shared_mem_runtime_.get();
@@ -159,6 +153,15 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // its required thread).
   UrlAsyncFetcher* GetFetcher(SystemRewriteOptions* config);
 
+  // Parses a comma-separated list of HTTPS options.  If successful, applies
+  // the options to the fetcher and returns true.  If the options were invalid,
+  // *error_message is populated and false is returned.
+  //
+  // It is *not* considered an error in this context to attempt to enable HTTPS
+  // when support is not compiled in.  However, an error message will be logged
+  // in the server log, and the option-setting will have no effect.
+  bool SetHttpsOptions(StringPiece directive, GoogleString* error_message);
+
   // Tracks the size of resources fetched from origin and populates the
   // X-Original-Content-Length header for resources derived from them.
   void set_track_original_content_length(bool x) {
@@ -187,18 +190,10 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // Allow implementations to indicate that they don't support this.
   virtual bool use_per_vhost_statistics() const { return true; }
 
-  void set_static_asset_prefix(StringPiece s) {
-    s.CopyToString(&static_asset_prefix_);
-  }
-  const GoogleString& static_asset_prefix() { return static_asset_prefix_; }
-
  protected:
   // Initializes all the statistics objects created transitively by
   // SystemRewriteDriverFactory.  Only subclasses should call this.
   static void InitStats(Statistics* statistics);
-
-  // Initializes the StaticAssetManager.
-  virtual void InitStaticAssetManager(StaticAssetManager* static_asset_manager);
 
   virtual void SetupCaches(ServerContext* server_context);
 
@@ -290,8 +285,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   FetcherMap base_fetcher_map_;
   FetcherMap fetcher_map_;
 
-  // URL prefix for support files required by pagespeed.
-  GoogleString static_asset_prefix_;
+  GoogleString https_options_;
 
   // The same as our parent's thread_system_, but without casting.
   SystemThreadSystem* system_thread_system_;

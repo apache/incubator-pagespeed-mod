@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/apache/apache_server_context.h"
+#include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/http/public/content_type.h"
@@ -30,16 +31,14 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/condvar.h"
 #include "net/instaweb/util/public/gzip_inflater.h"
-#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/stack_buffer.h"
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/query_params.h"
-
 #include "apr_strings.h"
 #include "http_config.h"
 #include "http_core.h"
@@ -50,16 +49,11 @@ namespace net_instaweb {
 // absolute url.
 const int kRequestChainLimit = 5;
 
-namespace {
-
-// Tracks a single property-cache lookup.
-class PropertyCallback : public PropertyPage {
- public:
-  PropertyCallback(const StringPiece& url,
-                   const StringPiece& options_signature_hash,
-                   UserAgentMatcher::DeviceType device_type,
-                   RewriteDriver* driver,
-                   ThreadSystem* thread_system)
+PropertyCallback::PropertyCallback(const StringPiece& url,
+                                   const StringPiece& options_signature_hash,
+                                   UserAgentMatcher::DeviceType device_type,
+                                   RewriteDriver* driver,
+                                   ThreadSystem* thread_system)
     : PropertyPage(PropertyPage::kPropertyCachePage,
                    url,
                    options_signature_hash,
@@ -67,24 +61,31 @@ class PropertyCallback : public PropertyPage {
                    driver->request_context(),
                    thread_system->NewMutex(),
                    driver->server_context()->page_property_cache()),
-      driver_(driver) {
+  driver_(driver),
+  done_(false),
+  mutex_(thread_system->NewMutex()),
+  condvar_(mutex_->NewCondvar()) {
+}
+
+void PropertyCallback::Done(bool success) {
+  ScopedMutex lock(mutex_.get());
+  driver_->set_property_page(this);
+  done_ = true;
+  condvar_->Signal();
+}
+
+void PropertyCallback::BlockUntilDone() {
+  int iters = 0;
+  ScopedMutex lock(mutex_.get());
+  while (!done_) {
+    condvar_->TimedWait(Timer::kSecondMs);
+    if (!done_) {
+      driver_->message_handler()->Message(
+          kError, "Waiting for property cache fetch to complete. "
+          "Elapsed time: %ds", ++iters);
+    }
   }
-
-  bool done() const { return done_.value(); }
-
- protected:
-  virtual void Done(bool success) {
-    driver_->set_property_page(this);
-    done_.set_value(true);
-  }
-
- private:
-  RewriteDriver* driver_;
-  AtomicBool done_;
-  DISALLOW_COPY_AND_ASSIGN(PropertyCallback);
-};
-
-}  // namespace
+}
 
 InstawebContext::InstawebContext(request_rec* request,
                                  RequestHeaders* request_headers,
@@ -92,8 +93,6 @@ InstawebContext::InstawebContext(request_rec* request,
                                  ApacheServerContext* server_context,
                                  const GoogleString& absolute_url,
                                  const RequestContextPtr& request_context,
-                                 const QueryParams& pagespeed_query_params,
-                                 const QueryParams& pagespeed_option_cookies,
                                  bool use_custom_options,
                                  const RewriteOptions& options)
     : content_encoding_(kNone),
@@ -130,26 +129,17 @@ InstawebContext::InstawebContext(request_rec* request,
     rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
   }
 
-  // Set or clear sticky option cookies as appropriate.
-  rewrite_driver_->set_pagespeed_query_params(
-      pagespeed_query_params.ToEscapedString());
-  rewrite_driver_->set_pagespeed_option_cookies(
-      pagespeed_option_cookies.ToEscapedString());
-  GoogleUrl gurl(absolute_url_);
-  ResponseHeaders resp_headers;  // Temporary headers for our cookies.
-  if (rewrite_driver_->SetOrClearPageSpeedOptionCookies(gurl, &resp_headers)) {
-    // TODO(matterbury): Rationalize how we add/update response headers.
-    // This context has a response_headers_ member that's barely used, although
-    // it is used by the related RewriteDriver; should we just add these to that
-    // and rely on them being converted to Apache headers later?
-    ResponseHeadersToApacheRequest(resp_headers, request);
-  }
-
   const char* user_agent = apr_table_get(request->headers_in,
                                          HttpAttributes::kUserAgent);
   rewrite_driver_->SetUserAgent(user_agent);
 
-  BlockingPropertyCacheLookup();
+  // Begin the property cache lookup. This should be as early as possible since
+  // it may be asynchronous (in the case of memcached).
+  // TODO(jud): It would be ideal to move this even earlier. As early as, say,
+  // save_url_hook. However, there is no request specific context to save the
+  // result in at that point.
+  PropertyCallback* property_callback(InitiatePropertyCacheLookup());
+
   rewrite_driver_->EnableBlockingRewrite(request_headers);
 
   ComputeContentEncoding(request);
@@ -179,6 +169,11 @@ InstawebContext::InstawebContext(request_rec* request,
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
   rewrite_driver_->SetWriter(&string_writer_);
+
+  // Wait until property cache lookup is complete
+  if (property_callback != NULL) {
+    property_callback->BlockUntilDone();
+  }
 }
 
 InstawebContext::~InstawebContext() {
@@ -293,7 +288,7 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
   }
 }
 
-void InstawebContext::BlockingPropertyCacheLookup() {
+PropertyCallback* InstawebContext::InitiatePropertyCacheLookup() {
   PropertyCallback* property_callback = NULL;
   if (server_context_->page_property_cache()->enabled()) {
     const UserAgentMatcher* user_agent_matcher =
@@ -310,8 +305,8 @@ void InstawebContext::BlockingPropertyCacheLookup() {
         rewrite_driver_,
         server_context_->thread_system());
     server_context_->page_property_cache()->Read(property_callback);
-    DCHECK(property_callback->done());
   }
+  return property_callback;
 }
 
 ApacheServerContext* InstawebContext::ServerContextFromServerRec(
@@ -327,8 +322,8 @@ ApacheServerContext* InstawebContext::ServerContextFromServerRec(
 // url.  Therefore, if we have not yet stored the url, check to see if
 // there was a previous request in this chain, and use its url as the
 // original.
-const char* InstawebContext::MakeRequestUrl(
-    const RewriteOptions& global_options, request_rec* request) {
+const char* InstawebContext::MakeRequestUrl(const RewriteOptions& options,
+                                            request_rec* request) {
   const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
 
   if (url == NULL) {
@@ -378,7 +373,7 @@ const char* InstawebContext::MakeRequestUrl(
     // For example, if Apache gives us the URL "http://www.example.com/"
     // and there is a header: "X-Forwarded-Proto: https", then we update
     // this base URL to "https://www.example.com/".
-    if (global_options.respect_x_forwarded_proto()) {
+    if (options.respect_x_forwarded_proto()) {
       const char* x_forwarded_proto =
           apr_table_get(request->headers_in, HttpAttributes::kXForwardedProto);
       if (x_forwarded_proto != NULL) {
@@ -415,12 +410,12 @@ void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
       ClassifyIntoExperiment(*request_headers_, options);
   if (need_cookie) {
     ResponseHeaders resp_headers;
+    AprTimer timer;
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
     int experiment_value = options->experiment_id();
     server_context_->experiment_matcher()->StoreExperimentData(
         experiment_value, url,
-        (server_context_->timer()->NowMs() +
-         options->experiment_cookie_duration_ms()),
+        timer.NowMs() + options->experiment_cookie_duration_ms(),
         &resp_headers);
     ResponseHeadersToApacheRequest(resp_headers, request);
   }

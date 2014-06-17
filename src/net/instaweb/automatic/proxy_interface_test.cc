@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/meta_data.h"
-#include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/reflecting_test_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -36,6 +35,7 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
@@ -66,7 +66,6 @@
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 #include "net/instaweb/util/worker_test_base.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 
 namespace net_instaweb {
 
@@ -91,7 +90,8 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
 
   ProxyInterfaceTest()
       : start_time_ms_(0),
-        max_age_300_("max-age=300") {
+        max_age_300_("max-age=300"),
+        request_start_time_ms_(-1) {
     ConvertTimeToString(MockTimer::kApr_5_2010_ms, &start_time_string_);
     ConvertTimeToString(MockTimer::kApr_5_2010_ms + 5 * Timer::kMinuteMs,
                         &start_time_plus_300s_string_);
@@ -120,6 +120,9 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     options->set_max_html_cache_time_ms(kHtmlCacheTimeSec * Timer::kSecondMs);
     options->set_in_place_rewriting_enabled(true);
     options->Disallow("*blacklist*");
+    // TODO(sligocki): Once this becomes default on in RewriteOptions, remove
+    // this set here.
+    options->set_preserve_url_relativity(true);
     server_context()->ComputeSignature(options);
     ProxyInterfaceTestBase::SetUp();
     // The original url_async_fetcher() is still owned by RewriteDriverFactory.
@@ -197,6 +200,20 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     return status_code;
   }
 
+  GoogleString GetDefaultUserAgentForDeviceType(
+      UserAgentMatcher::DeviceType device_type) {
+    switch (device_type) {
+      case UserAgentMatcher::kMobile:
+        return UserAgentMatcherTestBase::kAndroidICSUserAgent;
+      case UserAgentMatcher::kTablet:
+        return UserAgentMatcherTestBase::kIPadUserAgent;
+      case UserAgentMatcher::kDesktop:
+      case UserAgentMatcher::kEndOfDeviceType:
+      default:
+        return UserAgentMatcherTestBase::kChromeUserAgent;
+    }
+  }
+
   void DisableAjax() {
     RewriteOptions* options = server_context()->global_options();
     options->ClearSignatureForTesting();
@@ -265,51 +282,13 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
         cohort, kPropertyName)->has_value());
   }
 
-  void TestQueryParameters(StringPiece original_domain,
-                           StringPiece redirect_domain,
-                           bool add_params_to_redirect,
-                           bool add_params_to_location) {
-    // Test to check if we re-add our query params when we get a redirect.
-    const char kParams[] = "PageSpeedCssInlineMaxBytes=99";
-    GoogleString original_url = StrCat(original_domain, "a/?x=y");
-    GoogleString redirect_url = StrCat(redirect_domain, "b/",
-                                       add_params_to_redirect ? "?x=y" : "");
-    GoogleString set_text, get_text;
-    RequestHeaders request_headers;
-    ResponseHeaders set_headers, get_headers;
-    NullMessageHandler handler;
-    GoogleString expected_location(redirect_url);
-    if (add_params_to_location) {
-      StrAppend(&expected_location,
-                add_params_to_redirect ? "&" : "?", kParams);
-    }
-
-    set_headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
-    set_headers.Add(HttpAttributes::kLocation, redirect_url);
-    set_headers.SetStatusAndReason(HttpStatus::kFound);
-    set_text = "<html></html>";
-    mock_url_fetcher_.SetResponse(original_url, set_headers, set_text);
-    FetchFromProxy(StrCat(original_url, "&", kParams), request_headers, true,
-                   &get_text, &get_headers);
-
-    EXPECT_STREQ(StrCat("HTTP/1.0 302 Found\r\n"
-                        "Content-Type: text/html\r\n"
-                        "Location: ", expected_location, "\r\n"
-                        "X-Background-Fetch: 0\r\n"
-                        "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-                        "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-                        "Cache-Control: max-age=0, private\r\n"
-                        "X-Page-Speed: \r\n"
-                        "HeadersComplete: 1\r\n\r\n"),
-                 get_headers.ToString());
-  }
-
   scoped_ptr<BackgroundFetchCheckingUrlAsyncFetcher> background_fetch_fetcher_;
   int64 start_time_ms_;
   GoogleString start_time_string_;
   GoogleString start_time_plus_300s_string_;
   GoogleString old_time_string_;
   const GoogleString max_age_300_;
+  int64 request_start_time_ms_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProxyInterfaceTest);
@@ -446,7 +425,7 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
   set_headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   set_headers.SetStatusAndReason(HttpStatus::kOK);
 
-  set_text = "<html><head/></html>";
+  set_text = "<html></html>";
 
   mock_url_fetcher_.SetResponse(url, set_headers, set_text);
   FetchFromProxy(url, request_headers, true, &get_text, &get_headers);
@@ -463,7 +442,7 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
   EXPECT_EQ(set_text, get_text);
 
   // Remove from the cache so we can actually test a HEAD fetch.
-  http_cache()->Delete(url, rewrite_driver_->CacheFragment());
+  http_cache()->Delete(url);
 
   ClearStats();
 
@@ -487,8 +466,6 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
 }
 
 TEST_F(ProxyInterfaceTest, RedirectRequestWhenDomainRewriterEnabled) {
-  // A MapRewriteDomain should not change the Location of a redirect.
-
   // Test to check if we are handling Head requests correctly.
   GoogleString url = "http://www.example.com/";
   GoogleString set_text, get_text;
@@ -512,7 +489,7 @@ TEST_F(ProxyInterfaceTest, RedirectRequestWhenDomainRewriterEnabled) {
   // Headers and body are correct for a Get request.
   EXPECT_STREQ("HTTP/1.0 302 Found\r\n"
                "Content-Type: text/html\r\n"
-               "Location: http://m.example.com\r\n"
+               "Location: http://www.example.com/\r\n"
                "X-Background-Fetch: 0\r\n"
                "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
                "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
@@ -520,42 +497,6 @@ TEST_F(ProxyInterfaceTest, RedirectRequestWhenDomainRewriterEnabled) {
                "X-Page-Speed: \r\n"
                "HeadersComplete: 1\r\n\r\n",
                get_headers.ToString());
-}
-
-TEST_F(ProxyInterfaceTest, RedirectRequestRetainsQueryParams) {
-  // "Location: http://www.example.com/b/?x=y&PageSpeedCssInlineMaxBytes=99" is
-  // what we expect to see - note the PageSpeed query parameter IS copied over.
-  TestQueryParameters(/* original_domain= */ "http://www.example.com/",
-                      /* redirect_domain= */ "http://www.example.com/",
-                      /* add_params_to_redirect= */ true,
-                      /* add_params_to_location= */ true);
-}
-
-TEST_F(ProxyInterfaceTest, RedirectRequestRetainsOnlyPagespeedQueryParams) {
-  // "Location: http://www.example.com/b/?PageSpeedCssInlineMaxBytes=99" is
-  // what we expect to see - note the PageSpeed query parameter IS copied over.
-  TestQueryParameters(/* original_domain= */ "http://www.example.com/",
-                      /* redirect_domain= */ "http://www.example.com/",
-                      /* add_params_to_redirect= */ false,
-                      /* add_params_to_location= */ true);
-}
-
-TEST_F(ProxyInterfaceTest, RedirectToDiffDomainDiscardsQueryParams) {
-  // "Location: http://test.com/?x=y" is what we expect to see - note the
-  // PageSpeed query parameter is NOT copied over.
-  TestQueryParameters(/* original_domain= */ "http://www.example.com/",
-                      /* redirect_domain= */ kTestDomain,
-                      /* add_params_to_redirect= */ true,
-                      /* add_params_to_location= */ false);
-}
-
-TEST_F(ProxyInterfaceTest, RedirectToDiffDomainDiscardsPagespeedQueryParams) {
-  // "Location: http://test.com/" is what we expect to see - note the
-  // PageSpeed query parameter is NOT copied over.
-  TestQueryParameters(/* original_domain= */ "http://www.example.com/",
-                      /* redirect_domain= */ kTestDomain,
-                      /* add_params_to_redirect= */ false,
-                      /* add_params_to_location= */ false);
 }
 
 TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
@@ -612,6 +553,7 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
   expected_response_headers_string = "HTTP/1.1 200 OK\r\n"
       "Content-Type: text/css\r\n"
       "X-Background-Fetch: 0\r\n"
+      "Etag: W/\"PSA-0\"\r\n"
       "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
       "Expires: Tue, 02 Feb 2010 18:56:26 GMT\r\n"
       "Cache-Control: max-age=300,private\r\n"
@@ -662,6 +604,49 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedUrls) {
   EXPECT_EQ(HttpStatus::kProxyDeclinedRequest, response_headers.status_code());
 }
 
+TEST_F(ProxyInterfaceTest, RewriteUrlsEarly) {
+  GoogleString text;
+  ResponseHeaders response_headers;
+  response_headers.SetStatusAndReason(HttpStatus::kOK);
+  NullMessageHandler handler;
+  mock_url_fetcher_.SetResponse(StrCat(kTestDomain, "index.html"),
+                                response_headers,
+                                "<html></html>");
+  scoped_ptr<RewriteOptions> custom_options(
+      server_context()->global_options()->Clone());
+  custom_options->WriteableDomainLawyer()->AddOriginDomainMapping(
+      "test.com", "pagespeed.test.com/test.com", &handler);
+  custom_options->set_rewrite_request_urls_early(true);
+  SetRewriteOptions(custom_options.get());
+  FetchFromProxy("http://pagespeed.test.com/test.com/index.html", true,
+                 &text, &response_headers);
+  EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
+  EXPECT_EQ("<html></html>", text);
+}
+
+TEST_F(ProxyInterfaceTest, RewriteUrlsEarlyUsingReferer) {
+  GoogleString text;
+  ResponseHeaders response_headers;
+  RequestHeaders request_headers;
+  response_headers.SetStatusAndReason(HttpStatus::kOK);
+  NullMessageHandler handler;
+  mock_url_fetcher_.SetResponse(StrCat(kTestDomain, "index.html"),
+                                response_headers,
+                                "<html></html>");
+  scoped_ptr<RewriteOptions> custom_options(
+      server_context()->global_options()->Clone());
+  custom_options->WriteableDomainLawyer()->AddOriginDomainMapping(
+      "test.com", "pagespeed.test.com/test.com", &handler);
+  custom_options->set_rewrite_request_urls_early(true);
+  SetRewriteOptions(custom_options.get());
+  request_headers.Replace(HttpAttributes::kReferer,
+                          "http://pagespeed.test.com/test.com/");
+  FetchFromProxy("http://pagespeed.test.com/index.html", request_headers, true,
+                 &text, &response_headers);
+  EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
+  EXPECT_EQ("<html></html>", text);
+}
+
 TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedHeaders) {
   GoogleString text;
   RequestHeaders request_headers;
@@ -707,12 +692,6 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedHeaders) {
                  &response_headers,
                  false  /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(HttpStatus::kProxyDeclinedRequest, response_headers.status_code());
-}
-
-TEST_F(ProxyInterfaceTest, InvalidUrl) {
-  ExpectStringAsyncFetch fetch(false, rewrite_driver()->request_context());
-  proxy_interface_->Fetch("localhost:3141", message_handler(), &fetch);
-  EXPECT_TRUE(fetch.done());
 }
 
 TEST_F(ProxyInterfaceTest, PassThrough404) {
@@ -2076,8 +2055,6 @@ TEST_F(ProxyInterfaceTest, FlushHugeHtml) {
   options->ClearSignatureForTesting();
   options->set_flush_buffer_limit_bytes(8);  // 2 self-closing tags ("<p/>")
   options->set_flush_html(true);
-  options->DisableFilter(RewriteOptions::kAddHead);
-  rewrite_driver()->AddFilters();
   server_context()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders("page.html", kContentTypeHtml,
@@ -2925,11 +2902,6 @@ TEST_F(ProxyInterfaceTest, NoStore) {
 }
 
 TEST_F(ProxyInterfaceTest, PropCacheFilter) {
-  RewriteOptions* options = server_context()->global_options();
-  options->ClearSignatureForTesting();
-  options->DisableFilter(RewriteOptions::kAddHead);
-  server_context()->ComputeSignature(options);
-
   CreateFilterCallback create_filter_callback;
   factory()->AddCreateFilterCallback(&create_filter_callback);
   EnableDomCohortWritesWithDnsPrefetch();
@@ -3384,7 +3356,6 @@ TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
   options->ClearSignatureForTesting();
   options->EnableExtendCacheFilters();
   options->set_max_html_parse_bytes(60);
-  options->DisableFilter(RewriteOptions::kAddHead);
   server_context()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders(StrCat(kTestDomain, "1.jpg"), kContentTypeJpeg,
@@ -3401,11 +3372,9 @@ TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
   FetchFromProxy(kPageUrl, true, &text, &headers);
   // For the first request, we bail out of parsing and insert the redirect. We
   // also update the pcache.
-  EXPECT_STREQ(
-      "<html><script type=\"text/javascript\">"
-      "window.location=\"http://test.com/page.html?PageSpeed=off\";"
-      "</script></html>",
-      text);
+  EXPECT_EQ("<html><script type=\"text/javascript\">"
+            "window.location=\"http://test.com/page.html?ModPagespeed=off\";"
+            "</script></html>", text);
 
   headers.Clear();
   text.clear();

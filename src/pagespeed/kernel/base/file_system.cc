@@ -22,7 +22,6 @@
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -106,10 +105,6 @@ bool FileSystem::WriteTempFile(const StringPiece& prefix_name,
     ok = output_file->Write(buffer, message_handler);
     // attempt Close even if write fails.
     ok &= Close(output_file, message_handler);
-    if (!ok) {
-      NullMessageHandler null_message_handler;
-      RemoveFile(filename->c_str(), &null_message_handler);
-    }
   }
   if (!ok) {
     // Clear filename so we end in a consistent state.
@@ -123,18 +118,9 @@ bool FileSystem::WriteFileAtomic(const StringPiece& filename_sp,
                                  MessageHandler* message_handler) {
   const GoogleString filename(filename_sp.as_string());
   GoogleString tempfilename;
-  bool ok = false;
-
-  if (WriteTempFile(StrCat(filename, ".temp"), buffer, &tempfilename,
-                    message_handler)) {
-    ok = RenameFile(tempfilename.c_str(), filename.c_str(), message_handler);
-    if (!ok) {
-      // Delete any temp file as it's probably incomplete.
-      NullMessageHandler null_message_handler;
-      RemoveFile(tempfilename.c_str(), &null_message_handler);
-    }
-  }
-  return ok;
+  return (WriteTempFile(StrCat(filename, ".temp"), buffer, &tempfilename,
+                        message_handler) &&
+          RenameFile(tempfilename.c_str(), filename.c_str(), message_handler));
 }
 
 bool FileSystem::Close(File* file, MessageHandler* message_handler) {

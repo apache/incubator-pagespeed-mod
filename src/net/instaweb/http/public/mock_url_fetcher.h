@@ -24,23 +24,31 @@
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 
 namespace net_instaweb {
 
 class AsyncFetch;
 class MessageHandler;
-class ThreadSystem;
 class Timer;
 
 // Simple UrlFetcher meant for tests, you can set responses for individual URLs.
 // Meant only for testing.
 class MockUrlFetcher : public UrlAsyncFetcher {
  public:
-  MockUrlFetcher();
+  // TODO(hujie): We should pass in the mutex at all call-sites instead of
+  //     creating a new mutex here.
+  MockUrlFetcher() : enabled_(true), fail_on_unexpected_(true),
+                     update_date_headers_(false), omit_empty_writes_(false),
+                     fail_after_headers_(false), verify_host_header_(false),
+                     split_writes_(false), supports_https_(false), timer_(NULL),
+                     thread_system_(Platform::CreateThreadSystem()),
+                     mutex_(thread_system_->NewMutex()) {}
   virtual ~MockUrlFetcher();
 
   void SetResponse(const StringPiece& url,
@@ -144,11 +152,6 @@ class MockUrlFetcher : public UrlAsyncFetcher {
     verify_host_header_ = x;
   }
 
-  void set_verify_pagespeed_header_off(bool x) {
-    ScopedMutex lock(mutex_.get());
-    verify_pagespeed_header_off_ = x;
-  }
-
   void set_timer(Timer* timer) {
     ScopedMutex lock(mutex_.get());
     timer_ = timer;
@@ -166,11 +169,6 @@ class MockUrlFetcher : public UrlAsyncFetcher {
   void set_error_message(const GoogleString& msg) {
     ScopedMutex lock(mutex_.get());
     error_message_ = msg;
-  }
-
-  void set_strip_query_params(bool strip_query_params) {
-    ScopedMutex lock(mutex_.get());
-    strip_query_params_ = strip_query_params;
   }
 
  private:
@@ -214,11 +212,8 @@ class MockUrlFetcher : public UrlAsyncFetcher {
   bool omit_empty_writes_;      // Should we call ->Write with length 0?
   bool fail_after_headers_;     // Should we call Done(false) after headers?
   bool verify_host_header_;     // Should we verify the Host: header?
-  bool verify_pagespeed_header_off_;   // Verify PageSpeed:off in request?
   bool split_writes_;           // Should we turn one write into multiple?
   bool supports_https_;         // Should we claim HTTPS support?
-  bool strip_query_params_;     // Should we strip query params before lookup?
-
   GoogleString error_message_;  // If non empty, we write out this on error
   Timer* timer_;                // Timer to use for updating header dates.
   GoogleString last_referer_;   // Referer string.

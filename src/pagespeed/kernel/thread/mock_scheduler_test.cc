@@ -79,8 +79,8 @@ class ChainedAlarm : public Function {
 class MockSchedulerTest : public testing::Test {
  protected:
   MockSchedulerTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), 0),
+      : timer_(0),
+        thread_system_(Platform::CreateThreadSystem()),
         scheduler_(new MockScheduler(thread_system_.get(), &timer_)),
         was_run_(false),
         was_cancelled_(false) {}
@@ -113,8 +113,8 @@ class MockSchedulerTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
+  scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<MockScheduler> scheduler_;
   GoogleString string_;
   bool was_run_;

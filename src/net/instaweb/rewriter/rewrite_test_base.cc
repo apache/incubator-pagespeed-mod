@@ -39,7 +39,6 @@
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
@@ -83,24 +82,10 @@
 #include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
 namespace {
-
-// Logging at the INFO level slows down tests, adds to the noise, and
-// adds considerably to the speed variability.
-class RewriteTestBaseProcessContext : public ProcessContext {
- public:
-  RewriteTestBaseProcessContext() {
-    logging::SetMinLogLevel(logging::LOG_WARNING);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RewriteTestBaseProcessContext);
-};
-RewriteTestBaseProcessContext rewrite_test_base_process_context;
 
 class TestRewriteOptionsManager : public RewriteOptionsManager {
  public:
@@ -123,30 +108,24 @@ class TestRewriteOptionsManager : public RewriteOptionsManager {
 }  // namespace
 
 class MessageHandler;
+class RequestHeaders;
 
 const char RewriteTestBase::kTestData[] = "/net/instaweb/rewriter/testdata/";
-const char RewriteTestBase::kConfiguredBeaconingKey[] =
-    "configured_beaconing_key";
-const char RewriteTestBase::kWrongBeaconingKey[] = "wrong_beaconing_key";
-const char kMessagePatternShrinkImage[] = "*Shrinking image*";
 
 RewriteTestBase::RewriteTestBase()
     : test_distributed_fetcher_(this),
-      factory_(new TestRewriteDriverFactory(rewrite_test_base_process_context,
-                                            GTestTempDir(),
+      statistics_(new SimpleStats()),
+      factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                             &mock_url_fetcher_,
                                             &test_distributed_fetcher_)),
-      other_factory_(new TestRewriteDriverFactory(
-          rewrite_test_base_process_context,
-          GTestTempDir(),
-          &mock_url_fetcher_,
-          &test_distributed_fetcher_)),
+      other_factory_(new TestRewriteDriverFactory(GTestTempDir(),
+                                                  &mock_url_fetcher_,
+                                                  &test_distributed_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
       kEtag0(HTTPCache::FormatEtag("0")),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -154,15 +133,12 @@ RewriteTestBase::RewriteTestBase()
 RewriteTestBase::RewriteTestBase(Statistics* statistics)
     : test_distributed_fetcher_(this),
       statistics_(statistics),
-      factory_(new TestRewriteDriverFactory(rewrite_test_base_process_context,
-                                            GTestTempDir(),
+      factory_(new TestRewriteDriverFactory(GTestTempDir(),
                                             &mock_url_fetcher_,
                                             &test_distributed_fetcher_)),
-      other_factory_(new TestRewriteDriverFactory(
-          rewrite_test_base_process_context,
-          GTestTempDir(),
-          &mock_url_fetcher_,
-          &test_distributed_fetcher_)),
+      other_factory_(new TestRewriteDriverFactory(GTestTempDir(),
+                                                  &mock_url_fetcher_,
+                                                  &test_distributed_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
@@ -173,13 +149,13 @@ RewriteTestBase::RewriteTestBase(Statistics* statistics)
 RewriteTestBase::RewriteTestBase(
     std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*> factories)
     : test_distributed_fetcher_(this),
+      statistics_(new SimpleStats()),
       factory_(factories.first),
       other_factory_(factories.second),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -272,30 +248,6 @@ void RewriteTestBase::SetBaseUrlForFetch(const StringPiece& url) {
   rewrite_driver_->SetBaseUrlForFetch(url);
 }
 
-void RewriteTestBase::SetDummyRequestHeaders() {
-  RequestHeaders request_headers;
-  rewrite_driver()->SetRequestHeaders(request_headers);
-}
-
-void RewriteTestBase::SetDownstreamCacheDirectives(
-    StringPiece downstream_cache_purge_method,
-    StringPiece downstream_cache_purge_location_prefix,
-    StringPiece rebeaconing_key) {
-  options_->ClearSignatureForTesting();
-  options_->set_downstream_cache_rewritten_percentage_threshold(95);
-  options_->set_downstream_cache_purge_method(downstream_cache_purge_method);
-  options_->set_downstream_cache_purge_location_prefix(
-      downstream_cache_purge_location_prefix);
-  options_->set_downstream_cache_rebeaconing_key(rebeaconing_key);
-  options_->ComputeSignature();
-}
-
-void RewriteTestBase::SetShouldBeaconHeader(StringPiece rebeaconing_key) {
-  RequestHeaders request_headers;
-  request_headers.Add(kPsaShouldBeacon, rebeaconing_key);
-  rewrite_driver()->SetRequestHeaders(request_headers);
-}
-
 ResourcePtr RewriteTestBase::CreateResource(const StringPiece& base,
                                                     const StringPiece& url) {
   rewrite_driver_->SetBaseUrlForFetch(base);
@@ -311,7 +263,7 @@ void RewriteTestBase::PopulateDefaultHeaders(
   // Reset mock timer so synthetic headers match original.  This temporarily
   // fakes out the mock_scheduler, but we will repair the damage below.
   AdjustTimeUsWithoutWakingAlarms(start_time_ms() * Timer::kMsUs);
-  SetDefaultLongCacheHeaders(&content_type, headers);
+  server_context_->SetDefaultLongCacheHeaders(&content_type, headers);
   // Then set it back.  Note that no alarms should fire at this point
   // because alarms work on absolute time.
   AdjustTimeUsWithoutWakingAlarms(time);
@@ -359,8 +311,7 @@ void RewriteTestBase::ServeResourceFromManyContextsWithUA(
 }
 
 TestRewriteDriverFactory* RewriteTestBase::MakeTestFactory() {
-  return new TestRewriteDriverFactory(rewrite_test_base_process_context,
-                                      GTestTempDir(), &mock_url_fetcher_,
+  return new TestRewriteDriverFactory(GTestTempDir(), &mock_url_fetcher_,
                                       &test_distributed_fetcher_);
 }
 
@@ -370,7 +321,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
     const GoogleString& resource_url,
     const StringPiece& expected_content) {
   // New objects for the new server.
-  SimpleStats stats(factory_->thread_system());
+  SimpleStats stats;
   scoped_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
   TestRewriteDriverFactory::InitStats(&stats);
   new_factory->SetUseTestUrlNamer(factory_->use_test_url_namer());
@@ -384,9 +335,6 @@ void RewriteTestBase::ServeResourceFromNewContext(
   new_rewrite_driver->SetUserAgent(current_user_agent_);
 
   new_factory->SetupWaitFetcher();
-
-  MockMessageHandler* handler = new_factory->mock_message_handler();
-  handler->AddPatternToSkipPrinting(kMessagePatternShrinkImage);
 
   // TODO(sligocki): We should set default request headers.
   ExpectStringAsyncFetch response_contents(true, CreateRequestContext());
@@ -539,6 +487,7 @@ bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
   }
   async_fetch.set_response_headers(response_headers);
   bool fetched = rewrite_driver_->FetchResource(url, &async_fetch);
+
   // Make sure we let the rewrite complete, and also wait for the driver to be
   // idle so we can reuse it safely.
   rewrite_driver_->WaitForShutDown();
@@ -566,12 +515,10 @@ void RewriteTestBase::TestServeFiles(
   // When we start, there are no mock fetchers, so we'll need to get it
   // from the cache.
   ResponseHeaders headers;
-  SetDefaultLongCacheHeaders(content_type, &headers);
+  server_context_->SetDefaultLongCacheHeaders(content_type, &headers);
   HTTPCache* http_cache = server_context_->http_cache();
-  http_cache->Put(expected_rewritten_path, rewrite_driver_->CacheFragment(),
-                  RequestHeaders::Properties(),
-                  ResponseHeaders::GetVaryOption(options()->respect_vary()),
-                  &headers, rewritten_content, message_handler());
+  http_cache->Put(expected_rewritten_path, &headers,
+                  rewritten_content, message_handler());
   EXPECT_EQ(0U, lru_cache()->num_hits());
   EXPECT_TRUE(FetchResource(kTestDomain, filter_id,
                             rewritten_name, rewritten_ext, &content));
@@ -634,7 +581,7 @@ bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
   if (gurl.IsWebValid()) {
     gurl.AllExceptLeaf().CopyToString(base);
     ResourceNamer namer;
-    if (namer.DecodeIgnoreHashAndSignature(gurl.LeafWithQuery()) &&
+    if (namer.Decode(gurl.LeafWithQuery()) &&
         (namer.id() == RewriteOptions::kCssCombinerId)) {
       UrlMultipartEncoder multipart_encoder;
       GoogleString segment;
@@ -725,13 +672,11 @@ void RewriteTestBase::EncodePathAndLeaf(const StringPiece& id,
         "Put it in the path";
   }
 
-  // Note: This uses an empty context, so no custom parameters like image
-  // dimensions can be passed in.
-  ResourceContext dummy_context;
-  ImageUrlEncoder::SetWebpAndMobileUserAgent(*rewrite_driver(), &dummy_context);
+  ResourceContext context;
+  ImageUrlEncoder::SetWebpAndMobileUserAgent(*rewrite_driver(), &context);
   const UrlSegmentEncoder* encoder = FindEncoder(id);
   GoogleString encoded_name;
-  encoder->Encode(name_vector, &dummy_context, &encoded_name);
+  encoder->Encode(name_vector, &context, &encoded_name);
   namer->set_name(encoded_name);
   namer->set_ext(ext);
 }
@@ -739,6 +684,7 @@ void RewriteTestBase::EncodePathAndLeaf(const StringPiece& id,
 const UrlSegmentEncoder* RewriteTestBase::FindEncoder(
     const StringPiece& id) const {
   RewriteFilter* filter = rewrite_driver_->FindFilter(id);
+  ResourceContext context;
   return (filter == NULL) ? &default_encoder_ : filter->encoder();
 }
 
@@ -789,7 +735,7 @@ GoogleString RewriteTestBase::EncodeWithBase(
 GoogleString RewriteTestBase::AddOptionsToEncodedUrl(
     const StringPiece& url, const StringPiece& options) {
   ResourceNamer namer;
-  CHECK(rewrite_driver()->Decode(url, &namer));
+  CHECK(namer.Decode(url));
   namer.set_options(options);
   return namer.Encode();
 }
@@ -988,7 +934,7 @@ class DeferredResourceCallback : public Resource::AsyncCallback {
 class HttpCallback : public HTTPCache::Callback {
  public:
   explicit HttpCallback(const RequestContextPtr& request_context)
-      : HTTPCache::Callback(request_context, RequestHeaders::Properties()),
+      : HTTPCache::Callback(request_context),
         done_(false),
         result_(HTTPCache::kNotFound) {}
   virtual ~HttpCallback() {}
@@ -1000,10 +946,6 @@ class HttpCallback : public HTTPCache::Callback {
     done_ = true;
     result_ = find_result;
   }
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
-    return ResponseHeaders::kRespectVaryOnResources;
-  }
-
   bool done() const { return done_; }
   HTTPCache::FindResult result() { return result_; }
 
@@ -1039,8 +981,7 @@ HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
     ResponseHeaders* headers) {
   HttpCallback callback(CreateRequestContext());
   callback.set_response_headers(headers);
-  http_cache->Find(
-      key, rewrite_driver_->CacheFragment(), message_handler(), &callback);
+  http_cache->Find(key, message_handler(), &callback);
   CHECK(callback.done());
   value_out->Link(callback.http_value());
   return callback.result();
@@ -1064,8 +1005,6 @@ void RewriteTestBase::SetupSharedCache() {
       new HTTPCache(factory_->delay_cache(), factory_->timer(),
                     factory_->hasher(), factory_->statistics()));
   other_server_context_->set_metadata_cache(factory_->delay_cache());
-  // Also make sure to share the timer.
-  other_server_context_->set_timer(server_context_->timer());
 }
 
 void RewriteTestBase::CheckFetchFromHttpCache(
@@ -1078,10 +1017,7 @@ void RewriteTestBase::CheckFetchFromHttpCache(
   EXPECT_TRUE(FetchResourceUrl(url, &contents, &response)) << url;
   EXPECT_STREQ(expected_contents, contents);
   EXPECT_EQ(expected_expiration_ms, response.CacheExpirationTimeMs());
-  EXPECT_TRUE(response.IsProxyCacheable(
-      RequestHeaders::Properties(),
-      ResponseHeaders::GetVaryOption(options()->respect_vary()),
-      ResponseHeaders::kNoValidator));
+  EXPECT_TRUE(response.IsProxyCacheable());
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -1179,7 +1115,7 @@ bool RewriteTestBase::AddOriginDomainMapping(StringPiece to_domain,
                                              StringPiece from_domain) {
   bool frozen = options_->ClearSignatureForTesting();
   bool ret = options_->WriteableDomainLawyer()->AddOriginDomainMapping(
-      to_domain, from_domain, "", message_handler());
+      to_domain, from_domain, message_handler());
   if (frozen) {
     server_context()->ComputeSignature(options_);
   }
@@ -1271,12 +1207,17 @@ GoogleString RewriteTestBase::ExpectedNonce() {
   return result;
 }
 
-const ProcessContext& RewriteTestBase::process_context() {
-  return rewrite_test_base_process_context;
-}
+// Logging at the INFO level slows down tests, adds to the noise, and
+// adds considerably to the speed variability.
+class RewriteTestBaseProcessContext {
+ public:
+  RewriteTestBaseProcessContext() {
+    logging::SetMinLogLevel(logging::LOG_WARNING);
+  }
 
-int RewriteTestBase::TimedValue(StringPiece name) {
-  return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
-}
+ private:
+  ProcessContext process_context_;
+};
+RewriteTestBaseProcessContext rewrite_test_base_process_context;
 
 }  // namespace net_instaweb

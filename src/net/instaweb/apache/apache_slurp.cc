@@ -98,21 +98,20 @@ void SlurpDefaultHandler(request_rec* r) {
 GoogleString RemoveModPageSpeedQueryParams(
     const GoogleString& uri, const char* query_param_string) {
   QueryParams query_params, stripped_query_params;
-  query_params.ParseFromUntrustedString(query_param_string);
+  query_params.Parse(query_param_string);
   bool rewrite_query_params = false;
 
   for (int i = 0; i < query_params.size(); ++i) {
     StringPiece name = query_params.name(i);
-    if (name.starts_with(RewriteQuery::kModPagespeed) ||
-        name.starts_with(RewriteQuery::kPageSpeed)) {
+    if (name.starts_with(RewriteQuery::kModPagespeed)) {
       rewrite_query_params = true;
     } else {
-      const GoogleString* value = query_params.EscapedValue(i);
+      const GoogleString* value = query_params.value(i);
       StringPiece value_piece;  // NULL data by default.
       if (value != NULL) {
         value_piece = *value;
       }
-      stripped_query_params.AddEscaped(name, value_piece);
+      stripped_query_params.Add(name, value_piece);
     }
   }
 
@@ -124,7 +123,7 @@ GoogleString RemoveModPageSpeedQueryParams(
     CHECK(question_mark != GoogleString::npos);
     stripped_url.append(uri.data(), question_mark);  // does not include "?" yet
     if (stripped_query_params.size() != 0) {
-      StrAppend(&stripped_url, "?", stripped_query_params.ToEscapedString());
+      StrAppend(&stripped_url, "?", stripped_query_params.ToString());
     }
   } else {
     stripped_url = uri;
@@ -161,12 +160,11 @@ class StrippingFetch : public StringAsyncFetch {
     // sharded domains, we apply mapping origin domain here.  Simply map all
     // the shards back into the origin domain in pagespeed.conf.
     GoogleString origin_url;
-    GoogleString host_header;
     bool is_proxy = false;
-    if (lawyer_->MapOrigin(url_, &origin_url, &host_header, &is_proxy)) {
+    if (lawyer_->MapOrigin(url_, &origin_url, &is_proxy)) {
       url_ = origin_url;
       GoogleUrl gurl(url_);
-      request_headers()->Replace(HttpAttributes::kHost, host_header);
+      request_headers()->Replace(HttpAttributes::kHost, gurl.Host());
     }
 
     fetcher_->Fetch(url_, message_handler_, this);
@@ -245,11 +243,10 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
   UrlAsyncFetcher* fetcher = server_context->DefaultSystemFetcher();
   scoped_ptr<HttpDumpUrlFetcher> slurp_fetcher;
 
-  ApacheConfig* global_config = server_context->global_config();
-  if (global_config->test_proxy() &&
-      !global_config->test_proxy_slurp().empty()) {
+  ApacheConfig* config = server_context->config();
+  if (config->test_proxy() && !config->test_proxy_slurp().empty()) {
     slurp_fetcher.reset(new HttpDumpUrlFetcher(
-        global_config->test_proxy_slurp(), server_context->file_system(),
+        config->test_proxy_slurp(), server_context->file_system(),
         server_context->timer()));
     fetcher = slurp_fetcher.get();
   }
@@ -258,7 +255,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
   RequestContextPtr request_context(
       new RequestContext(server_context->thread_system()->NewMutex(),
                          server_context->timer()));
-  StrippingFetch fetch(stripped_url, global_config->domain_lawyer(),
+  StrippingFetch fetch(stripped_url, server_context->config()->domain_lawyer(),
                        fetcher, server_context->thread_system(),
                        request_context, handler);
   ApacheRequestToRequestHeaders(*r, fetch.request_headers());
@@ -271,7 +268,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
     ApacheWriter apache_writer(r);
     apache_writer.set_disable_downstream_header_filters(true);
     ChunkingWriter chunking_writer(
-        &apache_writer, global_config->slurp_flush_limit());
+        &apache_writer, server_context->config()->slurp_flush_limit());
     apache_writer.OutputHeaders(fetch.response_headers());
     chunking_writer.Write(fetch.buffer(), handler);
   } else {

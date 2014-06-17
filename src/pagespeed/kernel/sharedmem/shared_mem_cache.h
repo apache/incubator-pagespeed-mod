@@ -26,7 +26,6 @@
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_data.h"
 
 namespace net_instaweb {
@@ -35,7 +34,6 @@ class AbstractSharedMem;
 class AbstractSharedMemSegment;
 class Hasher;
 class MessageHandler;
-class SharedMemCacheDump;
 class SharedString;
 class Timer;
 
@@ -88,30 +86,10 @@ class SharedMemCache : public CacheInterface {
                                 int* blocks_per_sector_out,
                                 int64* size_cap_out);
 
-  // Returns the largest size of an object this cache can store.
-  size_t MaxValueSize() const {
-    return (blocks_per_sector_ * kBlockSize) / 8;
-  }
-
   // Returns some statistics as plaintext.
   // TODO(morlovich): Potentially periodically push these to the main
   // Statistics system (or pull to it from these).
   GoogleString DumpStats();
-
-  // Saves information on sector contents to *dest. You can call this multiple
-  // times with the same dest.
-  // Note: other accesses to the sector will be locked out for the duration.
-  void AddSectorToSnapshot(int sector_num, SharedMemCacheDump* dest);
-
-  // Restores entries stored in the dump into this cache. The dump
-  // may contain multiple sectors.
-  void RestoreSnapshot(const SharedMemCacheDump& dump);
-
-  // Encode/Decode SharedMemCacheDump objects.
-  static void MarshalSnapshot(const SharedMemCacheDump& dump,
-                              GoogleString* out);
-  static void DemarshalSnapshot(const GoogleString& marshaled,
-                                SharedMemCacheDump* out);
 
   virtual void Get(const GoogleString& key, Callback* callback);
   virtual void Put(const GoogleString& key, SharedString* value);
@@ -137,30 +115,24 @@ class SharedMemCache : public CacheInterface {
 
   bool InitCache(bool parent);
 
-  void PutRawHash(const GoogleString& raw_hash, int64 last_use_timestamp_ms,
-                  SharedString* value);
-
   // Finish a get, with the entry matching and sector lock held.
   // Releases lock when done.
   void GetFromEntry(const GoogleString& key,
                     SharedMemCacheData::Sector<kBlockSize>* sector,
-                    SharedMemCacheData::EntryNum entry_num, Callback* callback)
-      UNLOCK_FUNCTION(sector->mutex());
+                    SharedMemCacheData::EntryNum entry_num,
+                    Callback* callback);
 
   // Finish a put into the given entry. Lock is expected to be held at entry,
   // will be released when done. The hash in the entry must also be already
   // correct at time of entry.
   void PutIntoEntry(SharedMemCacheData::Sector<kBlockSize>* sector,
                     SharedMemCacheData::EntryNum entry_num,
-                    int64 last_use_timestamp_ms, SharedString* value)
-      EXCLUSIVE_LOCKS_REQUIRED(sector->mutex())
-      UNLOCK_FUNCTION(sector->mutex());
+                    SharedString* value);
 
   // Finish a delete, with the entry matching and sector lock held.
   // Releases lock when done.
   void DeleteEntry(SharedMemCacheData::Sector<kBlockSize>* sector,
-                   SharedMemCacheData::EntryNum entry_num)
-      UNLOCK_FUNCTION(sector->mutex());
+                   SharedMemCacheData::EntryNum entry_num);
 
   // Attempts to allocate at least the given number of blocks, and appends any
   // blocks it manages to allocate to *blocks. Returns whether successful.
@@ -169,8 +141,7 @@ class SharedMemCache : public CacheInterface {
   // so the caller may have to clean them up. When successful, this method may
   // allocate more memory than is requested.
   bool TryAllocateBlocks(SharedMemCacheData::Sector<kBlockSize>* sector,
-                         int goal, SharedMemCacheData::BlockVector* blocks)
-      EXCLUSIVE_LOCKS_REQUIRED(sector->mutex());
+                         int goal, SharedMemCacheData::BlockVector* blocks);
 
   // Marks the given entry free in the directory, and unlinks it from the LRU.
   // Note that this does not touch the entry's blocks.
@@ -179,7 +150,6 @@ class SharedMemCache : public CacheInterface {
 
   // Marks entry as having been recently used, and updates timestamp.
   void TouchEntry(SharedMemCacheData::Sector<kBlockSize>* sector,
-                  int64 last_use_timestamp_ms,
                   SharedMemCacheData::EntryNum entry_num);
 
   // Returns true if the entry can be written (in particular meaning it's not
@@ -197,8 +167,7 @@ class SharedMemCache : public CacheInterface {
   // Makes sure we have exclusive write access to the entry, with no concurrent
   // readers. Must be called with sector lock held.
   void EnsureReadyForWriting(SharedMemCacheData::Sector<kBlockSize>* sector,
-                             SharedMemCacheData::CacheEntry* entry)
-      EXCLUSIVE_LOCKS_REQUIRED(sector->mutex());
+                             SharedMemCacheData::CacheEntry* entry);
 
   AbstractSharedMem* shm_runtime_;
   const Hasher* hasher_;

@@ -24,16 +24,13 @@
 
 #include "base/logging.h"               // for operator<<, etc
 #include "net/instaweb/config/rewrite_options_manager.h"
-#include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher.h"
-#include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
-#include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
@@ -45,7 +42,6 @@
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_pool.h"
@@ -74,8 +70,7 @@
 #include "net/instaweb/util/public/thread_synchronizer.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_keywords.h"
+#include "net/instaweb/util/public/url_to_filename_encoder.h"
 
 namespace net_instaweb {
 
@@ -113,14 +108,11 @@ const char* kExcludedAttributes[] = {
 
 StringSet* CommaSeparatedStringToSet(StringPiece str) {
   StringPieceVector str_values;
-  // Note that 'str' must be unescaped before calling this function, because
-  // "," is technically supposed to be escaped in URL query parameters, per
-  // http://en.wikipedia.org/wiki/Query_string#URL_encoding.
   SplitStringPieceToVector(str, ",", &str_values, true);
   StringSet* set = new StringSet();
   for (StringPieceVector::const_iterator it = str_values.begin();
        it != str_values.end(); ++it) {
-    set->insert(it->as_string());
+    set->insert(UrlToFilenameEncoder::Unescape(*it));
   }
   return set;
 }
@@ -184,12 +176,9 @@ class BeaconPropertyCallback : public PropertyPage {
               server_context_->message_handler(), server_context_->timer());
     }
 
-    if (xpaths_set_ != NULL) {
-      BeaconCriticalLineInfoFinder::WriteXPathsToPropertyCacheFromBeacon(
-          *xpaths_set_, nonce_, server_context_->page_property_cache(),
-          server_context_->beacon_cohort(), this,
-          server_context_->message_handler(), server_context_->timer());
-    }
+    // TODO(jud): Add a call to
+    // BeaconCriticalLineInfoFinder::WriteXPathsToPropertyCacheFromBeacon when
+    // that class exists.
 
     WriteCohort(server_context_->beacon_cohort());
     delete this;
@@ -247,7 +236,7 @@ class GlobalOptionsRewriteDriverPool : public RewriteDriverPool {
       : server_context_(context) {
   }
 
-  virtual const RewriteOptions* TargetOptions() const {
+  virtual RewriteOptions* TargetOptions() const {
     return server_context_->global_options();
   }
 
@@ -259,17 +248,16 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
     : thread_system_(factory->thread_system()),
       rewrite_stats_(NULL),
       file_system_(factory->file_system()),
+      filename_encoder_(NULL),
       url_namer_(NULL),
       user_agent_matcher_(NULL),
       scheduler_(factory->scheduler()),
       default_system_fetcher_(NULL),
       default_distributed_fetcher_(NULL),
       hasher_(NULL),
-      signature_(NULL),
       lock_hasher_(RewriteOptions::kHashBytes),
       contents_hasher_(21),
       statistics_(NULL),
-      timer_(NULL),
       filesystem_metadata_cache_(NULL),
       metadata_cache_(NULL),
       store_outputs_in_file_system_(false),
@@ -286,7 +274,6 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       shutdown_drivers_called_(false),
       factory_(factory),
       rewrite_drivers_mutex_(thread_system_->NewMutex()),
-      decoding_driver_(NULL),
       html_workers_(NULL),
       rewrite_workers_(NULL),
       low_priority_rewrite_workers_(NULL),
@@ -294,8 +281,7 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       thread_synchronizer_(new ThreadSynchronizer(thread_system_)),
       experiment_matcher_(factory_->NewExperimentMatcher()),
       usage_data_reporter_(factory_->usage_data_reporter()),
-      simple_random_(thread_system_->NewMutex()),
-      js_tokenizer_patterns_(factory_->js_tokenizer_patterns()) {
+      simple_random_(thread_system_->NewMutex()) {
   // Make sure the excluded-attributes are in abc order so binary_search works.
   // Make sure to use the same comparator that we pass to the binary_search.
 #ifndef NDEBUG
@@ -341,24 +327,35 @@ ServerContext::~ServerContext() {
   STLDeleteElements(&active_rewrite_drivers_);
   available_rewrite_drivers_.reset();
   STLDeleteElements(&additional_driver_pools_);
+  decoding_driver_.reset(NULL);
 }
 
 // TODO(gee): These methods are out of order with respect to the .h #tech-debt
-void ServerContext::InitWorkers() {
+void ServerContext::InitWorkersAndDecodingDriver() {
   html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
   rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kRewriteWorkers);
   low_priority_rewrite_workers_ = factory_->WorkerPool(
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
+  decoding_driver_.reset(NewUnmanagedRewriteDriver(
+      NULL, global_options()->Clone(), RequestContextPtr(NULL)));
+  decoding_driver_->set_externally_managed(true);
+  // Apply platform configuration mutation for consistency's sake.
+  factory_->ApplyPlatformSpecificConfiguration(decoding_driver_.get());
+  // Inserts platform-specific rewriters into the resource_filter_map_, so that
+  // the decoding process can recognize those rewriter ids.
+  factory_->AddPlatformSpecificDecodingPasses(decoding_driver_.get());
+  // This call is for backwards compatibility.  When adding new platform
+  // specific rewriters to implementations of RewriteDriverFactory, please
+  // do not rely on this call to include them in the decoding process.  Instead,
+  // add them to your implementation of AddPlatformSpecificDecodingPasses.
+  factory_->AddPlatformSpecificRewritePasses(decoding_driver_.get());
 }
 
-void ServerContext::PostInitHook() {
-  InitWorkers();
-}
-
-void ServerContext::SetDefaultLongCacheHeaders(
+// TODO(jmarantz): consider moving this method to ResponseHeaders
+void ServerContext::SetDefaultLongCacheHeadersWithCharset(
     const ContentType* content_type, StringPiece charset,
-    StringPiece suffix, ResponseHeaders* header) const {
+    ResponseHeaders* header) const {
   header->set_major_version(1);
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
@@ -374,8 +371,8 @@ void ServerContext::SetDefaultLongCacheHeaders(
     header->Add(HttpAttributes::kContentType, header_val);
   }
 
-  int64 now_ms = timer()->NowMs();
-  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs, suffix);
+  int64 now_ms = http_cache_->timer()->NowMs();
+  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs);
 
   // While PageSpeed claims the "Vary" header is needed to avoid proxy cache
   // issues for clients where some accept gzipped content and some don't, it
@@ -416,6 +413,14 @@ void ServerContext::MergeNonCachingResponseHeaders(
   }
 }
 
+// TODO(jmarantz): consider moving this method to ResponseHeaders
+void ServerContext::SetContentType(const ContentType* content_type,
+                                     ResponseHeaders* header) {
+  CHECK(content_type != NULL);
+  header->Replace(HttpAttributes::kContentType, content_type->mime_type());
+  header->ComputeCaching();
+}
+
 void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
   file_prefix.CopyToString(&file_prefix_);
 }
@@ -423,20 +428,7 @@ void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
 void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
                                            ResponseHeaders* headers) {
   headers->ComputeCaching();
-
-  // We always turn off respect_vary in this context, as this is being
-  // used to clean up the headers of a generated resource, to which we
-  // may have applied vary:user-agent if (for example) we are transcoding
-  // to webp during in-place resource optimization.
-  //
-  // TODO(jmarantz): Add a suite of tests to ensure that we are preserving
-  // Vary headers from inputs to output, or converting them to
-  // cache-control:private if needed.
-  bool proxy_cacheable = headers->IsProxyCacheable(
-      RequestHeaders::Properties(),
-      ResponseHeaders::kIgnoreVaryOnResources,
-      ResponseHeaders::kHasValidator);
-
+  bool proxy_cacheable = headers->IsProxyCacheable();
   bool browser_cacheable = headers->IsBrowserCacheable();
   bool no_store = headers->HasValue(HttpAttributes::kCacheControl,
                                     "no-store");
@@ -449,30 +441,27 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
       if (input_headers->cache_ttl_ms() < max_age) {
         max_age = input_headers->cache_ttl_ms();
       }
-      bool resource_cacheable = input_headers->IsProxyCacheable(
-          RequestHeaders::Properties(),
-          ResponseHeaders::kIgnoreVaryOnResources,
-          ResponseHeaders::kHasValidator);
-      proxy_cacheable &= resource_cacheable;
+      proxy_cacheable &= input_headers->IsProxyCacheable();
       browser_cacheable &= input_headers->IsBrowserCacheable();
       no_store |= input_headers->HasValue(HttpAttributes::kCacheControl,
                                           "no-store");
     }
   }
-  DCHECK(!(proxy_cacheable && !browser_cacheable)) <<
-      "You can't have a proxy-cacheable result that is not browser-cacheable";
-  if (!proxy_cacheable) {
-    const char* directives = NULL;
-    if (browser_cacheable) {
-      directives = ",private";
+  if (browser_cacheable) {
+    if (proxy_cacheable) {
+      return;
     } else {
-      max_age = 0;
-      directives = no_store ? ",no-cache,no-store" : ",no-cache";
+      headers->SetDateAndCaching(headers->date_ms(), max_age,
+                                 ",private" /*cache_control_suffix*/);
     }
-    headers->SetDateAndCaching(headers->date_ms(), max_age, directives);
-    headers->Remove(HttpAttributes::kEtag, kResourceEtagValue);
-    headers->ComputeCaching();
+  } else {
+    GoogleString directives = ",no-cache";
+    if (no_store) {
+      directives += ",no-store";
+    }
+    headers->SetDateAndCaching(headers->date_ms(), 0 /*ttl*/, directives);
   }
+  headers->ComputeCaching();
 }
 
 void ServerContext::AddOriginalContentLengthHeader(
@@ -505,20 +494,7 @@ bool ServerContext::IsPagespeedResource(const GoogleUrl& url) {
   OutputResourceKind kind;
   RewriteFilter* filter;
   return decoding_driver_->DecodeOutputResourceName(
-      url, global_options(), url_namer(), &namer, &kind, &filter);
-}
-
-const RewriteFilter* ServerContext::FindFilterForDecoding(
-    const StringPiece& id) const {
-  return decoding_driver_->FindFilter(id);
-}
-
-bool ServerContext::DecodeUrlGivenOptions(const GoogleUrl& url,
-                                          const RewriteOptions* options,
-                                          const UrlNamer* url_namer,
-                                          StringVector* decoded_urls) const {
-  return decoding_driver_->DecodeUrlGivenOptions(url, options, url_namer,
-                                                 decoded_urls);
+      url, &namer, &kind, &filter);
 }
 
 NamedLock* ServerContext::MakeCreationLock(const GoogleString& name) {
@@ -573,17 +549,20 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // are generated by separate client-side JS and that failure of one should not
   // prevent attempting to parse the other.
   QueryParams query_params;
-  query_params.ParseFromUntrustedString(params);
-  GoogleString query_param_str;
+  query_params.Parse(params);
+  const GoogleString* query_param_str;
   GoogleUrl url_query_param;
 
-  if (query_params.Lookup1Unescaped(kBeaconUrlQueryParam, &query_param_str)) {
-    url_query_param.Reset(query_param_str);
+  query_param_str = query_params.Lookup1(kBeaconUrlQueryParam);
+  if (query_param_str != NULL) {
+    // The url parameter sent by the beacon is encoded with EncodeURIComponent,
+    // so decode it.
+    url_query_param.Reset(UrlToFilenameEncoder::Unescape(*query_param_str));
 
     if (!url_query_param.IsWebValid()) {
       message_handler_->Message(kWarning,
                                 "Invalid URL parameter in beacon: %s",
-                                query_param_str.c_str());
+                                query_param_str->c_str());
       return false;
     }
   } else {
@@ -595,12 +574,13 @@ bool ServerContext::HandleBeacon(StringPiece params,
   bool status = true;
 
   // Extract the onload time from the ets query param.
-  if (query_params.Lookup1Unescaped(kBeaconEtsQueryParam, &query_param_str)) {
+  query_param_str = query_params.Lookup1(kBeaconEtsQueryParam);
+  if (query_param_str != NULL) {
     int value = -1;
 
-    size_t index = query_param_str.find(":");
-    if (index != GoogleString::npos && index < query_param_str.size()) {
-      GoogleString load_time_str = query_param_str.substr(index + 1);
+    size_t index = query_param_str->find(":");
+    if (index != GoogleString::npos && index < query_param_str->size()) {
+      GoogleString load_time_str = query_param_str->substr(index + 1);
       if (!(StringToInt(load_time_str, &value) && value >= 0)) {
         status = false;
       } else {
@@ -619,9 +599,9 @@ bool ServerContext::HandleBeacon(StringPiece params,
   }
   // Make sure the beacon has the options hash, which is included in the
   // property cache key.
-  GoogleString options_hash_param;
-  if (!query_params.Lookup1Unescaped(kBeaconOptionsHashQueryParam,
-                                     &options_hash_param)) {
+  const GoogleString* options_hash_param =
+      query_params.Lookup1(kBeaconOptionsHashQueryParam);
+  if (options_hash_param == NULL) {
     return status;
   }
 
@@ -630,36 +610,37 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // Beacon property callback takes ownership of both critical images sets.
   scoped_ptr<StringSet> html_critical_images_set;
   scoped_ptr<StringSet> css_critical_images_set;
-  if (query_params.Lookup1Unescaped(kBeaconCriticalImagesQueryParam,
-                                    &query_param_str)) {
+  query_param_str = query_params.Lookup1(kBeaconCriticalImagesQueryParam);
+  if (query_param_str != NULL) {
     html_critical_images_set.reset(
-        CommaSeparatedStringToSet(query_param_str));
+        CommaSeparatedStringToSet(*query_param_str));
   }
 
   scoped_ptr<StringSet> critical_css_selector_set;
-  if (query_params.Lookup1Unescaped(kBeaconCriticalCssQueryParam,
-                                    &query_param_str)) {
+  query_param_str = query_params.Lookup1(kBeaconCriticalCssQueryParam);
+  if (query_param_str != NULL) {
     critical_css_selector_set.reset(
-        CommaSeparatedStringToSet(query_param_str));
+        CommaSeparatedStringToSet(*query_param_str));
   }
 
   scoped_ptr<RenderedImages> rendered_images;
-  if (query_params.Lookup1Unescaped(kBeaconRenderedDimensionsQueryParam,
-                                    &query_param_str)) {
+  query_param_str = query_params.Lookup1(kBeaconRenderedDimensionsQueryParam);
+  if (query_param_str != NULL) {
     rendered_images.reset(
         critical_images_finder_->JsonMapToRenderedImagesMap(
-            query_param_str, global_options()));
+            *query_param_str, global_options()));
   }
 
   scoped_ptr<StringSet> xpaths_set;
-  if (query_params.Lookup1Unescaped(kBeaconXPathsQueryParam,
-                                    &query_param_str)) {
-    xpaths_set.reset(CommaSeparatedStringToSet(query_param_str));
+  query_param_str = query_params.Lookup1(kBeaconXPathsQueryParam);
+  if (query_param_str != NULL) {
+    xpaths_set.reset(CommaSeparatedStringToSet(*query_param_str));
   }
 
   StringPiece nonce;
-  if (query_params.Lookup1Unescaped(kBeaconNonceQueryParam, &query_param_str)) {
-    nonce.set(query_param_str.data(), query_param_str.size());
+  query_param_str = query_params.Lookup1(kBeaconNonceQueryParam);
+  if (query_param_str != NULL) {
+    nonce.set(query_param_str->data(), query_param_str->size());
   }
 
   // Store the critical information in the property cache. This is done by
@@ -677,7 +658,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
     BeaconPropertyCallback* beacon_property_cb = new BeaconPropertyCallback(
         this,
         url_query_param.Spec(),
-        options_hash_param,
+        *options_hash_param,
         device_type,
         request_context,
         html_critical_images_set.release(),
@@ -757,7 +738,7 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
     RewriteDriverPool* pool, const RequestContextPtr& request_ctx) {
   RewriteDriver* rewrite_driver = NULL;
 
-  const RewriteOptions* options = pool->TargetOptions();
+  RewriteOptions* options = pool->TargetOptions();
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     while ((rewrite_driver = pool->PopDriver()) != NULL) {
@@ -900,21 +881,32 @@ RewriteOptions* ServerContext::NewOptions() {
   return factory_->NewRewriteOptions();
 }
 
-bool ServerContext::GetQueryOptions(
-    const RequestContextPtr& request_context,
-    const RewriteOptions* domain_options, GoogleUrl* request_url,
-    RequestHeaders* request_headers, ResponseHeaders* response_headers,
-    RewriteQuery* rewrite_query) {
-  if (domain_options == NULL) {
-    domain_options = global_options();
+ServerContext::OptionsBoolPair ServerContext::GetQueryOptions(
+    GoogleUrl* request_url, RequestHeaders* request_headers,
+    ResponseHeaders* response_headers) {
+  scoped_ptr<RewriteOptions> query_options;
+  bool success = false;
+  switch (RewriteQuery::Scan(global_options()->add_options_to_urls(),
+                             factory(), this, request_url, request_headers,
+                             response_headers, &query_options,
+                             message_handler_)) {
+    case RewriteQuery::kInvalid:
+      query_options.reset(NULL);
+      break;
+    case RewriteQuery::kNoneFound:
+      query_options.reset(NULL);
+      success = true;
+      break;
+    case RewriteQuery::kSuccess:
+      success = true;
+      break;
+    default:
+      query_options.reset(NULL);
   }
   // Note: success==false is treated as an error (we return 405 in
-  // proxy_interface.cc).
-  return RewriteQuery::IsOK(rewrite_query->Scan(
-      domain_options->add_options_to_urls(),
-      domain_options->allow_options_to_be_set_by_cookies(),
-      domain_options->request_option_override(), request_context, factory(),
-      this, request_url, request_headers, response_headers, message_handler_));
+  // proxy_interface.cc), while query_options==NULL merely means there are no
+  // query options.
+  return OptionsBoolPair(query_options.release(), success);
 }
 
 bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
@@ -926,20 +918,20 @@ bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
   GoogleUrl gurl(*url);
   QueryParams query_params;
   // TODO(bharathbhushan): Can we use the results of any earlier query parse?
-  query_params.ParseFromUrl(gurl);
+  query_params.Parse(gurl.Query());
 
-  GoogleString value;
-  if (!query_params.Lookup1Unescaped(HttpAttributes::kXSplit, &value)) {
+  const GoogleString* value = query_params.Lookup1(HttpAttributes::kXSplit);
+  if (value == NULL) {
     return false;
   }
-  if (HttpAttributes::kXSplitBelowTheFold == value) {
+  if (HttpAttributes::kXSplitBelowTheFold == (*value)) {
     ctx->set_split_request_type(RequestContext::SPLIT_BELOW_THE_FOLD);
-  } else if (HttpAttributes::kXSplitAboveTheFold == value) {
+  } else if (HttpAttributes::kXSplitAboveTheFold == (*value)) {
     ctx->set_split_request_type(RequestContext::SPLIT_ABOVE_THE_FOLD);
   }
   query_params.RemoveAll(HttpAttributes::kXSplit);
   GoogleString query_string = query_params.empty() ? "" :
-        StrCat("?", query_params.ToEscapedString());
+        StrCat("?", query_params.ToString());
   *url = StrCat(gurl.AllExceptQuery(), query_string, gurl.AllAfterQuery());
   return true;
 }
@@ -970,11 +962,8 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     custom_options->Merge(*options);
     query_options->Freeze();
     custom_options->Merge(*query_options);
-    // Don't run any experiments if this is a special query-params request,
-    // unless EnrollExperiment is on.
-    if (!custom_options->enroll_experiment()) {
-      custom_options->set_running_experiment(false);
-    }
+    // Don't run any experiments if this is a special query-params request.
+    custom_options->set_running_experiment(false);
   }
 
   if (request_headers->IsXmlHttpRequest()) {
@@ -1129,187 +1118,6 @@ const CacheInterface* ServerContext::pcache_cache_backend() {
     return NULL;
   }
   return cache_property_store_->cache_backend();
-}
-
-namespace {
-
-class MetadataCacheResultCallback
-    : public RewriteContext::CacheLookupResultCallback {
- public:
-  // Will cleanup the driver
-  MetadataCacheResultCallback(ServerContext* server_context,
-                              RewriteDriver* driver,
-                              AsyncFetch* fetch,
-                              MessageHandler* handler)
-      : server_context_(server_context),
-        driver_(driver),
-        fetch_(fetch),
-        handler_(handler) {
-  }
-
-  virtual ~MetadataCacheResultCallback() {}
-
-  virtual void Done(const GoogleString& cache_key,
-                    RewriteContext::CacheLookupResult* in_result) {
-    scoped_ptr<RewriteContext::CacheLookupResult> result(in_result);
-    driver_->Cleanup();
-
-    ResponseHeaders* response_headers = fetch_->response_headers();
-    response_headers->SetStatusAndReason(HttpStatus::kOK);
-    response_headers->Add(HttpAttributes::kCacheControl,
-                          HttpAttributes::kNoStore);
-    response_headers->Add(HttpAttributes::kContentType, "text/html");
-    response_headers->Add(RewriteQuery::kPageSpeed, "off");
-    GoogleString cache_dump;
-    StringWriter cache_writer(&cache_dump);
-    cache_writer.Write(StrCat("Metadata cache key:", cache_key, "\n"),
-                       handler_);
-    cache_writer.Write(StrCat("cache_ok:",
-                              (result->cache_ok ? "true" : "false"),
-                         "\n"), handler_);
-    cache_writer.Write(
-        StrCat("can_revalidate:", (result->can_revalidate ? "true" : "false"),
-        "\n"), handler_);
-    if (result->partitions.get() != NULL) {
-      const OutputPartitions* partitions = result->partitions.get();
-      // Display the input info which has the minimum expiration time of all
-      // the inputs.
-      //
-      // TODO(morlovich): consider killing this minimum thing: IMHO it only
-      // makes the output harder to read (alternatively it needs some better
-      // formatting).
-      int min_partition_index = -1;
-      int min_input_index = -1;
-      int64 min_input_expiration_ms = kint64max;
-      for (int j = 0, m = partitions->partition_size(); j < m; ++j) {
-        const CachedResult& partition = partitions->partition(j);
-        for (int k = 0, l = partition.input_size(); k < l; ++k) {
-          const InputInfo& input_info = partition.input(k);
-          if (input_info.type() == InputInfo::CACHED &&
-              input_info.has_expiration_time_ms() &&
-              input_info.expiration_time_ms() < min_input_expiration_ms) {
-             min_input_expiration_ms = input_info.expiration_time_ms();
-             min_partition_index = j;
-             min_input_index = k;
-          }
-        }
-      }
-      if (min_partition_index != -1 && min_input_index != -1) {
-        const InputInfo& input_info =
-            partitions->partition(min_partition_index).input(min_input_index);
-        cache_writer.Write(
-            StrCat("partition_min_expiration_input {\n",
-            input_info.DebugString(), "}\n"),
-            handler_);
-      }
-
-      // Display the other dependency field which has the minimum expiration
-      // time of all the dependencies.
-      int64 min_other_expiration_ms = kint64max;
-      int min_other_index = -1;
-      for (int i = 0, n = partitions->other_dependency_size(); i < n; ++i) {
-        const InputInfo& input_info = partitions->other_dependency(i);
-        if (input_info.type() == InputInfo::CACHED &&
-            input_info.has_expiration_time_ms() &&
-            input_info.expiration_time_ms() < min_other_expiration_ms) {
-           min_other_expiration_ms = input_info.expiration_time_ms();
-           min_other_index = i;
-        }
-      }
-      if (min_other_index != -1) {
-        cache_writer.Write(
-            StrCat("partition_min_expiration_other_dependency {\n",
-            partitions->other_dependency(min_other_index).DebugString(),
-            "}\n"), handler_);
-      }
-
-      cache_writer.Write(
-          StrCat("partitions:", result->partitions->DebugString(), "\n"),
-          handler_);
-    } else {
-      cache_writer.Write("partitions is NULL\n", handler_);
-    }
-    for (int i = 0, n = result->revalidate.size(); i < n; ++i) {
-      cache_writer.Write(StrCat("Revalidate entry ", IntegerToString(i),
-                           result->revalidate[i]->DebugString(), "\n"),
-                    handler_);
-    }
-    HtmlKeywords::WritePre(cache_dump, "", fetch_, handler_);
-    fetch_->Done(true);
-    delete this;
-  }
-
- private:
-  ServerContext* server_context_;
-  RewriteDriver* driver_;
-  AsyncFetch* fetch_;
-  MessageHandler* handler_;
-};
-
-}  // namespace
-
-GoogleString ServerContext::ShowCacheForm(const char* user_agent) const {
-  GoogleString ua_default;
-  if (user_agent != NULL) {
-    GoogleString buf;
-    ua_default = StrCat("value=\"", HtmlKeywords::Escape(user_agent, &buf),
-                        "\" ");
-  }
-
-  // The styling on this form could use some love, but the 110/103 sizing
-  // is to make those input fields decently wide to fit large URLs and UAs
-  // and to roughly line up.
-  GoogleString out = StrCat(
-      "<form method=get>\n",
-      "  URL: <input type=text name=url size=110 /><br>\n"
-      "  User-Agent: <input type=text size=103 name=user_agent ",
-      ua_default,
-      "/></br> \n",
-      "   <input type=submit value='Show Metadata Cache Entry'/>"
-      "</form>\n");
-  return out;
-}
-
-void ServerContext::ShowCacheHandler(
-    StringPiece url, AsyncFetch* fetch, RewriteOptions* options_arg) {
-  scoped_ptr<RewriteOptions> options(options_arg);
-  const char* user_agent = fetch->request_headers()->Lookup1(
-      HttpAttributes::kUserAgent);
-  if (url.empty()) {
-    // If the url was not supplied, provide the user with a form to set it.
-    ResponseHeaders* response_headers = fetch->response_headers();
-    response_headers->SetStatusAndReason(HttpStatus::kOK);
-    response_headers->Add(HttpAttributes::kCacheControl,
-                          HttpAttributes::kNoStore);
-    response_headers->Add(HttpAttributes::kContentType, "text/html");
-    fetch->Write(StrCat("<html><body>",
-                        ShowCacheForm(user_agent),
-                        "</body></html>"),
-                 message_handler_);
-    fetch->Done(true);
-  } else if (!GoogleUrl(url).IsWebValid()) {
-    ResponseHeaders* response_headers = fetch->response_headers();
-    response_headers->SetStatusAndReason(HttpStatus::kNotFound);
-    response_headers->Add(HttpAttributes::kContentType, "text/html");
-    fetch->Write("<html><body>Invalid URL</body></html>", message_handler_);
-    fetch->Done(false);
-  } else {
-    RewriteDriver* driver = NewCustomRewriteDriver(
-        options.release(), fetch->request_context());
-    if (user_agent != NULL) {
-      driver->SetUserAgent(user_agent);
-    }
-    GoogleString error_out;
-    MetadataCacheResultCallback* callback = new MetadataCacheResultCallback(
-        this, driver, fetch, message_handler_);
-    if (!driver->LookupMetadataForOutputResource(url, &error_out, callback)) {
-      driver->Cleanup();
-      delete callback;
-      fetch->response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
-      fetch->Write(error_out, message_handler_);
-      fetch->Done(false);
-    }
-  }
 }
 
 }  // namespace net_instaweb

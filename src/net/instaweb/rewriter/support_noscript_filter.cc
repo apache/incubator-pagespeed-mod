@@ -42,18 +42,22 @@ SupportNoscriptFilter::SupportNoscriptFilter(RewriteDriver* rewrite_driver)
 SupportNoscriptFilter::~SupportNoscriptFilter() {
 }
 
-void SupportNoscriptFilter::DetermineEnabled() {
+void SupportNoscriptFilter::StartDocument() {
   // Insert a NOSCRIPT tag only if at least one of the filters requiring
   // JavaScript for execution is enabled.
-  should_insert_noscript_ = IsAnyFilterRequiringScriptExecutionEnabled();
-  set_is_enabled(should_insert_noscript_);
+  if (IsAnyFilterRequiringScriptExecutionEnabled()) {
+    should_insert_noscript_ = true;
+  } else {
+    should_insert_noscript_ = false;
+  }
 }
 
 void SupportNoscriptFilter::StartElement(HtmlElement* element) {
   if (should_insert_noscript_ && element->keyword() == HtmlName::kBody) {
+    // TODO(jefftk): after 2013-06-10 change kModPagespeed to kPageSpeed.
     scoped_ptr<GoogleUrl> url_with_psa_off(
-        rewrite_driver_->google_url().CopyAndAddEscapedQueryParam(
-            RewriteQuery::kPageSpeed, RewriteQuery::kNoscriptValue));
+        rewrite_driver_->google_url().CopyAndAddQueryParam(
+            RewriteQuery::kModPagespeed, RewriteQuery::kNoscriptValue));
     GoogleString escaped_url;
     HtmlKeywords::Escape(url_with_psa_off->Spec(), &escaped_url);
     // TODO(sriharis): Replace the usage of HtmlCharactersNode with HtmlElement

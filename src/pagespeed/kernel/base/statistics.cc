@@ -20,7 +20,6 @@
 
 #include <limits>
 #include <map>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -28,7 +27,6 @@
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/writer.h"
 
 namespace {
@@ -46,19 +44,16 @@ class MessageHandler;
 Variable::~Variable() {
 }
 
-UpDownCounter::~UpDownCounter() {
-}
-
-int64 UpDownCounter::SetReturningPreviousValue(int64 value) {
+int64 Variable::SetReturningPreviousValue(int64 value) {
   int64 previous_value = Get();
   Set(value);
   return previous_value;
 }
 
-MutexedScalar::~MutexedScalar() {
+MutexedVariable::~MutexedVariable() {
 }
 
-int64 MutexedScalar::Get() const {
+int64 MutexedVariable::Get() const {
   if (mutex() != NULL) {
     ScopedMutex hold_lock(mutex());
     return GetLockHeld();
@@ -67,14 +62,14 @@ int64 MutexedScalar::Get() const {
   }
 }
 
-void MutexedScalar::Set(int64 new_value) {
+void MutexedVariable::Set(int64 new_value) {
   if (mutex() != NULL) {
     ScopedMutex hold_lock(mutex());
     SetLockHeld(new_value);
   }
 }
 
-int64 MutexedScalar::SetReturningPreviousValue(int64 new_value) {
+int64 MutexedVariable::SetReturningPreviousValue(int64 new_value) {
   if (mutex() != NULL) {
     ScopedMutex hold_lock(mutex());
     return SetReturningPreviousValueLockHeld(new_value);
@@ -83,7 +78,7 @@ int64 MutexedScalar::SetReturningPreviousValue(int64 new_value) {
   }
 }
 
-int64 MutexedScalar::AddHelper(int delta) {
+int64 MutexedVariable::Add(int delta) {
   if (mutex() != NULL) {
     ScopedMutex hold_lock(mutex());
     return AddLockHeld(delta);
@@ -92,11 +87,11 @@ int64 MutexedScalar::AddHelper(int delta) {
   }
 }
 
-void MutexedScalar::SetLockHeld(int64 new_value) {
+void MutexedVariable::SetLockHeld(int64 new_value) {
   SetReturningPreviousValueLockHeld(new_value);
 }
 
-int64 MutexedScalar::AddLockHeld(int delta) {
+int64 MutexedVariable::AddLockHeld(int delta) {
   int64 value = GetLockHeld() + delta;
   SetLockHeld(value);
   return value;
@@ -105,17 +100,10 @@ int64 MutexedScalar::AddLockHeld(int delta) {
 Histogram::~Histogram() {
 }
 
-CountHistogram::CountHistogram(AbstractMutex* mutex)
-    : mutex_(mutex), count_(0) {}
-
 CountHistogram::~CountHistogram() {
 }
 
 TimedVariable::~TimedVariable() {
-}
-
-FakeTimedVariable::FakeTimedVariable(StringPiece name, Statistics* stats)
-    : var_(stats->AddVariable(name)) {
 }
 
 FakeTimedVariable::~FakeTimedVariable() {
@@ -171,29 +159,23 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
 }
 
 void Histogram::Render(int index, Writer* writer, MessageHandler* handler) {
+  ScopedMutex hold(lock());
   writer->Write(StringPrintf("<div id='hist_%d' style='display:none'>", index),
                 handler);
-
-  // Don't hold a lock while calling the writer, as this can deadlock if
-  // the writer itself winds up invoking pagespeed, causing the histogram
-  // to be locked.  So buffer each histogram and release the lock before
-  // passing it to writer.
-  GoogleString buf;
-  {
-    ScopedMutex hold(lock());
-    StringWriter string_writer(&buf);
-    WriteRawHistogramData(&string_writer, handler);
-  }
-
-  writer->Write(buf, handler);
+  WriteRawHistogramData(writer, handler);
   writer->Write("</div>\n", handler);
 }
 
 Statistics::~Statistics() {
 }
 
-UpDownCounter* Statistics::AddGlobalUpDownCounter(const StringPiece& name) {
-  return AddUpDownCounter(name);
+Variable* Statistics::AddGlobalVariable(const StringPiece& name) {
+  return AddVariable(name);
+}
+
+FakeTimedVariable* Statistics::NewFakeTimedVariable(
+    const StringPiece& name, int index) {
+  return new FakeTimedVariable(AddVariable(name));
 }
 
 namespace {
@@ -370,23 +352,6 @@ void Statistics::RenderTimedVariables(Writer* writer,
     // Write table ending part.
     writer->Write(end, message_handler);
   }
-}
-
-int64 Statistics::LookupValue(StringPiece stat_name) {
-  Variable* var = FindVariable(stat_name);
-  if (var != NULL) {
-    return var->Get();
-  }
-  UpDownCounter* counter = FindUpDownCounter(stat_name);
-  if (counter != NULL) {
-    return counter->Get();
-  }
-  TimedVariable* tvar = FindTimedVariable(stat_name);
-  if (tvar != NULL) {
-    return tvar->Get(TimedVariable::START);
-  }
-  LOG(FATAL) << "Could not find stat: " << stat_name;
-  return 0;
 }
 
 }  // namespace net_instaweb

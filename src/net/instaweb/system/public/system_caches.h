@@ -58,8 +58,7 @@ class SystemRewriteOptions;
 class SystemCaches {
  public:
   // CacheStats prefixes.
-  static const char kMemcachedAsync[];
-  static const char kMemcachedBlocking[];
+  static const char kMemcached[];
   static const char kShmCache[];
 
   static const char kDefaultSharedMemoryPath[];
@@ -100,7 +99,7 @@ class SystemCaches {
   void ShutDown(MessageHandler* message_handler);
 
   // Configures server_context's caches based on its configuration.
-  void SetupCaches(ServerContext* server_context, bool enable_property_cache);
+  void SetupCaches(ServerContext* server_context);
 
   // Creates & registers a shared memory metadata cache segment with given
   // name and size.
@@ -121,19 +120,6 @@ class SystemCaches {
   // set_thread_limit() before calling any other methods.
   void set_thread_limit(int thread_limit) { thread_limit_ = thread_limit; }
 
-  // Finds a Cache for the file_cache_path in the config.  If none exists,
-  // creates one, using all the other parameters in the SystemRewriteOptions.
-  // If multiple calls are made to get a file-cache with the same path, but
-  // with different cleaning parameters, the parameters are merged based
-  // on these rules:
-  //   1. An explicitly configured option is selected over a default without
-  //      warning.
-  //   2. When there are two explicit settings, the higher size is picked,
-  //      but the lower time-interval is picked.  A warning is issued to
-  //      the server log, as this situation should be resolved by the server
-  //      administrator.
-  SystemCachePath* GetCache(SystemRewriteOptions* config);
-
  private:
   typedef SharedMemCache<64> MetadataShmCache;
   struct MetadataShmCacheInfo {
@@ -149,40 +135,35 @@ class SystemCaches {
                        // we get shutdown.
   };
 
-  struct MemcachedInterfaces {
-    MemcachedInterfaces() : async(NULL), blocking(NULL) {}
-    CacheInterface* async;
-    CacheInterface* blocking;
-  };
-
   // Create a new AprMemCache from the given hostname[:port] specification.
   AprMemCache* NewAprMemCache(const GoogleString& spec);
 
-  // Looks up and, if necessary, constructs memcached interfaces for a
-  // configuration.  Both blocking and (potentially) non-blocking
-  // interfaces are constructed, and given separate stats.  Returns
-  // false if memcached is not enabled for this configuration.  The
-  // returned interfaces are owned by SystemCaches, and must not be
-  // freed by the caller.
+  // Finds a Cache for the file_cache_path in the config.  If none exists,
+  // creates one, using all the other parameters in the SystemRewriteOptions.
+  // Currently, no checking is done that the other parameters (e.g. cache
+  // size, cleanup interval, etc.) are consistent.
+  SystemCachePath* GetCache(SystemRewriteOptions* config);
+
+  // Makes a memcached-based cache if the configuration contains a
+  // memcached server specification. NULL is returned if
+  // memcached is not specified for this server.
   //
-  // If memcached is not enabled for the config, both the pointers in
-  // the pair will be NULL.
-  MemcachedInterfaces GetMemcached(SystemRewriteOptions* config);
+  // Always owns the return value.
+  CacheInterface* GetMemcached(SystemRewriteOptions* config);
+
+  // Returns the filesystem metadata cache for the given config's specification
+  // (if it has one). NULL is returned if no cache is specified.
+  CacheInterface* GetFilesystemMetadataCache(SystemRewriteOptions* config);
 
   // Returns any shared memory metadata cache configured for the given name, or
   // NULL.
-  MetadataShmCacheInfo* LookupShmMetadataCache(const GoogleString& name);
+  CacheInterface* LookupShmMetadataCache(const GoogleString& name);
 
   // Returns the shared metadata cache explicitly configured for this config if
   // it exists, otherwise return the default one, creating it if necessary.
   // Returns NULL if shared memory isn't supported or if the default cache is
   // disabled and this server context didn't explicitly configure its own.
-  MetadataShmCacheInfo* GetShmMetadataCacheOrDefault(
-      SystemRewriteOptions* config);
-
-  // Establishes common cohorts for the property cache.
-  void SetupPcacheCohorts(ServerContext* server_context,
-                          bool enable_property_cache);
+  CacheInterface* GetShmMetadataCacheOrDefault(SystemRewriteOptions* config);
 
   scoped_ptr<SlowWorker> slow_worker_;
 
@@ -214,12 +195,12 @@ class SystemCaches {
   // The QueuedWorkerPool for async cache-gets is shared among all
   // memcached connections.
   //
-  // The CacheInterface* value in the MemcachedMap now includes,
+  // The CacheInterface* value in the MemcacheMap now includes,
   // depending on options, instances of CacheBatcher, AsyncCache,
   // and CacheStats.  Explicit lists of AprMemCache instances and
   // AsyncCache objects are also included, as they require extra
   // treatment during startup and shutdown.
-  typedef std::map<GoogleString, MemcachedInterfaces> MemcachedMap;
+  typedef std::map<GoogleString, CacheInterface*> MemcachedMap;
   MemcachedMap memcached_map_;
   scoped_ptr<QueuedWorkerPool> memcached_pool_;
   std::vector<AprMemCache*> memcache_servers_;

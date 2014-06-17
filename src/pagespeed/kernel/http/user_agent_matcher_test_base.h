@@ -51,7 +51,6 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char kCompalUserAgent[];
   static const char kDoCoMoMobileUserAgent[];
   static const char kFirefox1UserAgent[];
-  static const char kFirefox3UserAgent[];
   static const char kFirefox5UserAgent[];
   static const char kFirefoxNokiaN800[];
   static const char kFirefoxUserAgent[];
@@ -128,7 +127,6 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char kTestingWebp[];
   static const char kTestingWebpLosslessAlpha[];
 
-  static const char* const kIe11UserAgents[];
   static const char* const kMobileUserAgents[];
   static const char* const kDesktopUserAgents[];
   static const char* const kTabletUserAgents[];
@@ -136,7 +134,6 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char* const kSplitHtmlSupportedUserAgents[];
   static const char* const kSplitHtmlUnSupportedUserAgents[];
 
-  static const int kIe11UserAgentsArraySize;
   static const int kMobileUserAgentsArraySize;
   static const int kDesktopUserAgentsArraySize;
   static const int kTabletUserAgentsArraySize;

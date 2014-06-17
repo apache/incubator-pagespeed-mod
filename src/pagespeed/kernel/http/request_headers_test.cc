@@ -18,14 +18,9 @@
 
 #include "pagespeed/kernel/http/request_headers.h"
 
-#include <map>
-#include <utility>
-
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http.pb.h"
-#include "pagespeed/kernel/http/http_names.h"
 
 namespace net_instaweb {
 
@@ -96,87 +91,6 @@ TEST_F(RequestHeadersTest, CopyFromProto) {
   EXPECT_STREQ("2", request_headers_.Value(0));
   // Default in proto.
   EXPECT_EQ(RequestHeaders::kGet, request_headers_.method());
-}
-
-TEST_F(RequestHeadersTest, AcceptWebp) {
-  const StringPiece kWebpMimeType = kContentTypeWebp.mime_type();
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
-  request_headers_.Add(HttpAttributes::kAccept, "x, image/webp, y");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
-  RequestHeaders keep;
-  keep.Add(HttpAttributes::kAccept, "image/webp");
-  keep.Add(HttpAttributes::kAccept, "y");
-  EXPECT_TRUE(request_headers_.RemoveIfNotIn(keep));
-  EXPECT_STREQ("image/webp, y", request_headers_.Value(0));
-
-  request_headers_.Clear();
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
-  request_headers_.Add(HttpAttributes::kAccept, "a");
-  request_headers_.Add(HttpAttributes::kAccept, "image/webp");
-  request_headers_.Add(HttpAttributes::kAccept, "b");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
-  // Add extra copy of image/webp.
-  request_headers_.Add(HttpAttributes::kAccept, "image/webp");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
-  // remove just one of the two copies of the value.
-  request_headers_.Remove(HttpAttributes::kAccept, "image/webp");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
-  // remove the last copy.
-  request_headers_.Remove(HttpAttributes::kAccept, "image/webp");
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
-
-  request_headers_.Clear();
-  request_headers_.Add(HttpAttributes::kAccept,
-                       "application/xhtml+xml,application/xml;q=0.9,"
-                       "image/webp,*/*;q=0.8");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
-
-  // We do not currently handle arbitrary modifiers after image/webp.
-  // If this becomes an issue in the future then this test should be
-  // flipped to an EXPECT_TRUE once the handling is added.
-  request_headers_.Clear();
-  request_headers_.Add(HttpAttributes::kAccept,
-                       "application/xhtml+xml,application/xml;q=0.9,"
-                       "image/webp;q=0.9,"
-                       "*/*;q=0.8");
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
-}
-
-TEST_F(RequestHeadersTest, GetAllCookies) {
-  // No headers means no cookies.
-  request_headers_.Clear();
-  EXPECT_EQ(0, request_headers_.GetAllCookies().size());
-  // OK, so set some up.
-  request_headers_.Add(HttpAttributes::kCookie, "  a =  b    ;c=d; e=\" f \"");
-  request_headers_.Add(HttpAttributes::kCookie, "gggggggggggg=hhhhhhhhhhhhhhh");
-  request_headers_.Add(HttpAttributes::kCookie, "iiiii=llr; a=z; a=y; e=zomg");
-  request_headers_.Add(HttpAttributes::kCookie, "jjjjjjjjjjjjj  ; kk = ");
-  const RequestHeaders::CookieMultimap& cookies =
-      request_headers_.GetAllCookies();
-  EXPECT_EQ(10, cookies.size());
-  // Data driven rather than a bunch of hand coded EXPECT_EQ's.
-  const char* const kNames[] = {
-    "a", "a", "a", "c", "e", "e", "gggggggggggg", "iiiii", "jjjjjjjjjjjjj", "kk"
-  };
-  const char* const kValues[] = {
-    "b", "z", "y", "d", "\" f \"", "zomg", "hhhhhhhhhhhhhhh", "llr", "", ""
-  };
-  ASSERT_EQ(arraysize(kNames), cookies.size());
-  ASSERT_EQ(arraysize(kValues), cookies.size());
-  RequestHeaders::CookieMultimapConstIter iter = cookies.begin();
-  for (int i = 0, n = cookies.size(); i < n; ++i, ++iter) {
-    EXPECT_STREQ(kNames[i], iter->first);
-    EXPECT_STREQ(kValues[i], iter->second.first);
-  }
 }
 
 }  // namespace net_instaweb

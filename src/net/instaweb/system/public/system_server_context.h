@@ -20,7 +20,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/system/public/admin_site.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -29,34 +28,20 @@
 namespace net_instaweb {
 
 class AbstractMutex;
-class AsyncFetch;
-class GoogleUrl;
 class Histogram;
-class QueryParams;
+class SharedMemStatistics;
 class RewriteDriver;
 class RewriteDriverFactory;
-class RewriteOptions;
 class RewriteStats;
-class SharedMemStatistics;
 class Statistics;
-class SystemCaches;
 class SystemRewriteDriverFactory;
 class SystemRewriteOptions;
-class UpDownCounter;
 class UrlAsyncFetcherStats;
 class Variable;
-class Writer;
 
 // A server context with features specific to a PSOL port on a unix system.
 class SystemServerContext : public ServerContext {
  public:
-  // Identifies whether the user arrived at an admin page from a
-  // /pagespeed_admin handler or a /*_pagespeed_statistics handler.
-  // The main difference between these is that the _admin site might in the
-  // future grant more privileges than the statistics site did, such as flushing
-  // cache.  But it also affects the syntax of the links created to sub-pages
-  // in the top navigation bar.
-
   SystemServerContext(RewriteDriverFactory* factory,
                       StringPiece hostname, int port);
   virtual ~SystemServerContext();
@@ -71,11 +56,8 @@ class SystemServerContext : public ServerContext {
   // restart.
   void FlushCacheIfNecessary();
 
-  SystemRewriteOptions* global_system_rewrite_options();
+  SystemRewriteOptions* system_rewrite_options();
   GoogleString hostname_identifier() { return hostname_identifier_; }
-
-  // Initialize this SystemServerContext to set up its admin site.
-  virtual void PostInitHook();
 
   static void InitStats(Statistics* statistics);
 
@@ -116,39 +98,6 @@ class SystemServerContext : public ServerContext {
   // signatures when done, and by default that's the only thing it does.
   virtual void CollapseConfigOverlaysAndComputeSignatures();
 
-  // Returns the spdy-specific configuration, or NULL if there is none
-  // specified.
-  virtual const SystemRewriteOptions* SpdyGlobalConfig() const;
-
-  // Handler which serves PSOL console.
-  // Note: ConsoleHandler always succeeds.
-  void ConsoleHandler(const SystemRewriteOptions& options,
-                      AdminSite::AdminSource source,
-                      const QueryParams& query_params, AsyncFetch* fetch);
-
-  // Displays recent Info/Warning/Error messages.
-  void MessageHistoryHandler(AdminSite::AdminSource source,
-                             AsyncFetch* fetch);
-
-  // Deprecated handler for graphs in the PSOL console.
-  void StatisticsGraphsHandler(Writer* writer);
-
-  // Handle a request for /pagespeed_admin/*, which is a launching
-  // point for all the administrator pages including stats,
-  // message-histogram, console, etc.
-  void AdminPage(bool is_global, const GoogleUrl& stripped_gurl,
-                 const QueryParams& query_params, const RewriteOptions* options,
-                 AsyncFetch* fetch);
-
-  // Handle a request for the legacy /*_pagespeed_statistics page, which also
-  // serves as a launching point for a subset of the admin pages.  Because the
-  // admin pages are not uniformly sensitive, an existing PageSpeed user might
-  // have granted public access to /mod_pagespeed_statistics, but we don't
-  // want that to automatically imply access to the server cache.
-  void StatisticsPage(bool is_global, const QueryParams& query_params,
-                      const RewriteOptions* options,
-                      AsyncFetch* fetch);
-
  protected:
   // Flush the cache by updating the cache flush timestamp in the global
   // options.  This will change its signature, which is part of the cache key,
@@ -168,49 +117,10 @@ class SystemServerContext : public ServerContext {
   virtual void MaybeApplySpdySessionFetcher(const RequestContextPtr& request,
                                             RewriteDriver* driver) {}
 
-  // Returns JSON used by the PageSpeed Console JavaScript.
-  void ConsoleJsonHandler(const QueryParams& params, AsyncFetch* fetch);
-
-  // Handler for /mod_pagespeed_statistics and
-  // /ngx_pagespeed_statistics, as well as
-  // /...pagespeed__global_statistics.  If the latter,
-  // is_global_request should be true.
-  //
-  // Returns NULL on success, otherwise the returned error string
-  // should be passed along to the user and the contents of writer and
-  // content_type should be ignored.
-  //
-  // In systems without a spdy-specific config, spdy_config should be
-  // null.
-  void StatisticsHandler(bool is_global_request,
-                         AdminSite::AdminSource source,
-                         AsyncFetch* fetch);
-
-  // Print details fo the SPDY configuration.
-  void PrintSpdyConfig(AdminSite::AdminSource source, AsyncFetch* fetch);
-
-  // Print details fo the non-SPDY configuration.
-  void PrintNormalConfig(AdminSite::AdminSource source, AsyncFetch* fetch);
-
-  // Print statistics about the caches.  In the future this will also
-  // be a launching point for examining cache entries and purging them.
-  void PrintCaches(bool is_global, AdminSite::AdminSource source,
-                   const QueryParams& query_params,
-                   const RewriteOptions* options,
-                   AsyncFetch* fetch);
-
-  // Print histograms showing the dynamics of server activity.
-  void PrintHistograms(bool is_global_request,
-                       AdminSite::AdminSource source,
-                       AsyncFetch* fetch);
-
   Variable* statistics_404_count();
 
  private:
-  scoped_ptr<AdminSite> admin_site_;
-
   bool initialized_;
-  bool use_per_vhost_statistics_;
 
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
@@ -219,7 +129,7 @@ class SystemServerContext : public ServerContext {
   int64 last_cache_flush_check_sec_;  // seconds since 1970
 
   Variable* cache_flush_count_;
-  UpDownCounter* cache_flush_timestamp_ms_;
+  Variable* cache_flush_timestamp_ms_;
 
   Histogram* html_rewrite_time_us_histogram_;
 
@@ -237,8 +147,6 @@ class SystemServerContext : public ServerContext {
   // used to distinguish the name of shared memory so that each vhost has its
   // own SharedCircularBuffer.
   GoogleString hostname_identifier_;
-
-  SystemCaches* system_caches_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemServerContext);
 };

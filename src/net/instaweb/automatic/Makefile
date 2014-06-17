@@ -42,24 +42,19 @@ BUILDTYPE = Release
 BASE_LIBS = \
   base/libbase.a \
   base/libbase_static.a \
+  build/temp_gyp/libgoogleurl.a \
   net/instaweb/libautomatic_util.a \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
-  net/instaweb/libinstaweb_apr.a \
   net/instaweb/libinstaweb_automatic.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
-  net/instaweb/libinstaweb_console_body_data2c.a \
   net/instaweb/libinstaweb_console_css_data2c.a \
-  net/instaweb/libinstaweb_console_css_old_data2c.a \
   net/instaweb/libinstaweb_console_js_data2c.a \
-  net/instaweb/libinstaweb_console_js_old_data2c.a \
   net/instaweb/libinstaweb_console_js_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
-  net/instaweb/libinstaweb_critical_css_loader_data2c.a \
-  net/instaweb/libinstaweb_critical_css_loader_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_pb.a \
   net/instaweb/libinstaweb_critical_images_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_images_beacon_opt_data2c.a \
@@ -80,6 +75,8 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_extended_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_flush_early_pb.a \
   net/instaweb/libinstaweb_ghost_click_buster_opt_data2c.a \
+  net/instaweb/libinstaweb_htmlparse_core.a \
+  net/instaweb/libinstaweb_http.a \
   net/instaweb/libinstaweb_image_types_pb.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
@@ -108,7 +105,6 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_util_enums_pb.a \
   net/instaweb/libprocess_context.a \
   net/instaweb/libtest_infrastructure.a \
-  pagespeed/libjs_tokenizer.a \
   pagespeed/libjsminify.a \
   pagespeed/libpagespeed_base.a \
   pagespeed/libpagespeed_base_core.a \
@@ -123,19 +119,15 @@ BASE_LIBS = \
   pagespeed/libpagespeed_image_processing.a \
   pagespeed/libpagespeed_javascript_gperf.a \
   pagespeed/libpagespeed_sharedmem.a \
-  pagespeed/libpagespeed_sharedmem_pb.a \
   pagespeed/libpagespeed_thread.a \
   pagespeed/libpthread_system.a \
   pagespeed/libutil.a \
-  third_party/apr/libapr.a \
-  third_party/aprutil/libaprutil.a \
   third_party/base64/libbase64.a \
   third_party/chromium/src/base/third_party/dynamic_annotations/libdynamic_annotations.a \
   third_party/css_parser/libcss_parser.a \
   third_party/css_parser/libutf.a \
   third_party/domain_registry_provider/src/domain_registry/libassert_lib.a \
   third_party/domain_registry_provider/src/domain_registry/libdomain_registry_lib.a \
-  third_party/domain_registry_provider/src/domain_registry/libinit_registry_tables_lib.a \
   third_party/gflags/libgflags.a \
   third_party/giflib/libdgiflib.a \
   third_party/giflib/libgiflib_core.a \
@@ -144,6 +136,10 @@ BASE_LIBS = \
   third_party/jsoncpp/libjsoncpp.a \
   third_party/libjpeg_turbo/libjpeg.a \
   third_party/libjpeg_turbo/src/libjpeg_turbo.a \
+  third_party/libpagespeed/src/pagespeed/core/libpagespeed_core.a \
+  third_party/libpagespeed/src/pagespeed/proto/libpagespeed_output_pb.a \
+  third_party/libpagespeed/src/pagespeed/proto/libpagespeed_resource_pb.a \
+  third_party/libpagespeed/src/pagespeed/proto/libtimeline_pb.a \
   third_party/libpng/libpng.a \
   third_party/libwebp/libwebp_dec.a \
   third_party/libwebp/libwebp_dsp.a \
@@ -151,11 +147,9 @@ BASE_LIBS = \
   third_party/libwebp/libwebp_utils.a \
   third_party/serf/libopenssl.a \
   third_party/optipng/libopngreduc.a \
-  third_party/protobuf/libprotobuf_full_do_not_use.a \
+  third_party/protobuf/libprotobuf_lite.a \
   third_party/re2/libre2.a \
-  third_party/serf/libserf.a \
-  third_party/zlib/libzlib.a \
-  url/liburl_lib.a
+  third_party/zlib/libzlib.a
 
 # The 'gclient' build flow uses 'xcodebuild' on Mac and 'make' on Linux.
 # To make matters worse, it puts all the intermediate libraries in the same
@@ -196,7 +190,7 @@ CXX = /usr/bin/g++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/third_party/re2/libre2_bench_util.a
 
 build_libraries :
-	cd $(MOD_PAGESPEED_ROOT) && make $(CXXFLAGS_ARG) BUILDTYPE=$(BUILDTYPE)
+	cd $(MOD_PAGESPEED_ROOT) && make CXXFLAGS="$(CXXFLAGS)" BUILDTYPE=$(BUILDTYPE)
 
 endif
 
@@ -220,11 +214,7 @@ EXE           = $(OUTPUT_DIR)/static_rewriter
 SPEED_TEST    = $(OUTPUT_DIR)/rewriter_speed_test
 EXAMPLE_ROOT  = $(MOD_PAGESPEED_ROOT)/install/mod_pagespeed_example
 EXAMPLES      = $(OUTPUT_DIR)/collapse_whitespace.html
-MERGE_LOG     = $(OUTPUT_DIR)/merge.log
-RENAME_LOG    = $(OUTPUT_DIR)/rename.log
-LOGS          = $(MERGE_LOG) $(RENAME_LOG)
 
-MAKE := $(MAKE) --no-print-directory
 exe : $(EXE)
 speed_test : $(SPEED_TEST)
 
@@ -241,15 +231,9 @@ all : build_libraries
 CXXFLAGS = -g
 
 $(OUTPUT_DIR)/pagespeed_automatic.a : $(LIBS)
-	@echo Merging libraries, logs in $(MERGE_LOG) ...
-	@./merge_libraries.sh $@.dirty $(LIBS) > $(MERGE_LOG)
-	@echo Cleaning namespace, logs in $(RENAME_LOG) ...
-	@./rename_c_symbols.sh $@.dirty $@ > $(RENAME_LOG)
-	rm $@.dirty
+	@echo Merging libraries ...
+	@./merge_libraries.sh $@ $(LIBS)
 
-.PHONY : psol
-psol : build_libraries
-	$(MAKE) $(OUTPUT_DIR)/pagespeed_automatic.a
 
 $(OUTPUT_DIR)/%.o : %.cc
 	$(CXX) $(INCLUDE_PATH) $(CXXFLAGS) $(MOD_PAGESPEED_INCLUDE) -c $< -o $@
@@ -267,7 +251,7 @@ $(SPEED_TEST) : $(SPEED_TEST_OBJS)
 examples : $(EXAMPLES)
 
 clean :
-	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES) $(LOGS)
+	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES)
 
 echo_libs :
 	echo LIBS = $(LIBS)

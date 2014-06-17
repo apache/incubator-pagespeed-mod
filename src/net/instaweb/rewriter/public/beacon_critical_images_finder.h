@@ -43,7 +43,7 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
       Statistics* stats);
   virtual ~BeaconCriticalImagesFinder();
 
-  virtual Availability Available(RewriteDriver* driver);
+  virtual bool IsMeaningful(const RewriteDriver* driver) const;
 
   virtual int PercentSeenForCritical() const {
     return kBeaconPercentSeenForCritical;
@@ -66,18 +66,13 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
       AbstractPropertyPage* page,
       Timer* timer);
 
-  virtual bool ShouldBeacon(RewriteDriver* driver);
   // Check beacon interval and nonce state, and return appropriate
   // BeaconMetadata; result.status indicates whether beaconing should occur, and
   // result.nonce contains the nonce (if required).
   virtual BeaconMetadata PrepareForBeaconInsertion(RewriteDriver* driver);
 
-  virtual void UpdateCandidateImagesForBeaconing(const StringSet& images,
-                                                 RewriteDriver* driver,
-                                                 bool beaconing);
-
  private:
-  virtual GoogleString GetKeyForUrl(StringPiece url);
+  virtual GoogleString GetKeyForUrl(const GoogleString& url);
 
   // 80% is a guess at a reasonable value for this param.
   static const int kBeaconPercentSeenForCritical = 80;

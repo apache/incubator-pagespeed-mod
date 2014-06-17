@@ -20,7 +20,6 @@
 #define PAGESPEED_KERNEL_THREAD_MOCK_SCHEDULER_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/scheduler.h"
@@ -42,35 +41,31 @@ class MockScheduler : public Scheduler {
                 MockTimer* timer);
   virtual ~MockScheduler();
 
-  virtual void RegisterWorker(QueuedWorkerPool::Sequence* w)
-      LOCKS_EXCLUDED(mutex());
-  virtual void UnregisterWorker(QueuedWorkerPool::Sequence* w)
-      LOCKS_EXCLUDED(mutex());
+  virtual void RegisterWorker(QueuedWorkerPool::Sequence* w);
+  virtual void UnregisterWorker(QueuedWorkerPool::Sequence* w);
 
   // Blocks until all work in registered workers is done.
-  void AwaitQuiescence() LOCKS_EXCLUDED(mutex());
+  void AwaitQuiescence();
 
   // Similar to BlockingTimedWaitUs but takes the lock for convenience.
-  void AdvanceTimeMs(int64 timeout_ms) LOCKS_EXCLUDED(mutex()) {
+  // Must be called without mutex held.
+  void AdvanceTimeMs(int64 timeout_ms) {
     AdvanceTimeUs(timeout_ms * Timer::kMsUs);
   }
-  void AdvanceTimeUs(int64 timeout_us) LOCKS_EXCLUDED(mutex());
+  void AdvanceTimeUs(int64 timeout_us);
 
   // Sets the current absolute time using absolute numbers.
-  void SetTimeUs(int64 time_us) LOCKS_EXCLUDED(mutex());
+  // Must be called without mutex held.
+  void SetTimeUs(int64 time_us);
 
  protected:
-  virtual void AwaitWakeupUntilUs(int64 wakeup_time_us)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  virtual void AwaitWakeupUntilUs(int64 wakeup_time_us);
 
  private:
-  inline void SetTimeUsMutexHeld(int64 time_us)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  inline void SetTimeUsMutexHeld(int64 time_us);
 
-  // TODO(jud): Verify if this variable should be GUARDED_BY(mutex()). The
-  // CHECK_LE in SetTimeUs currently has an unlocked access to it.
   MockTimer* timer_;
-  QueuedWorkerPool::SequenceSet workers_ GUARDED_BY(mutex());
+  QueuedWorkerPool::SequenceSet workers_;
 
   DISALLOW_COPY_AND_ASSIGN(MockScheduler);
 };

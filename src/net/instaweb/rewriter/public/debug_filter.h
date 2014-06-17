@@ -22,7 +22,6 @@
 #include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -66,11 +65,11 @@ class DebugFilter : public EmptyHtmlFilter {
                                          int64 parse_duration_us,
                                          int64 flush_duration_us,
                                          int64 idle_duration_us);
-  static GoogleString FormatEndDocumentMessage(
-      int64 time_since_init_parse_us, int64 total_parse_duration_us,
-      int64 total_flush_duration_us, int64 total_idle_duration_us,
-      int num_flushes, bool is_critical_images_beacon_enabled,
-      const StringSet& critical_image_urls);
+  static GoogleString FormatEndDocumentMessage(int64 time_since_init_parse_us,
+                                               int64 total_parse_duration_us,
+                                               int64 total_flush_duration_us,
+                                               int64 total_idle_duration_us,
+                                               int num_flushes);
 
  private:
   // Tracks duration of events of interest that may occur multiple times
@@ -103,7 +102,6 @@ class DebugFilter : public EmptyHtmlFilter {
   Event parse_;              // Tracks how much time is spent parsing.
   Event render_;             // Tracks how much time is spent rendering.
   Event idle_;               // Tracks how much time is spent waiting.
-  StringSet critical_image_urls_;
 
   // The buffered flush messages this filter generates for a flush in a literal
   // tag.

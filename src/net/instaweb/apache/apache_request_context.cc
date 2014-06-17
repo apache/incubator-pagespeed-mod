@@ -21,20 +21,18 @@
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/util/public/string_util.h"
 
 #include "httpd.h"  // NOLINT
 
 namespace net_instaweb {
 
 ApacheRequestContext::ApacheRequestContext(
-    AbstractMutex* logging_mutex, Timer* timer, request_rec* req)
-    : SystemRequestContext(
-          logging_mutex,
-          timer,
-          req->hostname,
-          req->connection->local_addr->port,
-          req->connection->local_ip),
+    AbstractMutex* logging_mutex,
+    Timer* timer,
+    int local_port,
+    StringPiece local_ip,
+    request_rec* req)
+    : SystemRequestContext(logging_mutex, timer, local_port, local_ip),
       use_spdy_fetcher_(ModSpdyFetcher::ShouldUseOn(req)),
       spdy_connection_factory_(NULL) {
   // Note that at the time we create a RequestContext we have full
@@ -57,15 +55,7 @@ ApacheRequestContext::ApacheRequestContext(
                                       HttpAttributes::kXPsaOptimizeForSpdy);
     set_using_spdy(value != NULL);
   }
-}
 
-ApacheRequestContext::~ApacheRequestContext() {
-  if (spdy_connection_factory_ != NULL) {
-    mod_spdy_destroy_slave_connection_factory(spdy_connection_factory_);
-  }
-}
-
-void ApacheRequestContext::SetupSpdyConnectionIfNeeded(request_rec* req) {
   // Independent of whether we are serving a SPDY request, we will want
   // to be able to do back door mod_spdy fetches if configured to do so.
   if (use_spdy_fetcher_) {
@@ -73,6 +63,12 @@ void ApacheRequestContext::SetupSpdyConnectionIfNeeded(request_rec* req) {
     // do per-request.  Verify this with profiling.
     spdy_connection_factory_ =
         mod_spdy_create_slave_connection_factory(req->connection);
+  }
+}
+
+ApacheRequestContext::~ApacheRequestContext() {
+  if (spdy_connection_factory_ != NULL) {
+    mod_spdy_destroy_slave_connection_factory(spdy_connection_factory_);
   }
 }
 

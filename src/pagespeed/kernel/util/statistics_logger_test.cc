@@ -18,7 +18,6 @@
 #include "pagespeed/kernel/util/statistics_logger.h"
 
 #include <map>
-#include <set>
 #include <vector>
 
 #include "pagespeed/kernel/base/file_system.h"
@@ -29,7 +28,6 @@
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/statistics_template.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
@@ -56,16 +54,15 @@ class StatisticsLoggerTest : public ::testing::Test {
   typedef StatisticsLogger::VarMap VarMap;
 
   StatisticsLoggerTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+      : timer_(MockTimer::kApr_5_2010_ms),
+        thread_system_(Platform::CreateThreadSystem()),
         handler_(thread_system_->NewMutex()),
         file_system_(thread_system_.get(), &timer_),
-        stats_(thread_system_.get()),
         // Note: These unit tests don't need access to timestamp variable or
         // statistics. There are integration tests in
         // SharedMemStatisticsTestBase which test those interactions.
         logger_(kLoggingIntervalMs, kMaxLogfileSizeKb, kStatsLogFile,
-                stats_.AddVariable(kTimestampVarName)->impl(), &handler_,
+                stats_.AddVariable(kTimestampVarName), &handler_,
                 &stats_, &file_system_, &timer_) {
     logger_.InitStatsForTest();
     // Another non-logged statistics.
@@ -143,8 +140,8 @@ class StatisticsLoggerTest : public ::testing::Test {
                       message_handler);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
+  scoped_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
   MemFileSystem file_system_;
   SimpleStats stats_;
@@ -337,8 +334,8 @@ TEST_F(StatisticsLoggerTest, ConsistentNumberArgs) {
 }
 
 TEST_F(StatisticsLoggerTest, FromStats) {
-  stats_.GetVariable(kUnloggedVariable)->Add(2300);
-  stats_.GetVariable("num_flushes")->Add(300);
+  stats_.GetVariable(kUnloggedVariable)->Set(2300);
+  stats_.GetVariable("num_flushes")->Set(300);
 
   GoogleString logger_output;
   StringWriter logger_writer(&logger_output);

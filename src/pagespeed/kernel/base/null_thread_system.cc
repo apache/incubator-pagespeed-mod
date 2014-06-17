@@ -20,7 +20,6 @@
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 
 namespace net_instaweb {
 
@@ -108,7 +107,7 @@ ThreadSystem::RWLock* NullThreadSystem::NewRWLock() {
 Timer* NullThreadSystem::NewTimer() {
   // TODO(jmarantz): consider removing the responsibility of creating timers
   // from the thread system.
-  return new MockTimer(new NullMutex, 0);
+  return new MockTimer(0);
 }
 
 ThreadSystem::ThreadId* NullThreadSystem::GetThreadId() const {

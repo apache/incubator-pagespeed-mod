@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -93,10 +92,6 @@ class CacheExtenderTest : public RewriteTestBase {
 
   void InitTest(int64 ttl) {
     options()->EnableExtendCacheFilters();
-    InitTestWithoutFilters(ttl);
-  }
-
-  void InitTestWithoutFilters(int64 ttl) {
     rewrite_driver()->AddFilters();
     SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss, kCssData, ttl);
     SetResponseWithDefaultHeaders("b.jpg", kContentTypeJpeg, kImageData, ttl);
@@ -104,7 +99,7 @@ class CacheExtenderTest : public RewriteTestBase {
     SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                   kJsDataIntrospective, ttl);
     // Reset stats.
-    num_cache_extended_->Clear();
+    num_cache_extended_->Set(0);
   }
 
   // Generate HTML loading 3 resources with the specified URLs
@@ -192,23 +187,6 @@ class CacheExtenderTest : public RewriteTestBase {
     EXPECT_EQ(GoogleString(kJsData), content);
   }
 
-  void VerifyUnauthorizedResourcesNotExtended() {
-    SetResponseWithDefaultHeaders("http://unauth.example.com/unauth.js",
-                                  kContentTypeJavascript, kJsData,
-                                  kShortTtlSec);
-    SetResponseWithDefaultHeaders("http://unauth.example.com/unauth.css",
-                                  kContentTypeCss, kCssData, kShortTtlSec);
-    const char kJsReference[] =
-        "<script src='http://unauth.example.com/unauth.js'></script>";
-    const char kCssReference[] =
-        "<link rel=stylesheet href='http://unauth.example.com/unauth.css'>";
-    ValidateNoChanges("dont_extend_unauth_js",
-                      StrCat(kJsReference, kCssReference));
-    EXPECT_EQ(0, num_cache_extended_->Get())
-        << "Number of cache extended resources is wrong";
-    EXPECT_STREQ("", AppliedRewriterStringFromLog());
-  }
-
   Variable* num_cache_extended_;
   const GoogleString kCssData;
   const GoogleString kCssPath;
@@ -238,9 +216,6 @@ class CacheExtenderTestPreserveURLs : public CacheExtenderTest {
   // This function should only be called once, as it sets the filters
   // and options.
   void TestExtend(bool img_extend, bool css_extend, bool js_extend) {
-    options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheCss);
-    options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheImages);
-    options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheScripts);
     if (!img_extend) {
       options()->set_image_preserve_urls(true);
     }
@@ -251,7 +226,7 @@ class CacheExtenderTestPreserveURLs : public CacheExtenderTest {
       options()->set_js_preserve_urls(true);
     }
     CacheExtenderTest::SetUp();
-    InitTestWithoutFilters(kShortTtlSec);
+    InitTest(kShortTtlSec);
 
     GoogleString expected_img_html = "b.jpg";
     GoogleString expected_css_html = kCssFile;
@@ -295,20 +270,6 @@ TEST_F(CacheExtenderTestPreserveURLs, CacheExtenderPreserveAllURLsOn) {
   TestExtend(false,   // img_extend
              false,   // css_extend
              false);  // js_extend
-}
-
-TEST_F(CacheExtenderTest, DoNotExtendUnauthorizedResources) {
-  InitTest(kShortTtlSec);
-  VerifyUnauthorizedResourcesNotExtended();
-}
-
-TEST_F(CacheExtenderTest, DoNotExtendUnauthorizedResourcesWithUnauthEnabled) {
-  InitTest(kShortTtlSec);
-  options()->ClearSignatureForTesting();
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kScript);
-  server_context()->ComputeSignature(options());
-  VerifyUnauthorizedResourcesNotExtended();
 }
 
 TEST_F(CacheExtenderTest, DoNotExtendIntrospectiveJavascriptByDefault) {
@@ -495,73 +456,6 @@ TEST_F(CacheExtenderTest, ExtendIfShardedToHttps) {
                               "css"),
                        Encode("https://shard0.com/", "ce", "0", "b.jpg", "jpg"),
                        Encode("https://shard0.com/", "ce", "0", "c.js", "js")));
-}
-
-TEST_F(CacheExtenderTest, ExtendIfShardedAndRewritingAndMappingHttps) {
-  // This test started out trying to unit test mod_pagespeed issue #400 by
-  // replicating the settings the poster used. They didn't work, basically
-  // because the wildcard directive for *test.com conflicted with the later
-  // non-wildcard ones. After much experimentation we came up with these
-  // settings (without wildcards) that seem to do what the poster wants.
-  InitTest(kLongTtlSec);
-  SetResponseWithDefaultHeaders(StrCat("http://www.test.com/", kCssFile),
-                                kContentTypeCss, kCssData, kLongTtlSec);
-  SetResponseWithDefaultHeaders("http://www.test.com/b.jpg", kContentTypeJpeg,
-                                kImageData, kLongTtlSec);
-  SetResponseWithDefaultHeaders("http://www.test.com/c.js",
-                                kContentTypeJavascript, kJsData, kLongTtlSec);
-
-  // Set up the mappings that -should- work for issue 400.
-  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com",
-                                      "http://test.com,http://www.test.com"));
-  ASSERT_TRUE(AddRewriteDomainMapping("https://cdn.com",
-                                      "https://test.com,https://www.test.com"));
-  ASSERT_TRUE(AddShard("http://cdn.com",
-                       "http://s1.cdn.com,http://s2.cdn.com"));
-  ASSERT_TRUE(AddShard("https://cdn.com",
-                       "https://s1.cdn.com,https://s2.cdn.com"));
-  ASSERT_TRUE(AddOriginDomainMapping("http://test.com", "https://test.com"));
-  ASSERT_TRUE(AddOriginDomainMapping("http://test.com",
-                                     "https://www.test.com"));
-
-  // shard0 is always selected in the test because of our mock hasher
-  // that always returns 0.
-  ValidateExpected("extend_if_sharded_rewriting_mapping_bare_domain_http",
-                   GenerateHtml("http://test.com/sub/a.css?v=1",
-                                "http://test.com/b.jpg",
-                                "http://test.com/c.js"),
-                   GenerateHtml(
-                       Encode("http://s1.cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
-                       Encode("http://s1.cdn.com/", "ce", "0", "b.jpg", "jpg"),
-                       Encode("http://s1.cdn.com/", "ce", "0", "c.js", "js")));
-  ValidateExpected("extend_if_sharded_rewriting_mapping_bare_domain_https",
-                   GenerateHtml("https://test.com/sub/a.css?v=1",
-                                "https://test.com/b.jpg",
-                                "https://test.com/c.js"),
-                   GenerateHtml(
-                       Encode("https://s1.cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
-                       Encode("https://s1.cdn.com/", "ce", "0", "b.jpg", "jpg"),
-                       Encode("https://s1.cdn.com/", "ce", "0", "c.js", "js")));
-  ValidateExpected("extend_if_sharded_rewriting_mapping_www_domain_http",
-                   GenerateHtml("http://www.test.com/sub/a.css?v=1",
-                                "http://www.test.com/b.jpg",
-                                "http://www.test.com/c.js"),
-                   GenerateHtml(
-                       Encode("http://s1.cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
-                       Encode("http://s1.cdn.com/", "ce", "0", "b.jpg", "jpg"),
-                       Encode("http://s1.cdn.com/", "ce", "0", "c.js", "js")));
-  ValidateExpected("extend_if_sharded_rewriting_mapping_www_domain_https",
-                   GenerateHtml("https://www.test.com/sub/a.css?v=1",
-                                "https://www.test.com/b.jpg",
-                                "https://www.test.com/c.js"),
-                   GenerateHtml(
-                       Encode("https://s1.cdn.com/sub/", "ce", "0", kCssTail,
-                              "css"),
-                       Encode("https://s1.cdn.com/", "ce", "0", "b.jpg", "jpg"),
-                       Encode("https://s1.cdn.com/", "ce", "0", "c.js", "js")));
 }
 
 // TODO(jmarantz): consider implementing and testing the sharding and

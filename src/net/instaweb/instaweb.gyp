@@ -158,34 +158,6 @@
       ]
     },
     {
-      'target_name': 'instaweb_critical_css_loader_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/genfiles/rewriter',
-        'var_name': 'critical_css_loader',
-      },
-      'sources': [
-        'genfiles/rewriter/critical_css_loader_dbg.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
-      'target_name': 'instaweb_critical_css_loader_opt_data2c',
-      'variables': {
-        'instaweb_data2c_subdir': 'net/instaweb/rewriter',
-        'instaweb_js_subdir': 'net/instaweb/genfiles/rewriter',
-        'var_name': 'critical_css_loader_opt',
-      },
-      'sources': [
-        'genfiles/rewriter/critical_css_loader_opt.js',
-      ],
-      'includes': [
-        'data2c.gypi',
-      ]
-    },
-    {
       'target_name': 'instaweb_critical_images_beacon_data2c',
       'variables': {
         'instaweb_data2c_subdir': 'net/instaweb/rewriter',
@@ -631,11 +603,11 @@
       'type': '<(library)',
       'dependencies': [
         'instaweb_spriter',
-        'instaweb_spriter_pb',
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
         '<(DEPTH)/testing/gmock.gyp:gmock',
+        'instaweb_spriter_pb',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
       ],
       'sources': [
@@ -800,7 +772,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/pagespeed/kernel.gyp:util',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
       ],
       'includes': [
         'gperf.gypi',
@@ -820,7 +791,8 @@
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_sharedmem',
         '<(DEPTH)/pagespeed/kernel.gyp:util',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'sources': [
@@ -903,6 +875,7 @@
       'dependencies': [
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/libpagespeed/src/pagespeed/core/core.gyp:pagespeed_core',
       ],
       'sources': [
         'http/counting_url_async_fetcher.cc',
@@ -931,25 +904,22 @@
         'instaweb_rewriter_pb',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_cache',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
       ],
       'sources': [
         'config/rewrite_options_manager.cc',
         'rewriter/beacon_critical_images_finder.cc',
-        'rewriter/beacon_critical_line_info_finder.cc',
         'rewriter/cache_html_info_finder.cc',
         'rewriter/critical_images_finder.cc',
         'rewriter/critical_line_info_finder.cc',
-        'rewriter/device_properties.cc',
         'rewriter/domain_lawyer.cc',
-        'rewriter/downstream_cache_purger.cc',
         'rewriter/downstream_caching_directives.cc',
+        'rewriter/device_properties.cc',
         'rewriter/flush_early_info_finder.cc',
-        'rewriter/output_resource.cc',
         'rewriter/request_properties.cc',
         'rewriter/resource.cc',
-        'rewriter/resource_namer.cc',
         'rewriter/rewrite_options.cc',
+        'rewriter/output_resource.cc',
+        'rewriter/resource_namer.cc',
         'rewriter/server_context.cc',
         'rewriter/static_asset_manager.cc',
         'rewriter/url_namer.cc',
@@ -1049,7 +1019,6 @@
       ],
       'sources': [
         'rewriter/association_transformer.cc',
-        'rewriter/css_absolutify.cc',
         'rewriter/css_combine_filter.cc',
         'rewriter/css_filter.cc',
         'rewriter/css_hierarchy.cc',
@@ -1067,7 +1036,7 @@
         '<(instaweb_root)',
         '<(DEPTH)',
         '<(DEPTH)/third_party/css_parser/src',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -1084,7 +1053,9 @@
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_javascript_gperf',
         '<(DEPTH)/base/base.gyp:base',
       ],
-      'sources': [],
+      'sources': [
+        'js/js_lexer.cc',
+      ],
       'include_dirs': [
         '<(instaweb_root)',
         '<(DEPTH)',
@@ -1111,8 +1082,6 @@
         'instaweb_core.gyp:instaweb_rewriter_html',
         'instaweb_critical_css_beacon_data2c',
         'instaweb_critical_css_beacon_opt_data2c',
-        'instaweb_critical_css_loader_data2c',
-        'instaweb_critical_css_loader_opt_data2c',
         'instaweb_critical_css_pb',
         'instaweb_critical_images_beacon_data2c',
         'instaweb_critical_images_beacon_opt_data2c',
@@ -1322,17 +1291,15 @@
       'target_name': 'instaweb_system',
       'type': '<(library)',
       'dependencies': [
-        'instaweb_console',
         'instaweb_util',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
         '<(DEPTH)/third_party/apr/apr.gyp:include',
         '<(DEPTH)/third_party/aprutil/aprutil.gyp:include',
-        '<(DEPTH)/third_party/domain_registry_provider/src/domain_registry/domain_registry.gyp:init_registry_tables_lib',
       ],
       'sources': [
-        'system/admin_site.cc',
         'system/apr_mem_cache.cc',
         'system/apr_thread_compatible_pool.cc',
+        'system/handlers.cc',
         'system/in_place_resource_recorder.cc',
         'system/system_cache_path.cc',
         'system/system_caches.cc',
@@ -1363,7 +1330,7 @@
       'dependencies': [
         '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
         'instaweb_rewriter',
-        '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
        ],
       'sources': [
         'rewriter/process_context.cc',

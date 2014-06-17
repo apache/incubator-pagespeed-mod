@@ -41,26 +41,17 @@ class SystemRewriteOptions : public RewriteOptions {
   int64 file_cache_clean_interval_ms() const {
     return file_cache_clean_interval_ms_.value();
   }
-  bool has_file_cache_clean_interval_ms() const {
-    return file_cache_clean_interval_ms_.was_set();
-  }
   void set_file_cache_clean_interval_ms(int64 x) {
     set_option(x, &file_cache_clean_interval_ms_);
   }
   int64 file_cache_clean_size_kb() const {
     return file_cache_clean_size_kb_.value();
   }
-  bool has_file_cache_clean_size_kb() const {
-    return file_cache_clean_size_kb_.was_set();
-  }
   void set_file_cache_clean_size_kb(int64 x) {
     set_option(x, &file_cache_clean_size_kb_);
   }
   int64 file_cache_clean_inode_limit() const {
     return file_cache_clean_inode_limit_.value();
-  }
-  bool has_file_cache_clean_inode_limit() const {
-    return file_cache_clean_inode_limit_.was_set();
   }
   void set_file_cache_clean_inode_limit(int64 x) {
     set_option(x, &file_cache_clean_inode_limit_);
@@ -94,6 +85,12 @@ class SystemRewriteOptions : public RewriteOptions {
   }
   void set_statistics_enabled(bool x) {
     set_option(x, &statistics_enabled_);
+  }
+  const GoogleString& statistics_handler_path() const {
+    return statistics_handler_path_.value();
+  }
+  void set_statistics_handler_path(const GoogleString& x) {
+    set_option(x, &statistics_handler_path_);
   }
   bool statistics_logging_enabled() const {
     return statistics_logging_enabled_.value();
@@ -166,9 +163,6 @@ class SystemRewriteOptions : public RewriteOptions {
     return cache_flush_filename_.value();
   }
 
-  const GoogleString& https_options() const {
-    return https_options_.value();
-  }
   const GoogleString& ssl_cert_directory() const {
     return ssl_cert_directory_.value();
   }
@@ -260,15 +254,11 @@ class SystemRewriteOptions : public RewriteOptions {
   StringPiece description() const { return description_; }
   void set_description(const StringPiece& x) { x.CopyToString(&description_); }
 
- private:
-  // We have some special parsing error-checking requirements for
-  // FetchHttps
-  class HttpsOptions : public Option<GoogleString> {
-   public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
-  };
+ protected:
+  // Apache and Nginx options classes need access to this.
+  Option<GoogleString> statistics_handler_path_;
 
+ private:
   // Keeps the properties added by this subclass.  These are merged into
   // RewriteOptions::all_properties_ during Initialize().
   static Properties* system_properties_;
@@ -313,7 +303,6 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<GoogleString> cache_flush_filename_;
   Option<GoogleString> ssl_cert_directory_;
   Option<GoogleString> ssl_cert_file_;
-  HttpsOptions https_options_;
 
   Option<GoogleString> slurp_directory_;
   Option<GoogleString> test_proxy_slurp_;

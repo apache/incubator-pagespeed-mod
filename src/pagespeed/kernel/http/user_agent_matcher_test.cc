@@ -25,13 +25,26 @@ class UserAgentMatcherTest : public UserAgentMatcherTestBase {
 
 TEST_F(UserAgentMatcherTest, IsIeTest) {
   EXPECT_TRUE(user_agent_matcher_->IsIe(kIe6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsIe6(kIe6UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe7(kIe6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsIe6or7(kIe6UserAgent));
+
   EXPECT_TRUE(user_agent_matcher_->IsIe(kIe7UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsIe7(kIe7UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe6(kIe7UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsIe6or7(kIe7UserAgent));
+
   EXPECT_TRUE(user_agent_matcher_->IsIe(kIe8UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsIe(kIe9UserAgent));
-  for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_TRUE(user_agent_matcher_->IsIe(kIe11UserAgents[i]));
-  }
+  EXPECT_FALSE(user_agent_matcher_->IsIe6(kIe8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe7(kIe8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe6or7(kIe8UserAgent));
+}
+
+TEST_F(UserAgentMatcherTest, IsNotIeTest) {
   EXPECT_FALSE(user_agent_matcher_->IsIe(kFirefoxUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe6(kFirefoxUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsIe6or7(
+      kFirefoxUserAgent));
   EXPECT_FALSE(user_agent_matcher_->IsIe(kChromeUserAgent));
 }
 
@@ -98,9 +111,6 @@ TEST_F(UserAgentMatcherTest, BlinkBlackListForDesktop) {
   EXPECT_EQ(UserAgentMatcher::kBlinkBlackListForDesktop,
             user_agent_matcher_->GetBlinkRequestType(
                 kFirefox1UserAgent, &headers));
-  EXPECT_EQ(UserAgentMatcher::kBlinkBlackListForDesktop,
-            user_agent_matcher_->GetBlinkRequestType(
-                kFirefox3UserAgent, &headers));
 }
 
 TEST_F(UserAgentMatcherTest, DoesNotSupportBlink) {
@@ -124,11 +134,6 @@ TEST_F(UserAgentMatcherTest, PrefetchMechanism) {
   EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
             user_agent_matcher_->GetPrefetchMechanism(
                 kIe9UserAgent));
-  for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_EQ(UserAgentMatcher::kPrefetchLinkScriptTag,
-              user_agent_matcher_->GetPrefetchMechanism(
-                  kIe11UserAgents[i]));
-  }
   EXPECT_EQ(UserAgentMatcher::kPrefetchImageTag,
             user_agent_matcher_->GetPrefetchMechanism(
                 kSafariUserAgent));
@@ -179,8 +184,6 @@ TEST_F(UserAgentMatcherTest, NotSupportsJsDefer) {
       kIe8UserAgent, false));
   EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
       kFirefox1UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kFirefox3UserAgent, false));
   EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
       kNokiaUserAgent, false));
   EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
@@ -303,10 +306,6 @@ TEST_F(UserAgentMatcherTest, DoesntSupportWebp) {
       kIe8UserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebp(
       kIe9UserAgent));
-  for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_FALSE(user_agent_matcher_->SupportsWebp(
-        kIe11UserAgents[i]));
-  }
   EXPECT_FALSE(user_agent_matcher_->SupportsWebp(
       kIPhoneUserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebp(
@@ -406,10 +405,6 @@ TEST_F(UserAgentMatcherTest, SupportsDnsPrefetch) {
       kIe9UserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
       kFirefox5UserAgent));
-  for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-        kIe11UserAgents[i]));
-  }
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportDnsPrefetch) {
@@ -466,10 +461,6 @@ TEST_F(UserAgentMatcherTest, DoesntSupportWebpLosslessAlpha) {
       kIe8UserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
       kIe9UserAgent));
-  for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-        kIe11UserAgents[i]));
-  }
   EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
       kIPhoneUserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(

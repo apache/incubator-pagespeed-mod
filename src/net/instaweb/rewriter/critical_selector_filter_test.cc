@@ -22,17 +22,14 @@
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
-#include "net/instaweb/rewriter/public/css_summarizer_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/enums.pb.h"
 #include "net/instaweb/util/public/gtest.h"
@@ -42,8 +39,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
 
@@ -103,10 +98,6 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
                                   "@media screen,print { * { margin: 0px; } }",
                                   100);
-    SetResponseWithDefaultHeaders("http://unauthorized.com/unauth.css",
-                                  kContentTypeCss,
-                                  "div { background-color: blue }"
-                                  "random { color: white }", 100);
   }
 
   void ResetDriver() {
@@ -117,12 +108,10 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     rewrite_driver()->set_property_page(page_);
     pcache_->Read(page_);
     SetHtmlMimetype();  // Don't wrap scripts in <![CDATA[ ]]>
-    SetDummyRequestHeaders();
   }
 
   void WriteCriticalSelectorsToPropertyCache(const StringSet& selectors) {
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs);
+    factory()->mock_timer()->AdvanceMs(kMinBeaconIntervalMs);
     last_beacon_metadata_ =
         server_context()->critical_selector_finder()->
             PrepareForBeaconInsertion(candidates_, rewrite_driver());
@@ -140,12 +129,10 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
   }
 
   GoogleString JsLoader() {
-    return StrCat(
-        "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-        rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-            StaticAssetManager::kCriticalCssLoaderJs,
-            rewrite_driver()->options()),
-        "pagespeed.CriticalCssLoader.Run();</script>");
+    return StrCat("<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
+                  CriticalSelectorFilter::kAddStylesFunction,
+                  CriticalSelectorFilter::kAddStylesInvocation,
+                  "</script>");
   }
 
   GoogleString LoadRestOfCss(StringPiece orig_css) {
@@ -200,71 +187,6 @@ TEST_F(CriticalSelectorFilterTest, BasicOperation) {
              "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
-}
-
-TEST_F(CriticalSelectorFilterTest, UnauthorizedCss) {
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("http://unauthorized.com/unauth.css"),
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
-
-  GoogleString critical_css =
-      "<style>*{display:none}</style>"  // from the inline
-      "<link rel=stylesheet href=http://unauthorized.com/unauth.css>"
-      "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0px}}</style>";  // from b.css
-
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
-
-  ValidateExpected(
-      "basic", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
-             LoadRestOfCss(css), "</body>"));
-  ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
-  EXPECT_EQ(3, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
-}
-
-TEST_F(CriticalSelectorFilterTest, AllowUnauthorizedCss) {
-  options()->ClearSignatureForTesting();
-  options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
-  options()->ComputeSignature();
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("http://unauthorized.com/unauth.css"),
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
-
-  GoogleString critical_css =
-      "<style>*{display:none}</style>"  // from the inline
-      "<style>div{background-color:#00f}</style>"  // from unauth.css
-      "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0px}}</style>";  // from b.css
-
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
-
-  ValidateExpected(
-      "basic", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
-             LoadRestOfCss(css), "</body>"));
-  ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
-  EXPECT_EQ(4, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(0, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
 }
 
 TEST_F(CriticalSelectorFilterTest, StylesInBody) {
@@ -472,12 +394,6 @@ TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
   CriticalSelectorFinder* finder = server_context()->critical_selector_finder();
   for (int i = 0; i < finder->SupportInterval(); ++i) {
     WriteCriticalSelectorsToPropertyCache(selectors);
-    // We are sending enough beacons with the same selector set here that we
-    // will enter low frequency beaconing mode, so advance time more to ensure
-    // rebeaconing actually occurs.
-    factory()->mock_timer()->AdvanceMs(
-        options()->beacon_reinstrument_time_sec() * Timer::kSecondMs *
-        kLowFreqBeaconMult);
   }
   ResetDriver();
   ValidateExpected("with_span", StrCat(css, "<span>Foo</span>"),

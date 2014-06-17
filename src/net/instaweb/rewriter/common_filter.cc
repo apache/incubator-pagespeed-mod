@@ -25,7 +25,6 @@
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/response_headers.h"
-#include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/util/enums.pb.h"
@@ -33,11 +32,6 @@
 #include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
-
-const char CommonFilter::kCreateResourceFailedDebugMsg[] =
-    "Cannot create resource: either its domain is unauthorized and "
-    "InlineUnauthorizedResources is not enabled, or it cannot be fetched "
-    "(check the server logs)";
 
 CommonFilter::CommonFilter(RewriteDriver* driver)
     : driver_(driver),
@@ -157,20 +151,12 @@ void CommonFilter::ResolveUrl(StringPiece input_url, GoogleUrl* out_url) {
   }
 }
 
-ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
-                                              bool* is_authorized) {
-  *is_authorized = true;  // Must be false iff input_url is not authorized.
+ResourcePtr CommonFilter::CreateInputResource(const StringPiece& input_url) {
   ResourcePtr resource;
   GoogleUrl resource_url;
   ResolveUrl(input_url, &resource_url);
   if (resource_url.IsWebValid()) {
-    resource = driver_->CreateInputResource(
-        resource_url,
-        AllowUnauthorizedDomain(),
-        (IntendedForInlining()
-         ? RewriteDriver::kIntendedForInlining
-         : RewriteDriver::kIntendedForGeneral),
-        is_authorized);
+    resource = driver_->CreateInputResource(resource_url);
   }
   return resource;
 }
@@ -249,16 +235,6 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
   }
 
   return result;
-}
-
-bool CommonFilter::CanAddPagespeedOnloadToImage(const HtmlElement& element) {
-  const HtmlElement::Attribute* onload_attribute =
-      element.FindAttribute(HtmlName::kOnload);
-  return (noscript_element() == NULL &&
-          (onload_attribute == NULL ||
-           (onload_attribute->DecodedValueOrNull() != NULL &&
-            strcmp(onload_attribute->DecodedValueOrNull(),
-                   CriticalImagesBeaconFilter::kImageOnloadCode) == 0)));
 }
 
 void CommonFilter::LogFilterModifiedContent() {

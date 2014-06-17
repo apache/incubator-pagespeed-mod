@@ -35,7 +35,6 @@ extern "C" {
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 
@@ -336,8 +335,8 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   size_t bytes_per_row_;
   size_t row_;
   bool was_initialized_;
-  net_instaweb::scoped_array<png_byte> image_buffer_;
-  net_instaweb::scoped_array<png_bytep> row_pointers_;
+  scoped_array<png_byte> image_buffer_;
+  scoped_array<png_bytep> row_pointers_;
   ScopedPngStruct png_struct_;
   // png_input_ stores a pointer to the input image stream. It also keeps
   // tracking the length of data that libpng has read. It is initialized
@@ -367,8 +366,7 @@ class PngScanlineWriter : public ScanlineWriterInterface {
                                                    GoogleString* png_image);
 
   // Write a scanline with the data provided. Return false in case of error.
-  virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes);
+  virtual ScanlineStatus WriteNextScanlineWithStatus(void *scanline_bytes);
 
   // Finalize write structure once all scanlines are written.
   // If FinalizeWriter() is called before all of the scanlines have been

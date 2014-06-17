@@ -19,9 +19,7 @@
 #include <cstddef>                     // for size_t
 #include <set>
 
-#include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/platform.h"
 
@@ -113,7 +111,7 @@ void SharedMemCacheDataTestBase::ExtractAndSanityCheckLRU(
             static_cast<size_t>(sector->sector_stats()->used_entries));
 }
 
-void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
+void SharedMemCacheDataTestBase::TestFreeList() {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
@@ -168,7 +166,7 @@ void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
   ParentCleanup();
 }
 
-void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
+void SharedMemCacheDataTestBase::TestFreeListChild() {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   if (!ChildInit(&seg_raw_ptr, &sector_raw_ptr)) {
@@ -235,7 +233,7 @@ void SharedMemCacheDataTestBase::TestLRU() {
   ParentCleanup();
 }
 
-void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
+void SharedMemCacheDataTestBase::TestBlockLists() {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));

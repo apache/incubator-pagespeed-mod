@@ -29,8 +29,6 @@
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
-
 namespace net_instaweb {
 
 class AbstractMutex;
@@ -40,13 +38,13 @@ class CriticalImagesFinder;
 class CriticalLineInfoFinder;
 class CriticalSelectorFinder;
 class FileSystem;
+class FilenameEncoder;
 class FlushEarlyInfoFinder;
 class ExperimentMatcher;
 class Hasher;
 class MessageHandler;
 class NamedLockManager;
 class NonceGenerator;
-class ProcessContext;
 class PropertyCache;
 class QueuedWorkerPool;
 class ServerContext;
@@ -54,7 +52,6 @@ class RewriteDriver;
 class RewriteOptions;
 class RewriteOptionsManager;
 class RewriteStats;
-class SHA1Signature;
 class Scheduler;
 class StaticAssetManager;
 class Statistics;
@@ -84,8 +81,7 @@ class RewriteDriverFactory {
   };
 
   // Takes ownership of thread_system.
-  RewriteDriverFactory(const ProcessContext& process_context,
-                       ThreadSystem* thread_system);
+  explicit RewriteDriverFactory(ThreadSystem* thread_system);
 
   // Initializes default options we want to hard-code into the
   // base-class to get consistency across deployments.  Subclasses
@@ -103,9 +99,9 @@ class RewriteDriverFactory {
   void set_message_handler(MessageHandler* message_handler);
   void set_file_system(FileSystem* file_system);
   void set_hasher(Hasher* hasher);
+  void set_filename_encoder(FilenameEncoder* filename_encoder);
   void set_nonce_generator(NonceGenerator* nonce_generator);
   void set_url_namer(UrlNamer* url_namer);
-  void set_signature(SHA1Signature* signature);
   void set_timer(Timer* timer);
   void set_usage_data_reporter(UsageDataReporter* reporter);
 
@@ -149,10 +145,10 @@ class RewriteDriverFactory {
   // TODO(sligocki): Remove hasher() and force people to make a NewHasher when
   // they need one.
   Hasher* hasher();
+  FilenameEncoder* filename_encoder() { return filename_encoder_.get(); }
   UrlNamer* url_namer();
   UserAgentMatcher* user_agent_matcher();
   StaticAssetManager* static_asset_manager();
-  SHA1Signature* signature();
   RewriteOptions* default_options() { return default_options_.get(); }
   virtual RewriteOptionsManager* NewRewriteOptionsManager();
 
@@ -165,9 +161,6 @@ class RewriteDriverFactory {
   QueuedWorkerPool* WorkerPool(WorkerPoolCategory pool);
   Scheduler* scheduler();
   UsageDataReporter* usage_data_reporter();
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns() const {
-    return js_tokenizer_patterns_;
-  }
   const std::vector<const UserAgentNormalizer*>& user_agent_normalizers();
 
   // Computes URL fetchers using the base fetcher, and optionally,
@@ -212,8 +205,6 @@ class RewriteDriverFactory {
   // the resulting driver for reconstructing a .pagespeed. resource, not for
   // transforming HTML.  Therefore, implementations should add any
   // platform-specific rewriter whose id might appear in a .pagespeed. URL.
-  // This should be done independent of RewriteOptions, since we only store
-  // a single decoding driver globally to save memory.
   virtual void AddPlatformSpecificDecodingPasses(RewriteDriver* driver);
 
   // Provides an optional hook for customizing the RewriteDriver object
@@ -333,24 +324,12 @@ class RewriteDriverFactory {
   virtual FileSystem* DefaultFileSystem() = 0;
   virtual NonceGenerator* DefaultNonceGenerator();
   virtual Timer* DefaultTimer();
-  virtual SHA1Signature* DefaultSignature();
 
   virtual Hasher* NewHasher() = 0;
 
   // Creates a new ServerContext* object.  ServerContext itself must be
   // overridden per Factory as it has at least one pure virtual method.
   virtual ServerContext* NewServerContext() = 0;
-
-  // Create a new ServerContext used for decoding only. Unlike NewServerContext,
-  // the resulting ServerContext should not be fresh, but should have some of
-  // its platform dependencies injected --- but just enough for decoding URLs,
-  // and not full operation. At the time of writing it needs the timer,
-  // url namer, hasher, message handler, and stats; expensive stuff like
-  // cache backends is not needed, however.
-  //
-  // You may find InitStubDecodingServerContext() useful for doing that, as it
-  // will inject all of these from what's available in 'this'.
-  virtual ServerContext* NewDecodingServerContext() = 0;
 
   virtual UrlAsyncFetcher* DefaultDistributedUrlFetcher() { return NULL; }
 
@@ -421,13 +400,6 @@ class RewriteDriverFactory {
   virtual void InitStaticAssetManager(
       StaticAssetManager* static_asset_manager) {}
 
-  // Sets up enough of platform dependencies in 'context' to be able to use
-  // it for decoding URLs, based on this object's values and some stubs.
-  void InitStubDecodingServerContext(ServerContext* context);
-
-  // For use in tests.
-  void RebuildDecodingDriverForTests(ServerContext* server_context);
-
  private:
   // Creates a StaticAssetManager instance. Default implementation creates an
   // instance that disables serving of filter javascript via gstatic
@@ -437,8 +409,6 @@ class RewriteDriverFactory {
   void SetupSlurpDirectories();
   void Init();  // helper-method for constructors.
 
-  void InitDecodingDriver(ServerContext* server_context);
-
   scoped_ptr<MessageHandler> html_parse_message_handler_;
   scoped_ptr<MessageHandler> message_handler_;
   scoped_ptr<FileSystem> file_system_;
@@ -447,8 +417,8 @@ class RewriteDriverFactory {
   scoped_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
   scoped_ptr<UrlAsyncFetcher> base_distributed_async_fetcher_;
   scoped_ptr<Hasher> hasher_;
+  scoped_ptr<FilenameEncoder> filename_encoder_;
   scoped_ptr<NonceGenerator> nonce_generator_;
-  scoped_ptr<SHA1Signature> signature_;
   scoped_ptr<UrlNamer> url_namer_;
   scoped_ptr<UserAgentMatcher> user_agent_matcher_;
 
@@ -460,8 +430,6 @@ class RewriteDriverFactory {
   scoped_ptr<Timer> timer_;
   scoped_ptr<Scheduler> scheduler_;
   scoped_ptr<UsageDataReporter> usage_data_reporter_;
-  // RE2 patterns needed for JsTokenizer.
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns_;
 
   GoogleString filename_prefix_;
   GoogleString slurp_directory_;
@@ -477,16 +445,6 @@ class RewriteDriverFactory {
   // Stores options with hard-coded defaults and adjustments from
   // the core system, subclasses, and command-line.
   scoped_ptr<RewriteOptions> default_options_;
-
-  // Keep around a RewriteDriver just for decoding resource URLs, using
-  // the default options.  This is possible because the id->RewriteFilter
-  // table is fully constructed independent of the options; we however
-  // still inject options into some of the Decode methods since we also
-  // need to honor things like forbids. We also have a special
-  // ServerContext just for it, to avoid connecting it to any particular
-  // pre-existing one.
-  scoped_ptr<ServerContext> decoding_server_context_;
-  scoped_ptr<RewriteDriver> decoding_driver_;
 
   // Manage locks for output resources.
   scoped_ptr<NamedLockManager> lock_manager_;

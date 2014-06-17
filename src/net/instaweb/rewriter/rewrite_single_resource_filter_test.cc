@@ -100,10 +100,10 @@ class TestRewriter : public RewriteFilter {
       if (src != NULL) {
         ResourcePtr resource = CreateInputResource(src->DecodedValueOrNull());
         if (resource.get() != NULL) {
-          ResourceSlotPtr slot(driver()->GetSlot(resource, element, src));
-          Context* context = new Context(driver(), this);
+          ResourceSlotPtr slot(driver_->GetSlot(resource, element, src));
+          Context* context = new Context(driver_, this);
           context->AddSlot(slot);
-          driver()->InitiateRewrite(context);
+          driver_->InitiateRewrite(context);
         }
       }
     }
@@ -135,7 +135,7 @@ class TestRewriter : public RewriteFilter {
       return kTooBusy;
     }
 
-    bool ok = driver()->Write(
+    bool ok = driver_->Write(
         ResourceVector(1, input_resource),
         StrCat(contents, contents),
         &kContentTypeText,
@@ -148,7 +148,7 @@ class TestRewriter : public RewriteFilter {
     if (create_custom_encoder_) {
       return &test_url_encoder_;
     } else {
-      return driver()->default_encoder();
+      return driver_->default_encoder();
     }
   }
 
@@ -176,7 +176,7 @@ class TestRewriter : public RewriteFilter {
   };
 
   virtual RewriteContext* MakeRewriteContext() {
-    return new Context(driver(), this);
+    return new Context(driver_, this);
   }
 
  private:

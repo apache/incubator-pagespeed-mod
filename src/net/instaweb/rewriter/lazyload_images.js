@@ -95,31 +95,6 @@ pagespeed.LazyloadImages = function(blankImageSrc) {
    * @private
    */
   this.onload_done_ = false;
-
-  /**
-   * Tracks how many images are left to load before firing the after-onload
-   * critical image beacon.
-   * @private {number}
-   */
-
-  this.imgs_to_load_before_beaconing_ = 0;
-};
-
-/**
- * Count the number of total imgs that will be lazyloaded.
- * @return {number} The number of imgs deferred.
- * @private
- */
-pagespeed.LazyloadImages.prototype.countDeferredImgs_ = function() {
-  var deferredImgCount = 0;
-  var imgs = document.getElementsByTagName('img');
-  for (var i = 0, img; img = imgs[i]; i++) {
-    if (img.src.indexOf(this.blank_image_src_) != -1 &&
-        this.hasAttribute_(img, 'pagespeed_lazy_src')) {
-      deferredImgCount++;
-    }
-  }
-  return deferredImgCount;
 };
 
 /**
@@ -261,11 +236,9 @@ pagespeed.LazyloadImages.prototype.isVisible_ = function(element) {
 /**
  * Loads the given element if it is visible. Otherwise, adds it to the deferred
  * queue. Note that if force_load_ is true, the visibility check is skipped.
- * Also sets the onload handler to the image beaconing onload code if required.
  * @param {Element} element The element to check for visibility.
  */
-pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon =
-    function(element) {
+pagespeed.LazyloadImages.prototype.loadIfVisible = function(element) {
   // Override this element's attributes if they haven't already been overridden.
   this.overrideAttributeFunctionsInternal_(element);
 
@@ -295,22 +268,6 @@ pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon =
         }
         // Remove attributes that are no longer needed.
         element.removeAttribute('onload');
-        if (element.tagName && element.tagName == 'IMG') {
-          // If CriticalImages is defined, we should add the per-image
-          // checkImageForCriticality logic because the lazyload_images_filter
-          // would have removed this.
-          if (pagespeed.CriticalImages) {
-            pagespeedutils.addHandler(element, 'load', function(e) {
-               pagespeed.CriticalImages.checkImageForCriticality(this);
-               if (context.onload_done_) {
-                 context.imgs_to_load_before_beaconing_--;
-                 if (context.imgs_to_load_before_beaconing_ == 0) {
-                   pagespeed.CriticalImages.checkCriticalImages();
-                 }
-               }
-            });
-          }
-        }
         element.removeAttribute('pagespeed_lazy_src');
         element.removeAttribute('pagespeed_lazy_replaced_functions');
         // If there was a next sibling, insert element before it.
@@ -326,8 +283,8 @@ pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon =
   }, 0);
 };
 
-pagespeed.LazyloadImages.prototype['loadIfVisibleAndMaybeBeacon'] =
-    pagespeed.LazyloadImages.prototype.loadIfVisibleAndMaybeBeacon;
+pagespeed.LazyloadImages.prototype['loadIfVisible'] =
+    pagespeed.LazyloadImages.prototype.loadIfVisible;
 
 /**
  * Loads all the images irrespective of whether or not they are in the
@@ -351,7 +308,7 @@ pagespeed.LazyloadImages.prototype.loadVisible_ = function() {
   var len = old_deferred.length;
   this.deferred_ = [];
   for (var i = 0; i < len; ++i) {
-    this.loadIfVisibleAndMaybeBeacon(old_deferred[i]);
+    this.loadIfVisible(old_deferred[i]);
   }
 };
 
@@ -376,7 +333,8 @@ pagespeed.LazyloadImages.prototype.hasAttribute_ =
  */
 pagespeed.LazyloadImages.prototype.overrideAttributeFunctions = function() {
   var images = document.getElementsByTagName('img');
-  for (var i = 0, element; element = images[i]; i++) {
+  for (var i = 0; i < images.length; ++i) {
+    var element = images[i];
     if (this.hasAttribute_(element, 'pagespeed_lazy_src')) {
       this.overrideAttributeFunctionsInternal_(element);
     }
@@ -411,8 +369,7 @@ pagespeed.LazyloadImages.prototype.overrideAttributeFunctionsInternal_ =
 
 /**
  * Initializes the lazyload module.
- * @param {boolean} loadAfterOnload If true, all images will be loaded at
- *     window.onload.
+ * @param {boolean} loadAfterOnload If true, load images when the onload event.
  * @param {string} blankImageSrc The blank placeholder image used for images
  *     that are not visible.
  * is fired. Otherwise, load images on scrolling as they become visible.
@@ -430,18 +387,6 @@ pagespeed.lazyLoadInit = function(loadAfterOnload, blankImageSrc) {
     // Set the buffer to 200 after onload, so that images that are just below
     // the fold are pre-loaded and scrolling is smoother.
     context.buffer_ = 200;
-
-    if (pagespeed.CriticalImages) {
-      // We don't want to fire the critical image beacon onload check until all
-      // images have been loaded, so keep a count of the number of images we are
-      // waiting for. If all images have already been loaded, then go ahead and
-      // fire the critical image beacon check now.
-      context.imgs_to_load_before_beaconing_ = context.countDeferredImgs_();
-      if (context.imgs_to_load_before_beaconing_ == 0) {
-        pagespeed.CriticalImages.checkCriticalImages();
-      }
-    }
-
     context.loadVisible_();
   };
   pagespeedutils.addHandler(window, 'load', lazy_onload);

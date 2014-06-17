@@ -47,7 +47,7 @@ const char kJquerySlider[] = "jquery.sexyslider";
 }  // namespace
 
 const char* LazyloadImagesFilter::kImageOnloadCode =
-    "pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);";
+    "pagespeed.lazyLoadImages.loadIfVisible(this);";
 
 const char* LazyloadImagesFilter::kLoadAllImages =
     "pagespeed.lazyLoadImages.loadAllImages();";
@@ -98,24 +98,12 @@ void LazyloadImagesFilter::Clear() {
 
 RewriterHtmlApplication::Status LazyloadImagesFilter::ShouldApply(
     RewriteDriver* driver) {
-  // Note: there's similar UA logic in
-  // DedupInlinedImagedFilter::DetermineEnabled, so if this logic changes that
-  // logic may well require alteration too.
   if (!driver->request_properties()->SupportsLazyloadImages()) {
     return RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED;
   }
   if (driver->flushing_early() ||
       (driver->request_headers() != NULL &&
        driver->request_headers()->IsXmlHttpRequest())) {
-    return RewriterHtmlApplication::DISABLED;
-  }
-  CriticalImagesFinder* finder =
-      driver->server_context()->critical_images_finder();
-  if (finder->Available(driver) == CriticalImagesFinder::kNoDataYet) {
-    // Don't lazyload images on a page that's waiting for critical image data.
-    // However, this page should later be rewritten when data arrives.  Contrast
-    // this with the case where beaconing is explicitly disabled, and all images
-    // are lazy loaded.
     return RewriterHtmlApplication::DISABLED;
   }
   return RewriterHtmlApplication::ACTIVE;
@@ -165,10 +153,13 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL || skip_rewrite_ != NULL) {
-    if (skip_rewrite_ == element) {
-      skip_rewrite_ = NULL;
-    }
+  if (noscript_element() != NULL) {
+    return;
+  }
+  if (skip_rewrite_ == element) {
+    skip_rewrite_ = NULL;
+    return;
+  } else if (skip_rewrite_ != NULL) {
     return;
   }
   if (abort_rewrite_) {
@@ -207,8 +198,8 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
     // TODO(rahulbansal): Log separately for pagespeed_no_defer.
     return;
   }
-  AbstractLogRecord* log_record = driver()->log_record();
-  if (!CanAddPagespeedOnloadToImage(*element) ||
+  AbstractLogRecord* log_record = driver_->log_record();
+  if (element->FindAttribute(HtmlName::kOnload) != NULL ||
       element->FindAttribute(HtmlName::kDataSrc) != NULL ||
       element->FindAttribute(HtmlName::kPagespeedLazySrc) != NULL) {
     log_record->LogLazyloadFilter(
@@ -244,16 +235,13 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
 
   CriticalImagesFinder* finder =
       driver()->server_context()->critical_images_finder();
-  // Note that if the platform lacks a CriticalImageFinder implementation, we
-  // consider all images to be non-critical and try to lazily load them.
-  // Similarly, if we have disabled data gathering for lazy load, we again lazy
-  // load all images.  If, however, we simply haven't gathered enough data yet,
-  // we consider all images to be critical and disable lazy loading (in
-  // ShouldApply above) in order to provide better above-the-fold loading.
-  if (finder->Available(driver()) == CriticalImagesFinder::kAvailable) {
+  // Note that if the platform lacks a CriticalImageFinder
+  // implementation, we consider all images to be non-critical and try
+  // to lazily load them.
+  if (finder->IsMeaningful(driver())) {
     // Decode the url since the critical images in the finder are not
     // rewritten.
-    if (finder->IsHtmlCriticalImage(full_url, driver())) {
+    if (finder->IsHtmlCriticalImage(full_url.data(), driver())) {
       log_record->LogLazyloadFilter(
           RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
           RewriterApplication::NOT_APPLIED, false, true);
@@ -270,12 +258,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   log_record->LogLazyloadFilter(
       RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
       RewriterApplication::APPLIED_OK, false, false);
-  // Add an onload function to load the image if it is visible and then do
-  // the criticality check. Since we check CanAddPagespeedOnloadToImage
-  // before coming here, the only onload handler that we would delete would
-  // be the one added by our very own beaconing code. We re-introduce this
-  // beaconing onload logic via kImageOnloadCode.
-  element->DeleteAttribute(HtmlName::kOnload);
+  // Set the onload appropriately.
   driver()->AddAttribute(element, HtmlName::kOnload, kImageOnloadCode);
   ++num_images_lazily_loaded_;
 }

@@ -34,7 +34,6 @@
 #include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_filter.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
@@ -61,6 +60,7 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
+#include "pagespeed/kernel/base/statistics.h"
 
 namespace net_instaweb {
 
@@ -240,7 +240,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
   FlushEarlyFlowTest()
       : start_time_ms_(0),
         request_url_(kTestDomain),
-        noscript_redirect_url_(StrCat(kTestDomain, "?PageSpeed=noscript")),
+        noscript_redirect_url_(StrCat(kTestDomain, "?ModPagespeed=noscript")),
         max_age_300_("max-age=300"),
         request_start_time_ms_(-1),
         set_httponly_cookie_(false) {
@@ -263,6 +263,9 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
     options->ClearSignatureForTesting();
     options->set_max_html_cache_time_ms(kHtmlCacheTimeSec * Timer::kSecondMs);
     options->set_in_place_rewriting_enabled(true);
+    // TODO(sligocki): Once this becomes default on in RewriteOptions, remove
+    // this set here.
+    options->set_preserve_url_relativity(true);
     server_context()->ComputeSignature(options);
     ProxyInterfaceTestBase::SetUp();
     // The original url_async_fetcher() is still owned by RewriteDriverFactory.
@@ -440,7 +443,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
             split_html_enabled, StrCat(
                 "<img pagespeed_lazy_src=\"", rewritten_img_url_1_.data(),
                 "\" src=\"/psajs/1.0.gif\"",
-                " onload=\"", LazyloadImagesFilter::kImageOnloadCode, "\"/>",
+                " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>",
                 "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
                 "pagespeed.lazyLoadImages.overrideAttributeFunctions();",
                 "</script>"), is_ie);
@@ -613,7 +616,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "</body>"
         "</html>";
 
-    GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
+    GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
     GoogleString kNotMobileOutputHtml = StrCat(
         "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
         "<html>"
@@ -639,12 +642,11 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\"/>"
+        " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>"
         "Hello, mod_pagespeed!"
         "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
         "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-        "</body></html>", rewritten_css_url_1_.c_str(), kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode));
+        "</body></html>", rewritten_css_url_1_.c_str(), kMockHashValue));
 
     GoogleString kMobileOutputHtml = StrCat(
         "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
@@ -673,12 +675,11 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "</script>"
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\"/>"
+        " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>"
         "Hello, mod_pagespeed!"
         "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
         "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-        "</body></html>", kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode));
+        "</body></html>", kMockHashValue));
 
     ResponseHeaders headers;
     headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
@@ -747,7 +748,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "</body>"
         "</html>";
 
-    GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
+    GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
     const char pre_connect_tag[] =
         "<link rel=\"stylesheet\" href=\"http://cdn.com/pre_connect?id=%s\"/>";
     const char image_tag[] =
@@ -973,7 +974,8 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
       HttpAttributes::kContentType, kContentTypePdf.mime_type());
   mock_url_fetcher_.SetResponse(url, response_headers, kFlushEarlyPdf);
 
-  noscript_redirect_url_ = StrCat(fallback_url, "&amp;PageSpeed=noscript");
+  noscript_redirect_url_ = StrCat(fallback_url,
+                                  "&amp;ModPagespeed=noscript");
   GoogleString kOutputHtml =
       StrCat(kPreHeadHtml,
              StringPrintf(
@@ -996,20 +998,20 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
   FetchFromProxy(fallback_url, request_headers, true, &text, &headers);
   EXPECT_STREQ(kOutputHtml, text);
 
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Request another url with different query params so that fallback values
   // will be used. Since the content type is different here, this request
   // should be redirected.
   FetchFromProxy(url, request_headers, true, &text, &headers);
-  redirect_url_ = StrCat(url, "&PageSpeed=noscript");
+  redirect_url_ = StrCat(url, "&ModPagespeed=noscript");
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
 
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestDisabled) {
@@ -1091,8 +1093,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   // unstable.
   request_url_ = "http://test.com/?q=1";
   SetupForFlushEarlyFlow();
-  redirect_url_ = StrCat(request_url_, "&PageSpeed=noscript");
-  noscript_redirect_url_ = StrCat(request_url_, "&amp;PageSpeed=noscript");
+  redirect_url_ = StrCat(request_url_, "&ModPagespeed=noscript");
+  noscript_redirect_url_ = StrCat(request_url_, "&amp;ModPagespeed=noscript");
   GoogleString text;
   RequestHeaders request_headers;
   request_headers.Replace(HttpAttributes::kUserAgent,
@@ -1105,18 +1107,18 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, true),
       text);
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   SetFetchResponse404(request_url_);
   // Fetch again so that 404 is populated in response headers.
-  // It should redirect to PageSpeed=noscript in this case.
+  // It should redirect to ModPagespeed=noscript in this case.
   FetchFromProxy(request_url_, request_headers, true, &text, &headers);
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Fetch the url again. This time FlushEarlyFlow should not be triggered as
   // the status code is not stable.
@@ -1124,7 +1126,7 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(HttpStatus::kNotFound, headers.status_code());
 
   // Delete the 404 from cache and again set up for 200 response.
-  lru_cache()->Delete(HttpCacheKey(request_url_));
+  lru_cache()->Delete(request_url_);
   SetupForFlushEarlyFlow();
 
   // Flush early flow is again not triggered as the status code is not
@@ -1143,14 +1145,14 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
       text);
 
   // Fetch again so that 404 is populated in response headers.
-  // It should redirect to PageSpeed=noscript in this case.
+  // It should redirect to ModPagespeed=noscript in this case.
   SetFetchResponse404(request_url_);
   FetchFromProxy(request_url_, request_headers, true, &text, &headers);
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(2, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(2, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestMobile) {
@@ -1312,7 +1314,7 @@ TEST_F(FlushEarlyFlowTest, NoLazyloadScriptFlushedOutIfNoImagePresent) {
       "</body>"
       "</html>";
 
-  GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
+  GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
   GoogleString kOutputHtml = StringPrintf(
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
       "<html>"
@@ -1379,7 +1381,7 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyMoreResourcesIfTimePermits) {
   StringSet* css_critical_images = new StringSet;
   css_critical_images->insert(StrCat(kTestDomain, "1.jpg"));
   SetCssCriticalImagesInFinder(css_critical_images);
-  GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
+  GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
 
   GoogleString kOutputHtml = StringPrintf(
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
@@ -1466,7 +1468,7 @@ TEST_F(FlushEarlyFlowTest, InsertLazyloadJsOnlyIfResourceHtmlNotEmpty) {
       "</body>"
       "</html>";
 
-  GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
+  GoogleString redirect_url = StrCat(kTestDomain, "?ModPagespeed=noscript");
   GoogleString kOutputHtml = StrCat(
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
       "<html>"
@@ -1483,12 +1485,11 @@ TEST_F(FlushEarlyFlowTest, InsertLazyloadJsOnlyIfResourceHtmlNotEmpty) {
       "</script>"
       "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
       " src=\"/psajs/1.0.gif\""
-      " onload=\"%s\"/>"
+      " onload=\"pagespeed.lazyLoadImages.loadIfVisible(this);\"/>"
       "Hello, mod_pagespeed!"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-      "</body></html>", kMockHashValue,
-      LazyloadImagesFilter::kImageOnloadCode));
+      "</body></html>", kMockHashValue));
 
   ResponseHeaders headers;
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
@@ -1595,17 +1596,6 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithIEAddUACompatibilityHeader) {
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithDeferJsAndSplitEnabled) {
-  // The default finder class used by split_html is
-  // BeaconCriticalLineInfoFinder, which requires the pcache to be setup, so do
-  // that setup here.
-  PropertyCache* pcache = server_context_->page_property_cache();
-  const PropertyCache::Cohort* beacon_cohort =
-      SetupCohort(pcache, RewriteDriver::kBeaconCohort);
-  server_context()->set_beacon_cohort(beacon_cohort);
-  server_context()->set_critical_line_info_finder(
-      new BeaconCriticalLineInfoFinder(server_context()->beacon_cohort(),
-                                       factory()->nonce_generator()));
-
   SetupForFlushEarlyFlow();
   RequestHeaders request_headers;
   request_headers.Replace(HttpAttributes::kUserAgent,
@@ -1835,14 +1825,14 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
   EXPECT_TRUE(finder->IsCriticalSelector(rewrite_driver(), "*"));
 
   GoogleString full_styles_html = StrCat(
-      "<noscript class=\"psa_add_styles\">", CssLinkEncodedHref("a.css"),
+      "<noscript class=\"psa_add_styles\">",
+      CssLinkEncodedHref("a.css"),
       CssLinkEncodedHref("b.css?x=1&y=2"),
       "</noscript>"
       "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-      rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-          StaticAssetManager::kCriticalCssLoaderJs,
-          rewrite_driver()->options()),
-      "pagespeed.CriticalCssLoader.Run();</script>");
+      CriticalSelectorFilter::kAddStylesFunction,
+      CriticalSelectorFilter::kAddStylesInvocation,
+      "</script>");
   ValidateFlushEarly(
       "critical_selector", InputHtml(), ExpectedHtml(full_styles_html));
 }

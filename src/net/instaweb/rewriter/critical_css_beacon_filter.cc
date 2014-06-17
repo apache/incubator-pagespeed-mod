@@ -23,11 +23,11 @@
 
 #include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_util.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -207,9 +207,9 @@ void CriticalCssBeaconFilter::SummariesDone() {
     AppendSelectorsInitJs(&script, selectors);
   }
   HtmlElement* script_element = driver()->NewElement(NULL, HtmlName::kScript);
-  driver()->AddAttribute(script_element, HtmlName::kPagespeedNoDefer, "");
+  driver_->AddAttribute(script_element, HtmlName::kPagespeedNoDefer, "");
   InsertNodeAtBodyEnd(script_element);
-  asset_manager->AddJsToElement(script, script_element, driver());
+  asset_manager->AddJsToElement(script, script_element, driver_);
 
   if (critical_css_beacon_added_count_ != NULL) {
     critical_css_beacon_added_count_->Add(1);
@@ -217,7 +217,10 @@ void CriticalCssBeaconFilter::SummariesDone() {
 }
 
 void CriticalCssBeaconFilter::DetermineEnabled() {
-  set_is_enabled(driver()->request_properties()->SupportsCriticalCssBeacon());
+  // Currently CriticalSelectorFilter can't deal with IE conditional comments,
+  // so we disable ourselves for IE.
+  // Note: this should match the logic in CriticalSelectorFilter.
+  set_is_enabled(!driver_->user_agent_matcher()->IsIe(driver_->user_agent()));
 }
 
 void CriticalCssBeaconFilter::FindSelectorsFromRuleset(

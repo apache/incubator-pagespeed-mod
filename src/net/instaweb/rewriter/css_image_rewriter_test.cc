@@ -16,7 +16,6 @@
 
 // Author: sligocki@google.com (Shawn Ligocki)
 
-#include "base/logging.h"
 #include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -73,10 +72,8 @@ class CssImageRewriterTest : public CssRewriteTestBase {
   virtual void SetUp() {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
-    options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheImages);
-    options()->SoftEnableFilterForTesting(
-        RewriteOptions::kFallbackRewriteCssUrls);
-    options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+    options()->EnableFilter(RewriteOptions::kExtendCacheImages);
+    options()->EnableFilter(RewriteOptions::kFallbackRewriteCssUrls);
     CssRewriteTestBase::SetUp();
   }
 
@@ -195,8 +192,8 @@ TEST_F(CssImageRewriterTest, MinifyImagesEmbeddedSpace) {
 
 TEST_F(CssImageRewriterTest, RewriteCssImagesVerifyQuality) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressJpeg);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->set_image_max_rewrites_at_once(1);
   options()->set_always_rewrite_css(true);
   options()->set_image_jpeg_recompress_quality(85);
@@ -340,7 +337,7 @@ TEST_F(CssImageRewriterTest, InlinePaths) {
   // during development of async + inline case which caused us to do
   // null rewrites from cache.
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kLeftTrimUrls);
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
   server_context()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
                                 kDummyContent, 100);
@@ -372,7 +369,7 @@ TEST_F(CssImageRewriterTest, InlinePaths) {
 TEST_F(CssImageRewriterTest, RewriteCached) {
   // Make sure we produce the same output from cache.
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kLeftTrimUrls);
+  options()->EnableFilter(RewriteOptions::kLeftTrimUrls);
   server_context()->ComputeSignature(options());
   SetResponseWithDefaultHeaders("dir/foo.png", kContentTypePng,
                                 kDummyContent, 100);
@@ -382,11 +379,16 @@ TEST_F(CssImageRewriterTest, RewriteCached) {
       "  background-image: url(http://test.com/dir/foo.png);\n"
       "}\n";
 
-  CHECK(!factory()->use_test_url_namer());
+  GoogleString kBaseDomain;
+  // If using the TestUrlNamer, the rewritten URL won't be relative so
+  // set things up so that we check for the correct URL below.
+  if (factory()->use_test_url_namer()) {
+    kBaseDomain = kTestDomain;
+  }
 
   const GoogleString kCssAfter = StrCat(
       "body{background-image:url(",
-      Encode("dir/", "ce", "0", "foo.png", "png"),
+      Encode(StrCat(kBaseDomain, "dir/"), "ce", "0", "foo.png", "png"),
       ")}");
   ValidateRewriteInlineCss("nosubdir",
                            kCssBefore, kCssAfter,
@@ -418,7 +420,7 @@ TEST_F(CssImageRewriterTest, CacheInlineParseFailures) {
 
 TEST_F(CssImageRewriterTest, RecompressImages) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                        kContentTypePng, 100);
@@ -438,7 +440,7 @@ TEST_F(CssImageRewriterTest, RecompressImages) {
 
 TEST_F(CssImageRewriterTest, CssImagePreserveUrls) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->set_image_preserve_urls(true);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
@@ -468,7 +470,7 @@ TEST_F(CssImageRewriterTest, CssImagePreserveUrls) {
 
 TEST_F(CssImageRewriterTest, CssImagePreserveUrlsNoPreemptiveRewrite) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->set_image_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_css_images(false);
   server_context()->ComputeSignature(options());
@@ -663,8 +665,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesInStyleAttributes) {
   SetResponseWithDefaultHeaders("baz.png", kContentTypePng, kDummyContent, 100);
 
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kRewriteStyleAttributes);
+  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
   server_context()->ComputeSignature(options());
 
   ValidateExpected("cache_extend_images_simple",
@@ -795,7 +796,7 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesFallback) {
 
 TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
   AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
                        kContentTypePng, 100);
@@ -815,7 +816,7 @@ TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
 // Make sure we don't break import URLs or other non-image URLs.
 TEST_F(CssImageRewriterTest, FallbackImportsAndUnknownContentType) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
   server_context()->ComputeSignature(options());
 
   AddFileToMockFetcher(StrCat(kTestDomain, "image.png"), kBikePngFile,

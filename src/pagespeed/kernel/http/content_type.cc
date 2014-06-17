@@ -48,8 +48,7 @@ const ContentType kTypes[] = {
   // While the official MIME type is image/vnd.microsoft.icon, old IE browsers
   // will not accept that type, so we use portable image/x-icon as canonical.
   {"image/x-icon",                  ".ico",  ContentType::kIco},
-  {"application/javascript",        ".json", ContentType::kJson},
-  {"application/javascript",        ".map",  ContentType::kSourceMap},
+  {"application/json",              ".json", ContentType::kJson},
   {"application/pdf",               ".pdf",  ContentType::kPdf},  // RFC 3778
   {"application/octet-stream",      ".bin",  ContentType::kOctetStream },
 
@@ -64,7 +63,6 @@ const ContentType kTypes[] = {
   {"text/jscript",             ".js",   ContentType::kJavascript},
   {"text/x-js",                ".js",   ContentType::kJavascript},
   {"application/ecmascript",   ".js",   ContentType::kJavascript},
-  {"application/json",         ".json", ContentType::kJson},
   {"image/jpeg",               ".jpeg", ContentType::kJpeg},
   {"image/jpg",                ".jpg",  ContentType::kJpeg},
   {"image/vnd.microsoft.icon", ".ico",  ContentType::kIco},
@@ -84,7 +82,7 @@ const ContentType kTypes[] = {
 
   {"audio/mpeg",               ".mp3",  ContentType::kAudio},
   {"audio/ogg",                ".ogg",  ContentType::kAudio},
-  {"audio/webm",               ".webm", ContentType::kAudio},
+  {"audio/webm",               "webm",  ContentType::kAudio},
   {"audio/mp4",                ".mp4",  ContentType::kAudio},
   {"audio/x-mpeg",             ".mp3",  ContentType::kAudio},
   {"audio/x-wav",              ".wav",  ContentType::kAudio},
@@ -114,11 +112,10 @@ const ContentType& kContentTypeWebp = kTypes[11];
 const ContentType& kContentTypeIco = kTypes[12];
 
 const ContentType& kContentTypeJson = kTypes[13];
-const ContentType& kContentTypeSourceMap = kTypes[14];
 
-const ContentType& kContentTypePdf = kTypes[15];
+const ContentType& kContentTypePdf = kTypes[14];
 
-const ContentType& kContentTypeBinaryOctetStream = kTypes[16];
+const ContentType& kContentTypeBinaryOctetStream = kTypes[15];
 
 int ContentType::MaxProducedExtensionLength() {
   return 4;  // .jpeg or .webp
@@ -126,10 +123,6 @@ int ContentType::MaxProducedExtensionLength() {
 
 bool ContentType::IsCss() const {
   return type_ == kCss;
-}
-
-bool ContentType::IsJs() const {
-  return type_ == kJavascript;
 }
 
 bool ContentType::IsHtmlLike() const {
@@ -286,7 +279,6 @@ bool ContentType::IsLikelyStaticResource() const {
     case kCeHtml:
     case kHtml:
     case kJson:
-    case kSourceMap:
     case kOctetStream:
     case kOther:
     case kText:

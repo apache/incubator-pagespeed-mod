@@ -18,8 +18,6 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 
-#include <memory>
-
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
@@ -28,8 +26,8 @@
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/null_thread_system.h"
-#include "pagespeed/kernel/base/message_handler_test_base.h"
-#include "pagespeed/kernel/base/mock_timer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -94,78 +92,6 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
       EXPECT_EQ(expected_result != RewriteOptions::kOptionOk, !msg.empty())
           << msg;
     }
-  }
-
-  // Helper method that is used to verify different kinds of merges between
-  // InlineResourcesWithoutExplicitAuthorization values for global and local
-  // options.
-  void VerifyInlineUnauthorizedResourceTypeMerges(
-      StringPiece global_option_val,
-      StringPiece local_option_val,
-      bool expect_script,
-      bool expect_stylesheet) {
-    scoped_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
-    // Initialize global options.
-    scoped_ptr<RewriteOptions> global_options(
-        new RewriteOptions(&thread_system_));
-    if (!global_option_val.empty()) {
-      RewriteOptions::ResourceCategorySet x;
-      ASSERT_TRUE(RewriteOptions::ParseInlineUnauthorizedResourceType(
-                      global_option_val, &x));
-      global_options->set_inline_unauthorized_resource_types(x);
-    }
-    // Initialize local options.
-    RewriteOptions local_options(&thread_system_);
-    if (!local_option_val.empty()) {
-      RewriteOptions::ResourceCategorySet x;
-      ASSERT_TRUE(RewriteOptions::ParseInlineUnauthorizedResourceType(
-                      local_option_val, &x));
-      local_options.set_inline_unauthorized_resource_types(x);
-    }
-
-    // Merge the options.
-    new_options->Merge(*global_options);
-    new_options->Merge(local_options);
-
-    // Check what resource types have been authorized.
-    EXPECT_EQ(
-        expect_script,
-        new_options->HasInlineUnauthorizedResourceType(semantic_type::kScript))
-        << "Global: " << global_option_val << ", local: " << local_option_val;
-    EXPECT_EQ(
-        expect_stylesheet,
-        new_options->HasInlineUnauthorizedResourceType(
-            semantic_type::kStylesheet))
-        << "Global: " << global_option_val << ", local: " << local_option_val;
-  }
-
-  // Adds an experiment spec to the options.  We take the spec as a
-  // const char* and make a scoped GoogleString specifically to reproduce
-  // a bug with lifetime of the experiment option names.
-  bool AddExperimentSpec(const char* spec) {
-    NullMessageHandler handler;
-    GoogleString spec_string(spec);
-    return options_.AddExperimentSpec(spec_string, &handler);
-  }
-
-  void SetupTestExperimentSpecs() {
-    options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-    options_.set_running_experiment(true);
-
-    EXPECT_TRUE(AddExperimentSpec("id=1;percent=15;enable=defer_javascript;"
-                                  "options=CssInlineMaxBytes=1024"));
-    EXPECT_TRUE(AddExperimentSpec(
-        "id=2;percent=15;enable=resize_images;options=BogusOption=35"));
-    EXPECT_TRUE(AddExperimentSpec("id=3;percent=15;enable=defer_javascript"));
-    EXPECT_TRUE(AddExperimentSpec("id=4;percent=15;enable=defer_javascript;"
-                                  "options=CssInlineMaxBytes=Cabbage"));
-    EXPECT_TRUE(AddExperimentSpec(
-        "id=5;percent=15;enable=defer_javascript;"
-        "options=Potato=Carrot,5=10,6==9,CssInlineMaxBytes=1024"));
-    EXPECT_TRUE(AddExperimentSpec(
-        "id=6;percent=15;enable=defer_javascript;"
-        "options=JsOutlineMinBytes=4096,JpegRecompresssionQuality=50,"
-        "CssInlineMaxBytes=100,JsInlineMaxBytes=123"));
   }
 
   void TestSetOptionFromName(bool test_log_variant);
@@ -259,7 +185,7 @@ TEST_F(RewriteOptionsTest, CommaSeparatedList) {
   s.Insert(RewriteOptions::kAddInstrumentation);
   s.Insert(RewriteOptions::kLeftTrimUrls);
   s.Insert(RewriteOptions::kHtmlWriterFilter);  // enabled by default
-  static const char kList[] = "add_instrumentation,trim_urls";
+  const char* kList = "add_instrumentation,trim_urls";
   NullMessageHandler handler;
   ASSERT_TRUE(
       options_.EnableFiltersByCommaSeparatedList(kList, &handler));
@@ -271,9 +197,10 @@ TEST_F(RewriteOptionsTest, CommaSeparatedList) {
 
 TEST_F(RewriteOptionsTest, CompoundFlag) {
   FilterSet s;
+  // TODO(jmaessen): add kConvertJpegToWebp here when it becomes part of
+  // rewrite_images.
   s.Insert(RewriteOptions::kConvertGifToPng);
   s.Insert(RewriteOptions::kConvertJpegToProgressive);
-  s.Insert(RewriteOptions::kConvertJpegToWebp);
   s.Insert(RewriteOptions::kConvertPngToJpeg);
   s.Insert(RewriteOptions::kInlineImages);
   s.Insert(RewriteOptions::kJpegSubsampling);
@@ -284,7 +211,7 @@ TEST_F(RewriteOptionsTest, CompoundFlag) {
   s.Insert(RewriteOptions::kStripImageMetaData);
   s.Insert(RewriteOptions::kStripImageColorProfile);
   s.Insert(RewriteOptions::kHtmlWriterFilter);  // enabled by default
-  static const char kList[] = "rewrite_images";
+  const char* kList = "rewrite_images";
   NullMessageHandler handler;
   ASSERT_TRUE(
       options_.EnableFiltersByCommaSeparatedList(kList, &handler));
@@ -298,7 +225,6 @@ TEST_F(RewriteOptionsTest, CompoundFlagRecompressImages) {
   FilterSet s;
   s.Insert(RewriteOptions::kConvertGifToPng);
   s.Insert(RewriteOptions::kConvertJpegToProgressive);
-  s.Insert(RewriteOptions::kConvertJpegToWebp);
   s.Insert(RewriteOptions::kJpegSubsampling);
   s.Insert(RewriteOptions::kRecompressJpeg);
   s.Insert(RewriteOptions::kRecompressPng);
@@ -306,7 +232,7 @@ TEST_F(RewriteOptionsTest, CompoundFlagRecompressImages) {
   s.Insert(RewriteOptions::kStripImageMetaData);
   s.Insert(RewriteOptions::kStripImageColorProfile);
   s.Insert(RewriteOptions::kHtmlWriterFilter);  // enabled by default
-  static const char kList[] = "recompress_images";
+  const char* kList = "recompress_images";
   NullMessageHandler handler;
   ASSERT_TRUE(
       options_.EnableFiltersByCommaSeparatedList(kList, &handler));
@@ -707,8 +633,7 @@ TEST_F(RewriteOptionsTest, CoreByNameNotLevel) {
 }
 
 TEST_F(RewriteOptionsTest, PlusAndMinus) {
-  static const char kList[] =
-      "core,+div_structure,-inline_css,+extend_cache_css";
+  const char* kList = "core,+div_structure,-inline_css,+extend_cache_css";
   NullMessageHandler handler;
   options_.SetRewriteLevel(RewriteOptions::kPassThrough);
   ASSERT_TRUE(options_.AdjustFiltersByCommaSeparatedList(kList, &handler));
@@ -827,167 +752,164 @@ TEST_F(RewriteOptionsTest, SetOptionFromNameAndLog) {
 // the count explicitly (and assuming we add/delete an option value when we
 // add/delete an option name).
 TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
-  const char* const option_names[] = {
-    RewriteOptions::kAccessControlAllowOrigins,
-    RewriteOptions::kAddOptionsToUrls,
-    RewriteOptions::kAllowLoggingUrlsInLogRecord,
-    RewriteOptions::kAllowOptionsToBeSetByCookies,
-    RewriteOptions::kAlwaysRewriteCss,
-    RewriteOptions::kAnalyticsID,
-    RewriteOptions::kAvoidRenamingIntrospectiveJavascript,
-    RewriteOptions::kAwaitPcacheLookup,
-    RewriteOptions::kBeaconReinstrumentTimeSec,
-    RewriteOptions::kBeaconUrl,
-    RewriteOptions::kBlinkMaxHtmlSizeRewritable,
-    RewriteOptions::kCacheFragment,
-    RewriteOptions::kCacheInvalidationTimestamp,
-    RewriteOptions::kCacheSmallImagesUnrewritten,
-    RewriteOptions::kClientDomainRewrite,
-    RewriteOptions::kCombineAcrossPaths,
-    RewriteOptions::kCriticalImagesBeaconEnabled,
-    RewriteOptions::kCriticalLineConfig,
-    RewriteOptions::kCssFlattenMaxBytes,
-    RewriteOptions::kCssImageInlineMaxBytes,
-    RewriteOptions::kCssInlineMaxBytes,
-    RewriteOptions::kCssOutlineMinBytes,
-    RewriteOptions::kCssPreserveURLs,
-    RewriteOptions::kDefaultCacheHtml,
-    RewriteOptions::kDisableBackgroundFetchesForBots,
-    RewriteOptions::kDisableRewriteOnNoTransform,
-    RewriteOptions::kDistributeFetches,
-    RewriteOptions::kDistributedRewriteKey,
-    RewriteOptions::kDistributedRewriteServers,
-    RewriteOptions::kDistributedRewriteTimeoutMs,
-    RewriteOptions::kDomainRewriteHyperlinks,
-    RewriteOptions::kDomainShardCount,
-    RewriteOptions::kDownstreamCachePurgeMethod,
-    RewriteOptions::kDownstreamCacheRebeaconingKey,
-    RewriteOptions::kDownstreamCacheRewrittenPercentageThreshold,
-    RewriteOptions::kEnableAggressiveRewritersForMobile,
-    RewriteOptions::kEnableBlinkHtmlChangeDetection,
-    RewriteOptions::kEnableBlinkHtmlChangeDetectionLogging,
-    RewriteOptions::kEnableCachePurge,
-    RewriteOptions::kEnableDeferJsExperimental,
-    RewriteOptions::kEnableExtendedInstrumentation,
-    RewriteOptions::kEnableFlushEarlyCriticalCss,
-    RewriteOptions::kEnableLazyLoadHighResImages,
-    RewriteOptions::kEnablePrioritizingScripts,
-    RewriteOptions::kEnabled,
-    RewriteOptions::kEnrollExperiment,
-    RewriteOptions::kExperimentCookieDurationMs,
-    RewriteOptions::kExperimentSlot,
-    RewriteOptions::kFetcherTimeOutMs,
-    RewriteOptions::kFinderPropertiesCacheExpirationTimeMs,
-    RewriteOptions::kFinderPropertiesCacheRefreshTimeMs,
-    RewriteOptions::kFlushBufferLimitBytes,
-    RewriteOptions::kFlushHtml,
-    RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits,
-    RewriteOptions::kForbidAllDisabledFilters,
-    RewriteOptions::kHideRefererUsingMeta,
-    RewriteOptions::kIdleFlushTimeMs,
-    RewriteOptions::kImageInlineMaxBytes,
-    RewriteOptions::kImageJpegNumProgressiveScans,
-    RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens,
-    RewriteOptions::kImageJpegRecompressionQuality,
-    RewriteOptions::kImageJpegRecompressionQualityForSmallScreens,
-    RewriteOptions::kImageLimitOptimizedPercent,
-    RewriteOptions::kImageLimitRenderedAreaPercent,
-    RewriteOptions::kImageLimitResizeAreaPercent,
-    RewriteOptions::kImageMaxRewritesAtOnce,
-    RewriteOptions::kImagePreserveURLs,
-    RewriteOptions::kImageRecompressionQuality,
-    RewriteOptions::kImageResolutionLimitBytes,
-    RewriteOptions::kImageWebpRecompressionQuality,
-    RewriteOptions::kImageWebpRecompressionQualityForSmallScreens,
-    RewriteOptions::kImageWebpTimeoutMs,
-    RewriteOptions::kImplicitCacheTtlMs,
-    RewriteOptions::kIncreaseSpeedTracking,
-    RewriteOptions::kInlineOnlyCriticalImages,
-    RewriteOptions::kInlineResourcesWithoutExplicitAuthorization,
-    RewriteOptions::kInPlacePreemptiveRewriteCss,
-    RewriteOptions::kInPlacePreemptiveRewriteCssImages,
-    RewriteOptions::kInPlacePreemptiveRewriteImages,
-    RewriteOptions::kInPlacePreemptiveRewriteJavascript,
-    RewriteOptions::kInPlaceResourceOptimization,
-    RewriteOptions::kInPlaceRewriteDeadlineMs,
-    RewriteOptions::kInPlaceWaitForOptimized,
-    RewriteOptions::kJsInlineMaxBytes,
-    RewriteOptions::kJsOutlineMinBytes,
-    RewriteOptions::kJsPreserveURLs,
-    RewriteOptions::kLazyloadImagesAfterOnload,
-    RewriteOptions::kLazyloadImagesBlankUrl,
-    RewriteOptions::kLogBackgroundRewrite,
-    RewriteOptions::kLogRewriteTiming,
-    RewriteOptions::kLogUrlIndices,
-    RewriteOptions::kLowercaseHtmlNames,
-    RewriteOptions::kMaxCacheableResponseContentLength,
-    RewriteOptions::kMaxCombinedCssBytes,
-    RewriteOptions::kMaxCombinedJsBytes,
-    RewriteOptions::kMaxLowResImageSizeBytes,
-    RewriteOptions::kMaxLowResToHighResImageSizePercentage,
-    RewriteOptions::kMaxHtmlCacheTimeMs,
-    RewriteOptions::kMaxHtmlParseBytes,
-    RewriteOptions::kMaxImageBytesForWebpInCss,
-    RewriteOptions::kMaxImageSizeLowResolutionBytes,
-    RewriteOptions::kMaxInlinedPreviewImagesIndex,
-    RewriteOptions::kMaxPrefetchJsElements,
-    RewriteOptions::kMaxRewriteInfoLogSize,
-    RewriteOptions::kMaxUrlSegmentSize,
-    RewriteOptions::kMaxUrlSize,
-    RewriteOptions::kMetadataCacheStalenessThresholdMs,
-    RewriteOptions::kMinCacheTtlMs,
-    RewriteOptions::kMinImageSizeLowResolutionBytes,
-    RewriteOptions::kMinResourceCacheTimeToRewriteMs,
-    RewriteOptions::kModifyCachingHeaders,
-    RewriteOptions::kNoTransformOptimizedImages,
-    RewriteOptions::kNonCacheablesForCachePartialHtml,
-    RewriteOptions::kObliviousPagespeedUrls,
-    RewriteOptions::kOptionCookiesDurationMs,
-    RewriteOptions::kOverrideCachingTtlMs,
-    RewriteOptions::kPersistBlinkBlacklist,
-    RewriteOptions::kPreserveUrlRelativity,
-    RewriteOptions::kPrivateNotVaryForIE,
-    RewriteOptions::kPubliclyCacheMismatchedHashesExperimental,
-    RewriteOptions::kProactivelyFreshenUserFacingRequest,
-    RewriteOptions::kProactiveResourceFreshening,
-    RewriteOptions::kProgressiveJpegMinBytes,
-    RewriteOptions::kRejectBlacklisted,
-    RewriteOptions::kRejectBlacklistedStatusCode,
-    RewriteOptions::kReportUnloadTime,
-    RewriteOptions::kRequestOptionOverride,
-    RewriteOptions::kRespectVary,
-    RewriteOptions::kRespectXForwardedProto,
-    RewriteOptions::kRewriteDeadlineMs,
-    RewriteOptions::kRewriteLevel,
-    RewriteOptions::kRewriteRandomDropPercentage,
-    RewriteOptions::kRewriteUncacheableResources,
-    RewriteOptions::kRunningExperiment,
-    RewriteOptions::kServeGhostClickBusterWithSplitHtml,
-    RewriteOptions::kServeSplitHtmlInTwoChunks,
-    RewriteOptions::kServeStaleIfFetchError,
-    RewriteOptions::kServeWebpToAnyAgent,
-    RewriteOptions::kServeXhrAccessControlHeaders,
-    RewriteOptions::kServeStaleWhileRevalidateThresholdSec,
-    RewriteOptions::kStickyQueryParameters,
-    RewriteOptions::kSupportNoScriptEnabled,
-    RewriteOptions::kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss,
-    RewriteOptions::kUrlSigningKey,
-    RewriteOptions::kUseBlankImageForInlinePreview,
-    RewriteOptions::kUseExperimentalJsMinifier,
-    RewriteOptions::kUseFallbackPropertyCacheValues,
-    RewriteOptions::kUseSelectorsForCriticalCss,
-    RewriteOptions::kUseSmartDiffInBlink,
-    RewriteOptions::kXModPagespeedHeaderValue,
-    RewriteOptions::kXPsaBlockingRewrite,
-  };
-
-  // Check that every option can be looked up by name.
+  // Use macro so that the failure message tells us the name of the option
+  // failing the test (using a function would obscure that) and to ensure we
+  // add every tested name to the set of tested names for further checks below.
   std::set<StringPiece> tested_names;
-  for (int i = 0; i < arraysize(option_names); ++i) {
-    EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName(option_names[i]))
-        << option_names[i] << " cannot be looked up by name!";
-    tested_names.insert(option_names[i]);
-  }
+#define PassLookupOptionByName(name) \
+  EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName(name)); \
+  tested_names.insert(name)
+
+  // Generic options that are registered by name by AddProperty().
+  PassLookupOptionByName(RewriteOptions::kAddOptionsToUrls);
+  PassLookupOptionByName(RewriteOptions::kAccessControlAllowOrigins);
+  PassLookupOptionByName(RewriteOptions::kAllowLoggingUrlsInLogRecord);
+  PassLookupOptionByName(RewriteOptions::kAlwaysRewriteCss);
+  PassLookupOptionByName(RewriteOptions::kAnalyticsID);
+  PassLookupOptionByName(RewriteOptions::kAvoidRenamingIntrospectiveJavascript);
+  PassLookupOptionByName(RewriteOptions::kBeaconReinstrumentTimeSec);
+  PassLookupOptionByName(RewriteOptions::kBeaconUrl);
+  PassLookupOptionByName(RewriteOptions::kBlinkMaxHtmlSizeRewritable);
+  PassLookupOptionByName(RewriteOptions::kCacheInvalidationTimestamp);
+  PassLookupOptionByName(RewriteOptions::kCacheSmallImagesUnrewritten);
+  PassLookupOptionByName(RewriteOptions::kClientDomainRewrite);
+  PassLookupOptionByName(RewriteOptions::kCombineAcrossPaths);
+  PassLookupOptionByName(RewriteOptions::kCriticalImagesBeaconEnabled);
+  PassLookupOptionByName(RewriteOptions::kCriticalLineConfig);
+  PassLookupOptionByName(RewriteOptions::kCssFlattenMaxBytes);
+  PassLookupOptionByName(RewriteOptions::kCssImageInlineMaxBytes);
+  PassLookupOptionByName(RewriteOptions::kCssInlineMaxBytes);
+  PassLookupOptionByName(RewriteOptions::kCssOutlineMinBytes);
+  PassLookupOptionByName(RewriteOptions::kCssPreserveURLs);
+  PassLookupOptionByName(RewriteOptions::kDefaultCacheHtml);
+  PassLookupOptionByName(RewriteOptions::kDisableBackgroundFetchesForBots);
+  PassLookupOptionByName(RewriteOptions::kDisableRewriteOnNoTransform);
+  PassLookupOptionByName(RewriteOptions::kDistributeFetches);
+  PassLookupOptionByName(RewriteOptions::kDistributedRewriteKey);
+  PassLookupOptionByName(RewriteOptions::kDistributedRewriteServers);
+  PassLookupOptionByName(RewriteOptions::kDistributedRewriteTimeoutMs);
+  PassLookupOptionByName(RewriteOptions::kDomainRewriteHyperlinks);
+  PassLookupOptionByName(RewriteOptions::kDomainShardCount);
+  PassLookupOptionByName(RewriteOptions::kUseImageScanlineApi);
+  PassLookupOptionByName(RewriteOptions::kDownstreamCachePurgeMethod);
+  PassLookupOptionByName(RewriteOptions::
+                         kDownstreamCacheRewrittenPercentageThreshold);
+  PassLookupOptionByName(RewriteOptions::kEnableAggressiveRewritersForMobile);
+  PassLookupOptionByName(RewriteOptions::kEnableBlinkHtmlChangeDetection);
+  PassLookupOptionByName(RewriteOptions::
+                         kEnableBlinkHtmlChangeDetectionLogging);
+  PassLookupOptionByName(RewriteOptions::kEnableCachePurge);
+  PassLookupOptionByName(RewriteOptions::kEnableDeferJsExperimental);
+  PassLookupOptionByName(RewriteOptions::kEnableExtendedInstrumentation);
+  PassLookupOptionByName(RewriteOptions::kEnableFlushEarlyCriticalCss);
+  PassLookupOptionByName(RewriteOptions::kEnableLazyLoadHighResImages);
+  PassLookupOptionByName(RewriteOptions::kEnablePrioritizingScripts);
+  PassLookupOptionByName(RewriteOptions::kEnabled);
+  PassLookupOptionByName(RewriteOptions::kExperimentCookieDurationMs);
+  PassLookupOptionByName(RewriteOptions::kExperimentSlot);
+  PassLookupOptionByName(RewriteOptions::kFetcherTimeOutMs);
+  PassLookupOptionByName(RewriteOptions::
+                         kFinderPropertiesCacheExpirationTimeMs);
+  PassLookupOptionByName(RewriteOptions::kFinderPropertiesCacheRefreshTimeMs);
+  PassLookupOptionByName(RewriteOptions::kFlushBufferLimitBytes);
+  PassLookupOptionByName(RewriteOptions::kFlushHtml);
+  PassLookupOptionByName(RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits);
+  PassLookupOptionByName(RewriteOptions::kForbidAllDisabledFilters);
+  PassLookupOptionByName(RewriteOptions::kHideRefererUsingMeta);
+  PassLookupOptionByName(RewriteOptions::kIdleFlushTimeMs);
+  PassLookupOptionByName(RewriteOptions::kImageInlineMaxBytes);
+  PassLookupOptionByName(RewriteOptions::kImageJpegNumProgressiveScans);
+  PassLookupOptionByName(RewriteOptions::
+                         kImageJpegNumProgressiveScansForSmallScreens);
+  PassLookupOptionByName(RewriteOptions::kImageJpegRecompressionQuality);
+  PassLookupOptionByName(RewriteOptions::
+                         kImageJpegRecompressionQualityForSmallScreens);
+  PassLookupOptionByName(RewriteOptions::kImageLimitOptimizedPercent);
+  PassLookupOptionByName(RewriteOptions::kImageLimitRenderedAreaPercent);
+  PassLookupOptionByName(RewriteOptions::kImageLimitResizeAreaPercent);
+  PassLookupOptionByName(RewriteOptions::kImageMaxRewritesAtOnce);
+  PassLookupOptionByName(RewriteOptions::kImagePreserveURLs);
+  PassLookupOptionByName(RewriteOptions::kImageRecompressionQuality);
+  PassLookupOptionByName(RewriteOptions::kImageResolutionLimitBytes);
+  PassLookupOptionByName(RewriteOptions::kImageWebpRecompressionQuality);
+  PassLookupOptionByName(RewriteOptions::
+                         kImageWebpRecompressionQualityForSmallScreens);
+  PassLookupOptionByName(RewriteOptions::kImageWebpTimeoutMs);
+  PassLookupOptionByName(RewriteOptions::kImplicitCacheTtlMs);
+  PassLookupOptionByName(RewriteOptions::kIncreaseSpeedTracking);
+  PassLookupOptionByName(RewriteOptions::kInlineOnlyCriticalImages);
+  PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteCss);
+  PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteCssImages);
+  PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteImages);
+  PassLookupOptionByName(RewriteOptions::kInPlacePreemptiveRewriteJavascript);
+  PassLookupOptionByName(RewriteOptions::kInPlaceResourceOptimization);
+  PassLookupOptionByName(RewriteOptions::kInPlaceRewriteDeadlineMs);
+  PassLookupOptionByName(RewriteOptions::kInPlaceWaitForOptimized);
+  PassLookupOptionByName(RewriteOptions::kInlineOnlyCriticalImages);
+  PassLookupOptionByName(RewriteOptions::kJsInlineMaxBytes);
+  PassLookupOptionByName(RewriteOptions::kJsOutlineMinBytes);
+  PassLookupOptionByName(RewriteOptions::kJsPreserveURLs);
+  PassLookupOptionByName(RewriteOptions::kLazyloadImagesAfterOnload);
+  PassLookupOptionByName(RewriteOptions::kLazyloadImagesBlankUrl);
+  PassLookupOptionByName(RewriteOptions::kLogBackgroundRewrite);
+  PassLookupOptionByName(RewriteOptions::kLogRewriteTiming);
+  PassLookupOptionByName(RewriteOptions::kLogUrlIndices);
+  PassLookupOptionByName(RewriteOptions::kLowercaseHtmlNames);
+  PassLookupOptionByName(RewriteOptions::kMaxCacheableResponseContentLength);
+  PassLookupOptionByName(RewriteOptions::kMaxCombinedCssBytes);
+  PassLookupOptionByName(RewriteOptions::kMaxCombinedJsBytes);
+  PassLookupOptionByName(RewriteOptions::kMaxLowResImageSizeBytes);
+  PassLookupOptionByName(
+      RewriteOptions::kMaxLowResToHighResImageSizePercentage);
+  PassLookupOptionByName(RewriteOptions::kMaxHtmlCacheTimeMs);
+  PassLookupOptionByName(RewriteOptions::kMaxHtmlParseBytes);
+  PassLookupOptionByName(RewriteOptions::kMaxImageBytesForWebpInCss);
+  PassLookupOptionByName(RewriteOptions::kMaxImageSizeLowResolutionBytes);
+  PassLookupOptionByName(RewriteOptions::kMaxInlinedPreviewImagesIndex);
+  PassLookupOptionByName(RewriteOptions::kMaxPrefetchJsElements);
+  PassLookupOptionByName(RewriteOptions::kMaxRewriteInfoLogSize);
+  PassLookupOptionByName(RewriteOptions::kMaxUrlSegmentSize);
+  PassLookupOptionByName(RewriteOptions::kMaxUrlSize);
+  PassLookupOptionByName(RewriteOptions::kMetadataCacheStalenessThresholdMs);
+  PassLookupOptionByName(RewriteOptions::kMinCacheTtlMs);
+  PassLookupOptionByName(RewriteOptions::kMinImageSizeLowResolutionBytes);
+  PassLookupOptionByName(RewriteOptions::kMinResourceCacheTimeToRewriteMs);
+  PassLookupOptionByName(RewriteOptions::kModifyCachingHeaders);
+  PassLookupOptionByName(RewriteOptions::kNonCacheablesForCachePartialHtml);
+  PassLookupOptionByName(RewriteOptions::kObliviousPagespeedUrls);
+  PassLookupOptionByName(RewriteOptions::kOverrideCachingTtlMs);
+  PassLookupOptionByName(RewriteOptions::kPersistBlinkBlacklist);
+  PassLookupOptionByName(RewriteOptions::kPreserveUrlRelativity);
+  PassLookupOptionByName(RewriteOptions::kProactivelyFreshenUserFacingRequest);
+  PassLookupOptionByName(RewriteOptions::kProactiveResourceFreshening);
+  PassLookupOptionByName(RewriteOptions::kProgressiveJpegMinBytes);
+  PassLookupOptionByName(RewriteOptions::kRejectBlacklisted);
+  PassLookupOptionByName(RewriteOptions::kRejectBlacklistedStatusCode);
+  PassLookupOptionByName(RewriteOptions::kReportUnloadTime);
+  PassLookupOptionByName(RewriteOptions::kRespectVary);
+  PassLookupOptionByName(RewriteOptions::kRespectXForwardedProto);
+  PassLookupOptionByName(RewriteOptions::kRewriteDeadlineMs);
+  PassLookupOptionByName(RewriteOptions::kRewriteLevel);
+  PassLookupOptionByName(RewriteOptions::kRewriteRandomDropPercentage);
+  PassLookupOptionByName(RewriteOptions::kRewriteRequestUrlsEarly);
+  PassLookupOptionByName(RewriteOptions::kRewriteUncacheableResources);
+  PassLookupOptionByName(RewriteOptions::kRunningExperiment);
+  PassLookupOptionByName(RewriteOptions::kServeGhostClickBusterWithSplitHtml);
+  PassLookupOptionByName(RewriteOptions::kServeSplitHtmlInTwoChunks);
+  PassLookupOptionByName(RewriteOptions::kServeStaleIfFetchError);
+  PassLookupOptionByName(RewriteOptions::kServeXhrAccessControlHeaders);
+  PassLookupOptionByName(RewriteOptions::
+                         kServeStaleWhileRevalidateThresholdSec);
+  PassLookupOptionByName(RewriteOptions::kSupportNoScriptEnabled);
+  PassLookupOptionByName(RewriteOptions::
+                         kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss);
+  PassLookupOptionByName(RewriteOptions::kUseBlankImageForInlinePreview);
+  PassLookupOptionByName(RewriteOptions::kUseFallbackPropertyCacheValues);
+  PassLookupOptionByName(RewriteOptions::kAwaitPcacheLookup);
+  PassLookupOptionByName(RewriteOptions::kUseSelectorsForCriticalCss);
+  PassLookupOptionByName(RewriteOptions::kUseSmartDiffInBlink);
+  PassLookupOptionByName(RewriteOptions::kXModPagespeedHeaderValue);
+  PassLookupOptionByName(RewriteOptions::kXPsaBlockingRewrite);
 
   // Now go through the named options in all_properties_ and check that each
   // one has been tested.
@@ -1004,8 +926,8 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   EXPECT_EQ(named_properties, tested_names.size());
 
   // Check that case doesn't matter when looking up directives.
-  EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName("EnableRewriting"));
-  EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName("eNaBlErEWrItIng"));
+  PassLookupOptionByName("EnableRewriting");  // As declared.
+  PassLookupOptionByName("eNaBlErEWrItIng");  // mutated.
 }
 
 // All the non-base option names are explicitly enumerated here. Modifications
@@ -1072,6 +994,7 @@ TEST_F(RewriteOptionsTest, LookupNonBaseOptionByNameTest) {
   FailLookupOptionByName(RewriteOptions::kSlurpFlushLimit);
   FailLookupOptionByName(RewriteOptions::kSlurpReadOnly);
   FailLookupOptionByName(RewriteOptions::kStatisticsEnabled);
+  FailLookupOptionByName(RewriteOptions::kStatisticsHandlerPath);
   FailLookupOptionByName(RewriteOptions::kStatisticsLoggingEnabled);
   FailLookupOptionByName(RewriteOptions::kStatisticsLoggingChartsCSS);
   FailLookupOptionByName(RewriteOptions::kStatisticsLoggingChartsJS);
@@ -1099,7 +1022,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName1) {
   EXPECT_EQ(RewriteOptions::kOptionValueInvalid,
             options_.ParseAndSetOptionFromName1("JsInlineMaxBytes", "one",
                                                 &msg, &handler));
-  EXPECT_EQ("Cannot set option JsInlineMaxBytes to one. ", msg);
+  EXPECT_EQ("Cannot set option JsInlineMaxBytes to one.", msg);
 
   // Complex, valid value.
   EXPECT_FALSE(options_.Enabled(RewriteOptions::kDebug));
@@ -1459,20 +1382,6 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName3) {
             "URL http://www.example.com/url.js", msg);
 }
 
-TEST_F(RewriteOptionsTest, SetOptionFromQuery) {
-  // Unknown option.
-  EXPECT_EQ(RewriteOptions::kOptionNameUnknown,
-            options_.SetOptionFromQuery("arghh", ""));
-  // Known option with a bad value.
-  EXPECT_EQ(RewriteOptions::kOptionValueInvalid,
-            options_.SetOptionFromQuery(RewriteOptions::kCssFlattenMaxBytes,
-                                        "nuh-uh"));
-  // Known option with a good value.
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.SetOptionFromQuery(RewriteOptions::kCssFlattenMaxBytes,
-                                        "123"));
-}
-
 TEST_F(RewriteOptionsTest, ExperimentSpecTest) {
   // Test that we handle experiment specs properly, and that when we set the
   // options to one experiment or another, it works.
@@ -1484,7 +1393,7 @@ TEST_F(RewriteOptionsTest, ExperimentSpecTest) {
   EXPECT_FALSE(options_.AddExperimentSpec("id=0", &handler));
   EXPECT_TRUE(options_.AddExperimentSpec(
       "id=7;percent=10;level=CoreFilters;enabled=sprite_images;"
-      "disabled=inline_css;options=InlineJavascriptMaxBytes=600000", &handler));
+      "disabled=inline_css;inline_js=600000", &handler));
 
   // Extra spaces to test whitespace handling.
   EXPECT_TRUE(options_.AddExperimentSpec("id=2;    percent=15;ga=UA-2222-1;"
@@ -1560,40 +1469,6 @@ TEST_F(RewriteOptionsTest, ExperimentSpecTest) {
                                           &handler));
 }
 
-TEST_F(RewriteOptionsTest, DefaultExperimentSpecTest) {
-  NullMessageHandler handler;
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.EnableFilter(RewriteOptions::kStripScripts);
-  options_.EnableFilter(RewriteOptions::kSpriteImages);
-  options_.set_ga_id("UA-111111-1");
-  // Check that we can combine 'default', 'enable' & 'disable', and 'options'.
-  // strip_scripts was expressly enabled in addition to core and should stay on.
-  // extend_cache_css is on because it's a core filter and should stay on.
-  // defer_javascript is off by default but turned on by our spec.
-  // local_storage_cache is off by default but turned on by our spec.
-  // inline_css is on by default but turned off by our spec.
-  // CssInlineMaxBytes is 1024 by default but set to 66 by our spec.
-  options_.SetExperimentState(experiment::kNoExperiment);
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kSpriteImages));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kLocalStorageCache));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineCss));
-  EXPECT_TRUE(options_.AddExperimentSpec(
-      "id=18;percent=0;default"
-      ";enable=defer_javascript,local_storage_cache"
-      ";disable=inline_css,sprite_images"
-      ";options=CssInlineMaxBytes=66", &handler));
-  options_.SetExperimentState(18);
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kStripScripts));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kSpriteImages));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kLocalStorageCache));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineCss));
-}
-
 TEST_F(RewriteOptionsTest, PreserveURLDefaults) {
   // This test serves as a warning. If you enable preserve URLs by default then
   // many unit tests will fail due to filters being omitted from the HTML path.
@@ -1623,23 +1498,28 @@ TEST_F(RewriteOptionsTest, ExperimentPrintTest) {
   EXPECT_TRUE(options_.AddExperimentSpec("id=7;percent=15;level=AllFilters;",
                                          &handler));
   EXPECT_TRUE(options_.AddExperimentSpec("id=2;percent=15;enabled=rewrite_css;"
-                                         "options=InlineCssMaxBytes=4096,"
-                                         "InlineJsMaxBytes=4;"
-                                         "ga_id=122333-4", &handler));
+                                         "inline_css=4096;ga_id=122333-4",
+                                         &handler));
   options_.SetExperimentState(-7);
-  // No experiment changes.
-  EXPECT_EQ("", options_.ToExperimentDebugString());
+  // This should be the core filters.
+  EXPECT_EQ("ah,cc,jc,gp,jp,mc,pj,ec,ei,es,fc,if,hw,ci,ii,il,ji,js,rj,rp,rw,"
+            "ri,cf,jm,cu,cp,md,css:2048,im:3072,js:2048;",
+            options_.ToExperimentDebugString());
   EXPECT_EQ("", options_.ToExperimentString());
   options_.SetExperimentState(1);
-  EXPECT_EQ("Experiment: 1; id=1;ga=UA-111111-1;percent=15;default",
+  EXPECT_EQ("Experiment: 1; ah,ai,ca,cc,jc,gp,jp,mc,pj,ec,ei,es,fc,if,hw,ci,ii,"
+            "il,ji,ig,js,rj,rp,rw,ri,cf,jm,cu,cp,md,"
+            "css:2048,im:3072,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 1", options_.ToExperimentString());
   options_.SetExperimentState(7);
   EXPECT_EQ("Experiment: 7", options_.ToExperimentString());
   options_.SetExperimentState(2);
-  // Note the options= section.
-  EXPECT_EQ("Experiment: 2; id=2;ga=122333-4;percent=15;enabled=cf;"
-            "options=InlineCssMaxBytes=4096,InlineJsMaxBytes=4",
+  // This should be the filters we need to run an experiment (add_head,
+  // add_instrumentation, html_writer, insert_ga) plus rewrite_css.
+  // The image inline threshold is 0 because ImageInlineMaxBytes()
+  // only returns the threshold if inline_images is enabled.
+  EXPECT_EQ("Experiment: 2; ah,ai,ca,hw,ig,cf,css:4096,im:0,js:2048;",
             options_.ToExperimentDebugString());
   EXPECT_EQ("Experiment: 2", options_.ToExperimentString());
 
@@ -1647,79 +1527,60 @@ TEST_F(RewriteOptionsTest, ExperimentPrintTest) {
   EXPECT_EQ("122333-4", options_.ga_id());
 }
 
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestDefaultUnchanged) {
-  SetupTestExperimentSpecs();
+TEST_F(RewriteOptionsTest, ExperimentUndoOptionsTest) {
+  NullMessageHandler handler;
+  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
+  options_.set_running_experiment(true);
+
+  // Default for this is kDefaultImageInlineMaxBytes.
+  EXPECT_EQ(RewriteOptions::kDefaultImageInlineMaxBytes,
+            options_.ImageInlineMaxBytes());
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=1;percent=15;enable=inline_images;"
+      "inline_images=1024", &handler));
+  options_.SetExperimentState(1);
+  EXPECT_EQ(1024L, options_.ImageInlineMaxBytes());
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=2;percent=15;enable=inline_images", &handler));
+  options_.SetExperimentState(2);
+  EXPECT_EQ(RewriteOptions::kDefaultImageInlineMaxBytes,
+            options_.ImageInlineMaxBytes());
+}
+
+TEST_F(RewriteOptionsTest, ExperimentOptionsTest) {
+  NullMessageHandler handler;
+  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
+  options_.set_running_experiment(true);
+
   // Default for this is 2048.
   EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestCssInlineChange) {
-  SetupTestExperimentSpecs();
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=1;percent=15;enable=defer_javascript;"
+      "options=CssInlineMaxBytes=1024", &handler));
   options_.SetExperimentState(1);
   EXPECT_EQ(1024L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestCssInlineChangeToDefault) {
-  SetupTestExperimentSpecs();
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=2;percent=15;enable=resize_images;options=BogusOption=35", &handler));
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=3;percent=15;enable=defer_javascript", &handler));
   options_.SetExperimentState(3);
   EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestCssInlineChangeToInvalid) {
-  SetupTestExperimentSpecs();
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=4;percent=15;enable=defer_javascript;"
+      "options=CssInlineMaxBytes=Cabbage", &handler));
   options_.SetExperimentState(4);
   EXPECT_EQ(2048L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestCssInlineWithIllegalOptions) {
-  SetupTestExperimentSpecs();
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=5;percent=15;enable=defer_javascript;"
+      "options=Potato=Carrot,5=10,6==9,CssInlineMaxBytes=1024", &handler));
   options_.SetExperimentState(5);
   EXPECT_EQ(1024L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestMultipleOptions) {
-  SetupTestExperimentSpecs();
+  EXPECT_TRUE(options_.AddExperimentSpec(
+      "id=6;percent=15;enable=defer_javascript;"
+      "options=JsOutlineMinBytes=4096,JpegRecompresssionQuality=50,"
+      "CssInlineMaxBytes=100,JsInlineMaxBytes=123", &handler));
   options_.SetExperimentState(6);
   EXPECT_EQ(100L, options_.css_inline_max_bytes());
-  EXPECT_EQ(123L, options_.js_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentOptionsTestToString) {
-  SetupTestExperimentSpecs();
-
-  // Just compare the experiments, not the rest of the OptionsToString output.
-  GoogleString options_string = options_.OptionsToString();
-  StringPieceVector lines;
-  StringPieceVector experiments;;
-  SplitStringPieceToVector(options_string, "\n", &lines, true);
-  for (int i = 0, n = lines.size(); i < n; ++i) {
-    if (lines[i].starts_with("Experiment ")) {
-      experiments.push_back(lines[i]);
-    }
-  }
-  EXPECT_STREQ("Experiment id=1;percent=15;enabled=dj;"
-               "options=CssInlineMaxBytes=1024",
-               experiments[0]);
-  EXPECT_STREQ("Experiment id=2;percent=15;enabled=ri;"
-               "options=BogusOption=35",
-               experiments[1]);
-  EXPECT_STREQ("Experiment id=3;percent=15;enabled=dj",
-               experiments[2]);
-  EXPECT_STREQ("Experiment id=4;percent=15;enabled=dj;"
-               "options=CssInlineMaxBytes=Cabbage",
-               experiments[3]);
-  EXPECT_STREQ("Experiment id=5;percent=15;enabled=dj;"
-               "options=5=10,"
-               "6=9,"
-               "CssInlineMaxBytes=1024,"
-               "Potato=Carrot",
-               experiments[4]);
-  EXPECT_STREQ("Experiment id=6;percent=15;enabled=dj;"
-               "options=CssInlineMaxBytes=100,"
-               "JpegRecompresssionQuality=50,"
-               "JsInlineMaxBytes=123,"
-               "JsOutlineMinBytes=4096",
-               experiments[5]);
 }
 
 TEST_F(RewriteOptionsTest, ExperimentMergeTest) {
@@ -1770,16 +1631,13 @@ TEST_F(RewriteOptionsTest, ExperimentOptionLifetimeTest) {
 }
 
 TEST_F(RewriteOptionsTest, SetOptionsFromName) {
-  TestMessageHandler handler;
   RewriteOptions::OptionSet option_set;
   option_set.insert(RewriteOptions::OptionStringPair(
       "CssInlineMaxBytes", "1024"));
-  EXPECT_TRUE(options_.SetOptionsFromName(option_set, &handler));
-  EXPECT_TRUE(handler.messages().empty());
+  EXPECT_TRUE(options_.SetOptionsFromName(option_set));
   option_set.insert(RewriteOptions::OptionStringPair(
       "Not an Option", "nothing"));
-  EXPECT_FALSE(options_.SetOptionsFromName(option_set, &handler));
-  EXPECT_FALSE(handler.messages().empty());
+  EXPECT_FALSE(options_.SetOptionsFromName(option_set));
 }
 
 // TODO(sriharis):  Add thorough ComputeSignature tests
@@ -1826,18 +1684,6 @@ TEST_F(RewriteOptionsTest, ComputeSignatureOptionEffect) {
   // See the comment in RewriteOptions::RewriteOptions -- we need to leave
   // signatures sensitive to ajax_rewriting.
   EXPECT_NE(signature2, signature3);
-}
-
-TEST_F(RewriteOptionsTest, SignatureIgnoresDebug) {
-  options_.ClearSignatureForTesting();
-  options_.EnableFilter(RewriteOptions::kCombineCss);
-  options_.ComputeSignature();
-  scoped_ptr<RewriteOptions> options2(options_.Clone());
-  options2->ClearSignatureForTesting();
-  options2->EnableFilter(RewriteOptions::kDebug);
-  options2->ComputeSignature();
-  EXPECT_STREQ(options_.signature(), options2->signature());
-  EXPECT_FALSE(options_.IsEqual(*options2));
 }
 
 TEST_F(RewriteOptionsTest, IsEqual) {
@@ -2130,394 +1976,6 @@ TEST_F(RewriteOptionsTest, AccessAcrossThreads) {
   null_thread_system.set_current_thread(5);
   EXPECT_TRUE(options.MergeOK());
 #endif
-}
-
-TEST_F(RewriteOptionsTest, ParseAndSetDeprecatedOptionFromName1) {
-  GoogleString msg;
-  NullMessageHandler handler;
-
-  // 'ImageWebpRecompressionQuality' is replaced by 'WebpRecompressionQuality'.
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1("ImageWebpRecompressionQuality",
-                                                "12", &msg, &handler));
-  EXPECT_EQ(12, options_.image_webp_recompress_quality());
-
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1("WebpRecompressionQuality",
-                                                "23", &msg, &handler));
-  EXPECT_EQ(23, options_.image_webp_recompress_quality());
-
-  // 'ImageWebpRecompressionQualityForSmallScreens' is replaced by
-  // 'WebpRecompressionQualityForSmallScreens'.
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1(
-                "ImageWebpRecompressionQualityForSmallScreens",
-                "34", &msg, &handler));
-  EXPECT_EQ(34, options_.image_webp_recompress_quality_for_small_screens());
-
-  EXPECT_EQ(RewriteOptions::kOptionOk,
-            options_.ParseAndSetOptionFromName1(
-                "WebpRecompressionQualityForSmallScreens",
-                "45", &msg, &handler));
-  EXPECT_EQ(45, options_.image_webp_recompress_quality_for_small_screens());
-}
-
-TEST_F(RewriteOptionsTest, BandwidthMode) {
-  scoped_ptr<RewriteOptions> vhost_options(new RewriteOptions(&thread_system_));
-  vhost_options->SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
-  EXPECT_FALSE(vhost_options->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kConvertGifToPng));
-  EXPECT_TRUE(vhost_options->Enabled(
-      RewriteOptions::kConvertJpegToProgressive));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kConvertJpegToWebp));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kConvertPngToJpeg));
-  EXPECT_TRUE(vhost_options->Enabled(
-      RewriteOptions::kInPlaceOptimizeForBrowser));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kJpegSubsampling));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kRecompressPng));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kRecompressWebp));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kRewriteCss));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kRewriteJavascript));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kStripImageColorProfile));
-  EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kStripImageMetaData));
-  EXPECT_TRUE(vhost_options->Enabled(
-      RewriteOptions::kInPlaceOptimizeForBrowser));
-  EXPECT_TRUE(vhost_options->in_place_rewriting_enabled());
-  EXPECT_TRUE(vhost_options->css_preserve_urls());
-  EXPECT_TRUE(vhost_options->image_preserve_urls());
-  EXPECT_TRUE(vhost_options->js_preserve_urls());
-
-  // We use preemptive rewrites so that there's a chance that a first or
-  // second view will yield optimized resources.
-  EXPECT_TRUE(vhost_options->in_place_preemptive_rewrite_css());
-  EXPECT_TRUE(vhost_options->in_place_preemptive_rewrite_css_images());
-  EXPECT_TRUE(vhost_options->in_place_preemptive_rewrite_images());
-  EXPECT_TRUE(vhost_options->in_place_preemptive_rewrite_javascript());
-
-  // Now override a bandwidth-option.  Let's say it's OK to mutate
-  // CSS urls.
-  vhost_options->set_css_preserve_urls(false);
-  EXPECT_FALSE(vhost_options->css_preserve_urls());
-
-  // JS and Image URLs must still be preserved.
-  EXPECT_TRUE(vhost_options->image_preserve_urls());
-  EXPECT_TRUE(vhost_options->js_preserve_urls());
-
-  // Now merge with an options-set with Core enabled many of these answers
-  // change.
-  scoped_ptr<RewriteOptions> core(new RewriteOptions(&thread_system_));
-  scoped_ptr<RewriteOptions> vhost_core(new RewriteOptions(&thread_system_));
-  core->SetRewriteLevel(RewriteOptions::kCoreFilters);
-
-  vhost_core->Merge(*vhost_options);
-  vhost_core->Merge(*core);
-
-  EXPECT_TRUE(vhost_core->Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(vhost_core->Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_TRUE(vhost_core->Enabled(RewriteOptions::kRewriteCss));
-  EXPECT_TRUE(vhost_core->Enabled(RewriteOptions::kRewriteJavascript));
-  EXPECT_FALSE(vhost_core->Enabled(RewriteOptions::kInPlaceOptimizeForBrowser));
-  EXPECT_FALSE(vhost_core->in_place_rewriting_enabled());
-  EXPECT_FALSE(vhost_core->css_preserve_urls());
-  EXPECT_FALSE(vhost_core->image_preserve_urls());
-  EXPECT_FALSE(vhost_core->js_preserve_urls());
-
-  // Finally, merge in another option-set that is bandwidth-only.  We'll
-  // revert back to the bandwidth-behavior, but we will inherit the override
-  // for CSS preservation we made.
-  scoped_ptr<RewriteOptions> bandwidth(new RewriteOptions(&thread_system_));
-  bandwidth->SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
-  MergeOptions(*vhost_core, *bandwidth);
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kRecompressJpeg));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kRewriteCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kRewriteJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInPlaceOptimizeForBrowser));
-  EXPECT_TRUE(options_.in_place_rewriting_enabled());
-  EXPECT_FALSE(options_.css_preserve_urls());
-  EXPECT_TRUE(options_.image_preserve_urls());
-  EXPECT_TRUE(options_.js_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, BandwidthOverride) {
-  options_.SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kCombineCss));
-  options_.EnableFilter(RewriteOptions::kCombineCss);
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kCombineCss));
-
-  // Now test it the other way around.
-  RewriteOptions other_way(&thread_system_);
-  other_way.SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
-  other_way.ComputeSignature();
-  EXPECT_FALSE(other_way.Enabled(RewriteOptions::kCombineCss));
-  other_way.ClearSignatureForTesting();
-  other_way.EnableFilter(RewriteOptions::kCombineCss);
-  other_way.ComputeSignature();
-  EXPECT_TRUE(other_way.Enabled(RewriteOptions::kCombineCss));
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesCoreCss) {
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.set_css_preserve_urls(true);
-  options_.ComputeSignature();
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineCss));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineGoogleFontCss));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineImportToLink));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kLeftTrimUrls));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kOutlineCss));
-}
-
-TEST_F(RewriteOptionsTest, ExplicitCssFiltersOverridePreserve) {
-  options_.set_css_preserve_urls(true);
-  options_.ClearSignatureForTesting();
-  options_.EnableFilter(RewriteOptions::kCombineCss);
-  options_.EnableFilter(RewriteOptions::kExtendCacheCss);
-  options_.EnableFilter(RewriteOptions::kInlineCss);
-  options_.EnableFilter(RewriteOptions::kInlineGoogleFontCss);
-  options_.EnableFilter(RewriteOptions::kInlineImportToLink);
-  options_.EnableFilter(RewriteOptions::kLeftTrimUrls);
-  options_.EnableFilter(RewriteOptions::kOutlineCss);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kCombineCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineGoogleFontCss));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineImportToLink));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kLeftTrimUrls));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kOutlineCss));
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesCoreImages) {
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.set_image_preserve_urls(true);
-  options_.ComputeSignature();
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kDelayImages));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheImages));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineImages));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kLazyloadImages));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kResizeImages));
-  EXPECT_FALSE(options_.Enabled(
-      RewriteOptions::kResizeToRenderedImageDimensions));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kSpriteImages));
-}
-
-TEST_F(RewriteOptionsTest, ExplicitImageFiltersOverridePreserve) {
-  options_.set_image_preserve_urls(true);
-  options_.EnableFilter(RewriteOptions::kDelayImages);
-  options_.EnableFilter(RewriteOptions::kExtendCacheImages);
-  options_.EnableFilter(RewriteOptions::kInlineImages);
-  options_.EnableFilter(RewriteOptions::kLazyloadImages);
-  options_.EnableFilter(RewriteOptions::kResizeImages);
-  options_.EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
-  options_.EnableFilter(RewriteOptions::kSpriteImages);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kDelayImages));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheImages));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineImages));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kLazyloadImages));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kResizeImages));
-  EXPECT_TRUE(options_.Enabled(
-      RewriteOptions::kResizeToRenderedImageDimensions));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kSpriteImages));
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesCoreJavaScript) {
-  options_.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  options_.set_js_preserve_urls(true);
-  options_.ComputeSignature();
-  EXPECT_FALSE(options_.Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kCombineJavascript));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheScripts));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kInlineJavascript));
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kOutlineJavascript));
-}
-
-TEST_F(RewriteOptionsTest, ExplicitJavaScriptFiltersOverridesPreserve) {
-  options_.EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
-  options_.EnableFilter(RewriteOptions::kCombineJavascript);
-  options_.EnableFilter(RewriteOptions::kDeferJavascript);
-  options_.EnableFilter(RewriteOptions::kExtendCacheScripts);
-  options_.EnableFilter(RewriteOptions::kInlineJavascript);
-  options_.EnableFilter(RewriteOptions::kOutlineJavascript);
-  options_.set_js_preserve_urls(true);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kCombineJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kDeferJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kExtendCacheScripts));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineJavascript));
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kOutlineJavascript));
-}
-
-TEST_F(RewriteOptionsTest, ExtendCacheScriptsOverridesPreserve) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.set_js_preserve_urls(true);
-  global_options.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  global_options.ComputeSignature();
-  EXPECT_FALSE(global_options.Enabled(RewriteOptions::kInlineJavascript));
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.EnableFilter(RewriteOptions::kExtendCacheScripts);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineJavascript));
-  EXPECT_FALSE(options_.js_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, ExtendCacheImagesOverridesPreserve) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.set_image_preserve_urls(true);
-  global_options.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  global_options.ComputeSignature();
-  EXPECT_FALSE(global_options.Enabled(RewriteOptions::kInlineImages));
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.EnableFilter(RewriteOptions::kExtendCacheImages);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineImages));
-  EXPECT_FALSE(options_.image_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, ExtendCacheStylesOverridesPreserve) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.set_css_preserve_urls(true);
-  global_options.SetRewriteLevel(RewriteOptions::kCoreFilters);
-  global_options.ComputeSignature();
-  EXPECT_FALSE(global_options.Enabled(RewriteOptions::kInlineCss));
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.EnableFilter(RewriteOptions::kExtendCacheCss);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_TRUE(options_.Enabled(RewriteOptions::kInlineCss));
-  EXPECT_FALSE(options_.css_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesExplicitFiltersScripts) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.EnableFilter(RewriteOptions::kExtendCacheScripts);
-  global_options.ComputeSignature();
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.set_js_preserve_urls(true);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheScripts));
-  EXPECT_TRUE(options_.js_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesExplicitFiltersImages) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.EnableFilter(RewriteOptions::kExtendCacheImages);
-  global_options.ComputeSignature();
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.set_image_preserve_urls(true);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheImages));
-  EXPECT_TRUE(options_.image_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, PreserveOverridesExplicitFiltersStyles) {
-  RewriteOptions global_options(&thread_system_);
-  global_options.EnableFilter(RewriteOptions::kExtendCacheCss);
-  global_options.ComputeSignature();
-
-  RewriteOptions vhost_options(&thread_system_);
-  vhost_options.set_css_preserve_urls(true);
-  MergeOptions(global_options, vhost_options);
-  options_.ComputeSignature();
-
-  EXPECT_FALSE(options_.Enabled(RewriteOptions::kExtendCacheCss));
-  EXPECT_TRUE(options_.css_preserve_urls());
-}
-
-TEST_F(RewriteOptionsTest, MergeInlineResourcesWithoutExplicitAuthorization) {
-  // Different variations of "off" and no-value in global and local options.
-  VerifyInlineUnauthorizedResourceTypeMerges("off", "", false, false);
-  VerifyInlineUnauthorizedResourceTypeMerges("off", "off", false, false);
-  VerifyInlineUnauthorizedResourceTypeMerges("", "off", false, false);
-  VerifyInlineUnauthorizedResourceTypeMerges("", "", false, false);
-
-  // Local has "script", and global has effective "off".
-  VerifyInlineUnauthorizedResourceTypeMerges("off", "script", true, false);
-  VerifyInlineUnauthorizedResourceTypeMerges("", "script", true, false);
-
-  // Local has no-value and global has "script".
-  VerifyInlineUnauthorizedResourceTypeMerges("script", "", true, false);
-
-  // Local has "off" and global has "script".
-  VerifyInlineUnauthorizedResourceTypeMerges("script", "off", false, false);
-
-  // Merging of script, stylesheet.
-  VerifyInlineUnauthorizedResourceTypeMerges(
-      "script", "stylesheet", false, true);
-  VerifyInlineUnauthorizedResourceTypeMerges(
-      "script", "script,stylesheet", true, true);
-  VerifyInlineUnauthorizedResourceTypeMerges(
-      "script,stylesheet", "stylesheet", false, true);
-  VerifyInlineUnauthorizedResourceTypeMerges(
-      "script,stylesheet", "", true, true);
-}
-
-TEST_F(RewriteOptionsTest, OptionsToString) {
-  options_.SetRewriteLevel(RewriteOptions::kPassThrough);
-  options_.UpdateCacheInvalidationTimestampMs(MockTimer::kApr_5_2010_ms);
-  options_.EnableFilter(RewriteOptions::kSpriteImages);
-  options_.set_inline_only_critical_images(true);
-  RewriteOptions::ResourceCategorySet resources;
-  resources.insert(semantic_type::kImage);
-  resources.insert(semantic_type::kScript);
-  options_.set_inline_unauthorized_resource_types(resources);
-  options_.set_lazyload_images_blank_url("1.gif");
-  NullMessageHandler handler;
-  options_.WriteableDomainLawyer()->AddOriginDomainMapping(
-      "origin.com", "from.com", "host.com", &handler);
-
-  // These two options must be set to override settings established in
-  // RewriteOptions' constructor when running on valgrind, otherwise
-  // we'll see different results from OptionsForString.
-  options_.set_rewrite_deadline_ms(100);
-  options_.set_in_place_rewrite_deadline_ms(200);
-
-  EXPECT_STREQ(StrCat(
-      "Version: ", IntegerToString(RewriteOptions::kOptionsVersion), ": on\n"
-      "\n"
-      "Filters\n"
-      "hw\tFlushes html\n"  // TODO(jmarantz): remove from base config?
-      "is\tSprite Images\n"
-      "\n"
-      "Options\n"
-      "  CacheInvalidationTimestamp (it)                      1270493486000\n"
-      "  InlineOnlyCriticalImages (ioci)                      True\n"
-      "  InlineResourcesWithoutExplicitAuthorization (irwea)  Image,Script\n"
-      "  InPlaceRewriteDeadlineMs (iprdm)                     200\n"
-      "  LazyloadImagesBlankUrl (llbu)                        1.gif\n"
-      "  RewriteDeadlinePerFlushMs (rdm)                      100\n"
-      "  RewriteLevel (l)                                     Pass Through\n"
-      "\n"
-      "Domain Lawyer\n"
-      "  http://from.com/ Auth OriginDomain:http://origin.com/\n"
-      "  http://origin.com/ HostHeader:host.com\n"
-     "\n"
-      "Invalidation Timestamp: Mon, 05 Apr 2010 18:51:26 GMT\n"),
-               options_.OptionsToString());
 }
 
 }  // namespace net_instaweb

@@ -23,7 +23,8 @@ pagespeed.DelayImagesInline.prototype.replaceWithLowRes = function() {
 };
 pagespeed.DelayImagesInline.prototype.replaceWithLowRes = pagespeed.DelayImagesInline.prototype.replaceWithLowRes;
 pagespeed.delayImagesInlineInit = function() {
-  pagespeed.delayImagesInline = new pagespeed.DelayImagesInline;
+  var temp = new pagespeed.DelayImagesInline;
+  pagespeed.delayImagesInline = temp;
 };
 pagespeed.delayImagesInlineInit = pagespeed.delayImagesInlineInit;
 })();

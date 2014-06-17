@@ -166,12 +166,12 @@ void NestedFilter::StartElementImpl(HtmlElement* element) {
   if (attr != NULL) {
     ResourcePtr resource = CreateInputResource(attr->DecodedValueOrNull());
     if (resource.get() != NULL) {
-      ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
+      ResourceSlotPtr slot(driver_->GetSlot(resource, element, attr));
 
       // This 'new' is paired with a delete in RewriteContext::FinishFetch()
-      Context* context = new Context(driver(), this, chain_);
+      Context* context = new Context(driver_, this, chain_);
       context->AddSlot(slot);
-      driver()->InitiateRewrite(context);
+      driver_->InitiateRewrite(context);
     }
   }
 }
@@ -314,7 +314,7 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
       ResourcePtr resource(CreateInputResource(href->DecodedValueOrNull()));
       if (resource.get() != NULL) {
         if (context_.get() == NULL) {
-          context_.reset(new Context(driver(), this, scheduler_));
+          context_.reset(new Context(driver_, this, scheduler_));
         }
         context_->AddElement(element, href, resource);
       }
@@ -375,8 +375,8 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
 
   // trimmable, with charset.
   ResponseHeaders encoded_css_header;
-  server_context()->SetDefaultLongCacheHeaders(
-      &kContentTypeCss, "koi8-r", StringPiece(), &encoded_css_header);
+  server_context()->SetDefaultLongCacheHeadersWithCharset(
+      &kContentTypeCss, "koi8-r", &encoded_css_header);
   SetFetchResponse(StrCat(domain, "a_ru.css"), encoded_css_header,
                    " a = \xc1 ");
 

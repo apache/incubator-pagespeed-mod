@@ -35,7 +35,6 @@ namespace net_instaweb {
 namespace {
 
 const char kVarA[] = "a";
-const char kUpDownA[] = "aA";
 const char kVarB[] = "b";
 const char kVarGlobal[] = "global";
 const char kHist[] = "histogram";
@@ -45,7 +44,7 @@ class SplitStatisticsTest : public testing::Test {
  public:
   SplitStatisticsTest()
       : threads_(Platform::CreateThreadSystem()),
-        timer_(threads_->NewMutex(), MockTimer::kApr_5_2010_ms),
+        timer_(MockTimer::kApr_5_2010_ms),
         fs_(threads_.get(), &timer_),
         global_(MakeInMemory(&global_store_)),
         local_a_(MakeInMemory(&local_a_store_)),
@@ -81,9 +80,8 @@ class SplitStatisticsTest : public testing::Test {
  protected:
   void InitStats(Statistics* s) {
     s->AddVariable(kVarA);
-    s->AddUpDownCounter(kUpDownA);
     s->AddVariable(kVarB);
-    s->AddGlobalUpDownCounter(kVarGlobal);
+    s->AddGlobalVariable(kVarGlobal);
 
     Histogram* h = s->AddHistogram(kHist);
     h->SetMinValue(1);
@@ -155,13 +153,13 @@ TEST_F(SplitStatisticsTest, BasicOperation) {
 }
 
 TEST_F(SplitStatisticsTest, TestGlobal) {
-  // kVarGlobal was added via AddGlobalUpDownCounter not AddVariable,
+  // kVarGlobal was added via AddGlobalVariable not AddVariable,
   // so split's return global counts on Get().
-  UpDownCounter* split_a_global = split_a_->GetUpDownCounter(kVarGlobal);
-  UpDownCounter* split_b_global = split_b_->GetUpDownCounter(kVarGlobal);
-  UpDownCounter* local_a_global = local_a_->GetUpDownCounter(kVarGlobal);
-  UpDownCounter* local_b_global = local_b_->GetUpDownCounter(kVarGlobal);
-  UpDownCounter* global_global = global_->GetUpDownCounter(kVarGlobal);
+  Variable* split_a_global = split_a_->GetVariable(kVarGlobal);
+  Variable* split_b_global = split_b_->GetVariable(kVarGlobal);
+  Variable* local_a_global = local_a_->GetVariable(kVarGlobal);
+  Variable* local_b_global = local_b_->GetVariable(kVarGlobal);
+  Variable* global_global = global_->GetVariable(kVarGlobal);
 
   split_a_global->Add(5);
   split_b_global->Add(3);
@@ -180,17 +178,17 @@ TEST_F(SplitStatisticsTest, GetName) {
 }
 
 TEST_F(SplitStatisticsTest, Set) {
-  split_b_->GetVariable(kVarA)->Add(41);
-  split_a_->GetVariable(kVarA)->Add(42);
+  split_b_->GetVariable(kVarA)->Set(41);
+  split_a_->GetVariable(kVarA)->Set(42);
   EXPECT_EQ(42, split_a_->GetVariable(kVarA)->Get());
   EXPECT_EQ(42, local_a_->GetVariable(kVarA)->Get());
-  EXPECT_EQ(83, global_->GetVariable(kVarA)->Get());
+  EXPECT_EQ(42, global_->GetVariable(kVarA)->Get());
   EXPECT_EQ(41, split_b_->GetVariable(kVarA)->Get());
   EXPECT_EQ(41, local_b_->GetVariable(kVarA)->Get());
 }
 
 TEST_F(SplitStatisticsTest, TestSetReturningPrevious) {
-  UpDownCounter* var = global_->GetUpDownCounter(kUpDownA);
+  Variable* var = global_->GetVariable(kVarA);
   EXPECT_EQ(0, var->SetReturningPreviousValue(5));
   EXPECT_EQ(5, var->SetReturningPreviousValue(-3));
   EXPECT_EQ(-3, var->SetReturningPreviousValue(10));

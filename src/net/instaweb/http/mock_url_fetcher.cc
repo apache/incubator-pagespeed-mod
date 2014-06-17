@@ -29,35 +29,15 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/gtest.h"
-#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/stl_util.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
-#include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/time_util.h"
 #include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
-
-MockUrlFetcher::MockUrlFetcher()
-    : enabled_(true),
-      fail_on_unexpected_(true),
-      update_date_headers_(false),
-      omit_empty_writes_(false),
-      fail_after_headers_(false),
-      verify_host_header_(false),
-      verify_pagespeed_header_off_(false),
-      split_writes_(false),
-      supports_https_(false),
-      strip_query_params_(false),
-      timer_(NULL),
-      thread_system_(Platform::CreateThreadSystem()),
-      // TODO(hujie): We should pass in the mutex at all call-sites instead of
-      //     creating a new mutex here.
-      mutex_(thread_system_->NewMutex()) {
-}
 
 MockUrlFetcher::~MockUrlFetcher() {
   Clear();
@@ -126,7 +106,7 @@ void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
 }
 
 void MockUrlFetcher::Fetch(
-    const GoogleString& url_in, MessageHandler* message_handler,
+    const GoogleString& url, MessageHandler* message_handler,
     AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
   ResponseHeaders* response_headers = fetch->response_headers();
@@ -134,20 +114,17 @@ void MockUrlFetcher::Fetch(
 
   bool enabled;
   bool verify_host_header;
-  bool verify_pagespeed_header_off;
   bool fail_after_headers;
   bool update_date_headers;
   bool omit_empty_writes;
   bool fail_on_unexpected;
   bool split_writes;
-  bool strip_query_params;
   GoogleString error_message;
   Timer* timer;
   {
     ScopedMutex lock(mutex_.get());
     enabled = enabled_;
     verify_host_header = verify_host_header_;
-    verify_pagespeed_header_off = verify_pagespeed_header_off_;
     timer = timer_;
     fail_after_headers = fail_after_headers_;
     update_date_headers = update_date_headers_;
@@ -155,24 +132,13 @@ void MockUrlFetcher::Fetch(
     fail_on_unexpected = fail_on_unexpected_;
     error_message = error_message_;
     split_writes = split_writes_;
-    strip_query_params = strip_query_params_;
   }
   if (enabled) {
-    GoogleString url = url_in;  // editable version
-    GoogleUrl gurl(url);
-    EXPECT_TRUE(gurl.IsAnyValid());
-
-    if (strip_query_params) {
-      url = gurl.AllExceptQuery().as_string();
-      gurl.Reset(url);
-    }
     // Verify that the url and Host: header match.
     if (verify_host_header) {
       const char* host_header = request_headers.Lookup1(HttpAttributes::kHost);
+      GoogleUrl gurl(url);
       EXPECT_STREQ(gurl.HostAndPort(), host_header);
-    }
-    if (verify_pagespeed_header_off) {
-      EXPECT_TRUE(request_headers.HasValue("PageSpeed", "off"));
     }
     const char* referer = request_headers.Lookup1(HttpAttributes::kReferer);
     {

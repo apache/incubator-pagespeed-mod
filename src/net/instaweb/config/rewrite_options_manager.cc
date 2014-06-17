@@ -51,14 +51,13 @@ void RewriteOptionsManager::PrepareRequest(
 
   const DomainLawyer* domain_lawyer = rewrite_options->domain_lawyer();
   bool is_proxy = false;
-  GoogleString host_header;
-  if (!domain_lawyer->MapOriginUrl(gurl, url, &host_header, &is_proxy)) {
+  if (!domain_lawyer->MapOriginUrl(gurl, url, &is_proxy)) {
     callback->Run(false);
     return;
   }
 
   if (!is_proxy) {
-    request_headers->Replace(HttpAttributes::kHost, host_header);
+    request_headers->Replace(HttpAttributes::kHost, gurl.HostAndPort());
   }
 
   callback->Run(true);

@@ -36,7 +36,6 @@ using pagespeed::image_compression::IMAGE_JPEG;
 using pagespeed::image_compression::IMAGE_PNG;
 using pagespeed::image_compression::JpegScanlineReader;
 using pagespeed::image_compression::kJpegTestDir;
-using pagespeed::image_compression::kMessagePatternLibJpegFailure;
 using pagespeed::image_compression::ReadImage;
 using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::ReadTestFileWithExt;
@@ -79,7 +78,6 @@ TEST(JpegReaderTest, InvalidJpegs) {
     ReadTestFileWithExt(kJpegTestDir, kInvalidFiles[i], &src_data);
     MockMessageHandler message_handler(new NullMutex);
     JpegScanlineReader reader(&message_handler);
-    message_handler.AddPatternToSkipPrinting(kMessagePatternLibJpegFailure);
     if (i < kInvalidFileCount-1) {
       ASSERT_FALSE(reader.Initialize(src_data.c_str(), src_data.length()));
     } else {
@@ -123,18 +121,7 @@ TEST(JpegReaderTest, PartialRead) {
   while (reader4.HasMoreScanLines()) {
     ASSERT_TRUE(reader4.ReadNextScanline(&scanline));
   }
-
-  // After depleting the scanlines, any further call to
-  // ReadNextScanline leads to death in debugging mode, or a
-  // false in release mode.
-#ifdef NDEBUG
-  EXPECT_FALSE(reader4.ReadNextScanline(&scanline));
-#else
-  EXPECT_DEATH(reader4.ReadNextScanline(&scanline),
-               "The reader was not initialized or does not "
-               "have any more scanlines.");
-#endif
-
+  ASSERT_FALSE(reader4.ReadNextScanline(&scanline));
   ASSERT_TRUE(reader4.Initialize(image2.c_str(), image2.length()));
   ASSERT_TRUE(reader4.ReadNextScanline(&scanline));
 }

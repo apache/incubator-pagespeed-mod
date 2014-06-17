@@ -19,29 +19,31 @@
 #ifndef PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
 
-#include <cctype>                      // for isascii
 #include <cstddef>
 #include <map>
 #include <set>
 #include <vector>
 
 #include "base/logging.h"
+#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
+#  include "base/strings/stringprintf.h"
+#else
+#  include "base/stringprintf.h"
+#endif
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
 
 #include <cstdlib>  // NOLINT
 #include <string>  // NOLINT
-#if !defined(CHROMIUM_REVISION) || CHROMIUM_REVISION >= 205050
+#if defined(CHROMIUM_REVISION) && CHROMIUM_REVISION >= 205050
 #  include "base/strings/string_number_conversions.h"
 #  include "base/strings/string_piece.h"
 #  include "base/strings/string_util.h"
-#  include "base/strings/stringprintf.h"
 #else
 #  include "base/string_number_conversions.h"
 #  include "base/string_piece.h"
 #  include "base/string_util.h"
-#  include "base/stringprintf.h"
 #endif
 
 using base::StringAppendF;
@@ -220,9 +222,7 @@ int GlobalReplaceSubstring(const StringPiece& substring,
                            const StringPiece& replacement,
                            GoogleString* s);
 
-// Returns the index of the start of needle in haystack, or
-// StringPiece::npos if it's not present.
-stringpiece_ssize_type FindIgnoreCase(StringPiece haystack, StringPiece needle);
+int FindIgnoreCase(StringPiece haystack, StringPiece needle);
 
 
 // Output a string which is the combination of all values in vector, separated
@@ -276,13 +276,6 @@ inline bool IsAsciiAlphaNumeric(char ch) {
   return (((ch >= 'a') && (ch <= 'z')) ||
           ((ch >= 'A') && (ch <= 'Z')) ||
           ((ch >= '0') && (ch <= '9')));
-}
-
-// Convenience functions.
-inline bool IsHexDigit(char c) {
-  return ('0' <= c && c <= '9') ||
-         ('A' <= c && c <= 'F') ||
-         ('a' <= c && c <= 'f');
 }
 
 // In-place removal of leading and trailing HTML whitespace.  Returns true if
@@ -441,17 +434,6 @@ GoogleString JoinCollection(const C& collection, StringPiece sep) {
 // Converts a boolean to string.
 inline const char* BoolToString(bool b) {
   return (b ? "true" : "false");
-}
-
-// Using isascii with signed chars is unfortunately undefined.
-inline bool IsAscii(char c) {
-  return isascii(static_cast<unsigned char>(c));
-}
-
-// Tests if c is a standard (non-control) ASCII char 0x20-0x7E.
-// Note: This does not include TAB (0x09), LF (0x0A) or CR (0x0D).
-inline bool IsNonControlAscii(char c) {
-  return ('\x20' <= c) && (c <= '\x7E');
 }
 
 

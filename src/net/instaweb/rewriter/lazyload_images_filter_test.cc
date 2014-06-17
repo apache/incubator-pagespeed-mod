@@ -23,7 +23,6 @@
 #include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/user_agent_matcher_test_base.h"
-#include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -265,42 +264,6 @@ TEST_F(LazyloadImagesFilterTest, SingleHeadLoadOnOnload) {
              "</body>"));
 }
 
-// Verify that lazyload_images does not get applied on image elements that have
-// an onload handler defined for them whose value does not match the
-// CriticalImagesBeaconFilter::kImageOnloadCode, indicating that this is
-// not an onload attribute added by PageSpeed.
-TEST_F(LazyloadImagesFilterTest, NoLazyloadImagesWithOnloadAttribute) {
-  InitLazyloadImagesFilter(false);
-  ValidateExpected("lazyload_images",
-      "<head></head>"
-      "<body>"
-      "<img src=\"1.jpg\" onload=\"do_something();\"/>"
-      "</body>",
-      "<head></head>"
-      "<body>"
-      "<img src=\"1.jpg\" onload=\"do_something();\"/>"
-      "</body>");
-}
-
-// Verify that lazyload_images gets applied on image elements that have an
-// onload handler whose value is CriticalImagesBeaconFilter::kImageOnloadCode.
-TEST_F(LazyloadImagesFilterTest, LazyloadWithPagespeedAddedOnloadAttribute) {
-  InitLazyloadImagesFilter(false);
-  ValidateExpected("lazyload_images",
-      StrCat("<head></head>"
-             "<body>"
-             "<img src=\"1.jpg\" onload=\"",
-             CriticalImagesBeaconFilter::kImageOnloadCode,
-             "\"/>"
-             "</body>"),
-      StrCat("<head></head>"
-             "<body>",
-             GetLazyloadScriptHtml(),
-             GenerateRewrittenImageTag("img", "1.jpg", ""),
-             GetLazyloadPostscriptHtml(),
-             "</body>"));
-}
-
 TEST_F(LazyloadImagesFilterTest, MultipleBodies) {
   InitLazyloadImagesFilter(false);
   ValidateExpected("lazyload_images",
@@ -349,8 +312,7 @@ TEST_F(LazyloadImagesFilterTest, LazyloadImagesPreserveURLsOn) {
   // This is a modification of the NoHeadTag test.
   options()->set_image_preserve_urls(true);
   options()->set_support_noscript_enabled(false);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kLazyloadImages);
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kLazyloadImages);
 
   ValidateNoChanges("lazyload_images",
       "<body>"

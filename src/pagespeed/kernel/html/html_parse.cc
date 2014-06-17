@@ -51,7 +51,6 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       message_handler_(message_handler),
       line_number_(1),
       deleted_current_(false),
-      skip_increment_(false),
       determine_enabled_filters_called_(false),
       need_sanity_check_(false),
       coalesce_characters_(true),
@@ -196,7 +195,6 @@ void HtmlParse::AddElement(HtmlElement* element, int line_number) {
 
 bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
                              const ContentType& content_type) {
-  delayed_start_literal_.reset();
   determine_enabled_filters_called_ = false;
   url.CopyToString(&url_);
   GoogleUrl gurl(url);
@@ -244,8 +242,6 @@ void HtmlParse::BeginFinishParse() {
   DCHECK(url_valid_) << "Invalid to call FinishParse on invalid input";
   if (url_valid_) {
     lexer_->FinishParse();
-    DCHECK(delayed_start_literal_.get() == NULL);
-    delayed_start_literal_.reset();
     AddEvent(new HtmlEndDocumentEvent(line_number_));
   }
 }
@@ -255,10 +251,6 @@ void HtmlParse::EndFinishParse() {
     ClearElements();
     ShowProgress("FinishParse");
   }
-}
-
-void HtmlParse::Clear() {
-  string_table_.Clear();
 }
 
 void HtmlParse::ParseTextInternal(const char* text, int size) {
@@ -279,7 +271,6 @@ void HtmlParse::DetermineEnabledFiltersImpl() {
 void HtmlParse::ApplyFilter(HtmlFilter* filter) {
   if (coalesce_characters_ && need_coalesce_characters_) {
     CoalesceAdjacentCharactersNodes();
-    DelayLiteralTag();
     need_coalesce_characters_ = false;
   }
 
@@ -289,11 +280,7 @@ void HtmlParse::ApplyFilter(HtmlFilter* filter) {
     line_number_ = event->line_number();
     event->Run(filter);
     deleted_current_ = false;
-    if (skip_increment_) {
-      skip_increment_ = false;
-    } else {
-      ++current_;
-    }
+    ++current_;
   }
   filter->Flush();
 
@@ -320,25 +307,6 @@ void HtmlParse::CoalesceAdjacentCharactersNodes() {
       prev = node;
     }
   }
-}
-
-void HtmlParse::DelayLiteralTag() {
-  if (queue_.empty()) {
-    return;
-  }
-  current_ = queue_.end();
-  --current_;
-  HtmlEvent* event = *current_;
-  HtmlElement* element = event->GetElementIfStartEvent();
-  if ((element != NULL) && IsLiteralTag(element->keyword())) {
-    // The current stream ends with the beginning of a literal
-    // tag.  We are not going to process this within the current
-    // flush window, but instead wait till the EndElement arrives
-    // from the lexer.
-    delayed_start_literal_.reset(event);
-    queue_.erase(current_);
-  }
-  current_ = queue_.end();
 }
 
 void HtmlParse::CheckEventParent(HtmlEvent* event, HtmlElement* expect,
@@ -749,24 +717,13 @@ bool HtmlParse::DeleteNode(HtmlNode* node) {
       }
 
       // Check if we're about to delete the current event.
-      bool about_to_delete_current = (p == current_);
-      if (about_to_delete_current && current_ == queue_.begin()) {
-        skip_increment_ = true;
-      }
+      bool move_current = (p == current_);
       p = queue_.erase(p);
-      if (about_to_delete_current) {
-        DCHECK(!deleted_current_);
+      if (move_current) {
+        current_ = p;  // p is the event *after* the old current.
+        --current_;    // Go to *previous* event so that we don't skip p.
         deleted_current_ = true;
-        if (skip_increment_) {
-          // We can't move current back to before the 'begin', so we
-          // need to avoid incrementing it.
-          line_number_ = -1;
-          current_ = queue_.end();
-        } else {
-          current_ = p;  // p is the event *after* the old current.
-          --current_;    // Go to *previous* event so that we don't skip p.
-          line_number_ = (*current_)->line_number();
-        }
+        line_number_ = (*current_)->line_number();
       }
       delete event;
     }
@@ -978,52 +935,6 @@ void HtmlParse::FatalErrorHere(const char* msg, ...) {
 void HtmlParse::CloseElement(
     HtmlElement* element, HtmlElement::CloseStyle close_style,
     int line_number) {
-  if (delayed_start_literal_.get() != NULL) {
-    HtmlElement* element = delayed_start_literal_->GetElementIfStartEvent();
-    DCHECK(element != NULL);
-    bool insert_at_begin = true;
-    if (!queue_.empty()) {
-      // We have been holding back "<script>" until the lexer tells us the
-      // tag is closed here.  But we want to insert the <script> tag *before*
-      // the previous characters block, if any.
-      //
-      // Most of the time we just need queue_.push_front (bool insert_at_begin
-      // above) but when InsertComment is called from Flush, which happens
-      // in the debug filter, we must put the <script> after that, so
-      // walk back from current, past the Character block, if any.  We
-      // don't expect anything other than a Character block here.
-      HtmlEventListIterator p = queue_.end();
-      --p;
-      HtmlEvent* event = *p;
-      HtmlCharactersNode* node = event->GetCharactersNode();
-      if (node != NULL) {
-        if (p != queue_.begin()) {
-          --p;
-          element->set_begin(
-              queue_.insert(p, delayed_start_literal_.release()));
-          insert_at_begin = false;
-        }
-      } else {
-        // I don't think it's possible to get here, but let's find out if
-        // we do.  Note that we use an 'info' log as this is not actionable
-        // from a site owner's perspective, and I think we are doing the right
-        // thing anyway, but I'd like to hit this with a unit test if we can
-        // find a case.
-        GoogleString buf;
-        event->ToString(&buf);
-        InfoHere("Deferred literal tag, expected a characters node : %s",
-                 buf.c_str());
-        LOG(DFATAL) << "Deferred literal tag, expected a characters node: "
-                    << buf;
-      }
-    }
-    if (insert_at_begin) {
-      queue_.push_front(delayed_start_literal_.release());
-      element->set_begin(queue_.begin());
-    }
-    DCHECK(delayed_start_literal_.get() == NULL);
-  }
-
   HtmlEndElementEvent* end_event =
       new HtmlEndElementEvent(element, line_number);
   element->set_close_style(close_style);

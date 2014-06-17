@@ -20,19 +20,18 @@
 #define PAGESPEED_KERNEL_BASE_NULL_MUTEX_H_
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/thread_annotations.h"
 
 namespace net_instaweb {
 
 // Implements an empty mutex for single-threaded programs that need to work
 // with interfaces that require mutexes.
-class LOCKABLE NullMutex : public AbstractMutex {
+class NullMutex : public AbstractMutex {
  public:
   NullMutex() {}
   virtual ~NullMutex();
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-  virtual void Unlock() UNLOCK_FUNCTION();
+  virtual bool TryLock();
+  virtual void Lock();
+  virtual void Unlock();
 };
 
 }  // namespace net_instaweb

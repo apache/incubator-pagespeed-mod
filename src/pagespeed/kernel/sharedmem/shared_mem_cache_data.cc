@@ -95,8 +95,7 @@ bool Sector<kBlockSize>::Attach(MessageHandler* handler) {
 }
 
 template<size_t kBlockSize>
-bool Sector<kBlockSize>::Initialize(MessageHandler* handler)
-    NO_THREAD_SAFETY_ANALYSIS {
+bool Sector<kBlockSize>::Initialize(MessageHandler* handler) {
   if (!segment_->InitializeSharedMutex(sector_offset_ + sizeof(SectorHeader),
                                        handler)) {
     return false;
@@ -136,6 +135,16 @@ size_t Sector<kBlockSize>::RequiredSize(AbstractSharedMem* shmem_runtime,
   MemLayout layout(shmem_runtime->SharedMutexSize(), cache_entries,
                    data_blocks);
   return layout.metadata_bytes + data_blocks * kBlockSize;
+}
+
+template<size_t kBlockSize>
+void Sector<kBlockSize>::Lock() {
+  mutex_->Lock();
+}
+
+template<size_t kBlockSize>
+void Sector<kBlockSize>::Unlock() {
+  mutex_->Unlock();
 }
 
 template<size_t kBlockSize>
@@ -304,9 +313,9 @@ GoogleString SectorStats::Dump(size_t total_entries,
 
 template<size_t kBlockSize>
 void Sector<kBlockSize>::DumpStats(MessageHandler* handler) {
-  mutex()->Lock();
+  Lock();
   GoogleString dump = sector_stats()->Dump(cache_entries_, data_blocks_);
-  mutex()->Unlock();
+  Unlock();
   handler->Message(kError, "%s", dump.c_str());
 }
 

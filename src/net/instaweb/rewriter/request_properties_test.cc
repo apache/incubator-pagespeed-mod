@@ -28,23 +28,23 @@ class RequestPropertiesTest: public testing::Test {
   UserAgentMatcher user_agent_matcher_;
 };
 
-TEST_F(RequestPropertiesTest, SupportsWebpRewrittenUrls) {
+TEST_F(RequestPropertiesTest, SupportsWebp) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
+  request_properties.set_user_agent(
       UserAgentMatcherTestBase::kChrome18UserAgent);
-  EXPECT_TRUE(request_properties.SupportsWebpRewrittenUrls());
+  EXPECT_TRUE(request_properties.SupportsWebp());
 }
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningNoRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
+  request_properties.set_user_agent(
       UserAgentMatcherTestBase::kChrome18UserAgent);
   EXPECT_TRUE(request_properties.SupportsImageInlining());
 }
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningEmptyRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
+  request_properties.set_user_agent(
       UserAgentMatcherTestBase::kChrome18UserAgent);
   RequestHeaders request_headers;
   request_headers.Add(kPsaCapabilityList, "");
@@ -54,7 +54,7 @@ TEST_F(RequestPropertiesTest, SupportsImageInliningEmptyRequestHeaders) {
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningViaRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
+  request_properties.set_user_agent(
       UserAgentMatcherTestBase::kChrome18UserAgent);
   RequestHeaders request_headers;
   request_properties.ParseRequestHeaders(request_headers);

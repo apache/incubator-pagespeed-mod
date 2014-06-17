@@ -22,10 +22,14 @@
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 // The httpd header must be after the
 // apache_rewrite_driver_factory.h. Otherwise, the compiler will
@@ -41,7 +45,6 @@ namespace net_instaweb {
 
 class ApacheServerContext;
 class GzipInflater;
-class QueryParams;
 class RequestHeaders;
 class RewriteDriver;
 class RewriteOptions;
@@ -55,6 +58,28 @@ apr_status_t apache_cleanup(void* object) {
   delete resolved;
   return APR_SUCCESS;
 }
+
+// Tracks a single property-cache lookup.
+class PropertyCallback : public PropertyPage {
+ public:
+  PropertyCallback(const StringPiece& url,
+                   const StringPiece& options_signature_hash,
+                   UserAgentMatcher::DeviceType device_type,
+                   RewriteDriver* driver,
+                   ThreadSystem* thread_system);
+
+  virtual void Done(bool success);
+
+  void BlockUntilDone();
+
+ private:
+  RewriteDriver* driver_;
+  GoogleString url_;
+  bool done_;
+  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  DISALLOW_COPY_AND_ASSIGN(PropertyCallback);
+};
 
 // Context for an HTML rewrite.
 //
@@ -78,8 +103,6 @@ class InstawebContext {
                   ApacheServerContext* server_context,
                   const GoogleString& base_url,
                   const RequestContextPtr& request_context,
-                  const QueryParams& pagespeed_query_params,
-                  const QueryParams& pagespeed_option_cookies,
                   bool use_custom_options,
                   const RewriteOptions& options);
   ~InstawebContext();
@@ -111,12 +134,15 @@ class InstawebContext {
   static ApacheServerContext* ServerContextFromServerRec(server_rec* server);
 
   // Returns a fetchable URI from a request, using the request pool.
-  static const char* MakeRequestUrl(const RewriteOptions& global_options,
+  static const char* MakeRequestUrl(const RewriteOptions& options,
                                     request_rec* request);
 
  private:
   void ComputeContentEncoding(request_rec* request);
-  void BlockingPropertyCacheLookup();
+
+  // Start a new property cache lookup. The caller is responsible for cleaning
+  // up the returned PropertyCallback*.
+  PropertyCallback* InitiatePropertyCacheLookup();
   void ProcessBytes(const char* input, int size);
 
   // Checks to see if there was an experiment cookie sent with the request.

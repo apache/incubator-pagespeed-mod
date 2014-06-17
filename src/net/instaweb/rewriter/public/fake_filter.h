@@ -19,7 +19,7 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FAKE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FAKE_FILTER_H_
 
-#include "net/instaweb/http/public/semantic_type.h"
+
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -27,7 +27,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/util/public/string.h"
-#include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
 
@@ -38,9 +37,8 @@ class RewriteDriver;
 struct ContentType;
 
 // A test filter that that appends ':id' to the input contents and counts the
-// number of rewrites it has performed. It will rewrite all tags of the category
-// provided in the constructor. It also has the ability to simulate a long
-// rewrite to test exceeding the rewrite deadline.
+// number of rewrites it has performed. It also has the ability to simulate a
+// long rewrite to test exceeding the rewrite deadline.
 class FakeFilter : public RewriteFilter {
  public:
   class Context : public SingleRewriteContext {
@@ -54,8 +52,7 @@ class FakeFilter : public RewriteFilter {
     void RewriteSingle(const ResourcePtr& input,
                        const OutputResourcePtr& output);
 
-    virtual void DoRewriteSingle(
-        const ResourcePtr input, OutputResourcePtr output);
+    void DoRewriteSingle(const ResourcePtr input, OutputResourcePtr output);
     GoogleString UserAgentCacheKey(
         const ResourceContext* resource_context) const;
 
@@ -64,36 +61,27 @@ class FakeFilter : public RewriteFilter {
 
    private:
     FakeFilter* filter_;
-    DISALLOW_COPY_AND_ASSIGN(Context);
   };
 
-  FakeFilter(const char* id, RewriteDriver* rewrite_driver,
-             semantic_type::Category category)
+  FakeFilter(const char* id, RewriteDriver* rewrite_driver)
       : RewriteFilter(rewrite_driver),
         id_(id),
         exceed_deadline_(false),
         enabled_(true),
         num_rewrites_(0),
         output_content_type_(NULL),
-        num_calls_to_encode_user_agent_(0),
-        category_(category) {}
+        num_calls_to_encode_user_agent_(0) {}
 
   virtual ~FakeFilter();
 
   virtual void StartDocumentImpl() {}
   virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void StartElementImpl(HtmlElement* element);
+  virtual void StartElementImpl(HtmlElement* element) {}
   virtual RewriteContext* MakeRewriteContext() {
-    return MakeFakeContext(driver(), NULL /* not nested */, NULL);
+    return new FakeFilter::Context(this, driver_, NULL, NULL);
   }
   virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
                                                    const ResourceSlotPtr& slot);
-  // Factory for context so a subclass can override FakeFilter::Context.
-  virtual RewriteContext* MakeFakeContext(
-      RewriteDriver* driver, RewriteContext* parent,
-      ResourceContext* resource_context) {
-    return new FakeFilter::Context(this, driver, parent, resource_context);
-  }
   int num_rewrites() const { return num_rewrites_; }
   int num_encode_user_agent() const { return num_calls_to_encode_user_agent_; }
   void ClearStats();
@@ -122,8 +110,6 @@ class FakeFilter : public RewriteFilter {
   int num_rewrites_;
   const ContentType* output_content_type_;
   mutable int num_calls_to_encode_user_agent_;
-  semantic_type::Category category_;
-  DISALLOW_COPY_AND_ASSIGN(FakeFilter);
 };
 
 }  // namespace net_instaweb

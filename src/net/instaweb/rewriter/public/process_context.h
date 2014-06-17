@@ -17,11 +17,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } };
-
 namespace net_instaweb {
 
 // This class encapsulates the initialization and cleanup of static and
@@ -36,23 +31,6 @@ class ProcessContext {
  public:
   ProcessContext();
   ~ProcessContext();
-
-  // Returns a js_tokenizer_patterns object that was allocated by the
-  // ProcessContext constructor, once per process startup.  The reason
-  // to manage this object this way, as opposed to constructing it
-  // from the factory, is to speed up tests, where factories are
-  // constructed and destroyed for every test method.
-  // JsTokenizerPatterns requires compiles multiple regular
-  // expressions on construction, and this takes a significant amount
-  // of time in debug builds.
-  const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns() const {
-    return js_tokenizer_patterns_.get();
-  }
-
- private:
-  scoped_ptr<pagespeed::js::JsTokenizerPatterns> js_tokenizer_patterns_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProcessContext);
 };
 
 }  // namespace net_instaweb

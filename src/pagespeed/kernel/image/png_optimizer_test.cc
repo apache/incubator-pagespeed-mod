@@ -18,7 +18,6 @@
 
 #include <stdbool.h>
 #include <cstdlib>
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -67,7 +66,6 @@ using pagespeed::image_compression::ScopedPngStruct;
 using pagespeed::image_compression::kMessagePatternAnimatedGif;
 using pagespeed::image_compression::kMessagePatternFailedToRead;
 using pagespeed::image_compression::kMessagePatternLibpngError;
-using pagespeed::image_compression::kMessagePatternLibpngFailure;
 using pagespeed::image_compression::kMessagePatternLibpngWarning;
 using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
 
@@ -539,7 +537,6 @@ class PngOptimizerTest : public testing::Test {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternBadGifLine);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToRead);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngError);
-    message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngFailure);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngWarning);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
   }
@@ -831,12 +828,12 @@ TEST_F(PngOptimizerTest, PartialAnimatedGif) {
   ASSERT_NE(static_cast<size_t>(0), in.length());
   // Loop, removing the last byte repeatedly to generate every
   // possible partial version of the animated gif.
-  while (!in.empty()) {
+  while (true) {
+    if (in.size() == 0) {
+      break;
+    }
     // Remove the last byte.
     in.erase(in.length() - 1);
-
-
-    // Since we have only a partial file, optimization should fail.
     EXPECT_FALSE(PngOptimizer::OptimizePng(*reader_, in, &out,
         &message_handler_));
 
@@ -940,7 +937,7 @@ TEST_F(PngOptimizerTest, ScopedPngStruct) {
   ASSERT_DEATH(ScopedPngStruct t =
                ScopedPngStruct(static_cast<ScopedPngStruct::Type>(-1),
                                &message_handler_),
-               "Check failed: type == READ \\|\\| type == WRITE");
+               "Check failed: type==READ || type==WRITE");
 #endif
 }
 
@@ -1119,17 +1116,7 @@ TEST_F(PngScanlineReaderRawTest, PartialRead) {
   while (reader3.HasMoreScanLines()) {
     ASSERT_TRUE(reader3.ReadNextScanline(reinterpret_cast<void**>(&buffer)));
   }
-
-  // After depleting the scanlines, any further call to
-  // ReadNextScanline leads to death in debugging mode, or a
-  // false in release mode.
-#ifdef NDEBUG
   ASSERT_FALSE(reader3.ReadNextScanline(reinterpret_cast<void**>(&buffer)));
-#else
-  ASSERT_DEATH(reader3.ReadNextScanline(reinterpret_cast<void**>(&buffer)),
-               "The reader was not initialized or the image does not have any "
-               "more scanlines.");
-#endif
 }
 
 TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
@@ -1175,7 +1162,6 @@ TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
 
 TEST_F(PngScanlineReaderRawTest, InvalidPngs) {
   message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngError);
-  message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngFailure);
   message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngWarning);
   message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
   PngScanlineReaderRaw reader(&message_handler_);

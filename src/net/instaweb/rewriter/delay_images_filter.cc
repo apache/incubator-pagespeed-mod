@@ -48,39 +48,24 @@ const char DelayImagesFilter::kDelayImagesSuffix[] =
 const char DelayImagesFilter::kDelayImagesInlineSuffix[] =
     "\npagespeed.delayImagesInlineInit();";
 
-const char DelayImagesFilter::kImageOnloadCode[] =
-    "pagespeed.switchToHighResAndMaybeBeacon(this);";
-
-// Js snippet with the code for image elements to load the high resolution
-// image once onload triggers (for the low resolution data url). This code
-// also adds the checkImageForCriticality logic when the page has been
-// instrumented (i.e. when pagespeed.CriticalImages is defined).
-const char DelayImagesFilter::kImageOnloadJsSnippet[] =
-    "window['pagespeed'] = window['pagespeed'] || {};"
-    "var pagespeed = window['pagespeed'];"
-    "pagespeed.switchToHighResAndMaybeBeacon = function(elem) {"
+const char DelayImagesFilter::kOnloadFunction[] =
+    "var elem=this;"
     "setTimeout(function(){elem.onload = null;"
-    "elem.src = elem.getAttribute('pagespeed_high_res_src');"
-    "if (pagespeed.CriticalImages) {elem.onload = "
-    "pagespeed.CriticalImages.checkImageForCriticality(elem);}"
-    "}, 0);"
-    "};";
+    "elem.src=elem.getAttribute('pagespeed_high_res_src');}, 0);";
 
 DelayImagesFilter::DelayImagesFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
-      driver_(driver),
+    : driver_(driver),
       static_asset_manager_(
           driver->server_context()->static_asset_manager()),
       num_low_res_inlined_images_(0),
       insert_low_res_images_inplace_(false),
       lazyload_highres_images_(false),
-      is_script_inserted_(false),
-      added_image_onload_js_(false) {
+      is_script_inserted_(false) {
 }
 
 DelayImagesFilter::~DelayImagesFilter() {}
 
-void DelayImagesFilter::StartDocumentImpl() {
+void DelayImagesFilter::StartDocument() {
   num_low_res_inlined_images_ = 0;
   // Low res images will be placed inside the respective image tag if the user
   // agent is not a mobile, or if mobile aggressive rewriters are turned off.
@@ -89,29 +74,13 @@ void DelayImagesFilter::StartDocumentImpl() {
   lazyload_highres_images_ = driver_->options()->lazyload_highres_images() &&
       driver_->request_properties()->IsMobile();
   is_script_inserted_ = false;
-  added_image_onload_js_ = false;
-}
-
-void DelayImagesFilter::MaybeAddImageOnloadJsSnippet(HtmlElement* element) {
-  if (added_image_onload_js_) {
-    return;
-  }
-  added_image_onload_js_ = true;
-  HtmlElement* script = driver_->NewElement(NULL, HtmlName::kScript);
-  driver_->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
-  // Always add the image-onload js before the current node, because the
-  // current node might be an img node that needs the image-onload js for
-  // setting its onload handler.
-  driver_->InsertNodeBeforeNode(element, script);
-  static_asset_manager_->AddJsToElement(kImageOnloadJsSnippet,
-                                        script, driver_);
 }
 
 void DelayImagesFilter::EndDocument() {
   low_res_data_map_.clear();
 }
 
-void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
+void DelayImagesFilter::EndElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kBody) {
     InsertLowResImagesAndJs(element, /* insert_after_element */ false);
     InsertHighResJs(element);
@@ -140,7 +109,7 @@ void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
       return;  // Failed to find valid Image-valued src attribute.
     }
     ++num_low_res_inlined_images_;
-    if (CanAddPagespeedOnloadToImage(*element)) {
+    if (element->FindAttribute(HtmlName::kOnload) == NULL) {
       driver_->log_record()->SetRewriterLoggingStatus(
           RewriteOptions::FilterId(RewriteOptions::kDelayImages),
           RewriterApplication::APPLIED_OK);
@@ -151,16 +120,9 @@ void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
         // Set the src as the low resolution image.
         driver_->AddAttribute(element, HtmlName::kSrc,
                               low_res_src->DecodedValueOrNull());
-        // Add an onload function to set the high resolution image after
-        // deleting any existing onload handler. Since we check
-        // CanAddPagespeedOnloadToImage before coming here, the only onload
-        // handler that we would delete would be the one added by our very own
-        // beaconing code. We re-introduce this beaconing onload logic via
-        // kImageOnloadCode.
-        element->DeleteAttribute(HtmlName::kOnload);
+        // Add an onload function to set the high resolution image.
         driver_->AddEscapedAttribute(
-            element, HtmlName::kOnload, kImageOnloadCode);
-        MaybeAddImageOnloadJsSnippet(element);
+            element, HtmlName::kOnload, kOnloadFunction);
       } else {
         // Low res image data is collected in low_res_data_map_ map. This
         // low_res_src will be moved just after last low res image in the flush
@@ -279,7 +241,8 @@ void DelayImagesFilter::DetermineEnabled() {
   }
   CriticalImagesFinder* finder =
       driver_->server_context()->critical_images_finder();
-  if ((finder->Available(driver_) == CriticalImagesFinder::kNoDataYet) &&
+  if (finder->IsMeaningful(driver_) &&
+      !finder->IsCriticalImageInfoPresent(driver_) &&
       !driver_->options()->Enabled(RewriteOptions::kSplitHtmlHelper)) {
     log_record->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kDelayImages),

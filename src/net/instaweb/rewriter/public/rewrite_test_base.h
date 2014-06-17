@@ -68,7 +68,6 @@ class LRUCache;
 class MessageHandler;
 class MockLogRecord;
 class MockScheduler;
-class ProcessContext;
 class RequestHeaders;
 class ResourceNamer;
 class RewriteFilter;
@@ -88,11 +87,6 @@ class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
 class RewriteTestBase : public RewriteOptionsTestBase {
  public:
   static const char kTestData[];    // Testdata directory.
-
-  // Beaconing key values used when downstream caching is enabled.
-  static const char kConfiguredBeaconingKey[];
-  static const char kWrongBeaconingKey[];
-
   // Specifies which server should be "active" in that rewrites and fetches
   // will use it. The data members affected are those returned by:
   // - factory() / other_factory()
@@ -160,19 +154,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Sets the active context URL for purposes of XS checks of fetches
   // on the main rewrite driver.
   void SetBaseUrlForFetch(const StringPiece& url);
-
-  // Setup dummy empty RequestHeaders object for the driver.
-  void SetDummyRequestHeaders();
-
-  // Enable downstream caching feature and set up the downstream cache
-  // rebeaconing key.
-  void SetDownstreamCacheDirectives(
-    StringPiece downstream_cache_purge_method,
-    StringPiece downstream_cache_purge_location_prefix,
-    StringPiece rebeaconing_key);
-
-  // Set ShouldBeacon request header to the specified value.
-  void SetShouldBeaconHeader(StringPiece rebeaconing_key);
 
   ResourcePtr CreateResource(const StringPiece& base, const StringPiece& url);
 
@@ -427,8 +408,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   void SetDefaultLongCacheHeaders(const ContentType* content_type,
                                   ResponseHeaders* header) {
-    server_context_->SetDefaultLongCacheHeaders(
-        content_type, StringPiece(), StringPiece(), header);
+    server_context_->SetDefaultLongCacheHeaders(content_type, header);
   }
 
   void SetFetchResponse(const StringPiece& url,
@@ -654,10 +634,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // metadata Input against the invalidation-set.
   void EnableCachePurge();
 
-  // Returns a process context needed for any tests to instantiate factories
-  // explicitly.
-  static const ProcessContext& process_context();
-
  protected:
   void Init();
 
@@ -725,15 +701,6 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   }
 
   GoogleString ExpectedNonce();
-
-  // When reaching into a cache that backs an HTTP cache you need a cache key
-  // that includes the fragment.
-  GoogleString HttpCacheKey(StringPiece url) {
-    return HTTPCache::CompositeKey(url, rewrite_driver_->CacheFragment());
-  }
-
-  // Returns the value of a TimedVariable, specified by name.
-  int TimedValue(StringPiece name);
 
   // The mock fetchers & stats are global across all Factories used in the
   // tests.
