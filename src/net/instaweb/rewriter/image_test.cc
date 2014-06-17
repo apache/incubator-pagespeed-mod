@@ -35,20 +35,17 @@
 #include "net/instaweb/util/public/function.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "net/instaweb/util/public/simple_stats.h"
 #include "net/instaweb/util/public/statistics.h"
 #include "net/instaweb/util/public/string.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/read_image.h"
+#include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/kernel/util/platform.h"
 
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
@@ -77,9 +74,7 @@ const char kMessagePatternFailedToDecoode[] = "*failed to decode the image*";
 
 class ConversionVarChecker {
  public:
-  explicit ConversionVarChecker(Image::CompressionOptions* options)
-      : thread_system_(Platform::CreateThreadSystem()),
-        simple_stats_(thread_system_.get()) {
+  explicit ConversionVarChecker(Image::CompressionOptions* options) {
     webp_conversion_variables_.Get(
         Image::ConversionVariables::FROM_GIF)->timeout_count =
         simple_stats_.AddVariable("gif_webp_timeout");
@@ -213,7 +208,6 @@ class ConversionVarChecker {
   }
 
  private:
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats simple_stats_;
   Image::ConversionVariables webp_conversion_variables_;
 };

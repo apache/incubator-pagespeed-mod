@@ -74,7 +74,6 @@ class RewriteOptions;
 class RewriteOptionsManager;
 class RewriteQuery;
 class RewriteStats;
-class SHA1Signature;
 class Scheduler;
 class StaticAssetManager;
 class Statistics;
@@ -121,13 +120,16 @@ class ServerContext {
   //
   // Also sets Content-Type headers if content_type is provided.
   // If content_type is null, the Content-Type header is omitted.
-  //
-  // Sets charset if it's non-empty and content_type is non-NULL.
-  //
-  // If cache_control suffix is non-empty, adds that to the Cache-Control
-  void SetDefaultLongCacheHeaders(
+  void SetDefaultLongCacheHeaders(const ContentType* content_type,
+                                  ResponseHeaders* header) const {
+    SetDefaultLongCacheHeadersWithCharset(content_type, StringPiece(), header);
+  }
+
+  // As above, but also sets charset if it's non-empty and content_type
+  // is non-NULL.
+  void SetDefaultLongCacheHeadersWithCharset(
       const ContentType* content_type, StringPiece charset,
-      StringPiece cache_control_suffix, ResponseHeaders* header) const;
+      ResponseHeaders* header) const;
 
   void set_filename_prefix(const StringPiece& file_prefix);
   void set_statistics(Statistics* x) { statistics_ = x; }
@@ -182,7 +184,6 @@ class ServerContext {
   RewriteOptionsManager* rewrite_options_manager() const {
     return rewrite_options_manager_.get();
   }
-  SHA1Signature* signature() const { return signature_; }
   // Takes ownership of RewriteOptionsManager.
   void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
@@ -328,7 +329,6 @@ class ServerContext {
 
   // Setters should probably only be used in testing.
   void set_hasher(Hasher* hasher) { hasher_ = hasher; }
-  void set_signature(SHA1Signature* signature) { signature_ = signature; }
   void set_default_system_fetcher(UrlAsyncFetcher* fetcher) {
     default_system_fetcher_ = fetcher;
   }
@@ -367,11 +367,7 @@ class ServerContext {
 
   // Runs the rewrite_query parser for any options set in query-params
   // or in the headers. If all the pagespeed options that were parsed
-  // were valid, they are available either in rewrite_query->options() or in
-  // request_context if they are not actual options. The passed-in domain
-  // options control how options are handled, notably whether we allow related
-  // options or allow options to be specified by cookies. If you don't have
-  // domain specific options, pass NULL and global_options() will be used.
+  // were valid, they are available in rewrite_query->options().
   //
   // True is returned in two cases:
   //    - Valid PageSpeed query params or headers were parsed
@@ -381,12 +377,8 @@ class ServerContext {
   //
   // It also strips off the PageSpeed query parameters and headers from the
   // request_url, request headers, and response headers respectively. Stripped
-  // query params are copied into rewrite_query->pagespeed_query_params() and
-  // any PageSpeed option cookies are copied into
-  // rewrite_query->pagespeed_option_cookies().
-  bool GetQueryOptions(const RequestContextPtr& request_context,
-                       const RewriteOptions* domain_options,
-                       GoogleUrl* request_url,
+  // query params are copied into rewrite_query->pagespeed_query_params().
+  bool GetQueryOptions(GoogleUrl* request_url,
                        RequestHeaders* request_headers,
                        ResponseHeaders* response_headers,
                        RewriteQuery* rewrite_query);
@@ -545,9 +537,6 @@ class ServerContext {
   // with all its dependencies.  This populates the worker threads.
   void InitWorkers();
 
-  // To set up AdminSite for SystemServerContext.
-  virtual void PostInitHook();
-
   // Returns whether or not this attribute can be merged into headers
   // without additional considerations.
   static bool IsExcludedAttribute(const char* attribute);
@@ -682,7 +671,6 @@ class ServerContext {
   UrlAsyncFetcher* default_system_fetcher_;
   UrlAsyncFetcher* default_distributed_fetcher_;
   Hasher* hasher_;
-  SHA1Signature* signature_;
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;

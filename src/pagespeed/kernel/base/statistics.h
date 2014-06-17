@@ -32,53 +32,12 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class Statistics;
 class StatisticsLogger;
 class Writer;
 
-// Variables can normally only be increased, not decreased.  However, for
-// testing, They can also be Cleared.
-//
-// TODO(jmarantz): consider renaming this to Counter or maybe UpCounter.
 class Variable {
  public:
   virtual ~Variable();
-
-  virtual int64 Get() const = 0;
-  // Return some name representing the variable, provided that the specific
-  // implementation has some sensible way of doing so.
-  virtual StringPiece GetName() const = 0;
-
-  // Adds 'delta' to the variable's value, returning the result.
-  // TODO(sligocki): s/int/int64/
-  int64 Add(int non_negative_delta) {
-    DCHECK_LE(0, non_negative_delta);
-    return AddHelper(non_negative_delta);
-  }
-
-  virtual void Clear() = 0;
-
- protected:
-  // This is virtual so that subclasses can add platform-specific atomicity.
-  virtual int64 AddHelper(int delta) = 0;
-};
-
-// UpDownCounters are variables that can also be decreased (e.g. Add
-// of a negative number) or Set to an arbitrary value.
-//
-// TODO(jmarantz): Make this not inherit from Variable, which will simplify the
-// 'CheckNotNegative' and its ifndefs, but will require us to do more accurate
-// type bookkeeping in tests, etc.
-//
-// TODO(jmarantz): consider renaming Variable->Counter, UpDownCounter->Variable.
-class UpDownCounter {
- public:
-  virtual ~UpDownCounter();
-
-  virtual int64 Get() const = 0;
-  // Return some name representing the variable, provided that the specific
-  // implementation has some sensible way of doing so.
-  virtual StringPiece GetName() const = 0;
 
   // Sets the specified value, returning the previous value.  This can be
   // used to by two competing threads/processes to deterimine which thread
@@ -91,35 +50,40 @@ class UpDownCounter {
   virtual int64 SetReturningPreviousValue(int64 value);
 
   virtual void Set(int64 value) = 0;
-  void Clear() { Set(0); }
-  int64 Add(int delta) { return AddHelper(delta); }
+  virtual int64 Get() const = 0;
+  // Return some name representing the variable, provided that the specific
+  // implementation has some sensible way of doing so.
+  virtual StringPiece GetName() const = 0;
 
- protected:
-  // This is virtual so that subclasses can add platform-specific atomicity.
-  virtual int64 AddHelper(int delta) = 0;
+  // Adds 'delta' to the variable's value, returning the result.  This
+  // is virtual so that subclasses can add platform-specific atomicity.
+  // TODO(sligocki): s/int/int64/
+  virtual int64 Add(int delta) {
+    int64 value = Get() + delta;
+    Set(value);
+    return value;
+  }
+
+  void Clear() { Set(0); }
 };
 
-// Scalar value protected by a mutex. Mutex must fully protect access
-// to underlying scalar. For example, in mod_pagespeed and
-// ngx_pagespeed, variables are stored in shared memory and accessible
-// from any process on a machine, so the mutex must provide protection
-// across separate processes.
+// Variable protected by a mutex. Mutex must fully protect access to underlying
+// variable. For example, in mod_pagespeed and ngx_pagespeed, variables are
+// stored in shared memory and accessible from any process on a machine, so
+// the mutex must provide protection across separate processes.
 //
 // StatisticsLogger depends upon these mutexes being cross-process so that
 // several processes using the same file system don't clobber each others logs.
-//
-// TODO(jmarantz): this could be done using templates rather than using virtual
-// methods, as MutexedScalar does not implement an abstract interface.
-class MutexedScalar {
+class MutexedVariable : public Variable {
  public:
-  virtual ~MutexedScalar();
+  virtual ~MutexedVariable();
 
   // Subclasses should not define these methods, instead define the *LockHeld()
   // methods below.
-  int64 Get() const;
-  void Set(int64 value);
-  int64 SetReturningPreviousValue(int64 value);
-  int64 AddHelper(int delta);
+  virtual int64 Get() const;
+  virtual void Set(int64 value);
+  virtual int64 SetReturningPreviousValue(int64 value);
+  virtual int64 Add(int delta);
 
  protected:
   friend class StatisticsLogger;
@@ -310,10 +274,11 @@ class TimedVariable {
   virtual void Clear() = 0;
 };
 
-// TimedVariable implementation that only updates a basic UpDownCounter.
+// TimedVariable implementation that only updates a basic Variable.
 class FakeTimedVariable : public TimedVariable {
  public:
-  FakeTimedVariable(StringPiece name, Statistics* stats);
+  explicit FakeTimedVariable(Variable* var) : var_(var) {
+  }
   virtual ~FakeTimedVariable();
   // Update the stat value. delta is in milliseconds.
   virtual void IncBy(int64 delta) {
@@ -342,33 +307,17 @@ class FakeTimedVariable : public TimedVariable {
 // Base class for implementations of monitoring statistics.
 class Statistics {
  public:
-  Statistics() {}
   virtual ~Statistics();
-
-  // Add a new variable, or returns an existing one of that name.
-  // The UpDownCounter* is owned by the Statistics class -- it should
-  // not be deleted by the caller.
-  virtual UpDownCounter* AddUpDownCounter(const StringPiece& name) = 0;
-
-  // Like AddVariable, but asks the implementation to scope the variable to the
-  // entire process, even if statistics are generally partitioned by domains or
-  // the like. Default implementation simply forwards to AddVariable.
-  virtual UpDownCounter* AddGlobalUpDownCounter(const StringPiece& name);
-
-  // Find a variable from a name, returning NULL if not found.
-  virtual UpDownCounter* FindUpDownCounter(const StringPiece& name) const = 0;
-
-  // Find a variable from a name, aborting if not found.
-  UpDownCounter* GetUpDownCounter(const StringPiece& name) const {
-    UpDownCounter* var = FindUpDownCounter(name);
-    CHECK(var != NULL) << "UpDownCounter not found: " << name;
-    return var;
-  }
 
   // Add a new variable, or returns an existing one of that name.
   // The Variable* is owned by the Statistics class -- it should
   // not be deleted by the caller.
   virtual Variable* AddVariable(const StringPiece& name) = 0;
+
+  // Like AddVariable, but asks the implementation to scope the variable to the
+  // entire process, even if statistics are generally partitioned by domains or
+  // the like. Default implementation simply forwards to AddVariable.
+  virtual Variable* AddGlobalVariable(const StringPiece& name);
 
   // Find a variable from a name, returning NULL if not found.
   virtual Variable* FindVariable(const StringPiece& name) const = 0;
@@ -379,7 +328,6 @@ class Statistics {
     CHECK(var != NULL) << "Variable not found: " << name;
     return var;
   }
-
 
   // Add a new histogram, or returns an existing one of that name.
   // The Histogram* is owned by the Statistics class -- it should not
@@ -430,15 +378,9 @@ class Statistics {
   // Return the StatisticsLogger associated with this Statistics.
   virtual StatisticsLogger* console_logger() { return NULL; }
 
-  // Testing helper method to look up a statistics numeric value by name.
-  // Please do not use this in production code.  This finds the current
-  // value whether it is stored in a Variable, UpDownCounter, or TimedVariable.
-  //
-  // If the statistics is not found, the program check-fails.
-  int64 LookupValue(StringPiece stat_name);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(Statistics);
+ protected:
+  // A helper for subclasses that do not fully implement timed variables.
+  FakeTimedVariable* NewFakeTimedVariable(const StringPiece& name, int index);
 };
 
 }  // namespace net_instaweb

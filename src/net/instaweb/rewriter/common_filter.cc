@@ -157,9 +157,7 @@ void CommonFilter::ResolveUrl(StringPiece input_url, GoogleUrl* out_url) {
   }
 }
 
-ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
-                                              bool* is_authorized) {
-  *is_authorized = true;  // Must be false iff input_url is not authorized.
+ResourcePtr CommonFilter::CreateInputResource(const StringPiece& input_url) {
   ResourcePtr resource;
   GoogleUrl resource_url;
   ResolveUrl(input_url, &resource_url);
@@ -167,10 +165,9 @@ ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
     resource = driver_->CreateInputResource(
         resource_url,
         AllowUnauthorizedDomain(),
-        (IntendedForInlining()
-         ? RewriteDriver::kIntendedForInlining
-         : RewriteDriver::kIntendedForGeneral),
-        is_authorized);
+        IntendedForInlining() ?
+            RewriteDriver::kIntendedForInlining :
+            RewriteDriver::kIntendedForGeneral);
   }
   return resource;
 }

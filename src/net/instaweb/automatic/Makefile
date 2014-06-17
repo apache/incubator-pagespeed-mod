@@ -196,7 +196,7 @@ CXX = /usr/bin/g++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/third_party/re2/libre2_bench_util.a
 
 build_libraries :
-	cd $(MOD_PAGESPEED_ROOT) && make $(CXXFLAGS_ARG) BUILDTYPE=$(BUILDTYPE)
+	cd $(MOD_PAGESPEED_ROOT) && make CXXFLAGS="$(CXXFLAGS)" BUILDTYPE=$(BUILDTYPE)
 
 endif
 
@@ -220,11 +220,7 @@ EXE           = $(OUTPUT_DIR)/static_rewriter
 SPEED_TEST    = $(OUTPUT_DIR)/rewriter_speed_test
 EXAMPLE_ROOT  = $(MOD_PAGESPEED_ROOT)/install/mod_pagespeed_example
 EXAMPLES      = $(OUTPUT_DIR)/collapse_whitespace.html
-MERGE_LOG     = $(OUTPUT_DIR)/merge.log
-RENAME_LOG    = $(OUTPUT_DIR)/rename.log
-LOGS          = $(MERGE_LOG) $(RENAME_LOG)
 
-MAKE := $(MAKE) --no-print-directory
 exe : $(EXE)
 speed_test : $(SPEED_TEST)
 
@@ -241,15 +237,12 @@ all : build_libraries
 CXXFLAGS = -g
 
 $(OUTPUT_DIR)/pagespeed_automatic.a : $(LIBS)
-	@echo Merging libraries, logs in $(MERGE_LOG) ...
-	@./merge_libraries.sh $@.dirty $(LIBS) > $(MERGE_LOG)
-	@echo Cleaning namespace, logs in $(RENAME_LOG) ...
-	@./rename_c_symbols.sh $@.dirty $@ > $(RENAME_LOG)
+	@echo Merging libraries ...
+	@./merge_libraries.sh $@.dirty $(LIBS)
+	@echo Cleaning namespace
+	@./rename_c_symbols.sh $@.dirty $@
 	rm $@.dirty
 
-.PHONY : psol
-psol : build_libraries
-	$(MAKE) $(OUTPUT_DIR)/pagespeed_automatic.a
 
 $(OUTPUT_DIR)/%.o : %.cc
 	$(CXX) $(INCLUDE_PATH) $(CXXFLAGS) $(MOD_PAGESPEED_INCLUDE) -c $< -o $@
@@ -267,7 +260,7 @@ $(SPEED_TEST) : $(SPEED_TEST_OBJS)
 examples : $(EXAMPLES)
 
 clean :
-	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES) $(LOGS)
+	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES)
 
 echo_libs :
 	echo LIBS = $(LIBS)

@@ -42,7 +42,6 @@
 #include "pagespeed/kernel/base/dense_hash_map.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -206,7 +205,6 @@ class RewriteOptions {
   static const char kAccessControlAllowOrigins[];
   static const char kAddOptionsToUrls[];
   static const char kAllowLoggingUrlsInLogRecord[];
-  static const char kAllowOptionsToBeSetByCookies[];
   static const char kAlwaysRewriteCss[];
   static const char kAnalyticsID[];
   static const char kAvoidRenamingIntrospectiveJavascript[];
@@ -313,15 +311,12 @@ class RewriteOptions {
   static const char kMinImageSizeLowResolutionBytes[];
   static const char kMinResourceCacheTimeToRewriteMs[];
   static const char kModifyCachingHeaders[];
-  static const char kNoTransformOptimizedImages[];
   static const char kNonCacheablesForCachePartialHtml[];
   static const char kObliviousPagespeedUrls[];
-  static const char kOptionCookiesDurationMs[];
   static const char kOverrideCachingTtlMs[];
   static const char kPersistBlinkBlacklist[];
   static const char kPreserveUrlRelativity[];
   static const char kPrivateNotVaryForIE[];
-  static const char kPubliclyCacheMismatchedHashesExperimental[];
   static const char kProactivelyFreshenUserFacingRequest[];
   static const char kProactiveResourceFreshening[];
   static const char kProgressiveJpegMinBytes[];
@@ -340,10 +335,8 @@ class RewriteOptions {
   static const char kServeStaleIfFetchError[];
   static const char kServeStaleWhileRevalidateThresholdSec[];
   static const char kServeXhrAccessControlHeaders[];
-  static const char kStickyQueryParameters[];
   static const char kSupportNoScriptEnabled[];
   static const char kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss[];
-  static const char kUrlSigningKey[];
   static const char kUseBlankImageForInlinePreview[];
   static const char kUseExperimentalJsMinifier[];
   static const char kUseFallbackPropertyCacheValues[];
@@ -352,7 +345,6 @@ class RewriteOptions {
   static const char kUseSmartDiffInBlink[];
   static const char kXModPagespeedHeaderValue[];
   static const char kXPsaBlockingRewrite[];
-  static const char kRequestOptionOverride[];
   // Options that require special handling, e.g. non-scalar values
   static const char kAllow[];
   static const char kBlockingRewriteRefererUrls[];
@@ -636,7 +628,6 @@ class RewriteOptions {
   static const int kDefaultDomainShardCount;
   static const int64 kDefaultBlinkHtmlChangeDetectionTimeMs;
   static const int kDefaultMaxPrefetchJsElements;
-  static const int64 kDefaultOptionCookiesDurationMs;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
@@ -1501,14 +1492,6 @@ class RewriteOptions {
     return add_options_to_urls_.value();
   }
 
-  void set_publicly_cache_mismatched_hashes_experimental(bool x) {
-    set_option(x, &publicly_cache_mismatched_hashes_experimental_);
-  }
-
-  bool publicly_cache_mismatched_hashes_experimental() const {
-    return publicly_cache_mismatched_hashes_experimental_.value();
-  }
-
   void set_oblivious_pagespeed_urls(bool x) {
     set_option(x, &oblivious_pagespeed_urls_);
   }
@@ -1709,20 +1692,6 @@ class RewriteOptions {
   }
   int beacon_reinstrument_time_sec() const {
     return beacon_reinstrument_time_sec_.value();
-  }
-
-  void set_request_option_override(StringPiece p) {
-    set_option(GoogleString(p.data(), p.size()), &request_option_override_);
-  }
-  const GoogleString& request_option_override() const {
-    return request_option_override_.value();
-  }
-
-  void set_url_signing_key(StringPiece p) {
-    set_option(GoogleString(p.data(), p.size()), &url_signing_key_);
-  }
-  const GoogleString& url_signing_key() const {
-    return url_signing_key_.value();
   }
 
   void set_lazyload_images_after_onload(bool x) {
@@ -2300,25 +2269,11 @@ class RewriteOptions {
     return allow_logging_urls_in_log_record_.value();
   }
 
-  void set_allow_options_to_be_set_by_cookies(bool x) {
-    set_option(x, &allow_options_to_be_set_by_cookies_);
-  }
-  bool allow_options_to_be_set_by_cookies() const {
-    return allow_options_to_be_set_by_cookies_.value();
-  }
-
   void set_non_cacheables_for_cache_partial_html(const StringPiece& p) {
     set_option(p.as_string(), &non_cacheables_for_cache_partial_html_);
   }
   const GoogleString& non_cacheables_for_cache_partial_html() const {
     return non_cacheables_for_cache_partial_html_.value();
-  }
-
-  void set_no_transform_optimized_images(bool x) {
-    set_option(x, &no_transform_optimized_images_);
-  }
-  bool no_transform_optimized_images() const {
-    return no_transform_optimized_images_.value();
   }
 
   void set_access_control_allow_origins(const StringPiece& p) {
@@ -2361,20 +2316,6 @@ class RewriteOptions {
   }
   const GoogleString& cache_fragment() const {
     return cache_fragment_.value();
-  }
-
-  void set_sticky_query_parameters(StringPiece p) {
-    set_option(p.as_string(), &sticky_query_parameters_);
-  }
-  const GoogleString& sticky_query_parameters() const {
-    return sticky_query_parameters_.value();
-  }
-
-  void set_option_cookies_duration_ms(int64 x) {
-    set_option(x, &option_cookies_duration_ms_);
-  }
-  int64 option_cookies_duration_ms() const {
-    return option_cookies_duration_ms_.value();
   }
 
   // Merge src into 'this'.  Generally, options that are explicitly
@@ -2654,8 +2595,6 @@ class RewriteOptions {
 
   // Returns the hasher used for signatures and URLs to purge.
   const Hasher* hasher() const { return &hasher_; }
-
-  const SHA1Signature* sha1signature() const { return &sha1signature_; }
 
   ThreadSystem* thread_system() const { return thread_system_; }
 
@@ -3367,8 +3306,6 @@ class RewriteOptions {
   MutexedOptionInt64MergeWithMax cache_invalidation_timestamp_;
   Option<int64> css_flatten_max_bytes_;
   Option<bool> cache_small_images_unrewritten_;
-  Option<bool> no_transform_optimized_images_;
-
   // Sets limit for image optimization
   Option<int64> image_resolution_limit_bytes_;
   Option<int64> css_image_inline_max_bytes_;
@@ -3437,13 +3374,6 @@ class RewriteOptions {
   // Encode relevant rewrite options as URL query-parameters so that resources
   // can be reconstructed on servers without the same configuration file.
   Option<bool> add_options_to_urls_;
-
-  // If this option is enabled, serves .pagespeed. resource URLs with
-  // mismatching hashes with the same cache expiration as the inputs.
-  // By default, we convert resources requests with the wrong hash to
-  // Cache-Control:private,max-age=300 to avoid caching stale content
-  // in proxies.
-  Option<bool> publicly_cache_mismatched_hashes_experimental_;
 
   // Should in-place-resource-optimization(IPRO) be enabled?
   Option<bool> in_place_rewriting_enabled_;
@@ -3782,9 +3712,6 @@ class RewriteOptions {
   // Whether to allow logging urls as part of LogRecord.
   Option<bool> allow_logging_urls_in_log_record_;
 
-  // Whether to allow options to be set by cookies.
-  Option<bool> allow_options_to_be_set_by_cookies_;
-
   // Non cacheables used when partial HTML is cached.
   Option<GoogleString> non_cacheables_for_cache_partial_html_;
 
@@ -3802,19 +3729,6 @@ class RewriteOptions {
   // b. low-res image is not small enough compared to the full-res version.
   Option<int64> max_low_res_image_size_bytes_;
   Option<int> max_low_res_to_full_res_image_size_percentage_;
-
-  // Pass this string in url to allow for pagespeed options.
-  Option<GoogleString> request_option_override_;
-
-  // The key used to sign .pagespeed resources if URL signing is enabled.
-  Option<GoogleString> url_signing_key_;
-
-  // sticky_query_parameters_ is the token specified in the configuration that
-  // must be specified in a request's query parameters/headers for the other
-  // options in the request to be converted to cookies.
-  // option_cookies_duration_ms_ is how long the cookie will live for when set.
-  Option<GoogleString> sticky_query_parameters_;
-  Option<int64> option_cookies_duration_ms_;
 
   // If set, how to fragment the http cache.  Otherwise the server's hostname,
   // from the Host header, is used.
@@ -3880,7 +3794,6 @@ class RewriteOptions {
 
   GoogleString signature_;
   MD5Hasher hasher_;  // Used to compute named signatures.
-  SHA1Signature sha1signature_;
 
   ThreadSystem* thread_system_;
 

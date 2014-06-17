@@ -223,8 +223,7 @@ class SerfUrlAsyncFetcherTest: public ::testing::Test {
   }
 
   int ActiveFetches() {
-    return statistics_->GetUpDownCounter(
-        SerfStats::kSerfFetchActiveCount)->Get();
+    return statistics_->GetVariable(SerfStats::kSerfFetchActiveCount)->Get();
   }
 
   int CountCompletedFetches(size_t first, size_t last) {

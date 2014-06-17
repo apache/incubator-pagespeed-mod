@@ -44,8 +44,7 @@ class CssRewriteTestBase : public RewriteTestBase {
     num_parse_failures_ = statistics()->GetVariable(CssFilter::kParseFailures);
     num_rewrites_dropped_ =
         statistics()->GetVariable(CssFilter::kRewritesDropped);
-    total_bytes_saved_ = statistics()->GetUpDownCounter(
-        CssFilter::kTotalBytesSaved);
+    total_bytes_saved_ = statistics()->GetVariable(CssFilter::kTotalBytesSaved);
     total_original_bytes_ =
         statistics()->GetVariable(CssFilter::kTotalOriginalBytes);
     num_uses_ = statistics()->GetVariable(CssFilter::kUses);
@@ -137,37 +136,37 @@ class CssRewriteTestBase : public RewriteTestBase {
   }
 
   // Check that inline CSS gets rewritten correctly.
-  bool ValidateRewriteInlineCss(StringPiece id,
-                                StringPiece css_input,
-                                StringPiece expected_css_output,
+  bool ValidateRewriteInlineCss(const StringPiece& id,
+                                const StringPiece& css_input,
+                                const StringPiece& expected_css_output,
                                 int flags);
 
-  void GetNamerForCss(StringPiece id,
-                      StringPiece expected_css_output,
+  void GetNamerForCss(const StringPiece& id,
+                      const GoogleString& expected_css_output,
                       ResourceNamer* namer);
 
   GoogleString ExpectedUrlForNamer(const ResourceNamer& namer);
 
-  GoogleString ExpectedUrlForCss(StringPiece id,
-                                 StringPiece expected_css_output);
+  GoogleString ExpectedUrlForCss(const StringPiece& id,
+                                 const GoogleString& expected_css_output);
 
   // Check that external CSS gets rewritten correctly.
-  void ValidateRewriteExternalCss(StringPiece id,
-                                  StringPiece css_input,
-                                  StringPiece expected_css_output,
+  void ValidateRewriteExternalCss(const StringPiece& id,
+                                  const GoogleString& css_input,
+                                  const GoogleString& expected_css_output,
                                   int flags) {
     ValidateRewriteExternalCssUrl(id, StrCat(kTestDomain, id, ".css"),
                                   css_input, expected_css_output, flags);
   }
 
-  void ValidateRewriteExternalCssUrl(StringPiece id,
-                                     StringPiece css_url,
-                                     StringPiece css_input,
-                                     StringPiece expected_css_output,
+  void ValidateRewriteExternalCssUrl(const StringPiece& id,
+                                     const StringPiece& css_url,
+                                     const GoogleString& css_input,
+                                     const GoogleString& expected_css_output,
                                      int flags);
 
   // Makes an HTML document with an external CSS link.
-  GoogleString MakeHtmlWithExternalCssLink(StringPiece css_url,
+  GoogleString MakeHtmlWithExternalCssLink(const StringPiece& css_url,
                                            int flags);
 
   // Makes a CSS body with an external image link, with nice indentation.
@@ -177,16 +176,16 @@ class CssRewriteTestBase : public RewriteTestBase {
   GoogleString MakeMinifiedCssWithImage(StringPiece image_url);
 
   // Extract the background image from the css text
-  GoogleString ExtractCssBackgroundImage(StringPiece in_css);
+  GoogleString ExtractCssBackgroundImage(const GoogleString &in_css);
 
   // Return any debug message to be inserted into the expected output CSS.
   virtual GoogleString CssDebugMessage(int flags) const {
     return "";
   }
 
-  void ValidateRewrite(StringPiece id,
-                       StringPiece css_input,
-                       StringPiece gold_output,
+  void ValidateRewrite(const StringPiece& id,
+                       const GoogleString& css_input,
+                       const GoogleString& gold_output,
                        int flags) {
     if (ValidateRewriteInlineCss(StrCat(id, "-inline"),
                                  css_input, gold_output, flags)) {
@@ -196,7 +195,7 @@ class CssRewriteTestBase : public RewriteTestBase {
     }
   }
 
-  void ValidateFailParse(StringPiece id, StringPiece css_input) {
+  void ValidateFailParse(const StringPiece& id, const GoogleString& css_input) {
     ValidateRewrite(id, css_input, css_input, kExpectFailure);
   }
 
@@ -205,9 +204,9 @@ class CssRewriteTestBase : public RewriteTestBase {
 
   // Validate HTML rewrite as well as checking statistics.
   bool ValidateWithStats(
-      StringPiece id,
-      StringPiece html_input, StringPiece expected_html_output,
-      StringPiece css_input, StringPiece expected_css_output,
+      const StringPiece& id,
+      const GoogleString& html_input, const GoogleString& expected_html_output,
+      const StringPiece& css_input, const StringPiece& expected_css_output,
       int flags);
 
   // Helper to test for how we handle trailing junk
@@ -217,7 +216,7 @@ class CssRewriteTestBase : public RewriteTestBase {
   Variable* num_fallback_rewrites_;
   Variable* num_parse_failures_;
   Variable* num_rewrites_dropped_;
-  UpDownCounter* total_bytes_saved_;
+  Variable* total_bytes_saved_;
   Variable* total_original_bytes_;
   Variable* num_uses_;
   Variable* num_flatten_imports_charset_mismatch_;

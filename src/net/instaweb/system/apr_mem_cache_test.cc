@@ -62,8 +62,7 @@ class AprMemCacheTest : public CacheTestBase {
   AprMemCacheTest()
       : timer_(new NullMutex, MockTimer::kApr_5_2010_ms),
         lru_cache_(new LRUCache(kLRUCacheSize)),
-        thread_system_(Platform::CreateThreadSystem()),
-        statistics_(thread_system_.get()) {
+        thread_system_(Platform::CreateThreadSystem()) {
     AprMemCache::InitStats(&statistics_);
   }
 
@@ -134,12 +133,12 @@ class AprMemCacheTest : public CacheTestBase {
   GoogleMessageHandler handler_;
   MD5Hasher md5_hasher_;
   MockHasher mock_hasher_;
+  SimpleStats statistics_;
   MockTimer timer_;
   scoped_ptr<LRUCache> lru_cache_;
   scoped_ptr<AprMemCache> servers_;
   scoped_ptr<FallbackCache> cache_;
   scoped_ptr<ThreadSystem> thread_system_;
-  SimpleStats statistics_;
   GoogleString server_spec_;
 };
 

@@ -41,7 +41,6 @@ namespace net_instaweb {
 
 class ApacheServerContext;
 class GzipInflater;
-class QueryParams;
 class RequestHeaders;
 class RewriteDriver;
 class RewriteOptions;
@@ -78,8 +77,6 @@ class InstawebContext {
                   ApacheServerContext* server_context,
                   const GoogleString& base_url,
                   const RequestContextPtr& request_context,
-                  const QueryParams& pagespeed_query_params,
-                  const QueryParams& pagespeed_option_cookies,
                   bool use_custom_options,
                   const RewriteOptions& options);
   ~InstawebContext();

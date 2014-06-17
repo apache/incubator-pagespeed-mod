@@ -60,7 +60,6 @@
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/thread_system.h"
 #include "net/instaweb/util/public/timer.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 
@@ -216,10 +215,6 @@ void RewriteDriverFactory::set_hasher(Hasher* hasher) {
   hasher_.reset(hasher);
 }
 
-void RewriteDriverFactory::set_signature(SHA1Signature* signature) {
-  signature_.reset(signature);
-}
-
 void RewriteDriverFactory::set_timer(Timer* timer) {
   timer_.reset(timer);
 }
@@ -321,13 +316,6 @@ Hasher* RewriteDriverFactory::hasher() {
   return hasher_.get();
 }
 
-SHA1Signature* RewriteDriverFactory::signature() {
-  if (signature_ == NULL) {
-    signature_.reset(DefaultSignature());
-  }
-  return signature_.get();
-}
-
 UsageDataReporter* RewriteDriverFactory::usage_data_reporter() {
   if (usage_data_reporter_ == NULL) {
     usage_data_reporter_.reset(DefaultUsageDataReporter());
@@ -391,10 +379,6 @@ CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
                                             nonce_generator(), statistics());
   }
   return NULL;
-}
-
-SHA1Signature* RewriteDriverFactory::DefaultSignature() {
-  return new SHA1Signature();
 }
 
 FlushEarlyInfoFinder* RewriteDriverFactory::DefaultFlushEarlyInfoFinder() {
@@ -526,7 +510,6 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_file_system(file_system());
   server_context->set_filename_prefix(filename_prefix_);
   server_context->set_hasher(hasher());
-  server_context->set_signature(signature());
   server_context->set_message_handler(message_handler());
   server_context->set_static_asset_manager(static_asset_manager());
   PropertyCache* pcache = server_context->page_property_cache();
@@ -541,7 +524,7 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   server_context->set_critical_line_info_finder(
       DefaultCriticalLineInfoFinder(server_context));
   server_context->set_hostname(hostname_);
-  server_context->PostInitHook();
+  server_context->InitWorkers();
   InitDecodingDriver(server_context);
   server_contexts_.insert(server_context);
 
@@ -590,8 +573,7 @@ void RewriteDriverFactory::InitStubDecodingServerContext(ServerContext* sc) {
   InitStats(null_stats);
   sc->set_statistics(null_stats);
   sc->set_hasher(hasher());
-  sc->set_signature(signature());
-  sc->PostInitHook();
+  sc->InitWorkers();
 }
 
 void RewriteDriverFactory::AddPlatformSpecificDecodingPasses(

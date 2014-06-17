@@ -325,8 +325,20 @@ void CssFilter::Context::Render() {
     }
 
     // If +debug is enabled and we have any debug messages, insert a comment
-    // for each one, iff the original element hasn't been flushed yet.
-    Driver()->InsertDebugComment(result.debug_message(), rewrite_element_);
+    // for each one (iff the original element hasn't been flushed yet).
+    if (result.debug_message_size() > 0 &&
+        Driver()->DebugMode() &&
+        rewrite_element_ != NULL /* not in IPRO */ &&
+        Driver()->IsRewritable(rewrite_element_)) {
+      HtmlNode* preceding_node = rewrite_element_;
+      for (int i = 0; i < result.debug_message_size(); ++i) {
+        HtmlNode* comment_node =
+            Driver()->NewCommentNode(preceding_node->parent(),
+                                     result.debug_message(i));
+        Driver()->InsertNodeAfterNode(preceding_node, comment_node);
+        preceding_node = comment_node;
+      }
+    }
 
     filter_->num_uses_->Add(1);
   }
@@ -833,7 +845,7 @@ CssFilter::CssFilter(RewriteDriver* driver,
   num_fallback_rewrites_ = stats->GetVariable(CssFilter::kFallbackRewrites);
   num_fallback_failures_ = stats->GetVariable(CssFilter::kFallbackFailures);
   num_rewrites_dropped_ = stats->GetVariable(CssFilter::kRewritesDropped);
-  total_bytes_saved_ = stats->GetUpDownCounter(CssFilter::kTotalBytesSaved);
+  total_bytes_saved_ = stats->GetVariable(CssFilter::kTotalBytesSaved);
   total_original_bytes_ = stats->GetVariable(CssFilter::kTotalOriginalBytes);
   num_uses_ = stats->GetVariable(CssFilter::kUses);
   num_flatten_imports_charset_mismatch_ = stats->GetVariable(kCharsetMismatch);
@@ -852,7 +864,7 @@ void CssFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(CssFilter::kFallbackRewrites);
   statistics->AddVariable(CssFilter::kFallbackFailures);
   statistics->AddVariable(CssFilter::kRewritesDropped);
-  statistics->AddUpDownCounter(CssFilter::kTotalBytesSaved);
+  statistics->AddVariable(CssFilter::kTotalBytesSaved);
   statistics->AddVariable(CssFilter::kTotalOriginalBytes);
   statistics->AddVariable(CssFilter::kUses);
   statistics->AddVariable(CssFilter::kCharsetMismatch);

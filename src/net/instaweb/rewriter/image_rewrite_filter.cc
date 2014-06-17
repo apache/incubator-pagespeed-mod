@@ -542,8 +542,7 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
   image_rewrite_latency_failed_ms_ =
       stats->GetHistogram(kImageRewriteLatencyFailedMs);
 
-  UpDownCounter* image_ongoing_rewrites =
-      stats->GetUpDownCounter(kImageOngoingRewrites);
+  Variable* image_ongoing_rewrites = stats->GetVariable(kImageOngoingRewrites);
   work_bound_.reset(
       new StatisticsWorkBound(image_ongoing_rewrites,
                               driver->options()->image_max_rewrites_at_once()));
@@ -580,7 +579,7 @@ void ImageRewriteFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kImageRewriteLatencyTotalMs);
   // We want image_ongoing_rewrites to be global even if we do per-vhost
   // stats, as it's used for a StatisticsWorkBound.
-  statistics->AddGlobalUpDownCounter(kImageOngoingRewrites);
+  statistics->AddGlobalVariable(kImageOngoingRewrites);
   statistics->AddHistogram(kImageRewriteLatencyOkMs);
   statistics->AddHistogram(kImageRewriteLatencyFailedMs);
 
@@ -911,9 +910,6 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
         server_context()->MergeNonCachingResponseHeaders(
             input_resource, result);
-        if (options->no_transform_optimized_images()) {
-          result->set_cache_control_suffix(",no-transform");
-        }
         if (driver()->Write(
                 ResourceVector(1, input_resource), image->Contents(),
                 output_type, StringPiece() /* no charset for images */,
@@ -1491,7 +1487,7 @@ bool ImageRewriteFilter::IsHtmlCriticalImage(StringPiece image_url) const {
     return true;
   }
   GoogleUrl image_gurl(driver()->base_url(), image_url);
-  return finder->IsHtmlCriticalImage(image_gurl.Spec(), driver());
+  return finder->IsHtmlCriticalImage(image_gurl.spec_c_str(), driver());
 }
 
 bool ImageRewriteFilter::StoreUrlInPropertyCache(const StringPiece& url) {

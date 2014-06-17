@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/string.h"
@@ -37,14 +38,12 @@ class MessageHandler;
 // This class makes it easier to define new Statistics implementations
 // by providing a templatized implementation of variable registration and
 // management.
-template<class Var, class UpDown, class Hist,
-         class TimedVar> class StatisticsTemplate
+template<class Var, class Hist, class TimedVar> class StatisticsTemplate
     : public Statistics {
  public:
   StatisticsTemplate() {}
   virtual ~StatisticsTemplate() {
     STLDeleteContainerPointers(variables_.begin(), variables_.end());
-    STLDeleteContainerPointers(up_downs_.begin(), up_downs_.end());
     STLDeleteContainerPointers(histograms_.begin(), histograms_.end());
     STLDeleteContainerPointers(timed_vars_.begin(), timed_vars_.end());
   }
@@ -54,7 +53,7 @@ template<class Var, class UpDown, class Hist,
   virtual Var* AddVariable(const StringPiece& name) {
     Var* var = FindVariable(name);
     if (var == NULL) {
-      var = NewVariable(name);
+      var = NewVariable(name, variables_.size());
       variables_.push_back(var);
       variable_names_.push_back(name.as_string());
       variable_map_[name.as_string()] = var;
@@ -62,24 +61,13 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual UpDown* AddUpDownCounter(const StringPiece& name) {
-    UpDown* var = FindUpDownCounter(name);
+  virtual Var* AddGlobalVariable(const StringPiece& name) {
+    Var* var = FindVariable(name);
     if (var == NULL) {
-      var = NewUpDownCounter(name);
-      up_downs_.push_back(var);
-      up_down_names_.push_back(name.as_string());
-      up_down_map_[name.as_string()] = var;
-    }
-    return var;
-  }
-
-  virtual UpDown* AddGlobalUpDownCounter(const StringPiece& name) {
-    UpDown* var = FindUpDownCounter(name);
-    if (var == NULL) {
-      var = NewGlobalUpDownCounter(name);
-      up_downs_.push_back(var);
-      up_down_names_.push_back(name.as_string());
-      up_down_map_[name.as_string()] = var;
+      var = NewGlobalVariable(name, variables_.size());
+      variables_.push_back(var);
+      variable_names_.push_back(name.as_string());
+      variable_map_[name.as_string()] = var;
     }
     return var;
   }
@@ -88,15 +76,6 @@ template<class Var, class UpDown, class Hist,
     typename VarMap::const_iterator p = variable_map_.find(name.as_string());
     Var* var = NULL;
     if (p != variable_map_.end()) {
-      var = p->second;
-    }
-    return var;
-  }
-
-  virtual UpDown* FindUpDownCounter(const StringPiece& name) const {
-    typename UpDownMap::const_iterator p = up_down_map_.find(name.as_string());
-    UpDown* var = NULL;
-    if (p != up_down_map_.end()) {
       var = p->second;
     }
     return var;
@@ -126,7 +105,7 @@ template<class Var, class UpDown, class Hist,
                                      const StringPiece& group) {
     TimedVar* timedvar = FindTimedVariable(name);
     if (timedvar == NULL) {
-      timedvar = NewTimedVariable(name);
+      timedvar = NewTimedVariable(name, timed_vars_.size());
       timed_vars_.push_back(timedvar);
       timed_var_map_[name.as_string()] = timedvar;
       timed_var_group_map_[group.as_string()].push_back(name.as_string());
@@ -160,12 +139,6 @@ template<class Var, class UpDown, class Hist,
       int length_name = var_name.size();
       longest_string = std::max(longest_string, length_name + length_number);
     }
-    for (int i = 0, n = up_downs_.size(); i < n; ++i) {
-      const GoogleString& up_down_name = up_down_names_[i];
-      int length_number = Integer64ToString(up_downs_[i]->Get()).size();
-      int length_name = up_down_name.size();
-      longest_string = std::max(longest_string, length_name + length_number);
-    }
 
     GoogleString spaces_buffer = GoogleString(longest_string, ' ');
     StringPiece spaces(spaces_buffer);
@@ -179,26 +152,11 @@ template<class Var, class UpDown, class Hist,
       writer->Write(var_as_str, message_handler);
       writer->Write("\n", message_handler);
     }
-    for (int i = 0, n = up_downs_.size(); i < n; ++i) {
-      const GoogleString& up_down_name = up_down_names_[i];
-      GoogleString up_down_as_str = Integer64ToString(up_downs_[i]->Get());
-      writer->Write(up_down_name, message_handler);
-      writer->Write(": ", message_handler);
-      int num_spaces = longest_string - up_down_name.size() -
-          up_down_as_str.size();
-      writer->Write(spaces.substr(0, num_spaces), message_handler);
-      writer->Write(up_down_as_str, message_handler);
-      writer->Write("\n", message_handler);
-    }
   }
 
   virtual void Clear() {
     for (int i = 0, n = variables_.size(); i < n; ++i) {
       Variable* var = variables_[i];
-      var->Clear();
-    }
-    for (int i = 0, n = up_downs_.size(); i < n; ++i) {
-      UpDownCounter* var = up_downs_[i];
       var->Clear();
     }
     for (int i = 0, n = histograms_.size(); i < n; ++i) {
@@ -213,24 +171,18 @@ template<class Var, class UpDown, class Hist,
 
  protected:
   // Interface to subclass.
-  virtual Var* NewVariable(StringPiece name) = 0;
+  virtual Var* NewVariable(const StringPiece& name, int index) = 0;
 
-  // Interface to subclass.
-  virtual UpDown* NewUpDownCounter(StringPiece name) = 0;
-
-  // Default implementation just calls NewUpDownCounter
-  virtual UpDown* NewGlobalUpDownCounter(StringPiece name) {
-    return NewUpDownCounter(name);
+  // Default implementation just calls NewVariable
+  virtual Var* NewGlobalVariable(const StringPiece& name, int index) {
+    return NewVariable(name, index);
   }
 
-  virtual Hist* NewHistogram(StringPiece name) = 0;
-  virtual TimedVar* NewTimedVariable(StringPiece name) = 0;
+  virtual Hist* NewHistogram(const StringPiece& name) = 0;
+  virtual TimedVar* NewTimedVariable(const StringPiece& name, int index) = 0;
 
   size_t variables_size() const { return variables_.size(); }
   Var* variables(size_t pos) { return variables_.at(pos); }
-
-  size_t up_down_size() const { return up_downs_.size(); }
-  UpDown* up_downs(size_t pos) { return up_downs_.at(pos); }
 
   size_t histograms_size() const { return histograms_.size(); }
   Hist* histograms(size_t pos) { return histograms_.at(pos); }
@@ -242,8 +194,6 @@ template<class Var, class UpDown, class Hist,
  private:
   typedef std::vector<Var*> VarVector;
   typedef std::map<GoogleString, Var*> VarMap;
-  typedef std::vector<UpDown*> UpDownVector;
-  typedef std::map<GoogleString, UpDown*> UpDownMap;
   typedef std::vector<Hist*> HistVector;
   typedef std::map<GoogleString, Hist*> HistMap;
 
@@ -251,8 +201,6 @@ template<class Var, class UpDown, class Hist,
   typedef std::map<GoogleString, TimedVar*> TimedVarMap;
   VarVector variables_;
   VarMap variable_map_;
-  UpDownVector up_downs_;
-  UpDownMap up_down_map_;
   HistVector histograms_;
   HistMap histogram_map_;
   TimedVarVector timed_vars_;
@@ -260,94 +208,28 @@ template<class Var, class UpDown, class Hist,
   // map between group and names of stats.
   std::map<GoogleString, StringVector> timed_var_group_map_;
   StringVector variable_names_;
-  StringVector up_down_names_;
   StringVector histogram_names_;
 
   DISALLOW_COPY_AND_ASSIGN(StatisticsTemplate);
 };
 
-// Helper class to create Variable interface implementations given a
-// helper implementation class Impl.  Note that the same Impl class
-// can be used for UpDownTemplate, but Variable will not provide a
-// Set method, and will DCHECK-fail on negative increments.
-//
-// class Impl must define methods:
-//      Impl(StringPiece name, Statistics* stats);
-//      int64 Get();
-//      StringPiece GetName();
-//      int64 AddHelper(int delta);
-//      void Clear();
-// See ../util/simple_stats.h, class SimpleStatsVariable, for an example
-// of an Impl class.
-template<class Impl> class VarTemplate : public Variable {
- public:
-  VarTemplate(StringPiece name, Statistics* stats) : impl_(name, stats) {}
-  virtual ~VarTemplate() {}
-  virtual int64 Get() const { return impl_.Get(); }
-  virtual StringPiece GetName() const { return impl_.GetName(); }
-  virtual int64 AddHelper(int delta) { return impl_.AddHelper(delta); }
-  virtual void Clear() { impl_.Set(0); }
-
-  Impl* impl() { return &impl_; }
-
- private:
-  Impl impl_;
-
-  DISALLOW_COPY_AND_ASSIGN(VarTemplate);
-};
-
-// Helper class to create UpDownCounter interface implementations given a
-// helper implementation class Impl.  Note that the same Impl class
-// can be used for VarTemplate, but UpDownCounter provides a
-// Set method, and will not DCHECK-fail on negative increments.
-template<class Impl> class UpDownTemplate : public UpDownCounter {
- public:
-  UpDownTemplate(StringPiece name, Statistics* stats)
-      : impl_(name, stats) {}
-  virtual ~UpDownTemplate() {}
-  virtual int64 Get() const { return impl_.Get(); }
-  virtual StringPiece GetName() const { return impl_.GetName(); }
-  virtual void Set(int64 value) { impl_.Set(value); }
-  virtual int64 AddHelper(int delta) { return impl_.AddHelper(delta); }
-  virtual void Clear() { impl_.Set(0); }
-
-  Impl* impl() { return &impl_; }
-
- private:
-  Impl impl_;
-
-  DISALLOW_COPY_AND_ASSIGN(UpDownTemplate);
-};
-
-// A specialization of StatisticsTemplate for implementations where the
-// Variable and UpDownCounter implementations can share a common Impl.
-template<class Impl,                       // See example in VarTemplate
-         class HistC = CountHistogram,     // Histogram
-         class TVarC = FakeTimedVariable>  // TimeDVariable
+// A specialization of StatisticsTemplate for implementations that can only
+// do scalar statistics variables.
+template<class Var>
 class ScalarStatisticsTemplate
-    : public StatisticsTemplate<VarTemplate<Impl>, UpDownTemplate<Impl>,
-                                HistC, TVarC> {
+    : public StatisticsTemplate<Var, CountHistogram, FakeTimedVariable> {
  public:
-  // Add typedefs for template class args to make them visible to subclasses.
-  typedef VarTemplate<Impl> Var;
-  typedef UpDownTemplate<Impl> UpDown;
-  typedef HistC Hist;
-  typedef TVarC TVar;
-
   ScalarStatisticsTemplate() {}
   virtual ~ScalarStatisticsTemplate() {}
 
  protected:
-  virtual Var* NewVariable(StringPiece name) {
-    return new Var(name, this);
+  virtual CountHistogram* NewHistogram(const StringPiece& name) {
+    return new CountHistogram(new NullMutex);
   }
 
-  virtual UpDown* NewUpDownCounter(StringPiece name) {
-    return new UpDown(name, this);
-  }
-
-  virtual TVar* NewTimedVariable(StringPiece name) {
-    return new TVar(name, this);
+  virtual FakeTimedVariable* NewTimedVariable(const StringPiece& name,
+                                              int index) {
+    return this->NewFakeTimedVariable(name, index);
   }
 };
 

@@ -925,63 +925,6 @@ TEST_F(HtmlAnnotationTest, AttrEndingWithOpenAngle) {
   EXPECT_EQ("+script:src=foo<bar 'Content' -script(u)", annotation());
 }
 
-TEST_F(HtmlAnnotationTest, ScriptQuirkBasic) {
-  ValidateNoChanges("script_quirk_1",
-                    "<script><!--<script></script>a</script>b");
-  EXPECT_EQ("+script '<!--<script></script>a' -script(e) 'b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_2",
-                    "<script><!--</script>a</script>b");
-  EXPECT_EQ("+script '<!--' -script(e) 'a</script>b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_3",
-                    "<script><script></script>a</script>b");
-  EXPECT_EQ("+script '<script>' -script(e) 'a</script>b'", annotation());
-
-  ResetAnnotation();
-  ValidateNoChanges("script_quirk_4",
-                    "<script><!--<script>--></script>a</script>b");
-  EXPECT_EQ("+script '<!--<script>-->' -script(e) 'a</script>b'", annotation());
-}
-
-TEST_F(HtmlAnnotationTest, ScriptQuirkCloseAttr) {
-  // HTML5 script parsing is weird in that </script> actually gets attribute
-  // parsing.
-  ValidateExpected("script_quirk_close",
-                   "<script></script a=\"foo>\">Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close2",
-                   "<script></script a=\"foo>\" bar=\'>' bax>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close_slash",
-                   "<script></script a=\"foo>\"/>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-}
-
-TEST_F(HtmlAnnotationTest, ScriptQuirkBriefClose) {
-  // HTML5 script parsing --- closing </style />
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script/>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-
-  ResetAnnotation();
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script /foo>Bar",
-                   "<script></script>Bar");
-  EXPECT_EQ("+script -script(e) 'Bar'", annotation());
-}
-
 // TODO(jmarantz): fix this case; we lose the stray "=".
 // TEST_F(HtmlAnnotationTest, StrayEq) {
 //   ValidateNoChanges("stray_eq", "<a href='foo.html'=>b</a>");
@@ -1090,16 +1033,6 @@ TEST_F(HtmlAnnotationTest, UnclosedScriptOnlyWithFlush) {
   // in the input.
   EXPECT_STREQ("[F] +script -script(u)[F]", annotation());
   EXPECT_STREQ("<script>", output_buffer_);
-}
-
-TEST_F(HtmlAnnotationTest, NulInAttrName) {
-  // Tests that we don't crash with an embedded NUL in an attribute name.
-  SetupWriter();
-  html_parse_.StartParse("http://test.com/nul_in_attr.html");
-  html_parse_.ParseText("<img src");
-  html_parse_.ParseText(StringPiece("\0", 1));
-  html_parse_.ParseText("file:-1675375991 />");
-  html_parse_.FinishParse();
 }
 
 TEST_F(HtmlParseTest, MakeName) {

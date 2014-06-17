@@ -73,15 +73,14 @@ class CssInlineFilter : public CommonFilter {
 
   // Delegated from InlineRewriteContext::CreateResource --- see there
   // for semantics.
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  virtual ResourcePtr CreateResource(const char* url);
 
  private:
   class Context;
   friend class Context;
 
   bool ShouldInline(const ResourcePtr& resource,
-                    const StringPiece& attrs_attribute,
-                    GoogleString* reason) const;
+                    const StringPiece& attrs_attribute) const;
   void RenderInline(const ResourcePtr& resource, const CachedResult& cached,
                     const GoogleUrl& base_url, const StringPiece& text,
                     HtmlElement* element);

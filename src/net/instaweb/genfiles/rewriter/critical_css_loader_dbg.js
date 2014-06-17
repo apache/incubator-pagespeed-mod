@@ -22,7 +22,7 @@ goog.provide = function(name) {
 };
 goog.setTestOnly = function(opt_message) {
   if (!goog.DEBUG) {
-    throw opt_message = opt_message || "", Error("Importing test-only code into non-debug environment" + (opt_message ? ": " + opt_message : "."));
+    throw opt_message = opt_message || "", Error("Importing test-only code into non-debug environment" + opt_message ? ": " + opt_message : ".");
   }
 };
 goog.forwardDeclare = function() {
@@ -313,9 +313,11 @@ goog.setCssNameMapping = function(mapping, opt_style) {
   goog.cssNameMappingStyle_ = opt_style;
 };
 goog.getMsg = function(str, opt_values) {
-  opt_values && (str = str.replace(/\{\$([^}]+)}/g, function(match, key) {
-    return key in opt_values ? opt_values[key] : match;
-  }));
+  var values = opt_values || {}, key;
+  for (key in values) {
+    var value = ("" + values[key]).replace(/\$/g, "$$$$");
+    str = str.replace(new RegExp("\\{\\$" + key + "\\}", "gi"), value);
+  }
   return str;
 };
 goog.getMsgWithFallback = function(a) {
@@ -380,40 +382,6 @@ goog.MODIFY_FUNCTION_PROTOTYPES && (Function.prototype.bind = Function.prototype
 }, Function.prototype.mixin = function(source) {
   goog.mixin(this.prototype, source);
 });
-goog.defineClass = function(superClass, def) {
-  var constructor = def.constructor, statics = def.statics;
-  constructor && constructor != Object.prototype.constructor || (constructor = function() {
-    throw Error("cannot instantiate an interface (no constructor defined).");
-  });
-  var cls = goog.defineClass.createSealingConstructor_(constructor);
-  superClass && goog.inherits(cls, superClass);
-  delete def.constructor;
-  delete def.statics;
-  goog.defineClass.applyProperties_(cls.prototype, def);
-  null != statics && (statics instanceof Function ? statics(cls) : goog.defineClass.applyProperties_(cls, statics));
-  return cls;
-};
-goog.defineClass.SEAL_CLASS_INSTANCES = goog.DEBUG;
-goog.defineClass.createSealingConstructor_ = function(ctr) {
-  if (goog.defineClass.SEAL_CLASS_INSTANCES && Object.seal instanceof Function) {
-    var wrappedCtr = function() {
-      var instance = ctr.apply(this, arguments) || this;
-      this.constructor === wrappedCtr && Object.seal(instance);
-      return instance;
-    };
-    return wrappedCtr;
-  }
-  return ctr;
-};
-goog.defineClass.OBJECT_PROTOTYPE_FIELDS_ = "constructor hasOwnProperty isPrototypeOf propertyIsEnumerable toLocaleString toString valueOf".split(" ");
-goog.defineClass.applyProperties_ = function(target, source) {
-  for (var key in source) {
-    Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-  for (var i = 0;i < goog.defineClass.OBJECT_PROTOTYPE_FIELDS_.length;i++) {
-    key = goog.defineClass.OBJECT_PROTOTYPE_FIELDS_[i], Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-};
 var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
   var httpRequest;
   if (window.XMLHttpRequest) {

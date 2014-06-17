@@ -70,7 +70,9 @@ struct ProxyInterface::RequestData {
   bool is_resource_fetch;
   scoped_ptr<GoogleUrl> request_url;
   AsyncFetch* async_fetch;
+  RewriteOptions* query_options;
   MessageHandler* handler;
+  GoogleString pagespeed_query_params;
 };
 
 ProxyInterface::ProxyInterface(const StringPiece& hostname, int port,
@@ -179,15 +181,38 @@ void ProxyInterface::ProxyRequest(bool is_resource_fetch,
                                   const GoogleUrl& request_url,
                                   AsyncFetch* async_fetch,
                                   MessageHandler* handler) {
+  scoped_ptr<GoogleUrl> gurl(new GoogleUrl);
+  gurl->Reset(request_url);
+
+  // Stripping PageSpeed query params before the property cache lookup to
+  // make cache key consistent for both lookup and storing in cache.
+  // TODO(gee): Move this into RewriteOptionsManager #tech-debt
+  RewriteQuery query;
+  if (!server_context_->GetQueryOptions(gurl.get(),
+                                        async_fetch->request_headers(),
+                                        NULL, &query)) {
+    async_fetch->response_headers()->SetStatusAndReason(
+        HttpStatus::kMethodNotAllowed);
+    async_fetch->Write("Invalid PageSpeed query-params/request headers",
+                       handler);
+    async_fetch->Done(false);
+    return;
+  }
+
+  // Owned by ProxyInterfaceUrlNamerCallback.
+  GoogleUrl* released_gurl = gurl.release();
+
   RequestData* request_data = new RequestData;
   request_data->is_resource_fetch = is_resource_fetch;
-  request_data->request_url.reset(new GoogleUrl);
-  request_data->request_url->Reset(request_url);
+  request_data->request_url.reset(released_gurl);
   request_data->async_fetch = async_fetch;
+  request_data->query_options = query.ReleaseOptions();
   request_data->handler = handler;
+  request_data->pagespeed_query_params =
+      query.pagespeed_query_params().ToEscapedString();
 
   server_context_->rewrite_options_manager()->GetRewriteOptions(
-      request_url,
+      *released_gurl,
       *async_fetch->request_headers(),
       NewCallback(this, &ProxyInterface::GetRewriteOptionsDone, request_data));
 }
@@ -208,29 +233,15 @@ ProxyFetchPropertyCallbackCollector*
 void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
                                            RewriteOptions* domain_options) {
   scoped_ptr<RequestData> request_data_deleter(request_data);
-  scoped_ptr<RewriteOptions> scoped_domain_options(domain_options);
   bool is_resource_fetch = request_data->is_resource_fetch;
   GoogleUrl* request_url = request_data->request_url.get();
   AsyncFetch* async_fetch = request_data->async_fetch;
+  RewriteOptions* query_options = request_data->query_options;
   MessageHandler* handler = request_data->handler;
-
-  // Parse the query options, headers, and cookies.
-  RewriteQuery query;
-  if (!server_context_->GetQueryOptions(async_fetch->request_context(),
-                                        domain_options, request_url,
-                                        async_fetch->request_headers(),
-                                        NULL /* response_headers */, &query)) {
-    async_fetch->response_headers()->SetStatusAndReason(
-        HttpStatus::kMethodNotAllowed);
-    async_fetch->Write("Invalid PageSpeed query-params/request headers",
-                       handler);
-    async_fetch->Done(false);
-    return;
-  }
+  GoogleString pagespeed_query_params = request_data->pagespeed_query_params;
 
   RewriteOptions* options = server_context_->GetCustomOptions(
-      async_fetch->request_headers(), scoped_domain_options.release(),
-      query.ReleaseOptions());
+      async_fetch->request_headers(), domain_options, query_options);
   GoogleString url_string;
   request_url->Spec().CopyToString(&url_string);
   RequestHeaders* request_headers = async_fetch->request_headers();
@@ -354,14 +365,9 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
     // TODO(mmohabey): Factor out the below checks so that they are not
     // repeated in BlinkUtil::IsBlinkRequest().
 
-    // Copy over any PageSpeed query parameters so we can re-add them if we
+    // Copy over any stripped query parameters so we can re-add them if we
     // receive a redirection response to our fetch request.
-    driver->set_pagespeed_query_params(
-        query.pagespeed_query_params().ToEscapedString());
-    // Copy over any PageSpeed cookies so we know which ones to clear in
-    // ProxyFetch::HandleHeadersComplete().
-    driver->set_pagespeed_option_cookies(
-        query.pagespeed_option_cookies().ToEscapedString());
+    driver->set_pagespeed_query_params(pagespeed_query_params);
 
     if (driver->options() != NULL && driver->options()->enabled() &&
         property_callback != NULL &&

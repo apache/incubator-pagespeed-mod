@@ -36,7 +36,6 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/basictypes.h"
-#include "net/instaweb/util/public/gmock.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/md5_hasher.h"
@@ -72,8 +71,6 @@ const char kOrigJsNameRegexp[] = "*hello.js*";
 const char kUnauthorizedJs[] = "http://other.domain.com/hello.js";
 const char kRewrittenJsName[] = "hello.js";
 const char kLibraryUrl[] = "https://www.example.com/hello/1.0/hello.js";
-const char kIntrospectiveJS[] =
-    "<script type='text/javascript' src='introspective.js'></script>";
 
 }  // namespace
 
@@ -982,7 +979,6 @@ TEST_P(JavascriptFilterTest, StripInlineWhitespaceFlush) {
 }
 
 TEST_P(JavascriptFilterTest, Aris) {
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -990,16 +986,11 @@ TEST_P(JavascriptFilterTest, Aris) {
   SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                 introspective_js, 100);
 
-  Parse("introspective", GenerateHtml("introspective.js"));
-  const GoogleString kInsertComment =
-      StrCat(kIntrospectiveJS, "<!--",
-             JavascriptCodeBlock::kIntrospectionComment, "-->");
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kInsertComment));
+  ValidateNoChanges("introspective", GenerateHtml("introspective.js"));
 }
 
 TEST_P(JavascriptFilterTest, ArisSourceMaps) {
   options()->EnableFilter(RewriteOptions::kIncludeJsSourceMaps);
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -1007,16 +998,11 @@ TEST_P(JavascriptFilterTest, ArisSourceMaps) {
   SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                 introspective_js, 100);
 
-  Parse("introspective", GenerateHtml("introspective.js"));
-  const GoogleString kInsertComment =
-      StrCat(kIntrospectiveJS, "<!--",
-             JavascriptCodeBlock::kIntrospectionComment, "-->");
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kInsertComment));
+  ValidateNoChanges("introspective", GenerateHtml("introspective.js"));
 }
 
 TEST_P(JavascriptFilterTest, ArisCombineJs) {
   options()->EnableFilter(RewriteOptions::kCombineJavascript);
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -1028,17 +1014,16 @@ TEST_P(JavascriptFilterTest, ArisCombineJs) {
   SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
                                 kJsData, 100);
 
-  static const char kHtmlBefore[] =
+  const char html_before[] =
       "<script type='text/javascript' src='introspective.js'></script>\n"
       "<script type='text/javascript' src='a.js'></script>\n"
       "<script type='text/javascript' src='b.js'></script>\n";
-  const GoogleString kHtmlAfter = StrCat(
-      kIntrospectiveJS, "<!--", JavascriptCodeBlock::kIntrospectionComment,
-      "-->\n", "<script src=\"a.js+b.js.pagespeed.jc.0.js\"></script>",
-      "<script>eval(mod_pagespeed_0);</script>\n",
-      "<script>eval(mod_pagespeed_0);</script>\n");
-  Parse("introspective", kHtmlBefore);
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kHtmlAfter));
+  const char html_after[] =
+      "<script type='text/javascript' src='introspective.js'></script>\n"
+      "<script src=\"a.js+b.js.pagespeed.jc.0.js\"></script>"
+      "<script>eval(mod_pagespeed_0);</script>\n"
+      "<script>eval(mod_pagespeed_0);</script>\n";
+  ValidateExpected("introspective", html_before, html_after);
 }
 
 void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
@@ -1148,14 +1133,14 @@ TEST_P(JavascriptFilterTest, NoSourceMapJsCombine) {
 
   const char combined_name[] = "a.js+b.js.pagespeed.jc.0.js";
 
-  static const char kHtmlBefore[] =
+  const char html_before[] =
       "<script type='text/javascript' src='a.js'></script>\n"
       "<script type='text/javascript' src='b.js'></script>\n";
-  GoogleString kHtmlAfter = StrCat(
+  GoogleString html_after = StrCat(
       "<script src=\"", combined_name, "\"></script>"
       "<script>eval(mod_pagespeed_0);</script>\n"
       "<script>eval(mod_pagespeed_0);</script>\n");
-  ValidateExpected("introspective", kHtmlBefore, kHtmlAfter);
+  ValidateExpected("introspective", html_before, html_after);
 
   // Note: There is no //# ScriptSourceMap in combine output.
   GoogleString expected_output = StrCat(

@@ -43,17 +43,12 @@ for lib in $*; do
   files=`$ar -t $lib`
   for entry in $files; do
     leaf=`basename $entry`.o
-    # Extract all of these in parallel.
-    $ar p $lib $entry > $prefix.$leaf &
+    $ar p $lib $entry > $prefix.$leaf
   done
+  $ar -q -S $output *.o
+  echo Adding `ls -l *.o | wc -l` files from $lib ...
+  rm *.o
 done
-
-echo "Waiting for $prefix parallel extractions to complete."
-wait
-
-echo Adding `ls -l *.o | wc -l` files ...
-$ar -q -S $output *.o
-rm *.o
 
 echo ranlib $output
 ranlib $output

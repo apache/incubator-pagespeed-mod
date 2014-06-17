@@ -64,9 +64,20 @@ done < $SYMBOLS
 
 rm $SYMBOLS
 
-# Rename the symbols in the the input file.
-objcopy -v --redefine-syms $RENAME_MAP $IN $OUT
+# Extract and patch up the object files
+IN_OBJ_DIR=$(mktemp -d)
+OUT_OBJ_DIR=$(mktemp -d)
+cd $IN_OBJ_DIR
+ar xvf $IN
+ls -1 *.o | xargs -P4 -I %FILE \
+    objcopy -v --redefine-syms $RENAME_MAP %FILE $OUT_OBJ_DIR/%FILE
 
-# Index the new archive.
+rm $RENAME_MAP
+rm -rf $IN_OBJ_DIR
+
+# Create the new .a
+rm -f $OUT
+cd $OUT_OBJ_DIR
+ar -q -S $OUT *.o
 echo ranlib $OUT
 ranlib $OUT

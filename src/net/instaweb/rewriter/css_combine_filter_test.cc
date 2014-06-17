@@ -205,9 +205,9 @@ class CssCombineFilterTest : public RewriteTestBase {
         "  ", (is_barrier ? Link("c.css") : ""), "\n"
         "</body>\n")));
     if (!debug_text.empty()) {
-      StrAppend(&expected_output, "<!--",
-                DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0, false,
-                                                      StringSet()),
+      StrAppend(&expected_output,
+                "<!--",
+                DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0),
                 "-->");
     }
     if (expect_combine) {
@@ -822,7 +822,7 @@ TEST_F(CssCombineFilterWithDebugTest, NonStandardAttributesBarrier) {
   UseMd5Hasher();
   CombineCss("non_standard_attributes_barrier", barrier,
              "<!--combine_css: Could not combine over barrier: "
-             "potentially non-combinable attribute: 'foo'-->", true);
+             "non-standard attributes-->", true);
 }
 
 TEST_F(CssCombineFilterTest, CombineCssWithImportInFirst) {
@@ -1347,7 +1347,7 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsExceedingUrlSize) {
                                  "x", "x"));
   EXPECT_EQ(dummy_encoded.PathSansLeaf(), gurl.PathSansLeaf());
   ResourceNamer namer;
-  ASSERT_TRUE(rewrite_driver()->Decode(gurl.LeafWithQuery(), &namer));
+  ASSERT_TRUE(namer.Decode(gurl.LeafWithQuery()));
   EXPECT_EQ("a.css+b.css", namer.name());
   EXPECT_EQ(StrCat(kYellow, kBlue), actual_combination);
 }

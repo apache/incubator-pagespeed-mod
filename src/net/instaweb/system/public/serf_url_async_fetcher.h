@@ -54,7 +54,6 @@ class Statistics;
 class SerfFetch;
 class SerfThreadedFetcher;
 class Timer;
-class UpDownCounter;
 class Variable;
 
 struct SerfStats {
@@ -229,7 +228,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
 
   // This is protected because it's updated along with active_fetches_,
   // which happens in subclass SerfThreadedFetcher as well as this class.
-  UpDownCounter* active_count_;
+  Variable* active_count_;
 
  private:
   friend class SerfFetch;  // To access stats variables below.

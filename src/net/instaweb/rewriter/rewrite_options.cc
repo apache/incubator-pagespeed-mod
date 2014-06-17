@@ -55,8 +55,6 @@ const char RewriteOptions::kAccessControlAllowOrigins[] =
     "AccessControlAllowOrigins";
 const char RewriteOptions::kAllowLoggingUrlsInLogRecord[] =
     "AllowLoggingUrlsInLogRecord";
-const char RewriteOptions::kAllowOptionsToBeSetByCookies[] =
-    "AllowOptionsToBeSetByCookies";
 const char RewriteOptions::kAlwaysRewriteCss[] = "AlwaysRewriteCss";
 const char RewriteOptions::kAnalyticsID[] = "AnalyticsID";
 const char RewriteOptions::kAvoidRenamingIntrospectiveJavascript[] =
@@ -220,19 +218,13 @@ const char RewriteOptions::kMinImageSizeLowResolutionBytes[] =
 const char RewriteOptions::kMinResourceCacheTimeToRewriteMs[] =
     "MinResourceCacheTimeToRewriteMs";
 const char RewriteOptions::kModifyCachingHeaders[] = "ModifyCachingHeaders";
-const char RewriteOptions::kNoTransformOptimizedImages[] =
-    "NoTransformOptimizedImages";
 const char RewriteOptions::kNonCacheablesForCachePartialHtml[] =
     "NonCacheablesForCachePartialHtml";
 const char RewriteOptions::kObliviousPagespeedUrls[] = "ObliviousPagespeedUrls";
-const char RewriteOptions::kOptionCookiesDurationMs[] =
-    "OptionCookiesDurationMs";
 const char RewriteOptions::kOverrideCachingTtlMs[] = "OverrideCachingTtlMs";
 const char RewriteOptions::kPersistBlinkBlacklist[] = "PersistBlinkBlacklist";
 const char RewriteOptions::kPreserveUrlRelativity[] = "PreserveUrlRelativity";
 const char RewriteOptions::kPrivateNotVaryForIE[] = "PrivateNotVaryForIE";
-const char RewriteOptions::kPubliclyCacheMismatchedHashesExperimental[] =
-    "PubliclyCacheMismatchedHashesExperimental";
 const char RewriteOptions::kProactivelyFreshenUserFacingRequest[] =
     "ProactivelyFreshenUserFacingRequest";
 const char RewriteOptions::kProactiveResourceFreshening[] =
@@ -261,7 +253,6 @@ const char RewriteOptions::kServeStaleWhileRevalidateThresholdSec[] =
     "ServeStaleWhileRevalidateThresholdSec";
 const char RewriteOptions::kServeXhrAccessControlHeaders[] =
     "ServeXhrAccessControlHeaders";
-const char RewriteOptions::kStickyQueryParameters[] = "StickyQueryParameters";
 const char RewriteOptions::kSupportNoScriptEnabled[] = "SupportNoScriptEnabled";
 const char
     RewriteOptions::kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss[] =
@@ -349,8 +340,6 @@ const char RewriteOptions::kUseSelectorsForCriticalCss[] =
     "UseSelectorsForCriticalCss";
 const char RewriteOptions::kUseSharedMemLocking[] = "SharedMemoryLocks";
 const char RewriteOptions::kNullOption[] = "";
-const char RewriteOptions::kRequestOptionOverride[] = "RequestOptionOverride";
-const char RewriteOptions::kUrlSigningKey[] = "UrlSigningKey";
 
 // RewriteFilter prefixes
 const char RewriteOptions::kCacheExtenderId[] = "ce";
@@ -400,7 +389,7 @@ const int64 RewriteOptions::kDefaultBlinkMaxHtmlSizeRewritable =
 //
 // jmaessen: For the moment, there's a separate threshold for image inline.
 const int64 RewriteOptions::kDefaultCssInlineMaxBytes = 2048;
-const int64 RewriteOptions::kDefaultCssFlattenMaxBytes = 1024000;
+const int64 RewriteOptions::kDefaultCssFlattenMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssImageInlineMaxBytes = 0;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
 const int64 RewriteOptions::kDefaultImageInlineMaxBytes = 3072;
@@ -485,9 +474,6 @@ const int RewriteOptions::kDefaultMaxUrlSegmentSize = 1024;
 
 // Maximum JS elements to prefetch early when defer JS filter is enabled.
 const int RewriteOptions::kDefaultMaxPrefetchJsElements = 0;
-
-// Expiration limit for cookies that set PageSpeed options: 10 minutes.
-const int64 RewriteOptions::kDefaultOptionCookiesDurationMs = 10 * 60 * 1000;
 
 #ifdef NDEBUG
 const int RewriteOptions::kDefaultRewriteDeadlineMs = 10;
@@ -1082,7 +1068,6 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
       need_to_store_experiment_data_(false),
       experiment_id_(experiment::kExperimentNotSet),
       experiment_percent_(0),
-      signature_(),
       hasher_(kHashBytes),
       thread_system_(thread_system) {
   url_cache_invalidation_map_.set_empty_key("");
@@ -1338,17 +1323,6 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "Add query-params with configuration adjustments to rewritten "
       "URLs.");
-
-  // TODO(jmarantz): consider whether to document this option -- it
-  // potentially can hide problems in configuration or bugs.
-  AddBaseProperty(
-      false, &RewriteOptions::publicly_cache_mismatched_hashes_experimental_,
-      "pcmh",
-      kPubliclyCacheMismatchedHashesExperimental,
-      kDirectoryScope,
-      "When serving a request for a .pagespeed. URL with the wrong hash, allow "
-      "public caching based on the origin TTL.");
-
   AddBaseProperty(
       false, &RewriteOptions::in_place_rewriting_enabled_, "ipro",
       kInPlaceResourceOptimization,
@@ -1617,16 +1591,6 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "Wait until page onload before loading lazy images");
 
-  AddBaseProperty(
-      "", &RewriteOptions::request_option_override_, "roo",
-      kRequestOptionOverride,
-      kDirectoryScope,
-      "Token passed in URL to enable pagespeed options in params.");
-  AddBaseProperty(
-      "", &RewriteOptions::url_signing_key_, "usk",
-      kUrlSigningKey,
-      kServerScope,
-      "Key used for signing .pagespeed resource URLs.");
   AddBaseProperty(
       "", &RewriteOptions::lazyload_images_blank_url_, "llbu",
       kLazyloadImagesBlankUrl,
@@ -2089,22 +2053,10 @@ void RewriteOptions::AddProperties() {
       NULL);   // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
-      true, &RewriteOptions::allow_options_to_be_set_by_cookies_,
-      "aotbsbc", kAllowOptionsToBeSetByCookies, kDirectoryScope,
-      "Allow options to be set by cookies in addition to query parameters "
-      "and request headers.");
-
-  AddBaseProperty(
       "", &RewriteOptions::non_cacheables_for_cache_partial_html_, "nccp",
       kNonCacheablesForCachePartialHtml,
       kDirectoryScope,
       NULL);  // Not applicable for mod_pagespeed.
-
-  AddBaseProperty(
-      false, &RewriteOptions::no_transform_optimized_images_, "ntoi",
-      kNoTransformOptimizedImages,
-      kDirectoryScope,
-      "Add no-transform header to cache-control for optimized images");
 
   AddBaseProperty(
       kDefaultMaxLowResImageSizeBytes,
@@ -2138,24 +2090,6 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "Set a cache fragment to allow servers with different hostnames to "
       "share a cache.  Allowed: letters, numbers, underscores, and hyphens.");
-
-  AddBaseProperty(
-      "",
-      &RewriteOptions::sticky_query_parameters_,
-      "sqp",
-      kStickyQueryParameters,
-      kDirectoryScope,
-      "The token that must be set by the PageSpeedStickyQueryParameters query "
-      "parameter/header in a request to enable the setting of cookies for all "
-      "other PageSpeed query parameters/headers in the request. Blank means "
-      "it is disabled.");
-  AddBaseProperty(
-      kDefaultOptionCookiesDurationMs,
-      &RewriteOptions::option_cookies_duration_ms_,
-      "ocd",
-      kOptionCookiesDurationMs,
-      kDirectoryScope,
-      "The max-age in ms of cookies that set PageSpeed options.");
 
   // Test-only, so no enum.
   AddRequestProperty(
@@ -3028,7 +2962,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName1(
   } else if (StringCaseEqual(name, kRetainComment)) {
     RetainComment(arg);
   } else if (StringCaseEqual(name, kBlockingRewriteRefererUrls)) {
-    EnableBlockingRewriteForRefererUrlPattern(arg);
+      EnableBlockingRewriteForRefererUrlPattern(arg);
   } else {
     result = RewriteOptions::kOptionNameUnknown;
   }
@@ -3230,7 +3164,7 @@ bool RewriteOptions::ParseFromString(StringPiece value_string,
 bool RewriteOptions::ParseFromString(
     StringPiece value_string,
     protobuf::MessageLite* proto) {
-  return ParseProtoFromStringPiece(value_string, proto);
+  return proto->ParseFromString(value_string.as_string());
 }
 
 bool RewriteOptions::Enabled(Filter filter) const {
@@ -3698,9 +3632,7 @@ void RewriteOptions::ComputeSignature() {
   signature_ = IntegerToString(kOptionsVersion);
   for (int i = kFirstFilter; i != kEndOfFilters; ++i) {
     Filter filter = static_cast<Filter>(i);
-    // Ignore the debug filter when computing signatures.  Note that we still
-    // must have kDebug be considered in IsEqual though.
-    if ((filter != kDebug) && Enabled(filter)) {
+    if (Enabled(filter)) {
       StrAppend(&signature_, "_", FilterId(filter));
     }
   }
@@ -3762,12 +3694,6 @@ bool RewriteOptions::IsEqual(const RewriteOptions& that) const {
   DCHECK(frozen_);
   DCHECK(that.frozen_);
   if (signature() != that.signature()) {
-    return false;
-  }
-
-  // kDebug is excluded from the signature but we better not exclude it
-  // from IsEqual.
-  if (Enabled(kDebug) != that.Enabled(kDebug)) {
     return false;
   }
 
@@ -4086,13 +4012,14 @@ bool RewriteOptions::SetupExperimentRewriters() {
 
   set_experiment_ga_slot(spec->slot());
 
-  // 'default' means keep the current filters, otherwise clear them -and- set
-  // the level. Note that we cannot set the level if 'default' is on because
-  // the default level is PassThrough which breaks the idea of 'default'.
-  if (!spec->use_default()) {
-    ClearFilters();
-    SetRewriteLevel(spec->rewrite_level());
+  if (spec->use_default()) {
+    // We need these for the experiment to work properly.
+    SetRequiredExperimentFilters();
+    return true;
   }
+
+  ClearFilters();
+  SetRewriteLevel(spec->rewrite_level());
   EnableFilters(spec->enabled_filters());
   DisableFilters(spec->disabled_filters());
   // spec doesn't specify forbidden filters so no need to call ForbidFilters().

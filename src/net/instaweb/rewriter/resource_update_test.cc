@@ -32,7 +32,6 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
@@ -88,7 +87,7 @@ class ResourceUpdateTest : public RewriteContextTestBase {
 
     // Check that hash code is correct.
     ResourceNamer namer;
-    rewrite_driver()->Decode(url, &namer);
+    namer.Decode(url);
     EXPECT_EQ(hasher()->Hash(contents), namer.hash());
 
     return contents;

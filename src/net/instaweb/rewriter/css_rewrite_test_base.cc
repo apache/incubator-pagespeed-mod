@@ -39,7 +39,9 @@ CssRewriteTestBase::~CssRewriteTestBase() {}
 
 // Check that inline CSS gets rewritten correctly.
 bool CssRewriteTestBase::ValidateRewriteInlineCss(
-    StringPiece id, StringPiece css_input, StringPiece expected_css_output,
+    const StringPiece& id,
+    const StringPiece& css_input,
+    const StringPiece& expected_css_output,
     int flags) {
   static const char prefix[] =
       "<head>\n"
@@ -63,25 +65,25 @@ bool CssRewriteTestBase::ValidateRewriteInlineCss(
 }
 
 void CssRewriteTestBase::ResetStats() {
-  num_blocks_rewritten_->Clear();
-  num_fallback_rewrites_->Clear();
-  num_parse_failures_->Clear();
-  num_rewrites_dropped_->Clear();
-  total_bytes_saved_->Clear();
-  total_original_bytes_->Clear();
-  num_uses_->Clear();
-  num_flatten_imports_charset_mismatch_->Clear();
-  num_flatten_imports_invalid_url_->Clear();
-  num_flatten_imports_limit_exceeded_->Clear();
-  num_flatten_imports_minify_failed_->Clear();
-  num_flatten_imports_recursion_->Clear();
-  num_flatten_imports_complex_queries_->Clear();
+  num_blocks_rewritten_->Set(0);
+  num_fallback_rewrites_->Set(0);
+  num_parse_failures_->Set(0);
+  num_rewrites_dropped_->Set(0);
+  total_bytes_saved_->Set(0);
+  total_original_bytes_->Set(0);
+  num_uses_->Set(0);
+  num_flatten_imports_charset_mismatch_->Set(0);
+  num_flatten_imports_invalid_url_->Set(0);
+  num_flatten_imports_limit_exceeded_->Set(0);
+  num_flatten_imports_minify_failed_->Set(0);
+  num_flatten_imports_recursion_->Set(0);
+  num_flatten_imports_complex_queries_->Set(0);
 }
 
 bool CssRewriteTestBase::ValidateWithStats(
-    StringPiece id,
-    StringPiece html_input, StringPiece expected_html_output,
-    StringPiece css_input, StringPiece expected_css_output,
+    const StringPiece& id,
+    const GoogleString& html_input, const GoogleString& expected_html_output,
+    const StringPiece& css_input, const StringPiece& expected_css_output,
     int flags) {
   ResetStats();
 
@@ -162,8 +164,8 @@ bool CssRewriteTestBase::ValidateWithStats(
   return success;
 }
 
-void CssRewriteTestBase::GetNamerForCss(StringPiece leaf_name,
-                                        StringPiece expected_css_output,
+void CssRewriteTestBase::GetNamerForCss(const StringPiece& leaf_name,
+                                        const GoogleString& expected_css_output,
                                         ResourceNamer* namer) {
   namer->set_id(RewriteOptions::kCssFilterId);
   namer->set_hash(hasher()->Hash(expected_css_output));
@@ -177,14 +179,15 @@ GoogleString CssRewriteTestBase::ExpectedUrlForNamer(
 }
 
 GoogleString CssRewriteTestBase::ExpectedUrlForCss(
-    StringPiece id, StringPiece expected_css_output) {
+    const StringPiece& id,
+    const GoogleString& expected_css_output) {
   ResourceNamer namer;
   GetNamerForCss(StrCat(id, ".css"), expected_css_output, &namer);
   return ExpectedUrlForNamer(namer);
 }
 
 GoogleString CssRewriteTestBase::MakeHtmlWithExternalCssLink(
-    StringPiece css_url, int flags) {
+    const StringPiece& css_url, int flags) {
   GoogleString link_extras("");
   if (FlagSet(flags, kLinkCharsetIsUTF8)) {
     link_extras = " charset='utf-8'";
@@ -243,7 +246,7 @@ GoogleString CssRewriteTestBase::MakeMinifiedCssWithImage(
 }
 
 GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
-    StringPiece in_css) {
+    const GoogleString &in_css) {
   const char css_template[] = "*{background-image:url(*)}*";
   GoogleString image_url;
   if (!Wildcard(css_template).Match(in_css)) {
@@ -263,8 +266,11 @@ GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
 
 // Check that external CSS gets rewritten correctly.
 void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
-    StringPiece id, StringPiece css_url,
-    StringPiece css_input, StringPiece expected_css_output, int flags) {
+    const StringPiece& id,
+    const StringPiece& css_url,
+    const GoogleString& css_input,
+    const GoogleString& expected_css_output,
+    int flags) {
   CheckFlags(flags);
 
   // Set input file.

@@ -58,7 +58,6 @@ class RewriteContext;
 class RewriteDriver;
 class RewriteDomainTransformer;
 class Statistics;
-class UpDownCounter;
 class UrlSegmentEncoder;
 class Variable;
 
@@ -219,7 +218,7 @@ class CssFilter : public RewriteFilter {
   // from @import flattening).
   // TODO(sligocki): This should consider the input size to be the input sizes
   // of all CSS files flattened into this one. Currently it does not.
-  UpDownCounter* total_bytes_saved_;
+  Variable* total_bytes_saved_;
   // Sum of original bytes of all successfully rewritten CSS blocks.
   // total_bytes_saved_ / total_original_bytes_ should be the
   // average percentage reduction of CSS block size.

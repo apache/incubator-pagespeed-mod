@@ -276,7 +276,7 @@ void ImageUrlEncoder::SetLibWebpLevel(
 
 bool ImageUrlEncoder::IsWebpRewrittenUrl(const GoogleUrl& gurl) {
   ResourceNamer namer;
-  if (!namer.DecodeIgnoreHashAndSignature(gurl.LeafSansQuery())) {
+  if (!namer.Decode(gurl.LeafSansQuery())) {
     return false;
   }
 

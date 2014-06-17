@@ -56,7 +56,7 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
     // experiment_spec, make sure the custom options have that experiment
     // selected.
     ResourceNamer namer;
-    namer.DecodeIgnoreHashAndSignature(url.LeafSansQuery());
+    namer.Decode(url.LeafSansQuery());
     if (namer.has_experiment()) {
       if (*custom_options == NULL) {
         *custom_options = active_options->Clone();

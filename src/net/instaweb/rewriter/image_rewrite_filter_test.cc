@@ -374,8 +374,7 @@ class ImageRewriteTest : public RewriteTestBase {
         "kEenp/8oyIBf2ZEWaEfyv8BsICdAZ/XeTCAAAAAElFTkSuQmCC";
     GoogleString cuppa_string(kCuppaData);
     ResourcePtr cuppa_resource(
-        rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-            cuppa_string));
+        rewrite_driver()->CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(cuppa_resource.get() != NULL);
     EXPECT_TRUE(ReadIfCached(cuppa_resource));
     GoogleString cuppa_contents;
@@ -383,8 +382,7 @@ class ImageRewriteTest : public RewriteTestBase {
     // Now make sure axing the original cuppa_string doesn't affect the
     // internals of the cuppa_resource.
     ResourcePtr other_resource(
-        rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-            cuppa_string));
+        rewrite_driver()->CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(other_resource.get() != NULL);
     cuppa_string.clear();
     EXPECT_TRUE(ReadIfCached(other_resource));
@@ -2382,8 +2380,8 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
 
   // Set the current # of rewrites very high, so we stop doing more
   // due to "load".
-  UpDownCounter* ongoing_rewrites =
-      statistics()->GetUpDownCounter(ImageRewriteFilter::kImageOngoingRewrites);
+  Variable* ongoing_rewrites =
+      statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
   ongoing_rewrites->Set(100);
 
   // If the nested context is too busy, we don't want the parent to partially
@@ -2634,9 +2632,8 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -2759,9 +2756,8 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -2906,9 +2902,8 @@ TEST_F(ImageRewriteTest, JpegProgressiveScansForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -3099,7 +3094,7 @@ TEST_F(ImageRewriteTest, RewriteImagesAddingOptionsToUrl) {
   GoogleUrl img_gurl(html_gurl(), img_src);
   EXPECT_STREQ("", img_gurl.Query());
   ResourceNamer namer;
-  EXPECT_TRUE(rewrite_driver()->Decode(img_gurl.LeafSansQuery(), &namer));
+  EXPECT_TRUE(namer.Decode(img_gurl.LeafSansQuery()));
   EXPECT_STREQ("gp+jw+pj+rj+rp+rw+iq=73", namer.options());
 
   // Serve this from rewrite_driver(), which has the same cache & the
@@ -3234,8 +3229,8 @@ TEST_F(ImageRewriteTest, TooBusyReturnsOriginalResource) {
 
   // Set the current # of rewrites very high, so we stop doing more rewrites
   // due to "load".
-  UpDownCounter* ongoing_rewrites =
-      statistics()->GetUpDownCounter(ImageRewriteFilter::kImageOngoingRewrites);
+  Variable* ongoing_rewrites =
+      statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
   ongoing_rewrites->Set(100);
 
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
@@ -3426,25 +3421,6 @@ TEST_F(ImageRewriteTest, IproCorrectVaryHeaders) {
       response_headers.DetermineContentType()->mime_type();
   EXPECT_FALSE(response_headers.Has(HttpAttributes::kVary)) <<
       response_headers.Lookup1(HttpAttributes::kVary);
-}
-
-TEST_F(ImageRewriteTest, NoTransformOptimized) {
-  options()->set_no_transform_optimized_images(true);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  GoogleString initial_url = StrCat(kTestDomain, kBikePngFile);
-  AddFileToMockFetcher(initial_url, kBikePngFile, kContentTypePng, 100);
-  GoogleString out_jpg_url(Encode(kTestDomain, "ic", "0", kBikePngFile, "jpg"));
-  GoogleString out_jpg;
-  ResponseHeaders response_headers;
-  EXPECT_TRUE(FetchResourceUrl(out_jpg_url, &out_jpg, &response_headers));
-  ConstStringStarVector values;
-  ASSERT_TRUE(response_headers.Lookup(HttpAttributes::kCacheControl, &values));
-  bool found = false;
-  for (int i = 0, n = values.size(); i < n; ++i) {
-    found |= *(values[i]) == "no-transform";
-  }
-  EXPECT_TRUE(found);
 }
 
 }  // namespace net_instaweb

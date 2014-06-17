@@ -132,6 +132,7 @@ const char kMessagePatternShrinkImage[] = "*Shrinking image*";
 
 RewriteTestBase::RewriteTestBase()
     : test_distributed_fetcher_(this),
+      statistics_(new SimpleStats()),
       factory_(new TestRewriteDriverFactory(rewrite_test_base_process_context,
                                             GTestTempDir(),
                                             &mock_url_fetcher_,
@@ -146,7 +147,6 @@ RewriteTestBase::RewriteTestBase()
       other_options_(other_factory_->NewRewriteOptions()),
       kEtag0(HTTPCache::FormatEtag("0")),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -173,13 +173,13 @@ RewriteTestBase::RewriteTestBase(Statistics* statistics)
 RewriteTestBase::RewriteTestBase(
     std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*> factories)
     : test_distributed_fetcher_(this),
+      statistics_(new SimpleStats()),
       factory_(factories.first),
       other_factory_(factories.second),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -311,7 +311,7 @@ void RewriteTestBase::PopulateDefaultHeaders(
   // Reset mock timer so synthetic headers match original.  This temporarily
   // fakes out the mock_scheduler, but we will repair the damage below.
   AdjustTimeUsWithoutWakingAlarms(start_time_ms() * Timer::kMsUs);
-  SetDefaultLongCacheHeaders(&content_type, headers);
+  server_context_->SetDefaultLongCacheHeaders(&content_type, headers);
   // Then set it back.  Note that no alarms should fire at this point
   // because alarms work on absolute time.
   AdjustTimeUsWithoutWakingAlarms(time);
@@ -370,7 +370,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
     const GoogleString& resource_url,
     const StringPiece& expected_content) {
   // New objects for the new server.
-  SimpleStats stats(factory_->thread_system());
+  SimpleStats stats;
   scoped_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
   TestRewriteDriverFactory::InitStats(&stats);
   new_factory->SetUseTestUrlNamer(factory_->use_test_url_namer());
@@ -566,7 +566,7 @@ void RewriteTestBase::TestServeFiles(
   // When we start, there are no mock fetchers, so we'll need to get it
   // from the cache.
   ResponseHeaders headers;
-  SetDefaultLongCacheHeaders(content_type, &headers);
+  server_context_->SetDefaultLongCacheHeaders(content_type, &headers);
   HTTPCache* http_cache = server_context_->http_cache();
   http_cache->Put(expected_rewritten_path, rewrite_driver_->CacheFragment(),
                   RequestHeaders::Properties(),
@@ -634,7 +634,7 @@ bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
   if (gurl.IsWebValid()) {
     gurl.AllExceptLeaf().CopyToString(base);
     ResourceNamer namer;
-    if (namer.DecodeIgnoreHashAndSignature(gurl.LeafWithQuery()) &&
+    if (namer.Decode(gurl.LeafWithQuery()) &&
         (namer.id() == RewriteOptions::kCssCombinerId)) {
       UrlMultipartEncoder multipart_encoder;
       GoogleString segment;
@@ -789,7 +789,7 @@ GoogleString RewriteTestBase::EncodeWithBase(
 GoogleString RewriteTestBase::AddOptionsToEncodedUrl(
     const StringPiece& url, const StringPiece& options) {
   ResourceNamer namer;
-  CHECK(rewrite_driver()->Decode(url, &namer));
+  CHECK(namer.Decode(url));
   namer.set_options(options);
   return namer.Encode();
 }
@@ -1273,10 +1273,6 @@ GoogleString RewriteTestBase::ExpectedNonce() {
 
 const ProcessContext& RewriteTestBase::process_context() {
   return rewrite_test_base_process_context;
-}
-
-int RewriteTestBase::TimedValue(StringPiece name) {
-  return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
 }
 
 }  // namespace net_instaweb

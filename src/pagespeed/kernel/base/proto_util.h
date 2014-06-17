@@ -18,7 +18,6 @@
 #define PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
@@ -37,12 +36,6 @@ namespace protobuf {
 using namespace google::protobuf;  // NOLINT
 
 }  // namespace protobuf
-
-inline bool ParseProtoFromStringPiece(
-    StringPiece sp, protobuf::MessageLite* proto) {
-  return proto->ParseFromString(sp.as_string());
-}
-
 }  // namespace net_instaweb
 
 

@@ -124,16 +124,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
     AccumulateCombinedSize(resource);
 
     resources_.push_back(resource);
-    const char* failure_reason = NULL;
-    if (ContentSizeTooBig()) {
-      failure_reason = "combined contents too big.";
-    } else if (UrlTooBig()) {
-      failure_reason = "combined url too long.";
-    }
-    if (failure_reason != NULL) {
-      handler->Message(
-          kInfo, "Cannot combine %s: %s",
-          resource->url().c_str(), failure_reason);
+    if (ContentSizeTooBig() || UrlTooBig()) {
+      // TODO(ksimbili) : Propagate the correct reason-string to the caller.
+      handler->Message(kInfo, "Cannot combine: contents/url size too big");
       RemoveLastResource();
       added = false;
     }
@@ -266,9 +259,9 @@ bool ResourceCombiner::WriteCombination(
     DCHECK_EQ(0, output_headers->NumAttributes());
 
     // We don't copy over all the resources from [0] because we don't
-    // want the input cache-control.  The output cache-control is set via
+    // want the input cache-control.  The output cache-control via
     // RewriteDriver::Write when it calls
-    // RewriteDriver::SetDefaultLongCacheHeaders.
+    // ServerContext::SetDefaultLongCacheHeadersWithCharset.
     server_context_->MergeNonCachingResponseHeaders(
         *combine_resources[0]->response_headers(), output_headers);
     for (int i = 1, n = combine_resources.size(); i < n; ++i) {
