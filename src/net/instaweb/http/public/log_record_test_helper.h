@@ -21,10 +21,10 @@
 
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/log_record.h"
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/rewriter/image_types.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/gmock.h"
+#include "net/instaweb/util/public/string.h"
 
 using ::testing::_;
 using ::testing::Matcher;

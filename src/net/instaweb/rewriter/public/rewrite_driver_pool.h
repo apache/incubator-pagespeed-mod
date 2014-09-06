@@ -21,7 +21,7 @@
 
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
